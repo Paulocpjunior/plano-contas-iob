@@ -1,0 +1,15 @@
+{
+  "name": "plano-contas-iob",
+  "version": "3.0.0",
+  "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "@google-cloud/firestore": "^7.10.0",
+    "firebase-admin": "^12.7.0"
+  }
+}

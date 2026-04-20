@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — Plano de Contas IOB</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="/api-adapter.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; color: #111827; padding: 24px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb; }
+  .header h1 { font-size: 24px; color: #111827; }
+  .header .user-info { font-size: 14px; color: #6b7280; }
+  .header .user-info strong { color: #059669; }
+  .header button { background: #ef4444; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .header a { color: #059669; text-decoration: none; margin-right: 16px; font-size: 14px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #e5e7eb; }
+  .tabs button { background: transparent; border: none; padding: 12px 20px; cursor: pointer; font-size: 14px; color: #6b7280; border-bottom: 3px solid transparent; margin-bottom: -1px; font-weight: 500; }
+  .tabs button.active { color: #059669; border-bottom-color: #059669; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .card { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+  .summary-card { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; padding: 20px; border-radius: 8px; }
+  .summary-card.blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+  .summary-card.orange { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+  .summary-card.purple { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+  .summary-card .label { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
+  .summary-card .value { font-size: 32px; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 12px; background: #f9fafb; color: #374151; font-weight: 600; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; }
+  td { padding: 12px; border-bottom: 1px solid #f3f4f6; }
+  tr:hover { background: #f9fafb; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-admin { background: #fef3c7; color: #92400e; }
+  .badge-user { background: #dbeafe; color: #1e40af; }
+  .badge-login { background: #d1fae5; color: #065f46; }
+  .badge-logout { background: #fee2e2; color: #991b1b; }
+  .filters { display: flex; gap: 12px; margin-bottom: 16px; align-items: end; flex-wrap: wrap; }
+  .filters label { display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+  .filters input, .filters select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+  .btn { padding: 8px 16px; background: #059669; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; }
+  .btn-promote { background: #10b981; color: #fff; }
+  .btn-demote { background: #ef4444; color: #fff; }
+  .loading { text-align: center; padding: 40px; color: #6b7280; }
+  .error { background: #fee2e2; color: #991b1b; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+  .login-box { max-width: 400px; margin: 60px auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .login-box h2 { margin-bottom: 16px; color: #111827; }
+  .login-box input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; margin-bottom: 12px; font-size: 14px; }
+  .login-box button { width: 100%; padding: 12px; background: #059669; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .login-box .err { color: #dc2626; font-size: 13px; margin-top: 8px; }
+  .hidden { display: none !important; }
+  .empty { text-align: center; padding: 40px; color: #9ca3af; }
+  .text-mono { font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 12px; }
+  input[type="search"] { min-width: 240px; }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login-box hidden">
+  <h2>Área Administrativa</h2>
+  <input type="email" id="loginEmail" placeholder="Email @spassessoriacontabil.com.br">
+  <input type="password" id="loginPass" placeholder="Senha">
+  <button onclick="doLogin()">Entrar</button>
+  <div id="loginErr" class="err"></div>
+</div>
+
+<div id="blockedView" class="login-box hidden">
+  <h2>⛔ Acesso negado</h2>
+  <p style="color:#6b7280;font-size:14px;line-height:1.6">Você está autenticado como <strong id="blockedEmail"></strong> mas esta conta não tem permissão de administrador.</p>
+  <button style="margin-top:16px" onclick="firebase.auth().signOut().then(()=>location.reload())">Sair</button>
+</div>
+
+<div id="adminView" class="container hidden">
+  <div class="header">
+    <h1>👑 Painel Admin — Plano de Contas IOB</h1>
+    <div>
+      <a href="/">← Voltar ao App</a>
+      <span class="user-info">Logado como <strong id="currentEmail"></strong></span>
+      <button onclick="firebase.auth().signOut().then(()=>location.reload())" style="margin-left:12px">Sair</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="active" onclick="showTab('resumo')">📊 Resumo</button>
+    <button onclick="showTab('usuarios')">👥 Usuários</button>
+    <button onclick="showTab('logs')">📜 Log de Acesso</button>
+  </div>
+
+  <div id="tab-resumo" class="tab-content active">
+    <div class="card">
+      <div id="summaryContent" class="loading">Carregando…</div>
+    </div>
+  </div>
+
+  <div id="tab-usuarios" class="tab-content">
+    <div class="card">
+      <div class="filters">
+        <div>
+          <label>Buscar por email</label>
+          <input type="search" id="userSearch" placeholder="nome@spassessoriacontabil.com.br" oninput="renderUsers()">
+        </div>
+        <div>
+          <label>Filtrar</label>
+          <select id="userFilter" onchange="renderUsers()">
+            <option value="todos">Todos</option>
+            <option value="admin">Apenas admins</option>
+            <option value="user">Apenas usuários</option>
+          </select>
+        </div>
+        <div style="margin-left:auto">
+          <button class="btn" onclick="loadUsers()">🔄 Atualizar</button>
+        </div>
+      </div>
+      <div id="usersContent" class="loading">Carregando…</div>
+    </div>
+  </div>
+
+  <div id="tab-logs" class="tab-content">
+    <div class="card">
+      <div class="filters">
+        <div>
+          <label>Buscar por email</label>
+          <input type="search" id="logEmail" placeholder="filtrar por email exato">
+        </div>
+        <div>
+          <label>Evento</label>
+          <select id="logEvent">
+            <option value="">Todos</option>
+            <option value="login">Login</option>
+            <option value="logout">Logout</option>
+            <option value="signup">Signup</option>
+          </select>
+        </div>
+        <div>
+          <label>Limite</label>
+          <select id="logLimit">
+            <option value="100">100</option>
+            <option value="200" selected>200</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </div>
+        <div>
+          <button class="btn" onclick="loadLogs()">🔍 Aplicar</button>
+        </div>
+        <div>
+          <button class="btn" style="background:#6b7280" onclick="exportLogsCSV()">📥 CSV</button>
+        </div>
+      </div>
+      <div id="logsContent" class="loading">Carregando…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCQC3uBKSIr2zYEbQHe82B9g-GSt3837PY",
+  authDomain: "projetos-app-sp.firebaseapp.com",
+  projectId: "projetos-app-sp"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+let currentUsers = [];
+let currentLogs = [];
+
+function fmtDate(ts) {
+  if (!ts) return '-';
+  const d = ts._seconds ? new Date(ts._seconds * 1000) : (ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts));
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtRelative(ts) {
+  if (!ts) return '-';
+  const d = ts._seconds ? new Date(ts._seconds * 1000) : (ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts));
+  if (isNaN(d.getTime())) return '-';
+  const diff = Date.now() - d.getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'agora';
+  if (m < 60) return m + ' min atrás';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h atrás';
+  const dias = Math.floor(h / 24);
+  if (dias < 30) return dias + 'd atrás';
+  return fmtDate(ts);
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  document.getElementById('loginErr').textContent = '';
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch (e) {
+    document.getElementById('loginErr').textContent = e.message;
+  }
+}
+
+auth.onAuthStateChanged(async u => {
+  if (!u) {
+    document.getElementById('loginView').classList.remove('hidden');
+    document.getElementById('adminView').classList.add('hidden');
+    document.getElementById('blockedView').classList.add('hidden');
+    return;
+  }
+  // Check is_admin
+  const me = await window.API.me();
+  if (!me || !me.is_admin) {
+    document.getElementById('loginView').classList.add('hidden');
+    document.getElementById('adminView').classList.add('hidden');
+    document.getElementById('blockedView').classList.remove('hidden');
+    document.getElementById('blockedEmail').textContent = u.email;
+    return;
+  }
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('blockedView').classList.add('hidden');
+  document.getElementById('adminView').classList.remove('hidden');
+  document.getElementById('currentEmail').textContent = u.email;
+  loadSummary();
+  loadUsers();
+  loadLogs();
+});
+
+function showTab(tab) {
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+async function loadSummary() {
+  const el = document.getElementById('summaryContent');
+  el.innerHTML = '<div class="loading">Carregando…</div>';
+  try {
+    const data = await window.API.getAdminSummary();
+    if (data.erro) { el.innerHTML = '<div class="error">Erro: ' + data.erro + '</div>'; return; }
+    el.innerHTML = `
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="label">Total de usuários</div>
+          <div class="value">${data.total_users}</div>
+        </div>
+        <div class="summary-card orange">
+          <div class="label">Administradores</div>
+          <div class="value">${data.admins}</div>
+        </div>
+        <div class="summary-card blue">
+          <div class="label">Logins nas últimas 24h</div>
+          <div class="value">${data.logins_24h}</div>
+        </div>
+        <div class="summary-card purple">
+          <div class="label">Logs analisados</div>
+          <div class="value">${data.logs_amostrados}</div>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    el.innerHTML = '<div class="error">Erro ao carregar resumo: ' + e.message + '</div>';
+  }
+}
+
+async function loadUsers() {
+  const el = document.getElementById('usersContent');
+  el.innerHTML = '<div class="loading">Carregando…</div>';
+  try {
+    const data = await window.API.listarUsuarios();
+    if (data.erro) { el.innerHTML = '<div class="error">Erro: ' + data.erro + '</div>'; return; }
+    currentUsers = data;
+    renderUsers();
+  } catch (e) {
+    el.innerHTML = '<div class="error">Erro ao carregar usuários: ' + e.message + '</div>';
+  }
+}
+
+function renderUsers() {
+  const search = (document.getElementById('userSearch').value || '').toLowerCase();
+  const filter = document.getElementById('userFilter').value;
+  let list = currentUsers.slice();
+  if (search) list = list.filter(u => (u.last_email || u.email || '').toLowerCase().includes(search));
+  if (filter === 'admin') list = list.filter(u => u.is_admin === true);
+  if (filter === 'user') list = list.filter(u => u.is_admin !== true);
+  const el = document.getElementById('usersContent');
+  if (list.length === 0) { el.innerHTML = '<div class="empty">Nenhum usuário encontrado.</div>'; return; }
+  let h = '<table><thead><tr><th>Email</th><th>Status</th><th>Cadastrado em</th><th>Último login</th><th>Total logins</th><th>UID</th><th>Ação</th></tr></thead><tbody>';
+  list.forEach(u => {
+    const email = u.last_email || u.email || '—';
+    const badge = u.is_admin ? '<span class="badge badge-admin">Admin</span>' : '<span class="badge badge-user">Usuário</span>';
+    const actionBtn = u.is_admin
+      ? `<button class="btn-sm btn-demote" onclick="demote('${u.uid}', '${email}')">Remover admin</button>`
+      : `<button class="btn-sm btn-promote" onclick="promote('${u.uid}', '${email}')">Promover</button>`;
+    h += `<tr>
+      <td>${email}</td>
+      <td>${badge}</td>
+      <td>${fmtDate(u.created_at)}</td>
+      <td>${fmtRelative(u.last_login_at)}</td>
+      <td>${u.login_count || 0}</td>
+      <td class="text-mono">${u.uid.slice(0, 12)}…</td>
+      <td>${actionBtn}</td>
+    </tr>`;
+  });
+  h += '</tbody></table>';
+  el.innerHTML = h;
+}
+
+async function promote(uid, email) {
+  if (!confirm('Promover ' + email + ' a administrador?')) return;
+  try {
+    await window.API.promoverAdmin(uid);
+    loadUsers();
+  } catch (e) { alert('Erro: ' + e.message); }
+}
+
+async function demote(uid, email) {
+  if (!confirm('Remover privilégio de admin de ' + email + '?')) return;
+  try {
+    const r = await window.API.despromoverAdmin(uid);
+    if (r.erro) { alert('Erro: ' + r.erro); return; }
+    loadUsers();
+  } catch (e) { alert('Erro: ' + e.message); }
+}
+
+async function loadLogs() {
+  const email = document.getElementById('logEmail').value.trim();
+  const event = document.getElementById('logEvent').value;
+  const limit = document.getElementById('logLimit').value;
+  const el = document.getElementById('logsContent');
+  el.innerHTML = '<div class="loading">Carregando…</div>';
+  try {
+    const params = { limit };
+    if (email) params.email = email;
+    if (event) params.event = event;
+    const data = await window.API.listarAccessLogs(params);
+    if (data.erro) { el.innerHTML = '<div class="error">Erro: ' + data.erro + '</div>'; return; }
+    currentLogs = data;
+    renderLogs();
+  } catch (e) {
+    el.innerHTML = '<div class="error">Erro ao carregar logs: ' + e.message + '</div>';
+  }
+}
+
+function renderLogs() {
+  const el = document.getElementById('logsContent');
+  if (currentLogs.length === 0) { el.innerHTML = '<div class="empty">Nenhum log encontrado.</div>'; return; }
+  let h = '<table><thead><tr><th>Quando</th><th>Email</th><th>Evento</th><th>IP</th><th>Navegador</th></tr></thead><tbody>';
+  currentLogs.forEach(log => {
+    const evClass = log.event === 'login' ? 'badge-login' : (log.event === 'logout' ? 'badge-logout' : 'badge-user');
+    const ua = (log.user_agent || '').slice(0, 60);
+    h += `<tr>
+      <td>${fmtDate(log.timestamp)}<br><span style="font-size:11px;color:#9ca3af">${fmtRelative(log.timestamp)}</span></td>
+      <td>${log.email || '—'}</td>
+      <td><span class="badge ${evClass}">${log.event || 'login'}</span></td>
+      <td class="text-mono">${log.ip || '—'}</td>
+      <td style="font-size:11px;color:#6b7280" title="${log.user_agent || ''}">${ua}</td>
+    </tr>`;
+  });
+  h += '</tbody></table>';
+  el.innerHTML = h;
+}
+
+function exportLogsCSV() {
+  if (currentLogs.length === 0) { alert('Nenhum log carregado'); return; }
+  const rows = [['Data/Hora', 'Email', 'Evento', 'IP', 'User Agent']];
+  currentLogs.forEach(l => {
+    rows.push([fmtDate(l.timestamp), l.email || '', l.event || '', l.ip || '', (l.user_agent || '').replace(/"/g, '""')]);
+  });
+  const csv = '\uFEFF' + rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(';')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'access_logs_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+}
+</script>
+</body>
+</html>

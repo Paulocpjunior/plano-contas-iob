@@ -1,0 +1,203 @@
+const express = require('express');
+const { Firestore } = require('@google-cloud/firestore');
+const admin = require('firebase-admin');
+const path = require('path');
+
+const app = express();
+const PORT = process.env.PORT || 8080;
+const db = new Firestore();
+admin.initializeApp({ projectId: 'projetos-app-sp' });
+const adminAuth = admin.auth();
+const DOMAIN = '@spassessoriacontabil.com.br';
+
+app.use(express.json({ limit: '5mb' }));
+
+app.get('/api/health', async (req, res) => {
+  try {
+    const test = await db.collection('planos').limit(1).get();
+    res.json({ status: 'ok', versao: '4.0-colaborativo', firestore: 'connected', planos_existem: test.size > 0 });
+  } catch (err) { res.status(500).json({ status: 'erro', erro: err.message }); }
+});
+
+async function authRequired(req, res, next) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ erro: 'Token ausente. Faca login no app.' });
+  try {
+    const decoded = await adminAuth.verifyIdToken(token);
+    if (!decoded.email || !decoded.email.endsWith(DOMAIN)) return res.status(403).json({ erro: 'Dominio nao autorizado' });
+    const userDoc = await db.collection('users').doc(decoded.uid).get();
+    req.user = { uid: decoded.uid, email: decoded.email, is_admin: userDoc.exists && userDoc.data().is_admin === true };
+    next();
+  } catch (err) { return res.status(401).json({ erro: 'Token invalido', detalhe: err.message }); }
+}
+
+function adminRequired(req, res, next) {
+  if (!req.user || !req.user.is_admin) return res.status(403).json({ erro: 'Requer admin' });
+  next();
+}
+
+app.use('/api', authRequired);
+app.get('/api/me', (req, res) => res.json(req.user));
+
+app.post('/api/validar', async (req, res) => {
+  try {
+    const { cnpj, conta_cod, valor } = req.body;
+    const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
+    if (!cnpjLimpo || !conta_cod) return res.status(400).json({ aprovado: false, motivo: 'Campos obrigatorios' });
+    const empresaDoc = await db.collection('empresas').doc(cnpjLimpo).get();
+    if (!empresaDoc.exists) {
+      const logId = await registrarLog(cnpjLimpo, conta_cod, false, 'CNPJ nao cadastrado', req.user, valor);
+      return res.json({ aprovado: false, motivo: 'CNPJ ' + cnpj + ' nao esta cadastrado', log_id: logId });
+    }
+    const empresa = empresaDoc.data();
+    if (empresa.ativo === false) {
+      const logId = await registrarLog(cnpjLimpo, conta_cod, false, 'Empresa inativa', req.user, valor);
+      return res.json({ aprovado: false, motivo: 'Empresa inativa', log_id: logId });
+    }
+    const contasRef = db.collection('planos').doc(empresa.plano_id).collection('contas');
+    const contaSnap = await contasRef.where('cod', '==', conta_cod).limit(1).get();
+    if (contaSnap.empty) {
+      const logId = await registrarLog(cnpjLimpo, conta_cod, false, 'Conta nao pertence ao plano ' + empresa.plano_id, req.user, valor);
+      return res.json({ aprovado: false, motivo: 'Conta ' + conta_cod + ' nao pertence ao plano ' + empresa.plano_id, plano_id: empresa.plano_id, empresa: empresa.razao_social, log_id: logId });
+    }
+    const conta = contaSnap.docs[0].data();
+    if (conta.analitica === false) {
+      const logId = await registrarLog(cnpjLimpo, conta_cod, false, 'Conta sintetica', req.user, valor);
+      return res.json({ aprovado: false, motivo: 'Conta sintetica', log_id: logId });
+    }
+    const logId = await registrarLog(cnpjLimpo, conta_cod, true, 'OK', req.user, valor);
+    res.json({ aprovado: true, motivo: 'OK', empresa: empresa.razao_social, plano_id: empresa.plano_id, conta: { cod: conta.cod, desc: conta.desc }, log_id: logId });
+  } catch (err) { res.status(500).json({ aprovado: false, motivo: 'Erro interno', erro: err.message }); }
+});
+
+async function registrarLog(cnpj, conta_cod, aprovado, motivo, user, valor) {
+  const ref = await db.collection('logs_validacao').add({ timestamp: new Date(), cnpj, conta_cod, aprovado, motivo, usuario_uid: user.uid, usuario_email: user.email, valor: valor || null });
+  return ref.id;
+}
+
+// PLANOS - COLABORATIVO (todos veem, todos criam/editam, so admin deleta)
+app.get('/api/planos', async (req, res) => {
+  try { const snap = await db.collection('planos').get(); res.json(snap.docs.map(d => ({ id: d.id, ...d.data() }))); }
+  catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.post('/api/planos', async (req, res) => {
+  try {
+    const { id, codigo, nome, tipo, base } = req.body;
+    if (!id || !codigo || !nome) return res.status(400).json({ erro: 'id, codigo, nome obrigatorios' });
+    const existente = await db.collection('planos').doc(id).get();
+    if (existente.exists) return res.status(409).json({ erro: 'Plano ja existe' });
+    await db.collection('planos').doc(id).set({ codigo, nome, tipo: tipo || 'custom', base: base || '5G0001', global: true, owner_uid: null, ativo: true, created_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
+    res.status(201).json({ id, codigo, nome });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.get('/api/planos/:id/contas', async (req, res) => {
+  try {
+    const planoDoc = await db.collection('planos').doc(req.params.id).get();
+    if (!planoDoc.exists) return res.status(404).json({ erro: 'Plano nao encontrado' });
+    const snap = await db.collection('planos').doc(req.params.id).collection('contas').orderBy('cod').get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.post('/api/planos/:id/contas', async (req, res) => {
+  try {
+    const { cod, desc, analitica, ref_rfb } = req.body;
+    if (!cod || !desc) return res.status(400).json({ erro: 'cod e desc obrigatorios' });
+    const ref = await db.collection('planos').doc(req.params.id).collection('contas').add({ cod, desc, analitica: analitica !== false, ref_rfb: ref_rfb || null, created_by: req.user.uid });
+    res.status(201).json({ id: ref.id, cod, desc });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.delete('/api/planos/:id', adminRequired, async (req, res) => {
+  try {
+    const planoRef = db.collection('planos').doc(req.params.id);
+    const planoDoc = await planoRef.get();
+    if (!planoDoc.exists) return res.status(404).json({ erro: 'Plano nao encontrado' });
+    const contasSnap = await planoRef.collection('contas').get();
+    const batch = db.batch();
+    contasSnap.docs.forEach(d => batch.delete(d.ref));
+    batch.delete(planoRef);
+    await batch.commit();
+    res.json({ deleted: req.params.id, contas_removidas: contasSnap.size });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+// EMPRESAS - COLABORATIVO
+app.get('/api/empresas', async (req, res) => {
+  try { const snap = await db.collection('empresas').get(); res.json(snap.docs.map(d => ({ cnpj: d.id, ...d.data() }))); }
+  catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.get('/api/empresas/:cnpj', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    const doc = await db.collection('empresas').doc(cnpjLimpo).get();
+    if (!doc.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
+    res.json({ cnpj: doc.id, ...doc.data() });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.post('/api/empresas', async (req, res) => {
+  try {
+    const { cnpj, razao_social, plano_id } = req.body;
+    const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ deve ter 14 digitos' });
+    if (!razao_social || !plano_id) return res.status(400).json({ erro: 'razao_social e plano_id obrigatorios' });
+    const planoDoc = await db.collection('planos').doc(plano_id).get();
+    if (!planoDoc.exists) return res.status(400).json({ erro: 'Plano ' + plano_id + ' nao existe' });
+    await db.collection('empresas').doc(cnpjLimpo).set({ razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
+    res.status(201).json({ cnpj: cnpjLimpo, razao_social, plano_id });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.delete('/api/empresas/:cnpj', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    const doc = await db.collection('empresas').doc(cnpjLimpo).get();
+    if (!doc.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
+    await db.collection('empresas').doc(cnpjLimpo).delete();
+    res.json({ deleted: cnpjLimpo });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.get('/api/logs', async (req, res) => {
+  try {
+    const { cnpj, limit } = req.query;
+    const lim = Math.min(parseInt(limit) || 100, 500);
+    let query;
+    if (cnpj) {
+      const cnpjLimpo = cnpj.replace(/\D/g, '');
+      query = db.collection('logs_validacao').where('cnpj', '==', cnpjLimpo).orderBy('timestamp', 'desc').limit(lim);
+    } else {
+      query = db.collection('logs_validacao').orderBy('timestamp', 'desc').limit(lim);
+    }
+    const snap = await query.get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.get('/api/users', adminRequired, async (req, res) => {
+  try { const snap = await db.collection('users').get(); res.json(snap.docs.map(d => ({ uid: d.id, ...d.data() }))); }
+  catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.post('/api/users/:uid/promote', adminRequired, async (req, res) => {
+  try { await db.collection('users').doc(req.params.uid).set({ is_admin: true, updated_at: new Date(), updated_by: req.user.uid }, { merge: true }); res.json({ uid: req.params.uid, is_admin: true }); }
+  catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.post('/api/users/:uid/demote', adminRequired, async (req, res) => {
+  try {
+    if (req.params.uid === req.user.uid) return res.status(400).json({ erro: 'Admin nao pode remover proprio status' });
+    await db.collection('users').doc(req.params.uid).set({ is_admin: false, updated_at: new Date(), updated_by: req.user.uid }, { merge: true });
+    res.json({ uid: req.params.uid, is_admin: false });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.use(express.static(__dirname, { index: 'index.html' }));
+app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
+
+app.listen(PORT, () => console.log('[plano-contas-iob v4.0-colaborativo] porta ' + PORT));

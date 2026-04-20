@@ -1,0 +1,8 @@
+node_modules
+.git
+.gitignore
+*_backup*.html
+Dockerfile.nginx.backup
+nginx.conf.backup
+*.md
+.DS_Store
