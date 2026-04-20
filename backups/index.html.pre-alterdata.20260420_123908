@@ -4216,140 +4216,7 @@
         }
         
         // PDF Processing
-        // =========================================================================
-        // [ALTERDATA/RAVE] Parser nativo para extratos contabeis brasileiros
-        // =========================================================================
-        async function parsearPDFAlterdata(arrayBuffer) {
-            if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-            let textoCompleto = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const tc = await page.getTextContent();
-                const linhasByY = {};
-                tc.items.forEach(it => {
-                    const y = Math.round(it.transform[5]);
-                    const x = Math.round(it.transform[4]);
-                    if (!linhasByY[y]) linhasByY[y] = [];
-                    linhasByY[y].push({ x, text: it.str, width: it.width });
-                });
-                const ysOrd = Object.keys(linhasByY).map(n => parseInt(n,10)).sort((a,b)=>b-a);
-                for (const y of ysOrd) {
-                    const items = linhasByY[y].sort((a,b)=>a.x-b.x);
-                    let linha = '';
-                    let ultimoX = 0;
-                    for (const it of items) {
-                        const gap = it.x - ultimoX;
-                        if (ultimoX > 0 && gap > 3) {
-                            const espacos = Math.max(1, Math.round(gap / 4.5));
-                            linha += ' '.repeat(Math.min(espacos, 40));
-                        }
-                        linha += it.text;
-                        ultimoX = it.x + (it.width || it.text.length * 4.5);
-                    }
-                    textoCompleto += linha + '\n';
-                }
-                textoCompleto += '\n';
-            }
-
-            const ehLayoutAlterdata = /Extrato Detalhado/i.test(textoCompleto) &&
-                                     (/Emissao|Emissão/i.test(textoCompleto)) &&
-                                     /Vencimento/i.test(textoCompleto);
-
-            if (!ehLayoutAlterdata) {
-                return { detectado: false, lancamentos: [], textoCompleto };
-            }
-
-            const reLanc = /^\s{1,10}(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+([A-Z]{1,3})(?:\s+(\S.*?))?\s+(-?[\d\.]+,\d{2})\s+(-?[\d\.]+,\d{2})\s*$/;
-            const parseValor = s => parseFloat(s.replace(/\./g,'').replace(',','.'));
-            const parseData = s => { const p = s.split('/'); return p[2]+'-'+p[1]+'-'+p[0]; };
-
-            const linhas = textoCompleto.split('\n');
-            const lancamentos = [];
-            let atual = null;
-
-            for (let idx = 0; idx < linhas.length; idx++) {
-                const l = linhas[idx];
-                const m = reLanc.exec(l);
-                if (m) {
-                    if (atual) lancamentos.push(atual);
-                    const [, dataE, dataV, tipo, descRaw, valorStr, saldoStr] = m;
-                    atual = {
-                        id: crypto.randomUUID(),
-                        data: parseData(dataE),
-                        vencimento: dataV, tipo: tipo,
-                        descricao: (descRaw || '').replace(/\s+/g,' ').trim().substring(0,150),
-                        valor: parseValor(valorStr),
-                        saldo: parseValor(saldoStr),
-                        detalhamentos: [],
-                        _blocoRaw: [],
-                        empresa: '', cnpj: '', categoria: 'Nao categorizado',
-                        contaDebito: '', contaCredito: '', historico: '',
-                        incomum: false, origem: 'pdf-alterdata-rave'
-                    };
-                } else if (atual && /^\s{10,}/.test(l) && l.trim()) {
-                    atual._blocoRaw.push(l.trim());
-                }
-            }
-            if (atual) lancamentos.push(atual);
-
-            for (const lanc of lancamentos) {
-                const raw = lanc._blocoRaw.join('\n');
-                if (/Transferencia entre contas/i.test(raw)) {
-                    const mContra = raw.match(/Conta Contrapartida:\s*(.+?)(?:\n|$)/);
-                    if (mContra) {
-                        lanc.descricao = lanc.descricao + ' → ' + mContra[1].trim().substring(0, 50);
-                        lanc.detalhamentos.push({ tipo: 'transferencia', contrapartida: mContra[1].trim(), raw });
-                    }
-                } else if (/BOLETOS|Numerário do depósito|Numerario do deposito/i.test(raw)) {
-                    const reBol = /^(\d{3})\s+(\d{4})(?:\s+NF:\s*(\S+))?\s+(\d{2}\/\d{2}\/\d{2})\s+(.+?)\s+([\d\.]+,\d{2})\s+([\d\.]+,\d{2})\s+([\d\.]+,\d{2})\s+([\d\.]+,\d{2})/gm;
-                    let mB;
-                    while ((mB = reBol.exec(raw)) !== null) {
-                        lanc.detalhamentos.push({
-                            tipo: 'boleto', banco: mB[1], agencia: mB[2],
-                            nf: mB[3]||'', vcto: mB[4], nome: mB[5].trim(),
-                            valor_pago: parseValor(mB[6]), valor_nf: parseValor(mB[7]),
-                            desconto: parseValor(mB[8]), acrescimo: parseValor(mB[9])
-                        });
-                    }
-                } else if (/Recebimento de Faturas|Faturas que compoe/i.test(raw)) {
-                    const mNF = raw.match(/NF\(fatura\):\s*(\S+)/);
-                    if (mNF) lanc.descricao = lanc.descricao + ' — NF ' + mNF[1];
-                    lanc.detalhamentos.push({ tipo: 'recebimento', raw });
-                }
-                delete lanc._blocoRaw;
-            }
-
-            return { detectado: true, lancamentos, textoCompleto, fingerprint: 'alterdata-rave-v1' };
-        }
-
         async function processPDF(f) {
-            try {
-                const buf = await f.arrayBuffer();
-                const resultado = await parsearPDFAlterdata(buf);
-                if (resultado.detectado && resultado.lancamentos.length > 0) {
-                    console.log('[processPDF] Layout Alterdata/Rave detectado — ' + resultado.lancamentos.length + ' lancamentos');
-                    try {
-                        if (state.info && state.info.cnpj && window.API && window.API.apiFetch) {
-                            const cnpj = state.info.cnpj.replace(/\D/g,'');
-                            window.API.apiFetch('/api/layouts_parser/' + cnpj, {
-                                method: 'POST',
-                                body: JSON.stringify({
-                                    fingerprint: resultado.fingerprint,
-                                    arquivo_exemplo: f.name,
-                                    total_lancamentos: resultado.lancamentos.length,
-                                    origem: 'pdf-alterdata-rave'
-                                })
-                            }).catch(() => {});
-                        }
-                    } catch(e) { console.warn('[layout] memorizar falhou:', e); }
-                    showToast('✅ Layout reconhecido (Alterdata): ' + resultado.lancamentos.length + ' lançamentos extraídos', 'success');
-                    return resultado.lancamentos;
-                }
-            } catch (e) {
-                console.warn('[processPDF] parser nativo falhou, caindo no Gemini:', e.message);
-            }
-
             const b64 = await toBase64(f);
             const r = await window.API.callGemini({
                     contents: [{
@@ -4389,9 +4256,7 @@
                 contaDebito: '',
                 contaCredito: '',
                 historico: '',
-                incomum: false,
-                detalhamentos: [],
-                origem: 'pdf-gemini'
+                incomum: false
             }));
         }
         
