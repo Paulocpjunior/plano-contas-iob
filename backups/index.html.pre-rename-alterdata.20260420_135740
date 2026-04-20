@@ -4222,7 +4222,7 @@
                 const buf = await f.arrayBuffer();
                 const resultado = await window.parsearPDF_ExtratoDetalhadoRave(buf);
                 if (resultado.detectado && resultado.lancamentos.length > 0) {
-                    console.log('[processPDF] Layout Extrato Detalhado detectado — ' + resultado.lancamentos.length + ' lancamentos');
+                    console.log('[processPDF] Layout Alterdata/Rave detectado — ' + resultado.lancamentos.length + ' lancamentos');
                     try {
                         if (state.info && state.info.cnpj && window.API && window.API.apiFetch) {
                             const cnpj = state.info.cnpj.replace(/\D/g,'');
@@ -4232,12 +4232,12 @@
                                     fingerprint: resultado.fingerprint,
                                     arquivo_exemplo: f.name,
                                     total_lancamentos: resultado.lancamentos.length,
-                                    origem: 'pdf-extrato-detalhado-rave'
+                                    origem: 'pdf-alterdata-rave'
                                 })
                             }).catch(() => {});
                         }
                     } catch(e) { console.warn('[layout] memorizar falhou:', e); }
-                    showToast('✅ Layout reconhecido: ' + resultado.lancamentos.length + ' lançamentos extraídos', 'success');
+                    showToast('✅ Layout reconhecido (Alterdata): ' + resultado.lancamentos.length + ' lançamentos extraídos', 'success');
                     return resultado.lancamentos;
                 }
             } catch (e) {
