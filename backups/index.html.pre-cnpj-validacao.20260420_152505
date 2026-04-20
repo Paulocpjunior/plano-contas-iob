@@ -3647,107 +3647,34 @@
             }
         }
 
-        // [A1.3] Validacao matematica do digito verificador do CNPJ
-        function validarCNPJDigito(cnpj) {
-            cnpj = String(cnpj || '').replace(/\D/g, '');
-            if (cnpj.length !== 14) return false;
-            if (/^(\d)\1{13}$/.test(cnpj)) return false;  // todos iguais (ex: 11111...)
-            const calc = (base) => {
-                let soma = 0;
-                const pesos = base.length === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2];
-                for (let i = 0; i < base.length; i++) soma += parseInt(base[i]) * pesos[i];
-                const resto = soma % 11;
-                return resto < 2 ? 0 : 11 - resto;
-            };
-            const d1 = calc(cnpj.substring(0, 12));
-            const d2 = calc(cnpj.substring(0, 13));
-            return d1 === parseInt(cnpj[12]) && d2 === parseInt(cnpj[13]);
-        }
-
         async function buscarCNPJ() {
+            // [MULTISHEET] Reseta UI ate confirmar se empresa existe
             aplicarUICadastroEmpresa(false, true);
             const cnpj = document.getElementById('infoCNPJ').value.replace(/\D/g, '');
             const icon = document.getElementById('cnpjIcon');
-            const inpEmpresa = document.getElementById('infoEmpresa');
-
             if (cnpj.length !== 14) {
                 icon.innerHTML = '';
-                icon.className = 'input-icon';
                 return;
             }
-
-            // [CAMADA 1] Validacao matematica
-            if (!validarCNPJDigito(cnpj)) {
-                icon.innerHTML = '✗';
-                icon.className = 'input-icon error';
-                inpEmpresa.value = '';
-                inpEmpresa.disabled = true;
-                showToast('❌ CNPJ invalido (digitos verificadores nao batem)', 'error');
-                window.__cnpjValidado = false;
-                return;
-            }
-
             icon.innerHTML = '⟳';
             icon.className = 'input-icon loading';
-            inpEmpresa.disabled = true;
-            inpEmpresa.value = '⟳ Consultando Receita Federal...';
-
-            // [CAMADA 2] Consulta BrasilAPI
-            let razaoSocial = null;
             try {
                 const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
                 if (r.ok) {
                     const d = await r.json();
-                    razaoSocial = d.razao_social || d.nome_fantasia || null;
-                } else if (r.status === 404) {
+                    document.getElementById('infoEmpresa').value = d.razao_social || '';
+                    // [MULTISHEET] Empresa ja cadastrada → esconder botoes de plano
+                    aplicarUICadastroEmpresa(true, d.ativa !== false);
+                    icon.innerHTML = '✓';
+                    icon.className = 'input-icon success';
+                } else {
                     icon.innerHTML = '✗';
-                    icon.className = 'input-icon error';
-                    inpEmpresa.value = '';
-                    inpEmpresa.disabled = false;
-                    showToast('❌ CNPJ nao encontrado na Receita Federal', 'error');
-                    window.__cnpjValidado = false;
-                    return;
+                    icon.className = 'input-icon';
                 }
             } catch (e) {
-                console.warn('[BrasilAPI] erro de rede:', e);
-                // Em caso de timeout/rede, libera edicao manual mas sinaliza
-                inpEmpresa.value = '';
-                inpEmpresa.disabled = false;
-                icon.innerHTML = '⚠';
+                icon.innerHTML = '';
                 icon.className = 'input-icon';
-                showToast('⚠️ Nao foi possivel consultar a Receita Federal. Preencha manualmente.', 'warn');
-                window.__cnpjValidado = 'offline';
-                return;
             }
-
-            if (!razaoSocial) {
-                icon.innerHTML = '✗';
-                icon.className = 'input-icon error';
-                inpEmpresa.value = '';
-                inpEmpresa.disabled = false;
-                showToast('❌ CNPJ sem razao social na Receita', 'error');
-                window.__cnpjValidado = false;
-                return;
-            }
-
-            inpEmpresa.value = razaoSocial;
-            inpEmpresa.disabled = true;  // trava edicao — sempre o que veio da Receita
-            icon.innerHTML = '✓';
-            icon.className = 'input-icon success';
-            window.__cnpjValidado = true;
-
-            // [CAMADA 3] Consulta se ja existe no SP Assessoria
-            try {
-                if (window.API && window.API.apiFetch) {
-                    const rSys = await window.API.apiFetch('/api/empresas/' + cnpj);
-                    if (rSys.ok) {
-                        const empSys = await rSys.json();
-                        // Ja cadastrada no sistema — esconder botoes de plano
-                        aplicarUICadastroEmpresa(true, empSys.ativo !== false);
-                        showToast('ℹ️ Empresa ja cadastrada no sistema', 'success');
-                    }
-                }
-            } catch(e) { console.warn('[CAMADA 3] consulta sistema:', e); }
             // Oferecer retomar sessao anterior
             try {
                 if (window.API && window.API.carregarSessaoEmpresa) {
@@ -3776,12 +3703,6 @@
         
         // Company Info
         async function confirmarInfo() {
-            // [CAMADA 4] Bloqueia se CNPJ nao foi validado pela Receita
-            if (window.__cnpjValidado === false) {
-                showToast('❌ CNPJ invalido ou nao encontrado na Receita Federal', 'error');
-                return;
-            }
-
             const info = {
                 cnpj: document.getElementById('infoCNPJ').value,
                 empresa: document.getElementById('infoEmpresa').value,
