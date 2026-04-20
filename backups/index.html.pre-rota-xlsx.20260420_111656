@@ -4035,8 +4035,8 @@
             }
             
             const ext = f.name.split('.').pop().toLowerCase();
-            if (!['pdf', 'ofx', 'csv', 'xlsx', 'xls'].includes(ext)) {
-                showToast('Formato não suportado! Use PDF, OFX, CSV, XLSX ou XLS.', 'error');
+            if (!['pdf', 'ofx', 'csv'].includes(ext)) {
+                showToast('Formato não suportado! Use PDF, OFX ou CSV.', 'error');
                 return;
             }
             
@@ -4058,10 +4058,6 @@
                 icon.className = 'file-icon ofx';
                 icon.textContent = '📗';
                 type.textContent = 'OFX - Open Financial Exchange';
-            } else if (ext === 'xlsx' || ext === 'xls') {
-                icon.className = 'file-icon xlsx';
-                icon.textContent = '📊';
-                type.textContent = 'XLSX - Planilha (todas as abas serão lidas)';
             } else {
                 icon.className = 'file-icon csv';
                 icon.textContent = '📙';
@@ -4107,8 +4103,6 @@
                     entries = await processPDF(selectedFile);
                 } else if (ext === 'ofx') {
                     entries = parseOFX(await selectedFile.text());
-                } else if (ext === 'xlsx' || ext === 'xls') {
-                    entries = await parsearArquivoXLSX(selectedFile, {});
                 } else {
                     entries = parseCSV(await selectedFile.text());
                 }
