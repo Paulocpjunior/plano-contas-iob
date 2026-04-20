@@ -3701,7 +3701,7 @@
         }
         
         // Company Info
-        async function confirmarInfo() {
+        function confirmarInfo() {
             const info = {
                 cnpj: document.getElementById('infoCNPJ').value,
                 empresa: document.getElementById('infoEmpresa').value,
@@ -3710,36 +3710,6 @@
                 periodoInicio: document.getElementById('infoPeriodoInicio').value,
                 periodoFim: document.getElementById('infoPeriodoFim').value
             };
-
-            // [ISOLAMENTO POR CNPJ] Detecta troca de empresa e carrega sessao da nova
-            const cnpjNovo = (info.cnpj || '').replace(/\D/g, '');
-            const cnpjAntigo = ((state.info && state.info.cnpj) || '').replace(/\D/g, '');
-            if (cnpjNovo !== cnpjAntigo && cnpjNovo.length === 14) {
-                // Salva sessao da empresa anterior antes de trocar
-                if (cnpjAntigo && state.infoConfirmed && (state.entries||[]).length > 0) {
-                    try {
-                        await window.API.salvarSessaoEmpresa(cnpjAntigo,
-                            JSON.stringify({ entries: state.entries, mappings: state.mappings, info: state.info, infoConfirmed: true, lastFile: state.lastFile }),
-                            { total_lancamentos: state.entries.length });
-                    } catch(e) { console.warn('[iso] save empresa anterior falhou:', e); }
-                }
-                // ZERA entries e tenta puxar sessao da empresa nova
-                state.entries = [];
-                state.lastFile = null;
-                try {
-                    const sess = await window.API.carregarSessaoEmpresa(cnpjNovo);
-                    if (sess && sess.encontrada && sess.state_json) {
-                        const d = JSON.parse(sess.state_json);
-                        state.entries = d.entries || [];
-                        state.mappings = d.mappings || state.mappings;
-                        state.lastFile = d.lastFile || null;
-                        if ((state.entries||[]).length) {
-                            showToast('📂 Sessao da empresa carregada: ' + state.entries.length + ' lancamentos', 'success');
-                        }
-                    }
-                } catch(e) { console.warn('[iso] carregar empresa nova falhou:', e); }
-            }
-            
             
             if (!info.cnpj || !info.empresa || !info.banco || !info.usuario || !info.periodoInicio || !info.periodoFim) {
                 showToast('Preencha todos os campos obrigatórios!', 'error');
