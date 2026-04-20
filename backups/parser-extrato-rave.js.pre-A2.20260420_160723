@@ -4,28 +4,7 @@
 // Expoe window.parsearPDF_ExtratoDetalhadoRave
 // =============================================================================
 (function(){
-  
-// [A2] Extrai banco/conta/nome_conta do cabecalho do PDF
-// Exemplo: "Conta: ITAU 17841-ITAU NOVA ERA PRINCIPAL"
-function extrairContaBancaria(texto) {
-  // Procura linha "Conta: BANCO NUMERO-NOME"
-  const m = texto.match(/Conta\s*:\s*([A-Z][A-Z0-9]+)\s+([0-9\-]+)\s*[-–]\s*(.+?)(?:\r?\n|$)/i);
-  if (m) {
-    return {
-      banco: m[1].trim(),
-      conta: m[2].trim(),
-      nome_conta: m[3].trim()
-    };
-  }
-  // Fallback: procura so "Conta: NOME" sem numero
-  const m2 = texto.match(/Conta\s*:\s*(.+?)(?:\r?\n|$)/i);
-  if (m2) {
-    return { banco: '', conta: '', nome_conta: m2[1].trim() };
-  }
-  return { banco: '', conta: '', nome_conta: '' };
-}
-
-async function parsearPDF_ExtratoDetalhadoRave(arrayBuffer) {
+  async function parsearPDF_ExtratoDetalhadoRave(arrayBuffer) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let textoCompleto = '';
@@ -139,15 +118,11 @@ async function parsearPDF_ExtratoDetalhadoRave(arrayBuffer) {
       delete lanc._blocoRaw;
     }
 
-    const _meta = extrairContaBancaria(textoCompleto);
     return {
       detectado: true,
       lancamentos: lancamentos,
       textoCompleto: textoCompleto,
-      fingerprint: 'extrato-detalhado-rave-v1',
-      banco_detectado: _meta.banco,
-      conta_detectada: _meta.conta,
-      nome_conta_detectado: _meta.nome_conta
+      fingerprint: 'extrato-detalhado-rave-v1'
     };
   }
 

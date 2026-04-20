@@ -1282,8 +1282,6 @@
                 <div class="company-main">
                     <h2 id="barEmpresa">-</h2>
                     <p>CNPJ: <span id="barCNPJ">-</span> | Banco: <span id="barBanco">-</span> | Usuário: <span id="barUsuario">-</span> | Período: <span id="barPeriodo">-</span></p>
-                    <p id="barContaInfoWrap" style="margin-top:6px;display:none"><span id="barContaInfo" style="color:#2563eb;font-weight:600">🏦 -</span></p>
-                    <p id="barPlanoInfoWrap" style="margin-top:4px;display:none"><span id="barPlanoInfo" style="color:#059669;font-weight:600">📚 -</span></p>
                 </div>
             </div>
         </div>
@@ -3883,41 +3881,6 @@
             const di = state.info.periodoInicio.split('-').reverse().join('/');
             const df = state.info.periodoFim.split('-').reverse().join('/');
             document.getElementById('barPeriodo').textContent = `${di} a ${df}`;
-
-            // [A2] Linha com banco/conta/nome_conta detectados do PDF
-            const wrapConta = document.getElementById('barContaInfoWrap');
-            const txtConta = document.getElementById('barContaInfo');
-            if (wrapConta && txtConta) {
-                const banco = state.info.banco_pdf || state.info.banco || '';
-                const conta = state.info.conta_pdf || '';
-                const nome = state.info.nome_conta_pdf || '';
-                if (banco || conta || nome) {
-                    let t = '🏦 ' + banco;
-                    if (conta) t += ' • Conta ' + conta;
-                    if (nome) t += ' - ' + nome;
-                    txtConta.textContent = t;
-                    wrapConta.style.display = '';
-                } else {
-                    wrapConta.style.display = 'none';
-                }
-            }
-
-            // [A2] Linha com plano de contas vinculado
-            const wrapPlano = document.getElementById('barPlanoInfoWrap');
-            const txtPlano = document.getElementById('barPlanoInfo');
-            if (wrapPlano && txtPlano) {
-                try {
-                    const cnpjL = (state.info.cnpj || '').replace(/\D/g, '');
-                    const achado = (typeof verificarPlanoPorCNPJ === 'function') ? verificarPlanoPorCNPJ(cnpjL) : null;
-                    if (achado && achado.plano) {
-                        const totalContas = (achado.plano.total_contas || achado.plano.contas?.length || '?');
-                        txtPlano.textContent = '📚 Plano: ' + achado.nome + ' (' + totalContas + ' contas) ✅';
-                        wrapPlano.style.display = '';
-                    } else {
-                        wrapPlano.style.display = 'none';
-                    }
-                } catch(e) { wrapPlano.style.display = 'none'; }
-            }
         }
         
         // Migrador de shape de lancamentos (corrige date->data, description->descricao, value->valor)
@@ -4347,33 +4310,8 @@
                             }).catch(() => {});
                         }
                     } catch(e) { console.warn('[layout] memorizar falhou:', e); }
-                    // [A2] Sobrescrever banco/conta com o que o PDF detectou (opcao A)
-                    const bancoPDF = resultado.banco_detectado || '';
-                    const contaPDF = resultado.conta_detectada || '';
-                    const nomeContaPDF = resultado.nome_conta_detectado || '';
-
-                    if (bancoPDF && state.info) {
-                        state.info.banco_pdf = bancoPDF;
-                        state.info.conta_pdf = contaPDF;
-                        state.info.nome_conta_pdf = nomeContaPDF;
-                        state.info.banco = bancoPDF;  // sobrescreve banco do form
-                        saveState();
-                        try { updateCompanyBar(); } catch(e) {}
-                    }
-
-                    // [A2] Enriquecer cada lancamento com metadata
-                    const lancsEnriquecidos = resultado.lancamentos.map(l => ({
-                        ...l,
-                        banco: bancoPDF,
-                        conta: contaPDF,
-                        nome_conta: nomeContaPDF,
-                        periodo_inicio: (state.info && state.info.periodoInicio) || '',
-                        periodo_fim: (state.info && state.info.periodoFim) || ''
-                    }));
-
-                    const infoConta = (bancoPDF || contaPDF) ? (' • ' + bancoPDF + ' ' + contaPDF).trim() : '';
-                    showToast('✅ Layout reconhecido: ' + lancsEnriquecidos.length + ' lançamentos' + infoConta, 'success');
-                    return lancsEnriquecidos;
+                    showToast('✅ Layout reconhecido: ' + resultado.lancamentos.length + ' lançamentos extraídos', 'success');
+                    return resultado.lancamentos;
                 }
             } catch (e) {
                 console.warn('[processPDF] parser nativo falhou, caindo no Gemini:', e.message);
