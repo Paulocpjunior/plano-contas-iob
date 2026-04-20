@@ -278,50 +278,6 @@ app.post('/api/empresas/:cnpj/ativar', async (req, res) => {
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-// ==================== LAYOUTS PARSER (memorizacao por CNPJ) ====================
-app.post('/api/layouts_parser/:cnpj', async (req, res) => {
-  try {
-    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
-    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
-    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
-    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const { fingerprint, arquivo_exemplo, total_lancamentos, origem } = req.body || {};
-    if (!fingerprint) return res.status(400).json({ erro: 'fingerprint obrigatorio' });
-    const ref = db.collection('empresas').doc(cnpjLimpo).collection('layouts_parser').doc(fingerprint);
-    const doc = await ref.get();
-    const agora = new Date();
-    if (doc.exists) {
-      await ref.update({
-        ultimo_uso: agora,
-        total_usos: (doc.data().total_usos || 0) + 1,
-        ultimo_arquivo: arquivo_exemplo || null,
-        ultimo_total_lancamentos: total_lancamentos || 0
-      });
-    } else {
-      await ref.set({
-        fingerprint, origem: origem || 'unknown',
-        criado_em: agora, criado_por: req.user.email,
-        ultimo_uso: agora, total_usos: 1,
-        ultimo_arquivo: arquivo_exemplo || null,
-        ultimo_total_lancamentos: total_lancamentos || 0,
-        validado: false
-      });
-    }
-    res.json({ ok: true, fingerprint });
-  } catch (e) { console.error('layouts_parser POST erro:', e); res.status(500).json({ erro: e.message }); }
-});
-
-app.get('/api/layouts_parser/:cnpj', async (req, res) => {
-  try {
-    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
-    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
-    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
-    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const snap = await db.collection('empresas').doc(cnpjLimpo).collection('layouts_parser').get();
-    res.json({ layouts: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
-});
-
 app.delete('/api/empresas/:cnpj', adminRequired, async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
