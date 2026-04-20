@@ -4219,7 +4219,7 @@
         async function processPDF(f) {
             try {
                 const buf = await f.arrayBuffer();
-                const resultado = await window.parsearPDF_ExtratoDetalhadoRave(buf);
+                const resultado = await parsearPDFAlterdata(buf);
                 if (resultado.detectado && resultado.lancamentos.length > 0) {
                     console.log('[processPDF] Layout Alterdata/Rave detectado — ' + resultado.lancamentos.length + ' lancamentos');
                     try {
