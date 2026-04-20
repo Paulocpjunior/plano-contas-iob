@@ -1519,11 +1519,11 @@
             <div id="pageExtrator" class="hidden">
                 <div class="card">
                     <div class="card-header">
-                        <h2><span class="icon">📤</span> Importar Extrato ou Lançamentos</h2>
+                        <h2><span class="icon">📤</span> Importar Extrato</h2>
                     </div>
                     <div class="upload-section" id="uploadSection">
-                        <h3>Envie extrato bancário ou planilha de lançamentos</h3>
-                        <p>Inteligência Artificial extrai automaticamente todas as transações — suporta PDF, OFX, CSV, XLSX (multi-abas)</p>
+                        <h3>Envie seu extrato para processamento</h3>
+                        <p>Inteligência Artificial extrai automaticamente todas as transações</p>
                         <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
                             <div class="upload-icon">📁</div>
                             <h4>Arraste ou clique para selecionar</h4>
@@ -1532,15 +1532,13 @@
                                 <span class="format-badge pdf">📕 PDF (IA)</span>
                                 <span class="format-badge ofx">📗 OFX</span>
                                 <span class="format-badge csv">📙 CSV</span>
-                                <span class="format-badge xlsx" style="background:#dcfce7;color:#166534">📊 XLSX</span>
-                                <span class="format-badge xlsx" style="background:#dbeafe;color:#1e40af">📋 Lançamentos</span>
                             </div>
                             <div class="upload-hint">
                                 <span>✨</span>
                                 <span>PDFs processados com IA Gemini 2.5</span>
                             </div>
                         </div>
-                        <input type="file" id="fileInput" accept=".pdf,.ofx,.csv,.xlsx,.xls,.txt,.o2" style="display:none" onchange="handleFileSelect(this.files[0])">
+                        <input type="file" id="fileInput" accept=".pdf,.ofx,.csv" style="display:none" onchange="handleFileSelect(this.files[0])">
                         
                         <div class="file-preview" id="filePreview">
                             <div class="file-info">

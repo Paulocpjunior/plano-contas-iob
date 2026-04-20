@@ -1408,14 +1408,11 @@
                         </div>
                     </div>
                     <div style="margin-top:32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-                        <button id="btnCadastrarPlano" class="btn" style="width:auto;padding:14px 24px;background:#059669;color:white" onclick="abrirCadastroPlano()">
+                        <button class="btn" style="width:auto;padding:14px 24px;background:#059669;color:white" onclick="abrirCadastroPlano()">
                             📚 Cadastrar Plano de Contas
                         </button>
                         <button id="btnVincularPlano" class="btn" style="width:auto;padding:14px 24px;background:#3b82f6;color:white;display:none" onclick="abrirVincularPlanoModal()">
                             🔗 Vincular Plano Existente
-                        </button>
-                        <button id="btnAtivarEmpresa" class="btn" style="width:auto;padding:14px 24px;background:#10b981;color:white;display:none" onclick="ativarCadastroEmpresa()">
-                            ✅ Ativar Cadastro da Empresa
                         </button>
                         <button class="btn btn-primary" style="width:auto;padding:14px 40px" onclick="confirmarInfo()">
                             Confirmar e Continuar →
@@ -1519,11 +1516,11 @@
             <div id="pageExtrator" class="hidden">
                 <div class="card">
                     <div class="card-header">
-                        <h2><span class="icon">📤</span> Importar Extrato ou Lançamentos</h2>
+                        <h2><span class="icon">📤</span> Importar Extrato</h2>
                     </div>
                     <div class="upload-section" id="uploadSection">
-                        <h3>Envie extrato bancário ou planilha de lançamentos</h3>
-                        <p>Inteligência Artificial extrai automaticamente todas as transações — suporta PDF, OFX, CSV, XLSX (multi-abas)</p>
+                        <h3>Envie seu extrato para processamento</h3>
+                        <p>Inteligência Artificial extrai automaticamente todas as transações</p>
                         <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
                             <div class="upload-icon">📁</div>
                             <h4>Arraste ou clique para selecionar</h4>
@@ -1532,15 +1529,13 @@
                                 <span class="format-badge pdf">📕 PDF (IA)</span>
                                 <span class="format-badge ofx">📗 OFX</span>
                                 <span class="format-badge csv">📙 CSV</span>
-                                <span class="format-badge xlsx" style="background:#dcfce7;color:#166534">📊 XLSX</span>
-                                <span class="format-badge xlsx" style="background:#dbeafe;color:#1e40af">📋 Lançamentos</span>
                             </div>
                             <div class="upload-hint">
                                 <span>✨</span>
                                 <span>PDFs processados com IA Gemini 2.5</span>
                             </div>
                         </div>
-                        <input type="file" id="fileInput" accept=".pdf,.ofx,.csv,.xlsx,.xls,.txt,.o2" style="display:none" onchange="handleFileSelect(this.files[0])">
+                        <input type="file" id="fileInput" accept=".pdf,.ofx,.csv" style="display:none" onchange="handleFileSelect(this.files[0])">
                         
                         <div class="file-preview" id="filePreview">
                             <div class="file-info">
@@ -3608,47 +3603,7 @@
             i.value = v;
         }
         
-
-        // [MULTISHEET] Alternar UI quando empresa ja cadastrada
-        function aplicarUICadastroEmpresa(empresaJaCadastrada, ativa) {
-            const bC = document.getElementById('btnCadastrarPlano');
-            const bV = document.getElementById('btnVincularPlano');
-            const bA = document.getElementById('btnAtivarEmpresa');
-            if (!bC || !bV || !bA) return;
-            if (empresaJaCadastrada) {
-                bC.style.display = 'none';
-                bV.style.display = 'none';
-                bA.style.display = (ativa === false) ? 'inline-flex' : 'none';
-                window.__empresaJaCadastrada = true;
-            } else {
-                bC.style.display = 'inline-flex';
-                // bV continua com sua propria logica (so aparece quando nao tem plano)
-                bA.style.display = 'none';
-                window.__empresaJaCadastrada = false;
-            }
-        }
-
-        async function ativarCadastroEmpresa() {
-            const cnpj = (document.getElementById('infoCNPJ').value || '').replace(/\D/g,'');
-            if (!cnpj) { showToast('Informe o CNPJ', 'error'); return; }
-            try {
-                const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/ativar', { method: 'POST' });
-                if (r.ok) {
-                    showToast('✅ Empresa ativada com sucesso', 'success');
-                    const bA = document.getElementById('btnAtivarEmpresa');
-                    if (bA) bA.style.display = 'none';
-                } else {
-                    const d = await r.json().catch(()=>({}));
-                    showToast('Erro ao ativar: ' + (d.error || r.status), 'error');
-                }
-            } catch(e) {
-                showToast('Erro: ' + (e.message||e), 'error');
-            }
-        }
-
         async function buscarCNPJ() {
-            // [MULTISHEET] Reseta UI ate confirmar se empresa existe
-            aplicarUICadastroEmpresa(false, true);
             const cnpj = document.getElementById('infoCNPJ').value.replace(/\D/g, '');
             const icon = document.getElementById('cnpjIcon');
             if (cnpj.length !== 14) {
@@ -3662,8 +3617,6 @@
                 if (r.ok) {
                     const d = await r.json();
                     document.getElementById('infoEmpresa').value = d.razao_social || '';
-                    // [MULTISHEET] Empresa ja cadastrada → esconder botoes de plano
-                    aplicarUICadastroEmpresa(true, d.ativa !== false);
                     icon.innerHTML = '✓';
                     icon.className = 'input-icon success';
                 } else {

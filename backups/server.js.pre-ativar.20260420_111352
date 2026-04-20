@@ -267,17 +267,6 @@ app.post('/api/empresas', async (req, res) => {
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-app.post('/api/empresas/:cnpj/ativar', async (req, res) => {
-  try {
-    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
-    const ref = db.collection('empresas').doc(cnpjLimpo);
-    const doc = await ref.get();
-    if (!doc.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
-    await ref.update({ ativo: true, updated_at: new Date(), reactivated_by: req.user.uid, reactivated_by_email: req.user.email, reactivated_at: new Date() });
-    res.json({ cnpj: cnpjLimpo, ativo: true });
-  } catch (err) { res.status(500).json({ erro: err.message }); }
-});
-
 app.delete('/api/empresas/:cnpj', adminRequired, async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');

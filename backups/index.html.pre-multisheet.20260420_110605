@@ -1408,14 +1408,11 @@
                         </div>
                     </div>
                     <div style="margin-top:32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-                        <button id="btnCadastrarPlano" class="btn" style="width:auto;padding:14px 24px;background:#059669;color:white" onclick="abrirCadastroPlano()">
+                        <button class="btn" style="width:auto;padding:14px 24px;background:#059669;color:white" onclick="abrirCadastroPlano()">
                             📚 Cadastrar Plano de Contas
                         </button>
                         <button id="btnVincularPlano" class="btn" style="width:auto;padding:14px 24px;background:#3b82f6;color:white;display:none" onclick="abrirVincularPlanoModal()">
                             🔗 Vincular Plano Existente
-                        </button>
-                        <button id="btnAtivarEmpresa" class="btn" style="width:auto;padding:14px 24px;background:#10b981;color:white;display:none" onclick="ativarCadastroEmpresa()">
-                            ✅ Ativar Cadastro da Empresa
                         </button>
                         <button class="btn btn-primary" style="width:auto;padding:14px 40px" onclick="confirmarInfo()">
                             Confirmar e Continuar →
@@ -1519,11 +1516,11 @@
             <div id="pageExtrator" class="hidden">
                 <div class="card">
                     <div class="card-header">
-                        <h2><span class="icon">📤</span> Importar Extrato ou Lançamentos</h2>
+                        <h2><span class="icon">📤</span> Importar Extrato</h2>
                     </div>
                     <div class="upload-section" id="uploadSection">
-                        <h3>Envie extrato bancário ou planilha de lançamentos</h3>
-                        <p>Inteligência Artificial extrai automaticamente todas as transações — suporta PDF, OFX, CSV, XLSX (multi-abas)</p>
+                        <h3>Envie seu extrato para processamento</h3>
+                        <p>Inteligência Artificial extrai automaticamente todas as transações</p>
                         <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
                             <div class="upload-icon">📁</div>
                             <h4>Arraste ou clique para selecionar</h4>
@@ -1532,15 +1529,13 @@
                                 <span class="format-badge pdf">📕 PDF (IA)</span>
                                 <span class="format-badge ofx">📗 OFX</span>
                                 <span class="format-badge csv">📙 CSV</span>
-                                <span class="format-badge xlsx" style="background:#dcfce7;color:#166534">📊 XLSX</span>
-                                <span class="format-badge xlsx" style="background:#dbeafe;color:#1e40af">📋 Lançamentos</span>
                             </div>
                             <div class="upload-hint">
                                 <span>✨</span>
                                 <span>PDFs processados com IA Gemini 2.5</span>
                             </div>
                         </div>
-                        <input type="file" id="fileInput" accept=".pdf,.ofx,.csv,.xlsx,.xls,.txt,.o2" style="display:none" onchange="handleFileSelect(this.files[0])">
+                        <input type="file" id="fileInput" accept=".pdf,.ofx,.csv" style="display:none" onchange="handleFileSelect(this.files[0])">
                         
                         <div class="file-preview" id="filePreview">
                             <div class="file-info">
@@ -3040,111 +3035,28 @@
 
         async function parsearArquivoXLSX(file, opts) {
             if (typeof XLSX === 'undefined') throw new Error('SheetJS nao carregada. Recarregue a pagina.');
+            const buf = await file.arrayBuffer();
             let wb;
             try {
-                const buf = await file.arrayBuffer();
                 wb = XLSX.read(buf, { type: 'array', cellDates: true, raw: false });
             } catch (e) {
-                throw new Error('Falha ao ler XLSX: ' + e.message);
+                if (/password|encrypt|cfb|unsupported/i.test(e.message || '')) {
+                    throw new Error('Arquivo protegido por senha. Abra no Excel, remova a senha (Arquivo > Informacoes > Proteger Pasta > Criptografar com Senha > apagar senha) e salve. Depois importe novamente.');
+                }
+                throw e;
             }
-
-            // Normalizador de cabecalho (remove acentos, lowercase, trim)
-            const normH = (s) => String(s || '').toLowerCase().trim().replace(/\s+/g,' ')
-                .replace(/[áàâãä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i')
-                .replace(/[óòôõö]/g,'o').replace(/[úùûü]/g,'u').replace(/[ç]/g,'c');
-
-            const H_DATA  = ['data','data lancamento','data mov','data movimento','dt','data do lancamento'];
-            const H_DESC  = ['descricao','historico','lancamento','memo','descricao do lancamento','historico do lancamento'];
-            const H_VALOR = ['valor','valor (r$)','montante','vlr','valor lancamento','valor r$','credito/debito'];
-
-            const findCol = (hs, kws) => { const n = hs.map(normH); for (let i=0;i<n.length;i++) if (kws.includes(n[i])) return i; return -1; };
-
-            const detectHeaderRow = (rows) => {
-                for (let i=0; i<Math.min(rows.length,25); i++) {
-                    const r = (rows[i]||[]).map(normH);
-                    const hasD = r.some(c => H_DATA.includes(c));
-                    const hasV = r.some(c => H_VALOR.includes(c));
-                    const hasX = r.some(c => H_DESC.includes(c));
-                    if (hasD && hasV && hasX) return i;
-                }
-                return -1;
-            };
-
-            const parseData = (v) => {
-                if (!v && v !== 0) return null;
-                if (v instanceof Date) {
-                    const y=v.getFullYear(), m=String(v.getMonth()+1).padStart(2,'0'), d=String(v.getDate()).padStart(2,'0');
-                    return y+'-'+m+'-'+d;
-                }
-                if (typeof v === 'number' && XLSX.SSF) {
-                    const d = XLSX.SSF.parse_date_code(v);
-                    if (d && d.y) return d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0');
-                }
-                const s = String(v).trim();
-                const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-                if (m) { const y = m[3].length===2 ? '20'+m[3] : m[3]; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
-                if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-                return null;
-            };
-
-            const parseValor = (v) => {
-                if (typeof v === 'number') return v;
-                if (!v) return null;
-                const s = String(v).trim().replace(/R\$\s*/gi,'').replace(/\./g,'').replace(',','.').replace(/\s/g,'');
-                const n = parseFloat(s);
-                return isNaN(n) ? null : n;
-            };
-
-            const todos = [];
-            const abasLog = [];
-
-            for (const sheetName of wb.SheetNames) {
-                const sheet = wb.Sheets[sheetName];
-                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
-                if (!rows.length) { abasLog.push({aba: sheetName, detectados: 0, motivo: 'vazia'}); continue; }
-
-                const hIdx = detectHeaderRow(rows);
-                if (hIdx === -1) { abasLog.push({aba: sheetName, detectados: 0, motivo: 'sem cabecalho reconhecivel'}); continue; }
-
-                const headers = rows[hIdx];
-                const cD = findCol(headers, H_DATA);
-                const cX = findCol(headers, H_DESC);
-                const cV = findCol(headers, H_VALOR);
-
-                let count = 0;
-                for (let i = hIdx+1; i < rows.length; i++) {
-                    const r = rows[i];
-                    if (!r || r.every(c => c===null || c==='' || c===undefined)) continue;
-                    const data = parseData(r[cD]);
-                    const valor = parseValor(r[cV]);
-                    const desc = String(r[cX]||'').trim();
-                    if (!data || valor === null || !desc) continue;
-                    if (/saldo\s+(anterior|final|do dia|atual|inicial)/i.test(desc)) continue;
-                    if (/total\s+(do dia|geral|periodo)/i.test(desc)) continue;
-
-                    todos.push({ data, descricao: desc, valor, aba_origem: sheetName });
-                    count++;
-                }
-                abasLog.push({aba: sheetName, detectados: count});
-            }
-
-            // Dedup por data|descricao|valor
-            const seen = new Set();
-            const deduped = todos.filter(t => {
-                const k = t.data+'|'+t.descricao+'|'+t.valor;
-                if (seen.has(k)) return false;
-                seen.add(k); return true;
-            });
-
-            console.log('[parsearArquivoXLSX] abas processadas:', abasLog);
-            console.log('[parsearArquivoXLSX] total deduped:', deduped.length);
-
-            // Expor log pro modal de preview
-            window.__ultimaImportacaoAbas = abasLog;
-
-            return deduped;
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+            return extrairLancamentosDeMatriz(rows, opts);
         }
 
+        // Padroes flexiveis de deteccao (busca por substring, case-insensitive)
+        const PADROES_COL = {
+            data: /(data|dt|date|emiss|lan[cç]|vencim)/i,
+            descricao: /(descri|hist|memo|observ|fornecedor|titulo|motivo|descr|nome|documento|nota|cliente|contrapart)/i,
+            valor: /(valor|vlr|value|montante|amount|total|v\$|r\$|debito|credito|vr)/i,
+            categoria: /(tipo|categoria|classifica|grupo|despesa|natureza)/i
+        };
 
         function detectarColunas(headerRow) {
             const mapa = { data: -1, descricao: -1, valor: -1, descricao_aux: -1, categoria: -1 };
@@ -3608,47 +3520,7 @@
             i.value = v;
         }
         
-
-        // [MULTISHEET] Alternar UI quando empresa ja cadastrada
-        function aplicarUICadastroEmpresa(empresaJaCadastrada, ativa) {
-            const bC = document.getElementById('btnCadastrarPlano');
-            const bV = document.getElementById('btnVincularPlano');
-            const bA = document.getElementById('btnAtivarEmpresa');
-            if (!bC || !bV || !bA) return;
-            if (empresaJaCadastrada) {
-                bC.style.display = 'none';
-                bV.style.display = 'none';
-                bA.style.display = (ativa === false) ? 'inline-flex' : 'none';
-                window.__empresaJaCadastrada = true;
-            } else {
-                bC.style.display = 'inline-flex';
-                // bV continua com sua propria logica (so aparece quando nao tem plano)
-                bA.style.display = 'none';
-                window.__empresaJaCadastrada = false;
-            }
-        }
-
-        async function ativarCadastroEmpresa() {
-            const cnpj = (document.getElementById('infoCNPJ').value || '').replace(/\D/g,'');
-            if (!cnpj) { showToast('Informe o CNPJ', 'error'); return; }
-            try {
-                const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/ativar', { method: 'POST' });
-                if (r.ok) {
-                    showToast('✅ Empresa ativada com sucesso', 'success');
-                    const bA = document.getElementById('btnAtivarEmpresa');
-                    if (bA) bA.style.display = 'none';
-                } else {
-                    const d = await r.json().catch(()=>({}));
-                    showToast('Erro ao ativar: ' + (d.error || r.status), 'error');
-                }
-            } catch(e) {
-                showToast('Erro: ' + (e.message||e), 'error');
-            }
-        }
-
         async function buscarCNPJ() {
-            // [MULTISHEET] Reseta UI ate confirmar se empresa existe
-            aplicarUICadastroEmpresa(false, true);
             const cnpj = document.getElementById('infoCNPJ').value.replace(/\D/g, '');
             const icon = document.getElementById('cnpjIcon');
             if (cnpj.length !== 14) {
@@ -3662,8 +3534,6 @@
                 if (r.ok) {
                     const d = await r.json();
                     document.getElementById('infoEmpresa').value = d.razao_social || '';
-                    // [MULTISHEET] Empresa ja cadastrada → esconder botoes de plano
-                    aplicarUICadastroEmpresa(true, d.ativa !== false);
                     icon.innerHTML = '✓';
                     icon.className = 'input-icon success';
                 } else {
