@@ -5062,6 +5062,5 @@ async function confirmarVincularPlano() {
 }
 </script>
 
-    <script src="parser-extrato-rave.js"></script>
 </body>
 </html>
