@@ -180,30 +180,3 @@
   window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado };
   console.log('[API Adapter v3] carregado');
 })();
-
-
-// [A3] Metodos de importacoes (deteccao de duplicata)
-if (window.API) {
-  window.API.importacoesBuscar = async function(cnpj, fingerprint) {
-    const cnpjL = String(cnpj || '').replace(/\D/g,'');
-    const r = await window.API.apiFetch('/api/importacoes/' + cnpjL + '/' + encodeURIComponent(fingerprint));
-    if (r.status === 404) return null;
-    if (!r.ok) throw new Error('Erro buscando importacao');
-    return await r.json();
-  };
-  window.API.importacoesGravar = async function(cnpj, dados) {
-    const cnpjL = String(cnpj || '').replace(/\D/g,'');
-    const r = await window.API.apiFetch('/api/importacoes/' + cnpjL, {
-      method: 'POST',
-      body: JSON.stringify(dados)
-    });
-    if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.erro || 'Erro gravando importacao'); }
-    return await r.json();
-  };
-  window.API.importacoesDeletar = async function(cnpj, fingerprint) {
-    const cnpjL = String(cnpj || '').replace(/\D/g,'');
-    const r = await window.API.apiFetch('/api/importacoes/' + cnpjL + '/' + encodeURIComponent(fingerprint), { method: 'DELETE' });
-    return r.ok;
-  };
-  console.log('[API Adapter] metodos de importacoes adicionados');
-}
