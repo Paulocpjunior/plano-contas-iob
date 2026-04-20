@@ -3751,13 +3751,19 @@
                 return;
             }
             
-            // Verificar se existe plano cadastrado para este CNPJ
+            // TRAVA: Verificar se existe plano cadastrado para este CNPJ
             const planoEncontrado = verificarPlanoPorCNPJ(info.cnpj);
             if (!planoEncontrado) {
-                // [A1] Abre modal de vinculacao destacando planos genericos
-                state._pendingInfo = info;  // guarda para retomar fluxo apos vincular
-                showToast('Este CNPJ ainda nao tem plano. Escolha um plano generico ou cadastre.', 'success');
-                abrirVincularPlanoModalComGenericos();
+                const cnpjLimpo = info.cnpj.replace(/\D/g, '');
+                const cnpjFormatado = cnpjLimpo.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+                
+                showToast('❌ CNPJ não possui plano de contas cadastrado!', 'error');
+                alert('🔒 TRAVA DE SEGURANÇA\n\n' +
+                      'O CNPJ ' + cnpjFormatado + ' não possui plano de contas cadastrado.\n\n' +
+                      'Para usar o sistema, é necessário:\n' +
+                      '1. Cadastrar um plano de contas específico para este CNPJ\n' +
+                      '2. Usar o botão "Cadastrar Plano" e informar o arquivo TXT do plano\n\n' +
+                      'Cada empresa deve ter seu próprio plano de contas vinculado.');
                 return;
             }
             
@@ -4877,66 +4883,6 @@ REGRAS:
   </div>
 </div>
 <script>
-async function abrirVincularPlanoModalComGenericos() {
-  // Variacao que agrupa planos genericos (sem CNPJ) no topo
-  const cnpjAtual = (document.getElementById('infoCNPJ') || {}).value || '';
-  const razaoAtual = (document.getElementById('infoEmpresa') || {}).value || '';
-  document.getElementById('vinpCNPJ').value = cnpjAtual;
-  document.getElementById('vinpRazao').value = razaoAtual;
-  document.getElementById('vinpMsg').innerHTML = '<span style="color:#059669">✨ Escolha um plano generico (sem empresa especifica) ou vincule um existente.</span>';
-  const sel = document.getElementById('vinpPlano');
-  sel.innerHTML = '<option value="">Carregando...</option>';
-  document.getElementById('vincularPlanoModal').style.display = 'flex';
-  try {
-    const planos = await window.API.loadPlanos();
-    let entries = [];
-    if (Array.isArray(planos)) {
-      entries = planos.map(p => [p.nome || p.name || p.plano_id, p]);
-    } else if (planos && typeof planos === 'object') {
-      entries = Object.entries(planos);
-    }
-    if (!entries.length) { sel.innerHTML = '<option value="">Nenhum plano disponivel</option>'; return; }
-    entries.sort((a, b) => a[0].localeCompare(b[0]));
-
-    const genericos = [];
-    const especificos = [];
-    entries.forEach(([nome, p]) => {
-      const id = p.plano_id || p.id || p._id;
-      if (!id) return;
-      const temCNPJ = p.cnpj && String(p.cnpj).replace(/\D/g,'').length === 14;
-      if (temCNPJ) especificos.push([nome, p, id]); else genericos.push([nome, p, id]);
-    });
-
-    sel.innerHTML = '<option value="">-- Selecione um plano --</option>';
-    if (genericos.length) {
-      const gGroup = document.createElement('optgroup');
-      gGroup.label = '📚 PLANOS GENERICOS (recomendados)';
-      genericos.forEach(([nome, p, id]) => {
-        const opt = document.createElement('option');
-        opt.value = id;
-        opt.textContent = nome;
-        gGroup.appendChild(opt);
-      });
-      sel.appendChild(gGroup);
-    }
-    if (especificos.length) {
-      const eGroup = document.createElement('optgroup');
-      eGroup.label = '🏢 PLANOS DE OUTRAS EMPRESAS';
-      especificos.forEach(([nome, p, id]) => {
-        const cnpjFmt = String(p.cnpj).replace(/\D/g,'').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-        const opt = document.createElement('option');
-        opt.value = id;
-        opt.textContent = nome + ' (' + cnpjFmt + ')';
-        eGroup.appendChild(opt);
-      });
-      sel.appendChild(eGroup);
-    }
-  } catch (e) {
-    sel.innerHTML = '<option value="">Erro ao carregar</option>';
-    document.getElementById('vinpMsg').textContent = 'Erro: ' + e.message;
-  }
-}
-
 async function abrirVincularPlanoModal() {
   const cnpjAtual = (document.getElementById('infoCNPJ') || {}).value || '';
   const razaoAtual = (document.getElementById('infoEmpresa') || {}).value || '';
@@ -5002,12 +4948,6 @@ async function confirmarVincularPlano() {
       } catch (e) { console.warn('[vincular] falha recarga cache:', e); }
       // Revalida CNPJ (agora o cache ja tem a nova vinculacao)
       if (typeof buscarCNPJ === 'function') { try { buscarCNPJ(); } catch(e) {} }
-      // [A1] Retoma confirmarInfo se houver info pendente
-      if (state._pendingInfo) {
-        const pend = state._pendingInfo;
-        delete state._pendingInfo;
-        setTimeout(() => { try { confirmarInfo(); } catch(e) { console.warn('[A1] retomar confirmarInfo falhou:', e); } }, 300);
-      }
       showToast('✅ Plano vinculado! Clique em \'Confirmar e Continuar\' para prosseguir', 'success');
     }, 700);
   } catch (e) {
