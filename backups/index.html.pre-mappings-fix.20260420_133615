@@ -2843,12 +2843,11 @@
             if (s) {
                 const d = JSON.parse(s);
                 state.entries = d.entries || [];
-                state.mappings = Array.isArray(d.mappings) ? d.mappings : (Array.isArray(state.mappings) ? state.mappings : []);
+                state.mappings = d.mappings || state.mappings;
                 state.info = d.info || null;
                 state.infoConfirmed = d.infoConfirmed || false;
                 state.lastFile = d.lastFile || null;
             }
-            if (!Array.isArray(state.mappings)) state.mappings = [];
         }
         
         function saveState() {
@@ -2889,7 +2888,7 @@
                 if (confirm(msg)) {
                     const d = JSON.parse(sess.state_json);
                     state.entries = d.entries || [];
-                    state.mappings = Array.isArray(d.mappings) ? d.mappings : (Array.isArray(state.mappings) ? state.mappings : []);
+                    state.mappings = d.mappings || state.mappings;
                     state.info = d.info || state.info;
                     state.infoConfirmed = d.infoConfirmed || state.infoConfirmed;
                     state.lastFile = d.lastFile || state.lastFile;
@@ -4597,7 +4596,6 @@
         
         // Mapeamento
         function renderMappings() {
-            if (!Array.isArray(state.mappings)) state.mappings = [];
             let h = '<table><thead><tr><th>Palavra-chave</th><th>Reduzida Débito</th><th>Reduzida Crédito</th><th>Categoria</th><th></th></tr></thead><tbody>';
             state.mappings.forEach((m, i) => {
                 h += `<tr><td><strong>${m.k}</strong></td><td>${m.d}</td><td>${m.c}</td><td><span class="badge badge-gray">${m.cat || '-'}</span></td><td><button class="btn-sugestao" onclick="removeMapping(${i})">🗑️</button></td></tr>`;
