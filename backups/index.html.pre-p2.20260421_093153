@@ -2157,9 +2157,25 @@
                     
                     const contasImportadas = [];
                     
-                    // [P2] Usa parser v5 robusto em vez de logica inline
-                    const contasParsed = parsearPlanoTXT(content);
-                    contasImportadas.push(...contasParsed);
+                    lines.forEach(line => {
+                        const codigo = line.substring(0, 14).trim();
+                        const descricao = line.substring(40, 77).trim() || line.substring(14, 54).trim();
+                        const reduzido = line.substring(77).trim() || line.substring(54).trim();
+                        
+                        if (codigo && codigo.match(/^\d/)) {
+                            let reduzidoNumero = reduzido;
+                            if (reduzido.startsWith('5G')) {
+                                const match = reduzido.match(/(\d+)$/);
+                                if (match) reduzidoNumero = match[1];
+                            }
+                            
+                            contasImportadas.push({
+                                codigo: codigo,
+                                descricao: descricao,
+                                reduzido: reduzidoNumero
+                            });
+                        }
+                    });
                     
                     if (contasImportadas.length === 0) {
                         throw new Error('Nenhuma conta encontrada no arquivo');
@@ -2406,104 +2422,39 @@
             return textoCompleto;
         }
         
-        // v5.0: parsearPlanoTXT ROBUSTO - 4 estrategias em cascata + filtros de lixo
+        // v4.3: parsearPlanoTXT com validacao + dedup
         function parsearPlanoTXT(content) {
-            const lines = content.split(/\r?\n/);
+            const lines = content.split(/\r?\n/).filter(l => l.trim());
             const contasImportadas = [];
             const codigosVistos = new Set();
-            let rejeitadasLixo = 0;
             let rejeitadasVazias = 0;
             let rejeitadasDuplicadas = 0;
             
-            // Regex para detectar codigo estruturado (ex: 1.1.1.02.0001 ou 1.1.1.02.0001/0000)
-            const reCodigoEstruturado = /^(\d+(?:\.\d+)+)/;
-            
-            // Regex para linha-lixo (cabecalho, data, paginacao, titulos)
-            const reLixo = /^(data|date|pagina|pag\.|fl\.|folha|empresa|plano de contas|sistema|usuario|impressao|emitido|codigo\s+descricao|cod\.?\s+desc|-{3,}|={3,}|\s*$)/i;
-            
-            // Helper: extrai reduzido de string que pode ter prefixo 5G
-            function limparReduzido(s) {
-                if (!s) return '';
-                s = s.trim();
-                if (s.startsWith('5G')) {
-                    const m = s.match(/(\d+)$/);
-                    return m ? m[1] : '';
-                }
-                // Retorna apenas se for numerico puro OU vazio
-                return /^\d+$/.test(s) ? s : (s.length > 20 ? '' : s);
-            }
-            
-            lines.forEach((lineRaw, idx) => {
-                const line = lineRaw.replace(/\s+$/, ''); // remove trailing spaces mas preserva leading
-                if (!line.trim()) return;
+            lines.forEach(line => {
+                const codigo = line.substring(0, 14).trim();
+                const descricao = line.substring(40, 77).trim() || line.substring(14, 54).trim();
+                const reduzido = line.substring(77).trim() || line.substring(54).trim();
                 
-                // Filtro 1: linhas-lixo obvias
-                if (reLixo.test(line.trim())) { rejeitadasLixo++; return; }
-                
-                // Filtro 2: tem que comecar com digito (codigo estruturado)
-                const mCod = line.trim().match(reCodigoEstruturado);
-                if (!mCod) { rejeitadasLixo++; return; }
-                
-                const codigo = mCod[1];
-                let descricao = '';
-                let reduzido = '';
-                
-                // ESTRATEGIA A: split por 2+ espacos (separador natural)
-                // Funciona para a maioria dos TXTs: CODIGO  DESCRICAO  EMPRESA  REDUZIDO
-                const colunas = line.trim().split(/\s{2,}/).filter(c => c);
-                if (colunas.length >= 2) {
-                    // col 0 = codigo (ja extraido)
-                    // ultima coluna numerica ou 5G... = reduzido
-                    // meio = descricao (pode ter multiplos splits)
-                    const ultCol = colunas[colunas.length - 1].trim();
-                    const penultCol = colunas.length >= 3 ? colunas[colunas.length - 2].trim() : '';
-                    
-                    // Tenta reduzido na ultima coluna
-                    reduzido = limparReduzido(ultCol);
-                    // Se ultima coluna nao for reduzido valido, tenta penultima
-                    if (!reduzido && penultCol) reduzido = limparReduzido(penultCol);
-                    
-                    // Descricao = tudo no meio (sem codigo e sem reduzido e sem empresa 5G)
-                    const meio = colunas.slice(1, -1).filter(c => !c.startsWith('5G') && !/^\d{10,}$/.test(c));
-                    descricao = meio.join(' ').trim();
-                    // Se sobrou so 2 colunas (codigo + desc), reduzido fica vazio
-                    if (colunas.length === 2 && !reduzido) {
-                        descricao = colunas[1].trim();
-                    }
-                }
-                
-                // ESTRATEGIA B: posicoes fixas do layout IOB original (fallback)
-                if (!descricao || descricao.length < 2) {
-                    descricao = (line.substring(40, 77).trim() || line.substring(14, 54).trim()).replace(/^[-\s]+/, '');
-                }
-                if (!reduzido) {
-                    const pos77 = line.substring(77).trim();
-                    const pos54 = line.substring(54).trim();
-                    reduzido = limparReduzido(pos77) || limparReduzido(pos54);
-                }
-                
-                // Filtro 3: descricao valida
+                // Validacoes: rejeita linhas com cod invalido, desc vazia, ou duplicadas
+                if (!codigo || !codigo.match(/^\d/)) return;
                 if (!descricao || descricao.length < 2) { rejeitadasVazias++; return; }
-                
-                // Filtro 4: descricao nao pode ser outro codigo estruturado
-                if (reCodigoEstruturado.test(descricao)) { rejeitadasVazias++; return; }
-                
-                // Filtro 5: duplicatas
                 if (codigosVistos.has(codigo)) { rejeitadasDuplicadas++; return; }
                 codigosVistos.add(codigo);
                 
-                contasImportadas.push({ codigo, descricao, reduzido });
+                let reduzidoNumero = reduzido;
+                if (reduzido.startsWith('5G')) {
+                    const match = reduzido.match(/(\d+)$/);
+                    if (match) reduzidoNumero = match[1];
+                }
+                
+                contasImportadas.push({ codigo, descricao, reduzido: reduzidoNumero });
             });
             
-            console.log('[parser TXT v5] ' + contasImportadas.length + ' validas | ' +
-                rejeitadasLixo + ' lixo | ' +
-                rejeitadasVazias + ' desc vazia | ' +
-                rejeitadasDuplicadas + ' dup');
-            
-            // Estatistica de qualidade: quantas com reduzido preenchido
-            const comReduzido = contasImportadas.filter(c => c.reduzido && c.reduzido.length >= 1).length;
-            const pctReduzido = contasImportadas.length ? Math.round(100 * comReduzido / contasImportadas.length) : 0;
-            console.log('[parser TXT v5] qualidade: ' + pctReduzido + '% das contas com reduzido (' + comReduzido + '/' + contasImportadas.length + ')');
+            if (rejeitadasVazias || rejeitadasDuplicadas) {
+                console.log('[parser TXT] ' + contasImportadas.length + ' validas, ' +
+                    rejeitadasVazias + ' com desc vazia, ' +
+                    rejeitadasDuplicadas + ' duplicadas rejeitadas');
+            }
             
             return contasImportadas;
         }
