@@ -1298,7 +1298,8 @@
             <button onclick="showPage('mapeamento')"><span>🔗</span> Mapeamento</button>
             <button onclick="showPage('exportar')"><span>💾</span> Exportar</button>
             <button onclick="showPage('sobre')"><span>ℹ️</span> Sobre</button>
-            <button id="btnAdminNav" onclick="window.open('/admin', '_blank')" style="display:none;margin-left:auto;color:#059669;font-weight:700"><span>👑</span> Admin</button>
+            <button id="btnAuditAiNav" onclick="window.open('/auditai', '_blank')" style="display:none;margin-left:auto;color:#2563eb;font-weight:700"><span>🔍</span> AuditAI</button>
+            <button id="btnAdminNav" onclick="window.open('/admin', '_blank')" style="display:none;color:#059669;font-weight:700"><span>👑</span> Admin</button>
         </div>
         
         <!-- Content -->
@@ -2825,6 +2826,8 @@
                         if (window.CURRENT_USER && window.CURRENT_USER.is_admin) {
                             const btn = document.getElementById('btnAdminNav');
                             if (btn) btn.style.display = 'flex';
+                            const btnAud = document.getElementById('btnAuditAiNav');
+                            if (btnAud) btnAud.style.display = 'flex';
                             const btnV = document.getElementById('btnVincularPlano');
                             if (btnV) btnV.style.display = 'inline-block';
                             const btnTP = document.getElementById('btnTrocarPlanoBar');

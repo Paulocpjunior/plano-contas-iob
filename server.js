@@ -735,6 +735,11 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
+// Rota da aba AuditAI (admin-only enforcado no client)
+app.get('/auditai', (req, res) => {
+  res.sendFile(path.join(__dirname, 'auditai.html'));
+});
+
 app.use(express.static(__dirname, { index: 'index.html' }));
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
