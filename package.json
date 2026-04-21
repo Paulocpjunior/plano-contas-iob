@@ -8,8 +8,9 @@
     "seed": "node seed.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
     "@google-cloud/firestore": "^7.10.0",
+    "@google/genai": "^1.50.1",
+    "express": "^4.19.2",
     "firebase-admin": "^12.7.0"
   }
 }
