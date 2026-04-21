@@ -11,7 +11,7 @@ admin.initializeApp({ projectId: 'projetos-app-sp' });
 const adminAuth = admin.auth();
 const DOMAIN = '@spassessoriacontabil.com.br';
 
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 app.get('/api/health', async (req, res) => {
   try {
@@ -737,5 +737,59 @@ app.get('/admin', (req, res) => {
 
 app.use(express.static(__dirname, { index: 'index.html' }));
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GEMINI SDK ENDPOINTS — AuditAI e Extratos (admin-only)
+// Separado do proxy /api/ai/gemini existente (que continua aberto para o
+// classificador IA do plano-contas-iob usado por todos os usuarios).
+// ═══════════════════════════════════════════════════════════════════════════
+let _geminiClient = null;
+function getGeminiClient() {
+  if (_geminiClient) return _geminiClient;
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  const { GoogleGenAI } = require('@google/genai');
+  _geminiClient = new GoogleGenAI({ apiKey: key });
+  return _geminiClient;
+}
+
+app.post('/api/gemini/generate', adminRequired, async (req, res) => {
+  const client = getGeminiClient();
+  if (!client) return res.status(503).json({ erro: 'GEMINI_API_KEY nao configurada' });
+  const { model = 'gemini-2.5-flash', contents, config = {}, systemInstruction } = req.body || {};
+  if (!contents) return res.status(400).json({ erro: 'contents obrigatorio' });
+  try {
+    const response = await client.models.generateContent({
+      model,
+      contents,
+      config: Object.assign({}, config, systemInstruction ? { systemInstruction } : {})
+    });
+    res.json({ text: response.text || '', raw: response });
+  } catch (err) {
+    console.error('[gemini/generate]', err && err.message);
+    const status = err && err.status >= 400 && err.status < 600 ? err.status : 500;
+    res.status(status).json({ erro: (err && err.message) || 'Erro Gemini' });
+  }
+});
+
+app.post('/api/gemini/chat', adminRequired, async (req, res) => {
+  const client = getGeminiClient();
+  if (!client) return res.status(503).json({ erro: 'GEMINI_API_KEY nao configurada' });
+  const { model = 'gemini-2.5-pro', history = [], message, systemInstruction, tools } = req.body || {};
+  if (!message) return res.status(400).json({ erro: 'message obrigatorio' });
+  try {
+    const cfg = {};
+    if (systemInstruction) cfg.systemInstruction = systemInstruction;
+    if (tools) cfg.tools = tools;
+    const chat = client.chats.create({ model, history, config: cfg });
+    const result = await chat.sendMessage({ message });
+    res.json({ text: result.text || '' });
+  } catch (err) {
+    console.error('[gemini/chat]', err && err.message);
+    res.status(500).json({ erro: (err && err.message) || 'Erro chat' });
+  }
+});
+
 
 app.listen(PORT, () => console.log('[plano-contas-iob v4.0-colaborativo] porta ' + PORT));
