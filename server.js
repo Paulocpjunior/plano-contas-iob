@@ -735,9 +735,10 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// Rota da aba AuditAI (admin-only enforcado no client)
-app.get('/auditai', (req, res) => {
-  res.sendFile(path.join(__dirname, 'auditai.html'));
+// AuditAI — app React buildado
+app.use('/auditai', express.static(path.join(__dirname, 'auditai'), { index: 'index.html' }));
+app.get('/auditai*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'auditai', 'index.html'));
 });
 
 app.use(express.static(__dirname, { index: 'index.html' }));
