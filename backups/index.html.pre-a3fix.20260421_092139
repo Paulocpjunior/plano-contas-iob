@@ -4256,16 +4256,7 @@
                     entries = parseCSV(await selectedFile.text());
                 }
                 
-                // [A3-FIX] Array vazio pode significar: arquivo realmente vazio OU usuario cancelou no modal JA IMPORTADO
-                if (!entries.length) {
-                    hideProcessing();
-                    // Se o ultimo flag foi cancelamento no modal, nao mostra erro
-                    if (window.__a3CanceladoPeloUsuario) {
-                        window.__a3CanceladoPeloUsuario = false;
-                        return;
-                    }
-                    throw new Error('Nenhuma transação encontrada no arquivo.');
-                }
+                if (!entries.length) throw new Error('Nenhuma transação encontrada no arquivo.');
                 
                 // Apply mappings and detect unusual
                 entries = entries.map(applyMapping);
@@ -4388,7 +4379,7 @@
                     let bFinal = bancoPDF, cFinal = contaPDF, nFinal = nomeContaPDF;
                     if (!bFinal || !cFinal) {
                       const m = await window.abrirModalContaManual();
-                      if (!m) { window.__a3CanceladoPeloUsuario = true; showToast('Importacao cancelada', 'error'); return []; }
+                      if (!m) { showToast('Importacao cancelada', 'error'); return []; }
                       bFinal = m.banco; cFinal = m.conta; nFinal = m.nome_conta;
                       if (state.info) {
                         state.info.banco_pdf = bFinal; state.info.conta_pdf = cFinal;
@@ -4414,7 +4405,7 @@
                                         '<strong>Importado em:</strong> ' + quando + '<br>' +
                                         '<strong>Por:</strong> ' + (existe.criado_por || '-');
                         acaoDup = await window.abrirModalJaImportado(detalhe);
-                        if (acaoDup === 'cancelar') { window.__a3CanceladoPeloUsuario = true; showToast('Importacao cancelada', 'error'); return []; }
+                        if (acaoDup === 'cancelar') { showToast('Importacao cancelada', 'error'); return []; }
                       }
                     } catch(e) { console.warn('[A3] consulta duplicata:', e.message); }
 
