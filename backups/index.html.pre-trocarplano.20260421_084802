@@ -1283,7 +1283,7 @@
                     <h2 id="barEmpresa">-</h2>
                     <p>CNPJ: <span id="barCNPJ">-</span> | Banco: <span id="barBanco">-</span> | Usuário: <span id="barUsuario">-</span> | Período: <span id="barPeriodo">-</span></p>
                     <p id="barContaInfoWrap" style="margin-top:6px;display:none"><span id="barContaInfo" style="color:#2563eb;font-weight:600">🏦 -</span></p>
-                    <p id="barPlanoInfoWrap" style="margin-top:4px;display:none"><span id="barPlanoInfo" style="color:#059669;font-weight:600">📚 -</span> <button id="btnTrocarPlanoBar" onclick="abrirModalTrocarPlano()" style="display:none;margin-left:10px;padding:4px 10px;background:#7c3aed;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">🔄 Trocar</button></p>
+                    <p id="barPlanoInfoWrap" style="margin-top:4px;display:none"><span id="barPlanoInfo" style="color:#059669;font-weight:600">📚 -</span></p>
                 </div>
             </div>
         </div>
@@ -2778,8 +2778,6 @@
                             if (btn) btn.style.display = 'flex';
                             const btnV = document.getElementById('btnVincularPlano');
                             if (btnV) btnV.style.display = 'inline-block';
-                            const btnTP = document.getElementById('btnTrocarPlanoBar');
-                            if (btnTP) btnTP.style.display = 'inline-block';
                         }
                     }
                     // Registra login (fire-and-forget, nao bloqueia UI)
@@ -5302,165 +5300,6 @@ window.gerarFingerprintImportacao = function(cnpj, banco, conta, pIni, pFim) {
   const pi = String(pIni || '').replace(/[^0-9]/g,'');
   const pf = String(pFim || '').replace(/[^0-9]/g,'');
   return c + '_' + b + '_' + ct + '_' + pi + '_' + pf;
-};
-</script>
-
-
-<!-- [TROCAR PLANO] Modal -->
-<div id="modalTrocarPlano" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center">
-  <div style="background:white;max-width:560px;width:92%;padding:24px;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto">
-    <h3 style="margin:0 0 16px;color:#7c3aed;font-size:18px">&#128260; Trocar Plano de Contas</h3>
-
-    <div style="background:#f9fafb;padding:12px;border-radius:8px;margin-bottom:14px;font-size:13px">
-      <strong>Plano atual:</strong><br>
-      <span id="tpPlanoAtual" style="color:#059669">-</span>
-    </div>
-
-    <div style="margin-bottom:14px">
-      <label style="display:block;margin-bottom:6px;color:#374151;font-weight:600;font-size:13px">Novo plano</label>
-      <select id="tpNovoPlano" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
-        <option value="">-- Selecione --</option>
-      </select>
-    </div>
-
-    <div id="tpContextoClassif" style="background:#fef3c7;padding:12px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#92400e">
-      <strong>&#9888;&#65039; Atencao:</strong> <span id="tpTotalLanc">0</span> lancamentos nesta sessao.<br>
-      <label style="display:block;margin-top:8px;cursor:pointer">
-        <input type="checkbox" id="tpDescartar" style="margin-right:6px"> Descartar classificacoes existentes (volta "Nao categorizado")
-      </label>
-      <div style="margin-top:6px;color:#78350f;font-size:12px">Se desmarcado, mantem classificacoes — pode dar erro se codigos nao existirem no plano novo.</div>
-    </div>
-
-    <div style="margin-bottom:14px">
-      <label style="display:block;margin-bottom:4px;color:#374151;font-weight:600;font-size:13px">Digite <strong>TROCAR</strong> para confirmar</label>
-      <input id="tpConfirm" type="text" placeholder="TROCAR" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
-    </div>
-
-    <div id="tpErro" style="color:#dc2626;font-size:13px;margin-bottom:8px;min-height:18px"></div>
-
-    <div style="display:flex;gap:8px">
-      <button onclick="fecharTrocarPlano()" style="flex:1;padding:12px;background:#e5e7eb;border:none;border-radius:8px;font-weight:600;cursor:pointer">Cancelar</button>
-      <button onclick="confirmarTrocarPlano()" style="flex:1;padding:12px;background:#7c3aed;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer">&#128260; Trocar Plano</button>
-    </div>
-  </div>
-</div>
-
-<script>
-window.abrirModalTrocarPlano = async function() {
-  if (!window.CURRENT_USER || !window.CURRENT_USER.is_admin) {
-    showToast('Apenas administradores podem trocar o plano', 'error');
-    return;
-  }
-  if (!state.info || !state.info.cnpj) {
-    showToast('Selecione uma empresa primeiro', 'error');
-    return;
-  }
-
-  const cnpjLimpo = state.info.cnpj.replace(/\D/g, '');
-  const achado = (typeof verificarPlanoPorCNPJ === 'function') ? verificarPlanoPorCNPJ(cnpjLimpo) : null;
-  const planoAtualNome = achado ? achado.nome : '(sem plano vinculado)';
-  const planoAtualId = achado && achado.plano ? (achado.plano.plano_id || achado.plano.id) : null;
-
-  document.getElementById('tpPlanoAtual').textContent = planoAtualNome;
-  document.getElementById('tpTotalLanc').textContent = (state.entries || []).length;
-  document.getElementById('tpDescartar').checked = false;
-  document.getElementById('tpConfirm').value = '';
-  document.getElementById('tpErro').textContent = '';
-
-  // Popular dropdown com todos os planos EXCETO o atual
-  const sel = document.getElementById('tpNovoPlano');
-  sel.innerHTML = '<option value="">-- Selecione --</option>';
-  try {
-    const planos = await window.API.loadPlanos();
-    const entries = Array.isArray(planos) ? planos.map(p => [p.nome || p.name || p.plano_id, p]) : Object.entries(planos || {});
-    entries.sort((a,b) => String(a[0]).localeCompare(String(b[0])));
-
-    const genericos = [];
-    const especificos = [];
-    entries.forEach(function(en){
-      const nome = en[0], p = en[1];
-      const id = p.plano_id || p.id || p._id;
-      if (!id || id === planoAtualId) return;
-      const temCNPJ = p.cnpj && String(p.cnpj).replace(/\D/g,'').length === 14;
-      (temCNPJ ? especificos : genericos).push([nome, p, id]);
-    });
-
-    if (genericos.length) {
-      const g = document.createElement('optgroup');
-      g.label = '📚 GENERICOS';
-      genericos.forEach(function(x){ const o=document.createElement('option'); o.value=x[2]; o.textContent=x[0]; g.appendChild(o); });
-      sel.appendChild(g);
-    }
-    if (especificos.length) {
-      const e = document.createElement('optgroup');
-      e.label = '🏢 OUTRAS EMPRESAS';
-      especificos.forEach(function(x){
-        const cnpjFmt = String(x[1].cnpj||'').replace(/\D/g,'').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-        const o=document.createElement('option'); o.value=x[2]; o.textContent = x[0] + ' (' + cnpjFmt + ')'; e.appendChild(o);
-      });
-      sel.appendChild(e);
-    }
-  } catch(e) {
-    console.warn('erro carregando planos:', e);
-  }
-
-  document.getElementById('modalTrocarPlano').style.display = 'flex';
-};
-
-window.fecharTrocarPlano = function() {
-  document.getElementById('modalTrocarPlano').style.display = 'none';
-};
-
-window.confirmarTrocarPlano = async function() {
-  const err = document.getElementById('tpErro');
-  const cnpjLimpo = state.info.cnpj.replace(/\D/g, '');
-  const novoPlanoId = document.getElementById('tpNovoPlano').value;
-  const descartar = document.getElementById('tpDescartar').checked;
-  const conf = document.getElementById('tpConfirm').value.trim().toUpperCase();
-
-  if (!novoPlanoId) { err.textContent = 'Selecione um novo plano'; return; }
-  if (conf !== 'TROCAR') { err.textContent = 'Digite TROCAR para confirmar'; return; }
-
-  err.style.color = '#6b7280';
-  err.textContent = 'Trocando...';
-
-  try {
-    const r = await window.API.trocarPlanoEmpresa(cnpjLimpo, novoPlanoId, descartar);
-    if (r.erro) { err.style.color='#dc2626'; err.textContent = 'Erro: ' + r.erro; return; }
-
-    err.style.color='#059669';
-    err.textContent = '✅ Plano trocado com sucesso!';
-
-    // Recarregar cache de planos
-    try {
-      const atual = await window.API.loadPlanos();
-      if (atual && typeof atual === 'object') {
-        planosCadastrados = atual;
-        try { localStorage.setItem('planosCadastrados_sp', JSON.stringify(atual)); } catch(e){}
-      }
-    } catch(e){}
-
-    // Se descartou, recarregar sessao
-    if (descartar) {
-      try {
-        const sess = await window.API.carregarSessaoEmpresa(cnpjLimpo);
-        if (sess && sess.state_json) {
-          const d = JSON.parse(sess.state_json);
-          state.entries = d.entries || state.entries;
-          saveState();
-        }
-      } catch(e){}
-    }
-
-    setTimeout(function(){
-      fecharTrocarPlano();
-      try { updateCompanyBar(); updateDashboard(); } catch(e){}
-      showToast('Plano trocado: ' + (r.plano_novo_nome || '') + (descartar ? ' (classificacoes descartadas)' : ''), 'success');
-    }, 800);
-  } catch(e) {
-    err.style.color='#dc2626';
-    err.textContent = 'Erro: ' + e.message;
-  }
 };
 </script>
 

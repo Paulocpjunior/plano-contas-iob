@@ -207,24 +207,3 @@ if (window.API) {
   };
   console.log('[API Adapter] metodos de importacoes adicionados');
 }
-
-
-// [TROCAR PLANO] Admin substitui plano vinculado
-if (window.API) {
-  window.API.trocarPlanoEmpresa = async function(cnpj, novoPlanoId, descartarClassificacoes) {
-    const cnpjL = String(cnpj || '').replace(/\D/g, '');
-    const r = await window.API.apiFetch('/api/admin/trocar-plano-empresa', {
-      method: 'POST',
-      body: JSON.stringify({ cnpj: cnpjL, novo_plano_id: novoPlanoId, descartar_classificacoes: !!descartarClassificacoes })
-    });
-    if (r.status === 403) return { erro: 'admin-only' };
-    return await r.json();
-  };
-  window.API.getHistoricoPlanos = async function(cnpj) {
-    const cnpjL = String(cnpj || '').replace(/\D/g, '');
-    const r = await window.API.apiFetch('/api/empresas/' + cnpjL + '/historico-planos');
-    if (!r.ok) return { historico: [] };
-    return await r.json();
-  };
-  console.log('[API Adapter] trocarPlanoEmpresa + getHistoricoPlanos adicionados');
-}
