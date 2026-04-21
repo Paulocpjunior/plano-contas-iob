@@ -4925,20 +4925,11 @@
             }
             
             // Preparar contas para enviar à IA
-            const contasPlano = planoVinculado.contas
-                .filter(c => c.codigo && c.descricao && c.reduzido) // so analiticas
-                .map(c => ({
-                    codigo: c.codigo,
-                    descricao: c.descricao,
-                    reduzido: c.reduzido
-                }));
-            
-            console.log('[IA v2] Plano tem', contasPlano.length, 'contas analiticas (com reduzido)');
-            
-            if (contasPlano.length === 0) {
-                showToast('Plano vinculado nao tem contas analiticas (com reduzido). Reimporte o plano.', 'error');
-                return;
-            }
+            const contasPlano = planoVinculado.contas.map(c => ({
+                codigo: c.codigo,
+                descricao: c.descricao,
+                reduzido: c.reduzido || ''
+            }));
             
             showToast(`🤖 Classificando ${state.entries.length} transações com plano ${nomePlano}...`, 'success');
             
@@ -4948,75 +4939,33 @@
             
             try {
                 // Classificar em lotes de 20
-                const batchSize = 10; // v2: reduzido de 20 para 10 para maior precisao
+                const batchSize = 20;
                 let classificadas = 0;
                 
                 for (let i = 0; i < state.entries.length; i += batchSize) {
                     const batch = state.entries.slice(i, i + batchSize);
                     
-                    const prompt = `Voce eh um contador brasileiro especialista em comercio atacadista/varejista de FRUTAS.
+                    const prompt = `Você é um contador especialista. Classifique cada transação bancária usando APENAS as contas do plano de contas fornecido.
 
-CONTEXTO DA EMPRESA:
-- Ramo: Comercio de Frutas (CNAE 4721-1 / 4633-8)
-- Regime: Lucro Presumido ou Simples Nacional
-- Operacoes tipicas: compra de frutas de produtores, venda a mercados/restaurantes, frete, combustivel, folha pequena
+PLANO DE CONTAS (use APENAS estas contas):
+${contasPlano.slice(0, 200).map(c => `${c.codigo} - ${c.descricao}`).join('\n')}
 
-PLANO DE CONTAS COMPLETO (${contasPlano.length} contas analiticas):
-Formato: CODIGO_ESTRUTURADO | REDUZIDO_14_DIGITOS | DESCRICAO
-${contasPlano.map(c => c.codigo + ' | ' + c.reduzido + ' | ' + c.descricao).join('\n')}
+TRANSAÇÕES PARA CLASSIFICAR:
+${batch.map((t, idx) => `${idx + 1}. ${t.data} | ${t.descricao} | R$ ${Math.abs(t.valor).toFixed(2)} | ${t.valor >= 0 ? 'CRÉDITO' : 'DÉBITO'}`).join('\n')}
 
-EXEMPLOS DE CLASSIFICACAO (aprenda o padrao):
-
-Ex1: "PIX ENVIADO FORNECEDOR ABC FRUTAS LTDA | R$ 5.000 | DEBITO (saida)"
--> Debito: FORNECEDORES (passivo reduz quando paga)
--> Credito: BANCO ITAU (ativo reduz quando paga)
--> Historico: 1 (Pagamento fornecedor)
-
-Ex2: "TARIFA DOC/TED | R$ 15 | DEBITO"
--> Debito: DESPESAS BANCARIAS (conta de resultado)
--> Credito: BANCO ITAU
--> Historico: 15
-
-Ex3: "PIX RECEBIDO DE MERCADO CENTRAL | R$ 12.000 | CREDITO (entrada)"
--> Debito: BANCO ITAU (ativo aumenta)
--> Credito: RECEITA DE VENDAS (receita)  OU  CLIENTES (se era a receber)
--> Historico: 201
-
-Ex4: "DARF IRPJ ABRIL 2026 | R$ 3.500 | DEBITO"
--> Debito: IRPJ A RECOLHER (passivo)
--> Credito: BANCO ITAU
--> Historico: 301
-
-Ex5: "ALUGUEL LOJA MARCAL | R$ 4.000 | DEBITO"
--> Debito: DESPESA DE ALUGUEL ou ALUGUEIS A PAGAR
--> Credito: BANCO ITAU
--> Historico: 50
-
-Ex6: "COMBUSTIVEL POSTO XX | R$ 280 | DEBITO"
--> Debito: COMBUSTIVEIS (despesa)
--> Credito: BANCO ITAU
--> Historico: 80
-
-TRANSACOES PARA CLASSIFICAR:
-${batch.map((t, idx) => (idx + 1) + '. ' + t.data + ' | ' + (t.descricao || '') + ' | R$ ' + Math.abs(t.valor).toFixed(2) + ' | ' + (t.valor >= 0 ? 'CREDITO_ENTRADA' : 'DEBITO_SAIDA')).join('\n')}
-
-REGRAS ABSOLUTAS:
-1. SEMPRE retorne o codigo REDUZIDO_14_DIGITOS (ex: "00010000000391"), NUNCA o estruturado (ex: "2.1.1.07.0001").
-2. Os reduzidos devem EXISTIR na tabela do plano acima. Se nao achar conta adequada, use o reduzido da primeira conta generica compativel.
-3. Debito e Credito SEMPRE sao preenchidos (nunca vazios).
-4. Para DEBITO_SAIDA bancaria: Credito eh o BANCO ITAU. Debito varia (fornecedor/despesa/imposto).
-5. Para CREDITO_ENTRADA bancaria: Debito eh o BANCO ITAU. Credito varia (receita/cliente/outro).
-6. Identifique o BANCO ITAU procurando no plano uma conta com "BANCO ITAU" na descricao.
-7. historico: codigo numerico de 1-4 digitos (ex: "1", "15", "201").
-8. Se a descricao for vaga ou nao reconhecer, use a conta mais GENERICA do tipo correto (ex: DIVERSOS A PAGAR, OUTRAS DESPESAS).
-9. Justifique em UMA frase curta cada classificacao (campo "justificativa").
-
-Responda APENAS JSON valido, sem texto antes/depois:
+Responda APENAS com JSON válido, sem texto adicional:
 {
   "classificacoes": [
-    {"idx": 1, "contaDebito": "REDUZIDO", "contaCredito": "REDUZIDO", "historico": "1", "justificativa": "texto curto"}
+    {"idx": 1, "contaDebito": "CÓDIGO", "contaCredito": "CÓDIGO", "historico": "CÓDIGO_HISTORICO"},
+    ...
   ]
-}`;
+}
+
+REGRAS:
+- Use APENAS códigos de contas que existem no plano acima
+- Para CRÉDITOS (entradas): Débito em conta de Ativo (1.x), Crédito em conta de Receita (4.x)
+- Para DÉBITOS (saídas): Débito em conta de Despesa (3.x ou 4.x), Crédito em conta de Ativo (1.x)
+- historico: código numérico de 1-4 dígitos (ex: "1001")`;
 
                     const response = await window.API.callGemini({
                             contents: [{ parts: [{ text: prompt }] }],
@@ -5036,40 +4985,19 @@ Responda APENAS JSON valido, sem texto antes/depois:
                         const result = JSON.parse(jsonMatch[0]);
                         
                         if (result.classificacoes) {
-                            // [IA v2] Validar cada reduzido existe no plano
-                            const reduzidosValidos = new Set(contasPlano.map(c => c.reduzido));
-                            let rejeitadasIA = 0;
-                            
                             result.classificacoes.forEach(c => {
                                 const entryIdx = i + c.idx - 1;
-                                if (!state.entries[entryIdx]) return;
-                                
-                                const dbt = String(c.contaDebito || '').trim();
-                                const crd = String(c.contaCredito || '').trim();
-                                
-                                // Rejeitar se IA devolveu codigo estruturado (tem ponto) ou invalido
-                                const dbtValido = reduzidosValidos.has(dbt);
-                                const crdValido = reduzidosValidos.has(crd);
-                                
-                                if (!dbtValido || !crdValido) {
-                                    console.warn('[IA v2] Entry', entryIdx, 'rejeitado: dbt=' + dbt + ' (' + (dbtValido?'ok':'INVALIDO') + '), crd=' + crd + ' (' + (crdValido?'ok':'INVALIDO') + ')');
-                                    rejeitadasIA++;
-                                    state.entries[entryIdx].categoria = 'Nao categorizado';
-                                    return;
+                                if (state.entries[entryIdx]) {
+                                    state.entries[entryIdx].contaDebito = c.contaDebito || '';
+                                    state.entries[entryIdx].contaCredito = c.contaCredito || '';
+                                    state.entries[entryIdx].historico = c.historico || '1';
+                                    classificadas++;
                                 }
-                                
-                                state.entries[entryIdx].contaDebito = dbt;
-                                state.entries[entryIdx].contaCredito = crd;
-                                state.entries[entryIdx].historico = String(c.historico || '1');
-                                state.entries[entryIdx]._iaJustificativa = c.justificativa || '';
-                                classificadas++;
                             });
-                            
-                            if (rejeitadasIA > 0) console.warn('[IA v2] Lote ' + (i/10+1) + ': ' + rejeitadasIA + ' rejeitadas por reduzido invalido');
                         }
                     }
                     
-                    btn.innerHTML = '⏳ IA v2: ' + Math.min(i + batchSize, state.entries.length) + '/' + state.entries.length;
+                    btn.innerHTML = `⏳ ${Math.min(i + batchSize, state.entries.length)}/${state.entries.length}...`;
                 }
                 
                 saveState();
