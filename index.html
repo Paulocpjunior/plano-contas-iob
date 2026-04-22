@@ -12,6 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
+    <script src="/vincular-empresa.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -2234,6 +2235,7 @@
                     <td>${plano.dataCadastro || '-'}</td>
                     <td>
                         <button class="btn-action btn-action-secondary" onclick="verPlanoDetalhes('${nome}')" style="margin-right:8px">👁️ Ver</button>
+                        ${(window.CURRENT_USER && window.CURRENT_USER.is_admin) ? `<button class="btn-action btn-action-success" onclick="abrirModalVincularEmpresa('${plano.plano_id || ""}', '${String(nome).replace(/'/g,"\\'")}')" style="margin-right:8px" title="Vincular empresa a este plano">🔗 Vincular</button>` : ''}
                         <button class="btn-action btn-action-danger" onclick="excluirPlano('${nome}')">🗑️</button>
                     </td>
                 </tr>`;
