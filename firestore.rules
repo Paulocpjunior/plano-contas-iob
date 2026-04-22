@@ -1,0 +1,13 @@
+rules_version = '2';
+
+// SP Assessoria Contabil - plano-contas-iob
+// Arquitetura: TODO acesso ao Firestore passa pelo backend
+// (Cloud Run) usando Firebase Admin SDK, que bypassa rules.
+// Por isso, clientes web sao NEGADOS por padrao.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
