@@ -2823,6 +2823,11 @@
                 try {
                     if (window.API && window.API.me) {
                         window.CURRENT_USER = await window.API.me();
+                        // Salvar token pro AuditAI (mesma origem)
+                        try {
+                          const t = await u.getIdToken();
+                          sessionStorage.setItem('sp_firebase_token', t);
+                        } catch(e){}
                         if (window.CURRENT_USER && window.CURRENT_USER.is_admin) {
                             const btn = document.getElementById('btnAdminNav');
                             if (btn) btn.style.display = 'flex';

@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# env & secrets
+.env
+.env.*
+*.key
+*.pem
+
+# backups & swap
+*.bak
+*~
+*.swp
+.DS_Store
+
+# build
+dist/
+build/
+.cache/
+
+# logs
+*.log
+npm-debug.log*

@@ -763,7 +763,8 @@ function getGeminiClient() {
 app.post('/api/gemini/generate', adminRequired, async (req, res) => {
   const client = getGeminiClient();
   if (!client) return res.status(503).json({ erro: 'GEMINI_API_KEY nao configurada' });
-  const { model = 'gemini-2.5-flash', contents, config = {}, systemInstruction } = req.body || {};
+  const { contents, config = {}, systemInstruction } = req.body || {};
+  const model = 'gemini-2.5-flash'; // forcado pra evitar rate limit do pro
   if (!contents) return res.status(400).json({ erro: 'contents obrigatorio' });
   try {
     const response = await client.models.generateContent({
@@ -782,7 +783,8 @@ app.post('/api/gemini/generate', adminRequired, async (req, res) => {
 app.post('/api/gemini/chat', adminRequired, async (req, res) => {
   const client = getGeminiClient();
   if (!client) return res.status(503).json({ erro: 'GEMINI_API_KEY nao configurada' });
-  const { model = 'gemini-2.5-pro', history = [], message, systemInstruction, tools } = req.body || {};
+  const { history = [], message, systemInstruction, tools } = req.body || {};
+  const model = 'gemini-2.5-flash'; // forcado pra evitar rate limit do pro
   if (!message) return res.status(400).json({ erro: 'message obrigatorio' });
   try {
     const cfg = {};
