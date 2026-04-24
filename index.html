@@ -13,6 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/vincular-empresa.js"></script>
+    <script src="/dedup-lancamentos.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1980,6 +1981,7 @@
                 {k:'SISPAG',d:'401',c:'111',cat:'Fornecedores'}
             ]
         };
+          window.state = state;
         
         let selectedFile = null;
         let chartCategorias = null;
