@@ -3117,18 +3117,26 @@
                 .replace(/[áàâãä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i')
                 .replace(/[óòôõö]/g,'o').replace(/[úùûü]/g,'u').replace(/[ç]/g,'c');
 
-            const H_DATA  = ['data','data lancamento','data mov','data movimento','dt','data do lancamento'];
-            const H_DESC  = ['descricao','historico','lancamento','memo','descricao do lancamento','historico do lancamento'];
-            const H_VALOR = ['valor','valor (r$)','montante','vlr','valor lancamento','valor r$','credito/debito'];
+            const H_DATA  = ['data','data lancamento','data mov','data movimento','dt','data do lancamento','emissao','dt emissao','data emissao','data de emissao','competencia','vencimento'];
+            const H_DESC  = ['descricao','historico','lancamento','memo','descricao do lancamento','historico do lancamento','razao social','razaosocial','fornecedor','beneficiario','obs','observacao'];
+            const H_VALOR = ['valor','valor (r$)','montante','vlr','valor lancamento','valor r$','credito/debito','valor da nf','valor nf','valor total','total nf','preco'];
+            const H_CNPJ  = ['cnpj','cpf','cnpj/cpf','cpf/cnpj','documento fornecedor'];
+            const H_NUM   = ['numero','nr','num','nr nf','numero nf','num nf','nf'];
+            const _norm = v => String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 
-            const findCol = (hs, kws) => { const n = hs.map(normH); for (let i=0;i<n.length;i++) if (kws.includes(n[i])) return i; return -1; };
+            const findCol = (headers, cands) => {
+                for (let i = 0; i < headers.length; i++) {
+                    if (cands.includes(_norm(headers[i]))) return i;
+                }
+                return -1;
+            };
 
             const detectHeaderRow = (rows) => {
                 for (let i=0; i<Math.min(rows.length,25); i++) {
                     const r = (rows[i]||[]).map(normH);
-                    const hasD = r.some(c => H_DATA.includes(c));
-                    const hasV = r.some(c => H_VALOR.includes(c));
-                    const hasX = r.some(c => H_DESC.includes(c));
+                    const hasD = r.some(c => H_DATA.includes(_norm(c)));
+                    const hasV = r.some(c => H_VALOR.includes(_norm(c)));
+                    const hasX = r.some(c => H_DESC.includes(_norm(c)));
                     if (hasD && hasV && hasX) return i;
                 }
                 return -1;
@@ -3174,6 +3182,8 @@
                 const cD = findCol(headers, H_DATA);
                 const cX = findCol(headers, H_DESC);
                 const cV = findCol(headers, H_VALOR);
+                const cCNPJ = findCol(headers, H_CNPJ);
+                const cNUM  = findCol(headers, H_NUM);
 
                 let count = 0;
                 for (let i = hIdx+1; i < rows.length; i++) {
@@ -3181,7 +3191,12 @@
                     if (!r || r.every(c => c===null || c==='' || c===undefined)) continue;
                     const data = parseData(r[cD]);
                     const valor = parseValor(r[cV]);
-                    const desc = String(r[cX]||'').trim();
+                    let desc = String(r[cX]||'').trim();
+                    // Enriquecer descricao no layout IOB SAGE: "NF <num> - <razao social> - CNPJ <cnpj>"
+                    const cnpjVal = cCNPJ >= 0 ? String(r[cCNPJ]||'').trim() : '';
+                    const numVal  = cNUM  >= 0 ? String(r[cNUM]||'').trim()  : '';
+                    if (numVal && !desc.toLowerCase().startsWith('nf ')) desc = 'NF ' + numVal + ' - ' + desc;
+                    if (cnpjVal && !desc.includes(cnpjVal)) desc = desc + ' - CNPJ ' + cnpjVal;
                     if (!data || valor === null || !desc) continue;
                     if (/saldo\s+(anterior|final|do dia|atual|inicial)/i.test(desc)) continue;
                     if (/total\s+(do dia|geral|periodo)/i.test(desc)) continue;
@@ -3209,6 +3224,13 @@
             return deduped;
         }
 
+
+        const PADROES_COL = {
+            data:      /^(data|dt\b|emiss[aã]o|compet[eê]ncia|vencimento)/i,
+            valor:     /^(valor|vlr|total|montante|pre[cç]o)/i,
+            descricao: /^(descri[cç][aã]o|hist[oó]rico|fornecedor|raz[aã]o|observa[cç][aã]o|obs|memo|benefici[aá]rio)/i,
+            categoria: /^(categoria|classif|natureza|grupo)/i
+        };
 
         function detectarColunas(headerRow) {
             const mapa = { data: -1, descricao: -1, valor: -1, descricao_aux: -1, categoria: -1 };
@@ -3287,8 +3309,11 @@
         function extrairLancamentosDeMatriz(rows, opts) {
             opts = opts || {};
             const forcarNegativo = opts.forcarNegativo === true;
+            console.log('[CSV-DEBUG] total de linhas:', rows ? rows.length : 0);
+            console.log('[CSV-DEBUG] primeiras 3 linhas:', rows ? rows.slice(0,3) : null);
             if (!rows || !rows.length) return [];
             const head = acharLinhaCabecalho(rows);
+            console.log('[CSV-DEBUG] cabecalho detectado:', head);
             if (!head) {
                 throw new Error('Cabecalho nao identificado. O arquivo precisa ter colunas de Data e Valor reconheciveis.');
             }
@@ -3349,7 +3374,11 @@
                 throw new Error('Formato nao reconhecido (use CSV com ;, , tab ou |)');
             }
             const rows = linhas.map(l => l.split(melhorSep).map(c => c.trim().replace(/^["']|["']$/g, '')));
-            return extrairLancamentosDeMatriz(rows, opts);
+            console.log('[CSV-DEBUG] separador escolhido:', JSON.stringify(melhorSep), 'score:', melhorScore);
+            console.log('[CSV-DEBUG] header row:', rows[0]);
+            const resultado = extrairLancamentosDeMatriz(rows, opts);
+            console.log('[CSV-DEBUG] lancamentos extraidos:', resultado.length);
+            return resultado;
         }
 
         function lerArquivoTexto(file) {
@@ -3638,13 +3667,23 @@
             }
         }
 
-                function showPage(p) {
+                function showPage(p, evt) {
             document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-            event.target.closest('button').classList.add('active');
+            const ev = evt || (typeof event !== 'undefined' ? event : null);
+            const btn = ev && ev.target ? ev.target.closest('button') : null;
+            if (btn) {
+                btn.classList.add('active');
+            } else {
+                const navBtn = document.querySelector('.nav button[onclick*="showPage(\''+p+'\')"]')
+                    || document.querySelector('.nav button[data-page="'+p+'"]');
+                if (navBtn) navBtn.classList.add('active');
+            }
             ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Plano', 'Mapeamento', 'Exportar', 'Sobre'].forEach(n => {
-                document.getElementById('page' + n).classList.add('hidden');
+                const el = document.getElementById('page' + n);
+                if (el) el.classList.add('hidden');
             });
-            document.getElementById('page' + p.charAt(0).toUpperCase() + p.slice(1)).classList.remove('hidden');
+            const alvo = document.getElementById('page' + p.charAt(0).toUpperCase() + p.slice(1));
+            if (alvo) alvo.classList.remove('hidden');
             
             // Refresh charts when showing inicio
             if (p === 'inicio' && state.infoConfirmed) {
@@ -4400,6 +4439,51 @@
         async function processPDF(f) {
             try {
                 const buf = await f.arrayBuffer();
+                // [BB] Tentar parser BB Conta Atual primeiro
+                try {
+                    if (window.parsearPDF_BB_ContaAtual) {
+                        const rBB = await window.parsearPDF_BB_ContaAtual(buf.slice(0));
+                        if (rBB.detectado && rBB.lancamentos.length > 0) {
+                            console.log('[processPDF] Layout BB Conta Atual detectado — ' + rBB.lancamentos.length + ' lancamentos');
+                            // bypass do Rave: segue direto pro enriquecimento/A3
+                            const bancoPDF = rBB.banco_detectado || '';
+                            const contaPDF = rBB.conta_detectada || '';
+                            const nomeContaPDF = rBB.nome_conta_detectado || '';
+                            if (bancoPDF && state.info) {
+                                state.info.banco_pdf = bancoPDF;
+                                state.info.conta_pdf = contaPDF;
+                                state.info.nome_conta_pdf = nomeContaPDF;
+                                state.info.banco = bancoPDF;
+                                saveState();
+                                try { updateCompanyBar(); } catch(e) {}
+                            }
+                            const lancsEnriquecidos = rBB.lancamentos.map(l => ({
+                                ...l,
+                                banco: bancoPDF, conta: contaPDF, nome_conta: nomeContaPDF,
+                                periodo_inicio: (state.info && state.info.periodoInicio) || '',
+                                periodo_fim: (state.info && state.info.periodoFim) || ''
+                            }));
+                            const cnpjA3 = (state.info && state.info.cnpj || '').replace(/\D/g,'');
+                            const pIni = state.info && state.info.periodoInicio || '';
+                            const pFim = state.info && state.info.periodoFim || '';
+                            const fp = window.gerarFingerprintImportacao(cnpjA3, bancoPDF, contaPDF, pIni, pFim);
+                            lancsEnriquecidos.forEach(l => { l._fingerprint_imp = fp; l._acao_dup = 'novo'; });
+                            try {
+                                if (cnpjA3 && window.API && window.API.importacoesGravar) {
+                                    await window.API.importacoesGravar(cnpjA3, {
+                                        fingerprint: fp, banco: bancoPDF, conta: contaPDF, nome_conta: nomeContaPDF,
+                                        periodo_inicio: pIni, periodo_fim: pFim,
+                                        total_lancamentos: lancsEnriquecidos.length,
+                                        arquivo_exemplo: f.name
+                                    });
+                                }
+                            } catch(e) { console.warn('[BB] gravar importacao:', e.message); }
+                            showToast('✅ Layout BB reconhecido: ' + lancsEnriquecidos.length + ' lançamentos • ' + bancoPDF + ' ' + contaPDF, 'success');
+                            return lancsEnriquecidos;
+                        }
+                    }
+                } catch(eBB) { console.warn('[processPDF] parser BB falhou, tentando Rave:', eBB.message); }
+
                 const resultado = await window.parsearPDF_ExtratoDetalhadoRave(buf);
                 if (resultado.detectado && resultado.lancamentos.length > 0) {
                     console.log('[processPDF] Layout Extrato Detalhado detectado — ' + resultado.lancamentos.length + ' lancamentos');
@@ -5097,41 +5181,95 @@ Responda APENAS JSON valido, sem texto antes/depois:
         }
         
         function exportIOB() {
-            const cc = (document.getElementById('cfgCentroCusto').value || '00000').padEnd(5).slice(0, 5);
-            const tipo = (document.getElementById('cfgTipo').value || 'DIARIO').padEnd(8).slice(0, 8);
+            // ============================================================
+            // IOB SAGE FOLHAMATIC - Layout FI v1.1 (16/04/2026)
+            // 332 bytes/registro, ASCII, CRLF, encoding CP1252 (latin1)
+            // Spec: PADRAO DE IMPORTACAO IOB - Tipo Movimento "8" Financeiro
+            // ============================================================
             const valid = state.entries.filter(e => e.contaDebito && e.contaCredito);
-            
             if (!valid.length) {
                 showToast('Nenhum lançamento classificado para exportar!', 'error');
                 return;
             }
-            
+
+            const padR = (v, n) => String(v||'').padEnd(n).slice(0, n);
+            const padL = (v, n) => String(v||'').padStart(n,'0').slice(-n);
+
+            const TIPO_MOV = '8';  // 8 = Financeiro/Outros (conforme spec)
+
             const lines = valid.map(e => {
-                const deb = (e.contaDebito || '').padEnd(18).slice(0, 18);
-                const cred = (e.contaCredito || '').padEnd(18).slice(0, 18);
-                const val = Math.abs(Math.round(e.valor * 100)).toString().padStart(12, '0');
+                // CAMPO 02: Conta debito (18 chars)
+                const deb = padR(e.contaDebito, 18);
+                // CAMPO 03: Conta credito (18 chars)
+                const cred = padR(e.contaCredito, 18);
+                // CAMPO 06: Valor em centavos (12 chars, zeros a esquerda)
+                const val = padL(Math.abs(Math.round(e.valor * 100)), 12);
+
+                // CAMPO 07: Data DD/MM/AAAA (10 chars, COM barras conforme spec oficial)
                 let dt = e.data || '';
-                if (dt.includes('-')) {
+                if (/^\d{4}-\d{2}-\d{2}/.test(dt)) {
                     const p = dt.split('-');
-                    dt = `${p[2]}/${p[1]}/${p[0]}`;
+                    dt = p[2] + '/' + p[1] + '/' + p[0];
                 }
-                dt = dt.padEnd(10).slice(0, 10);
-                const hist = (e.historico || e.descricao || '').toUpperCase().slice(0, 120).padEnd(120);
-                return deb + cred + cc + val + dt + hist + 'IMP_FINANCEIRO'.padEnd(20) + tipo + 'N';
+                dt = padR(dt, 10);
+
+                // CAMPO 09: Complemento historico (143 chars), sem acento (CP1252)
+                const histTxt = (e.historico || e.descricao || '')
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+                    .toUpperCase();
+                const hist = padR(histTxt, 143);
+
+                // Registro de 332 bytes - todos os 17 campos
+                return padR('',5)        // 01: 5 espacos iniciais
+                     + deb               // 02: 18 conta debito
+                     + cred              // 03: 18 conta credito
+                     + padR('',4)        // 04: 4 codigo historico (vazio)
+                     + ' '               // 05: 1 espaco
+                     + val               // 06: 12 valor centavos
+                     + dt                // 07: 10 data DD/MM/AAAA
+                     + padR('',6)        // 08: 6 espacos
+                     + hist              // 09: 143 complemento historico
+                     + padR('',20)       // 10: 20 nome digitador (vazio)
+                     + padR(TIPO_MOV,20) // 11: 20 tipo movimento "8"
+                     + padR('',20)       // 12: 20 CC debito (vazio)
+                     + padL('',15)       // 13: 15 valor CC debito (zeros)
+                     + padR('',20)       // 14: 20 CC credito (vazio)
+                     + padL('',15)       // 15: 15 valor CC credito (zeros)
+                     + 'N'               // 16: 1 tipo lancamento N=normal
+                     + padR('',4);       // 17: 4 codigo participante SPED
             });
-            
-            document.getElementById('exportPreview').textContent = lines.join('\n');
-            document.getElementById('exportStats').classList.remove('hidden');
-            document.getElementById('exportInfo').innerHTML = `<strong>${valid.length}</strong> lançamentos exportados | ${state.entries.length - valid.length} pendentes`;
-            
-            const blob = new Blob([lines.join('\r\n')], { type: 'text/plain' });
+
+            // Preview (apenas se elementos existirem - aba Exportar)
+            const preview = document.getElementById('exportPreview');
+            if (preview) preview.textContent = lines.join('\n');
+            const stats = document.getElementById('exportStats');
+            if (stats) stats.classList.remove('hidden');
+            const info = document.getElementById('exportInfo');
+            if (info) info.innerHTML = '<strong>' + valid.length + '</strong> lançamentos exportados | ' + (state.entries.length - valid.length) + ' pendentes';
+
+            // Encoding CP1252 (latin1) - IOB SAGE legado nao aceita UTF-8
+            const conteudo = lines.join('\r\n') + '\r\n';
+            const bytes = new Uint8Array(conteudo.length);
+            for (let i = 0; i < conteudo.length; i++) {
+                const c = conteudo.charCodeAt(i);
+                bytes[i] = c > 255 ? 63 : c;
+            }
+            const blob = new Blob([bytes], { type: 'text/plain;charset=ISO-8859-1' });
+
+            // Nome do arquivo: FI<empOrig 4 digitos><empDest 4 digitos>.<MM>
+            const empOrig = String((state.info && state.info.codigoEmpresaOrigem) || '0001').padStart(4,'0').slice(-4);
+            const empDest = String((state.info && (state.info.codigoEmpresaDestino || state.info.codigoEmpresa)) || '0001').padStart(4,'0').slice(-4);
+            const primeiraData = (state.entries.find(e => e.data) || {}).data || new Date().toISOString();
+            const mm = primeiraData.includes('-') ? primeiraData.split('-')[1] : String(new Date().getMonth()+1).padStart(2,'0');
+
             const a = document.createElement('a');
-            const emp = (state.info?.empresa || 'empresa').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20);
             a.href = URL.createObjectURL(blob);
-            a.download = `${emp}_${new Date().toISOString().slice(0, 10)}.02`;
+            a.download = 'FI' + empOrig + empDest + '.' + mm;
+            document.body.appendChild(a);
             a.click();
-            
-            showToast('Arquivo IOB gerado com sucesso!', 'success');
+            document.body.removeChild(a);
+
+            showToast('✅ Arquivo IOB gerado: FI' + empOrig + empDest + '.' + mm + ' (' + valid.length + ' lancamentos)', 'success');
         }
         
         function exportCSV() {
@@ -5349,6 +5487,7 @@ async function confirmarVincularPlano() {
 </script>
 
     <script src="parser-extrato-rave.js"></script>
+    <script src="parser-bb-conta-atual.js"></script>
 
 <!-- [A3] Modal duplicata de importacao -->
 <div id="modalJaImportado" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center">
