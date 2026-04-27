@@ -3394,7 +3394,18 @@
 
         window._impLancPending = null;
         function abrirModalImportarLancamento(lancamentos, fileName, formato) {
-            window._impLancPending = { lancamentos, fileName, formato };
+            // [FIX-BANCO] Taggear cada entry com o banco ativo e um id de sessao de importacao.
+            // Isso permite que o exportIOB filtre apenas os lancamentos do banco selecionado,
+            // evitando que lancamentos de bancos diferentes sejam exportados juntos.
+            var _bancoAtual = (state.info && state.info.banco) || 'desconhecido';
+            var _sessionId = 'imp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            lancamentos = lancamentos.map(function (l) {
+                return Object.assign({}, l, {
+                    bancoOrigem: l.bancoOrigem || _bancoAtual,
+                    importSessionId: l.importSessionId || _sessionId
+                });
+            });
+            window._impLancPending = { lancamentos: lancamentos, fileName: fileName, formato: formato };
             const atual = (state.entries || []).length;
             const novos = lancamentos.length;
             const datas = lancamentos.map(l => l.data).filter(Boolean).sort();
@@ -4323,8 +4334,25 @@
                 entries = entries.map(applyMapping);
                 entries = detectUnusual(entries);
                 
-                // Save
-                state.entries = state.entries.concat(entries);
+                // [FIX-BANCO] Se ja ha entries no estado, abrir modal Substituir/Adicionar
+                // (mesmo modal usado pelo .o2/.xlsx). Antes, o concat era cego e misturava
+                // lancamentos de bancos diferentes silenciosamente.
+                if ((state.entries || []).length > 0) {
+                    state.lastFile = selectedFile.name;
+                    hideProcessing();
+                    abrirModalImportarLancamento(entries, selectedFile.name, 'PDF/extrato');
+                    return;
+                }
+                // Primeira importacao: taggear com banco ativo + sessao antes de salvar.
+                var _bAtual = (state.info && state.info.banco) || 'desconhecido';
+                var _sessId = 'imp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+                entries = entries.map(function (e) {
+                    return Object.assign({}, e, {
+                        bancoOrigem: e.bancoOrigem || _bAtual,
+                        importSessionId: e.importSessionId || _sessId
+                    });
+                });
+                state.entries = entries;
                 state.lastFile = selectedFile.name;
                 saveState();
                 
@@ -5092,8 +5120,38 @@ Responda APENAS JSON valido, sem texto antes/depois:
         function exportIOB() {
             const cc = (document.getElementById('cfgCentroCusto').value || '00000').padEnd(5).slice(0, 5);
             const tipo = (document.getElementById('cfgTipo').value || 'DIARIO').padEnd(8).slice(0, 8);
-            const valid = state.entries.filter(e => e.contaDebito && e.contaCredito);
-            
+
+            // [FIX-BANCO] Detectar lancamentos de bancos distintos no estado e filtrar
+            // pelo banco ativo (state.info.banco). Antes, o export juntava tudo num .02 so.
+            var bancoAtivo = (state.info && state.info.banco) || '';
+            var todasClassificadas = state.entries.filter(function (e) { return e.contaDebito && e.contaCredito; });
+            var bancosDistintos = Array.from(new Set(
+                todasClassificadas.map(function (e) { return e.bancoOrigem || bancoAtivo; }).filter(Boolean)
+            ));
+
+            var valid = todasClassificadas;
+            if (bancosDistintos.length > 1) {
+                var qtdPorBanco = bancosDistintos.map(function (b) {
+                    var n = todasClassificadas.filter(function (e) { return (e.bancoOrigem || bancoAtivo) === b; }).length;
+                    return '  - ' + b + ': ' + n + ' lancamentos';
+                }).join('\n');
+                var filtradas = todasClassificadas.filter(function (e) { return (e.bancoOrigem || bancoAtivo) === bancoAtivo; });
+                var ativoEstaNaLista = bancosDistintos.indexOf(bancoAtivo) !== -1;
+                if (!ativoEstaNaLista) {
+                    showToast('Nenhum lancamento do banco ativo (' + (bancoAtivo || 'nenhum selecionado') + '). Selecione o banco correto antes de exportar.', 'error');
+                    return;
+                }
+                var msg = 'ATENCAO: Detectados lancamentos de ' + bancosDistintos.length + ' bancos diferentes:\n\n' + qtdPorBanco +
+                    '\n\nBanco selecionado agora: ' + bancoAtivo +
+                    '\n\nClique OK para exportar APENAS os ' + filtradas.length + ' lancamentos de "' + bancoAtivo + '".' +
+                    '\nClique Cancelar para revisar/limpar antes.';
+                if (!confirm(msg)) {
+                    showToast('Exportacao cancelada. Revise os lancamentos antes de exportar.', 'error');
+                    return;
+                }
+                valid = filtradas;
+            }
+
             if (!valid.length) {
                 showToast('Nenhum lançamento classificado para exportar!', 'error');
                 return;
