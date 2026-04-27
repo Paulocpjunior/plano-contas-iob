@@ -1383,18 +1383,7 @@
                         <div class="field">
                             <label>Banco</label>
                             <select id="infoBanco">
-                                <option value="">Selecione o banco</option>
-                                <option>Banco do Brasil</option>
-                                <option>Bradesco</option>
-                                <option>C6 Bank</option>
-                                <option>Caixa Econômica</option>
-                                <option>Inter</option>
-                                <option>Itaú Unibanco S.A.</option>
-                                <option>Nubank</option>
-                                <option>Santander</option>
-                                <option>Sicoob</option>
-                                <option>Sicredi</option>
-                                <option>Outro</option>
+                                <option value="">Carregando bancos...</option>
                             </select>
                         </div>
                         <div class="field">
@@ -2781,11 +2770,44 @@
                 filtro.innerHTML = '<option value="">Todos os bancos</option>' + opts;
                 filtro.value = v;
             }
+            const info = document.getElementById('infoBanco');
+            if (info) {
+                const v = info.value;
+                info.innerHTML = '<option value="">Selecione o banco</option>' + opts;
+                if (v) info.value = resolverBancoLegado(v);
+            }
         }
         
         function nomeBanco(code) {
             const b = BANCOS_BACEN.find(x => x.code === code);
             return b ? b.name : code;
+        }
+        
+        // Compat: aceita codigo COMPE (novo) OU nome legado (Bradesco, Itau, etc.)
+        function resolverBancoLegado(valor) {
+            if (!valor) return '';
+            if (BANCOS_BACEN.find(b => b.code === valor)) return valor;
+            const v = valor.toString().toLowerCase().trim();
+            const mapa = {
+                'banco do brasil': '001',
+                'bradesco': '237',
+                'c6 bank': '336',
+                'caixa econômica': '104',
+                'caixa economica': '104',
+                'inter': '077',
+                'itaú unibanco s.a.': '341',
+                'itau unibanco s.a.': '341',
+                'itau': '341',
+                'itaú': '341',
+                'nubank': '260',
+                'santander': '033',
+                'sicoob': '756',
+                'sicredi': '748',
+                'safra': '422'
+            };
+            if (mapa[v]) return mapa[v];
+            const match = BANCOS_BACEN.find(b => b.name.toLowerCase().includes(v) || v.includes(b.name.toLowerCase()));
+            return match ? match.code : '';
         }
         
         function popularFiltroImportacoes() {
@@ -4371,6 +4393,18 @@
         
         // File Handling
         function handleFileSelect(f) {
+            // Pre-seleciona banco/titulo quando o preview abrir
+            setTimeout(() => {
+                const eb = document.getElementById('uploadBanco');
+                if (eb && !eb.value && state.info && state.info.banco) {
+                    eb.value = resolverBancoLegado(state.info.banco);
+                }
+                const et = document.getElementById('uploadTitulo');
+                if (et && !et.value && state.info && state.info.empresa) {
+                    const periodo = (state.info.periodoInicio || '').slice(0, 7);
+                    et.value = state.info.empresa + (periodo ? ' — ' + periodo : '');
+                }
+            }, 100);
             if (f) showFilePreview(f);
         }
         
@@ -4444,6 +4478,12 @@
         // Process File
         async function processFile() {
             if (!selectedFile) return;
+            
+            // Pre-seleciona banco do uploadBanco com base na empresa, se ainda vazio
+            const elUploadBanco = document.getElementById('uploadBanco');
+            if (elUploadBanco && !elUploadBanco.value && state.info && state.info.banco) {
+                elUploadBanco.value = resolverBancoLegado(state.info.banco);
+            }
             
             const bancoCode = document.getElementById('uploadBanco')?.value || '';
             const titulo = document.getElementById('uploadTitulo')?.value?.trim() || '';
