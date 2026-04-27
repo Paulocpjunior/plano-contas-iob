@@ -1561,6 +1561,18 @@
                                     <button class="btn-remove" onclick="removeFile()">✕</button>
                                 </div>
                             </div>
+                            <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+                                <div>
+                                    <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Banco *</label>
+                                    <select id="uploadBanco" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px">
+                                        <option value="">Carregando bancos...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Título do Relatório *</label>
+                                    <input type="text" id="uploadTitulo" placeholder="Ex.: Itaú Jan/2025 — Igreja Itapevi" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px">
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="success-message" id="successMessage">
@@ -1679,6 +1691,20 @@
                             <div class="filter-group">
                                 <label>Valor Máx.</label>
                                 <input type="number" id="filterValorMax" placeholder="1.000,00" step="0.01" onchange="renderLancamentos()">
+                            </div>
+                        </div>
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Banco</label>
+                                <select id="filterBanco" onchange="renderLancamentos()">
+                                    <option value="">Todos os bancos</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Relatório / Importação</label>
+                                <select id="filterImportacao" onchange="renderLancamentos()">
+                                    <option value="">Todos os relatórios</option>
+                                </select>
                             </div>
                         </div>
                         <div class="filters-row">
@@ -2706,6 +2732,84 @@
             "Despesas Bancárias",
             "Investimentos"
         ];
+        
+        // === BACEN / Importacao ===
+        let BANCOS_BACEN = [];
+        const BANCOS_BACEN_CACHE_KEY = 'bancos_bacen_v1';
+        const BANCOS_BACEN_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
+        
+        async function loadBancosBacen() {
+            try {
+                const cached = localStorage.getItem(BANCOS_BACEN_CACHE_KEY);
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (Date.now() - parsed.ts < BANCOS_BACEN_CACHE_MS && Array.isArray(parsed.data)) {
+                        BANCOS_BACEN = parsed.data;
+                        popularSelectsBancos();
+                        return;
+                    }
+                }
+            } catch (e) { /* cache corrompido, segue */ }
+            try {
+                const r = await fetch('https://brasilapi.com.br/api/banks/v1');
+                const data = await r.json();
+                BANCOS_BACEN = data.filter(b => b.code && b.name)
+                    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+                localStorage.setItem(BANCOS_BACEN_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: BANCOS_BACEN }));
+                popularSelectsBancos();
+            } catch (e) {
+                console.error('Falha ao carregar BACEN, usando fallback:', e);
+                BANCOS_BACEN = [
+                    { code: '001', name: 'BANCO DO BRASIL S.A.' },
+                    { code: '033', name: 'BANCO SANTANDER (BRASIL) S.A.' },
+                    { code: '104', name: 'CAIXA ECONOMICA FEDERAL' },
+                    { code: '237', name: 'BANCO BRADESCO S.A.' },
+                    { code: '341', name: 'ITAU UNIBANCO S.A.' },
+                    { code: '422', name: 'BANCO SAFRA S.A.' }
+                ];
+                popularSelectsBancos();
+            }
+        }
+        
+        function popularSelectsBancos() {
+            const opts = BANCOS_BACEN.map(b => `<option value="${b.code}">${b.code} — ${b.name}</option>`).join('');
+            const upload = document.getElementById('uploadBanco');
+            if (upload) upload.innerHTML = '<option value="">Selecione o banco</option>' + opts;
+            const filtro = document.getElementById('filterBanco');
+            if (filtro) {
+                const v = filtro.value;
+                filtro.innerHTML = '<option value="">Todos os bancos</option>' + opts;
+                filtro.value = v;
+            }
+        }
+        
+        function nomeBanco(code) {
+            const b = BANCOS_BACEN.find(x => x.code === code);
+            return b ? b.name : code;
+        }
+        
+        function popularFiltroImportacoes() {
+            const sel = document.getElementById('filterImportacao');
+            if (!sel) return;
+            const map = new Map();
+            (state.entries || []).forEach(e => {
+                if (e.importacaoId && !map.has(e.importacaoId)) {
+                    map.set(e.importacaoId, e.importacaoTitulo || '(sem titulo)');
+                }
+            });
+            const v = sel.value;
+            const opts = Array.from(map.entries())
+                .map(([id, titulo]) => `<option value="${id}">${titulo}</option>`)
+                .join('');
+            sel.innerHTML = '<option value="">Todos os relatorios</option>' + opts;
+            sel.value = v;
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadBancosBacen);
+        } else {
+            loadBancosBacen();
+        }
         
         // Planos de Contas
         const PLANOS = {
@@ -4341,6 +4445,14 @@
         async function processFile() {
             if (!selectedFile) return;
             
+            const bancoCode = document.getElementById('uploadBanco')?.value || '';
+            const titulo = document.getElementById('uploadTitulo')?.value?.trim() || '';
+            if (!bancoCode) { showToast('Selecione o banco do extrato.', 'error'); return; }
+            if (!titulo) { showToast('Informe o titulo do relatorio.', 'error'); return; }
+            
+            const importacaoId = (crypto.randomUUID ? crypto.randomUUID() : 'imp_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+            const bancoNome = nomeBanco(bancoCode);
+            
             const ext = selectedFile.name.split('.').pop().toLowerCase();
             showProcessing();
             
@@ -4371,6 +4483,9 @@
                 entries = entries.map(applyMapping);
                 entries = detectUnusual(entries);
                 
+                // Tag com banco + importacao (segregacao)
+                entries = entries.map(e => ({ ...e, bancoId: bancoCode, bancoNome, importacaoId, importacaoTitulo: titulo }));
+                
                 // Save
                 state.entries = state.entries.concat(entries);
                 state.lastFile = selectedFile.name;
@@ -4380,6 +4495,9 @@
                 showSuccess(entries);
                 updateDashboard();
                 updateCharts();
+                popularFiltroImportacoes();
+                const filtroImp = document.getElementById('filterImportacao');
+                if (filtroImp) filtroImp.value = importacaoId;
                 renderLancamentos();
                 
             } catch (e) {
@@ -4778,6 +4896,11 @@
                 if (Math.abs(e.valor) < valorMin) return false;
                 if (Math.abs(e.valor) > valorMax) return false;
                 
+                const banco = document.getElementById('filterBanco').value;
+                const importacao = document.getElementById('filterImportacao').value;
+                if (banco && e.bancoId !== banco) return false;
+                if (importacao && e.importacaoId !== importacao) return false;
+                
                 return true;
             });
             
@@ -4913,6 +5036,8 @@
             document.getElementById('filterDataFim').value = '';
             document.getElementById('filterValorMin').value = '';
             document.getElementById('filterValorMax').value = '';
+            document.getElementById('filterBanco').value = '';
+            document.getElementById('filterImportacao').value = '';
             renderLancamentos();
         }
         
