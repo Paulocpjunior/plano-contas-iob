@@ -5118,8 +5118,11 @@ Responda APENAS JSON valido, sem texto antes/depois:
         }
         
         function exportIOB() {
-            const cc = (document.getElementById('cfgCentroCusto').value || '00000').padEnd(5).slice(0, 5);
-            const tipo = (document.getElementById('cfgTipo').value || 'DIARIO').padEnd(8).slice(0, 8);
+            // ============================================================
+            // IOB SAGE FOLHAMATIC - Layout FI v1.1 (16/04/2026)
+            // 332 bytes/registro, ASCII, CRLF, encoding CP1252 (latin1)
+            // Spec: PADRAO DE IMPORTACAO IOB - Tipo Movimento "8" Financeiro
+            // ============================================================
 
             // [FIX-BANCO] Detectar lancamentos de bancos distintos no estado e filtrar
             // pelo banco ativo (state.info.banco). Antes, o export juntava tudo num .02 so.
@@ -5156,33 +5159,85 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 showToast('Nenhum lançamento classificado para exportar!', 'error');
                 return;
             }
-            
+
+            const padR = (v, n) => String(v||'').padEnd(n).slice(0, n);
+            const padL = (v, n) => String(v||'').padStart(n,'0').slice(-n);
+
+            const TIPO_MOV = '8';  // 8 = Financeiro/Outros (conforme spec)
+
             const lines = valid.map(e => {
-                const deb = (e.contaDebito || '').padEnd(18).slice(0, 18);
-                const cred = (e.contaCredito || '').padEnd(18).slice(0, 18);
-                const val = Math.abs(Math.round(e.valor * 100)).toString().padStart(12, '0');
+                // CAMPO 02: Conta debito (18 chars)
+                const deb = padR(e.contaDebito, 18);
+                // CAMPO 03: Conta credito (18 chars)
+                const cred = padR(e.contaCredito, 18);
+                // CAMPO 06: Valor em centavos (12 chars, zeros a esquerda)
+                const val = padL(Math.abs(Math.round(e.valor * 100)), 12);
+
+                // CAMPO 07: Data DD/MM/AAAA (10 chars, COM barras conforme spec oficial)
                 let dt = e.data || '';
-                if (dt.includes('-')) {
+                if (/^\d{4}-\d{2}-\d{2}/.test(dt)) {
                     const p = dt.split('-');
-                    dt = `${p[2]}/${p[1]}/${p[0]}`;
+                    dt = p[2] + '/' + p[1] + '/' + p[0];
                 }
-                dt = dt.padEnd(10).slice(0, 10);
-                const hist = (e.historico || e.descricao || '').toUpperCase().slice(0, 120).padEnd(120);
-                return deb + cred + cc + val + dt + hist + 'IMP_FINANCEIRO'.padEnd(20) + tipo + 'N';
+                dt = padR(dt, 10);
+
+                // CAMPO 09: Complemento historico (143 chars), sem acento (CP1252)
+                const histTxt = (e.historico || e.descricao || '')
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+                    .toUpperCase();
+                const hist = padR(histTxt, 143);
+
+                // Registro de 332 bytes - todos os 17 campos
+                return padR('',5)        // 01: 5 espacos iniciais
+                     + deb               // 02: 18 conta debito
+                     + cred              // 03: 18 conta credito
+                     + padR('',4)        // 04: 4 codigo historico (vazio)
+                     + ' '               // 05: 1 espaco
+                     + val               // 06: 12 valor centavos
+                     + dt                // 07: 10 data DD/MM/AAAA
+                     + padR('',6)        // 08: 6 espacos
+                     + hist              // 09: 143 complemento historico
+                     + padR('',20)       // 10: 20 nome digitador (vazio)
+                     + padR(TIPO_MOV,20) // 11: 20 tipo movimento "8"
+                     + padR('',20)       // 12: 20 CC debito (vazio)
+                     + padL('',15)       // 13: 15 valor CC debito (zeros)
+                     + padR('',20)       // 14: 20 CC credito (vazio)
+                     + padL('',15)       // 15: 15 valor CC credito (zeros)
+                     + 'N'               // 16: 1 tipo lancamento N=normal
+                     + padR('',4);       // 17: 4 codigo participante SPED
             });
-            
-            document.getElementById('exportPreview').textContent = lines.join('\n');
-            document.getElementById('exportStats').classList.remove('hidden');
-            document.getElementById('exportInfo').innerHTML = `<strong>${valid.length}</strong> lançamentos exportados | ${state.entries.length - valid.length} pendentes`;
-            
-            const blob = new Blob([lines.join('\r\n')], { type: 'text/plain' });
+
+            // Preview (apenas se elementos existirem - aba Exportar)
+            const preview = document.getElementById('exportPreview');
+            if (preview) preview.textContent = lines.join('\n');
+            const stats = document.getElementById('exportStats');
+            if (stats) stats.classList.remove('hidden');
+            const info = document.getElementById('exportInfo');
+            if (info) info.innerHTML = '<strong>' + valid.length + '</strong> lançamentos exportados | ' + (state.entries.length - valid.length) + ' pendentes';
+
+            // Encoding CP1252 (latin1) - IOB SAGE legado nao aceita UTF-8
+            const conteudo = lines.join('\r\n') + '\r\n';
+            const bytes = new Uint8Array(conteudo.length);
+            for (let i = 0; i < conteudo.length; i++) {
+                const c = conteudo.charCodeAt(i);
+                bytes[i] = c > 255 ? 63 : c;
+            }
+            const blob = new Blob([bytes], { type: 'text/plain;charset=ISO-8859-1' });
+
+            // Nome do arquivo: FI<empOrig 4 digitos><empDest 4 digitos>.<MM>
+            const empOrig = String((state.info && state.info.codigoEmpresaOrigem) || '0001').padStart(4,'0').slice(-4);
+            const empDest = String((state.info && (state.info.codigoEmpresaDestino || state.info.codigoEmpresa)) || '0001').padStart(4,'0').slice(-4);
+            const primeiraData = (state.entries.find(e => e.data) || {}).data || new Date().toISOString();
+            const mm = primeiraData.includes('-') ? primeiraData.split('-')[1] : String(new Date().getMonth()+1).padStart(2,'0');
+
             const a = document.createElement('a');
-            const emp = (state.info?.empresa || 'empresa').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20);
             a.href = URL.createObjectURL(blob);
-            a.download = `${emp}_${new Date().toISOString().slice(0, 10)}.02`;
+            a.download = 'FI' + empOrig + empDest + '.' + mm;
+            document.body.appendChild(a);
             a.click();
-            
-            showToast('Arquivo IOB gerado com sucesso!', 'success');
+            document.body.removeChild(a);
+
+            showToast('Arquivo IOB gerado: FI' + empOrig + empDest + '.' + mm + ' (' + valid.length + ' lancamentos)', 'success');
         }
         
         function exportCSV() {
