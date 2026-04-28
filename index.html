@@ -5158,17 +5158,51 @@ Responda APENAS JSON valido, sem texto antes/depois:
             }
             
             const lines = valid.map(e => {
-                const deb = (e.contaDebito || '').padEnd(18).slice(0, 18);
-                const cred = (e.contaCredito || '').padEnd(18).slice(0, 18);
-                const val = Math.abs(Math.round(e.valor * 100)).toString().padStart(12, '0');
+                // [FIX-LAYOUT] Layout oficial IOB Office Contabil .02:
+                // Cada linha tem EXATAMENTE 330 chars + CR. Posicoes fixas baseadas no
+                // arquivo de referencia FI22462246.02 (validado byte-a-byte).
+                //
+                //   Pos     Tam  Campo
+                //   1-18    18   Conta Debito        (left-padded com espacos)
+                //   19-36   18   Conta Credito       (left-padded com espacos)
+                //   37-44    8   Centro de Custo     (RIGHT-aligned)
+                //   45-46    2   separador (espacos)
+                //   47-58   12   Valor em centavos   (zero-padded a esquerda)
+                //   59-68   10   Data DD/MM/AAAA
+                //   69-74    6   separador (espacos)
+                //   75-194  120  Historico           (left-padded)
+                //   195-214  20  filler (espacos)
+                //   215-234  20  Identificador import (ex: "     IMP_FINANCEIRO ")
+                //   235-329  95  Codigo evento + filler ("     8" + 89 espacos)
+                //   330      1   Flag de fechamento (N)
+                //
+                // Antes (bug): linha tinha 212 chars, IOB lia data na pos 54 e
+                // encontrava lixo do meio do historico, parseando ano = 0 e
+                // recusando o arquivo com "referente ao ano de 0".
+                const deb  = String(e.contaDebito  || '').padEnd(18).slice(0, 18);
+                const cred = String(e.contaCredito || '').padEnd(18).slice(0, 18);
+                const ccF  = String(cc).trim().padStart(8).slice(-8);   // 8 chars right-aligned
+                const sep2 = '  ';                                       // 2 espacos
+                const val  = Math.abs(Math.round(e.valor * 100)).toString().padStart(12, '0');
                 let dt = e.data || '';
                 if (dt.includes('-')) {
                     const p = dt.split('-');
                     dt = `${p[2]}/${p[1]}/${p[0]}`;
                 }
-                dt = dt.padEnd(10).slice(0, 10);
-                const hist = (e.historico || e.descricao || '').toUpperCase().slice(0, 120).padEnd(120);
-                return deb + cred + cc + val + dt + hist + 'IMP_FINANCEIRO'.padEnd(20) + tipo + 'N';
+                dt = dt.padEnd(10).slice(0, 10);                          // 10 chars data
+                const sep6 = '      ';                                    // 6 espacos
+                const hist = String(e.historico || e.descricao || '').toUpperCase().slice(0, 120).padEnd(120);
+                const filler20 = ' '.repeat(20);                          // 195-214
+                const identImp = ('     IMP_FINANCEIRO ').padEnd(20).slice(0, 20); // 215-234, 20 chars
+                // 235-329 = "     8" + espacos completando 95 chars
+                const codEvento = ('     8').padEnd(95).slice(0, 95);
+                const flagFim = 'N';                                      // pos 330
+                const linha = deb + cred + ccF + sep2 + val + dt + sep6 + hist + filler20 + identImp + codEvento + flagFim;
+                // sanity check: deve ter exatamente 330 chars
+                if (linha.length !== 330) {
+                    console.warn('[exportIOB] linha com tamanho inesperado:', linha.length, '(esperado 330)');
+                }
+                return linha;
             });
             
             document.getElementById('exportPreview').textContent = lines.join('\n');
