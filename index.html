@@ -5391,7 +5391,7 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 return padR('',5)        // 01: 5 espacos iniciais
                      + deb               // 02: 18 conta debito
                      + cred              // 03: 18 conta credito
-                     + padR('',4)        // 04: 4 codigo historico (vazio)
+                     + padR(e.codigoHistorico || '', 4) // 04: 4 codigo historico padrao IOB SAGE
                      + ' '               // 05: 1 espaco
                      + val               // 06: 12 valor centavos
                      + dt                // 07: 10 data DD/MM/AAAA
