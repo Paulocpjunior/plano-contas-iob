@@ -2,3 +2,8 @@
 *.bak
 *.bak2
 node_modules/
+
+# Backups locais
+*.bak
+*.bak-*
+*.tmp
