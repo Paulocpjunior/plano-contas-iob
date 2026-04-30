@@ -12,6 +12,9 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
+    <script src="/vincular-empresa.js"></script>
+    <script src="/historicos-padrao.js"></script>
+    <script src="/dedup-lancamentos.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1381,18 +1384,7 @@
                         <div class="field">
                             <label>Banco</label>
                             <select id="infoBanco">
-                                <option value="">Selecione o banco</option>
-                                <option>Banco do Brasil</option>
-                                <option>Bradesco</option>
-                                <option>C6 Bank</option>
-                                <option>Caixa Econômica</option>
-                                <option>Inter</option>
-                                <option>Itaú Unibanco S.A.</option>
-                                <option>Nubank</option>
-                                <option>Santander</option>
-                                <option>Sicoob</option>
-                                <option>Sicredi</option>
-                                <option>Outro</option>
+                                <option value="">Carregando bancos...</option>
                             </select>
                         </div>
                         <div class="field">
@@ -1559,6 +1551,18 @@
                                     <button class="btn-remove" onclick="removeFile()">✕</button>
                                 </div>
                             </div>
+                            <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+                                <div>
+                                    <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Banco *</label>
+                                    <select id="uploadBanco" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px">
+                                        <option value="">Carregando bancos...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Título do Relatório *</label>
+                                    <input type="text" id="uploadTitulo" placeholder="Ex.: Itaú Jan/2025 — Igreja Itapevi" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px">
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="success-message" id="successMessage">
@@ -1677,6 +1681,20 @@
                             <div class="filter-group">
                                 <label>Valor Máx.</label>
                                 <input type="number" id="filterValorMax" placeholder="1.000,00" step="0.01" onchange="renderLancamentos()">
+                            </div>
+                        </div>
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Banco</label>
+                                <select id="filterBanco" onchange="renderLancamentos()">
+                                    <option value="">Todos os bancos</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Relatório / Importação</label>
+                                <select id="filterImportacao" onchange="renderLancamentos()">
+                                    <option value="">Todos os relatórios</option>
+                                </select>
                             </div>
                         </div>
                         <div class="filters-row">
@@ -1979,6 +1997,7 @@
                 {k:'SISPAG',d:'401',c:'111',cat:'Fornecedores'}
             ]
         };
+          window.state = state;
         
         let selectedFile = null;
         let chartCategorias = null;
@@ -2234,6 +2253,7 @@
                     <td>${plano.dataCadastro || '-'}</td>
                     <td>
                         <button class="btn-action btn-action-secondary" onclick="verPlanoDetalhes('${nome}')" style="margin-right:8px">👁️ Ver</button>
+                        ${(window.CURRENT_USER && window.CURRENT_USER.is_admin) ? `<button class="btn-action btn-action-success" onclick="abrirModalVincularEmpresa('${plano.plano_id || ""}', '${String(nome).replace(/'/g,"\\'")}')" style="margin-right:8px" title="Vincular empresa a este plano">🔗 Vincular</button>` : ''}
                         <button class="btn-action btn-action-danger" onclick="excluirPlano('${nome}')">🗑️</button>
                     </td>
                 </tr>`;
@@ -2703,6 +2723,117 @@
             "Investimentos"
         ];
         
+        // === BACEN / Importacao ===
+        let BANCOS_BACEN = [];
+        const BANCOS_BACEN_CACHE_KEY = 'bancos_bacen_v1';
+        const BANCOS_BACEN_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
+        
+        async function loadBancosBacen() {
+            try {
+                const cached = localStorage.getItem(BANCOS_BACEN_CACHE_KEY);
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (Date.now() - parsed.ts < BANCOS_BACEN_CACHE_MS && Array.isArray(parsed.data)) {
+                        BANCOS_BACEN = parsed.data;
+                        popularSelectsBancos();
+                        return;
+                    }
+                }
+            } catch (e) { /* cache corrompido, segue */ }
+            try {
+                const r = await fetch('https://brasilapi.com.br/api/banks/v1');
+                const data = await r.json();
+                BANCOS_BACEN = data.filter(b => b.code && b.name)
+                    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+                localStorage.setItem(BANCOS_BACEN_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: BANCOS_BACEN }));
+                popularSelectsBancos();
+            } catch (e) {
+                console.error('Falha ao carregar BACEN, usando fallback:', e);
+                BANCOS_BACEN = [
+                    { code: '001', name: 'BANCO DO BRASIL S.A.' },
+                    { code: '033', name: 'BANCO SANTANDER (BRASIL) S.A.' },
+                    { code: '104', name: 'CAIXA ECONOMICA FEDERAL' },
+                    { code: '237', name: 'BANCO BRADESCO S.A.' },
+                    { code: '341', name: 'ITAU UNIBANCO S.A.' },
+                    { code: '422', name: 'BANCO SAFRA S.A.' }
+                ];
+                popularSelectsBancos();
+            }
+        }
+        
+        function popularSelectsBancos() {
+            const opts = BANCOS_BACEN.map(b => `<option value="${b.code}">${b.code} — ${b.name}</option>`).join('');
+            const upload = document.getElementById('uploadBanco');
+            if (upload) upload.innerHTML = '<option value="">Selecione o banco</option>' + opts;
+            const filtro = document.getElementById('filterBanco');
+            if (filtro) {
+                const v = filtro.value;
+                filtro.innerHTML = '<option value="">Todos os bancos</option>' + opts;
+                filtro.value = v;
+            }
+            const info = document.getElementById('infoBanco');
+            if (info) {
+                const v = info.value;
+                info.innerHTML = '<option value="">Selecione o banco</option>' + opts;
+                if (v) info.value = resolverBancoLegado(v);
+            }
+        }
+        
+        function nomeBanco(code) {
+            const b = BANCOS_BACEN.find(x => x.code === code);
+            return b ? b.name : code;
+        }
+        
+        // Compat: aceita codigo COMPE (novo) OU nome legado (Bradesco, Itau, etc.)
+        function resolverBancoLegado(valor) {
+            if (!valor) return '';
+            if (BANCOS_BACEN.find(b => b.code === valor)) return valor;
+            const v = valor.toString().toLowerCase().trim();
+            const mapa = {
+                'banco do brasil': '001',
+                'bradesco': '237',
+                'c6 bank': '336',
+                'caixa econômica': '104',
+                'caixa economica': '104',
+                'inter': '077',
+                'itaú unibanco s.a.': '341',
+                'itau unibanco s.a.': '341',
+                'itau': '341',
+                'itaú': '341',
+                'nubank': '260',
+                'santander': '033',
+                'sicoob': '756',
+                'sicredi': '748',
+                'safra': '422'
+            };
+            if (mapa[v]) return mapa[v];
+            const match = BANCOS_BACEN.find(b => b.name.toLowerCase().includes(v) || v.includes(b.name.toLowerCase()));
+            return match ? match.code : '';
+        }
+        
+        function popularFiltroImportacoes() {
+            const sel = document.getElementById('filterImportacao');
+            if (!sel) return;
+            const map = new Map();
+            (state.entries || []).forEach(e => {
+                if (e.importacaoId && !map.has(e.importacaoId)) {
+                    map.set(e.importacaoId, e.importacaoTitulo || '(sem titulo)');
+                }
+            });
+            const v = sel.value;
+            const opts = Array.from(map.entries())
+                .map(([id, titulo]) => `<option value="${id}">${titulo}</option>`)
+                .join('');
+            sel.innerHTML = '<option value="">Todos os relatorios</option>' + opts;
+            sel.value = v;
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadBancosBacen);
+        } else {
+            loadBancosBacen();
+        }
+        
         // Planos de Contas
         const PLANOS = {
             igreja: [
@@ -2823,6 +2954,11 @@
                 try {
                     if (window.API && window.API.me) {
                         window.CURRENT_USER = await window.API.me();
+                        // Salvar token pro AuditAI (mesma origem)
+                        try {
+                          const t = await u.getIdToken();
+                          sessionStorage.setItem('sp_firebase_token', t);
+                        } catch(e){}
                         if (window.CURRENT_USER && window.CURRENT_USER.is_admin) {
                             const btn = document.getElementById('btnAdminNav');
                             if (btn) btn.style.display = 'flex';
@@ -3110,18 +3246,26 @@
                 .replace(/[áàâãä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i')
                 .replace(/[óòôõö]/g,'o').replace(/[úùûü]/g,'u').replace(/[ç]/g,'c');
 
-            const H_DATA  = ['data','data lancamento','data mov','data movimento','dt','data do lancamento'];
-            const H_DESC  = ['descricao','historico','lancamento','memo','descricao do lancamento','historico do lancamento'];
-            const H_VALOR = ['valor','valor (r$)','montante','vlr','valor lancamento','valor r$','credito/debito'];
+            const H_DATA  = ['data','data lancamento','data mov','data movimento','dt','data do lancamento','emissao','dt emissao','data emissao','data de emissao','competencia','vencimento'];
+            const H_DESC  = ['descricao','historico','lancamento','memo','descricao do lancamento','historico do lancamento','razao social','razaosocial','fornecedor','beneficiario','obs','observacao'];
+            const H_VALOR = ['valor','valor (r$)','montante','vlr','valor lancamento','valor r$','credito/debito','valor da nf','valor nf','valor total','total nf','preco'];
+            const H_CNPJ  = ['cnpj','cpf','cnpj/cpf','cpf/cnpj','documento fornecedor'];
+            const H_NUM   = ['numero','nr','num','nr nf','numero nf','num nf','nf'];
+            const _norm = v => String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 
-            const findCol = (hs, kws) => { const n = hs.map(normH); for (let i=0;i<n.length;i++) if (kws.includes(n[i])) return i; return -1; };
+            const findCol = (headers, cands) => {
+                for (let i = 0; i < headers.length; i++) {
+                    if (cands.includes(_norm(headers[i]))) return i;
+                }
+                return -1;
+            };
 
             const detectHeaderRow = (rows) => {
                 for (let i=0; i<Math.min(rows.length,25); i++) {
                     const r = (rows[i]||[]).map(normH);
-                    const hasD = r.some(c => H_DATA.includes(c));
-                    const hasV = r.some(c => H_VALOR.includes(c));
-                    const hasX = r.some(c => H_DESC.includes(c));
+                    const hasD = r.some(c => H_DATA.includes(_norm(c)));
+                    const hasV = r.some(c => H_VALOR.includes(_norm(c)));
+                    const hasX = r.some(c => H_DESC.includes(_norm(c)));
                     if (hasD && hasV && hasX) return i;
                 }
                 return -1;
@@ -3167,6 +3311,8 @@
                 const cD = findCol(headers, H_DATA);
                 const cX = findCol(headers, H_DESC);
                 const cV = findCol(headers, H_VALOR);
+                const cCNPJ = findCol(headers, H_CNPJ);
+                const cNUM  = findCol(headers, H_NUM);
 
                 let count = 0;
                 for (let i = hIdx+1; i < rows.length; i++) {
@@ -3174,7 +3320,12 @@
                     if (!r || r.every(c => c===null || c==='' || c===undefined)) continue;
                     const data = parseData(r[cD]);
                     const valor = parseValor(r[cV]);
-                    const desc = String(r[cX]||'').trim();
+                    let desc = String(r[cX]||'').trim();
+                    // Enriquecer descricao no layout IOB SAGE: "NF <num> - <razao social> - CNPJ <cnpj>"
+                    const cnpjVal = cCNPJ >= 0 ? String(r[cCNPJ]||'').trim() : '';
+                    const numVal  = cNUM  >= 0 ? String(r[cNUM]||'').trim()  : '';
+                    if (numVal && !desc.toLowerCase().startsWith('nf ')) desc = 'NF ' + numVal + ' - ' + desc;
+                    if (cnpjVal && !desc.includes(cnpjVal)) desc = desc + ' - CNPJ ' + cnpjVal;
                     if (!data || valor === null || !desc) continue;
                     if (/saldo\s+(anterior|final|do dia|atual|inicial)/i.test(desc)) continue;
                     if (/total\s+(do dia|geral|periodo)/i.test(desc)) continue;
@@ -3202,6 +3353,13 @@
             return deduped;
         }
 
+
+        const PADROES_COL = {
+            data:      /^(data|dt\b|emiss[aã]o|compet[eê]ncia|vencimento)/i,
+            valor:     /^(valor|vlr|total|montante|pre[cç]o)/i,
+            descricao: /^(descri[cç][aã]o|hist[oó]rico|fornecedor|raz[aã]o|observa[cç][aã]o|obs|memo|benefici[aá]rio)/i,
+            categoria: /^(categoria|classif|natureza|grupo)/i
+        };
 
         function detectarColunas(headerRow) {
             const mapa = { data: -1, descricao: -1, valor: -1, descricao_aux: -1, categoria: -1 };
@@ -3280,8 +3438,11 @@
         function extrairLancamentosDeMatriz(rows, opts) {
             opts = opts || {};
             const forcarNegativo = opts.forcarNegativo === true;
+            console.log('[CSV-DEBUG] total de linhas:', rows ? rows.length : 0);
+            console.log('[CSV-DEBUG] primeiras 3 linhas:', rows ? rows.slice(0,3) : null);
             if (!rows || !rows.length) return [];
             const head = acharLinhaCabecalho(rows);
+            console.log('[CSV-DEBUG] cabecalho detectado:', head);
             if (!head) {
                 throw new Error('Cabecalho nao identificado. O arquivo precisa ter colunas de Data e Valor reconheciveis.');
             }
@@ -3342,7 +3503,11 @@
                 throw new Error('Formato nao reconhecido (use CSV com ;, , tab ou |)');
             }
             const rows = linhas.map(l => l.split(melhorSep).map(c => c.trim().replace(/^["']|["']$/g, '')));
-            return extrairLancamentosDeMatriz(rows, opts);
+            console.log('[CSV-DEBUG] separador escolhido:', JSON.stringify(melhorSep), 'score:', melhorScore);
+            console.log('[CSV-DEBUG] header row:', rows[0]);
+            const resultado = extrairLancamentosDeMatriz(rows, opts);
+            console.log('[CSV-DEBUG] lancamentos extraidos:', resultado.length);
+            return resultado;
         }
 
         function lerArquivoTexto(file) {
@@ -3394,18 +3559,7 @@
 
         window._impLancPending = null;
         function abrirModalImportarLancamento(lancamentos, fileName, formato) {
-            // [FIX-BANCO] Taggear cada entry com o banco ativo e um id de sessao de importacao.
-            // Isso permite que o exportIOB filtre apenas os lancamentos do banco selecionado,
-            // evitando que lancamentos de bancos diferentes sejam exportados juntos.
-            var _bancoAtual = (state.info && state.info.banco) || 'desconhecido';
-            var _sessionId = 'imp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-            lancamentos = lancamentos.map(function (l) {
-                return Object.assign({}, l, {
-                    bancoOrigem: l.bancoOrigem || _bancoAtual,
-                    importSessionId: l.importSessionId || _sessionId
-                });
-            });
-            window._impLancPending = { lancamentos: lancamentos, fileName: fileName, formato: formato };
+            window._impLancPending = { lancamentos, fileName, formato };
             const atual = (state.entries || []).length;
             const novos = lancamentos.length;
             const datas = lancamentos.map(l => l.data).filter(Boolean).sort();
@@ -3642,13 +3796,23 @@
             }
         }
 
-                function showPage(p) {
+                function showPage(p, evt) {
             document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-            event.target.closest('button').classList.add('active');
+            const ev = evt || (typeof event !== 'undefined' ? event : null);
+            const btn = ev && ev.target ? ev.target.closest('button') : null;
+            if (btn) {
+                btn.classList.add('active');
+            } else {
+                const navBtn = document.querySelector('.nav button[onclick*="showPage(\''+p+'\')"]')
+                    || document.querySelector('.nav button[data-page="'+p+'"]');
+                if (navBtn) navBtn.classList.add('active');
+            }
             ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Plano', 'Mapeamento', 'Exportar', 'Sobre'].forEach(n => {
-                document.getElementById('page' + n).classList.add('hidden');
+                const el = document.getElementById('page' + n);
+                if (el) el.classList.add('hidden');
             });
-            document.getElementById('page' + p.charAt(0).toUpperCase() + p.slice(1)).classList.remove('hidden');
+            const alvo = document.getElementById('page' + p.charAt(0).toUpperCase() + p.slice(1));
+            if (alvo) alvo.classList.remove('hidden');
             
             // Refresh charts when showing inicio
             if (p === 'inicio' && state.infoConfirmed) {
@@ -4230,6 +4394,18 @@
         
         // File Handling
         function handleFileSelect(f) {
+            // Pre-seleciona banco/titulo quando o preview abrir
+            setTimeout(() => {
+                const eb = document.getElementById('uploadBanco');
+                if (eb && !eb.value && state.info && state.info.banco) {
+                    eb.value = resolverBancoLegado(state.info.banco);
+                }
+                const et = document.getElementById('uploadTitulo');
+                if (et && !et.value && state.info && state.info.empresa) {
+                    const periodo = (state.info.periodoInicio || '').slice(0, 7);
+                    et.value = state.info.empresa + (periodo ? ' — ' + periodo : '');
+                }
+            }, 100);
             if (f) showFilePreview(f);
         }
         
@@ -4304,6 +4480,20 @@
         async function processFile() {
             if (!selectedFile) return;
             
+            // Pre-seleciona banco do uploadBanco com base na empresa, se ainda vazio
+            const elUploadBanco = document.getElementById('uploadBanco');
+            if (elUploadBanco && !elUploadBanco.value && state.info && state.info.banco) {
+                elUploadBanco.value = resolverBancoLegado(state.info.banco);
+            }
+            
+            const bancoCode = document.getElementById('uploadBanco')?.value || '';
+            const titulo = document.getElementById('uploadTitulo')?.value?.trim() || '';
+            if (!bancoCode) { showToast('Selecione o banco do extrato.', 'error'); return; }
+            if (!titulo) { showToast('Informe o titulo do relatorio.', 'error'); return; }
+            
+            const importacaoId = (crypto.randomUUID ? crypto.randomUUID() : 'imp_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+            const bancoNome = nomeBanco(bancoCode);
+            
             const ext = selectedFile.name.split('.').pop().toLowerCase();
             showProcessing();
             
@@ -4334,25 +4524,11 @@
                 entries = entries.map(applyMapping);
                 entries = detectUnusual(entries);
                 
-                // [FIX-BANCO] Se ja ha entries no estado, abrir modal Substituir/Adicionar
-                // (mesmo modal usado pelo .o2/.xlsx). Antes, o concat era cego e misturava
-                // lancamentos de bancos diferentes silenciosamente.
-                if ((state.entries || []).length > 0) {
-                    state.lastFile = selectedFile.name;
-                    hideProcessing();
-                    abrirModalImportarLancamento(entries, selectedFile.name, 'PDF/extrato');
-                    return;
-                }
-                // Primeira importacao: taggear com banco ativo + sessao antes de salvar.
-                var _bAtual = (state.info && state.info.banco) || 'desconhecido';
-                var _sessId = 'imp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-                entries = entries.map(function (e) {
-                    return Object.assign({}, e, {
-                        bancoOrigem: e.bancoOrigem || _bAtual,
-                        importSessionId: e.importSessionId || _sessId
-                    });
-                });
-                state.entries = entries;
+                // Tag com banco + importacao (segregacao)
+                entries = entries.map(e => ({ ...e, bancoId: bancoCode, bancoNome, importacaoId, importacaoTitulo: titulo }));
+                
+                // Save
+                state.entries = state.entries.concat(entries);
                 state.lastFile = selectedFile.name;
                 saveState();
                 
@@ -4360,6 +4536,9 @@
                 showSuccess(entries);
                 updateDashboard();
                 updateCharts();
+                popularFiltroImportacoes();
+                const filtroImp = document.getElementById('filterImportacao');
+                if (filtroImp) filtroImp.value = importacaoId;
                 renderLancamentos();
                 
             } catch (e) {
@@ -4421,6 +4600,51 @@
         async function processPDF(f) {
             try {
                 const buf = await f.arrayBuffer();
+                // [BB] Tentar parser BB Conta Atual primeiro
+                try {
+                    if (window.parsearPDF_BB_ContaAtual) {
+                        const rBB = await window.parsearPDF_BB_ContaAtual(buf.slice(0));
+                        if (rBB.detectado && rBB.lancamentos.length > 0) {
+                            console.log('[processPDF] Layout BB Conta Atual detectado — ' + rBB.lancamentos.length + ' lancamentos');
+                            // bypass do Rave: segue direto pro enriquecimento/A3
+                            const bancoPDF = rBB.banco_detectado || '';
+                            const contaPDF = rBB.conta_detectada || '';
+                            const nomeContaPDF = rBB.nome_conta_detectado || '';
+                            if (bancoPDF && state.info) {
+                                state.info.banco_pdf = bancoPDF;
+                                state.info.conta_pdf = contaPDF;
+                                state.info.nome_conta_pdf = nomeContaPDF;
+                                state.info.banco = bancoPDF;
+                                saveState();
+                                try { updateCompanyBar(); } catch(e) {}
+                            }
+                            const lancsEnriquecidos = rBB.lancamentos.map(l => ({
+                                ...l,
+                                banco: bancoPDF, conta: contaPDF, nome_conta: nomeContaPDF,
+                                periodo_inicio: (state.info && state.info.periodoInicio) || '',
+                                periodo_fim: (state.info && state.info.periodoFim) || ''
+                            }));
+                            const cnpjA3 = (state.info && state.info.cnpj || '').replace(/\D/g,'');
+                            const pIni = state.info && state.info.periodoInicio || '';
+                            const pFim = state.info && state.info.periodoFim || '';
+                            const fp = window.gerarFingerprintImportacao(cnpjA3, bancoPDF, contaPDF, pIni, pFim);
+                            lancsEnriquecidos.forEach(l => { l._fingerprint_imp = fp; l._acao_dup = 'novo'; });
+                            try {
+                                if (cnpjA3 && window.API && window.API.importacoesGravar) {
+                                    await window.API.importacoesGravar(cnpjA3, {
+                                        fingerprint: fp, banco: bancoPDF, conta: contaPDF, nome_conta: nomeContaPDF,
+                                        periodo_inicio: pIni, periodo_fim: pFim,
+                                        total_lancamentos: lancsEnriquecidos.length,
+                                        arquivo_exemplo: f.name
+                                    });
+                                }
+                            } catch(e) { console.warn('[BB] gravar importacao:', e.message); }
+                            showToast('✅ Layout BB reconhecido: ' + lancsEnriquecidos.length + ' lançamentos • ' + bancoPDF + ' ' + contaPDF, 'success');
+                            return lancsEnriquecidos;
+                        }
+                    }
+                } catch(eBB) { console.warn('[processPDF] parser BB falhou, tentando Rave:', eBB.message); }
+
                 const resultado = await window.parsearPDF_ExtratoDetalhadoRave(buf);
                 if (resultado.detectado && resultado.lancamentos.length > 0) {
                     console.log('[processPDF] Layout Extrato Detalhado detectado — ' + resultado.lancamentos.length + ' lancamentos');
@@ -4713,6 +4937,11 @@
                 if (Math.abs(e.valor) < valorMin) return false;
                 if (Math.abs(e.valor) > valorMax) return false;
                 
+                const banco = document.getElementById('filterBanco').value;
+                const importacao = document.getElementById('filterImportacao').value;
+                if (banco && e.bancoId !== banco) return false;
+                if (importacao && e.importacaoId !== importacao) return false;
+                
                 return true;
             });
             
@@ -4848,6 +5077,8 @@
             document.getElementById('filterDataFim').value = '';
             document.getElementById('filterValorMin').value = '';
             document.getElementById('filterValorMax').value = '';
+            document.getElementById('filterBanco').value = '';
+            document.getElementById('filterImportacao').value = '';
             renderLancamentos();
         }
         
@@ -5123,38 +5354,7 @@ Responda APENAS JSON valido, sem texto antes/depois:
             // 332 bytes/registro, ASCII, CRLF, encoding CP1252 (latin1)
             // Spec: PADRAO DE IMPORTACAO IOB - Tipo Movimento "8" Financeiro
             // ============================================================
-
-            // [FIX-BANCO] Detectar lancamentos de bancos distintos no estado e filtrar
-            // pelo banco ativo (state.info.banco). Antes, o export juntava tudo num .02 so.
-            var bancoAtivo = (state.info && state.info.banco) || '';
-            var todasClassificadas = state.entries.filter(function (e) { return e.contaDebito && e.contaCredito; });
-            var bancosDistintos = Array.from(new Set(
-                todasClassificadas.map(function (e) { return e.bancoOrigem || bancoAtivo; }).filter(Boolean)
-            ));
-
-            var valid = todasClassificadas;
-            if (bancosDistintos.length > 1) {
-                var qtdPorBanco = bancosDistintos.map(function (b) {
-                    var n = todasClassificadas.filter(function (e) { return (e.bancoOrigem || bancoAtivo) === b; }).length;
-                    return '  - ' + b + ': ' + n + ' lancamentos';
-                }).join('\n');
-                var filtradas = todasClassificadas.filter(function (e) { return (e.bancoOrigem || bancoAtivo) === bancoAtivo; });
-                var ativoEstaNaLista = bancosDistintos.indexOf(bancoAtivo) !== -1;
-                if (!ativoEstaNaLista) {
-                    showToast('Nenhum lancamento do banco ativo (' + (bancoAtivo || 'nenhum selecionado') + '). Selecione o banco correto antes de exportar.', 'error');
-                    return;
-                }
-                var msg = 'ATENCAO: Detectados lancamentos de ' + bancosDistintos.length + ' bancos diferentes:\n\n' + qtdPorBanco +
-                    '\n\nBanco selecionado agora: ' + bancoAtivo +
-                    '\n\nClique OK para exportar APENAS os ' + filtradas.length + ' lancamentos de "' + bancoAtivo + '".' +
-                    '\nClique Cancelar para revisar/limpar antes.';
-                if (!confirm(msg)) {
-                    showToast('Exportacao cancelada. Revise os lancamentos antes de exportar.', 'error');
-                    return;
-                }
-                valid = filtradas;
-            }
-
+            const valid = state.entries.filter(e => e.contaDebito && e.contaCredito);
             if (!valid.length) {
                 showToast('Nenhum lançamento classificado para exportar!', 'error');
                 return;
@@ -5237,7 +5437,7 @@ Responda APENAS JSON valido, sem texto antes/depois:
             a.click();
             document.body.removeChild(a);
 
-            showToast('Arquivo IOB gerado: FI' + empOrig + empDest + '.' + mm + ' (' + valid.length + ' lancamentos)', 'success');
+            showToast('✅ Arquivo IOB gerado: FI' + empOrig + empDest + '.' + mm + ' (' + valid.length + ' lancamentos)', 'success');
         }
         
         function exportCSV() {
@@ -5455,6 +5655,7 @@ async function confirmarVincularPlano() {
 </script>
 
     <script src="parser-extrato-rave.js"></script>
+    <script src="parser-bb-conta-atual.js"></script>
 
 <!-- [A3] Modal duplicata de importacao -->
 <div id="modalJaImportado" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center">
@@ -5710,5 +5911,37 @@ window.confirmarTrocarPlano = async function() {
 };
 </script>
 
+<script>
+  (function(){
+    function tryExpose(){
+      if (window.firebase && firebase.auth) {
+        window.__getFirebaseToken = async () => {
+          try {
+            const u = firebase.auth().currentUser;
+            return u ? await u.getIdToken() : "";
+          } catch { return ""; }
+        };
+        return true;
+      }
+      return false;
+    }
+    if (!tryExpose()) {
+      const iv = setInterval(() => { if (tryExpose()) clearInterval(iv); }, 200);
+      setTimeout(() => clearInterval(iv), 10000);
+    }
+  })();
+</script>
+<!-- Botao flutuante admin-only: Historicos Padrao IOB -->
+<button id="btnHistoricos" onclick="window.abrirCadastroHistoricos()"
+  style="position:fixed;bottom:20px;right:20px;z-index:9000;padding:12px 20px;background:#16a34a;color:white;border:0;border-radius:30px;cursor:pointer;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.2);display:none">
+  📋 Históricos Padrão
+</button>
+<script>
+  (function(){ var t=setInterval(function(){
+    if(window.CURRENT_USER && window.CURRENT_USER.is_admin){
+      var b=document.getElementById("btnHistoricos"); if(b) b.style.display="block"; clearInterval(t);
+    }
+  }, 500); setTimeout(function(){clearInterval(t)}, 30000); })();
+</script>
 </body>
 </html>

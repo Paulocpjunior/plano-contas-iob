@@ -39,6 +39,9 @@ function adminRequired(req, res, next) {
 }
 
 app.use('/api', authRequired);
+
+// Historicos Padrao IOB SAGE
+require('./historicos-routes')(app, db);
 app.get('/api/me', (req, res) => res.json(req.user));
 
 app.post('/api/validar', async (req, res) => {
