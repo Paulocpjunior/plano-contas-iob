@@ -4906,6 +4906,7 @@
         // Render Lançamentos
         function renderLancamentos() {
             const c = document.getElementById('lancamentosTable');
+            popularDatalistHistoricos();  // Fase 1
             
             if (!state.entries.length) {
                 c.innerHTML = '<div class="empty-state"><div class="icon">📄</div><h3>Nenhum lançamento</h3><p>Importe um extrato bancário para começar.</p></div>';
@@ -4987,6 +4988,7 @@
                             <th>Valor</th>
                             <th>Conta Débito</th>
                             <th>Conta Crédito</th>
+                            <th title="Código de Histórico Padrão IOB SAGE (4 dígitos)">Cód IOB</th>
                             <th>Histórico</th>
                             <th></th>
                         </tr>
@@ -5023,6 +5025,14 @@
                                 placeholder="Crédito" style="width:120px;font-family:monospace;font-size:11px">
                         </td>
                         <td>
+                            <input type="text" list="historicosIOBList" class="editable-input"
+                                value="${e.codigoHistorico || ''}"
+                                onchange="updateEntry(${idx},'codigoHistorico',this.value)"
+                                placeholder="0000" maxlength="4"
+                                style="width:65px;font-family:monospace;text-align:center;font-size:11px"
+                                title="${descricaoHistorico(e.codigoHistorico) || 'Codigo IOB SAGE - clique para selecionar (4 digitos)'}">
+                        </td>
+                        <td>
                             <input type="text" class="editable-input" value="${e.historico || '1'}" 
                                 onchange="updateEntry(${idx},'historico',this.value)" 
                                 placeholder="Hist" style="width:50px;text-align:center">
@@ -5038,11 +5048,48 @@
             c.innerHTML = h;
         }
         
+        // === Helpers Historico Padrao IOB SAGE (Fase 1) ===
+        function descricaoHistorico(cod) {
+            if (!cod || !window.SP_HistoricosPadrao) return '';
+            const h = window.SP_HistoricosPadrao.buscarPorCodigo(cod);
+            if (!h) return '';
+            return (h.descricao || '').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+        function aplicarHistoricoAoLancamento(lanc, codigoHistorico) {
+            if (!lanc) return false;
+            const cod = codigoHistorico ? String(codigoHistorico).replace(/\D/g,'').padStart(4,'0').slice(-4) : null;
+            lanc.codigoHistorico = (cod && /^\d{4}$/.test(cod)) ? cod : null;
+            if (lanc.codigoHistorico && window.SP_HistoricosPadrao) {
+                const h = window.SP_HistoricosPadrao.buscarPorCodigo(lanc.codigoHistorico);
+                if (h) {
+                    if (!lanc.contaDebito && h.debito) lanc.contaDebito = h.debito;
+                    if (!lanc.contaCredito && h.credito) lanc.contaCredito = h.credito;
+                }
+            }
+            return true;
+        }
+        async function popularDatalistHistoricos() {
+            if (!window.SP_HistoricosPadrao) return;
+            const existing = document.getElementById('historicosIOBList');
+            if (existing && existing.children.length > 0) return;
+            let lista = window.SP_HistoricosPadrao.listar();
+            if (!lista.length) { try { lista = await window.SP_HistoricosPadrao.recarregar(); } catch(_){ return; } }
+            if (!lista.length) return;
+            let target = existing;
+            if (!target) { target = document.createElement('datalist'); target.id = 'historicosIOBList'; document.body.appendChild(target); }
+            target.innerHTML = lista.map(function(h){ return '<option value="'+h.codigo+'">'+(h.descricao||'').replace(/"/g,'&quot;')+'</option>'; }).join('');
+        }
+
         function updateEntry(i, f, v) {
-            state.entries[i][f] = v;
+            if (f === 'codigoHistorico') {
+                aplicarHistoricoAoLancamento(state.entries[i], v);
+            } else {
+                state.entries[i][f] = v;
+            }
             saveState();
             updateDashboard();
             updateCharts();
+            if (f === 'codigoHistorico') renderLancamentos();
         }
         
         function removeEntry(i) {
