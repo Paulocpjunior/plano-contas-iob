@@ -5286,6 +5286,21 @@
             btn.disabled = true;
             btn.innerHTML = '⏳ Classificando...';
             
+
+            // Fase 3: lista compactada de historicos IOB para enviar a IA
+            let historicosIOBLista = '';
+            try {
+                let listaHist = (window.SP_HistoricosPadrao && window.SP_HistoricosPadrao.listar()) || [];
+                if ((!listaHist || !listaHist.length) && window.SP_HistoricosPadrao && window.SP_HistoricosPadrao.recarregar) {
+                    listaHist = await window.SP_HistoricosPadrao.recarregar();
+                }
+                historicosIOBLista = (listaHist || []).map(function(h){ return h.codigo + '|' + (h.descricao || '').substring(0, 60); }).join('\n');
+                console.log('[IA Fase 3] historicosIOBLista carregada:', (listaHist||[]).length, 'codigos');
+            } catch (eHist) {
+                console.warn('[IA Fase 3] Falha ao carregar historicos IOB:', eHist);
+                historicosIOBLista = '(lista indisponivel - codigoHistorico opcional neste lote)';
+            }
+
             try {
                 // Classificar em lotes de 20
                 const batchSize = 10; // v2: reduzido de 20 para 10 para maior precisao
