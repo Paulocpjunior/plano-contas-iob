@@ -5305,37 +5305,47 @@ PLANO DE CONTAS COMPLETO (${contasPlano.length} contas analiticas):
 Formato: CODIGO_ESTRUTURADO | REDUZIDO_14_DIGITOS | DESCRICAO
 ${contasPlano.map(c => c.codigo + ' | ' + c.reduzido + ' | ' + c.descricao).join('\n')}
 
+HISTORICOS PADRAO IOB SAGE (codigo de 4 digitos aglutinado nas posicoes 42-45 do FI*.txt):
+Formato: CODIGO | DESCRICAO
+${historicosIOBLista}
+
 EXEMPLOS DE CLASSIFICACAO (aprenda o padrao):
 
 Ex1: "PIX ENVIADO FORNECEDOR ABC FRUTAS LTDA | R$ 5.000 | DEBITO (saida)"
 -> Debito: FORNECEDORES (passivo reduz quando paga)
 -> Credito: BANCO ITAU (ativo reduz quando paga)
--> Historico: 1 (Pagamento fornecedor)
+-> historico: 1 (texto livre legado)
+-> codigoHistorico: 0899 (PAGTO DIVERSAS DUPLICATAS FORNECEDORES)
 
 Ex2: "TARIFA DOC/TED | R$ 15 | DEBITO"
 -> Debito: DESPESAS BANCARIAS (conta de resultado)
 -> Credito: BANCO ITAU
--> Historico: 15
+-> historico: 15
+-> codigoHistorico: 9006 (TARIFA BANCARIA)
 
 Ex3: "PIX RECEBIDO DE MERCADO CENTRAL | R$ 12.000 | CREDITO (entrada)"
 -> Debito: BANCO ITAU (ativo aumenta)
 -> Credito: RECEITA DE VENDAS (receita)  OU  CLIENTES (se era a receber)
--> Historico: 201
+-> historico: 201
+-> codigoHistorico: 0013 (VALORES RECEBIDOS) OU 0033 (CLIENTES - SERVICOS PRESTADOS)
 
 Ex4: "DARF IRPJ ABRIL 2026 | R$ 3.500 | DEBITO"
 -> Debito: IRPJ A RECOLHER (passivo)
 -> Credito: BANCO ITAU
--> Historico: 301
+-> historico: 301
+-> codigoHistorico: 1014 (PAGTO IRPJ REF)
 
 Ex5: "ALUGUEL LOJA MARCAL | R$ 4.000 | DEBITO"
 -> Debito: DESPESA DE ALUGUEL ou ALUGUEIS A PAGAR
 -> Credito: BANCO ITAU
--> Historico: 50
+-> historico: 50
+-> codigoHistorico: 1200 (PAGTO DE ALUGUEL)
 
 Ex6: "COMBUSTIVEL POSTO XX | R$ 280 | DEBITO"
 -> Debito: COMBUSTIVEIS (despesa)
 -> Credito: BANCO ITAU
--> Historico: 80
+-> historico: 80
+-> codigoHistorico: 1302 (PAGTO DESP C/COMBUSTIVEL)
 
 TRANSACOES PARA CLASSIFICAR:
 ${batch.map((t, idx) => (idx + 1) + '. ' + t.data + ' | ' + (t.descricao || '') + ' | R$ ' + Math.abs(t.valor).toFixed(2) + ' | ' + (t.valor >= 0 ? 'CREDITO_ENTRADA' : 'DEBITO_SAIDA')).join('\n')}
@@ -5347,14 +5357,21 @@ REGRAS ABSOLUTAS:
 4. Para DEBITO_SAIDA bancaria: Credito eh o BANCO ITAU. Debito varia (fornecedor/despesa/imposto).
 5. Para CREDITO_ENTRADA bancaria: Debito eh o BANCO ITAU. Credito varia (receita/cliente/outro).
 6. Identifique o BANCO ITAU procurando no plano uma conta com "BANCO ITAU" na descricao.
-7. historico: codigo numerico de 1-4 digitos (ex: "1", "15", "201").
-8. Se a descricao for vaga ou nao reconhecer, use a conta mais GENERICA do tipo correto (ex: DIVERSOS A PAGAR, OUTRAS DESPESAS).
-9. Justifique em UMA frase curta cada classificacao (campo "justificativa").
+7. historico: texto curto livre (mantem legado, ex: "1", "15", "201").
+8. codigoHistorico: 4 digitos EXATOS da tabela HISTORICOS PADRAO IOB SAGE acima.
+   Use o codigo mais especifico aplicavel. Defaults aceitaveis para descricoes vagas:
+   - Pagamento generico de fornecedor: 0899
+   - Recebimento generico: 0013
+   - Tarifa bancaria: 9006
+   - Pagamento de imposto generico: 0900
+   - Pagto folha/salario: 1101
+9. Se a descricao for vaga ou nao reconhecer, use a conta mais GENERICA do tipo correto (ex: DIVERSOS A PAGAR, OUTRAS DESPESAS).
+10. Justifique em UMA frase curta cada classificacao (campo "justificativa").
 
 Responda APENAS JSON valido, sem texto antes/depois:
 {
   "classificacoes": [
-    {"idx": 1, "contaDebito": "REDUZIDO", "contaCredito": "REDUZIDO", "historico": "1", "justificativa": "texto curto"}
+    {"idx": 1, "contaDebito": "REDUZIDO", "contaCredito": "REDUZIDO", "historico": "1", "codigoHistorico": "0899", "justificativa": "texto curto"}
   ]
 }`;
 
@@ -5402,6 +5419,11 @@ Responda APENAS JSON valido, sem texto antes/depois:
                                 state.entries[entryIdx].contaCredito = crd;
                                 state.entries[entryIdx].historico = String(c.historico || '1');
                                 state.entries[entryIdx]._iaJustificativa = c.justificativa || '';
+                                // Fase 3: aplicar codigoHistorico IOB SAGE se IA retornou
+                                if (c.codigoHistorico) {
+                                    try { aplicarHistoricoAoLancamento(state.entries[entryIdx], c.codigoHistorico); }
+                                    catch(eApl){ console.warn('[IA Fase 3] aplicarHistorico falhou:', eApl); }
+                                }
                                 classificadas++;
                             });
                             
@@ -5415,7 +5437,8 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 saveState();
                 renderLancamentos();
                 
-                showToast(`✅ ${classificadas} transações classificadas com sucesso!`, 'success');
+                const comCodIOB = state.entries.filter(function(e){ return e.codigoHistorico && /^\d{4}$/.test(e.codigoHistorico); }).length;
+                showToast(`✅ ${classificadas} transações classificadas (${comCodIOB} com código IOB SAGE)`, 'success');
                 
             } catch (err) {
                 console.error('Erro ao classificar:', err);
