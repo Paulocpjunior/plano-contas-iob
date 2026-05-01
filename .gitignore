@@ -7,3 +7,4 @@ node_modules/
 *.bak
 *.bak-*
 *.tmp
+index.html.bak*
