@@ -165,6 +165,86 @@ app.put('/api/planos/:id/contas', async (req, res) => {
   }
 });
 
+// === Fase 5a: Memoria de classificacao por CNPJ ===
+// Coleção 'aprendizado' com chave composta {cnpj}_{hash}
+// para evitar subcoleções e simplificar queries.
+
+function _validarReduzidoFB(s) {
+  // reduzido = numero (1-14 digitos), aceita string vazia para null
+  if (!s) return null;
+  const clean = String(s).replace(/\D/g, '');
+  return /^\d{1,14}$/.test(clean) ? clean.padStart(14, '0').slice(-14) : null;
+}
+
+// Lista todos os padroes aprendidos da empresa
+app.get('/api/empresas/:cnpj/aprendizado', async (req, res) => {
+  try {
+    const cnpj = (req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const snap = await db.collection('aprendizado').where('cnpj', '==', cnpj).get();
+    const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ total: lista.length, aprendizado: lista });
+  } catch (err) {
+    console.error('[GET aprendizado] erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// Salva um padrao aprendido
+app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
+  try {
+    const cnpj = (req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const { hash, descricao_normalizada, descricao_exemplo, contaDebito, contaCredito, codigoHistorico } = req.body;
+    if (!hash || !descricao_normalizada) return res.status(400).json({ erro: 'hash e descricao_normalizada obrigatorios' });
+    
+    // Validar codigoHistorico (4 digitos)
+    const codHist = codigoHistorico ? String(codigoHistorico).replace(/\D/g, '').padStart(4, '0').slice(-4) : null;
+    if (codHist && !/^\d{4}$/.test(codHist)) return res.status(400).json({ erro: 'codigoHistorico invalido' });
+    
+    const docId = cnpj + '_' + hash;
+    const ref = db.collection('aprendizado').doc(docId);
+    const existing = await ref.get();
+    const now = new Date();
+    
+    const dados = {
+      cnpj: cnpj,
+      hash: hash,
+      descricao_normalizada: String(descricao_normalizada).substring(0, 200),
+      descricao_exemplo: String(descricao_exemplo || '').substring(0, 200),
+      contaDebito: contaDebito || '',
+      contaCredito: contaCredito || '',
+      codigoHistorico: codHist || '',
+      vezes_usado: existing.exists ? (existing.data().vezes_usado || 0) + 1 : 1,
+      criado_em: existing.exists ? existing.data().criado_em : now,
+      ultima_vez: now,
+      created_by: req.user.uid,
+      created_by_email: req.user.email
+    };
+    
+    await ref.set(dados);
+    res.json({ ok: true, docId: docId, vezes_usado: dados.vezes_usado });
+  } catch (err) {
+    console.error('[POST aprendizado] erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// Remove um padrao aprendido
+app.delete('/api/empresas/:cnpj/aprendizado/:hash', async (req, res) => {
+  try {
+    const cnpj = (req.params.cnpj || '').replace(/\D/g, '');
+    const hash = req.params.hash;
+    if (cnpj.length !== 14 || !hash) return res.status(400).json({ erro: 'CNPJ e hash obrigatorios' });
+    const docId = cnpj + '_' + hash;
+    await db.collection('aprendizado').doc(docId).delete();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[DELETE aprendizado] erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 app.delete('/api/planos/:id', adminRequired, async (req, res) => {
   try {
     const planoRef = db.collection('planos').doc(req.params.id);

@@ -3683,6 +3683,21 @@
             const pend = window._impLancPending;
             if (!pend) return fecharModalImportarLancamento();
             const novos = pend.lancamentos;
+            // Fase 5a: aplicar memoria antes de salvar
+            (async function() {
+                try {
+                    const cnpjAtual = (state.info && state.info.cnpj || '').replace(/\D/g, '');
+                    if (cnpjAtual && cnpjAtual.length === 14) {
+                        const r = await aplicarMemoriaEmLancamentos(novos, cnpjAtual);
+                        if (r.aplicados > 0) {
+                            console.log('[Fase 5a] Memoria aplicada em', r.aplicados, '/', r.total, 'lancamentos');
+                            if (typeof showToast === 'function') showToast('🧠 ' + r.aplicados + ' lancamento(s) classificado(s) pela memoria.', 'success');
+                            renderLancamentos();
+                            saveState();
+                        }
+                    }
+                } catch (eMem) { console.warn('[Fase 5a] Falha ao aplicar memoria:', eMem); }
+            })();
             if (modo === 'substituir') {
                 state.entries = novos;
                 showToast('✅ ' + novos.length + ' lancamentos importados (substituidos)', 'success');
@@ -4625,6 +4640,18 @@
                 // Tag com banco + importacao (segregacao)
                 entries = entries.map(e => ({ ...e, bancoId: bancoCode, bancoNome, importacaoId, importacaoTitulo: titulo }));
                 
+                // Fase 5a: aplicar memoria antes de salvar
+                try {
+                    const cnpjAtual = (state.info && state.info.cnpj || '').replace(/\D/g, '');
+                    if (cnpjAtual && cnpjAtual.length === 14) {
+                        const r = await aplicarMemoriaEmLancamentos(entries, cnpjAtual);
+                        if (r.aplicados > 0) {
+                            console.log('[Fase 5a] Memoria aplicada em', r.aplicados, '/', r.total, 'lancamentos');
+                            if (typeof showToast === 'function') showToast('🧠 ' + r.aplicados + ' lancamento(s) classificado(s) automaticamente pela memoria.', 'success');
+                        }
+                    }
+                } catch (eMem) { console.warn('[Fase 5a] Falha ao aplicar memoria:', eMem); }
+
                 // Save
                 state.entries = state.entries.concat(entries);
                 state.lastFile = selectedFile.name;
@@ -5136,6 +5163,9 @@
                                 placeholder="Hist" style="width:50px;text-align:center">
                         </td>
                         <td>
+                            ${(e.contaDebito && e.contaCredito && e.codigoHistorico && !e._memorizado)
+                                ? '<button class="btn-sugestao" onclick="memorizarLancamento(' + idx + ')" title="Memorizar este padrao para a empresa" style="background:#dcfce7">🧠</button>' : ''}
+                            ${e._memorizado ? '<span title="Padrao memorizado/aplicado" style="font-size:14px">🧠</span>' : ''}
                             <button class="btn-sugestao" onclick="removeEntry(${idx})" title="Remover">🗑️</button>
                         </td>
                     </tr>
@@ -5178,6 +5208,129 @@
             if (!target) { target = document.createElement('datalist'); target.id = 'historicosIOBList'; document.body.appendChild(target); }
             target.innerHTML = lista.map(function(h){ return '<option value="'+h.codigo+'">'+(h.descricao||'').replace(/"/g,'&quot;')+'</option>'; }).join('');
         }
+
+        // === Fase 5a: Memoria de classificacao por CNPJ ===
+        window._aprendizadoCache = window._aprendizadoCache || {}; // { cnpj: { hash: { dados } } }
+        window._aprendizadoCarregadoCNPJ = window._aprendizadoCarregadoCNPJ || {};
+
+        function normalizarDescricao(desc) {
+            return String(desc || '')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/\b\d{1,2}\/\d{1,2}(\/\d{2,4})?\b/g, '')
+                .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '')
+                .replace(/r\$\s*[\d.,]+/g, '')
+                .replace(/\b\d{11}\b|\b\d{14}\b/g, '')
+                .replace(/\b[a-z]{3,}\s+[a-z]{3,}\s+(?:da|de|do|dos|das)?\s*[a-z]{3,}\b/g, '')
+                .replace(/\d{4,}/g, '')
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        async function hashDescricao(cnpj, descNorm) {
+            const data = (cnpj || '') + ':' + (descNorm || '');
+            const buf = new TextEncoder().encode(data);
+            const hashBuf = await crypto.subtle.digest('SHA-1', buf);
+            return Array.from(new Uint8Array(hashBuf)).slice(0, 4).map(b => b.toString(16).padStart(2,'0')).join('');
+        }
+
+        async function carregarAprendizadoEmpresa(cnpj) {
+            if (!cnpj) return {};
+            if (window._aprendizadoCarregadoCNPJ[cnpj]) return window._aprendizadoCache[cnpj] || {};
+            try {
+                const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado');
+                if (!r.ok) {
+                    console.warn('[Fase 5a] GET aprendizado falhou:', r.status);
+                    return {};
+                }
+                const j = await r.json();
+                const map = {};
+                (j.aprendizado || []).forEach(a => { map[a.hash] = a; });
+                window._aprendizadoCache[cnpj] = map;
+                window._aprendizadoCarregadoCNPJ[cnpj] = true;
+                console.log('[Fase 5a] Aprendizado carregado:', cnpj, '|', Object.keys(map).length, 'padroes');
+                return map;
+            } catch (e) {
+                console.warn('[Fase 5a] erro ao carregar aprendizado:', e);
+                return {};
+            }
+        }
+
+        async function memorizarLancamento(idx) {
+            const lanc = state.entries[idx];
+            if (!lanc) return;
+            if (!lanc.contaDebito || !lanc.contaCredito || !lanc.codigoHistorico) {
+                if (typeof showToast === 'function') showToast('Preencha debito, credito e codigo IOB antes de memorizar.', 'error');
+                return;
+            }
+            const cnpj = (state.info && state.info.cnpj || '').replace(/\D/g, '');
+            if (!cnpj || cnpj.length !== 14) {
+                if (typeof showToast === 'function') showToast('CNPJ da empresa nao informado.', 'error');
+                return;
+            }
+            const descNorm = normalizarDescricao(lanc.descricao);
+            if (!descNorm) {
+                if (typeof showToast === 'function') showToast('Descricao normalizada vazia (apos limpeza).', 'error');
+                return;
+            }
+            const hash = await hashDescricao(cnpj, descNorm);
+            try {
+                const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        hash: hash,
+                        descricao_normalizada: descNorm,
+                        descricao_exemplo: lanc.descricao,
+                        contaDebito: lanc.contaDebito,
+                        contaCredito: lanc.contaCredito,
+                        codigoHistorico: lanc.codigoHistorico
+                    })
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const j = await r.json();
+                // Atualiza cache local
+                window._aprendizadoCache[cnpj] = window._aprendizadoCache[cnpj] || {};
+                window._aprendizadoCache[cnpj][hash] = {
+                    hash: hash, descricao_normalizada: descNorm,
+                    contaDebito: lanc.contaDebito, contaCredito: lanc.contaCredito,
+                    codigoHistorico: lanc.codigoHistorico, vezes_usado: j.vezes_usado || 1
+                };
+                lanc._memorizado = true;
+                renderLancamentos();
+                if (typeof showToast === 'function') showToast('🧠 Memorizado! Sera aplicado automaticamente em proximas importacoes.', 'success');
+            } catch (e) {
+                console.error('[memorizarLancamento] erro:', e);
+                if (typeof showToast === 'function') showToast('Erro ao memorizar: ' + e.message, 'error');
+            }
+        }
+
+        async function aplicarMemoriaEmLancamentos(entries, cnpj) {
+            if (!entries || !entries.length || !cnpj) return { aplicados: 0, total: entries.length };
+            const cnpjLimpo = String(cnpj).replace(/\D/g, '');
+            if (cnpjLimpo.length !== 14) return { aplicados: 0, total: entries.length };
+            const cache = await carregarAprendizadoEmpresa(cnpjLimpo);
+            if (!Object.keys(cache).length) return { aplicados: 0, total: entries.length };
+            let aplicados = 0;
+            for (let i = 0; i < entries.length; i++) {
+                const e = entries[i];
+                if (e.contaDebito && e.contaCredito && e.codigoHistorico) continue; // ja classificado
+                const descNorm = normalizarDescricao(e.descricao);
+                if (!descNorm) continue;
+                const hash = await hashDescricao(cnpjLimpo, descNorm);
+                const aprendido = cache[hash];
+                if (aprendido) {
+                    if (!e.contaDebito && aprendido.contaDebito) e.contaDebito = aprendido.contaDebito;
+                    if (!e.contaCredito && aprendido.contaCredito) e.contaCredito = aprendido.contaCredito;
+                    if (!e.codigoHistorico && aprendido.codigoHistorico) e.codigoHistorico = aprendido.codigoHistorico;
+                    e._memorizado = true; // marca pra UI mostrar 🧠
+                    aplicados++;
+                }
+            }
+            return { aplicados, total: entries.length };
+        }
+        // === / Fase 5a ===
 
         function updateEntry(i, f, v) {
             if (f === 'codigoHistorico') {
