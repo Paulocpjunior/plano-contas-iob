@@ -5276,6 +5276,7 @@
             // v2: rejeitar padroes muito genericos (1 palavra so)
             var palavrasNorm = descNorm.split(' ').filter(function(w){return w.length >= 3;});
             if (palavrasNorm.length < 2) {
+                console.warn('[memorizarLancamento] BLOQUEADO: padrao com <2 palavras de 3+ chars. descNorm="' + descNorm + '" palavras=' + JSON.stringify(palavrasNorm));
                 if (typeof showToast === 'function') showToast('Padrao muito generico apos normalizacao ("' + descNorm + '"). Edite descricao para incluir nome do fornecedor.', 'error');
                 return;
             }
