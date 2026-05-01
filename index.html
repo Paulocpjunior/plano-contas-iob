@@ -5214,18 +5214,19 @@
         window._aprendizadoCarregadoCNPJ = window._aprendizadoCarregadoCNPJ || {};
 
         function normalizarDescricao(desc) {
+            // v2: preserva identidade de fornecedores, tira so ruido
             return String(desc || '')
                 .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                 .toLowerCase()
-                .replace(/\b\d{1,2}\/\d{1,2}(\/\d{2,4})?\b/g, '')
-                .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '')
-                .replace(/r\$\s*[\d.,]+/g, '')
-                .replace(/\b\d{11}\b|\b\d{14}\b/g, '')
-                .replace(/\b[a-z]{3,}\s+[a-z]{3,}\s+(?:da|de|do|dos|das)?\s*[a-z]{3,}\b/g, '')
-                .replace(/\d{4,}/g, '')
-                .replace(/[^a-z0-9\s]/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
+                .replace(/\b\d{1,2}\/\d{1,2}(\/\d{2,4})?\b/g, '')      // datas DD/MM(/YYYY)
+                .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '')                    // datas ISO
+                .replace(/r\$\s*[\d.,]+/g, '')                              // valores R$
+                .replace(/\d+[.\/-]\d+[.\/-]\d+[.\/-]?\d*/g, '')        // CNPJ/CPF formatado, contas
+                .replace(/\b\d+\b/g, '')                                    // qualquer numero solto
+                .replace(/\b(da|de|do|dos|das|e|s|a|ltda|sa|me|epp|com|nf|cnpj|cpf|conta|num|n)\b/g, '') // stopwords
+                .replace(/[^a-z0-9\s]/g, ' ')                                 // pontuacao
+                .replace(/\s+/g, ' ').trim()
+                .split(' ').filter(function(w){return w.length >= 3;}).slice(0, 6).join(' ');
         }
 
         async function hashDescricao(cnpj, descNorm) {
@@ -5271,7 +5272,13 @@
             }
             const descNorm = normalizarDescricao(lanc.descricao);
             if (!descNorm) {
-                if (typeof showToast === 'function') showToast('Descricao normalizada vazia (apos limpeza).', 'error');
+                if (typeof showToast === 'function') showToast('Descricao normalizada vazia (apos limpeza). Edite a descricao para incluir identidade do fornecedor.', 'error');
+                return;
+            }
+            // v2: rejeitar padroes muito genericos (1 palavra so)
+            var palavrasNorm = descNorm.split(' ').filter(function(w){return w.length >= 3;});
+            if (palavrasNorm.length < 2) {
+                if (typeof showToast === 'function') showToast('Padrao muito generico apos normalizacao ("' + descNorm + '"). Edite descricao para incluir nome do fornecedor.', 'error');
                 return;
             }
             const hash = await hashDescricao(cnpj, descNorm);
