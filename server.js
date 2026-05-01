@@ -115,6 +115,56 @@ app.post('/api/planos/:id/contas', async (req, res) => {
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
+// Fase Zero+: substituir array completo de contas (upsert)
+app.put('/api/planos/:id/contas', async (req, res) => {
+  try {
+    const { contas } = req.body;
+    if (!Array.isArray(contas)) return res.status(400).json({ erro: 'contas[] obrigatorio' });
+    const planoRef = db.collection('planos').doc(req.params.id);
+    const planoDoc = await planoRef.get();
+    if (!planoDoc.exists) return res.status(404).json({ erro: 'Plano nao encontrado' });
+    
+    const subRef = planoRef.collection('contas');
+    
+    // 1. Deletar contas atuais em batch (max 500 por batch do Firestore)
+    const atuais = await subRef.get();
+    let deletadas = 0;
+    for (let i = 0; i < atuais.docs.length; i += 400) {
+      const chunk = atuais.docs.slice(i, i + 400);
+      const batchDel = db.batch();
+      chunk.forEach(d => batchDel.delete(d.ref));
+      await batchDel.commit();
+      deletadas += chunk.length;
+    }
+    
+    // 2. Escrever novas em batch
+    let inseridas = 0;
+    for (let i = 0; i < contas.length; i += 400) {
+      const chunk = contas.slice(i, i + 400);
+      const batchAdd = db.batch();
+      chunk.forEach(c => {
+        const ref = subRef.doc();
+        batchAdd.set(ref, {
+          cod: c.codigo || c.cod || '',
+          desc: c.descricao || c.desc || '',
+          reduzido: c.reduzido || '',
+          ref_rfb: c.reduzido || c.ref_rfb || null,
+          analitica: c.analitica !== false,
+          created_by: req.user.uid,
+          created_at: new Date()
+        });
+      });
+      await batchAdd.commit();
+      inseridas += chunk.length;
+    }
+    
+    res.json({ ok: true, deletadas, inseridas, plano_id: req.params.id });
+  } catch (err) {
+    console.error('[PUT contas] erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 app.delete('/api/planos/:id', adminRequired, async (req, res) => {
   try {
     const planoRef = db.collection('planos').doc(req.params.id);

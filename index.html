@@ -2081,7 +2081,48 @@
             const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
             const nomeUpper = nomePlano.toUpperCase();
             const planoId = 'plano-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-            const planoRes = await window.API.apiFetch('/api/planos', {
+            // Fase Zero+: detectar plano existente pelo CNPJ
+                let planoExistentePorCNPJ = null;
+                if (cnpj) {
+                    planoExistentePorCNPJ = Object.values(planosCadastrados || {}).find(function(p) {
+                        return p.cnpj === cnpj && (p.plano_id || p.id);
+                    });
+                }
+                if (planoExistentePorCNPJ) {
+                    const planoIdExistente = planoExistentePorCNPJ.plano_id || planoExistentePorCNPJ.id;
+                    const totalAtual = (planoExistentePorCNPJ.contas || []).length;
+                    const escolha = confirm(
+                        'Ja existe um plano vinculado ao CNPJ ' + cnpj + ' com ' + totalAtual + ' contas (id: ' + planoIdExistente + ').\n\n' +
+                        'OK = SOBRESCREVER as contas mantendo o ID e vinculos com empresas\n' +
+                        'Cancelar = NAO importar (cancela)'
+                    );
+                    if (!escolha) {
+                        showToast('Importacao cancelada — plano existente preservado.', 'success');
+                        return;
+                    }
+                    showToast('Sobrescrevendo contas do plano ' + planoIdExistente + '...', 'success');
+                    try {
+                        const putRes = await window.API.apiFetch('/api/planos/' + planoIdExistente + '/contas', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contas: contasImportadas })
+                        });
+                        if (!putRes.ok) {
+                            const errText = await putRes.text();
+                            throw new Error('PUT falhou: ' + putRes.status + ' ' + errText);
+                        }
+                        const putJson = await putRes.json();
+                        showToast('OK ' + putJson.inseridas + ' contas substituidas (' + putJson.deletadas + ' antigas removidas)', 'success');
+                        if (window.API && window.API.recarregarPlanos) await window.API.recarregarPlanos();
+                        return;
+                    } catch (eUpsert) {
+                        console.error('[upsert] erro:', eUpsert);
+                        showToast('Erro ao sobrescrever: ' + eUpsert.message, 'error');
+                        return;
+                    }
+                }
+                
+                const planoRes = await window.API.apiFetch('/api/planos', {
                 method: 'POST',
                 body: JSON.stringify({ id: planoId, codigo: 'CUSTOM', nome: nomeUpper, tipo: 'custom' })
             });
