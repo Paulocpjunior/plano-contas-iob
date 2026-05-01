@@ -2491,11 +2491,28 @@
                 // Filtro 1: linhas-lixo obvias
                 if (reLixo.test(line.trim())) { rejeitadasLixo++; return; }
                 
-                // Filtro 2: tem que comecar com digito (codigo estruturado)
+                // Filtro 2 (Fase Zero v2): classificar analitica vs sintetica vs lixo
+                const trimmed = line.trim();
+                
+                // Detecta CNPJ disfarcado de codigo (ex: "03.954.491/0001-06 CNPJ:")
+                if (/^\d+\.\d+\.\d+\/\d+/.test(trimmed)) { rejeitadasLixo++; return; }
+                
+                // Padrao IOB com parenteses (analitica COM reduzido) — sera tratado pela Estrategia 0
+                const reAnaliticaIOB = /^\s*(\d+(?:\.\d+)+)\s*-\s*\(\d+\)\s*-/;
+                const ehAnaliticaIOB = reAnaliticaIOB.test(line);
+                
+                // Padrao SEM parenteses: pode ser sintetica (X.X.X) ou conta-folha sem reduzido
                 const mCod = line.trim().match(reCodigoEstruturado);
                 if (!mCod) { rejeitadasLixo++; return; }
                 
                 const codigo = mCod[1];
+                
+                // Se NAO tem parenteses E tem menos de 5 niveis -> sintetica, descartar
+                if (!ehAnaliticaIOB) {
+                    const niveis = codigo.split('.').length;
+                    if (niveis < 5) { rejeitadasLixo++; return; }
+                }
+                
                 let descricao = '';
                 let reduzido = '';
                 
