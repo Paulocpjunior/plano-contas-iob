@@ -2499,9 +2499,19 @@
                 let descricao = '';
                 let reduzido = '';
                 
+                // ESTRATEGIA 0 (Fase Zero): layout IOB com reduzido entre parenteses
+                // Padrao: "1.1.1.01.0001 - (0000000001) - CAIXA"
+                const reIOBComParens = /^\s*(\d+(?:\.\d+)+)\s*-\s*\((\d+)\)\s*-\s*(.+?)\s*$/;
+                const mIOB = line.match(reIOBComParens);
+                if (mIOB) {
+                    descricao = mIOB[3].trim();
+                    reduzido = mIOB[2];
+                }
+
                 // ESTRATEGIA A: split por 2+ espacos (separador natural)
                 // Funciona para a maioria dos TXTs: CODIGO  DESCRICAO  EMPRESA  REDUZIDO
-                const colunas = line.trim().split(/\s{2,}/).filter(c => c);
+                // Pula A se Estrategia 0 ja preencheu
+                const colunas = (descricao && reduzido) ? [] : line.trim().split(/\s{2,}/).filter(c => c);
                 if (colunas.length >= 2) {
                     // col 0 = codigo (ja extraido)
                     // ultima coluna numerica ou 5G... = reduzido
