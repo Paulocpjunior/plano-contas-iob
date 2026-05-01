@@ -5296,6 +5296,32 @@
                 }
                 historicosIOBLista = (listaHist || []).map(function(h){ return h.codigo + '|' + (h.descricao || '').substring(0, 60); }).join('\n');
                 console.log('[IA Fase 3] historicosIOBLista carregada:', (listaHist||[]).length, 'codigos');
+
+                // Fase 4: contexto da empresa via BrasilAPI (cache no Firestore)
+                let contextoEmpresa = null;
+                try {
+                    contextoEmpresa = await window.API.apiFetch('/api/empresas/' + cnpj + '/contexto-ia').then(function(r){ return r.json(); });
+                    if (contextoEmpresa && contextoEmpresa.cnae_descricao) {
+                        console.log('[IA Fase 4] Contexto empresa:', contextoEmpresa.razao_social, '|', contextoEmpresa.cnae_principal, '-', contextoEmpresa.cnae_descricao);
+                        showToast('🏢 ' + (contextoEmpresa.razao_social || 'Empresa').substring(0, 40) + ' | ' + contextoEmpresa.cnae_descricao.substring(0, 60), 'success');
+                    } else {
+                        console.warn('[IA Fase 4] Contexto vazio ou sem CNAE — IA usara fallback generico');
+                        contextoEmpresa = null;
+                    }
+                } catch (eCtx) {
+                    console.warn('[IA Fase 4] Falha ao buscar contexto:', eCtx);
+                    contextoEmpresa = null;
+                }
+                const contextoTexto = contextoEmpresa
+                    ? ('Voce eh um contador brasileiro especialista no segmento abaixo.\n\nCONTEXTO DA EMPRESA:\n- Razao social: ' + (contextoEmpresa.razao_social || '?') +
+                       (contextoEmpresa.nome_fantasia ? '\n- Nome fantasia: ' + contextoEmpresa.nome_fantasia : '') +
+                       '\n- CNAE principal: ' + (contextoEmpresa.cnae_principal || '?') + ' - ' + (contextoEmpresa.cnae_descricao || '?') +
+                       '\n- Natureza juridica: ' + (contextoEmpresa.natureza_juridica || '?') +
+                       '\n- Porte: ' + (contextoEmpresa.porte || '?') +
+                       (contextoEmpresa.municipio ? '\n- Localizacao: ' + contextoEmpresa.municipio + '/' + (contextoEmpresa.uf || '') : '') +
+                       '\n- Regime tributario: inferir pelo porte e CNAE (provavel Simples Nacional para ME/EPP, Lucro Presumido para demais)' +
+                       '\n- Operacoes tipicas: inferir pelo CNAE acima.')
+                    : ('Voce eh um contador brasileiro generalista.\n\nCONTEXTO DA EMPRESA:\n- CNPJ: ' + cnpj + ' (dados da Receita indisponiveis no momento)\n- Operacoes: classifique conforme a descricao da transacao.');
             } catch (eHist) {
                 console.warn('[IA Fase 3] Falha ao carregar historicos IOB:', eHist);
                 historicosIOBLista = '(lista indisponivel - codigoHistorico opcional neste lote)';
@@ -5309,12 +5335,7 @@
                 for (let i = 0; i < state.entries.length; i += batchSize) {
                     const batch = state.entries.slice(i, i + batchSize);
                     
-                    const prompt = `Voce eh um contador brasileiro especialista em comercio atacadista/varejista de FRUTAS.
-
-CONTEXTO DA EMPRESA:
-- Ramo: Comercio de Frutas (CNAE 4721-1 / 4633-8)
-- Regime: Lucro Presumido ou Simples Nacional
-- Operacoes tipicas: compra de frutas de produtores, venda a mercados/restaurantes, frete, combustivel, folha pequena
+                    const prompt = `${contextoTexto}
 
 PLANO DE CONTAS COMPLETO (${contasPlano.length} contas analiticas):
 Formato: CODIGO_ESTRUTURADO | REDUZIDO_14_DIGITOS | DESCRICAO

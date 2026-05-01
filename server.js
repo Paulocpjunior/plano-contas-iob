@@ -574,6 +574,61 @@ app.post('/api/admin/trocar-plano-empresa', adminRequired, async (req, res) => {
   } catch (e) { console.error('trocar-plano-empresa:', e); res.status(500).json({ erro: e.message }); }
 });
 
+// Fase 4: contexto IA dinamico via BrasilAPI + cache Firestore
+app.get('/api/empresas/:cnpj/contexto-ia', async (req, res) => {
+  try {
+    const cnpj = (req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const force = req.query.force === '1' || req.query.refresh === '1';
+
+    const ref = db.collection('empresas').doc(cnpj);
+    const snap = await ref.get();
+
+    if (!force && snap.exists) {
+      const d = snap.data() || {};
+      if (d.contexto_ia && d.contexto_ia.cnae_descricao) {
+        return res.json(Object.assign({ origem: 'cache' }, d.contexto_ia));
+      }
+    }
+
+    let brasilapi;
+    try {
+      const r = await fetch('https://brasilapi.com.br/api/cnpj/v1/' + cnpj);
+      if (!r.ok) {
+        return res.status(502).json({ erro: 'BrasilAPI HTTP ' + r.status, cnpj: cnpj });
+      }
+      brasilapi = await r.json();
+    } catch (eFetch) {
+      console.warn('[contexto-ia] falha BrasilAPI:', eFetch.message);
+      if (snap.exists) {
+        const d = snap.data() || {};
+        if (d.contexto_ia) return res.json(Object.assign({ origem: 'cache-fallback' }, d.contexto_ia));
+      }
+      return res.status(502).json({ erro: 'BrasilAPI indisponivel: ' + eFetch.message });
+    }
+
+    const ctx = {
+      cnpj: cnpj,
+      razao_social: brasilapi.razao_social || brasilapi.nome_empresarial || '',
+      nome_fantasia: brasilapi.nome_fantasia || '',
+      cnae_principal: brasilapi.cnae_fiscal ? String(brasilapi.cnae_fiscal) : '',
+      cnae_descricao: brasilapi.cnae_fiscal_descricao || '',
+      natureza_juridica: brasilapi.natureza_juridica || '',
+      porte: brasilapi.porte || '',
+      situacao: brasilapi.descricao_situacao_cadastral || '',
+      municipio: brasilapi.municipio || '',
+      uf: brasilapi.uf || '',
+      atualizado_em: new Date().toISOString()
+    };
+
+    await ref.set({ contexto_ia: ctx }, { merge: true });
+    res.json(Object.assign({ origem: 'brasilapi' }, ctx));
+  } catch (e) {
+    console.error('[contexto-ia] erro:', e);
+    res.status(500).json({ erro: e.message });
+  }
+});
+
 app.get('/api/empresas/:cnpj/historico-planos', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
