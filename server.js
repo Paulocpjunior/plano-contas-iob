@@ -197,6 +197,110 @@ app.post('/api/folha/registrar-importacao', async (req, res) => {
   }
 });
 
+// GET /api/folha/empresas-do-plano/:planoId
+app.get('/api/folha/empresas-do-plano/:planoId', async (req, res) => {
+  try {
+    const { planoId } = req.params;
+    if (!planoId) return res.status(400).json({ erro: 'planoId obrigatório' });
+    const snap = await db.collection('empresas')
+      .where('plano_id', '==', planoId)
+      .where('ativo', '==', true)
+      .get();
+    const empresas = snap.docs.map(d => {
+      const data = d.data();
+      const cnpjLimpo = d.id;
+      const cnpjFmt = cnpjLimpo.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+      return {
+        cnpj: cnpjLimpo,
+        cnpj_formatado: cnpjFmt,
+        razao_social: data.razao_social || null,
+        numero_filial_iob: data.numero_filial_iob || null,
+      };
+    });
+    res.json({ planoId, empresas });
+  } catch (err) {
+    console.error('empresas-do-plano erro:', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// GET /api/folha/mapeamento/:cnpj
+app.get('/api/folha/mapeamento/:cnpj', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido' });
+    const snap = await db.collection('folha_mapeamentos')
+      .where('cnpj', '==', cnpjLimpo).limit(1).get();
+    if (snap.empty) return res.json({ encontrado: false });
+    const doc = snap.docs[0];
+    res.json({ encontrado: true, id: doc.id, ...doc.data() });
+  } catch (err) {
+    console.error('get mapeamento erro:', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// PUT /api/folha/mapeamento/:cnpj
+app.put('/api/folha/mapeamento/:cnpj', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido' });
+    const { regras, encargos, origem_padrao, numero_filial } = req.body;
+    const snap = await db.collection('folha_mapeamentos')
+      .where('cnpj', '==', cnpjLimpo).limit(1).get();
+    const dados = {
+      cnpj: cnpjLimpo,
+      owner_uid: req.user.uid,
+      regras: regras || {},
+      encargos: encargos || {},
+      origem_padrao: origem_padrao || '',
+      numero_filial: numero_filial || '',
+      atualizado_em: new Date(),
+      atualizado_por_email: req.user.email,
+    };
+    if (snap.empty) {
+      const ref = await db.collection('folha_mapeamentos').add({ ...dados, criado_em: new Date() });
+      return res.status(201).json({ id: ref.id, ...dados });
+    }
+    const ref = db.collection('folha_mapeamentos').doc(snap.docs[0].id);
+    await ref.set(dados, { merge: true });
+    res.json({ id: ref.id, ...dados });
+  } catch (err) {
+    console.error('put mapeamento erro:', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// GET /api/folha/checar-duplicidade
+app.get('/api/folha/checar-duplicidade', async (req, res) => {
+  try {
+    const { cnpj, competencia, hash } = req.query;
+    if (!cnpj || !competencia) return res.status(400).json({ erro: 'cnpj e competencia obrigatórios' });
+    const cnpjLimpo = String(cnpj).replace(/\D/g, '');
+    const snap = await db.collection('folha_importacoes')
+      .where('cnpj', '==', cnpjLimpo)
+      .where('competencia', '==', competencia)
+      .get();
+    if (snap.empty) return res.json({ ja_importado: false });
+    const importacoes = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        criado_em: data.criado_em ? data.criado_em.toDate().toISOString() : null,
+        total_lancamentos: data.total_lancamentos || 0,
+        total_valor: data.total_valor || 0,
+        hash_match: hash ? (data.raw_text_hash === hash) : false,
+      };
+    });
+    res.json({ ja_importado: true, importacoes });
+  } catch (err) {
+    console.error('checar-duplicidade erro:', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+
+
 
 // Historicos Padrao IOB SAGE
 require('./historicos-routes')(app, db);
