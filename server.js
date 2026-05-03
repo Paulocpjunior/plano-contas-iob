@@ -40,6 +40,164 @@ function adminRequired(req, res, next) {
 
 app.use('/api', authRequired);
 
+// ============================================================================
+//  FOLHA DE PAGAMENTO IOB — Fase 1 — endpoints
+//  Colar logo após `app.use('/api', authRequired);` (linha 41 do server.js)
+//  Tudo dentro de /api/ herda o middleware authRequired automaticamente.
+// ============================================================================
+
+const pdfParse = require('pdf-parse');
+const multer = require('multer');
+const cryptoFolha = require('crypto');
+
+const uploadFolha = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
+const _parseValor = s => !s ? 0 : parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
+
+const _valorAposAncora = (linhas, ancoraRegex, posicao = 1, janela = 30) => {
+  const idx = linhas.findIndex(l => ancoraRegex.test(l));
+  if (idx === -1) return null;
+  const valorRe = /^[\d.,]+$/;
+  let achados = 0;
+  for (let i = idx + 1; i < Math.min(idx + 1 + janela, linhas.length); i++) {
+    const l = linhas[i].trim();
+    if (valorRe.test(l) && /\d/.test(l)) {
+      achados++;
+      if (achados === posicao) return _parseValor(l);
+    }
+  }
+  return null;
+};
+
+async function parseResumoIOB(pdfBuffer) {
+  const data = await pdfParse(pdfBuffer);
+  const texto = data.text;
+  const linhas = texto.split('\n').map(l => l.trim());
+
+  if (!/R\s*e\s*s\s*u\s*m\s*o\s+G\s*e\s*r\s*a\s*l/i.test(texto)) {
+    throw new Error('PDF não parece ser um Resumo Geral IOB');
+  }
+
+  const empresa = (texto.match(/Empresa\s*:\s*(.+)/) || [])[1]?.trim();
+  const cnpj = (texto.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})\s*CNPJ/) || [])[1];
+  const periodoMatch = texto.match(/(\d{2}\/\d{2}\/\d{4})\s*\n?\s*a\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/);
+  const competencia = periodoMatch ? `${periodoMatch[1].slice(3, 5)}/${periodoMatch[1].slice(6, 10)}` : null;
+  const dataLancamento = periodoMatch ? periodoMatch[2] : null;
+
+  const valorReGlobal = /(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}/g;
+  const codigoIni = /^(\d{3})/;
+
+  function extrairRubrica(linha) {
+    const matchCodigo = linha.match(codigoIni);
+    if (!matchCodigo) return null;
+    const matches = [...linha.matchAll(valorReGlobal)];
+    if (matches.length < 4) return null;
+
+    let candidatos = matches.slice(-4);
+    let [vAtivos, vDemitidos, vAfastados, vTotal] = candidatos.map(m => _parseValor(m[0]));
+    const avisos = [];
+
+    if (Math.abs((vAtivos + vDemitidos + vAfastados) - vTotal) > 0.01) {
+      const valStr = candidatos[0][0];
+      let consertou = false;
+      for (let i = 1; i < valStr.length - 4; i++) {
+        const tentativa = _parseValor(valStr.slice(i));
+        if (!isNaN(tentativa) && Math.abs(tentativa + vDemitidos + vAfastados - vTotal) < 0.01) {
+          vAtivos = tentativa;
+          consertou = true;
+          avisos.push(`detalhamento_corrigido (original=${valStr})`);
+          break;
+        }
+      }
+      if (!consertou) avisos.push('detalhamento_inconsistente');
+    }
+
+    const idxValorAtivos = matches[matches.length - 4].index;
+    return {
+      codigo: matchCodigo[1],
+      nome: linha.slice(3, idxValorAtivos).trim(),
+      valor_ativos: vAtivos, valor_demitidos: vDemitidos,
+      valor_afastados: vAfastados, valor_total: vTotal,
+      ...(avisos.length ? { avisos } : {}),
+    };
+  }
+
+  const rubricas = [];
+  let secao = null;
+  for (const linha of linhas) {
+    if (/^ADICIONAIS\s*\/\s*DESCONTOS/i.test(linha) || /Valores pagos aos Funcion/i.test(linha)) { secao = 'ADICIONAIS'; continue; }
+    if (/^TOTAL DE ADICIONAIS/i.test(linha)) { secao = 'DESCONTOS'; continue; }
+    if (/^TOTAL DE DESCONTOS/i.test(linha) || /^TOTAL L[ÍI]QUIDO/i.test(linha)) { secao = null; continue; }
+    if (!secao) continue;
+    const r = extrairRubrica(linha);
+    if (r && r.valor_total > 0) {
+      r.tipo = secao === 'ADICIONAIS' ? 'PROVENTO' : 'DESCONTO';
+      rubricas.push(r);
+    }
+  }
+
+  const encargos = {
+    fgts_mensal:        _valorAposAncora(linhas, /^FGTS Mensal:$/, 1),
+    multa_fgts:         _valorAposAncora(linhas, /^FGTS Mensal:$/, 2),
+    fgts_13:            _valorAposAncora(linhas, /^FGTS Mensal:$/, 3),
+    base_pis_folha:     _valorAposAncora(linhas, /^Base PIS Folha:$/, 1),
+    pis_folha:          _valorAposAncora(linhas, /^Base PIS Folha:$/, 2),
+    base_irrf:          _valorAposAncora(linhas, /^Base PIS Folha:$/, 3),
+    valor_irrf:         _valorAposAncora(linhas, /^Base PIS Folha:$/, 4),
+    inss_empregados:    _valorAposAncora(linhas, /^Empregados\/Avulsos:$/, 1),
+    inss_empresa:       _valorAposAncora(linhas, /^Empregados\/Avulsos:$/, 2),
+    inss_terceiros:     _valorAposAncora(linhas, /^Empregados\/Avulsos:$/, 3),
+    salario_maternidade:_valorAposAncora(linhas, /^Empregados\/Avulsos:$/, 4),
+    salario_familia:    _valorAposAncora(linhas, /^Contribuintes Individuais:$/, 2),
+  };
+  const ratMatch = texto.match(/RAT Emp\s*\(RAT x FAP\s*=\s*([\d,]+)\s*%\)/);
+  encargos.rat_aliquota = ratMatch ? _parseValor(ratMatch[1]) : null;
+
+  return {
+    empresa, cnpj, competencia, data_lancamento: dataLancamento,
+    rubricas, encargos_patronais: encargos,
+    totais: { liquido_pagar: _parseValor((texto.match(/TOTAL L[ÍI]QUIDO A PAGAR\s*([\d.,]+)/) || [])[1]) },
+    raw_text_hash: cryptoFolha.createHash('sha256').update(texto).digest('hex').slice(0, 16),
+  };
+}
+
+// POST /api/folha/parse-resumo  (auth herdada de app.use('/api', authRequired))
+app.post('/api/folha/parse-resumo', uploadFolha.single('pdf'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ erro: 'arquivo PDF não enviado (campo "pdf")' });
+    const resultado = await parseResumoIOB(req.file.buffer);
+    res.json(resultado);
+  } catch (err) {
+    console.error('parse-resumo erro:', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// POST /api/folha/registrar-importacao
+app.post('/api/folha/registrar-importacao', async (req, res) => {
+  try {
+    const { cnpj, competencia, raw_text_hash, total_lancamentos, total_valor } = req.body;
+    if (!cnpj || !competencia || !raw_text_hash) {
+      return res.status(400).json({ erro: 'campos obrigatórios: cnpj, competencia, raw_text_hash' });
+    }
+    const docRef = await db.collection('folha_importacoes').add({
+      owner_uid: req.user.uid,
+      cnpj, competencia, raw_text_hash,
+      total_lancamentos: total_lancamentos || 0,
+      total_valor: total_valor || 0,
+      criado_em: new Date(),
+    });
+    res.json({ id: docRef.id });
+  } catch (err) {
+    console.error('registrar-importacao erro:', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+
 // Historicos Padrao IOB SAGE
 require('./historicos-routes')(app, db);
 app.get('/api/me', (req, res) => res.json(req.user));
