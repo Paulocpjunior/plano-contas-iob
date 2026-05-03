@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// ============================================================================
+//  Firestore Security Rules — plano-contas-iob
+//  Filosofia: deny-all para clientes web (Firebase JS SDK).
+//  O backend (server.js) usa firebase-admin que faz bypass dessas rules.
+//
+//  Exceções: folha_mapeamentos e folha_importacoes são lidas/escritas
+//  pelo vincular-folha-pagamento.js direto via SDK, com isolamento
+//  por owner_uid.
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /folha_mapeamentos/{docId} {
+      allow read, update, delete: if request.auth != null
+                                  && resource.data.owner_uid == request.auth.uid;
+      allow create: if request.auth != null
+                    && request.resource.data.owner_uid == request.auth.uid;
+    }
+
+    match /folha_importacoes/{docId} {
+      allow read, update, delete: if request.auth != null
+                                  && resource.data.owner_uid == request.auth.uid;
+      allow create: if request.auth != null
+                    && request.resource.data.owner_uid == request.auth.uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
