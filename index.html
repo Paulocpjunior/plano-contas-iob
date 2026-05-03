@@ -81,10 +81,19 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
             color: #fff;
             box-shadow: var(--shadow-lg);
         }
+        .logo-circle svg, .header-logo svg, .brand-logo svg { width: 60%; height: 60%; }
+        .login-version {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-light);
+            letter-spacing: 1.5px;
+            font-weight: 600;
+        }
+        .login-version strong { color: var(--accent); }
         .login-box h1 {
             color: var(--primary);
             margin-bottom: 6px;
@@ -187,7 +196,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            color: #fff;
         }
         .header-title h1 {
             font-size: 18px;
@@ -1199,7 +1208,64 @@
             z-index: 100;
         }
         .version-info strong { color: var(--accent-light); }
-        
+
+        /* Update Notification (nova versao detectada) */
+        .update-banner {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            max-width: 380px;
+            background: linear-gradient(135deg, var(--accent), var(--primary));
+            color: #fff;
+            border-radius: var(--radius-sm);
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.35);
+            padding: 18px 20px;
+            z-index: 9999;
+            display: none;
+            animation: slideIn 0.35s ease;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .update-banner.show { display: block; }
+        .update-banner h4 {
+            font-size: 14px;
+            font-weight: 800;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .update-banner p {
+            font-size: 12px;
+            opacity: 0.92;
+            line-height: 1.5;
+            margin-bottom: 14px;
+        }
+        .update-banner .update-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .update-banner button {
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+        }
+        .update-banner .btn-update {
+            background: #fff;
+            color: var(--primary);
+        }
+        .update-banner .btn-update:hover { transform: translateY(-1px); }
+        .update-banner .btn-later {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.25);
+        }
+        .update-banner .btn-later:hover { background: rgba(255,255,255,0.22); }
+
         /* Hidden */
         .hidden { display: none !important; }
         
@@ -1220,7 +1286,15 @@
     <div class="login-container" id="loginContainer">
         <div class="login-box">
             <div class="login-logo">
-                <div class="logo-circle">📊</div>
+                <div class="logo-circle">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <rect x="10" y="34" width="8" height="20" rx="2" fill="#ffffff" opacity="0.95"/>
+                        <rect x="22" y="24" width="8" height="30" rx="2" fill="#ffffff" opacity="0.85"/>
+                        <rect x="34" y="14" width="8" height="40" rx="2" fill="#ffffff" opacity="0.95"/>
+                        <path d="M10 22 L22 14 L34 18 L52 8" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="52" cy="8" r="3.5" fill="#ffffff"/>
+                    </svg>
+                </div>
             </div>
             <h1>CONSULTOR CONTÁBIL INTELIGENTE</h1>
             <p class="brand">SP ASSESSORIA CONTÁBIL</p>
@@ -1254,6 +1328,9 @@
                 <button class="btn btn-secondary" onclick="showLogin()">Voltar ao Login</button>
                 <div class="error-msg" id="regErrorMsg"></div>
             </div>
+            <div class="login-version">
+                VERSÃO <strong id="loginVersion">—</strong> &nbsp;•&nbsp; RELEASE <strong id="loginRelease">—</strong>
+            </div>
         </div>
     </div>
     
@@ -1262,10 +1339,18 @@
         <!-- Header -->
         <div class="header">
             <div class="header-left">
-                <div class="header-logo">📊</div>
+                <div class="header-logo">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <rect x="10" y="34" width="8" height="20" rx="2" fill="currentColor" opacity="0.95"/>
+                        <rect x="22" y="24" width="8" height="30" rx="2" fill="currentColor" opacity="0.85"/>
+                        <rect x="34" y="14" width="8" height="40" rx="2" fill="currentColor" opacity="0.95"/>
+                        <path d="M10 22 L22 14 L34 18 L52 8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="52" cy="8" r="3.5" fill="currentColor"/>
+                    </svg>
+                </div>
                 <div class="header-title">
                     <h1>CONSULTOR CONTÁBIL INTELIGENTE</h1>
-                    <span class="version">v4.0 • Colaborativo</span>
+                    <span class="version" id="headerVersion">—</span>
                 </div>
             </div>
             <div class="header-right">
@@ -1851,13 +1936,21 @@
                         <h2><span class="icon">ℹ️</span> Sobre o Sistema</h2>
                     </div>
                     <div style="display:flex;gap:32px;flex-wrap:wrap">
-                        <div style="width:120px;height:120px;background:linear-gradient(135deg,var(--primary),var(--accent));border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:48px;color:#fff;box-shadow:var(--shadow-lg)">📊</div>
+                        <div class="brand-logo" style="width:120px;height:120px;background:linear-gradient(135deg,var(--primary),var(--accent));border-radius:24px;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:var(--shadow-lg)">
+                            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <rect x="10" y="34" width="8" height="20" rx="2" fill="currentColor" opacity="0.95"/>
+                                <rect x="22" y="24" width="8" height="30" rx="2" fill="currentColor" opacity="0.85"/>
+                                <rect x="34" y="14" width="8" height="40" rx="2" fill="currentColor" opacity="0.95"/>
+                                <path d="M10 22 L22 14 L34 18 L52 8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="52" cy="8" r="3.5" fill="currentColor"/>
+                            </svg>
+                        </div>
                         <div>
                             <h3 style="font-size:26px;color:var(--primary);margin-bottom:8px;font-weight:800">CONSULTOR CONTÁBIL INTELIGENTE</h3>
                             <p style="color:var(--accent);font-size:14px;margin-bottom:20px;font-weight:600">Automação contábil com Inteligência Artificial</p>
                             <table style="font-size:14px">
-                                <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Versão:</td><td><strong>2.0.0</strong></td></tr>
-                                <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Release:</td><td><strong>Abril 2025</strong></td></tr>
+                                <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Versão:</td><td><strong id="aboutVersion">—</strong></td></tr>
+                                <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Release:</td><td><strong id="aboutRelease">—</strong></td></tr>
                                 <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Motor IA:</td><td><strong>Google Gemini 2.5 Flash</strong></td></tr>
                                 <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Desenvolvido para:</td><td><strong>SP Assessoria Contábil</strong></td></tr>
                             </table>
@@ -1928,9 +2021,26 @@
     
     <!-- Toast -->
     <div id="toast" class="toast hidden"></div>
-    
+
     <!-- Version Info -->
-    <div class="version-info">📊 <strong>v2.2.0</strong> • 2025.04</div>
+    <div class="version-info">
+        <svg viewBox="0 0 64 64" width="14" height="14" style="vertical-align:-2px;margin-right:4px" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="10" y="34" width="8" height="20" rx="2" fill="currentColor" opacity="0.85"/>
+            <rect x="22" y="24" width="8" height="30" rx="2" fill="currentColor" opacity="0.7"/>
+            <rect x="34" y="14" width="8" height="40" rx="2" fill="currentColor" opacity="0.95"/>
+        </svg>
+        <strong id="footerVersion">—</strong> • <span id="footerRelease">—</span>
+    </div>
+
+    <!-- Update Banner (nova versao) -->
+    <div class="update-banner" id="updateBanner" role="alert" aria-live="polite">
+        <h4>🔄 Nova versão disponível</h4>
+        <p>Uma atualização do sistema foi publicada. Faça um <strong>hard refresh</strong> (Ctrl+F5 / Cmd+Shift+R) para carregar as novidades.</p>
+        <div class="update-actions">
+            <button class="btn-update" onclick="aplicarAtualizacao()">Atualizar agora</button>
+            <button class="btn-later" onclick="adiarAtualizacao()">Mais tarde</button>
+        </div>
+    </div>
     
     <script>
         // Firebase Config
@@ -1946,6 +2056,86 @@
         const DOMAIN = '@spassessoriacontabil.com.br';
         // GEMINI_KEY removida - agora via proxy /api/ai/gemini (chave no Secret Manager)
         const GEMINI_MODEL = 'gemini-2.5-flash';
+
+        // ============ VERSAO / AUTO-UPDATE ============
+        // Polling /api/version detecta novas releases publicadas e
+        // sugere ao usuario fazer hard refresh para puxar o build novo.
+        const VERSION_POLL_MS = 5 * 60 * 1000; // 5 minutos
+        let _appVersionRef = null; // build da sessao atual (definido na 1a chamada)
+        let _updateBannerOpen = false;
+
+        function _setText(id, txt) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = txt;
+        }
+
+        async function buscarVersao() {
+            try {
+                const r = await fetch('/api/version', { cache: 'no-store' });
+                if (!r.ok) return null;
+                return await r.json();
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function inicializarVersao() {
+            const v = await buscarVersao();
+            if (!v) return;
+            _appVersionRef = v.build;
+            const versaoTxt = 'v' + v.version;
+            _setText('loginVersion', versaoTxt);
+            _setText('loginRelease', v.release);
+            _setText('headerVersion', versaoTxt + ' • ' + v.release);
+            _setText('aboutVersion', v.version);
+            _setText('aboutRelease', v.release);
+            _setText('footerVersion', versaoTxt);
+            _setText('footerRelease', v.release);
+        }
+
+        async function checarAtualizacao() {
+            const v = await buscarVersao();
+            if (!v || !_appVersionRef) return;
+            if (v.build !== _appVersionRef) {
+                mostrarBannerAtualizacao();
+            }
+        }
+
+        function mostrarBannerAtualizacao() {
+            if (_updateBannerOpen) return;
+            const adiadoAte = parseInt(sessionStorage.getItem('sp_update_snooze_until') || '0', 10);
+            if (adiadoAte && Date.now() < adiadoAte) return;
+            const el = document.getElementById('updateBanner');
+            if (!el) return;
+            el.classList.add('show');
+            _updateBannerOpen = true;
+        }
+
+        function aplicarAtualizacao() {
+            // Limpa caches do navegador (service worker / caches API) e força reload sem cache.
+            try {
+                if ('caches' in window) {
+                    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+                        .finally(() => window.location.reload(true));
+                    return;
+                }
+            } catch (e) {}
+            window.location.reload(true);
+        }
+
+        function adiarAtualizacao() {
+            sessionStorage.setItem('sp_update_snooze_until', String(Date.now() + 30 * 60 * 1000));
+            const el = document.getElementById('updateBanner');
+            if (el) el.classList.remove('show');
+            _updateBannerOpen = false;
+        }
+
+        // Inicia polling assim que a pagina carrega
+        inicializarVersao();
+        setInterval(checarAtualizacao, VERSION_POLL_MS);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') checarAtualizacao();
+        });
         
         // Feature flag: true = API Firestore, false = localStorage apenas
         window.USE_API = true;

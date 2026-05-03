@@ -13,10 +13,25 @@ const DOMAIN = '@spassessoriacontabil.com.br';
 
 app.use(express.json({ limit: '50mb' }));
 
+// Versao do app (lida do package.json) — exposta sem auth para
+// permitir que o front detecte novas releases e peca hard refresh.
+const APP_PKG = require('./package.json');
+const APP_VERSION = APP_PKG.version || '0.0.0';
+const APP_RELEASE = process.env.APP_RELEASE || (APP_PKG.release || (() => {
+  const d = new Date();
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+})());
+const APP_BUILD = process.env.K_REVISION || process.env.APP_BUILD || String(Date.now());
+
+app.get('/api/version', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ version: APP_VERSION, release: APP_RELEASE, build: APP_BUILD });
+});
+
 app.get('/api/health', async (req, res) => {
   try {
     const test = await db.collection('planos').limit(1).get();
-    res.json({ status: 'ok', versao: '4.0-colaborativo', firestore: 'connected', planos_existem: test.size > 0 });
+    res.json({ status: 'ok', versao: APP_VERSION, release: APP_RELEASE, build: APP_BUILD, firestore: 'connected', planos_existem: test.size > 0 });
   } catch (err) { res.status(500).json({ status: 'erro', erro: err.message }); }
 });
 

@@ -1,6 +1,7 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.0.0",
+  "version": "4.1.0",
+  "release": "Maio 2026",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
