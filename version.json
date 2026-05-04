@@ -1,9 +1,9 @@
 {
-  "version": "3.1.6",
-  "build_date": "2026-05-04T17:08:02Z",
+  "version": "3.1.7",
+  "build_date": "2026-05-04T17:19:31Z",
   "release_notes": [
-    "Trava IOB SAGE: exportacao FI bloqueada quando lancamentos abrangem multiplos meses",
-    "Exige confirmacao explicita do mes ativo no SAGE antes de gerar o arquivo",
-    "Resolve erro 'Coluna Data do Lancamento Contabil com Mes Invalido' (paradigma ativa cliente + mes)"
+    "IA: coluna HISTORICO agora recebe a descricao oficial do codigo IOB SAGE (ex: 'PAGTO DE ALUGUEL') em vez do placeholder '1'",
+    "Edicao manual do HISTORICO continua preservada — apenas placeholders e vazios sao sobrescritos",
+    "Funcao aplicarHistoricoAoLancamento estendida: alem de debito/credito, agora propaga descricao do plano IOB"
   ]
 }

@@ -5327,6 +5327,11 @@
                 if (h) {
                     if (!lanc.contaDebito && h.debito) lanc.contaDebito = h.debito;
                     if (!lanc.contaCredito && h.credito) lanc.contaCredito = h.credito;
+                    // v3.1.7: preencher HISTORICO com descricao oficial IOB SAGE
+                    // (sobrescreve placeholder '1' da IA e vazios; preserva edicao manual)
+                    if (h.descricao && (!lanc.historico || lanc.historico === '1' || lanc.historico.trim() === '')) {
+                        lanc.historico = h.descricao;
+                    }
                 }
             }
             return true;
@@ -5817,9 +5822,9 @@ Responda APENAS JSON valido, sem texto antes/depois:
                                 
                                 state.entries[entryIdx].contaDebito = dbt;
                                 state.entries[entryIdx].contaCredito = crd;
-                                state.entries[entryIdx].historico = String(c.historico || '1');
                                 state.entries[entryIdx]._iaJustificativa = c.justificativa || '';
-                                // Fase 3: aplicar codigoHistorico IOB SAGE se IA retornou
+                                // v3.1.7: NAO usar c.historico (IA retorna placeholder '1')
+                                // Historico sera preenchido com descricao oficial via aplicarHistoricoAoLancamento
                                 if (c.codigoHistorico) {
                                     try { aplicarHistoricoAoLancamento(state.entries[entryIdx], c.codigoHistorico); }
                                     catch(eApl){ console.warn('[IA Fase 3] aplicarHistorico falhou:', eApl); }
