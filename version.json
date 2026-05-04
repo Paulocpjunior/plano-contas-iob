@@ -1,9 +1,9 @@
 {
-  "version": "3.1.5",
-  "build_date": "2026-05-04T14:13:56Z",
+  "version": "3.1.6",
+  "build_date": "2026-05-04T17:08:02Z",
   "release_notes": [
-    "Restaurado botao admin Vincular Empresa a Plano (estava quebrado silenciosamente)",
-    "Restaurado parser BB conta atual para importacao de extratos do Banco do Brasil",
-    "Firestore Security Rules atualizadas e republicadas no Firebase"
+    "Trava IOB SAGE: exportacao FI bloqueada quando lancamentos abrangem multiplos meses",
+    "Exige confirmacao explicita do mes ativo no SAGE antes de gerar o arquivo",
+    "Resolve erro 'Coluna Data do Lancamento Contabil com Mes Invalido' (paradigma ativa cliente + mes)"
   ]
 }

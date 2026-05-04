@@ -5849,6 +5849,31 @@ Responda APENAS JSON valido, sem texto antes/depois:
             }
         }
         
+        // === Trava IOB SAGE v3.1.6 — 1 mes por arquivo ===
+        // Paradigma SAGE: "ativa cliente + mes" → arquivo FI deve conter UM unico mes.
+        function validarMesReferenciaIOB(lancamentos) {
+            const detalhes = {};
+            lancamentos.forEach(function(e) {
+                const dt = e.data || '';
+                let mes = '';
+                if (/^\d{4}-\d{2}-\d{2}/.test(dt)) {
+                    const p = dt.split('-');
+                    mes = p[1] + '/' + p[0];
+                } else if (/^\d{2}\/\d{2}\/\d{4}/.test(dt)) {
+                    const p = dt.split('/');
+                    mes = p[1] + '/' + p[2];
+                }
+                if (mes) detalhes[mes] = (detalhes[mes] || 0) + 1;
+            });
+            const meses = Object.keys(detalhes).sort();
+            return {
+                qtdMeses: meses.length,
+                meses: meses,
+                detalhes: detalhes,
+                mesUnico: meses.length === 1 ? meses[0] : null
+            };
+        }
+
         function exportIOB() {
             // ============================================================
             // IOB SAGE FOLHAMATIC - Layout FI v1.1 (16/04/2026)
@@ -5866,6 +5891,36 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 if (!confirm(semCodHist.length + ' de ' + valid.length + ' lancamento(s) NAO tem codigo de historico IOB e serao exportados com 4 espacos em branco nas posicoes 42-45. Continuar mesmo assim?')) {
                     return;
                 }
+            }
+
+            // === TRAVA v3.1.6: validar mes de referencia (IOB SAGE so aceita 1 mes por arquivo) ===
+            const ref = validarMesReferenciaIOB(valid);
+            if (ref.qtdMeses === 0) {
+                showToast('❌ Nenhum lancamento com data valida para exportar!', 'error');
+                return;
+            }
+            if (ref.qtdMeses > 1) {
+                const lista = ref.meses.map(function(m) {
+                    return '  • ' + m + ': ' + ref.detalhes[m] + ' lancamento(s)';
+                }).join('\n');
+                alert(
+                    '❌ EXPORTACAO BLOQUEADA — multiplos meses detectados\n\n' +
+                    lista + '\n\n' +
+                    'O IOB SAGE so aceita UM mes por importacao\n' +
+                    '(paradigma "ativa cliente + mes" — bloqueia outros meses).\n\n' +
+                    'Filtre o buffer para um unico mes e tente novamente.'
+                );
+                return;
+            }
+            if (!confirm(
+                '📅 Mes de referencia detectado: ' + ref.mesUnico + '\n' +
+                '📊 ' + valid.length + ' lancamento(s) sera(ao) exportado(s)\n\n' +
+                '⚠️  CONFIRME que o cliente esta ATIVO no mes ' + ref.mesUnico + ' no IOB SAGE.\n' +
+                '(Se o mes ativo no SAGE for diferente, a importacao falhara com\n' +
+                ' erro "Coluna Data do Lancamento Contabil com Mes Invalido".)\n\n' +
+                'Continuar com a exportacao?'
+            )) {
+                return;
             }
 
             const padR = (v, n) => String(v||'').padEnd(n).slice(0, n);
