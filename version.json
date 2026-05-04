@@ -1,9 +1,7 @@
 {
-  "version": "3.1.1",
-  "build_date": "2026-05-04T13:40:45Z",
+  "version": "3.1.2",
+  "build_date": "2026-05-04T13:47:39Z",
   "release_notes": [
-    "Classificacao com IA voltou a funcionar para empresas sem CNAE configurado",
-    "Campo de banco virou combobox pesquisavel - digite nome ou codigo BACEN",
-    "Sistema de versionamento e notificacao de updates implementado"
+    "fix(version): remover const path duplicado que impedia inicializacao do server"
   ]
 }
