@@ -1,9 +1,9 @@
 {
-  "version": "3.1.4",
-  "build_date": "2026-05-04T13:51:27Z",
+  "version": "3.1.5",
+  "build_date": "2026-05-04T14:09:18Z",
   "release_notes": [
-    "Classificacao com IA voltou a funcionar para empresas sem CNAE configurado",
-    "Campo Banco virou combobox pesquisavel - digite nome ou codigo BACEN",
-    "Sistema de versionamento implementado - voces receberao avisos automaticos de atualizacoes"
+    "Restaurado botao admin Vincular Empresa a Plano (estava quebrado silenciosamente)",
+    "Restaurado parser BB conta atual para importacao de extratos do Banco do Brasil",
+    "Firestore Security Rules atualizadas e republicadas no Firebase"
   ]
 }
