@@ -15,3 +15,10 @@ index.html.bak*
 *.html.bak.*
 *.js.bak.*
 node_modules/
+
+# Backups automaticos de patches
+*.bak
+*.bak.*
+*.html.bak.*
+*.js.bak.*
+node_modules/
