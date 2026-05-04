@@ -1,7 +1,16 @@
 {
-  "version": "3.1.2",
-  "build_date": "2026-05-04T13:47:39Z",
+  "version": "3.1.3",
+  "build_date": "2026-05-04T13:48:55Z",
   "release_notes": [
-    "fix(version): remover const path duplicado que impedia inicializacao do server"
+    "fix(version): remover const path duplicado que impedia inicializacao do server",
+    "feat(version): sistema de versionamento + modal de atualizacao bloqueante",
+    "feat(bancos): combobox pesquisavel substitui select nativo (busca por nome ou codigo BACEN)",
+    "fix(ia): hoist contextoTexto declaration to fix ReferenceError in sibling try block",
+    "feat(folha): refator backend-only - elimina dependência firebase.firestore no client",
+    "feat(folha): Fase 1 - importar folha de pagamento IOB e gerar arquivo .02",
+    "fix(memorizarLancamento): adicionar console.warn quando guarda v2 bloqueia padrao de <2 palavras. Resolve diagnostico Fase 5 onde 'omiexperience' falhava silenciosamente sem log.",
+    "fix(html): remover script tags de arquivos JS deletados (vincular-empresa, dedup-lancamentos, parser-bb-conta-atual) - elimina 3 erros vermelhos do console",
+    "fix(memoria): v2 normalizacao - preserva identidade de fornecedores",
+    "feat(memoria): Fase 5a - aprendizado por CNPJ + auto-aplicacao"
   ]
 }
