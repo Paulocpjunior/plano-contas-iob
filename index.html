@@ -5163,6 +5163,43 @@
         }
         
         // Render Lançamentos
+        // === v3.1.8: filtros centralizados (reusados por export e render) ===
+        function obterEntriesFiltrados() {
+            if (!state.entries.length) return [];
+            const descricao = (document.getElementById('filterDescricao')||{}).value || '';
+            const categoria = (document.getElementById('filterCategoria')||{}).value || '';
+            const tipo = (document.getElementById('filterTipo')||{}).value || '';
+            const status = (document.getElementById('filterStatus')||{}).value || '';
+            const dataInicio = (document.getElementById('filterDataInicio')||{}).value || '';
+            const dataFim = (document.getElementById('filterDataFim')||{}).value || '';
+            const valorMin = parseFloat((document.getElementById('filterValorMin')||{}).value) || 0;
+            const valorMax = parseFloat((document.getElementById('filterValorMax')||{}).value) || Infinity;
+            const banco = (document.getElementById('filterBanco')||{}).value || '';
+            const importacao = (document.getElementById('filterImportacao')||{}).value || '';
+            const descLower = descricao.toLowerCase();
+            return state.entries.filter(function(e) {
+                if (descricao && !(e.descricao||'').toLowerCase().includes(descLower)) return false;
+                if (categoria && e.categoria !== categoria) return false;
+                if (tipo === 'credito' && e.valor <= 0) return false;
+                if (tipo === 'debito' && e.valor >= 0) return false;
+                if (status === 'classificado' && (!e.contaDebito || !e.contaCredito)) return false;
+                if (status === 'pendente' && e.contaDebito && e.contaCredito) return false;
+                if (status === 'incomum' && !e.incomum) return false;
+                if (dataInicio && e.data < dataInicio) return false;
+                if (dataFim && e.data > dataFim) return false;
+                if (Math.abs(e.valor) < valorMin) return false;
+                if (Math.abs(e.valor) > valorMax) return false;
+                if (banco && e.bancoId !== banco) return false;
+                if (importacao && e.importacaoId !== importacao) return false;
+                return true;
+            });
+        }
+        function existeFiltroAtivo() {
+            const ids = ['filterDescricao','filterCategoria','filterTipo','filterStatus',
+                         'filterDataInicio','filterDataFim','filterValorMin','filterValorMax',
+                         'filterBanco','filterImportacao'];
+            return ids.some(function(id){ const el = document.getElementById(id); return el && el.value && el.value.trim() !== ''; });
+        }
         function renderLancamentos() {
             const c = document.getElementById('lancamentosTable');
             popularDatalistHistoricos();  // Fase 1
@@ -5174,36 +5211,8 @@
                 return;
             }
             
-            // Apply filters
-            let list = state.entries.filter(e => {
-                const descricao = document.getElementById('filterDescricao').value.toLowerCase();
-                const categoria = document.getElementById('filterCategoria').value;
-                const tipo = document.getElementById('filterTipo').value;
-                const status = document.getElementById('filterStatus').value;
-                const dataInicio = document.getElementById('filterDataInicio').value;
-                const dataFim = document.getElementById('filterDataFim').value;
-                const valorMin = parseFloat(document.getElementById('filterValorMin').value) || 0;
-                const valorMax = parseFloat(document.getElementById('filterValorMax').value) || Infinity;
-                
-                if (descricao && !e.descricao.toLowerCase().includes(descricao)) return false;
-                if (categoria && e.categoria !== categoria) return false;
-                if (tipo === 'credito' && e.valor <= 0) return false;
-                if (tipo === 'debito' && e.valor >= 0) return false;
-                if (status === 'classificado' && (!e.contaDebito || !e.contaCredito)) return false;
-                if (status === 'pendente' && e.contaDebito && e.contaCredito) return false;
-                if (status === 'incomum' && !e.incomum) return false;
-                if (dataInicio && e.data < dataInicio) return false;
-                if (dataFim && e.data > dataFim) return false;
-                if (Math.abs(e.valor) < valorMin) return false;
-                if (Math.abs(e.valor) > valorMax) return false;
-                
-                const banco = document.getElementById('filterBanco').value;
-                const importacao = document.getElementById('filterImportacao').value;
-                if (banco && e.bancoId !== banco) return false;
-                if (importacao && e.importacaoId !== importacao) return false;
-                
-                return true;
-            });
+            // v3.1.8: usa funcao centralizada (reusada por exportIOB)
+            let list = obterEntriesFiltrados();
             
             // Update count
             document.getElementById('tableCount').textContent = `Exibindo ${list.length} de ${state.entries.length} transações`;
@@ -5885,9 +5894,15 @@ Responda APENAS JSON valido, sem texto antes/depois:
             // 332 bytes/registro, ASCII, CRLF, encoding CP1252 (latin1)
             // Spec: PADRAO DE IMPORTACAO IOB - Tipo Movimento "8" Financeiro
             // ============================================================
-            const valid = state.entries.filter(e => e.contaDebito && e.contaCredito);
+            // v3.1.8: respeita filtros visiveis (export WYSIWYG)
+            const baseList = obterEntriesFiltrados();
+            const valid = baseList.filter(function(e){ return e.contaDebito && e.contaCredito; });
             if (!valid.length) {
-                showToast('Nenhum lançamento classificado para exportar!', 'error');
+                const semFiltro = !existeFiltroAtivo();
+                showToast(semFiltro
+                    ? 'Nenhum lancamento classificado para exportar!'
+                    : 'Nenhum lancamento classificado dentro dos filtros aplicados. Limpe os filtros ou ajuste para exportar.',
+                    'error');
                 return;
             }
             // Fase 2: avisar se ha lancamentos sem codigo de historico IOB

@@ -1,9 +1,9 @@
 {
-  "version": "3.1.7",
-  "build_date": "2026-05-04T17:19:31Z",
+  "version": "3.1.8",
+  "build_date": "2026-05-04T19:06:44Z",
   "release_notes": [
-    "IA: coluna HISTORICO agora recebe a descricao oficial do codigo IOB SAGE (ex: 'PAGTO DE ALUGUEL') em vez do placeholder '1'",
-    "Edicao manual do HISTORICO continua preservada — apenas placeholders e vazios sao sobrescritos",
-    "Funcao aplicarHistoricoAoLancamento estendida: alem de debito/credito, agora propaga descricao do plano IOB"
+    "Exportacao IOB SAGE agora respeita filtros aplicados na tela (WYSIWYG): se voce filtrou janeiro, exporta janeiro",
+    "Funcao obterEntriesFiltrados() centraliza logica de filtros — render e export usam a mesma fonte da verdade",
+    "Mensagens de erro contextuais: distingue 'sem lancamentos' de 'nada dentro dos filtros aplicados'"
   ]
 }
