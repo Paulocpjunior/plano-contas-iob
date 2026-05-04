@@ -8,3 +8,10 @@ node_modules/
 *.bak-*
 *.tmp
 index.html.bak*
+
+# Backups automaticos de patches (sufixos .bak.*)
+*.bak
+*.bak.*
+*.html.bak.*
+*.js.bak.*
+node_modules/
