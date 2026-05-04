@@ -6,6 +6,7 @@
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -5517,6 +5518,7 @@
 
             // Fase 3: lista compactada de historicos IOB para enviar a IA
             let historicosIOBLista = '';
+            let contextoTexto = '';
             try {
                 let listaHist = (window.SP_HistoricosPadrao && window.SP_HistoricosPadrao.listar()) || [];
                 if ((!listaHist || !listaHist.length) && window.SP_HistoricosPadrao && window.SP_HistoricosPadrao.recarregar) {
@@ -5540,7 +5542,7 @@
                     console.warn('[IA Fase 4] Falha ao buscar contexto:', eCtx);
                     contextoEmpresa = null;
                 }
-                const contextoTexto = contextoEmpresa
+                contextoTexto = contextoEmpresa
                     ? ('Voce eh um contador brasileiro especialista no segmento abaixo.\n\nCONTEXTO DA EMPRESA:\n- Razao social: ' + (contextoEmpresa.razao_social || '?') +
                        (contextoEmpresa.nome_fantasia ? '\n- Nome fantasia: ' + contextoEmpresa.nome_fantasia : '') +
                        '\n- CNAE principal: ' + (contextoEmpresa.cnae_principal || '?') + ' - ' + (contextoEmpresa.cnae_descricao || '?') +
