@@ -2860,21 +2860,153 @@
         }
         
         function popularSelectsBancos() {
-            const opts = BANCOS_BACEN.map(b => `<option value="${b.code}">${b.code} — ${b.name}</option>`).join('');
-            const upload = document.getElementById('uploadBanco');
-            if (upload) upload.innerHTML = '<option value="">Selecione o banco</option>' + opts;
-            const filtro = document.getElementById('filterBanco');
-            if (filtro) {
-                const v = filtro.value;
-                filtro.innerHTML = '<option value="">Todos os bancos</option>' + opts;
-                filtro.value = v;
+            criarComboboxBanco('uploadBanco', 'Selecione o banco');
+            criarComboboxBanco('filterBanco', 'Todos os bancos');
+            criarComboboxBanco('infoBanco', 'Selecione o banco');
+        }
+
+        // === COMBOBOX BANCO (substituicao do <select> nativo com busca por nome/codigo) ===
+        function _normalizarBuscaBanco(s) {
+            return (s || '').toString().toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .trim();
+        }
+
+        function _filtrarBancosBacen(query) {
+            const q = _normalizarBuscaBanco(query);
+            if (!q) return BANCOS_BACEN.slice(0, 50);
+            const inicio = [], palavra = [], meio = [];
+            for (const b of BANCOS_BACEN) {
+                const nome = _normalizarBuscaBanco(b.name);
+                const code = b.code;
+                if (code === q || nome.startsWith(q)) inicio.push(b);
+                else if (nome.split(/\s+/).some(w => w.startsWith(q))) palavra.push(b);
+                else if (nome.includes(q) || code.includes(q)) meio.push(b);
             }
-            const info = document.getElementById('infoBanco');
-            if (info) {
-                const v = info.value;
-                info.innerHTML = '<option value="">Selecione o banco</option>' + opts;
-                if (v) info.value = resolverBancoLegado(v);
+            return inicio.concat(palavra, meio).slice(0, 50);
+        }
+
+        function criarComboboxBanco(selectId, placeholder) {
+            const original = document.getElementById(selectId);
+            if (!original) return;
+
+            // Preserva valor atual (compat: pode ser code ou nome legado)
+            const valorPrevio = original.value || '';
+            const valorResolvido = valorPrevio ? resolverBancoLegado(valorPrevio) : '';
+
+            // Se ja foi convertido em combobox, so atualiza valor
+            if (original.dataset.combobox === '1') {
+                if (valorResolvido) _comboboxSelecionar(selectId, valorResolvido);
+                return;
             }
+            original.dataset.combobox = '1';
+
+            // Hidden input mantem a API: document.getElementById(selectId).value continua funcionando
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.id = selectId;
+            hidden.name = original.name || selectId;
+            hidden.value = valorResolvido;
+
+            // Wrapper visivel
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:relative;width:100%';
+            wrap.dataset.comboFor = selectId;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = placeholder + ' (digite nome ou codigo)';
+            input.autocomplete = 'off';
+            input.spellcheck = false;
+            input.style.cssText = original.getAttribute('style') || 'width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px';
+            if (valorResolvido) {
+                const b = BANCOS_BACEN.find(x => x.code === valorResolvido);
+                if (b) input.value = b.code + ' — ' + b.name;
+            }
+
+            const dropdown = document.createElement('div');
+            dropdown.style.cssText = 'position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:280px;overflow-y:auto;z-index:9999;display:none;margin-top:2px';
+
+            wrap.appendChild(input);
+            wrap.appendChild(dropdown);
+            wrap.appendChild(hidden);
+
+            // Substitui o <select> mantendo eventos onchange (renderLancamentos etc)
+            const onchangeAttr = original.getAttribute('onchange');
+            original.parentNode.replaceChild(wrap, original);
+
+            let highlightIdx = -1;
+            let itensVisiveis = [];
+
+            function renderItens(query) {
+                itensVisiveis = _filtrarBancosBacen(query);
+                if (itensVisiveis.length === 0) {
+                    dropdown.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:13px">Nenhum banco encontrado</div>';
+                } else {
+                    dropdown.innerHTML = itensVisiveis.map((b, i) =>
+                        '<div data-idx="' + i + '" style="padding:8px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid #f0f0f0">' +
+                        '<strong>' + b.code + '</strong> — ' + b.name + '</div>'
+                    ).join('');
+                }
+                highlightIdx = -1;
+                _atualizarHighlight();
+            }
+
+            function _atualizarHighlight() {
+                const itens = dropdown.querySelectorAll('[data-idx]');
+                itens.forEach((el, i) => {
+                    el.style.background = (i === highlightIdx) ? '#e8f0fe' : '#fff';
+                });
+                if (highlightIdx >= 0 && itens[highlightIdx]) {
+                    itens[highlightIdx].scrollIntoView({ block: 'nearest' });
+                }
+            }
+
+            function selecionar(banco) {
+                hidden.value = banco.code;
+                input.value = banco.code + ' — ' + banco.name;
+                dropdown.style.display = 'none';
+                if (onchangeAttr) {
+                    try { (new Function(onchangeAttr)).call(hidden); } catch(e) { console.warn('onchange combobox:', e); }
+                }
+                hidden.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            // Adiciona limpar = '' quando input zerado
+            input.addEventListener('input', () => {
+                if (input.value.trim() === '') hidden.value = '';
+                renderItens(input.value);
+                dropdown.style.display = 'block';
+            });
+            input.addEventListener('focus', () => {
+                renderItens(input.value);
+                dropdown.style.display = 'block';
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowDown') { e.preventDefault(); highlightIdx = Math.min(highlightIdx + 1, itensVisiveis.length - 1); _atualizarHighlight(); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); highlightIdx = Math.max(highlightIdx - 1, 0); _atualizarHighlight(); }
+                else if (e.key === 'Enter') { e.preventDefault(); if (highlightIdx >= 0 && itensVisiveis[highlightIdx]) selecionar(itensVisiveis[highlightIdx]); }
+                else if (e.key === 'Escape') { dropdown.style.display = 'none'; input.blur(); }
+            });
+            dropdown.addEventListener('click', (e) => {
+                const target = e.target.closest('[data-idx]');
+                if (target) selecionar(itensVisiveis[parseInt(target.dataset.idx, 10)]);
+            });
+            // Fecha ao clicar fora
+            document.addEventListener('click', (e) => {
+                if (!wrap.contains(e.target)) dropdown.style.display = 'none';
+            });
+        }
+
+        function _comboboxSelecionar(selectId, code) {
+            const hidden = document.getElementById(selectId);
+            if (!hidden) return;
+            const wrap = hidden.parentNode;
+            if (!wrap || wrap.dataset.comboFor !== selectId) return;
+            const input = wrap.querySelector('input[type="text"]');
+            const b = BANCOS_BACEN.find(x => x.code === code);
+            hidden.value = code || '';
+            if (input) input.value = (b ? (b.code + ' — ' + b.name) : '');
         }
         
         function nomeBanco(code) {
