@@ -13,6 +13,33 @@ const DOMAIN = '@spassessoriacontabil.com.br';
 
 app.use(express.json({ limit: '50mb' }));
 
+// === Endpoint de versao (consumido pelo frontend para detectar atualizacoes) ===
+const path = require('path');
+const fs = require('fs');
+const VERSION_FILE_PATH = path.join(__dirname, 'version.json');
+let CACHED_VERSION = null;
+let CACHED_VERSION_MTIME = 0;
+
+function lerVersao() {
+    try {
+        const stat = fs.statSync(VERSION_FILE_PATH);
+        if (stat.mtimeMs !== CACHED_VERSION_MTIME) {
+            CACHED_VERSION = JSON.parse(fs.readFileSync(VERSION_FILE_PATH, 'utf-8'));
+            CACHED_VERSION_MTIME = stat.mtimeMs;
+        }
+        return CACHED_VERSION;
+    } catch (e) {
+        console.error('[version] erro ao ler version.json:', e.message);
+        return { version: '0.0.0', build_date: null, release_notes: [] };
+    }
+}
+
+app.get('/api/version', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(lerVersao());
+});
+
+
 app.get('/api/health', async (req, res) => {
   try {
     const test = await db.collection('planos').limit(1).get();

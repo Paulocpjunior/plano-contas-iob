@@ -1,0 +1,9 @@
+{
+  "version": "3.1.1",
+  "build_date": "2026-05-04T13:40:45Z",
+  "release_notes": [
+    "Classificacao com IA voltou a funcionar para empresas sem CNAE configurado",
+    "Campo de banco virou combobox pesquisavel - digite nome ou codigo BACEN",
+    "Sistema de versionamento e notificacao de updates implementado"
+  ]
+}

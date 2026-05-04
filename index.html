@@ -6547,5 +6547,103 @@ window.confirmarTrocarPlano = async function() {
     }
   }, 500); setTimeout(function(){clearInterval(t)}, 30000); })();
 </script>
+
+    <!-- ===== VERSAO E POPUP DE ATUALIZACAO (auto-injetado) ===== -->
+    <div id="versionModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:99999;backdrop-filter:blur(4px);align-items:center;justify-content:center">
+        <div style="background:#fff;border-radius:14px;max-width:520px;width:90%;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center">
+            <div style="font-size:48px;margin-bottom:8px">🚀</div>
+            <h2 style="margin:0 0 8px;color:#0f172a;font-size:22px;font-weight:700">Nova versao disponivel</h2>
+            <p style="margin:0 0 4px;color:#64748b;font-size:14px">Versao <strong id="versionModalNumero">-</strong></p>
+            <p style="margin:0 0 20px;color:#94a3b8;font-size:12px">Para continuar usando o sistema, atualize agora.</p>
+            <div id="versionModalNotes" style="text-align:left;background:#f8fafc;border-radius:8px;padding:14px;margin-bottom:24px;max-height:240px;overflow-y:auto;font-size:13px;color:#334155;line-height:1.5"></div>
+            <button id="versionModalReload" style="background:#2563eb;color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;width:100%">Atualizar agora</button>
+            <p style="margin:14px 0 0;color:#cbd5e1;font-size:11px">A pagina sera recarregada</p>
+        </div>
+    </div>
+    <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
+    <script>
+        (function() {
+            let _versaoAtual = null;
+            const _CHECAR_INTERVALO_MS = 5 * 60 * 1000; // 5 min
+
+            async function checarVersaoApp(silencioso) {
+                try {
+                    const resp = await fetch('/api/version', { cache: 'no-store' });
+                    if (!resp.ok) return;
+                    const info = await resp.json();
+                    if (!info || !info.version) return;
+
+                    // Primeira chamada - so memoriza
+                    if (_versaoAtual === null) {
+                        _versaoAtual = info.version;
+                        _atualizarFooter(info);
+                        return;
+                    }
+
+                    // Mudou? Mostra modal bloqueante
+                    if (info.version !== _versaoAtual) {
+                        console.log('[version] Nova versao detectada:', _versaoAtual, '->', info.version);
+                        _mostrarModalAtualizacao(info);
+                    }
+                } catch (e) {
+                    if (!silencioso) console.warn('[version] falha ao checar:', e.message);
+                }
+            }
+
+            function _atualizarFooter(info) {
+                const el = document.getElementById('versionFooter');
+                if (!el) return;
+                const data = info.build_date ? new Date(info.build_date).toLocaleDateString('pt-BR') : '';
+                el.textContent = 'v' + info.version + (data ? ' • ' + data : '');
+            }
+
+            function _mostrarModalAtualizacao(info) {
+                const modal = document.getElementById('versionModal');
+                const numero = document.getElementById('versionModalNumero');
+                const notes = document.getElementById('versionModalNotes');
+                const btn = document.getElementById('versionModalReload');
+                if (!modal || !numero || !notes || !btn) return;
+
+                numero.textContent = info.version;
+                if (Array.isArray(info.release_notes) && info.release_notes.length > 0) {
+                    notes.innerHTML = '<strong style="display:block;margin-bottom:8px;color:#0f172a">O que mudou:</strong>' +
+                        '<ul style="margin:0;padding-left:18px">' +
+                        info.release_notes.map(function(n){ return '<li style="margin-bottom:4px">' + _escaparHtml(n) + '</li>'; }).join('') +
+                        '</ul>';
+                } else {
+                    notes.innerHTML = '<em style="color:#94a3b8">Sem notas de release publicadas</em>';
+                }
+
+                modal.style.display = 'flex';
+                btn.onclick = function() {
+                    btn.disabled = true;
+                    btn.textContent = 'Atualizando...';
+                    // Forca revalidacao de tudo
+                    if ('caches' in window) {
+                        caches.keys().then(function(keys){
+                            return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+                        }).finally(function(){ window.location.reload(true); });
+                    } else {
+                        window.location.reload(true);
+                    }
+                };
+            }
+
+            function _escaparHtml(s) {
+                return String(s).replace(/[&<>"']/g, function(c){
+                    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+                });
+            }
+
+            // Boot: checa imediatamente e depois a cada 5 min
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function(){ checarVersaoApp(false); });
+            } else {
+                checarVersaoApp(false);
+            }
+            setInterval(function(){ checarVersaoApp(true); }, _CHECAR_INTERVALO_MS);
+        })();
+    </script>
+    <!-- ===== FIM VERSAO ===== -->
 </body>
 </html>
