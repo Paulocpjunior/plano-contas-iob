@@ -14,13 +14,12 @@ const DOMAIN = '@spassessoriacontabil.com.br';
 app.use(express.json({ limit: '50mb' }));
 
 // === Endpoint de versao (consumido pelo frontend para detectar atualizacoes) ===
-const path = require('path');
-const fs = require('fs');
-const VERSION_FILE_PATH = path.join(__dirname, 'version.json');
+const VERSION_FILE_PATH = require('path').join(__dirname, 'version.json');
 let CACHED_VERSION = null;
 let CACHED_VERSION_MTIME = 0;
 
 function lerVersao() {
+    const fs = require('fs');
     try {
         const stat = fs.statSync(VERSION_FILE_PATH);
         if (stat.mtimeMs !== CACHED_VERSION_MTIME) {
