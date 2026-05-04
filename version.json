@@ -1,6 +1,6 @@
 {
   "version": "3.1.5",
-  "build_date": "2026-05-04T14:09:18Z",
+  "build_date": "2026-05-04T14:13:56Z",
   "release_notes": [
     "Restaurado botao admin Vincular Empresa a Plano (estava quebrado silenciosamente)",
     "Restaurado parser BB conta atual para importacao de extratos do Banco do Brasil",
