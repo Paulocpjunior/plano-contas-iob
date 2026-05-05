@@ -564,6 +564,50 @@
             font-weight: 600;
             color: var(--accent);
         }
+        .selection-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            flex-wrap: wrap;
+        }
+        .selection-toolbar-left,
+        .selection-toolbar-options {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .selection-toolbar-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .selection-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+        }
+        .selection-option input,
+        .row-select {
+            accent-color: var(--accent);
+        }
+        .selection-summary {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -598,6 +642,16 @@
         }
         tr.pendente:hover {
             background: #e0f2fe;
+        }
+        tr.selected-row,
+        tr.unusual.selected-row,
+        tr.pendente.selected-row {
+            background: #dbeafe;
+        }
+        tr.selected-row:hover,
+        tr.unusual.selected-row:hover,
+        tr.pendente.selected-row:hover {
+            background: #bfdbfe;
         }
         .badge {
             display: inline-block;
@@ -1708,10 +1762,35 @@
                     <div class="table-info" id="tableInfo">
                         <div class="table-info-left">
                             <span id="tableCount">Exibindo 0 de 0 transações</span>
+                            <span id="selectionCount">0 selecionados</span>
                             <span class="file-badge" id="fileBadge" style="display:none">
                                 📄 <span id="fileNameBadge">arquivo.pdf</span>
                             </span>
                         </div>
+                    </div>
+                    <div class="selection-toolbar" id="selectionToolbar">
+                        <div class="selection-toolbar-left">
+                            <span class="selection-toolbar-title">Selecionar</span>
+                            <div class="selection-toolbar-options">
+                                <label class="selection-option">
+                                    <input type="radio" name="bulkSelectTipo" value="nenhum" checked onchange="selecionarLancamentosPorTipo(this.value)">
+                                    Nenhum
+                                </label>
+                                <label class="selection-option">
+                                    <input type="radio" name="bulkSelectTipo" value="todos" onchange="selecionarLancamentosPorTipo(this.value)">
+                                    Todos
+                                </label>
+                                <label class="selection-option">
+                                    <input type="radio" name="bulkSelectTipo" value="debito" onchange="selecionarLancamentosPorTipo(this.value)">
+                                    Débito
+                                </label>
+                                <label class="selection-option">
+                                    <input type="radio" name="bulkSelectTipo" value="credito" onchange="selecionarLancamentosPorTipo(this.value)">
+                                    Crédito
+                                </label>
+                            </div>
+                        </div>
+                        <div class="selection-summary" id="selectionHint">A classificação editada em uma linha selecionada será replicada nas demais selecionadas.</div>
                     </div>
                     
                     <!-- Table -->
@@ -2030,6 +2109,7 @@
             ]
         };
           window.state = state;
+        const lancamentosSelecionados = new Set();
         
         let selectedFile = null;
         let chartCategorias = null;
@@ -5200,14 +5280,81 @@
                          'filterBanco','filterImportacao'];
             return ids.some(function(id){ const el = document.getElementById(id); return el && el.value && el.value.trim() !== ''; });
         }
+        function tipoLancamento(e) {
+            if (!e || typeof e.valor !== 'number') return '';
+            if (e.valor < 0) return 'debito';
+            if (e.valor > 0) return 'credito';
+            return '';
+        }
+        function sincronizarSelecaoLancamentos() {
+            const idsAtuais = new Set((state.entries || []).map(function(e){ return e.id; }));
+            Array.from(lancamentosSelecionados).forEach(function(id) {
+                if (!idsAtuais.has(id)) lancamentosSelecionados.delete(id);
+            });
+        }
+        function atualizarResumoSelecao() {
+            sincronizarSelecaoLancamentos();
+            const total = lancamentosSelecionados.size;
+            const countEl = document.getElementById('selectionCount');
+            if (countEl) countEl.textContent = total + ' selecionado' + (total !== 1 ? 's' : '');
+            const hintEl = document.getElementById('selectionHint');
+            if (hintEl) {
+                hintEl.textContent = total > 1
+                    ? 'Ao editar uma linha selecionada, a classificação será replicada para ' + (total - 1) + ' outra' + (total - 1 !== 1 ? 's' : '') + ' selecionada' + (total - 1 !== 1 ? 's' : '') + '.'
+                    : 'A classificação editada em uma linha selecionada será replicada nas demais selecionadas.';
+            }
+        }
+        function marcarOpcaoSelecao(valor) {
+            document.querySelectorAll('input[name="bulkSelectTipo"]').forEach(function(el) {
+                el.checked = el.value === valor;
+            });
+        }
+        function selecionarLancamentosPorTipo(tipo) {
+            lancamentosSelecionados.clear();
+            if (tipo && tipo !== 'nenhum') {
+                obterEntriesFiltrados().forEach(function(e) {
+                    if (tipo === 'todos' || tipoLancamento(e) === tipo) lancamentosSelecionados.add(e.id);
+                });
+            }
+            marcarOpcaoSelecao(tipo || 'nenhum');
+            renderLancamentos();
+        }
+        function toggleSelecaoLancamento(id, checked) {
+            if (checked) lancamentosSelecionados.add(id);
+            else lancamentosSelecionados.delete(id);
+            marcarOpcaoSelecao('nenhum');
+            atualizarResumoSelecao();
+            const row = document.querySelector('tr[data-entry-id="' + id + '"]');
+            if (row) row.classList.toggle('selected-row', checked);
+        }
+        function replicarClassificacaoSelecionada(idx, campo, valor) {
+            const origem = state.entries[idx];
+            if (!origem || !lancamentosSelecionados.has(origem.id)) return 0;
+            const camposClassificacao = ['contaDebito', 'contaCredito', 'codigoHistorico', 'historico'];
+            if (!camposClassificacao.includes(campo)) return 0;
+
+            let atualizados = 0;
+            state.entries.forEach(function(lanc, i) {
+                if (i === idx || !lancamentosSelecionados.has(lanc.id)) return;
+                if (campo === 'codigoHistorico') {
+                    aplicarHistoricoAoLancamento(lanc, valor);
+                } else {
+                    lanc[campo] = valor;
+                }
+                atualizados++;
+            });
+            return atualizados;
+        }
         function renderLancamentos() {
             const c = document.getElementById('lancamentosTable');
             popularDatalistHistoricos();  // Fase 1
+            sincronizarSelecaoLancamentos();
             
             if (!state.entries.length) {
                 c.innerHTML = '<div class="empty-state"><div class="icon">📄</div><h3>Nenhum lançamento</h3><p>Importe um extrato bancário para começar.</p></div>';
                 document.getElementById('alertsContainer').innerHTML = '';
                 document.getElementById('tableCount').textContent = 'Exibindo 0 de 0 transações';
+                atualizarResumoSelecao();
                 return;
             }
             
@@ -5252,6 +5399,7 @@
                     <thead>
                         <tr>
                             <th>Data</th>
+                            <th style="width:48px">Sel.</th>
                             <th>Descrição</th>
                             <th>Valor</th>
                             <th>Conta Débito</th>
@@ -5270,10 +5418,16 @@
                 const vc = e.valor >= 0 ? 'valor-positivo' : 'valor-negativo';
                 const vf = (e.valor >= 0 ? '+' : '') + 'R$ ' + e.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 const rowClass = e.incomum ? 'unusual' : (e.contaDebito && e.contaCredito ? '' : 'pendente');
+                const selecionado = lancamentosSelecionados.has(e.id);
                 
                 h += `
-                    <tr class="${rowClass}">
+                    <tr class="${rowClass}${selecionado ? ' selected-row' : ''}" data-entry-id="${e.id}">
                         <td>${df}</td>
+                        <td>
+                            <input type="checkbox" class="row-select" ${selecionado ? 'checked' : ''}
+                                onchange="toggleSelecaoLancamento('${e.id}', this.checked)"
+                                title="Selecionar este lançamento para classificação em massa">
+                        </td>
                         <td>
                             <div style="display:flex;align-items:center;gap:8px">
                                 ${e.incomum ? '<span title="Transação incomum">⚠️</span>' : ''}
@@ -5317,6 +5471,7 @@
             
             h += '</tbody></table>';
             c.innerHTML = h;
+            atualizarResumoSelecao();
             try { atualizarStatusBulkHist(); } catch(_){}
         }
         
@@ -5494,14 +5649,19 @@
             } else {
                 state.entries[i][f] = v;
             }
+            const replicados = replicarClassificacaoSelecionada(i, f, v);
             saveState();
             updateDashboard();
             updateCharts();
-            if (f === 'codigoHistorico') renderLancamentos();
+            if (replicados > 0 && typeof showToast === 'function') {
+                showToast('Classificação replicada para ' + replicados + ' lançamento' + (replicados !== 1 ? 's' : '') + ' selecionado' + (replicados !== 1 ? 's' : '') + '.', 'success');
+            }
+            if (f === 'codigoHistorico' || replicados > 0) renderLancamentos();
         }
         
         function removeEntry(i) {
             if (confirm('Remover esta transação?')) {
+                if (state.entries[i] && state.entries[i].id) lancamentosSelecionados.delete(state.entries[i].id);
                 state.entries.splice(i, 1);
                 saveState();
                 renderLancamentos();
