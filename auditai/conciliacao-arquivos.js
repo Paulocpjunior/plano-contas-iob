@@ -244,6 +244,75 @@
     });
   }
 
+  function ensureVersionUi() {
+    if (!document.getElementById('sp-version-modal')) {
+      const modal = document.createElement('div');
+      modal.id = 'sp-version-modal';
+      modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:100000;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px';
+      modal.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center;font-family:system-ui,sans-serif">' +
+        '<div style="font-size:48px;margin-bottom:8px">🚀</div>' +
+        '<h2 style="margin:0 0 8px;color:#0f172a;font-size:22px;font-weight:800">Nova versão disponível</h2>' +
+        '<p style="margin:0 0 4px;color:#64748b;font-size:14px">Versão <strong id="sp-version-modal-number">-</strong></p>' +
+        '<p style="margin:0 0 20px;color:#94a3b8;font-size:12px">Para continuar usando o sistema, atualize agora.</p>' +
+        '<div id="sp-version-modal-notes" style="text-align:left;background:#f8fafc;border-radius:8px;padding:14px;margin-bottom:24px;max-height:240px;overflow-y:auto;font-size:13px;color:#334155;line-height:1.5"></div>' +
+        '<button id="sp-version-modal-reload" style="background:#2563eb;color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;width:100%">Atualizar agora</button>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+    if (!document.getElementById('sp-version-footer')) {
+      const footer = document.createElement('div');
+      footer.id = 'sp-version-footer';
+      footer.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none';
+      document.body.appendChild(footer);
+    }
+  }
+
+  function showVersionModal(info) {
+    ensureVersionUi();
+    const modal = document.getElementById('sp-version-modal');
+    const number = document.getElementById('sp-version-modal-number');
+    const notes = document.getElementById('sp-version-modal-notes');
+    const button = document.getElementById('sp-version-modal-reload');
+    if (!modal || !number || !notes || !button) return;
+    number.textContent = info.version;
+    notes.innerHTML = Array.isArray(info.release_notes) && info.release_notes.length
+      ? '<strong style="display:block;margin-bottom:8px;color:#0f172a">O que mudou:</strong><ul style="margin:0;padding-left:18px">' + info.release_notes.map(function (note) { return '<li style="margin-bottom:4px">' + escapeHtml(note) + '</li>'; }).join('') + '</ul>'
+      : '<em style="color:#94a3b8">Sem notas de release publicadas</em>';
+    modal.style.display = 'flex';
+    button.onclick = function () {
+      button.disabled = true;
+      button.textContent = 'Atualizando...';
+      localStorage.setItem('plano_contas_iob_versao_vista', info.version);
+      if ('caches' in window) {
+        caches.keys().then(function (keys) {
+          return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+        }).finally(function () { window.location.reload(true); });
+      } else {
+        window.location.reload(true);
+      }
+    };
+  }
+
+  async function checkVersionNotice() {
+    try {
+      const resp = await fetch('/api/version', { cache: 'no-store' });
+      if (!resp.ok) return;
+      const info = await resp.json();
+      if (!info || !info.version) return;
+      ensureVersionUi();
+      const footer = document.getElementById('sp-version-footer');
+      if (footer) {
+        const date = info.build_date ? new Date(info.build_date).toLocaleDateString('pt-BR') : '';
+        footer.textContent = 'v' + info.version + (date ? ' • ' + date : '');
+      }
+      if (localStorage.getItem('plano_contas_iob_versao_vista') !== info.version) {
+        showVersionModal(info);
+      }
+    } catch (err) {
+      console.warn('[version] falha ao checar:', err && err.message);
+    }
+  }
+
   function renderTable(rows, label) {
     if (!rows.length) return '<p class="text-sm text-slate-500">Nenhuma pendência em ' + label + '.</p>';
     return '<div class="overflow-auto max-h-80"><table class="w-full text-xs"><thead class="bg-slate-100 dark:bg-slate-900 sticky top-0"><tr><th class="p-2 text-left">Data</th><th class="p-2 text-left">Descrição</th><th class="p-2 text-right">Valor</th></tr></thead><tbody>' +
@@ -407,6 +476,7 @@
   }
 
   function boot() {
+    checkVersionNotice();
     if (new URLSearchParams(location.search).get('modulo') === 'conciliacao') {
       location.replace('/auditai/conciliacao.html');
       return;

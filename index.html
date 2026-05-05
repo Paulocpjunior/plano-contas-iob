@@ -6805,6 +6805,7 @@ window.confirmarTrocarPlano = async function() {
     <script>
         (function() {
             let _versaoAtual = null;
+            const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _CHECAR_INTERVALO_MS = 5 * 60 * 1000; // 5 min
 
             async function checarVersaoApp(silencioso) {
@@ -6813,11 +6814,19 @@ window.confirmarTrocarPlano = async function() {
                     if (!resp.ok) return;
                     const info = await resp.json();
                     if (!info || !info.version) return;
+                    _atualizarFooter(info);
 
-                    // Primeira chamada - so memoriza
+                    const versaoVista = localStorage.getItem(_VERSAO_VISTA_KEY);
+                    if (versaoVista !== info.version) {
+                        console.log('[version] Aviso de versao pendente:', versaoVista, '->', info.version);
+                        _mostrarModalAtualizacao(info);
+                        _versaoAtual = info.version;
+                        return;
+                    }
+
+                    // Primeira chamada apos versao confirmada - so memoriza
                     if (_versaoAtual === null) {
                         _versaoAtual = info.version;
-                        _atualizarFooter(info);
                         return;
                     }
 
@@ -6859,6 +6868,7 @@ window.confirmarTrocarPlano = async function() {
                 btn.onclick = function() {
                     btn.disabled = true;
                     btn.textContent = 'Atualizando...';
+                    localStorage.setItem(_VERSAO_VISTA_KEY, info.version);
                     // Forca revalidacao de tudo
                     if ('caches' in window) {
                         caches.keys().then(function(keys){

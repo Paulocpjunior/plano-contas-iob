@@ -1,9 +1,9 @@
 {
-  "version": "3.1.11",
-  "build_date": "2026-05-05T18:02:47Z",
+  "version": "3.1.12",
+  "build_date": "2026-05-05T18:09:56Z",
   "release_notes": [
-    "Botão Conciliação de Arquivos reposicionado ao lado das opções do AuditAI, junto de Grupo Econômico / Holding",
-    "Seletor de bancos voltou a exibir a lista completa do BACEN/BrasilAPI ao abrir o campo",
-    "Cache local de bancos renovado para evitar listas antigas ou incompletas nos navegadores dos colaboradores"
+    "Aviso de atualização agora aparece uma vez por versão ao abrir o sistema, inclusive no AuditAI",
+    "Rodapé de versão foi adicionado ao AuditAI para confirmar rapidamente a versão publicada",
+    "Botão Atualizar agora limpa cache local e registra a versão confirmada pelo colaborador"
   ]
 }
