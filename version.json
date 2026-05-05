@@ -1,8 +1,8 @@
 {
-  "version": "3.1.14",
-  "build_date": "2026-05-05T18:29:18Z",
+  "version": "3.1.15",
+  "build_date": "2026-05-05T19:00:30Z",
   "release_notes": [
-    "Removido o botão flutuante Históricos Padrão do canto inferior direito da tela principal",
-    "Função de históricos preservada sem ocupar uma posição solta no layout"
+    "Aba Plano de Contas renomeada para Plano de Contas / Histórico",
+    "Botão Históricos Padrão realocado para dentro da aba Plano de Contas / Histórico"
   ]
 }

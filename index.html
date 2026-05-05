@@ -1353,7 +1353,7 @@
             <button onclick="showPage('empresas')"><span>🏢</span> Empresas</button>
             <button onclick="showPage('extrator')"><span>📤</span> Extrator</button>
             <button onclick="showPage('lancamentos')"><span>📋</span> Lançamentos</button>
-            <button onclick="showPage('plano')"><span>📚</span> Plano de Contas</button>
+            <button onclick="showPage('plano')"><span>📚</span> Plano de Contas / Histórico</button>
             <button onclick="showPage('mapeamento')"><span>🔗</span> Mapeamento</button>
             <button onclick="showPage('exportar')"><span>💾</span> Exportar</button>
             <button onclick="showPage('sobre')"><span>ℹ️</span> Sobre</button>
@@ -1812,7 +1812,12 @@
                 <div class="card" style="margin-bottom:24px">
                     <div class="card-header">
                         <h2><span class="icon">🔒</span> Planos Cadastrados (Vinculados a CNPJ)</h2>
-                        <button class="btn-action btn-action-success" onclick="abrirImportPlano()">+ Importar Novo Plano</button>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <button id="btnHistoricosPlano" class="btn-action btn-action-secondary" style="display:none" onclick="window.abrirCadastroHistoricos()">
+                                📋 Históricos Padrão
+                            </button>
+                            <button class="btn-action btn-action-success" onclick="abrirImportPlano()">+ Importar Novo Plano</button>
+                        </div>
                     </div>
                     <p style="color:var(--text-muted);margin-bottom:16px">Cada plano está vinculado a um CNPJ específico. Formatos aceitos: <strong>PDF, TXT, CSV</strong></p>
                     <div id="listaPlanosVinculados">
@@ -3282,6 +3287,8 @@
                             if (btnAud) btnAud.style.display = 'flex';
                             const btnV = document.getElementById('btnVincularPlano');
                             if (btnV) btnV.style.display = 'inline-block';
+                            const btnHP = document.getElementById('btnHistoricosPlano');
+                            if (btnHP) btnHP.style.display = 'inline-flex';
                             const btnTP = document.getElementById('btnTrocarPlanoBar');
                             if (btnTP) btnTP.style.display = 'inline-block';
                         }
