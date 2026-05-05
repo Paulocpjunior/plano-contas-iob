@@ -1,8 +1,9 @@
 {
-  "version": "3.1.10",
-  "build_date": "2026-05-05T17:53:05Z",
+  "version": "3.1.11",
+  "build_date": "2026-05-05T18:02:47Z",
   "release_notes": [
-    "Correção visual no AuditAI: o módulo de conciliação agora abre em página própria e não interfere na tela principal",
-    "Botão Conciliação de Arquivos reposicionado como acesso flutuante seguro dentro do AuditAI"
+    "Botão Conciliação de Arquivos reposicionado ao lado das opções do AuditAI, junto de Grupo Econômico / Holding",
+    "Seletor de bancos voltou a exibir a lista completa do BACEN/BrasilAPI ao abrir o campo",
+    "Cache local de bancos renovado para evitar listas antigas ou incompletas nos navegadores dos colaboradores"
   ]
 }

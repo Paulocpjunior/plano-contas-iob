@@ -2905,7 +2905,7 @@
         
         // === BACEN / Importacao ===
         let BANCOS_BACEN = [];
-        const BANCOS_BACEN_CACHE_KEY = 'bancos_bacen_v1';
+        const BANCOS_BACEN_CACHE_KEY = 'bancos_bacen_v2';
         const BANCOS_BACEN_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
         
         async function loadBancosBacen() {
@@ -2923,7 +2923,11 @@
             try {
                 const r = await fetch('https://brasilapi.com.br/api/banks/v1');
                 const data = await r.json();
-                BANCOS_BACEN = data.filter(b => b.code && b.name)
+                BANCOS_BACEN = data.filter(b => b.code !== null && b.code !== undefined && b.name)
+                    .map(b => ({
+                        code: String(b.code).padStart(3, '0'),
+                        name: String(b.name).toUpperCase().trim()
+                    }))
                     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
                 localStorage.setItem(BANCOS_BACEN_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: BANCOS_BACEN }));
                 popularSelectsBancos();
@@ -2956,7 +2960,7 @@
 
         function _filtrarBancosBacen(query) {
             const q = _normalizarBuscaBanco(query);
-            if (!q) return BANCOS_BACEN.slice(0, 50);
+            if (!q) return BANCOS_BACEN.slice();
             const inicio = [], palavra = [], meio = [];
             for (const b of BANCOS_BACEN) {
                 const nome = _normalizarBuscaBanco(b.name);
@@ -2965,7 +2969,7 @@
                 else if (nome.split(/\s+/).some(w => w.startsWith(q))) palavra.push(b);
                 else if (nome.includes(q) || code.includes(q)) meio.push(b);
             }
-            return inicio.concat(palavra, meio).slice(0, 50);
+            return inicio.concat(palavra, meio).slice(0, 120);
         }
 
         function criarComboboxBanco(selectId, placeholder) {

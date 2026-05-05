@@ -376,13 +376,34 @@
 
   function injectButton() {
     if (document.getElementById('sp-open-conciliacao')) return;
+    const groupButton = Array.from(document.querySelectorAll('button')).find(function (button) {
+      return /Grupo\s+Econ[oô]mico|Holding/i.test(button.textContent || '');
+    });
     const btn = document.createElement('button');
     btn.id = 'sp-open-conciliacao';
     btn.type = 'button';
-    btn.className = 'fixed right-5 bottom-5 z-[9999] px-5 py-3 rounded-xl text-sm font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-500/25 print:hidden';
+    btn.className = 'sp-conciliacao-inline-btn';
     btn.textContent = 'Conciliação de Arquivos';
     btn.addEventListener('click', function () { location.href = '/auditai/conciliacao.html'; });
-    document.body.appendChild(btn);
+    if (groupButton && groupButton.parentElement) {
+      groupButton.parentElement.appendChild(btn);
+    } else {
+      btn.className += ' sp-conciliacao-floating-btn';
+      document.body.appendChild(btn);
+    }
+  }
+
+  function injectButtonStyles() {
+    if (document.getElementById('sp-conciliacao-button-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'sp-conciliacao-button-styles';
+    style.textContent = [
+      '.sp-conciliacao-inline-btn{display:inline-flex;align-items:center;gap:.5rem;padding:.625rem 1.25rem;border-radius:.75rem;border:0;background:#059669;color:#fff;font-size:.875rem;font-weight:800;box-shadow:0 8px 20px rgba(5,150,105,.18);transition:.2s;white-space:nowrap;cursor:pointer}',
+      '.sp-conciliacao-inline-btn:hover{background:#047857;transform:translateY(-1px)}',
+      '.sp-conciliacao-floating-btn{position:fixed;right:1.25rem;bottom:1.25rem;z-index:9999}',
+      '@media(max-width:640px){.sp-conciliacao-inline-btn{width:100%;justify-content:center}}'
+    ].join('');
+    document.head.appendChild(style);
   }
 
   function boot() {
@@ -394,6 +415,7 @@
       renderApp();
       return;
     }
+    injectButtonStyles();
     const observer = new MutationObserver(injectButton);
     observer.observe(document.body, { childList: true, subtree: true });
     injectButton();
