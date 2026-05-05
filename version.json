@@ -1,9 +1,8 @@
 {
-  "version": "3.1.12",
-  "build_date": "2026-05-05T18:09:56Z",
+  "version": "3.1.13",
+  "build_date": "2026-05-05T18:18:55Z",
   "release_notes": [
-    "Aviso de atualização agora aparece uma vez por versão ao abrir o sistema, inclusive no AuditAI",
-    "Rodapé de versão foi adicionado ao AuditAI para confirmar rapidamente a versão publicada",
-    "Botão Atualizar agora limpa cache local e registra a versão confirmada pelo colaborador"
+    "Botão Conciliação de Arquivos agora é movido automaticamente para ao lado de Grupo Econômico / Holding quando a barra do AuditAI termina de carregar",
+    "Removido comportamento que mantinha o botão preso no canto inferior direito após o fallback inicial"
   ]
 }

@@ -444,21 +444,25 @@
   }
 
   function injectButton() {
-    if (document.getElementById('sp-open-conciliacao')) return;
     const groupButton = Array.from(document.querySelectorAll('button')).find(function (button) {
       return /Grupo\s+Econ[oô]mico|Holding/i.test(button.textContent || '');
     });
-    const btn = document.createElement('button');
-    btn.id = 'sp-open-conciliacao';
-    btn.type = 'button';
-    btn.className = 'sp-conciliacao-inline-btn';
-    btn.textContent = 'Conciliação de Arquivos';
-    btn.addEventListener('click', function () { location.href = '/auditai/conciliacao.html'; });
+    let btn = document.getElementById('sp-open-conciliacao');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'sp-open-conciliacao';
+      btn.type = 'button';
+      btn.textContent = 'Conciliação de Arquivos';
+      btn.addEventListener('click', function () { location.href = '/auditai/conciliacao.html'; });
+    }
     if (groupButton && groupButton.parentElement) {
-      groupButton.parentElement.appendChild(btn);
+      btn.className = 'sp-conciliacao-inline-btn';
+      if (btn.previousElementSibling !== groupButton) {
+        groupButton.insertAdjacentElement('afterend', btn);
+      }
     } else {
-      btn.className += ' sp-conciliacao-floating-btn';
-      document.body.appendChild(btn);
+      btn.className = 'sp-conciliacao-inline-btn sp-conciliacao-floating-btn';
+      if (btn.parentElement !== document.body) document.body.appendChild(btn);
     }
   }
 
