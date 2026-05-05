@@ -1,8 +1,8 @@
 {
-  "version": "3.1.13",
-  "build_date": "2026-05-05T18:18:55Z",
+  "version": "3.1.14",
+  "build_date": "2026-05-05T18:29:18Z",
   "release_notes": [
-    "Botão Conciliação de Arquivos agora é movido automaticamente para ao lado de Grupo Econômico / Holding quando a barra do AuditAI termina de carregar",
-    "Removido comportamento que mantinha o botão preso no canto inferior direito após o fallback inicial"
+    "Removido o botão flutuante Históricos Padrão do canto inferior direito da tela principal",
+    "Função de históricos preservada sem ocupar uma posição solta no layout"
   ]
 }

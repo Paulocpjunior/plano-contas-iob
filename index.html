@@ -6776,19 +6776,6 @@ window.confirmarTrocarPlano = async function() {
     }
   })();
 </script>
-<!-- Botao flutuante admin-only: Historicos Padrao IOB -->
-<button id="btnHistoricos" onclick="window.abrirCadastroHistoricos()"
-  style="position:fixed;bottom:20px;right:20px;z-index:9000;padding:12px 20px;background:#16a34a;color:white;border:0;border-radius:30px;cursor:pointer;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.2);display:none">
-  📋 Históricos Padrão
-</button>
-<script>
-  (function(){ var t=setInterval(function(){
-    if(window.CURRENT_USER && window.CURRENT_USER.is_admin){
-      var b=document.getElementById("btnHistoricos"); if(b) b.style.display="block"; clearInterval(t);
-    }
-  }, 500); setTimeout(function(){clearInterval(t)}, 30000); })();
-</script>
-
     <!-- ===== VERSAO E POPUP DE ATUALIZACAO (auto-injetado) ===== -->
     <div id="versionModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:99999;backdrop-filter:blur(4px);align-items:center;justify-content:center">
         <div style="background:#fff;border-radius:14px;max-width:520px;width:90%;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center">
