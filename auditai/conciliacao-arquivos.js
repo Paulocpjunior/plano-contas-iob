@@ -374,28 +374,23 @@
     document.getElementById('sp-voltar-auditai').addEventListener('click', function () { location.href = '/auditai/'; });
   }
 
-  function openModule() {
-    history.pushState(null, '', '/auditai/?modulo=conciliacao');
-    renderApp();
-  }
-
   function injectButton() {
     if (document.getElementById('sp-open-conciliacao')) return;
-    const main = document.querySelector('main');
-    if (!main) return;
-    const host = main.querySelector('.flex.gap-2') || main.firstElementChild;
-    if (!host) return;
     const btn = document.createElement('button');
     btn.id = 'sp-open-conciliacao';
     btn.type = 'button';
-    btn.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/25';
+    btn.className = 'fixed right-5 bottom-5 z-[9999] px-5 py-3 rounded-xl text-sm font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-500/25 print:hidden';
     btn.textContent = 'Conciliação de Arquivos';
-    btn.addEventListener('click', openModule);
-    host.appendChild(btn);
+    btn.addEventListener('click', function () { location.href = '/auditai/conciliacao.html'; });
+    document.body.appendChild(btn);
   }
 
   function boot() {
     if (new URLSearchParams(location.search).get('modulo') === 'conciliacao') {
+      location.replace('/auditai/conciliacao.html');
+      return;
+    }
+    if (location.pathname.replace(/\/+$/, '').endsWith('/auditai/conciliacao.html')) {
       renderApp();
       return;
     }

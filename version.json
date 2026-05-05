@@ -1,9 +1,8 @@
 {
-  "version": "3.1.9",
-  "build_date": "2026-05-05T17:23:19Z",
+  "version": "3.1.10",
+  "build_date": "2026-05-05T17:53:05Z",
   "release_notes": [
-    "Novo modulo no AuditAI para comparar planilha financeira com extrato bancario em PDF, XLSX, CSV ou TXT",
-    "Conciliação automática identifica itens conciliados, pendências e possíveis divergências entre dois arquivos",
-    "Tela de lançamentos agora permite selecionar Todos, Débito ou Crédito e replicar a classificação em massa"
+    "Correção visual no AuditAI: o módulo de conciliação agora abre em página própria e não interfere na tela principal",
+    "Botão Conciliação de Arquivos reposicionado como acesso flutuante seguro dentro do AuditAI"
   ]
 }
