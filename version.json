@@ -1,9 +1,9 @@
 {
-  "version": "3.1.8",
-  "build_date": "2026-05-04T19:06:44Z",
+  "version": "3.1.9",
+  "build_date": "2026-05-05T17:23:19Z",
   "release_notes": [
-    "Exportacao IOB SAGE agora respeita filtros aplicados na tela (WYSIWYG): se voce filtrou janeiro, exporta janeiro",
-    "Funcao obterEntriesFiltrados() centraliza logica de filtros — render e export usam a mesma fonte da verdade",
-    "Mensagens de erro contextuais: distingue 'sem lancamentos' de 'nada dentro dos filtros aplicados'"
+    "Novo modulo no AuditAI para comparar planilha financeira com extrato bancario em PDF, XLSX, CSV ou TXT",
+    "Conciliação automática identifica itens conciliados, pendências e possíveis divergências entre dois arquivos",
+    "Tela de lançamentos agora permite selecionar Todos, Débito ou Crédito e replicar a classificação em massa"
   ]
 }
