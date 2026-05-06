@@ -5813,7 +5813,13 @@
             }
             
             // Preparar contas para enviar à IA
-            const contasPlano = planoVinculado.contas
+            const totalContasPlano = (planoVinculado.contas || []).length;
+            const contasPlano = (planoVinculado.contas || [])
+                .map(c => ({
+                    codigo: c.codigo || c.cod || '',
+                    descricao: c.descricao || c.desc || '',
+                    reduzido: String(c.reduzido || c.ref_rfb || c.ref || c.codigo_reduzido || '').trim()
+                }))
                 .filter(c => c.codigo && c.descricao && c.reduzido) // so analiticas
                 .map(c => ({
                     codigo: c.codigo,
@@ -5821,10 +5827,10 @@
                     reduzido: c.reduzido
                 }));
             
-            console.log('[IA v2] Plano tem', contasPlano.length, 'contas analiticas (com reduzido)');
+            console.log('[IA v2] Plano tem', contasPlano.length, 'contas analiticas (com reduzido) de', totalContasPlano, 'contas carregadas');
             
             if (contasPlano.length === 0) {
-                showToast('Plano vinculado nao tem contas analiticas (com reduzido). Reimporte o plano.', 'error');
+                showToast('Plano vinculado tem ' + totalContasPlano + ' contas, mas nenhuma com codigo reduzido. Reimporte o plano com a coluna de reduzido.', 'error');
                 return;
             }
             

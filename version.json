@@ -1,8 +1,8 @@
 {
-  "version": "3.1.15",
-  "build_date": "2026-05-05T19:00:30Z",
+  "version": "3.1.16",
+  "build_date": "2026-05-06T09:08:20Z",
   "release_notes": [
-    "Aba Plano de Contas renomeada para Plano de Contas / Histórico",
-    "Botão Históricos Padrão realocado para dentro da aba Plano de Contas / Histórico"
+    "Corrigida leitura de códigos reduzidos em planos vinculados salvos com campos legados",
+    "Mensagem da classificação com IA agora informa quando o plano possui contas sem reduzido"
   ]
 }
