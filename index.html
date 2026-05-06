@@ -608,6 +608,29 @@
             color: var(--text-muted);
             font-weight: 600;
         }
+        .selection-toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .btn-memorizar-selecionados {
+            padding: 8px 12px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: #16a34a;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+        }
+        .btn-memorizar-selecionados:disabled {
+            background: #cbd5e1;
+            color: #64748b;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -1790,7 +1813,12 @@
                                 </label>
                             </div>
                         </div>
-                        <div class="selection-summary" id="selectionHint">A classificação editada em uma linha selecionada será replicada nas demais selecionadas.</div>
+                        <div class="selection-toolbar-actions">
+                            <div class="selection-summary" id="selectionHint">A classificação editada em uma linha selecionada será replicada nas demais selecionadas.</div>
+                            <button id="btnMemorizarSelecionados" class="btn-memorizar-selecionados" onclick="memorizarLancamentosSelecionados()" disabled>
+                                🧠 Memorizar selecionados
+                            </button>
+                        </div>
                     </div>
                     
                     <!-- Table -->
@@ -5314,6 +5342,16 @@
                     ? 'Ao editar uma linha selecionada, a classificação será replicada para ' + (total - 1) + ' outra' + (total - 1 !== 1 ? 's' : '') + ' selecionada' + (total - 1 !== 1 ? 's' : '') + '.'
                     : 'A classificação editada em uma linha selecionada será replicada nas demais selecionadas.';
             }
+            const btnMem = document.getElementById('btnMemorizarSelecionados');
+            if (btnMem) {
+                const elegiveis = (state.entries || []).filter(function(e) {
+                    return lancamentosSelecionados.has(e.id) && e.contaDebito && e.contaCredito && e.codigoHistorico && !e._memorizado;
+                }).length;
+                btnMem.disabled = elegiveis === 0;
+                btnMem.textContent = elegiveis > 0
+                    ? '🧠 Memorizar selecionados (' + elegiveis + ')'
+                    : '🧠 Memorizar selecionados';
+            }
         }
         function marcarOpcaoSelecao(valor) {
             document.querySelectorAll('input[name="bulkSelectTipo"]').forEach(function(el) {
@@ -5572,29 +5610,30 @@
             }
         }
 
-        async function memorizarLancamento(idx) {
+        async function memorizarLancamento(idx, opts) {
+            opts = opts || {};
             const lanc = state.entries[idx];
-            if (!lanc) return;
+            if (!lanc) return { ok: false, motivo: 'Lancamento nao encontrado' };
             if (!lanc.contaDebito || !lanc.contaCredito || !lanc.codigoHistorico) {
-                if (typeof showToast === 'function') showToast('Preencha debito, credito e codigo IOB antes de memorizar.', 'error');
-                return;
+                if (!opts.silent && typeof showToast === 'function') showToast('Preencha debito, credito e codigo IOB antes de memorizar.', 'error');
+                return { ok: false, motivo: 'Classificacao incompleta' };
             }
             const cnpj = (state.info && state.info.cnpj || '').replace(/\D/g, '');
             if (!cnpj || cnpj.length !== 14) {
-                if (typeof showToast === 'function') showToast('CNPJ da empresa nao informado.', 'error');
-                return;
+                if (!opts.silent && typeof showToast === 'function') showToast('CNPJ da empresa nao informado.', 'error');
+                return { ok: false, motivo: 'CNPJ nao informado' };
             }
             const descNorm = normalizarDescricao(lanc.descricao);
             if (!descNorm) {
-                if (typeof showToast === 'function') showToast('Descricao normalizada vazia (apos limpeza). Edite a descricao para incluir identidade do fornecedor.', 'error');
-                return;
+                if (!opts.silent && typeof showToast === 'function') showToast('Descricao normalizada vazia (apos limpeza). Edite a descricao para incluir identidade do fornecedor.', 'error');
+                return { ok: false, motivo: 'Descricao vazia apos normalizacao' };
             }
             // v2: rejeitar padroes muito genericos (1 palavra so)
             var palavrasNorm = descNorm.split(' ').filter(function(w){return w.length >= 3;});
             if (palavrasNorm.length < 2) {
                 console.warn('[memorizarLancamento] BLOQUEADO: padrao com <2 palavras de 3+ chars. descNorm="' + descNorm + '" palavras=' + JSON.stringify(palavrasNorm));
-                if (typeof showToast === 'function') showToast('Padrao muito generico apos normalizacao ("' + descNorm + '"). Edite descricao para incluir nome do fornecedor.', 'error');
-                return;
+                if (!opts.silent && typeof showToast === 'function') showToast('Padrao muito generico apos normalizacao ("' + descNorm + '"). Edite descricao para incluir nome do fornecedor.', 'error');
+                return { ok: false, motivo: 'Padrao muito generico' };
             }
             const hash = await hashDescricao(cnpj, descNorm);
             try {
@@ -5620,11 +5659,59 @@
                     codigoHistorico: lanc.codigoHistorico, vezes_usado: j.vezes_usado || 1
                 };
                 lanc._memorizado = true;
-                renderLancamentos();
-                if (typeof showToast === 'function') showToast('🧠 Memorizado! Sera aplicado automaticamente em proximas importacoes.', 'success');
+                if (!opts.noRender) renderLancamentos();
+                if (!opts.silent && typeof showToast === 'function') showToast('🧠 Memorizado! Sera aplicado automaticamente em proximas importacoes.', 'success');
+                return { ok: true };
             } catch (e) {
                 console.error('[memorizarLancamento] erro:', e);
-                if (typeof showToast === 'function') showToast('Erro ao memorizar: ' + e.message, 'error');
+                if (!opts.silent && typeof showToast === 'function') showToast('Erro ao memorizar: ' + e.message, 'error');
+                return { ok: false, motivo: e.message || 'Erro ao memorizar' };
+            }
+        }
+
+        async function memorizarLancamentosSelecionados() {
+            sincronizarSelecaoLancamentos();
+            const selecionados = (state.entries || [])
+                .map(function(e, idx) { return { e: e, idx: idx }; })
+                .filter(function(item) { return lancamentosSelecionados.has(item.e.id); });
+            if (!selecionados.length) {
+                showToast('Selecione ao menos um lancamento para memorizar.', 'error');
+                return;
+            }
+            const elegiveis = selecionados.filter(function(item) {
+                return item.e.contaDebito && item.e.contaCredito && item.e.codigoHistorico && !item.e._memorizado;
+            });
+            if (!elegiveis.length) {
+                showToast('Nenhum selecionado esta pronto para memorizar. Preencha debito, credito e codigo IOB.', 'error');
+                return;
+            }
+            const btn = document.getElementById('btnMemorizarSelecionados');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '🧠 Memorizando...';
+            }
+            let ok = 0;
+            let falhas = 0;
+            const motivos = {};
+            for (let i = 0; i < elegiveis.length; i++) {
+                const r = await memorizarLancamento(elegiveis[i].idx, { silent: true, noRender: true });
+                if (r && r.ok) ok++;
+                else {
+                    falhas++;
+                    const motivo = (r && r.motivo) || 'Erro desconhecido';
+                    motivos[motivo] = (motivos[motivo] || 0) + 1;
+                }
+            }
+            saveState();
+            renderLancamentos();
+            if (ok > 0 && falhas === 0) {
+                showToast('🧠 ' + ok + ' padrao' + (ok !== 1 ? 'es' : '') + ' memorizado' + (ok !== 1 ? 's' : '') + ' com sucesso.', 'success');
+            } else if (ok > 0) {
+                showToast('🧠 ' + ok + ' memorizado' + (ok !== 1 ? 's' : '') + '; ' + falhas + ' nao gravado' + (falhas !== 1 ? 's' : '') + '.', 'success');
+                console.warn('[memorizarLancamentosSelecionados] falhas:', motivos);
+            } else {
+                showToast('Nenhum padrao foi memorizado. Verifique se as descricoes nao estao genericas demais.', 'error');
+                console.warn('[memorizarLancamentosSelecionados] falhas:', motivos);
             }
         }
 
