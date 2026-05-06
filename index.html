@@ -1732,7 +1732,7 @@
                                 </button>
                                 <div class="dropdown-menu" id="exportDropdown">
                                     <button class="dropdown-item" onclick="exportIOB()">
-                                        📄 IOB SAGE (.01)
+                                        📄 IOB SAGE (.MM)
                                     </button>
                                     <button class="dropdown-item" onclick="exportCSV()">
                                         📊 Planilha (CSV)
@@ -2031,7 +2031,7 @@
                     
                     <div class="action-buttons" style="margin-bottom:24px">
                         <button class="btn-action btn-action-primary" onclick="exportIOB()">
-                            📥 Gerar Arquivo .01
+                            📥 Gerar Arquivo IOB
                         </button>
                         <button class="btn-action btn-action-secondary" onclick="exportCSV()">
                             📊 Exportar CSV
@@ -2042,7 +2042,7 @@
                     </div>
                     
                     <h4 style="margin-bottom:12px;color:var(--text-muted);font-size:13px">PRÉVIA DO ARQUIVO:</h4>
-                    <div class="export-preview" id="exportPreview">Selecione as opções e clique em "Gerar Arquivo .01" para ver a prévia.</div>
+                    <div class="export-preview" id="exportPreview">Selecione as opções e clique em "Gerar Arquivo IOB" para ver a prévia.</div>
                 </div>
             </div>
             
@@ -6445,10 +6445,11 @@ Responda APENAS JSON valido, sem texto antes/depois:
             }
             const blob = new Blob([bytes], { type: 'text/plain;charset=ISO-8859-1' });
 
-            // Nome do arquivo: FI<empOrig 4 digitos><empDest 4 digitos>.01
+            // Nome do arquivo: FI<empOrig 4 digitos><empDest 4 digitos>.<MM>
             const empOrig = String((state.info && state.info.codigoEmpresaOrigem) || '0001').padStart(4,'0').slice(-4);
             const empDest = String((state.info && (state.info.codigoEmpresaDestino || state.info.codigoEmpresa)) || '0001').padStart(4,'0').slice(-4);
-            const nomeArquivoIOB = 'FI' + empOrig + empDest + '.01';
+            const mesArquivoIOB = String((ref.mesUnico || '').split('/')[0] || '01').padStart(2, '0').slice(-2);
+            const nomeArquivoIOB = 'FI' + empOrig + empDest + '.' + mesArquivoIOB;
 
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);

@@ -1,8 +1,8 @@
 {
-  "version": "3.1.21",
-  "build_date": "2026-05-06T17:38:02Z",
+  "version": "3.1.22",
+  "build_date": "2026-05-06T17:50:47Z",
   "release_notes": [
-    "Corrigida importação Banco do Brasil para incluir lançamentos BB RF CP Empresa Ágil que compõem o saldo final",
-    "A diferença de R$ 14.675,27 no extrato Waldesa passa a entrar como crédito importado"
+    "Arquivo IOB SAGE agora usa o mês validado no popup para formar a extensão FI########.MM",
+    "Removida geração fixa .01 quando o lançamento pertence a outros meses"
   ]
 }
