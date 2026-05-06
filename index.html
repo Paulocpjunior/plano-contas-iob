@@ -4775,6 +4775,86 @@
             return alterados;
         }
 
+        function moedaParaCentavosBR(valor) {
+            if (typeof valor === 'number') return Math.round(valor * 100);
+            let s = String(valor || '').trim();
+            if (!s) return 0;
+            s = s.replace(/R\$\s*/gi, '').replace(/[^\d,.\-]/g, '');
+            if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
+            else if (s.includes(',')) s = s.replace(',', '.');
+            const n = Number(s);
+            return Number.isFinite(n) ? Math.round(n * 100) : 0;
+        }
+
+        async function extrairTextoPDFParaConferencia(arrayBuffer) {
+            if (typeof pdfjsLib === 'undefined') return '';
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let texto = '';
+            for (let p = 1; p <= pdf.numPages; p++) {
+                const page = await pdf.getPage(p);
+                const tc = await page.getTextContent();
+                const linhas = {};
+                tc.items.forEach(function(it) {
+                    const y = Math.round(it.transform[5]);
+                    if (!linhas[y]) linhas[y] = [];
+                    linhas[y].push({ x: it.transform[4], s: it.str });
+                });
+                Object.keys(linhas).map(Number).sort(function(a,b){ return b - a; }).forEach(function(y) {
+                    const linha = linhas[y].sort(function(a,b){ return a.x - b.x; }).map(function(o){ return o.s; }).join(' ').replace(/\s+/g, ' ').trim();
+                    if (linha) texto += linha + '\n';
+                });
+            }
+            return texto;
+        }
+
+        function extrairTotaisOficiaisExtrato(texto) {
+            const bruto = String(texto || '');
+            const normalizado = bruto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const temMercadoPago = /mercado\s*pago/i.test(normalizado);
+            const mEntradas = normalizado.match(/Entradas\s*:\s*R\$\s*([\d.]+,\d{2})/i);
+            const mSaidas = normalizado.match(/Sa[ií]das\s*:\s*R\$\s*-?\s*([\d.]+,\d{2})/i);
+            if (!mEntradas && !mSaidas) return null;
+            return {
+                origem: temMercadoPago ? 'mercado-pago' : 'pdf-total-oficial',
+                totalCreditosCentavos: mEntradas ? moedaParaCentavosBR(mEntradas[1]) : null,
+                totalDebitosCentavos: mSaidas ? moedaParaCentavosBR(mSaidas[1]) : null
+            };
+        }
+
+        function reconciliarLancamentosComTotaisOficiais(entries, conferencia) {
+            if (!Array.isArray(entries) || !conferencia) return entries;
+            const somaCred = entries.reduce(function(acc, e){ const c = moedaParaCentavosBR(e.valor); return c > 0 ? acc + c : acc; }, 0);
+            const somaDeb = entries.reduce(function(acc, e){ const c = moedaParaCentavosBR(e.valor); return c < 0 ? acc + Math.abs(c) : acc; }, 0);
+            let resultado = entries.slice();
+
+            function removerSobra(tipo, deltaCentavos) {
+                if (deltaCentavos <= 0) return false;
+                const sinal = tipo === 'credito' ? 1 : -1;
+                const candidatos = resultado
+                    .map(function(e, idx){ return { e: e, idx: idx, cents: moedaParaCentavosBR(e.valor) }; })
+                    .filter(function(item){ return (sinal > 0 ? item.cents > 0 : item.cents < 0) && Math.abs(item.cents) === deltaCentavos; });
+                if (candidatos.length !== 1 && deltaCentavos > 10000) return false;
+                const suspeitos = candidatos.filter(function(item) {
+                    const d = String(item.e.descricao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                    return /saldo|total|resumo|entrada|saida|rendimento|rendimentos|reserva|reservado|bloquead|liberad|cashback|ajuste|tarifa/.test(d);
+                });
+                const escolhido = suspeitos[0] || (candidatos.length === 1 && deltaCentavos <= 10000 ? candidatos[0] : null);
+                if (!escolhido) return false;
+                console.warn('[conferencia-pdf] removendo lancamento fora do total oficial:', escolhido.e);
+                resultado.splice(escolhido.idx, 1);
+                return true;
+            }
+
+            if (conferencia.totalCreditosCentavos != null) {
+                removerSobra('credito', somaCred - conferencia.totalCreditosCentavos);
+            }
+            if (conferencia.totalDebitosCentavos != null) {
+                const somaDebAtual = resultado.reduce(function(acc, e){ const c = moedaParaCentavosBR(e.valor); return c < 0 ? acc + Math.abs(c) : acc; }, 0);
+                removerSobra('debito', somaDebAtual - conferencia.totalDebitosCentavos);
+            }
+            return resultado;
+        }
+
         function updateDashboard() {
             if (!state.info) return;
             
@@ -5295,6 +5375,15 @@
                 console.warn('[processPDF] parser nativo falhou, caindo no Gemini:', e.message);
             }
 
+            let conferenciaTotaisPDF = null;
+            try {
+                const textoConferencia = await extrairTextoPDFParaConferencia(buf.slice(0));
+                conferenciaTotaisPDF = extrairTotaisOficiaisExtrato(textoConferencia);
+                if (conferenciaTotaisPDF) console.log('[conferencia-pdf] totais oficiais detectados:', conferenciaTotaisPDF);
+            } catch (eConf) {
+                console.warn('[conferencia-pdf] nao foi possivel ler totais oficiais:', eConf.message);
+            }
+
             const b64 = await toBase64(f);
             const r = await window.API.callGemini({
                     contents: [{
@@ -5323,7 +5412,7 @@
             try { p = JSON.parse(t); } catch { p = { transactions: [] }; }
             if (!p.transactions) return [];
             
-            return p.transactions.map(x => ({
+            let entriesGemini = p.transactions.map(x => ({
                 id: crypto.randomUUID(),
                 data: x.date || '',
                 descricao: x.description || '',
@@ -5338,6 +5427,8 @@
                 detalhamentos: [],
                 origem: 'pdf-gemini'
             }));
+            entriesGemini = reconciliarLancamentosComTotaisOficiais(entriesGemini, conferenciaTotaisPDF);
+            return entriesGemini;
         }
         
         function toBase64(f) {

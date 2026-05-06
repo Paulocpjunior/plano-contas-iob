@@ -1,8 +1,8 @@
 {
-  "version": "3.1.24",
-  "build_date": "2026-05-06T19:01:22Z",
+  "version": "3.1.25",
+  "build_date": "2026-05-06T19:18:00Z",
   "release_notes": [
-    "Código do Histórico Padrão continua validando pelo banco de históricos sem sobrescrever a descrição do lançamento",
-    "Campo Observações do IOB SAGE passa a receber a descrição original extraída do extrato"
+    "PDFs com totais oficiais de entradas e saídas passam por conferência antes de gravar os lançamentos",
+    "Importações Mercado Pago reconciliam sobras exatas, evitando crédito maior que o extrato"
   ]
 }
