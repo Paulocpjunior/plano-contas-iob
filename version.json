@@ -1,8 +1,8 @@
 {
-  "version": "3.1.20",
-  "build_date": "2026-05-06T17:16:16Z",
+  "version": "3.1.21",
+  "build_date": "2026-05-06T17:38:02Z",
   "release_notes": [
-    "Corrigida seleção em massa de débito e crédito para lançamentos importados sem identificador único",
-    "Cards de crédito e débito agora acompanham os filtros exibidos na tela de lançamentos"
+    "Corrigida importação Banco do Brasil para incluir lançamentos BB RF CP Empresa Ágil que compõem o saldo final",
+    "A diferença de R$ 14.675,27 no extrato Waldesa passa a entrar como crédito importado"
   ]
 }

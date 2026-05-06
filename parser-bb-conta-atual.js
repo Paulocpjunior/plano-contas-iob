@@ -73,7 +73,7 @@
     const reLanc = /^(\d{2}\/\d{2}\/\d{4})\s+(?:\d{4}\s+)?(\d{3,6})\s+(\d{3})\s+(.+?)\s+([\d.]+)?\s*([\d.]+,\d{2})\s*([CD])\s*(?:[\d.,]+\s*[CD])?\s*$/;
 
     const lancamentos = [];
-    const IGNORAR = /^(Saldo\s+Anterior|S\s*A\s*L\s*D\s*O|BB\s+RF\s+CP\s+Empresa\s+[AÁ]gil|Tar\.\s*agrupadas)/i;
+    const IGNORAR = /^(Saldo\s+Anterior|S\s*A\s*L\s*D\s*O|Tar\.\s*agrupadas)/i;
 
     for (let i = 0; i < linhas.length; i++) {
       const linha = linhas[i].trim();
