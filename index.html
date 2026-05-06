@@ -4578,7 +4578,7 @@
             let migrados = 0;
             state.entries = state.entries.map(e => {
                 if (!e) return e;
-                // Se ja tem shape correto, mantem
+                // Se ja tem shape correto, garante id unico depois no integrador comum
                 if (typeof e.valor === 'number' && e.data && e.descricao) return e;
                 // Shape ingles -> portugues
                 const novo = {
@@ -4664,8 +4664,8 @@
             return 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
-        function atualizarCardsTotaisImportados() {
-            const entries = Array.isArray(state.entries) ? state.entries : [];
+        function atualizarCardsTotaisImportados(lista) {
+            const entries = Array.isArray(lista) ? lista : (Array.isArray(state.entries) ? state.entries : []);
             const creditos = entries.filter(e => Number(e.valor) > 0);
             const debitos = entries.filter(e => Number(e.valor) < 0);
             const totalCreditos = creditos.reduce((a, e) => a + Number(e.valor || 0), 0);
@@ -4676,8 +4676,43 @@
             const debQtdEl = document.getElementById('totalDebitoQtd');
             if (credEl) credEl.textContent = formatarMoedaBR(totalCreditos);
             if (debEl) debEl.textContent = formatarMoedaBR(totalDebitos);
-            if (credQtdEl) credQtdEl.textContent = creditos.length + ' entrada' + (creditos.length !== 1 ? 's' : '');
-            if (debQtdEl) debQtdEl.textContent = debitos.length + ' saída' + (debitos.length !== 1 ? 's' : '');
+            const filtrado = entries.length !== (state.entries || []).length;
+            const sufixo = filtrado ? ' exibida' : ' importada';
+            if (credQtdEl) credQtdEl.textContent = creditos.length + ' entrada' + (creditos.length !== 1 ? 's' : '') + sufixo + (creditos.length !== 1 ? 's' : '');
+            if (debQtdEl) debQtdEl.textContent = debitos.length + ' saída' + (debitos.length !== 1 ? 's' : '') + sufixo + (debitos.length !== 1 ? 's' : '');
+        }
+
+        function novoIdLancamento() {
+            return (crypto.randomUUID ? crypto.randomUUID() : 'lan_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+        }
+
+        function parseNumeroLancamento(v) {
+            if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+            let s = String(v || '').trim();
+            if (!s) return 0;
+            if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
+            else if (s.includes(',')) s = s.replace(',', '.');
+            const n = Number(s);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function garantirIntegridadeLancamentos(lista) {
+            const entries = Array.isArray(lista) ? lista : [];
+            const vistos = new Set();
+            let alterados = 0;
+            entries.forEach(function(e) {
+                if (!e) return;
+                if (!e.id || vistos.has(e.id)) {
+                    e.id = novoIdLancamento();
+                    alterados++;
+                }
+                vistos.add(e.id);
+                if (typeof e.valor !== 'number') {
+                    e.valor = parseNumeroLancamento(e.valor);
+                    alterados++;
+                }
+            });
+            return alterados;
         }
 
         function updateDashboard() {
@@ -4966,11 +5001,12 @@
                 }
                 
                 // Apply mappings and detect unusual
+                garantirIntegridadeLancamentos(entries);
                 entries = entries.map(applyMapping);
                 entries = detectUnusual(entries);
                 
                 // Tag com banco + importacao (segregacao)
-                entries = entries.map(e => ({ ...e, bancoId: bancoCode, bancoNome, importacaoId, importacaoTitulo: titulo }));
+                entries = entries.map(e => ({ ...e, id: e.id || novoIdLancamento(), bancoId: bancoCode, bancoNome, importacaoId, importacaoTitulo: titulo }));
                 
                 // Fase 5a: aplicar memoria antes de salvar
                 try {
@@ -5420,9 +5456,10 @@
             return ids.some(function(id){ const el = document.getElementById(id); return el && el.value && el.value.trim() !== ''; });
         }
         function tipoLancamento(e) {
-            if (!e || typeof e.valor !== 'number') return '';
-            if (e.valor < 0) return 'debito';
-            if (e.valor > 0) return 'credito';
+            if (!e) return '';
+            const valor = parseNumeroLancamento(e.valor);
+            if (valor < 0) return 'debito';
+            if (valor > 0) return 'credito';
             return '';
         }
         function sincronizarSelecaoLancamentos() {
@@ -5497,10 +5534,15 @@
         function renderLancamentos() {
             const c = document.getElementById('lancamentosTable');
             popularDatalistHistoricos();  // Fase 1
+            const corrigidos = garantirIntegridadeLancamentos(state.entries || []);
+            if (corrigidos > 0) {
+                saveState();
+                console.log('[integridade] ' + corrigidos + ' ajuste(s) em lancamentos sem id/valor numerico');
+            }
             sincronizarSelecaoLancamentos();
-            atualizarCardsTotaisImportados();
             
             if (!state.entries.length) {
+                atualizarCardsTotaisImportados([]);
                 c.innerHTML = '<div class="empty-state"><div class="icon">📄</div><h3>Nenhum lançamento</h3><p>Importe um extrato bancário para começar.</p></div>';
                 document.getElementById('alertsContainer').innerHTML = '';
                 document.getElementById('tableCount').textContent = 'Exibindo 0 de 0 transações';
@@ -5510,6 +5552,7 @@
             
             // v3.1.8: usa funcao centralizada (reusada por exportIOB)
             let list = obterEntriesFiltrados();
+            atualizarCardsTotaisImportados(list);
             
             // Update count
             document.getElementById('tableCount').textContent = `Exibindo ${list.length} de ${state.entries.length} transações`;

@@ -1,8 +1,8 @@
 {
-  "version": "3.1.19",
-  "build_date": "2026-05-06T14:54:45Z",
+  "version": "3.1.20",
+  "build_date": "2026-05-06T17:16:16Z",
   "release_notes": [
-    "Adicionados cards de Total de Crédito e Total de Débito importados na tela de lançamentos",
-    "Arquivo IOB SAGE agora é gerado no padrão FI########.01"
+    "Corrigida seleção em massa de débito e crédito para lançamentos importados sem identificador único",
+    "Cards de crédito e débito agora acompanham os filtros exibidos na tela de lançamentos"
   ]
 }
