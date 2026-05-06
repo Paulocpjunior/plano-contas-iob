@@ -1,8 +1,8 @@
 {
-  "version": "3.1.23",
-  "build_date": "2026-05-06T18:41:28Z",
+  "version": "3.1.24",
+  "build_date": "2026-05-06T19:01:22Z",
   "release_notes": [
-    "Opção começar do zero agora zera também a sessão remota da empresa",
-    "Bloqueado recarregamento automático da sessão antiga após o usuário escolher reiniciar"
+    "Código do Histórico Padrão continua validando pelo banco de históricos sem sobrescrever a descrição do lançamento",
+    "Campo Observações do IOB SAGE passa a receber a descrição original extraída do extrato"
   ]
 }
