@@ -3437,6 +3437,55 @@
             _sessaoDebounceTimer = setTimeout(salvarSessaoRemotoAgora, 3000);
         }
 
+        function chaveSessaoZerada(cnpj) {
+            return 'consultorContabil_v2_zerado_' + String(cnpj || '').replace(/\D/g, '');
+        }
+
+        function marcarSessaoZerada(cnpj) {
+            const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+            if (cnpjLimpo.length === 14) localStorage.setItem(chaveSessaoZerada(cnpjLimpo), String(Date.now()));
+        }
+
+        function sessaoFoiZeradaNestaAbertura(cnpj) {
+            const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+            if (cnpjLimpo.length !== 14) return false;
+            const ts = parseInt(localStorage.getItem(chaveSessaoZerada(cnpjLimpo)) || '0', 10);
+            return ts && (Date.now() - ts) < 10 * 60 * 1000;
+        }
+
+        async function zerarSessaoEmpresa(cnpj, infoBase) {
+            const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+            state.entries = [];
+            state.lastFile = null;
+            lancamentosSelecionados.clear();
+            if (infoBase) state.info = infoBase;
+            state.infoConfirmed = !!infoBase;
+            marcarSessaoZerada(cnpjLimpo);
+            localStorage.removeItem('consultorContabil_v2_ts');
+            saveState();
+            popularFiltroImportacoes();
+            marcarOpcaoSelecao('nenhum');
+            try { limparFiltros(); } catch(e) {}
+            try { renderLancamentos(); } catch(e) {}
+            try { updateDashboard(); } catch(e) {}
+            if (cnpjLimpo.length === 14 && window.API && window.API.salvarSessaoEmpresa) {
+                const state_json = JSON.stringify({
+                    entries: [],
+                    mappings: state.mappings,
+                    info: state.info,
+                    infoConfirmed: state.infoConfirmed,
+                    lastFile: null
+                });
+                const resumo = {
+                    total_lancamentos: 0,
+                    periodo: state.info ? ((state.info.periodoInicio || '') + ' a ' + (state.info.periodoFim || '')) : '',
+                    banco: state.info ? (state.info.banco || null) : null,
+                    zerada: true
+                };
+                await window.API.salvarSessaoEmpresa(cnpjLimpo, state_json, resumo);
+            }
+        }
+
         // State Management
         function loadState() {
             const s = localStorage.getItem('consultorContabil_v2');
@@ -3472,6 +3521,7 @@
                 if (!state.info || !state.info.cnpj) return;
                 const cnpj = (state.info.cnpj || '').replace(/\D/g, '');
                 if (cnpj.length !== 14) return;
+                if (sessaoFoiZeradaNestaAbertura(cnpj)) return;
                 if (!window.API || !window.API.carregarSessaoEmpresa) return;
                 const sess = await window.API.carregarSessaoEmpresa(cnpj);
                 if (!sess || !sess.encontrada || !sess.state_json) return;
@@ -4422,6 +4472,16 @@
                             saveState();
                             if (typeof initApp === 'function') initApp();
                             else location.reload();
+                        } else {
+                            await zerarSessaoEmpresa(cnpj, {
+                                cnpj: document.getElementById('infoCNPJ').value,
+                                empresa: document.getElementById('infoEmpresa').value,
+                                banco: document.getElementById('infoBanco').value,
+                                usuario: document.getElementById('infoUsuario').value,
+                                periodoInicio: document.getElementById('infoPeriodoInicio').value,
+                                periodoFim: document.getElementById('infoPeriodoFim').value
+                            });
+                            showToast('Sessão anterior zerada. Comece uma nova importação.', 'success');
                         }
                     }
                 }
@@ -4457,11 +4517,11 @@
                             { total_lancamentos: state.entries.length });
                     } catch(e) { console.warn('[iso] save empresa anterior falhou:', e); }
                 }
-                // ZERA entries e tenta puxar sessao da empresa nova
+                // ZERA entries e tenta puxar sessao da empresa nova, exceto quando usuario escolheu comecar do zero
                 state.entries = [];
                 state.lastFile = null;
                 try {
-                    const sess = await window.API.carregarSessaoEmpresa(cnpjNovo);
+                    const sess = sessaoFoiZeradaNestaAbertura(cnpjNovo) ? null : await window.API.carregarSessaoEmpresa(cnpjNovo);
                     if (sess && sess.encontrada && sess.state_json) {
                         const d = JSON.parse(sess.state_json);
                         state.entries = d.entries || [];

@@ -1,8 +1,8 @@
 {
-  "version": "3.1.22",
-  "build_date": "2026-05-06T17:50:47Z",
+  "version": "3.1.23",
+  "build_date": "2026-05-06T18:41:28Z",
   "release_notes": [
-    "Arquivo IOB SAGE agora usa o mês validado no popup para formar a extensão FI########.MM",
-    "Removida geração fixa .01 quando o lançamento pertence a outros meses"
+    "Opção começar do zero agora zera também a sessão remota da empresa",
+    "Bloqueado recarregamento automático da sessão antiga após o usuário escolher reiniciar"
   ]
 }
