@@ -1,8 +1,8 @@
 {
-  "version": "3.1.18",
-  "build_date": "2026-05-06T14:35:12Z",
+  "version": "3.1.19",
+  "build_date": "2026-05-06T14:54:45Z",
   "release_notes": [
-    "Corrigida leitura de centavos em arquivos OFX com vírgula decimal",
-    "Adicionada conferência de totais e lançamentos omitidos antes da exportação IOB"
+    "Adicionados cards de Total de Crédito e Total de Débito importados na tela de lançamentos",
+    "Arquivo IOB SAGE agora é gerado no padrão FI########.01"
   ]
 }

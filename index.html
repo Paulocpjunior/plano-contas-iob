@@ -411,6 +411,50 @@
         .stat-card.highlight h3,
         .stat-card.highlight .value,
         .stat-card.highlight .sub { color: #fff; }
+        .import-totals-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        .import-total-card {
+            background: #fff;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            padding: 18px 20px;
+            box-shadow: var(--shadow-sm);
+        }
+        .import-total-card h3 {
+            margin: 0 0 8px;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+        .import-total-card .value {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--text);
+        }
+        .import-total-card .sub {
+            margin-top: 4px;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .import-total-card.credit {
+            border-top: 4px solid var(--success);
+        }
+        .import-total-card.debit {
+            border-top: 4px solid var(--danger);
+        }
+        .import-total-card.credit .value {
+            color: var(--success);
+        }
+        .import-total-card.debit .value {
+            color: var(--danger);
+        }
         
         /* Charts Grid */
         .charts-grid {
@@ -1688,7 +1732,7 @@
                                 </button>
                                 <div class="dropdown-menu" id="exportDropdown">
                                     <button class="dropdown-item" onclick="exportIOB()">
-                                        📄 IOB SAGE (.02)
+                                        📄 IOB SAGE (.01)
                                     </button>
                                     <button class="dropdown-item" onclick="exportCSV()">
                                         📊 Planilha (CSV)
@@ -1703,6 +1747,19 @@
                     
                     <!-- Alerts -->
                     <div id="alertsContainer"></div>
+
+                    <div class="import-totals-grid">
+                        <div class="import-total-card credit">
+                            <h3>Total de Crédito Importado</h3>
+                            <div class="value" id="totalCreditoImportado">R$ 0,00</div>
+                            <div class="sub" id="totalCreditoQtd">0 entrada(s)</div>
+                        </div>
+                        <div class="import-total-card debit">
+                            <h3>Total de Débito Importado</h3>
+                            <div class="value" id="totalDebitoImportado">R$ 0,00</div>
+                            <div class="sub" id="totalDebitoQtd">0 saída(s)</div>
+                        </div>
+                    </div>
                     
                     <!-- Filters -->
                     <div class="filters-section">
@@ -1974,7 +2031,7 @@
                     
                     <div class="action-buttons" style="margin-bottom:24px">
                         <button class="btn-action btn-action-primary" onclick="exportIOB()">
-                            📥 Gerar Arquivo .02
+                            📥 Gerar Arquivo .01
                         </button>
                         <button class="btn-action btn-action-secondary" onclick="exportCSV()">
                             📊 Exportar CSV
@@ -1985,7 +2042,7 @@
                     </div>
                     
                     <h4 style="margin-bottom:12px;color:var(--text-muted);font-size:13px">PRÉVIA DO ARQUIVO:</h4>
-                    <div class="export-preview" id="exportPreview">Selecione as opções e clique em "Gerar Arquivo .02" para ver a prévia.</div>
+                    <div class="export-preview" id="exportPreview">Selecione as opções e clique em "Gerar Arquivo .01" para ver a prévia.</div>
                 </div>
             </div>
             
@@ -4601,7 +4658,28 @@
             }
         }
 
-                // Dashboard
+        // Dashboard
+        function formatarMoedaBR(valor) {
+            const v = Number(valor) || 0;
+            return 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function atualizarCardsTotaisImportados() {
+            const entries = Array.isArray(state.entries) ? state.entries : [];
+            const creditos = entries.filter(e => Number(e.valor) > 0);
+            const debitos = entries.filter(e => Number(e.valor) < 0);
+            const totalCreditos = creditos.reduce((a, e) => a + Number(e.valor || 0), 0);
+            const totalDebitos = debitos.reduce((a, e) => a + Math.abs(Number(e.valor || 0)), 0);
+            const credEl = document.getElementById('totalCreditoImportado');
+            const debEl = document.getElementById('totalDebitoImportado');
+            const credQtdEl = document.getElementById('totalCreditoQtd');
+            const debQtdEl = document.getElementById('totalDebitoQtd');
+            if (credEl) credEl.textContent = formatarMoedaBR(totalCreditos);
+            if (debEl) debEl.textContent = formatarMoedaBR(totalDebitos);
+            if (credQtdEl) credQtdEl.textContent = creditos.length + ' entrada' + (creditos.length !== 1 ? 's' : '');
+            if (debQtdEl) debQtdEl.textContent = debitos.length + ' saída' + (debitos.length !== 1 ? 's' : '');
+        }
+
         function updateDashboard() {
             if (!state.info) return;
             
@@ -4620,6 +4698,7 @@
             document.getElementById('dashPendPercent').textContent = total ? Math.round(pendentes / total * 100) + '% do total' : '0% do total';
             document.getElementById('dashValor').textContent = 'R$ ' + movimentacao.toLocaleString('pt-BR', {minimumFractionDigits: 2});
             document.getElementById('dashSaldo').textContent = 'Saldo: R$ ' + saldo.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            atualizarCardsTotaisImportados();
         }
         
         // Charts
@@ -5419,6 +5498,7 @@
             const c = document.getElementById('lancamentosTable');
             popularDatalistHistoricos();  // Fase 1
             sincronizarSelecaoLancamentos();
+            atualizarCardsTotaisImportados();
             
             if (!state.entries.length) {
                 c.innerHTML = '<div class="empty-state"><div class="icon">📄</div><h3>Nenhum lançamento</h3><p>Importe um extrato bancário para começar.</p></div>';
@@ -6322,20 +6402,19 @@ Responda APENAS JSON valido, sem texto antes/depois:
             }
             const blob = new Blob([bytes], { type: 'text/plain;charset=ISO-8859-1' });
 
-            // Nome do arquivo: FI<empOrig 4 digitos><empDest 4 digitos>.<MM>
+            // Nome do arquivo: FI<empOrig 4 digitos><empDest 4 digitos>.01
             const empOrig = String((state.info && state.info.codigoEmpresaOrigem) || '0001').padStart(4,'0').slice(-4);
             const empDest = String((state.info && (state.info.codigoEmpresaDestino || state.info.codigoEmpresa)) || '0001').padStart(4,'0').slice(-4);
-            const primeiraData = (state.entries.find(e => e.data) || {}).data || new Date().toISOString();
-            const mm = primeiraData.includes('-') ? primeiraData.split('-')[1] : String(new Date().getMonth()+1).padStart(2,'0');
+            const nomeArquivoIOB = 'FI' + empOrig + empDest + '.01';
 
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'FI' + empOrig + empDest + '.' + mm;
+            a.download = nomeArquivoIOB;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
 
-            showToast('✅ Arquivo IOB gerado: FI' + empOrig + empDest + '.' + mm + ' (' + valid.length + ' lancamentos)', 'success');
+            showToast('✅ Arquivo IOB gerado: ' + nomeArquivoIOB + ' (' + valid.length + ' lancamentos)', 'success');
         }
         
         // === Atribuicao em massa de Historico Padrao IOB (Fase 2) ===
