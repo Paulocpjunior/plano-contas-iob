@@ -4868,7 +4868,7 @@
                 if (ext === 'pdf') {
                     entries = await processPDF(selectedFile);
                 } else if (ext === 'ofx') {
-                    entries = parseOFX(await selectedFile.text());
+                    entries = parseOFX(await lerArquivoTexto(selectedFile, 'windows-1252'));
                 } else if (ext === 'xlsx' || ext === 'xls') {
                     entries = await parsearArquivoXLSX(selectedFile, {});
                 } else {
@@ -5174,6 +5174,27 @@
             });
         }
         
+        function lerArquivoTexto(file, encoding) {
+            return new Promise(function(resolve, reject) {
+                const reader = new FileReader();
+                reader.onload = function(e) { resolve(e.target.result || ''); };
+                reader.onerror = function() { reject(reader.error || new Error('Falha ao ler arquivo')); };
+                reader.readAsText(file, encoding || 'UTF-8');
+            });
+        }
+
+        function parseValorOFX(valor) {
+            let s = String(valor || '').trim();
+            if (!s) return 0;
+            if (s.includes(',') && s.includes('.')) {
+                s = s.replace(/\./g, '').replace(',', '.');
+            } else if (s.includes(',')) {
+                s = s.replace(',', '.');
+            }
+            const n = Number(s);
+            return Number.isFinite(n) ? n : 0;
+        }
+
         // OFX Parser
         function parseOFX(t) {
             const entries = [];
@@ -5182,7 +5203,7 @@
             while ((m = re.exec(t)) !== null) {
                 const b = m[1];
                 const dt = (b.match(/<DTPOSTED>([^<\n]+)/) || [])[1] || '';
-                const val = parseFloat((b.match(/<TRNAMT>([^<\n]+)/) || [])[1]) || 0;
+                const val = parseValorOFX((b.match(/<TRNAMT>([^<\n]+)/) || [])[1]);
                 const memo = (b.match(/<MEMO>([^<\n]+)/) || [])[1] || '';
                 entries.push({
                     id: crypto.randomUUID(),
@@ -6168,6 +6189,36 @@ Responda APENAS JSON valido, sem texto antes/depois:
                     : 'Nenhum lancamento classificado dentro dos filtros aplicados. Limpe os filtros ou ajuste para exportar.',
                     'error');
                 return;
+            }
+            const resumoExportacao = function(lista) {
+                return lista.reduce(function(acc, e) {
+                    const v = Number(e.valor) || 0;
+                    if (v >= 0) acc.creditos += v;
+                    else acc.debitos += v;
+                    acc.total += v;
+                    return acc;
+                }, { creditos: 0, debitos: 0, total: 0 });
+            };
+            const moeda = function(v) {
+                return 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            };
+            const foraDoFiltro = Math.max(0, state.entries.length - baseList.length);
+            const pendentesNoFiltro = Math.max(0, baseList.length - valid.length);
+            if (foraDoFiltro > 0 || pendentesNoFiltro > 0) {
+                const r = resumoExportacao(valid);
+                const msg =
+                    '⚠️ CONFERÊNCIA ANTES DE EXPORTAR\n\n' +
+                    'Total no sistema: ' + state.entries.length + ' lançamento(s)\n' +
+                    'Dentro dos filtros atuais: ' + baseList.length + ' lançamento(s)\n' +
+                    'Classificados que irão para o arquivo: ' + valid.length + ' lançamento(s)\n\n' +
+                    (foraDoFiltro > 0 ? 'Fora do arquivo por filtro ativo: ' + foraDoFiltro + ' lançamento(s)\n' : '') +
+                    (pendentesNoFiltro > 0 ? 'Fora do arquivo por falta de débito/crédito: ' + pendentesNoFiltro + ' lançamento(s)\n' : '') +
+                    '\nTotais do arquivo que será gerado:\n' +
+                    'Créditos/entradas: ' + moeda(r.creditos) + '\n' +
+                    'Débitos/saídas: -' + moeda(r.debitos) + '\n' +
+                    'Líquido: ' + (r.total < 0 ? '-' : '') + moeda(r.total) + '\n\n' +
+                    'Deseja gerar o arquivo mesmo assim?';
+                if (!confirm(msg)) return;
             }
             // Fase 2: avisar se ha lancamentos sem codigo de historico IOB
             const semCodHist = valid.filter(function(e){ return !e.codigoHistorico || !/^\d{4}$/.test(e.codigoHistorico); });

@@ -1,8 +1,8 @@
 {
-  "version": "3.1.17",
-  "build_date": "2026-05-06T09:19:20Z",
+  "version": "3.1.18",
+  "build_date": "2026-05-06T14:35:12Z",
   "release_notes": [
-    "Adicionado botão para memorizar em lote os lançamentos selecionados",
-    "Ícone individual do cérebro continua disponível para gravação linha a linha"
+    "Corrigida leitura de centavos em arquivos OFX com vírgula decimal",
+    "Adicionada conferência de totais e lançamentos omitidos antes da exportação IOB"
   ]
 }
