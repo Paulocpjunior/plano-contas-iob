@@ -1,8 +1,8 @@
 {
-  "version": "3.1.32",
-  "build_date": "2026-05-07T20:05:00Z",
+  "version": "3.1.33",
+  "build_date": "2026-05-07T20:25:00Z",
   "release_notes": [
-    "Banco do Brasil passa a aceitar uma segunda variação de layout: BB Cash OCR",
-    "PDFs BB digitalizados são lidos por OCR controlado pelo banco 001, com deduplicação de páginas sobrepostas"
+    "Banco Itaú passa a ter layout PDF cadastrado no roteador por banco",
+    "Extrato Mensal Itaú importa movimentações por colunas de entradas, saídas e saldo com conferência dos totais oficiais"
   ]
 }

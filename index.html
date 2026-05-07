@@ -20,6 +20,7 @@
     <script src="/parser-safra-extrato.js"></script>
     <script src="/parser-bb-conta-atual.js"></script>
     <script src="/parser-bb-cash-ocr.js"></script>
+    <script src="/parser-itau-extrato-mensal.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -3249,6 +3250,10 @@
 	                '237': [{
 	                    nome: 'Bradesco Net Empresa - Extrato Mensal por Periodo',
 	                    parser: 'parsearPDF_Bradesco_NetEmpresa'
+	                }],
+	                '341': [{
+	                    nome: 'Itau - Extrato Mensal',
+	                    parser: 'parsearPDF_Itau_ExtratoMensal'
 	                }],
 	                '422': [{
 	                    nome: 'Safra - Extrato de Movimentacao',
