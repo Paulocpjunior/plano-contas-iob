@@ -153,6 +153,17 @@
             background: var(--bg);
             color: var(--text-muted);
         }
+        .btn-link {
+            background: transparent;
+            color: var(--accent);
+            padding: 10px 16px;
+            margin-top: 4px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .btn-link:hover {
+            background: var(--accent-glow);
+        }
         .error-msg {
             color: var(--danger);
             font-size: 13px;
@@ -162,6 +173,10 @@
             background: #fef2f2;
             border-radius: var(--radius-sm);
             display: none;
+        }
+        .error-msg.success {
+            color: #047857;
+            background: #ecfdf5;
         }
         
         /* App Container */
@@ -1360,6 +1375,7 @@
                     <input type="password" id="password" placeholder="Digite sua senha">
                 </div>
                 <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+                <button class="btn btn-link" onclick="resetPassword()">Esqueci minha senha</button>
                 <button class="btn btn-secondary" onclick="showRegister()">Criar nova conta</button>
                 <div class="error-msg" id="errorMsg"></div>
             </div>
@@ -3325,12 +3341,23 @@
         // Auth Functions
         function showError(id, msg) {
             const e = document.getElementById(id);
+            e.classList.remove('success');
+            e.textContent = msg;
+            e.style.display = 'block';
+        }
+
+        function showSuccess(id, msg) {
+            const e = document.getElementById(id);
+            e.classList.add('success');
             e.textContent = msg;
             e.style.display = 'block';
         }
         
         function hideError(id) {
-            document.getElementById(id).style.display = 'none';
+            const e = document.getElementById(id);
+            e.classList.remove('success');
+            e.style.display = 'none';
+            e.textContent = '';
         }
         
         function showRegister() {
@@ -3352,6 +3379,32 @@
                 return;
             }
             auth.signInWithEmailAndPassword(email, pass).catch(e => showError('errorMsg', e.message));
+        }
+
+        function resetPassword() {
+            const email = document.getElementById('email').value.trim();
+            hideError('errorMsg');
+            if (!email) {
+                showError('errorMsg', 'Informe o e-mail corporativo para receber o link de redefinicao.');
+                return;
+            }
+            if (!email.toLowerCase().endsWith(DOMAIN)) {
+                showError('errorMsg', 'Use e-mail ' + DOMAIN);
+                return;
+            }
+
+            auth.sendPasswordResetEmail(email, {
+                url: window.location.origin,
+                handleCodeInApp: false
+            }).then(() => {
+                showSuccess('errorMsg', 'Enviamos o link de redefinicao para ' + email + '. Verifique tambem o spam.');
+            }).catch(e => {
+                if (e && e.code === 'auth/user-not-found') {
+                    showError('errorMsg', 'Usuario nao encontrado. Verifique o e-mail ou solicite o cadastro.');
+                    return;
+                }
+                showError('errorMsg', e.message || 'Nao foi possivel enviar o e-mail de redefinicao.');
+            });
         }
         
         function doRegister() {

@@ -1,8 +1,8 @@
 {
-  "version": "3.1.30",
-  "build_date": "2026-05-07T19:05:00Z",
+  "version": "3.1.31",
+  "build_date": "2026-05-07T19:35:00Z",
   "release_notes": [
-    "Layout PDF do Banco Safra cadastrado no roteador por banco",
-    "Extratos Safra de movimentação passam a importar data, descrição, documento e valor pelo layout nativo"
+    "Tela de login passa a ter a opção Esqueci minha senha",
+    "Redefinição de senha envia link pelo Firebase Auth para o e-mail corporativo informado"
   ]
 }
