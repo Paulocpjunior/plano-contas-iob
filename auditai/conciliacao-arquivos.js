@@ -7,8 +7,8 @@
     result: null
   };
 
-  const MONEY_RE = /-?(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+\.\d{2}/g;
-  const DATE_RE = /\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b|\b(\d{4})-(\d{2})-(\d{2})\b/;
+  const MONEY_RE = /-?(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2}-?|-?\d+\.\d{2}/g;
+  const DATE_RE = /\b(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?\b|\b(\d{4})-(\d{2})-(\d{2})\b/;
 
   function loadScript(src) {
     return new Promise(function (resolve, reject) {
@@ -48,17 +48,17 @@
     if (typeof value === 'number' && Number.isFinite(value)) return Number(value.toFixed(2));
     let raw = String(value).trim();
     if (!raw) return null;
-    const negative = /^\(.*\)$/.test(raw) || /^-/.test(raw);
+    const negative = /^\(.*\)$/.test(raw) || /^-/.test(raw) || /-$/.test(raw);
     raw = raw.replace(/[^\d,.-]/g, '');
     if (!raw) return null;
     if (raw.includes(',') && raw.includes('.')) raw = raw.replace(/\./g, '').replace(',', '.');
     else if (raw.includes(',')) raw = raw.replace(',', '.');
-    const number = Number(raw.replace(/[()]/g, ''));
+    const number = Number(raw.replace(/[()\-]/g, ''));
     if (!Number.isFinite(number)) return null;
     return Number((negative ? -Math.abs(number) : number).toFixed(2));
   }
 
-  function parseDate(value) {
+  function parseDate(value, defaultYear) {
     if (!value && value !== 0) return '';
     if (value instanceof Date && !isNaN(value)) return value.toISOString().slice(0, 10);
     if (typeof value === 'number' && value > 20000 && window.XLSX) {
@@ -71,7 +71,8 @@
     if (m[4]) return [m[4], m[5], m[6]].join('-');
     const day = String(m[1]).padStart(2, '0');
     const month = String(m[2]).padStart(2, '0');
-    const year = String(m[3]).length === 2 ? '20' + m[3] : m[3];
+    if (!m[3] && !defaultYear) return '';
+    const year = !m[3] ? String(defaultYear) : (String(m[3]).length === 2 ? '20' + m[3] : m[3]);
     return [year, month, day].join('-');
   }
 
@@ -111,22 +112,64 @@
     return { date: best('date').index, amount: best('money').index, desc: best('desc').index };
   }
 
+  function headerName(value) {
+    return normalizeText(value).replace(/\s+/g, ' ').trim();
+  }
+
+  function findHeaderRow(rows) {
+    let bestIndex = 0;
+    let bestScore = -1;
+    rows.slice(0, 25).forEach(function (row, index) {
+      const text = row.map(headerName).join(' ');
+      let score = 0;
+      if (/DATA|DT/.test(text)) score += 2;
+      if (/DESCRICAO|HISTORICO|FAVORECIDO|CLIENTE|FORNECEDOR/.test(text)) score += 2;
+      if (/ENTRADAS|CREDITOS|CREDITO/.test(text)) score += 2;
+      if (/SAIDAS|DEBITOS|DEBITO/.test(text)) score += 2;
+      if (/VALOR|MOVIMENTO|PAGO|TOTAL/.test(text)) score += 1;
+      if (score > bestScore) { bestScore = score; bestIndex = index; }
+    });
+    return bestIndex;
+  }
+
+  function findHeaderIndex(headers, patterns) {
+    for (let i = 0; i < headers.length; i++) {
+      const name = headerName(headers[i]);
+      if (patterns.some(function (re) { return re.test(name); })) return i;
+    }
+    return -1;
+  }
+
   function rowsFromSheet(sheet) {
     const matrix = window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, blankrows: false });
     const rows = matrix.filter(function (r) { return r.some(function (v) { return String(v || '').trim() !== ''; }); });
     if (!rows.length) return [];
-    const cols = classifyColumns(rows);
-    return rows.slice(1).map(function (r, i) {
+    const headerRow = findHeaderRow(rows);
+    const headers = rows[headerRow] || [];
+    const cols = classifyColumns(rows.slice(headerRow));
+    const dateCol = findHeaderIndex(headers, [/^DATA$/, /^DT\b/, /DATA/]);
+    const docCol = findHeaderIndex(headers, [/^DOC/, /DOCUMENTO/]);
+    const descCol = findHeaderIndex(headers, [/DESCRICAO/, /HISTORICO/, /CLIENTE/, /FORNECEDOR/, /FAVORECIDO/, /NOME/]);
+    const creditCol = findHeaderIndex(headers, [/ENTRADAS?/, /CREDITOS?/, /CREDITO/]);
+    const debitCol = findHeaderIndex(headers, [/SAIDAS?/, /DEBITOS?/, /DEBITO/]);
+    return rows.slice(headerRow + 1).map(function (r, i) {
       const joined = r.join(' ');
-      const amount = parseMoney(r[cols.amount]);
+      let amount = null;
+      const credit = creditCol >= 0 ? parseMoney(r[creditCol]) : null;
+      const debit = debitCol >= 0 ? parseMoney(r[debitCol]) : null;
+      if (credit !== null && Math.abs(credit) > 0) amount = Math.abs(credit);
+      else if (debit !== null && Math.abs(debit) > 0) amount = -Math.abs(debit);
+      else amount = parseMoney(r[cols.amount]);
+      const doc = docCol >= 0 ? String(r[docCol] || '').trim() : '';
+      const desc = descCol >= 0 ? String(r[descCol] || '').trim() : (r[cols.desc] || joined);
       return buildRow({
-        sourceLine: i + 2,
-        date: parseDate(r[cols.date]) || parseDate(joined),
-        description: r[cols.desc] || joined,
+        sourceLine: headerRow + i + 2,
+        date: parseDate(r[dateCol >= 0 ? dateCol : cols.date]) || parseDate(joined),
+        description: (doc && desc ? doc + ' - ' + desc : (desc || doc || joined)),
         amount: amount,
         raw: joined
       });
-    }).filter(function (r) { return r.amount !== null && r.description; });
+    }).filter(function (r) { return r.amount !== null && Math.abs(r.amount) > 0 && r.description; });
   }
 
   function rowsFromText(text) {
@@ -144,6 +187,105 @@
         raw: line
       });
     }).filter(Boolean);
+  }
+
+  function extractStatementYear(text) {
+    const months = {
+      janeiro: '01', fevereiro: '02', marco: '03', março: '03', abril: '04',
+      maio: '05', junho: '06', julho: '07', agosto: '08', setembro: '09',
+      outubro: '10', novembro: '11', dezembro: '12'
+    };
+    const normalized = String(text || '').toLowerCase();
+    const m = normalized.match(/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\/(\d{4})/);
+    if (m) return { month: months[m[1].replace('ç', 'c')] || months[m[1]], year: m[2] };
+    const m2 = normalized.match(/\b(\d{1,2})\/(\d{4})\b/);
+    if (m2) return { month: String(m2[1]).padStart(2, '0'), year: m2[2] };
+    return { month: '', year: String(new Date().getFullYear()) };
+  }
+
+  function isMoneyToken(text) {
+    return /^-?(?:R\$\s*)?[\d.]+,\d{2}-?$/.test(String(text || '').trim()) || /^-?\d+\.\d{2}$/.test(String(text || '').trim());
+  }
+
+  function parseSantanderLines(lines, allText) {
+    if (!/EXTRATO CONSOLIDADO|SANTANDER|Conta Corrente/i.test(allText) || !/Movimenta[cç][aã]o/i.test(allText)) return [];
+    const period = extractStatementYear(allText);
+    const rows = [];
+    let currentDate = '';
+    let pending = null;
+    let inStatement = false;
+
+    function cleanDescription(text) {
+      return String(text || '')
+        .replace(/^\d{2}\/\d{2}\s+/, '')
+        .replace(/\b\d{4}\/\d{6,}\b/g, '')
+        .replace(/\s+-\s*$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function pushRow(date, desc, amount, raw, sourceLine) {
+      if (!date || !desc || amount === null || Math.abs(amount) === 0) return;
+      if (/^(SALDO|TOTAL|Cr[eé]ditos|D[eé]bitos|Data Descri|Pagina:|Extrato_)/i.test(desc)) return;
+      rows.push(buildRow({ sourceLine: sourceLine, date: date, description: desc, amount: amount, raw: raw }));
+    }
+
+    lines.forEach(function (line, index) {
+      const text = line.text;
+      if (/^SALDO EM \d{2}\/\d{2}/i.test(text)) inStatement = true;
+      if (!inStatement) return;
+      if (/^(Investimentos|Posi[cç][aã]o Consolidada|Pacote de Servi[cç]os|Programa de Relacionamento|[ÍI]ndices Econ[oô]micos|Cuidado com o Golpe)/i.test(text)) {
+        inStatement = false;
+        pending = null;
+        return;
+      }
+      if (!text || /^(Data\s+Descri|Cr[eé]ditos|D[eé]bitos|EXTRATO CONSOLIDADO|fevereiro\/|Pagina:|Extrato_)/i.test(text)) return;
+      if (/^SALDO EM \d{2}\/\d{2}/i.test(text)) {
+        if (!rows.length) return;
+        inStatement = false;
+        pending = null;
+        return;
+      }
+
+      const dateMatch = text.match(/^(\d{2})\/(\d{2})\b/);
+      if (dateMatch) currentDate = period.year + '-' + dateMatch[2] + '-' + dateMatch[1];
+
+      const descItems = line.items.filter(function (item) {
+        return item.x >= 55 && item.x < 330 && !isMoneyToken(item.s) && String(item.s || '').trim() !== '-';
+      });
+      let desc = descItems.length ? cleanDescription(descItems.map(function (item) { return item.s; }).join(' ')) : '';
+      if (/^\d{4}\/\d{6,}$/.test(desc) || /^-?$/.test(desc)) desc = '';
+
+      const movementItems = line.items.filter(function (item) {
+        return item.x >= 340 && item.x < 500 && isMoneyToken(item.s);
+      });
+
+      if (movementItems.length) {
+        let chosen = null;
+        movementItems.forEach(function (item) {
+          const cents = parseMoney(item.s);
+          if (cents !== null && Math.abs(cents) > 0 && !chosen) chosen = item;
+        });
+        if (chosen) {
+          let amount = Math.abs(parseMoney(chosen.s) || 0);
+          const rawToken = String(chosen.s || '').trim();
+          if (chosen.x >= 410 || /-$/.test(rawToken) || /^-/.test(rawToken)) amount = -amount;
+          const finalDesc = desc || (pending && pending.desc) || '';
+          const finalDate = currentDate || (pending && pending.date) || '';
+          pushRow(finalDate, finalDesc, amount, text, index + 1);
+          pending = null;
+          return;
+        }
+        if (desc && currentDate) pending = { date: currentDate, desc: desc };
+        return;
+      }
+
+      if (desc && currentDate && !/^(INTERNET|PERIODO:|BALP_)/i.test(desc)) {
+        pending = { date: currentDate, desc: desc };
+      }
+    });
+
+    return rows;
   }
 
   function buildRow(input) {
@@ -166,20 +308,22 @@
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
-      let lastY = null;
-      let line = [];
+      const byY = {};
       content.items.forEach(function (item) {
         const y = Math.round(item.transform[5]);
-        if (lastY !== null && Math.abs(y - lastY) > 3) {
-          if (line.length) lines.push(line.join(' '));
-          line = [];
-        }
-        line.push(item.str);
-        lastY = y;
+        if (!byY[y]) byY[y] = [];
+        byY[y].push({ x: Math.round(item.transform[4]), s: item.str });
       });
-      if (line.length) lines.push(line.join(' '));
+      Object.keys(byY).map(Number).sort(function (a, b) { return b - a; }).forEach(function (y) {
+        const items = byY[y].sort(function (a, b) { return a.x - b.x; });
+        const text = items.map(function (item) { return item.s; }).join(' ').replace(/\s+/g, ' ').trim();
+        if (text) lines.push({ page: p, y: y, items: items, text: text });
+      });
     }
-    return rowsFromText(lines.join('\n'));
+    const allText = lines.map(function (line) { return line.text; }).join('\n');
+    const santander = parseSantanderLines(lines, allText);
+    if (santander.length) return santander;
+    return rowsFromText(allText);
   }
 
   async function parseFile(file) {

@@ -1,8 +1,8 @@
 {
-  "version": "3.1.26",
-  "build_date": "2026-05-07T12:00:00Z",
+  "version": "3.1.27",
+  "build_date": "2026-05-07T14:40:00Z",
   "release_notes": [
-    "Busca de CNPJ consulta primeiro o banco de dados interno antes da Receita Federal",
-    "Empresas já cadastradas não ficam bloqueadas quando a Receita/BrasilAPI não retorna o CNPJ"
+    "Módulo de Conciliação passa a ler corretamente XLSX com colunas separadas de Entradas e Saídas",
+    "Parser Santander PDF agora preserva datas do mês e valores por coluna, evitando datas em branco e saldos como lançamentos"
   ]
 }
