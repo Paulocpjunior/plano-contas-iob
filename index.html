@@ -19,6 +19,7 @@
     <script src="/parser-bradesco-netempresa.js"></script>
     <script src="/parser-safra-extrato.js"></script>
     <script src="/parser-bb-conta-atual.js"></script>
+    <script src="/parser-bb-cash-ocr.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -3241,6 +3242,9 @@
 	                '001': [{
 	                    nome: 'Banco do Brasil - Conta Atual',
 	                    parser: 'parsearPDF_BB_ContaAtual'
+	                }, {
+	                    nome: 'Banco do Brasil - BB Cash OCR',
+	                    parser: 'parsearPDF_BB_CashOCR'
 	                }],
 	                '237': [{
 	                    nome: 'Bradesco Net Empresa - Extrato Mensal por Periodo',
