@@ -1,8 +1,8 @@
 {
-  "version": "3.1.28",
-  "build_date": "2026-05-07T17:55:00Z",
+  "version": "3.1.29",
+  "build_date": "2026-05-07T18:20:00Z",
   "release_notes": [
-    "Parser nativo Bradesco Net Empresa adicionado para extrato mensal por período",
-    "Importação Bradesco passa a conferir créditos e débitos contra o Total oficial do PDF antes de gravar"
+    "Importação de PDF passa a usar o layout cadastrado pelo banco selecionado",
+    "Quando o banco não tem layout cadastrado ou o arquivo não corresponde ao layout, a importação é bloqueada em vez de cair na IA"
   ]
 }

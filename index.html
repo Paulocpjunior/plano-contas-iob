@@ -3192,10 +3192,10 @@
         }
         
         // Compat: aceita codigo COMPE (novo) OU nome legado (Bradesco, Itau, etc.)
-        function resolverBancoLegado(valor) {
-            if (!valor) return '';
-            if (BANCOS_BACEN.find(b => b.code === valor)) return valor;
-            const v = valor.toString().toLowerCase().trim();
+	        function resolverBancoLegado(valor) {
+	            if (!valor) return '';
+	            if (BANCOS_BACEN.find(b => b.code === valor)) return valor;
+	            const v = valor.toString().toLowerCase().trim();
             const mapa = {
                 'banco do brasil': '001',
                 'bradesco': '237',
@@ -3214,9 +3214,29 @@
                 'safra': '422'
             };
             if (mapa[v]) return mapa[v];
-            const match = BANCOS_BACEN.find(b => b.name.toLowerCase().includes(v) || v.includes(b.name.toLowerCase()));
-            return match ? match.code : '';
-        }
+	            const match = BANCOS_BACEN.find(b => b.name.toLowerCase().includes(v) || v.includes(b.name.toLowerCase()));
+	            return match ? match.code : '';
+	        }
+
+	        function layoutsPDFCadastradosPorBanco(bancoCode) {
+	            const code = resolverBancoLegado(bancoCode) || bancoCode || '';
+	            const layouts = {
+	                '001': [{
+	                    nome: 'Banco do Brasil - Conta Atual',
+	                    parser: 'parsearPDF_BB_ContaAtual'
+	                }],
+	                '237': [{
+	                    nome: 'Bradesco Net Empresa - Extrato Mensal por Periodo',
+	                    parser: 'parsearPDF_Bradesco_NetEmpresa'
+	                }]
+	            };
+	            return layouts[code] || [];
+	        }
+
+	        function nomeLayoutsPDFBanco(bancoCode) {
+	            const layouts = layoutsPDFCadastradosPorBanco(bancoCode);
+	            return layouts.map(l => l.nome).join(', ');
+	        }
         
         function popularFiltroImportacoes() {
             const sel = document.getElementById('filterImportacao');
@@ -5156,8 +5176,8 @@
             
             try {
                 let entries = [];
-                if (ext === 'pdf') {
-                    entries = await processPDF(selectedFile);
+	                if (ext === 'pdf') {
+	                    entries = await processPDF(selectedFile, bancoCode);
                 } else if (ext === 'ofx') {
                     entries = parseOFX(await lerArquivoTexto(selectedFile, 'windows-1252'));
                 } else if (ext === 'xlsx' || ext === 'xls') {
@@ -5266,11 +5286,97 @@
             showToast(`${entries.length} transações importadas com sucesso!`, 'success');
         }
         
-        // PDF Processing
-        async function processPDF(f) {
-            try {
-                const buf = await f.arrayBuffer();
-                // [BRADESCO] Parser nativo para Extrato Mensal / Por Periodo.
+	        function enriquecerResultadoParserBanco(resultado, bancoCode, fallbackBanco, fallbackConta, fallbackNome, arquivoNome) {
+	            const bancoPDF = fallbackBanco || nomeBanco(bancoCode) || bancoCode || '';
+	            const contaPDF = fallbackConta || '';
+	            const nomeContaPDF = fallbackNome || '';
+	            if (bancoPDF && state.info) {
+	                state.info.banco_pdf = bancoPDF;
+	                state.info.conta_pdf = contaPDF;
+	                state.info.nome_conta_pdf = nomeContaPDF;
+	                state.info.banco = bancoPDF;
+	                saveState();
+	                try { updateCompanyBar(); } catch(e) {}
+	            }
+	            const lancsEnriquecidos = resultado.lancamentos.map(l => ({
+	                ...l,
+	                banco: bancoPDF,
+	                conta: contaPDF,
+	                nome_conta: nomeContaPDF,
+	                periodo_inicio: (state.info && state.info.periodoInicio) || '',
+	                periodo_fim: (state.info && state.info.periodoFim) || ''
+	            }));
+	            const cnpjA3 = (state.info && state.info.cnpj || '').replace(/\D/g,'');
+	            const pIni = state.info && state.info.periodoInicio || '';
+	            const pFim = state.info && state.info.periodoFim || '';
+	            const fp = window.gerarFingerprintImportacao(cnpjA3, bancoPDF, contaPDF, pIni, pFim);
+	            lancsEnriquecidos.forEach(l => { l._fingerprint_imp = fp; l._acao_dup = 'novo'; });
+	            try {
+	                if (cnpjA3 && window.API && window.API.importacoesGravar) {
+	                    window.API.importacoesGravar(cnpjA3, {
+	                        fingerprint: fp, banco: bancoPDF, conta: contaPDF, nome_conta: nomeContaPDF,
+	                        periodo_inicio: pIni, periodo_fim: pFim,
+	                        total_lancamentos: lancsEnriquecidos.length,
+	                        arquivo_exemplo: arquivoNome
+	                    }).catch(e => console.warn('[layout banco] gravar importacao:', e.message));
+	                }
+	            } catch(e) { console.warn('[layout banco] gravar importacao:', e.message); }
+	            return lancsEnriquecidos;
+	        }
+
+	        async function processPDFComLayoutDoBanco(buf, bancoCode, arquivoNome) {
+	            const layouts = layoutsPDFCadastradosPorBanco(bancoCode);
+	            if (!layouts.length) {
+	                throw new Error('Nao existe layout PDF cadastrado para o banco selecionado (' + (bancoCode || '-') + ' — ' + nomeBanco(bancoCode) + '). Cadastre o layout antes de importar.');
+	            }
+	            const erros = [];
+	            for (const layout of layouts) {
+	                const fn = window[layout.parser];
+	                if (typeof fn !== 'function') {
+	                    erros.push(layout.nome + ': parser nao carregado');
+	                    continue;
+	                }
+	                try {
+	                    const resultado = await fn(buf.slice(0));
+	                    if (!resultado || !resultado.detectado || !resultado.lancamentos || !resultado.lancamentos.length) {
+	                        erros.push(layout.nome + ': layout nao reconhecido neste arquivo');
+	                        continue;
+	                    }
+	                    const lancs = enriquecerResultadoParserBanco(
+	                        resultado,
+	                        bancoCode,
+	                        resultado.banco_detectado || nomeBanco(bancoCode),
+	                        resultado.conta_detectada || '',
+	                        resultado.nome_conta_detectado || '',
+	                        arquivoNome
+	                    );
+	                    const cred = lancs.filter(l => l.valor > 0).reduce((a,l) => a + l.valor, 0);
+	                    const deb = lancs.filter(l => l.valor < 0).reduce((a,l) => a + Math.abs(l.valor), 0);
+	                    if (resultado.total_credito && Math.abs(Math.round(cred * 100) - Math.round(resultado.total_credito * 100)) > 1) {
+	                        throw new Error('total de credito divergente do total oficial');
+	                    }
+	                    if (resultado.total_debito && Math.abs(Math.round(deb * 100) - Math.round(resultado.total_debito * 100)) > 1) {
+	                        throw new Error('total de debito divergente do total oficial');
+	                    }
+	                    showToast('✅ Layout do banco aplicado: ' + layout.nome + ' • ' + lancs.length + ' lançamentos', 'success');
+	                    return lancs;
+	                } catch (e) {
+	                    erros.push(layout.nome + ': ' + (e.message || e));
+	                }
+	            }
+	            throw new Error('O arquivo nao corresponde ao layout cadastrado para ' + nomeBanco(bancoCode) + '. ' + erros.join(' | '));
+	        }
+
+	        // PDF Processing
+	        async function processPDF(f, bancoCode) {
+	            const bancoResolvido = resolverBancoLegado(bancoCode) || bancoCode || '';
+	            const usarLayoutBanco = !!bancoResolvido;
+	            let buf = null;
+	            try {
+	                buf = await f.arrayBuffer();
+	                return await processPDFComLayoutDoBanco(buf, bancoResolvido, f.name);
+
+	                // [BRADESCO] Parser nativo para Extrato Mensal / Por Periodo.
                 try {
                     if (window.parsearPDF_Bradesco_NetEmpresa) {
                         const rBradesco = await window.parsearPDF_Bradesco_NetEmpresa(buf.slice(0));
@@ -5460,9 +5566,10 @@
                     showToast('✅ Layout reconhecido: ' + lancsEnriquecidos.length + ' lançamentos' + infoConta + (acaoDup==='substituir'?' [substituidos]':acaoDup==='adicionar'?' [adicionados]':''), 'success');
                     return lancsEnriquecidos;
                 }
-            } catch (e) {
-                console.warn('[processPDF] parser nativo falhou, caindo no Gemini:', e.message);
-            }
+	            } catch (e) {
+	                if (usarLayoutBanco) throw e;
+	                console.warn('[processPDF] parser nativo falhou, caindo no Gemini:', e.message);
+	            }
 
             let conferenciaTotaisPDF = null;
             try {
