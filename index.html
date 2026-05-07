@@ -1324,6 +1324,100 @@
         }
         .toast-success { background: linear-gradient(135deg, var(--success), #059669); }
         .toast-error { background: linear-gradient(135deg, var(--danger), #dc2626); }
+        .confirm-import-overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.72);
+            z-index: 12000;
+            padding: 20px;
+        }
+        .confirm-import-overlay.show { display: flex; }
+        .confirm-import-card {
+            width: min(760px, 100%);
+            max-height: 92vh;
+            overflow: auto;
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.36);
+            padding: 24px;
+        }
+        .confirm-import-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        .confirm-import-head h3 {
+            margin: 0 0 4px;
+            color: var(--text);
+            font-size: 20px;
+        }
+        .confirm-import-head p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        .confirm-import-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .confirm-import-metric {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            background: #f8fafc;
+        }
+        .confirm-import-metric .label {
+            display: block;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 6px;
+        }
+        .confirm-import-metric .value {
+            color: var(--text);
+            font-size: 17px;
+            font-weight: 800;
+            word-break: break-word;
+        }
+        .confirm-import-metric.credit .value { color: var(--success); }
+        .confirm-import-metric.debit .value { color: var(--danger); }
+        .confirm-import-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        .confirm-import-table th,
+        .confirm-import-table td {
+            padding: 9px 10px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+        }
+        .confirm-import-table th {
+            color: var(--text-muted);
+            background: #f8fafc;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .confirm-import-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 18px;
+        }
+        @media (max-width: 768px) {
+            .confirm-import-grid { grid-template-columns: 1fr; }
+            .confirm-import-actions { flex-direction: column-reverse; }
+        }
         @keyframes slideIn {
             from { transform: translateX(120%); }
             to { transform: translateX(0); }
@@ -2150,6 +2244,74 @@
     
     <!-- Toast -->
     <div id="toast" class="toast hidden"></div>
+
+    <!-- Import Confirmation -->
+    <div class="confirm-import-overlay" id="confirmImportOverlay">
+        <div class="confirm-import-card">
+            <div class="confirm-import-head">
+                <div>
+                    <h3>Conferir importação</h3>
+                    <p>Revise os dados extraídos antes de gravar os lançamentos.</p>
+                </div>
+                <button class="btn-remove" onclick="responderConferenciaImportacao(false)">✕</button>
+            </div>
+            <div class="confirm-import-grid">
+                <div class="confirm-import-metric">
+                    <span class="label">Arquivo</span>
+                    <span class="value" id="confImpArquivo">-</span>
+                </div>
+                <div class="confirm-import-metric">
+                    <span class="label">Banco</span>
+                    <span class="value" id="confImpBanco">-</span>
+                </div>
+                <div class="confirm-import-metric">
+                    <span class="label">Layout</span>
+                    <span class="value" id="confImpLayout">-</span>
+                </div>
+                <div class="confirm-import-metric">
+                    <span class="label">Conta detectada</span>
+                    <span class="value" id="confImpConta">-</span>
+                </div>
+                <div class="confirm-import-metric">
+                    <span class="label">Período</span>
+                    <span class="value" id="confImpPeriodo">-</span>
+                </div>
+                <div class="confirm-import-metric">
+                    <span class="label">Lançamentos</span>
+                    <span class="value" id="confImpQtd">0</span>
+                </div>
+                <div class="confirm-import-metric credit">
+                    <span class="label">Total crédito</span>
+                    <span class="value" id="confImpCredito">R$ 0,00</span>
+                </div>
+                <div class="confirm-import-metric debit">
+                    <span class="label">Total débito</span>
+                    <span class="value" id="confImpDebito">R$ 0,00</span>
+                </div>
+                <div class="confirm-import-metric">
+                    <span class="label">Status</span>
+                    <span class="value" id="confImpStatus">Pronto</span>
+                </div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px">
+                <div style="font-size:11px;color:var(--text-muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Prévia dos lançamentos</div>
+                <table class="confirm-import-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Descrição</th>
+                            <th style="text-align:right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="confImpPreview"></tbody>
+                </table>
+            </div>
+            <div class="confirm-import-actions">
+                <button class="btn btn-secondary" onclick="responderConferenciaImportacao(false)">Cancelar</button>
+                <button class="btn btn-primary" onclick="responderConferenciaImportacao(true)">Confirmar importação</button>
+            </div>
+        </div>
+    </div>
     
     <!-- Version Info -->
     <div class="version-info">📊 <strong>v2.2.0</strong> • 2025.04</div>
@@ -3355,7 +3517,7 @@
             e.style.display = 'block';
         }
 
-        function showSuccess(id, msg) {
+        function showAuthSuccess(id, msg) {
             const e = document.getElementById(id);
             e.classList.add('success');
             e.textContent = msg;
@@ -3406,7 +3568,7 @@
                 url: window.location.origin,
                 handleCodeInApp: false
             }).then(() => {
-                showSuccess('errorMsg', 'Enviamos o link de redefinicao para ' + email + '. Verifique tambem o spam.');
+                showAuthSuccess('errorMsg', 'Enviamos o link de redefinicao para ' + email + '. Verifique tambem o spam.');
             }).catch(e => {
                 if (e && e.code === 'auth/user-not-found') {
                     showError('errorMsg', 'Usuario nao encontrado. Verifique o e-mail ou solicite o cadastro.');
@@ -5284,12 +5446,24 @@
                     }
                 } catch (eMem) { console.warn('[Fase 5a] Falha ao aplicar memoria:', eMem); }
 
+                hideProcessing();
+                const confirmado = await abrirConferenciaImportacao(entries, {
+                    arquivo: selectedFile.name,
+                    bancoCode,
+                    bancoNome,
+                    titulo,
+                    formato: ext.toUpperCase()
+                });
+                if (!confirmado) {
+                    showToast('Importacao cancelada. Nenhum lancamento foi gravado.', 'error');
+                    return;
+                }
+
                 // Save
                 state.entries = state.entries.concat(entries);
                 state.lastFile = selectedFile.name;
                 saveState();
                 
-                hideProcessing();
                 showSuccess(entries);
                 updateDashboard();
                 updateCharts();
@@ -5304,6 +5478,91 @@
                 showToast(e.message, 'error');
                 removeFile();
             }
+        }
+
+        function escaparHtmlImportacao(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, function(ch) {
+                return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+            });
+        }
+
+        function formatarDataBR(iso) {
+            const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (iso || '-');
+        }
+
+        function moedaComSinal(valor) {
+            const v = Number(valor || 0);
+            const sinal = v > 0 ? '+' : (v < 0 ? '-' : '');
+            return sinal + 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function resumirImportacao(entries, meta) {
+            const creditos = entries.filter(e => Number(e.valor) > 0);
+            const debitos = entries.filter(e => Number(e.valor) < 0);
+            const totalCredito = creditos.reduce((a,e) => a + Number(e.valor || 0), 0);
+            const totalDebito = debitos.reduce((a,e) => a + Math.abs(Number(e.valor || 0)), 0);
+            const datas = entries.map(e => e.data).filter(Boolean).sort();
+            const primeiro = entries[0] || {};
+            const periodoIni = primeiro.periodo_inicio || (state.info && state.info.periodoInicio) || datas[0] || '';
+            const periodoFim = primeiro.periodo_fim || (state.info && state.info.periodoFim) || datas[datas.length - 1] || '';
+            const totalCreditoOficial = Number(primeiro.totalCreditoOficial || 0);
+            const totalDebitoOficial = Number(primeiro.totalDebitoOficial || 0);
+            const status = [];
+            if (primeiro.layoutNome) status.push('Layout validado');
+            if (totalCreditoOficial) status.push(Math.round(totalCredito * 100) === Math.round(totalCreditoOficial * 100) ? 'Credito confere' : 'Credito divergente');
+            if (totalDebitoOficial) status.push(Math.round(totalDebito * 100) === Math.round(totalDebitoOficial * 100) ? 'Debito confere' : 'Debito divergente');
+            if (!status.length) status.push(meta.formato + ' processado');
+            return {
+                arquivo: meta.arquivo,
+                banco: (meta.bancoCode ? meta.bancoCode + ' — ' : '') + (meta.bancoNome || nomeBanco(meta.bancoCode) || '-'),
+                layout: primeiro.layoutNome || (meta.formato || 'Arquivo'),
+                conta: primeiro.conta || primeiro.nome_conta || '-',
+                periodo: (periodoIni || periodoFim) ? (formatarDataBR(periodoIni) + ' a ' + formatarDataBR(periodoFim)) : '-',
+                qtd: entries.length,
+                totalCredito,
+                totalDebito,
+                status: status.join(' • ')
+            };
+        }
+
+        let resolverConferenciaImportacao = null;
+        function responderConferenciaImportacao(ok) {
+            const overlay = document.getElementById('confirmImportOverlay');
+            if (overlay) overlay.classList.remove('show');
+            if (resolverConferenciaImportacao) {
+                const resolve = resolverConferenciaImportacao;
+                resolverConferenciaImportacao = null;
+                resolve(!!ok);
+            }
+        }
+
+        function abrirConferenciaImportacao(entries, meta) {
+            const overlay = document.getElementById('confirmImportOverlay');
+            if (!overlay) return Promise.resolve(true);
+            const resumo = resumirImportacao(entries, meta);
+            document.getElementById('confImpArquivo').textContent = resumo.arquivo || '-';
+            document.getElementById('confImpBanco').textContent = resumo.banco || '-';
+            document.getElementById('confImpLayout').textContent = resumo.layout || '-';
+            document.getElementById('confImpConta').textContent = resumo.conta || '-';
+            document.getElementById('confImpPeriodo').textContent = resumo.periodo || '-';
+            document.getElementById('confImpQtd').textContent = String(resumo.qtd || 0);
+            document.getElementById('confImpCredito').textContent = formatarMoedaBR(resumo.totalCredito);
+            document.getElementById('confImpDebito').textContent = formatarMoedaBR(resumo.totalDebito);
+            document.getElementById('confImpStatus').textContent = resumo.status || '-';
+            const preview = entries.slice(0, 8).map(function(e) {
+                const cor = Number(e.valor || 0) >= 0 ? '#059669' : '#dc2626';
+                return '<tr>' +
+                    '<td style="font-family:monospace">' + escaparHtmlImportacao(formatarDataBR(e.data)) + '</td>' +
+                    '<td>' + escaparHtmlImportacao(String(e.descricao || '').slice(0, 90)) + '</td>' +
+                    '<td style="text-align:right;font-family:monospace;color:' + cor + ';font-weight:700">' + escaparHtmlImportacao(moedaComSinal(e.valor)) + '</td>' +
+                    '</tr>';
+            }).join('');
+            document.getElementById('confImpPreview').innerHTML = preview || '<tr><td colspan="3">Sem lancamentos para exibir</td></tr>';
+            overlay.classList.add('show');
+            return new Promise(function(resolve) {
+                resolverConferenciaImportacao = resolve;
+            });
         }
         
         function showProcessing() {
@@ -5403,11 +5662,11 @@
 	                    erros.push(layout.nome + ': parser nao carregado');
 	                    continue;
 	                }
-	                try {
-	                    const resultado = await fn(buf.slice(0));
-	                    if (!resultado || !resultado.detectado || !resultado.lancamentos || !resultado.lancamentos.length) {
-	                        erros.push(layout.nome + ': layout nao reconhecido neste arquivo');
-	                        continue;
+                try {
+                    const resultado = await fn(buf.slice(0));
+                    if (!resultado || !resultado.detectado || !resultado.lancamentos || !resultado.lancamentos.length) {
+                        erros.push(layout.nome + ': layout nao reconhecido neste arquivo');
+                        continue;
 	                    }
 	                    const lancs = enriquecerResultadoParserBanco(
 	                        resultado,
@@ -5422,12 +5681,21 @@
 	                    if (resultado.total_credito && Math.abs(Math.round(cred * 100) - Math.round(resultado.total_credito * 100)) > 1) {
 	                        throw new Error('total de credito divergente do total oficial');
 	                    }
-	                    if (resultado.total_debito && Math.abs(Math.round(deb * 100) - Math.round(resultado.total_debito * 100)) > 1) {
-	                        throw new Error('total de debito divergente do total oficial');
-	                    }
-	                    showToast('✅ Layout do banco aplicado: ' + layout.nome + ' • ' + lancs.length + ' lançamentos', 'success');
-	                    return lancs;
-	                } catch (e) {
+                    if (resultado.total_debito && Math.abs(Math.round(deb * 100) - Math.round(resultado.total_debito * 100)) > 1) {
+                        throw new Error('total de debito divergente do total oficial');
+                    }
+                    lancs.forEach(function(l) {
+                        l.layoutNome = layout.nome;
+                        l.layoutParser = layout.parser;
+                        l.bancoSelecionado = bancoCode;
+                        l.totalCreditoOficial = resultado.total_credito || 0;
+                        l.totalDebitoOficial = resultado.total_debito || 0;
+                        l.periodo_inicio = resultado.periodo_inicio || l.periodo_inicio || '';
+                        l.periodo_fim = resultado.periodo_fim || l.periodo_fim || '';
+                    });
+                    showToast('✅ Layout do banco aplicado: ' + layout.nome + ' • ' + lancs.length + ' lançamentos', 'success');
+                    return lancs;
+                } catch (e) {
 	                    erros.push(layout.nome + ': ' + (e.message || e));
 	                }
 	            }

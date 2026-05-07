@@ -1,8 +1,9 @@
 {
-  "version": "3.1.33",
-  "build_date": "2026-05-07T20:25:00Z",
+  "version": "3.1.34",
+  "build_date": "2026-05-07T20:45:00Z",
   "release_notes": [
-    "Banco Itaú passa a ter layout PDF cadastrado no roteador por banco",
-    "Extrato Mensal Itaú importa movimentações por colunas de entradas, saídas e saldo com conferência dos totais oficiais"
+    "Importações passam por uma conferência visual antes de gravar lançamentos",
+    "Modal mostra arquivo, banco, layout aplicado, conta, período, totais de crédito/débito e prévia dos lançamentos",
+    "Correção do retorno visual do fluxo Esqueci minha senha na tela de login"
   ]
 }
