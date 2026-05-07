@@ -16,6 +16,7 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
+    <script src="/parser-bradesco-netempresa.js"></script>
     <script src="/parser-bb-conta-atual.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -5269,6 +5270,58 @@
         async function processPDF(f) {
             try {
                 const buf = await f.arrayBuffer();
+                // [BRADESCO] Parser nativo para Extrato Mensal / Por Periodo.
+                try {
+                    if (window.parsearPDF_Bradesco_NetEmpresa) {
+                        const rBradesco = await window.parsearPDF_Bradesco_NetEmpresa(buf.slice(0));
+                        if (rBradesco.detectado && rBradesco.lancamentos.length > 0) {
+                            console.log('[processPDF] Layout Bradesco Net Empresa detectado — ' + rBradesco.lancamentos.length + ' lancamentos');
+                            const bancoPDF = rBradesco.banco_detectado || 'BRADESCO';
+                            const contaPDF = rBradesco.conta_detectada || '';
+                            const nomeContaPDF = rBradesco.nome_conta_detectado || '';
+                            if (bancoPDF && state.info) {
+                                state.info.banco_pdf = bancoPDF;
+                                state.info.conta_pdf = contaPDF;
+                                state.info.nome_conta_pdf = nomeContaPDF;
+                                state.info.banco = bancoPDF;
+                                saveState();
+                                try { updateCompanyBar(); } catch(e) {}
+                            }
+                            const lancsEnriquecidos = rBradesco.lancamentos.map(l => ({
+                                ...l,
+                                banco: bancoPDF, conta: contaPDF, nome_conta: nomeContaPDF,
+                                periodo_inicio: (state.info && state.info.periodoInicio) || '',
+                                periodo_fim: (state.info && state.info.periodoFim) || ''
+                            }));
+                            const cred = lancsEnriquecidos.filter(l => l.valor > 0).reduce((a,l) => a + l.valor, 0);
+                            const deb = lancsEnriquecidos.filter(l => l.valor < 0).reduce((a,l) => a + Math.abs(l.valor), 0);
+                            if (rBradesco.total_credito && Math.abs(Math.round(cred * 100) - Math.round(rBradesco.total_credito * 100)) > 1) {
+                                throw new Error('Total de crédito Bradesco divergente do extrato');
+                            }
+                            if (rBradesco.total_debito && Math.abs(Math.round(deb * 100) - Math.round(rBradesco.total_debito * 100)) > 1) {
+                                throw new Error('Total de débito Bradesco divergente do extrato');
+                            }
+                            const cnpjA3 = (state.info && state.info.cnpj || '').replace(/\D/g,'');
+                            const pIni = state.info && state.info.periodoInicio || '';
+                            const pFim = state.info && state.info.periodoFim || '';
+                            const fp = window.gerarFingerprintImportacao(cnpjA3, bancoPDF, contaPDF, pIni, pFim);
+                            lancsEnriquecidos.forEach(l => { l._fingerprint_imp = fp; l._acao_dup = 'novo'; });
+                            try {
+                                if (cnpjA3 && window.API && window.API.importacoesGravar) {
+                                    await window.API.importacoesGravar(cnpjA3, {
+                                        fingerprint: fp, banco: bancoPDF, conta: contaPDF, nome_conta: nomeContaPDF,
+                                        periodo_inicio: pIni, periodo_fim: pFim,
+                                        total_lancamentos: lancsEnriquecidos.length,
+                                        arquivo_exemplo: f.name
+                                    });
+                                }
+                            } catch(e) { console.warn('[BRADESCO] gravar importacao:', e.message); }
+                            showToast('✅ Layout Bradesco reconhecido: ' + lancsEnriquecidos.length + ' lançamentos • totais conferidos', 'success');
+                            return lancsEnriquecidos;
+                        }
+                    }
+                } catch(eBradesco) { console.warn('[processPDF] parser Bradesco falhou, tentando BB:', eBradesco.message); }
+
                 // [BB] Tentar parser BB Conta Atual primeiro
                 try {
                     if (window.parsearPDF_BB_ContaAtual) {
