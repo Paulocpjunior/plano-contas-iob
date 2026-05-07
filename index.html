@@ -4352,10 +4352,10 @@
         }
 
         // [A1.3] Validacao matematica do digito verificador do CNPJ
-        function validarCNPJDigito(cnpj) {
-            cnpj = String(cnpj || '').replace(/\D/g, '');
-            if (cnpj.length !== 14) return false;
-            if (/^(\d)\1{13}$/.test(cnpj)) return false;  // todos iguais (ex: 11111...)
+	        function validarCNPJDigito(cnpj) {
+	            cnpj = String(cnpj || '').replace(/\D/g, '');
+	            if (cnpj.length !== 14) return false;
+	            if (/^(\d)\1{13}$/.test(cnpj)) return false;  // todos iguais (ex: 11111...)
             const calc = (base) => {
                 let soma = 0;
                 const pesos = base.length === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2];
@@ -4365,18 +4365,68 @@
             };
             const d1 = calc(cnpj.substring(0, 12));
             const d2 = calc(cnpj.substring(0, 13));
-            return d1 === parseInt(cnpj[12]) && d2 === parseInt(cnpj[13]);
-        }
+	            return d1 === parseInt(cnpj[12]) && d2 === parseInt(cnpj[13]);
+	        }
 
-        async function buscarCNPJ() {
-            aplicarUICadastroEmpresa(false, true);
-            const cnpj = document.getElementById('infoCNPJ').value.replace(/\D/g, '');
-            const icon = document.getElementById('cnpjIcon');
-            const inpEmpresa = document.getElementById('infoEmpresa');
+	        async function consultarEmpresaNoBancoInterno(cnpj) {
+	            if (!window.API || !window.API.apiFetch) return null;
+	            try {
+	                const rSys = await window.API.apiFetch('/api/empresas/' + cnpj);
+	                if (!rSys.ok) return null;
+	                return await rSys.json();
+	            } catch(e) {
+	                console.warn('[CNPJ] consulta banco interno:', e);
+	                return null;
+	            }
+	        }
 
-            if (cnpj.length !== 14) {
-                icon.innerHTML = '';
-                icon.className = 'input-icon';
+	        async function oferecerRetomadaSessaoCNPJ(cnpj) {
+	            try {
+	                if (window.API && window.API.carregarSessaoEmpresa) {
+	                    const sess = await window.API.carregarSessaoEmpresa(cnpj);
+	                    if (sess && sess.encontrada && sess.state_json) {
+	                        const resumo = sess.resumo || {};
+	                        const qtd = resumo.total_lancamentos || 0;
+	                        const quando = sess.updated_at && sess.updated_at._seconds ? new Date(sess.updated_at._seconds * 1000).toLocaleString('pt-BR') : '';
+	                        const por = sess.updated_by_email || '';
+	                        const msg = '🔄 Retomar sessão anterior?\n\n' + qtd + ' lançamento(s) salvos' + (quando ? '\nÚltimo save: ' + quando : '') + (por ? '\nPor: ' + por : '') + '\n\nOK = retomar | Cancelar = começar novo';
+	                        if (confirm(msg)) {
+	                            const d = JSON.parse(sess.state_json);
+	                            state.entries = d.entries || [];
+	                            state.mappings = d.mappings || state.mappings;
+	                            state.info = d.info || null;
+	                            state.infoConfirmed = d.infoConfirmed || false;
+	                            state.lastFile = d.lastFile || null;
+	                            saveState();
+	                            if (typeof initApp === 'function') initApp();
+	                            else location.reload();
+	                        } else {
+	                            await zerarSessaoEmpresa(cnpj, {
+	                                cnpj: document.getElementById('infoCNPJ').value,
+	                                empresa: document.getElementById('infoEmpresa').value,
+	                                banco: document.getElementById('infoBanco').value,
+	                                usuario: document.getElementById('infoUsuario').value,
+	                                periodoInicio: document.getElementById('infoPeriodoInicio').value,
+	                                periodoFim: document.getElementById('infoPeriodoFim').value
+	                            });
+	                            showToast('Sessão anterior zerada. Comece uma nova importação.', 'success');
+	                        }
+	                    }
+	                }
+	            } catch (e) { console.warn('[sessao] carregar:', e); }
+	        }
+
+	        async function buscarCNPJ() {
+	            aplicarUICadastroEmpresa(false, true);
+	            const cnpj = document.getElementById('infoCNPJ').value.replace(/\D/g, '');
+	            const icon = document.getElementById('cnpjIcon');
+	            const inpEmpresa = document.getElementById('infoEmpresa');
+	            const seq = (window.__cnpjBuscaSeq || 0) + 1;
+	            window.__cnpjBuscaSeq = seq;
+
+	            if (cnpj.length !== 14) {
+	                icon.innerHTML = '';
+	                icon.className = 'input-icon';
                 return;
             }
 
@@ -4391,28 +4441,47 @@
                 return;
             }
 
-            icon.innerHTML = '⟳';
-            icon.className = 'input-icon loading';
-            inpEmpresa.disabled = true;
-            inpEmpresa.value = '⟳ Consultando Receita Federal...';
+	            icon.innerHTML = '⟳';
+	            icon.className = 'input-icon loading';
+	            inpEmpresa.disabled = true;
+	            inpEmpresa.value = '⟳ Consultando cadastro interno...';
 
-            // [CAMADA 2] Consulta BrasilAPI
-            let razaoSocial = null;
-            try {
-                const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-                if (r.ok) {
-                    const d = await r.json();
-                    razaoSocial = d.razao_social || d.nome_fantasia || null;
-                } else if (r.status === 404) {
-                    icon.innerHTML = '✗';
-                    icon.className = 'input-icon error';
-                    inpEmpresa.value = '';
-                    inpEmpresa.disabled = false;
-                    showToast('❌ CNPJ nao encontrado na Receita Federal', 'error');
-                    window.__cnpjValidado = false;
-                    return;
-                }
-            } catch (e) {
+	            // [CAMADA 2] Consulta primeiro o banco interno do app.
+	            const empSysInicial = await consultarEmpresaNoBancoInterno(cnpj);
+	            if (seq !== window.__cnpjBuscaSeq) return;
+	            if (empSysInicial) {
+	                const razaoInterna = empSysInicial.razao_social || empSysInicial.empresa || empSysInicial.nome || empSysInicial.nome_fantasia || '';
+	                inpEmpresa.value = razaoInterna || 'Empresa cadastrada';
+	                inpEmpresa.disabled = true;
+	                icon.innerHTML = '✓';
+	                icon.className = 'input-icon success';
+	                window.__cnpjValidado = true;
+	                aplicarUICadastroEmpresa(true, empSysInicial.ativo !== false);
+	                showToast('Empresa encontrada no banco de dados do sistema', 'success');
+	                await oferecerRetomadaSessaoCNPJ(cnpj);
+	                return;
+	            }
+
+	            inpEmpresa.value = '⟳ Consultando Receita Federal...';
+
+	            // [CAMADA 3] Consulta BrasilAPI somente quando nao existe cadastro interno
+	            let razaoSocial = null;
+	            try {
+	                const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+	                if (seq !== window.__cnpjBuscaSeq) return;
+	                if (r.ok) {
+	                    const d = await r.json();
+	                    razaoSocial = d.razao_social || d.nome_fantasia || null;
+	                } else if (r.status === 404) {
+	                    icon.innerHTML = '✗';
+	                    icon.className = 'input-icon error';
+	                    inpEmpresa.value = '';
+	                    inpEmpresa.disabled = false;
+	                    showToast('CNPJ nao encontrado no banco interno nem na Receita Federal', 'error');
+	                    window.__cnpjValidado = false;
+	                    return;
+	                }
+	            } catch (e) {
                 console.warn('[BrasilAPI] erro de rede:', e);
                 // Em caso de timeout/rede, libera edicao manual mas sinaliza
                 inpEmpresa.value = '';
@@ -4434,16 +4503,16 @@
                 return;
             }
 
-            inpEmpresa.value = razaoSocial;
-            inpEmpresa.disabled = true;  // trava edicao — sempre o que veio da Receita
-            icon.innerHTML = '✓';
-            icon.className = 'input-icon success';
-            window.__cnpjValidado = true;
+	            inpEmpresa.value = razaoSocial;
+	            inpEmpresa.disabled = true;  // trava edicao — sempre o que veio da Receita
+	            icon.innerHTML = '✓';
+	            icon.className = 'input-icon success';
+	            window.__cnpjValidado = true;
 
-            // [CAMADA 3] Consulta se ja existe no SP Assessoria
-            try {
-                if (window.API && window.API.apiFetch) {
-                    const rSys = await window.API.apiFetch('/api/empresas/' + cnpj);
+	            // [CAMADA 4] Confere novamente cadastro interno, caso tenha sido criado durante a consulta externa
+	            try {
+	                if (window.API && window.API.apiFetch) {
+	                    const rSys = await window.API.apiFetch('/api/empresas/' + cnpj);
                     if (rSys.ok) {
                         const empSys = await rSys.json();
                         // Ja cadastrada no sistema — esconder botoes de plano
@@ -4451,42 +4520,9 @@
                         showToast('ℹ️ Empresa ja cadastrada no sistema', 'success');
                     }
                 }
-            } catch(e) { console.warn('[CAMADA 3] consulta sistema:', e); }
-            // Oferecer retomar sessao anterior
-            try {
-                if (window.API && window.API.carregarSessaoEmpresa) {
-                    const sess = await window.API.carregarSessaoEmpresa(cnpj);
-                    if (sess && sess.encontrada && sess.state_json) {
-                        const resumo = sess.resumo || {};
-                        const qtd = resumo.total_lancamentos || 0;
-                        const quando = sess.updated_at && sess.updated_at._seconds ? new Date(sess.updated_at._seconds * 1000).toLocaleString('pt-BR') : '';
-                        const por = sess.updated_by_email || '';
-                        const msg = '🔄 Retomar sessão anterior?\n\n' + qtd + ' lançamento(s) salvos' + (quando ? '\nÚltimo save: ' + quando : '') + (por ? '\nPor: ' + por : '') + '\n\nOK = retomar | Cancelar = começar novo';
-                        if (confirm(msg)) {
-                            const d = JSON.parse(sess.state_json);
-                            state.entries = d.entries || [];
-                            state.mappings = d.mappings || state.mappings;
-                            state.info = d.info || null;
-                            state.infoConfirmed = d.infoConfirmed || false;
-                            state.lastFile = d.lastFile || null;
-                            saveState();
-                            if (typeof initApp === 'function') initApp();
-                            else location.reload();
-                        } else {
-                            await zerarSessaoEmpresa(cnpj, {
-                                cnpj: document.getElementById('infoCNPJ').value,
-                                empresa: document.getElementById('infoEmpresa').value,
-                                banco: document.getElementById('infoBanco').value,
-                                usuario: document.getElementById('infoUsuario').value,
-                                periodoInicio: document.getElementById('infoPeriodoInicio').value,
-                                periodoFim: document.getElementById('infoPeriodoFim').value
-                            });
-                            showToast('Sessão anterior zerada. Comece uma nova importação.', 'success');
-                        }
-                    }
-                }
-            } catch (e) { console.warn('[sessao] carregar:', e); }
-        }
+	            } catch(e) { console.warn('[CAMADA 3] consulta sistema:', e); }
+	            await oferecerRetomadaSessaoCNPJ(cnpj);
+	        }
         
         // Company Info
         async function confirmarInfo() {
