@@ -1,9 +1,9 @@
 {
-  "version": "3.1.51",
-  "build_date": "2026-05-08T17:05:00Z",
+  "version": "3.1.52",
+  "build_date": "2026-05-08T17:25:00Z",
   "release_notes": [
-    "Importacao CLUDE passa a ler XLSX em modo cru para preservar datas e valores bancarios",
-    "CSV de movimentacao CLUDE/Itau passa a reconhecer coluna DESPESAS como valor",
-    "Datas abreviadas como 4-mar passam a ser convertidas usando o ano do arquivo/periodo"
+    "Parser PDF Itau passa a capturar lancamentos com data isolada em linha anterior",
+    "Lancamentos Redecard/Rede e Rendimentos do extrato Itau deixam de ser descartados",
+    "Valores colados ao CNPJ/CPF no PDF Itau passam a ser separados antes da importacao"
   ]
 }

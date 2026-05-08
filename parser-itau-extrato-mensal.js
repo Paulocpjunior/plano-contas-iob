@@ -97,7 +97,17 @@
     }
 
     function extrairValorFinal(text) {
-      const matches = Array.from(String(text || '').matchAll(/-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d+,\d{2}\b/g));
+      const source = String(text || '');
+      const coladoDocumentoValor = source.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+,\d{2})\s*$/);
+      if (coladoDocumentoValor) {
+        const raw = coladoDocumentoValor[2];
+        return {
+          raw: raw,
+          index: coladoDocumentoValor.index + coladoDocumentoValor[1].length,
+          valor: parseValorBR(raw)
+        };
+      }
+      const matches = Array.from(source.matchAll(/-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d+,\d{2}\b/g));
       if (!matches.length) return null;
       const last = matches[matches.length - 1];
       return { raw: last[0], index: last.index, valor: parseValorBR(last[0]) };
@@ -153,12 +163,12 @@
       const text = normalizarLinha(line.text);
       if (ignorarLinha(text)) return;
 
-      const start = text.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(.+)$/);
+      const start = text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s*(.+))?$/);
       if (start) {
         flush();
         pendente = {
           data: start[3] + '-' + start[2] + '-' + start[1],
-          text: start[4]
+          text: start[4] || ''
         };
         if (extrairValorFinal(pendente.text)) flush();
         return;
