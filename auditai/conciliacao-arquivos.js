@@ -288,6 +288,118 @@
     return rows;
   }
 
+  function parseItauDetailedLines(lines, allText) {
+    if (!/Extrato Detalhado/i.test(allText) || !/Conta:\s*ITAU/i.test(allText) || !/Emiss[aã]o\s+Vencimento/i.test(allText)) return [];
+    const rows = [];
+    const seen = new Set();
+
+    lines.forEach(function (line, index) {
+      const text = String(line.text || '').replace(/\s+/g, ' ').trim();
+      const head = text.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+([A-Z])\s+(.+)$/);
+      if (!head) return;
+
+      const values = text.match(MONEY_RE) || [];
+      if (values.length < 2) return;
+      const amountToken = values[values.length - 2];
+      const saldoToken = values[values.length - 1];
+      const amount = parseMoney(amountToken);
+      if (amount === null || Math.abs(amount) === 0) return;
+
+      const descStart = text.indexOf(head[3], head[0].indexOf(head[3]));
+      let desc = text.slice(descStart).replace(amountToken, ' ').replace(saldoToken, ' ');
+      desc = desc.replace(/^\s*[A-Z]\s+/, '').replace(/\s+/g, ' ').trim();
+      if (!desc || /^Valor:?$/i.test(desc)) return;
+
+      const date = parseDate(head[2]);
+      const key = [date, desc.toUpperCase(), amount.toFixed(2)].join('|');
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      rows.push(buildRow({
+        sourceLine: index + 1,
+        date: date,
+        description: 'ITAU 17841 ' + desc,
+        amount: amount,
+        raw: text
+      }));
+    });
+
+    return rows;
+  }
+
+  function parseItauMonthlyLines(lines, allText) {
+    if (!/extrato mensal\s+ag\s+\d+\s+cc\s+/i.test(allText) || !/Conta Corrente\s*\|\s*Movimenta[cç][aã]o/i.test(allText)) return [];
+    const period = extractStatementYear(allText);
+    const rows = [];
+    const seen = new Set();
+    let inStatement = false;
+    let currentDate = '';
+
+    function cleanDesc(text, valueToken) {
+      return String(text || '')
+        .replace(/^\d{2}\/\d{2}\s+/, '')
+        .replace(valueToken, ' ')
+        .replace(/\b035052\s+B001A\b.*$/i, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    lines.forEach(function (line, index) {
+      let text = String(line.text || '').replace(/\s+/g, ' ').trim();
+      if (/Conta Corrente\s*\|\s*Movimenta[cç][aã]o/i.test(text)) {
+        inStatement = true;
+        return;
+      }
+      if (!inStatement) return;
+      if (/^Notas explicativas|^Saldo em C\/C|^Saldo final|^Conta Corrente\s*\|\s*Aplica/i.test(text)) {
+        inStatement = false;
+        return;
+      }
+      const legendDate = text.match(/^[A-Z]\s*=.*?\b(\d{2})\/(\d{2})\b/);
+      if (legendDate) currentDate = period.year + '-' + legendDate[2] + '-' + legendDate[1];
+      text = text
+        .replace(/^[A-Z]\s*=\s*.*?\b(?=(CRE|Sispag|PIX|TED|D Ch|SAQ|Mov|Rede|Apl|Tar|IOF|Fin|Res|Rend|D[eé]b)\b)/i, '')
+        .replace(/^pela Bolsa de Valores\s+/i, '')
+        .replace(/^Para demais siglas, consulte as Notas\s+/i, '')
+        .replace(/^Explicativas no final do extrato\s+/i, '')
+        .trim();
+      if (/^Este material|^A =|^B =|^C =|^D =|^G =|^P =/i.test(text)) return;
+      if (/^data\s+descri[cç][aã]o|^\(?cr[eé]ditos\)?|^\(?d[eé]bitos\)?|^extrato mensal/i.test(text)) return;
+      if (/Saldo anterior|SALDO APLIC|Saldo em C\/C|Saldo final/i.test(text)) return;
+
+      const dateMatch = text.match(/^(\d{2})\/(\d{2})\b/);
+      if (dateMatch) {
+        currentDate = period.year + '-' + dateMatch[2] + '-' + dateMatch[1];
+      }
+      if (!currentDate) return;
+
+      const values = text.match(MONEY_RE) || [];
+      if (!values.length) return;
+      const valueToken = values[0];
+      let amount = parseMoney(valueToken);
+      if (amount === null || Math.abs(amount) === 0) return;
+      if (/-$/.test(valueToken) || /^-/.test(valueToken)) amount = -Math.abs(amount);
+      else amount = Math.abs(amount);
+
+      const desc = cleanDesc(text, valueToken);
+      if (!desc || /^(R\$|total|saldo|data|entradas|saidas)$/i.test(desc)) return;
+
+      const key = [currentDate, desc.toUpperCase(), amount.toFixed(2)].join('|');
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      rows.push(buildRow({
+        sourceLine: index + 1,
+        date: currentDate,
+        description: desc,
+        amount: amount,
+        raw: text
+      }));
+    });
+
+    return rows;
+  }
+
   function buildRow(input) {
     const desc = String(input.description || input.raw || '').replace(/\s+/g, ' ').trim();
     return {
@@ -321,6 +433,10 @@
       });
     }
     const allText = lines.map(function (line) { return line.text; }).join('\n');
+    const itauDetailed = parseItauDetailedLines(lines, allText);
+    if (itauDetailed.length) return itauDetailed;
+    const itauMonthly = parseItauMonthlyLines(lines, allText);
+    if (itauMonthly.length) return itauMonthly;
     const santander = parseSantanderLines(lines, allText);
     if (santander.length) return santander;
     return rowsFromText(allText);

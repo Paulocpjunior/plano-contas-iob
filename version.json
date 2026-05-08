@@ -1,9 +1,9 @@
 {
-  "version": "3.1.41",
-  "build_date": "2026-05-08T13:00:00Z",
+  "version": "3.1.42",
+  "build_date": "2026-05-08T13:35:00Z",
   "release_notes": [
-    "Reconhecimento do layout Santander OCR ampliado",
-    "Mesmo PDF Santander passa a ser aceito quando o OCR variar textos do cabeçalho",
-    "OCR Santander usa segmentação mais estável para extratos digitalizados"
+    "Conciliação de Arquivos ajustada para extratos Itaú",
+    "Arquivo A no formato Extrato Detalhado Itaú agora ignora linhas internas de Valor, saldo e detalhamento duplicado",
+    "Arquivo B no formato Extrato Mensal Itaú passa a manter a data corrente e considerar apenas movimentos da conta corrente"
   ]
 }
