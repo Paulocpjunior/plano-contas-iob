@@ -1,9 +1,9 @@
 {
-  "version": "3.1.43",
-  "build_date": "2026-05-08T14:05:00Z",
+  "version": "3.1.44",
+  "build_date": "2026-05-08T14:30:00Z",
   "release_notes": [
-    "Layout Santander Empresas OCR aceita extratos que iniciam direto no bloco Movimentacao",
-    "Banco 352/Santander CTVM passa a reconhecer o Extrato Consolidado Inteligente enviado",
-    "Importacao Santander deixa de rejeitar PDFs validos quando o texto extraido nao traz Conta Corrente antes da movimentacao"
+    "Layout Itau Lancamentos do Periodo cadastrado no parser de PDF",
+    "Extratos Itau com Agencia, Conta e periodo completo passam a ser reconhecidos",
+    "Importacao Itau ignora linhas de saldo e preserva lancamentos com data completa"
   ]
 }

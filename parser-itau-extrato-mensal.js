@@ -57,6 +57,137 @@
     };
   }
 
+  function periodoLancamentosItau(texto) {
+    const m = String(texto || '').match(/Lan[cç]amentos do per[ií]odo:\s*(\d{2})\/(\d{2})\/(\d{4})\s+at[eé]\s+(\d{2})\/(\d{2})\/(\d{4})/i);
+    if (!m) return { inicio: '', fim: '', ano: String(new Date().getFullYear()), mes: '' };
+    return {
+      inicio: m[3] + '-' + m[2] + '-' + m[1],
+      fim: m[6] + '-' + m[5] + '-' + m[4],
+      ano: m[3],
+      mes: m[2]
+    };
+  }
+
+  function parseItauLancamentosPeriodo(lines, textoCompleto) {
+    const ehPeriodo = /Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto)
+      && /Data\s+Lan[cç]amentos\s+Raz[aã]o Social\s+CNPJ\/CPF\s+Valor/i.test(textoCompleto)
+      && /Ag[eê]ncia\s+\d+\s+Conta\s+\d+/i.test(textoCompleto);
+    if (!ehPeriodo) return null;
+
+    const periodo = periodoLancamentosItau(textoCompleto);
+    const contaMatch = textoCompleto.match(/Ag[eê]ncia\s+(\d+)\s+Conta\s+([0-9.-]+)/i);
+    const lancamentos = [];
+    const vistos = new Set();
+    let pendente = null;
+
+    function normalizarLinha(text) {
+      return String(text || '')
+        .replace(/\uFFFE/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function ignorarLinha(text) {
+      return !text
+        || /^Data\s+Lan[cç]amentos/i.test(text)
+        || /^Saldo total\b/i.test(text)
+        || /^R\$\s+/i.test(text)
+        || /^SALDO ANTERIOR\b/i.test(text)
+        || /^SALDO TOTAL DISPON[IÍ]VEL DIA\b/i.test(text);
+    }
+
+    function extrairValorFinal(text) {
+      const matches = Array.from(String(text || '').matchAll(/-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d+,\d{2}\b/g));
+      if (!matches.length) return null;
+      const last = matches[matches.length - 1];
+      return { raw: last[0], index: last.index, valor: parseValorBR(last[0]) };
+    }
+
+    function limparDescricao(desc) {
+      return normalizarLinha(desc)
+        .replace(/\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g, ' ')
+        .replace(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, ' ')
+        .replace(/\b\d{11,14}\b/g, ' ')
+        .replace(/\bCD\d+\b/ig, ' ')
+        .replace(/\bDB\d+\b/ig, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function flush() {
+      if (!pendente) return;
+      const value = extrairValorFinal(pendente.text);
+      if (!value || !pendente.data || Math.abs(value.valor) === 0) {
+        pendente = null;
+        return;
+      }
+      const desc = limparDescricao(pendente.text.slice(0, value.index));
+      if (!desc || /SALDO TOTAL DISPON[IÍ]VEL DIA/i.test(desc) || /SALDO ANTERIOR/i.test(desc)) {
+        pendente = null;
+        return;
+      }
+      const chave = [pendente.data, desc.toLowerCase(), value.valor.toFixed(2)].join('|');
+      if (!vistos.has(chave)) {
+        vistos.add(chave);
+        lancamentos.push({
+          id: uuid(),
+          data: pendente.data,
+          descricao: desc,
+          documento: '',
+          valor: value.valor,
+          tipo: value.valor < 0 ? 'D' : 'C',
+          empresa: '',
+          cnpj: '',
+          categoria: 'Nao categorizado',
+          contaDebito: '',
+          contaCredito: '',
+          historico: '',
+          incomum: false,
+          origem: 'pdf-itau-lancamentos-periodo'
+        });
+      }
+      pendente = null;
+    }
+
+    lines.forEach(function(line) {
+      const text = normalizarLinha(line.text);
+      if (ignorarLinha(text)) return;
+
+      const start = text.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(.+)$/);
+      if (start) {
+        flush();
+        pendente = {
+          data: start[3] + '-' + start[2] + '-' + start[1],
+          text: start[4]
+        };
+        if (extrairValorFinal(pendente.text)) flush();
+        return;
+      }
+
+      if (!pendente) return;
+      pendente.text += ' ' + text;
+      if (extrairValorFinal(pendente.text)) flush();
+    });
+    flush();
+
+    const totalCredito = lancamentos.filter(function(l){ return l.valor > 0; }).reduce(function(a,l){ return a + l.valor; }, 0);
+    const totalDebito = lancamentos.filter(function(l){ return l.valor < 0; }).reduce(function(a,l){ return a + Math.abs(l.valor); }, 0);
+
+    return {
+      detectado: true,
+      lancamentos: lancamentos,
+      textoCompleto: textoCompleto,
+      fingerprint: 'itau-lancamentos-periodo-' + (contaMatch ? contaMatch[1] + '-' + contaMatch[2] : 'x') + '-' + periodo.ano + (periodo.mes || ''),
+      banco_detectado: 'ITAU',
+      conta_detectada: contaMatch ? ('AG-' + contaMatch[1] + '/CC-' + contaMatch[2]) : '',
+      nome_conta_detectado: 'CONTA CORRENTE ITAU',
+      total_credito: totalCredito,
+      total_debito: totalDebito,
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim
+    };
+  }
+
   async function parsearPDF_Itau_ExtratoMensal(arrayBuffer) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -88,7 +219,10 @@
       && /entradas R\$/i.test(textoCompleto)
       && /sa[ií]das R\$/i.test(textoCompleto);
 
-    if (!ehItau) return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+    if (!ehItau) {
+      const periodo = parseItauLancamentosPeriodo(lines, textoCompleto);
+      return periodo || { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+    }
 
     const ref = anoMesDoCabecalho(textoCompleto);
     const totaisResumo = extrairTotaisResumo(lines);
