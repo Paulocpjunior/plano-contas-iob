@@ -1423,20 +1423,6 @@
             to { transform: translateX(0); }
         }
         
-        /* Version Info */
-        .version-info {
-            position: fixed;
-            bottom: 16px;
-            left: 16px;
-            background: rgba(15, 23, 42, 0.9);
-            color: #fff;
-            padding: 10px 18px;
-            border-radius: var(--radius-sm);
-            font-size: 12px;
-            z-index: 100;
-        }
-        .version-info strong { color: var(--accent-light); }
-        
         /* Hidden */
         .hidden { display: none !important; }
         
@@ -2172,8 +2158,8 @@
                             <h3 style="font-size:26px;color:var(--primary);margin-bottom:8px;font-weight:800">CONSULTOR CONTÁBIL INTELIGENTE</h3>
                             <p style="color:var(--accent);font-size:14px;margin-bottom:20px;font-weight:600">Automação contábil com Inteligência Artificial</p>
                             <table style="font-size:14px">
-                                <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Versão:</td><td><strong>2.0.0</strong></td></tr>
-                                <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Release:</td><td><strong>Abril 2025</strong></td></tr>
+                                <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Versão atual:</td><td><strong id="sobreVersaoAtual">Carregando...</strong></td></tr>
+                                <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Release:</td><td><strong id="sobreDataRelease">Carregando...</strong></td></tr>
                                 <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Motor IA:</td><td><strong>Google Gemini 2.5 Flash</strong></td></tr>
                                 <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Desenvolvido para:</td><td><strong>SP Assessoria Contábil</strong></td></tr>
                             </table>
@@ -2183,38 +2169,15 @@
                 
                 <div class="card">
                     <div class="card-header">
-                        <h2><span class="icon">📜</span> Changelog</h2>
+                        <h2><span class="icon">📜</span> Atualizações da Versão</h2>
                     </div>
-                    <div style="font-size:14px;color:var(--text-muted)">
-                        <p><strong style="color:var(--success)">v2.2.0</strong> - 16/04/2025</p>
-                        <ul style="margin:12px 0 24px 24px;line-height:2">
-                            <li>✨ Dashboard completo com gráficos interativos</li>
-                            <li>✨ Gráfico de pizza: Despesas por Categoria</li>
-                            <li>✨ Gráfico de barras: Entradas vs Saídas por mês</li>
-                            <li>✨ Filtros avançados: período, valor mín/máx, tipo</li>
-                            <li>✨ Detecção de transações incomuns pela IA</li>
-                            <li>✨ Tabela com saldo acumulado</li>
-                            <li>✨ Alertas de divergência de saldo</li>
-                            <li>✨ Exportação melhorada com dropdown</li>
-                            <li>✨ Barra de informações da empresa</li>
-                            <li>🔧 Otimização do processamento com Gemini 2.5</li>
-                        </ul>
-                        <p><strong style="color:var(--accent)">v1.1.0</strong> - 16/04/2025</p>
-                        <ul style="margin:12px 0 24px 24px;line-height:2">
-                            <li>✨ Layout de importação premium</li>
-                            <li>✨ Preview do arquivo antes de processar</li>
-                            <li>✨ Barra de progresso com etapas</li>
-                            <li>🔧 Correção do modelo Gemini</li>
-                        </ul>
-                        <p><strong style="color:var(--text-muted)">v1.0.0</strong> - 16/04/2025</p>
-                        <ul style="margin:12px 0 0 24px;line-height:2">
-                            <li>✅ Lançamento inicial</li>
-                            <li>✅ Firebase Auth</li>
-                            <li>✅ Processamento PDF com IA</li>
-                            <li>✅ Importação OFX/CSV</li>
-                            <li>✅ 4 Planos de Contas</li>
-                            <li>✅ Exportação IOB SAGE</li>
-                        </ul>
+                    <div style="font-size:14px;color:var(--text-muted);line-height:1.8">
+                        <p style="margin:0 0 12px">
+                            <strong id="sobreTituloRelease" style="color:var(--success)">Versão atual</strong>
+                        </p>
+                        <ol id="sobreReleaseNotes" style="margin:0 0 0 22px;padding:0;line-height:2">
+                            <li>Carregando informações da versão...</li>
+                        </ol>
                     </div>
                 </div>
             </div>
@@ -2312,9 +2275,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Version Info -->
-    <div class="version-info">📊 <strong>v2.2.0</strong> • 2025.04</div>
     
     <script>
         // Firebase Config
@@ -4549,6 +4509,38 @@
             // Carregar lista de empresas quando aba Empresas for exibida
             if (p === 'empresas') {
                 try { if (typeof loadEmpresasPage === 'function') loadEmpresasPage(); } catch(e) {}
+            }
+            if (p === 'sobre') {
+                carregarInformacoesSobre();
+            }
+        }
+
+        async function carregarInformacoesSobre() {
+            const versaoEl = document.getElementById('sobreVersaoAtual');
+            const dataEl = document.getElementById('sobreDataRelease');
+            const tituloEl = document.getElementById('sobreTituloRelease');
+            const notesEl = document.getElementById('sobreReleaseNotes');
+            if (!versaoEl || !dataEl || !tituloEl || !notesEl) return;
+            try {
+                const resp = await fetch('/api/version', { cache: 'no-store' });
+                if (!resp.ok) throw new Error('Falha ao carregar versao');
+                const info = await resp.json();
+                const data = info.build_date ? new Date(info.build_date).toLocaleString('pt-BR') : '-';
+                versaoEl.textContent = info.version ? ('v' + info.version) : '-';
+                dataEl.textContent = data;
+                tituloEl.textContent = info.version ? ('v' + info.version + ' - Atualizações') : 'Atualizações';
+                if (Array.isArray(info.release_notes) && info.release_notes.length) {
+                    notesEl.innerHTML = info.release_notes.map(function(n) {
+                        return '<li>' + escaparHtmlImportacao(n) + '</li>';
+                    }).join('');
+                } else {
+                    notesEl.innerHTML = '<li>Sem notas de release publicadas.</li>';
+                }
+            } catch (e) {
+                versaoEl.textContent = '-';
+                dataEl.textContent = '-';
+                tituloEl.textContent = 'Atualizações';
+                notesEl.innerHTML = '<li>Não foi possível carregar as informações de versão.</li>';
             }
         }
         
@@ -7295,7 +7287,7 @@ Responda APENAS JSON valido, sem texto antes/depois:
         }
         
         // Console log
-        console.log('%cCONSULTOR CONTÁBIL v2.2.0', 'color:#3b82f6;font-weight:bold;font-size:16px');
+        console.log('%cCONSULTOR CONTÁBIL INTELIGENTE', 'color:#3b82f6;font-weight:bold;font-size:16px');
     </script>
 
 <!-- Modal Vincular Plano Existente -->
