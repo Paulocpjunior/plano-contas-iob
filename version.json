@@ -1,9 +1,9 @@
 {
-  "version": "3.1.49",
-  "build_date": "2026-05-08T16:20:00Z",
+  "version": "3.1.50",
+  "build_date": "2026-05-08T16:45:00Z",
   "release_notes": [
-    "Importacao XLSX da CLUDE corrige leitura de valores com ponto decimal",
-    "Arquivos Excel protegidos ou criptografados passam a exibir aviso claro para remover senha/protecao",
-    "Layout CLUDE evita retorno generico de nenhuma transacao quando a planilha nao pode ser lida"
+    "Importacao XLSX da CLUDE passa a converter datas seriais do Excel gravadas como texto",
+    "Layout Stripe da CLUDE deixa de descartar todas as linhas quando a coluna Disponivel em vem no formato 46113.875",
+    "Correcao cirurgica no parser de data sem alterar layout visual da aplicacao"
   ]
 }

@@ -4058,6 +4058,13 @@
                     if (d && d.y) return d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0');
                 }
                 const s = String(v).trim();
+                if (/^\d{4,6}(?:\.\d+)?$/.test(s) && XLSX.SSF) {
+                    const n = Number(s);
+                    if (n > 20000 && n < 80000) {
+                        const d = XLSX.SSF.parse_date_code(n);
+                        if (d && d.y) return d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0');
+                    }
+                }
                 const isoDateTime = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T]\d{2}:\d{2}(?::\d{2})?)?/);
                 if (isoDateTime) return isoDateTime[1] + '-' + isoDateTime[2] + '-' + isoDateTime[3];
                 const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
