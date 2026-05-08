@@ -4601,40 +4601,68 @@
                 '</div>';
         }
 
+        async function empBuscarCadastroOficial(cnpj) {
+            if (!window.API || !window.API.apiFetch) return null;
+            const r = await window.API.apiFetch('/api/empresas/' + String(cnpj || '').replace(/\D/g, ''));
+            if (!r.ok) return null;
+            return await r.json();
+        }
+
+        function empMontarInfoAtiva(cnpj, cadastro, sessaoInfo) {
+            const cnpjFmt = empFmtCNPJ(cnpj);
+            const base = sessaoInfo || {};
+            const razao = (cadastro && (cadastro.razao_social || cadastro.empresa || cadastro.nome || cadastro.nome_fantasia)) || '';
+            const bancoCadastro = cadastro && cadastro.banco ? cadastro.banco : '';
+            return {
+                ...base,
+                cnpj: cnpjFmt,
+                empresa: razao || base.empresa || '',
+                banco: bancoCadastro || base.banco || '',
+                usuario: base.usuario || (window.CURRENT_USER && window.CURRENT_USER.email ? window.CURRENT_USER.email.split('@')[0] : ''),
+                periodoInicio: base.periodoInicio || '',
+                periodoFim: base.periodoFim || '',
+                planoNome: base.planoNome || (cadastro && (cadastro.plano_nome || cadastro.plano_id)) || ''
+            };
+        }
+
         async function empAbrir(cnpj) {
             try {
                 showToast('Abrindo empresa...', 'success');
-                const sess = await window.API.carregarSessaoEmpresa(cnpj);
+                const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+                const [cadastroOficial, sess] = await Promise.all([
+                    empBuscarCadastroOficial(cnpjLimpo).catch(function(e) {
+                        console.warn('[empAbrir] cadastro oficial:', e);
+                        return null;
+                    }),
+                    window.API.carregarSessaoEmpresa(cnpjLimpo)
+                ]);
+
                 if (sess && sess.encontrada && sess.state_json) {
                     const d = JSON.parse(sess.state_json);
-                    state.entries = d.entries || [];
-                    state.mappings = d.mappings || state.mappings;
-                    state.info = d.info || null;
-                    state.infoConfirmed = d.infoConfirmed || true;
-                    state.lastFile = d.lastFile || null;
+                    const sessCnpj = ((d.info && d.info.cnpj) || '').replace(/\D/g, '');
+                    const sessaoCompativel = !sessCnpj || sessCnpj === cnpjLimpo;
+                    state.entries = sessaoCompativel ? (d.entries || []) : [];
+                    state.mappings = sessaoCompativel && Array.isArray(d.mappings) ? d.mappings : state.mappings;
+                    state.info = empMontarInfoAtiva(cnpjLimpo, cadastroOficial, d.info || {});
+                    state.infoConfirmed = true;
+                    state.lastFile = sessaoCompativel ? (d.lastFile || null) : null;
+                    const remotoTs = sess.updated_at && sess.updated_at._seconds ? sess.updated_at._seconds * 1000 : Date.now();
+                    localStorage.setItem('consultorContabil_v2_ts', String(remotoTs));
                     saveState();
-                    localStorage.setItem('consultorContabil_v2_ts', String(sess.updated_at && sess.updated_at._seconds ? sess.updated_at._seconds * 1000 : Date.now()));
                     // Navegar pro Inicio e re-renderizar sem reload
                     const btnInicio = document.querySelector('.nav button[onclick*=\"showPage(\'inicio\')\"]');
                     if (btnInicio) btnInicio.click();
                     else { location.reload(); return; }
                     setTimeout(() => {
                         try { if (typeof initApp === 'function') initApp(); } catch(e) {}
-                        showToast('✅ ' + ((state.info && state.info.empresa) || 'Empresa') + ' carregada', 'success');
+                        showToast((sessaoCompativel ? '✅ ' : '⚠️ ') + ((state.info && state.info.empresa) || 'Empresa') + (sessaoCompativel ? ' carregada' : ' aberta; sessão anterior descartada por CNPJ divergente'), sessaoCompativel ? 'success' : 'warn');
                     }, 100);
                 } else {
                     // Empresa sem sessao ainda - puxa dados basicos e deixa usuario configurar
-                    const emp = await window.API.getEmpresa ? null : null;
-                    const r = await window.API.apiFetch('/api/empresas/' + cnpj);
-                    const dataEmp = await r.json();
-                    state.info = {
-                        cnpj: empFmtCNPJ(cnpj),
-                        empresa: dataEmp.razao_social || '',
-                        banco: dataEmp.banco || '',
-                        usuario: '', periodoInicio: '', periodoFim: ''
-                    };
+                    state.info = empMontarInfoAtiva(cnpjLimpo, cadastroOficial, {});
                     state.infoConfirmed = false;
                     state.entries = [];
+                    state.lastFile = null;
                     saveState();
                     showPage('inicio');
                     showToast('Empresa sem sessão anterior. Complete os dados e clique Confirmar.', 'warn');
@@ -4804,12 +4832,24 @@
 	                        const msg = '🔄 Retomar sessão anterior?\n\n' + qtd + ' lançamento(s) salvos' + (quando ? '\nÚltimo save: ' + quando : '') + (por ? '\nPor: ' + por : '') + '\n\nOK = retomar | Cancelar = começar novo';
 	                        if (confirm(msg)) {
 	                            const d = JSON.parse(sess.state_json);
-	                            state.entries = d.entries || [];
-	                            state.mappings = d.mappings || state.mappings;
-	                            state.info = d.info || null;
-	                            state.infoConfirmed = d.infoConfirmed || false;
-	                            state.lastFile = d.lastFile || null;
+	                            const sessCnpj = ((d.info && d.info.cnpj) || '').replace(/\D/g, '');
+	                            const cnpjAtual = String(cnpj || '').replace(/\D/g, '');
+	                            const sessaoCompativel = !sessCnpj || sessCnpj === cnpjAtual;
+	                            state.entries = sessaoCompativel ? (d.entries || []) : [];
+	                            state.mappings = sessaoCompativel ? (d.mappings || state.mappings) : state.mappings;
+	                            state.info = {
+	                                ...(d.info || {}),
+	                                cnpj: document.getElementById('infoCNPJ').value,
+	                                empresa: document.getElementById('infoEmpresa').value,
+	                                banco: document.getElementById('infoBanco').value || ((d.info || {}).banco || ''),
+	                                usuario: (d.info || {}).usuario || document.getElementById('infoUsuario').value,
+	                                periodoInicio: (d.info || {}).periodoInicio || document.getElementById('infoPeriodoInicio').value,
+	                                periodoFim: (d.info || {}).periodoFim || document.getElementById('infoPeriodoFim').value
+	                            };
+	                            state.infoConfirmed = !!(state.info && state.info.cnpj && state.info.empresa && state.info.banco && state.info.periodoInicio && state.info.periodoFim);
+	                            state.lastFile = sessaoCompativel ? (d.lastFile || null) : null;
 	                            saveState();
+	                            if (!sessaoCompativel) showToast('⚠️ Sessão anterior ignorada por CNPJ divergente.', 'warn');
 	                            if (typeof initApp === 'function') initApp();
 	                            else location.reload();
 	                        } else {
