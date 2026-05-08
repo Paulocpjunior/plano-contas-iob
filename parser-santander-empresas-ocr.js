@@ -123,15 +123,18 @@
       .trim();
   }
 
+  function pareceExtratoSantander(texto) {
+    const t = removerAcentos(texto || '').toLowerCase();
+    const temSantander = /santander/.test(t);
+    const temConta = /conta corrente|saldo de conta corrente|saldo disponivel/.test(t);
+    const temMov = /movimentacao|movimentos\s*\(r\$?\)|creditos\s+debitos|total de creditos|total de debitos/.test(t);
+    return temSantander && temConta && temMov;
+  }
+
   function parsearTexto_SantanderEmpresas(textoPorPagina) {
     const paginas = Array.isArray(textoPorPagina) ? textoPorPagina : String(textoPorPagina || '').split(/\f/);
     const textoCompleto = paginas.join('\n');
-    const textoClean = removerAcentos(textoCompleto);
-    const ehSantander = /Santander Empresas/i.test(textoClean)
-      && /EXTRATO CONSOLIDADO INTELIGENTE/i.test(textoClean)
-      && /Conta Corrente/i.test(textoClean);
-
-    if (!ehSantander) return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+    if (!pareceExtratoSantander(textoCompleto)) return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
 
     const ref = referenciaPeriodo(textoCompleto);
     const lancamentos = [];
@@ -247,6 +250,7 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvasContext: ctx, viewport: viewport }).promise;
       const result = await Tesseract.recognize(canvas, 'por', {
+        tessedit_pageseg_mode: '6',
         logger: m => console.log('[santander-ocr]', m.status, m.progress)
       });
       textos.push(result.data && result.data.text ? result.data.text : '');
@@ -265,7 +269,7 @@
       textosPdf.push((tc.items || []).map(function(it){ return it.str || ''; }).join(' '));
     }
     const textoNativo = textosPdf.join('\n');
-    if (textoNativo.trim().length > 120 && /Santander Empresas/i.test(textoNativo) && /Conta Corrente/i.test(textoNativo)) {
+    if (textoNativo.trim().length > 120 && pareceExtratoSantander(textoNativo)) {
       return parsearTexto_SantanderEmpresas(textosPdf);
     }
 
