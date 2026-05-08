@@ -1475,6 +1475,7 @@
                     <input type="password" id="regPassword2">
                 </div>
                 <button class="btn btn-primary" onclick="doRegister()">Cadastrar</button>
+                <button class="btn btn-link" onclick="resetPasswordFromRegister()">Já tenho conta / Esqueci minha senha</button>
                 <button class="btn btn-secondary" onclick="showLogin()">Voltar ao Login</button>
                 <div class="error-msg" id="regErrorMsg"></div>
             </div>
@@ -3490,13 +3491,35 @@
             e.style.display = 'none';
             e.textContent = '';
         }
+
+        function getFriendlyAuthError(e) {
+            if (!e || !e.code) return (e && e.message) || 'Nao foi possivel concluir a operacao.';
+            const messages = {
+                'auth/invalid-email': 'E-mail invalido. Confira o endereco informado.',
+                'auth/user-not-found': 'Usuario nao encontrado. Verifique o e-mail ou solicite o cadastro.',
+                'auth/wrong-password': 'Senha incorreta. Use Esqueci minha senha para redefinir o acesso.',
+                'auth/invalid-credential': 'E-mail ou senha incorretos. Use Esqueci minha senha para redefinir o acesso.',
+                'auth/email-already-in-use': 'Esta conta ja existe. Use Entrar ou Esqueci minha senha.',
+                'auth/weak-password': 'Senha fraca. Use pelo menos 6 caracteres.',
+                'auth/too-many-requests': 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.'
+            };
+            return messages[e.code] || e.message || 'Nao foi possivel concluir a operacao.';
+        }
         
         function showRegister() {
+            hideError('errorMsg');
+            hideError('regErrorMsg');
+            const email = document.getElementById('email').value.trim();
+            if (email) document.getElementById('regEmail').value = email;
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('registerForm').style.display = 'block';
         }
         
         function showLogin() {
+            hideError('errorMsg');
+            hideError('regErrorMsg');
+            const email = document.getElementById('regEmail').value.trim();
+            if (email) document.getElementById('email').value = email;
             document.getElementById('registerForm').style.display = 'none';
             document.getElementById('loginForm').style.display = 'block';
         }
@@ -3509,33 +3532,40 @@
                 showError('errorMsg', 'Use e-mail ' + DOMAIN);
                 return;
             }
-            auth.signInWithEmailAndPassword(email, pass).catch(e => showError('errorMsg', e.message));
+            auth.signInWithEmailAndPassword(email, pass).catch(e => showError('errorMsg', getFriendlyAuthError(e)));
+        }
+
+        function sendResetLink(email, messageId) {
+            hideError(messageId);
+            if (!email) {
+                showError(messageId, 'Informe o e-mail corporativo para receber o link de redefinicao.');
+                return Promise.resolve(false);
+            }
+            if (!email.toLowerCase().endsWith(DOMAIN)) {
+                showError(messageId, 'Use e-mail ' + DOMAIN);
+                return Promise.resolve(false);
+            }
+
+            return auth.sendPasswordResetEmail(email, {
+                url: window.location.origin,
+                handleCodeInApp: false
+            }).then(() => {
+                showAuthSuccess(messageId, 'Enviamos o link de redefinicao para ' + email + '. Verifique tambem o spam.');
+                return true;
+            }).catch(e => {
+                showError(messageId, getFriendlyAuthError(e));
+                return false;
+            });
         }
 
         function resetPassword() {
             const email = document.getElementById('email').value.trim();
-            hideError('errorMsg');
-            if (!email) {
-                showError('errorMsg', 'Informe o e-mail corporativo para receber o link de redefinicao.');
-                return;
-            }
-            if (!email.toLowerCase().endsWith(DOMAIN)) {
-                showError('errorMsg', 'Use e-mail ' + DOMAIN);
-                return;
-            }
+            sendResetLink(email, 'errorMsg');
+        }
 
-            auth.sendPasswordResetEmail(email, {
-                url: window.location.origin,
-                handleCodeInApp: false
-            }).then(() => {
-                showAuthSuccess('errorMsg', 'Enviamos o link de redefinicao para ' + email + '. Verifique tambem o spam.');
-            }).catch(e => {
-                if (e && e.code === 'auth/user-not-found') {
-                    showError('errorMsg', 'Usuario nao encontrado. Verifique o e-mail ou solicite o cadastro.');
-                    return;
-                }
-                showError('errorMsg', e.message || 'Nao foi possivel enviar o e-mail de redefinicao.');
-            });
+        function resetPasswordFromRegister() {
+            const email = document.getElementById('regEmail').value.trim();
+            sendResetLink(email, 'regErrorMsg');
         }
         
         function doRegister() {
@@ -3555,7 +3585,15 @@
                 showError('regErrorMsg', 'Senha deve ter no mínimo 6 caracteres');
                 return;
             }
-            auth.createUserWithEmailAndPassword(email, p1).catch(e => showError('regErrorMsg', e.message));
+            auth.createUserWithEmailAndPassword(email, p1).catch(e => {
+                if (e && e.code === 'auth/email-already-in-use') {
+                    sendResetLink(email, 'regErrorMsg').then(sent => {
+                        if (!sent) showError('regErrorMsg', getFriendlyAuthError(e));
+                    });
+                    return;
+                }
+                showError('regErrorMsg', getFriendlyAuthError(e));
+            });
         }
         
         function doLogout() {
