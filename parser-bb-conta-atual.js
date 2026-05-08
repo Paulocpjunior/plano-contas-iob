@@ -11,7 +11,7 @@
     const perM = texto.match(/Per[ií]odo\s+do\s+extrato\s+([0-9]{2}\s*\/\s*[0-9]{4})/i);
     return {
       agencia: agM ? agM[1] : '',
-      conta: ccM ? ccM[1] : '',
+      conta: ccM ? ccM[1].replace(/([0-9]+-X).*/i, '$1') : '',
       titular: ccM ? ccM[2].trim() : '',
       periodo: perM ? perM[1].replace(/\s+/g,'') : ''
     };
@@ -68,9 +68,9 @@
     const meta = extrairMeta(textoCompleto);
     const linhas = textoCompleto.split(/\r?\n/);
 
-    // Regex principal: linhas de lancamento
-    // Ex: "02/01/2026 0000 14175 976 TED-Credito em Conta 33.934.603 430,00 C"
-    const reLanc = /^(\d{2}\/\d{2}\/\d{4})\s+(?:\d{4}\s+)?(\d{3,6})\s+(\d{3})\s+(.+?)\s+([\d.]+)?\s*([\d.]+,\d{2})\s*([CD])\s*(?:[\d.,]+\s*[CD])?\s*$/;
+    // Regex principal: linhas de lancamento. O BB pode imprimir uma ou duas datas
+    // no inicio: "Dt. balancete" e "Dt. movimento".
+    const reLanc = /^(\d{2}\/\d{2}\/\d{4})(?:\s+\d{2}\/\d{2}\/\d{4})?\s+(?:\d{4}\s+)?(\d{3,6})\s+(\d{3})\s+(.+?)\s+([\d.]+)?\s*([\d.]+,\d{2})\s*([CD])\s*(?:[\d.,]+\s*[CD])?\s*$/;
 
     const lancamentos = [];
     const IGNORAR = /^(Saldo\s+Anterior|S\s*A\s*L\s*D\s*O|Tar\.\s*agrupadas)/i;
@@ -125,6 +125,9 @@
     }
 
     const fingerprint = 'bb-conta-atual-' + (meta.agencia || 'x') + '-' + (meta.conta || 'x') + '-' + (meta.periodo || 'x');
+    const periodoMatch = meta.periodo.match(/^(\d{2})\/(\d{4})$/);
+    const periodoInicio = periodoMatch ? (periodoMatch[2] + '-' + periodoMatch[1] + '-01') : '';
+    const periodoFim = periodoMatch ? new Date(Number(periodoMatch[2]), Number(periodoMatch[1]), 0).toISOString().slice(0, 10) : '';
 
     return {
       detectado: true,
@@ -133,7 +136,9 @@
       fingerprint: fingerprint,
       banco_detectado: 'BB',
       conta_detectada: (meta.agencia ? 'AG-' + meta.agencia : '') + (meta.conta ? '/CC-' + meta.conta : ''),
-      nome_conta_detectado: meta.titular || 'CONTA CORRENTE BB'
+      nome_conta_detectado: meta.titular || 'CONTA CORRENTE BB',
+      periodo_inicio: periodoInicio,
+      periodo_fim: periodoFim
     };
   }
 
