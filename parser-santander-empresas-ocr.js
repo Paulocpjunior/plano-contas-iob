@@ -126,7 +126,7 @@
   function pareceExtratoSantander(texto) {
     const t = removerAcentos(texto || '').toLowerCase();
     const temSantander = /santander/.test(t);
-    const temConta = /conta corrente|saldo de conta corrente|saldo disponivel/.test(t);
+    const temConta = /conta corrente|saldo de conta corrente|saldo disponivel|extrato consolidado inteligente/.test(t);
     const temMov = /movimentacao|movimentos\s*\(r\$?\)|creditos\s+debitos|total de creditos|total de debitos/.test(t);
     return temSantander && temConta && temMov;
   }
@@ -155,7 +155,7 @@
         aguardandoMovimentacao = true;
         continue;
       }
-      if (aguardandoMovimentacao && /^Movimentacao$/i.test(linha)) {
+      if (/^Movimentacao$/i.test(linha) && (aguardandoMovimentacao || /extrato consolidado inteligente/i.test(textoCompleto) || lancamentos.length)) {
         inMov = true;
         stopMov = false;
         aguardandoMovimentacao = false;
