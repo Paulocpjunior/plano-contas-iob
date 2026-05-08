@@ -1,9 +1,9 @@
 {
-  "version": "3.1.35",
-  "build_date": "2026-05-08T10:15:00Z",
+  "version": "3.1.36",
+  "build_date": "2026-05-08T10:45:00Z",
   "release_notes": [
-    "Card antigo de versão no canto inferior esquerdo removido",
-    "Botão Sobre passa a exibir versão atual, data de release e atualizações numeradas",
-    "Rodapé discreto de versão no canto inferior direito permanece como referência rápida"
+    "Painel Admin recebe a Central de Layouts Bancários",
+    "Central exibe bancos parametrizados, layouts ativos, confiabilidade, formato e último arquivo de teste",
+    "Layouts PDF cadastrados ficam visíveis para acompanhamento administrativo"
   ]
 }

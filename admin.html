@@ -39,6 +39,9 @@
   .badge-user { background: #dbeafe; color: #1e40af; }
   .badge-login { background: #d1fae5; color: #065f46; }
   .badge-logout { background: #fee2e2; color: #991b1b; }
+  .badge-ok { background: #d1fae5; color: #065f46; }
+  .badge-warn { background: #fef3c7; color: #92400e; }
+  .badge-info { background: #dbeafe; color: #1e40af; }
   .filters { display: flex; gap: 12px; margin-bottom: 16px; align-items: end; flex-wrap: wrap; }
   .filters label { display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; }
   .filters input, .filters select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
@@ -57,6 +60,11 @@
   .empty { text-align: center; padding: 40px; color: #9ca3af; }
   .text-mono { font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 12px; }
   input[type="search"] { min-width: 240px; }
+  .layout-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 18px; }
+  .layout-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+  .layout-card .bank { font-size: 13px; color: #6b7280; margin-bottom: 6px; }
+  .layout-card .count { font-size: 28px; font-weight: 800; color: #111827; }
+  .layout-card .caption { font-size: 12px; color: #6b7280; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -87,6 +95,7 @@
 
   <div class="tabs">
     <button class="active" onclick="showTab('resumo')">📊 Resumo</button>
+    <button onclick="showTab('layouts')">🏦 Layouts Bancários</button>
     <button onclick="showTab('usuarios')">👥 Usuários</button>
     <button onclick="showTab('logs')">📜 Log de Acesso</button>
   </div>
@@ -94,6 +103,19 @@
   <div id="tab-resumo" class="tab-content active">
     <div class="card">
       <div id="summaryContent" class="loading">Carregando…</div>
+    </div>
+  </div>
+
+  <div id="tab-layouts" class="tab-content">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+        <div>
+          <h2 style="font-size:20px;margin-bottom:4px">🏦 Central de Layouts Bancários</h2>
+          <p style="font-size:13px;color:#6b7280">Lista dos bancos e modelos de extrato PDF parametrizados no importador.</p>
+        </div>
+        <button class="btn" onclick="renderLayouts()">🔄 Atualizar</button>
+      </div>
+      <div id="layoutsContent" class="loading">Carregando…</div>
     </div>
   </div>
 
@@ -168,6 +190,63 @@ const auth = firebase.auth();
 
 let currentUsers = [];
 let currentLogs = [];
+const LAYOUTS_BANCARIOS = [
+  {
+    banco: '001',
+    nomeBanco: 'Banco do Brasil',
+    layout: 'Banco do Brasil - Conta Atual',
+    parser: 'parsearPDF_BB_ContaAtual',
+    formato: 'PDF textual',
+    confiabilidade: 'Alta',
+    status: 'Ativo',
+    ultimoTeste: 'EXTRATO BB - CC 14910-1 - MATRIZ SP',
+    observacao: 'Modelo Cliente - Conta atual com texto extraível.'
+  },
+  {
+    banco: '001',
+    nomeBanco: 'Banco do Brasil',
+    layout: 'Banco do Brasil - BB Cash OCR',
+    parser: 'parsearPDF_BB_CashOCR',
+    formato: 'PDF imagem / OCR',
+    confiabilidade: 'Média',
+    status: 'Ativo',
+    ultimoTeste: 'EXTRATO BANCO DO BRASIL - 08.2025.pdf',
+    observacao: 'Modelo BB Cash digitalizado. Exige conferência dos totais.'
+  },
+  {
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco Net Empresa - Extrato Mensal por Periodo',
+    parser: 'parsearPDF_Bradesco_NetEmpresa',
+    formato: 'PDF textual',
+    confiabilidade: 'Alta',
+    status: 'Ativo',
+    ultimoTeste: 'extrato 12 sep-part-1 1.pdf',
+    observacao: 'Confere totais oficiais de crédito e débito quando disponíveis.'
+  },
+  {
+    banco: '341',
+    nomeBanco: 'Itaú Unibanco',
+    layout: 'Itau - Extrato Mensal',
+    parser: 'parsearPDF_Itau_ExtratoMensal',
+    formato: 'PDF textual',
+    confiabilidade: 'Alta',
+    status: 'Ativo',
+    ultimoTeste: 'Extrato Mensal_Janeiro2026 1.pdf',
+    observacao: 'Lê colunas de entradas, saídas e saldo com validação dos totais.'
+  },
+  {
+    banco: '422',
+    nomeBanco: 'Banco Safra',
+    layout: 'Safra - Extrato de Movimentacao',
+    parser: 'parsearPDF_Safra_Extrato',
+    formato: 'PDF textual',
+    confiabilidade: 'Alta',
+    status: 'Ativo',
+    ultimoTeste: 'EXTRATO SAFRA - CC 172128-9 (2).pdf',
+    observacao: 'Extrai data, histórico, complemento, documento e valor.'
+  }
+];
 
 function fmtDate(ts) {
   if (!ts) return '-';
@@ -223,6 +302,7 @@ auth.onAuthStateChanged(async u => {
   document.getElementById('adminView').classList.remove('hidden');
   document.getElementById('currentEmail').textContent = u.email;
   loadSummary();
+  renderLayouts();
   loadUsers();
   loadLogs();
 });
@@ -232,6 +312,46 @@ function showTab(tab) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   event.target.classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'layouts') renderLayouts();
+}
+
+function escapeHtml(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+function renderLayouts() {
+  const el = document.getElementById('layoutsContent');
+  if (!el) return;
+  const totalLayouts = LAYOUTS_BANCARIOS.length;
+  const bancos = [...new Set(LAYOUTS_BANCARIOS.map(l => l.banco))].length;
+  const ocr = LAYOUTS_BANCARIOS.filter(l => /OCR/i.test(l.formato)).length;
+  const alta = LAYOUTS_BANCARIOS.filter(l => l.confiabilidade === 'Alta').length;
+
+  const cards = `
+    <div class="layout-grid">
+      <div class="layout-card"><div class="bank">Bancos parametrizados</div><div class="count">${bancos}</div><div class="caption">Com pelo menos 1 layout PDF</div></div>
+      <div class="layout-card"><div class="bank">Layouts ativos</div><div class="count">${totalLayouts}</div><div class="caption">Modelos disponíveis no extrator</div></div>
+      <div class="layout-card"><div class="bank">Alta confiabilidade</div><div class="count">${alta}</div><div class="caption">PDF textual com validação estruturada</div></div>
+      <div class="layout-card"><div class="bank">OCR</div><div class="count">${ocr}</div><div class="caption">Exigem conferência visual dos totais</div></div>
+    </div>`;
+
+  let table = '<table><thead><tr><th>Banco</th><th>Layout</th><th>Formato</th><th>Confiabilidade</th><th>Status</th><th>Último teste</th><th>Observação</th></tr></thead><tbody>';
+  LAYOUTS_BANCARIOS.forEach(l => {
+    const confClass = l.confiabilidade === 'Alta' ? 'badge-ok' : 'badge-warn';
+    const statusClass = l.status === 'Ativo' ? 'badge-ok' : 'badge-info';
+    table += `<tr>
+      <td><strong>${escapeHtml(l.banco)}</strong><br><span style="font-size:12px;color:#6b7280">${escapeHtml(l.nomeBanco)}</span></td>
+      <td>${escapeHtml(l.layout)}<br><span class="text-mono" style="color:#9ca3af">${escapeHtml(l.parser)}</span></td>
+      <td>${escapeHtml(l.formato)}</td>
+      <td><span class="badge ${confClass}">${escapeHtml(l.confiabilidade)}</span></td>
+      <td><span class="badge ${statusClass}">${escapeHtml(l.status)}</span></td>
+      <td style="font-size:12px;color:#374151">${escapeHtml(l.ultimoTeste)}</td>
+      <td style="font-size:12px;color:#6b7280">${escapeHtml(l.observacao)}</td>
+    </tr>`;
+  });
+  table += '</tbody></table>';
+
+  el.innerHTML = cards + table + '<p style="font-size:12px;color:#6b7280;margin-top:14px">OFX, CSV e XLSX continuam aceitos fora dos layouts PDF específicos. Para PDFs sem layout cadastrado, o extrator bloqueia e solicita parametrização.</p>';
 }
 
 async function loadSummary() {
