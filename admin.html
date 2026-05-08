@@ -252,6 +252,28 @@ const LAYOUTS_BANCARIOS = [
     observacao: 'Confere totais oficiais de crédito e débito quando disponíveis.'
   },
   {
+    banco: '033',
+    nomeBanco: 'Santander',
+    layout: 'Santander Empresas - Extrato Consolidado Inteligente OCR',
+    parser: 'parsearPDF_Santander_EmpresasOCR',
+    formato: 'PDF imagem / OCR',
+    confiabilidade: 'Média',
+    status: 'Ativo',
+    ultimoTeste: 'EXTRATO SANTANDER.pdf',
+    observacao: 'Extrai a seção Conta Corrente / Movimentação e ignora quadros auxiliares.'
+  },
+  {
+    banco: '352',
+    nomeBanco: 'Santander CTVM',
+    layout: 'Santander Empresas - Extrato Consolidado Inteligente OCR',
+    parser: 'parsearPDF_Santander_EmpresasOCR',
+    formato: 'PDF imagem / OCR',
+    confiabilidade: 'Média',
+    status: 'Ativo',
+    ultimoTeste: 'EXTRATO SANTANDER.pdf',
+    observacao: 'Atende cadastros que usam código 352 para extratos Santander Empresas.'
+  },
+  {
     banco: '341',
     nomeBanco: 'Itaú Unibanco',
     layout: 'Itau - Extrato Mensal',

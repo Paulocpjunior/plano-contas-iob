@@ -1,9 +1,9 @@
 {
-  "version": "3.1.39",
-  "build_date": "2026-05-08T12:05:00Z",
+  "version": "3.1.40",
+  "build_date": "2026-05-08T12:35:00Z",
   "release_notes": [
-    "Correção no vínculo de empresa ao plano de contas",
-    "Empresas já cadastradas sem razão social podem ser regularizadas e vinculadas pelo admin",
-    "Campo de razão social passa a ser salvo corretamente ao vincular CNPJ a um plano"
+    "Layout Santander Empresas cadastrado para importação PDF",
+    "Banco Santander passa a aceitar os códigos 033 e 352 no roteador de layouts",
+    "Parser OCR Santander extrai a seção Conta Corrente / Movimentação e ignora quadros auxiliares"
   ]
 }
