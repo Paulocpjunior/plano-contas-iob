@@ -3988,8 +3988,32 @@
             let wb;
             try {
                 const buf = await file.arrayBuffer();
+                const bytes = new Uint8Array(buf);
+                const assinaturaOle = bytes.length >= 8
+                    && bytes[0] === 0xD0 && bytes[1] === 0xCF && bytes[2] === 0x11 && bytes[3] === 0xE0;
+                if (assinaturaOle) {
+                    const contemNomeOle = function(nome) {
+                        const plain = Array.from(nome).map(function(ch) { return ch.charCodeAt(0); });
+                        const utf16 = [];
+                        plain.forEach(function(code) { utf16.push(code, 0); });
+                        const procura = function(seq) {
+                            outer: for (let i = 0; i <= bytes.length - seq.length; i++) {
+                                for (let j = 0; j < seq.length; j++) {
+                                    if (bytes[i + j] !== seq[j]) continue outer;
+                                }
+                                return true;
+                            }
+                            return false;
+                        };
+                        return procura(plain) || procura(utf16);
+                    };
+                    if (contemNomeOle('EncryptedPackage') || contemNomeOle('EncryptionInfo')) {
+                        throw new Error('Arquivo Excel protegido/criptografado. Abra no Excel, remova a senha/protecao e salve novamente como .xlsx antes de importar.');
+                    }
+                }
                 wb = XLSX.read(buf, { type: 'array', cellDates: true, raw: false });
             } catch (e) {
+                if (/protegido|criptografado/i.test(e.message || '')) throw e;
                 throw new Error('Falha ao ler XLSX: ' + e.message);
             }
 
@@ -4045,9 +4069,23 @@
             const parseValor = (v) => {
                 if (typeof v === 'number') return v;
                 if (!v) return null;
-                const s = String(v).trim().replace(/R\$\s*/gi,'').replace(/\./g,'').replace(',','.').replace(/\s/g,'');
+                let s = String(v).trim().replace(/R\$\s*/gi,'').replace(/\s/g,'');
+                const neg = /^-/.test(s) || /-$/.test(s);
+                s = s.replace(/-/g, '');
+                if (s.includes(',') && s.includes('.')) {
+                    s = s.replace(/\./g,'').replace(',','.');
+                } else if (s.includes(',')) {
+                    s = s.replace(',','.');
+                } else {
+                    const partes = s.split('.');
+                    if (partes.length > 2) {
+                        s = partes.join('');
+                    } else if (partes.length === 2 && partes[1].length === 3) {
+                        s = partes.join('');
+                    }
+                }
                 const n = parseFloat(s);
-                return isNaN(n) ? null : n;
+                return isNaN(n) ? null : (neg ? -Math.abs(n) : n);
             };
 
             const parsearLayoutClude = () => {

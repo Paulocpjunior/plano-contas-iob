@@ -1,9 +1,9 @@
 {
-  "version": "3.1.48",
-  "build_date": "2026-05-08T16:00:00Z",
+  "version": "3.1.49",
+  "build_date": "2026-05-08T16:20:00Z",
   "release_notes": [
-    "Empresa aberta pela aba Empresas fica ativa mesmo sem sessao anterior",
-    "Plano oficial vinculado no cadastro passa a validar a empresa antes da lista local terminar de carregar",
-    "Admin pode abrir CLUDE e demais empresas sem cair na tela vazia de cadastro"
+    "Importacao XLSX da CLUDE corrige leitura de valores com ponto decimal",
+    "Arquivos Excel protegidos ou criptografados passam a exibir aviso claro para remover senha/protecao",
+    "Layout CLUDE evita retorno generico de nenhuma transacao quando a planilha nao pode ser lida"
   ]
 }
