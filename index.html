@@ -4011,7 +4011,7 @@
                         throw new Error('Arquivo Excel protegido/criptografado. Abra no Excel, remova a senha/protecao e salve novamente como .xlsx antes de importar.');
                     }
                 }
-                wb = XLSX.read(buf, { type: 'array', cellDates: true, raw: false });
+                wb = XLSX.read(buf, { type: 'array', cellDates: true });
             } catch (e) {
                 if (/protegido|criptografado/i.test(e.message || '')) throw e;
                 throw new Error('Falha ao ler XLSX: ' + e.message);
@@ -4024,7 +4024,7 @@
 
             const H_DATA  = ['data','data lancamento','data mov','data movimento','dt','data do lancamento','emissao','dt emissao','data emissao','data de emissao','competencia','vencimento','disponivel em','disponível em'];
             const H_DESC  = ['descricao','historico','lancamento','memo','descricao do lancamento','historico do lancamento','razao social','razaosocial','fornecedor','beneficiario','obs','observacao'];
-            const H_VALOR = ['valor','valor (r$)','montante','vlr','valor lancamento','valor r$','credito/debito','valor da nf','valor nf','valor total','total nf','preco'];
+            const H_VALOR = ['valor','valor (r$)','montante','vlr','valor lancamento','valor r$','credito/debito','valor da nf','valor nf','valor total','total nf','preco','despesas','receitas'];
             const H_CNPJ  = ['cnpj','cpf','cnpj/cpf','cpf/cnpj','documento fornecedor'];
             const H_NUM   = ['numero','nr','num','nr nf','numero nf','num nf','nf'];
             const _norm = v => String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
@@ -4101,7 +4101,7 @@
 
                 for (const sheetName of wb.SheetNames) {
                     const sheet = wb.Sheets[sheetName];
-                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
                     if (!rows.length) {
                         abasClude.push({ aba: sheetName, detectados: 0, motivo: 'vazia' });
                         continue;
@@ -4203,7 +4203,7 @@
 
             for (const sheetName of wb.SheetNames) {
                 const sheet = wb.Sheets[sheetName];
-                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
                 if (!rows.length) { abasLog.push({aba: sheetName, detectados: 0, motivo: 'vazia'}); continue; }
 
                 const hIdx = detectHeaderRow(rows);
@@ -4258,7 +4258,7 @@
 
         const PADROES_COL = {
             data:      /^(data|dt\b|emiss[aã]o|compet[eê]ncia|vencimento)/i,
-            valor:     /^(valor|vlr|total|montante|pre[cç]o)/i,
+            valor:     /^(valor|vlr|total|montante|pre[cç]o|despesas?|receitas?)/i,
             descricao: /^(descri[cç][aã]o|hist[oó]rico|fornecedor|raz[aã]o|observa[cç][aã]o|obs|memo|benefici[aá]rio)/i,
             categoria: /^(categoria|classif|natureza|grupo)/i
         };
@@ -4305,7 +4305,8 @@
             return melhor;
         }
 
-        function normalizarData(v) {
+        function normalizarData(v, opts) {
+            opts = opts || {};
             if (!v) return null;
             if (v instanceof Date && !isNaN(v.getTime())) {
                 return v.getFullYear() + '-' + String(v.getMonth()+1).padStart(2,'0') + '-' + String(v.getDate()).padStart(2,'0');
@@ -4319,6 +4320,13 @@
             if (m) {
                 let y = m[3]; if (y.length === 2) y = (parseInt(y,10) >= 50 ? '19' : '20') + y;
                 return y + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+            }
+            m = str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/^(\d{1,2})[\s\/\-.]*(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)(?:[\s\/\-.]*(\d{2,4}))?$/);
+            if (m) {
+                const meses = { jan:'01', fev:'02', mar:'03', abr:'04', mai:'05', jun:'06', jul:'07', ago:'08', set:'09', out:'10', nov:'11', dez:'12' };
+                let y = m[3] || opts.anoPadrao || ((state.info && state.info.periodoInicio || '').match(/^(\d{4})-/) || [])[1] || String(new Date().getFullYear());
+                if (String(y).length === 2) y = (parseInt(y,10) >= 50 ? '19' : '20') + y;
+                return y + '-' + meses[m[2]] + '-' + m[1].padStart(2,'0');
             }
             return null;
         }
@@ -4353,7 +4361,7 @@
             for (let i = linha + 1; i < rows.length; i++) {
                 const r = rows[i];
                 if (!r || r.every(c => c === '' || c == null)) continue;
-                const data = normalizarData(r[mapa.data]);
+                const data = normalizarData(r[mapa.data], opts);
                 if (!data) continue;  // Sem data = provavelmente linha de TOTAL / subtotal
                 let valor = normalizarValor(r[mapa.valor]);
                 if (valor === 0) continue;
@@ -4389,6 +4397,10 @@
             const texto = await lerArquivoTexto(file);
             const linhas = texto.split(/\r?\n/).filter(l => l.trim().length > 0);
             if (linhas.length < 2) throw new Error('Arquivo vazio');
+            opts = opts || {};
+            const textoNorm = texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const mesAno = textoNorm.match(/\b(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(\d{4})\b/);
+            if (mesAno && !opts.anoPadrao) opts.anoPadrao = mesAno[2];
             const candidatos = [';', ',', '\t', '|'];
             let melhorSep = ','; let melhorScore = 0;
             candidatos.forEach(sep => {
@@ -5685,7 +5697,7 @@
                 } else if (ext === 'xlsx' || ext === 'xls') {
                     entries = await parsearArquivoXLSX(selectedFile, {});
                 } else {
-                    entries = parseCSV(await selectedFile.text());
+                    entries = await parsearArquivoTexto(selectedFile, 'csv', {});
                 }
                 
                 // [A3-FIX] Array vazio pode significar: arquivo realmente vazio OU usuario cancelou no modal JA IMPORTADO
