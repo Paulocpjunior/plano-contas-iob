@@ -1,9 +1,9 @@
 {
-  "version": "3.1.38",
-  "build_date": "2026-05-08T11:35:00Z",
+  "version": "3.1.39",
+  "build_date": "2026-05-08T12:05:00Z",
   "release_notes": [
-    "Fluxo de cadastro e recuperação de senha corrigido",
-    "Cadastro com e-mail ja existente agora orienta e envia link de redefinicao de senha",
-    "Mensagens de autenticacao foram traduzidas e simplificadas para os colaboradores"
+    "Correção no vínculo de empresa ao plano de contas",
+    "Empresas já cadastradas sem razão social podem ser regularizadas e vinculadas pelo admin",
+    "Campo de razão social passa a ser salvo corretamente ao vincular CNPJ a um plano"
   ]
 }

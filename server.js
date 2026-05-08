@@ -677,7 +677,8 @@ app.get('/api/empresas/:cnpj', async (req, res) => {
 
 app.post('/api/empresas', async (req, res) => {
   try {
-    const { cnpj, razao_social, plano_id } = req.body;
+    const { cnpj, plano_id } = req.body;
+    const razao_social = req.body.razao_social || req.body['razão_social'] || '';
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ deve ter 14 digitos' });
     if (!razao_social || !plano_id) return res.status(400).json({ erro: 'razao_social e plano_id obrigatorios' });
@@ -1060,7 +1061,8 @@ app.get('/api/empresas/:cnpj/historico-planos', async (req, res) => {
 
 app.post('/api/admin/vincular-empresa-plano', adminRequired, async (req, res) => {
   try {
-    const { cnpj, razao_social, plano_id } = req.body || {};
+    const { cnpj, plano_id } = req.body || {};
+    const razao_social = req.body.razao_social || req.body['razão_social'] || '';
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ deve ter 14 digitos' });
     if (!plano_id) return res.status(400).json({ erro: 'plano_id obrigatorio' });

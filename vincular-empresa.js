@@ -14,6 +14,15 @@
       .replace(/(\d{4})(\d)/, '$1-$2')
       .slice(0, 18);
   }
+  function razaoDaEmpresa(emp) {
+    return (emp && (emp.razao_social || emp['razão_social'] || emp.nome || emp.nome_fantasia || emp.empresa || '') || '').trim();
+  }
+  async function consultarReceita(limpo) {
+    var r = await fetch('https://brasilapi.com.br/api/cnpj/v1/' + limpo);
+    if (!r.ok) return { ok: false, status: r.status };
+    var d = await r.json();
+    return { ok: true, razao: (d.razao_social || d.nome_fantasia || '').trim() };
+  }
   function closeModal() {
     var bd = document.getElementById('modalVincularEmpresa');
     if (bd) bd.remove();
@@ -56,6 +65,7 @@
     var statusEl = document.getElementById('vincEmpCNPJStatus');
     var avisoEl = document.getElementById('vincEmpAviso');
     var cnpjOk = false;
+    var empresaExistente = null;
     var lookupGeneration = 0;
     function refreshConfirm() {
       var ok = cnpjOk && inpRazao.value.trim().length > 2;
@@ -76,6 +86,7 @@
       inpCNPJ.value = formatCNPJ(inpCNPJ.value);
       var limpo = inpCNPJ.value.replace(/\D/g, '');
       cnpjOk = false;
+      empresaExistente = null;
       inpRazao.value = '';
       inpRazao.disabled = true;
       setAviso('');
@@ -90,20 +101,35 @@
         if (myGen !== lookupGeneration) return;
         if (existeR.ok) {
           var emp = await existeR.json();
+          empresaExistente = emp;
+          var razaoExistente = razaoDaEmpresa(emp);
+          if (!razaoExistente) {
+            try {
+              var rec = await consultarReceita(limpo);
+              if (myGen !== lookupGeneration) return;
+              if (rec.ok && rec.razao) razaoExistente = rec.razao;
+            } catch (e) { }
+          }
+          inpRazao.value = razaoExistente || '';
+          inpRazao.disabled = false;
+          cnpjOk = true;
           statusEl.textContent = '!';
           statusEl.style.color = '#d97706';
-          setAviso('Esta empresa já está cadastrada: <strong>' + (emp.razão_social || 'sem razão') + '</strong>. Vinculada a outro plano. Para trocar, use a opção Trocar Plano na aba de empresas.', 'warn');
+          if (emp.plano_id && emp.plano_id !== planoId) {
+            setAviso('Esta empresa já está cadastrada: <strong>' + (razaoExistente || 'sem razão social') + '</strong>. Ao confirmar, o vínculo será atualizado para este plano.', 'warn');
+          } else {
+            setAviso('Esta empresa já está cadastrada: <strong>' + (razaoExistente || 'sem razão social') + '</strong>. Ao confirmar, a razão social e o vínculo serão regularizados.', 'info');
+          }
+          refreshConfirm();
           return;
         }
       } catch (e) { }
       try {
-        var r = await fetch('https://brasilapi.com.br/api/cnpj/v1/' + limpo);
+        var rec = await consultarReceita(limpo);
         if (myGen !== lookupGeneration) return;
-        if (r.ok) {
-          var d = await r.json();
-          var razão = d.razão_social || d.nome_fantasia || '';
-          if (razão) {
-            inpRazao.value = razão;
+        if (rec.ok) {
+          if (rec.razao) {
+            inpRazao.value = rec.razao;
             inpRazao.disabled = false;
             cnpjOk = true;
             statusEl.textContent = 'OK';
@@ -114,11 +140,11 @@
             statusEl.style.color = '#ef4444';
             toast('CNPJ sem razão social na Receita', 'error');
           }
-        } else if (r.status === 404) {
+        } else if (rec.status === 404) {
           statusEl.textContent = 'X';
           statusEl.style.color = '#ef4444';
           toast('CNPJ não encontrado na Receita Federal', 'error');
-        } else { throw new Error('status ' + r.status); }
+        } else { throw new Error('status ' + rec.status); }
       } catch (e) {
         if (myGen !== lookupGeneration) return;
         statusEl.textContent = '!';
@@ -147,18 +173,9 @@
       btnConf.disabled = true;
       btnConf.textContent = 'Vinculando...';
       try {
-        var r = await window.API.apiFetch('/api/empresas', {
-          method: 'POST',
-          body: JSON.stringify({ cnpj: cnpj, razão_social: razão, plano_id: planoId })
-        });
-        if (!r.ok) {
-          var err = await r.json().catch(function () { return {}; });
-          toast('Erro: ' + (err.erro || ('HTTP ' + r.status)), 'error');
-          btnConf.disabled = false;
-          btnConf.textContent = 'Vincular';
-          return;
-        }
-        toast('Empresa vinculada com sucesso', 'success');
+        var resp = await window.API.vincularEmpresaPlano(cnpj, razão, planoId);
+        if (resp && resp.erro) throw new Error(resp.erro);
+        toast(empresaExistente ? 'Vínculo da empresa atualizado com sucesso' : 'Empresa vinculada com sucesso', 'success');
         closeModal();
         try {
           if (window.API && typeof window.API.loadPlanos === 'function') {
