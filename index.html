@@ -2372,6 +2372,12 @@
                     if (typeof renderListaPlanosVinculados === 'function') {
                         try { renderListaPlanosVinculados(); } catch(e) { console.warn('re-render falhou:', e); }
                     }
+                    if (state.infoConfirmed && state.info) {
+                        try {
+                            updateCompanyBar();
+                            updateDashboard();
+                        } catch(e) { console.warn('[planos] atualizacao pos-API:', e); }
+                    }
                 }).catch(function(err) {
                     console.warn('[API] Falha ao carregar da API, usando localStorage:', err);
                 });
@@ -2388,6 +2394,19 @@
                 if (plano.cnpj === cnpjLimpo) {
                     return { nome, plano };
                 }
+            }
+            const infoAtiva = state && state.info ? state.info : null;
+            const cnpjAtivo = infoAtiva && infoAtiva.cnpj ? infoAtiva.cnpj.replace(/\D/g, '') : '';
+            const planoIdAtivo = infoAtiva && (infoAtiva.plano_id || infoAtiva.planoId);
+            if (cnpjAtivo === cnpjLimpo && planoIdAtivo) {
+                return {
+                    nome: infoAtiva.planoNome || planoIdAtivo,
+                    plano: {
+                        plano_id: planoIdAtivo,
+                        cnpj: cnpjLimpo,
+                        total_contas: infoAtiva.total_contas || '?'
+                    }
+                };
             }
             return null;
         }
@@ -4613,14 +4632,16 @@
             const base = sessaoInfo || {};
             const razao = (cadastro && (cadastro.razao_social || cadastro.empresa || cadastro.nome || cadastro.nome_fantasia)) || '';
             const bancoCadastro = cadastro && cadastro.banco ? cadastro.banco : '';
+            const hojeISO = new Date().toISOString().slice(0, 10);
             return {
                 ...base,
                 cnpj: cnpjFmt,
                 empresa: razao || base.empresa || '',
                 banco: bancoCadastro || base.banco || '',
                 usuario: base.usuario || (window.CURRENT_USER && window.CURRENT_USER.email ? window.CURRENT_USER.email.split('@')[0] : ''),
-                periodoInicio: base.periodoInicio || '',
-                periodoFim: base.periodoFim || '',
+                periodoInicio: base.periodoInicio || hojeISO,
+                periodoFim: base.periodoFim || hojeISO,
+                plano_id: (cadastro && cadastro.plano_id) || base.plano_id || base.planoId || '',
                 planoNome: base.planoNome || (cadastro && (cadastro.plano_nome || cadastro.plano_id)) || ''
             };
         }
@@ -4660,12 +4681,17 @@
                 } else {
                     // Empresa sem sessao ainda - puxa dados basicos e deixa usuario configurar
                     state.info = empMontarInfoAtiva(cnpjLimpo, cadastroOficial, {});
-                    state.infoConfirmed = false;
+                    state.infoConfirmed = !!(state.info && state.info.cnpj && state.info.empresa && state.info.banco);
                     state.entries = [];
                     state.lastFile = null;
                     saveState();
                     showPage('inicio');
-                    showToast('Empresa sem sessão anterior. Complete os dados e clique Confirmar.', 'warn');
+                    if (state.infoConfirmed) {
+                        try { if (typeof initApp === 'function') initApp(); } catch(e) {}
+                        showToast('✅ ' + ((state.info && state.info.empresa) || 'Empresa') + ' carregada sem lançamentos anteriores', 'success');
+                    } else {
+                        showToast('Empresa sem sessão anterior. Complete os dados e clique Confirmar.', 'warn');
+                    }
                     setTimeout(() => {
                         document.getElementById('infoCNPJ').value = state.info.cnpj;
                         document.getElementById('infoEmpresa').value = state.info.empresa;
