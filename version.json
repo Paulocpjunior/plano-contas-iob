@@ -1,9 +1,9 @@
 {
-  "version": "3.1.45",
-  "build_date": "2026-05-08T14:55:00Z",
+  "version": "3.1.46",
+  "build_date": "2026-05-08T15:20:00Z",
   "release_notes": [
-    "Layout Banco do Brasil Conta Atual aceita extratos com Dt. balancete e Dt. movimento",
-    "Importacao BB reconhece o PDF 02/2025 com conta e periodo corretos",
-    "Parser BB passa a informar periodo inicial e final da importacao"
+    "Banco interno CLUDE - Club de Beneficios cadastrado para importacao",
+    "Layout CLUDE - Stripe / Recebimentos reconhece planilhas com Disponivel em, Valor total e Cliente",
+    "Importacao XLSX passa a aceitar datas ISO com horario e exibir layout CLUDE na conferencia"
   ]
 }

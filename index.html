@@ -3139,8 +3139,20 @@
         
         // === BACEN / Importacao ===
         let BANCOS_BACEN = [];
+        const BANCOS_CUSTOMIZADOS = [
+            { code: 'CLU', name: 'CLUDE - CLUB DE BENEFICIOS' }
+        ];
         const BANCOS_BACEN_CACHE_KEY = 'bancos_bacen_v2';
         const BANCOS_BACEN_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
+
+        function aplicarBancosCustomizados() {
+            BANCOS_CUSTOMIZADOS.forEach(function(banco) {
+                if (!BANCOS_BACEN.some(function(b) { return b.code === banco.code; })) {
+                    BANCOS_BACEN.push(banco);
+                }
+            });
+            BANCOS_BACEN.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+        }
         
         async function loadBancosBacen() {
             try {
@@ -3149,6 +3161,7 @@
                     const parsed = JSON.parse(cached);
                     if (Date.now() - parsed.ts < BANCOS_BACEN_CACHE_MS && Array.isArray(parsed.data)) {
                         BANCOS_BACEN = parsed.data;
+                        aplicarBancosCustomizados();
                         popularSelectsBancos();
                         return;
                     }
@@ -3164,6 +3177,7 @@
                     }))
                     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
                 localStorage.setItem(BANCOS_BACEN_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: BANCOS_BACEN }));
+                aplicarBancosCustomizados();
                 popularSelectsBancos();
             } catch (e) {
                 console.error('Falha ao carregar BACEN, usando fallback:', e);
@@ -3175,6 +3189,7 @@
                     { code: '341', name: 'ITAU UNIBANCO S.A.' },
                     { code: '422', name: 'BANCO SAFRA S.A.' }
                 ];
+                aplicarBancosCustomizados();
                 popularSelectsBancos();
             }
         }
@@ -3354,7 +3369,10 @@
                 'santander': '033',
                 'sicoob': '756',
                 'sicredi': '748',
-                'safra': '422'
+                'safra': '422',
+                'clude': 'CLU',
+                'club de beneficios': 'CLU',
+                'club de benefícios': 'CLU'
             };
             if (mapa[v]) return mapa[v];
 	            const match = BANCOS_BACEN.find(b => b.name.toLowerCase().includes(v) || v.includes(b.name.toLowerCase()));
@@ -3961,7 +3979,7 @@
                 .replace(/[áàâãä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i')
                 .replace(/[óòôõö]/g,'o').replace(/[úùûü]/g,'u').replace(/[ç]/g,'c');
 
-            const H_DATA  = ['data','data lancamento','data mov','data movimento','dt','data do lancamento','emissao','dt emissao','data emissao','data de emissao','competencia','vencimento'];
+            const H_DATA  = ['data','data lancamento','data mov','data movimento','dt','data do lancamento','emissao','dt emissao','data emissao','data de emissao','competencia','vencimento','disponivel em','disponível em'];
             const H_DESC  = ['descricao','historico','lancamento','memo','descricao do lancamento','historico do lancamento','razao social','razaosocial','fornecedor','beneficiario','obs','observacao'];
             const H_VALOR = ['valor','valor (r$)','montante','vlr','valor lancamento','valor r$','credito/debito','valor da nf','valor nf','valor total','total nf','preco'];
             const H_CNPJ  = ['cnpj','cpf','cnpj/cpf','cpf/cnpj','documento fornecedor'];
@@ -3997,6 +4015,8 @@
                     if (d && d.y) return d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0');
                 }
                 const s = String(v).trim();
+                const isoDateTime = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T]\d{2}:\d{2}(?::\d{2})?)?/);
+                if (isoDateTime) return isoDateTime[1] + '-' + isoDateTime[2] + '-' + isoDateTime[3];
                 const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
                 if (m) { const y = m[3].length===2 ? '20'+m[3] : m[3]; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
                 if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
@@ -4011,8 +4031,111 @@
                 return isNaN(n) ? null : n;
             };
 
+            const parsearLayoutClude = () => {
+                const todosClude = [];
+                const abasClude = [];
+
+                for (const sheetName of wb.SheetNames) {
+                    const sheet = wb.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+                    if (!rows.length) {
+                        abasClude.push({ aba: sheetName, detectados: 0, motivo: 'vazia' });
+                        continue;
+                    }
+
+                    let hIdx = -1;
+                    for (let i = 0; i < Math.min(rows.length, 25); i++) {
+                        const h = (rows[i] || []).map(normH);
+                        const temStripe = h.includes('id')
+                            && h.includes('valor')
+                            && h.includes('tarifas')
+                            && h.includes('valor total')
+                            && (h.includes('disponivel em') || h.includes('disponível em'))
+                            && h.includes('descricao');
+                        if (temStripe) { hIdx = i; break; }
+                    }
+                    if (hIdx === -1) {
+                        abasClude.push({ aba: sheetName, detectados: 0, motivo: 'nao e layout CLUDE/Stripe' });
+                        continue;
+                    }
+
+                    const headers = rows[hIdx].map(normH);
+                    const col = function(nome) { return headers.indexOf(normH(nome)); };
+                    const cData = col('Disponível em') >= 0 ? col('Disponível em') : col('Disponivel em');
+                    const cValorTotal = col('Valor total');
+                    const cValor = col('Valor');
+                    const cDesc = col('Descrição') >= 0 ? col('Descrição') : col('Descricao');
+                    const cObs = col('Obs');
+                    const cCliente = col('Cliente');
+                    const cDocto = col('Docto. cliente');
+                    const cNF = col('Número NF') >= 0 ? col('Número NF') : col('Numero NF');
+                    const cId = col('Id');
+
+                    let count = 0;
+                    for (let i = hIdx + 1; i < rows.length; i++) {
+                        const r = rows[i];
+                        if (!r || r.every(c => c === null || c === '' || c === undefined)) continue;
+                        const data = parseData(r[cData]);
+                        const valor = parseValor(cValorTotal >= 0 ? r[cValorTotal] : r[cValor]);
+                        if (!data || valor === null || Math.abs(valor) === 0) continue;
+
+                        const descBase = String(r[cDesc] || '').trim();
+                        const obs = cObs >= 0 ? String(r[cObs] || '').trim() : '';
+                        const cliente = cCliente >= 0 ? String(r[cCliente] || '').trim() : '';
+                        const docto = cDocto >= 0 ? String(r[cDocto] || '').trim() : '';
+                        const nf = cNF >= 0 ? String(r[cNF] || '').trim() : '';
+                        const id = cId >= 0 ? String(r[cId] || '').trim() : '';
+
+                        const partes = [descBase || 'Movimento Stripe'];
+                        if (obs) partes.push(obs);
+                        if (cliente) partes.push(cliente);
+                        if (nf) partes.push('NF ' + nf);
+                        if (docto) partes.push('Doc ' + docto);
+                        if (id) partes.push('ID ' + id);
+
+                        todosClude.push({
+                            data,
+                            descricao: partes.join(' - ').replace(/\s+/g, ' ').trim(),
+                            valor,
+                            aba_origem: sheetName,
+                            layoutNome: 'CLUDE - Stripe / Recebimentos',
+                            layoutParser: 'parsearArquivoXLSXCludeStripe',
+                            conta: 'Stripe CLUDE',
+                            nome_conta: 'Stripe CLUDE'
+                        });
+                        count++;
+                    }
+                    abasClude.push({ aba: sheetName, detectados: count, layout: 'CLUDE - Stripe / Recebimentos' });
+                }
+
+                const seenClude = new Set();
+                const dedupClude = todosClude.filter(t => {
+                    const k = t.data + '|' + t.descricao + '|' + t.valor;
+                    if (seenClude.has(k)) return false;
+                    seenClude.add(k);
+                    return true;
+                });
+
+                if (dedupClude.length) {
+                    const datas = dedupClude.map(t => t.data).sort();
+                    dedupClude.forEach(t => {
+                        t.periodo_inicio = datas[0] || '';
+                        t.periodo_fim = datas[datas.length - 1] || '';
+                    });
+                    window.__ultimaImportacaoAbas = abasClude;
+                    return dedupClude;
+                }
+                return null;
+            };
+
             const todos = [];
             const abasLog = [];
+
+            const clude = parsearLayoutClude();
+            if (clude) {
+                console.log('[parsearArquivoXLSX] layout CLUDE detectado:', clude.length);
+                return clude;
+            }
 
             for (const sheetName of wb.SheetNames) {
                 const sheet = wb.Sheets[sheetName];
