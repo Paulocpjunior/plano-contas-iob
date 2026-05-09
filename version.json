@@ -1,9 +1,9 @@
 {
-  "version": "3.1.55",
-  "build_date": "2026-05-09T07:10:00-03:00",
+  "version": "3.1.56",
+  "build_date": "2026-05-09T08:25:00-03:00",
   "release_notes": [
-    "Forcado novo aviso de atualizacao para garantir que todos os usuarios vejam a release atual",
-    "Consulta de versao agora usa cache-buster para evitar retorno antigo do navegador",
-    "Layouts bancarios permanecem centralizados na colecao global layouts_bancarios, incluindo CLUDE"
+    "Importador XLSX passa a reconhecer o cabecalho DATA PAGTO usado no arquivo CLUDE/Itau",
+    "Corrigido erro Nenhuma transacao encontrada para planilhas de movimentacao financeira da CLUDE",
+    "Mantido aviso de atualizacao com cache-buster para todos os usuarios"
   ]
 }
