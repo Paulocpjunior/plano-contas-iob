@@ -66,6 +66,32 @@ function adminRequired(req, res, next) {
 
 app.use('/api', authRequired);
 
+const LAYOUTS_BANCARIOS_PADRAO = [
+  { banco: '001', nomeBanco: 'Banco do Brasil', nome: 'Banco do Brasil - Conta Atual', parser: 'parsearPDF_BB_ContaAtual', formato: 'PDF textual', confiabilidade: 'Alta', status: 'Ativo', ultimoTeste: 'EXTRATO BB - CC 14910-1 - MATRIZ SP', observacao: 'Modelo Cliente - Conta atual com texto extraivel.' },
+  { banco: '001', nomeBanco: 'Banco do Brasil', nome: 'Banco do Brasil - BB Cash OCR', parser: 'parsearPDF_BB_CashOCR', formato: 'PDF imagem / OCR', confiabilidade: 'Media', status: 'Ativo', ultimoTeste: 'EXTRATO BANCO DO BRASIL - 08.2025.pdf', observacao: 'Modelo BB Cash digitalizado. Exige conferencia dos totais.' },
+  { banco: '237', nomeBanco: 'Bradesco', nome: 'Bradesco Net Empresa - Extrato Mensal por Periodo', parser: 'parsearPDF_Bradesco_NetEmpresa', formato: 'PDF textual', confiabilidade: 'Alta', status: 'Ativo', ultimoTeste: 'extrato 12 sep-part-1 1.pdf', observacao: 'Confere totais oficiais de credito e debito quando disponiveis.' },
+  { banco: '033', nomeBanco: 'Santander', nome: 'Santander Empresas - Extrato Consolidado Inteligente OCR', parser: 'parsearPDF_Santander_EmpresasOCR', formato: 'PDF imagem / OCR', confiabilidade: 'Media', status: 'Ativo', ultimoTeste: 'EXTRATO SANTANDER.pdf', observacao: 'Extrai a secao Conta Corrente / Movimentacao e ignora quadros auxiliares.' },
+  { banco: '352', nomeBanco: 'Santander CTVM', nome: 'Santander Empresas - Extrato Consolidado Inteligente OCR', parser: 'parsearPDF_Santander_EmpresasOCR', formato: 'PDF imagem / OCR', confiabilidade: 'Media', status: 'Ativo', ultimoTeste: 'EXTRATO SANTANDER.pdf', observacao: 'Atende cadastros que usam codigo 352 para extratos Santander Empresas.' },
+  { banco: '341', nomeBanco: 'Itau Unibanco', nome: 'Itau - Extrato Mensal', parser: 'parsearPDF_Itau_ExtratoMensal', formato: 'PDF textual', confiabilidade: 'Alta', status: 'Ativo', ultimoTeste: 'itau abril 26 1.pdf', observacao: 'Le lancamentos multiline, Redecard/Rede, rendimentos e valida totais quando disponiveis.' },
+  { banco: '422', nomeBanco: 'Banco Safra', nome: 'Safra - Extrato de Movimentacao', parser: 'parsearPDF_Safra_Extrato', formato: 'PDF textual', confiabilidade: 'Alta', status: 'Ativo', ultimoTeste: 'EXTRATO SAFRA - CC 172128-9 (2).pdf', observacao: 'Extrai data, historico, complemento, documento e valor.' }
+];
+
+function layoutBancoId(layout) {
+  return String((layout && layout.banco) || '').replace(/\D/g, '').padStart(3, '0') + '_' + String((layout && layout.parser) || '').replace(/[^A-Za-z0-9_]/g, '');
+}
+
+async function garantirLayoutsBancariosPadrao() {
+  const col = db.collection('layouts_bancarios');
+  await Promise.all(LAYOUTS_BANCARIOS_PADRAO.map(async layout => {
+    const id = layoutBancoId(layout);
+    const ref = col.doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      await ref.set({ ...layout, ativo: true, origem: 'padrao_sistema', criado_em: new Date(), atualizado_em: new Date() });
+    }
+  }));
+}
+
 // ============================================================================
 //  FOLHA DE PAGAMENTO IOB — Fase 1 — endpoints
 //  Colar logo após `app.use('/api', authRequired);` (linha 41 do server.js)
@@ -1206,6 +1232,59 @@ app.get('/api/admin/summary', adminRequired, async (req, res) => {
       logs_amostrados: logs.size
     });
   } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.get('/api/layouts-bancarios', async (req, res) => {
+  try {
+    await garantirLayoutsBancariosPadrao();
+    const snap = await db.collection('layouts_bancarios').get();
+    const layouts = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => String(a.banco || '').localeCompare(String(b.banco || '')) || String(a.nome || '').localeCompare(String(b.nome || '')));
+    res.json({ layouts });
+  } catch (err) {
+    console.error('layouts-bancarios GET erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.post('/api/layouts-bancarios/uso', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const bancoRaw = String(body.banco || '').replace(/\D/g, '');
+    const parser = String(body.parser || '').trim();
+    if (!bancoRaw || !parser) return res.status(400).json({ erro: 'banco e parser obrigatorios' });
+    const banco = bancoRaw.padStart(3, '0');
+    const base = LAYOUTS_BANCARIOS_PADRAO.find(l => String(l.banco) === banco && l.parser === parser) || {};
+    const nome = body.nome || body.layout || base.nome || parser;
+    const id = layoutBancoId({ banco, parser });
+    const ref = db.collection('layouts_bancarios').doc(id);
+    const doc = await ref.get();
+    const atual = doc.exists ? doc.data() : {};
+    await ref.set({
+      ...base,
+      ...atual,
+      banco,
+      parser,
+      nome,
+      nomeBanco: body.nomeBanco || atual.nomeBanco || base.nomeBanco || '',
+      formato: body.formato || atual.formato || base.formato || 'PDF',
+      confiabilidade: body.confiabilidade || atual.confiabilidade || base.confiabilidade || 'Media',
+      status: 'Ativo',
+      ativo: true,
+      ultimoTeste: body.arquivo_exemplo || atual.ultimoTeste || base.ultimoTeste || '',
+      ultimo_arquivo: body.arquivo_exemplo || atual.ultimo_arquivo || '',
+      ultimo_uso_em: new Date(),
+      ultimo_uso_por_uid: req.user.uid,
+      ultimo_uso_por_email: req.user.email,
+      total_usos: (atual.total_usos || 0) + 1,
+      origem: atual.origem || base.origem || 'importador',
+      atualizado_em: new Date()
+    }, { merge: true });
+    res.json({ ok: true, id });
+  } catch (err) {
+    console.error('layouts-bancarios uso erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
 });
 
 // Rota da pagina admin

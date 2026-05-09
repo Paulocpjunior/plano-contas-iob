@@ -1,9 +1,9 @@
 {
-  "version": "3.1.52",
-  "build_date": "2026-05-08T17:25:00Z",
+  "version": "3.1.53",
+  "build_date": "2026-05-09T06:25:00-03:00",
   "release_notes": [
-    "Parser PDF Itau passa a capturar lancamentos com data isolada em linha anterior",
-    "Lancamentos Redecard/Rede e Rendimentos do extrato Itau deixam de ser descartados",
-    "Valores colados ao CNPJ/CPF no PDF Itau passam a ser separados antes da importacao"
+    "Layouts bancarios passam a ser gravados e lidos da colecao global layouts_bancarios no Firestore",
+    "Painel Admin deixa de depender de lista fixa e passa a refletir o banco de dados usado pelo importador",
+    "Importador registra uso do layout bancario aplicado e colaboradores herdam plano vinculado pelo admin via plano_id oficial"
   ]
 }

@@ -2390,15 +2390,16 @@
         // Verificar se CNPJ tem plano cadastrado
         function verificarPlanoPorCNPJ(cnpj) {
             const cnpjLimpo = cnpj.replace(/\D/g, '');
-            for (const [nome, plano] of Object.entries(planosCadastrados)) {
-                if (plano.cnpj === cnpjLimpo) {
-                    return { nome, plano };
-                }
-            }
             const infoAtiva = state && state.info ? state.info : null;
             const cnpjAtivo = infoAtiva && infoAtiva.cnpj ? infoAtiva.cnpj.replace(/\D/g, '') : '';
             const planoIdAtivo = infoAtiva && (infoAtiva.plano_id || infoAtiva.planoId);
             if (cnpjAtivo === cnpjLimpo && planoIdAtivo) {
+                for (const [nome, plano] of Object.entries(planosCadastrados)) {
+                    const idPlano = plano && (plano.plano_id || plano.id || plano._id);
+                    if (idPlano === planoIdAtivo) {
+                        return { nome, plano: { ...plano, cnpj: plano.cnpj || cnpjLimpo } };
+                    }
+                }
                 return {
                     nome: infoAtiva.planoNome || planoIdAtivo,
                     plano: {
@@ -2407,6 +2408,11 @@
                         total_contas: infoAtiva.total_contas || '?'
                     }
                 };
+            }
+            for (const [nome, plano] of Object.entries(planosCadastrados)) {
+                if (plano.cnpj === cnpjLimpo) {
+                    return { nome, plano };
+                }
             }
             return null;
         }
@@ -3398,7 +3404,10 @@
 	            return match ? match.code : '';
 	        }
 
-	        function layoutsPDFCadastradosPorBanco(bancoCode) {
+            let layoutsBancariosCache = null;
+            let layoutsBancariosCacheTs = 0;
+
+	        function layoutsPDFCadastradosPorBancoFallback(bancoCode) {
 	            const code = resolverBancoLegado(bancoCode) || bancoCode || '';
 	            const layouts = {
 	                '001': [{
@@ -3430,6 +3439,45 @@
 	                }]
 	            };
 	            return layouts[code] || [];
+	        }
+
+            async function carregarLayoutsBancariosDoBanco() {
+                const agora = Date.now();
+                if (layoutsBancariosCache && (agora - layoutsBancariosCacheTs) < 5 * 60 * 1000) return layoutsBancariosCache;
+                if (!window.API || !window.API.apiFetch) return [];
+                const r = await window.API.apiFetch('/api/layouts-bancarios');
+                if (!r.ok) throw new Error('Falha ao buscar layouts bancarios: HTTP ' + r.status);
+                const data = await r.json();
+                layoutsBancariosCache = (data.layouts || []).map(function(l) {
+                    return {
+                        nome: l.nome || l.layout || '',
+                        parser: l.parser || '',
+                        banco: l.banco || '',
+                        nomeBanco: l.nomeBanco || l.nome_banco || '',
+                        formato: l.formato || '',
+                        confiabilidade: l.confiabilidade || '',
+                        status: l.status || (l.ativo === false ? 'Inativo' : 'Ativo'),
+                        ativo: l.ativo !== false
+                    };
+                }).filter(function(l) { return l.banco && l.parser && l.nome && l.ativo !== false && l.status !== 'Inativo'; });
+                layoutsBancariosCacheTs = agora;
+                return layoutsBancariosCache;
+            }
+
+            async function layoutsPDFCadastradosPorBancoAsync(bancoCode) {
+                const code = resolverBancoLegado(bancoCode) || bancoCode || '';
+                try {
+                    const todos = await carregarLayoutsBancariosDoBanco();
+                    const doBanco = todos.filter(function(l) { return String(l.banco).padStart(3, '0') === String(code).padStart(3, '0'); });
+                    if (doBanco.length) return doBanco;
+                } catch (e) {
+                    console.warn('[layouts bancarios] usando fallback local:', e.message || e);
+                }
+                return layoutsPDFCadastradosPorBancoFallback(code);
+            }
+
+	        function layoutsPDFCadastradosPorBanco(bancoCode) {
+                return layoutsPDFCadastradosPorBancoFallback(bancoCode);
 	        }
 
 	        function nomeLayoutsPDFBanco(bancoCode) {
@@ -4951,9 +4999,10 @@
 	            } catch (e) { console.warn('[sessao] carregar:', e); }
 	        }
 
-	        async function buscarCNPJ() {
-	            aplicarUICadastroEmpresa(false, true);
-	            const cnpj = document.getElementById('infoCNPJ').value.replace(/\D/g, '');
+		        async function buscarCNPJ() {
+		            aplicarUICadastroEmpresa(false, true);
+                    window.__empresaCadastroInternoAtual = null;
+		            const cnpj = document.getElementById('infoCNPJ').value.replace(/\D/g, '');
 	            const icon = document.getElementById('cnpjIcon');
 	            const inpEmpresa = document.getElementById('infoEmpresa');
 	            const seq = (window.__cnpjBuscaSeq || 0) + 1;
@@ -4984,8 +5033,9 @@
 	            // [CAMADA 2] Consulta primeiro o banco interno do app.
 	            const empSysInicial = await consultarEmpresaNoBancoInterno(cnpj);
 	            if (seq !== window.__cnpjBuscaSeq) return;
-	            if (empSysInicial) {
-	                const razaoInterna = empSysInicial.razao_social || empSysInicial.empresa || empSysInicial.nome || empSysInicial.nome_fantasia || '';
+		            if (empSysInicial) {
+                        window.__empresaCadastroInternoAtual = empSysInicial;
+		                const razaoInterna = empSysInicial.razao_social || empSysInicial.empresa || empSysInicial.nome || empSysInicial.nome_fantasia || '';
 	                inpEmpresa.value = razaoInterna || 'Empresa cadastrada';
 	                inpEmpresa.disabled = true;
 	                icon.innerHTML = '✓';
@@ -5028,7 +5078,7 @@
                 return;
             }
 
-            if (!razaoSocial) {
+	            if (!razaoSocial) {
                 icon.innerHTML = '✗';
                 icon.className = 'input-icon error';
                 inpEmpresa.value = '';
@@ -5036,9 +5086,10 @@
                 showToast('❌ CNPJ sem razao social na Receita', 'error');
                 window.__cnpjValidado = false;
                 return;
-            }
+	            }
+                window.__empresaCadastroInternoAtual = null;
 
-	            inpEmpresa.value = razaoSocial;
+		            inpEmpresa.value = razaoSocial;
 	            inpEmpresa.disabled = true;  // trava edicao — sempre o que veio da Receita
 	            icon.innerHTML = '✓';
 	            icon.className = 'input-icon success';
@@ -5067,14 +5118,20 @@
                 return;
             }
 
-            const info = {
-                cnpj: document.getElementById('infoCNPJ').value,
-                empresa: document.getElementById('infoEmpresa').value,
-                banco: document.getElementById('infoBanco').value,
-                usuario: document.getElementById('infoUsuario').value,
-                periodoInicio: document.getElementById('infoPeriodoInicio').value,
-                periodoFim: document.getElementById('infoPeriodoFim').value
-            };
+	            const info = {
+	                cnpj: document.getElementById('infoCNPJ').value,
+	                empresa: document.getElementById('infoEmpresa').value,
+	                banco: document.getElementById('infoBanco').value,
+	                usuario: document.getElementById('infoUsuario').value,
+	                periodoInicio: document.getElementById('infoPeriodoInicio').value,
+	                periodoFim: document.getElementById('infoPeriodoFim').value
+	            };
+                const cadastroAtual = window.__empresaCadastroInternoAtual || null;
+                if (cadastroAtual && String(cadastroAtual.cnpj || '').replace(/\D/g, '') === String(info.cnpj || '').replace(/\D/g, '')) {
+                    info.plano_id = cadastroAtual.plano_id || cadastroAtual.planoId || '';
+                    info.planoNome = cadastroAtual.plano_nome || cadastroAtual.plano_id || '';
+                    if (!info.banco && cadastroAtual.banco) info.banco = cadastroAtual.banco;
+                }
 
             // [ISOLAMENTO POR CNPJ] Detecta troca de empresa e carrega sessao da nova
             const cnpjNovo = (info.cnpj || '').replace(/\D/g, '');
@@ -5935,11 +5992,11 @@
 	            return lancsEnriquecidos;
 	        }
 
-	        async function processPDFComLayoutDoBanco(buf, bancoCode, arquivoNome) {
-	            const layouts = layoutsPDFCadastradosPorBanco(bancoCode);
-	            if (!layouts.length) {
-	                throw new Error('Nao existe layout PDF cadastrado para o banco selecionado (' + (bancoCode || '-') + ' — ' + nomeBanco(bancoCode) + '). Cadastre o layout antes de importar.');
-	            }
+		        async function processPDFComLayoutDoBanco(buf, bancoCode, arquivoNome) {
+		            const layouts = await layoutsPDFCadastradosPorBancoAsync(bancoCode);
+		            if (!layouts.length) {
+		                throw new Error('Nao existe layout PDF cadastrado para o banco selecionado (' + (bancoCode || '-') + ' — ' + nomeBanco(bancoCode) + '). Cadastre o layout antes de importar.');
+		            }
 	            const erros = [];
 	            for (const layout of layouts) {
 	                const fn = window[layout.parser];
@@ -5969,17 +6026,33 @@
                     if (resultado.total_debito && Math.abs(Math.round(deb * 100) - Math.round(resultado.total_debito * 100)) > 1) {
                         throw new Error('total de debito divergente do total oficial');
                     }
-                    lancs.forEach(function(l) {
-                        l.layoutNome = layout.nome;
-                        l.layoutParser = layout.parser;
+	                    lancs.forEach(function(l) {
+	                        l.layoutNome = layout.nome;
+	                        l.layoutParser = layout.parser;
                         l.bancoSelecionado = bancoCode;
                         l.totalCreditoOficial = resultado.total_credito || 0;
                         l.totalDebitoOficial = resultado.total_debito || 0;
                         l.periodo_inicio = resultado.periodo_inicio || l.periodo_inicio || '';
-                        l.periodo_fim = resultado.periodo_fim || l.periodo_fim || '';
-                    });
-                    showToast('✅ Layout do banco aplicado: ' + layout.nome + ' • ' + lancs.length + ' lançamentos', 'success');
-                    return lancs;
+	                        l.periodo_fim = resultado.periodo_fim || l.periodo_fim || '';
+	                    });
+                        try {
+                            if (window.API && window.API.apiFetch) {
+                                window.API.apiFetch('/api/layouts-bancarios/uso', {
+                                    method: 'POST',
+                                    body: JSON.stringify({
+                                        banco: bancoCode,
+                                        nomeBanco: nomeBanco(bancoCode),
+                                        nome: layout.nome,
+                                        parser: layout.parser,
+                                        formato: layout.formato || '',
+                                        confiabilidade: layout.confiabilidade || '',
+                                        arquivo_exemplo: arquivoNome
+                                    })
+                                }).catch(function(e) { console.warn('[layouts bancarios] registrar uso:', e.message || e); });
+                            }
+                        } catch (e) { console.warn('[layouts bancarios] registrar uso:', e.message || e); }
+	                    showToast('✅ Layout do banco aplicado: ' + layout.nome + ' • ' + lancs.length + ' lançamentos', 'success');
+	                    return lancs;
                 } catch (e) {
 	                    erros.push(layout.nome + ': ' + (e.message || e));
 	                }
@@ -6987,19 +7060,16 @@
                 return;
             }
             
-            // Buscar plano de contas vinculado ao CNPJ
-            let planoVinculado = null;
-            let nomePlano = null;
-            
-            for (const [nome, plano] of Object.entries(planosCadastrados)) {
-                if (plano.cnpj === cnpj) {
-                    planoVinculado = plano;
-                    nomePlano = nome;
-                    break;
+	            // Buscar plano de contas vinculado ao CNPJ
+	            let planoVinculado = null;
+	            let nomePlano = null;
+                const planoEncontradoIA = verificarPlanoPorCNPJ(cnpj);
+                if (planoEncontradoIA) {
+                    planoVinculado = planoEncontradoIA.plano;
+                    nomePlano = planoEncontradoIA.nome;
                 }
-            }
-            
-            if (!planoVinculado) {
+	            
+	            if (!planoVinculado) {
                 const cnpjFormatado = cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
                 showToast('Nenhum plano de contas cadastrado para o CNPJ ' + cnpjFormatado, 'error');
                 alert('⚠️ PLANO DE CONTAS NÃO ENCONTRADO\n\nO CNPJ ' + cnpjFormatado + ' não possui plano de contas cadastrado.\n\nVá em 📚 Plano de Contas → + Importar Novo Plano\ne cadastre o plano para este CNPJ.');

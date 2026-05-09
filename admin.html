@@ -217,6 +217,7 @@ const auth = firebase.auth();
 
 let currentUsers = [];
 let currentLogs = [];
+let currentLayoutsBancarios = null;
 const LAYOUTS_BANCARIOS = [
   {
     banco: '001',
@@ -368,13 +369,44 @@ function escapeHtml(v) {
   return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
-function renderLayouts() {
+function normalizarLayoutBanco(l) {
+  return {
+    banco: l.banco || '',
+    nomeBanco: l.nomeBanco || l.nome_banco || '',
+    layout: l.layout || l.nome || '',
+    parser: l.parser || '',
+    formato: l.formato || 'PDF',
+    confiabilidade: l.confiabilidade || 'Média',
+    status: l.status || (l.ativo === false ? 'Inativo' : 'Ativo'),
+    ultimoTeste: l.ultimoTeste || l.ultimo_teste || l.ultimo_arquivo || '',
+    observacao: l.observacao || l.observação || '',
+    total_usos: l.total_usos || 0,
+    ultimo_uso_em: l.ultimo_uso_em || null
+  };
+}
+
+async function carregarLayoutsBancariosAdmin() {
+  try {
+    const r = await window.API.apiFetch('/api/layouts-bancarios');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    currentLayoutsBancarios = (data.layouts || []).map(normalizarLayoutBanco);
+  } catch (e) {
+    console.warn('[admin layouts] usando fallback estatico:', e);
+    currentLayoutsBancarios = LAYOUTS_BANCARIOS.map(normalizarLayoutBanco);
+  }
+}
+
+async function renderLayouts() {
   const el = document.getElementById('layoutsContent');
   if (!el) return;
-  const totalLayouts = LAYOUTS_BANCARIOS.length;
-  const bancos = [...new Set(LAYOUTS_BANCARIOS.map(l => l.banco))].length;
-  const ocr = LAYOUTS_BANCARIOS.filter(l => /OCR/i.test(l.formato)).length;
-  const alta = LAYOUTS_BANCARIOS.filter(l => l.confiabilidade === 'Alta').length;
+  el.innerHTML = '<div class="loading">Carregando layouts do banco de dados…</div>';
+  await carregarLayoutsBancariosAdmin();
+  const layouts = currentLayoutsBancarios || [];
+  const totalLayouts = layouts.length;
+  const bancos = [...new Set(layouts.map(l => l.banco))].length;
+  const ocr = layouts.filter(l => /OCR/i.test(l.formato)).length;
+  const alta = layouts.filter(l => l.confiabilidade === 'Alta').length;
 
   const cards = `
     <div class="layout-grid">
@@ -385,7 +417,7 @@ function renderLayouts() {
     </div>`;
 
   let table = '<table><thead><tr><th>Banco</th><th>Layout</th><th>Formato</th><th>Confiabilidade</th><th>Status</th><th>Último teste</th><th>Observação</th></tr></thead><tbody>';
-  LAYOUTS_BANCARIOS.forEach(l => {
+  layouts.forEach(l => {
     const confClass = l.confiabilidade === 'Alta' ? 'badge-ok' : 'badge-warn';
     const statusClass = l.status === 'Ativo' ? 'badge-ok' : 'badge-info';
     table += `<tr>
@@ -394,7 +426,7 @@ function renderLayouts() {
       <td>${escapeHtml(l.formato)}</td>
       <td><span class="badge ${confClass}">${escapeHtml(l.confiabilidade)}</span></td>
       <td><span class="badge ${statusClass}">${escapeHtml(l.status)}</span></td>
-      <td style="font-size:12px;color:#374151">${escapeHtml(l.ultimoTeste)}</td>
+      <td style="font-size:12px;color:#374151">${escapeHtml(l.ultimoTeste)}${l.total_usos ? '<br><span style="color:#9ca3af">' + l.total_usos + ' uso(s)</span>' : ''}</td>
       <td style="font-size:12px;color:#6b7280">${escapeHtml(l.observacao)}</td>
     </tr>`;
   });
