@@ -8115,7 +8115,7 @@ window.confirmarTrocarPlano = async function() {
 
             async function checarVersaoApp(silencioso) {
                 try {
-                    const resp = await fetch('/api/version', { cache: 'no-store' });
+                    const resp = await fetch('/api/version?ts=' + Date.now(), { cache: 'no-store' });
                     if (!resp.ok) return;
                     const info = await resp.json();
                     if (!info || !info.version) return;
