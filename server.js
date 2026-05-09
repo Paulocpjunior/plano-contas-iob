@@ -2,6 +2,7 @@ const express = require('express');
 const { Firestore } = require('@google-cloud/firestore');
 const admin = require('firebase-admin');
 const path = require('path');
+const { LAYOUTS_BANCARIOS_PADRAO, normalizarBancoLayout, layoutBancoId } = require('./layouts-bancarios-padrao');
 
 const app = express();
 app.set('trust proxy', true);
@@ -65,20 +66,6 @@ function adminRequired(req, res, next) {
 }
 
 app.use('/api', authRequired);
-
-const LAYOUTS_BANCARIOS_PADRAO = [
-  { banco: '001', nomeBanco: 'Banco do Brasil', nome: 'Banco do Brasil - Conta Atual', parser: 'parsearPDF_BB_ContaAtual', formato: 'PDF textual', confiabilidade: 'Alta', status: 'Ativo', ultimoTeste: 'EXTRATO BB - CC 14910-1 - MATRIZ SP', observacao: 'Modelo Cliente - Conta atual com texto extraivel.' },
-  { banco: '001', nomeBanco: 'Banco do Brasil', nome: 'Banco do Brasil - BB Cash OCR', parser: 'parsearPDF_BB_CashOCR', formato: 'PDF imagem / OCR', confiabilidade: 'Media', status: 'Ativo', ultimoTeste: 'EXTRATO BANCO DO BRASIL - 08.2025.pdf', observacao: 'Modelo BB Cash digitalizado. Exige conferencia dos totais.' },
-  { banco: '237', nomeBanco: 'Bradesco', nome: 'Bradesco Net Empresa - Extrato Mensal por Periodo', parser: 'parsearPDF_Bradesco_NetEmpresa', formato: 'PDF textual', confiabilidade: 'Alta', status: 'Ativo', ultimoTeste: 'extrato 12 sep-part-1 1.pdf', observacao: 'Confere totais oficiais de credito e debito quando disponiveis.' },
-  { banco: '033', nomeBanco: 'Santander', nome: 'Santander Empresas - Extrato Consolidado Inteligente OCR', parser: 'parsearPDF_Santander_EmpresasOCR', formato: 'PDF imagem / OCR', confiabilidade: 'Media', status: 'Ativo', ultimoTeste: 'EXTRATO SANTANDER.pdf', observacao: 'Extrai a secao Conta Corrente / Movimentacao e ignora quadros auxiliares.' },
-  { banco: '352', nomeBanco: 'Santander CTVM', nome: 'Santander Empresas - Extrato Consolidado Inteligente OCR', parser: 'parsearPDF_Santander_EmpresasOCR', formato: 'PDF imagem / OCR', confiabilidade: 'Media', status: 'Ativo', ultimoTeste: 'EXTRATO SANTANDER.pdf', observacao: 'Atende cadastros que usam codigo 352 para extratos Santander Empresas.' },
-  { banco: '341', nomeBanco: 'Itau Unibanco', nome: 'Itau - Extrato Mensal', parser: 'parsearPDF_Itau_ExtratoMensal', formato: 'PDF textual', confiabilidade: 'Alta', status: 'Ativo', ultimoTeste: 'itau abril 26 1.pdf', observacao: 'Le lancamentos multiline, Redecard/Rede, rendimentos e valida totais quando disponiveis.' },
-  { banco: '422', nomeBanco: 'Banco Safra', nome: 'Safra - Extrato de Movimentacao', parser: 'parsearPDF_Safra_Extrato', formato: 'PDF textual', confiabilidade: 'Alta', status: 'Ativo', ultimoTeste: 'EXTRATO SAFRA - CC 172128-9 (2).pdf', observacao: 'Extrai data, historico, complemento, documento e valor.' }
-];
-
-function layoutBancoId(layout) {
-  return String((layout && layout.banco) || '').replace(/\D/g, '').padStart(3, '0') + '_' + String((layout && layout.parser) || '').replace(/[^A-Za-z0-9_]/g, '');
-}
 
 async function garantirLayoutsBancariosPadrao() {
   const col = db.collection('layouts_bancarios');
@@ -1250,11 +1237,10 @@ app.get('/api/layouts-bancarios', async (req, res) => {
 app.post('/api/layouts-bancarios/uso', async (req, res) => {
   try {
     const body = req.body || {};
-    const bancoRaw = String(body.banco || '').replace(/\D/g, '');
+    const banco = normalizarBancoLayout(body.banco);
     const parser = String(body.parser || '').trim();
-    if (!bancoRaw || !parser) return res.status(400).json({ erro: 'banco e parser obrigatorios' });
-    const banco = bancoRaw.padStart(3, '0');
-    const base = LAYOUTS_BANCARIOS_PADRAO.find(l => String(l.banco) === banco && l.parser === parser) || {};
+    if (!banco || !parser) return res.status(400).json({ erro: 'banco e parser obrigatorios' });
+    const base = LAYOUTS_BANCARIOS_PADRAO.find(l => normalizarBancoLayout(l.banco) === banco && l.parser === parser) || {};
     const nome = body.nome || body.layout || base.nome || parser;
     const id = layoutBancoId({ banco, parser });
     const ref = db.collection('layouts_bancarios').doc(id);

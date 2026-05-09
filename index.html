@@ -3404,6 +3404,15 @@
 	            return match ? match.code : '';
 	        }
 
+            function normalizarCodigoBancoLayout(valor) {
+                const raw = (valor || '').toString().trim().toUpperCase();
+                if (!raw) return '';
+                const digits = raw.replace(/\D/g, '');
+                if (/^\d+$/.test(raw)) return raw.padStart(3, '0');
+                if (digits && digits.length <= 3 && /^[\d\s.\-/]+$/.test(raw)) return digits.padStart(3, '0');
+                return raw.replace(/[^A-Z0-9]/g, '');
+            }
+
             let layoutsBancariosCache = null;
             let layoutsBancariosCacheTs = 0;
 
@@ -3468,7 +3477,8 @@
                 const code = resolverBancoLegado(bancoCode) || bancoCode || '';
                 try {
                     const todos = await carregarLayoutsBancariosDoBanco();
-                    const doBanco = todos.filter(function(l) { return String(l.banco).padStart(3, '0') === String(code).padStart(3, '0'); });
+                    const codeNormalizado = normalizarCodigoBancoLayout(code);
+                    const doBanco = todos.filter(function(l) { return normalizarCodigoBancoLayout(l.banco) === codeNormalizado; });
                     if (doBanco.length) return doBanco;
                 } catch (e) {
                     console.warn('[layouts bancarios] usando fallback local:', e.message || e);

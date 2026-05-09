@@ -1,9 +1,9 @@
 {
-  "version": "3.1.53",
-  "build_date": "2026-05-09T06:25:00-03:00",
+  "version": "3.1.54",
+  "build_date": "2026-05-09T06:55:00-03:00",
   "release_notes": [
-    "Layouts bancarios passam a ser gravados e lidos da colecao global layouts_bancarios no Firestore",
-    "Painel Admin deixa de depender de lista fixa e passa a refletir o banco de dados usado pelo importador",
-    "Importador registra uso do layout bancario aplicado e colaboradores herdam plano vinculado pelo admin via plano_id oficial"
+    "Layouts bancarios padrao foram centralizados em um modulo compartilhado e semeados na colecao global layouts_bancarios",
+    "Layouts CLUDE/Stripe, CLUDE/Itau Movimentacao e regra de XLSX protegido passam a aparecer na central de layouts",
+    "Codigos de banco alfanumericos, como CLU, agora sao preservados no cadastro e na consulta dos layouts"
   ]
 }
