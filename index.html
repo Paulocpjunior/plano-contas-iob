@@ -3771,7 +3771,7 @@
                 if (!window.API || !window.API.salvarSessaoEmpresa) return;
                 _sessaoSalvando = true;
                 atualizarIndicadorSalvamento('💾 Salvando...', 'warn');
-                const state_json = JSON.stringify({ entries: state.entries, mappings: state.mappings, info: state.info, infoConfirmed: state.infoConfirmed, lastFile: state.lastFile });
+                const state_json = JSON.stringify(criarSnapshotState({ remoto: true }));
                 const resumo = { total_lancamentos: (state.entries || []).length, periodo: state.info.periodoInicio + ' a ' + state.info.periodoFim, banco: state.info.banco || null };
                 const r = await window.API.salvarSessaoEmpresa(cnpj, state_json, resumo);
                 _sessaoSalvando = false;
@@ -3851,16 +3851,56 @@
             }
             if (!Array.isArray(state.mappings)) state.mappings = [];
         }
-        
-        function saveState() {
-            localStorage.setItem('consultorContabil_v2', JSON.stringify({
-                entries: state.entries,
+
+        function entradaPersistivel(e) {
+            if (!e) return e;
+            const out = {};
+            [
+                'id','data','descricao','valor','categoria','contaDebito','contaCredito',
+                'codigoHistorico','historico','historicoPadraoDescricao','_memorizado',
+                'incomum','bancoId','bancoNome','importacaoId','importacaoTitulo',
+                'layoutNome','layoutParser','conta','nome_conta','periodo_inicio',
+                'periodo_fim','totalCreditoOficial','totalDebitoOficial','aba_origem',
+                '_fingerprint_imp','_acao_dup','status_origem'
+            ].forEach(function(k) {
+                if (e[k] !== undefined && e[k] !== null && e[k] !== '') out[k] = e[k];
+            });
+            if (out.descricao && out.descricao.length > 260) out.descricao = out.descricao.slice(0, 260);
+            if (out.historico && out.historico.length > 160) out.historico = out.historico.slice(0, 160);
+            if (out.historicoPadraoDescricao && out.historicoPadraoDescricao.length > 160) out.historicoPadraoDescricao = out.historicoPadraoDescricao.slice(0, 160);
+            return out;
+        }
+
+        function criarSnapshotState(opts) {
+            opts = opts || {};
+            return {
+                entries: opts.semLancamentos ? [] : (state.entries || []).map(entradaPersistivel),
                 mappings: state.mappings,
                 info: state.info,
                 infoConfirmed: state.infoConfirmed,
-                lastFile: state.lastFile
-            }));
-            localStorage.setItem('consultorContabil_v2_ts', String(Date.now()));
+                lastFile: state.lastFile,
+                compactado: true,
+                semLancamentosLocal: !!opts.semLancamentos,
+                atualizadoEm: new Date().toISOString()
+            };
+        }
+        
+        function saveState() {
+            const tsAgora = String(Date.now());
+            try {
+                localStorage.setItem('consultorContabil_v2', JSON.stringify(criarSnapshotState()));
+                localStorage.setItem('consultorContabil_v2_ts', tsAgora);
+            } catch (e) {
+                console.warn('[saveState] localStorage cheio; salvando snapshot sem lancamentos:', e);
+                try {
+                    localStorage.removeItem('consultorContabil_v2');
+                    localStorage.setItem('consultorContabil_v2', JSON.stringify(criarSnapshotState({ semLancamentos: true })));
+                    localStorage.setItem('consultorContabil_v2_ts', tsAgora);
+                    if (typeof atualizarIndicadorSalvamento === 'function') atualizarIndicadorSalvamento('⚠️ Navegador cheio; usando servidor', 'warn');
+                } catch (e2) {
+                    console.warn('[saveState] fallback local tambem falhou:', e2);
+                }
+            }
             // Auto-save remoto (debounced 3s) so quando tem empresa confirmada
             if (state.infoConfirmed && state.info && state.info.cnpj) {
                 try { agendarSaveRemoto(); } catch (e) {}
@@ -5915,6 +5955,7 @@
                     showToast('Importacao cancelada. Nenhum lancamento foi gravado.', 'error');
                     return;
                 }
+                registrarUsoLayoutArquivo(entries, bancoCode, selectedFile.name, ext);
 
                 // Save
                 state.entries = state.entries.concat(entries);
@@ -5981,6 +6022,28 @@
                 totalDebito,
                 status: status.join(' • ')
             };
+        }
+
+        function registrarUsoLayoutArquivo(entries, bancoCode, arquivoNome, ext) {
+            try {
+                const primeiro = (entries || []).find(function(e) { return e && e.layoutParser; });
+                if (!primeiro || !window.API || !window.API.apiFetch) return;
+                window.API.apiFetch('/api/layouts-bancarios/uso', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        banco: bancoCode || primeiro.bancoId || '',
+                        nomeBanco: nomeBanco(bancoCode) || primeiro.bancoNome || '',
+                        nome: primeiro.layoutNome || primeiro.layoutParser,
+                        parser: primeiro.layoutParser,
+                        formato: String(ext || '').toUpperCase() || 'Arquivo',
+                        confiabilidade: primeiro.layoutNome && /Itau|Stripe|CLUDE/i.test(primeiro.layoutNome) ? 'Alta' : '',
+                        arquivo_exemplo: arquivoNome || ''
+                    })
+                }).catch(function(e) { console.warn('[layouts bancarios] registrar uso arquivo:', e.message || e); });
+            } catch (e) {
+                console.warn('[layouts bancarios] registrar uso arquivo:', e.message || e);
+            }
         }
 
         let resolverConferenciaImportacao = null;

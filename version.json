@@ -1,9 +1,9 @@
 {
-  "version": "3.1.62",
-  "build_date": "2026-05-11T11:55:00-03:00",
+  "version": "3.1.63",
+  "build_date": "2026-05-11T12:25:00-03:00",
   "release_notes": [
-    "Campo Historico deixa de exibir valor padrao 1 quando existe codigo IOB vinculado",
-    "Memoria de classificacao ignora historicos numericos genericos e prioriza a descricao oficial do Historico Padrao",
-    "Prompt da IA passa a solicitar descricao textual do Historico Padrao em vez de numeros legados"
+    "Importacoes grandes deixam de travar quando o navegador atinge o limite de localStorage",
+    "Sessoes grandes passam a ser salvas em partes no servidor e remontadas automaticamente no acesso",
+    "Layout CLUDE Itau foi alinhado na central de layouts com o parser XLSX oficial e registro de uso do importador"
   ]
 }

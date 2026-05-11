@@ -69,12 +69,46 @@ app.use('/api', authRequired);
 
 async function garantirLayoutsBancariosPadrao() {
   const col = db.collection('layouts_bancarios');
+  const layoutsObsoletos = [
+    'CLU_parsearArquivoTextoCludeItauCSV'
+  ];
   await Promise.all(LAYOUTS_BANCARIOS_PADRAO.map(async layout => {
     const id = layoutBancoId(layout);
     const ref = col.doc(id);
     const doc = await ref.get();
     if (!doc.exists) {
       await ref.set({ ...layout, ativo: true, origem: 'padrao_sistema', criado_em: new Date(), atualizado_em: new Date() });
+    } else {
+      const atual = doc.data() || {};
+      await ref.set({
+        ...layout,
+        ...atual,
+        banco: layout.banco,
+        nomeBanco: layout.nomeBanco,
+        nome: layout.nome,
+        parser: layout.parser,
+        formato: layout.formato,
+        confiabilidade: layout.confiabilidade,
+        status: layout.status || atual.status || 'Ativo',
+        ativo: atual.ativo !== false,
+        ultimoTeste: atual.ultimoTeste || layout.ultimoTeste,
+        observacao: layout.observacao || atual.observacao || '',
+        origem: atual.origem || 'padrao_sistema',
+        atualizado_em: new Date()
+      }, { merge: true });
+    }
+  }));
+  await Promise.all(layoutsObsoletos.map(async id => {
+    const ref = col.doc(id);
+    const doc = await ref.get();
+    if (doc.exists) {
+      await ref.set({
+        ativo: false,
+        status: 'Inativo',
+        substituido_por: 'CLU_parsearArquivoXLSXCludeItau',
+        observacao: 'Layout obsoleto substituido pelo parser XLSX CLUDE Itau oficial.',
+        atualizado_em: new Date()
+      }, { merge: true });
     }
   }));
 }
@@ -1111,15 +1145,41 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     const { state_json, resumo } = req.body || {};
     if (!state_json) return res.status(400).json({ erro: 'state_json obrigatorio' });
     const sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
-    await sessaoRef.set({
-      state_json,
+    const chunksRef = sessaoRef.collection('chunks');
+    const chunksAntigos = await chunksRef.get();
+    if (!chunksAntigos.empty) {
+      const batchChunks = db.batch();
+      chunksAntigos.docs.forEach(d => batchChunks.delete(d.ref));
+      await batchChunks.commit();
+    }
+    const payloadSessao = {
       resumo: resumo || null,
       updated_at: new Date(),
       updated_by_uid: req.user.uid,
       updated_by_email: req.user.email
-    }, { merge: true });
+    };
+    const limiteChunk = 450000;
+    if (String(state_json).length > limiteChunk) {
+      const partes = [];
+      for (let i = 0; i < state_json.length; i += limiteChunk) partes.push(state_json.slice(i, i + limiteChunk));
+      const batch = db.batch();
+      partes.forEach((parte, idx) => {
+        batch.set(chunksRef.doc(String(idx).padStart(4, '0')), { idx, parte });
+      });
+      await batch.commit();
+      payloadSessao.state_json = null;
+      payloadSessao.state_chunked = true;
+      payloadSessao.state_chunks = partes.length;
+      payloadSessao.state_bytes = state_json.length;
+    } else {
+      payloadSessao.state_json = state_json;
+      payloadSessao.state_chunked = false;
+      payloadSessao.state_chunks = 0;
+      payloadSessao.state_bytes = state_json.length;
+    }
+    await sessaoRef.set(payloadSessao, { merge: true });
     await db.collection('empresas').doc(cnpjLimpo).set({ last_session_at: new Date(), last_session_by_email: req.user.email }, { merge: true });
-    res.json({ ok: true });
+    res.json({ ok: true, chunked: !!payloadSessao.state_chunked, chunks: payloadSessao.state_chunks || 0 });
   } catch (e) { console.error('salvar sessao erro:', e); res.status(500).json({ erro: e.message }); }
 });
 
@@ -1131,7 +1191,12 @@ app.get('/api/empresas/:cnpj/sessao', async (req, res) => {
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
     const doc = await db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current').get();
     if (!doc.exists) return res.json({ encontrada: false });
-    res.json({ encontrada: true, ...doc.data() });
+    const dados = doc.data();
+    if (dados && dados.state_chunked) {
+      const chunks = await doc.ref.collection('chunks').orderBy('idx').get();
+      dados.state_json = chunks.docs.map(d => d.data().parte || '').join('');
+    }
+    res.json({ encontrada: true, ...dados });
   } catch (e) { console.error('carregar sessao erro:', e); res.status(500).json({ erro: e.message }); }
 });
 
@@ -1343,4 +1408,7 @@ app.post('/api/gemini/chat', adminRequired, async (req, res) => {
 });
 
 
-app.listen(PORT, () => console.log('[plano-contas-iob v4.0-colaborativo] porta ' + PORT));
+app.listen(PORT, () => {
+  console.log('[plano-contas-iob v4.0-colaborativo] porta ' + PORT);
+  garantirLayoutsBancariosPadrao().catch(err => console.error('[layouts bancarios] bootstrap falhou:', err && err.message));
+});
