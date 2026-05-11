@@ -6836,7 +6836,9 @@
                         descricao_exemplo: lanc.descricao,
                         contaDebito: lanc.contaDebito,
                         contaCredito: lanc.contaCredito,
-                        codigoHistorico: lanc.codigoHistorico
+                        codigoHistorico: lanc.codigoHistorico,
+                        historico: lanc.historico || '',
+                        historicoPadraoDescricao: lanc.historicoPadraoDescricao || descricaoHistorico(lanc.codigoHistorico) || ''
                     })
                 });
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -6846,7 +6848,10 @@
                 window._aprendizadoCache[cnpj][hash] = {
                     hash: hash, descricao_normalizada: descNorm,
                     contaDebito: lanc.contaDebito, contaCredito: lanc.contaCredito,
-                    codigoHistorico: lanc.codigoHistorico, vezes_usado: j.vezes_usado || 1
+                    codigoHistorico: lanc.codigoHistorico,
+                    historico: lanc.historico || '',
+                    historicoPadraoDescricao: lanc.historicoPadraoDescricao || descricaoHistorico(lanc.codigoHistorico) || '',
+                    vezes_usado: j.vezes_usado || 1
                 };
                 lanc._memorizado = true;
                 if (!opts.noRender) renderLancamentos();
@@ -6914,15 +6919,20 @@
             let aplicados = 0;
             for (let i = 0; i < entries.length; i++) {
                 const e = entries[i];
-                if (e.contaDebito && e.contaCredito && e.codigoHistorico) continue; // ja classificado
                 const descNorm = normalizarDescricao(e.descricao);
                 if (!descNorm) continue;
                 const hash = await hashDescricao(cnpjLimpo, descNorm);
                 const aprendido = cache[hash];
                 if (aprendido) {
-                    if (!e.contaDebito && aprendido.contaDebito) e.contaDebito = aprendido.contaDebito;
-                    if (!e.contaCredito && aprendido.contaCredito) e.contaCredito = aprendido.contaCredito;
-                    if (!e.codigoHistorico && aprendido.codigoHistorico) e.codigoHistorico = aprendido.codigoHistorico;
+                    if (aprendido.contaDebito) e.contaDebito = aprendido.contaDebito;
+                    if (aprendido.contaCredito) e.contaCredito = aprendido.contaCredito;
+                    if (aprendido.codigoHistorico) {
+                        e.codigoHistorico = String(aprendido.codigoHistorico).replace(/\D/g,'').padStart(4,'0').slice(-4);
+                        aplicarHistoricoAoLancamento(e, e.codigoHistorico);
+                    }
+                    if (aprendido.historicoPadraoDescricao) e.historicoPadraoDescricao = aprendido.historicoPadraoDescricao;
+                    if (aprendido.historico) e.historico = aprendido.historico;
+                    else if (!e.historico && e.historicoPadraoDescricao) e.historico = e.historicoPadraoDescricao;
                     e._memorizado = true; // marca pra UI mostrar 🧠
                     aplicados++;
                 }

@@ -496,7 +496,7 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
   try {
     const cnpj = (req.params.cnpj || '').replace(/\D/g, '');
     if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
-    const { hash, descricao_normalizada, descricao_exemplo, contaDebito, contaCredito, codigoHistorico } = req.body;
+    const { hash, descricao_normalizada, descricao_exemplo, contaDebito, contaCredito, codigoHistorico, historico, historicoPadraoDescricao } = req.body;
     if (!hash || !descricao_normalizada) return res.status(400).json({ erro: 'hash e descricao_normalizada obrigatorios' });
     
     // Validar codigoHistorico (4 digitos)
@@ -516,6 +516,8 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
       contaDebito: contaDebito || '',
       contaCredito: contaCredito || '',
       codigoHistorico: codHist || '',
+      historico: String(historico || '').substring(0, 200),
+      historicoPadraoDescricao: String(historicoPadraoDescricao || '').substring(0, 200),
       vezes_usado: existing.exists ? (existing.data().vezes_usado || 0) + 1 : 1,
       criado_em: existing.exists ? existing.data().criado_em : now,
       ultima_vez: now,
