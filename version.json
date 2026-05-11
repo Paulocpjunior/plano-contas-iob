@@ -1,9 +1,9 @@
 {
-  "version": "3.1.58",
-  "build_date": "2026-05-11T08:55:00-03:00",
+  "version": "3.1.59",
+  "build_date": "2026-05-11T10:45:00-03:00",
   "release_notes": [
-    "Botao Classificar com IA agora reaproveita primeiro a memoria da empresa",
-    "Lancamentos ja reconhecidos pela memoria nao sao enviados para a IA e nao sao sobrescritos",
-    "A IA passa a classificar apenas o que ainda ficou pendente apos aplicar os padroes memorizados"
+    "Modal Vincular Plano Existente passa a carregar a lista de planos de forma leve e imediata",
+    "Botao Vincular Plano Existente prioriza planos genericos no topo da lista",
+    "Parser Santander preserva linhas do PDF nativo antes do OCR para reconhecer Extrato Consolidado Inteligente"
   ]
 }

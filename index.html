@@ -1631,7 +1631,7 @@
                         <button id="btnCadastrarPlano" class="btn" style="width:auto;padding:14px 24px;background:#059669;color:white" onclick="abrirCadastroPlano()">
                             📚 Cadastrar Plano de Contas
                         </button>
-                        <button id="btnVincularPlano" class="btn" style="width:auto;padding:14px 24px;background:#3b82f6;color:white;display:none" onclick="abrirVincularPlanoModal()">
+                        <button id="btnVincularPlano" class="btn" style="width:auto;padding:14px 24px;background:#3b82f6;color:white;display:none" onclick="abrirVincularPlanoModalComGenericos()">
                             🔗 Vincular Plano Existente
                         </button>
                         <button id="btnAtivarEmpresa" class="btn" style="width:auto;padding:14px 24px;background:#10b981;color:white;display:none" onclick="ativarCadastroEmpresa()">
@@ -7720,13 +7720,7 @@ async function abrirVincularPlanoModalComGenericos() {
   sel.innerHTML = '<option value="">Carregando...</option>';
   document.getElementById('vincularPlanoModal').style.display = 'flex';
   try {
-    const planos = await window.API.loadPlanos();
-    let entries = [];
-    if (Array.isArray(planos)) {
-      entries = planos.map(p => [p.nome || p.name || p.plano_id, p]);
-    } else if (planos && typeof planos === 'object') {
-      entries = Object.entries(planos);
-    }
+    const entries = await carregarPlanosResumoParaVinculo();
     if (!entries.length) { sel.innerHTML = '<option value="">Nenhum plano disponivel</option>'; return; }
     entries.sort((a, b) => a[0].localeCompare(b[0]));
 
@@ -7779,13 +7773,7 @@ async function abrirVincularPlanoModal() {
   sel.innerHTML = '<option value="">Carregando...</option>';
   document.getElementById('vincularPlanoModal').style.display = 'flex';
   try {
-    const planos = await window.API.loadPlanos();
-    let entries = [];
-    if (Array.isArray(planos)) {
-      entries = planos.map(p => [p.nome || p.name || p.plano_id, p]);
-    } else if (planos && typeof planos === 'object') {
-      entries = Object.entries(planos);
-    }
+    const entries = await carregarPlanosResumoParaVinculo();
     if (!entries.length) { sel.innerHTML = '<option value="">Nenhum plano disponivel</option>'; return; }
     entries.sort((a, b) => a[0].localeCompare(b[0]));
     sel.innerHTML = '<option value="">-- Selecione um plano --</option>';
@@ -7802,6 +7790,26 @@ async function abrirVincularPlanoModal() {
     sel.innerHTML = '<option value="">Erro ao carregar</option>';
     document.getElementById('vinpMsg').textContent = 'Erro: ' + e.message;
   }
+}
+async function carregarPlanosResumoParaVinculo() {
+  if (!window.API || !window.API.apiFetch) throw new Error('API indisponivel');
+  const r = await window.API.apiFetch('/api/planos');
+  if (!r.ok) throw new Error('Falha ao buscar planos: HTTP ' + r.status);
+  const planos = await r.json();
+  return (Array.isArray(planos) ? planos : [])
+    .filter(function(p) { return p && p.id && p.ativo !== false; })
+    .map(function(p) {
+      return [p.nome || p.name || p.codigo || p.id, {
+        id: p.id,
+        plano_id: p.id,
+        nome: p.nome || p.name || p.codigo || p.id,
+        codigo: p.codigo || '',
+        tipo: p.tipo || '',
+        global: p.global === true,
+        cnpj: p.cnpj || '',
+        empresa: p.empresa || ''
+      }];
+    });
 }
 function fecharVincularPlanoModal() {
   document.getElementById('vincularPlanoModal').style.display = 'none';

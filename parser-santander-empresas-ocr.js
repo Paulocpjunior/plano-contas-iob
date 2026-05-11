@@ -266,7 +266,7 @@
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const tc = await page.getTextContent();
-      textosPdf.push((tc.items || []).map(function(it){ return it.str || ''; }).join(' '));
+      textosPdf.push(textoNativoComLinhas(tc.items || []));
     }
     const textoNativo = textosPdf.join('\n');
     if (textoNativo.trim().length > 120 && pareceExtratoSantander(textoNativo)) {
@@ -275,6 +275,35 @@
 
     const textosOCR = await extrairTextoPorPaginaComOCR(pdf);
     return parsearTexto_SantanderEmpresas(textosOCR);
+  }
+
+  function textoNativoComLinhas(items) {
+    const linhas = [];
+    (items || []).forEach(function(it) {
+      const str = String((it && it.str) || '').trim();
+      if (!str) return;
+      const tr = it.transform || [];
+      const x = Number(tr[4] || 0);
+      const y = Number(tr[5] || 0);
+      let linha = linhas.find(function(l) { return Math.abs(l.y - y) < 3; });
+      if (!linha) {
+        linha = { y: y, itens: [] };
+        linhas.push(linha);
+      }
+      linha.itens.push({ x: x, str: str });
+    });
+    return linhas
+      .sort(function(a, b) { return b.y - a.y; })
+      .map(function(l) {
+        return l.itens
+          .sort(function(a, b) { return a.x - b.x; })
+          .map(function(i) { return i.str; })
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      })
+      .filter(Boolean)
+      .join('\n');
   }
 
   window.parsearTexto_SantanderEmpresas = parsearTexto_SantanderEmpresas;
