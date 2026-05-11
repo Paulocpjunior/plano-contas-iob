@@ -1,9 +1,9 @@
 {
-  "version": "3.1.64",
-  "build_date": "2026-05-11T12:45:00-03:00",
+  "version": "3.1.65",
+  "build_date": "2026-05-11T16:15:35-03:00",
   "release_notes": [
-    "Historico 0000 passa a ser tratado como pendente, sem ser exibido como codigo valido",
-    "Fallback automatico preenche Historico Padrao para condominio, IPTU, ferias, folha, software e servicos quando a memoria/IA nao classificar",
-    "Classificacao por IA recebeu defaults especificos para reduzir lancamentos sem historico"
+    "Parser Banco do Brasil Conta Atual reconstroi lancamentos quebrados em varias linhas pelo PDF",
+    "Valores altos colados ao documento do BB agora sao separados pelo ultimo valor monetario valido",
+    "Regressao validada no extrato BB 01/2026 com cheque, boletos, folha, TED, Pix, transferencia e impostos"
   ]
 }

@@ -34,6 +34,75 @@
     return '';
   }
 
+  function normalizarDescricaoBB(corpo) {
+    let texto = String(corpo || '').replace(/\s+/g, ' ').trim();
+    if (!texto) return '';
+
+    // Remove o bloco numerico inicial do BB (origem/lote/historico/documento)
+    // e inicia a descricao no primeiro caractere alfabetico.
+    const inicioDesc = texto.search(/[A-Za-zÀ-ÿ]/);
+    if (inicioDesc >= 0) texto = texto.slice(inicioDesc).trim();
+
+    // Alguns PDFs textuais do BB colam o documento imediatamente no fim da
+    // descricao: "Pagamento de Boleto11.649" ou "Recebido91.504.346".
+    texto = texto
+      .replace(/\s+\d[\d.]*$/g, '')
+      .replace(/([A-Za-zÀ-ÿ])\d[\d.]*$/g, '$1')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    return texto;
+  }
+
+  function parseLinhaLancamentoBB(linha) {
+    const texto = String(linha || '').replace(/\s+/g, ' ').trim();
+    if (!/^\d{2}\/\d{2}\/\d{4}/.test(texto)) return null;
+
+    // Captura o valor e o D/C pela direita. O BB pode imprimir tambem saldo
+    // depois do valor do lancamento; nesse caso usamos o primeiro valor/sinal
+    // antes do saldo final.
+    const valores = [...texto.matchAll(/(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*([CD])/gi)];
+    if (!valores.length) return null;
+
+    let alvo = valores[valores.length - 1];
+    if (valores.length > 1) {
+      const ultimoFim = valores[valores.length - 1].index + valores[valores.length - 1][0].length;
+      const temSaldoNoFim = ultimoFim >= texto.length - 2;
+      if (temSaldoNoFim) alvo = valores[valores.length - 2];
+    }
+
+    const dataBR = texto.slice(0, 10);
+    let corpo = texto.slice(10, alvo.index).trim();
+    corpo = corpo.replace(/^\d{2}\/\d{2}\/\d{4}\s*/, '').trim();
+
+    const descricao = normalizarDescricaoBB(corpo);
+    if (!descricao) return null;
+
+    return {
+      dataBR: dataBR,
+      descricao: descricao,
+      valor: parseValorBR(alvo[1]),
+      tipo: String(alvo[2]).toUpperCase()
+    };
+  }
+
+  function montarLinhaLancamento(linhas, indice) {
+    let linha = (linhas[indice] || '').trim();
+    let consumidas = 0;
+
+    // Em movimentacoes de valor alto o PDF do BB quebra o valor e o sinal em
+    // linhas separadas. Reconstroi somente ate encontrar valor + D/C.
+    for (let k = 1; k <= 5 && !/(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*[CD](?:\s|$)/i.test(linha) && (indice + k) < linhas.length; k++) {
+      const prox = (linhas[indice + k] || '').trim();
+      if (!prox) break;
+      if (/^\d{2}\/\d{2}\/\d{4}/.test(prox)) break;
+      linha += ' ' + prox;
+      consumidas = k;
+    }
+
+    return { linha: linha, consumidas: consumidas };
+  }
+
   async function parsearPDF_BB_ContaAtual(arrayBuffer) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -68,10 +137,6 @@
     const meta = extrairMeta(textoCompleto);
     const linhas = textoCompleto.split(/\r?\n/);
 
-    // Regex principal: linhas de lancamento. O BB pode imprimir uma ou duas datas
-    // no inicio: "Dt. balancete" e "Dt. movimento".
-    const reLanc = /^(\d{2}\/\d{2}\/\d{4})(?:\s+\d{2}\/\d{2}\/\d{4})?\s+(?:\d{4}\s+)?(\d{3,6})\s+(\d{3})\s+(.+?)\s+([\d.]+)?\s*([\d.]+,\d{2})\s*([CD])\s*(?:[\d.,]+\s*[CD])?\s*$/;
-
     const lancamentos = [];
     const IGNORAR = /^(Saldo\s+Anterior|S\s*A\s*L\s*D\s*O|Tar\.\s*agrupadas)/i;
 
@@ -79,23 +144,24 @@
       const linha = linhas[i].trim();
       if (!linha || linha.length < 20) continue;
 
-      const m = linha.match(reLanc);
-      if (!m) continue;
+      const reconstruida = montarLinhaLancamento(linhas, i);
+      const lancamento = parseLinhaLancamentoBB(reconstruida.linha);
+      if (!lancamento) continue;
 
-      const dataBR = m[1];
-      const loteHist = m[4].trim();
-      const valor = parseValorBR(m[6]);
-      const tipo = m[7]; // C ou D
+      const dataBR = lancamento.dataBR;
+      const loteHist = lancamento.descricao;
+      const valor = lancamento.valor;
+      const tipo = lancamento.tipo; // C ou D
 
       if (IGNORAR.test(loteHist)) continue;
       if (valor === 0) continue;
 
       // Descricao complementar: proximas 1-2 linhas se nao forem novo lancamento
       let descExtra = [];
-      for (let k = 1; k <= 2 && (i+k) < linhas.length; k++) {
+      for (let k = reconstruida.consumidas + 1; k <= reconstruida.consumidas + 2 && (i+k) < linhas.length; k++) {
         const prox = linhas[i+k].trim();
         if (!prox) break;
-        if (reLanc.test(prox)) break;
+        if (parseLinhaLancamentoBB(montarLinhaLancamento(linhas, i + k).linha)) break;
         if (/^\d{2}\/\d{2}\/\d{4}/.test(prox)) break;
         if (IGNORAR.test(prox)) break;
         descExtra.push(prox);
@@ -122,6 +188,8 @@
         tipo: tipo === 'D' ? 'D' : 'C',
         cnpj: cnpj
       });
+
+      i += reconstruida.consumidas;
     }
 
     const fingerprint = 'bb-conta-atual-' + (meta.agencia || 'x') + '-' + (meta.conta || 'x') + '-' + (meta.periodo || 'x');
