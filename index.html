@@ -6803,7 +6803,7 @@
                                 title="${descricaoHistorico(e.codigoHistorico) || 'Codigo IOB SAGE - clique para selecionar (4 digitos)'}">
                         </td>
                         <td>
-                            <input type="text" class="editable-input" value="${e.historico || '1'}" 
+                            <input type="text" class="editable-input" value="${e.historico || e.historicoPadraoDescricao || descricaoHistorico(e.codigoHistorico) || ''}" 
                                 onchange="updateEntry(${idx},'historico',this.value)" 
                                 placeholder="Hist" style="width:50px;text-align:center">
                         </td>
@@ -6840,6 +6840,7 @@
                     if (!lanc.contaDebito && h.debito) lanc.contaDebito = h.debito;
                     if (!lanc.contaCredito && h.credito) lanc.contaCredito = h.credito;
                     lanc.historicoPadraoDescricao = h.descricao || '';
+                    if (h.descricao) lanc.historico = h.descricao;
                 }
             }
             return true;
@@ -6888,6 +6889,14 @@
                 lanc.memoriaDescricoes.forEach(add);
             }
             return lista;
+        }
+
+        function historicoTextoValido(valor) {
+            const s = String(valor || '').replace(/\s+/g, ' ').trim();
+            if (!s) return false;
+            if (/^\d{1,4}$/.test(s)) return false;
+            if (/^(hist|historico|padrao|texto livre legado)$/i.test(s)) return false;
+            return s.length >= 3;
         }
 
         async function hashDescricao(cnpj, descNorm) {
@@ -6945,6 +6954,8 @@
                 return { ok: false, motivo: 'Padrao muito generico' };
             }
             const hash = await hashDescricao(cnpj, descNorm);
+            const histPadrao = lanc.historicoPadraoDescricao || descricaoHistorico(lanc.codigoHistorico) || '';
+            const histLivre = historicoTextoValido(lanc.historico) ? lanc.historico : histPadrao;
             try {
                 const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado', {
                     method: 'POST',
@@ -6956,8 +6967,8 @@
                         contaDebito: lanc.contaDebito,
                         contaCredito: lanc.contaCredito,
                         codigoHistorico: lanc.codigoHistorico,
-                        historico: lanc.historico || '',
-                        historicoPadraoDescricao: lanc.historicoPadraoDescricao || descricaoHistorico(lanc.codigoHistorico) || ''
+                        historico: histLivre || '',
+                        historicoPadraoDescricao: histPadrao || ''
                     })
                 });
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -6968,8 +6979,8 @@
                     hash: hash, descricao_normalizada: descNorm,
                     contaDebito: lanc.contaDebito, contaCredito: lanc.contaCredito,
                     codigoHistorico: lanc.codigoHistorico,
-                    historico: lanc.historico || '',
-                    historicoPadraoDescricao: lanc.historicoPadraoDescricao || descricaoHistorico(lanc.codigoHistorico) || '',
+                    historico: histLivre || '',
+                    historicoPadraoDescricao: histPadrao || '',
                     vezes_usado: j.vezes_usado || 1
                 };
                 lanc._memorizado = true;
@@ -7057,8 +7068,9 @@
                         aplicarHistoricoAoLancamento(e, e.codigoHistorico);
                     }
                     if (aprendido.historicoPadraoDescricao) e.historicoPadraoDescricao = aprendido.historicoPadraoDescricao;
-                    if (aprendido.historico) e.historico = aprendido.historico;
-                    else if (!e.historico && e.historicoPadraoDescricao) e.historico = e.historicoPadraoDescricao;
+                    if (historicoTextoValido(aprendido.historico)) e.historico = aprendido.historico;
+                    else if (e.historicoPadraoDescricao) e.historico = e.historicoPadraoDescricao;
+                    else if (e.codigoHistorico) e.historico = descricaoHistorico(e.codigoHistorico) || '';
                     e._memorizado = true; // marca pra UI mostrar 🧠
                     aplicados++;
                 }
@@ -7332,37 +7344,37 @@ EXEMPLOS DE CLASSIFICACAO (aprenda o padrao):
 Ex1: "PIX ENVIADO FORNECEDOR ABC FRUTAS LTDA | R$ 5.000 | DEBITO (saida)"
 -> Debito: FORNECEDORES (passivo reduz quando paga)
 -> Credito: BANCO ITAU (ativo reduz quando paga)
--> historico: 1 (texto livre legado)
+-> historico: PAGTO DIVERSAS DUPLICATAS FORNECEDORES
 -> codigoHistorico: 0899 (PAGTO DIVERSAS DUPLICATAS FORNECEDORES)
 
 Ex2: "TARIFA DOC/TED | R$ 15 | DEBITO"
 -> Debito: DESPESAS BANCARIAS (conta de resultado)
 -> Credito: BANCO ITAU
--> historico: 15
+-> historico: TARIFA BANCARIA
 -> codigoHistorico: 9006 (TARIFA BANCARIA)
 
 Ex3: "PIX RECEBIDO DE MERCADO CENTRAL | R$ 12.000 | CREDITO (entrada)"
 -> Debito: BANCO ITAU (ativo aumenta)
 -> Credito: RECEITA DE VENDAS (receita)  OU  CLIENTES (se era a receber)
--> historico: 201
+-> historico: VALORES RECEBIDOS
 -> codigoHistorico: 0013 (VALORES RECEBIDOS) OU 0033 (CLIENTES - SERVICOS PRESTADOS)
 
 Ex4: "DARF IRPJ ABRIL 2026 | R$ 3.500 | DEBITO"
 -> Debito: IRPJ A RECOLHER (passivo)
 -> Credito: BANCO ITAU
--> historico: 301
+-> historico: PAGTO IRPJ REF
 -> codigoHistorico: 1014 (PAGTO IRPJ REF)
 
 Ex5: "ALUGUEL LOJA MARCAL | R$ 4.000 | DEBITO"
 -> Debito: DESPESA DE ALUGUEL ou ALUGUEIS A PAGAR
 -> Credito: BANCO ITAU
--> historico: 50
+-> historico: PAGTO DE ALUGUEL
 -> codigoHistorico: 1200 (PAGTO DE ALUGUEL)
 
 Ex6: "COMBUSTIVEL POSTO XX | R$ 280 | DEBITO"
 -> Debito: COMBUSTIVEIS (despesa)
 -> Credito: BANCO ITAU
--> historico: 80
+-> historico: PAGTO DESP C/COMBUSTIVEL
 -> codigoHistorico: 1302 (PAGTO DESP C/COMBUSTIVEL)
 
 TRANSACOES PARA CLASSIFICAR:
@@ -7375,7 +7387,7 @@ REGRAS ABSOLUTAS:
 4. Para DEBITO_SAIDA bancaria: Credito eh o BANCO ITAU. Debito varia (fornecedor/despesa/imposto).
 5. Para CREDITO_ENTRADA bancaria: Debito eh o BANCO ITAU. Credito varia (receita/cliente/outro).
 6. Identifique o BANCO ITAU procurando no plano uma conta com "BANCO ITAU" na descricao.
-7. historico: texto curto livre (mantem legado, ex: "1", "15", "201").
+7. historico: use a DESCRICAO do Historico Padrao correspondente ao codigoHistorico. Nunca retorne somente numeros como "1", "15" ou "201".
 8. codigoHistorico: 4 digitos EXATOS da tabela HISTORICOS PADRAO IOB SAGE acima.
    Use o codigo mais especifico aplicavel. Defaults aceitaveis para descricoes vagas:
    - Pagamento generico de fornecedor: 0899
@@ -7389,7 +7401,7 @@ REGRAS ABSOLUTAS:
 Responda APENAS JSON valido, sem texto antes/depois:
 {
   "classificacoes": [
-    {"idx": 1, "contaDebito": "REDUZIDO", "contaCredito": "REDUZIDO", "historico": "1", "codigoHistorico": "0899", "justificativa": "texto curto"}
+    {"idx": 1, "contaDebito": "REDUZIDO", "contaCredito": "REDUZIDO", "historico": "PAGTO DIVERSAS DUPLICATAS FORNECEDORES", "codigoHistorico": "0899", "justificativa": "texto curto"}
   ]
 }`;
 

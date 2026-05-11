@@ -1,9 +1,9 @@
 {
-  "version": "3.1.61",
-  "build_date": "2026-05-11T11:35:00-03:00",
+  "version": "3.1.62",
+  "build_date": "2026-05-11T11:55:00-03:00",
   "release_notes": [
-    "Layout CLUDE Itau passa a ignorar linhas-resumo sem data para evitar duplicidade de saidas",
-    "Descricao do Itau CLUDE agora combina fornecedor, historico e NF para melhorar memoria e historicos",
-    "Classificar com IA tenta aliases de descricao para reaproveitar padroes memorizados em meses anteriores"
+    "Campo Historico deixa de exibir valor padrao 1 quando existe codigo IOB vinculado",
+    "Memoria de classificacao ignora historicos numericos genericos e prioriza a descricao oficial do Historico Padrao",
+    "Prompt da IA passa a solicitar descricao textual do Historico Padrao em vez de numeros legados"
   ]
 }
