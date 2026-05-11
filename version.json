@@ -1,9 +1,9 @@
 {
-  "version": "3.1.59",
-  "build_date": "2026-05-11T10:45:00-03:00",
+  "version": "3.1.60",
+  "build_date": "2026-05-11T11:05:00-03:00",
   "release_notes": [
-    "Modal Vincular Plano Existente passa a carregar a lista de planos de forma leve e imediata",
-    "Botao Vincular Plano Existente prioriza planos genericos no topo da lista",
-    "Parser Santander preserva linhas do PDF nativo antes do OCR para reconhecer Extrato Consolidado Inteligente"
+    "AuditAI passa a respeitar a linha oficial de lucro ou prejuizo da DRE quando informada no documento",
+    "Leitura de DRE reconhece sufixos C e D dos relatorios IOB para preservar o sinal contabil",
+    "Bundle do AuditAI recebeu cache bust para garantir que colaboradores carreguem a versao atualizada"
   ]
 }
