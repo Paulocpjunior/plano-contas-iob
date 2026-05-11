@@ -1,9 +1,9 @@
 {
-  "version": "3.1.57",
-  "build_date": "2026-05-11T08:30:00-03:00",
+  "version": "3.1.58",
+  "build_date": "2026-05-11T08:55:00-03:00",
   "release_notes": [
-    "Memoria de classificacao agora tem prioridade sobre mapeamentos automaticos genericos",
-    "Ao reimportar Stripe da CLUDE, debito, credito e codigo IOB memorizados sobrescrevem sugestoes 111/111",
-    "Memoria passa a salvar e reaplicar tambem o texto do historico quando disponivel"
+    "Botao Classificar com IA agora reaproveita primeiro a memoria da empresa",
+    "Lancamentos ja reconhecidos pela memoria nao sao enviados para a IA e nao sao sobrescritos",
+    "A IA passa a classificar apenas o que ainda ficou pendente apos aplicar os padroes memorizados"
   ]
 }

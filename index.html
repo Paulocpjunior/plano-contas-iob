@@ -7123,7 +7123,8 @@
             const btn = document.getElementById('btnClassificarIA');
             btn.disabled = true;
             btn.innerHTML = '⏳ Classificando...';
-            
+
+            let entradasParaIA = [];
 
             // Fase 3: lista compactada de historicos IOB para enviar a IA
             let historicosIOBLista = '';
@@ -7167,12 +7168,28 @@
             }
 
             try {
+                const rMem = await aplicarMemoriaEmLancamentos(state.entries, cnpj);
+                if (rMem.aplicados > 0) {
+                    saveState();
+                    renderLancamentos();
+                    showToast('🧠 ' + rMem.aplicados + ' lançamento(s) reaproveitado(s) da memória da empresa.', 'success');
+                }
+
+                entradasParaIA = state.entries
+                    .map(function(e, idx) { return { e: e, idx: idx }; })
+                    .filter(function(item) { return !item.e._memorizado; });
+
+                if (!entradasParaIA.length) {
+                    showToast('✅ Classificação concluída pela memória. Nenhum lançamento precisou ir para a IA.', 'success');
+                    return;
+                }
+
                 // Classificar em lotes de 20
                 const batchSize = 10; // v2: reduzido de 20 para 10 para maior precisao
                 let classificadas = 0;
                 
-                for (let i = 0; i < state.entries.length; i += batchSize) {
-                    const batch = state.entries.slice(i, i + batchSize);
+                for (let i = 0; i < entradasParaIA.length; i += batchSize) {
+                    const batch = entradasParaIA.slice(i, i + batchSize);
                     
                     const prompt = `${contextoTexto}
 
@@ -7223,7 +7240,7 @@ Ex6: "COMBUSTIVEL POSTO XX | R$ 280 | DEBITO"
 -> codigoHistorico: 1302 (PAGTO DESP C/COMBUSTIVEL)
 
 TRANSACOES PARA CLASSIFICAR:
-${batch.map((t, idx) => (idx + 1) + '. ' + t.data + ' | ' + (t.descricao || '') + ' | R$ ' + Math.abs(t.valor).toFixed(2) + ' | ' + (t.valor >= 0 ? 'CREDITO_ENTRADA' : 'DEBITO_SAIDA')).join('\n')}
+${batch.map((item, idx) => (idx + 1) + '. ' + item.e.data + ' | ' + (item.e.descricao || '') + ' | R$ ' + Math.abs(item.e.valor).toFixed(2) + ' | ' + (item.e.valor >= 0 ? 'CREDITO_ENTRADA' : 'DEBITO_SAIDA')).join('\n')}
 
 REGRAS ABSOLUTAS:
 1. SEMPRE retorne o codigo REDUZIDO_14_DIGITOS (ex: "00010000000391"), NUNCA o estruturado (ex: "2.1.1.07.0001").
@@ -7273,8 +7290,10 @@ Responda APENAS JSON valido, sem texto antes/depois:
                             let rejeitadasIA = 0;
                             
                             result.classificacoes.forEach(c => {
-                                const entryIdx = i + c.idx - 1;
+                                const batchItem = batch[c.idx - 1];
+                                const entryIdx = batchItem ? batchItem.idx : -1;
                                 if (!state.entries[entryIdx]) return;
+                                if (state.entries[entryIdx]._memorizado) return;
                                 
                                 const dbt = String(c.contaDebito || '').trim();
                                 const crd = String(c.contaCredito || '').trim();
@@ -7306,8 +7325,10 @@ Responda APENAS JSON valido, sem texto antes/depois:
                         }
                     }
                     
-                    btn.innerHTML = '⏳ IA v2: ' + Math.min(i + batchSize, state.entries.length) + '/' + state.entries.length;
+                    btn.innerHTML = '⏳ IA v2: ' + Math.min(i + batchSize, entradasParaIA.length) + '/' + entradasParaIA.length;
                 }
+
+                await aplicarMemoriaEmLancamentos(state.entries, cnpj);
                 
                 saveState();
                 renderLancamentos();
