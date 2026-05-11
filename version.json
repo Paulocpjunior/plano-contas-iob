@@ -1,9 +1,9 @@
 {
-  "version": "3.1.65",
-  "build_date": "2026-05-11T16:15:35-03:00",
+  "version": "3.1.66",
+  "build_date": "2026-05-11T16:27:15-03:00",
   "release_notes": [
-    "Parser Banco do Brasil Conta Atual reconstroi lancamentos quebrados em varias linhas pelo PDF",
-    "Valores altos colados ao documento do BB agora sao separados pelo ultimo valor monetario valido",
-    "Regressao validada no extrato BB 01/2026 com cheque, boletos, folha, TED, Pix, transferencia e impostos"
+    "Parser Safra passa a reconhecer extratos com colunas coladas no PDF textual",
+    "Valores Safra colados ao documento sao separados por heuristica do layout 422",
+    "Validado no extrato Safra Waldesa 01/2026 com 63 lancamentos extraidos"
   ]
 }
