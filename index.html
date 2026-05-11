@@ -4250,6 +4250,106 @@
                 return null;
             };
 
+            const parsearLayoutCludeItau = () => {
+                const todosItau = [];
+                const abasItau = [];
+
+                for (const sheetName of wb.SheetNames) {
+                    const sheet = wb.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+                    if (!rows.length) {
+                        abasItau.push({ aba: sheetName, detectados: 0, motivo: 'vazia' });
+                        continue;
+                    }
+
+                    let hIdx = -1;
+                    for (let i = 0; i < Math.min(rows.length, 25); i++) {
+                        const h = (rows[i] || []).map(normH);
+                        const temItauClude = h.includes('data pagto')
+                            && h.includes('descricao')
+                            && h.includes('despesas');
+                        if (temItauClude) { hIdx = i; break; }
+                    }
+                    if (hIdx === -1) {
+                        abasItau.push({ aba: sheetName, detectados: 0, motivo: 'nao e layout CLUDE/Itau' });
+                        continue;
+                    }
+
+                    const headers = rows[hIdx].map(normH);
+                    const col = function(nome) { return headers.indexOf(normH(nome)); };
+                    const cData = col('DATA PAGTO');
+                    const cDesc = col('DESCRICAO') >= 0 ? col('DESCRICAO') : col('DESCRIÇÃO');
+                    const cValor = col('DESPESAS');
+                    const cTipo = col('TIPO DESPESA');
+                    const cNF = col('NF');
+                    const cStatus = col('STATUS');
+                    let count = 0;
+
+                    for (let i = hIdx + 1; i < rows.length; i++) {
+                        const r = rows[i];
+                        if (!r || r.every(c => c === null || c === '' || c === undefined)) continue;
+
+                        const data = parseData(r[cData]);
+                        const valor = parseValor(r[cValor]);
+                        const descBase = String(r[cDesc] || '').trim();
+                        const tipoDespesa = cTipo >= 0 ? String(r[cTipo] || '').trim() : '';
+                        const nf = cNF >= 0 ? String(r[cNF] || '').trim() : '';
+                        const status = cStatus >= 0 ? String(r[cStatus] || '').trim() : '';
+
+                        // Linhas-resumo do layout CLUDE/Itau nao possuem DATA PAGTO.
+                        // Se elas entrarem, duplicam exatamente os totais de saidas/entradas.
+                        if (!data || valor === null || Math.abs(valor) === 0) continue;
+                        if (/^(pagamentos em|total de|saldo\b)/i.test(descBase)) continue;
+
+                        const partes = [];
+                        if (tipoDespesa) partes.push(tipoDespesa);
+                        if (descBase && descBase.toLowerCase() !== tipoDespesa.toLowerCase()) partes.push(descBase);
+                        if (nf && !/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(nf)) partes.push('NF ' + nf);
+                        const descricao = (partes.join(' - ') || descBase || tipoDespesa || 'Movimento Itau CLUDE')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+                        const memoriaDescricoes = [descricao, descBase, tipoDespesa ? (tipoDespesa + ' - ' + descBase) : '']
+                            .map(function(x) { return String(x || '').replace(/\s+/g, ' ').trim(); })
+                            .filter(Boolean);
+
+                        todosItau.push({
+                            data,
+                            descricao,
+                            descricao_memoria: descBase,
+                            memoriaDescricoes,
+                            valor,
+                            status_origem: status,
+                            aba_origem: sheetName,
+                            layoutNome: 'CLUDE - Itau Movimentacao Financeira',
+                            layoutParser: 'parsearArquivoXLSXCludeItau',
+                            conta: 'Itau CLUDE',
+                            nome_conta: 'Itau CLUDE'
+                        });
+                        count++;
+                    }
+                    abasItau.push({ aba: sheetName, detectados: count, layout: 'CLUDE - Itau Movimentacao Financeira' });
+                }
+
+                const seenItau = new Set();
+                const dedupItau = todosItau.filter(t => {
+                    const k = t.data + '|' + t.descricao + '|' + t.valor;
+                    if (seenItau.has(k)) return false;
+                    seenItau.add(k);
+                    return true;
+                });
+
+                if (dedupItau.length) {
+                    const datas = dedupItau.map(t => t.data).sort();
+                    dedupItau.forEach(t => {
+                        t.periodo_inicio = datas[0] || '';
+                        t.periodo_fim = datas[datas.length - 1] || '';
+                    });
+                    window.__ultimaImportacaoAbas = abasItau;
+                    return dedupItau;
+                }
+                return null;
+            };
+
             const todos = [];
             const abasLog = [];
 
@@ -4257,6 +4357,11 @@
             if (clude) {
                 console.log('[parsearArquivoXLSX] layout CLUDE detectado:', clude.length);
                 return clude;
+            }
+            const cludeItau = parsearLayoutCludeItau();
+            if (cludeItau) {
+                console.log('[parsearArquivoXLSX] layout CLUDE Itau detectado:', cludeItau.length);
+                return cludeItau;
             }
 
             for (const sheetName of wb.SheetNames) {
@@ -4288,7 +4393,7 @@
                     if (cnpjVal && !desc.includes(cnpjVal)) desc = desc + ' - CNPJ ' + cnpjVal;
                     if (!data || valor === null || !desc) continue;
                     if (/saldo\s+(anterior|final|do dia|atual|inicial)/i.test(desc)) continue;
-                    if (/total\s+(do dia|geral|periodo)/i.test(desc)) continue;
+                    if (/^(pagamentos em|total de|total\s+(do dia|geral|periodo))/i.test(desc)) continue;
 
                     todos.push({ data, descricao: desc, valor, aba_origem: sheetName });
                     count++;
@@ -6771,6 +6876,20 @@
                 .split(' ').filter(function(w){return w.length >= 3;}).slice(0, 6).join(' ');
         }
 
+        function candidatosDescricaoMemoria(lanc) {
+            const lista = [];
+            const add = function(valor) {
+                const s = String(valor || '').replace(/\s+/g, ' ').trim();
+                if (s && !lista.includes(s)) lista.push(s);
+            };
+            add(lanc && lanc.descricao);
+            add(lanc && lanc.descricao_memoria);
+            if (Array.isArray(lanc && lanc.memoriaDescricoes)) {
+                lanc.memoriaDescricoes.forEach(add);
+            }
+            return lista;
+        }
+
         async function hashDescricao(cnpj, descNorm) {
             const data = (cnpj || '') + ':' + (descNorm || '');
             const buf = new TextEncoder().encode(data);
@@ -6919,10 +7038,17 @@
             let aplicados = 0;
             for (let i = 0; i < entries.length; i++) {
                 const e = entries[i];
-                const descNorm = normalizarDescricao(e.descricao);
-                if (!descNorm) continue;
-                const hash = await hashDescricao(cnpjLimpo, descNorm);
-                const aprendido = cache[hash];
+                let aprendido = null;
+                const candidatos = candidatosDescricaoMemoria(e);
+                for (let c = 0; c < candidatos.length; c++) {
+                    const descNorm = normalizarDescricao(candidatos[c]);
+                    if (!descNorm) continue;
+                    const hash = await hashDescricao(cnpjLimpo, descNorm);
+                    if (cache[hash]) {
+                        aprendido = cache[hash];
+                        break;
+                    }
+                }
                 if (aprendido) {
                     if (aprendido.contaDebito) e.contaDebito = aprendido.contaDebito;
                     if (aprendido.contaCredito) e.contaCredito = aprendido.contaCredito;
