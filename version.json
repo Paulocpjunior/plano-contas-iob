@@ -1,9 +1,9 @@
 {
-  "version": "3.1.63",
-  "build_date": "2026-05-11T12:25:00-03:00",
+  "version": "3.1.64",
+  "build_date": "2026-05-11T12:45:00-03:00",
   "release_notes": [
-    "Importacoes grandes deixam de travar quando o navegador atinge o limite de localStorage",
-    "Sessoes grandes passam a ser salvas em partes no servidor e remontadas automaticamente no acesso",
-    "Layout CLUDE Itau foi alinhado na central de layouts com o parser XLSX oficial e registro de uso do importador"
+    "Historico 0000 passa a ser tratado como pendente, sem ser exibido como codigo valido",
+    "Fallback automatico preenche Historico Padrao para condominio, IPTU, ferias, folha, software e servicos quando a memoria/IA nao classificar",
+    "Classificacao por IA recebeu defaults especificos para reduzir lancamentos sem historico"
   ]
 }

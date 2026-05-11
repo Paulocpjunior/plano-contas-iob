@@ -5942,6 +5942,10 @@
                         }
                     }
                 } catch (eMem) { console.warn('[Fase 5a] Falha ao aplicar memoria:', eMem); }
+                try {
+                    const histFallback = aplicarHistoricosFallback(entries);
+                    if (histFallback > 0) console.log('[historico fallback] aplicado em', histFallback, 'lancamento(s)');
+                } catch (eHist) { console.warn('[historico fallback] falhou:', eHist); }
 
                 hideProcessing();
                 const confirmado = await abrirConferenciaImportacao(entries, {
@@ -6700,7 +6704,7 @@
             const btnMem = document.getElementById('btnMemorizarSelecionados');
             if (btnMem) {
                 const elegiveis = (state.entries || []).filter(function(e) {
-                    return lancamentosSelecionados.has(e.id) && e.contaDebito && e.contaCredito && e.codigoHistorico && !e._memorizado;
+                return lancamentosSelecionados.has(e.id) && e.contaDebito && e.contaCredito && codigoHistoricoValido(e.codigoHistorico) && !e._memorizado;
                 }).length;
                 btnMem.disabled = elegiveis === 0;
                 btnMem.textContent = elegiveis > 0
@@ -6757,6 +6761,7 @@
                 saveState();
                 console.log('[integridade] ' + corrigidos + ' ajuste(s) em lancamentos sem id/valor numerico');
             }
+            try { aplicarHistoricosFallback(state.entries || []); } catch(e) {}
             sincronizarSelecaoLancamentos();
             
             if (!state.entries.length) {
@@ -6859,7 +6864,7 @@
                         </td>
                         <td>
                             <input type="text" list="historicosIOBList" class="editable-input"
-                                value="${e.codigoHistorico || ''}"
+                                value="${codigoHistoricoValido(e.codigoHistorico) ? e.codigoHistorico : ''}"
                                 onchange="updateEntry(${idx},'codigoHistorico',this.value)"
                                 placeholder="0000" maxlength="4"
                                 style="width:65px;font-family:monospace;text-align:center;font-size:11px"
@@ -6871,7 +6876,7 @@
                                 placeholder="Hist" style="width:50px;text-align:center">
                         </td>
                         <td>
-                            ${(e.contaDebito && e.contaCredito && e.codigoHistorico && !e._memorizado)
+                            ${(e.contaDebito && e.contaCredito && codigoHistoricoValido(e.codigoHistorico) && !e._memorizado)
                                 ? '<button class="btn-sugestao" onclick="memorizarLancamento(' + idx + ')" title="Memorizar este padrao para a empresa" style="background:#dcfce7">🧠</button>' : ''}
                             ${e._memorizado ? '<span title="Padrao memorizado/aplicado" style="font-size:14px">🧠</span>' : ''}
                             <button class="btn-sugestao" onclick="removeEntry(${idx})" title="Remover">🗑️</button>
@@ -6893,10 +6898,14 @@
             if (!h) return '';
             return (h.descricao || '').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         }
+        function codigoHistoricoValido(cod) {
+            const s = String(cod || '').replace(/\D/g,'').padStart(4,'0').slice(-4);
+            return /^\d{4}$/.test(s) && s !== '0000';
+        }
         function aplicarHistoricoAoLancamento(lanc, codigoHistorico) {
             if (!lanc) return false;
             const cod = codigoHistorico ? String(codigoHistorico).replace(/\D/g,'').padStart(4,'0').slice(-4) : null;
-            lanc.codigoHistorico = (cod && /^\d{4}$/.test(cod)) ? cod : null;
+            lanc.codigoHistorico = codigoHistoricoValido(cod) ? cod : null;
             if (lanc.codigoHistorico && window.SP_HistoricosPadrao) {
                 const h = window.SP_HistoricosPadrao.buscarPorCodigo(lanc.codigoHistorico);
                 if (h) {
@@ -6907,6 +6916,44 @@
                 }
             }
             return true;
+        }
+
+        function normalizarTextoRegraHistorico(valor) {
+            return String(valor || '')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase()
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function codigoHistoricoPorDescricao(descricao) {
+            const d = normalizarTextoRegraHistorico(descricao);
+            if (!d) return '';
+            const regras = [
+                { re: /\b(IPTU|IMPOSTO PREDIAL)\b/, cod: '1230' },
+                { re: /\b(CONDOMINIO|CONDOMINIAL|CONDOM)\b/, cod: '1201' },
+                { re: /\b(FERIAS|FÉRIAS)\b/, cod: '1106' },
+                { re: /\b(FOLHA|SALARIO|SALARIOS|ORDENADO|ORDENADOS|PAGAMENTO FUNCIONARIO)\b/, cod: '1101' },
+                { re: /\b(LICENCA|LICENCA DE USO|SOFTWARE|CLICKSIGN|RD GESTAO|SISTEMAS)\b/, cod: '1305' },
+                { re: /\b(CONSULTORIA|SERVICOS PRESTADOS|SERVICO PRESTADO|PRESTACAO DE SERVICO|ETHOS GRC)\b/, cod: '1207' },
+                { re: /\b(HONORARIO|HONORARIOS|ADVOCATICIO|ADVOCATICIOS)\b/, cod: '1249' }
+            ];
+            const achada = regras.find(function(r) { return r.re.test(d); });
+            return achada ? achada.cod : '';
+        }
+
+        function aplicarHistoricosFallback(entries) {
+            let aplicados = 0;
+            (entries || []).forEach(function(e) {
+                if (!e || codigoHistoricoValido(e.codigoHistorico)) return;
+                const cod = codigoHistoricoPorDescricao(e.descricao);
+                if (!cod) return;
+                aplicarHistoricoAoLancamento(e, cod);
+                if (!e.historico && e.historicoPadraoDescricao) e.historico = e.historicoPadraoDescricao;
+                e._historicoFallback = true;
+                aplicados++;
+            });
+            return aplicados;
         }
         async function popularDatalistHistoricos() {
             if (!window.SP_HistoricosPadrao) return;
@@ -6995,7 +7042,7 @@
             opts = opts || {};
             const lanc = state.entries[idx];
             if (!lanc) return { ok: false, motivo: 'Lancamento nao encontrado' };
-            if (!lanc.contaDebito || !lanc.contaCredito || !lanc.codigoHistorico) {
+            if (!lanc.contaDebito || !lanc.contaCredito || !codigoHistoricoValido(lanc.codigoHistorico)) {
                 if (!opts.silent && typeof showToast === 'function') showToast('Preencha debito, credito e codigo IOB antes de memorizar.', 'error');
                 return { ok: false, motivo: 'Classificacao incompleta' };
             }
@@ -7067,7 +7114,7 @@
                 return;
             }
             const elegiveis = selecionados.filter(function(item) {
-                return item.e.contaDebito && item.e.contaCredito && item.e.codigoHistorico && !item.e._memorizado;
+                return item.e.contaDebito && item.e.contaCredito && codigoHistoricoValido(item.e.codigoHistorico) && !item.e._memorizado;
             });
             if (!elegiveis.length) {
                 showToast('Nenhum selecionado esta pronto para memorizar. Preencha debito, credito e codigo IOB.', 'error');
@@ -7458,6 +7505,11 @@ REGRAS ABSOLUTAS:
    - Tarifa bancaria: 9006
    - Pagamento de imposto generico: 0900
    - Pagto folha/salario: 1101
+   - Pagto de ferias: 1106
+   - Condominio: 1201
+   - IPTU: 1230
+   - Licenca de software/sistemas: 1305
+   - Prestacao de servicos/consultoria: 1207
 9. Se a descricao for vaga ou nao reconhecer, use a conta mais GENERICA do tipo correto (ex: DIVERSOS A PAGAR, OUTRAS DESPESAS).
 10. Justifique em UMA frase curta cada classificacao (campo "justificativa").
 
@@ -7530,11 +7582,15 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 }
 
                 await aplicarMemoriaEmLancamentos(state.entries, cnpj);
+                try {
+                    const histFallback = aplicarHistoricosFallback(state.entries);
+                    if (histFallback > 0) console.log('[historico fallback] aplicado em', histFallback, 'lancamento(s)');
+                } catch (eHist) { console.warn('[historico fallback] falhou:', eHist); }
                 
                 saveState();
                 renderLancamentos();
                 
-                const comCodIOB = state.entries.filter(function(e){ return e.codigoHistorico && /^\d{4}$/.test(e.codigoHistorico); }).length;
+                const comCodIOB = state.entries.filter(function(e){ return codigoHistoricoValido(e.codigoHistorico); }).length;
                 showToast(`✅ ${classificadas} transações classificadas (${comCodIOB} com código IOB SAGE)`, 'success');
                 
             } catch (err) {
@@ -7619,7 +7675,7 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 if (!confirm(msg)) return;
             }
             // Fase 2: avisar se ha lancamentos sem codigo de historico IOB
-            const semCodHist = valid.filter(function(e){ return !e.codigoHistorico || !/^\d{4}$/.test(e.codigoHistorico); });
+            const semCodHist = valid.filter(function(e){ return !codigoHistoricoValido(e.codigoHistorico); });
             if (semCodHist.length > 0) {
                 if (!confirm(semCodHist.length + ' de ' + valid.length + ' lancamento(s) NAO tem codigo de historico IOB e serao exportados com 4 espacos em branco nas posicoes 42-45. Continuar mesmo assim?')) {
                     return;
@@ -7740,7 +7796,7 @@ Responda APENAS JSON valido, sem texto antes/depois:
         // === Atribuicao em massa de Historico Padrao IOB (Fase 2) ===
         function calcularStatusHistoricos() {
             const total = state.entries.length;
-            const comHist = state.entries.filter(function(e){ return e.codigoHistorico && /^\d{4}$/.test(e.codigoHistorico); }).length;
+            const comHist = state.entries.filter(function(e){ return codigoHistoricoValido(e.codigoHistorico); }).length;
             return { total: total, comHist: comHist, semHist: total - comHist };
         }
         function atualizarStatusBulkHist() {
