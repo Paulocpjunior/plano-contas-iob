@@ -1,9 +1,9 @@
 {
-  "version": "3.1.66",
-  "build_date": "2026-05-11T16:27:15-03:00",
+  "version": "3.1.67",
+  "build_date": "2026-05-12T06:49:52-03:00",
   "release_notes": [
-    "Parser Safra passa a reconhecer extratos com colunas coladas no PDF textual",
-    "Valores Safra colados ao documento sao separados por heuristica do layout 422",
-    "Validado no extrato Safra Waldesa 01/2026 com 63 lancamentos extraidos"
+    "Aba Lancamentos recebeu inclusao manual de transacoes para complementar falhas de importacao",
+    "Lancamento manual permite data, tipo, valor, contas, codigo IOB, historico e marcacao de incomum",
+    "Layouts bancarios seguem persistidos em Firestore e registram ultimo uso pelo importador"
   ]
 }

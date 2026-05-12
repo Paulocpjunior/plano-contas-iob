@@ -1822,6 +1822,9 @@
                     <div class="card-header">
                         <h2><span class="icon">📋</span> Transações Extraídas</h2>
                         <div class="action-buttons">
+                            <button class="btn-action btn-action-secondary" onclick="abrirModalLancamentoManual()">
+                                ➕ Lançamento Manual
+                            </button>
                             <button class="btn-action btn-action-warning" onclick="classificarComIA()" id="btnClassificarIA">
                                 🤖 Classificar com IA
                             </button>
@@ -7215,6 +7218,107 @@
                 updateCharts();
             }
         }
+
+        function valorManualAssinado(valor, tipo) {
+            const n = Math.abs(parseNumeroLancamento(valor));
+            if (!n) return 0;
+            return tipo === 'credito' ? n : -n;
+        }
+
+        function abrirModalLancamentoManual() {
+            const modal = document.getElementById('modalLancamentoManual');
+            if (!modal) return;
+            const hoje = new Date().toISOString().slice(0, 10);
+            const dataEl = document.getElementById('lmData');
+            const descEl = document.getElementById('lmDescricao');
+            const tipoEl = document.getElementById('lmTipo');
+            const valorEl = document.getElementById('lmValor');
+            const debEl = document.getElementById('lmContaDebito');
+            const credEl = document.getElementById('lmContaCredito');
+            const codEl = document.getElementById('lmCodigoHistorico');
+            const histEl = document.getElementById('lmHistorico');
+            const incEl = document.getElementById('lmIncomum');
+            if (dataEl) dataEl.value = (state.info && state.info.periodoInicio) || hoje;
+            if (descEl) descEl.value = '';
+            if (tipoEl) tipoEl.value = 'debito';
+            if (valorEl) valorEl.value = '';
+            if (debEl) debEl.value = '';
+            if (credEl) credEl.value = '';
+            if (codEl) codEl.value = '';
+            if (histEl) histEl.value = '';
+            if (incEl) incEl.checked = false;
+            modal.style.display = 'flex';
+            setTimeout(function() { if (descEl) descEl.focus(); }, 50);
+        }
+
+        function fecharModalLancamentoManual() {
+            const modal = document.getElementById('modalLancamentoManual');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function salvarLancamentoManual() {
+            const data = (document.getElementById('lmData') || {}).value || '';
+            const descricao = ((document.getElementById('lmDescricao') || {}).value || '').trim();
+            const tipo = (document.getElementById('lmTipo') || {}).value || 'debito';
+            const valorBruto = (document.getElementById('lmValor') || {}).value || '';
+            const valor = valorManualAssinado(valorBruto, tipo);
+            const contaDebito = ((document.getElementById('lmContaDebito') || {}).value || '').trim();
+            const contaCredito = ((document.getElementById('lmContaCredito') || {}).value || '').trim();
+            const codigoHistorico = ((document.getElementById('lmCodigoHistorico') || {}).value || '').replace(/\D/g, '').padStart(4, '0').slice(-4);
+            const historicoDigitado = ((document.getElementById('lmHistorico') || {}).value || '').trim();
+            const incomum = !!((document.getElementById('lmIncomum') || {}).checked);
+
+            if (!data) {
+                showToast('Informe a data do lancamento manual.', 'error');
+                return;
+            }
+            if (!descricao) {
+                showToast('Informe a descricao do lancamento manual.', 'error');
+                return;
+            }
+            if (!valor) {
+                showToast('Informe um valor valido para o lancamento manual.', 'error');
+                return;
+            }
+
+            const histPadrao = codigoHistoricoValido(codigoHistorico) ? descricaoHistorico(codigoHistorico) : '';
+            const bancoId = (state.info && state.info.banco) || '';
+            const bancoNome = bancoId ? nomeBanco(bancoId) : '';
+            const importacaoId = 'manual-' + data.slice(0, 7);
+            const importacaoTitulo = 'Lançamentos manuais - ' + data.slice(5, 7) + '/' + data.slice(0, 4);
+
+            const lancamento = {
+                id: novoIdLancamento(),
+                data: data,
+                descricao: descricao,
+                valor: valor,
+                empresa: (state.info && state.info.empresa) || '',
+                cnpj: (state.info && state.info.cnpj) || '',
+                categoria: 'Nao categorizado',
+                contaDebito: contaDebito,
+                contaCredito: contaCredito,
+                codigoHistorico: codigoHistoricoValido(codigoHistorico) ? codigoHistorico : '',
+                historico: historicoDigitado || histPadrao || '',
+                historicoPadraoDescricao: histPadrao || '',
+                incomum: incomum,
+                origem: 'manual',
+                bancoId: bancoId,
+                bancoNome: bancoNome,
+                importacaoId: importacaoId,
+                importacaoTitulo: importacaoTitulo,
+                criadoManualEm: new Date().toISOString()
+            };
+
+            state.entries = state.entries || [];
+            state.entries.push(lancamento);
+            state.lastFile = state.lastFile || 'Lançamento manual';
+            saveState();
+            fecharModalLancamentoManual();
+            renderLancamentos();
+            updateDashboard();
+            updateCharts();
+            showToast('✅ Lancamento manual incluido.', 'success');
+        }
         
         // Filters
         function aplicarFiltroPeriodo() {
@@ -8115,6 +8219,70 @@ async function confirmarVincularPlano() {
 </script>
 
     <script src="parser-extrato-rave.js"></script>
+
+<!-- Modal lancamento manual -->
+<div id="modalLancamentoManual" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.65);z-index:10000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:12px;box-shadow:0 24px 70px rgba(15,23,42,0.35);width:min(720px,96vw);max-height:92vh;overflow:auto">
+    <div style="padding:22px 24px 12px;border-bottom:1px solid #e5e7eb;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+      <div>
+        <h3 style="margin:0;color:#111827;font-size:20px;font-weight:800">➕ Incluir Lançamento Manual</h3>
+        <p style="margin:6px 0 0;color:#64748b;font-size:13px">Use quando o arquivo importado não trouxer alguma movimentação.</p>
+      </div>
+      <button onclick="fecharModalLancamentoManual()" style="border:none;background:#f1f5f9;color:#475569;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:18px">×</button>
+    </div>
+    <div style="padding:20px 24px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Data</label>
+          <input id="lmData" type="date" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Tipo</label>
+          <select id="lmTipo" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;background:#fff">
+            <option value="debito">Débito / Saída</option>
+            <option value="credito">Crédito / Entrada</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Descrição</label>
+        <input id="lmDescricao" type="text" placeholder="Ex.: Pagamento fornecedor, tarifa bancaria, PIX recebido..." style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Valor</label>
+          <input id="lmValor" type="text" placeholder="0,00" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Conta Débito</label>
+          <input id="lmContaDebito" type="text" placeholder="Reduzido" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:monospace">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Conta Crédito</label>
+          <input id="lmContaCredito" type="text" placeholder="Reduzido" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:monospace">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:160px 1fr;gap:14px;margin-bottom:14px">
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Cód IOB</label>
+          <input id="lmCodigoHistorico" list="historicosIOBList" type="text" maxlength="4" placeholder="0000" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:monospace;text-align:center">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Histórico</label>
+          <input id="lmHistorico" type="text" placeholder="Opcional; se vazio, usa o histórico padrão do código IOB" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;color:#475569;font-size:13px;margin-bottom:18px">
+        <input id="lmIncomum" type="checkbox">
+        Marcar como lançamento incomum para revisão
+      </label>
+      <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #e5e7eb;padding-top:16px">
+        <button onclick="fecharModalLancamentoManual()" style="padding:11px 18px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Cancelar</button>
+        <button onclick="salvarLancamentoManual()" style="padding:11px 18px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer">Salvar lançamento</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- [A3] Modal duplicata de importacao -->
 <div id="modalJaImportado" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center">
