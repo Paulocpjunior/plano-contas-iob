@@ -17,10 +17,10 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js"></script>
-    <script src="/parser-bb-conta-atual.js"></script>
-    <script src="/parser-bb-cash-ocr.js"></script>
-    <script src="/parser-itau-extrato-mensal.js"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.68"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.68"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.68"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.68"></script>
     <script src="/parser-santander-empresas-ocr.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -7284,8 +7284,16 @@
             const histPadrao = codigoHistoricoValido(codigoHistorico) ? descricaoHistorico(codigoHistorico) : '';
             const bancoId = (state.info && state.info.banco) || '';
             const bancoNome = bancoId ? nomeBanco(bancoId) : '';
-            const importacaoId = 'manual-' + data.slice(0, 7);
-            const importacaoTitulo = 'Lançamentos manuais - ' + data.slice(5, 7) + '/' + data.slice(0, 4);
+            const importacaoFiltroEl = document.getElementById('filterImportacao');
+            const importacaoFiltrada = importacaoFiltroEl && importacaoFiltroEl.value ? importacaoFiltroEl.value : '';
+            let importacaoId = importacaoFiltrada || ('manual-' + data.slice(0, 7));
+            let importacaoTitulo = 'Lançamentos manuais - ' + data.slice(5, 7) + '/' + data.slice(0, 4);
+            if (importacaoFiltrada) {
+                const importacaoBase = (state.entries || []).find(function(e) { return e.importacaoId === importacaoFiltrada; });
+                if (importacaoBase && importacaoBase.importacaoTitulo) {
+                    importacaoTitulo = importacaoBase.importacaoTitulo + ' + manual';
+                }
+            }
 
             const lancamento = {
                 id: novoIdLancamento(),
@@ -7314,6 +7322,8 @@
             state.lastFile = state.lastFile || 'Lançamento manual';
             saveState();
             fecharModalLancamentoManual();
+            popularFiltroImportacoes();
+            if (importacaoFiltroEl && importacaoFiltrada) importacaoFiltroEl.value = importacaoFiltrada;
             renderLancamentos();
             updateDashboard();
             updateCharts();

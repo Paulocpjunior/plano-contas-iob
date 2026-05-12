@@ -159,8 +159,8 @@
       pendente = null;
     }
 
-    lines.forEach(function(line) {
-      const text = normalizarLinha(line.text);
+    function processarLinhaTexto(textoLinha) {
+      const text = normalizarLinha(textoLinha);
       if (ignorarLinha(text)) return;
 
       const start = text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s*(.+))?$/);
@@ -177,7 +177,19 @@
       if (!pendente) return;
       pendente.text += ' ' + text;
       if (extrairValorFinal(pendente.text)) flush();
+    }
+
+    lines.forEach(function(line) {
+      processarLinhaTexto(line.text);
     });
+    flush();
+
+    // Alguns PDFs do Itau quebram historico, razao social/CNPJ e valor em
+    // linhas textuais diferentes das linhas posicionais do pdf.js. Rodamos uma
+    // segunda passada pelo texto completo para recuperar casos como Redecard e
+    // Rendimentos; a chave `vistos` evita duplicidade.
+    pendente = null;
+    String(textoCompleto || '').split(/\n+/).forEach(processarLinhaTexto);
     flush();
 
     const totalCredito = lancamentos.filter(function(l){ return l.valor > 0; }).reduce(function(a,l){ return a + l.valor; }, 0);
