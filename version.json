@@ -1,9 +1,9 @@
 {
-  "version": "3.1.68",
-  "build_date": "2026-05-12T10:43:00-03:00",
+  "version": "3.1.69",
+  "build_date": "2026-05-12T11:55:00-03:00",
   "release_notes": [
-    "Parser Itau reforcado para recuperar lancamentos Redecard/Rede e Rendimentos quando o PDF quebra historico, CNPJ e valor em linhas separadas",
-    "Scripts de parsers bancarios receberam cache-bust para garantir carregamento imediato da versao nova no navegador",
-    "Lancamento manual agora respeita o relatorio filtrado, aparecendo no mesmo contexto da importacao em conferencia"
+    "Criada Central de Qualidade de Layouts no painel Admin com casos validados, totais esperados e parser responsavel",
+    "Santander RA Carpetes parametrizado para extrato Internet Banking Conta Corrente com colunas coladas de documento, valor e saldo",
+    "Parser Santander atualizado para reconhecer periodo DD/MM/AAAA, evitar saldo como movimento e bloquear valores absurdos vindos de CNPJ/documento"
   ]
 }

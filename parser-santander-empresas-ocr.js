@@ -58,10 +58,56 @@
     return valores;
   }
 
+  function separarValorSaldoGluedSantander(raw) {
+    const s = normalizarValorToken(raw).trim();
+    const glued = s.match(/^(-?\d{1,3}(?:\.\d{3})*|-?\d+),(\d{2})(-?\d+,\d{2})$/);
+    if (glued) return glued[1] + ',' + glued[2];
+    return s;
+  }
+
+  function extrairMovimentoSantander(restLinha) {
+    const text = normalizarValorToken(restLinha || '');
+    const valores = extrairValores(text);
+    if (valores.length) {
+      const direto = valores.find(function(v) {
+        const digits = String(v.raw || '').replace(/\D/g, '').length;
+        return digits <= 11 || /^-/.test(String(v.raw || ''));
+      });
+      if (direto) return direto;
+    }
+
+    const regras = [
+      /(000000)(-?[\d.]+,\d{2}(?:-?\d+,\d{2})?)$/,
+      /(\d{11,14})(\d{6})(-?[\d.]+,\d{2}(?:-?\d+,\d{2})?)$/,
+      /-\d(\d{6})(-?[\d.]+,\d{2}(?:-?\d+,\d{2})?)$/,
+      /(\d{6})(-?[\d.]+,\d{2}(?:-?\d+,\d{2})?)$/
+    ];
+    for (let i = 0; i < regras.length; i++) {
+      const m = text.match(regras[i]);
+      if (!m) continue;
+      const rawTail = m[m.length - 1];
+      const raw = separarValorSaldoGluedSantander(rawTail);
+      const valor = parseValorBR(raw);
+      if (Math.abs(valor) > 0) {
+        return {
+          raw: raw,
+          index: m.index + m[0].length - rawTail.length,
+          valor: valor
+        };
+      }
+    }
+    return null;
+  }
+
   function tokenDataISO(token, ref) {
     const raw = String(token || '').replace(/\D/g, '');
     let dia = '', mes = '';
-    if (/^\d{4}$/.test(raw)) {
+    let ano = ref.ano || String(new Date().getFullYear());
+    if (/^\d{8}$/.test(raw)) {
+      dia = raw.slice(0, 2);
+      mes = raw.slice(2, 4);
+      ano = raw.slice(4, 8);
+    } else if (/^\d{4}$/.test(raw)) {
       dia = raw.slice(0, 2);
       mes = raw.slice(2, 4);
     } else if (/^\d{5}$/.test(raw)) {
@@ -73,11 +119,11 @@
     }
     const d = Number(dia), mm = Number(mes);
     if (!d || !mm || d > 31 || mm > 12) return '';
-    return (ref.ano || String(new Date().getFullYear())) + '-' + mes.padStart(2, '0') + '-' + dia.padStart(2, '0');
+    return ano + '-' + mes.padStart(2, '0') + '-' + dia.padStart(2, '0');
   }
 
   function dataNoInicio(linha, ref) {
-    const m = String(linha || '').match(/^(\d{2}\/\d{2}|\d{4,5})\b/);
+    const m = String(linha || '').match(/^(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{2}|\d{4,8})/);
     if (!m) return null;
     const iso = tokenDataISO(m[1], ref);
     return iso ? { iso: iso, token: m[1], rest: linha.slice(m[0].length).trim() } : null;
@@ -89,6 +135,15 @@
       julho: '07', agosto: '08', setembro: '09', outubro: '10', novembro: '11', dezembro: '12'
     };
     const clean = removerAcentos(texto).toLowerCase();
+    const periodo = clean.match(/periodos?:\s*(\d{2})\/(\d{2})\/(20\d{2})\s+a\s+(\d{2})\/(\d{2})\/(20\d{2})/);
+    if (periodo) {
+      return {
+        ano: periodo[3],
+        mes: periodo[2],
+        inicio: periodo[3] + '-' + periodo[2] + '-' + periodo[1],
+        fim: periodo[6] + '-' + periodo[5] + '-' + periodo[4]
+      };
+    }
     const m = clean.match(/\b(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s*\/\s*(20\d{2})\b/);
     if (!m) return { ano: String(new Date().getFullYear()), mes: '' };
     return { ano: m[2], mes: meses[m[1]] || '' };
@@ -115,6 +170,8 @@
 
   function limparDescricao(desc) {
     return limparLinhaOCR(desc)
+      .replace(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, ' ')
+      .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, ' ')
       .replace(/\bN[ºo]\s*Documento\b/ig, '')
       .replace(/\bMovimentos\s*\(R\$\).*$/i, '')
       .replace(/\bPagina:\s*\d+\s*\/?\s*\d*\b/i, '')
@@ -127,7 +184,7 @@
     const t = removerAcentos(texto || '').toLowerCase();
     const temSantander = /santander/.test(t);
     const temConta = /conta corrente|saldo de conta corrente|saldo disponivel|extrato consolidado inteligente/.test(t);
-    const temMov = /movimentacao|movimentos\s*\(r\$?\)|creditos\s+debitos|total de creditos|total de debitos/.test(t);
+    const temMov = /movimentacao|movimentos\s*\(r\$?\)|creditos\s+debitos|total de creditos|total de debitos|data\s*historico\s*documento\s*valor/.test(t);
     return temSantander && temConta && temMov;
   }
 
@@ -161,9 +218,15 @@
         aguardandoMovimentacao = false;
         continue;
       }
+      if (/^Data\s*Historico\s*Documento\s*Valor/i.test(linha)) {
+        inMov = true;
+        stopMov = false;
+        aguardandoMovimentacao = false;
+        continue;
+      }
       if (!inMov || stopMov) continue;
       if (/^Movimentacao$/i.test(linha) || /^Data\s+Descricao/i.test(linha) || /^Creditos\s+Debitos/i.test(linha)) continue;
-      if (/^(Saldos por Periodo|Compras com Cartao|Comprovantes de Pagamento|Transferencias entre Contas|Quer avancar|Fale Conosco)/i.test(linha)) {
+      if (/^(Saldos por Periodo|Compras com Cartao|Comprovantes de Pagamento|Transferencias entre Contas|Quer avancar|Fale Conosco|a = Bloqueio|p = Lancamento|SaldoValor|Central de Atendimento)/i.test(linha)) {
         stopMov = true;
         continue;
       }
@@ -176,20 +239,20 @@
       if (data) currentDate = data.iso;
       const restLinha = data ? data.rest : linha;
       if (!currentDate) continue;
-      const valores = extrairValores(restLinha);
-      if (!valores.length) continue;
+      if (ref.fim && currentDate > ref.fim) continue;
+      const mov = extrairMovimentoSantander(restLinha);
+      if (!mov) continue;
 
-      const mov = valores[0];
       let descBase = restLinha.slice(0, mov.index).replace(/\d{4,12}\s*$/, '').trim();
       const extras = [];
       for (let j = i + 1; j < Math.min(i + 4, linhas.length); j++) {
         const prox = linhas[j];
         if (/^(Saldos por Periodo|Compras com Cartao|Comprovantes de Pagamento|Transferencias entre Contas|SALDO EM)/i.test(prox)) break;
         const proxData = dataNoInicio(prox, ref);
-        const proxValores = extrairValores(proxData ? proxData.rest : prox);
-        if (proxData && proxValores.length) break;
+        const proxValores = extrairMovimentoSantander(proxData ? proxData.rest : prox);
+        if (proxData && proxValores) break;
         if (/(Santander Empresas|EXTRATO CONSOLIDADO)|^(janeiro\/|fevereiro\/|marco\/|abril\/|maio\/|junho\/|julho\/|agosto\/|setembro\/|outubro\/|novembro\/|dezembro\/|Data Descricao|Creditos Debitos|Pagina:)/i.test(prox)) continue;
-        if (!proxValores.length && !/^Pagina:/i.test(prox)) {
+        if (!proxValores && !/^Pagina:/i.test(prox)) {
           extras.push((proxData ? proxData.rest : prox).replace(/^\d{2}\/\d{2}\s+/, '').trim());
         }
       }
@@ -231,8 +294,8 @@
       banco_detectado: 'SANTANDER',
       conta_detectada: (meta.agencia ? 'AG-' + meta.agencia : '') + (meta.conta ? '/CC-' + meta.conta : ''),
       nome_conta_detectado: meta.titular || 'CONTA CORRENTE SANTANDER',
-      periodo_inicio: ref.mes ? (ref.ano + '-' + ref.mes + '-01') : '',
-      periodo_fim: ref.mes ? new Date(Number(ref.ano), Number(ref.mes), 0).toISOString().slice(0, 10) : ''
+      periodo_inicio: ref.inicio || (ref.mes ? (ref.ano + '-' + ref.mes + '-01') : ''),
+      periodo_fim: ref.fim || (ref.mes ? new Date(Number(ref.ano), Number(ref.mes), 0).toISOString().slice(0, 10) : '')
     };
   }
 

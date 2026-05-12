@@ -3,6 +3,7 @@ const { Firestore } = require('@google-cloud/firestore');
 const admin = require('firebase-admin');
 const path = require('path');
 const { LAYOUTS_BANCARIOS_PADRAO, normalizarBancoLayout, layoutBancoId } = require('./layouts-bancarios-padrao');
+const { LAYOUT_QUALITY_CASES } = require('./layout-quality-cases');
 
 const app = express();
 app.set('trust proxy', true);
@@ -1297,6 +1298,23 @@ app.get('/api/layouts-bancarios', async (req, res) => {
     res.json({ layouts });
   } catch (err) {
     console.error('layouts-bancarios GET erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.get('/api/layout-quality', async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    const casos = (LAYOUT_QUALITY_CASES || []).map(c => ({ ...c }));
+    const resumo = {
+      total_casos: casos.length,
+      aprovados: casos.filter(c => c.status === 'Aprovado').length,
+      bancos: [...new Set(casos.map(c => c.banco).filter(Boolean))].length,
+      parsers: [...new Set(casos.map(c => c.parser).filter(Boolean))].length
+    };
+    res.json({ resumo, casos });
+  } catch (err) {
+    console.error('layout-quality GET erro:', err);
     res.status(500).json({ erro: err.message });
   }
 });
