@@ -93,6 +93,63 @@
     return intersection / Math.max(left.size, right.size);
   }
 
+  const GENERIC_WORDS = new Set([
+    'ITAU', 'SISPAG', 'FORNECEDORES', 'FORNECEDOR', 'TRIBUTOS', 'CONTAS', 'LITE',
+    'FILIAL', 'DEBITO', 'CREDITO', 'DIVERSOS', 'PAGAMENTOS', 'PAGAMENTO',
+    'RECEBIMENTOS', 'RECEBIMENTO', 'TRANSF', 'TRANSFERENCIA', 'PIX', 'TED',
+    'DOC', 'BOLETO', 'DINHEIRO', 'SAQUE', 'TARIFA', 'BANCO', 'CONTA'
+  ]);
+
+  function tokens(value) {
+    return normalizeText(value).split(' ').filter(function (w) {
+      return w.length >= 3 && !GENERIC_WORDS.has(w) && !/^\d+$/.test(w);
+    });
+  }
+
+  function meaningfulSimilarity(a, b) {
+    const left = new Set(tokens(a));
+    const right = new Set(tokens(b));
+    if (!left.size || !right.size) return 0;
+    let intersection = 0;
+    left.forEach(function (w) { if (right.has(w)) intersection++; });
+    return intersection / Math.max(left.size, right.size);
+  }
+
+  function sameDirection(a, b) {
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+    return (a < 0 && b < 0) || (a > 0 && b > 0);
+  }
+
+  function matchDecision(a, b) {
+    const amountDiff = Math.abs(Math.abs(a.amount) - Math.abs(b.amount));
+    if (amountDiff > 0.01) {
+      return { ok: false, amountDiff: amountDiff, dateGap: daysBetween(a.date, b.date), textScore: 0, meaningfulScore: 0, score: 0, reason: 'valor diferente' };
+    }
+    if (!sameDirection(a.amount, b.amount)) {
+      return { ok: false, amountDiff: amountDiff, dateGap: daysBetween(a.date, b.date), textScore: 0, meaningfulScore: 0, score: 0, reason: 'debito/credito divergente' };
+    }
+    const dateGap = daysBetween(a.date, b.date);
+    const textScore = similarity(a.description, b.description);
+    const meaningfulScore = meaningfulSimilarity(a.description, b.description);
+    const hasMeaningfulText = meaningfulScore >= 0.25;
+    const sameDay = dateGap === 0;
+    const closeDate = dateGap <= 3;
+    const extendedDate = dateGap <= 10;
+    let ok = false;
+    let reason = '';
+
+    if (sameDay && (hasMeaningfulText || textScore >= 0.25)) ok = true;
+    else if (closeDate && hasMeaningfulText) ok = true;
+    else if (extendedDate && meaningfulScore >= 0.45) ok = true;
+    else if (dateGap > 10) reason = 'data distante';
+    else reason = 'descricao insuficiente';
+
+    const datePoints = Math.max(0, 25 - dateGap * 4);
+    const textPoints = Math.round(Math.max(textScore, meaningfulScore) * 25);
+    const score = Math.min(99, 50 + datePoints + textPoints);
+    return { ok: ok, amountDiff: amountDiff, dateGap: dateGap, textScore: textScore, meaningfulScore: meaningfulScore, score: score, reason: reason };
+  }
+
   function classifyColumns(rows) {
     const headers = rows[0] || [];
     const sample = rows.slice(1, 30);
@@ -462,14 +519,11 @@
       let best = null;
       bRows.forEach(function (b, index) {
         if (usedB.has(index)) return;
-        const amountDiff = Math.abs(Math.abs(a.amount) - Math.abs(b.amount));
-        if (amountDiff > 0.01) return;
-        const dateGap = daysBetween(a.date, b.date);
-        const textScore = similarity(a.description, b.description);
-        const score = 70 + Math.max(0, 20 - dateGap * 3) + Math.round(textScore * 10);
-        if (!best || score > best.score) best = { b: b, index: index, score: score, dateGap: dateGap, textScore: textScore };
+        const decision = matchDecision(a, b);
+        if (!decision.ok) return;
+        if (!best || decision.score > best.score) best = { b: b, index: index, score: decision.score, dateGap: decision.dateGap, textScore: decision.textScore, meaningfulScore: decision.meaningfulScore };
       });
-      if (best && best.score >= 74) {
+      if (best) {
         usedB.add(best.index);
         matches.push({ a: a, b: best.b, score: Math.min(100, best.score), dateGap: best.dateGap, textScore: best.textScore });
       } else {
@@ -481,14 +535,16 @@
     const possible = [];
     unmatchedA.forEach(function (a) {
       unmatchedB.forEach(function (b) {
-        const amountDiff = Math.abs(Math.abs(a.amount) - Math.abs(b.amount));
-        if (amountDiff <= 2 || similarity(a.description, b.description) >= 0.45) {
-          possible.push({ a: a, b: b, amountDiff: amountDiff, dateGap: daysBetween(a.date, b.date), textScore: similarity(a.description, b.description) });
+        const decision = matchDecision(a, b);
+        const nearAmount = decision.amountDiff <= 2 && sameDirection(a.amount, b.amount);
+        const relatedText = decision.meaningfulScore >= 0.35 || decision.textScore >= 0.55;
+        if (nearAmount || relatedText) {
+          possible.push({ a: a, b: b, amountDiff: decision.amountDiff, dateGap: decision.dateGap, textScore: decision.textScore, meaningfulScore: decision.meaningfulScore, reason: decision.reason || 'conferencia manual' });
         }
       });
     });
     possible.sort(function (x, y) {
-      return (x.amountDiff - y.amountDiff) || (y.textScore - x.textScore) || (x.dateGap - y.dateGap);
+      return (x.amountDiff - y.amountDiff) || (x.dateGap - y.dateGap) || (y.meaningfulScore - x.meaningfulScore) || (y.textScore - x.textScore);
     });
 
     return { matches: matches, unmatchedA: unmatchedA, unmatchedB: unmatchedB, possible: possible.slice(0, 80) };
@@ -591,9 +647,9 @@
 
   function renderPossible(rows) {
     if (!rows.length) return '<p class="text-sm text-slate-500">Nenhuma possível divergência encontrada.</p>';
-    return '<div class="overflow-auto max-h-80"><table class="w-full text-xs"><thead class="bg-amber-50 dark:bg-amber-900/20 sticky top-0"><tr><th class="p-2 text-left">Arquivo A</th><th class="p-2 text-left">Arquivo B</th><th class="p-2 text-right">Diferença</th></tr></thead><tbody>' +
+    return '<div class="overflow-auto max-h-80"><table class="w-full text-xs"><thead class="bg-amber-50 dark:bg-amber-900/20 sticky top-0"><tr><th class="p-2 text-left">Arquivo A</th><th class="p-2 text-left">Arquivo B</th><th class="p-2 text-left">Motivo</th><th class="p-2 text-right">Diferença</th></tr></thead><tbody>' +
       rows.slice(0, 80).map(function (m) {
-        return '<tr class="border-t dark:border-slate-700"><td class="p-2">' + escapeHtml(m.a.date || '-') + ' · ' + escapeHtml(m.a.description) + '<br><b>' + money(m.a.amount) + '</b></td><td class="p-2">' + escapeHtml(m.b.date || '-') + ' · ' + escapeHtml(m.b.description) + '<br><b>' + money(m.b.amount) + '</b></td><td class="p-2 text-right font-mono">' + money(m.amountDiff) + '</td></tr>';
+        return '<tr class="border-t dark:border-slate-700"><td class="p-2">' + escapeHtml(m.a.date || '-') + ' · ' + escapeHtml(m.a.description) + '<br><b>' + money(m.a.amount) + '</b></td><td class="p-2">' + escapeHtml(m.b.date || '-') + ' · ' + escapeHtml(m.b.description) + '<br><b>' + money(m.b.amount) + '</b></td><td class="p-2 text-amber-700 dark:text-amber-300">' + escapeHtml(m.reason || 'conferencia manual') + (m.dateGap !== undefined ? '<br><span class="text-slate-400">data: ' + m.dateGap + ' dia(s)</span>' : '') + '</td><td class="p-2 text-right font-mono">' + money(m.amountDiff) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
 
