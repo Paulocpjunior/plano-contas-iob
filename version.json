@@ -1,9 +1,9 @@
 {
-  "version": "3.1.73",
-  "build_date": "2026-05-13T11:50:00-03:00",
+  "version": "3.1.74",
+  "build_date": "2026-05-13T12:10:00-03:00",
   "release_notes": [
-    "Importacao PDF agora exibe escolha de Layout PDF quando o banco possui mais de um modelo cadastrado",
-    "Santander permite selecionar explicitamente Automático, Santander 1 ou Santander 2 antes de processar",
-    "Mensagem de erro de layout passou a orientar troca de layout ou envio para parametrizacao"
+    "Campo Layout PDF agora aparece tambem quando o banco possui apenas um layout cadastrado",
+    "Itau passou a exibir o layout Itau 1 - Extrato Mensal no preview da importacao",
+    "Estrutura preparada para adicionar Itau 2, Itau 3 e novas variacoes sem mudar o fluxo do colaborador"
   ]
 }

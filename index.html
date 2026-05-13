@@ -17,11 +17,11 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.73"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.73"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.73"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.73"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.73"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.74"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.74"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.74"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.74"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.74"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -3453,7 +3453,7 @@
 	                    parser: 'parsearPDF_Santander_EmpresasOCR'
 	                }],
 	                '341': [{
-	                    nome: 'Itau - Extrato Mensal',
+	                    nome: 'Itau 1 - Extrato Mensal',
 	                    parser: 'parsearPDF_Itau_ExtratoMensal'
 	                }],
 	                '352': [{
@@ -3552,7 +3552,7 @@
                     return '<option value="' + String(l.parser || '').replace(/"/g, '&quot;') + '">' + (l.nome || l.parser || 'Layout PDF') + '</option>';
                 }).join('');
                 sel.value = layouts.some(function(l) { return l.parser === valorAtual; }) ? valorAtual : '';
-                wrap.style.display = layouts.length > 1 ? 'block' : 'none';
+                wrap.style.display = layouts.length ? 'block' : 'none';
                 atualizarLayoutSelecionadoUpload();
             }
         
