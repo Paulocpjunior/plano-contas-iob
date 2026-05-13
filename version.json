@@ -1,9 +1,9 @@
 {
-  "version": "3.1.75",
-  "build_date": "2026-05-13T12:35:00-03:00",
+  "version": "3.1.76",
+  "build_date": "2026-05-13T13:25:00-03:00",
   "release_notes": [
-    "Santander 1 agora reconhece PDFs em que o navegador extrai letras espacadas caractere por caractere",
-    "Normalizacao do layout Internet Banking Empresarial reconstruida antes da validacao do banco",
-    "Corrigido falso erro de layout nao reconhecido em arquivos Santander ja parametrizados"
+    "Itau Extrato Mensal passou a ignorar movimentos tecnicos de aplicacao/resgate automatico que distorciam os totais oficiais",
+    "Mantidos rendimentos, Redecard, PIX, boletos e demais lancamentos contabilizaveis no importador",
+    "Validados PDFs Itau locais com diferenca zero entre totais importados e totais oficiais"
   ]
 }

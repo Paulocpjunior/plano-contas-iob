@@ -68,6 +68,14 @@
     };
   }
 
+  function ignorarLancamentoTecnicoExtratoMensal(desc) {
+    const d = String(desc || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    return /^res\s+aplic\b/.test(d)
+      || /^aplic\s+aut\b/.test(d)
+      || /^apl\s+aplic\s+aut\b/.test(d)
+      || /^na\s+conta\s+corrente\b/.test(d);
+  }
+
   function parseItauLancamentosPeriodo(lines, textoCompleto) {
     const ehPeriodo = /Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto)
       && /Data\s+Lan[cç]amentos\s+Raz[aã]o Social\s+CNPJ\/CPF\s+Valor/i.test(textoCompleto)
@@ -284,6 +292,7 @@
         .replace(/\s+/g, ' ')
         .trim();
       if (!desc) return;
+      if (ignorarLancamentoTecnicoExtratoMensal(desc)) return;
 
       const creditItem = line.items.find(function(i){ return i.x >= 340 && i.x < 410 && moneyToken(i.s); });
       const debitItem = line.items.find(function(i){ return i.x >= 415 && i.x < 480 && moneyToken(i.s); });
