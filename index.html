@@ -17,11 +17,11 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.76"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.76"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.76"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.76"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.76"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.77"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.77"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.77"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.77"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.77"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -4354,6 +4354,7 @@
             const parsearLayoutCludeItau = () => {
                 const todosItau = [];
                 const abasItau = [];
+                const totaisOficiaisItau = { credito: 0, debito: 0 };
 
                 for (const sheetName of wb.SheetNames) {
                     const sheet = wb.Sheets[sheetName];
@@ -4397,6 +4398,14 @@
                         const nf = cNF >= 0 ? String(r[cNF] || '').trim() : '';
                         const status = cStatus >= 0 ? String(r[cStatus] || '').trim() : '';
 
+                        if (!data && descBase) {
+                            if (/^TOTAL\s+DE\s+CREDITOS/i.test(descBase) && valor !== null) {
+                                totaisOficiaisItau.credito += Math.abs(valor);
+                            } else if (/^TOTAL\s+DE\s+PAGAMENTOS/i.test(descBase) && valor !== null) {
+                                totaisOficiaisItau.debito += Math.abs(valor);
+                            }
+                        }
+
                         // Linhas-resumo do layout CLUDE/Itau nao possuem DATA PAGTO.
                         // Se elas entrarem, duplicam exatamente os totais de saidas/entradas.
                         if (!data || valor === null || Math.abs(valor) === 0) continue;
@@ -4410,6 +4419,7 @@
                             .replace(/\s+/g, ' ')
                             .trim();
                         const memoriaDescricoes = [descricao, descBase, tipoDespesa ? (tipoDespesa + ' - ' + descBase) : '']
+                            .concat([tipoDespesa, descBase ? (descBase + ' - ' + tipoDespesa) : ''])
                             .map(function(x) { return String(x || '').replace(/\s+/g, ' ').trim(); })
                             .filter(Boolean);
 
@@ -4440,10 +4450,22 @@
                 });
 
                 if (dedupItau.length) {
+                    const totalCredito = dedupItau.filter(function(t) { return t.valor > 0; }).reduce(function(a, t) { return a + t.valor; }, 0);
+                    const totalDebito = dedupItau.filter(function(t) { return t.valor < 0; }).reduce(function(a, t) { return a + Math.abs(t.valor); }, 0);
+                    const oficialCredito = Math.round(totaisOficiaisItau.credito * 100);
+                    const oficialDebito = Math.round(totaisOficiaisItau.debito * 100);
+                    if (oficialCredito && Math.abs(Math.round(totalCredito * 100) - oficialCredito) > 1) {
+                        throw new Error('Layout CLUDE/Itau: total de credito divergente do total oficial da planilha');
+                    }
+                    if (oficialDebito && Math.abs(Math.round(totalDebito * 100) - oficialDebito) > 1) {
+                        throw new Error('Layout CLUDE/Itau: total de debito divergente do total oficial da planilha');
+                    }
                     const datas = dedupItau.map(t => t.data).sort();
                     dedupItau.forEach(t => {
                         t.periodo_inicio = datas[0] || '';
                         t.periodo_fim = datas[datas.length - 1] || '';
+                        t.totalCreditoOficial = totaisOficiaisItau.credito || 0;
+                        t.totalDebitoOficial = totaisOficiaisItau.debito || 0;
                     });
                     window.__ultimaImportacaoAbas = abasItau;
                     return dedupItau;
@@ -7162,48 +7184,56 @@
                 if (!opts.silent && typeof showToast === 'function') showToast('CNPJ da empresa nao informado.', 'error');
                 return { ok: false, motivo: 'CNPJ nao informado' };
             }
-            const descNorm = normalizarDescricao(lanc.descricao);
-            if (!descNorm) {
+            const candidatosNorm = [];
+            candidatosDescricaoMemoria(lanc).forEach(function(cand) {
+                const dn = normalizarDescricao(cand);
+                if (dn && !candidatosNorm.includes(dn)) candidatosNorm.push(dn);
+            });
+            if (!candidatosNorm.length) {
                 if (!opts.silent && typeof showToast === 'function') showToast('Descricao normalizada vazia (apos limpeza). Edite a descricao para incluir identidade do fornecedor.', 'error');
                 return { ok: false, motivo: 'Descricao vazia apos normalizacao' };
             }
-            // v2: rejeitar padroes muito genericos (1 palavra so)
-            var palavrasNorm = descNorm.split(' ').filter(function(w){return w.length >= 3;});
-            if (palavrasNorm.length < 2) {
-                console.warn('[memorizarLancamento] BLOQUEADO: padrao com <2 palavras de 3+ chars. descNorm="' + descNorm + '" palavras=' + JSON.stringify(palavrasNorm));
-                if (!opts.silent && typeof showToast === 'function') showToast('Padrao muito generico apos normalizacao ("' + descNorm + '"). Edite descricao para incluir nome do fornecedor.', 'error');
+            const candidatosValidos = candidatosNorm.filter(function(descNorm) {
+                return descNorm.split(' ').filter(function(w){ return w.length >= 3; }).length >= 2;
+            });
+            if (!candidatosValidos.length) {
+                console.warn('[memorizarLancamento] BLOQUEADO: todos os padroes ficaram genericos. candidatos=' + JSON.stringify(candidatosNorm));
+                if (!opts.silent && typeof showToast === 'function') showToast('Padrao muito generico apos normalizacao ("' + (candidatosNorm[0] || '') + '"). Edite descricao para incluir nome do fornecedor.', 'error');
                 return { ok: false, motivo: 'Padrao muito generico' };
             }
-            const hash = await hashDescricao(cnpj, descNorm);
             const histPadrao = textoHistoricoPadrao(lanc.codigoHistorico) || lanc.historicoPadraoDescricao || '';
             const histLivre = histPadrao || (historicoTextoValido(lanc.historico) ? lanc.historico : '');
             try {
-                const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        hash: hash,
-                        descricao_normalizada: descNorm,
-                        descricao_exemplo: lanc.descricao,
-                        contaDebito: lanc.contaDebito,
-                        contaCredito: lanc.contaCredito,
+                let ultimoJson = null;
+                window._aprendizadoCache[cnpj] = window._aprendizadoCache[cnpj] || {};
+                for (let c = 0; c < candidatosValidos.length; c++) {
+                    const descNorm = candidatosValidos[c];
+                    const hash = await hashDescricao(cnpj, descNorm);
+                    const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            hash: hash,
+                            descricao_normalizada: descNorm,
+                            descricao_exemplo: lanc.descricao,
+                            contaDebito: lanc.contaDebito,
+                            contaCredito: lanc.contaCredito,
+                            codigoHistorico: lanc.codigoHistorico,
+                            historico: histLivre || '',
+                            historicoPadraoDescricao: histPadrao || ''
+                        })
+                    });
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    ultimoJson = await r.json();
+                    window._aprendizadoCache[cnpj][hash] = {
+                        hash: hash, descricao_normalizada: descNorm,
+                        contaDebito: lanc.contaDebito, contaCredito: lanc.contaCredito,
                         codigoHistorico: lanc.codigoHistorico,
                         historico: histLivre || '',
-                        historicoPadraoDescricao: histPadrao || ''
-                    })
-                });
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                const j = await r.json();
-                // Atualiza cache local
-                window._aprendizadoCache[cnpj] = window._aprendizadoCache[cnpj] || {};
-                window._aprendizadoCache[cnpj][hash] = {
-                    hash: hash, descricao_normalizada: descNorm,
-                    contaDebito: lanc.contaDebito, contaCredito: lanc.contaCredito,
-                    codigoHistorico: lanc.codigoHistorico,
-                    historico: histLivre || '',
-                    historicoPadraoDescricao: histPadrao || '',
-                    vezes_usado: j.vezes_usado || 1
-                };
+                        historicoPadraoDescricao: histPadrao || '',
+                        vezes_usado: (ultimoJson && ultimoJson.vezes_usado) || 1
+                    };
+                }
                 garantirHistoricoPadraoLancamento(lanc);
                 lanc._memorizado = true;
                 if (!opts.noRender) renderLancamentos();

@@ -1,9 +1,9 @@
 {
-  "version": "3.1.76",
-  "build_date": "2026-05-13T13:25:00-03:00",
+  "version": "3.1.77",
+  "build_date": "2026-05-13T15:15:00-03:00",
   "release_notes": [
-    "Itau Extrato Mensal passou a ignorar movimentos tecnicos de aplicacao/resgate automatico que distorciam os totais oficiais",
-    "Mantidos rendimentos, Redecard, PIX, boletos e demais lancamentos contabilizaveis no importador",
-    "Validados PDFs Itau locais com diferenca zero entre totais importados e totais oficiais"
+    "Layout CLUDE Itau XLSX agora valida os totais oficiais de pagamentos e creditos da propria planilha",
+    "Memoria de classificacao passou a gravar chaves alternativas por fornecedor e descricao no layout CLUDE Itau",
+    "Planilha original CLUDE Itau validada com 229 lancamentos, creditos 831246,49 e debitos 868786,74"
   ]
 }
