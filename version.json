@@ -1,9 +1,9 @@
 {
-  "version": "3.1.71",
-  "build_date": "2026-05-13T10:40:00-03:00",
+  "version": "3.1.72",
+  "build_date": "2026-05-13T11:20:00-03:00",
   "release_notes": [
-    "Santander passou a ter layouts sequenciais: Santander 1 para Internet Banking Empresarial e Santander 2 para Consolidado/Conta Corrente",
-    "Parametrizado o arquivo santander abril 26 1.pdf com leitura de datas por extenso e linhas CREDITO/DEBITO",
-    "Novo caso salvo na Central de Qualidade de Layouts para evitar regressao deste modelo Santander"
+    "Memoria de classificacao agora respeita o Historico Padrao pelo codigo IOB e corrige historicos antigos incompletos",
+    "Importacoes CLUDE Itau normalizam o campo Historico antes da conferencia e apos classificacao por IA/memoria",
+    "Lancamentos ja classificados com Cód IOB valido passam a recompor automaticamente o texto do Historico Padrao"
   ]
 }

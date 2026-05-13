@@ -17,11 +17,11 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.71"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.71"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.71"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.71"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.71"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.72"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.72"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.72"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.72"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.72"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -4720,6 +4720,7 @@
                         if (r.aplicados > 0) {
                             console.log('[Fase 5a] Memoria aplicada em', r.aplicados, '/', r.total, 'lancamentos');
                             if (typeof showToast === 'function') showToast('🧠 ' + r.aplicados + ' lancamento(s) classificado(s) pela memoria.', 'success');
+                            normalizarHistoricosClassificados(novos);
                             renderLancamentos();
                             saveState();
                         }
@@ -5955,6 +5956,10 @@
                     const histFallback = aplicarHistoricosFallback(entries);
                     if (histFallback > 0) console.log('[historico fallback] aplicado em', histFallback, 'lancamento(s)');
                 } catch (eHist) { console.warn('[historico fallback] falhou:', eHist); }
+                try {
+                    const histCorrigidos = normalizarHistoricosClassificados(entries);
+                    if (histCorrigidos > 0) console.log('[historico padrao] corrigidos antes da conferencia:', histCorrigidos);
+                } catch (eHistNorm) { console.warn('[historico padrao] normalizacao falhou:', eHistNorm); }
 
                 hideProcessing();
                 const confirmado = await abrirConferenciaImportacao(entries, {
@@ -6771,6 +6776,13 @@
                 console.log('[integridade] ' + corrigidos + ' ajuste(s) em lancamentos sem id/valor numerico');
             }
             try { aplicarHistoricosFallback(state.entries || []); } catch(e) {}
+            try {
+                const histCorrigidos = normalizarHistoricosClassificados(state.entries || []);
+                if (histCorrigidos > 0) {
+                    saveState();
+                    console.log('[historico padrao] ' + histCorrigidos + ' historico(s) corrigido(s) pelo Codigo IOB');
+                }
+            } catch(e) {}
             sincronizarSelecaoLancamentos();
             
             if (!state.entries.length) {
@@ -7018,6 +7030,29 @@
             return s.length >= 3;
         }
 
+        function textoHistoricoPadrao(codigoHistorico) {
+            if (!codigoHistoricoValido(codigoHistorico)) return '';
+            return descricaoHistorico(codigoHistorico) || '';
+        }
+
+        function garantirHistoricoPadraoLancamento(lanc) {
+            if (!lanc || !codigoHistoricoValido(lanc.codigoHistorico)) return false;
+            const histPadrao = textoHistoricoPadrao(lanc.codigoHistorico);
+            if (!histPadrao) return false;
+            const antes = lanc.historico || '';
+            lanc.historicoPadraoDescricao = histPadrao;
+            lanc.historico = histPadrao;
+            return antes !== lanc.historico;
+        }
+
+        function normalizarHistoricosClassificados(entries) {
+            let corrigidos = 0;
+            (entries || []).forEach(function(e) {
+                if (garantirHistoricoPadraoLancamento(e)) corrigidos++;
+            });
+            return corrigidos;
+        }
+
         async function hashDescricao(cnpj, descNorm) {
             const data = (cnpj || '') + ':' + (descNorm || '');
             const buf = new TextEncoder().encode(data);
@@ -7073,8 +7108,8 @@
                 return { ok: false, motivo: 'Padrao muito generico' };
             }
             const hash = await hashDescricao(cnpj, descNorm);
-            const histPadrao = lanc.historicoPadraoDescricao || descricaoHistorico(lanc.codigoHistorico) || '';
-            const histLivre = historicoTextoValido(lanc.historico) ? lanc.historico : histPadrao;
+            const histPadrao = textoHistoricoPadrao(lanc.codigoHistorico) || lanc.historicoPadraoDescricao || '';
+            const histLivre = histPadrao || (historicoTextoValido(lanc.historico) ? lanc.historico : '');
             try {
                 const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado', {
                     method: 'POST',
@@ -7102,6 +7137,7 @@
                     historicoPadraoDescricao: histPadrao || '',
                     vezes_usado: j.vezes_usado || 1
                 };
+                garantirHistoricoPadraoLancamento(lanc);
                 lanc._memorizado = true;
                 if (!opts.noRender) renderLancamentos();
                 if (!opts.silent && typeof showToast === 'function') showToast('🧠 Memorizado! Sera aplicado automaticamente em proximas importacoes.', 'success');
@@ -7187,9 +7223,11 @@
                         aplicarHistoricoAoLancamento(e, e.codigoHistorico);
                     }
                     if (aprendido.historicoPadraoDescricao) e.historicoPadraoDescricao = aprendido.historicoPadraoDescricao;
-                    if (historicoTextoValido(aprendido.historico)) e.historico = aprendido.historico;
-                    else if (e.historicoPadraoDescricao) e.historico = e.historicoPadraoDescricao;
-                    else if (e.codigoHistorico) e.historico = descricaoHistorico(e.codigoHistorico) || '';
+                    if (!garantirHistoricoPadraoLancamento(e)) {
+                        if (historicoTextoValido(aprendido.historico)) e.historico = aprendido.historico;
+                        else if (e.historicoPadraoDescricao) e.historico = e.historicoPadraoDescricao;
+                        else if (e.codigoHistorico) e.historico = descricaoHistorico(e.codigoHistorico) || '';
+                    }
                     e._memorizado = true; // marca pra UI mostrar 🧠
                     aplicados++;
                 }
@@ -7706,6 +7744,10 @@ Responda APENAS JSON valido, sem texto antes/depois:
                     const histFallback = aplicarHistoricosFallback(state.entries);
                     if (histFallback > 0) console.log('[historico fallback] aplicado em', histFallback, 'lancamento(s)');
                 } catch (eHist) { console.warn('[historico fallback] falhou:', eHist); }
+                try {
+                    const histCorrigidos = normalizarHistoricosClassificados(state.entries);
+                    if (histCorrigidos > 0) console.log('[historico padrao] corrigidos apos IA/memoria:', histCorrigidos);
+                } catch (eHistNorm) { console.warn('[historico padrao] normalizacao falhou:', eHistNorm); }
                 
                 saveState();
                 renderLancamentos();
