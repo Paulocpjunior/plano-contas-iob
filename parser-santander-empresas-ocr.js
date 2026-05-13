@@ -149,6 +149,38 @@
     return { ano: m[2], mes: meses[m[1]] || '' };
   }
 
+  function mesPtParaNumero(nome) {
+    const meses = {
+      janeiro: '01', fevereiro: '02', marco: '03', março: '03', abril: '04', maio: '05', junho: '06',
+      julho: '07', agosto: '08', setembro: '09', outubro: '10', novembro: '11', dezembro: '12'
+    };
+    return meses[removerAcentos(nome || '').toLowerCase()] || '';
+  }
+
+  function periodoInternetBanking(texto) {
+    const matches = Array.from(String(texto || '').matchAll(/\b(\d{1,2})\s+de\s+(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(20\d{2})\b/gi));
+    if (!matches.length) return { ano: String(new Date().getFullYear()), mes: '', inicio: '', fim: '' };
+    const datas = matches.map(function(m) {
+      const mes = mesPtParaNumero(m[2]);
+      return {
+        ano: m[3],
+        mes: mes,
+        iso: m[3] + '-' + mes + '-' + String(m[1]).padStart(2, '0')
+      };
+    }).filter(function(d) { return d.mes; }).sort(function(a, b) { return a.iso.localeCompare(b.iso); });
+    if (!datas.length) return { ano: String(new Date().getFullYear()), mes: '', inicio: '', fim: '' };
+    const primeira = datas[0];
+    const ultima = datas[datas.length - 1];
+    return {
+      ano: primeira.ano,
+      mes: primeira.mes,
+      inicio: primeira.ano + '-' + primeira.mes + '-01',
+      fim: new Date(Number(primeira.ano), Number(primeira.mes), 0).toISOString().slice(0, 10),
+      primeiraData: primeira.iso,
+      ultimaData: ultima.iso
+    };
+  }
+
   function extrairMeta(texto) {
     const clean = limparLinhaOCR(texto);
     const nome = (clean.match(/Resumo\s*-\s*[^\n]+\n?Nome\s+(.+?)\s+Agencia/i) || clean.match(/Nome\s+(.+?)\s+Agencia/i) || [])[1] || '';
@@ -183,15 +215,91 @@
   function pareceExtratoSantander(texto) {
     const t = removerAcentos(texto || '').toLowerCase();
     const temSantander = /santander/.test(t);
-    const temConta = /conta corrente|saldo de conta corrente|saldo disponivel|extrato consolidado inteligente/.test(t);
-    const temMov = /movimentacao|movimentos\s*\(r\$?\)|creditos\s+debitos|total de creditos|total de debitos|data\s*historico\s*documento\s*valor/.test(t);
+    const temInternet = /internet banking empresarial/.test(t) && /agencia:\s*\d+/.test(t) && /conta:\s*\d+/.test(t);
+    const temConta = /conta corrente|saldo de conta corrente|saldo disponivel|extrato consolidado inteligente/.test(t) || temInternet;
+    const temMov = /movimentacao|movimentos\s*\(r\$?\)|creditos\s+debitos|total de creditos|total de debitos|data\s*historico\s*documento\s*valor|credito\s*r\$|debito\s*r\$/.test(t);
     return temSantander && temConta && temMov;
+  }
+
+  function parsearTexto_SantanderInternetBanking(textoPorPagina) {
+    const paginas = Array.isArray(textoPorPagina) ? textoPorPagina : String(textoPorPagina || '').split(/\f/);
+    const textoCompleto = paginas.join('\n');
+    const t = removerAcentos(textoCompleto).toLowerCase();
+    if (!/internet banking empresarial/.test(t) || !/agencia:\s*\d+/.test(t) || !/conta:\s*\d+/.test(t)) {
+      return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+    }
+
+    const linhas = textoCompleto.split(/\r?\n/).map(limparLinhaOCR).filter(Boolean);
+    const ref = periodoInternetBanking(textoCompleto);
+    const metaLinha = linhas.find(function(l) { return /Agencia:\s*\d+\s+Conta:\s*\d+/i.test(l); }) || '';
+    const meta = metaLinha.match(/(.+?)\s*Agencia:\s*(\d+)\s+Conta:\s*(\d+)/i);
+    const titular = meta ? meta[1].trim() : '';
+    const agencia = meta ? meta[2] : '';
+    const conta = meta ? meta[3] : '';
+    const lancamentos = [];
+    const vistos = new Set();
+    let currentDate = '';
+
+    for (let i = 0; i < linhas.length; i++) {
+      const linha = linhas[i];
+      const dataExtenso = linha.match(/^(?:segunda|terca|terça|quarta|quinta|sexta|sabado|sábado|domingo),\s*(\d{1,2})\s+de\s+(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(20\d{2})$/i);
+      if (dataExtenso) {
+        const mes = mesPtParaNumero(dataExtenso[2]);
+        currentDate = dataExtenso[3] + '-' + mes + '-' + String(dataExtenso[1]).padStart(2, '0');
+        continue;
+      }
+      if (!currentDate) continue;
+      if (/^(Internet Banking Empresarial|Central de Atendimento|SAC |Ouvidoria|0800|4004|Pagina:|\d+)$/i.test(linha)) continue;
+
+      const m = linha.match(/^(.+?)(CREDITO|DEBITO)\s*R\$\s*([\d.]+,\d{2})$/i);
+      if (!m) continue;
+      const descricao = limparDescricao(m[1]);
+      const tipo = removerAcentos(m[2]).toUpperCase() === 'DEBITO' ? 'D' : 'C';
+      const valorAbs = Math.abs(parseValorBR(m[3]));
+      if (!descricao || !valorAbs) continue;
+      const valor = tipo === 'D' ? -valorAbs : valorAbs;
+      const chave = [currentDate, descricao.toLowerCase(), valor.toFixed(2), tipo].join('|');
+      if (vistos.has(chave)) continue;
+      vistos.add(chave);
+      lancamentos.push({
+        id: uuid(),
+        data: currentDate,
+        descricao: descricao,
+        documento: '',
+        valor: valor,
+        tipo: tipo,
+        empresa: '',
+        cnpj: '',
+        categoria: 'Nao categorizado',
+        contaDebito: '',
+        contaCredito: '',
+        historico: '',
+        incomum: false,
+        origem: 'pdf-santander-internet-banking'
+      });
+    }
+
+    return {
+      detectado: lancamentos.length > 0,
+      lancamentos: lancamentos,
+      textoCompleto: textoCompleto,
+      fingerprint: 'santander-internet-banking-' + (agencia || 'x') + '-' + (conta || 'x') + '-' + ref.ano + (ref.mes || ''),
+      banco_detectado: 'SANTANDER',
+      conta_detectada: (agencia ? 'AG-' + agencia : '') + (conta ? '/CC-' + conta : ''),
+      nome_conta_detectado: titular || 'INTERNET BANKING EMPRESARIAL SANTANDER',
+      periodo_inicio: ref.inicio,
+      periodo_fim: ref.fim,
+      total_credito: lancamentos.filter(function(l) { return l.valor > 0; }).reduce(function(a, l) { return a + l.valor; }, 0),
+      total_debito: lancamentos.filter(function(l) { return l.valor < 0; }).reduce(function(a, l) { return a + Math.abs(l.valor); }, 0)
+    };
   }
 
   function parsearTexto_SantanderEmpresas(textoPorPagina) {
     const paginas = Array.isArray(textoPorPagina) ? textoPorPagina : String(textoPorPagina || '').split(/\f/);
     const textoCompleto = paginas.join('\n');
     if (!pareceExtratoSantander(textoCompleto)) return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+    const internet = parsearTexto_SantanderInternetBanking(paginas);
+    if (internet.detectado && internet.lancamentos.length) return internet;
 
     const ref = referenciaPeriodo(textoCompleto);
     const lancamentos = [];
@@ -340,6 +448,14 @@
     return parsearTexto_SantanderEmpresas(textosOCR);
   }
 
+  async function parsearPDF_Santander_InternetBanking(arrayBuffer) {
+    const resultado = await parsearPDF_Santander_EmpresasOCR(arrayBuffer);
+    if (resultado && resultado.detectado && (resultado.lancamentos || []).some(function(l) { return l.origem === 'pdf-santander-internet-banking'; })) {
+      return resultado;
+    }
+    return { detectado: false, lancamentos: [], textoCompleto: resultado && resultado.textoCompleto || '' };
+  }
+
   function textoNativoComLinhas(items) {
     const linhas = [];
     (items || []).forEach(function(it) {
@@ -370,6 +486,8 @@
   }
 
   window.parsearTexto_SantanderEmpresas = parsearTexto_SantanderEmpresas;
+  window.parsearTexto_SantanderInternetBanking = parsearTexto_SantanderInternetBanking;
+  window.parsearPDF_Santander_InternetBanking = parsearPDF_Santander_InternetBanking;
   window.parsearPDF_Santander_EmpresasOCR = parsearPDF_Santander_EmpresasOCR;
   console.log('[parser-santander-empresas-ocr] carregado');
 })();

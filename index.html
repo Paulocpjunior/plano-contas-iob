@@ -17,11 +17,11 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.69"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.69"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.69"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.69"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.69"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.71"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.71"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.71"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.71"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.71"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -3434,7 +3434,10 @@
 	                    parser: 'parsearPDF_Bradesco_NetEmpresa'
 	                }],
 	                '033': [{
-	                    nome: 'Santander Empresas - Extrato Consolidado Inteligente OCR',
+	                    nome: 'Santander 1 - Internet Banking Empresarial',
+	                    parser: 'parsearPDF_Santander_InternetBanking'
+	                }, {
+	                    nome: 'Santander 2 - Extrato Consolidado Inteligente / Conta Corrente',
 	                    parser: 'parsearPDF_Santander_EmpresasOCR'
 	                }],
 	                '341': [{
@@ -3442,7 +3445,10 @@
 	                    parser: 'parsearPDF_Itau_ExtratoMensal'
 	                }],
 	                '352': [{
-	                    nome: 'Santander Empresas - Extrato Consolidado Inteligente OCR',
+	                    nome: 'Santander 1 - Internet Banking Empresarial',
+	                    parser: 'parsearPDF_Santander_InternetBanking'
+	                }, {
+	                    nome: 'Santander 2 - Extrato Consolidado Inteligente OCR',
 	                    parser: 'parsearPDF_Santander_EmpresasOCR'
 	                }],
 	                '422': [{
