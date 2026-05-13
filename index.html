@@ -17,11 +17,11 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.77"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.77"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.77"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.77"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.77"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.78"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.78"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.78"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.78"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.78"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -4473,6 +4473,119 @@
                 return null;
             };
 
+            const parsearLayoutCartaoItauClude = () => {
+                const todosCartao = [];
+                const abasCartao = [];
+
+                const limparFornecedorCartao = function(valor) {
+                    return String(valor || '')
+                        .replace(/\*.*/, '')
+                        .replace(/\d{4,}.*/, '')
+                        .replace(/[_-]+/g, ' ')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                };
+                const limparServicoCartao = function(valor) {
+                    return String(valor || '')
+                        .replace(/transa[cç][aã]o\s+[\d\s.-]+/ig, '')
+                        .replace(/\binvoice\s+[a-z0-9.-]+/ig, 'Invoice')
+                        .replace(/\bNF\s+\d+/ig, 'NF')
+                        .replace(/\([^)]*\d{4}[^)]*\)/g, '')
+                        .replace(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g, '')
+                        .replace(/\s+/g, ' ')
+                        .replace(/\s+-\s*$/g, '')
+                        .trim();
+                };
+
+                for (const sheetName of wb.SheetNames) {
+                    const sheet = wb.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+                    if (!rows.length) {
+                        abasCartao.push({ aba: sheetName, detectados: 0, motivo: 'vazia' });
+                        continue;
+                    }
+
+                    let hIdx = -1;
+                    for (let i = 0; i < Math.min(rows.length, 30); i++) {
+                        const h = (rows[i] || []).map(normH);
+                        const temCartaoClude = h.includes('data')
+                            && h.includes('fornecedor')
+                            && h.includes('valor')
+                            && h.includes('descricao do servico');
+                        if (temCartaoClude) { hIdx = i; break; }
+                    }
+                    if (hIdx === -1) {
+                        abasCartao.push({ aba: sheetName, detectados: 0, motivo: 'nao e layout CARTAO_ITAU_CLUDE' });
+                        continue;
+                    }
+
+                    const headers = rows[hIdx].map(normH);
+                    const col = function(nome) { return headers.indexOf(normH(nome)); };
+                    const cData = col('DATA');
+                    const cFornecedor = col('FORNECEDOR');
+                    const cValor = col('VALOR');
+                    const cServico = col('DESCRICAO DO SERVICO') >= 0 ? col('DESCRICAO DO SERVICO') : col('DESCRIÇÃO DO SERVIÇO');
+                    let count = 0;
+
+                    for (let i = hIdx + 1; i < rows.length; i++) {
+                        const r = rows[i];
+                        if (!r || r.every(c => c === null || c === '' || c === undefined)) continue;
+
+                        const data = parseData(r[cData]);
+                        const valorRaw = parseValor(r[cValor]);
+                        const fornecedor = String(r[cFornecedor] || '').replace(/\s+/g, ' ').trim();
+                        const servico = String(r[cServico] || '').replace(/\s+/g, ' ').trim();
+                        if (!data || valorRaw === null || Math.abs(valorRaw) === 0 || (!fornecedor && !servico)) continue;
+
+                        const fornecedorBase = limparFornecedorCartao(fornecedor);
+                        const servicoBase = limparServicoCartao(servico);
+                        const descricao = [fornecedor, servico].filter(Boolean).join(' - ').replace(/\s+/g, ' ').trim();
+                        const memoriaDescricoes = [
+                            descricao,
+                            servico,
+                            servicoBase,
+                            fornecedor,
+                            fornecedorBase,
+                            fornecedorBase && servicoBase ? (fornecedorBase + ' - ' + servicoBase) : ''
+                        ].map(function(x) { return String(x || '').replace(/\s+/g, ' ').trim(); }).filter(Boolean);
+
+                        todosCartao.push({
+                            data,
+                            descricao: descricao || 'Fatura Cartao Itau CLUDE',
+                            descricao_memoria: servicoBase || fornecedorBase || descricao,
+                            memoriaDescricoes,
+                            valor: -Math.abs(valorRaw),
+                            aba_origem: sheetName,
+                            layoutNome: 'CARTAO_ITAU_CLUDE',
+                            layoutParser: 'parsearArquivoXLSXCartaoItauClude',
+                            conta: 'Cartao Itau CLUDE',
+                            nome_conta: 'Cartao Itau CLUDE'
+                        });
+                        count++;
+                    }
+                    abasCartao.push({ aba: sheetName, detectados: count, layout: 'CARTAO_ITAU_CLUDE' });
+                }
+
+                const seenCartao = new Set();
+                const dedupCartao = todosCartao.filter(t => {
+                    const k = t.data + '|' + t.descricao + '|' + t.valor;
+                    if (seenCartao.has(k)) return false;
+                    seenCartao.add(k);
+                    return true;
+                });
+
+                if (dedupCartao.length) {
+                    const datas = dedupCartao.map(t => t.data).sort();
+                    dedupCartao.forEach(t => {
+                        t.periodo_inicio = datas[0] || '';
+                        t.periodo_fim = datas[datas.length - 1] || '';
+                    });
+                    window.__ultimaImportacaoAbas = abasCartao;
+                    return dedupCartao;
+                }
+                return null;
+            };
+
             const todos = [];
             const abasLog = [];
 
@@ -4485,6 +4598,11 @@
             if (cludeItau) {
                 console.log('[parsearArquivoXLSX] layout CLUDE Itau detectado:', cludeItau.length);
                 return cludeItau;
+            }
+            const cartaoItauClude = parsearLayoutCartaoItauClude();
+            if (cartaoItauClude) {
+                console.log('[parsearArquivoXLSX] layout CARTAO_ITAU_CLUDE detectado:', cartaoItauClude.length);
+                return cartaoItauClude;
             }
 
             for (const sheetName of wb.SheetNames) {

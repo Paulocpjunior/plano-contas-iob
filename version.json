@@ -1,9 +1,9 @@
 {
-  "version": "3.1.77",
-  "build_date": "2026-05-13T15:15:00-03:00",
+  "version": "3.1.78",
+  "build_date": "2026-05-13T16:55:00-03:00",
   "release_notes": [
-    "Layout CLUDE Itau XLSX agora valida os totais oficiais de pagamentos e creditos da propria planilha",
-    "Memoria de classificacao passou a gravar chaves alternativas por fornecedor e descricao no layout CLUDE Itau",
-    "Planilha original CLUDE Itau validada com 229 lancamentos, creditos 831246,49 e debitos 868786,74"
+    "Novo layout CARTAO_ITAU_CLUDE para fatura analitica de cartao Itaucard da CLUDE",
+    "Historico passa a ser reaplicado por descricao do servico e fornecedor limpos, sem numeros variaveis de transacao",
+    "Fatura cartao CLUDE validada com 97 lancamentos e total de saidas 48452,08"
   ]
 }
