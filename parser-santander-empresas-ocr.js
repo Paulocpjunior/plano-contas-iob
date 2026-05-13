@@ -11,8 +11,26 @@
     return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
 
+  function reconstruirLinhaEspacadaPDF(s) {
+    const raw = String(s || '').replace(/\u00a0/g, ' ').trim();
+    if (!raw) return raw;
+    const tokens = raw.split(/\s+/);
+    const curtos = tokens.filter(function(t) { return t.length === 1; }).length;
+    if (tokens.length < 8 || curtos / tokens.length < 0.65) return raw;
+
+    let joined = tokens.join('');
+    joined = joined
+      .replace(/^(Segunda|Terca|Terça|Quarta|Quinta|Sexta|Sabado|Sábado|Domingo),(\d{1,2})de(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)de(20\d{2})$/i, '$1, $2 de $3 de $4')
+      .replace(/^(InternetBankingEmpresarial)$/i, 'Internet Banking Empresarial')
+      .replace(/(CREDITO|DEBITO)R\$/ig, ' $1 R$ ')
+      .replace(/R\$/g, 'R$ ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return joined;
+  }
+
   function limparLinhaOCR(s) {
-    return removerAcentos(s)
+    return removerAcentos(reconstruirLinhaEspacadaPDF(s))
       .replace(/[—–_]+/g, ' ')
       .replace(/[¢©]/g, 'C')
       .replace(/\s+/g, ' ')
@@ -202,6 +220,9 @@
 
   function limparDescricao(desc) {
     return limparLinhaOCR(desc)
+      .replace(/\bPAGAMENTOCARTAODECREDITO\b/ig, 'PAGAMENTO CARTAO DE CREDITO')
+      .replace(/\bPAGAMENTOCARTAODEDEBITO\b/ig, 'PAGAMENTO CARTAO DE DEBITO')
+      .replace(/\bAPLICACAOCONTAMAX\b/ig, 'APLICACAO CONTAMAX')
       .replace(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, ' ')
       .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, ' ')
       .replace(/\bN[ºo]\s*Documento\b/ig, '')
@@ -223,7 +244,7 @@
 
   function parsearTexto_SantanderInternetBanking(textoPorPagina) {
     const paginas = Array.isArray(textoPorPagina) ? textoPorPagina : String(textoPorPagina || '').split(/\f/);
-    const textoCompleto = paginas.join('\n');
+    const textoCompleto = paginas.join('\n').split(/\r?\n/).map(limparLinhaOCR).join('\n');
     const t = removerAcentos(textoCompleto).toLowerCase();
     if (!/internet banking empresarial/.test(t) || !/agencia:\s*\d+/.test(t) || !/conta:\s*\d+/.test(t)) {
       return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
@@ -296,7 +317,7 @@
 
   function parsearTexto_SantanderEmpresas(textoPorPagina) {
     const paginas = Array.isArray(textoPorPagina) ? textoPorPagina : String(textoPorPagina || '').split(/\f/);
-    const textoCompleto = paginas.join('\n');
+    const textoCompleto = paginas.join('\n').split(/\r?\n/).map(limparLinhaOCR).join('\n');
     if (!pareceExtratoSantander(textoCompleto)) return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
     const internet = parsearTexto_SantanderInternetBanking(paginas);
     if (internet.detectado && internet.lancamentos.length) return internet;
@@ -309,7 +330,7 @@
     let stopMov = false;
     let currentDate = '';
 
-    const linhas = paginas.join('\n')
+    const linhas = textoCompleto
       .split(/\r?\n/)
       .map(limparLinhaOCR)
       .filter(Boolean);
