@@ -17,11 +17,11 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.72"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.72"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.72"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.72"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.72"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.73"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.73"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.73"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.73"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.73"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1776,11 +1776,17 @@
                                     <button class="btn-remove" onclick="removeFile()">✕</button>
                                 </div>
                             </div>
-                            <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+                            <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
                                 <div>
                                     <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Banco *</label>
                                     <select id="uploadBanco" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px">
                                         <option value="">Carregando bancos...</option>
+                                    </select>
+                                </div>
+                                <div id="uploadLayoutPdfWrap" style="display:none">
+                                    <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Layout PDF</label>
+                                    <select id="uploadLayoutPdf" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px" onchange="atualizarLayoutSelecionadoUpload()">
+                                        <option value="">Automático</option>
                                     </select>
                                 </div>
                                 <div>
@@ -3335,6 +3341,12 @@
                 hidden.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
+            if (selectId === 'uploadBanco') {
+                hidden.addEventListener('change', function() {
+                    try { atualizarLayoutsUpload(); } catch(e) { console.warn('[layouts upload] atualizar:', e); }
+                });
+            }
+
             // Adiciona limpar = '' quando input zerado
             input.addEventListener('input', () => {
                 if (input.value.trim() === '') hidden.value = '';
@@ -3503,6 +3515,46 @@
 	            const layouts = layoutsPDFCadastradosPorBanco(bancoCode);
 	            return layouts.map(l => l.nome).join(', ');
 	        }
+
+            function atualizarLayoutSelecionadoUpload() {
+                const sel = document.getElementById('uploadLayoutPdf');
+                const fileType = document.getElementById('fileType');
+                if (!sel || !fileType || !selectedFile) return;
+                const opt = sel.options[sel.selectedIndex];
+                if (opt && opt.value) {
+                    fileType.textContent = 'PDF - ' + opt.textContent;
+                } else if (selectedFile.name.split('.').pop().toLowerCase() === 'pdf') {
+                    fileType.textContent = 'PDF - Layout automático';
+                }
+            }
+
+            async function atualizarLayoutsUpload() {
+                const wrap = document.getElementById('uploadLayoutPdfWrap');
+                const sel = document.getElementById('uploadLayoutPdf');
+                if (!wrap || !sel) return;
+                const ext = selectedFile ? selectedFile.name.split('.').pop().toLowerCase() : '';
+                const bancoCode = document.getElementById('uploadBanco')?.value || '';
+                if (ext !== 'pdf' || !bancoCode) {
+                    wrap.style.display = 'none';
+                    sel.innerHTML = '<option value="">Automático</option>';
+                    atualizarLayoutSelecionadoUpload();
+                    return;
+                }
+                let layouts = [];
+                try {
+                    layouts = await layoutsPDFCadastradosPorBancoAsync(bancoCode);
+                } catch (e) {
+                    console.warn('[layouts upload] falha ao carregar layouts:', e.message || e);
+                    layouts = layoutsPDFCadastradosPorBancoFallback(bancoCode);
+                }
+                const valorAtual = sel.value;
+                sel.innerHTML = '<option value="">Automático - tentar todos</option>' + layouts.map(function(l) {
+                    return '<option value="' + String(l.parser || '').replace(/"/g, '&quot;') + '">' + (l.nome || l.parser || 'Layout PDF') + '</option>';
+                }).join('');
+                sel.value = layouts.some(function(l) { return l.parser === valorAtual; }) ? valorAtual : '';
+                wrap.style.display = layouts.length > 1 ? 'block' : 'none';
+                atualizarLayoutSelecionadoUpload();
+            }
         
         function popularFiltroImportacoes() {
             const sel = document.getElementById('filterImportacao');
@@ -5813,6 +5865,7 @@
                 if (eb && !eb.value && state.info && state.info.banco) {
                     eb.value = resolverBancoLegado(state.info.banco);
                 }
+                try { atualizarLayoutsUpload(); } catch(e) { console.warn('[layouts upload] atualizar preview:', e); }
                 const et = document.getElementById('uploadTitulo');
                 if (et && !et.value && state.info && state.info.empresa) {
                     const periodo = (state.info.periodoInicio || '').slice(0, 7);
@@ -5848,7 +5901,7 @@
             if (ext === 'pdf') {
                 icon.className = 'file-icon pdf';
                 icon.textContent = '📕';
-                type.textContent = 'PDF - Processamento com IA';
+                type.textContent = 'PDF - Layout automático';
             } else if (ext === 'ofx') {
                 icon.className = 'file-icon ofx';
                 icon.textContent = '📗';
@@ -5866,6 +5919,7 @@
             document.getElementById('dropZone').style.display = 'none';
             document.getElementById('successMessage').classList.remove('show');
             preview.classList.add('show');
+            try { atualizarLayoutsUpload(); } catch(e) { console.warn('[layouts upload] atualizar arquivo:', e); }
         }
         
         function formatSize(b) {
@@ -5879,6 +5933,7 @@
             document.getElementById('filePreview').classList.remove('show');
             document.getElementById('dropZone').style.display = 'block';
             document.getElementById('fileInput').value = '';
+            try { atualizarLayoutsUpload(); } catch(e) {}
         }
         
         function novoUpload() {
@@ -5887,6 +5942,7 @@
             document.getElementById('successMessage').classList.remove('show');
             document.getElementById('dropZone').style.display = 'block';
             document.getElementById('fileInput').value = '';
+            try { atualizarLayoutsUpload(); } catch(e) {}
         }
         
         // Process File
@@ -5907,13 +5963,14 @@
             const importacaoId = (crypto.randomUUID ? crypto.randomUUID() : 'imp_' + Date.now() + '_' + Math.random().toString(36).slice(2));
             const bancoNome = nomeBanco(bancoCode);
             
-            const ext = selectedFile.name.split('.').pop().toLowerCase();
+	            const ext = selectedFile.name.split('.').pop().toLowerCase();
+	            const layoutPdfSelecionado = ext === 'pdf' ? ((document.getElementById('uploadLayoutPdf') || {}).value || '') : '';
             showProcessing();
             
             try {
                 let entries = [];
 	                if (ext === 'pdf') {
-	                    entries = await processPDF(selectedFile, bancoCode);
+	                    entries = await processPDF(selectedFile, bancoCode, layoutPdfSelecionado);
                 } else if (ext === 'ofx') {
                     entries = parseOFX(await lerArquivoTexto(selectedFile, 'windows-1252'));
                 } else if (ext === 'xlsx' || ext === 'xls') {
@@ -6188,11 +6245,18 @@
 	            return lancsEnriquecidos;
 	        }
 
-		        async function processPDFComLayoutDoBanco(buf, bancoCode, arquivoNome) {
-		            const layouts = await layoutsPDFCadastradosPorBancoAsync(bancoCode);
+		        async function processPDFComLayoutDoBanco(buf, bancoCode, arquivoNome, parserSelecionado) {
+		            let layouts = await layoutsPDFCadastradosPorBancoAsync(bancoCode);
 		            if (!layouts.length) {
 		                throw new Error('Nao existe layout PDF cadastrado para o banco selecionado (' + (bancoCode || '-') + ' — ' + nomeBanco(bancoCode) + '). Cadastre o layout antes de importar.');
 		            }
+                    if (parserSelecionado) {
+                        const escolhido = layouts.find(function(l) { return l.parser === parserSelecionado; });
+                        if (!escolhido) {
+                            throw new Error('Layout PDF selecionado nao esta cadastrado para ' + nomeBanco(bancoCode) + '. Atualize a tela e tente novamente.');
+                        }
+                        layouts = [escolhido];
+                    }
 	            const erros = [];
 	            for (const layout of layouts) {
 	                const fn = window[layout.parser];
@@ -6253,17 +6317,20 @@
 	                    erros.push(layout.nome + ': ' + (e.message || e));
 	                }
 	            }
-	            throw new Error('O arquivo nao corresponde ao layout cadastrado para ' + nomeBanco(bancoCode) + '. ' + erros.join(' | '));
+                const dica = parserSelecionado
+                    ? ' O layout selecionado nao reconheceu este arquivo. Tente a opcao Automático ou outro layout do banco.'
+                    : (layouts.length > 1 ? ' Escolha um layout especifico no campo Layout PDF ou envie o arquivo para parametrizacao.' : '');
+	            throw new Error('O arquivo nao corresponde ao layout cadastrado para ' + nomeBanco(bancoCode) + '. ' + erros.join(' | ') + dica);
 	        }
 
 	        // PDF Processing
-	        async function processPDF(f, bancoCode) {
+	        async function processPDF(f, bancoCode, parserSelecionado) {
 	            const bancoResolvido = resolverBancoLegado(bancoCode) || bancoCode || '';
 	            const usarLayoutBanco = !!bancoResolvido;
 	            let buf = null;
 	            try {
 	                buf = await f.arrayBuffer();
-	                return await processPDFComLayoutDoBanco(buf, bancoResolvido, f.name);
+	                return await processPDFComLayoutDoBanco(buf, bancoResolvido, f.name, parserSelecionado);
 
 	                // [BRADESCO] Parser nativo para Extrato Mensal / Por Periodo.
                 try {

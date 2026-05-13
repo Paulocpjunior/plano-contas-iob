@@ -1,9 +1,9 @@
 {
-  "version": "3.1.72",
-  "build_date": "2026-05-13T11:20:00-03:00",
+  "version": "3.1.73",
+  "build_date": "2026-05-13T11:50:00-03:00",
   "release_notes": [
-    "Memoria de classificacao agora respeita o Historico Padrao pelo codigo IOB e corrige historicos antigos incompletos",
-    "Importacoes CLUDE Itau normalizam o campo Historico antes da conferencia e apos classificacao por IA/memoria",
-    "Lancamentos ja classificados com Cód IOB valido passam a recompor automaticamente o texto do Historico Padrao"
+    "Importacao PDF agora exibe escolha de Layout PDF quando o banco possui mais de um modelo cadastrado",
+    "Santander permite selecionar explicitamente Automático, Santander 1 ou Santander 2 antes de processar",
+    "Mensagem de erro de layout passou a orientar troca de layout ou envio para parametrizacao"
   ]
 }
