@@ -17,11 +17,11 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.79"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.79"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.79"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.79"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.79"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.80"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.80"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.80"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.80"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.80"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -8115,9 +8115,10 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 const histTxt = (e.descricao || e.historico || '')
                     .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
                     .toUpperCase();
-                const hist = padR(histTxt, 143);
+                const hist = padR(histTxt, 120);
 
-                // Registro de 332 bytes - todos os 17 campos
+                // Registro validado IOB Office Contabil: 328 caracteres + CRLF.
+                // Arquivos com campos extras no fim deslocam o layout e o SAGE pode ler "ano 0".
                 return padR('',5)        // 01: 5 espacos iniciais
                      + deb               // 02: 18 conta debito
                      + cred              // 03: 18 conta credito
@@ -8126,15 +8127,11 @@ Responda APENAS JSON valido, sem texto antes/depois:
                      + val               // 06: 12 valor centavos
                      + dt                // 07: 10 data DD/MM/AAAA
                      + padR('',6)        // 08: 6 espacos
-                     + hist              // 09: 143 complemento historico
+                     + hist              // 09: 120 complemento historico
                      + padR('',20)       // 10: 20 nome digitador (vazio)
-                     + padR(TIPO_MOV,20) // 11: 20 tipo movimento "8"
-                     + padR('',20)       // 12: 20 CC debito (vazio)
-                     + padL('',15)       // 13: 15 valor CC debito (zeros)
-                     + padR('',20)       // 14: 20 CC credito (vazio)
-                     + padL('',15)       // 15: 15 valor CC credito (zeros)
-                     + 'N'               // 16: 1 tipo lancamento N=normal
-                     + padR('',4);       // 17: 4 codigo participante SPED
+                     + padR('   IMP_FINANCEIRO   ', 20) // 11: identificador de importacao
+                     + padR('   ' + TIPO_MOV, 93) // 12: tipo movimento "8" + filler
+                     + 'N';              // 13: 1 tipo lancamento N=normal
             });
 
             // Preview (apenas se elementos existirem - aba Exportar)

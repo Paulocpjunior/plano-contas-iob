@@ -1,9 +1,9 @@
 {
-  "version": "3.1.79",
-  "build_date": "2026-05-14T09:20:00-03:00",
+  "version": "3.1.80",
+  "build_date": "2026-05-14T10:55:00-03:00",
   "release_notes": [
-    "Santander PDF agora tenta OCR quando a camada nativa do PDF reconhece o banco mas nao extrai lancamentos",
-    "Mantida a tentativa automatica entre Santander 1 e Santander 2 para banco 033",
-    "Arquivo santander abril 26 validado localmente com 30 lancamentos no layout Internet Banking Empresarial"
+    "Exportacao IOB FI voltou ao registro validado de 328 caracteres por linha",
+    "Removidos campos extras finais que podiam fazer o IOB SAGE interpretar o ano como 0",
+    "Arquivo FI passa a manter IMP_FINANCEIRO e tipo de movimento 8 nas posicoes do layout validado"
   ]
 }
