@@ -17,11 +17,11 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.80"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.80"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.80"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.80"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.80"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.81"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.81"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.81"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.81"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.81"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -753,6 +753,126 @@
         .badge-red { background: #fee2e2; color: #991b1b; }
         .badge-gray { background: #f1f5f9; color: #475569; }
         .badge-purple { background: #f3e8ff; color: #7c3aed; }
+
+        .razao-notas-panel {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #bfdbfe;
+            border-radius: var(--radius);
+            background: #f8fbff;
+        }
+        .razao-notas-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .razao-notas-kicker {
+            color: #1d4ed8;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .6px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .razao-notas-head h3 {
+            margin: 0 0 4px;
+            color: var(--text);
+            font-size: 20px;
+        }
+        .razao-notas-head p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        .razao-notas-actions,
+        .razao-notas-filtros {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .razao-notas-filtros {
+            display: grid;
+            grid-template-columns: 170px 220px minmax(240px, 1fr);
+            margin-bottom: 14px;
+        }
+        .razao-notas-metrics {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .razao-notas-metric {
+            padding: 12px;
+            border: 1px solid #dbeafe;
+            border-radius: var(--radius-sm);
+            background: #fff;
+        }
+        .razao-notas-metric .label {
+            display: block;
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .45px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .razao-notas-metric .value {
+            color: var(--text);
+            font-size: 18px;
+            font-weight: 800;
+        }
+        .razao-notas-metric.success .value { color: var(--success); }
+        .razao-notas-metric.warning .value { color: #b45309; }
+        .razao-notas-metric.danger .value { color: var(--danger); }
+        .razao-notas-alert {
+            display: none;
+            margin-bottom: 14px;
+            padding: 10px 12px;
+            border: 1px solid #fde68a;
+            border-radius: var(--radius-sm);
+            background: #fffbeb;
+            color: #92400e;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .razao-notas-alert.show { display: block; }
+        .razao-notas-table-wrap {
+            max-height: 520px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: #fff;
+        }
+        .razao-notas-table th,
+        .razao-notas-table td {
+            padding: 10px 12px;
+            vertical-align: top;
+        }
+        .razao-notas-table td:nth-child(4),
+        .razao-notas-table td:nth-child(5),
+        .razao-notas-table td:nth-child(6) {
+            text-align: right;
+            font-family: 'Monaco', 'Menlo', monospace;
+            white-space: nowrap;
+        }
+        .razao-notas-fornecedor {
+            max-width: 360px;
+            white-space: normal;
+        }
+        .razao-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+        .razao-status.paga_no_mes { background: #dcfce7; color: #166534; }
+        .razao-status.aberta_mes_seguinte { background: #fef3c7; color: #92400e; }
+        .razao-status.baixada_depois { background: #dbeafe; color: #1e40af; }
+        .razao-status.em_aberto_atual { background: #fee2e2; color: #991b1b; }
         
         .valor-positivo {
             color: var(--success);
@@ -1436,6 +1556,9 @@
             .upload-zone { padding: 40px 20px; }
             .charts-grid { grid-template-columns: 1fr; }
             .filters-grid { grid-template-columns: 1fr 1fr; }
+            .razao-notas-head { flex-direction: column; }
+            .razao-notas-filtros,
+            .razao-notas-metrics { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -1771,14 +1894,14 @@
                                 </div>
                                 <div class="file-actions">
                                     <button class="btn-process" onclick="processFile()">
-                                        <span>⚡</span> Processar com IA
+                                        <span>⚡</span> Processar arquivo
                                     </button>
                                     <button class="btn-remove" onclick="removeFile()">✕</button>
                                 </div>
                             </div>
                             <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-                                <div>
-                                    <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Banco *</label>
+                                <div id="uploadBancoWrap">
+                                    <label id="uploadBancoLabel" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Banco *</label>
                                     <select id="uploadBanco" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px">
                                         <option value="">Carregando bancos...</option>
                                     </select>
@@ -1789,9 +1912,12 @@
                                         <option value="">Automático</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Título do Relatório *</label>
+                                <div id="uploadTituloWrap">
+                                    <label id="uploadTituloLabel" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Título do Relatório *</label>
                                     <input type="text" id="uploadTitulo" placeholder="Ex.: Itaú Jan/2025 — Igreja Itapevi" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px">
+                                </div>
+                                <div id="uploadRazaoHint" style="display:none;grid-column:1/-1;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12px;font-weight:600">
+                                    Para razão de saldos, Banco e Título não são obrigatórios. Clique em Processar arquivo para gerar o relatório de notas pagas e abertas.
                                 </div>
                             </div>
                         </div>
@@ -1817,6 +1943,65 @@
                             <button class="btn-action btn-action-primary" style="margin-top:24px" onclick="novoUpload()">
                                 📤 Processar Novo Arquivo
                             </button>
+                        </div>
+
+                        <div class="razao-notas-panel hidden" id="razaoNotasPanel">
+                            <div class="razao-notas-head">
+                                <div>
+                                    <div class="razao-notas-kicker">Razão de fornecedores</div>
+                                    <h3>Notas pagas no mês e abertas para o mês seguinte</h3>
+                                    <p id="razaoNotasMeta">Arquivo analisado automaticamente pelo layout fixo do razão.</p>
+                                </div>
+                                <div class="razao-notas-actions">
+                                    <button class="btn-action btn-action-success" onclick="exportarRazaoNotasRelatorioCliente()">📄 Relatório cliente</button>
+                                    <button class="btn-action btn-action-secondary" onclick="exportarRazaoNotasCSV()">📊 Exportar CSV</button>
+                                    <button class="btn-action btn-action-primary" onclick="novoUpload()">Novo arquivo</button>
+                                </div>
+                            </div>
+                            <div class="razao-notas-filtros">
+                                <div class="filter-group">
+                                    <label>Mês</label>
+                                    <select id="razaoNotasMes" onchange="renderRazaoNotasTabela()"></select>
+                                </div>
+                                <div class="filter-group">
+                                    <label>Status</label>
+                                    <select id="razaoNotasStatus" onchange="renderRazaoNotasTabela()">
+                                        <option value="">Todos</option>
+                                        <option value="paga_no_mes">Pagas no próprio mês</option>
+                                        <option value="aberta_mes_seguinte">Abertas p/ mês seguinte</option>
+                                        <option value="baixada_depois">Baixadas depois</option>
+                                        <option value="em_aberto_atual">Ainda em aberto</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group razao-notas-busca">
+                                    <label>Buscar nota / fornecedor</label>
+                                    <input type="search" id="razaoNotasBusca" placeholder="NFS, CNPJ ou fornecedor..." oninput="renderRazaoNotasTabela()">
+                                </div>
+                            </div>
+                            <div class="razao-notas-metrics" id="razaoNotasResumo"></div>
+                            <div class="razao-notas-alert" id="razaoNotasAviso"></div>
+                            <div class="table-info">
+                                <div class="table-info-left">
+                                    <span id="razaoNotasCount">0 notas</span>
+                                    <span id="razaoNotasBaixasSemNota">0 baixas sem nota no período</span>
+                                </div>
+                            </div>
+                            <div class="table-container razao-notas-table-wrap">
+                                <table class="razao-notas-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Emissão</th>
+                                            <th>Nota</th>
+                                            <th>Fornecedor</th>
+                                            <th>Valor bruto</th>
+                                            <th>Baixado no mês</th>
+                                            <th>Saldo p/ mês seguinte</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="razaoNotasTabela"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2355,6 +2540,7 @@
         const lancamentosSelecionados = new Set();
         
         let selectedFile = null;
+        let ultimaAnaliseRazaoNotas = null;
         let chartCategorias = null;
         let chartFluxo = null;
         
@@ -4115,6 +4301,12 @@
                     formato = 'O2 (IOB)';
                 } else if (nome.endsWith('.xlsx') || nome.endsWith('.xls')) {
                     lancamentosBrutos = await parsearArquivoXLSX(file, opts);
+                    if (ehAnaliseRazaoNotas(lancamentosBrutos)) {
+                        showPage('extrator');
+                        mostrarAnaliseRazaoNotas(lancamentosBrutos);
+                        showToast('Relatório de notas do razão gerado. Nada foi importado como lançamento.', 'success');
+                        return;
+                    }
                     formato = nome.endsWith('.xlsx') ? 'XLSX' : 'XLS';
                 } else if (nome.endsWith('.csv')) {
                     lancamentosBrutos = await parsearArquivoTexto(file, 'csv', opts);
@@ -4252,6 +4444,300 @@
                 }
                 const n = parseFloat(s);
                 return isNaN(n) ? null : (neg ? -Math.abs(n) : n);
+            };
+
+            const analisarRazaoSaldosNotas = () => {
+                const headersObrigatorios = ['conta','data','lancamento','contra_partida','complemento','saldo_anterior','debito','credito','saldo'];
+                const cents = v => Math.round((Number(v || 0)) * 100);
+                const money = c => Math.round(Number(c || 0)) / 100;
+                const mesDe = dataISO => String(dataISO || '').slice(0, 7);
+                const fimMes = mes => {
+                    const p = String(mes || '').split('-');
+                    if (p.length !== 2) return '';
+                    return new Date(Number(p[0]), Number(p[1]), 0).toISOString().slice(0, 10);
+                };
+                const limpar = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                const extrairCNPJ = texto => {
+                    const m = String(texto || '').match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/);
+                    if (m) return m[0];
+                    const n = String(texto || '').match(/\b(\d{14})\b/);
+                    if (!n) return '';
+                    const c = n[1];
+                    return c.slice(0,2)+'.'+c.slice(2,5)+'.'+c.slice(5,8)+'/'+c.slice(8,12)+'-'+c.slice(12,14);
+                };
+                const extrairNumeroNota = texto => {
+                    const t = limpar(texto);
+                    const padroes = [
+                        /\bNFS?\s*[:.]?\s*(\d{1,12})\b/,
+                        /\bNFSE\s*[:.]?\s*(\d{1,12})\b/,
+                        /\bNFE\s*[:.]?\s*(\d{1,12})\b/,
+                        /\bNF\s*\.?\s*(\d{1,12})\b/,
+                        /\bCFE\.?\s*NF\s+(?:IRRF|PIS\s+RET|COFINS\s+RET|CSLL\s+RET)?\s*(\d{1,12})\b/,
+                        /^PAGTO\s+(?:PREST\.?\s+SERVI[CC]O\s+)?(?:NFS?\s*[:.]?\s*)?(\d{1,12})\b/,
+                        /^VR\.?\s*REF\s+A\s+(\d{1,12})\b/
+                    ];
+                    for (const re of padroes) {
+                        const m = t.match(re);
+                        if (m) return String(Number(m[1]));
+                    }
+                    return '';
+                };
+                const tokensFornecedor = texto => {
+                    const base = limpar(texto)
+                        .replace(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g, ' ')
+                        .replace(/\b\d{14}\b/g, ' ')
+                        .replace(/\b(NFS?|NFSE|NFE|NF|CFE|IRRF|PIS|COFINS|CSLL|RET|RETIDO|RETENCAO|VR|REF|PAGTO|PAGAMENTO|PREST|SERVICO|SERVICOS|CFE|SERIE|LTDA|ME|EPP|SA|S\/A|MEDICOS|MEDICINA|BRASIL|COMISSAO|PROJETO)\b/g, ' ')
+                        .replace(/\b\d{1,12}\b/g, ' ')
+                        .replace(/[^A-Z0-9]+/g, ' ')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                    return base.split(' ').filter(t => t.length >= 3);
+                };
+                const fornecedorCurto = texto => {
+                    let s = String(texto || '').replace(/\s+/g, ' ').trim();
+                    const cnpj = extrairCNPJ(s);
+                    if (cnpj && s.includes(cnpj)) s = s.slice(s.indexOf(cnpj) + cnpj.length).trim();
+                    s = s
+                        .replace(/^VR\.?\s*REF\s+A\s*/i, '')
+                        .replace(/^PAGTO\s*/i, '')
+                        .replace(/^PAGAMENTO\s*/i, '')
+                        .replace(/^PREST\.?\s+SERVI[ÇC]O\s*/i, '')
+                        .replace(/^NFS?\s*[:.]?\s*\d+\s*/i, '')
+                        .replace(/^NF\s*\.?\s*\d+\s*/i, '')
+                        .replace(/^\d+\s+/, '')
+                        .replace(/^[-\s]+/, '')
+                        .trim();
+                    return s || String(texto || '').trim() || 'Fornecedor nao identificado';
+                };
+                const tipoBaixa = texto => {
+                    if (/IRRF|PIS\s+RET|COFINS\s+RET|CSLL\s+RET|RETIDO/i.test(texto)) return 'retencao';
+                    if (/BAIXA\s+ADIANTAMENTO|BAIXA/i.test(texto)) return 'baixa';
+                    if (/PAGTO|PAGAMENTO/i.test(texto)) return 'pagamento';
+                    return 'outra_baixa';
+                };
+                const scoreTokens = (a, b) => {
+                    if (!a.length || !b.length) return 0;
+                    const setB = new Set(b);
+                    const comum = a.filter(t => setB.has(t)).length;
+                    return comum / Math.min(a.length, b.length);
+                };
+
+                for (const sheetName of wb.SheetNames) {
+                    const sheet = wb.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+                    if (!rows.length) continue;
+
+                    let hIdx = -1;
+                    for (let i = 0; i < Math.min(rows.length, 10); i++) {
+                        const h = (rows[i] || []).map(_norm);
+                        const ok = headersObrigatorios.every(nome => h.includes(nome));
+                        if (ok) { hIdx = i; break; }
+                    }
+                    if (hIdx === -1) continue;
+
+                    const headers = rows[hIdx].map(_norm);
+                    const col = nome => headers.indexOf(nome);
+                    const cConta = col('conta');
+                    const cData = col('data');
+                    const cLanc = col('lancamento');
+                    const cContra = col('contra_partida');
+                    const cComp = col('complemento');
+                    const cSaldoAnterior = col('saldo_anterior');
+                    const cDebito = col('debito');
+                    const cCredito = col('credito');
+                    const cSaldo = col('saldo');
+
+                    const linhas = [];
+                    for (let i = hIdx + 1; i < rows.length; i++) {
+                        const r = rows[i];
+                        if (!r || r.every(c => c === null || c === '' || c === undefined)) continue;
+                        const data = parseData(r[cData]);
+                        if (!data) continue;
+                        const debito = parseValor(r[cDebito]) || 0;
+                        const credito = parseValor(r[cCredito]) || 0;
+                        const saldo = parseValor(r[cSaldo]) || 0;
+                        if (!debito && !credito) continue;
+                        const complemento = String(r[cComp] || '').replace(/\s+/g, ' ').trim();
+                        const linha = {
+                            idx: i,
+                            conta: String(r[cConta] || '').trim(),
+                            data,
+                            mes: mesDe(data),
+                            lancamento: String(r[cLanc] || '').trim(),
+                            contraPartida: String(r[cContra] || '').trim(),
+                            complemento,
+                            saldoAnterior: parseValor(r[cSaldoAnterior]) || 0,
+                            debito,
+                            credito,
+                            saldo,
+                            cnpj: extrairCNPJ(complemento),
+                            nota: extrairNumeroNota(complemento),
+                            tokens: tokensFornecedor(complemento)
+                        };
+                        linhas.push(linha);
+                    }
+                    if (!linhas.length) continue;
+
+                    const notas = linhas.filter(l => cents(l.credito) > 0).map((l, idx) => ({
+                        id: 'nota_' + idx + '_' + l.idx,
+                        data: l.data,
+                        mes: l.mes,
+                        fimMes: fimMes(l.mes),
+                        lancamento: l.lancamento,
+                        conta: l.conta,
+                        contraPartida: l.contraPartida,
+                        complemento: l.complemento,
+                        fornecedor: fornecedorCurto(l.complemento),
+                        cnpj: l.cnpj,
+                        nota: l.nota,
+                        tokens: l.tokens,
+                        valorCents: cents(l.credito),
+                        baixas: [],
+                        saldoCents: cents(l.credito)
+                    }));
+                    const baixas = linhas.filter(l => cents(l.debito) > 0).map((l, idx) => ({
+                        id: 'baixa_' + idx + '_' + l.idx,
+                        data: l.data,
+                        mes: l.mes,
+                        lancamento: l.lancamento,
+                        conta: l.conta,
+                        contraPartida: l.contraPartida,
+                        complemento: l.complemento,
+                        fornecedor: fornecedorCurto(l.complemento),
+                        cnpj: l.cnpj,
+                        nota: l.nota,
+                        tokens: l.tokens,
+                        tipo: tipoBaixa(l.complemento),
+                        valorCents: cents(l.debito),
+                        vinculadoCents: 0
+                    }));
+
+                    baixas.sort((a, b) => a.data.localeCompare(b.data) || a.id.localeCompare(b.id));
+                    baixas.forEach(baixa => {
+                        let restante = baixa.valorCents;
+                        if (restante <= 0) return;
+                        let candidatos = notas.filter(n => n.saldoCents > 0 && n.data <= baixa.data);
+                        if (baixa.nota) {
+                            candidatos = candidatos.filter(n => n.nota === baixa.nota);
+                        } else if (baixa.cnpj) {
+                            candidatos = candidatos.filter(n => n.cnpj === baixa.cnpj);
+                        } else {
+                            candidatos = [];
+                        }
+                        candidatos = candidatos.map(n => ({
+                            nota: n,
+                            score: (baixa.cnpj && n.cnpj === baixa.cnpj ? 2 : 0) + scoreTokens(baixa.tokens, n.tokens)
+                        })).filter(c => c.score >= (baixa.cnpj ? 2 : 0.25));
+                        candidatos.sort((a, b) => b.score - a.score || a.nota.data.localeCompare(b.nota.data));
+                        for (const cand of candidatos) {
+                            if (restante <= 0) break;
+                            const alocar = Math.min(restante, cand.nota.saldoCents);
+                            if (alocar <= 0) continue;
+                            cand.nota.saldoCents -= alocar;
+                            baixa.vinculadoCents += alocar;
+                            restante -= alocar;
+                            cand.nota.baixas.push({
+                                data: baixa.data,
+                                mes: baixa.mes,
+                                tipo: baixa.tipo,
+                                valorCents: alocar,
+                                complemento: baixa.complemento,
+                                lancamento: baixa.lancamento
+                            });
+                        }
+                    });
+
+                    const meses = Array.from(new Set(linhas.map(l => l.mes))).sort();
+                    const saldoPorMes = {};
+                    meses.forEach(mes => {
+                        const doMes = linhas.filter(l => l.mes === mes);
+                        saldoPorMes[mes] = doMes.length ? cents(doMes[doMes.length - 1].saldo) : 0;
+                    });
+
+                    const notasSaida = notas.map(n => {
+                        const baixasAteMes = n.baixas.filter(b => b.data <= n.fimMes);
+                        const baixadoNoMesCents = baixasAteMes.reduce((a, b) => a + b.valorCents, 0);
+                        const retencoesNoMesCents = baixasAteMes.filter(b => b.tipo === 'retencao').reduce((a, b) => a + b.valorCents, 0);
+                        const pagamentosNoMesCents = baixasAteMes.filter(b => b.tipo !== 'retencao').reduce((a, b) => a + b.valorCents, 0);
+                        const baixadoTotalCents = n.baixas.reduce((a, b) => a + b.valorCents, 0);
+                        const saldoMesCents = Math.max(0, n.valorCents - baixadoNoMesCents);
+                        const saldoAtualCents = Math.max(0, n.valorCents - baixadoTotalCents);
+                        const statusMes = saldoMesCents <= 1 ? 'paga_no_mes' : 'aberta_mes_seguinte';
+                        const statusAtual = statusMes === 'paga_no_mes'
+                            ? 'paga_no_mes'
+                            : (saldoAtualCents <= 1 ? 'baixada_depois' : 'em_aberto_atual');
+                        const ultimaBaixa = n.baixas.length ? n.baixas.map(b => b.data).sort().slice(-1)[0] : '';
+                        return {
+                            id: n.id,
+                            data: n.data,
+                            mes: n.mes,
+                            nota: n.nota || '-',
+                            cnpj: n.cnpj,
+                            fornecedor: n.fornecedor,
+                            complemento: n.complemento,
+                            valorBruto: money(n.valorCents),
+                            baixadoNoMes: money(baixadoNoMesCents),
+                            retencoesNoMes: money(retencoesNoMesCents),
+                            pagamentosNoMes: money(pagamentosNoMesCents),
+                            saldoAbertoMes: money(saldoMesCents),
+                            baixadoTotal: money(baixadoTotalCents),
+                            saldoAtual: money(saldoAtualCents),
+                            statusMes,
+                            statusAtual,
+                            dataBaixaFinal: saldoAtualCents <= 1 ? ultimaBaixa : '',
+                            baixas: n.baixas.map(b => ({
+                                data: b.data,
+                                tipo: b.tipo,
+                                valor: money(b.valorCents),
+                                complemento: b.complemento
+                            }))
+                        };
+                    });
+
+                    const resumoMes = meses.map(mes => {
+                        const ns = notasSaida.filter(n => n.mes === mes);
+                        const pagas = ns.filter(n => n.statusMes === 'paga_no_mes');
+                        const abertas = ns.filter(n => n.statusMes === 'aberta_mes_seguinte');
+                        return {
+                            mes,
+                            notas: ns.length,
+                            valorBruto: money(ns.reduce((a, n) => a + cents(n.valorBruto), 0)),
+                            pagasNoMes: pagas.length,
+                            valorPagoNoMes: money(pagas.reduce((a, n) => a + cents(n.valorBruto), 0)),
+                            abertasMesSeguinte: abertas.length,
+                            saldoAbertoMes: money(abertas.reduce((a, n) => a + cents(n.saldoAbertoMes), 0)),
+                            saldoRazaoFechamento: money(Math.abs(saldoPorMes[mes] || 0))
+                        };
+                    });
+                    const baixasSemNota = baixas
+                        .filter(b => b.valorCents - b.vinculadoCents > 1)
+                        .map(b => ({
+                            data: b.data,
+                            mes: b.mes,
+                            nota: b.nota || '-',
+                            fornecedor: b.fornecedor,
+                            complemento: b.complemento,
+                            tipo: b.tipo,
+                            valor: money(b.valorCents - b.vinculadoCents)
+                        }));
+
+                    const datas = linhas.map(l => l.data).sort();
+                    return {
+                        __tipoEspecial: 'razaoNotas',
+                        arquivo: file.name,
+                        sheetName,
+                        conta: linhas[0].conta || '',
+                        periodoInicio: datas[0] || '',
+                        periodoFim: datas[datas.length - 1] || '',
+                        totalLinhas: linhas.length,
+                        totalNotas: notasSaida.length,
+                        totalBaixasSemNota: baixasSemNota.length,
+                        notas: notasSaida,
+                        baixasSemNota,
+                        resumoMes
+                    };
+                }
+                return null;
             };
 
             const parsearLayoutClude = () => {
@@ -4588,6 +5074,12 @@
 
             const todos = [];
             const abasLog = [];
+
+            const razaoNotas = analisarRazaoSaldosNotas();
+            if (razaoNotas) {
+                console.log('[parsearArquivoXLSX] layout Razao de Saldos detectado:', razaoNotas.totalNotas);
+                return razaoNotas;
+            }
 
             const clude = parsearLayoutClude();
             if (clude) {
@@ -5771,6 +6263,310 @@
             return Number.isFinite(n) ? Math.round(n * 100) : 0;
         }
 
+        function ehAnaliseRazaoNotas(valor) {
+            return valor && valor.__tipoEspecial === 'razaoNotas' && Array.isArray(valor.notas);
+        }
+
+        function labelMesRazao(mes) {
+            const p = String(mes || '').split('-');
+            if (p.length !== 2) return mes || '-';
+            return p[1] + '/' + p[0];
+        }
+
+        function labelStatusRazao(status) {
+            return {
+                paga_no_mes: 'Paga no mês',
+                aberta_mes_seguinte: 'Aberta p/ mês seguinte',
+                baixada_depois: 'Baixada depois',
+                em_aberto_atual: 'Ainda em aberto'
+            }[status] || status || '-';
+        }
+
+        function statusVisualRazao(nota) {
+            if (!nota) return 'aberta_mes_seguinte';
+            if (nota.statusMes === 'paga_no_mes') return 'paga_no_mes';
+            return nota.statusAtual || 'aberta_mes_seguinte';
+        }
+
+        function notasRazaoFiltradas() {
+            const analise = ultimaAnaliseRazaoNotas;
+            if (!analise) return [];
+            const mes = (document.getElementById('razaoNotasMes') || {}).value || '';
+            const status = (document.getElementById('razaoNotasStatus') || {}).value || '';
+            const busca = String((document.getElementById('razaoNotasBusca') || {}).value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            return analise.notas.filter(function(n) {
+                if (mes && n.mes !== mes) return false;
+                const visual = statusVisualRazao(n);
+                if (status) {
+                    if (status === 'aberta_mes_seguinte') {
+                        if (n.statusMes !== 'aberta_mes_seguinte') return false;
+                    } else if (visual !== status) {
+                        return false;
+                    }
+                }
+                if (busca) {
+                    const texto = [n.nota, n.cnpj, n.fornecedor, n.complemento].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                    if (!texto.includes(busca)) return false;
+                }
+                return true;
+            }).sort(function(a, b) {
+                return a.data.localeCompare(b.data) || String(a.nota).localeCompare(String(b.nota), undefined, { numeric: true });
+            });
+        }
+
+        function mostrarAnaliseRazaoNotas(analise) {
+            ultimaAnaliseRazaoNotas = analise;
+            const panel = document.getElementById('razaoNotasPanel');
+            if (!panel) return;
+            const meses = (analise.resumoMes || []).map(function(r) { return r.mes; });
+            const selMes = document.getElementById('razaoNotasMes');
+            if (selMes) {
+                selMes.innerHTML = '<option value="">Todos os meses</option>' + meses.map(function(m) {
+                    return '<option value="' + escaparHtmlImportacao(m) + '">' + escaparHtmlImportacao(labelMesRazao(m)) + '</option>';
+                }).join('');
+                if (meses.length) selMes.value = meses[meses.length - 1];
+            }
+            const status = document.getElementById('razaoNotasStatus');
+            if (status) status.value = '';
+            const busca = document.getElementById('razaoNotasBusca');
+            if (busca) busca.value = '';
+
+            const meta = document.getElementById('razaoNotasMeta');
+            if (meta) {
+                meta.textContent = (analise.arquivo || 'Arquivo') + ' | ' + (analise.conta ? ('Conta ' + analise.conta + ' | ') : '') +
+                    formatarDataBR(analise.periodoInicio) + ' a ' + formatarDataBR(analise.periodoFim) +
+                    ' | ' + analise.totalLinhas + ' linha(s) lidas';
+            }
+            document.getElementById('successMessage')?.classList.remove('show');
+            panel.classList.remove('hidden');
+            renderRazaoNotasTabela();
+            setTimeout(function() { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
+        }
+
+        function renderRazaoNotasTabela() {
+            const analise = ultimaAnaliseRazaoNotas;
+            if (!analise) return;
+            const notas = notasRazaoFiltradas();
+            const mes = (document.getElementById('razaoNotasMes') || {}).value || '';
+            const resumo = mes
+                ? (analise.resumoMes || []).find(function(r) { return r.mes === mes; })
+                : {
+                    notas: analise.notas.length,
+                    valorBruto: analise.notas.reduce(function(a, n) { return a + Number(n.valorBruto || 0); }, 0),
+                    pagasNoMes: analise.notas.filter(function(n) { return n.statusMes === 'paga_no_mes'; }).length,
+                    abertasMesSeguinte: analise.notas.filter(function(n) { return n.statusMes === 'aberta_mes_seguinte'; }).length,
+                    saldoAbertoMes: analise.notas.reduce(function(a, n) { return a + Number(n.saldoAbertoMes || 0); }, 0),
+                    saldoRazaoFechamento: (analise.resumoMes || []).slice(-1)[0]?.saldoRazaoFechamento || 0
+                };
+            const resumoEl = document.getElementById('razaoNotasResumo');
+            if (resumoEl) {
+                resumoEl.innerHTML = [
+                    ['Notas lançadas', resumo.notas || 0, ''],
+                    ['Valor bruto', formatarMoedaBR(resumo.valorBruto || 0), ''],
+                    ['Pagas no mês', resumo.pagasNoMes || 0, 'success'],
+                    ['Abertas p/ mês seguinte', resumo.abertasMesSeguinte || 0, 'warning'],
+                    ['Saldo aberto', formatarMoedaBR(resumo.saldoAbertoMes || 0), (resumo.saldoAbertoMes || 0) > 0 ? 'danger' : 'success']
+                ].map(function(item) {
+                    return '<div class="razao-notas-metric ' + item[2] + '"><span class="label">' + item[0] + '</span><div class="value">' + item[1] + '</div></div>';
+                }).join('');
+            }
+            const aviso = document.getElementById('razaoNotasAviso');
+            const baixasSemNotaMes = (analise.baixasSemNota || []).filter(function(b) { return !mes || b.mes === mes; });
+            const totalBaixasSemNota = baixasSemNotaMes.reduce(function(a, b) { return a + Number(b.valor || 0); }, 0);
+            if (aviso) {
+                if (baixasSemNotaMes.length) {
+                    aviso.textContent = baixasSemNotaMes.length + ' baixa(s) nao foram vinculadas a notas deste arquivo. Elas podem ser pagamentos de saldo anterior ou descricoes sem numero/CNPJ suficientes. Total: ' + formatarMoedaBR(totalBaixasSemNota) + '.';
+                    aviso.classList.add('show');
+                } else {
+                    aviso.textContent = '';
+                    aviso.classList.remove('show');
+                }
+            }
+            const count = document.getElementById('razaoNotasCount');
+            if (count) count.textContent = notas.length + ' nota' + (notas.length !== 1 ? 's' : '') + ' exibida' + (notas.length !== 1 ? 's' : '');
+            const baixasInfo = document.getElementById('razaoNotasBaixasSemNota');
+            if (baixasInfo) baixasInfo.textContent = baixasSemNotaMes.length + ' baixa' + (baixasSemNotaMes.length !== 1 ? 's' : '') + ' sem nota no período';
+            const tbody = document.getElementById('razaoNotasTabela');
+            if (!tbody) return;
+            if (!notas.length) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:32px">Nenhuma nota encontrada para os filtros atuais.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = notas.map(function(n) {
+                const status = statusVisualRazao(n);
+                const detalheBaixa = n.dataBaixaFinal && status !== 'paga_no_mes' ? '<div style="font-size:11px;color:#64748b;margin-top:4px">Baixa final: ' + formatarDataBR(n.dataBaixaFinal) + '</div>' : '';
+                const fornecedor = escaparHtmlImportacao(n.fornecedor || '-');
+                const cnpj = n.cnpj ? '<div style="font-size:11px;color:#94a3b8;margin-top:3px">' + escaparHtmlImportacao(n.cnpj) + '</div>' : '';
+                return '<tr>' +
+                    '<td>' + escaparHtmlImportacao(formatarDataBR(n.data)) + '</td>' +
+                    '<td><strong>' + escaparHtmlImportacao(n.nota || '-') + '</strong></td>' +
+                    '<td class="razao-notas-fornecedor">' + fornecedor + cnpj + '</td>' +
+                    '<td>' + escaparHtmlImportacao(formatarMoedaBR(n.valorBruto)) + '</td>' +
+                    '<td>' + escaparHtmlImportacao(formatarMoedaBR(n.baixadoNoMes)) + '</td>' +
+                    '<td>' + escaparHtmlImportacao(formatarMoedaBR(n.saldoAbertoMes)) + '</td>' +
+                    '<td><span class="razao-status ' + status + '">' + escaparHtmlImportacao(labelStatusRazao(status)) + '</span>' + detalheBaixa + '</td>' +
+                '</tr>';
+            }).join('');
+        }
+
+        function limparAnaliseRazaoNotas() {
+            ultimaAnaliseRazaoNotas = null;
+            const panel = document.getElementById('razaoNotasPanel');
+            if (panel) panel.classList.add('hidden');
+        }
+
+        function exportarRazaoNotasRelatorioCliente() {
+            if (!ultimaAnaliseRazaoNotas) {
+                showToast('Nenhuma análise de razão disponível para exportar.', 'error');
+                return;
+            }
+            const analise = ultimaAnaliseRazaoNotas;
+            const notas = notasRazaoFiltradas();
+            if (!notas.length) {
+                showToast('Nenhuma nota encontrada para os filtros atuais.', 'error');
+                return;
+            }
+
+            const mesFiltro = (document.getElementById('razaoNotasMes') || {}).value || '';
+            const statusFiltro = (document.getElementById('razaoNotasStatus') || {}).value || '';
+            const buscaFiltro = String((document.getElementById('razaoNotasBusca') || {}).value || '').trim();
+            const toCents = function(v) { return Math.round(Number(v || 0) * 100); };
+            const soma = function(campo) {
+                return notas.reduce(function(acc, n) { return acc + toCents(n[campo]); }, 0) / 100;
+            };
+            const pagasNoMes = notas.filter(function(n) { return n.statusMes === 'paga_no_mes'; });
+            const abertasMes = notas.filter(function(n) { return n.statusMes === 'aberta_mes_seguinte'; });
+            const abertasAtuais = notas.filter(function(n) { return statusVisualRazao(n) === 'em_aberto_atual'; });
+            const baixadasDepois = notas.filter(function(n) { return statusVisualRazao(n) === 'baixada_depois'; });
+            const periodoLabel = mesFiltro
+                ? labelMesRazao(mesFiltro)
+                : (formatarDataBR(analise.periodoInicio) + ' a ' + formatarDataBR(analise.periodoFim));
+            const filtrosAtivos = [
+                mesFiltro ? ('Mês: ' + labelMesRazao(mesFiltro)) : '',
+                statusFiltro ? ('Status: ' + labelStatusRazao(statusFiltro)) : '',
+                buscaFiltro ? ('Busca: ' + buscaFiltro) : ''
+            ].filter(Boolean).join(' | ') || 'Sem filtros adicionais';
+            const baixasSemNota = (analise.baixasSemNota || []).filter(function(b) { return !mesFiltro || b.mes === mesFiltro; });
+            const totalBaixasSemNota = baixasSemNota.reduce(function(a, b) { return a + Number(b.valor || 0); }, 0);
+            const empresa = (state.info && state.info.empresa) || 'Cliente';
+            const cnpj = (state.info && state.info.cnpj) || '';
+            const emissao = new Date().toLocaleString('pt-BR');
+            const esc = escaparHtmlImportacao;
+            const mesesRelatorio = Array.from(new Set(notas.map(function(n) { return n.mes; }))).sort();
+            const resumoMeses = mesesRelatorio.map(function(mes) {
+                const ns = notas.filter(function(n) { return n.mes === mes; });
+                const pagas = ns.filter(function(n) { return n.statusMes === 'paga_no_mes'; });
+                const abertas = ns.filter(function(n) { return n.statusMes === 'aberta_mes_seguinte'; });
+                return {
+                    mes,
+                    notas: ns.length,
+                    valorBruto: ns.reduce(function(a, n) { return a + toCents(n.valorBruto); }, 0) / 100,
+                    pagas: pagas.length,
+                    abertas: abertas.length,
+                    saldoAberto: abertas.reduce(function(a, n) { return a + toCents(n.saldoAbertoMes); }, 0) / 100
+                };
+            });
+            const linhasResumo = resumoMeses.map(function(r) {
+                return '<tr>' +
+                    '<td>' + esc(labelMesRazao(r.mes)) + '</td>' +
+                    '<td class="num">' + r.notas + '</td>' +
+                    '<td class="num">' + esc(formatarMoedaBR(r.valorBruto)) + '</td>' +
+                    '<td class="num ok">' + r.pagas + '</td>' +
+                    '<td class="num warn">' + r.abertas + '</td>' +
+                    '<td class="num danger">' + esc(formatarMoedaBR(r.saldoAberto)) + '</td>' +
+                '</tr>';
+            }).join('');
+            const linhasNotas = notas.map(function(n) {
+                const statusAtual = statusVisualRazao(n);
+                return '<tr>' +
+                    '<td>' + esc(labelMesRazao(n.mes)) + '</td>' +
+                    '<td>' + esc(formatarDataBR(n.data)) + '</td>' +
+                    '<td><strong>' + esc(n.nota || '-') + '</strong></td>' +
+                    '<td>' + esc(n.fornecedor || '-') + (n.cnpj ? '<div class="cnpj">' + esc(n.cnpj) + '</div>' : '') + '</td>' +
+                    '<td class="num">' + esc(formatarMoedaBR(n.valorBruto)) + '</td>' +
+                    '<td class="num">' + esc(formatarMoedaBR(n.baixadoNoMes)) + '</td>' +
+                    '<td class="num danger">' + esc(formatarMoedaBR(n.saldoAbertoMes)) + '</td>' +
+                    '<td>' + esc(labelStatusRazao(n.statusMes)) + '</td>' +
+                    '<td>' + esc(labelStatusRazao(statusAtual)) + (n.dataBaixaFinal && statusAtual === 'baixada_depois' ? '<div class="cnpj">Baixa final: ' + esc(formatarDataBR(n.dataBaixaFinal)) + '</div>' : '') + '</td>' +
+                '</tr>';
+            }).join('');
+            const html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' +
+                '<title>Relatório de notas pagas e em aberto</title>' +
+                '<style>' +
+                'body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#0f172a;background:#f8fafc}' +
+                '.page{max-width:1120px;margin:0 auto;background:#fff;min-height:100vh;padding:32px 36px}' +
+                '.top{display:flex;justify-content:space-between;gap:24px;border-bottom:3px solid #0f172a;padding-bottom:18px;margin-bottom:24px}' +
+                '.brand{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1d4ed8;margin-bottom:8px}' +
+                'h1{font-size:26px;line-height:1.2;margin:0 0 8px} h2{font-size:18px;margin:28px 0 10px}.meta{font-size:12px;color:#64748b;line-height:1.7;text-align:right}.client{font-size:14px;color:#334155;margin-top:8px}' +
+                '.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:22px 0}.card{border:1px solid #e2e8f0;border-radius:8px;padding:12px;background:#f8fafc}.label{font-size:10px;color:#64748b;text-transform:uppercase;font-weight:800;letter-spacing:.05em}.value{font-size:19px;font-weight:800;margin-top:6px}.ok{color:#15803d}.warn{color:#b45309}.danger{color:#dc2626}' +
+                '.note{border:1px solid #fde68a;background:#fffbeb;color:#92400e;border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.6;margin:16px 0}' +
+                'table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}th{background:#f1f5f9;color:#475569;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em}th,td{border-bottom:1px solid #e2e8f0;padding:8px 9px;vertical-align:top}.num{text-align:right;white-space:nowrap;font-family:Menlo,Consolas,monospace}.cnpj{font-size:10px;color:#64748b;margin-top:3px}.criteria{font-size:12px;line-height:1.7;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px}.foot{margin-top:24px;font-size:11px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:12px}' +
+                '@media print{body{background:#fff}.page{padding:18px;max-width:none}.cards{grid-template-columns:repeat(5,1fr)}button{display:none}}' +
+                '</style></head><body><main class="page">' +
+                '<section class="top"><div><div class="brand">SP Assessoria Contábil</div><h1>Relatório de notas pagas no mês e em aberto</h1><div class="client"><strong>' + esc(empresa) + '</strong>' + (cnpj ? '<br>CNPJ: ' + esc(cnpj) : '') + '</div></div>' +
+                '<div class="meta">Período: <strong>' + esc(periodoLabel) + '</strong><br>Emitido em: ' + esc(emissao) + '<br>Arquivo origem: ' + esc(analise.arquivo || '-') + '<br>Conta razão: ' + esc(analise.conta || '-') + '<br>Filtros: ' + esc(filtrosAtivos) + '</div></section>' +
+                '<section class="cards">' +
+                '<div class="card"><div class="label">Notas analisadas</div><div class="value">' + notas.length + '</div></div>' +
+                '<div class="card"><div class="label">Valor bruto</div><div class="value">' + esc(formatarMoedaBR(soma('valorBruto'))) + '</div></div>' +
+                '<div class="card"><div class="label">Pagas no mês</div><div class="value ok">' + pagasNoMes.length + '</div></div>' +
+                '<div class="card"><div class="label">Abertas p/ mês seguinte</div><div class="value warn">' + abertasMes.length + '</div></div>' +
+                '<div class="card"><div class="label">Saldo aberto</div><div class="value danger">' + esc(formatarMoedaBR(soma('saldoAbertoMes'))) + '</div></div>' +
+                '</section>' +
+                '<div class="criteria"><strong>Critério de apuração:</strong> créditos do razão foram tratados como notas/obrigações. Débitos vinculados por número da nota, CNPJ e descrição foram tratados como pagamentos, retenções ou baixas. Uma nota é considerada paga no próprio mês quando as baixas vinculadas até o fechamento do mês zeram o valor bruto; caso contrário, compõe o saldo aberto para o mês seguinte.</div>' +
+                (baixasSemNota.length ? '<div class="note">' + baixasSemNota.length + ' baixa(s) do período não foram vinculadas diretamente a uma nota deste arquivo, totalizando ' + esc(formatarMoedaBR(totalBaixasSemNota)) + '. Em geral, isso indica pagamentos de saldo anterior ou descrições sem número/CNPJ suficientes.</div>' : '') +
+                '<h2>Resumo por mês</h2><table><thead><tr><th>Mês</th><th class="num">Notas</th><th class="num">Valor bruto</th><th class="num">Pagas</th><th class="num">Abertas</th><th class="num">Saldo aberto</th></tr></thead><tbody>' + linhasResumo + '</tbody></table>' +
+                '<h2>Relação de notas</h2><table><thead><tr><th>Mês</th><th>Emissão</th><th>Nota</th><th>Fornecedor</th><th class="num">Valor bruto</th><th class="num">Baixado no mês</th><th class="num">Saldo p/ mês seguinte</th><th>Status no mês</th><th>Situação atual</th></tr></thead><tbody>' + linhasNotas + '</tbody></table>' +
+                '<div class="foot">Relatório gerado automaticamente a partir do razão exportado do sistema contábil. Recomenda-se conferência manual das baixas sem vínculo antes do envio definitivo.</div>' +
+                '</main></body></html>';
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+            const a = document.createElement('a');
+            const slugEmpresa = String(empresa || 'cliente').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').toLowerCase().slice(0, 50) || 'cliente';
+            const periodoSlug = String(mesFiltro || 'periodo').replace(/[^0-9a-z_-]+/gi, '_');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'relatorio_notas_pagas_em_aberto_' + slugEmpresa + '_' + periodoSlug + '.html';
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showToast('Relatório do cliente gerado em HTML. Abra o arquivo para imprimir ou salvar em PDF.', 'success');
+        }
+
+        function exportarRazaoNotasCSV() {
+            if (!ultimaAnaliseRazaoNotas) {
+                showToast('Nenhuma análise de razão disponível para exportar.', 'error');
+                return;
+            }
+            const notas = notasRazaoFiltradas();
+            const headers = ['mes','data_emissao','nota','cnpj','fornecedor','valor_bruto','baixado_no_mes','retencoes_no_mes','pagamentos_no_mes','saldo_para_mes_seguinte','baixado_total','saldo_atual','status'];
+            const esc = function(v) {
+                return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+            };
+            const linhas = notas.map(function(n) {
+                return [
+                    labelMesRazao(n.mes),
+                    formatarDataBR(n.data),
+                    n.nota || '',
+                    n.cnpj || '',
+                    n.fornecedor || '',
+                    n.valorBruto,
+                    n.baixadoNoMes,
+                    n.retencoesNoMes,
+                    n.pagamentosNoMes,
+                    n.saldoAbertoMes,
+                    n.baixadoTotal,
+                    n.saldoAtual,
+                    labelStatusRazao(statusVisualRazao(n))
+                ].map(esc).join(';');
+            });
+            const csv = '\ufeff' + headers.join(';') + '\n' + linhas.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            const mes = (document.getElementById('razaoNotasMes') || {}).value || 'todos';
+            a.href = URL.createObjectURL(blob);
+            a.download = 'razao_notas_' + mes + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showToast('CSV do relatório de notas gerado.', 'success');
+        }
+
         async function extrairTextoPDFParaConferencia(arrayBuffer) {
             if (typeof pdfjsLib === 'undefined') return '';
             const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -6014,6 +6810,22 @@
             }, 100);
             if (f) showFilePreview(f);
         }
+
+        function ajustarCamposUploadPorExtensao(ext) {
+            const ehPlanilha = ext === 'xlsx' || ext === 'xls';
+            const labelBanco = document.getElementById('uploadBancoLabel');
+            const labelTitulo = document.getElementById('uploadTituloLabel');
+            const titulo = document.getElementById('uploadTitulo');
+            const hint = document.getElementById('uploadRazaoHint');
+            if (labelBanco) labelBanco.textContent = ehPlanilha ? 'Banco (se for extrato)' : 'Banco *';
+            if (labelTitulo) labelTitulo.textContent = ehPlanilha ? 'Título (se for importação)' : 'Título do Relatório *';
+            if (titulo) {
+                titulo.placeholder = ehPlanilha
+                    ? 'Razão de saldos dispensa título; extratos XLSX usam este nome'
+                    : 'Ex.: Itaú Jan/2025 — Igreja Itapevi';
+            }
+            if (hint) hint.style.display = ehPlanilha ? 'block' : 'none';
+        }
         
         function showFilePreview(f) {
             if (!state.infoConfirmed) {
@@ -6027,6 +6839,7 @@
                 showToast('Formato não suportado! Use PDF, OFX, CSV, XLSX ou XLS.', 'error');
                 return;
             }
+            ajustarCamposUploadPorExtensao(ext);
             
             selectedFile = f;
             const preview = document.getElementById('filePreview');
@@ -6073,6 +6886,8 @@
             document.getElementById('filePreview').classList.remove('show');
             document.getElementById('dropZone').style.display = 'block';
             document.getElementById('fileInput').value = '';
+            limparAnaliseRazaoNotas();
+            ajustarCamposUploadPorExtensao('');
             try { atualizarLayoutsUpload(); } catch(e) {}
         }
         
@@ -6082,6 +6897,8 @@
             document.getElementById('successMessage').classList.remove('show');
             document.getElementById('dropZone').style.display = 'block';
             document.getElementById('fileInput').value = '';
+            limparAnaliseRazaoNotas();
+            ajustarCamposUploadPorExtensao('');
             try { atualizarLayoutsUpload(); } catch(e) {}
         }
         
@@ -6097,14 +6914,16 @@
             
             const bancoCode = document.getElementById('uploadBanco')?.value || '';
             const titulo = document.getElementById('uploadTitulo')?.value?.trim() || '';
-            if (!bancoCode) { showToast('Selecione o banco do extrato.', 'error'); return; }
-            if (!titulo) { showToast('Informe o titulo do relatorio.', 'error'); return; }
+            const ext = selectedFile.name.split('.').pop().toLowerCase();
+            const layoutPdfSelecionado = ext === 'pdf' ? ((document.getElementById('uploadLayoutPdf') || {}).value || '') : '';
+            if (ext !== 'xlsx' && ext !== 'xls') {
+                if (!bancoCode) { showToast('Selecione o banco do extrato.', 'error'); return; }
+                if (!titulo) { showToast('Informe o titulo do relatorio.', 'error'); return; }
+            }
             
             const importacaoId = (crypto.randomUUID ? crypto.randomUUID() : 'imp_' + Date.now() + '_' + Math.random().toString(36).slice(2));
             const bancoNome = nomeBanco(bancoCode);
             
-	            const ext = selectedFile.name.split('.').pop().toLowerCase();
-	            const layoutPdfSelecionado = ext === 'pdf' ? ((document.getElementById('uploadLayoutPdf') || {}).value || '') : '';
             showProcessing();
             
             try {
@@ -6115,6 +6934,14 @@
                     entries = parseOFX(await lerArquivoTexto(selectedFile, 'windows-1252'));
                 } else if (ext === 'xlsx' || ext === 'xls') {
                     entries = await parsearArquivoXLSX(selectedFile, {});
+                    if (ehAnaliseRazaoNotas(entries)) {
+                        hideProcessing();
+                        mostrarAnaliseRazaoNotas(entries);
+                        showToast('Relatório de notas do razão gerado. Nada foi importado como lançamento.', 'success');
+                        return;
+                    }
+                    if (!bancoCode) { hideProcessing(); showToast('XLSX não reconhecido como razão de saldos. Para importar como extrato, selecione o banco.', 'error'); return; }
+                    if (!titulo) { hideProcessing(); showToast('XLSX não reconhecido como razão de saldos. Para importar como extrato, informe o título.', 'error'); return; }
                 } else {
                     entries = await parsearArquivoTexto(selectedFile, 'csv', {});
                 }

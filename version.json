@@ -1,9 +1,9 @@
 {
-  "version": "3.1.80",
-  "build_date": "2026-05-14T10:55:00-03:00",
+  "version": "3.1.81",
+  "build_date": "2026-05-14T11:38:29-03:00",
   "release_notes": [
-    "Exportacao IOB FI voltou ao registro validado de 328 caracteres por linha",
-    "Removidos campos extras finais que podiam fazer o IOB SAGE interpretar o ano como 0",
-    "Arquivo FI passa a manter IMP_FINANCEIRO e tipo de movimento 8 nas posicoes do layout validado"
+    "Razao de saldos XLSX agora gera relatorio de notas pagas no proprio mes e abertas para o mes seguinte",
+    "Arquivos XLSX de razao nao exigem Banco ou Titulo antes do processamento",
+    "Incluida exportacao de relatorio para cliente e CSV tecnico da analise de notas"
   ]
 }
