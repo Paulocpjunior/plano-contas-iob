@@ -462,7 +462,9 @@
     }
     const textoNativo = textosPdf.join('\n');
     if (textoNativo.trim().length > 120 && pareceExtratoSantander(textoNativo)) {
-      return parsearTexto_SantanderEmpresas(textosPdf);
+      const nativo = parsearTexto_SantanderEmpresas(textosPdf);
+      if (nativo && nativo.detectado && (nativo.lancamentos || []).length) return nativo;
+      console.warn('[santander] texto nativo reconheceu Santander, mas nao extraiu lancamentos; tentando OCR');
     }
 
     const textosOCR = await extrairTextoPorPaginaComOCR(pdf);

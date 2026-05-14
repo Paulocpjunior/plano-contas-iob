@@ -1,9 +1,9 @@
 {
-  "version": "3.1.78",
-  "build_date": "2026-05-13T16:55:00-03:00",
+  "version": "3.1.79",
+  "build_date": "2026-05-14T09:20:00-03:00",
   "release_notes": [
-    "Novo layout CARTAO_ITAU_CLUDE para fatura analitica de cartao Itaucard da CLUDE",
-    "Historico passa a ser reaplicado por descricao do servico e fornecedor limpos, sem numeros variaveis de transacao",
-    "Fatura cartao CLUDE validada com 97 lancamentos e total de saidas 48452,08"
+    "Santander PDF agora tenta OCR quando a camada nativa do PDF reconhece o banco mas nao extrai lancamentos",
+    "Mantida a tentativa automatica entre Santander 1 e Santander 2 para banco 033",
+    "Arquivo santander abril 26 validado localmente com 30 lancamentos no layout Internet Banking Empresarial"
   ]
 }
