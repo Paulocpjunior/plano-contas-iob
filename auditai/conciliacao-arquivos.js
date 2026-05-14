@@ -43,6 +43,17 @@
       .trim();
   }
 
+  function searchableText(value) {
+    return String(value || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g, ' ')
+      .replace(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g, ' ')
+      .replace(/[^A-Z0-9 ]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   function parseMoney(value) {
     if (value === null || value === undefined || value === '') return null;
     if (typeof value === 'number' && Number.isFinite(value)) return Number(value.toFixed(2));
@@ -111,8 +122,68 @@
     const right = new Set(tokens(b));
     if (!left.size || !right.size) return 0;
     let intersection = 0;
-    left.forEach(function (w) { if (right.has(w)) intersection++; });
-    return intersection / Math.max(left.size, right.size);
+    left.forEach(function (w) { if (hasComparableToken(w, right)) intersection++; });
+    return Math.min(1, intersection / Math.max(left.size, right.size));
+  }
+
+  function hasComparableToken(word, set) {
+    if (set.has(word)) return true;
+    if (word.length < 5) return false;
+    return Array.from(set).some(function (other) {
+      return other.length >= 5 && (word.indexOf(other) === 0 || other.indexOf(word) === 0);
+    });
+  }
+
+  function coverageSimilarity(a, b) {
+    const left = new Set(tokens(a));
+    const right = new Set(tokens(b));
+    if (!left.size || !right.size) return 0;
+    let intersection = 0;
+    left.forEach(function (w) { if (hasComparableToken(w, right)) intersection++; });
+    return Math.min(1, intersection / Math.min(left.size, right.size));
+  }
+
+  function referenceNumbers(value) {
+    const ignored = new Set(['1154', '17841', '2025', '2026', '2027']);
+    const found = normalizeText(value).match(/\b\d{3,}\b/g) || [];
+    return new Set(found.filter(function (number) {
+      if (ignored.has(number)) return false;
+      if (/^(?:0+|1{3,}|9{3,})$/.test(number)) return false;
+      return true;
+    }));
+  }
+
+  function hasSharedReference(a, b) {
+    const left = referenceNumbers(a);
+    const right = referenceNumbers(b);
+    if (!left.size || !right.size) return false;
+    return Array.from(left).some(function (number) { return right.has(number); });
+  }
+
+  function movementClasses(value) {
+    const text = searchableText(value);
+    const classes = [];
+    if (/\b(REND|REDN|RENDIMENTO)\b/.test(text)) classes.push('rendimento');
+    if (/\bIOF\b/.test(text)) classes.push('iof');
+    if (/\b(TAR|TARIFA|CUSTAS?|COBRANCA)\b/.test(text)) classes.push('tarifa');
+    if (/\b(CHQ|CHEQUE|COMPENSADO|SAQ DIN)\b/.test(text) || /\bD\s+CH\b/.test(text)) classes.push('cheque');
+    if (/\b(SISPAG|FORNECEDOR(?:ES)?|CONTAS? LITE|PAGAMENTO|PAGTO|PGTO)\b/.test(text)) classes.push('fornecedor');
+    if (/\b(PIX|QRS|DEP ON LINE|DEPOSITOS DIVERSOS|DEPOSITO DIVERSO)\b/.test(text)) classes.push('pix');
+    if (/\b(TRIBUTO(?:S)?|DARF|DARE|GPS|FGTS|IMPOSTO|IRRF|INSS)\b/.test(text)) classes.push('tributo');
+    if (/\b(APLIC|APLICACAO|APLIC AUT|AUT MAIS|RESGATE)\b/.test(text)) classes.push('aplicacao');
+    if (/\b(PEDAGIO|SEM PARAR)\b/.test(text)) classes.push('pedagio');
+    return new Set(classes);
+  }
+
+  function sharedMovementClasses(a, b) {
+    const left = movementClasses(a);
+    const right = movementClasses(b);
+    return Array.from(left).filter(function (name) { return right.has(name); });
+  }
+
+  function hasHighSignalClass(classes) {
+    const highSignal = new Set(['rendimento', 'iof', 'tarifa', 'cheque', 'tributo', 'aplicacao', 'pedagio']);
+    return classes.some(function (name) { return highSignal.has(name); });
   }
 
   function sameDirection(a, b) {
@@ -131,23 +202,49 @@
     const dateGap = daysBetween(a.date, b.date);
     const textScore = similarity(a.description, b.description);
     const meaningfulScore = meaningfulSimilarity(a.description, b.description);
+    const coverageScore = coverageSimilarity(a.description, b.description);
+    const sharedReference = hasSharedReference(a.description, b.description);
+    const classes = sharedMovementClasses(a.description, b.description);
+    const sharedHighSignalClass = hasHighSignalClass(classes);
     const hasMeaningfulText = meaningfulScore >= 0.25;
+    const hasCoverageText = coverageScore >= 0.45;
     const sameDay = dateGap === 0;
     const closeDate = dateGap <= 3;
     const extendedDate = dateGap <= 10;
     let ok = false;
     let reason = '';
 
-    if (sameDay && (hasMeaningfulText || textScore >= 0.25)) ok = true;
-    else if (closeDate && hasMeaningfulText) ok = true;
-    else if (extendedDate && meaningfulScore >= 0.45) ok = true;
+    if (sameDay && sharedReference) {
+      ok = true;
+      reason = 'referencia comum';
+    } else if (sameDay && (hasMeaningfulText || hasCoverageText || textScore >= 0.25)) {
+      ok = true;
+      reason = 'descricao compativel';
+    } else if (sameDay && sharedHighSignalClass) {
+      ok = true;
+      reason = 'tipo bancario compativel';
+    } else if (closeDate && sharedReference) {
+      ok = true;
+      reason = 'referencia comum';
+    } else if (closeDate && (coverageScore >= 0.55 || meaningfulScore >= 0.35)) {
+      ok = true;
+      reason = 'descricao compativel';
+    } else if (closeDate && sharedHighSignalClass && meaningfulScore >= 0.15) {
+      ok = true;
+      reason = 'tipo bancario compativel';
+    } else if (extendedDate && (sharedReference || coverageScore >= 0.7 || meaningfulScore >= 0.55)) {
+      ok = true;
+      reason = sharedReference ? 'referencia comum' : 'descricao compativel';
+    }
     else if (dateGap > 10) reason = 'data distante';
     else reason = 'descricao insuficiente';
 
     const datePoints = Math.max(0, 25 - dateGap * 4);
-    const textPoints = Math.round(Math.max(textScore, meaningfulScore) * 25);
-    const score = Math.min(99, 50 + datePoints + textPoints);
-    return { ok: ok, amountDiff: amountDiff, dateGap: dateGap, textScore: textScore, meaningfulScore: meaningfulScore, score: score, reason: reason };
+    const textPoints = Math.round(Math.max(textScore, meaningfulScore, coverageScore) * 24);
+    const referencePoints = sharedReference ? 10 : 0;
+    const classPoints = sharedHighSignalClass ? 8 : (classes.length ? 4 : 0);
+    const score = Math.min(99, 48 + datePoints + textPoints + referencePoints + classPoints);
+    return { ok: ok, amountDiff: amountDiff, dateGap: dateGap, textScore: textScore, meaningfulScore: meaningfulScore, coverageScore: coverageScore, sharedReference: sharedReference, sharedClass: classes.join(','), score: score, reason: reason };
   }
 
   function classifyColumns(rows) {
@@ -511,40 +608,103 @@
   }
 
   function reconcileRows(aRows, bRows) {
+    const usedA = new Set();
     const usedB = new Set();
     const matches = [];
-    const unmatchedA = [];
+    const candidates = [];
 
-    aRows.forEach(function (a) {
-      let best = null;
+    aRows.forEach(function (a, aIndex) {
       bRows.forEach(function (b, index) {
-        if (usedB.has(index)) return;
         const decision = matchDecision(a, b);
         if (!decision.ok) return;
-        if (!best || decision.score > best.score) best = { b: b, index: index, score: decision.score, dateGap: decision.dateGap, textScore: decision.textScore, meaningfulScore: decision.meaningfulScore };
+        candidates.push({ a: a, b: b, aIndex: aIndex, bIndex: index, decision: decision });
       });
-      if (best) {
-        usedB.add(best.index);
-        matches.push({ a: a, b: best.b, score: Math.min(100, best.score), dateGap: best.dateGap, textScore: best.textScore });
-      } else {
-        unmatchedA.push(a);
-      }
     });
 
+    candidates.sort(function (x, y) {
+      return (y.decision.score - x.decision.score) ||
+        (x.decision.amountDiff - y.decision.amountDiff) ||
+        (x.decision.dateGap - y.decision.dateGap) ||
+        (y.decision.coverageScore - x.decision.coverageScore) ||
+        (y.decision.meaningfulScore - x.decision.meaningfulScore) ||
+        ((x.a.sourceLine || 0) - (y.a.sourceLine || 0));
+    });
+
+    function addMatch(a, b, aIndex, bIndex, decision, scoreOverride) {
+      usedA.add(aIndex);
+      usedB.add(bIndex);
+      matches.push({
+        a: a,
+        b: b,
+        score: Math.min(100, scoreOverride || decision.score),
+        dateGap: decision.dateGap,
+        textScore: decision.textScore,
+        meaningfulScore: decision.meaningfulScore,
+        coverageScore: decision.coverageScore,
+        reason: decision.reason
+      });
+    }
+
+    candidates.forEach(function (candidate) {
+      if (usedA.has(candidate.aIndex) || usedB.has(candidate.bIndex)) return;
+      addMatch(candidate.a, candidate.b, candidate.aIndex, candidate.bIndex, candidate.decision);
+    });
+
+    function exactKey(row) {
+      if (!row.date || !Number.isFinite(row.amount) || Math.abs(row.amount) === 0) return '';
+      return [row.date, row.amount < 0 ? 'D' : 'C', Math.abs(row.amount).toFixed(2)].join('|');
+    }
+
+    const remainingAByKey = new Map();
+    const remainingBByKey = new Map();
+    aRows.forEach(function (a, index) {
+      if (usedA.has(index)) return;
+      const key = exactKey(a);
+      if (!key) return;
+      if (!remainingAByKey.has(key)) remainingAByKey.set(key, []);
+      remainingAByKey.get(key).push({ row: a, index: index });
+    });
+    bRows.forEach(function (b, index) {
+      if (usedB.has(index)) return;
+      const key = exactKey(b);
+      if (!key) return;
+      if (!remainingBByKey.has(key)) remainingBByKey.set(key, []);
+      remainingBByKey.get(key).push({ row: b, index: index });
+    });
+
+    remainingAByKey.forEach(function (left, key) {
+      const right = remainingBByKey.get(key) || [];
+      if (left.length !== 1 || right.length !== 1) return;
+      const a = left[0].row;
+      const b = right[0].row;
+      const decision = matchDecision(a, b);
+      decision.ok = true;
+      decision.reason = 'data e valor unicos';
+      decision.score = Math.max(decision.score || 0, 92);
+      addMatch(a, b, left[0].index, right[0].index, decision);
+    });
+
+    matches.sort(function (x, y) {
+      return String(x.a.date || '').localeCompare(String(y.a.date || '')) ||
+        ((x.a.sourceLine || 0) - (y.a.sourceLine || 0)) ||
+        String(x.a.description || '').localeCompare(String(y.a.description || ''));
+    });
+
+    const unmatchedA = aRows.filter(function (_, index) { return !usedA.has(index); });
     const unmatchedB = bRows.filter(function (_, index) { return !usedB.has(index); });
     const possible = [];
     unmatchedA.forEach(function (a) {
       unmatchedB.forEach(function (b) {
         const decision = matchDecision(a, b);
-        const nearAmount = decision.amountDiff <= 2 && sameDirection(a.amount, b.amount);
-        const relatedText = decision.meaningfulScore >= 0.35 || decision.textScore >= 0.55;
+        const nearAmount = decision.amountDiff <= 2 && sameDirection(a.amount, b.amount) && decision.dateGap <= 10;
+        const relatedText = decision.meaningfulScore >= 0.35 || decision.coverageScore >= 0.55 || decision.textScore >= 0.55;
         if (nearAmount || relatedText) {
-          possible.push({ a: a, b: b, amountDiff: decision.amountDiff, dateGap: decision.dateGap, textScore: decision.textScore, meaningfulScore: decision.meaningfulScore, reason: decision.reason || 'conferencia manual' });
+          possible.push({ a: a, b: b, amountDiff: decision.amountDiff, dateGap: decision.dateGap, textScore: decision.textScore, meaningfulScore: decision.meaningfulScore, coverageScore: decision.coverageScore, reason: decision.reason || 'conferencia manual' });
         }
       });
     });
     possible.sort(function (x, y) {
-      return (x.amountDiff - y.amountDiff) || (x.dateGap - y.dateGap) || (y.meaningfulScore - x.meaningfulScore) || (y.textScore - x.textScore);
+      return (x.amountDiff - y.amountDiff) || (x.dateGap - y.dateGap) || (y.coverageScore - x.coverageScore) || (y.meaningfulScore - x.meaningfulScore) || (y.textScore - x.textScore);
     });
 
     return { matches: matches, unmatchedA: unmatchedA, unmatchedB: unmatchedB, possible: possible.slice(0, 80) };

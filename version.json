@@ -1,9 +1,9 @@
 {
-  "version": "3.1.83",
-  "build_date": "2026-05-14T13:37:54-03:00",
+  "version": "3.1.84",
+  "build_date": "2026-05-14T14:42:30-03:00",
   "release_notes": [
-    "Conciliacao do razao passa a vincular pagamentos por fornecedor, valor e competencia quando nao ha CNPJ na baixa",
-    "Pagamentos com numero da NF no mesmo mes conciliam mesmo quando a baixa aparece antes do lancamento da nota",
-    "Baixas que citam varias notas no mesmo pagamento agora podem liquidar mais de uma nota"
+    "AuditaAI passa a conciliar extratos por data, valor e sinal unicos mesmo quando o banco resume a descricao",
+    "Reconhecimento de tipos bancarios como rendimento, IOF, tarifa, cheque, tributo e aplicacao foi reforcado",
+    "Comparacao de arquivos financeiros agora evita deixar como divergencia movimentos identicos sem descricao suficiente"
   ]
 }
