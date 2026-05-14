@@ -22,6 +22,7 @@
     <script src="/parser-bb-cash-ocr.js?v=3.1.81"></script>
     <script src="/parser-itau-extrato-mensal.js?v=3.1.81"></script>
     <script src="/parser-santander-empresas-ocr.js?v=3.1.81"></script>
+    <script src="/parser-btg-pactual.js?v=3.1.87"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -3649,11 +3650,15 @@
 	                    nome: 'Santander 2 - Extrato Consolidado Inteligente OCR',
 	                    parser: 'parsearPDF_Santander_EmpresasOCR'
 	                }],
-	                '422': [{
-	                    nome: 'Safra - Extrato de Movimentacao',
-	                    parser: 'parsearPDF_Safra_Extrato'
-	                }]
-	            };
+		                '422': [{
+		                    nome: 'Safra - Extrato de Movimentacao',
+		                    parser: 'parsearPDF_Safra_Extrato'
+		                }],
+		                '208': [{
+		                    nome: 'BTG Pactual - Conta corrente PJ',
+		                    parser: 'parsearPDF_BTG_Pactual'
+		                }]
+		            };
 	            return layouts[code] || [];
 	        }
 

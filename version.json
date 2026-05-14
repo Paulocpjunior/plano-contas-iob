@@ -1,9 +1,9 @@
 {
-  "version": "3.1.86",
-  "build_date": "2026-05-14T16:11:03-03:00",
+  "version": "3.1.87",
+  "build_date": "2026-05-14T16:49:39-03:00",
   "release_notes": [
-    "AuditaAI separa itens com mesma data e valor em Revisao manual, sem classificar como divergencia",
-    "Confronto Itau amplia conciliacao residual de lotes Sispag, pagamentos e creditos detalhados",
-    "Aderencia passa a medir os itens comparaveis, mantendo itens sem vinculo em indicadores proprios"
+    "Banco BTG Pactual 208 passa a ter layout PDF textual cadastrado para Conta corrente PJ",
+    "Novo parser BTG le descricoes multiline, valor, saldo, periodo e totais oficiais do extrato",
+    "Importacao valida totais de entradas e saidas do arquivo ERF Janeiro 2026 antes de gravar"
   ]
 }

@@ -36,6 +36,25 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-05-13T10:35:00-03:00',
     observacao: 'Layout Santander Internet Banking Empresarial agrupado por data em extenso, com linhas CREDITO/DEBITO R$ valor.'
+  },
+  {
+    id: 'btg-erf-holding-2026-01',
+    banco: '208',
+    nomeBanco: 'Banco BTG Pactual',
+    layout: 'BTG Pactual - Conta corrente PJ',
+    parser: 'parsearPDF_BTG_Pactual',
+    arquivo: 'ERF- JANEIRO DE 2026.pdf',
+    empresa: 'ERF HOLDING PATRIMONIAL LTDA',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    esperado: {
+      total_lancamentos: 43,
+      total_credito: 18754.38,
+      total_debito: 17209.38
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-14T16:49:39-03:00',
+    observacao: 'Layout BTG textual com data, descricao multiline, valor e saldo em colunas fixas.'
   }
 ];
 

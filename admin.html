@@ -310,6 +310,17 @@ const LAYOUTS_BANCARIOS = [
     status: 'Ativo',
     ultimoTeste: 'EXTRATO SAFRA - CC 172128-9 (2).pdf',
     observacao: 'Extrai data, histórico, complemento, documento e valor.'
+  },
+  {
+    banco: '208',
+    nomeBanco: 'Banco BTG Pactual',
+    layout: 'BTG Pactual - Conta corrente PJ',
+    parser: 'parsearPDF_BTG_Pactual',
+    formato: 'PDF textual',
+    confiabilidade: 'Alta',
+    status: 'Ativo',
+    ultimoTeste: 'ERF- JANEIRO DE 2026.pdf',
+    observacao: 'Lê extrato BTG Conta corrente PJ com descrições multiline, valor e saldo por colunas.'
   }
 ];
 
