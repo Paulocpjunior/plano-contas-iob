@@ -862,6 +862,10 @@
       return /\bSISPAG\b/.test(searchableText(row.description));
     }
 
+    function isPaymentDetail(row) {
+      return /\b(SISPAG|FIN\s+VEIC|PAGTO\s+CDC|PAGAMENTO\s+DE\s+FORNECEDORES|D\s+CH|CHQ|COMPENSADO|003\d{3})\b/.test(searchableText(row.description));
+    }
+
     function matchPaymentBatches() {
       const openA = aRows.map(function (row, index) { return { row: row, index: index }; })
         .filter(function (item) {
@@ -887,8 +891,69 @@
       });
     }
 
+    function matchResidualPaymentBatches() {
+      const openA = aRows.map(function (row, index) { return { row: row, index: index }; })
+        .filter(function (item) {
+          return !usedA.has(item.index) &&
+            aggregateBucket(item.row) === 'pagamentos' &&
+            amountCents(item.row.amount) >= 1000;
+        })
+        .sort(function (a, b) { return amountCents(b.row.amount) - amountCents(a.row.amount); });
+
+      openA.forEach(function (aItem) {
+        if (usedA.has(aItem.index)) return;
+        const right = bRows.map(function (row, index) { return { row: row, index: index }; }).filter(function (item) {
+          return !usedB.has(item.index) &&
+            item.row.date === aItem.row.date &&
+            aggregateBucket(item.row) === 'pagamentos' &&
+            isPaymentDetail(item.row);
+        });
+        if (right.length < 2) return;
+        const subsetRight = findSubsetBySum(right.map(function (item) { return item.row; }), amountCents(aItem.row.amount), 100, 500000);
+        if (!subsetRight || subsetRight.length < 2) return;
+        addAggregateMatch([aItem], right.filter(function (item) { return subsetRight.indexOf(item.row) !== -1; }), 'lote de pagamentos residual', 92);
+      });
+    }
+
+    function isCreditBatchSummary(row) {
+      const text = searchableText(row.description);
+      return row.amount > 0 && !/\b(REND|REDN|RENDIMENTO|RES\s+APLIC|APL\s+APLIC|APLIC\s+AUT\s+MAIS)\b/.test(text);
+    }
+
+    function isCreditBatchDetail(row) {
+      const text = searchableText(row.description);
+      return row.amount > 0 && !/\b(REND|REDN|RENDIMENTO|RES\s+APLIC|APL\s+APLIC|APLIC\s+AUT\s+MAIS)\b/.test(text);
+    }
+
+    function matchResidualCreditBatches() {
+      const openA = aRows.map(function (row, index) { return { row: row, index: index }; })
+        .filter(function (item) {
+          return !usedA.has(item.index) &&
+            isCreditBatchSummary(item.row) &&
+            ['cobranca', 'credito'].indexOf(aggregateBucket(item.row)) !== -1 &&
+            amountCents(item.row.amount) >= 1000;
+        })
+        .sort(function (a, b) { return amountCents(b.row.amount) - amountCents(a.row.amount); });
+
+      openA.forEach(function (aItem) {
+        if (usedA.has(aItem.index)) return;
+        const right = bRows.map(function (row, index) { return { row: row, index: index }; }).filter(function (item) {
+          return !usedB.has(item.index) &&
+            item.row.date === aItem.row.date &&
+            isCreditBatchDetail(item.row) &&
+            ['cobranca', 'credito'].indexOf(aggregateBucket(item.row)) !== -1;
+        });
+        if (right.length < 2) return;
+        const subsetRight = findSubsetBySum(right.map(function (item) { return item.row; }), amountCents(aItem.row.amount), 100, 500000);
+        if (!subsetRight || subsetRight.length < 2) return;
+        addAggregateMatch([aItem], right.filter(function (item) { return subsetRight.indexOf(item.row) !== -1; }), 'lote de creditos residual', 90);
+      });
+    }
+
     matchCollectionBatches();
     matchPaymentBatches();
+    matchResidualPaymentBatches();
+    matchResidualCreditBatches();
 
     matches.sort(function (x, y) {
       return String(x.a.date || '').localeCompare(String(y.a.date || '')) ||
@@ -896,14 +961,46 @@
         String(x.a.description || '').localeCompare(String(y.a.description || ''));
     });
 
-    const unmatchedA = aRows.filter(function (_, index) { return !usedA.has(index); });
-    const unmatchedB = bRows.filter(function (_, index) { return !usedB.has(index); });
+    function groupOpenByExactKey(rows, usedSet) {
+      const grouped = new Map();
+      rows.forEach(function (row, index) {
+        if (usedSet.has(index)) return;
+        const key = exactKey(row);
+        if (!key) return;
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push({ row: row, index: index });
+      });
+      return grouped;
+    }
+
+    const ambiguousA = new Set();
+    const ambiguousB = new Set();
+    const ambiguous = [];
+    const openAByExact = groupOpenByExactKey(aRows, usedA);
+    const openBByExact = groupOpenByExactKey(bRows, usedB);
+    openAByExact.forEach(function (left, key) {
+      const right = openBByExact.get(key) || [];
+      if (!left.length || !right.length) return;
+      if (left.length === 1 && right.length === 1) return;
+      left.forEach(function (item) { ambiguousA.add(item.index); });
+      right.forEach(function (item) { ambiguousB.add(item.index); });
+      ambiguous.push({
+        aRows: left.map(function (item) { return item.row; }),
+        bRows: right.map(function (item) { return item.row; }),
+        amountDiff: 0,
+        dateGap: 0,
+        reason: 'mesma data e valor com multiplas opcoes'
+      });
+    });
+
+    const unmatchedA = aRows.filter(function (_, index) { return !usedA.has(index) && !ambiguousA.has(index); });
+    const unmatchedB = bRows.filter(function (_, index) { return !usedB.has(index) && !ambiguousB.has(index); });
     const possible = [];
     unmatchedA.forEach(function (a) {
       unmatchedB.forEach(function (b) {
         const decision = matchDecision(a, b);
-        const nearAmount = decision.amountDiff <= 2 && sameDirection(a.amount, b.amount) && decision.dateGap <= 10;
-        const relatedText = decision.meaningfulScore >= 0.35 || decision.coverageScore >= 0.55 || decision.textScore >= 0.55;
+        const nearAmount = decision.amountDiff > 0.01 && decision.amountDiff <= 2 && sameDirection(a.amount, b.amount) && decision.dateGap <= 3;
+        const relatedText = decision.dateGap <= 10 && (decision.meaningfulScore >= 0.45 || decision.coverageScore >= 0.7 || decision.textScore >= 0.65);
         if (nearAmount || relatedText) {
           possible.push({ a: a, b: b, amountDiff: decision.amountDiff, dateGap: decision.dateGap, textScore: decision.textScore, meaningfulScore: decision.meaningfulScore, coverageScore: decision.coverageScore, reason: decision.reason || 'conferencia manual' });
         }
@@ -913,7 +1010,17 @@
       return (x.amountDiff - y.amountDiff) || (x.dateGap - y.dateGap) || (y.coverageScore - x.coverageScore) || (y.meaningfulScore - x.meaningfulScore) || (y.textScore - x.textScore);
     });
 
-    return { matches: matches, unmatchedA: unmatchedA, unmatchedB: unmatchedB, possible: possible.slice(0, 80), matchedA: usedA.size, matchedB: usedB.size };
+    return {
+      matches: matches,
+      unmatchedA: unmatchedA,
+      unmatchedB: unmatchedB,
+      possible: possible.slice(0, 80),
+      ambiguous: ambiguous,
+      matchedA: usedA.size,
+      matchedB: usedB.size,
+      comparableA: usedA.size + ambiguousA.size,
+      comparableB: usedB.size + ambiguousB.size
+    };
   }
 
   function money(value) {
@@ -1014,6 +1121,17 @@
       }).join('') + '</tbody></table></div>';
   }
 
+  function renderAmbiguous(rows) {
+    if (!rows.length) return '<p class="text-sm text-slate-500">Nenhum item ambíguo encontrado.</p>';
+    return '<div class="overflow-auto max-h-80"><table class="w-full text-xs"><thead class="bg-blue-50 dark:bg-blue-900/20 sticky top-0"><tr><th class="p-2 text-left">Arquivo A</th><th class="p-2 text-left">Opções no Arquivo B</th><th class="p-2 text-left">Motivo</th></tr></thead><tbody>' +
+      rows.slice(0, 80).map(function (m) {
+        const left = (m.aRows || []).map(function (r) { return escapeHtml(r.date || '-') + ' · ' + escapeHtml(r.description) + '<br><b>' + money(r.amount) + '</b>'; }).join('<hr class="my-2 border-slate-200 dark:border-slate-700">');
+        const right = (m.bRows || []).slice(0, 8).map(function (r) { return escapeHtml(r.date || '-') + ' · ' + escapeHtml(r.description) + '<br><b>' + money(r.amount) + '</b>'; }).join('<hr class="my-2 border-slate-200 dark:border-slate-700">');
+        const more = (m.bRows || []).length > 8 ? '<br><span class="text-slate-400">+' + ((m.bRows || []).length - 8) + ' opção(ões)</span>' : '';
+        return '<tr class="border-t dark:border-slate-700"><td class="p-2 align-top">' + left + '</td><td class="p-2 align-top">' + right + more + '</td><td class="p-2 align-top text-blue-700 dark:text-blue-300">' + escapeHtml(m.reason || 'revisao manual') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
   function renderPossible(rows) {
     if (!rows.length) return '<p class="text-sm text-slate-500">Nenhuma possível divergência encontrada.</p>';
     return '<div class="overflow-auto max-h-80"><table class="w-full text-xs"><thead class="bg-amber-50 dark:bg-amber-900/20 sticky top-0"><tr><th class="p-2 text-left">Arquivo A</th><th class="p-2 text-left">Arquivo B</th><th class="p-2 text-left">Motivo</th><th class="p-2 text-right">Diferença</th></tr></thead><tbody>' +
@@ -1026,21 +1144,24 @@
     const r = STATE.result;
     const box = document.getElementById('sp-conciliacao-result');
     if (!box || !r) return;
-    const total = Math.max(STATE.rows.a.length, STATE.rows.b.length, 1);
     const covered = Math.max(r.matchedA || r.matches.length, r.matchedB || r.matches.length);
-    const pct = Math.round((covered / total) * 100);
+    const comparable = Math.max(r.comparableA || covered, r.comparableB || covered, 1);
+    const pct = Math.min(100, Math.round((covered / comparable) * 100));
+    const ambiguousCount = (r.ambiguous || []).length;
     box.innerHTML = [
-      '<div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">',
+      '<div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-5">',
       stat('Conciliados', covered, 'text-green-600'),
-      stat('Pendentes A', r.unmatchedA.length, 'text-red-600'),
-      stat('Pendentes B', r.unmatchedB.length, 'text-red-600'),
+      stat('Revisão manual', ambiguousCount, 'text-blue-600'),
+      stat('Sem vínculo A', r.unmatchedA.length, 'text-red-600'),
+      stat('Sem vínculo B', r.unmatchedB.length, 'text-red-600'),
       stat('Aderência', pct + '%', 'text-blue-600'),
       '</div>',
       '<div class="grid grid-cols-1 xl:grid-cols-2 gap-5">',
       section('Itens conciliados automaticamente', renderMatches(r.matches)),
-      section('Possíveis divergências', renderPossible(r.possible)),
-      section('Pendências no Arquivo A', renderTable(r.unmatchedA, 'A')),
-      section('Pendências no Arquivo B', renderTable(r.unmatchedB, 'B')),
+      section('Revisão manual', renderAmbiguous(r.ambiguous || [])),
+      section('Diferenças prováveis', renderPossible(r.possible)),
+      section('Sem vínculo no Arquivo A', renderTable(r.unmatchedA, 'A')),
+      section('Sem vínculo no Arquivo B', renderTable(r.unmatchedB, 'B')),
       '</div>'
     ].join('');
   }
@@ -1057,6 +1178,11 @@
     if (!STATE.result) return;
     const rows = [['tipo', 'data_a', 'descricao_a', 'valor_a', 'data_b', 'descricao_b', 'valor_b', 'confianca', 'motivo']];
     STATE.result.matches.forEach(function (m) { rows.push(['conciliado', m.a.date, m.a.description, m.a.amount, m.b.date, m.b.description, m.b.amount, m.score, m.reason || '']); });
+    (STATE.result.ambiguous || []).forEach(function (m) {
+      const left = (m.aRows || []).map(function (r) { return [r.date, r.description, r.amount].join(' | '); }).join(' || ');
+      const right = (m.bRows || []).map(function (r) { return [r.date, r.description, r.amount].join(' | '); }).join(' || ');
+      rows.push(['revisao_manual', '', left, '', '', right, '', '', m.reason || '']);
+    });
     STATE.result.unmatchedA.forEach(function (r) { rows.push(['pendente_a', r.date, r.description, r.amount, '', '', '', '', '']); });
     STATE.result.unmatchedB.forEach(function (r) { rows.push(['pendente_b', '', '', '', r.date, r.description, r.amount, '', '']); });
     const csv = rows.map(function (r) { return r.map(function (v) { return '"' + String(v ?? '').replace(/"/g, '""') + '"'; }).join(';'); }).join('\n');
