@@ -607,6 +607,106 @@
     return rowsFromText(await file.text());
   }
 
+  function amountCents(value) {
+    return Math.round(Math.abs(Number(value) || 0) * 100);
+  }
+
+  function centsToAmount(cents, sign) {
+    return Number(((sign < 0 ? -1 : 1) * cents / 100).toFixed(2));
+  }
+
+  function sumCents(rows) {
+    return rows.reduce(function (total, row) { return total + amountCents(row.amount); }, 0);
+  }
+
+  function aggregateBucket(row) {
+    const text = searchableText(row.description);
+    if (row.amount > 0) {
+      if (/\b(REND|REDN|RENDIMENTO)\b/.test(text)) return '';
+      if (/\b(RES\s+APLIC|APL\s+APLIC|APLIC\s+AUT\s+MAIS)\b/.test(text)) return 'aplicacao_automatica';
+      if (/\b(MOV\s+TIT\s+COB|IT\s+COB\s+SEM|DEP\s+DIVERSOS|DEPOSITOS\s+DIVERSOS)\b/.test(text)) return 'cobranca';
+      if (/\b(PIX|TED|DEP\s+DISP|REDE|CARTAO\s+A\s+MAIOR)\b/.test(text)) return 'credito';
+      return '';
+    }
+    if (/\b(TAR|TARIFA|TAXA|CUSTAS?|IOF)\b/.test(text)) return 'tarifa';
+    if (/\b(APLIC|APLICACAO)\b/.test(text)) return 'aplicacao';
+    if (/\b(SISPAG|CONTAS?\s+LITE|CONTSA\s+LITE|CONATS\s+LITE|CONTA\s+SLITE|CONTAS?\s+LFILIAL|PAGAMENTO\s+DE\s+FORNECEDORES|PAGAMENTOS?\s+FILIAL|PAGAMENTO\s+BOX|MOTORISTAS?\s+PAGAMENTOS?|PIX\s+(?:BOX|FILIAL|MOTORISTA)|FIN\s+VEIC|PAGTO\s+CDC|DEVOLUCAO|NAGUMO\s+DEVOL|D\s+CH|CHQ|COMPENSADO|003\d{3})\b/.test(text)) return 'pagamentos';
+    return '';
+  }
+
+  function sameReceiptBucket(a, b) {
+    const left = aggregateBucket(a);
+    const right = aggregateBucket(b);
+    return ['cobranca', 'credito'].indexOf(left) !== -1 && ['cobranca', 'credito'].indexOf(right) !== -1;
+  }
+
+  function aggregateCompatible(a, b) {
+    if (!a.date || a.date !== b.date || !sameDirection(a.amount, b.amount)) return false;
+    const left = aggregateBucket(a);
+    const right = aggregateBucket(b);
+    if (!left || !right) return false;
+    if (left === right) return true;
+    if (sameReceiptBucket(a, b)) return true;
+    if ((left === 'pagamentos' && right === 'tarifa') || (left === 'tarifa' && right === 'pagamentos')) return false;
+    return false;
+  }
+
+  function looseToleranceCents(a, b) {
+    const left = aggregateBucket(a);
+    const right = aggregateBucket(b);
+    if (hasSharedReference(a.description, b.description)) return 50;
+    if (left === 'tarifa' && right === 'tarifa') return 50;
+    if (left === 'pagamentos' && right === 'pagamentos' && /003\d{3}/.test(searchableText(a.description + ' ' + b.description))) return 50;
+    if (sameReceiptBucket(a, b)) return 10;
+    return 1;
+  }
+
+  function groupToleranceCents(rows) {
+    return Math.max(2, rows.length * 2);
+  }
+
+  function aggregateRow(rows, label) {
+    if (rows.length === 1) return rows[0];
+    const sign = rows.some(function (row) { return row.amount < 0; }) ? -1 : 1;
+    const date = rows[0] && rows[0].date;
+    return buildRow({
+      sourceLine: Math.min.apply(null, rows.map(function (row) { return row.sourceLine || 999999; })),
+      date: date,
+      description: label + ' (' + rows.length + ' lancamentos)',
+      amount: centsToAmount(sumCents(rows), sign),
+      raw: rows.map(function (row) { return row.description + ' ' + row.amount; }).join(' | ')
+    });
+  }
+
+  function findSubsetBySum(rows, targetCents, toleranceCents, maxNodes) {
+    const items = rows
+      .filter(function (row) { return amountCents(row.amount) <= targetCents + toleranceCents; })
+      .sort(function (a, b) { return amountCents(b.amount) - amountCents(a.amount); });
+    const suffix = [];
+    for (let i = items.length; i >= 0; i--) {
+      suffix[i] = (suffix[i + 1] || 0) + (i < items.length ? amountCents(items[i].amount) : 0);
+    }
+    let nodes = 0;
+    let best = null;
+    let bestDiff = Infinity;
+    function visit(index, total, chosen) {
+      nodes++;
+      const diff = Math.abs(total - targetCents);
+      if (diff < bestDiff && chosen.length) {
+        bestDiff = diff;
+        best = chosen.slice();
+        if (diff <= toleranceCents) return true;
+      }
+      if (nodes > maxNodes || index >= items.length) return false;
+      if (total > targetCents + toleranceCents) return false;
+      if (total + suffix[index] < targetCents - toleranceCents) return false;
+      if (visit(index + 1, total + amountCents(items[index].amount), chosen.concat(items[index]))) return true;
+      return visit(index + 1, total, chosen);
+    }
+    visit(0, 0, []);
+    return bestDiff <= toleranceCents ? best : null;
+  }
+
   function reconcileRows(aRows, bRows) {
     const usedA = new Set();
     const usedB = new Set();
@@ -630,19 +730,27 @@
         ((x.a.sourceLine || 0) - (y.a.sourceLine || 0));
     });
 
-    function addMatch(a, b, aIndex, bIndex, decision, scoreOverride) {
-      usedA.add(aIndex);
-      usedB.add(bIndex);
+    function addMatchGroup(aItems, bItems, aIndexes, bIndexes, decision, scoreOverride, reasonOverride) {
+      aIndexes.forEach(function (index) { usedA.add(index); });
+      bIndexes.forEach(function (index) { usedB.add(index); });
+      const a = aggregateRow(aItems, aItems.length > 1 ? 'Grupo Arquivo A' : aItems[0].description);
+      const b = aggregateRow(bItems, bItems.length > 1 ? 'Grupo Arquivo B' : bItems[0].description);
       matches.push({
         a: a,
         b: b,
+        aRows: aItems,
+        bRows: bItems,
         score: Math.min(100, scoreOverride || decision.score),
         dateGap: decision.dateGap,
         textScore: decision.textScore,
         meaningfulScore: decision.meaningfulScore,
         coverageScore: decision.coverageScore,
-        reason: decision.reason
+        reason: reasonOverride || decision.reason
       });
+    }
+
+    function addMatch(a, b, aIndex, bIndex, decision, scoreOverride, reasonOverride) {
+      addMatchGroup([a], [b], [aIndex], [bIndex], decision, scoreOverride, reasonOverride);
     }
 
     candidates.forEach(function (candidate) {
@@ -684,6 +792,104 @@
       addMatch(a, b, left[0].index, right[0].index, decision);
     });
 
+    aRows.forEach(function (a, aIndex) {
+      if (usedA.has(aIndex)) return;
+      const loose = [];
+      bRows.forEach(function (b, bIndex) {
+        if (usedB.has(bIndex) || !aggregateCompatible(a, b)) return;
+        const diff = Math.abs(amountCents(a.amount) - amountCents(b.amount));
+        if (diff <= looseToleranceCents(a, b)) loose.push({ b: b, index: bIndex, diff: diff });
+      });
+      if (loose.length !== 1) return;
+      const chosen = loose[0];
+      const decision = {
+        amountDiff: chosen.diff / 100,
+        dateGap: daysBetween(a.date, chosen.b.date),
+        textScore: similarity(a.description, chosen.b.description),
+        meaningfulScore: meaningfulSimilarity(a.description, chosen.b.description),
+        coverageScore: coverageSimilarity(a.description, chosen.b.description),
+        score: chosen.diff === 0 ? 92 : 89,
+        reason: chosen.diff === 0 ? 'data e valor unicos' : 'valor arredondado'
+      };
+      addMatch(a, chosen.b, aIndex, chosen.index, decision, decision.score, decision.reason);
+    });
+
+    function openItems(rows, usedSet, bucketName, date) {
+      return rows.map(function (row, index) { return { row: row, index: index }; }).filter(function (item) {
+        return !usedSet.has(item.index) && item.row.date === date && aggregateBucket(item.row) === bucketName;
+      });
+    }
+
+    function addAggregateMatch(left, right, reason, score) {
+      const aItems = left.map(function (item) { return item.row; });
+      const bItems = right.map(function (item) { return item.row; });
+      const aIndexes = left.map(function (item) { return item.index; });
+      const bIndexes = right.map(function (item) { return item.index; });
+      const decision = {
+        amountDiff: Math.abs(sumCents(aItems) - sumCents(bItems)) / 100,
+        dateGap: 0,
+        textScore: 0,
+        meaningfulScore: 0,
+        coverageScore: 0,
+        score: score,
+        reason: reason
+      };
+      addMatchGroup(aItems, bItems, aIndexes, bIndexes, decision, score, reason);
+    }
+
+    function matchCollectionBatches() {
+      const dates = Array.from(new Set(aRows.concat(bRows).map(function (row) { return row.date; }).filter(Boolean)));
+      dates.forEach(function (date) {
+        const left = openItems(aRows, usedA, 'cobranca', date);
+        const right = openItems(bRows, usedB, 'cobranca', date);
+        if (!left.length || !right.length) return;
+        const allRows = left.concat(right).map(function (item) { return item.row; });
+        const targetRight = sumCents(right.map(function (item) { return item.row; }));
+        const subsetLeft = findSubsetBySum(left.map(function (item) { return item.row; }), targetRight, groupToleranceCents(allRows), 60000);
+        if (subsetLeft && subsetLeft.length) {
+          addAggregateMatch(left.filter(function (item) { return subsetLeft.indexOf(item.row) !== -1; }), right, 'lote de cobranca detalhado', 96);
+          return;
+        }
+        const targetLeft = sumCents(left.map(function (item) { return item.row; }));
+        const subsetRight = findSubsetBySum(right.map(function (item) { return item.row; }), targetLeft, groupToleranceCents(allRows), 60000);
+        if (subsetRight && subsetRight.length) {
+          addAggregateMatch(left, right.filter(function (item) { return subsetRight.indexOf(item.row) !== -1; }), 'lote de cobranca detalhado', 96);
+        }
+      });
+    }
+
+    function isSispagDetail(row) {
+      return /\bSISPAG\b/.test(searchableText(row.description));
+    }
+
+    function matchPaymentBatches() {
+      const openA = aRows.map(function (row, index) { return { row: row, index: index }; })
+        .filter(function (item) {
+          return !usedA.has(item.index) &&
+            aggregateBucket(item.row) === 'pagamentos' &&
+            amountCents(item.row.amount) >= 500000 &&
+            /\b(CONTAS?\s+LITE|CONTSA\s+LITE|CONATS\s+LITE|CONTA\s+SLITE|CONTAS?\s+LFILIAL)\b/.test(searchableText(item.row.description));
+        })
+        .sort(function (a, b) { return amountCents(b.row.amount) - amountCents(a.row.amount); });
+
+      openA.forEach(function (aItem) {
+        if (usedA.has(aItem.index)) return;
+        const right = bRows.map(function (row, index) { return { row: row, index: index }; }).filter(function (item) {
+          return !usedB.has(item.index) &&
+            item.row.date === aItem.row.date &&
+            aggregateBucket(item.row) === 'pagamentos' &&
+            isSispagDetail(item.row);
+        });
+        if (right.length < 2) return;
+        const subsetRight = findSubsetBySum(right.map(function (item) { return item.row; }), amountCents(aItem.row.amount), 50, 300000);
+        if (!subsetRight || subsetRight.length < 2) return;
+        addAggregateMatch([aItem], right.filter(function (item) { return subsetRight.indexOf(item.row) !== -1; }), 'lote de pagamentos detalhado', 94);
+      });
+    }
+
+    matchCollectionBatches();
+    matchPaymentBatches();
+
     matches.sort(function (x, y) {
       return String(x.a.date || '').localeCompare(String(y.a.date || '')) ||
         ((x.a.sourceLine || 0) - (y.a.sourceLine || 0)) ||
@@ -707,7 +913,7 @@
       return (x.amountDiff - y.amountDiff) || (x.dateGap - y.dateGap) || (y.coverageScore - x.coverageScore) || (y.meaningfulScore - x.meaningfulScore) || (y.textScore - x.textScore);
     });
 
-    return { matches: matches, unmatchedA: unmatchedA, unmatchedB: unmatchedB, possible: possible.slice(0, 80) };
+    return { matches: matches, unmatchedA: unmatchedA, unmatchedB: unmatchedB, possible: possible.slice(0, 80), matchedA: usedA.size, matchedB: usedB.size };
   }
 
   function money(value) {
@@ -801,7 +1007,10 @@
     if (!rows.length) return '<p class="text-sm text-slate-500">Nenhum item conciliado automaticamente.</p>';
     return '<div class="overflow-auto max-h-96"><table class="w-full text-xs"><thead class="bg-slate-100 dark:bg-slate-900 sticky top-0"><tr><th class="p-2">Conf.</th><th class="p-2 text-left">Arquivo A</th><th class="p-2 text-left">Arquivo B</th><th class="p-2 text-right">Valor</th></tr></thead><tbody>' +
       rows.slice(0, 160).map(function (m) {
-        return '<tr class="border-t dark:border-slate-700"><td class="p-2 font-bold text-green-600">' + m.score + '%</td><td class="p-2">' + escapeHtml(m.a.date || '-') + ' · ' + escapeHtml(m.a.description) + '</td><td class="p-2">' + escapeHtml(m.b.date || '-') + ' · ' + escapeHtml(m.b.description) + '</td><td class="p-2 text-right font-mono">' + money(m.a.amount) + '</td></tr>';
+        const aCount = m.aRows && m.aRows.length > 1 ? '<br><span class="text-slate-400">' + m.aRows.length + ' itens no A</span>' : '';
+        const bCount = m.bRows && m.bRows.length > 1 ? '<br><span class="text-slate-400">' + m.bRows.length + ' itens no B</span>' : '';
+        const reason = m.reason ? '<br><span class="text-slate-400">' + escapeHtml(m.reason) + '</span>' : '';
+        return '<tr class="border-t dark:border-slate-700"><td class="p-2 font-bold text-green-600">' + m.score + '%</td><td class="p-2">' + escapeHtml(m.a.date || '-') + ' · ' + escapeHtml(m.a.description) + aCount + reason + '</td><td class="p-2">' + escapeHtml(m.b.date || '-') + ' · ' + escapeHtml(m.b.description) + bCount + '</td><td class="p-2 text-right font-mono">' + money(m.a.amount) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
 
@@ -818,10 +1027,11 @@
     const box = document.getElementById('sp-conciliacao-result');
     if (!box || !r) return;
     const total = Math.max(STATE.rows.a.length, STATE.rows.b.length, 1);
-    const pct = Math.round((r.matches.length / total) * 100);
+    const covered = Math.max(r.matchedA || r.matches.length, r.matchedB || r.matches.length);
+    const pct = Math.round((covered / total) * 100);
     box.innerHTML = [
       '<div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">',
-      stat('Conciliados', r.matches.length, 'text-green-600'),
+      stat('Conciliados', covered, 'text-green-600'),
       stat('Pendentes A', r.unmatchedA.length, 'text-red-600'),
       stat('Pendentes B', r.unmatchedB.length, 'text-red-600'),
       stat('Aderência', pct + '%', 'text-blue-600'),
@@ -845,10 +1055,10 @@
 
   function exportCsv() {
     if (!STATE.result) return;
-    const rows = [['tipo', 'data_a', 'descricao_a', 'valor_a', 'data_b', 'descricao_b', 'valor_b', 'confianca']];
-    STATE.result.matches.forEach(function (m) { rows.push(['conciliado', m.a.date, m.a.description, m.a.amount, m.b.date, m.b.description, m.b.amount, m.score]); });
-    STATE.result.unmatchedA.forEach(function (r) { rows.push(['pendente_a', r.date, r.description, r.amount, '', '', '', '']); });
-    STATE.result.unmatchedB.forEach(function (r) { rows.push(['pendente_b', '', '', '', r.date, r.description, r.amount, '']); });
+    const rows = [['tipo', 'data_a', 'descricao_a', 'valor_a', 'data_b', 'descricao_b', 'valor_b', 'confianca', 'motivo']];
+    STATE.result.matches.forEach(function (m) { rows.push(['conciliado', m.a.date, m.a.description, m.a.amount, m.b.date, m.b.description, m.b.amount, m.score, m.reason || '']); });
+    STATE.result.unmatchedA.forEach(function (r) { rows.push(['pendente_a', r.date, r.description, r.amount, '', '', '', '', '']); });
+    STATE.result.unmatchedB.forEach(function (r) { rows.push(['pendente_b', '', '', '', r.date, r.description, r.amount, '', '']); });
     const csv = rows.map(function (r) { return r.map(function (v) { return '"' + String(v ?? '').replace(/"/g, '""') + '"'; }).join(';'); }).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
