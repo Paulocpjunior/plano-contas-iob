@@ -1953,7 +1953,7 @@
                                     <p id="razaoNotasMeta">Arquivo analisado automaticamente pelo layout fixo do razão.</p>
                                 </div>
                                 <div class="razao-notas-actions">
-                                    <button class="btn-action btn-action-success" onclick="exportarRazaoNotasRelatorioCliente()">📄 Relatório cliente</button>
+                                    <button class="btn-action btn-action-success" onclick="exportarRazaoNotasRelatorioCliente()">📄 Relatório PDF</button>
                                     <button class="btn-action btn-action-secondary" onclick="exportarRazaoNotasCSV()">📊 Exportar CSV</button>
                                     <button class="btn-action btn-action-primary" onclick="novoUpload()">Novo arquivo</button>
                                 </div>
@@ -6415,7 +6415,65 @@
             if (panel) panel.classList.add('hidden');
         }
 
-        function exportarRazaoNotasRelatorioCliente() {
+        const RAZAO_PDF_LIBS = [
+            {
+                id: 'razao-js-pdf-lib',
+                src: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+            },
+            {
+                id: 'razao-js-pdf-autotable-lib',
+                src: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js'
+            }
+        ];
+
+        function carregarScriptRazaoPDF(lib) {
+            return new Promise(function(resolve, reject) {
+                const existente = document.getElementById(lib.id);
+                if (existente) {
+                    if (existente.dataset.loaded === '1') {
+                        resolve();
+                        return;
+                    }
+                    existente.addEventListener('load', function() { resolve(); }, { once: true });
+                    existente.addEventListener('error', function() { reject(new Error('Falha ao carregar ' + lib.src)); }, { once: true });
+                    return;
+                }
+                const script = document.createElement('script');
+                script.id = lib.id;
+                script.src = lib.src;
+                script.async = false;
+                script.onload = function() {
+                    script.dataset.loaded = '1';
+                    resolve();
+                };
+                script.onerror = function() {
+                    reject(new Error('Falha ao carregar ' + lib.src));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        async function obterJsPDFRazaoNotas() {
+            for (const lib of RAZAO_PDF_LIBS) {
+                await carregarScriptRazaoPDF(lib);
+            }
+            const jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
+            if (!jsPDFCtor) throw new Error('Biblioteca jsPDF nao carregada.');
+            const teste = new jsPDFCtor({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            if (typeof teste.autoTable !== 'function') throw new Error('Plugin de tabelas PDF nao carregado.');
+            return jsPDFCtor;
+        }
+
+        function slugRelatorioRazao(valor) {
+            return String(valor || 'cliente')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/gi, '_')
+                .replace(/^_+|_+$/g, '')
+                .toLowerCase()
+                .slice(0, 50) || 'cliente';
+        }
+
+        async function exportarRazaoNotasRelatorioCliente() {
             if (!ultimaAnaliseRazaoNotas) {
                 showToast('Nenhuma análise de razão disponível para exportar.', 'error');
                 return;
@@ -6451,7 +6509,6 @@
             const empresa = (state.info && state.info.empresa) || 'Cliente';
             const cnpj = (state.info && state.info.cnpj) || '';
             const emissao = new Date().toLocaleString('pt-BR');
-            const esc = escaparHtmlImportacao;
             const mesesRelatorio = Array.from(new Set(notas.map(function(n) { return n.mes; }))).sort();
             const resumoMeses = mesesRelatorio.map(function(mes) {
                 const ns = notas.filter(function(n) { return n.mes === mes; });
@@ -6466,67 +6523,193 @@
                     saldoAberto: abertas.reduce(function(a, n) { return a + toCents(n.saldoAbertoMes); }, 0) / 100
                 };
             });
-            const linhasResumo = resumoMeses.map(function(r) {
-                return '<tr>' +
-                    '<td>' + esc(labelMesRazao(r.mes)) + '</td>' +
-                    '<td class="num">' + r.notas + '</td>' +
-                    '<td class="num">' + esc(formatarMoedaBR(r.valorBruto)) + '</td>' +
-                    '<td class="num ok">' + r.pagas + '</td>' +
-                    '<td class="num warn">' + r.abertas + '</td>' +
-                    '<td class="num danger">' + esc(formatarMoedaBR(r.saldoAberto)) + '</td>' +
-                '</tr>';
-            }).join('');
-            const linhasNotas = notas.map(function(n) {
-                const statusAtual = statusVisualRazao(n);
-                return '<tr>' +
-                    '<td>' + esc(labelMesRazao(n.mes)) + '</td>' +
-                    '<td>' + esc(formatarDataBR(n.data)) + '</td>' +
-                    '<td><strong>' + esc(n.nota || '-') + '</strong></td>' +
-                    '<td>' + esc(n.fornecedor || '-') + (n.cnpj ? '<div class="cnpj">' + esc(n.cnpj) + '</div>' : '') + '</td>' +
-                    '<td class="num">' + esc(formatarMoedaBR(n.valorBruto)) + '</td>' +
-                    '<td class="num">' + esc(formatarMoedaBR(n.baixadoNoMes)) + '</td>' +
-                    '<td class="num danger">' + esc(formatarMoedaBR(n.saldoAbertoMes)) + '</td>' +
-                    '<td>' + esc(labelStatusRazao(n.statusMes)) + '</td>' +
-                    '<td>' + esc(labelStatusRazao(statusAtual)) + (n.dataBaixaFinal && statusAtual === 'baixada_depois' ? '<div class="cnpj">Baixa final: ' + esc(formatarDataBR(n.dataBaixaFinal)) + '</div>' : '') + '</td>' +
-                '</tr>';
-            }).join('');
-            const html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' +
-                '<title>Relatório de notas pagas e em aberto</title>' +
-                '<style>' +
-                'body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#0f172a;background:#f8fafc}' +
-                '.page{max-width:1120px;margin:0 auto;background:#fff;min-height:100vh;padding:32px 36px}' +
-                '.top{display:flex;justify-content:space-between;gap:24px;border-bottom:3px solid #0f172a;padding-bottom:18px;margin-bottom:24px}' +
-                '.brand{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1d4ed8;margin-bottom:8px}' +
-                'h1{font-size:26px;line-height:1.2;margin:0 0 8px} h2{font-size:18px;margin:28px 0 10px}.meta{font-size:12px;color:#64748b;line-height:1.7;text-align:right}.client{font-size:14px;color:#334155;margin-top:8px}' +
-                '.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:22px 0}.card{border:1px solid #e2e8f0;border-radius:8px;padding:12px;background:#f8fafc}.label{font-size:10px;color:#64748b;text-transform:uppercase;font-weight:800;letter-spacing:.05em}.value{font-size:19px;font-weight:800;margin-top:6px}.ok{color:#15803d}.warn{color:#b45309}.danger{color:#dc2626}' +
-                '.note{border:1px solid #fde68a;background:#fffbeb;color:#92400e;border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.6;margin:16px 0}' +
-                'table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}th{background:#f1f5f9;color:#475569;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em}th,td{border-bottom:1px solid #e2e8f0;padding:8px 9px;vertical-align:top}.num{text-align:right;white-space:nowrap;font-family:Menlo,Consolas,monospace}.cnpj{font-size:10px;color:#64748b;margin-top:3px}.criteria{font-size:12px;line-height:1.7;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px}.foot{margin-top:24px;font-size:11px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:12px}' +
-                '@media print{body{background:#fff}.page{padding:18px;max-width:none}.cards{grid-template-columns:repeat(5,1fr)}button{display:none}}' +
-                '</style></head><body><main class="page">' +
-                '<section class="top"><div><div class="brand">SP Assessoria Contábil</div><h1>Relatório de notas pagas no mês e em aberto</h1><div class="client"><strong>' + esc(empresa) + '</strong>' + (cnpj ? '<br>CNPJ: ' + esc(cnpj) : '') + '</div></div>' +
-                '<div class="meta">Período: <strong>' + esc(periodoLabel) + '</strong><br>Emitido em: ' + esc(emissao) + '<br>Arquivo origem: ' + esc(analise.arquivo || '-') + '<br>Conta razão: ' + esc(analise.conta || '-') + '<br>Filtros: ' + esc(filtrosAtivos) + '</div></section>' +
-                '<section class="cards">' +
-                '<div class="card"><div class="label">Notas analisadas</div><div class="value">' + notas.length + '</div></div>' +
-                '<div class="card"><div class="label">Valor bruto</div><div class="value">' + esc(formatarMoedaBR(soma('valorBruto'))) + '</div></div>' +
-                '<div class="card"><div class="label">Pagas no mês</div><div class="value ok">' + pagasNoMes.length + '</div></div>' +
-                '<div class="card"><div class="label">Abertas p/ mês seguinte</div><div class="value warn">' + abertasMes.length + '</div></div>' +
-                '<div class="card"><div class="label">Saldo aberto</div><div class="value danger">' + esc(formatarMoedaBR(soma('saldoAbertoMes'))) + '</div></div>' +
-                '</section>' +
-                '<div class="criteria"><strong>Critério de apuração:</strong> créditos do razão foram tratados como notas/obrigações. Débitos vinculados por número da nota, CNPJ e descrição foram tratados como pagamentos, retenções ou baixas. Uma nota é considerada paga no próprio mês quando as baixas vinculadas até o fechamento do mês zeram o valor bruto; caso contrário, compõe o saldo aberto para o mês seguinte.</div>' +
-                (baixasSemNota.length ? '<div class="note">' + baixasSemNota.length + ' baixa(s) do período não foram vinculadas diretamente a uma nota deste arquivo, totalizando ' + esc(formatarMoedaBR(totalBaixasSemNota)) + '. Em geral, isso indica pagamentos de saldo anterior ou descrições sem número/CNPJ suficientes.</div>' : '') +
-                '<h2>Resumo por mês</h2><table><thead><tr><th>Mês</th><th class="num">Notas</th><th class="num">Valor bruto</th><th class="num">Pagas</th><th class="num">Abertas</th><th class="num">Saldo aberto</th></tr></thead><tbody>' + linhasResumo + '</tbody></table>' +
-                '<h2>Relação de notas</h2><table><thead><tr><th>Mês</th><th>Emissão</th><th>Nota</th><th>Fornecedor</th><th class="num">Valor bruto</th><th class="num">Baixado no mês</th><th class="num">Saldo p/ mês seguinte</th><th>Status no mês</th><th>Situação atual</th></tr></thead><tbody>' + linhasNotas + '</tbody></table>' +
-                '<div class="foot">Relatório gerado automaticamente a partir do razão exportado do sistema contábil. Recomenda-se conferência manual das baixas sem vínculo antes do envio definitivo.</div>' +
-                '</main></body></html>';
-            const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
-            const a = document.createElement('a');
-            const slugEmpresa = String(empresa || 'cliente').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').toLowerCase().slice(0, 50) || 'cliente';
-            const periodoSlug = String(mesFiltro || 'periodo').replace(/[^0-9a-z_-]+/gi, '_');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'relatorio_notas_pagas_em_aberto_' + slugEmpresa + '_' + periodoSlug + '.html';
-            a.click();
-            URL.revokeObjectURL(a.href);
-            showToast('Relatório do cliente gerado em HTML. Abra o arquivo para imprimir ou salvar em PDF.', 'success');
+            try {
+                showToast('Gerando PDF do relatório...', 'info');
+                const jsPDFCtor = await obterJsPDFRazaoNotas();
+                const doc = new jsPDFCtor({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const pageW = doc.internal.pageSize.getWidth();
+                const pageH = doc.internal.pageSize.getHeight();
+                const marginX = 12;
+                const contentW = pageW - (marginX * 2);
+                doc.setProperties({
+                    title: 'Relatório de notas pagas e em aberto',
+                    subject: 'Notas pagas no próprio mês e abertas para o mês seguinte',
+                    author: 'SP Assessoria Contábil'
+                });
+
+                doc.setFillColor(15, 23, 42);
+                doc.rect(0, 0, pageW, 34, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8);
+                doc.setTextColor(147, 197, 253);
+                doc.text('SP ASSESSORIA CONTABIL', marginX, 10);
+                doc.setFontSize(16);
+                doc.setTextColor(255, 255, 255);
+                doc.text('Relatório de notas pagas no mês e em aberto', marginX, 20);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.text('Período: ' + periodoLabel, marginX, 28);
+                doc.setFontSize(8);
+                doc.text('Emitido em: ' + emissao, pageW - marginX, 10, { align: 'right' });
+                doc.text('Arquivo: ' + (analise.arquivo || '-'), pageW - marginX, 17, { align: 'right' });
+                doc.text('Conta razão: ' + (analise.conta || '-'), pageW - marginX, 24, { align: 'right' });
+
+                let y = 43;
+                doc.setTextColor(15, 23, 42);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.text(empresa, marginX, y);
+                y += 5;
+                if (cnpj) {
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9);
+                    doc.setTextColor(71, 85, 105);
+                    doc.text('CNPJ: ' + cnpj, marginX, y);
+                    y += 6;
+                }
+
+                const cards = [
+                    { label: 'Notas analisadas', value: String(notas.length), color: [15, 23, 42] },
+                    { label: 'Valor bruto', value: formatarMoedaBR(soma('valorBruto')), color: [15, 23, 42] },
+                    { label: 'Pagas no mês', value: String(pagasNoMes.length), color: [21, 128, 61] },
+                    { label: 'Abertas p/ mês seguinte', value: String(abertasMes.length), color: [180, 83, 9] },
+                    { label: 'Saldo aberto', value: formatarMoedaBR(soma('saldoAbertoMes')), color: [220, 38, 38] }
+                ];
+                const gap = 4;
+                const cardW = (contentW - (gap * (cards.length - 1))) / cards.length;
+                cards.forEach(function(card, idx) {
+                    const x = marginX + idx * (cardW + gap);
+                    doc.setFillColor(248, 250, 252);
+                    doc.setDrawColor(226, 232, 240);
+                    doc.rect(x, y, cardW, 20, 'FD');
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(6.5);
+                    doc.setTextColor(100, 116, 139);
+                    doc.text(card.label.toUpperCase(), x + 3, y + 6);
+                    doc.setFontSize(11);
+                    doc.setTextColor(card.color[0], card.color[1], card.color[2]);
+                    doc.text(String(card.value), x + 3, y + 15);
+                });
+                y += 28;
+
+                const criterio = 'Critério de apuração: créditos do razão foram tratados como notas/obrigações. Débitos vinculados por número da nota, CNPJ e descrição foram tratados como pagamentos, retenções ou baixas. Uma nota é considerada paga no próprio mês quando as baixas vinculadas até o fechamento do mês zeram o valor bruto; caso contrário, compõe o saldo aberto para o mês seguinte.';
+                const criterioLinhas = doc.splitTextToSize(criterio, contentW - 6);
+                const criterioH = Math.max(15, criterioLinhas.length * 4 + 8);
+                doc.setFillColor(248, 250, 252);
+                doc.setDrawColor(226, 232, 240);
+                doc.rect(marginX, y, contentW, criterioH, 'FD');
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(51, 65, 85);
+                doc.text(criterioLinhas, marginX + 3, y + 6);
+                y += criterioH + 6;
+
+                if (filtrosAtivos !== 'Sem filtros adicionais') {
+                    doc.setFontSize(8);
+                    doc.setTextColor(71, 85, 105);
+                    doc.text('Filtros aplicados: ' + filtrosAtivos, marginX, y);
+                    y += 5;
+                }
+                if (baixasSemNota.length) {
+                    const aviso = baixasSemNota.length + ' baixa(s) do período não foram vinculadas diretamente a uma nota deste arquivo, totalizando ' + formatarMoedaBR(totalBaixasSemNota) + '.';
+                    const avisoLinhas = doc.splitTextToSize(aviso, contentW);
+                    doc.setTextColor(146, 64, 14);
+                    doc.text(avisoLinhas, marginX, y);
+                    y += avisoLinhas.length * 4 + 3;
+                }
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(15, 23, 42);
+                doc.text('Resumo por mês', marginX, y);
+                doc.autoTable({
+                    startY: y + 3,
+                    head: [['Mês', 'Notas', 'Valor bruto', 'Pagas', 'Abertas', 'Saldo aberto']],
+                    body: resumoMeses.map(function(r) {
+                        return [
+                            labelMesRazao(r.mes),
+                            String(r.notas),
+                            formatarMoedaBR(r.valorBruto),
+                            String(r.pagas),
+                            String(r.abertas),
+                            formatarMoedaBR(r.saldoAberto)
+                        ];
+                    }),
+                    theme: 'grid',
+                    margin: { left: marginX, right: marginX, top: 12, bottom: 14 },
+                    styles: { font: 'helvetica', fontSize: 8, cellPadding: 2, lineColor: [226, 232, 240], lineWidth: 0.1 },
+                    headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold' },
+                    columnStyles: {
+                        1: { halign: 'right' },
+                        2: { halign: 'right' },
+                        3: { halign: 'right', textColor: [21, 128, 61] },
+                        4: { halign: 'right', textColor: [180, 83, 9] },
+                        5: { halign: 'right', textColor: [220, 38, 38] }
+                    }
+                });
+
+                y = (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY : y + 22) + 8;
+                if (y > pageH - 45) {
+                    doc.addPage();
+                    y = 18;
+                }
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(15, 23, 42);
+                doc.text('Relação de notas', marginX, y);
+                doc.autoTable({
+                    startY: y + 3,
+                    head: [['Mês', 'Emissão', 'Nota', 'Fornecedor', 'Valor bruto', 'Baixado no mês', 'Saldo p/ mês seguinte', 'Status no mês', 'Situação atual']],
+                    body: notas.map(function(n) {
+                        const statusAtual = statusVisualRazao(n);
+                        return [
+                            labelMesRazao(n.mes),
+                            formatarDataBR(n.data),
+                            n.nota || '-',
+                            (n.fornecedor || '-') + (n.cnpj ? '\nCNPJ: ' + n.cnpj : ''),
+                            formatarMoedaBR(n.valorBruto),
+                            formatarMoedaBR(n.baixadoNoMes),
+                            formatarMoedaBR(n.saldoAbertoMes),
+                            labelStatusRazao(n.statusMes),
+                            labelStatusRazao(statusAtual) + (n.dataBaixaFinal && statusAtual === 'baixada_depois' ? '\nBaixa final: ' + formatarDataBR(n.dataBaixaFinal) : '')
+                        ];
+                    }),
+                    theme: 'grid',
+                    showHead: 'everyPage',
+                    margin: { left: marginX, right: marginX, top: 12, bottom: 14 },
+                    styles: { font: 'helvetica', fontSize: 6.7, cellPadding: 1.6, overflow: 'linebreak', valign: 'top', lineColor: [226, 232, 240], lineWidth: 0.1 },
+                    headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.8 },
+                    columnStyles: {
+                        0: { cellWidth: 17 },
+                        1: { cellWidth: 18 },
+                        2: { cellWidth: 17 },
+                        3: { cellWidth: 58 },
+                        4: { cellWidth: 25, halign: 'right' },
+                        5: { cellWidth: 25, halign: 'right' },
+                        6: { cellWidth: 29, halign: 'right' },
+                        7: { cellWidth: 31 },
+                        8: { cellWidth: 34 }
+                    }
+                });
+
+                const totalPages = doc.internal.getNumberOfPages();
+                for (let page = 1; page <= totalPages; page++) {
+                    doc.setPage(page);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(7);
+                    doc.setTextColor(100, 116, 139);
+                    doc.text('Relatório gerado automaticamente a partir do razão exportado do sistema contábil. Conferir baixas sem vínculo antes do envio definitivo.', marginX, pageH - 6);
+                    doc.text('Página ' + page + ' de ' + totalPages, pageW - marginX, pageH - 6, { align: 'right' });
+                }
+
+                const slugEmpresa = slugRelatorioRazao(empresa);
+                const periodoSlug = String(mesFiltro || 'periodo').replace(/[^0-9a-z_-]+/gi, '_');
+                doc.save('relatorio_notas_pagas_em_aberto_' + slugEmpresa + '_' + periodoSlug + '.pdf');
+                showToast('PDF do relatório do cliente gerado.', 'success');
+            } catch (e) {
+                console.error('[razao-pdf] erro ao gerar PDF:', e);
+                showToast('Não foi possível gerar o PDF: ' + (e.message || e), 'error');
+            }
         }
 
         function exportarRazaoNotasCSV() {

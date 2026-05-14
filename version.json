@@ -1,9 +1,9 @@
 {
-  "version": "3.1.81",
-  "build_date": "2026-05-14T11:38:29-03:00",
+  "version": "3.1.82",
+  "build_date": "2026-05-14T12:00:07-03:00",
   "release_notes": [
-    "Razao de saldos XLSX agora gera relatorio de notas pagas no proprio mes e abertas para o mes seguinte",
-    "Arquivos XLSX de razao nao exigem Banco ou Titulo antes do processamento",
-    "Incluida exportacao de relatorio para cliente e CSV tecnico da analise de notas"
+    "Relatorio do cliente do razao de saldos passa a exportar PDF diretamente",
+    "Exportacao em HTML foi substituida por arquivo PDF com resumo, criterios e relacao de notas",
+    "CSV tecnico permanece disponivel separadamente para conferencia interna"
   ]
 }
