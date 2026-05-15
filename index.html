@@ -17,12 +17,12 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.81"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.81"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.81"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.81"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.81"></script>
-    <script src="/parser-btg-pactual.js?v=3.1.87"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.88"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.88"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.88"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.88"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.88"></script>
+    <script src="/parser-btg-pactual.js?v=3.1.88"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1446,6 +1446,7 @@
         }
         .toast-success { background: linear-gradient(135deg, var(--success), #059669); }
         .toast-error { background: linear-gradient(135deg, var(--danger), #dc2626); }
+        .toast-warning { background: linear-gradient(135deg, var(--warning), #d97706); }
         .confirm-import-overlay {
             position: fixed;
             inset: 0;
@@ -9081,10 +9082,15 @@ Responda APENAS JSON valido, sem texto antes/depois:
             };
         }
 
+        function normalizarCodigoEmpresaIOB(valor, fallback) {
+            const digits = String(valor || '').replace(/\D/g, '');
+            return String(digits || fallback || '0001').padStart(4, '0').slice(-4);
+        }
+
         function exportIOB() {
             // ============================================================
             // IOB SAGE FOLHAMATIC - Layout FI v1.1 (16/04/2026)
-            // 332 bytes/registro, ASCII, CRLF, encoding CP1252 (latin1)
+            // Modelo oficial Office Contabil: 328 chars/registro, ASCII, CRLF, CP1252
             // Spec: PADRAO DE IMPORTACAO IOB - Tipo Movimento "8" Financeiro
             // ============================================================
             // v3.1.8: respeita filtros visiveis (export WYSIWYG)
@@ -9192,10 +9198,8 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 const histTxt = (e.descricao || e.historico || '')
                     .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
                     .toUpperCase();
-                const hist = padR(histTxt, 120);
+                const hist = padR(histTxt, 143);
 
-                // Registro validado IOB Office Contabil: 328 caracteres + CRLF.
-                // Arquivos com campos extras no fim deslocam o layout e o SAGE pode ler "ano 0".
                 return padR('',5)        // 01: 5 espacos iniciais
                      + deb               // 02: 18 conta debito
                      + cred              // 03: 18 conta credito
@@ -9204,12 +9208,23 @@ Responda APENAS JSON valido, sem texto antes/depois:
                      + val               // 06: 12 valor centavos
                      + dt                // 07: 10 data DD/MM/AAAA
                      + padR('',6)        // 08: 6 espacos
-                     + hist              // 09: 120 complemento historico
-                     + padR('',20)       // 10: 20 nome digitador (vazio)
-                     + padR('   IMP_FINANCEIRO   ', 20) // 11: identificador de importacao
-                     + padR('   ' + TIPO_MOV, 93) // 12: tipo movimento "8" + filler
-                     + 'N';              // 13: 1 tipo lancamento N=normal
+                     + hist              // 09: 143 complemento historico
+                     + padR('',20)       // 10: 20 nome digitador em branco
+                     + padR(TIPO_MOV,20) // 11: 20 tipo movimento "8"
+                     + padR('',20)       // 12: 20 CC debito em branco
+                     + padR('',15)       // 13: 15 valor CC debito em branco
+                     + padR('',20)       // 14: 20 CC credito em branco
+                     + padR('',15)       // 15: 15 valor CC credito em branco
+                     + 'N';              // 16: 1 tipo lancamento N=normal
             });
+            const linhaInvalida = lines.findIndex(function(line) {
+                return line.length !== 328 || !/^\d{2}\/\d{2}\/\d{4}$/.test(line.slice(58, 68));
+            });
+            if (linhaInvalida >= 0) {
+                console.error('[IOB] Linha fora do layout oficial', linhaInvalida + 1, lines[linhaInvalida]);
+                showToast('Falha ao gerar FI: linha ' + (linhaInvalida + 1) + ' fora do layout IOB oficial.', 'error');
+                return;
+            }
 
             // Preview (apenas se elementos existirem - aba Exportar)
             const preview = document.getElementById('exportPreview');
@@ -9226,11 +9241,11 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 const c = conteudo.charCodeAt(i);
                 bytes[i] = c > 255 ? 63 : c;
             }
-            const blob = new Blob([bytes], { type: 'text/plain;charset=ISO-8859-1' });
+            const blob = new Blob([bytes], { type: 'application/octet-stream' });
 
             // Nome do arquivo: FI<empOrig 4 digitos><empDest 4 digitos>.<MM>
-            const empOrig = String((state.info && state.info.codigoEmpresaOrigem) || '0001').padStart(4,'0').slice(-4);
-            const empDest = String((state.info && (state.info.codigoEmpresaDestino || state.info.codigoEmpresa)) || '0001').padStart(4,'0').slice(-4);
+            const empOrig = normalizarCodigoEmpresaIOB(state.info && state.info.codigoEmpresaOrigem, '0001');
+            const empDest = normalizarCodigoEmpresaIOB(state.info && (state.info.codigoEmpresaDestino || state.info.codigoEmpresa), '0001');
             const mesArquivoIOB = String((ref.mesUnico || '').split('/')[0] || '01').padStart(2, '0').slice(-2);
             const nomeArquivoIOB = 'FI' + empOrig + empDest + '.' + mesArquivoIOB;
 
@@ -9241,7 +9256,10 @@ Responda APENAS JSON valido, sem texto antes/depois:
             a.click();
             document.body.removeChild(a);
 
-            showToast('✅ Arquivo IOB gerado: ' + nomeArquivoIOB + ' (' + valid.length + ' lancamentos)', 'success');
+            showToast('Arquivo IOB gerado: ' + nomeArquivoIOB + ' (' + valid.length + ' lancamentos)', 'success');
+            setTimeout(function() {
+                showToast('No IOB, selecione uma pasta limpa com apenas este FI.' + mesArquivoIOB + '.', 'warning');
+            }, 500);
         }
         
         // === Atribuicao em massa de Historico Padrao IOB (Fase 2) ===
@@ -9391,7 +9409,7 @@ Responda APENAS JSON valido, sem texto antes/depois:
         // Toast
         function showToast(msg, type = 'success') {
             const t = document.getElementById('toast');
-            const icons = { success: '✓', error: '✕' };
+            const icons = { success: '✓', error: '✕', warning: '!' };
             t.innerHTML = `<span>${icons[type] || 'ℹ'}</span> ${msg}`;
             t.className = `toast toast-${type}`;
             t.classList.remove('hidden');

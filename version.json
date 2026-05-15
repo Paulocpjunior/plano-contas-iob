@@ -1,9 +1,9 @@
 {
-  "version": "3.1.87",
-  "build_date": "2026-05-14T16:49:39-03:00",
+  "version": "3.1.88",
+  "build_date": "2026-05-15T11:00:00-03:00",
   "release_notes": [
-    "Banco BTG Pactual 208 passa a ter layout PDF textual cadastrado para Conta corrente PJ",
-    "Novo parser BTG le descricoes multiline, valor, saldo, periodo e totais oficiais do extrato",
-    "Importacao valida totais de entradas e saidas do arquivo ERF Janeiro 2026 antes de gravar"
+    "Exportacao FI do IOB passa a seguir o modelo oficial de 328 caracteres com digitador em branco",
+    "Nome do arquivo FI agora normaliza codigos de empresa somente com digitos para evitar extensoes duplicadas",
+    "Exportacao alerta que o IOB importa pela pasta e deve usar diretorio limpo sem FI antigos do mesmo mes"
   ]
 }
