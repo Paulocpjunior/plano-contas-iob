@@ -17,12 +17,12 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.88"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.88"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.88"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.88"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.88"></script>
-    <script src="/parser-btg-pactual.js?v=3.1.88"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.89"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.89"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.89"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.89"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.89"></script>
+    <script src="/parser-btg-pactual.js?v=3.1.89"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -4909,6 +4909,45 @@
                 const todosItau = [];
                 const abasItau = [];
                 const totaisOficiaisItau = { credito: 0, debito: 0 };
+                const limparMemoriaCludeItau = function(valor) {
+                    return String(valor || '')
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .replace(/\b(ref|referente|periodo|parc(?:ela)?)\b\.?/ig, ' ')
+                        .replace(/\b\d{1,2}\s*\/\s*\d{1,2}(?:\s*\/\s*\d{2,4})?\b/g, ' ')
+                        .replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ')
+                        .replace(/\b\d+\s*(?:o|º|a|ª)?\s*andar\b/ig, ' ')
+                        .replace(/\b(?:marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|janeiro|fevereiro)\s*\/?\s*\d{4}\b/ig, ' ')
+                        .replace(/\b(?:projeto|competencia|comp|mes)\b\.?/ig, ' ')
+                        .replace(/\b\d+\b/g, ' ')
+                        .replace(/[^\w\s]/g, ' ')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                };
+                const chavesMemoriaCludeItau = function(tipo, desc) {
+                    const lista = [];
+                    const add = function(valor) {
+                        const s = String(valor || '').replace(/\s+/g, ' ').trim();
+                        if (s && !lista.includes(s)) lista.push(s);
+                    };
+                    const tipoLimpo = limparMemoriaCludeItau(tipo);
+                    const descLimpa = limparMemoriaCludeItau(desc);
+                    add(tipo);
+                    add(desc);
+                    add(tipo && desc ? (tipo + ' - ' + desc) : '');
+                    add(desc && tipo ? (desc + ' - ' + tipo) : '');
+                    add(tipoLimpo);
+                    add(descLimpa);
+                    add(tipoLimpo && descLimpa ? (tipoLimpo + ' - ' + descLimpa) : '');
+                    add(descLimpa && tipoLimpo ? (descLimpa + ' - ' + tipoLimpo) : '');
+                    const composto = (String(tipo || '') + ' ' + String(desc || '')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                    if (/\b(FOLHA|FERIAS|RESCISAO|SALARIO|ADIANTAMENTO)\b/.test(composto)) add('FOLHA DE PAGAMENTO');
+                    if (/\b(CONDOMINIO|CONDOMINIAL)\b/.test(composto)) add('CONDOMINIO');
+                    if (/\b(IPTU|IMPOSTO PREDIAL)\b/.test(composto)) add('IPTU');
+                    if (/\b(LICENCA|LICENCA DE USO|SOFTWARE|SISTEMAS)\b/.test(composto)) add('LICENCA DE USO DE SOFTWARE');
+                    if (/\b(SERVICOS PRESTADOS|SERVICO PRESTADO|CONSULTORIA)\b/.test(composto)) add('SERVICOS PRESTADOS');
+                    if (/\b(TARIFA|TARIFA BANCARIA|TARIFA BACARIA)\b/.test(composto)) add('TARIFA BANCARIA ITAU');
+                    return lista;
+                };
 
                 for (const sheetName of wb.SheetNames) {
                     const sheet = wb.Sheets[sheetName];
@@ -4973,7 +5012,7 @@
                             .replace(/\s+/g, ' ')
                             .trim();
                         const memoriaDescricoes = [descricao, descBase, tipoDespesa ? (tipoDespesa + ' - ' + descBase) : '']
-                            .concat([tipoDespesa, descBase ? (descBase + ' - ' + tipoDespesa) : ''])
+                            .concat(chavesMemoriaCludeItau(tipoDespesa, descBase))
                             .map(function(x) { return String(x || '').replace(/\s+/g, ' ').trim(); })
                             .filter(Boolean);
 
@@ -8307,6 +8346,71 @@
             return lista;
         }
 
+        function tokensDescricaoMemoria(descNorm) {
+            return String(descNorm || '').split(' ').filter(function(w) { return w.length >= 3; });
+        }
+
+        function descricaoMemoriaGenerica(descNorm) {
+            const tokens = tokensDescricaoMemoria(descNorm);
+            if (tokens.length < 2) return true;
+            const texto = tokens.join(' ');
+            const genericos = [
+                'servicos prestados',
+                'folha pagamento',
+                'licenca uso',
+                'tarifa bancaria',
+                'pagamento boleto'
+            ];
+            return genericos.includes(texto) && tokens.length <= 2;
+        }
+
+        function classificacaoAprendidaValida(aprendido) {
+            return !!(aprendido && (aprendido.contaDebito || aprendido.contaCredito || codigoHistoricoValido(aprendido.codigoHistorico)));
+        }
+
+        function mesmaClassificacaoAprendida(a, b) {
+            if (!a || !b) return false;
+            return String(a.contaDebito || '') === String(b.contaDebito || '')
+                && String(a.contaCredito || '') === String(b.contaCredito || '')
+                && String(a.codigoHistorico || '').replace(/\D/g, '').padStart(4, '0').slice(-4) === String(b.codigoHistorico || '').replace(/\D/g, '').padStart(4, '0').slice(-4);
+        }
+
+        function buscarAprendizadoSimilar(cache, candidatosNorm) {
+            const registros = Object.values(cache || {}).filter(classificacaoAprendidaValida);
+            if (!registros.length) return null;
+            let melhor = null;
+            let amb = false;
+            candidatosNorm.forEach(function(descNorm) {
+                const candTokens = tokensDescricaoMemoria(descNorm);
+                if (candTokens.length < 2) return;
+                if (descricaoMemoriaGenerica(descNorm)) return;
+                registros.forEach(function(aprendido) {
+                    const apNorm = normalizarDescricao(aprendido.descricao_normalizada || aprendido.descricao_exemplo || '');
+                    const apTokens = tokensDescricaoMemoria(apNorm);
+                    if (apTokens.length < 2) return;
+                    if (descricaoMemoriaGenerica(apNorm)) return;
+                    const shared = candTokens.filter(function(t) { return apTokens.includes(t); }).length;
+                    const contains = descNorm.indexOf(apNorm) >= 0 || apNorm.indexOf(descNorm) >= 0;
+                    const prefixoIgual = candTokens.slice(0, 2).join(' ') === apTokens.slice(0, 2).join(' ');
+                    const containment = shared / Math.min(candTokens.length, apTokens.length);
+                    const coverage = shared / Math.max(candTokens.length, apTokens.length);
+                    const score = contains
+                        ? (1 + containment + coverage)
+                        : (coverage + (prefixoIgual ? 0.20 : 0) + (containment >= 0.80 ? 0.15 : 0));
+                    if (!contains && (shared < 3 || coverage < 0.58 || containment < 0.60)) return;
+                    if (contains && shared < 2) return;
+                    const candidato = { aprendido: aprendido, score: score, shared: shared };
+                    if (!melhor || candidato.score > melhor.score || (candidato.score === melhor.score && candidato.shared > melhor.shared)) {
+                        melhor = candidato;
+                        amb = false;
+                    } else if (melhor && Math.abs(candidato.score - melhor.score) < 0.08 && candidato.shared === melhor.shared && !mesmaClassificacaoAprendida(candidato.aprendido, melhor.aprendido)) {
+                        amb = true;
+                    }
+                });
+            });
+            return (!amb && melhor) ? melhor.aprendido : null;
+        }
+
         function historicoTextoValido(valor) {
             const s = String(valor || '').replace(/\s+/g, ' ').trim();
             if (!s) return false;
@@ -8499,15 +8603,18 @@
                 const e = entries[i];
                 let aprendido = null;
                 const candidatos = candidatosDescricaoMemoria(e);
+                const candidatosNorm = [];
                 for (let c = 0; c < candidatos.length; c++) {
                     const descNorm = normalizarDescricao(candidatos[c]);
                     if (!descNorm) continue;
+                    if (!candidatosNorm.includes(descNorm)) candidatosNorm.push(descNorm);
                     const hash = await hashDescricao(cnpjLimpo, descNorm);
                     if (cache[hash]) {
                         aprendido = cache[hash];
                         break;
                     }
                 }
+                if (!aprendido) aprendido = buscarAprendizadoSimilar(cache, candidatosNorm);
                 if (aprendido) {
                     if (aprendido.contaDebito) e.contaDebito = aprendido.contaDebito;
                     if (aprendido.contaCredito) e.contaCredito = aprendido.contaCredito;
@@ -8520,6 +8627,13 @@
                         if (historicoTextoValido(aprendido.historico)) e.historico = aprendido.historico;
                         else if (e.historicoPadraoDescricao) e.historico = e.historicoPadraoDescricao;
                         else if (e.codigoHistorico) e.historico = descricaoHistorico(e.codigoHistorico) || '';
+                    }
+                    if (codigoHistoricoValido(e.codigoHistorico)) {
+                        const histCodigo = descricaoHistorico(e.codigoHistorico);
+                        if (histCodigo) {
+                            e.historicoPadraoDescricao = histCodigo;
+                            e.historico = histCodigo;
+                        }
                     }
                     e._memorizado = true; // marca pra UI mostrar 🧠
                     aplicados++;

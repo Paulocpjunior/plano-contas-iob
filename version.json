@@ -1,9 +1,9 @@
 {
-  "version": "3.1.88",
-  "build_date": "2026-05-15T11:00:00-03:00",
+  "version": "3.1.89",
+  "build_date": "2026-05-15T15:35:00-03:00",
   "release_notes": [
-    "Exportacao FI do IOB passa a seguir o modelo oficial de 328 caracteres com digitador em branco",
-    "Nome do arquivo FI agora normaliza codigos de empresa somente com digitos para evitar extensoes duplicadas",
-    "Exportacao alerta que o IOB importa pela pasta e deve usar diretorio limpo sem FI antigos do mesmo mes"
+    "Memoria do layout CLUDE Itau reforcada com chaves estaveis por fornecedor, tipo de despesa e descricao limpa",
+    "Classificar com IA e Memorizar passam a reaplicar historico por similaridade controlada quando a descricao mensal varia",
+    "Arquivo CLUDE Itau abril validado com 229 lancamentos e totais oficiais fechados"
   ]
 }
