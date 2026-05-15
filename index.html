@@ -17,12 +17,12 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.89"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.89"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.89"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.89"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.89"></script>
-    <script src="/parser-btg-pactual.js?v=3.1.89"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.90"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.90"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.90"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.90"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.90"></script>
+    <script src="/parser-btg-pactual.js?v=3.1.90"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -7267,6 +7267,10 @@
                     }
                 } catch (eMem) { console.warn('[Fase 5a] Falha ao aplicar memoria:', eMem); }
                 try {
+                    const padroesCludeItau = aplicarPadroesLayoutCludeItau(entries);
+                    if (padroesCludeItau > 0) console.log('[CLUDE Itau] recebimentos NF classificados por layout:', padroesCludeItau);
+                } catch (ePadrao) { console.warn('[CLUDE Itau] padrao de recebimentos falhou:', ePadrao); }
+                try {
                     const histFallback = aplicarHistoricosFallback(entries);
                     if (histFallback > 0) console.log('[historico fallback] aplicado em', histFallback, 'lancamento(s)');
                 } catch (eHist) { console.warn('[historico fallback] falhou:', eHist); }
@@ -8300,6 +8304,56 @@
             });
             return aplicados;
         }
+
+        function isLayoutCludeItau(lanc) {
+            const nome = String((lanc && (lanc.layoutNome || lanc.layoutParser || lanc.conta || lanc.nome_conta)) || '').toUpperCase();
+            return nome.indexOf('CLUDE') >= 0 && nome.indexOf('ITAU') >= 0;
+        }
+
+        function historicoCurtoCludeItau(lanc) {
+            const candidatos = candidatosDescricaoMemoria(lanc || {});
+            let texto = candidatos.find(function(c) {
+                return c && !/recebimento\s+da\s+nf/i.test(c) && !/movimento\s+itau/i.test(c);
+            }) || (lanc && lanc.descricao) || '';
+            texto = String(texto || '')
+                .split(' - ')[0]
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-zA-Z0-9\s]/g, ' ')
+                .replace(/\b(DA|DE|DO|DOS|DAS|E|LTDA|S A|SA|ASSOCIADOS|MATRIZ|FILIAL)\b/ig, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toUpperCase();
+            const primeiro = texto.split(' ').filter(Boolean)[0] || 'RECEB';
+            if (/^OAB/.test(texto)) return 'OAB';
+            if (/^WIZ/.test(texto)) return 'WIZ';
+            return primeiro.slice(0, 5);
+        }
+
+        function aplicarPadroesLayoutCludeItau(entries) {
+            let aplicados = 0;
+            (entries || []).forEach(function(e) {
+                if (!e || !isLayoutCludeItau(e)) return;
+                const texto = normalizarTextoRegraHistorico((e.descricao || '') + ' ' + (e.descricao_memoria || ''));
+                const recebimentoNF = e.valor > 0 && /\bRECEBIMENTO\s+DA\s+NF\b/.test(texto);
+                if (!recebimentoNF) return;
+                let mudou = false;
+                if (!e.contaDebito) { e.contaDebito = '111'; mudou = true; }
+                if (!e.contaCredito) { e.contaCredito = '112'; mudou = true; }
+                if (!e.codigoHistorico || String(e.codigoHistorico).replace(/\D/g, '') === '' || String(e.codigoHistorico).replace(/\D/g, '') === '0') {
+                    e.codigoHistorico = '0000';
+                }
+                if (!historicoTextoValido(e.historico)) {
+                    e.historico = historicoCurtoCludeItau(e);
+                    mudou = true;
+                }
+                if (mudou) {
+                    e._layoutCludeItauFallback = true;
+                    e._memorizado = true;
+                    aplicados++;
+                }
+            });
+            return aplicados;
+        }
         async function popularDatalistHistoricos() {
             if (!window.SP_HistoricosPadrao) return;
             const existing = document.getElementById('historicosIOBList');
@@ -8987,6 +9041,12 @@
                     renderLancamentos();
                     showToast('🧠 ' + rMem.aplicados + ' lançamento(s) reaproveitado(s) da memória da empresa.', 'success');
                 }
+                const padroesCludeItau = aplicarPadroesLayoutCludeItau(state.entries);
+                if (padroesCludeItau > 0) {
+                    saveState();
+                    renderLancamentos();
+                    showToast('✅ ' + padroesCludeItau + ' recebimento(s) CLUDE Itaú classificado(s) pelo layout.', 'success');
+                }
 
                 entradasParaIA = state.entries
                     .map(function(e, idx) { return { e: e, idx: idx }; })
@@ -9147,6 +9207,10 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 }
 
                 await aplicarMemoriaEmLancamentos(state.entries, cnpj);
+                try {
+                    const padroesCludeItau = aplicarPadroesLayoutCludeItau(state.entries);
+                    if (padroesCludeItau > 0) console.log('[CLUDE Itau] recebimentos NF classificados apos IA:', padroesCludeItau);
+                } catch (ePadrao) { console.warn('[CLUDE Itau] padrao de recebimentos falhou:', ePadrao); }
                 try {
                     const histFallback = aplicarHistoricosFallback(state.entries);
                     if (histFallback > 0) console.log('[historico fallback] aplicado em', histFallback, 'lancamento(s)');

@@ -1,9 +1,9 @@
 {
-  "version": "3.1.89",
-  "build_date": "2026-05-15T15:35:00-03:00",
+  "version": "3.1.90",
+  "build_date": "2026-05-15T16:55:00-03:00",
   "release_notes": [
-    "Memoria do layout CLUDE Itau reforcada com chaves estaveis por fornecedor, tipo de despesa e descricao limpa",
-    "Classificar com IA e Memorizar passam a reaplicar historico por similaridade controlada quando a descricao mensal varia",
-    "Arquivo CLUDE Itau abril validado com 229 lancamentos e totais oficiais fechados"
+    "Layout CLUDE Itau passa a classificar recebimentos de NF por regra fixa quando nao houver memoria exata",
+    "Recebimentos CICLIC, FLASH, WIZ, OAB-RJ e Oliveira passam a receber conta de entrada e historico curto pelo cliente",
+    "Classificar com IA ignora os recebimentos CLUDE Itau ja resolvidos pelo layout para nao sobrescrever o padrao"
   ]
 }
