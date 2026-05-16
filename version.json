@@ -1,10 +1,10 @@
 {
-  "version": "3.1.95",
-  "build_date": "2026-05-16T01:55:00-03:00",
+  "version": "3.1.96",
+  "build_date": "2026-05-16T02:15:00-03:00",
   "release_notes": [
-    "Central de Qualidade passa a catalogar evidencias recebidas e tratadas por Codex",
-    "Exportacao CSV foi renomeada para Evidencias CSV e nao representa tarefa para colaboradores",
-    "API /api/layout-quality diferencia evidencias recebidas de casos de regressao aprovados",
-    "Validador local agora confere que evidencias estao vinculadas a layouts oficiais"
+    "Reforco do fallback de historicos no layout CLUDE Itau",
+    "Lancamentos CLUDE Itau sem codigo seguro passam a receber historico curto baseado na descricao",
+    "Regras seguras adicionadas para ISS, telefonia, material de limpeza e aluguel",
+    "Mantem memoria/classificacao existente e evita deixar o campo Historico como placeholder vazio"
   ]
 }

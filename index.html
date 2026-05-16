@@ -8247,8 +8247,12 @@
                 { re: /\b(CONDOMINIO|CONDOMINIAL|CONDOM)\b/, cod: '1201' },
                 { re: /\b(FERIAS|FÉRIAS)\b/, cod: '1106' },
                 { re: /\b(FOLHA|SALARIO|SALARIOS|ORDENADO|ORDENADOS|PAGAMENTO FUNCIONARIO)\b/, cod: '1101' },
+                { re: /\b(ISS|IMPOSTO SOBRE SERVICO|IMPOSTO SOBRE SERVICOS)\b/, cod: '1022' },
                 { re: /\b(LICENCA|LICENCA DE USO|SOFTWARE|CLICKSIGN|RD GESTAO|SISTEMAS)\b/, cod: '1305' },
                 { re: /\b(CONSULTORIA|SERVICOS PRESTADOS|SERVICO PRESTADO|PRESTACAO DE SERVICO|ETHOS GRC)\b/, cod: '1207' },
+                { re: /\b(MATERIAL DE LIMPEZA|LIMPEZA|COPA|COZINHA|SUPRICORP|GIMBA)\b/, cod: '1238' },
+                { re: /\b(TELEFONIA|TELEFONE|SMS|VIVO MOVEL|ROCK TELECOM)\b/, cod: '1221' },
+                { re: /\b(ALUGUEL|LOCACAO|VAGAS DE GARAGEM)\b/, cod: '1200' },
                 { re: /\b(HONORARIO|HONORARIOS|ADVOCATICIO|ADVOCATICIOS)\b/, cod: '1249' }
             ];
             const achada = regras.find(function(r) { return r.re.test(d); });
@@ -8299,20 +8303,31 @@
                 if (!e || !isLayoutCludeItau(e)) return;
                 const texto = normalizarTextoRegraHistorico((e.descricao || '') + ' ' + (e.descricao_memoria || ''));
                 const recebimentoNF = e.valor > 0 && /\bRECEBIMENTO\s+DA\s+NF\b/.test(texto);
-                if (!recebimentoNF) return;
                 let mudou = false;
-                if (!e.contaDebito) { e.contaDebito = '111'; mudou = true; }
-                if (!e.contaCredito) { e.contaCredito = '112'; mudou = true; }
-                if (!e.codigoHistorico || String(e.codigoHistorico).replace(/\D/g, '') === '' || String(e.codigoHistorico).replace(/\D/g, '') === '0') {
-                    e.codigoHistorico = '0000';
+
+                if (recebimentoNF) {
+                    if (!e.contaDebito) { e.contaDebito = '111'; mudou = true; }
+                    if (!e.contaCredito) { e.contaCredito = '112'; mudou = true; }
+                    if (!e.codigoHistorico || String(e.codigoHistorico).replace(/\D/g, '') === '' || String(e.codigoHistorico).replace(/\D/g, '') === '0') {
+                        e.codigoHistorico = '0000';
+                    }
                 }
+
+                if (!codigoHistoricoValido(e.codigoHistorico)) {
+                    const codSeguro = codigoHistoricoPorDescricao((e.descricao || '') + ' ' + (e.descricao_memoria || ''));
+                    if (codSeguro) {
+                        aplicarHistoricoAoLancamento(e, codSeguro);
+                        mudou = true;
+                    }
+                }
+
                 if (!historicoTextoValido(e.historico)) {
                     e.historico = historicoCurtoCludeItau(e);
                     mudou = true;
                 }
                 if (mudou) {
                     e._layoutCludeItauFallback = true;
-                    e._memorizado = true;
+                    if (recebimentoNF && e.contaDebito && e.contaCredito) e._memorizado = true;
                     aplicados++;
                 }
             });
