@@ -205,8 +205,11 @@
     }
 
     const ehSafra = /(Banco\s+Safra\s+S\/?A|Safra)/i.test(textoCompleto)
-      && /Extrato de Movimenta[cç][aã]o/i.test(textoCompleto)
-      && /LAN[CÇ]AMENTOS REALIZADOS/i.test(textoCompleto);
+      && (
+        /Extrato de Movimenta[cç][aã]o/i.test(textoCompleto)
+        || /LAN[CÇ]AMENTOS REALIZADOS/i.test(textoCompleto)
+        || /AG:\s*\d+\s*\|\s*CONTA:/i.test(textoCompleto)
+      );
 
     if (!ehSafra) return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
 
@@ -275,6 +278,24 @@
     };
   }
 
-  window.parsearPDF_Safra_Extrato = parsearPDF_Safra_Extrato;
-  console.log('[parser-safra-extrato] carregado');
+  const api = {
+    parsearPDF_Safra_Extrato: parsearPDF_Safra_Extrato,
+    __test__: {
+      parseValorBR: parseValorBR,
+      separarValorFinalSafra: separarValorFinalSafra,
+      parseLinhaTextualSafra: parseLinhaTextualSafra,
+      parseTextualSafra: parseTextualSafra,
+      extrairPeriodo: extrairPeriodo,
+      parseDataCurta: parseDataCurta,
+      normalizarDescricaoSafra: normalizarDescricaoSafra
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.parsearPDF_Safra_Extrato = parsearPDF_Safra_Extrato;
+    console.log('[parser-safra-extrato] carregado');
+  }
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
 })();

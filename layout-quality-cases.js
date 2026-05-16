@@ -55,6 +55,25 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-05-14T16:49:39-03:00',
     observacao: 'Layout BTG textual com data, descricao multiline, valor e saldo em colunas fixas.'
+  },
+  {
+    id: 'safra-waldesa-2026-01',
+    banco: '422',
+    nomeBanco: 'Banco Safra',
+    layout: 'Safra - Extrato de Movimentacao',
+    parser: 'parsearPDF_Safra_Extrato',
+    arquivo: 'EXTRATO SAFRA - CC 172128-9 (2) 2.pdf',
+    empresa: 'WALDESA MOTOMERCANTIL LTDA.',
+    periodo_inicio: '2026-01-02',
+    periodo_fim: '2026-02-02',
+    esperado: {
+      total_lancamentos: 63,
+      total_credito: 165475.13,
+      total_debito: 165478.00
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-16T03:20:00-03:00',
+    observacao: 'Layout Safra textual com valores colados ao documento e linhas quebradas em operacoes Safrapay, Pix e CDB.'
   }
 ];
 

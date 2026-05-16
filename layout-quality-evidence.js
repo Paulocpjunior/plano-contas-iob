@@ -98,11 +98,11 @@ const LAYOUT_QUALITY_EVIDENCE = [
     arquivo: 'EXTRATO SAFRA - CC 172128-9 (2) 2.pdf',
     caminho_local: '/Users/paulocesarpereirajunior/Downloads/EXTRATO SAFRA - CC 172128-9 (2) 2.pdf',
     empresa: 'WALDESA MOTOMERCANTIL LTDA.',
-    periodo_inicio: '2026-01-01',
-    periodo_fim: '2026-01-31',
-    etapa: 'layout_parametrizado',
-    status: 'Evidencia recebida',
-    observacao: 'Evidencia do layout Safra com data, historico, complemento, documento e valor.'
+    periodo_inicio: '2026-01-02',
+    periodo_fim: '2026-02-02',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js com totais esperados para valores colados e linhas quebradas.'
   },
   {
     id: 'itau-extrato-mensal-2026-01',
