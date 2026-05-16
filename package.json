@@ -1,12 +1,12 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.1.94",
+  "version": "3.1.95",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "seed": "node seed.js",
-    "check": "node --check server.js && for f in parser-*.js api-adapter.js historicos-padrao.js historicos-routes.js vincular-empresa.js vincular-folha-pagamento.js layouts-bancarios-padrao.js layout-quality-cases.js auditai/conciliacao-arquivos.js scripts/check-duplicate-routes.js scripts/test-layouts.js; do node --check \"$f\" || exit 1; done && node scripts/check-duplicate-routes.js && npm run test:layouts",
+    "check": "node --check server.js && for f in parser-*.js api-adapter.js historicos-padrao.js historicos-routes.js vincular-empresa.js vincular-folha-pagamento.js layouts-bancarios-padrao.js layout-quality-cases.js layout-quality-evidence.js auditai/conciliacao-arquivos.js scripts/check-duplicate-routes.js scripts/test-layouts.js; do node --check \"$f\" || exit 1; done && node scripts/check-duplicate-routes.js && npm run test:layouts",
     "test:layouts": "node scripts/test-layouts.js"
   },
   "dependencies": {

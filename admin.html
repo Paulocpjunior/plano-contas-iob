@@ -133,11 +133,11 @@
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
         <div>
           <h2 style="font-size:20px;margin-bottom:4px">✅ Central de Qualidade de Layouts</h2>
-          <p style="font-size:13px;color:#6b7280">Casos validados com arquivo-modelo, totais esperados e parser responsável. Use esta tela como trava antes de liberar ajustes bancários.</p>
+          <p style="font-size:13px;color:#6b7280">Arquivos recebidos, layouts tratados e casos de regressão com totais conferidos. Esta tela é controle interno: colaborador não precisa preencher planilha.</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" onclick="loadLayoutQuality()">🔄 Atualizar</button>
-          <button class="btn" style="background:#059669" onclick="exportLayoutQualityPendingCSV()">📥 Pendências CSV</button>
+          <button class="btn" style="background:#059669" onclick="exportLayoutEvidenceCSV()">📥 Evidências CSV</button>
         </div>
       </div>
       <div id="layoutQualityContent" class="loading">Carregando…</div>
@@ -401,29 +401,46 @@ async function loadLayoutQuality() {
 
 function renderLayoutQuality() {
   const el = document.getElementById('layoutQualityContent');
-  const data = currentLayoutQuality || { resumo: {}, casos: [], pendentes: [] };
+  const data = currentLayoutQuality || { resumo: {}, casos: [], pendentes: [], evidencias: [] };
   const resumo = data.resumo || {};
   const casos = data.casos || [];
   const pendentes = data.pendentes || [];
+  const evidencias = data.evidencias || [];
   const cards = `
     <div class="layout-grid">
       <div class="layout-card"><div class="bank">Casos validados</div><div class="count">${resumo.total_casos || 0}</div><div class="caption">Arquivos-modelo cadastrados</div></div>
       <div class="layout-card"><div class="bank">Aprovados</div><div class="count">${resumo.aprovados || 0}</div><div class="caption">Prontos para regressão</div></div>
+      <div class="layout-card"><div class="bank">Evidências</div><div class="count">${resumo.evidencias || 0}</div><div class="caption">Arquivos já recebidos/tratados</div></div>
       <div class="layout-card"><div class="bank">Cobertura</div><div class="count">${resumo.cobertura || 0}%</div><div class="caption">${resumo.layouts_oficiais || 0} layouts oficiais</div></div>
-      <div class="layout-card"><div class="bank">Pendentes</div><div class="count">${resumo.layouts_pendentes || 0}</div><div class="caption">Sem arquivo-modelo validado</div></div>
     </div>`;
 
   let html = cards;
+  if (evidencias.length) {
+    html += '<h3 style="margin:22px 0 10px;color:#111827">Evidências recebidas e tratadas</h3>';
+    html += '<table><thead><tr><th>Banco/Layout</th><th>Arquivo</th><th>Empresa</th><th>Período</th><th>Etapa</th><th>Observação</th></tr></thead><tbody>';
+    evidencias.forEach(e => {
+      html += `<tr>
+        <td><strong>${escapeHtml(e.banco)} - ${escapeHtml(e.nomeBanco)}</strong><br><span style="font-size:12px;color:#374151">${escapeHtml(e.layout)}</span><br><span class="text-mono" style="font-size:11px;color:#9ca3af">${escapeHtml(e.parser)}</span></td>
+        <td>${escapeHtml(e.arquivo || '')}<br><span style="font-size:11px;color:#9ca3af">${escapeHtml(e.status || '')}</span></td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(e.empresa || '-')}</td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(e.periodo_inicio || '-')}<br>${escapeHtml(e.periodo_fim || '-')}</td>
+        <td><span class="badge ${e.etapa === 'regressao_aprovada' ? 'badge-ok' : 'badge-info'}">${escapeHtml((e.etapa || '').replace(/_/g, ' ') || '-')}</span></td>
+        <td style="font-size:12px;color:#6b7280">${escapeHtml(e.observacao || '')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
   if (pendentes.length) {
-    html += '<h3 style="margin:22px 0 10px;color:#111827">Layouts pendentes de validação</h3>';
-    html += '<table><thead><tr><th>Banco/Layout</th><th>Parser</th><th>Formato</th><th>Último arquivo de referência</th><th>Próxima ação</th></tr></thead><tbody>';
+    html += '<h3 style="margin:22px 0 10px;color:#111827">Layouts sem regressão automática aprovada</h3>';
+    html += '<table><thead><tr><th>Banco/Layout</th><th>Parser</th><th>Formato</th><th>Último arquivo de referência</th><th>Status interno</th></tr></thead><tbody>';
     pendentes.forEach(p => {
       html += `<tr>
         <td><strong>${escapeHtml(p.banco)} - ${escapeHtml(p.nomeBanco)}</strong><br><span style="font-size:12px;color:#374151">${escapeHtml(p.layout)}</span></td>
         <td><span class="text-mono" style="font-size:11px;color:#6b7280">${escapeHtml(p.parser)}</span></td>
         <td>${escapeHtml(p.formato || '')}<br><span class="badge ${p.confiabilidade === 'Alta' ? 'badge-ok' : 'badge-warn'}">${escapeHtml(p.confiabilidade || '-')}</span></td>
         <td style="font-size:12px;color:#374151">${escapeHtml(p.ultimoTeste || '-')}</td>
-        <td style="font-size:12px;color:#6b7280">Validar arquivo real e cadastrar totais esperados na Central de Qualidade.</td>
+        <td style="font-size:12px;color:#6b7280">${p.possuiEvidencia ? 'Evidência recebida; falta amarrar totais esperados para regressão.' : 'Sem evidência cadastrada no catálogo interno.'}</td>
       </tr>`;
     });
     html += '</tbody></table>';
@@ -451,50 +468,44 @@ function renderLayoutQuality() {
   el.innerHTML = html;
 }
 
-function exportLayoutQualityPendingCSV() {
-  const pendentes = (currentLayoutQuality && currentLayoutQuality.pendentes) || [];
-  if (!pendentes.length) { alert('Nenhum layout pendente carregado.'); return; }
+function exportLayoutEvidenceCSV() {
+  const evidencias = (currentLayoutQuality && currentLayoutQuality.evidencias) || [];
+  if (!evidencias.length) { alert('Nenhuma evidência carregada.'); return; }
   const rows = [[
     'Banco',
     'Nome do Banco',
     'Layout',
     'Parser',
     'Formato',
-    'Confiabilidade',
-    'Arquivo de Referencia',
+    'Arquivo',
     'Empresa Validada',
     'Periodo Inicio',
     'Periodo Fim',
-    'Total Lancamentos Esperado',
-    'Total Credito Esperado',
-    'Total Debito Esperado',
+    'Etapa',
     'Status',
     'Observacao'
   ]];
-  pendentes.forEach(p => {
+  evidencias.forEach(e => {
     rows.push([
-      p.banco || '',
-      p.nomeBanco || '',
-      p.layout || '',
-      p.parser || '',
-      p.formato || '',
-      p.confiabilidade || '',
-      p.ultimoTeste || '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      'Pendente',
-      p.observacao || ''
+      e.banco || '',
+      e.nomeBanco || '',
+      e.layout || '',
+      e.parser || '',
+      e.formato || '',
+      e.arquivo || '',
+      e.empresa || '',
+      e.periodo_inicio || '',
+      e.periodo_fim || '',
+      e.etapa || '',
+      e.status || '',
+      e.observacao || ''
     ]);
   });
   const csv = '\uFEFF' + rows.map(r => r.map(c => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(';')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'layouts_pendentes_qualidade_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.download = 'layouts_evidencias_qualidade_' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
 }
 

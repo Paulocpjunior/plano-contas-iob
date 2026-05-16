@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { LAYOUTS_BANCARIOS_PADRAO, normalizarBancoLayout, layoutBancoId } = require('../layouts-bancarios-padrao');
 const { LAYOUT_QUALITY_CASES } = require('../layout-quality-cases');
+const { LAYOUT_QUALITY_EVIDENCE } = require('../layout-quality-evidence');
 
 const ROOT = path.join(__dirname, '..');
 const parserFiles = fs.readdirSync(ROOT).filter(name => /^parser-.*\.js$/.test(name));
@@ -53,13 +54,32 @@ for (const caso of LAYOUT_QUALITY_CASES) {
   if (!caso.esperado || typeof caso.esperado.total_debito !== 'number') fail(`Caso sem total_debito esperado: ${caso.id}`);
 }
 
+const evidenceIds = new Set();
+for (const evidencia of LAYOUT_QUALITY_EVIDENCE) {
+  if (evidenceIds.has(evidencia.id)) fail(`Evidencia duplicada: ${evidencia.id}`);
+  evidenceIds.add(evidencia.id);
+
+  const banco = normalizarBancoLayout(evidencia.banco);
+  const parser = evidencia.parser;
+  const layout = LAYOUTS_BANCARIOS_PADRAO.find(l => normalizarBancoLayout(l.banco) === banco && l.parser === parser);
+  if (!layout) fail(`Evidencia sem layout oficial: ${evidencia.id} (${evidencia.banco}/${evidencia.parser})`);
+  if (!evidencia.arquivo) fail(`Evidencia sem arquivo: ${evidencia.id}`);
+  if (!evidencia.status) fail(`Evidencia sem status: ${evidencia.id}`);
+  if (evidencia.caminho_local && !fs.existsSync(evidencia.caminho_local)) {
+    warnings.push(`Arquivo de evidencia nao encontrado localmente: ${evidencia.caminho_local}`);
+  }
+}
+
 const covered = new Set(LAYOUT_QUALITY_CASES.map(c => normalizarBancoLayout(c.banco) + '_' + c.parser));
+const evidenced = new Set(LAYOUT_QUALITY_EVIDENCE.map(e => normalizarBancoLayout(e.banco) + '_' + e.parser));
 const activeUncovered = LAYOUTS_BANCARIOS_PADRAO
   .filter(l => (l.status || 'Ativo') === 'Ativo')
   .filter(l => !covered.has(normalizarBancoLayout(l.banco) + '_' + l.parser));
 
 for (const layout of activeUncovered) {
-  warnings.push(`Sem caso de qualidade ainda: ${normalizarBancoLayout(layout.banco)} - ${layout.nome}`);
+  const key = normalizarBancoLayout(layout.banco) + '_' + layout.parser;
+  const evidenceLabel = evidenced.has(key) ? 'com evidencia catalogada' : 'sem evidencia catalogada';
+  warnings.push(`Sem regressao aprovada ainda (${evidenceLabel}): ${normalizarBancoLayout(layout.banco)} - ${layout.nome}`);
 }
 
 if (errors.length) {
@@ -70,6 +90,7 @@ if (errors.length) {
 
 console.log(`OK: ${LAYOUTS_BANCARIOS_PADRAO.length} layouts oficiais validados.`);
 console.log(`OK: ${LAYOUT_QUALITY_CASES.length} casos de qualidade vinculados a layouts oficiais.`);
+console.log(`OK: ${LAYOUT_QUALITY_EVIDENCE.length} evidencias vinculadas a layouts oficiais.`);
 if (warnings.length) {
   console.log('Pendencias nao bloqueantes:');
   for (const w of warnings) console.log('- ' + w);
