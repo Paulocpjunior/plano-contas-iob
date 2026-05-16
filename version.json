@@ -1,10 +1,10 @@
 {
-  "version": "3.1.91",
-  "build_date": "2026-05-16T00:00:00-03:00",
+  "version": "3.1.92",
+  "build_date": "2026-05-16T00:30:00-03:00",
   "release_notes": [
-    "Centralizacao dos layouts bancarios na fonte oficial do backend para evitar divergencia entre Admin e importador",
-    "Remocao de rotas duplicadas de importacoes no backend",
-    "Cabecalho passa a exibir a versao real da API em vez de texto fixo",
-    "Adicionado check automatico para bloquear rotas Express duplicadas"
+    "Adicionado teste automatico dos layouts bancarios oficiais",
+    "Check do projeto passa a bloquear layouts duplicados, parsers inexistentes e casos de qualidade sem vinculo oficial",
+    "Demonstrativo Itaucard CLUDE passa a apontar para o parser XLSX generico que bloqueia arquivos protegidos",
+    "Criada estrutura para fixtures sanitizadas de regressao dos layouts"
   ]
 }
