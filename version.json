@@ -1,10 +1,10 @@
 {
-  "version": "3.1.97",
-  "build_date": "2026-05-16T02:35:00-03:00",
+  "version": "3.1.98",
+  "build_date": "2026-05-16T02:55:00-03:00",
   "release_notes": [
-    "Santander 033 e Santander CTVM 352 passam a compartilhar layouts equivalentes no importador",
-    "Opcao automatica de PDF tenta os layouts Santander 1 e Santander 2 independentemente do codigo cadastrado",
-    "Mensagem de erro de layout passa a listar layouts tentados e deteccoes parciais com totais",
-    "Reduz erro operacional quando a empresa esta cadastrada como 033 ou 352 mas o arquivo usa outro modelo Santander"
+    "Parser BB Conta Atual passa a ter regressao automatica para valores altos e sinal C/D",
+    "Teste cobre cheque, TED, Pix multiline e saldo final apos valor do movimento",
+    "Parser BB exporta helpers de teste sem alterar comportamento no navegador",
+    "npm run check agora bloqueia regressao na leitura de valor/sinal pela direita"
   ]
 }

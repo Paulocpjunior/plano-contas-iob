@@ -210,6 +210,20 @@
     };
   }
 
-  window.parsearPDF_BB_ContaAtual = parsearPDF_BB_ContaAtual;
-  console.log('[parser-bb-conta-atual] carregado');
+  const api = {
+    parsearPDF_BB_ContaAtual: parsearPDF_BB_ContaAtual,
+    __test__: {
+      parseLinhaLancamentoBB: parseLinhaLancamentoBB,
+      montarLinhaLancamento: montarLinhaLancamento,
+      normalizarDescricaoBB: normalizarDescricaoBB
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.parsearPDF_BB_ContaAtual = parsearPDF_BB_ContaAtual;
+    console.log('[parser-bb-conta-atual] carregado');
+  }
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
 })();
