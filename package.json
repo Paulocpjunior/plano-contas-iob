@@ -1,11 +1,12 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.1.90",
+  "version": "3.1.91",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "check": "node --check server.js && for f in parser-*.js api-adapter.js historicos-padrao.js historicos-routes.js vincular-empresa.js vincular-folha-pagamento.js layouts-bancarios-padrao.js layout-quality-cases.js auditai/conciliacao-arquivos.js scripts/check-duplicate-routes.js; do node --check \"$f\" || exit 1; done && node scripts/check-duplicate-routes.js"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.10.0",

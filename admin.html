@@ -233,96 +233,6 @@ let currentUsers = [];
 let currentLogs = [];
 let currentLayoutsBancarios = null;
 let currentLayoutQuality = null;
-const LAYOUTS_BANCARIOS = [
-  {
-    banco: '001',
-    nomeBanco: 'Banco do Brasil',
-    layout: 'Banco do Brasil - Conta Atual',
-    parser: 'parsearPDF_BB_ContaAtual',
-    formato: 'PDF textual',
-    confiabilidade: 'Alta',
-    status: 'Ativo',
-    ultimoTeste: 'EXTRATO BB - CC 14910-1 - MATRIZ SP',
-    observacao: 'Modelo Cliente - Conta atual com texto extraível.'
-  },
-  {
-    banco: '001',
-    nomeBanco: 'Banco do Brasil',
-    layout: 'Banco do Brasil - BB Cash OCR',
-    parser: 'parsearPDF_BB_CashOCR',
-    formato: 'PDF imagem / OCR',
-    confiabilidade: 'Média',
-    status: 'Ativo',
-    ultimoTeste: 'EXTRATO BANCO DO BRASIL - 08.2025.pdf',
-    observacao: 'Modelo BB Cash digitalizado. Exige conferência dos totais.'
-  },
-  {
-    banco: '237',
-    nomeBanco: 'Bradesco',
-    layout: 'Bradesco Net Empresa - Extrato Mensal por Periodo',
-    parser: 'parsearPDF_Bradesco_NetEmpresa',
-    formato: 'PDF textual',
-    confiabilidade: 'Alta',
-    status: 'Ativo',
-    ultimoTeste: 'extrato 12 sep-part-1 1.pdf',
-    observacao: 'Confere totais oficiais de crédito e débito quando disponíveis.'
-  },
-  {
-    banco: '033',
-    nomeBanco: 'Santander',
-    layout: 'Santander Empresas - Extrato Consolidado Inteligente OCR',
-    parser: 'parsearPDF_Santander_EmpresasOCR',
-    formato: 'PDF imagem / OCR',
-    confiabilidade: 'Média',
-    status: 'Ativo',
-    ultimoTeste: 'EXTRATO SANTANDER.pdf',
-    observacao: 'Extrai a seção Conta Corrente / Movimentação e ignora quadros auxiliares.'
-  },
-  {
-    banco: '352',
-    nomeBanco: 'Santander CTVM',
-    layout: 'Santander Empresas - Extrato Consolidado Inteligente OCR',
-    parser: 'parsearPDF_Santander_EmpresasOCR',
-    formato: 'PDF imagem / OCR',
-    confiabilidade: 'Média',
-    status: 'Ativo',
-    ultimoTeste: 'EXTRATO SANTANDER.pdf',
-    observacao: 'Atende cadastros que usam código 352 para extratos Santander Empresas.'
-  },
-  {
-    banco: '341',
-    nomeBanco: 'Itaú Unibanco',
-    layout: 'Itau 1 - Extrato Mensal',
-    parser: 'parsearPDF_Itau_ExtratoMensal',
-    formato: 'PDF textual',
-    confiabilidade: 'Alta',
-    status: 'Ativo',
-    ultimoTeste: 'Extrato Mensal_Janeiro2026 1.pdf',
-    observacao: 'Lê colunas de entradas, saídas e saldo com validação dos totais.'
-  },
-  {
-    banco: '422',
-    nomeBanco: 'Banco Safra',
-    layout: 'Safra - Extrato de Movimentacao',
-    parser: 'parsearPDF_Safra_Extrato',
-    formato: 'PDF textual',
-    confiabilidade: 'Alta',
-    status: 'Ativo',
-    ultimoTeste: 'EXTRATO SAFRA - CC 172128-9 (2).pdf',
-    observacao: 'Extrai data, histórico, complemento, documento e valor.'
-  },
-  {
-    banco: '208',
-    nomeBanco: 'Banco BTG Pactual',
-    layout: 'BTG Pactual - Conta corrente PJ',
-    parser: 'parsearPDF_BTG_Pactual',
-    formato: 'PDF textual',
-    confiabilidade: 'Alta',
-    status: 'Ativo',
-    ultimoTeste: 'ERF- JANEIRO DE 2026.pdf',
-    observacao: 'Lê extrato BTG Conta corrente PJ com descrições multiline, valor e saldo por colunas.'
-  }
-];
 
 function fmtDate(ts) {
   if (!ts) return '-';
@@ -420,8 +330,8 @@ async function carregarLayoutsBancariosAdmin() {
     const data = await r.json();
     currentLayoutsBancarios = (data.layouts || []).map(normalizarLayoutBanco);
   } catch (e) {
-    console.warn('[admin layouts] usando fallback estatico:', e);
-    currentLayoutsBancarios = LAYOUTS_BANCARIOS.map(normalizarLayoutBanco);
+    console.warn('[admin layouts] falha ao carregar fonte oficial:', e);
+    currentLayoutsBancarios = [];
   }
 }
 
@@ -431,6 +341,10 @@ async function renderLayouts() {
   el.innerHTML = '<div class="loading">Carregando layouts do banco de dados…</div>';
   await carregarLayoutsBancariosAdmin();
   const layouts = currentLayoutsBancarios || [];
+  if (!layouts.length) {
+    el.innerHTML = '<div class="error">Não foi possível carregar os layouts bancários da fonte oficial. Tente atualizar a página ou verifique a API.</div>';
+    return;
+  }
   const totalLayouts = layouts.length;
   const bancos = [...new Set(layouts.map(l => l.banco))].length;
   const ocr = layouts.filter(l => /OCR/i.test(l.formato)).length;

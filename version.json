@@ -1,9 +1,10 @@
 {
-  "version": "3.1.90",
-  "build_date": "2026-05-15T16:55:00-03:00",
+  "version": "3.1.91",
+  "build_date": "2026-05-16T00:00:00-03:00",
   "release_notes": [
-    "Layout CLUDE Itau passa a classificar recebimentos de NF por regra fixa quando nao houver memoria exata",
-    "Recebimentos CICLIC, FLASH, WIZ, OAB-RJ e Oliveira passam a receber conta de entrada e historico curto pelo cliente",
-    "Classificar com IA ignora os recebimentos CLUDE Itau ja resolvidos pelo layout para nao sobrescrever o padrao"
+    "Centralizacao dos layouts bancarios na fonte oficial do backend para evitar divergencia entre Admin e importador",
+    "Remocao de rotas duplicadas de importacoes no backend",
+    "Cabecalho passa a exibir a versao real da API em vez de texto fixo",
+    "Adicionado check automatico para bloquear rotas Express duplicadas"
   ]
 }

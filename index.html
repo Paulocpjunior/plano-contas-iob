@@ -17,12 +17,12 @@
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
     <script src="/parser-bradesco-netempresa.js"></script>
-    <script src="/parser-safra-extrato.js?v=3.1.90"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.1.90"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.1.90"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.1.90"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.1.90"></script>
-    <script src="/parser-btg-pactual.js?v=3.1.90"></script>
+    <script src="/parser-safra-extrato.js?v=3.1.91"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.1.91"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.1.91"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.1.91"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.1.91"></script>
+    <script src="/parser-btg-pactual.js?v=3.1.91"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1616,7 +1616,7 @@
                 <div class="header-logo">📊</div>
                 <div class="header-title">
                     <h1>CONSULTOR CONTÁBIL INTELIGENTE</h1>
-                    <span class="version">v4.0 • Colaborativo</span>
+                    <span class="version" id="headerVersion">Carregando versão…</span>
                 </div>
             </div>
             <div class="header-right">
@@ -3620,47 +3620,11 @@
             let layoutsBancariosCacheTs = 0;
 
 	        function layoutsPDFCadastradosPorBancoFallback(bancoCode) {
-	            const code = resolverBancoLegado(bancoCode) || bancoCode || '';
-	            const layouts = {
-	                '001': [{
-	                    nome: 'Banco do Brasil - Conta Atual',
-	                    parser: 'parsearPDF_BB_ContaAtual'
-	                }, {
-	                    nome: 'Banco do Brasil - BB Cash OCR',
-	                    parser: 'parsearPDF_BB_CashOCR'
-	                }],
-	                '237': [{
-	                    nome: 'Bradesco Net Empresa - Extrato Mensal por Periodo',
-	                    parser: 'parsearPDF_Bradesco_NetEmpresa'
-	                }],
-	                '033': [{
-	                    nome: 'Santander 1 - Internet Banking Empresarial',
-	                    parser: 'parsearPDF_Santander_InternetBanking'
-	                }, {
-	                    nome: 'Santander 2 - Extrato Consolidado Inteligente / Conta Corrente',
-	                    parser: 'parsearPDF_Santander_EmpresasOCR'
-	                }],
-	                '341': [{
-	                    nome: 'Itau 1 - Extrato Mensal',
-	                    parser: 'parsearPDF_Itau_ExtratoMensal'
-	                }],
-	                '352': [{
-	                    nome: 'Santander 1 - Internet Banking Empresarial',
-	                    parser: 'parsearPDF_Santander_InternetBanking'
-	                }, {
-	                    nome: 'Santander 2 - Extrato Consolidado Inteligente OCR',
-	                    parser: 'parsearPDF_Santander_EmpresasOCR'
-	                }],
-		                '422': [{
-		                    nome: 'Safra - Extrato de Movimentacao',
-		                    parser: 'parsearPDF_Safra_Extrato'
-		                }],
-		                '208': [{
-		                    nome: 'BTG Pactual - Conta corrente PJ',
-		                    parser: 'parsearPDF_BTG_Pactual'
-		                }]
-		            };
-	            return layouts[code] || [];
+	            const code = normalizarCodigoBancoLayout(resolverBancoLegado(bancoCode) || bancoCode || '');
+                if (!layoutsBancariosCache) return [];
+                return layoutsBancariosCache.filter(function(l) {
+                    return normalizarCodigoBancoLayout(l.banco) === code;
+                });
 	        }
 
             async function carregarLayoutsBancariosDoBanco() {
@@ -3694,7 +3658,7 @@
                     const doBanco = todos.filter(function(l) { return normalizarCodigoBancoLayout(l.banco) === codeNormalizado; });
                     if (doBanco.length) return doBanco;
                 } catch (e) {
-                    console.warn('[layouts bancarios] usando fallback local:', e.message || e);
+                    console.warn('[layouts bancarios] fonte oficial indisponivel:', e.message || e);
                 }
                 return layoutsPDFCadastradosPorBancoFallback(code);
             }
@@ -10154,9 +10118,11 @@ window.confirmarTrocarPlano = async function() {
 
             function _atualizarFooter(info) {
                 const el = document.getElementById('versionFooter');
-                if (!el) return;
                 const data = info.build_date ? new Date(info.build_date).toLocaleDateString('pt-BR') : '';
-                el.textContent = 'v' + info.version + (data ? ' • ' + data : '');
+                const textoVersao = 'v' + info.version;
+                if (el) el.textContent = textoVersao + (data ? ' • ' + data : '');
+                const header = document.getElementById('headerVersion');
+                if (header) header.textContent = textoVersao + ' • Colaborativo';
             }
 
             function _mostrarModalAtualizacao(info) {

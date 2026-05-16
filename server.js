@@ -44,7 +44,7 @@ app.get('/api/version', (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     const test = await db.collection('planos').limit(1).get();
-    res.json({ status: 'ok', versao: '4.0-colaborativo', firestore: 'connected', planos_existem: test.size > 0 });
+    res.json({ status: 'ok', versao: lerVersao().version || 'dev', firestore: 'connected', planos_existem: test.size > 0 });
   } catch (err) { res.status(500).json({ status: 'erro', erro: err.message }); }
 });
 
@@ -860,60 +860,6 @@ app.delete('/api/importacoes/:cnpj/:fingerprint', async (req, res) => {
   } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
-app.post('/api/importacoes/:cnpj', async (req, res) => {
-  try {
-    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
-    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
-    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
-    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const { fingerprint, banco, conta, nome_conta, periodo_inicio, periodo_fim, total_lancamentos, arquivo_exemplo } = req.body || {};
-    if (!fingerprint) return res.status(400).json({ erro: 'fingerprint obrigatorio' });
-    const ref = db.collection('empresas').doc(cnpjLimpo).collection('importacoes').doc(fingerprint);
-    const doc = await ref.get();
-    const agora = new Date();
-    if (doc.exists) {
-      await ref.update({ atualizado_em: agora, atualizado_por: req.user.email, total_lancamentos: total_lancamentos || 0, ultimo_arquivo: arquivo_exemplo || null, total_atualizacoes: (doc.data().total_atualizacoes || 0) + 1 });
-    } else {
-      await ref.set({ fingerprint, banco: banco || '', conta: conta || '', nome_conta: nome_conta || '', periodo_inicio: periodo_inicio || '', periodo_fim: periodo_fim || '', total_lancamentos: total_lancamentos || 0, arquivo_exemplo: arquivo_exemplo || null, criado_em: agora, criado_por: req.user.email, criado_por_uid: req.user.uid, atualizado_em: agora, total_atualizacoes: 0 });
-    }
-    res.json({ ok: true, fingerprint });
-  } catch (e) { console.error('importacoes POST:', e); res.status(500).json({ erro: e.message }); }
-});
-
-app.get('/api/importacoes/:cnpj/:fingerprint', async (req, res) => {
-  try {
-    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
-    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
-    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
-    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const doc = await db.collection('empresas').doc(cnpjLimpo).collection('importacoes').doc(req.params.fingerprint).get();
-    if (!doc.exists) return res.status(404).json({ erro: 'Importacao nao encontrada' });
-    res.json({ id: doc.id, ...doc.data() });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
-});
-
-app.get('/api/importacoes/:cnpj', async (req, res) => {
-  try {
-    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
-    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
-    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
-    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const snap = await db.collection('empresas').doc(cnpjLimpo).collection('importacoes').get();
-    res.json({ importacoes: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
-});
-
-app.delete('/api/importacoes/:cnpj/:fingerprint', async (req, res) => {
-  try {
-    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
-    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
-    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
-    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    await db.collection('empresas').doc(cnpjLimpo).collection('importacoes').doc(req.params.fingerprint).delete();
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
-});
-
 app.delete('/api/empresas/:cnpj', adminRequired, async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
@@ -1427,6 +1373,7 @@ app.post('/api/gemini/chat', adminRequired, async (req, res) => {
 
 
 app.listen(PORT, () => {
-  console.log('[plano-contas-iob v4.0-colaborativo] porta ' + PORT);
+  const versao = lerVersao().version || require('./package.json').version || 'dev';
+  console.log('[plano-contas-iob v' + versao + '] porta ' + PORT);
   garantirLayoutsBancariosPadrao().catch(err => console.error('[layouts bancarios] bootstrap falhou:', err && err.message));
 });
