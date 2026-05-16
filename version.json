@@ -1,10 +1,10 @@
 {
-  "version": "3.1.93",
-  "build_date": "2026-05-16T01:00:00-03:00",
+  "version": "3.1.94",
+  "build_date": "2026-05-16T01:30:00-03:00",
   "release_notes": [
-    "Central de Qualidade passa a mostrar cobertura dos layouts oficiais",
-    "Admin exibe layouts pendentes de validacao com arquivo de referencia e proxima acao",
-    "Endpoint de qualidade retorna pendentes, cobertura e total de layouts oficiais",
-    "Facilita priorizar validacao real de Itau, Safra, Banco do Brasil e CLUDE"
+    "Central de Qualidade permite exportar CSV dos layouts pendentes",
+    "CSV inclui campos para empresa, periodo, totais esperados e observacao",
+    "Facilita coleta estruturada dos dados reais antes de cadastrar novos casos de regressao",
+    "Mantem visibilidade operacional dos layouts ainda sem arquivo-modelo validado"
   ]
 }

@@ -135,7 +135,10 @@
           <h2 style="font-size:20px;margin-bottom:4px">✅ Central de Qualidade de Layouts</h2>
           <p style="font-size:13px;color:#6b7280">Casos validados com arquivo-modelo, totais esperados e parser responsável. Use esta tela como trava antes de liberar ajustes bancários.</p>
         </div>
-        <button class="btn" onclick="loadLayoutQuality()">🔄 Atualizar</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="loadLayoutQuality()">🔄 Atualizar</button>
+          <button class="btn" style="background:#059669" onclick="exportLayoutQualityPendingCSV()">📥 Pendências CSV</button>
+        </div>
       </div>
       <div id="layoutQualityContent" class="loading">Carregando…</div>
     </div>
@@ -446,6 +449,53 @@ function renderLayoutQuality() {
   });
   html += '</tbody></table>';
   el.innerHTML = html;
+}
+
+function exportLayoutQualityPendingCSV() {
+  const pendentes = (currentLayoutQuality && currentLayoutQuality.pendentes) || [];
+  if (!pendentes.length) { alert('Nenhum layout pendente carregado.'); return; }
+  const rows = [[
+    'Banco',
+    'Nome do Banco',
+    'Layout',
+    'Parser',
+    'Formato',
+    'Confiabilidade',
+    'Arquivo de Referencia',
+    'Empresa Validada',
+    'Periodo Inicio',
+    'Periodo Fim',
+    'Total Lancamentos Esperado',
+    'Total Credito Esperado',
+    'Total Debito Esperado',
+    'Status',
+    'Observacao'
+  ]];
+  pendentes.forEach(p => {
+    rows.push([
+      p.banco || '',
+      p.nomeBanco || '',
+      p.layout || '',
+      p.parser || '',
+      p.formato || '',
+      p.confiabilidade || '',
+      p.ultimoTeste || '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'Pendente',
+      p.observacao || ''
+    ]);
+  });
+  const csv = '\uFEFF' + rows.map(r => r.map(c => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(';')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'layouts_pendentes_qualidade_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
 }
 
 async function loadSummary() {
