@@ -398,24 +398,44 @@ async function loadLayoutQuality() {
 
 function renderLayoutQuality() {
   const el = document.getElementById('layoutQualityContent');
-  const data = currentLayoutQuality || { resumo: {}, casos: [] };
+  const data = currentLayoutQuality || { resumo: {}, casos: [], pendentes: [] };
   const resumo = data.resumo || {};
   const casos = data.casos || [];
+  const pendentes = data.pendentes || [];
   const cards = `
     <div class="layout-grid">
       <div class="layout-card"><div class="bank">Casos validados</div><div class="count">${resumo.total_casos || 0}</div><div class="caption">Arquivos-modelo cadastrados</div></div>
       <div class="layout-card"><div class="bank">Aprovados</div><div class="count">${resumo.aprovados || 0}</div><div class="caption">Prontos para regressão</div></div>
-      <div class="layout-card"><div class="bank">Bancos cobertos</div><div class="count">${resumo.bancos || 0}</div><div class="caption">Com qualidade controlada</div></div>
-      <div class="layout-card"><div class="bank">Parsers</div><div class="count">${resumo.parsers || 0}</div><div class="caption">Funções sob controle</div></div>
+      <div class="layout-card"><div class="bank">Cobertura</div><div class="count">${resumo.cobertura || 0}%</div><div class="caption">${resumo.layouts_oficiais || 0} layouts oficiais</div></div>
+      <div class="layout-card"><div class="bank">Pendentes</div><div class="count">${resumo.layouts_pendentes || 0}</div><div class="caption">Sem arquivo-modelo validado</div></div>
     </div>`;
+
+  let html = cards;
+  if (pendentes.length) {
+    html += '<h3 style="margin:22px 0 10px;color:#111827">Layouts pendentes de validação</h3>';
+    html += '<table><thead><tr><th>Banco/Layout</th><th>Parser</th><th>Formato</th><th>Último arquivo de referência</th><th>Próxima ação</th></tr></thead><tbody>';
+    pendentes.forEach(p => {
+      html += `<tr>
+        <td><strong>${escapeHtml(p.banco)} - ${escapeHtml(p.nomeBanco)}</strong><br><span style="font-size:12px;color:#374151">${escapeHtml(p.layout)}</span></td>
+        <td><span class="text-mono" style="font-size:11px;color:#6b7280">${escapeHtml(p.parser)}</span></td>
+        <td>${escapeHtml(p.formato || '')}<br><span class="badge ${p.confiabilidade === 'Alta' ? 'badge-ok' : 'badge-warn'}">${escapeHtml(p.confiabilidade || '-')}</span></td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(p.ultimoTeste || '-')}</td>
+        <td style="font-size:12px;color:#6b7280">Validar arquivo real e cadastrar totais esperados na Central de Qualidade.</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
   if (!casos.length) {
-    el.innerHTML = cards + '<div class="empty">Nenhum caso de qualidade cadastrado.</div>';
+    el.innerHTML = html + '<div class="empty">Nenhum caso de qualidade cadastrado.</div>';
     return;
   }
-  let table = '<table><thead><tr><th>Banco/Layout</th><th>Arquivo Modelo</th><th>Período</th><th>Esperado</th><th>Status</th><th>Observação</th></tr></thead><tbody>';
+
+  html += '<h3 style="margin:22px 0 10px;color:#111827">Casos validados</h3>';
+  html += '<table><thead><tr><th>Banco/Layout</th><th>Arquivo Modelo</th><th>Período</th><th>Esperado</th><th>Status</th><th>Observação</th></tr></thead><tbody>';
   casos.forEach(c => {
     const esp = c.esperado || {};
-    table += `<tr>
+    html += `<tr>
       <td><strong>${escapeHtml(c.banco)} - ${escapeHtml(c.nomeBanco)}</strong><br><span style="font-size:12px;color:#374151">${escapeHtml(c.layout)}</span><br><span class="text-mono" style="font-size:11px;color:#9ca3af">${escapeHtml(c.parser)}</span></td>
       <td>${escapeHtml(c.arquivo)}<br><span style="font-size:12px;color:#6b7280">${escapeHtml(c.empresa || '')}</span></td>
       <td>${escapeHtml(c.periodo_inicio || '-')}<br>${escapeHtml(c.periodo_fim || '-')}</td>
@@ -424,8 +444,8 @@ function renderLayoutQuality() {
       <td style="font-size:12px;color:#6b7280">${escapeHtml(c.observacao || '')}</td>
     </tr>`;
   });
-  table += '</tbody></table>';
-  el.innerHTML = cards + table;
+  html += '</tbody></table>';
+  el.innerHTML = html;
 }
 
 async function loadSummary() {

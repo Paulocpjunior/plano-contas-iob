@@ -1252,13 +1252,35 @@ app.get('/api/layout-quality', async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store');
     const casos = (LAYOUT_QUALITY_CASES || []).map(c => ({ ...c }));
+    const cobertos = new Set(casos.map(c => normalizarBancoLayout(c.banco) + '_' + c.parser));
+    const layoutsOficiais = (LAYOUTS_BANCARIOS_PADRAO || [])
+      .filter(l => l.status !== 'Inativo')
+      .map(l => ({ ...l, banco: normalizarBancoLayout(l.banco) }));
+    const pendentes = layoutsOficiais
+      .filter(l => !cobertos.has(l.banco + '_' + l.parser))
+      .map(l => ({
+        banco: l.banco,
+        nomeBanco: l.nomeBanco,
+        layout: l.nome,
+        parser: l.parser,
+        formato: l.formato,
+        confiabilidade: l.confiabilidade,
+        ultimoTeste: l.ultimoTeste,
+        observacao: l.observacao
+      }));
+    const cobertura = layoutsOficiais.length
+      ? Math.round(((layoutsOficiais.length - pendentes.length) / layoutsOficiais.length) * 100)
+      : 0;
     const resumo = {
       total_casos: casos.length,
       aprovados: casos.filter(c => c.status === 'Aprovado').length,
       bancos: [...new Set(casos.map(c => c.banco).filter(Boolean))].length,
-      parsers: [...new Set(casos.map(c => c.parser).filter(Boolean))].length
+      parsers: [...new Set(casos.map(c => c.parser).filter(Boolean))].length,
+      layouts_oficiais: layoutsOficiais.length,
+      layouts_pendentes: pendentes.length,
+      cobertura
     };
-    res.json({ resumo, casos });
+    res.json({ resumo, casos, pendentes });
   } catch (err) {
     console.error('layout-quality GET erro:', err);
     res.status(500).json({ erro: err.message });
