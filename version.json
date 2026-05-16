@@ -1,10 +1,10 @@
 {
-  "version": "3.1.96",
-  "build_date": "2026-05-16T02:15:00-03:00",
+  "version": "3.1.97",
+  "build_date": "2026-05-16T02:35:00-03:00",
   "release_notes": [
-    "Reforco do fallback de historicos no layout CLUDE Itau",
-    "Lancamentos CLUDE Itau sem codigo seguro passam a receber historico curto baseado na descricao",
-    "Regras seguras adicionadas para ISS, telefonia, material de limpeza e aluguel",
-    "Mantem memoria/classificacao existente e evita deixar o campo Historico como placeholder vazio"
+    "Santander 033 e Santander CTVM 352 passam a compartilhar layouts equivalentes no importador",
+    "Opcao automatica de PDF tenta os layouts Santander 1 e Santander 2 independentemente do codigo cadastrado",
+    "Mensagem de erro de layout passa a listar layouts tentados e deteccoes parciais com totais",
+    "Reduz erro operacional quando a empresa esta cadastrada como 033 ou 352 mas o arquivo usa outro modelo Santander"
   ]
 }

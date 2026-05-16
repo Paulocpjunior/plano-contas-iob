@@ -3619,12 +3619,28 @@
             let layoutsBancariosCache = null;
             let layoutsBancariosCacheTs = 0;
 
-	        function layoutsPDFCadastradosPorBancoFallback(bancoCode) {
-	            const code = normalizarCodigoBancoLayout(resolverBancoLegado(bancoCode) || bancoCode || '');
-                if (!layoutsBancariosCache) return [];
-                return layoutsBancariosCache.filter(function(l) {
-                    return normalizarCodigoBancoLayout(l.banco) === code;
+            function codigosEquivalentesLayoutBanco(bancoCode) {
+                const code = normalizarCodigoBancoLayout(resolverBancoLegado(bancoCode) || bancoCode || '');
+                if (code === '033' || code === '352') return ['033', '352'];
+                return code ? [code] : [];
+            }
+
+            function deduplicarLayoutsPDF(layouts) {
+                const vistos = new Set();
+                return (layouts || []).filter(function(l) {
+                    const key = String(l.parser || '') + '|' + String(l.nome || '');
+                    if (vistos.has(key)) return false;
+                    vistos.add(key);
+                    return true;
                 });
+            }
+
+	        function layoutsPDFCadastradosPorBancoFallback(bancoCode) {
+	            const codigos = codigosEquivalentesLayoutBanco(bancoCode);
+                if (!layoutsBancariosCache) return [];
+                return deduplicarLayoutsPDF(layoutsBancariosCache.filter(function(l) {
+                    return codigos.includes(normalizarCodigoBancoLayout(l.banco));
+                }));
 	        }
 
             async function carregarLayoutsBancariosDoBanco() {
@@ -3654,8 +3670,8 @@
                 const code = resolverBancoLegado(bancoCode) || bancoCode || '';
                 try {
                     const todos = await carregarLayoutsBancariosDoBanco();
-                    const codeNormalizado = normalizarCodigoBancoLayout(code);
-                    const doBanco = todos.filter(function(l) { return normalizarCodigoBancoLayout(l.banco) === codeNormalizado; });
+                    const codigos = codigosEquivalentesLayoutBanco(code);
+                    const doBanco = deduplicarLayoutsPDF(todos.filter(function(l) { return codigos.includes(normalizarCodigoBancoLayout(l.banco)); }));
                     if (doBanco.length) return doBanco;
                 } catch (e) {
                     console.warn('[layouts bancarios] fonte oficial indisponivel:', e.message || e);
@@ -7475,6 +7491,7 @@
 		            if (!layouts.length) {
 		                throw new Error('Nao existe layout PDF cadastrado para o banco selecionado (' + (bancoCode || '-') + ' — ' + nomeBanco(bancoCode) + '). Cadastre o layout antes de importar.');
 		            }
+                    const layoutsDisponiveis = layouts.map(function(l) { return l.nome; }).join(', ');
                     if (parserSelecionado) {
                         const escolhido = layouts.find(function(l) { return l.parser === parserSelecionado; });
                         if (!escolhido) {
@@ -7483,6 +7500,7 @@
                         layouts = [escolhido];
                     }
 	            const erros = [];
+                const detectadosParciais = [];
 	            for (const layout of layouts) {
 	                const fn = window[layout.parser];
 	                if (typeof fn !== 'function') {
@@ -7505,6 +7523,14 @@
 	                    );
 	                    const cred = lancs.filter(l => l.valor > 0).reduce((a,l) => a + l.valor, 0);
 	                    const deb = lancs.filter(l => l.valor < 0).reduce((a,l) => a + Math.abs(l.valor), 0);
+                        detectadosParciais.push({
+                            nome: layout.nome,
+                            qtd: lancs.length,
+                            credito: cred,
+                            debito: deb,
+                            totalCreditoOficial: resultado.total_credito || 0,
+                            totalDebitoOficial: resultado.total_debito || 0
+                        });
 	                    if (resultado.total_credito && Math.abs(Math.round(cred * 100) - Math.round(resultado.total_credito * 100)) > 1) {
 	                        throw new Error('total de credito divergente do total oficial');
 	                    }
@@ -7544,8 +7570,13 @@
 	            }
                 const dica = parserSelecionado
                     ? ' O layout selecionado nao reconheceu este arquivo. Tente a opcao Automático ou outro layout do banco.'
-                    : (layouts.length > 1 ? ' Escolha um layout especifico no campo Layout PDF ou envie o arquivo para parametrizacao.' : '');
-	            throw new Error('O arquivo nao corresponde ao layout cadastrado para ' + nomeBanco(bancoCode) + '. ' + erros.join(' | ') + dica);
+                    : (layouts.length > 1 ? ' Layouts tentados: ' + layoutsDisponiveis + '. Se o arquivo for outro modelo, envie para parametrizacao.' : '');
+                const parcial = detectadosParciais.length
+                    ? ' Houve deteccao parcial em: ' + detectadosParciais.map(function(p) {
+                        return p.nome + ' (' + p.qtd + ' lancamentos; credito ' + formatarMoedaBR(p.credito) + '; debito ' + formatarMoedaBR(p.debito) + ')';
+                    }).join(' | ') + '.'
+                    : '';
+	            throw new Error('O arquivo nao corresponde ao layout cadastrado para ' + nomeBanco(bancoCode) + '. ' + erros.join(' | ') + parcial + dica);
 	        }
 
 	        // PDF Processing
