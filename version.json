@@ -1,10 +1,10 @@
 {
-  "version": "3.2.8",
-  "build_date": "2026-05-17T09:10:00-03:00",
+  "version": "3.2.9",
+  "build_date": "2026-05-17T09:35:00-03:00",
   "release_notes": [
-    "Homologacao de layouts bancarios passou a proteger o Extrator",
-    "Layouts PDF bloqueados pelo Admin nao podem mais ser usados no upload",
-    "Layouts PDF em teste exibem aviso e pedem confirmacao antes de importar",
-    "Seletor de Layout PDF agora mostra o status de homologacao de cada modelo"
+    "Central de Qualidade agora lista layouts aptos para aprovacao",
+    "Aprovacao de layout exige caso aprovado e evidencia de regressao no servidor",
+    "Admin ganhou acao Promover para aprovado diretamente pela Central de Qualidade",
+    "API bloqueia aprovacao manual sem provas minimas cadastradas"
   ]
 }

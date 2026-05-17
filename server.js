@@ -69,6 +69,30 @@ function adminRequired(req, res, next) {
 
 app.use('/api', authRequired);
 
+function chaveLayoutQualidade(banco, parser) {
+  return normalizarBancoLayout(banco) + '_' + String(parser || '').trim();
+}
+
+function avaliarAprovacaoLayoutBanco(banco, parser) {
+  const chave = chaveLayoutQualidade(banco, parser);
+  const casosAprovados = (LAYOUT_QUALITY_CASES || []).filter(c => {
+    return chaveLayoutQualidade(c.banco, c.parser) === chave && String(c.status || '').toLowerCase() === 'aprovado';
+  });
+  const evidenciasAprovadas = (LAYOUT_QUALITY_EVIDENCE || []).filter(e => {
+    const etapa = String(e.etapa || '').toLowerCase();
+    const status = String(e.status || '').toLowerCase();
+    return chaveLayoutQualidade(e.banco, e.parser) === chave && (etapa === 'regressao_aprovada' || status.includes('regressao aprovada'));
+  });
+  return {
+    apto: casosAprovados.length > 0 && evidenciasAprovadas.length > 0,
+    casos_aprovados: casosAprovados.length,
+    evidencias_aprovadas: evidenciasAprovadas.length,
+    motivo: casosAprovados.length > 0 && evidenciasAprovadas.length > 0
+      ? 'Layout possui caso aprovado e evidencia de regressao.'
+      : 'Para aprovar, o layout precisa ter caso aprovado e evidencia de regressao cadastrados.'
+  };
+}
+
 async function garantirLayoutsBancariosPadrao() {
   const col = db.collection('layouts_bancarios');
   const layoutsObsoletos = [
@@ -1300,6 +1324,17 @@ app.patch('/api/layouts-bancarios/:id/homologacao', adminRequired, async (req, r
     const ref = db.collection('layouts_bancarios').doc(id);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ erro: 'layout nao encontrado' });
+    const layoutAtual = doc.data() || {};
+    if (homologacao_status === 'aprovado') {
+      const avaliacao = avaliarAprovacaoLayoutBanco(layoutAtual.banco, layoutAtual.parser);
+      if (!avaliacao.apto) {
+        return res.status(409).json({
+          erro: 'Layout ainda nao pode ser aprovado automaticamente',
+          detalhe: avaliacao.motivo,
+          qualidade: avaliacao
+        });
+      }
+    }
     const patch = {
       homologacao_status,
       homologacao_observacao: String(body.homologacao_observacao || '').slice(0, 600),
@@ -1312,10 +1347,10 @@ app.patch('/api/layouts-bancarios/:id/homologacao', adminRequired, async (req, r
     await db.collection('layout_events').add({
       tipo: 'homologacao',
       layout_id: id,
-      banco: doc.data().banco || '',
-      nomeBanco: doc.data().nomeBanco || '',
-      layout: doc.data().nome || doc.data().layout || '',
-      parser: doc.data().parser || '',
+      banco: layoutAtual.banco || '',
+      nomeBanco: layoutAtual.nomeBanco || '',
+      layout: layoutAtual.nome || layoutAtual.layout || '',
+      parser: layoutAtual.parser || '',
       homologacao_status,
       criado_em: new Date(),
       criado_por_uid: req.user.uid,
@@ -1338,6 +1373,17 @@ app.get('/api/layout-quality', async (req, res) => {
       .filter(l => l.status !== 'Inativo')
       .map(l => ({ ...l, banco: normalizarBancoLayout(l.banco) }));
     const evidenciasPorLayout = new Set(evidencias.map(e => e.banco + '_' + e.parser));
+    const aprovacao_layouts = layoutsOficiais.map(l => ({
+      id: layoutBancoId(l),
+      banco: l.banco,
+      nomeBanco: l.nomeBanco,
+      layout: l.nome,
+      parser: l.parser,
+      formato: l.formato,
+      confiabilidade: l.confiabilidade,
+      ultimoTeste: l.ultimoTeste,
+      ...avaliarAprovacaoLayoutBanco(l.banco, l.parser)
+    }));
     const pendentes = layoutsOficiais
       .filter(l => !cobertos.has(l.banco + '_' + l.parser))
       .map(l => ({
@@ -1362,6 +1408,7 @@ app.get('/api/layout-quality', async (req, res) => {
       evidencias: evidencias.length,
       layouts_oficiais: layoutsOficiais.length,
       layouts_pendentes: pendentes.length,
+      layouts_aprovaveis: aprovacao_layouts.filter(l => l.apto).length,
       cobertura
     };
     const porBancoMap = new Map();
@@ -1380,7 +1427,7 @@ app.get('/api/layout-quality', async (req, res) => {
       const score = Math.min(100, Math.round((coberturaBanco * 0.7) + ((item.alta / Math.max(item.layouts, 1)) * 30)));
       return { ...item, cobertura: coberturaBanco, score };
     }).sort((a, b) => b.score - a.score || String(a.banco).localeCompare(String(b.banco)));
-    res.json({ resumo, casos, pendentes, evidencias, confiabilidade_bancos });
+    res.json({ resumo, casos, pendentes, evidencias, aprovacao_layouts, confiabilidade_bancos });
   } catch (err) {
     console.error('layout-quality GET erro:', err);
     res.status(500).json({ erro: err.message });

@@ -500,6 +500,8 @@ function renderLayoutQuality() {
   const casos = data.casos || [];
   const pendentes = data.pendentes || [];
   const evidencias = data.evidencias || [];
+  const aprovacaoLayouts = data.aprovacao_layouts || [];
+  const layoutsAprovaveis = aprovacaoLayouts.filter(l => l.apto);
   const confiabilidade = data.confiabilidade_bancos || [];
   const rejeicoes = data.rejeicoes || [];
   const operacional = data.operacional || {};
@@ -512,11 +514,26 @@ function renderLayoutQuality() {
       <div class="layout-card"><div class="bank">Aprovados</div><div class="count">${resumo.aprovados || 0}</div><div class="caption">Prontos para regressão</div></div>
       <div class="layout-card"><div class="bank">Evidências</div><div class="count">${resumo.evidencias || 0}</div><div class="caption">Arquivos já recebidos/tratados</div></div>
       <div class="layout-card"><div class="bank">Cobertura</div><div class="count">${resumo.cobertura || 0}%</div><div class="caption">${resumo.layouts_oficiais || 0} layouts oficiais</div></div>
+      <div class="layout-card"><div class="bank">Aptos a aprovar</div><div class="count">${resumo.layouts_aprovaveis || 0}</div><div class="caption">Com caso e evidência aprovados</div></div>
       <div class="layout-card"><div class="bank">Pendentes da fila</div><div class="count">${opResumo.pendentes || 0}</div><div class="caption">${opResumo.em_parametrizacao || 0} em parametrização</div></div>
       <div class="layout-card"><div class="bank">Rejeições resolvidas</div><div class="count">${opResumo.resolvidos || 0}</div><div class="caption">${opResumo.rejeicoes || 0} rejeições monitoradas</div></div>
     </div>`;
 
   let html = cards;
+  if (layoutsAprovaveis.length) {
+    html += '<h3 style="margin:22px 0 10px;color:#111827">Layouts prontos para aprovação</h3>';
+    html += '<table><thead><tr><th>Banco/Layout</th><th>Parser</th><th>Provas</th><th>Último arquivo</th><th>Ação</th></tr></thead><tbody>';
+    layoutsAprovaveis.forEach(l => {
+      html += `<tr>
+        <td><strong>${escapeHtml(l.banco)} - ${escapeHtml(l.nomeBanco)}</strong><br><span style="font-size:12px;color:#374151">${escapeHtml(l.layout)}</span></td>
+        <td><span class="text-mono" style="font-size:11px;color:#6b7280">${escapeHtml(l.parser)}</span></td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(l.casos_aprovados)} caso(s) aprovado(s)<br>${escapeHtml(l.evidencias_aprovadas)} evidência(s) de regressão</td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(l.ultimoTeste || '-')}</td>
+        <td><button class="btn-sm btn-promote" onclick="promoverLayoutQualidade('${escapeHtml(l.id)}', '${escapeHtml(l.layout)}')">Promover para aprovado</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
   if (porColaborador.length) {
     html += '<h3 style="margin:22px 0 10px;color:#111827">Taxa operacional por colaborador</h3>';
     html += '<table><thead><tr><th>Colaborador</th><th>Taxa</th><th>Sucessos</th><th>Rejeições</th><th>Status pendente</th><th>Bancos</th></tr></thead><tbody>';
@@ -694,6 +711,27 @@ async function atualizarStatusRejeicao(id, status) {
     await loadLayoutQuality();
   } catch (e) {
     alert('Erro ao atualizar status: ' + (e.message || e));
+  }
+}
+
+async function promoverLayoutQualidade(id, nome) {
+  if (!id) return;
+  const msg = 'Promover o layout "' + (nome || id) + '" para Aprovado?\n\nA API so permite esta acao quando existe caso validado e evidencia de regressao.';
+  if (!confirm(msg)) return;
+  try {
+    const r = await window.API.apiFetch('/api/layouts-bancarios/' + encodeURIComponent(id) + '/homologacao', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        homologacao_status: 'aprovado',
+        homologacao_observacao: 'Aprovado pela Central de Qualidade com caso validado e evidencia de regressao.'
+      })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.erro || data.detalhe || ('HTTP ' + r.status));
+    await Promise.all([loadLayoutQuality(), renderLayouts()]);
+  } catch (e) {
+    alert('Erro ao promover layout: ' + (e.message || e));
+    await loadLayoutQuality();
   }
 }
 

@@ -16,6 +16,8 @@ assertContains('server.js', "app.get('/api/layout-rejections'", 'consulta da fil
 assertContains('server.js', "app.patch('/api/layout-rejections/:id'", 'atualizacao de status da fila de rejeicoes');
 assertContains('server.js', "app.patch('/api/layouts-bancarios/:id/homologacao'", 'homologacao de layout bancario');
 assertContains('server.js', "app.get('/api/layout-quality/ops'", 'metricas operacionais de qualidade');
+assertContains('server.js', 'avaliarAprovacaoLayoutBanco', 'regra servidor para aprovacao de layout com evidencia');
+assertContains('server.js', 'layouts_aprovaveis', 'contador de layouts aptos a aprovacao');
 assertContains('server.js', "db.collection('layout_events').add", 'registro de sucesso operacional por layout');
 assertContains('server.js', "app.put('/api/empresas/:cnpj/aprendizado/:hash'", 'edicao da memoria por empresa');
 assertContains('server.js', 'confiabilidade_bancos', 'relatorio de confiabilidade por banco');
@@ -28,6 +30,8 @@ assertContains('admin.html', 'Taxa operacional por colaborador', 'taxa operacion
 assertContains('admin.html', 'atualizarStatusRejeicao', 'mudanca de status da fila no admin');
 assertContains('admin.html', 'atualizarHomologacaoLayout', 'controle de homologacao de layout');
 assertContains('admin.html', 'Homologados', 'card de homologacao de layouts');
+assertContains('admin.html', 'promoverLayoutQualidade', 'promocao de layout pela central de qualidade');
+assertContains('admin.html', 'Layouts prontos para aprovação', 'fila de aprovacao de layouts com evidencia');
 
 assertContains('index.html', 'abrirConferenciaImportacao', 'modo conferencia antes de gravar');
 assertContains('index.html', 'modalMemoriaEmpresa', 'modal de memoria da empresa');
