@@ -13,6 +13,9 @@ const assertContains = (file, pattern, label) => {
 
 assertContains('server.js', "app.post('/api/layout-rejections'", 'registro da fila de rejeicoes');
 assertContains('server.js', "app.get('/api/layout-rejections'", 'consulta da fila de rejeicoes');
+assertContains('server.js', "app.patch('/api/layout-rejections/:id'", 'atualizacao de status da fila de rejeicoes');
+assertContains('server.js', "app.get('/api/layout-quality/ops'", 'metricas operacionais de qualidade');
+assertContains('server.js', "db.collection('layout_events').add", 'registro de sucesso operacional por layout');
 assertContains('server.js', "app.put('/api/empresas/:cnpj/aprendizado/:hash'", 'edicao da memoria por empresa');
 assertContains('server.js', 'confiabilidade_bancos', 'relatorio de confiabilidade por banco');
 
@@ -20,6 +23,8 @@ assertContains('admin.html', 'testarLayoutAdmin', 'teste manual de layout no adm
 assertContains('admin.html', 'qualityTestFile', 'upload de teste de layout no admin');
 assertContains('admin.html', 'Fila de arquivos rejeitados', 'fila de rejeicoes no admin');
 assertContains('admin.html', 'Confiabilidade por banco', 'relatorio de confiabilidade no admin');
+assertContains('admin.html', 'Taxa operacional por colaborador', 'taxa operacional por colaborador');
+assertContains('admin.html', 'atualizarStatusRejeicao', 'mudanca de status da fila no admin');
 
 assertContains('index.html', 'abrirConferenciaImportacao', 'modo conferencia antes de gravar');
 assertContains('index.html', 'modalMemoriaEmpresa', 'modal de memoria da empresa');

@@ -1,12 +1,10 @@
 {
-  "version": "3.2.5",
-  "build_date": "2026-05-17T07:35:00-03:00",
+  "version": "3.2.6",
+  "build_date": "2026-05-17T08:05:00-03:00",
   "release_notes": [
-    "Central de Qualidade passa a testar layout PDF diretamente no painel Admin",
-    "Arquivos rejeitados agora entram em fila de qualidade com banco, empresa, arquivo e motivo",
-    "Importacao mantem conferencia antes de gravar e registra rejeicoes para parametrizacao",
-    "Memoria da empresa ganhou tela de edicao, exclusao e busca de regras gravadas",
-    "Painel Admin exibe confiabilidade por banco com score, cobertura e evidencias",
-    "Lancamento manual passa a sugerir classificacao por memoria e historico padrao"
+    "Central de Qualidade ganhou painel operacional por colaborador e por banco",
+    "Importacoes aceitas registram evento de sucesso para medir taxa de acerto",
+    "Fila de arquivos rejeitados agora permite status pendente, em parametrizacao, resolvido ou ignorado",
+    "Admin passa a acompanhar pendencias e resolucoes da parametrizacao de layouts"
   ]
 }

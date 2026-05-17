@@ -1368,6 +1368,18 @@ app.post('/api/layouts-bancarios/uso', async (req, res) => {
       origem: atual.origem || base.origem || 'importador',
       atualizado_em: new Date()
     }, { merge: true });
+    await db.collection('layout_events').add({
+      tipo: 'sucesso',
+      banco,
+      nomeBanco: body.nomeBanco || atual.nomeBanco || base.nomeBanco || '',
+      layout: nome,
+      parser,
+      formato: body.formato || atual.formato || base.formato || 'PDF',
+      arquivo: body.arquivo_exemplo || '',
+      criado_em: new Date(),
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email
+    });
     res.json({ ok: true, id });
   } catch (err) {
     console.error('layouts-bancarios uso erro:', err);
@@ -1416,6 +1428,109 @@ app.get('/api/layout-rejections', adminRequired, async (req, res) => {
     res.json({ rejeicoes: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
   } catch (err) {
     console.error('layout-rejections GET erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.patch('/api/layout-rejections/:id', adminRequired, async (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ erro: 'id obrigatorio' });
+    const statusPermitidos = new Set(['pendente_parametrizacao', 'em_parametrizacao', 'resolvido', 'ignorado']);
+    const body = req.body || {};
+    const status = String(body.status || '').trim();
+    if (status && !statusPermitidos.has(status)) return res.status(400).json({ erro: 'status invalido' });
+    const ref = db.collection('layout_rejections').doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ erro: 'rejeicao nao encontrada' });
+    const patch = {
+      atualizado_em: new Date(),
+      atualizado_por_uid: req.user.uid,
+      atualizado_por_email: req.user.email
+    };
+    if (status) patch.status = status;
+    if (typeof body.observacao_admin === 'string') patch.observacao_admin = body.observacao_admin.slice(0, 600);
+    await ref.set(patch, { merge: true });
+    res.json({ ok: true, id, ...patch });
+  } catch (err) {
+    console.error('layout-rejections PATCH erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    const lim = Math.min(parseInt(req.query.limit, 10) || 500, 1000);
+    const [eventosSnap, rejeicoesSnap] = await Promise.all([
+      db.collection('layout_events').orderBy('criado_em', 'desc').limit(lim).get(),
+      db.collection('layout_rejections').orderBy('criado_em', 'desc').limit(lim).get()
+    ]);
+    const usuarios = new Map();
+    const bancos = new Map();
+    const status = {};
+    const ensureUsuario = (email) => {
+      const key = email || 'sem-email';
+      if (!usuarios.has(key)) usuarios.set(key, { email: key, sucessos: 0, rejeicoes: 0, pendentes: 0, em_parametrizacao: 0, resolvidos: 0, ignorados: 0, bancos: new Set() });
+      return usuarios.get(key);
+    };
+    const ensureBanco = (banco, nomeBanco) => {
+      const key = banco || 'sem-banco';
+      if (!bancos.has(key)) bancos.set(key, { banco: key, nomeBanco: nomeBanco || '', sucessos: 0, rejeicoes: 0 });
+      const item = bancos.get(key);
+      if (!item.nomeBanco && nomeBanco) item.nomeBanco = nomeBanco;
+      return item;
+    };
+    eventosSnap.docs.forEach(d => {
+      const e = d.data() || {};
+      const u = ensureUsuario(e.criado_por_email || e.ultimo_uso_por_email || '');
+      u.sucessos++;
+      if (e.banco) u.bancos.add(e.banco);
+      const b = ensureBanco(e.banco, e.nomeBanco);
+      b.sucessos++;
+    });
+    rejeicoesSnap.docs.forEach(d => {
+      const r = d.data() || {};
+      const st = r.status || 'pendente_parametrizacao';
+      status[st] = (status[st] || 0) + 1;
+      const u = ensureUsuario(r.criado_por_email || '');
+      u.rejeicoes++;
+      if (r.banco) u.bancos.add(r.banco);
+      if (st === 'pendente_parametrizacao') u.pendentes++;
+      if (st === 'em_parametrizacao') u.em_parametrizacao++;
+      if (st === 'resolvido') u.resolvidos++;
+      if (st === 'ignorado') u.ignorados++;
+      const b = ensureBanco(r.banco, r.nomeBanco);
+      b.rejeicoes++;
+    });
+    const por_colaborador = Array.from(usuarios.values()).map(u => {
+      const total = u.sucessos + u.rejeicoes;
+      return {
+        ...u,
+        bancos: Array.from(u.bancos),
+        taxa_acerto: total ? Math.round((u.sucessos / total) * 100) : 0,
+        total
+      };
+    }).sort((a, b) => b.total - a.total || b.taxa_acerto - a.taxa_acerto);
+    const por_banco = Array.from(bancos.values()).map(b => {
+      const total = b.sucessos + b.rejeicoes;
+      return { ...b, total, taxa_acerto: total ? Math.round((b.sucessos / total) * 100) : 0 };
+    }).sort((a, b) => b.total - a.total || String(a.banco).localeCompare(String(b.banco)));
+    res.json({
+      resumo: {
+        sucessos: eventosSnap.size,
+        rejeicoes: rejeicoesSnap.size,
+        pendentes: status.pendente_parametrizacao || 0,
+        em_parametrizacao: status.em_parametrizacao || 0,
+        resolvidos: status.resolvido || 0,
+        ignorados: status.ignorado || 0
+      },
+      status,
+      por_colaborador,
+      por_banco
+    });
+  } catch (err) {
+    console.error('layout-quality ops erro:', err);
     res.status(500).json({ erro: err.message });
   }
 });
