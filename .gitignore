@@ -1,24 +1,12 @@
 .DS_Store
-*.bak
-*.bak2
 node_modules/
 
-# Backups locais
+# Arquivos temporarios e backups locais
 *.bak
 *.bak-*
+*.bak.*
 *.tmp
+*.html.bak.*
+*.js.bak.*
 index.html.bak*
-
-# Backups automaticos de patches (sufixos .bak.*)
-*.bak
-*.bak.*
-*.html.bak.*
-*.js.bak.*
-node_modules/
-
-# Backups automaticos de patches
-*.bak
-*.bak.*
-*.html.bak.*
-*.js.bak.*
-node_modules/
+backups/
