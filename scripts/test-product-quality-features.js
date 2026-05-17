@@ -16,6 +16,8 @@ assertContains('server.js', "app.get('/api/layout-rejections'", 'consulta da fil
 assertContains('server.js', "app.patch('/api/layout-rejections/:id'", 'atualizacao de status da fila de rejeicoes');
 assertContains('server.js', "app.patch('/api/layouts-bancarios/:id/homologacao'", 'homologacao de layout bancario');
 assertContains('server.js', "app.get('/api/layout-quality/ops'", 'metricas operacionais de qualidade');
+assertContains('server.js', 'mensal', 'resumo mensal de qualidade operacional na API');
+assertContains('server.js', 'mesEvento', 'agrupamento mensal de eventos de layout');
 assertContains('server.js', 'avaliarAprovacaoLayoutBanco', 'regra servidor para aprovacao de layout com evidencia');
 assertContains('server.js', 'layouts_aprovaveis', 'contador de layouts aptos a aprovacao');
 assertContains('server.js', 'qualidade_apto_aprovacao', 'metadados de qualidade em layouts bancarios');
@@ -37,6 +39,8 @@ assertContains('admin.html', '(sem provas)', 'bloqueio visual de aprovacao sem p
 assertContains('admin.html', 'Aprovação exige caso + evidência', 'orientacao de prova na tabela de layouts');
 assertContains('admin.html', 'abrirTesteQualidadeLayout', 'atalho de teste de qualidade a partir da lista de layouts');
 assertContains('admin.html', 'Layout selecionado para teste', 'preselecao de layout na central de qualidade');
+assertContains('admin.html', 'Resumo mensal de qualidade operacional', 'painel mensal de qualidade operacional');
+assertContains('admin.html', 'Banco com mais rejeições', 'destaque mensal de banco critico');
 
 assertContains('index.html', 'abrirConferenciaImportacao', 'modo conferencia antes de gravar');
 assertContains('index.html', 'modalMemoriaEmpresa', 'modal de memoria da empresa');

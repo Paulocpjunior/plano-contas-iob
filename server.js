@@ -1577,7 +1577,15 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
     ]);
     const usuarios = new Map();
     const bancos = new Map();
+    const meses = new Map();
     const status = {};
+    const mesEvento = (valor) => {
+      const ms = valor && typeof valor.toMillis === 'function'
+        ? valor.toMillis()
+        : (valor ? new Date(valor).getTime() : 0);
+      if (!ms || Number.isNaN(ms)) return 'sem-mes';
+      return new Date(ms).toISOString().slice(0, 7);
+    };
     const ensureUsuario = (email) => {
       const key = email || 'sem-email';
       if (!usuarios.has(key)) usuarios.set(key, { email: key, sucessos: 0, rejeicoes: 0, pendentes: 0, em_parametrizacao: 0, resolvidos: 0, ignorados: 0, bancos: new Set() });
@@ -1590,6 +1598,18 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
       if (!item.nomeBanco && nomeBanco) item.nomeBanco = nomeBanco;
       return item;
     };
+    const ensureMes = (mes) => {
+      const key = mes || 'sem-mes';
+      if (!meses.has(key)) meses.set(key, { mes: key, sucessos: 0, rejeicoes: 0, bancos: new Map(), colaboradores: new Map() });
+      return meses.get(key);
+    };
+    const ensureItemMes = (map, key, extra) => {
+      const id = key || 'sem-identificacao';
+      if (!map.has(id)) map.set(id, { id, sucessos: 0, rejeicoes: 0, ...(extra || {}) });
+      const item = map.get(id);
+      if (extra) Object.keys(extra).forEach(k => { if (!item[k] && extra[k]) item[k] = extra[k]; });
+      return item;
+    };
     eventosSnap.docs.forEach(d => {
       const e = d.data() || {};
       const u = ensureUsuario(e.criado_por_email || e.ultimo_uso_por_email || '');
@@ -1597,6 +1617,10 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
       if (e.banco) u.bancos.add(e.banco);
       const b = ensureBanco(e.banco, e.nomeBanco);
       b.sucessos++;
+      const mes = ensureMes(mesEvento(e.criado_em || e.ultimo_uso_em));
+      mes.sucessos++;
+      ensureItemMes(mes.bancos, e.banco, { banco: e.banco || 'sem-banco', nomeBanco: e.nomeBanco || '' }).sucessos++;
+      ensureItemMes(mes.colaboradores, e.criado_por_email || e.ultimo_uso_por_email || 'sem-email', { email: e.criado_por_email || e.ultimo_uso_por_email || 'sem-email' }).sucessos++;
     });
     rejeicoesSnap.docs.forEach(d => {
       const r = d.data() || {};
@@ -1611,6 +1635,10 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
       if (st === 'ignorado') u.ignorados++;
       const b = ensureBanco(r.banco, r.nomeBanco);
       b.rejeicoes++;
+      const mes = ensureMes(mesEvento(r.criado_em));
+      mes.rejeicoes++;
+      ensureItemMes(mes.bancos, r.banco, { banco: r.banco || 'sem-banco', nomeBanco: r.nomeBanco || '' }).rejeicoes++;
+      ensureItemMes(mes.colaboradores, r.criado_por_email || 'sem-email', { email: r.criado_por_email || 'sem-email' }).rejeicoes++;
     });
     const por_colaborador = Array.from(usuarios.values()).map(u => {
       const total = u.sucessos + u.rejeicoes;
@@ -1625,6 +1653,26 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
       const total = b.sucessos + b.rejeicoes;
       return { ...b, total, taxa_acerto: total ? Math.round((b.sucessos / total) * 100) : 0 };
     }).sort((a, b) => b.total - a.total || String(a.banco).localeCompare(String(b.banco)));
+    const mensal = Array.from(meses.values()).map(m => {
+      const total = m.sucessos + m.rejeicoes;
+      const bancosMes = Array.from(m.bancos.values()).map(b => {
+        const itemTotal = b.sucessos + b.rejeicoes;
+        return { ...b, total: itemTotal, taxa_acerto: itemTotal ? Math.round((b.sucessos / itemTotal) * 100) : 0 };
+      }).sort((a, b) => b.rejeicoes - a.rejeicoes || b.total - a.total || String(a.banco).localeCompare(String(b.banco))).slice(0, 8);
+      const colaboradoresMes = Array.from(m.colaboradores.values()).map(u => {
+        const itemTotal = u.sucessos + u.rejeicoes;
+        return { ...u, total: itemTotal, taxa_acerto: itemTotal ? Math.round((u.sucessos / itemTotal) * 100) : 0 };
+      }).sort((a, b) => b.rejeicoes - a.rejeicoes || b.total - a.total || String(a.email).localeCompare(String(b.email))).slice(0, 8);
+      return {
+        mes: m.mes,
+        sucessos: m.sucessos,
+        rejeicoes: m.rejeicoes,
+        total,
+        taxa_acerto: total ? Math.round((m.sucessos / total) * 100) : 0,
+        bancos: bancosMes,
+        colaboradores: colaboradoresMes
+      };
+    }).sort((a, b) => String(b.mes).localeCompare(String(a.mes)));
     res.json({
       resumo: {
         sucessos: eventosSnap.size,
@@ -1636,7 +1684,8 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
       },
       status,
       por_colaborador,
-      por_banco
+      por_banco,
+      mensal
     });
   } catch (err) {
     console.error('layout-quality ops erro:', err);

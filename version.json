@@ -1,10 +1,10 @@
 {
-  "version": "3.2.12",
-  "build_date": "2026-05-17T10:40:00-03:00",
+  "version": "3.2.13",
+  "build_date": "2026-05-17T11:00:00-03:00",
   "release_notes": [
-    "Extrator agora mostra selo visual para layout PDF aprovado",
-    "Layouts homologados exibem aviso operacional de conferencia de totais",
-    "Status do layout no upload ficou colorido por maturidade",
-    "Colaborador consegue identificar se o modelo usado esta aprovado, homologado, em teste ou bloqueado"
+    "Central de Qualidade ganhou resumo mensal de operacao",
+    "Admin visualiza taxa mensal de sucesso e rejeicao de layouts",
+    "Painel destaca banco com mais rejeicoes em cada mes",
+    "Painel destaca colaborador com mais rejeicoes em cada mes"
   ]
 }

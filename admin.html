@@ -520,6 +520,7 @@ function renderLayoutQuality() {
   const opResumo = operacional.resumo || {};
   const porColaborador = operacional.por_colaborador || [];
   const porBancoOperacional = operacional.por_banco || [];
+  const mensalOperacional = operacional.mensal || [];
   const cards = `
     <div class="layout-grid">
       <div class="layout-card"><div class="bank">Casos validados</div><div class="count">${resumo.total_casos || 0}</div><div class="caption">Arquivos-modelo cadastrados</div></div>
@@ -532,6 +533,24 @@ function renderLayoutQuality() {
     </div>`;
 
   let html = cards;
+  if (mensalOperacional.length) {
+    html += '<h3 style="margin:22px 0 10px;color:#111827">Resumo mensal de qualidade operacional</h3>';
+    html += '<table><thead><tr><th>Mês</th><th>Taxa</th><th>Sucessos</th><th>Rejeições</th><th>Banco com mais rejeições</th><th>Colaborador com mais rejeições</th></tr></thead><tbody>';
+    mensalOperacional.slice(0, 12).forEach(m => {
+      const bancoCritico = (m.bancos || [])[0] || {};
+      const colaboradorCritico = (m.colaboradores || [])[0] || {};
+      const cls = m.taxa_acerto >= 90 ? 'badge-ok' : (m.taxa_acerto >= 70 ? 'badge-warn' : 'badge-info');
+      html += `<tr>
+        <td><strong>${escapeHtml(m.mes || '-')}</strong><br><span style="font-size:11px;color:#9ca3af">${escapeHtml(m.total || 0)} evento(s)</span></td>
+        <td><span class="badge ${cls}">${escapeHtml(m.taxa_acerto || 0)}%</span></td>
+        <td>${escapeHtml(m.sucessos || 0)}</td>
+        <td>${escapeHtml(m.rejeicoes || 0)}</td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(bancoCritico.banco || '-')} ${escapeHtml(bancoCritico.nomeBanco || '')}<br><span style="color:#991b1b">${escapeHtml(bancoCritico.rejeicoes || 0)} rejeição(ões)</span></td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(colaboradorCritico.email || '-')}<br><span style="color:#991b1b">${escapeHtml(colaboradorCritico.rejeicoes || 0)} rejeição(ões)</span></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
   if (layoutsAprovaveis.length) {
     html += '<h3 style="margin:22px 0 10px;color:#111827">Layouts prontos para aprovação</h3>';
     html += '<table><thead><tr><th>Banco/Layout</th><th>Parser</th><th>Provas</th><th>Último arquivo</th><th>Ação</th></tr></thead><tbody>';
