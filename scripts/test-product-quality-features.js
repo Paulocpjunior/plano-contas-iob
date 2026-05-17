@@ -35,5 +35,8 @@ assertContains('index.html', 'salvarMemoriaEmpresa', 'edicao de memoria no app')
 assertContains('index.html', 'registrarArquivoRejeitado', 'registro de arquivo rejeitado pelo extrator');
 assertContains('index.html', 'sugerirLancamentoManualAssistido', 'lancamento manual assistido');
 assertContains('index.html', 'agendarSugestaoLancamentoManual', 'gatilho de sugestao manual');
+assertContains('index.html', 'uploadLayoutPdfStatus', 'aviso de homologacao no seletor de layout PDF');
+assertContains('index.html', "homologacaoStatus === 'bloqueado'", 'bloqueio operacional de layout PDF');
+assertContains('index.html', 'Este layout PDF ainda esta em teste no Admin', 'confirmacao para layout em teste');
 
 console.log('OK - recursos de qualidade, memoria e importacao assistida presentes.');

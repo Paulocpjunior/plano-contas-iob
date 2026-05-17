@@ -1,10 +1,10 @@
 {
-  "version": "3.2.7",
-  "build_date": "2026-05-17T08:30:00-03:00",
+  "version": "3.2.8",
+  "build_date": "2026-05-17T09:10:00-03:00",
   "release_notes": [
-    "Layouts Bancarios ganharam fluxo de homologacao no painel Admin",
-    "Admin pode marcar layout como em teste, homologado, aprovado ou bloqueado",
-    "Homologacao grava responsavel, data e observacao no banco de dados",
-    "Eventos de homologacao passam a compor o historico operacional de layouts"
+    "Homologacao de layouts bancarios passou a proteger o Extrator",
+    "Layouts PDF bloqueados pelo Admin nao podem mais ser usados no upload",
+    "Layouts PDF em teste exibem aviso e pedem confirmacao antes de importar",
+    "Seletor de Layout PDF agora mostra o status de homologacao de cada modelo"
   ]
 }

@@ -1913,6 +1913,7 @@
                                     <select id="uploadLayoutPdf" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px" onchange="atualizarLayoutSelecionadoUpload()">
                                         <option value="">Automático</option>
                                     </select>
+                                    <div id="uploadLayoutPdfStatus" style="display:none;margin-top:6px;font-size:12px;font-weight:600;line-height:1.35"></div>
                                 </div>
                                 <div id="uploadTituloWrap">
                                     <label id="uploadTituloLabel" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Título do Relatório *</label>
@@ -3662,7 +3663,9 @@
                         formato: l.formato || '',
                         confiabilidade: l.confiabilidade || '',
                         status: l.status || (l.ativo === false ? 'Inativo' : 'Ativo'),
-                        ativo: l.ativo !== false
+                        ativo: l.ativo !== false,
+                        homologacaoStatus: l.homologacao_status || l.homologacaoStatus || 'em_teste',
+                        homologacaoObservacao: l.homologacao_observacao || l.homologacaoObservacao || ''
                     };
                 }).filter(function(l) { return l.banco && l.parser && l.nome && l.ativo !== false && l.status !== 'Inativo'; });
                 layoutsBancariosCacheTs = agora;
@@ -3691,15 +3694,66 @@
 	            return layouts.map(l => l.nome).join(', ');
 	        }
 
+            function escaparAtributoLayout(valor) {
+                return String(valor || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            }
+
+            function labelHomologacaoLayoutUpload(status) {
+                const labels = {
+                    em_teste: 'Em teste',
+                    homologado: 'Homologado',
+                    aprovado: 'Aprovado',
+                    bloqueado: 'Bloqueado'
+                };
+                return labels[status || 'em_teste'] || 'Em teste';
+            }
+
+            function layoutPdfUploadSelecionado() {
+                const sel = document.getElementById('uploadLayoutPdf');
+                if (!sel || sel.selectedIndex < 0) return null;
+                const opt = sel.options[sel.selectedIndex];
+                if (!opt || !opt.value) return null;
+                return {
+                    parser: opt.value,
+                    nome: opt.dataset.nome || opt.textContent || opt.value,
+                    homologacaoStatus: opt.dataset.homologacaoStatus || 'em_teste',
+                    homologacaoObservacao: opt.dataset.homologacaoObservacao || ''
+                };
+            }
+
             function atualizarLayoutSelecionadoUpload() {
                 const sel = document.getElementById('uploadLayoutPdf');
+                const statusBox = document.getElementById('uploadLayoutPdfStatus');
                 const fileType = document.getElementById('fileType');
                 if (!sel || !fileType || !selectedFile) return;
-                const opt = sel.options[sel.selectedIndex];
-                if (opt && opt.value) {
-                    fileType.textContent = 'PDF - ' + opt.textContent;
+                const layout = layoutPdfUploadSelecionado();
+                if (layout) {
+                    fileType.textContent = 'PDF - ' + layout.nome;
+                    if (statusBox) {
+                        const status = layout.homologacaoStatus || 'em_teste';
+                        const bloqueado = status === 'bloqueado';
+                        const teste = status === 'em_teste';
+                        if (bloqueado || teste) {
+                            statusBox.style.display = 'block';
+                            statusBox.style.color = bloqueado ? '#dc2626' : '#b45309';
+                            statusBox.textContent = bloqueado
+                                ? 'Layout bloqueado pelo Admin. Selecione outro layout ou use Automático.'
+                                : 'Layout em teste. O sistema vai pedir confirmação antes de importar.';
+                        } else {
+                            statusBox.style.display = 'none';
+                            statusBox.textContent = '';
+                        }
+                    }
                 } else if (selectedFile.name.split('.').pop().toLowerCase() === 'pdf') {
                     fileType.textContent = 'PDF - Layout automático';
+                    if (statusBox) {
+                        statusBox.style.display = 'none';
+                        statusBox.textContent = '';
+                    }
                 }
             }
 
@@ -3724,9 +3778,17 @@
                 }
                 const valorAtual = sel.value;
                 sel.innerHTML = '<option value="">Automático - tentar todos</option>' + layouts.map(function(l) {
-                    return '<option value="' + String(l.parser || '').replace(/"/g, '&quot;') + '">' + (l.nome || l.parser || 'Layout PDF') + '</option>';
+                    const status = l.homologacaoStatus || 'em_teste';
+                    const labelStatus = labelHomologacaoLayoutUpload(status);
+                    const nome = l.nome || l.parser || 'Layout PDF';
+                    const disabled = status === 'bloqueado' ? ' disabled' : '';
+                    return '<option value="' + escaparAtributoLayout(l.parser || '') + '"' +
+                        ' data-nome="' + escaparAtributoLayout(nome) + '"' +
+                        ' data-homologacao-status="' + escaparAtributoLayout(status) + '"' +
+                        ' data-homologacao-observacao="' + escaparAtributoLayout(l.homologacaoObservacao || '') + '"' +
+                        disabled + '>' + escaparAtributoLayout(nome + ' - ' + labelStatus) + '</option>';
                 }).join('');
-                sel.value = layouts.some(function(l) { return l.parser === valorAtual; }) ? valorAtual : '';
+                sel.value = layouts.some(function(l) { return l.parser === valorAtual && l.homologacaoStatus !== 'bloqueado'; }) ? valorAtual : '';
                 wrap.style.display = layouts.length ? 'block' : 'none';
                 atualizarLayoutSelecionadoUpload();
             }
@@ -7189,9 +7251,22 @@
             const titulo = document.getElementById('uploadTitulo')?.value?.trim() || '';
             const ext = selectedFile.name.split('.').pop().toLowerCase();
             const layoutPdfSelecionado = ext === 'pdf' ? ((document.getElementById('uploadLayoutPdf') || {}).value || '') : '';
+            const layoutPdfMetaSelecionado = ext === 'pdf' ? layoutPdfUploadSelecionado() : null;
             if (ext !== 'xlsx' && ext !== 'xls') {
                 if (!bancoCode) { showToast('Selecione o banco do extrato.', 'error'); return; }
                 if (!titulo) { showToast('Informe o titulo do relatorio.', 'error'); return; }
+            }
+            if (layoutPdfMetaSelecionado && layoutPdfMetaSelecionado.homologacaoStatus === 'bloqueado') {
+                showToast('Layout PDF bloqueado pelo Admin. Selecione outro layout ou use Automático.', 'error');
+                return;
+            }
+            if (layoutPdfMetaSelecionado && layoutPdfMetaSelecionado.homologacaoStatus === 'em_teste') {
+                const aviso = 'Este layout PDF ainda esta em teste no Admin.\n\n' +
+                    'Use apenas se estiver conferindo a importacao. Deseja processar mesmo assim?';
+                if (!confirm(aviso)) {
+                    showToast('Importacao cancelada. Selecione outro layout ou use Automatico.', 'warn');
+                    return;
+                }
             }
             
             const importacaoId = (crypto.randomUUID ? crypto.randomUUID() : 'imp_' + Date.now() + '_' + Math.random().toString(36).slice(2));
