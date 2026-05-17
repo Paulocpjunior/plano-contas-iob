@@ -1,10 +1,11 @@
 {
-  "version": "3.2.3",
-  "build_date": "2026-05-17T05:05:00-03:00",
+  "version": "3.2.4",
+  "build_date": "2026-05-17T06:10:00-03:00",
   "release_notes": [
-    "Layout Banco do Brasil Conta Atual passa a ter regressao automatica com PDF real de Waldesa fevereiro/2026",
-    "Teste BB valida leitura por coordenadas, periodo, quantidade e fechamento credito menos debito contra saldo final",
-    "Central de Qualidade registra Banco do Brasil Conta Atual como regressao aprovada",
-    "Parser BB exporta helper de texto completo para diagnostico sem alterar o comportamento no navegador"
+    "Central de Qualidade de Layouts sem pendencias nao bloqueantes",
+    "BB Cash OCR passa a ter regressao aprovada para periodo, valores colados e sinais C/D",
+    "Itau Extrato Mensal recupera lancamentos Redecard/Rede e rendimentos por linhas vizinhas",
+    "Layouts CLUDE Stripe, CARTAO_ITAU_CLUDE e Demonstrativo Itaucard ficam catalogados como regressao aprovada",
+    "Novos testes cobrem BB Cash OCR, Itau PDF e regressões CLUDE"
   ]
 }

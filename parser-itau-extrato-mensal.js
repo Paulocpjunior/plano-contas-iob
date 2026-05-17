@@ -4,7 +4,7 @@
 // =============================================================================
 (function(){
   function uuid() {
-    return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('itau-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+    return (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('itau-' + Date.now() + '-' + Math.random().toString(16).slice(2));
   }
 
   function parseValorBR(s) {
@@ -132,6 +132,42 @@
         .trim();
     }
 
+    function linhaVizinhaUtil(text) {
+      const t = normalizarLinha(text);
+      return t
+        && !ignorarLinha(t)
+        && !/^\d{2}\/\d{2}\/\d{4}\b/.test(t)
+        && !moneyToken(t)
+        && !/^(Raz[aã]o Social|CNPJ\/CPF|Valor|Saldo)/i.test(t);
+    }
+
+    function adicionarLancamento(data, desc, valor) {
+      const descricao = limparDescricao(desc);
+      if (!data || !descricao || !valor || Math.abs(valor) === 0) return false;
+      if (/SALDO TOTAL DISPON[IÍ]VEL DIA/i.test(descricao) || /SALDO ANTERIOR/i.test(descricao)) return false;
+
+      const chave = [data, descricao.toLowerCase(), valor.toFixed(2)].join('|');
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      lancamentos.push({
+        id: uuid(),
+        data: data,
+        descricao: descricao,
+        documento: '',
+        valor: valor,
+        tipo: valor < 0 ? 'D' : 'C',
+        empresa: '',
+        cnpj: '',
+        categoria: 'Nao categorizado',
+        contaDebito: '',
+        contaCredito: '',
+        historico: '',
+        incomum: false,
+        origem: 'pdf-itau-lancamentos-periodo'
+      });
+      return true;
+    }
+
     function flush() {
       if (!pendente) return;
       const value = extrairValorFinal(pendente.text);
@@ -145,25 +181,7 @@
         return;
       }
       const chave = [pendente.data, desc.toLowerCase(), value.valor.toFixed(2)].join('|');
-      if (!vistos.has(chave)) {
-        vistos.add(chave);
-        lancamentos.push({
-          id: uuid(),
-          data: pendente.data,
-          descricao: desc,
-          documento: '',
-          valor: value.valor,
-          tipo: value.valor < 0 ? 'D' : 'C',
-          empresa: '',
-          cnpj: '',
-          categoria: 'Nao categorizado',
-          contaDebito: '',
-          contaCredito: '',
-          historico: '',
-          incomum: false,
-          origem: 'pdf-itau-lancamentos-periodo'
-        });
-      }
+      if (!vistos.has(chave)) adicionarLancamento(pendente.data, desc, value.valor);
       pendente = null;
     }
 
@@ -199,6 +217,30 @@
     pendente = null;
     String(textoCompleto || '').split(/\n+/).forEach(processarLinhaTexto);
     flush();
+
+    // Em alguns PDFs o Itau posiciona a descricao na linha acima, a data/CNPJ
+    // e valor na linha central, e o complemento na linha abaixo. Essa passada
+    // recupera esse layout sem depender da ordem textual do pdf.js.
+    lines.forEach(function(line, idx) {
+      const text = normalizarLinha(line.text);
+      const start = text.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(.+)$/);
+      if (!start) return;
+      const value = extrairValorFinal(text);
+      if (!value || !value.valor) return;
+
+      const data = start[3] + '-' + start[2] + '-' + start[1];
+      let desc = limparDescricao(text.slice(10, value.index));
+      if (/[A-Za-zÀ-ÿ]{3,}/.test(desc)) return;
+      const anterior = lines[idx - 1];
+      const posterior = lines[idx + 1];
+      if (anterior && anterior.page === line.page && linhaVizinhaUtil(anterior.text)) {
+        desc = limparDescricao(anterior.text + ' ' + desc);
+      }
+      if (posterior && posterior.page === line.page && linhaVizinhaUtil(posterior.text) && Math.abs((posterior.y || 0) - (line.y || 0)) <= 18) {
+        desc = limparDescricao(desc + ' ' + posterior.text);
+      }
+      adicionarLancamento(data, desc, value.valor);
+    });
 
     const totalCredito = lancamentos.filter(function(l){ return l.valor > 0; }).reduce(function(a,l){ return a + l.valor; }, 0);
     const totalDebito = lancamentos.filter(function(l){ return l.valor < 0; }).reduce(function(a,l){ return a + Math.abs(l.valor); }, 0);
@@ -334,6 +376,22 @@
     };
   }
 
-  window.parsearPDF_Itau_ExtratoMensal = parsearPDF_Itau_ExtratoMensal;
-  console.log('[parser-itau-extrato-mensal] carregado');
+  const api = {
+    parsearPDF_Itau_ExtratoMensal: parsearPDF_Itau_ExtratoMensal,
+    __test__: {
+      parseValorBR: parseValorBR,
+      moneyToken: moneyToken,
+      periodoLancamentosItau: periodoLancamentosItau,
+      parseItauLancamentosPeriodo: parseItauLancamentosPeriodo,
+      ignorarLancamentoTecnicoExtratoMensal: ignorarLancamentoTecnicoExtratoMensal
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.parsearPDF_Itau_ExtratoMensal = parsearPDF_Itau_ExtratoMensal;
+    console.log('[parser-itau-extrato-mensal] carregado');
+  }
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
 })();

@@ -30,6 +30,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js com fechamento por saldo final: credito R$ 1.431.086,20, debito R$ 1.348.067,52 e saldo R$ 83.018,68.'
   },
   {
+    id: 'bb-cash-reality-2025-08',
+    banco: '001',
+    nomeBanco: 'Banco do Brasil',
+    layout: 'Banco do Brasil - BB Cash OCR',
+    parser: 'parsearPDF_BB_CashOCR',
+    arquivo: 'EXTRATO BANCO DO BRASIL - 08.2025.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/EXTRATO BANCO DO BRASIL - 08.2025.pdf',
+    empresa: 'REALITY COMERCIO IMPORTACAO E EXPORTACAO LTDA',
+    periodo_inicio: '2025-08-01',
+    periodo_fim: '2025-08-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js com fixture OCR validando valores, periodo e sinal C/D.'
+  },
+  {
     id: 'bradesco-comunidade-2025-12',
     banco: '237',
     nomeBanco: 'Bradesco',
@@ -160,9 +175,9 @@ const LAYOUT_QUALITY_EVIDENCE = [
     empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
     periodo_inicio: '2026-04-01',
     periodo_fim: '2026-04-30',
-    etapa: 'parser_ajustado',
-    status: 'Evidencia recebida',
-    observacao: 'Evidencia dos lancamentos Redecard/Rede, rendimentos e historicos incompletos.'
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js com Redecard/Rede e rendimentos recuperados por linhas vizinhas.'
   },
   {
     id: 'clude-stripe-2026-04',
@@ -175,9 +190,9 @@ const LAYOUT_QUALITY_EVIDENCE = [
     empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
     periodo_inicio: '2026-04-01',
     periodo_fim: '2026-04-30',
-    etapa: 'layout_parametrizado',
-    status: 'Evidencia recebida',
-    observacao: 'Evidencia de memoria de classificacao e historicos salvos para Stripe.'
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js com totais da planilha Stripe CLUDE.'
   },
   {
     id: 'clude-itau-xlsx-2026-04',
@@ -205,12 +220,12 @@ const LAYOUT_QUALITY_EVIDENCE = [
     empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
     periodo_inicio: '2026-04-01',
     periodo_fim: '2026-04-30',
-    etapa: 'layout_parametrizado',
-    status: 'Evidencia recebida',
-    observacao: 'Layout solicitado com identificacao CARTAO_ITAU_CLUDE e historico puxado pela descricao.'
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js para CARTAO_ITAU_CLUDE e historico por descricao.'
   },
   {
-    id: 'clude-demonstrativo-itaucard',
+    id: 'clude-demonstrativo-itaucard-2026',
     banco: 'CLU',
     nomeBanco: 'CLUDE - Club de Beneficios',
     layout: 'CLUDE - Demonstrativo Itaucard',
@@ -218,11 +233,11 @@ const LAYOUT_QUALITY_EVIDENCE = [
     arquivo: 'Demonstrativo da Fatura Cartao Itaucard.xlsx',
     caminho_local: '/Users/paulocesarpereirajunior/Downloads/Demonstrativo da Fatura Cartão Itaucard.xlsx',
     empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
-    periodo_inicio: '',
-    periodo_fim: '',
-    etapa: 'bloqueio_operacional',
-    status: 'Evidencia recebida',
-    observacao: 'Evidencia para orientar reenvio quando a planilha estiver criptografada/protegida.'
+    periodo_inicio: '2026-03-03',
+    periodo_fim: '2026-03-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js para fatura analitica Itaucard CLUDE.'
   },
   {
     id: 'btg-erf-holding-2026-01',

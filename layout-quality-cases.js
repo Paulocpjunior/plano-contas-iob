@@ -95,6 +95,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Layout Banco do Brasil Conta Atual textual com valores e sinal D/C lidos pela direita. A regressao confere que credito menos debito fecha no saldo final de R$ 83.018,68.'
   },
   {
+    id: 'bb-cash-reality-2025-08',
+    banco: '001',
+    nomeBanco: 'Banco do Brasil',
+    layout: 'Banco do Brasil - BB Cash OCR',
+    parser: 'parsearPDF_BB_CashOCR',
+    arquivo: 'EXTRATO BANCO DO BRASIL - 08.2025.pdf',
+    empresa: 'REALITY COMERCIO IMPORTACAO E EXPORTACAO LTDA',
+    periodo_inicio: '2025-08-01',
+    periodo_fim: '2025-08-31',
+    esperado: {
+      total_lancamentos: 5,
+      total_credito: 16900.00,
+      total_debito: 86998.77
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-17T06:10:00-03:00',
+    observacao: 'Fixture OCR do BB Cash valida banco, periodo, valores colados e sinal C/D, incluindo OCR que troca C por euro.'
+  },
+  {
     id: 'btg-erf-holding-2026-01',
     banco: '208',
     nomeBanco: 'Banco BTG Pactual',
@@ -152,6 +171,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Layout Bradesco Net Empresa textual com documento, valor e saldo colados. A regressao confere totais oficiais pelo saldo anterior versus saldo atual.'
   },
   {
+    id: 'itau-clude-pdf-2026-04',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 1 - Extrato Mensal',
+    parser: 'parsearPDF_Itau_ExtratoMensal',
+    arquivo: 'itau abril 26 3.pdf',
+    empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 250,
+      total_credito: 76806.19,
+      total_debito: 54678.27
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-17T06:10:00-03:00',
+    observacao: 'Layout Itau PDF por periodo com descricao em linhas vizinhas; cobre Redecard/Rede e rendimentos que ficavam fora da importacao.'
+  },
+  {
     id: 'clude-itau-xlsx-2026-04',
     banco: 'CLU',
     nomeBanco: 'CLUDE - Club de Beneficios',
@@ -169,6 +207,63 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-05-17T03:35:00-03:00',
     observacao: 'Layout CLUDE Itau XLSX com reforco de historicos por descricao para recebimentos NF, fornecedores, seguros, servicos e cartao.'
+  },
+  {
+    id: 'clude-stripe-2026-04',
+    banco: 'CLU',
+    nomeBanco: 'CLUDE - Club de Beneficios',
+    layout: 'CLUDE - Stripe / Recebimentos',
+    parser: 'parsearArquivoXLSXCludeStripe',
+    arquivo: 'EXTRATO STRIPE ABRIL.xlsx',
+    empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 944,
+      total_credito: 82243.38,
+      total_debito: 84998.30
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-17T06:10:00-03:00',
+    observacao: 'Layout Stripe CLUDE validado pelo Valor total da planilha e usado como regressao da memoria de classificacao.'
+  },
+  {
+    id: 'clude-cartao-itau-2026-04',
+    banco: 'CLU',
+    nomeBanco: 'CLUDE - Club de Beneficios',
+    layout: 'CARTAO_ITAU_CLUDE',
+    parser: 'parsearArquivoXLSXCartaoItauClude',
+    arquivo: 'fatura cartao clude 1.xlsx',
+    empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 97,
+      total_credito: 48542.10,
+      total_debito: 90.02
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-17T06:10:00-03:00',
+    observacao: 'Layout CARTAO_ITAU_CLUDE valida fatura analitica com DATA, FORNECEDOR, VALOR e DESCRICAO DO SERVICO para historico por descricao.'
+  },
+  {
+    id: 'clude-demonstrativo-itaucard-2026',
+    banco: 'CLU',
+    nomeBanco: 'CLUDE - Club de Beneficios',
+    layout: 'CLUDE - Demonstrativo Itaucard',
+    parser: 'parsearArquivoXLSX',
+    arquivo: 'Demonstrativo da Fatura Cartao Itaucard.xlsx',
+    empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
+    periodo_inicio: '2026-03-03',
+    periodo_fim: '2026-03-31',
+    esperado: {
+      total_lancamentos: 44,
+      total_credito: 40408.60,
+      total_debito: 0
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-17T06:10:00-03:00',
+    observacao: 'Regressao do demonstrativo Itaucard CLUDE para evitar perda de historico quando a fatura vem em formato analitico.'
   }
 ];
 

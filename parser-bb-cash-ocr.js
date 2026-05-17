@@ -4,7 +4,7 @@
 // =============================================================================
 (function(){
   function uuid() {
-    return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('bbcash-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+    return (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('bbcash-' + Date.now() + '-' + Math.random().toString(16).slice(2));
   }
 
   function removerAcentos(s) {
@@ -82,11 +82,11 @@
   }
 
   function extrairValorTipo(resto) {
-    const reComTipo = /(?:^|\s)([sS][oO0]\d[\d.,]*|[sS]?\d[\d.,]*|[oO]\d[\d.,]*)\s*([CD])(?:\b|[^A-Za-z]|$)/ig;
+    const reComTipo = /(?:^|\s)([sS][oO0]\d[\d.,]*|[sS]?\d[\d.,]*|[oO]\d[\d.,]*)\s*([CD€])(?:\b|[^A-Za-z]|$)/ig;
     const matches = Array.from(resto.matchAll(reComTipo)).filter(m => parseValorBR(m[1]) > 0);
     if (matches.length) {
       const m = matches[0];
-      return { raw: m[1], tipo: m[2].toUpperCase(), index: m.index + (m[0].match(/^\s/) ? 1 : 0), valor: parseValorBR(m[1]) };
+      return { raw: m[1], tipo: m[2] === '€' ? 'C' : m[2].toUpperCase(), index: m.index + (m[0].match(/^\s/) ? 1 : 0), valor: parseValorBR(m[1]) };
     }
 
     const valores = Array.from(resto.matchAll(/(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/g)).filter(m => parseValorBR(m[1]) > 0);
@@ -230,7 +230,23 @@
     return parsearTexto_BB_CashOCR(textosOCR);
   }
 
-  window.parsearTexto_BB_CashOCR = parsearTexto_BB_CashOCR;
-  window.parsearPDF_BB_CashOCR = parsearPDF_BB_CashOCR;
-  console.log('[parser-bb-cash-ocr] carregado');
+  const api = {
+    parsearPDF_BB_CashOCR: parsearPDF_BB_CashOCR,
+    parsearTexto_BB_CashOCR: parsearTexto_BB_CashOCR,
+    __test__: {
+      limparLinhaOCR: limparLinhaOCR,
+      parseValorBR: parseValorBR,
+      extrairValorTipo: extrairValorTipo,
+      parsearTexto_BB_CashOCR: parsearTexto_BB_CashOCR
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.parsearTexto_BB_CashOCR = parsearTexto_BB_CashOCR;
+    window.parsearPDF_BB_CashOCR = parsearPDF_BB_CashOCR;
+    console.log('[parser-bb-cash-ocr] carregado');
+  }
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
 })();
