@@ -347,6 +347,7 @@ function escapeHtml(v) {
 
 function normalizarLayoutBanco(l) {
   return {
+    id: l.id || '',
     banco: l.banco || '',
     nomeBanco: l.nomeBanco || l.nome_banco || '',
     layout: l.layout || l.nome || '',
@@ -356,6 +357,10 @@ function normalizarLayoutBanco(l) {
     status: l.status || (l.ativo === false ? 'Inativo' : 'Ativo'),
     ultimoTeste: l.ultimoTeste || l.ultimo_teste || l.ultimo_arquivo || '',
     observacao: l.observacao || l.observação || '',
+    homologacao_status: l.homologacao_status || 'em_teste',
+    homologacao_observacao: l.homologacao_observacao || '',
+    homologado_por_email: l.homologado_por_email || '',
+    homologado_em: l.homologado_em || null,
     total_usos: l.total_usos || 0,
     ultimo_uso_em: l.ultimo_uso_em || null
   };
@@ -388,6 +393,8 @@ async function renderLayouts() {
   const bancos = [...new Set(layouts.map(l => l.banco))].length;
   const ocr = layouts.filter(l => /OCR/i.test(l.formato)).length;
   const alta = layouts.filter(l => l.confiabilidade === 'Alta').length;
+  const homologados = layouts.filter(l => ['homologado', 'aprovado'].includes(l.homologacao_status)).length;
+  const aprovados = layouts.filter(l => l.homologacao_status === 'aprovado').length;
 
   const cards = `
     <div class="layout-grid">
@@ -395,25 +402,65 @@ async function renderLayouts() {
       <div class="layout-card"><div class="bank">Layouts ativos</div><div class="count">${totalLayouts}</div><div class="caption">Modelos disponíveis no extrator</div></div>
       <div class="layout-card"><div class="bank">Alta confiabilidade</div><div class="count">${alta}</div><div class="caption">PDF textual com validação estruturada</div></div>
       <div class="layout-card"><div class="bank">OCR</div><div class="count">${ocr}</div><div class="caption">Exigem conferência visual dos totais</div></div>
+      <div class="layout-card"><div class="bank">Homologados</div><div class="count">${homologados}</div><div class="caption">${aprovados} aprovado(s) para uso amplo</div></div>
     </div>`;
 
-  let table = '<table><thead><tr><th>Banco</th><th>Layout</th><th>Formato</th><th>Confiabilidade</th><th>Status</th><th>Último teste</th><th>Observação</th></tr></thead><tbody>';
+  let table = '<table><thead><tr><th>Banco</th><th>Layout</th><th>Formato</th><th>Confiabilidade</th><th>Status</th><th>Homologação</th><th>Último teste</th><th>Observação</th></tr></thead><tbody>';
   layouts.forEach(l => {
     const confClass = l.confiabilidade === 'Alta' ? 'badge-ok' : 'badge-warn';
     const statusClass = l.status === 'Ativo' ? 'badge-ok' : 'badge-info';
+    const homClass = l.homologacao_status === 'aprovado' ? 'badge-ok' : (l.homologacao_status === 'homologado' ? 'badge-info' : (l.homologacao_status === 'bloqueado' ? 'badge-logout' : 'badge-warn'));
     table += `<tr>
       <td><strong>${escapeHtml(l.banco)}</strong><br><span style="font-size:12px;color:#6b7280">${escapeHtml(l.nomeBanco)}</span></td>
       <td>${escapeHtml(l.layout)}<br><span class="text-mono" style="color:#9ca3af">${escapeHtml(l.parser)}</span></td>
       <td>${escapeHtml(l.formato)}</td>
       <td><span class="badge ${confClass}">${escapeHtml(l.confiabilidade)}</span></td>
       <td><span class="badge ${statusClass}">${escapeHtml(l.status)}</span></td>
+      <td style="min-width:180px">
+        <span class="badge ${homClass}">${escapeHtml(labelHomologacao(l.homologacao_status))}</span>
+        <select onchange="atualizarHomologacaoLayout('${escapeHtml(l.id)}', this.value)" style="margin-top:7px;width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px">
+          <option value="em_teste" ${l.homologacao_status === 'em_teste' ? 'selected' : ''}>Em teste</option>
+          <option value="homologado" ${l.homologacao_status === 'homologado' ? 'selected' : ''}>Homologado</option>
+          <option value="aprovado" ${l.homologacao_status === 'aprovado' ? 'selected' : ''}>Aprovado</option>
+          <option value="bloqueado" ${l.homologacao_status === 'bloqueado' ? 'selected' : ''}>Bloqueado</option>
+        </select>
+        ${l.homologado_por_email ? '<br><span style="font-size:11px;color:#9ca3af">' + escapeHtml(l.homologado_por_email) + '</span>' : ''}
+      </td>
       <td style="font-size:12px;color:#374151">${escapeHtml(l.ultimoTeste)}${l.total_usos ? '<br><span style="color:#9ca3af">' + l.total_usos + ' uso(s)</span>' : ''}</td>
-      <td style="font-size:12px;color:#6b7280">${escapeHtml(l.observacao)}</td>
+      <td style="font-size:12px;color:#6b7280">${escapeHtml(l.observacao)}${l.homologacao_observacao ? '<br><strong>Homologação:</strong> ' + escapeHtml(l.homologacao_observacao) : ''}</td>
     </tr>`;
   });
   table += '</tbody></table>';
 
   el.innerHTML = cards + table + '<p style="font-size:12px;color:#6b7280;margin-top:14px">OFX, CSV e XLSX continuam aceitos fora dos layouts PDF específicos. Para PDFs sem layout cadastrado, o extrator bloqueia e solicita parametrização.</p>';
+}
+
+function labelHomologacao(status) {
+  return ({
+    em_teste: 'Em teste',
+    homologado: 'Homologado',
+    aprovado: 'Aprovado',
+    bloqueado: 'Bloqueado'
+  })[status] || 'Em teste';
+}
+
+async function atualizarHomologacaoLayout(id, status) {
+  if (!id || !status) return;
+  let observacao = '';
+  if (['homologado', 'aprovado', 'bloqueado'].includes(status)) {
+    observacao = prompt('Observação da homologação (opcional):', '') || '';
+  }
+  try {
+    const r = await window.API.apiFetch('/api/layouts-bancarios/' + encodeURIComponent(id) + '/homologacao', {
+      method: 'PATCH',
+      body: JSON.stringify({ homologacao_status: status, homologacao_observacao: observacao })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    await renderLayouts();
+  } catch (e) {
+    alert('Erro ao atualizar homologação: ' + (e.message || e));
+    await renderLayouts();
+  }
 }
 
 function formatMoney(v) {

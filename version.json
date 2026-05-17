@@ -1,10 +1,10 @@
 {
-  "version": "3.2.6",
-  "build_date": "2026-05-17T08:05:00-03:00",
+  "version": "3.2.7",
+  "build_date": "2026-05-17T08:30:00-03:00",
   "release_notes": [
-    "Central de Qualidade ganhou painel operacional por colaborador e por banco",
-    "Importacoes aceitas registram evento de sucesso para medir taxa de acerto",
-    "Fila de arquivos rejeitados agora permite status pendente, em parametrizacao, resolvido ou ignorado",
-    "Admin passa a acompanhar pendencias e resolucoes da parametrizacao de layouts"
+    "Layouts Bancarios ganharam fluxo de homologacao no painel Admin",
+    "Admin pode marcar layout como em teste, homologado, aprovado ou bloqueado",
+    "Homologacao grava responsavel, data e observacao no banco de dados",
+    "Eventos de homologacao passam a compor o historico operacional de layouts"
   ]
 }

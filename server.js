@@ -79,7 +79,15 @@ async function garantirLayoutsBancariosPadrao() {
     const ref = col.doc(id);
     const doc = await ref.get();
     if (!doc.exists) {
-      await ref.set({ ...layout, ativo: true, origem: 'padrao_sistema', criado_em: new Date(), atualizado_em: new Date() });
+      await ref.set({
+        ...layout,
+        ativo: true,
+        origem: 'padrao_sistema',
+        homologacao_status: layout.homologacao_status || 'em_teste',
+        homologacao_observacao: layout.homologacao_observacao || '',
+        criado_em: new Date(),
+        atualizado_em: new Date()
+      });
     } else {
       const atual = doc.data() || {};
       await ref.set({
@@ -95,6 +103,10 @@ async function garantirLayoutsBancariosPadrao() {
         ativo: atual.ativo !== false,
         ultimoTeste: atual.ultimoTeste || layout.ultimoTeste,
         observacao: layout.observacao || atual.observacao || '',
+        homologacao_status: atual.homologacao_status || layout.homologacao_status || 'em_teste',
+        homologacao_observacao: atual.homologacao_observacao || layout.homologacao_observacao || '',
+        homologado_em: atual.homologado_em || null,
+        homologado_por_email: atual.homologado_por_email || '',
         origem: atual.origem || 'padrao_sistema',
         atualizado_em: new Date()
       }, { merge: true });
@@ -1273,6 +1285,45 @@ app.get('/api/layouts-bancarios', async (req, res) => {
     res.json({ layouts });
   } catch (err) {
     console.error('layouts-bancarios GET erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.patch('/api/layouts-bancarios/:id/homologacao', adminRequired, async (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ erro: 'id obrigatorio' });
+    const statusPermitidos = new Set(['em_teste', 'homologado', 'aprovado', 'bloqueado']);
+    const body = req.body || {};
+    const homologacao_status = String(body.homologacao_status || '').trim();
+    if (!statusPermitidos.has(homologacao_status)) return res.status(400).json({ erro: 'homologacao_status invalido' });
+    const ref = db.collection('layouts_bancarios').doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ erro: 'layout nao encontrado' });
+    const patch = {
+      homologacao_status,
+      homologacao_observacao: String(body.homologacao_observacao || '').slice(0, 600),
+      homologado_em: new Date(),
+      homologado_por_uid: req.user.uid,
+      homologado_por_email: req.user.email,
+      atualizado_em: new Date()
+    };
+    await ref.set(patch, { merge: true });
+    await db.collection('layout_events').add({
+      tipo: 'homologacao',
+      layout_id: id,
+      banco: doc.data().banco || '',
+      nomeBanco: doc.data().nomeBanco || '',
+      layout: doc.data().nome || doc.data().layout || '',
+      parser: doc.data().parser || '',
+      homologacao_status,
+      criado_em: new Date(),
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email
+    });
+    res.json({ ok: true, id, ...patch });
+  } catch (err) {
+    console.error('layouts-bancarios homologacao erro:', err);
     res.status(500).json({ erro: err.message });
   }
 });
