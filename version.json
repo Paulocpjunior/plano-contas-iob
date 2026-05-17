@@ -1,10 +1,10 @@
 {
-  "version": "3.2.14",
-  "build_date": "2026-05-17T11:35:00-03:00",
+  "version": "3.2.15",
+  "build_date": "2026-05-17T12:10:00-03:00",
   "release_notes": [
-    "Central de Qualidade ganhou alertas operacionais por banco e colaborador",
-    "Admin destaca layouts com rejeicoes recorrentes e baixa taxa de acerto",
-    "Painel sugere acoes para priorizar teste de layout ou fila pendente",
-    "Indicadores de qualidade agora ajudam a escolher o proximo ajuste critico"
+    "Nova aba Situacao Fiscal / Impostos para controle interno por empresa",
+    "Cadastro manual de tributos, vencimentos, pagamentos e comprovantes",
+    "Resumo fiscal mostra total pago, valor apurado e pendencias",
+    "Modulo ja exibe status seguro do certificado do escritorio no Firebase"
   ]
 }

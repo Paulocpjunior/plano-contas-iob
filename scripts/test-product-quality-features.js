@@ -16,6 +16,10 @@ assertContains('server.js', "app.get('/api/layout-rejections'", 'consulta da fil
 assertContains('server.js', "app.patch('/api/layout-rejections/:id'", 'atualizacao de status da fila de rejeicoes');
 assertContains('server.js', "app.patch('/api/layouts-bancarios/:id/homologacao'", 'homologacao de layout bancario');
 assertContains('server.js', "app.get('/api/layout-quality/ops'", 'metricas operacionais de qualidade');
+assertContains('server.js', "app.get('/api/fiscal/certificado-status'", 'status do certificado fiscal sem expor segredo');
+assertContains('server.js', "app.get('/api/empresas/:cnpj/fiscal/impostos'", 'consulta de impostos fiscais por empresa');
+assertContains('server.js', "app.post('/api/empresas/:cnpj/fiscal/impostos'", 'cadastro de impostos fiscais por empresa');
+assertContains('server.js', 'normalizarFiscalBody', 'normalizacao segura de obrigacao fiscal');
 assertContains('server.js', 'mensal', 'resumo mensal de qualidade operacional na API');
 assertContains('server.js', 'mesEvento', 'agrupamento mensal de eventos de layout');
 assertContains('server.js', 'alertas: alertas.slice', 'alertas operacionais de qualidade na API');
@@ -56,5 +60,10 @@ assertContains('index.html', "homologacaoStatus === 'bloqueado'", 'bloqueio oper
 assertContains('index.html', 'Este layout PDF ainda esta em teste no Admin', 'confirmacao para layout em teste');
 assertContains('index.html', 'Layout aprovado pela Central de Qualidade', 'selo operacional de layout aprovado no extrator');
 assertContains('index.html', 'Layout homologado pelo Admin', 'selo operacional de layout homologado no extrator');
+assertContains('index.html', 'Situação Fiscal / Impostos', 'nova aba de situacao fiscal');
+assertContains('index.html', 'carregarFiscalCertificado', 'status do certificado no modulo fiscal');
+assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
+assertContains('api-adapter.js', 'fiscalListarImpostos', 'adapter fiscal para listar impostos');
+assertContains('api-adapter.js', 'fiscalCertificadoStatus', 'adapter fiscal para status do certificado');
 
 console.log('OK - recursos de qualidade, memoria e importacao assistida presentes.');

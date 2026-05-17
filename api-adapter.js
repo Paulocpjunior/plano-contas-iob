@@ -180,7 +180,31 @@
     return await r.json();
   }
 
-  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado };
+  async function fiscalCertificadoStatus() {
+    const r = await apiFetch(API_BASE + '/api/fiscal/certificado-status');
+    return await r.json();
+  }
+
+  async function fiscalListarImpostos(cnpj) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/fiscal/impostos');
+    return await r.json();
+  }
+
+  async function fiscalSalvarImposto(cnpj, dados, id) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const url = API_BASE + '/api/empresas/' + cnpjLimpo + '/fiscal/impostos' + (id ? '/' + encodeURIComponent(id) : '');
+    const r = await apiFetch(url, { method: id ? 'PUT' : 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
+  async function fiscalExcluirImposto(cnpj, id) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/fiscal/impostos/' + encodeURIComponent(id), { method: 'DELETE' });
+    return await r.json();
+  }
+
+  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto };
   console.log('[API Adapter v3] carregado');
 })();
 

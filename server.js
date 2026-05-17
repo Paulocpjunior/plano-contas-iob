@@ -1148,6 +1148,172 @@ async function checarAcessoEmpresa(cnpj, user) {
   return { ok: true, empresa: emp };
 }
 
+function serializarFiscal(data) {
+  const out = { ...(data || {}) };
+  Object.keys(out).forEach(k => {
+    const v = out[k];
+    if (v && typeof v.toDate === 'function') out[k] = v.toDate().toISOString();
+  });
+  return out;
+}
+
+function serializarDataSegura(v) {
+  if (!v) return '';
+  if (v && typeof v.toDate === 'function') return v.toDate().toISOString();
+  if (v instanceof Date) return v.toISOString();
+  return String(v);
+}
+
+function parseValorFiscal(v) {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (v == null || v === '') return 0;
+  const n = parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function normalizarFiscalBody(body) {
+  const statusPermitidos = new Set(['EM_ABERTO', 'PAGO', 'PAGO_COM_DIFERENCA', 'VENCIDO', 'PARCELADO', 'COMPENSADO', 'EM_ANALISE', 'PENDENTE_RECEITA']);
+  const origemPermitida = new Set(['manual', 'importado', 'arquivo', 'banco', 'SERPRO']);
+  const b = body || {};
+  const status = String(b.status || 'EM_ABERTO').trim().toUpperCase();
+  const origem = String(b.origem || 'manual').trim();
+  if (!statusPermitidos.has(status)) throw new Error('status fiscal invalido');
+  if (!origemPermitida.has(origem)) throw new Error('origem fiscal invalida');
+  return {
+    competencia: String(b.competencia || '').trim(),
+    tributo: String(b.tributo || '').trim().toUpperCase(),
+    codigo_receita: String(b.codigo_receita || '').trim(),
+    valor_apurado: parseValorFiscal(b.valor_apurado),
+    valor_pago: parseValorFiscal(b.valor_pago),
+    vencimento: String(b.vencimento || '').trim(),
+    data_pagamento: String(b.data_pagamento || '').trim(),
+    numero_documento: String(b.numero_documento || '').trim(),
+    origem,
+    status,
+    pendencia_ecac: String(b.pendencia_ecac || '').trim(),
+    anexo_url: String(b.anexo_url || '').trim(),
+    observacoes: String(b.observacoes || '').trim().slice(0, 1200)
+  };
+}
+
+app.get('/api/fiscal/certificado-status', async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    const candidatos = [
+      db.collection('configuracoes').doc('certificado_escritorio'),
+      db.collection('certificados').doc('escritorio'),
+      db.collection('certificados').doc('escritorio_a1')
+    ];
+    let encontrado = null;
+    for (const ref of candidatos) {
+      const doc = await ref.get();
+      if (doc.exists) {
+        encontrado = { id: ref.path, ...doc.data() };
+        break;
+      }
+    }
+    if (!encontrado) return res.json({ cadastrado: false, status: 'nao_localizado', fonte: 'firebase' });
+    res.json({
+      cadastrado: true,
+      fonte: 'firebase',
+      origem: encontrado.id,
+      cnpj_escritorio: encontrado.cnpj_escritorio || encontrado.cnpj || '',
+      razao_social: encontrado.razao_social || encontrado.nome || '',
+      validade: serializarDataSegura(encontrado.validade || encontrado.expires_at || encontrado.data_validade || ''),
+      status: encontrado.status || (encontrado.ativo === false ? 'inativo' : 'ativo'),
+      ultimo_uso_em: serializarDataSegura(encontrado.ultimo_uso_em || encontrado.last_used_at || ''),
+      observacao: encontrado.observacao || ''
+    });
+  } catch (err) {
+    console.error('certificado-status erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.get('/api/empresas/:cnpj/fiscal/impostos', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const snap = await db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').orderBy('competencia', 'desc').limit(300).get();
+    const itens = snap.docs.map(d => ({ id: d.id, ...serializarFiscal(d.data()) }));
+    const resumo = itens.reduce((acc, item) => {
+      acc.total++;
+      acc.valor_apurado += Number(item.valor_apurado || 0);
+      acc.valor_pago += Number(item.valor_pago || 0);
+      acc.status[item.status || 'EM_ABERTO'] = (acc.status[item.status || 'EM_ABERTO'] || 0) + 1;
+      if (['EM_ABERTO', 'VENCIDO', 'PENDENTE_RECEITA', 'PAGO_COM_DIFERENCA'].includes(item.status)) acc.pendencias++;
+      return acc;
+    }, { total: 0, valor_apurado: 0, valor_pago: 0, pendencias: 0, status: {} });
+    res.json({ cnpj: cnpjLimpo, resumo, itens });
+  } catch (err) {
+    console.error('fiscal impostos GET erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.post('/api/empresas/:cnpj/fiscal/impostos', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const dados = normalizarFiscalBody(req.body);
+    if (!dados.competencia || !dados.tributo) return res.status(400).json({ erro: 'competencia e tributo obrigatorios' });
+    const ref = await db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').add({
+      ...dados,
+      criado_em: new Date(),
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email,
+      atualizado_em: new Date(),
+      atualizado_por_uid: req.user.uid,
+      atualizado_por_email: req.user.email
+    });
+    res.status(201).json({ ok: true, id: ref.id });
+  } catch (err) {
+    console.error('fiscal impostos POST erro:', err);
+    res.status(400).json({ erro: err.message });
+  }
+});
+
+app.put('/api/empresas/:cnpj/fiscal/impostos/:id', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const dados = normalizarFiscalBody(req.body);
+    const ref = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ erro: 'registro fiscal nao encontrado' });
+    await ref.set({
+      ...dados,
+      atualizado_em: new Date(),
+      atualizado_por_uid: req.user.uid,
+      atualizado_por_email: req.user.email
+    }, { merge: true });
+    res.json({ ok: true, id: req.params.id });
+  } catch (err) {
+    console.error('fiscal impostos PUT erro:', err);
+    res.status(400).json({ erro: err.message });
+  }
+});
+
+app.delete('/api/empresas/:cnpj/fiscal/impostos/:id', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    await db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').doc(req.params.id).delete();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('fiscal impostos DELETE erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');

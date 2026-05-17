@@ -955,6 +955,10 @@
             background: var(--text-light);
             cursor: wait;
         }
+        .btn-action-danger {
+            background: var(--danger);
+            color: #fff;
+        }
         .btn-action-secondary {
             background: var(--bg);
             color: var(--text);
@@ -1649,6 +1653,7 @@
             <button onclick="showPage('lancamentos')"><span>📋</span> Lançamentos</button>
             <button onclick="showPage('plano')"><span>📚</span> Plano de Contas / Histórico</button>
             <button onclick="showPage('mapeamento')"><span>🔗</span> Mapeamento</button>
+            <button onclick="showPage('fiscal')"><span>🧾</span> Situação Fiscal</button>
             <button onclick="showPage('exportar')"><span>💾</span> Exportar</button>
             <button onclick="showPage('sobre')"><span>ℹ️</span> Sobre</button>
             <button id="btnAuditAiNav" onclick="window.open('/auditai', '_blank')" style="display:none;margin-left:auto;color:#2563eb;font-weight:700"><span>🔍</span> AuditAI</button>
@@ -2275,6 +2280,146 @@
                         </div>
                     </div>
                     <div id="mappingTable"></div>
+                </div>
+            </div>
+
+            <!-- Page: Fiscal -->
+            <div id="pageFiscal" class="hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><span class="icon">🧾</span> Situação Fiscal / Impostos</h2>
+                        <div class="action-buttons">
+                            <button class="btn-action btn-action-secondary" onclick="carregarFiscal()">🔁 Atualizar</button>
+                            <button class="btn-action btn-action-primary" onclick="limparFormularioFiscal()">➕ Novo imposto</button>
+                        </div>
+                    </div>
+                    <p style="color:var(--text-muted);margin-bottom:18px">Controle interno de impostos apurados, pagamentos e comprovantes. A estrutura já está preparada para integração futura via certificado do escritório no Firebase.</p>
+
+                    <div class="import-totals-grid">
+                        <div class="import-total-card credit">
+                            <h3>Total pago</h3>
+                            <div class="value" id="fiscalTotalPago">R$ 0,00</div>
+                            <div class="sub" id="fiscalQtdRegistros">0 registro(s)</div>
+                        </div>
+                        <div class="import-total-card debit">
+                            <h3>Pendências fiscais</h3>
+                            <div class="value" id="fiscalPendencias">0</div>
+                            <div class="sub" id="fiscalTotalApurado">Apurado: R$ 0,00</div>
+                        </div>
+                    </div>
+
+                    <div id="fiscalCertificadoBox" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:18px;color:#475569">
+                        Carregando status do certificado do escritório...
+                    </div>
+
+                    <div class="filters-section">
+                        <input type="hidden" id="fiscalId">
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Competência</label>
+                                <input type="month" id="fiscalCompetencia">
+                            </div>
+                            <div class="filter-group">
+                                <label>Tributo</label>
+                                <select id="fiscalTributo">
+                                    <option value="IRPJ">IRPJ</option>
+                                    <option value="CSLL">CSLL</option>
+                                    <option value="PIS">PIS</option>
+                                    <option value="COFINS">COFINS</option>
+                                    <option value="INSS">INSS</option>
+                                    <option value="FGTS">FGTS</option>
+                                    <option value="DAS">DAS</option>
+                                    <option value="ISS">ISS</option>
+                                    <option value="ICMS">ICMS</option>
+                                    <option value="GNRE">GNRE</option>
+                                    <option value="DAE">DAE</option>
+                                    <option value="OUTROS">OUTROS</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Código Receita</label>
+                                <input type="text" id="fiscalCodigoReceita" placeholder="Ex: 0561, 2089">
+                            </div>
+                            <div class="filter-group">
+                                <label>Status Fiscal</label>
+                                <select id="fiscalStatus">
+                                    <option value="EM_ABERTO">Em aberto</option>
+                                    <option value="PAGO">Pago</option>
+                                    <option value="PAGO_COM_DIFERENCA">Pago com diferença</option>
+                                    <option value="VENCIDO">Vencido</option>
+                                    <option value="PARCELADO">Parcelado</option>
+                                    <option value="COMPENSADO">Compensado</option>
+                                    <option value="EM_ANALISE">Em análise</option>
+                                    <option value="PENDENTE_RECEITA">Pendente Receita</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Valor Apurado</label>
+                                <input type="number" id="fiscalValorApurado" step="0.01" placeholder="0,00">
+                            </div>
+                            <div class="filter-group">
+                                <label>Valor Pago</label>
+                                <input type="number" id="fiscalValorPago" step="0.01" placeholder="0,00">
+                            </div>
+                            <div class="filter-group">
+                                <label>Vencimento</label>
+                                <input type="date" id="fiscalVencimento">
+                            </div>
+                            <div class="filter-group">
+                                <label>Data Pagamento</label>
+                                <input type="date" id="fiscalDataPagamento">
+                            </div>
+                        </div>
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Nº Documento / Arrecadação</label>
+                                <input type="text" id="fiscalNumeroDocumento" placeholder="DARF, DAS, GNRE, DAE...">
+                            </div>
+                            <div class="filter-group">
+                                <label>Origem</label>
+                                <select id="fiscalOrigem">
+                                    <option value="manual">Manual</option>
+                                    <option value="importado">Importado</option>
+                                    <option value="arquivo">Arquivo</option>
+                                    <option value="banco">Arquivo bancário</option>
+                                    <option value="SERPRO">SERPRO</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Pendência e-CAC</label>
+                                <input type="text" id="fiscalPendenciaEcac" placeholder="Opcional">
+                            </div>
+                            <div class="filter-group">
+                                <label>Link / Anexo do Comprovante</label>
+                                <input type="url" id="fiscalAnexoUrl" placeholder="https://...">
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label>Observações</label>
+                            <textarea id="fiscalObservacoes" rows="3" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit" placeholder="Observações internas, compensação, parcelamento, detalhes do comprovante..."></textarea>
+                        </div>
+                        <div class="filters-row">
+                            <button class="btn-action btn-action-success" onclick="salvarFiscalImposto()">💾 Salvar imposto</button>
+                            <button class="btn-action btn-action-secondary" onclick="limparFormularioFiscal()">Limpar</button>
+                        </div>
+                    </div>
+
+                    <div class="table-info">
+                        <div class="table-info-left">
+                            <span id="fiscalEmpresaInfo">Selecione uma empresa para carregar os impostos.</span>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <div id="fiscalTabela">
+                            <div class="empty-state">
+                                <div class="icon">🧾</div>
+                                <h3>Nenhum imposto carregado</h3>
+                                <p>Selecione uma empresa e cadastre o primeiro imposto.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -5812,6 +5957,199 @@
             }
         }
 
+        let fiscalImpostosCache = [];
+
+        function fiscalCnpjAtual() {
+            return String((state.info && state.info.cnpj) || (document.getElementById('infoCNPJ') || {}).value || '').replace(/\D/g, '');
+        }
+
+        function fiscalEscape(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function fiscalLabelStatus(status) {
+            const map = {
+                EM_ABERTO: 'Em aberto',
+                PAGO: 'Pago',
+                PAGO_COM_DIFERENCA: 'Pago com diferença',
+                VENCIDO: 'Vencido',
+                PARCELADO: 'Parcelado',
+                COMPENSADO: 'Compensado',
+                EM_ANALISE: 'Em análise',
+                PENDENTE_RECEITA: 'Pendente Receita'
+            };
+            return map[status] || status || '-';
+        }
+
+        function fiscalBadgeStatus(status) {
+            if (status === 'PAGO' || status === 'COMPENSADO') return '#dcfce7;color:#166534';
+            if (status === 'VENCIDO' || status === 'PAGO_COM_DIFERENCA' || status === 'PENDENTE_RECEITA') return '#fee2e2;color:#991b1b';
+            if (status === 'PARCELADO' || status === 'EM_ANALISE') return '#fef3c7;color:#92400e';
+            return '#dbeafe;color:#1e40af';
+        }
+
+        function fiscalDataBR(iso) {
+            if (!iso) return '-';
+            const s = String(iso).slice(0, 10);
+            const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+        }
+
+        function fiscalCompetenciaBR(comp) {
+            const m = String(comp || '').match(/^(\d{4})-(\d{2})$/);
+            return m ? `${m[2]}/${m[1]}` : (comp || '-');
+        }
+
+        async function carregarFiscal() {
+            const cnpj = fiscalCnpjAtual();
+            const empresaInfo = document.getElementById('fiscalEmpresaInfo');
+            if (!cnpj) {
+                if (empresaInfo) empresaInfo.textContent = 'Selecione uma empresa para carregar os impostos.';
+                renderFiscalTabela([]);
+                return;
+            }
+            try {
+                if (empresaInfo) empresaInfo.textContent = 'Carregando situação fiscal de ' + ((state.info && state.info.empresa) || cnpj) + '...';
+                await carregarFiscalCertificado();
+                const data = await window.API.fiscalListarImpostos(cnpj);
+                if (data.erro) throw new Error(data.erro);
+                fiscalImpostosCache = data.itens || [];
+                renderFiscalResumo(data.resumo || {});
+                renderFiscalTabela(fiscalImpostosCache);
+                if (empresaInfo) empresaInfo.textContent = ((state.info && state.info.empresa) || 'Empresa') + ' - ' + cnpj + ' - ' + fiscalImpostosCache.length + ' registro(s)';
+            } catch (e) {
+                showToast('Erro ao carregar situação fiscal: ' + (e.message || e), 'error');
+            }
+        }
+
+        async function carregarFiscalCertificado() {
+            const box = document.getElementById('fiscalCertificadoBox');
+            if (!box || !window.API || !window.API.fiscalCertificadoStatus) return;
+            const cert = await window.API.fiscalCertificadoStatus();
+            if (cert.erro) throw new Error(cert.erro);
+            if (!cert.cadastrado) {
+                box.innerHTML = '<strong>🔐 Certificado do escritório:</strong> não localizado neste app. O módulo fiscal segue em modo manual/importação até vincularmos a coleção Firebase correta.';
+                return;
+            }
+            box.innerHTML = '<strong>🔐 Certificado do escritório:</strong> ' +
+                fiscalEscape(cert.status || 'ativo') +
+                (cert.cnpj_escritorio ? ' • CNPJ ' + fiscalEscape(cert.cnpj_escritorio) : '') +
+                (cert.validade ? ' • validade ' + fiscalEscape(fiscalDataBR(cert.validade)) : '') +
+                '<br><span style="font-size:12px;color:#64748b">Fonte: Firebase. Dados sensíveis não são exibidos no navegador.</span>';
+        }
+
+        function renderFiscalResumo(resumo) {
+            const totalPago = document.getElementById('fiscalTotalPago');
+            const qtd = document.getElementById('fiscalQtdRegistros');
+            const pend = document.getElementById('fiscalPendencias');
+            const apurado = document.getElementById('fiscalTotalApurado');
+            if (totalPago) totalPago.textContent = formatarMoedaBR(resumo.valor_pago || 0);
+            if (qtd) qtd.textContent = (resumo.total || 0) + ' registro(s)';
+            if (pend) pend.textContent = String(resumo.pendencias || 0);
+            if (apurado) apurado.textContent = 'Apurado: ' + formatarMoedaBR(resumo.valor_apurado || 0);
+        }
+
+        function renderFiscalTabela(itens) {
+            const el = document.getElementById('fiscalTabela');
+            if (!el) return;
+            if (!itens || !itens.length) {
+                el.innerHTML = '<div class="empty-state"><div class="icon">🧾</div><h3>Nenhum imposto cadastrado</h3><p>Use o formulário acima para registrar a primeira obrigação fiscal.</p></div>';
+                renderFiscalResumo({ total: 0, valor_pago: 0, valor_apurado: 0, pendencias: 0 });
+                return;
+            }
+            let html = '<table class="data-table"><thead><tr><th>Competência</th><th>Tributo</th><th>Status</th><th>Apurado</th><th>Pago</th><th>Vencimento</th><th>Pagamento</th><th>Origem</th><th>Ações</th></tr></thead><tbody>';
+            itens.forEach(item => {
+                html += '<tr>' +
+                    '<td><strong>' + fiscalEscape(fiscalCompetenciaBR(item.competencia)) + '</strong><br><span style="font-size:11px;color:#64748b">' + fiscalEscape(item.numero_documento || '') + '</span></td>' +
+                    '<td>' + fiscalEscape(item.tributo || '-') + '<br><span style="font-size:11px;color:#64748b">' + fiscalEscape(item.codigo_receita || '') + '</span></td>' +
+                    '<td><span style="display:inline-block;padding:4px 8px;border-radius:999px;font-weight:700;font-size:11px;background:' + fiscalBadgeStatus(item.status) + '">' + fiscalEscape(fiscalLabelStatus(item.status)) + '</span></td>' +
+                    '<td>' + fiscalEscape(formatarMoedaBR(item.valor_apurado || 0)) + '</td>' +
+                    '<td>' + fiscalEscape(formatarMoedaBR(item.valor_pago || 0)) + '</td>' +
+                    '<td>' + fiscalEscape(fiscalDataBR(item.vencimento)) + '</td>' +
+                    '<td>' + fiscalEscape(fiscalDataBR(item.data_pagamento)) + '</td>' +
+                    '<td>' + fiscalEscape(item.origem || 'manual') + (item.anexo_url ? '<br><a href="' + fiscalEscape(item.anexo_url) + '" target="_blank" style="font-size:11px;color:#2563eb">Comprovante</a>' : '') + '</td>' +
+                    '<td><button class="btn-action btn-action-secondary" style="padding:6px 10px;font-size:12px" onclick="editarFiscalImposto(\'' + fiscalEscape(item.id) + '\')">Editar</button> ' +
+                    '<button class="btn-action btn-action-danger" style="padding:6px 10px;font-size:12px" onclick="excluirFiscalImposto(\'' + fiscalEscape(item.id) + '\')">Excluir</button></td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table>';
+            el.innerHTML = html;
+        }
+
+        function limparFormularioFiscal() {
+            ['fiscalId', 'fiscalCompetencia', 'fiscalCodigoReceita', 'fiscalValorApurado', 'fiscalValorPago', 'fiscalVencimento', 'fiscalDataPagamento', 'fiscalNumeroDocumento', 'fiscalPendenciaEcac', 'fiscalAnexoUrl', 'fiscalObservacoes'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const tributo = document.getElementById('fiscalTributo');
+            const status = document.getElementById('fiscalStatus');
+            const origem = document.getElementById('fiscalOrigem');
+            if (tributo) tributo.value = 'IRPJ';
+            if (status) status.value = 'EM_ABERTO';
+            if (origem) origem.value = 'manual';
+        }
+
+        function dadosFormularioFiscal() {
+            return {
+                competencia: document.getElementById('fiscalCompetencia').value,
+                tributo: document.getElementById('fiscalTributo').value,
+                codigo_receita: document.getElementById('fiscalCodigoReceita').value,
+                valor_apurado: Number(document.getElementById('fiscalValorApurado').value || 0),
+                valor_pago: Number(document.getElementById('fiscalValorPago').value || 0),
+                vencimento: document.getElementById('fiscalVencimento').value,
+                data_pagamento: document.getElementById('fiscalDataPagamento').value,
+                numero_documento: document.getElementById('fiscalNumeroDocumento').value,
+                origem: document.getElementById('fiscalOrigem').value,
+                status: document.getElementById('fiscalStatus').value,
+                pendencia_ecac: document.getElementById('fiscalPendenciaEcac').value,
+                anexo_url: document.getElementById('fiscalAnexoUrl').value,
+                observacoes: document.getElementById('fiscalObservacoes').value
+            };
+        }
+
+        async function salvarFiscalImposto() {
+            const cnpj = fiscalCnpjAtual();
+            if (!cnpj) return showToast('Selecione uma empresa antes de salvar imposto.', 'warn');
+            const dados = dadosFormularioFiscal();
+            if (!dados.competencia || !dados.tributo) return showToast('Informe competência e tributo.', 'warn');
+            const id = document.getElementById('fiscalId').value;
+            const resp = await window.API.fiscalSalvarImposto(cnpj, dados, id);
+            if (resp.erro) return showToast(resp.erro, 'error');
+            showToast(id ? 'Imposto atualizado.' : 'Imposto cadastrado.', 'success');
+            limparFormularioFiscal();
+            carregarFiscal();
+        }
+
+        function editarFiscalImposto(id) {
+            const item = fiscalImpostosCache.find(i => i.id === id);
+            if (!item) return;
+            document.getElementById('fiscalId').value = item.id || '';
+            document.getElementById('fiscalCompetencia').value = item.competencia || '';
+            document.getElementById('fiscalTributo').value = item.tributo || 'IRPJ';
+            document.getElementById('fiscalCodigoReceita').value = item.codigo_receita || '';
+            document.getElementById('fiscalValorApurado').value = item.valor_apurado || 0;
+            document.getElementById('fiscalValorPago').value = item.valor_pago || 0;
+            document.getElementById('fiscalVencimento').value = String(item.vencimento || '').slice(0, 10);
+            document.getElementById('fiscalDataPagamento').value = String(item.data_pagamento || '').slice(0, 10);
+            document.getElementById('fiscalNumeroDocumento').value = item.numero_documento || '';
+            document.getElementById('fiscalOrigem').value = item.origem || 'manual';
+            document.getElementById('fiscalStatus').value = item.status || 'EM_ABERTO';
+            document.getElementById('fiscalPendenciaEcac').value = item.pendencia_ecac || '';
+            document.getElementById('fiscalAnexoUrl').value = item.anexo_url || '';
+            document.getElementById('fiscalObservacoes').value = item.observacoes || '';
+            showToast('Registro fiscal carregado para edição.', 'success');
+        }
+
+        async function excluirFiscalImposto(id) {
+            const cnpj = fiscalCnpjAtual();
+            if (!cnpj || !id) return;
+            if (!confirm('Excluir este registro fiscal?')) return;
+            const resp = await window.API.fiscalExcluirImposto(cnpj, id);
+            if (resp.erro) return showToast(resp.erro, 'error');
+            showToast('Registro fiscal excluído.', 'success');
+            carregarFiscal();
+        }
+
                 function showPage(p, evt) {
             document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
             const ev = evt || (typeof event !== 'undefined' ? event : null);
@@ -5823,7 +6161,7 @@
                     || document.querySelector('.nav button[data-page="'+p+'"]');
                 if (navBtn) navBtn.classList.add('active');
             }
-            ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Plano', 'Mapeamento', 'Exportar', 'Sobre'].forEach(n => {
+            ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Plano', 'Mapeamento', 'Fiscal', 'Exportar', 'Sobre'].forEach(n => {
                 const el = document.getElementById('page' + n);
                 if (el) el.classList.add('hidden');
             });
@@ -5842,6 +6180,9 @@
             // Carregar lista de empresas quando aba Empresas for exibida
             if (p === 'empresas') {
                 try { if (typeof loadEmpresasPage === 'function') loadEmpresasPage(); } catch(e) {}
+            }
+            if (p === 'fiscal') {
+                try { if (typeof carregarFiscal === 'function') carregarFiscal(); } catch(e) {}
             }
             if (p === 'sobre') {
                 carregarInformacoesSobre();
