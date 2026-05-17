@@ -2015,6 +2015,9 @@
                     <div class="card-header">
                         <h2><span class="icon">📋</span> Transações Extraídas</h2>
                         <div class="action-buttons">
+                            <button class="btn-action btn-action-secondary" onclick="abrirModalMemoriaEmpresa()">
+                                🧠 Memória da Empresa
+                            </button>
                             <button class="btn-action btn-action-secondary" onclick="abrirModalLancamentoManual()">
                                 ➕ Lançamento Manual
                             </button>
@@ -7289,6 +7292,20 @@
             } catch (e) {
                 console.error(e);
                 hideProcessing();
+                registrarArquivoRejeitado({
+                    banco: bancoCode,
+                    nomeBanco: bancoNome,
+                    layout: layoutPdfSelecionado ? ((document.getElementById('uploadLayoutPdf') || {}).selectedOptions?.[0]?.textContent || '') : '',
+                    parser: layoutPdfSelecionado || '',
+                    arquivo: selectedFile && selectedFile.name,
+                    tamanho: selectedFile && selectedFile.size,
+                    formato: ext.toUpperCase(),
+                    empresa: state.info && state.info.empresa,
+                    cnpj: state.info && state.info.cnpj,
+                    periodo_inicio: state.info && state.info.periodoInicio,
+                    periodo_fim: state.info && state.info.periodoFim,
+                    motivo: e.message || String(e)
+                });
                 showToast(e.message, 'error');
                 removeFile();
             }
@@ -7359,6 +7376,33 @@
                 }).catch(function(e) { console.warn('[layouts bancarios] registrar uso arquivo:', e.message || e); });
             } catch (e) {
                 console.warn('[layouts bancarios] registrar uso arquivo:', e.message || e);
+            }
+        }
+
+        function registrarArquivoRejeitado(meta) {
+            try {
+                if (!window.API || !window.API.apiFetch || !meta || !meta.motivo) return;
+                window.API.apiFetch('/api/layout-rejections', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        banco: meta.banco || '',
+                        nomeBanco: meta.nomeBanco || '',
+                        layout: meta.layout || '',
+                        parser: meta.parser || '',
+                        arquivo: meta.arquivo || '',
+                        tamanho: meta.tamanho || 0,
+                        formato: meta.formato || '',
+                        empresa: meta.empresa || '',
+                        cnpj: meta.cnpj || '',
+                        periodo_inicio: meta.periodo_inicio || '',
+                        periodo_fim: meta.periodo_fim || '',
+                        motivo: meta.motivo || '',
+                        origem: 'extrator'
+                    })
+                }).catch(function(e) { console.warn('[layout rejeitado] falha ao registrar:', e.message || e); });
+            } catch (e) {
+                console.warn('[layout rejeitado] falha ao registrar:', e.message || e);
             }
         }
 
@@ -8544,6 +8588,133 @@
             }
         }
 
+        let memoriaEmpresaLista = [];
+        function cnpjMemoriaAtual() {
+            return String((state.info && state.info.cnpj) || '').replace(/\D/g, '');
+        }
+
+        function escaparHtmlMemoria(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, function(ch) {
+                return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+            });
+        }
+
+        async function abrirModalMemoriaEmpresa() {
+            const modal = document.getElementById('modalMemoriaEmpresa');
+            const body = document.getElementById('memoriaEmpresaBody');
+            const count = document.getElementById('memoriaEmpresaCount');
+            const cnpj = cnpjMemoriaAtual();
+            if (!modal || !body) return;
+            if (!cnpj || cnpj.length !== 14) {
+                showToast('Selecione uma empresa com CNPJ valido para editar a memoria.', 'error');
+                return;
+            }
+            modal.style.display = 'flex';
+            body.innerHTML = '<tr><td colspan="7" style="padding:18px;color:#64748b">Carregando memoria da empresa...</td></tr>';
+            if (count) count.textContent = '';
+            try {
+                const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado');
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const j = await r.json();
+                memoriaEmpresaLista = (j.aprendizado || []).sort(function(a, b) {
+                    return String(a.descricao_normalizada || '').localeCompare(String(b.descricao_normalizada || ''));
+                });
+                renderMemoriaEmpresa();
+            } catch (e) {
+                body.innerHTML = '<tr><td colspan="7" style="padding:18px;color:#991b1b">Erro ao carregar memoria: ' + escaparHtmlMemoria(e.message || e) + '</td></tr>';
+            }
+        }
+
+        function fecharModalMemoriaEmpresa() {
+            const modal = document.getElementById('modalMemoriaEmpresa');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function renderMemoriaEmpresa() {
+            const body = document.getElementById('memoriaEmpresaBody');
+            const count = document.getElementById('memoriaEmpresaCount');
+            const busca = normalizarTextoRegraHistorico((document.getElementById('memoriaEmpresaBusca') || {}).value || '');
+            if (!body) return;
+            const lista = memoriaEmpresaLista.filter(function(item) {
+                if (!busca) return true;
+                const texto = normalizarTextoRegraHistorico([
+                    item.descricao_normalizada,
+                    item.descricao_exemplo,
+                    item.contaDebito,
+                    item.contaCredito,
+                    item.codigoHistorico,
+                    item.historico,
+                    item.historicoPadraoDescricao
+                ].join(' '));
+                return texto.indexOf(busca) >= 0;
+            });
+            if (count) count.textContent = lista.length + ' regra' + (lista.length === 1 ? '' : 's');
+            if (!lista.length) {
+                body.innerHTML = '<tr><td colspan="7" style="padding:18px;color:#64748b">Nenhuma regra encontrada para esta busca.</td></tr>';
+                return;
+            }
+            body.innerHTML = lista.map(function(item) {
+                const hash = item.hash || '';
+                const hist = item.historicoPadraoDescricao || item.historico || '';
+                return '<tr>' +
+                    '<td style="min-width:220px"><strong>' + escaparHtmlMemoria(item.descricao_normalizada || '-') + '</strong><br><span style="font-size:11px;color:#64748b">' + escaparHtmlMemoria(item.descricao_exemplo || '') + '</span></td>' +
+                    '<td><input id="memDeb_' + hash + '" value="' + escaparHtmlMemoria(item.contaDebito || '') + '" style="width:92px;padding:8px;border:1px solid #cbd5e1;border-radius:7px;font-family:monospace"></td>' +
+                    '<td><input id="memCred_' + hash + '" value="' + escaparHtmlMemoria(item.contaCredito || '') + '" style="width:92px;padding:8px;border:1px solid #cbd5e1;border-radius:7px;font-family:monospace"></td>' +
+                    '<td><input id="memCod_' + hash + '" list="historicosIOBList" maxlength="4" value="' + escaparHtmlMemoria(item.codigoHistorico || '') + '" style="width:74px;padding:8px;border:1px solid #cbd5e1;border-radius:7px;font-family:monospace;text-align:center"></td>' +
+                    '<td style="min-width:220px"><input id="memHist_' + hash + '" value="' + escaparHtmlMemoria(hist) + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:7px"></td>' +
+                    '<td style="font-size:12px;color:#64748b">' + escaparHtmlMemoria(item.vezes_usado || 0) + ' uso(s)</td>' +
+                    '<td style="white-space:nowrap"><button onclick="salvarMemoriaEmpresa(\'' + hash + '\')" style="padding:8px 10px;border:none;border-radius:7px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer">Salvar</button> ' +
+                    '<button onclick="excluirMemoriaEmpresa(\'' + hash + '\')" style="padding:8px 10px;border:none;border-radius:7px;background:#fee2e2;color:#991b1b;font-weight:800;cursor:pointer">Excluir</button></td>' +
+                '</tr>';
+            }).join('');
+        }
+
+        async function salvarMemoriaEmpresa(hash) {
+            const cnpj = cnpjMemoriaAtual();
+            const item = memoriaEmpresaLista.find(function(a) { return a.hash === hash; });
+            if (!cnpj || !item) return;
+            const codigoHistorico = ((document.getElementById('memCod_' + hash) || {}).value || '').replace(/\D/g, '').padStart(4, '0').slice(-4);
+            const histPadrao = codigoHistoricoValido(codigoHistorico) ? descricaoHistorico(codigoHistorico) : '';
+            const payload = {
+                descricao_normalizada: item.descricao_normalizada || '',
+                descricao_exemplo: item.descricao_exemplo || '',
+                contaDebito: ((document.getElementById('memDeb_' + hash) || {}).value || '').trim(),
+                contaCredito: ((document.getElementById('memCred_' + hash) || {}).value || '').trim(),
+                codigoHistorico: codigoHistoricoValido(codigoHistorico) ? codigoHistorico : '',
+                historico: ((document.getElementById('memHist_' + hash) || {}).value || '').trim() || histPadrao,
+                historicoPadraoDescricao: histPadrao || ''
+            };
+            try {
+                const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado/' + hash, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                window._aprendizadoCarregadoCNPJ[cnpj] = false;
+                showToast('Memoria atualizada.', 'success');
+                await abrirModalMemoriaEmpresa();
+            } catch (e) {
+                showToast('Erro ao atualizar memoria: ' + (e.message || e), 'error');
+            }
+        }
+
+        async function excluirMemoriaEmpresa(hash) {
+            const cnpj = cnpjMemoriaAtual();
+            if (!cnpj || !hash) return;
+            if (!confirm('Excluir esta regra de memoria da empresa?')) return;
+            try {
+                const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado/' + hash, { method: 'DELETE' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                window._aprendizadoCarregadoCNPJ[cnpj] = false;
+                memoriaEmpresaLista = memoriaEmpresaLista.filter(function(a) { return a.hash !== hash; });
+                renderMemoriaEmpresa();
+                showToast('Regra removida da memoria.', 'success');
+            } catch (e) {
+                showToast('Erro ao excluir memoria: ' + (e.message || e), 'error');
+            }
+        }
+
         async function memorizarLancamento(idx, opts) {
             opts = opts || {};
             const lanc = state.entries[idx];
@@ -8747,6 +8918,67 @@
             const n = Math.abs(parseNumeroLancamento(valor));
             if (!n) return 0;
             return tipo === 'credito' ? n : -n;
+        }
+
+        let timerSugestaoLancamentoManual = null;
+        function agendarSugestaoLancamentoManual() {
+            clearTimeout(timerSugestaoLancamentoManual);
+            timerSugestaoLancamentoManual = setTimeout(sugerirLancamentoManualAssistido, 250);
+        }
+
+        function preencherHistoricoManualPorCodigo() {
+            const codEl = document.getElementById('lmCodigoHistorico');
+            const histEl = document.getElementById('lmHistorico');
+            const cod = ((codEl && codEl.value) || '').replace(/\D/g, '').padStart(4, '0').slice(-4);
+            if (!histEl || !codigoHistoricoValido(cod)) return;
+            const hist = descricaoHistorico(cod);
+            if (hist && (!histEl.value || /^(hist|historico)$/i.test(histEl.value.trim()))) histEl.value = hist;
+        }
+
+        async function sugerirLancamentoManualAssistido() {
+            const desc = ((document.getElementById('lmDescricao') || {}).value || '').trim();
+            const cnpj = cnpjMemoriaAtual();
+            if (!desc || desc.length < 4 || !cnpj || cnpj.length !== 14) return;
+            try {
+                const cache = await carregarAprendizadoEmpresa(cnpj);
+                const candidato = {
+                    descricao: desc,
+                    descricao_memoria: desc,
+                    memoriaDescricoes: [desc],
+                    valor: valorManualAssinado((document.getElementById('lmValor') || {}).value || '0', (document.getElementById('lmTipo') || {}).value || 'debito')
+                };
+                const candidatosNorm = [];
+                candidatosDescricaoMemoria(candidato).forEach(function(cand) {
+                    const dn = normalizarDescricao(cand);
+                    if (dn && !candidatosNorm.includes(dn)) candidatosNorm.push(dn);
+                });
+                let aprendido = null;
+                for (let i = 0; i < candidatosNorm.length; i++) {
+                    const hash = await hashDescricao(cnpj, candidatosNorm[i]);
+                    if (cache[hash]) { aprendido = cache[hash]; break; }
+                }
+                if (!aprendido) aprendido = buscarAprendizadoSimilar(cache, candidatosNorm);
+                if (!aprendido) {
+                    const codDescricao = codigoHistoricoPorDescricao(desc);
+                    if (codDescricao) {
+                        const codEl = document.getElementById('lmCodigoHistorico');
+                        if (codEl && !codEl.value) codEl.value = codDescricao;
+                        preencherHistoricoManualPorCodigo();
+                    }
+                    return;
+                }
+                const debEl = document.getElementById('lmContaDebito');
+                const credEl = document.getElementById('lmContaCredito');
+                const codEl = document.getElementById('lmCodigoHistorico');
+                const histEl = document.getElementById('lmHistorico');
+                if (debEl && !debEl.value && aprendido.contaDebito) debEl.value = aprendido.contaDebito;
+                if (credEl && !credEl.value && aprendido.contaCredito) credEl.value = aprendido.contaCredito;
+                if (codEl && !codEl.value && aprendido.codigoHistorico) codEl.value = String(aprendido.codigoHistorico).replace(/\D/g, '').padStart(4, '0').slice(-4);
+                const hist = aprendido.historicoPadraoDescricao || aprendido.historico || descricaoHistorico(aprendido.codigoHistorico);
+                if (histEl && !histEl.value && hist) histEl.value = hist;
+            } catch (e) {
+                console.warn('[manual assistido] sugestao falhou:', e);
+            }
         }
 
         function abrirModalLancamentoManual() {
@@ -9782,6 +10014,41 @@ async function confirmarVincularPlano() {
 
     <script src="parser-extrato-rave.js"></script>
 
+<!-- Modal memoria empresa -->
+<div id="modalMemoriaEmpresa" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.65);z-index:10000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:12px;box-shadow:0 24px 70px rgba(15,23,42,0.35);width:min(1180px,96vw);max-height:92vh;overflow:auto">
+    <div style="padding:22px 24px 12px;border-bottom:1px solid #e5e7eb;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+      <div>
+        <h3 style="margin:0;color:#111827;font-size:20px;font-weight:800">🧠 Memória da Empresa</h3>
+        <p style="margin:6px 0 0;color:#64748b;font-size:13px">Revise, edite ou exclua as classificações que serão reaplicadas nas próximas importações.</p>
+      </div>
+      <button onclick="fecharModalMemoriaEmpresa()" style="border:none;background:#f1f5f9;color:#475569;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:18px">×</button>
+    </div>
+    <div style="padding:20px 24px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <input id="memoriaEmpresaBusca" oninput="renderMemoriaEmpresa()" type="search" placeholder="Buscar descrição, conta ou histórico..." style="flex:1;min-width:260px;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
+        <span id="memoriaEmpresaCount" style="font-size:12px;color:#64748b;font-weight:800"></span>
+      </div>
+      <div style="overflow:auto;border:1px solid #e5e7eb;border-radius:10px;max-height:58vh">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead style="background:#f8fafc;color:#475569">
+            <tr>
+              <th style="padding:10px;text-align:left">Padrão</th>
+              <th style="padding:10px;text-align:left">Débito</th>
+              <th style="padding:10px;text-align:left">Crédito</th>
+              <th style="padding:10px;text-align:left">Cód IOB</th>
+              <th style="padding:10px;text-align:left">Histórico</th>
+              <th style="padding:10px;text-align:left">Uso</th>
+              <th style="padding:10px;text-align:left">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="memoriaEmpresaBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal lancamento manual -->
 <div id="modalLancamentoManual" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.65);z-index:10000;align-items:center;justify-content:center;padding:20px">
   <div style="background:#fff;border-radius:12px;box-shadow:0 24px 70px rgba(15,23,42,0.35);width:min(720px,96vw);max-height:92vh;overflow:auto">
@@ -9808,12 +10075,12 @@ async function confirmarVincularPlano() {
       </div>
       <div style="margin-bottom:14px">
         <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Descrição</label>
-        <input id="lmDescricao" type="text" placeholder="Ex.: Pagamento fornecedor, tarifa bancaria, PIX recebido..." style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
+        <input id="lmDescricao" type="text" oninput="agendarSugestaoLancamentoManual()" placeholder="Ex.: Pagamento fornecedor, tarifa bancaria, PIX recebido..." style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
         <div>
           <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Valor</label>
-          <input id="lmValor" type="text" placeholder="0,00" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
+          <input id="lmValor" type="text" oninput="agendarSugestaoLancamentoManual()" placeholder="0,00" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
         </div>
         <div>
           <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Conta Débito</label>
@@ -9827,7 +10094,7 @@ async function confirmarVincularPlano() {
       <div style="display:grid;grid-template-columns:160px 1fr;gap:14px;margin-bottom:14px">
         <div>
           <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Cód IOB</label>
-          <input id="lmCodigoHistorico" list="historicosIOBList" type="text" maxlength="4" placeholder="0000" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:monospace;text-align:center">
+          <input id="lmCodigoHistorico" list="historicosIOBList" type="text" maxlength="4" oninput="preencherHistoricoManualPorCodigo()" placeholder="0000" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:monospace;text-align:center">
         </div>
         <div>
           <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase">Histórico</label>

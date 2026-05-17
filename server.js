@@ -569,6 +569,34 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
   }
 });
 
+app.put('/api/empresas/:cnpj/aprendizado/:hash', async (req, res) => {
+  try {
+    const cnpj = (req.params.cnpj || '').replace(/\D/g, '');
+    const hash = req.params.hash;
+    if (cnpj.length !== 14 || !hash) return res.status(400).json({ erro: 'CNPJ e hash obrigatorios' });
+    const docId = cnpj + '_' + hash;
+    const ref = db.collection('aprendizado').doc(docId);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ erro: 'Padrao nao encontrado' });
+    const body = req.body || {};
+    const atualizacao = {
+      contaDebito: body.contaDebito || '',
+      contaCredito: body.contaCredito || '',
+      codigoHistorico: body.codigoHistorico ? String(body.codigoHistorico).replace(/\D/g, '').padStart(4, '0').slice(-4) : '',
+      historico: String(body.historico || '').substring(0, 200),
+      historicoPadraoDescricao: String(body.historicoPadraoDescricao || '').substring(0, 200),
+      atualizado_em: new Date(),
+      atualizado_por_uid: req.user.uid,
+      atualizado_por_email: req.user.email
+    };
+    await ref.set(atualizacao, { merge: true });
+    res.json({ ok: true, docId, ...atualizacao });
+  } catch (err) {
+    console.error('[PUT aprendizado] erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 // Remove um padrao aprendido
 app.delete('/api/empresas/:cnpj/aprendizado/:hash', async (req, res) => {
   try {
@@ -1285,7 +1313,23 @@ app.get('/api/layout-quality', async (req, res) => {
       layouts_pendentes: pendentes.length,
       cobertura
     };
-    res.json({ resumo, casos, pendentes, evidencias });
+    const porBancoMap = new Map();
+    layoutsOficiais.forEach(l => {
+      const key = l.banco;
+      if (!porBancoMap.has(key)) porBancoMap.set(key, { banco: key, nomeBanco: l.nomeBanco || '', layouts: 0, regressao: 0, evidencias: 0, alta: 0, media: 0 });
+      const item = porBancoMap.get(key);
+      item.layouts++;
+      if (String(l.confiabilidade || '').toLowerCase() === 'alta') item.alta++;
+      else item.media++;
+      if (cobertos.has(l.banco + '_' + l.parser)) item.regressao++;
+      if (evidenciasPorLayout.has(l.banco + '_' + l.parser)) item.evidencias++;
+    });
+    const confiabilidade_bancos = Array.from(porBancoMap.values()).map(item => {
+      const coberturaBanco = item.layouts ? Math.round((item.regressao / item.layouts) * 100) : 0;
+      const score = Math.min(100, Math.round((coberturaBanco * 0.7) + ((item.alta / Math.max(item.layouts, 1)) * 30)));
+      return { ...item, cobertura: coberturaBanco, score };
+    }).sort((a, b) => b.score - a.score || String(a.banco).localeCompare(String(b.banco)));
+    res.json({ resumo, casos, pendentes, evidencias, confiabilidade_bancos });
   } catch (err) {
     console.error('layout-quality GET erro:', err);
     res.status(500).json({ erro: err.message });
@@ -1327,6 +1371,51 @@ app.post('/api/layouts-bancarios/uso', async (req, res) => {
     res.json({ ok: true, id });
   } catch (err) {
     console.error('layouts-bancarios uso erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.post('/api/layout-rejections', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const banco = normalizarBancoLayout(body.banco || '');
+    const arquivo = String(body.arquivo || '').slice(0, 220);
+    const motivo = String(body.motivo || '').slice(0, 1200);
+    if (!arquivo || !motivo) return res.status(400).json({ erro: 'arquivo e motivo obrigatorios' });
+    const doc = {
+      banco,
+      nomeBanco: body.nomeBanco || '',
+      layout: body.layout || '',
+      parser: body.parser || '',
+      arquivo,
+      tamanho: Number(body.tamanho || 0),
+      formato: String(body.formato || '').slice(0, 20),
+      empresa: String(body.empresa || '').slice(0, 220),
+      cnpj: String(body.cnpj || '').replace(/\D/g, ''),
+      periodo_inicio: body.periodo_inicio || '',
+      periodo_fim: body.periodo_fim || '',
+      motivo,
+      status: body.status || 'pendente_parametrizacao',
+      origem: body.origem || 'extrator',
+      criado_em: new Date(),
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email
+    };
+    const ref = await db.collection('layout_rejections').add(doc);
+    res.status(201).json({ ok: true, id: ref.id });
+  } catch (err) {
+    console.error('layout-rejections POST erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.get('/api/layout-rejections', adminRequired, async (req, res) => {
+  try {
+    const lim = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+    const snap = await db.collection('layout_rejections').orderBy('criado_em', 'desc').limit(lim).get();
+    res.json({ rejeicoes: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+  } catch (err) {
+    console.error('layout-rejections GET erro:', err);
     res.status(500).json({ erro: err.message });
   }
 });

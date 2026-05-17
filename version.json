@@ -1,11 +1,12 @@
 {
-  "version": "3.2.4",
-  "build_date": "2026-05-17T06:10:00-03:00",
+  "version": "3.2.5",
+  "build_date": "2026-05-17T07:35:00-03:00",
   "release_notes": [
-    "Central de Qualidade de Layouts sem pendencias nao bloqueantes",
-    "BB Cash OCR passa a ter regressao aprovada para periodo, valores colados e sinais C/D",
-    "Itau Extrato Mensal recupera lancamentos Redecard/Rede e rendimentos por linhas vizinhas",
-    "Layouts CLUDE Stripe, CARTAO_ITAU_CLUDE e Demonstrativo Itaucard ficam catalogados como regressao aprovada",
-    "Novos testes cobrem BB Cash OCR, Itau PDF e regressões CLUDE"
+    "Central de Qualidade passa a testar layout PDF diretamente no painel Admin",
+    "Arquivos rejeitados agora entram em fila de qualidade com banco, empresa, arquivo e motivo",
+    "Importacao mantem conferencia antes de gravar e registra rejeicoes para parametrizacao",
+    "Memoria da empresa ganhou tela de edicao, exclusao e busca de regras gravadas",
+    "Painel Admin exibe confiabilidade por banco com score, cobertura e evidencias",
+    "Lancamento manual passa a sugerir classificacao por memoria e historico padrao"
   ]
 }

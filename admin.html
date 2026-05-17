@@ -6,7 +6,16 @@
 <title>Admin — Plano de Contas IOB</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="/api-adapter.js"></script>
+<script src="/parser-bradesco-netempresa.js"></script>
+<script src="/parser-safra-extrato.js"></script>
+<script src="/parser-bb-conta-atual.js"></script>
+<script src="/parser-bb-cash-ocr.js"></script>
+<script src="/parser-itau-extrato-mensal.js"></script>
+<script src="/parser-santander-empresas-ocr.js"></script>
+<script src="/parser-btg-pactual.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -85,12 +94,19 @@
   .layout-card .bank { font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; }
   .layout-card .count { font-size: 30px; font-weight: 800; color: var(--primary); }
   .layout-card .caption { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+  .quality-tool { display:grid; grid-template-columns: 1fr 180px 260px auto; gap:10px; align-items:end; padding:14px; border:1px solid var(--border); border-radius:10px; background:#f8fafc; margin-bottom:18px; }
+  .quality-tool label { display:block; font-size:11px; font-weight:800; text-transform:uppercase; color:var(--muted); margin-bottom:5px; letter-spacing:.4px; }
+  .quality-tool input, .quality-tool select { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; font-family:inherit; }
+  .quality-result { margin-bottom:18px; padding:14px; border-radius:10px; border:1px solid #bfdbfe; background:#eff6ff; color:#1e3a8a; font-size:13px; line-height:1.5; display:none; }
+  .quality-result.error { display:block; border-color:#fecaca; background:#fef2f2; color:#991b1b; }
+  .quality-result.ok { display:block; border-color:#bbf7d0; background:#f0fdf4; color:#166534; }
   @media (max-width: 768px) {
     .container { padding: 18px 12px 30px; }
     .header { align-items: flex-start; flex-direction: column; }
     .header h1 { font-size: 18px; }
     .tabs { border-radius: 10px; }
     input[type="search"] { min-width: 100%; }
+    .quality-tool { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -140,6 +156,22 @@
           <button class="btn" style="background:#059669" onclick="exportLayoutEvidenceCSV()">📥 Evidências CSV</button>
         </div>
       </div>
+      <div class="quality-tool">
+        <div>
+          <label>Arquivo para teste</label>
+          <input type="file" id="qualityTestFile" accept=".pdf">
+        </div>
+        <div>
+          <label>Banco</label>
+          <select id="qualityTestBanco" onchange="popularQualityLayouts()"><option value="">Banco</option></select>
+        </div>
+        <div>
+          <label>Layout</label>
+          <select id="qualityTestLayout"><option value="">Automático</option></select>
+        </div>
+        <button class="btn" onclick="testarLayoutAdmin()">Testar layout agora</button>
+      </div>
+      <div id="qualityTestResult" class="quality-result"></div>
       <div id="layoutQualityContent" class="loading">Carregando…</div>
     </div>
   </div>
@@ -231,6 +263,9 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
 
 let currentUsers = [];
 let currentLogs = [];
@@ -336,6 +371,7 @@ async function carregarLayoutsBancariosAdmin() {
     console.warn('[admin layouts] falha ao carregar fonte oficial:', e);
     currentLayoutsBancarios = [];
   }
+  popularQualityBancos();
 }
 
 async function renderLayouts() {
@@ -390,9 +426,16 @@ async function loadLayoutQuality() {
   if (!el) return;
   el.innerHTML = '<div class="loading">Carregando casos de qualidade…</div>';
   try {
-    const r = await window.API.apiFetch('/api/layout-quality');
+    const [r, rej] = await Promise.all([
+      window.API.apiFetch('/api/layout-quality'),
+      window.API.apiFetch('/api/layout-rejections?limit=80')
+    ]);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     currentLayoutQuality = await r.json();
+    if (rej.ok) {
+      const rejeicoes = await rej.json();
+      currentLayoutQuality.rejeicoes = rejeicoes.rejeicoes || [];
+    }
     renderLayoutQuality();
   } catch (e) {
     el.innerHTML = '<div class="error">Erro ao carregar qualidade de layouts: ' + escapeHtml(e.message) + '</div>';
@@ -406,6 +449,8 @@ function renderLayoutQuality() {
   const casos = data.casos || [];
   const pendentes = data.pendentes || [];
   const evidencias = data.evidencias || [];
+  const confiabilidade = data.confiabilidade_bancos || [];
+  const rejeicoes = data.rejeicoes || [];
   const cards = `
     <div class="layout-grid">
       <div class="layout-card"><div class="bank">Casos validados</div><div class="count">${resumo.total_casos || 0}</div><div class="caption">Arquivos-modelo cadastrados</div></div>
@@ -415,6 +460,37 @@ function renderLayoutQuality() {
     </div>`;
 
   let html = cards;
+  if (confiabilidade.length) {
+    html += '<h3 style="margin:22px 0 10px;color:#111827">Confiabilidade por banco</h3>';
+    html += '<table><thead><tr><th>Banco</th><th>Score</th><th>Layouts</th><th>Regressões</th><th>Perfil</th></tr></thead><tbody>';
+    confiabilidade.forEach(b => {
+      const cls = b.score >= 90 ? 'badge-ok' : (b.score >= 70 ? 'badge-warn' : 'badge-info');
+      html += `<tr>
+        <td><strong>${escapeHtml(b.banco)} - ${escapeHtml(b.nomeBanco)}</strong></td>
+        <td><span class="badge ${cls}">${escapeHtml(b.score)}%</span><br><span style="font-size:11px;color:#9ca3af">cobertura ${escapeHtml(b.cobertura)}%</span></td>
+        <td>${escapeHtml(b.layouts)}</td>
+        <td>${escapeHtml(b.regressao)} aprovadas<br><span style="font-size:11px;color:#9ca3af">${escapeHtml(b.evidencias)} evidências</span></td>
+        <td>${escapeHtml(b.alta)} alta / ${escapeHtml(b.media)} média</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  if (rejeicoes.length) {
+    html += '<h3 style="margin:22px 0 10px;color:#111827">Fila de arquivos rejeitados</h3>';
+    html += '<table><thead><tr><th>Quando</th><th>Banco/Arquivo</th><th>Empresa</th><th>Motivo</th><th>Usuário</th></tr></thead><tbody>';
+    rejeicoes.forEach(r => {
+      html += `<tr>
+        <td style="font-size:12px">${fmtDate(r.criado_em)}</td>
+        <td><strong>${escapeHtml(r.banco || '-')} ${escapeHtml(r.nomeBanco || '')}</strong><br>${escapeHtml(r.arquivo || '')}<br><span style="font-size:11px;color:#9ca3af">${escapeHtml(r.formato || '')} ${r.tamanho ? '• ' + Math.round(r.tamanho / 1024) + ' KB' : ''}</span></td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(r.empresa || '-')}<br>${escapeHtml(r.cnpj || '')}</td>
+        <td style="font-size:12px;color:#991b1b">${escapeHtml(r.motivo || '').slice(0, 260)}</td>
+        <td style="font-size:12px;color:#64748b">${escapeHtml(r.criado_por_email || '-')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
   if (evidencias.length) {
     html += '<h3 style="margin:22px 0 10px;color:#111827">Evidências recebidas e tratadas</h3>';
     html += '<table><thead><tr><th>Banco/Layout</th><th>Arquivo</th><th>Empresa</th><th>Período</th><th>Etapa</th><th>Observação</th></tr></thead><tbody>';
@@ -507,6 +583,70 @@ function exportLayoutEvidenceCSV() {
   a.href = URL.createObjectURL(blob);
   a.download = 'layouts_evidencias_qualidade_' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
+}
+
+function popularQualityBancos() {
+  const sel = document.getElementById('qualityTestBanco');
+  if (!sel || !currentLayoutsBancarios) return;
+  const atual = sel.value;
+  const bancos = [...new Map(currentLayoutsBancarios.map(l => [l.banco, l])).values()]
+    .sort((a, b) => String(a.banco).localeCompare(String(b.banco)));
+  sel.innerHTML = '<option value="">Banco</option>' + bancos.map(l => `<option value="${escapeHtml(l.banco)}">${escapeHtml(l.banco)} — ${escapeHtml(l.nomeBanco || '')}</option>`).join('');
+  if (atual && bancos.some(b => b.banco === atual)) sel.value = atual;
+  popularQualityLayouts();
+}
+
+function popularQualityLayouts() {
+  const banco = (document.getElementById('qualityTestBanco') || {}).value || '';
+  const sel = document.getElementById('qualityTestLayout');
+  if (!sel) return;
+  const layouts = (currentLayoutsBancarios || []).filter(l => !banco || l.banco === banco);
+  sel.innerHTML = '<option value="">Automático</option>' + layouts.map(l => `<option value="${escapeHtml(l.parser)}">${escapeHtml(l.layout)} (${escapeHtml(l.parser)})</option>`).join('');
+}
+
+function setQualityResult(tipo, html) {
+  const el = document.getElementById('qualityTestResult');
+  if (!el) return;
+  el.className = 'quality-result ' + (tipo || '');
+  el.innerHTML = html || '';
+}
+
+async function testarLayoutAdmin() {
+  const file = (document.getElementById('qualityTestFile') || {}).files?.[0];
+  const banco = (document.getElementById('qualityTestBanco') || {}).value || '';
+  const parserSelecionado = (document.getElementById('qualityTestLayout') || {}).value || '';
+  if (!file) { setQualityResult('error', 'Selecione um PDF para testar.'); return; }
+  if (!banco) { setQualityResult('error', 'Selecione o banco antes de testar.'); return; }
+  const layouts = (currentLayoutsBancarios || []).filter(l => l.banco === banco && (!parserSelecionado || l.parser === parserSelecionado));
+  if (!layouts.length) { setQualityResult('error', 'Nenhum layout carregado para este banco.'); return; }
+  setQualityResult('ok', 'Testando ' + escapeHtml(file.name) + '...');
+  const buf = await file.arrayBuffer();
+  const tentativas = [];
+  for (const layout of layouts) {
+    const fn = window[layout.parser];
+    if (typeof fn !== 'function') {
+      tentativas.push(layout.layout + ': parser não carregado');
+      continue;
+    }
+    try {
+      const r = await fn(buf.slice(0));
+      if (!r || !r.detectado || !r.lancamentos || !r.lancamentos.length) {
+        tentativas.push(layout.layout + ': não reconhecido');
+        continue;
+      }
+      const credito = r.lancamentos.filter(l => Number(l.valor) > 0).reduce((a,l) => a + Number(l.valor || 0), 0);
+      const debito = r.lancamentos.filter(l => Number(l.valor) < 0).reduce((a,l) => a + Math.abs(Number(l.valor || 0)), 0);
+      setQualityResult('ok', '<strong>Layout reconhecido:</strong> ' + escapeHtml(layout.layout) +
+        '<br><strong>Lançamentos:</strong> ' + r.lancamentos.length +
+        '<br><strong>Crédito:</strong> ' + formatMoney(credito) +
+        '<br><strong>Débito:</strong> ' + formatMoney(debito) +
+        '<br><strong>Período:</strong> ' + escapeHtml((r.periodo_inicio || '-') + ' a ' + (r.periodo_fim || '-')));
+      return;
+    } catch (e) {
+      tentativas.push(layout.layout + ': ' + (e.message || e));
+    }
+  }
+  setQualityResult('error', '<strong>Arquivo rejeitado.</strong><br>' + escapeHtml(tentativas.join(' | ')));
 }
 
 async function loadSummary() {

@@ -1,0 +1,31 @@
+const fs = require('fs');
+const path = require('path');
+
+const root = path.resolve(__dirname, '..');
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const assertContains = (file, pattern, label) => {
+  const source = read(file);
+  const ok = pattern instanceof RegExp ? pattern.test(source) : source.includes(pattern);
+  if (!ok) {
+    throw new Error(`${label} ausente em ${file}`);
+  }
+};
+
+assertContains('server.js', "app.post('/api/layout-rejections'", 'registro da fila de rejeicoes');
+assertContains('server.js', "app.get('/api/layout-rejections'", 'consulta da fila de rejeicoes');
+assertContains('server.js', "app.put('/api/empresas/:cnpj/aprendizado/:hash'", 'edicao da memoria por empresa');
+assertContains('server.js', 'confiabilidade_bancos', 'relatorio de confiabilidade por banco');
+
+assertContains('admin.html', 'testarLayoutAdmin', 'teste manual de layout no admin');
+assertContains('admin.html', 'qualityTestFile', 'upload de teste de layout no admin');
+assertContains('admin.html', 'Fila de arquivos rejeitados', 'fila de rejeicoes no admin');
+assertContains('admin.html', 'Confiabilidade por banco', 'relatorio de confiabilidade no admin');
+
+assertContains('index.html', 'abrirConferenciaImportacao', 'modo conferencia antes de gravar');
+assertContains('index.html', 'modalMemoriaEmpresa', 'modal de memoria da empresa');
+assertContains('index.html', 'salvarMemoriaEmpresa', 'edicao de memoria no app');
+assertContains('index.html', 'registrarArquivoRejeitado', 'registro de arquivo rejeitado pelo extrator');
+assertContains('index.html', 'sugerirLancamentoManualAssistido', 'lancamento manual assistido');
+assertContains('index.html', 'agendarSugestaoLancamentoManual', 'gatilho de sugestao manual');
+
+console.log('OK - recursos de qualidade, memoria e importacao assistida presentes.');
