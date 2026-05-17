@@ -361,6 +361,10 @@ function normalizarLayoutBanco(l) {
     homologacao_observacao: l.homologacao_observacao || '',
     homologado_por_email: l.homologado_por_email || '',
     homologado_em: l.homologado_em || null,
+    qualidade_apto_aprovacao: l.qualidade_apto_aprovacao === true || (l.qualidade && l.qualidade.apto === true),
+    qualidade_casos_aprovados: Number(l.qualidade_casos_aprovados || (l.qualidade && l.qualidade.casos_aprovados) || 0),
+    qualidade_evidencias_aprovadas: Number(l.qualidade_evidencias_aprovadas || (l.qualidade && l.qualidade.evidencias_aprovadas) || 0),
+    qualidade_motivo: (l.qualidade && l.qualidade.motivo) || '',
     total_usos: l.total_usos || 0,
     ultimo_uso_em: l.ultimo_uso_em || null
   };
@@ -395,6 +399,7 @@ async function renderLayouts() {
   const alta = layouts.filter(l => l.confiabilidade === 'Alta').length;
   const homologados = layouts.filter(l => ['homologado', 'aprovado'].includes(l.homologacao_status)).length;
   const aprovados = layouts.filter(l => l.homologacao_status === 'aprovado').length;
+  const aptos = layouts.filter(l => l.qualidade_apto_aprovacao).length;
 
   const cards = `
     <div class="layout-grid">
@@ -403,27 +408,32 @@ async function renderLayouts() {
       <div class="layout-card"><div class="bank">Alta confiabilidade</div><div class="count">${alta}</div><div class="caption">PDF textual com validação estruturada</div></div>
       <div class="layout-card"><div class="bank">OCR</div><div class="count">${ocr}</div><div class="caption">Exigem conferência visual dos totais</div></div>
       <div class="layout-card"><div class="bank">Homologados</div><div class="count">${homologados}</div><div class="caption">${aprovados} aprovado(s) para uso amplo</div></div>
+      <div class="layout-card"><div class="bank">Aptos</div><div class="count">${aptos}</div><div class="caption">Com provas mínimas para aprovar</div></div>
     </div>`;
 
-  let table = '<table><thead><tr><th>Banco</th><th>Layout</th><th>Formato</th><th>Confiabilidade</th><th>Status</th><th>Homologação</th><th>Último teste</th><th>Observação</th></tr></thead><tbody>';
+  let table = '<table><thead><tr><th>Banco</th><th>Layout</th><th>Formato</th><th>Confiabilidade</th><th>Status</th><th>Provas</th><th>Homologação</th><th>Último teste</th><th>Observação</th></tr></thead><tbody>';
   layouts.forEach(l => {
     const confClass = l.confiabilidade === 'Alta' ? 'badge-ok' : 'badge-warn';
     const statusClass = l.status === 'Ativo' ? 'badge-ok' : 'badge-info';
     const homClass = l.homologacao_status === 'aprovado' ? 'badge-ok' : (l.homologacao_status === 'homologado' ? 'badge-info' : (l.homologacao_status === 'bloqueado' ? 'badge-logout' : 'badge-warn'));
+    const qualidadeClass = l.qualidade_apto_aprovacao ? 'badge-ok' : 'badge-warn';
+    const aprovacaoDisabled = !l.qualidade_apto_aprovacao && l.homologacao_status !== 'aprovado' ? 'disabled' : '';
     table += `<tr>
       <td><strong>${escapeHtml(l.banco)}</strong><br><span style="font-size:12px;color:#6b7280">${escapeHtml(l.nomeBanco)}</span></td>
       <td>${escapeHtml(l.layout)}<br><span class="text-mono" style="color:#9ca3af">${escapeHtml(l.parser)}</span></td>
       <td>${escapeHtml(l.formato)}</td>
       <td><span class="badge ${confClass}">${escapeHtml(l.confiabilidade)}</span></td>
       <td><span class="badge ${statusClass}">${escapeHtml(l.status)}</span></td>
+      <td style="font-size:12px;color:#374151"><span class="badge ${qualidadeClass}">${l.qualidade_apto_aprovacao ? 'Apto' : 'Pendente'}</span><br>${escapeHtml(l.qualidade_casos_aprovados)} caso(s)<br>${escapeHtml(l.qualidade_evidencias_aprovadas)} evidência(s)</td>
       <td style="min-width:180px">
         <span class="badge ${homClass}">${escapeHtml(labelHomologacao(l.homologacao_status))}</span>
         <select onchange="atualizarHomologacaoLayout('${escapeHtml(l.id)}', this.value)" style="margin-top:7px;width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px">
           <option value="em_teste" ${l.homologacao_status === 'em_teste' ? 'selected' : ''}>Em teste</option>
           <option value="homologado" ${l.homologacao_status === 'homologado' ? 'selected' : ''}>Homologado</option>
-          <option value="aprovado" ${l.homologacao_status === 'aprovado' ? 'selected' : ''}>Aprovado</option>
+          <option value="aprovado" ${l.homologacao_status === 'aprovado' ? 'selected' : ''} ${aprovacaoDisabled}>Aprovado${aprovacaoDisabled ? ' (sem provas)' : ''}</option>
           <option value="bloqueado" ${l.homologacao_status === 'bloqueado' ? 'selected' : ''}>Bloqueado</option>
         </select>
+        ${!l.qualidade_apto_aprovacao ? '<br><span style="font-size:11px;color:#b45309">Aprovação exige caso + evidência.</span>' : ''}
         ${l.homologado_por_email ? '<br><span style="font-size:11px;color:#9ca3af">' + escapeHtml(l.homologado_por_email) + '</span>' : ''}
       </td>
       <td style="font-size:12px;color:#374151">${escapeHtml(l.ultimoTeste)}${l.total_usos ? '<br><span style="color:#9ca3af">' + l.total_usos + ' uso(s)</span>' : ''}</td>

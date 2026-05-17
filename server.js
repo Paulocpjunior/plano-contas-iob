@@ -1304,7 +1304,18 @@ app.get('/api/layouts-bancarios', async (req, res) => {
   try {
     await garantirLayoutsBancariosPadrao();
     const snap = await db.collection('layouts_bancarios').get();
-    const layouts = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    const layouts = snap.docs.map(d => {
+        const data = d.data() || {};
+        const qualidade = avaliarAprovacaoLayoutBanco(data.banco, data.parser);
+        return {
+          id: d.id,
+          ...data,
+          qualidade,
+          qualidade_apto_aprovacao: qualidade.apto,
+          qualidade_casos_aprovados: qualidade.casos_aprovados,
+          qualidade_evidencias_aprovadas: qualidade.evidencias_aprovadas
+        };
+      })
       .sort((a, b) => String(a.banco || '').localeCompare(String(b.banco || '')) || String(a.nome || '').localeCompare(String(b.nome || '')));
     res.json({ layouts });
   } catch (err) {

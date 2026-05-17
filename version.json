@@ -1,10 +1,10 @@
 {
-  "version": "3.2.9",
-  "build_date": "2026-05-17T09:35:00-03:00",
+  "version": "3.2.10",
+  "build_date": "2026-05-17T10:00:00-03:00",
   "release_notes": [
-    "Central de Qualidade agora lista layouts aptos para aprovacao",
-    "Aprovacao de layout exige caso aprovado e evidencia de regressao no servidor",
-    "Admin ganhou acao Promover para aprovado diretamente pela Central de Qualidade",
-    "API bloqueia aprovacao manual sem provas minimas cadastradas"
+    "Lista de Layouts Bancarios agora mostra provas de qualidade por layout",
+    "A opcao Aprovado fica desabilitada quando faltam caso validado e evidencia",
+    "API de layouts passa a retornar status apto para aprovacao e contadores de prova",
+    "Admin exibe quantos layouts ja possuem provas minimas para aprovacao"
   ]
 }
