@@ -1,10 +1,10 @@
 {
-  "version": "3.2.15",
-  "build_date": "2026-05-17T12:10:00-03:00",
+  "version": "3.2.16",
+  "build_date": "2026-05-17T12:35:00-03:00",
   "release_notes": [
-    "Nova aba Situacao Fiscal / Impostos para controle interno por empresa",
-    "Cadastro manual de tributos, vencimentos, pagamentos e comprovantes",
-    "Resumo fiscal mostra total pago, valor apurado e pendencias",
-    "Modulo ja exibe status seguro do certificado do escritorio no Firebase"
+    "Situacao Fiscal agora procura o certificado do escritorio em mais caminhos Firebase",
+    "Novo parametro FISCAL_CERT_DOC_PATH permite apontar a colecao correta do certificado A1",
+    "Status do certificado exibe apenas metadados seguros e nunca senha ou conteudo do PFX",
+    "Mensagem da aba fiscal orienta a vinculacao sem bloquear o controle manual"
   ]
 }

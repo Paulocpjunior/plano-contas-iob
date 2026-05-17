@@ -6028,7 +6028,7 @@
             const cert = await window.API.fiscalCertificadoStatus();
             if (cert.erro) throw new Error(cert.erro);
             if (!cert.cadastrado) {
-                box.innerHTML = '<strong>🔐 Certificado do escritório:</strong> não localizado neste app. O módulo fiscal segue em modo manual/importação até vincularmos a coleção Firebase correta.';
+                box.innerHTML = '<strong>🔐 Certificado do escritório:</strong> ainda não vinculado ao módulo fiscal. O controle manual/importação permanece ativo; para integração automática, configure o caminho Firebase do certificado no ambiente <code>FISCAL_CERT_DOC_PATH</code>.';
                 return;
             }
             box.innerHTML = '<strong>🔐 Certificado do escritório:</strong> ' +

@@ -17,6 +17,9 @@ assertContains('server.js', "app.patch('/api/layout-rejections/:id'", 'atualizac
 assertContains('server.js', "app.patch('/api/layouts-bancarios/:id/homologacao'", 'homologacao de layout bancario');
 assertContains('server.js', "app.get('/api/layout-quality/ops'", 'metricas operacionais de qualidade');
 assertContains('server.js', "app.get('/api/fiscal/certificado-status'", 'status do certificado fiscal sem expor segredo');
+assertContains('server.js', 'FISCAL_CERT_DOC_PATH', 'configuracao do caminho Firebase do certificado fiscal');
+assertContains('server.js', 'FISCAL_CERT_SENSITIVE_KEYS', 'mascara de campos sensiveis do certificado fiscal');
+assertContains('server.js', 'localizarCertificadoFiscal', 'busca ampliada do certificado fiscal no Firebase');
 assertContains('server.js', "app.get('/api/empresas/:cnpj/fiscal/impostos'", 'consulta de impostos fiscais por empresa');
 assertContains('server.js', "app.post('/api/empresas/:cnpj/fiscal/impostos'", 'cadastro de impostos fiscais por empresa');
 assertContains('server.js', 'normalizarFiscalBody', 'normalizacao segura de obrigacao fiscal');
@@ -62,6 +65,7 @@ assertContains('index.html', 'Layout aprovado pela Central de Qualidade', 'selo 
 assertContains('index.html', 'Layout homologado pelo Admin', 'selo operacional de layout homologado no extrator');
 assertContains('index.html', 'Situação Fiscal / Impostos', 'nova aba de situacao fiscal');
 assertContains('index.html', 'carregarFiscalCertificado', 'status do certificado no modulo fiscal');
+assertContains('index.html', 'FISCAL_CERT_DOC_PATH', 'orientacao para vincular certificado fiscal');
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
 assertContains('api-adapter.js', 'fiscalListarImpostos', 'adapter fiscal para listar impostos');
 assertContains('api-adapter.js', 'fiscalCertificadoStatus', 'adapter fiscal para status do certificado');

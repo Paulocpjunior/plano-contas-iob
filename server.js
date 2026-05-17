@@ -1196,34 +1196,107 @@ function normalizarFiscalBody(body) {
   };
 }
 
+const FISCAL_CERT_SENSITIVE_KEYS = new Set([
+  'senha', 'password', 'passphrase', 'certificado', 'certificate', 'pfx', 'p12',
+  'privatekey', 'private_key', 'chaveprivada', 'conteudo', 'content', 'base64',
+  'pem', 'key', 'arquivo', 'file', 'buffer'
+]);
+
+function fiscalCertCampoSeguro(chave) {
+  const normalizada = String(chave || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+  return !FISCAL_CERT_SENSITIVE_KEYS.has(normalizada);
+}
+
+function serializarCertificadoFiscal(pathFonte, data = {}) {
+  return {
+    cadastrado: true,
+    fonte: 'firebase',
+    origem: pathFonte,
+    cnpj_escritorio: data.cnpj_escritorio || data.cnpj || data.documento || '',
+    razao_social: data.razao_social || data.nome || data.nome_empresa || data.empresa || '',
+    validade: serializarDataSegura(data.validade || data.expires_at || data.data_validade || data.valid_to || ''),
+    status: data.status || (data.ativo === false ? 'inativo' : 'ativo'),
+    ultimo_uso_em: serializarDataSegura(data.ultimo_uso_em || data.last_used_at || data.updated_at || data.atualizado_em || ''),
+    observacao: data.observacao || data.descricao || data.nome_arquivo || data.filename || ''
+  };
+}
+
+async function lerDocumentoCertificadoFiscal(pathDoc) {
+  if (!pathDoc || !String(pathDoc).includes('/')) return null;
+  const snap = await db.doc(String(pathDoc).replace(/^\/+|\/+$/g, '')).get();
+  if (!snap.exists) return null;
+  return serializarCertificadoFiscal(snap.ref.path, snap.data());
+}
+
+async function localizarCertificadoFiscal() {
+  const caminhoEnv = process.env.FISCAL_CERT_DOC_PATH || process.env.CERTIFICADO_ESCRITORIO_DOC_PATH;
+  const porEnv = await lerDocumentoCertificadoFiscal(caminhoEnv);
+  if (porEnv) return porEnv;
+
+  const documentosCandidatos = [
+    'configuracoes/certificado_escritorio',
+    'configuracoes/certificado-a1',
+    'configuracoes/certificadoA1',
+    'certificados/escritorio',
+    'certificados/escritorio_a1',
+    'certificados/principal',
+    'certificados/default',
+    'certificados/current',
+    'certificados_digitais/escritorio',
+    'certificados_digitais/principal',
+    'certificados_a1/escritorio',
+    'ecac_certificados/escritorio',
+    'serpro_certificados/escritorio'
+  ];
+
+  for (const pathDoc of documentosCandidatos) {
+    const encontrado = await lerDocumentoCertificadoFiscal(pathDoc);
+    if (encontrado) return encontrado;
+  }
+
+  const colecoesCandidatas = [
+    'certificados',
+    'certificados_digitais',
+    'certificados_a1',
+    'ecac_certificados',
+    'serpro_certificados',
+    'empresa_certificados',
+    'configuracoes'
+  ];
+  const chavesIndicadoras = ['validade', 'data_validade', 'expires_at', 'cnpj', 'cnpj_escritorio', 'arquivo_nome', 'nome_arquivo', 'pfx', 'p12', 'certificado'];
+
+  for (const nomeColecao of colecoesCandidatas) {
+    const snap = await db.collection(nomeColecao).limit(10).get();
+    for (const doc of snap.docs) {
+      const data = doc.data() || {};
+      const chaves = Object.keys(data);
+      const pareceCertificado = chaves.some(k => chavesIndicadoras.includes(String(k).toLowerCase())) ||
+        /cert/i.test(doc.id) ||
+        /escritorio|principal|default|current/i.test(doc.id);
+      if (!pareceCertificado) continue;
+      const dadosSeguros = {};
+      Object.entries(data).forEach(([k, v]) => {
+        if (fiscalCertCampoSeguro(k)) dadosSeguros[k] = v;
+      });
+      return serializarCertificadoFiscal(doc.ref.path, dadosSeguros);
+    }
+  }
+  return null;
+}
+
 app.get('/api/fiscal/certificado-status', async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store');
-    const candidatos = [
-      db.collection('configuracoes').doc('certificado_escritorio'),
-      db.collection('certificados').doc('escritorio'),
-      db.collection('certificados').doc('escritorio_a1')
-    ];
-    let encontrado = null;
-    for (const ref of candidatos) {
-      const doc = await ref.get();
-      if (doc.exists) {
-        encontrado = { id: ref.path, ...doc.data() };
-        break;
-      }
+    const encontrado = await localizarCertificadoFiscal();
+    if (!encontrado) {
+      return res.json({
+        cadastrado: false,
+        status: 'nao_localizado',
+        fonte: 'firebase',
+        observacao: 'Defina FISCAL_CERT_DOC_PATH ou grave o certificado em uma colecao padrao para ativar a integracao.'
+      });
     }
-    if (!encontrado) return res.json({ cadastrado: false, status: 'nao_localizado', fonte: 'firebase' });
-    res.json({
-      cadastrado: true,
-      fonte: 'firebase',
-      origem: encontrado.id,
-      cnpj_escritorio: encontrado.cnpj_escritorio || encontrado.cnpj || '',
-      razao_social: encontrado.razao_social || encontrado.nome || '',
-      validade: serializarDataSegura(encontrado.validade || encontrado.expires_at || encontrado.data_validade || ''),
-      status: encontrado.status || (encontrado.ativo === false ? 'inativo' : 'ativo'),
-      ultimo_uso_em: serializarDataSegura(encontrado.ultimo_uso_em || encontrado.last_used_at || ''),
-      observacao: encontrado.observacao || ''
-    });
+    res.json(encontrado);
   } catch (err) {
     console.error('certificado-status erro:', err);
     res.status(500).json({ erro: err.message });
