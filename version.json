@@ -1,10 +1,10 @@
 {
-  "version": "3.1.99",
-  "build_date": "2026-05-16T03:20:00-03:00",
+  "version": "3.2.0",
+  "build_date": "2026-05-17T03:35:00-03:00",
   "release_notes": [
-    "Parser Safra passa a aceitar variacoes textuais do Extrato de Movimentacao",
-    "Teste cobre valores colados ao documento, valores negativos e linhas quebradas",
-    "PDF real da Waldesa/Safra foi adicionado como evidencia de regressao local quando disponivel",
-    "npm run check agora bloqueia regressao do layout Safra"
+    "Historicos CLUDE Itau e Cartao Itau passam a ser preenchidos por descricao quando a memoria nao retorna texto",
+    "Tela de lancamentos repara automaticamente historicos CLUDE carregados como Hist ou vazios",
+    "Regras seguras adicionadas para seguros, administracao de bens, advocaticios, licencas, servicos e ISS",
+    "npm run check agora bloqueia regressao dos historicos CLUDE Itau"
   ]
 }

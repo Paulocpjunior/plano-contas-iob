@@ -160,9 +160,9 @@ const LAYOUT_QUALITY_EVIDENCE = [
     empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
     periodo_inicio: '2026-04-01',
     periodo_fim: '2026-04-30',
-    etapa: 'parser_ajustado',
-    status: 'Evidencia recebida',
-    observacao: 'Evidencia de reforco da classificacao de historicos por descricao no Excel Itau da CLUDE.'
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js com totais esperados e regressao de historicos por descricao.'
   },
   {
     id: 'clude-cartao-itau-2026-04',

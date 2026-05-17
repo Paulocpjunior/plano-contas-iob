@@ -74,6 +74,25 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-05-16T03:20:00-03:00',
     observacao: 'Layout Safra textual com valores colados ao documento e linhas quebradas em operacoes Safrapay, Pix e CDB.'
+  },
+  {
+    id: 'clude-itau-xlsx-2026-04',
+    banco: 'CLU',
+    nomeBanco: 'CLUDE - Club de Beneficios',
+    layout: 'CLUDE - Itau Movimentacao Financeira',
+    parser: 'parsearArquivoXLSXCludeItau',
+    arquivo: 'Bco Itau - Movimentacao Financeira - Original 2.xlsx',
+    empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 229,
+      total_credito: 831246.49,
+      total_debito: 868786.74
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-17T03:35:00-03:00',
+    observacao: 'Layout CLUDE Itau XLSX com reforco de historicos por descricao para recebimentos NF, fornecedores, seguros, servicos e cartao.'
   }
 ];
 

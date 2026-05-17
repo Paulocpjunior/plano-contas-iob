@@ -8174,6 +8174,13 @@
             
             listWithSaldo.forEach(e => {
                 const idx = state.entries.indexOf(state.entries.find(x => x.id === e.id));
+                if (isLayoutCludeItau(e) && !historicoTextoValido(e.historico)) {
+                    const histAuto = historicoCurtoCludeItau(e);
+                    if (historicoTextoValido(histAuto)) {
+                        e.historico = histAuto;
+                        if (idx >= 0 && state.entries[idx]) state.entries[idx].historico = histAuto;
+                    }
+                }
                 const df = e.data ? e.data.split('-').reverse().join('/') : '';
                 const vc = e.valor >= 0 ? 'valor-positivo' : 'valor-negativo';
                 const vf = (e.valor >= 0 ? '+' : '') + 'R$ ' + e.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2});
@@ -8284,7 +8291,9 @@
                 { re: /\b(MATERIAL DE LIMPEZA|LIMPEZA|COPA|COZINHA|SUPRICORP|GIMBA)\b/, cod: '1238' },
                 { re: /\b(TELEFONIA|TELEFONE|SMS|VIVO MOVEL|ROCK TELECOM)\b/, cod: '1221' },
                 { re: /\b(ALUGUEL|LOCACAO|VAGAS DE GARAGEM)\b/, cod: '1200' },
-                { re: /\b(HONORARIO|HONORARIOS|ADVOCATICIO|ADVOCATICIOS)\b/, cod: '1249' }
+                { re: /\b(HONORARIO|HONORARIOS|ADVOCATICIO|ADVOCATICIOS|OAB|ADVOGADOS)\b/, cod: '1249' },
+                { re: /\b(AVIDA CORRETORA|CORRETORA DE SEGUROS|SEGUROS)\b/, cod: '0708' },
+                { re: /\b(CLAUDIO MONTEIRO|ADM DE BENS|ADMINISTRACAO DE BENS)\b/, cod: '0701' }
             ];
             const achada = regras.find(function(r) { return r.re.test(d); });
             return achada ? achada.cod : '';
