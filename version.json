@@ -1,10 +1,10 @@
 {
-  "version": "3.2.11",
-  "build_date": "2026-05-17T10:20:00-03:00",
+  "version": "3.2.12",
+  "build_date": "2026-05-17T10:40:00-03:00",
   "release_notes": [
-    "Lista de Layouts Bancarios ganhou atalho Testar por layout",
-    "Atalho abre a Central de Qualidade com banco e parser pre-selecionados",
-    "Admin pode validar um arquivo de referencia sem procurar manualmente o layout",
-    "Navegacao entre abas do Admin ficou segura para chamadas internas"
+    "Extrator agora mostra selo visual para layout PDF aprovado",
+    "Layouts homologados exibem aviso operacional de conferencia de totais",
+    "Status do layout no upload ficou colorido por maturidade",
+    "Colaborador consegue identificar se o modelo usado esta aprovado, homologado, em teste ou bloqueado"
   ]
 }

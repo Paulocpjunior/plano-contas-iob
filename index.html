@@ -3737,16 +3737,19 @@
                         const status = layout.homologacaoStatus || 'em_teste';
                         const bloqueado = status === 'bloqueado';
                         const teste = status === 'em_teste';
-                        if (bloqueado || teste) {
-                            statusBox.style.display = 'block';
-                            statusBox.style.color = bloqueado ? '#dc2626' : '#b45309';
-                            statusBox.textContent = bloqueado
-                                ? 'Layout bloqueado pelo Admin. Selecione outro layout ou use Automático.'
-                                : 'Layout em teste. O sistema vai pedir confirmação antes de importar.';
-                        } else {
-                            statusBox.style.display = 'none';
-                            statusBox.textContent = '';
-                        }
+                        const aprovado = status === 'aprovado';
+                        const homologado = status === 'homologado';
+                        statusBox.style.display = 'block';
+                        statusBox.style.color = bloqueado ? '#dc2626' : (teste ? '#b45309' : (aprovado ? '#059669' : '#2563eb'));
+                        statusBox.textContent = bloqueado
+                            ? 'Layout bloqueado pelo Admin. Selecione outro layout ou use Automático.'
+                            : (teste
+                                ? 'Layout em teste. O sistema vai pedir confirmação antes de importar.'
+                                : (aprovado
+                                    ? 'Layout aprovado pela Central de Qualidade para uso operacional.'
+                                    : (homologado
+                                        ? 'Layout homologado pelo Admin. Use com conferência dos totais.'
+                                        : 'Layout validado para este banco.')));
                     }
                 } else if (selectedFile.name.split('.').pop().toLowerCase() === 'pdf') {
                     fileType.textContent = 'PDF - Layout automático';

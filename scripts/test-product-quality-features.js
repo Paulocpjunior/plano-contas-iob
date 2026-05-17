@@ -47,5 +47,7 @@ assertContains('index.html', 'agendarSugestaoLancamentoManual', 'gatilho de suge
 assertContains('index.html', 'uploadLayoutPdfStatus', 'aviso de homologacao no seletor de layout PDF');
 assertContains('index.html', "homologacaoStatus === 'bloqueado'", 'bloqueio operacional de layout PDF');
 assertContains('index.html', 'Este layout PDF ainda esta em teste no Admin', 'confirmacao para layout em teste');
+assertContains('index.html', 'Layout aprovado pela Central de Qualidade', 'selo operacional de layout aprovado no extrator');
+assertContains('index.html', 'Layout homologado pelo Admin', 'selo operacional de layout homologado no extrator');
 
 console.log('OK - recursos de qualidade, memoria e importacao assistida presentes.');
