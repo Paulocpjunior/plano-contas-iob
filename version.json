@@ -1,10 +1,10 @@
 {
-  "version": "3.2.13",
-  "build_date": "2026-05-17T11:00:00-03:00",
+  "version": "3.2.14",
+  "build_date": "2026-05-17T11:35:00-03:00",
   "release_notes": [
-    "Central de Qualidade ganhou resumo mensal de operacao",
-    "Admin visualiza taxa mensal de sucesso e rejeicao de layouts",
-    "Painel destaca banco com mais rejeicoes em cada mes",
-    "Painel destaca colaborador com mais rejeicoes em cada mes"
+    "Central de Qualidade ganhou alertas operacionais por banco e colaborador",
+    "Admin destaca layouts com rejeicoes recorrentes e baixa taxa de acerto",
+    "Painel sugere acoes para priorizar teste de layout ou fila pendente",
+    "Indicadores de qualidade agora ajudam a escolher o proximo ajuste critico"
   ]
 }

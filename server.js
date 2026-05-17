@@ -1653,6 +1653,42 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
       const total = b.sucessos + b.rejeicoes;
       return { ...b, total, taxa_acerto: total ? Math.round((b.sucessos / total) * 100) : 0 };
     }).sort((a, b) => b.total - a.total || String(a.banco).localeCompare(String(b.banco)));
+    const alertas = [];
+    por_banco.forEach(b => {
+      if (b.rejeicoes >= 3 && b.taxa_acerto < 80) {
+        alertas.push({
+          tipo: 'banco',
+          severidade: b.taxa_acerto < 50 || b.rejeicoes >= 10 ? 'alta' : 'media',
+          titulo: `${b.banco} ${b.nomeBanco || ''}`.trim(),
+          detalhe: `${b.rejeicoes} rejeicao(oes), taxa ${b.taxa_acerto}%`,
+          banco: b.banco,
+          nomeBanco: b.nomeBanco || '',
+          taxa_acerto: b.taxa_acerto,
+          rejeicoes: b.rejeicoes,
+          sucessos: b.sucessos
+        });
+      }
+    });
+    por_colaborador.forEach(u => {
+      const pendencias = (u.pendentes || 0) + (u.em_parametrizacao || 0);
+      if (pendencias >= 3 || (u.rejeicoes >= 5 && u.taxa_acerto < 75)) {
+        alertas.push({
+          tipo: 'colaborador',
+          severidade: pendencias >= 10 || u.taxa_acerto < 50 ? 'alta' : 'media',
+          titulo: u.email || 'sem-email',
+          detalhe: `${pendencias} pendencia(s), ${u.rejeicoes} rejeicao(oes), taxa ${u.taxa_acerto}%`,
+          email: u.email,
+          pendencias,
+          taxa_acerto: u.taxa_acerto,
+          rejeicoes: u.rejeicoes,
+          sucessos: u.sucessos
+        });
+      }
+    });
+    alertas.sort((a, b) => {
+      const peso = s => s === 'alta' ? 2 : 1;
+      return peso(b.severidade) - peso(a.severidade) || (b.rejeicoes || b.pendencias || 0) - (a.rejeicoes || a.pendencias || 0);
+    });
     const mensal = Array.from(meses.values()).map(m => {
       const total = m.sucessos + m.rejeicoes;
       const bancosMes = Array.from(m.bancos.values()).map(b => {
@@ -1685,7 +1721,8 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
       status,
       por_colaborador,
       por_banco,
-      mensal
+      mensal,
+      alertas: alertas.slice(0, 20)
     });
   } catch (err) {
     console.error('layout-quality ops erro:', err);

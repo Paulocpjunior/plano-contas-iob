@@ -521,6 +521,7 @@ function renderLayoutQuality() {
   const porColaborador = operacional.por_colaborador || [];
   const porBancoOperacional = operacional.por_banco || [];
   const mensalOperacional = operacional.mensal || [];
+  const alertasOperacionais = operacional.alertas || [];
   const cards = `
     <div class="layout-grid">
       <div class="layout-card"><div class="bank">Casos validados</div><div class="count">${resumo.total_casos || 0}</div><div class="caption">Arquivos-modelo cadastrados</div></div>
@@ -533,6 +534,25 @@ function renderLayoutQuality() {
     </div>`;
 
   let html = cards;
+  if (alertasOperacionais.length) {
+    html += '<h3 style="margin:22px 0 10px;color:#111827">Alertas de qualidade operacional</h3>';
+    html += '<table><thead><tr><th>Prioridade</th><th>Origem</th><th>Alerta</th><th>Detalhe</th><th>Ação sugerida</th></tr></thead><tbody>';
+    alertasOperacionais.slice(0, 12).forEach(a => {
+      const cls = a.severidade === 'alta' ? 'badge-logout' : 'badge-warn';
+      const origem = a.tipo === 'banco' ? 'Banco' : 'Colaborador';
+      const acao = a.tipo === 'banco'
+        ? 'Revisar rejeições e rodar teste de layout'
+        : 'Tratar fila pendente e revisar parametrização';
+      html += `<tr>
+        <td><span class="badge ${cls}">${escapeHtml(a.severidade || 'media')}</span></td>
+        <td>${escapeHtml(origem)}</td>
+        <td><strong>${escapeHtml(a.titulo || '-')}</strong></td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(a.detalhe || '-')}</td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(acao)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
   if (mensalOperacional.length) {
     html += '<h3 style="margin:22px 0 10px;color:#111827">Resumo mensal de qualidade operacional</h3>';
     html += '<table><thead><tr><th>Mês</th><th>Taxa</th><th>Sucessos</th><th>Rejeições</th><th>Banco com mais rejeições</th><th>Colaborador com mais rejeições</th></tr></thead><tbody>';
