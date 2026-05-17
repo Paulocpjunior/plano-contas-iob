@@ -90,6 +90,36 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Evidencia usada no modulo de conciliacao e no parser Santander Empresas OCR.'
   },
   {
+    id: 'santander-ctvm-armazem-bichos-2026-04',
+    banco: '352',
+    nomeBanco: 'Santander CTVM',
+    layout: 'Santander 1 - Internet Banking Empresarial',
+    parser: 'parsearPDF_Santander_InternetBanking',
+    arquivo: 'santander abril 26 1.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/santander abril 26 1.pdf',
+    empresa: 'ARMAZEM DE BICHOS VET E PETCETERA COMERC',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js para alias Santander 352.'
+  },
+  {
+    id: 'santander-ctvm-ra-carpetes-2025-05',
+    banco: '352',
+    nomeBanco: 'Santander CTVM',
+    layout: 'Santander 2 - Extrato Consolidado Inteligente OCR',
+    parser: 'parsearPDF_Santander_EmpresasOCR',
+    arquivo: 'MAIO_EXTRATO SANTANDER- RA CARPETES.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/MAIO_EXTRATO SANTANDER- RA CARPETES.pdf',
+    empresa: 'R A CARPETES PISOS E PERSIANAS EIRELI',
+    periodo_inicio: '2025-05-01',
+    periodo_fim: '2025-05-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js para alias Santander 352.'
+  },
+  {
     id: 'safra-waldesa-2026-01',
     banco: '422',
     nomeBanco: 'Banco Safra',

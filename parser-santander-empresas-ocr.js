@@ -4,7 +4,7 @@
 // =============================================================================
 (function(){
   function uuid() {
-    return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('santander-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+    return (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('santander-' + Date.now() + '-' + Math.random().toString(16).slice(2));
   }
 
   function removerAcentos(s) {
@@ -508,9 +508,29 @@
       .join('\n');
   }
 
-  window.parsearTexto_SantanderEmpresas = parsearTexto_SantanderEmpresas;
-  window.parsearTexto_SantanderInternetBanking = parsearTexto_SantanderInternetBanking;
-  window.parsearPDF_Santander_InternetBanking = parsearPDF_Santander_InternetBanking;
-  window.parsearPDF_Santander_EmpresasOCR = parsearPDF_Santander_EmpresasOCR;
-  console.log('[parser-santander-empresas-ocr] carregado');
+  const api = {
+    parsearPDF_Santander_EmpresasOCR: parsearPDF_Santander_EmpresasOCR,
+    parsearPDF_Santander_InternetBanking: parsearPDF_Santander_InternetBanking,
+    __test__: {
+      parsearTexto_SantanderEmpresas: parsearTexto_SantanderEmpresas,
+      parsearTexto_SantanderInternetBanking: parsearTexto_SantanderInternetBanking,
+      pareceExtratoSantander: pareceExtratoSantander,
+      extrairMovimentoSantander: extrairMovimentoSantander,
+      separarValorSaldoGluedSantander: separarValorSaldoGluedSantander,
+      limparDescricao: limparDescricao,
+      periodoInternetBanking: periodoInternetBanking,
+      referenciaPeriodo: referenciaPeriodo
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.parsearTexto_SantanderEmpresas = parsearTexto_SantanderEmpresas;
+    window.parsearTexto_SantanderInternetBanking = parsearTexto_SantanderInternetBanking;
+    window.parsearPDF_Santander_InternetBanking = parsearPDF_Santander_InternetBanking;
+    window.parsearPDF_Santander_EmpresasOCR = parsearPDF_Santander_EmpresasOCR;
+    console.log('[parser-santander-empresas-ocr] carregado');
+  }
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
 })();
