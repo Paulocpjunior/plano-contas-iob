@@ -76,6 +76,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Mesmo parser aprovado para banco 352 quando o cadastro usa Santander CTVM.'
   },
   {
+    id: 'bb-conta-atual-waldesa-2026-02',
+    banco: '001',
+    nomeBanco: 'Banco do Brasil',
+    layout: 'Banco do Brasil - Conta Atual',
+    parser: 'parsearPDF_BB_ContaAtual',
+    arquivo: 'EXTRATO BB - CC 14910-1 - MATRIZ SP (3) 1.pdf',
+    empresa: 'WALDESA MOTOMERCANTIL LTDA.',
+    periodo_inicio: '2026-02-01',
+    periodo_fim: '2026-02-28',
+    esperado: {
+      total_lancamentos: 1009,
+      total_credito: 1431086.20,
+      total_debito: 1348067.52
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-17T05:05:00-03:00',
+    observacao: 'Layout Banco do Brasil Conta Atual textual com valores e sinal D/C lidos pela direita. A regressao confere que credito menos debito fecha no saldo final de R$ 83.018,68.'
+  },
+  {
     id: 'btg-erf-holding-2026-01',
     banco: '208',
     nomeBanco: 'Banco BTG Pactual',

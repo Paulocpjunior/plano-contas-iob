@@ -103,27 +103,8 @@
     return { linha: linha, consumidas: consumidas };
   }
 
-  async function parsearPDF_BB_ContaAtual(arrayBuffer) {
-    if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-    let textoCompleto = '';
-    for (let p = 1; p <= pdf.numPages; p++) {
-      const page = await pdf.getPage(p);
-      const tc = await page.getTextContent();
-      const linhas = {};
-      tc.items.forEach(it => {
-        const y = Math.round(it.transform[5]);
-        if (!linhas[y]) linhas[y] = [];
-        linhas[y].push({ x: it.transform[4], s: it.str });
-      });
-      const ys = Object.keys(linhas).map(Number).sort((a,b) => b - a);
-      ys.forEach(y => {
-        const linha = linhas[y].sort((a,b) => a.x - b.x).map(o => o.s).join(' ').replace(/\s+/g,' ').trim();
-        if (linha) textoCompleto += linha + '\n';
-      });
-    }
-
+  function parsearTextoBBContaAtual(textoCompleto) {
+    textoCompleto = String(textoCompleto || '');
     // Deteccao: header G<16digitos> + "Cliente - Conta atual" + colunas do BB
     const ehBB = /G\d{16}/.test(textoCompleto)
               && /Cliente\s*-\s*Conta\s*atual/i.test(textoCompleto)
@@ -210,12 +191,37 @@
     };
   }
 
+  async function parsearPDF_BB_ContaAtual(arrayBuffer) {
+    if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    let textoCompleto = '';
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const tc = await page.getTextContent();
+      const linhas = {};
+      tc.items.forEach(it => {
+        const y = Math.round(it.transform[5]);
+        if (!linhas[y]) linhas[y] = [];
+        linhas[y].push({ x: it.transform[4], s: it.str });
+      });
+      const ys = Object.keys(linhas).map(Number).sort((a,b) => b - a);
+      ys.forEach(y => {
+        const linha = linhas[y].sort((a,b) => a.x - b.x).map(o => o.s).join(' ').replace(/\s+/g,' ').trim();
+        if (linha) textoCompleto += linha + '\n';
+      });
+    }
+
+    return parsearTextoBBContaAtual(textoCompleto);
+  }
+
   const api = {
     parsearPDF_BB_ContaAtual: parsearPDF_BB_ContaAtual,
     __test__: {
       parseLinhaLancamentoBB: parseLinhaLancamentoBB,
       montarLinhaLancamento: montarLinhaLancamento,
-      normalizarDescricaoBB: normalizarDescricaoBB
+      normalizarDescricaoBB: normalizarDescricaoBB,
+      parsearTextoBBContaAtual: parsearTextoBBContaAtual
     }
   };
 

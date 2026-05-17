@@ -25,9 +25,9 @@ const LAYOUT_QUALITY_EVIDENCE = [
     empresa: 'WALDESA MOTOMERCANTIL LTDA.',
     periodo_inicio: '2026-02-01',
     periodo_fim: '2026-02-28',
-    etapa: 'parser_ajustado',
-    status: 'Evidencia recebida',
-    observacao: 'Evidencia do problema de soma e selecao debito/credito no extrato BB.'
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js com fechamento por saldo final: credito R$ 1.431.086,20, debito R$ 1.348.067,52 e saldo R$ 83.018,68.'
   },
   {
     id: 'bradesco-comunidade-2025-12',

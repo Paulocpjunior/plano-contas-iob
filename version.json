@@ -1,10 +1,10 @@
 {
-  "version": "3.2.2",
-  "build_date": "2026-05-17T04:45:00-03:00",
+  "version": "3.2.3",
+  "build_date": "2026-05-17T05:05:00-03:00",
   "release_notes": [
-    "Layout Bradesco Net Empresa passa a calcular movimentos pelo saldo anterior e saldo atual",
-    "Bradesco agora trata documento, valor e saldo colados no PDF textual",
-    "Central de Qualidade registra o PDF real Bradesco com totais oficiais aprovados",
-    "npm run check agora bloqueia regressao do layout Bradesco Net Empresa"
+    "Layout Banco do Brasil Conta Atual passa a ter regressao automatica com PDF real de Waldesa fevereiro/2026",
+    "Teste BB valida leitura por coordenadas, periodo, quantidade e fechamento credito menos debito contra saldo final",
+    "Central de Qualidade registra Banco do Brasil Conta Atual como regressao aprovada",
+    "Parser BB exporta helper de texto completo para diagnostico sem alterar o comportamento no navegador"
   ]
 }
