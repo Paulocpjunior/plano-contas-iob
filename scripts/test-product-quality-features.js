@@ -18,6 +18,7 @@ assertContains('server.js', "app.patch('/api/layouts-bancarios/:id/homologacao'"
 assertContains('server.js', "app.get('/api/layout-quality/ops'", 'metricas operacionais de qualidade');
 assertContains('server.js', "app.get('/api/fiscal/certificado-status'", 'status do certificado fiscal sem expor segredo');
 assertContains('server.js', 'FISCAL_CERT_DOC_PATH', 'configuracao do caminho Firebase do certificado fiscal');
+assertContains('server.js', 'FISCAL_CERT_PROJECT_ID', 'configuracao do projeto Firebase do certificado fiscal');
 assertContains('server.js', 'FISCAL_CERT_SENSITIVE_KEYS', 'mascara de campos sensiveis do certificado fiscal');
 assertContains('server.js', 'localizarCertificadoFiscal', 'busca ampliada do certificado fiscal no Firebase');
 assertContains('server.js', "app.get('/api/empresas/:cnpj/fiscal/impostos'", 'consulta de impostos fiscais por empresa');

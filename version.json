@@ -1,10 +1,10 @@
 {
-  "version": "3.2.17",
-  "build_date": "2026-05-17T12:48:00-03:00",
+  "version": "3.2.18",
+  "build_date": "2026-05-17T13:02:00-03:00",
   "release_notes": [
-    "Troca de abas agora reposiciona a tela no topo para evitar formulario cortado",
-    "Aba Situacao Fiscal abre sempre no inicio do modulo",
-    "Mantida busca ampliada do certificado fiscal e mensagem segura de vinculacao",
-    "Ajuste visual evita confusao quando o usuario troca de modulo apos rolar a pagina"
+    "Modulo fiscal agora pode ler o certificado A1 do escritorio em outro projeto Firebase",
+    "Cloud Run pode usar FISCAL_CERT_PROJECT_ID e FISCAL_CERT_DOC_PATH para apontar o certificado oficial",
+    "Validade do certificado passa a ler estruturas com inicio/fim sem expor dados sensiveis",
+    "Mantido controle manual de impostos enquanto a integracao SERPRO/e-CAC evolui"
   ]
 }

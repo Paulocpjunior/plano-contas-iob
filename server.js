@@ -10,6 +10,7 @@ const app = express();
 app.set('trust proxy', true);
 const PORT = process.env.PORT || 8080;
 const db = new Firestore();
+const firestorePorProjeto = new Map();
 admin.initializeApp({ projectId: 'projetos-app-sp' });
 const adminAuth = admin.auth();
 const DOMAIN = '@spassessoriacontabil.com.br';
@@ -1161,6 +1162,11 @@ function serializarDataSegura(v) {
   if (!v) return '';
   if (v && typeof v.toDate === 'function') return v.toDate().toISOString();
   if (v instanceof Date) return v.toISOString();
+  if (typeof v === 'object') {
+    if (v.fim) return serializarDataSegura(v.fim);
+    if (v.notAfter) return serializarDataSegura(v.notAfter);
+    if (v.valid_to) return serializarDataSegura(v.valid_to);
+  }
   return String(v);
 }
 
@@ -1221,16 +1227,27 @@ function serializarCertificadoFiscal(pathFonte, data = {}) {
   };
 }
 
-async function lerDocumentoCertificadoFiscal(pathDoc) {
+function firestoreCertificadoFiscal() {
+  const projectId = process.env.FISCAL_CERT_PROJECT_ID || process.env.CERTIFICADO_ESCRITORIO_PROJECT_ID || '';
+  if (!projectId) return { db, projectId: '' };
+  if (!firestorePorProjeto.has(projectId)) firestorePorProjeto.set(projectId, new Firestore({ projectId }));
+  return { db: firestorePorProjeto.get(projectId), projectId };
+}
+
+async function lerDocumentoCertificadoFiscal(pathDoc, firestoreAtual, projectId) {
   if (!pathDoc || !String(pathDoc).includes('/')) return null;
-  const snap = await db.doc(String(pathDoc).replace(/^\/+|\/+$/g, '')).get();
+  const snap = await firestoreAtual.doc(String(pathDoc).replace(/^\/+|\/+$/g, '')).get();
   if (!snap.exists) return null;
-  return serializarCertificadoFiscal(snap.ref.path, snap.data());
+  const origem = projectId ? `${projectId}/${snap.ref.path}` : snap.ref.path;
+  return serializarCertificadoFiscal(origem, snap.data());
 }
 
 async function localizarCertificadoFiscal() {
+  const fonte = firestoreCertificadoFiscal();
+  const certDb = fonte.db;
+  const certProjectId = fonte.projectId;
   const caminhoEnv = process.env.FISCAL_CERT_DOC_PATH || process.env.CERTIFICADO_ESCRITORIO_DOC_PATH;
-  const porEnv = await lerDocumentoCertificadoFiscal(caminhoEnv);
+  const porEnv = await lerDocumentoCertificadoFiscal(caminhoEnv, certDb, certProjectId);
   if (porEnv) return porEnv;
 
   const documentosCandidatos = [
@@ -1250,7 +1267,7 @@ async function localizarCertificadoFiscal() {
   ];
 
   for (const pathDoc of documentosCandidatos) {
-    const encontrado = await lerDocumentoCertificadoFiscal(pathDoc);
+    const encontrado = await lerDocumentoCertificadoFiscal(pathDoc, certDb, certProjectId);
     if (encontrado) return encontrado;
   }
 
@@ -1266,7 +1283,7 @@ async function localizarCertificadoFiscal() {
   const chavesIndicadoras = ['validade', 'data_validade', 'expires_at', 'cnpj', 'cnpj_escritorio', 'arquivo_nome', 'nome_arquivo', 'pfx', 'p12', 'certificado'];
 
   for (const nomeColecao of colecoesCandidatas) {
-    const snap = await db.collection(nomeColecao).limit(10).get();
+    const snap = await certDb.collection(nomeColecao).limit(10).get();
     for (const doc of snap.docs) {
       const data = doc.data() || {};
       const chaves = Object.keys(data);
@@ -1278,7 +1295,8 @@ async function localizarCertificadoFiscal() {
       Object.entries(data).forEach(([k, v]) => {
         if (fiscalCertCampoSeguro(k)) dadosSeguros[k] = v;
       });
-      return serializarCertificadoFiscal(doc.ref.path, dadosSeguros);
+      const origem = certProjectId ? `${certProjectId}/${doc.ref.path}` : doc.ref.path;
+      return serializarCertificadoFiscal(origem, dadosSeguros);
     }
   }
   return null;
