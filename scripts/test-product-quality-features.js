@@ -35,6 +35,8 @@ assertContains('admin.html', 'promoverLayoutQualidade', 'promocao de layout pela
 assertContains('admin.html', 'Layouts prontos para aprovação', 'fila de aprovacao de layouts com evidencia');
 assertContains('admin.html', '(sem provas)', 'bloqueio visual de aprovacao sem provas');
 assertContains('admin.html', 'Aprovação exige caso + evidência', 'orientacao de prova na tabela de layouts');
+assertContains('admin.html', 'abrirTesteQualidadeLayout', 'atalho de teste de qualidade a partir da lista de layouts');
+assertContains('admin.html', 'Layout selecionado para teste', 'preselecao de layout na central de qualidade');
 
 assertContains('index.html', 'abrirConferenciaImportacao', 'modo conferencia antes de gravar');
 assertContains('index.html', 'modalMemoriaEmpresa', 'modal de memoria da empresa');

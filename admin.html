@@ -332,10 +332,11 @@ auth.onAuthStateChanged(async u => {
   loadLogs();
 });
 
-function showTab(tab) {
+function showTab(tab, sourceButton) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
+  const btn = sourceButton || (typeof event !== 'undefined' && event && event.target) || document.querySelector('.tabs button[onclick*="' + tab + '"]');
+  if (btn) btn.classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'layouts') renderLayouts();
   if (tab === 'qualidade') loadLayoutQuality();
@@ -411,7 +412,7 @@ async function renderLayouts() {
       <div class="layout-card"><div class="bank">Aptos</div><div class="count">${aptos}</div><div class="caption">Com provas mínimas para aprovar</div></div>
     </div>`;
 
-  let table = '<table><thead><tr><th>Banco</th><th>Layout</th><th>Formato</th><th>Confiabilidade</th><th>Status</th><th>Provas</th><th>Homologação</th><th>Último teste</th><th>Observação</th></tr></thead><tbody>';
+  let table = '<table><thead><tr><th>Banco</th><th>Layout</th><th>Formato</th><th>Confiabilidade</th><th>Status</th><th>Provas</th><th>Homologação</th><th>Último teste</th><th>Observação</th><th>Ações</th></tr></thead><tbody>';
   layouts.forEach(l => {
     const confClass = l.confiabilidade === 'Alta' ? 'badge-ok' : 'badge-warn';
     const statusClass = l.status === 'Ativo' ? 'badge-ok' : 'badge-info';
@@ -438,6 +439,7 @@ async function renderLayouts() {
       </td>
       <td style="font-size:12px;color:#374151">${escapeHtml(l.ultimoTeste)}${l.total_usos ? '<br><span style="color:#9ca3af">' + l.total_usos + ' uso(s)</span>' : ''}</td>
       <td style="font-size:12px;color:#6b7280">${escapeHtml(l.observacao)}${l.homologacao_observacao ? '<br><strong>Homologação:</strong> ' + escapeHtml(l.homologacao_observacao) : ''}</td>
+      <td><button class="btn-sm btn-promote" onclick="abrirTesteQualidadeLayout('${escapeHtml(l.banco)}', '${escapeHtml(l.parser)}')">Testar</button></td>
     </tr>`;
   });
   table += '</tbody></table>';
@@ -762,6 +764,26 @@ function popularQualityLayouts() {
   if (!sel) return;
   const layouts = (currentLayoutsBancarios || []).filter(l => !banco || l.banco === banco);
   sel.innerHTML = '<option value="">Automático</option>' + layouts.map(l => `<option value="${escapeHtml(l.parser)}">${escapeHtml(l.layout)} (${escapeHtml(l.parser)})</option>`).join('');
+}
+
+async function abrirTesteQualidadeLayout(banco, parser) {
+  showTab('qualidade');
+  if (!currentLayoutsBancarios || !currentLayoutsBancarios.length) {
+    await carregarLayoutsBancariosAdmin();
+  }
+  const bancoSel = document.getElementById('qualityTestBanco');
+  if (bancoSel) {
+    bancoSel.value = banco || '';
+  }
+  popularQualityLayouts();
+  const layoutSel = document.getElementById('qualityTestLayout');
+  if (layoutSel) {
+    layoutSel.value = parser || '';
+  }
+  setQualityResult('ok', 'Layout selecionado para teste. Escolha o arquivo de referência e clique em Testar layout agora.');
+  const file = document.getElementById('qualityTestFile');
+  if (file) file.focus();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function setQualityResult(tipo, html) {

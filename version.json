@@ -1,10 +1,10 @@
 {
-  "version": "3.2.10",
-  "build_date": "2026-05-17T10:00:00-03:00",
+  "version": "3.2.11",
+  "build_date": "2026-05-17T10:20:00-03:00",
   "release_notes": [
-    "Lista de Layouts Bancarios agora mostra provas de qualidade por layout",
-    "A opcao Aprovado fica desabilitada quando faltam caso validado e evidencia",
-    "API de layouts passa a retornar status apto para aprovacao e contadores de prova",
-    "Admin exibe quantos layouts ja possuem provas minimas para aprovacao"
+    "Lista de Layouts Bancarios ganhou atalho Testar por layout",
+    "Atalho abre a Central de Qualidade com banco e parser pre-selecionados",
+    "Admin pode validar um arquivo de referencia sem procurar manualmente o layout",
+    "Navegacao entre abas do Admin ficou segura para chamadas internas"
   ]
 }
