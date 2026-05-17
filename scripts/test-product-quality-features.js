@@ -67,6 +67,7 @@ assertContains('index.html', 'Situação Fiscal / Impostos', 'nova aba de situac
 assertContains('index.html', 'carregarFiscalCertificado', 'status do certificado no modulo fiscal');
 assertContains('index.html', 'FISCAL_CERT_DOC_PATH', 'orientacao para vincular certificado fiscal');
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
+assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
 assertContains('api-adapter.js', 'fiscalListarImpostos', 'adapter fiscal para listar impostos');
 assertContains('api-adapter.js', 'fiscalCertificadoStatus', 'adapter fiscal para status do certificado');
 

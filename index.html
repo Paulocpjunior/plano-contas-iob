@@ -6150,7 +6150,13 @@
             carregarFiscal();
         }
 
-                function showPage(p, evt) {
+        function rolarTopoDaAbaAtiva() {
+            requestAnimationFrame(function() {
+                window.scrollTo({ top: 0, behavior: 'auto' });
+            });
+        }
+
+        function showPage(p, evt) {
             document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
             const ev = evt || (typeof event !== 'undefined' ? event : null);
             const btn = ev && ev.target ? ev.target.closest('button') : null;
@@ -6167,6 +6173,7 @@
             });
             const alvo = document.getElementById('page' + p.charAt(0).toUpperCase() + p.slice(1));
             if (alvo) alvo.classList.remove('hidden');
+            rolarTopoDaAbaAtiva();
             
             // Refresh charts when showing inicio
             if (p === 'inicio' && state.infoConfirmed) {

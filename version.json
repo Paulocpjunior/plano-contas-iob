@@ -1,10 +1,10 @@
 {
-  "version": "3.2.16",
-  "build_date": "2026-05-17T12:35:00-03:00",
+  "version": "3.2.17",
+  "build_date": "2026-05-17T12:48:00-03:00",
   "release_notes": [
-    "Situacao Fiscal agora procura o certificado do escritorio em mais caminhos Firebase",
-    "Novo parametro FISCAL_CERT_DOC_PATH permite apontar a colecao correta do certificado A1",
-    "Status do certificado exibe apenas metadados seguros e nunca senha ou conteudo do PFX",
-    "Mensagem da aba fiscal orienta a vinculacao sem bloquear o controle manual"
+    "Troca de abas agora reposiciona a tela no topo para evitar formulario cortado",
+    "Aba Situacao Fiscal abre sempre no inicio do modulo",
+    "Mantida busca ampliada do certificado fiscal e mensagem segura de vinculacao",
+    "Ajuste visual evita confusao quando o usuario troca de modulo apos rolar a pagina"
   ]
 }
