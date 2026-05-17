@@ -40,9 +40,9 @@ const LAYOUT_QUALITY_EVIDENCE = [
     empresa: 'COMUNIDADE EVANGELICA SARA NOSSA TERRA EM JOAO PESSOA',
     periodo_inicio: '2025-12-01',
     periodo_fim: '2025-12-31',
-    etapa: 'layout_parametrizado',
-    status: 'Evidencia recebida',
-    observacao: 'Arquivo usado para conferir totais oficiais de credito e debito do Bradesco Net Empresa.'
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js com totais oficiais e leitura por diferenca de saldo.'
   },
   {
     id: 'santander-ra-carpetes-2025-05',

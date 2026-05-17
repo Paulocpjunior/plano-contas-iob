@@ -26,6 +26,260 @@
     return items.map(function(i){ return i.s; }).join(' ').replace(/\s+/g, ' ').trim();
   }
 
+  function uuid() {
+    return (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('bradesco-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+  }
+
+  function splitDocumentoValorBradesco(texto) {
+    const raw = String(texto || '').replace(/\s+/g, '').trim();
+    if (!raw) return null;
+
+    const deb = raw.match(/^(.+)-([\d.]+,\d{2})$/);
+    if (deb) {
+      return {
+        documento: deb[1].replace(/\D/g, ''),
+        valorTexto: '-' + deb[2],
+        valor: -Math.abs(parseValorBR(deb[2]))
+      };
+    }
+
+    const m = raw.match(/^(.+),(\d{2})$/);
+    if (!m) return null;
+    const inteiro = m[1];
+    const centavos = m[2];
+    let doc = '';
+    let valorInteiro = '';
+
+    if (inteiro.includes('.')) {
+      const idx = inteiro.lastIndexOf('.');
+      const antes = inteiro.slice(0, idx);
+      const grupo = inteiro.slice(idx + 1);
+      const docTail = antes.match(/\d+$/);
+      if (!docTail) return null;
+      const tamanhoValorAntesDoPonto = grupo.length === 3 && docTail[0].length > 1 ? 2 : 1;
+      const docBase = antes.slice(0, -tamanhoValorAntesDoPonto);
+      const valorBase = antes.slice(-tamanhoValorAntesDoPonto);
+      doc = (docBase + grupo).replace(/\D/g, '');
+      valorInteiro = valorBase + '.' + grupo;
+      if (docBase && /^\d+$/.test(docBase)) {
+        doc = docBase;
+        valorInteiro = antes.slice(-tamanhoValorAntesDoPonto) + '.' + grupo;
+      }
+    } else {
+      const digitos = inteiro.replace(/\D/g, '');
+      if (digitos.length <= 3) return null;
+      const docLen = digitos.length > 6 ? 6 : Math.max(1, digitos.length - 3);
+      doc = digitos.slice(0, docLen);
+      valorInteiro = digitos.slice(docLen) || '0';
+    }
+
+    const valorTexto = valorInteiro + ',' + centavos;
+    return {
+      documento: doc,
+      valorTexto: valorTexto,
+      valor: Math.abs(parseValorBR(valorTexto))
+    };
+  }
+
+  function arredondarCentavos(n) {
+    return Math.round((Number(n) || 0) * 100) / 100;
+  }
+
+  function extrairSaldoFinalBradesco(texto, saldoAnterior) {
+    const raw = String(texto || '').replace(/\s+/g, '').trim();
+    const candidatos = candidatosMoedaNoFimBradesco(raw);
+    if (!candidatos.length) return null;
+    const negativosNoFim = candidatos.filter(function(c) { return c.texto.charAt(0) === '-'; });
+    const lista = negativosNoFim.length ? negativosNoFim : candidatos;
+    if (Number.isFinite(saldoAnterior)) {
+      lista.sort(function(a, b) {
+        return Math.abs(a.valor - saldoAnterior) - Math.abs(b.valor - saldoAnterior);
+      });
+    } else {
+      lista.sort(function(a, b) { return b.inicio - a.inicio; });
+    }
+    return lista[0];
+  }
+
+  function candidatosMoedaNoFimBradesco(raw) {
+    const texto = String(raw || '').replace(/\s+/g, '').trim();
+    const candidatos = [];
+    for (let i = 0; i < texto.length; i++) {
+      const trecho = texto.slice(i);
+      if (/^-?\d{1,3}(?:\.\d{3})*,\d{2}$/.test(trecho) || /^-?\d+,\d{2}$/.test(trecho)) {
+        candidatos.push({
+          texto: trecho,
+          inicio: i,
+          valor: parseValorBR(trecho)
+        });
+      }
+    }
+    return candidatos;
+  }
+
+  function escolherMovimentoPorSaldoBradesco(raw, saldoAnterior) {
+    if (!Number.isFinite(saldoAnterior)) return null;
+    const saldos = candidatosMoedaNoFimBradesco(raw);
+    for (let s = 0; s < saldos.length; s++) {
+      const saldo = saldos[s];
+      const antesSaldo = raw.slice(0, saldo.inicio);
+      const valores = candidatosMoedaNoFimBradesco(antesSaldo);
+      for (let v = 0; v < valores.length; v++) {
+        const valorInfo = valores[v];
+        const delta = arredondarCentavos(saldo.valor - saldoAnterior);
+        let valor = valorInfo.valor;
+        if (valorInfo.inicio > 0 && antesSaldo.charAt(valorInfo.inicio - 1) === '-') {
+          valor = -Math.abs(valor);
+        }
+        if (Math.abs(valor - delta) < 0.011) {
+          return {
+            saldoInfo: saldo,
+            valor: delta,
+            documentoTexto: antesSaldo.slice(0, valorInfo.inicio).replace(/\D/g, '')
+          };
+        }
+      }
+    }
+    return null;
+  }
+
+  function parseLinhaValoresBradesco(texto, saldoAnterior) {
+    const raw = String(texto || '').replace(/\s+/g, '').trim();
+    const coerente = escolherMovimentoPorSaldoBradesco(raw, saldoAnterior);
+    const saldoInfo = coerente ? coerente.saldoInfo : extrairSaldoFinalBradesco(raw, saldoAnterior);
+    if (!saldoInfo) return null;
+    const antesSaldo = raw.slice(0, saldoInfo.inicio);
+    let info = splitDocumentoValorBradesco(antesSaldo);
+    let valor = coerente ? coerente.valor : (info ? info.valor : 0);
+    if (!coerente && Number.isFinite(saldoAnterior)) {
+      valor = arredondarCentavos(saldoInfo.valor - saldoAnterior);
+    }
+    if (!valor) return null;
+    return {
+      documento: coerente && coerente.documentoTexto ? coerente.documentoTexto : (info && info.documento ? info.documento : (antesSaldo.match(/(\d{3,})$/) || [,''])[1]),
+      valor: valor,
+      tipo: valor < 0 ? 'D' : 'C',
+      saldo: saldoInfo.valor,
+      saldoTexto: saldoInfo.texto,
+      prefixo: raw.slice(0, saldoInfo.inicio).replace(/[-\d.,]+$/, '').trim()
+    };
+  }
+
+  function parseTotaisBradescoLinha(texto) {
+    const raw = String(texto || '').replace(/\s+/g, '').trim();
+    if (!/^Total/i.test(raw)) return null;
+    const valores = raw.match(/-?[\d.]+,\d{2}/g) || [];
+    if (valores.length < 3) return null;
+    return {
+      totalCredito: Math.abs(parseValorBR(valores[0])),
+      totalDebito: Math.abs(parseValorBR(valores[1])),
+      saldoFinal: parseValorBR(valores[2])
+    };
+  }
+
+  function textoIgnoradoBradesco(texto) {
+    const t = String(texto || '').replace(/\s+/g, ' ').trim();
+    return !t
+      || /^(Extrato Mensal|COMUNIDADE|Nome do usu|Data da opera|Folha|Ag[eê]ncia|Extrato de:|Data Lan[cç]amento|Cr[eé]dito|Os dados|[ÚU]ltimos Lan[cç]amentos|Saldos Invest|Central de Atendimento|Atendimento|Ouvidoria|SAC|0800|4004|Pagina)/i.test(t)
+      || /^SALDO ANTERIOR/i.test(t);
+  }
+
+  function parsearTextoBradescoNetEmpresa(textoCompleto) {
+    const texto = String(textoCompleto || '');
+    const ehBradesco = /Extrato Mensal\s*\/\s*Por Per[ií]odo/i.test(texto)
+      && /Data\s*Lan[cç]amento\s*Dcto\.?\s*Cr[eé]dito/i.test(texto);
+    if (!ehBradesco) return { detectado: false, lancamentos: [], textoCompleto: texto };
+
+    const linhas = texto.split(/\r?\n/).map(function(l) {
+      return l.replace(/\s+/g, ' ').trim();
+    }).filter(Boolean);
+    const lancamentos = [];
+    let inExtrato = false;
+    let currentDate = '';
+    let pendingDesc = '';
+    let totalCredito = 0;
+    let totalDebito = 0;
+    let saldoFinal = 0;
+    let saldoAnterior = null;
+    let done = false;
+
+    linhas.forEach(function(linha) {
+      if (done) return;
+      if (/^Data\s*Lan[cç]amento\s*Dcto\./i.test(linha)) {
+        inExtrato = true;
+        return;
+      }
+      if (!inExtrato) return;
+
+      const totais = parseTotaisBradescoLinha(linha);
+      if (totais) {
+        totalCredito = totais.totalCredito;
+        totalDebito = totais.totalDebito;
+        saldoFinal = totais.saldoFinal;
+        done = lancamentos.length > 0;
+        return;
+      }
+
+      if (/^SALDO ANTERIOR/i.test(linha)) {
+        pendingDesc = '';
+        return;
+      }
+      if (saldoAnterior === null && /^[\d.]+,\d{2}$/.test(linha)) {
+        saldoAnterior = parseValorBR(linha);
+        return;
+      }
+
+      const dataLinha = linha.match(/^(\d{2}\/\d{2}\/\d{4})(.*)$/);
+      if (dataLinha) {
+        currentDate = parseDataBR(dataLinha[1]);
+        linha = dataLinha[2].trim();
+        if (!linha) return;
+      }
+      if (!currentDate) return;
+
+      const mov = parseLinhaValoresBradesco(linha, saldoAnterior);
+      if (mov) {
+        const desc = pendingDesc || mov.prefixo || 'Lancamento Bradesco';
+        lancamentos.push({
+          id: uuid(),
+          data: currentDate,
+          descricao: desc,
+          documento: mov.documento,
+          valor: mov.valor,
+          tipo: mov.tipo,
+          empresa: '',
+          cnpj: '',
+          categoria: 'Nao categorizado',
+          contaDebito: '',
+          contaCredito: '',
+          historico: '',
+          incomum: false,
+          origem: 'pdf-bradesco-netempresa'
+        });
+        saldoAnterior = mov.saldo;
+        pendingDesc = '';
+        return;
+      }
+
+      if (!textoIgnoradoBradesco(linha) && !moneyToken(linha)) {
+        pendingDesc = pendingDesc ? (pendingDesc + ' - ' + linha) : linha;
+      }
+    });
+
+    return {
+      detectado: true,
+      lancamentos: lancamentos,
+      textoCompleto: texto,
+      fingerprint: 'bradesco-netempresa-extrato-mensal-v1',
+      banco_detectado: 'BRADESCO',
+      conta_detectada: '',
+      nome_conta_detectado: 'CONTA CORRENTE BRADESCO',
+      total_credito: totalCredito,
+      total_debito: totalDebito,
+      saldo_final: saldoFinal
+    };
+  }
+
   async function parsearPDF_Bradesco_NetEmpresa(arrayBuffer) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -57,6 +311,7 @@
 
     if (!ehBradesco) return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
 
+    const textual = parsearTextoBradescoNetEmpresa(textoCompleto);
     const lancamentos = [];
     let inExtrato = false;
     let currentDate = '';
@@ -108,7 +363,7 @@
         const valor = credito > 0 ? credito : -debito;
         if (valor !== 0) {
           lancamentos.push({
-            id: crypto.randomUUID(),
+            id: uuid(),
             data: currentDate,
             descricao: pendingDesc || 'Lancamento Bradesco',
             documento: String(docItem.s || '').trim(),
@@ -131,7 +386,7 @@
       if (!moneyToken(text)) setPendingDesc(text);
     });
 
-    return {
+    const coordenado = {
       detectado: true,
       lancamentos: lancamentos,
       textoCompleto: textoCompleto,
@@ -143,8 +398,30 @@
       total_debito: totalDebito,
       saldo_final: saldoFinal
     };
+    if (textual.detectado && textual.lancamentos.length >= coordenado.lancamentos.length) {
+      textual.conta_detectada = coordenado.conta_detectada;
+      return textual;
+    }
+    return coordenado;
   }
 
-  window.parsearPDF_Bradesco_NetEmpresa = parsearPDF_Bradesco_NetEmpresa;
-  console.log('[parser-bradesco-netempresa] carregado');
+  const api = {
+    parsearPDF_Bradesco_NetEmpresa: parsearPDF_Bradesco_NetEmpresa,
+    __test__: {
+      parseValorBR: parseValorBR,
+      parseDataBR: parseDataBR,
+      parseLinhaValoresBradesco: parseLinhaValoresBradesco,
+      parseTotaisBradescoLinha: parseTotaisBradescoLinha,
+      splitDocumentoValorBradesco: splitDocumentoValorBradesco,
+      parsearTextoBradescoNetEmpresa: parsearTextoBradescoNetEmpresa
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.parsearPDF_Bradesco_NetEmpresa = parsearPDF_Bradesco_NetEmpresa;
+    console.log('[parser-bradesco-netempresa] carregado');
+  }
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
 })();

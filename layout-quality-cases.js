@@ -114,6 +114,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Layout Safra textual com valores colados ao documento e linhas quebradas em operacoes Safrapay, Pix e CDB.'
   },
   {
+    id: 'bradesco-comunidade-2025-12',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco Net Empresa - Extrato Mensal por Periodo',
+    parser: 'parsearPDF_Bradesco_NetEmpresa',
+    arquivo: 'extrato 12 sep-part-1 1.pdf',
+    empresa: 'COMUNIDADE EVANGELICA SARA NOSSA TERRA EM JOAO PESSOA',
+    periodo_inicio: '2025-12-01',
+    periodo_fim: '2025-12-31',
+    esperado: {
+      total_lancamentos: 719,
+      total_credito: 106681.40,
+      total_debito: 109971.61
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-17T04:45:00-03:00',
+    observacao: 'Layout Bradesco Net Empresa textual com documento, valor e saldo colados. A regressao confere totais oficiais pelo saldo anterior versus saldo atual.'
+  },
+  {
     id: 'clude-itau-xlsx-2026-04',
     banco: 'CLU',
     nomeBanco: 'CLUDE - Club de Beneficios',
