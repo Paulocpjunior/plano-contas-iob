@@ -2289,11 +2289,12 @@
                     <div class="card-header">
                         <h2><span class="icon">🧾</span> Situação Fiscal / Impostos</h2>
                         <div class="action-buttons">
+                            <button class="btn-action btn-action-secondary" onclick="sincronizarFiscalSerpro()">🔎 Consultar SERPRO</button>
                             <button class="btn-action btn-action-secondary" onclick="carregarFiscal()">🔁 Atualizar</button>
                             <button class="btn-action btn-action-primary" onclick="limparFormularioFiscal()">➕ Novo imposto</button>
                         </div>
                     </div>
-                    <p style="color:var(--text-muted);margin-bottom:18px">Controle interno de impostos apurados, pagamentos e comprovantes. A estrutura já está preparada para integração futura via certificado do escritório no Firebase.</p>
+                    <p style="color:var(--text-muted);margin-bottom:18px">Controle interno de impostos apurados, pagamentos e comprovantes, com ponte segura para consulta SERPRO pelo app fiscal do escritório.</p>
 
                     <div class="import-totals-grid">
                         <div class="import-total-card credit">
@@ -6118,6 +6119,28 @@
             showToast(id ? 'Imposto atualizado.' : 'Imposto cadastrado.', 'success');
             limparFormularioFiscal();
             carregarFiscal();
+        }
+
+        async function sincronizarFiscalSerpro() {
+            const cnpj = fiscalCnpjAtual();
+            if (!cnpj) return showToast('Selecione uma empresa antes de consultar SERPRO.', 'warn');
+            if (!window.API || !window.API.fiscalSincronizarSerpro) return showToast('Integração SERPRO indisponível nesta versão.', 'error');
+            try {
+                showToast('Consultando app fiscal/SERPRO...', 'info');
+                const competencia = document.getElementById('fiscalCompetencia') ? document.getElementById('fiscalCompetencia').value : '';
+                const resp = await window.API.fiscalSincronizarSerpro(cnpj, { competencia });
+                if (resp.erro) return showToast(resp.erro, 'error');
+                const total = resp.resumo && (resp.resumo.importados || resp.resumo.atualizados || 0);
+                if (resp.modo === 'status_only') {
+                    showToast('Ponte fiscal conectada. Configure o token interno para importar DAS/DCTFWeb automaticamente.', 'warn');
+                } else {
+                    showToast('SERPRO sincronizado: ' + total + ' registro(s) atualizado(s).', 'success');
+                }
+                if (resp.avisos && resp.avisos.length) console.warn('[fiscal-serpro]', resp.avisos.join(' | '));
+                await carregarFiscal();
+            } catch (e) {
+                showToast('Erro ao consultar SERPRO: ' + (e.message || e), 'error');
+            }
         }
 
         function editarFiscalImposto(id) {

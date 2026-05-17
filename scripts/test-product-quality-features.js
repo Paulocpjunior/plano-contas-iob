@@ -23,6 +23,9 @@ assertContains('server.js', 'FISCAL_CERT_SENSITIVE_KEYS', 'mascara de campos sen
 assertContains('server.js', 'localizarCertificadoFiscal', 'busca ampliada do certificado fiscal no Firebase');
 assertContains('server.js', "app.get('/api/empresas/:cnpj/fiscal/impostos'", 'consulta de impostos fiscais por empresa');
 assertContains('server.js', "app.post('/api/empresas/:cnpj/fiscal/impostos'", 'cadastro de impostos fiscais por empresa');
+assertContains('server.js', "app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro'", 'sincronizacao fiscal com app SERPRO');
+assertContains('server.js', 'FISCAL_GATEWAY_URL', 'configuracao do gateway fiscal SERPRO');
+assertContains('server.js', 'normalizarItensSerpro', 'normalizacao de dados SERPRO para impostos');
 assertContains('server.js', 'normalizarFiscalBody', 'normalizacao segura de obrigacao fiscal');
 assertContains('server.js', 'mensal', 'resumo mensal de qualidade operacional na API');
 assertContains('server.js', 'mesEvento', 'agrupamento mensal de eventos de layout');
@@ -67,9 +70,12 @@ assertContains('index.html', 'Layout homologado pelo Admin', 'selo operacional d
 assertContains('index.html', 'Situação Fiscal / Impostos', 'nova aba de situacao fiscal');
 assertContains('index.html', 'carregarFiscalCertificado', 'status do certificado no modulo fiscal');
 assertContains('index.html', 'FISCAL_CERT_DOC_PATH', 'orientacao para vincular certificado fiscal');
+assertContains('index.html', 'Consultar SERPRO', 'botao para consultar dados SERPRO');
+assertContains('index.html', 'sincronizarFiscalSerpro', 'acao frontend de sincronizacao SERPRO');
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
 assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
 assertContains('api-adapter.js', 'fiscalListarImpostos', 'adapter fiscal para listar impostos');
 assertContains('api-adapter.js', 'fiscalCertificadoStatus', 'adapter fiscal para status do certificado');
+assertContains('api-adapter.js', 'fiscalSincronizarSerpro', 'adapter fiscal para sincronizacao SERPRO');
 
 console.log('OK - recursos de qualidade, memoria e importacao assistida presentes.');

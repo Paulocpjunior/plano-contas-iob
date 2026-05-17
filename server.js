@@ -1202,6 +1202,156 @@ function normalizarFiscalBody(body) {
   };
 }
 
+const FISCAL_GATEWAY_URL = (process.env.FISCAL_GATEWAY_URL || 'https://consultor-fiscal-inteligente-631239634290.us-central1.run.app').replace(/\/+$/, '');
+const FISCAL_GATEWAY_TOKEN = process.env.FISCAL_GATEWAY_TOKEN || process.env.CONSULTOR_FISCAL_GATEWAY_TOKEN || '';
+
+function fiscalGatewayHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (FISCAL_GATEWAY_TOKEN) {
+    headers.Authorization = `Bearer ${FISCAL_GATEWAY_TOKEN}`;
+    headers['X-Fiscal-Gateway-Token'] = FISCAL_GATEWAY_TOKEN;
+  }
+  return headers;
+}
+
+async function fiscalGatewayJson(pathGateway, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs || 20000);
+  try {
+    const resp = await fetch(FISCAL_GATEWAY_URL + pathGateway, {
+      method: options.method || 'GET',
+      headers: fiscalGatewayHeaders(),
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal
+    });
+    const text = await resp.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch (_) { data = { raw: text }; }
+    if (!resp.ok) {
+      const msg = data.erro || data.error || data.message || `Gateway fiscal retornou HTTP ${resp.status}`;
+      const err = new Error(msg);
+      err.status = resp.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function fiscalDocId(prefixo, partes) {
+  const texto = [prefixo, ...(partes || [])]
+    .filter(Boolean)
+    .join('_')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .replace(/_+/g, '_')
+    .slice(0, 140);
+  return texto || `${prefixo}_${Date.now()}`;
+}
+
+function fiscalCompetenciaDeItem(item) {
+  if (!item) return '';
+  if (item.competencia) {
+    const m = String(item.competencia).match(/(\d{4})[-/](\d{2})|(\d{2})[-/](\d{4})/);
+    if (m && m[1]) return `${m[1]}-${m[2]}`;
+    if (m && m[3]) return `${m[4]}-${m[3]}`;
+    return String(item.competencia).slice(0, 7);
+  }
+  if (item.anoPA && item.mesPA) return `${item.anoPA}-${String(item.mesPA).padStart(2, '0')}`;
+  if (item.periodoApuracao) return fiscalCompetenciaDeItem({ competencia: item.periodoApuracao });
+  return '';
+}
+
+function fiscalStatusSerpro(item) {
+  const status = String(item?.statusPagamento || item?.status || item?.situacao || '').toLowerCase();
+  if (/pago|quitad|baixad/.test(status)) return 'PAGO';
+  if (/vencid|atras/.test(status)) return 'VENCIDO';
+  if (/parcel/.test(status)) return 'PARCELADO';
+  if (/compens/.test(status)) return 'COMPENSADO';
+  if (/analise|process/.test(status)) return 'EM_ANALISE';
+  if (/pend|devedor|omiss|irregular/.test(status)) return 'PENDENTE_RECEITA';
+  return 'EM_ABERTO';
+}
+
+function primeiroValorFiscal(item, campos) {
+  for (const campo of campos) {
+    if (item && item[campo] != null && item[campo] !== '') return parseValorFiscal(item[campo]);
+  }
+  return 0;
+}
+
+function normalizarItensSerpro(fonte, itens) {
+  const lista = Array.isArray(itens) ? itens : [];
+  if (fonte === 'DAS') {
+    return lista.map(item => {
+      const valor = primeiroValorFiscal(item, ['valor', 'valorTotal', 'valor_total', 'valorPrincipal', 'total']);
+      const status = fiscalStatusSerpro(item);
+      return {
+        id: fiscalDocId('SERPRO_DAS', [item.id, item.empresaCnpj, item.competencia, item.tipo, item.numeroDas || item.numeroDocumento]),
+        competencia: fiscalCompetenciaDeItem(item),
+        tributo: 'DAS',
+        codigo_receita: item.codigoReceita || item.codigo_receita || '',
+        valor_apurado: valor,
+        valor_pago: status === 'PAGO' ? primeiroValorFiscal(item, ['valorPago', 'valor_pago', 'valor', 'valorTotal']) : primeiroValorFiscal(item, ['valorPago', 'valor_pago']),
+        vencimento: String(item.vencimento || item.dataVencimento || '').slice(0, 10),
+        data_pagamento: String(item.dataPagamento || item.pagamentoEm || '').slice(0, 10),
+        numero_documento: String(item.numeroDas || item.numeroDocumento || item.id || '').trim(),
+        origem: 'SERPRO',
+        status,
+        pendencia_ecac: '',
+        anexo_url: item.url || item.link || '',
+        observacoes: `DAS importado do app fiscal/SERPRO. Tipo: ${item.tipo || 'regular'}.`
+      };
+    }).filter(item => item.competencia || item.numero_documento);
+  }
+
+  if (fonte === 'DCTFWEB') {
+    return lista.map(item => {
+      const valor = primeiroValorFiscal(item, ['valor', 'valorTotal', 'saldoAPagar', 'valorPrincipal', 'totalDebito']);
+      return {
+        id: fiscalDocId('SERPRO_DCTFWEB', [item.id, item.empresaCnpj, item.anoPA, item.mesPA, item.categoria, item.numeroRecibo]),
+        competencia: fiscalCompetenciaDeItem(item),
+        tributo: 'DCTFWEB',
+        codigo_receita: item.codigoReceita || item.codigo_receita || '',
+        valor_apurado: valor,
+        valor_pago: primeiroValorFiscal(item, ['valorPago', 'valor_pago']),
+        vencimento: String(item.vencimento || item.dataVencimento || '').slice(0, 10),
+        data_pagamento: String(item.dataPagamento || '').slice(0, 10),
+        numero_documento: String(item.numeroRecibo || item.recibo || item.id || '').trim(),
+        origem: 'SERPRO',
+        status: fiscalStatusSerpro(item),
+        pendencia_ecac: String(item.situacao || '').trim(),
+        anexo_url: item.url || item.link || '',
+        observacoes: `DCTFWeb sincronizada via app fiscal/SERPRO. Categoria: ${item.categoria || 'GERAL_MENSAL'}.`
+      };
+    }).filter(item => item.competencia || item.numero_documento);
+  }
+
+  if (fonte === 'CAIXA_POSTAL') {
+    return lista.map(item => ({
+      id: fiscalDocId('SERPRO_CAIXA', [item.id, item.empresaCnpj, item.dataEnvio, item.assunto || item.titulo]),
+      competencia: fiscalCompetenciaDeItem({ competencia: String(item.dataEnvio || item.data || '').slice(0, 7) }),
+      tributo: 'OUTROS',
+      codigo_receita: '',
+      valor_apurado: 0,
+      valor_pago: 0,
+      vencimento: '',
+      data_pagamento: '',
+      numero_documento: String(item.id || '').trim(),
+      origem: 'SERPRO',
+      status: 'PENDENTE_RECEITA',
+      pendencia_ecac: String(item.assunto || item.titulo || 'Mensagem e-CAC').trim(),
+      anexo_url: '',
+      observacoes: String(item.resumo || item.conteudo || 'Mensagem pendente na Caixa Postal e-CAC.').slice(0, 1200)
+    })).filter(item => item.pendencia_ecac || item.numero_documento);
+  }
+
+  return [];
+}
+
 const FISCAL_CERT_SENSITIVE_KEYS = new Set([
   'senha', 'password', 'passphrase', 'certificado', 'certificate', 'pfx', 'p12',
   'privatekey', 'private_key', 'chaveprivada', 'conteudo', 'content', 'base64',
@@ -1402,6 +1552,90 @@ app.delete('/api/empresas/:cnpj/fiscal/impostos/:id', async (req, res) => {
   } catch (err) {
     console.error('fiscal impostos DELETE erro:', err);
     res.status(500).json({ erro: err.message });
+  }
+});
+
+app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+
+    const statusGateway = await fiscalGatewayJson('/api/internal/plano-contas/status', { timeoutMs: 12000 });
+    const avisos = [];
+    if (!FISCAL_GATEWAY_TOKEN) {
+      avisos.push('FISCAL_GATEWAY_TOKEN ainda nao esta configurado neste app. Status SERPRO consultado, sem importacao protegida.');
+      return res.json({
+        ok: true,
+        cnpj: cnpjLimpo,
+        modo: 'status_only',
+        gateway: statusGateway,
+        resumo: { importados: 0, atualizados: 0 },
+        avisos
+      });
+    }
+
+    const payload = await fiscalGatewayJson('/api/internal/plano-contas/fiscal/sync', {
+      method: 'POST',
+      timeoutMs: 30000,
+      body: {
+        cnpj: cnpjLimpo,
+        competencia: String(req.body?.competencia || '').trim()
+      }
+    });
+
+    const itens = [
+      ...normalizarItensSerpro('DAS', payload.das),
+      ...normalizarItensSerpro('DCTFWEB', payload.dctfweb),
+      ...normalizarItensSerpro('CAIXA_POSTAL', payload.caixaPostal)
+    ];
+
+    const impostosRef = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos');
+    const agora = new Date();
+    let gravados = 0;
+    for (const item of itens) {
+      const ref = impostosRef.doc(item.id);
+      await ref.set({
+        ...item,
+        sincronizado_em: agora,
+        atualizado_em: agora,
+        atualizado_por_uid: req.user.uid,
+        atualizado_por_email: req.user.email,
+        criado_por_origem: 'SERPRO_BRIDGE'
+      }, { merge: true });
+      gravados++;
+    }
+
+    await db.collection('empresas').doc(cnpjLimpo).collection('fiscal_sync_logs').add({
+      origem: 'SERPRO',
+      gateway_url: FISCAL_GATEWAY_URL,
+      gateway_modes: payload.modes || statusGateway,
+      total_das: Array.isArray(payload.das) ? payload.das.length : 0,
+      total_dctfweb: Array.isArray(payload.dctfweb) ? payload.dctfweb.length : 0,
+      total_caixa_postal: Array.isArray(payload.caixaPostal) ? payload.caixaPostal.length : 0,
+      total_gravado: gravados,
+      erros: payload.erros || [],
+      criado_em: agora,
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email
+    });
+
+    res.json({
+      ok: true,
+      cnpj: cnpjLimpo,
+      modo: 'sincronizado',
+      gateway: statusGateway,
+      resumo: { importados: gravados, atualizados: gravados },
+      erros: payload.erros || [],
+      avisos
+    });
+  } catch (err) {
+    console.error('sincronizar-serpro erro:', err);
+    res.status(err.status || 500).json({
+      erro: err.message,
+      detalhe: err.data && (err.data.erro || err.data.error) ? (err.data.erro || err.data.error) : undefined
+    });
   }
 });
 

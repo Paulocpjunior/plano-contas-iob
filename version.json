@@ -1,7 +1,10 @@
 {
   "version": "3.2.18",
-  "build_date": "2026-05-17T13:02:00-03:00",
+  "build_date": "2026-05-17T13:38:00-03:00",
   "release_notes": [
+    "Aba Situacao Fiscal ganhou botao Consultar SERPRO conectado ao app fiscal do escritorio",
+    "Novo endpoint sincroniza DAS, DCTFWeb e pendencias e-CAC em fiscal_impostos quando o token interno estiver configurado",
+    "Ponte fiscal valida status dos modulos SERPRO sem expor certificados ou segredos no navegador",
     "Modulo fiscal agora pode ler o certificado A1 do escritorio em outro projeto Firebase",
     "Cloud Run pode usar FISCAL_CERT_PROJECT_ID e FISCAL_CERT_DOC_PATH para apontar o certificado oficial",
     "Validade do certificado passa a ler estruturas com inicio/fim sem expor dados sensiveis",
