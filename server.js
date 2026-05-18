@@ -1203,7 +1203,7 @@ function normalizarFiscalBody(body) {
 }
 
 const FISCAL_GATEWAY_URL = (process.env.FISCAL_GATEWAY_URL || 'https://consultor-fiscal-inteligente-631239634290.us-central1.run.app').replace(/\/+$/, '');
-const FISCAL_GATEWAY_TOKEN = process.env.FISCAL_GATEWAY_TOKEN || process.env.CONSULTOR_FISCAL_GATEWAY_TOKEN || '';
+const FISCAL_GATEWAY_TOKEN = String(process.env.FISCAL_GATEWAY_TOKEN || process.env.CONSULTOR_FISCAL_GATEWAY_TOKEN || '').trim();
 
 function fiscalGatewayHeaders() {
   const headers = { 'Content-Type': 'application/json' };
