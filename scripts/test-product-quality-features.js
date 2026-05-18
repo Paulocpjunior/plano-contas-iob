@@ -79,6 +79,7 @@ assertContains('index.html', 'Ponte SERPRO ativa', 'aviso correto quando a integ
 assertContains('index.html', 'LIMITE_ENTRIES_LOCAL_STORAGE', 'limite de snapshot local para evitar recarregamento por memoria');
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
 assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
+assertContains('index.html', 'parser-santander-empresas-ocr.js?v=3.2.25', 'cache-buster atual do parser Santander');
 assertContains('auditai/index.html', 'conciliacao-arquivos.js?v=3.2.24', 'cache-buster atual da conciliacao AuditAI');
 assertContains('auditai/conciliacao.html', 'conciliacao-arquivos.js?v=3.2.24', 'cache-buster atual da pagina dedicada de conciliacao');
 assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_versao_vista', 'chave propria de aviso de versao no AuditAI');

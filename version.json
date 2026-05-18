@@ -1,7 +1,10 @@
 {
-  "version": "3.2.24",
-  "build_date": "2026-05-18T11:45:00-03:00",
+  "version": "3.2.25",
+  "build_date": "2026-05-18T15:55:00-03:00",
   "release_notes": [
+    "Santander Internet Banking Empresarial em PDF imagem/OCR passa a ser reconhecido para banco 033 e alias 352",
+    "Parser Santander passa a aceitar datas numericas OCR, periodo por lancamentos e sinal negativo quando o OCR troca hifen por igual",
+    "Cache-buster do parser Santander foi atualizado para evitar navegador carregando layout antigo",
     "AuditAI Conciliação de Arquivos passa a carregar o motor v3.2.24 com cache-buster atualizado",
     "Novo layout CLUDE - Servicos Tomados Fiscal importa relatorio E-Fiscal em PDF como lancamentos fiscais",
     "Importacao PDF passa a tentar apenas layouts PDF, evitando erros de parser XLSX em arquivos fiscais",
