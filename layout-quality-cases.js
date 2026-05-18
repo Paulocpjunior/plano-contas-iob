@@ -264,6 +264,25 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-05-17T06:10:00-03:00',
     observacao: 'Regressao do demonstrativo Itaucard CLUDE para evitar perda de historico quando a fatura vem em formato analitico.'
+  },
+  {
+    id: 'clude-servicos-tomados-2026-04',
+    banco: 'CLU',
+    nomeBanco: 'CLUDE - Club de Beneficios',
+    layout: 'CLUDE - Servicos Tomados Fiscal',
+    parser: 'parsearPDF_Clude_ServicosTomados',
+    arquivo: '733 servicos tomados clude.pdf',
+    empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 147,
+      total_credito: 0,
+      total_debito: 597231.75
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-18T11:05:00-03:00',
+    observacao: 'Relatorio E-Fiscal de NFs de Servicos Tomados. Importa somente notas com valor e preenche historico padrao de servicos automaticamente.'
   }
 ];
 

@@ -23,6 +23,7 @@
     <script src="/parser-itau-extrato-mensal.js?v=3.1.91"></script>
     <script src="/parser-santander-empresas-ocr.js?v=3.1.91"></script>
     <script src="/parser-btg-pactual.js?v=3.1.91"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.22"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -4570,11 +4571,20 @@
             }
         }
 
+        async function obterArrayBufferArquivo(file) {
+            if (file instanceof ArrayBuffer) return file.slice(0);
+            if (ArrayBuffer.isView(file)) {
+                return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
+            }
+            if (file && typeof file.arrayBuffer === 'function') return await file.arrayBuffer();
+            throw new Error('Arquivo invalido para leitura XLSX.');
+        }
+
         async function parsearArquivoXLSX(file, opts) {
             if (typeof XLSX === 'undefined') throw new Error('SheetJS nao carregada. Recarregue a pagina.');
             let wb;
             try {
-                const buf = await file.arrayBuffer();
+                const buf = await obterArrayBufferArquivo(file);
                 const bytes = new Uint8Array(buf);
                 const assinaturaOle = bytes.length >= 8
                     && bytes[0] === 0xD0 && bytes[1] === 0xCF && bytes[2] === 0x11 && bytes[3] === 0xE0;
@@ -5038,6 +5048,137 @@
                 return null;
             };
 
+            const parsearLayoutCludeServicosTomados = () => {
+                const todosServicos = [];
+                const abasServicos = [];
+                const limparFornecedorFiscal = function(valor) {
+                    return String(valor || '')
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                };
+
+                const montarLancamentoServico = function(data, fornecedor, cnpj, documento, valor, sheetName) {
+                    const fornecedorLimpo = limparFornecedorFiscal(fornecedor);
+                    const docLimpo = String(documento || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+                    const cnpjLimpo = String(cnpj || '').trim();
+                    const descricao = ['Servicos tomados', fornecedorLimpo, docLimpo ? ('NF ' + docLimpo) : '', cnpjLimpo ? ('CNPJ ' + cnpjLimpo) : '']
+                        .filter(Boolean)
+                        .join(' - ')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                    return {
+                        data,
+                        descricao,
+                        descricao_memoria: fornecedorLimpo,
+                        memoriaDescricoes: [
+                            fornecedorLimpo,
+                            'Servicos tomados - ' + fornecedorLimpo,
+                            'Servicos tomados',
+                            cnpjLimpo,
+                            docLimpo ? ('NF ' + docLimpo) : ''
+                        ].filter(Boolean),
+                        valor: -Math.abs(valor),
+                        documento: docLimpo,
+                        cnpj_fornecedor: cnpjLimpo,
+                        codigoHistorico: '1207',
+                        historico: 'PAGTO SERVICOS TOMADOS',
+                        aba_origem: sheetName,
+                        layoutNome: 'CLUDE - Servicos Tomados Fiscal',
+                        layoutParser: 'parsearArquivoXLSXCludeServicosTomados',
+                        conta: 'Fiscal CLUDE - Servicos Tomados',
+                        nome_conta: 'Fiscal CLUDE - Servicos Tomados'
+                    };
+                };
+
+                for (const sheetName of wb.SheetNames) {
+                    const sheet = wb.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+                    if (!rows.length) {
+                        abasServicos.push({ aba: sheetName, detectados: 0, motivo: 'vazia' });
+                        continue;
+                    }
+
+                    const textoAba = rows.map(r => (r || []).join(' ')).join(' ');
+                    const textoNorm = normH(textoAba);
+                    const pareceServicosTomados = /relacao de nfs de servicos tomados|servicos tomados|valor da nf|base de calculo/.test(textoNorm)
+                        && /clude|32\.?922\.?514/.test(textoNorm);
+                    if (!pareceServicosTomados) {
+                        abasServicos.push({ aba: sheetName, detectados: 0, motivo: 'nao e layout CLUDE/Servicos Tomados' });
+                        continue;
+                    }
+
+                    let hIdx = -1;
+                    for (let i = 0; i < Math.min(rows.length, 40); i++) {
+                        const h = (rows[i] || []).map(normH);
+                        const temCabecalho = h.some(c => /cnpj\/?cpf|cnpj|cpf/.test(c))
+                            && h.some(c => /razao social|fornecedor|prestador/.test(c))
+                            && h.some(c => /valor da nf|valor nf|valor/.test(c))
+                            && h.some(c => /emissao|data/.test(c));
+                        if (temCabecalho) { hIdx = i; break; }
+                    }
+
+                    if (hIdx >= 0) {
+                        const headers = rows[hIdx].map(normH);
+                        const colPorRegex = function(regexes) {
+                            for (let i = 0; i < headers.length; i++) {
+                                if (regexes.some(re => re.test(headers[i]))) return i;
+                            }
+                            return -1;
+                        };
+                        const cCnpj = colPorRegex([/cnpj\/?cpf/, /^cnpj$/, /^cpf$/]);
+                        const cFornecedor = colPorRegex([/razao social/, /fornecedor/, /prestador/]);
+                        const cValor = colPorRegex([/valor da nf/, /valor nf/, /^valor$/]);
+                        const cData = colPorRegex([/emissao/, /^data$/]);
+                        const cNumero = colPorRegex([/^numero$/, /numero nf/, /^nf$/, /documento/]);
+                        let count = 0;
+
+                        for (let i = hIdx + 1; i < rows.length; i++) {
+                            const r = rows[i] || [];
+                            const data = parseData(r[cData]);
+                            const valor = parseValor(r[cValor]);
+                            const fornecedor = String(r[cFornecedor] || '').replace(/\s+/g, ' ').trim();
+                            const cnpj = String(r[cCnpj] || '').replace(/\s+/g, ' ').trim();
+                            const documento = cNumero >= 0 ? String(r[cNumero] || '').trim() : '';
+                            if (!data || valor === null || Math.abs(valor) === 0 || !fornecedor) continue;
+                            todosServicos.push(montarLancamentoServico(data, fornecedor, cnpj, documento, valor, sheetName));
+                            count++;
+                        }
+                        abasServicos.push({ aba: sheetName, detectados: count, layout: 'CLUDE - Servicos Tomados Fiscal' });
+                    } else if (typeof window !== 'undefined' && typeof window.parsearTexto_CludeServicosTomados === 'function') {
+                        const resultadoTexto = window.parsearTexto_CludeServicosTomados(rows.map(r => (r || []).join(' ')).join('\n'));
+                        const lancs = (resultadoTexto && resultadoTexto.lancamentos) || [];
+                        lancs.forEach(l => {
+                            todosServicos.push({
+                                ...l,
+                                aba_origem: sheetName,
+                                layoutParser: 'parsearArquivoXLSXCludeServicosTomados'
+                            });
+                        });
+                        abasServicos.push({ aba: sheetName, detectados: lancs.length, layout: 'CLUDE - Servicos Tomados Fiscal' });
+                    }
+                }
+
+                const seenServicos = new Set();
+                const dedupServicos = todosServicos.filter(t => {
+                    const k = t.data + '|' + t.cnpj_fornecedor + '|' + t.documento + '|' + t.valor + '|' + t.descricao_memoria;
+                    if (seenServicos.has(k)) return false;
+                    seenServicos.add(k);
+                    return true;
+                });
+
+                if (dedupServicos.length) {
+                    const datas = dedupServicos.map(t => t.data).sort();
+                    dedupServicos.forEach(t => {
+                        t.periodo_inicio = datas[0] || '';
+                        t.periodo_fim = datas[datas.length - 1] || '';
+                    });
+                    window.__ultimaImportacaoAbas = abasServicos;
+                    return dedupServicos;
+                }
+                return null;
+            };
+
             const parsearLayoutClude = () => {
                 const todosClude = [];
                 const abasClude = [];
@@ -5416,6 +5557,12 @@
             if (razaoNotas) {
                 console.log('[parsearArquivoXLSX] layout Razao de Saldos detectado:', razaoNotas.totalNotas);
                 return razaoNotas;
+            }
+
+            const cludeServicos = parsearLayoutCludeServicosTomados();
+            if (cludeServicos) {
+                console.log('[parsearArquivoXLSX] layout CLUDE Servicos Tomados detectado:', cludeServicos.length);
+                return cludeServicos;
             }
 
             const clude = parsearLayoutClude();
@@ -8032,11 +8179,16 @@
 	            return lancsEnriquecidos;
 	        }
 
-		        async function processPDFComLayoutDoBanco(buf, bancoCode, arquivoNome, parserSelecionado) {
-		            let layouts = await layoutsPDFCadastradosPorBancoAsync(bancoCode);
-		            if (!layouts.length) {
-		                throw new Error('Nao existe layout PDF cadastrado para o banco selecionado (' + (bancoCode || '-') + ' — ' + nomeBanco(bancoCode) + '). Cadastre o layout antes de importar.');
-		            }
+			        async function processPDFComLayoutDoBanco(buf, bancoCode, arquivoNome, parserSelecionado) {
+			            let layouts = await layoutsPDFCadastradosPorBancoAsync(bancoCode);
+			            layouts = layouts.filter(function(l) {
+			                const formato = String((l && l.formato) || '').toUpperCase();
+			                const parser = String((l && l.parser) || '');
+			                return formato.indexOf('PDF') >= 0 || /^parsearPDF_/i.test(parser);
+			            });
+			            if (!layouts.length) {
+			                throw new Error('Nao existe layout PDF cadastrado para o banco selecionado (' + (bancoCode || '-') + ' — ' + nomeBanco(bancoCode) + '). Cadastre o layout antes de importar.');
+			            }
                     const layoutsDisponiveis = layouts.map(function(l) { return l.nome; }).join(', ');
                     if (parserSelecionado) {
                         const escolhido = layouts.find(function(l) { return l.parser === parserSelecionado; });
@@ -8833,7 +8985,7 @@
                 { re: /\b(FOLHA|SALARIO|SALARIOS|ORDENADO|ORDENADOS|PAGAMENTO FUNCIONARIO)\b/, cod: '1101' },
                 { re: /\b(ISS|IMPOSTO SOBRE SERVICO|IMPOSTO SOBRE SERVICOS)\b/, cod: '1022' },
                 { re: /\b(LICENCA|LICENCA DE USO|SOFTWARE|CLICKSIGN|RD GESTAO|SISTEMAS)\b/, cod: '1305' },
-                { re: /\b(CONSULTORIA|SERVICOS PRESTADOS|SERVICO PRESTADO|PRESTACAO DE SERVICO|ETHOS GRC)\b/, cod: '1207' },
+	                { re: /\b(CONSULTORIA|SERVICOS TOMADOS|SERVICO TOMADO|NFS TOMADA|NFS TOMADAS|SERVICOS PRESTADOS|SERVICO PRESTADO|PRESTACAO DE SERVICO|ETHOS GRC)\b/, cod: '1207' },
                 { re: /\b(MATERIAL DE LIMPEZA|LIMPEZA|COPA|COZINHA|SUPRICORP|GIMBA)\b/, cod: '1238' },
                 { re: /\b(TELEFONIA|TELEFONE|SMS|VIVO MOVEL|ROCK TELECOM)\b/, cod: '1221' },
                 { re: /\b(ALUGUEL|LOCACAO|VAGAS DE GARAGEM)\b/, cod: '1200' },

@@ -1,7 +1,10 @@
 {
-  "version": "3.2.21",
-  "build_date": "2026-05-18T10:02:00-03:00",
+  "version": "3.2.22",
+  "build_date": "2026-05-18T11:10:00-03:00",
   "release_notes": [
+    "Novo layout CLUDE - Servicos Tomados Fiscal importa relatorio E-Fiscal em PDF como lancamentos fiscais",
+    "Importacao PDF passa a tentar apenas layouts PDF, evitando erros de parser XLSX em arquivos fiscais",
+    "XLSX convertido de servicos tomados da CLUDE passa a preencher historico padrao automaticamente",
     "AuditAI passa a usar aviso de atualizacao proprio, separado da tela principal",
     "Conciliacao de Arquivos exibe a versao do motor e limpa resultado antigo ao trocar arquivo",
     "AuditAI passa a carregar a conciliacao de arquivos com cache-buster atualizado",

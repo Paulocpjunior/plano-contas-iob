@@ -253,6 +253,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     etapa: 'regressao_aprovada',
     status: 'Regressao aprovada',
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js com totais esperados.'
+  },
+  {
+    id: 'clude-servicos-tomados-2026-04',
+    banco: 'CLU',
+    nomeBanco: 'CLUDE - Club de Beneficios',
+    layout: 'CLUDE - Servicos Tomados Fiscal',
+    parser: 'parsearPDF_Clude_ServicosTomados',
+    arquivo: '733 servicos tomados clude.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/733 serviços tomados clude.pdf',
+    empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js para PDF fiscal de NFs de Servicos Tomados.'
   }
 ];
 

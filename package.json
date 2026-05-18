@@ -1,12 +1,12 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.2.21",
+  "version": "3.2.22",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "seed": "node seed.js",
-    "check": "node --check server.js && for f in parser-*.js api-adapter.js historicos-padrao.js historicos-routes.js vincular-empresa.js vincular-folha-pagamento.js layouts-bancarios-padrao.js layout-quality-cases.js layout-quality-evidence.js auditai/conciliacao-arquivos.js scripts/check-duplicate-routes.js scripts/test-layouts.js scripts/test-bb-conta-atual.js scripts/test-bb-cash-ocr.js scripts/test-itau-extrato-mensal.js scripts/test-safra-extrato.js scripts/test-clude-itau-historicos.js scripts/test-clude-layout-quality.js scripts/test-santander-layouts.js scripts/test-bradesco-netempresa.js scripts/test-product-quality-features.js; do node --check \"$f\" || exit 1; done && node scripts/check-duplicate-routes.js && npm run test:layouts && npm run test:bb && npm run test:bb-cash && npm run test:itau && npm run test:safra && npm run test:clude-itau && npm run test:clude-layouts && npm run test:santander && npm run test:bradesco && npm run test:product-quality",
+    "check": "node --check server.js && for f in parser-*.js api-adapter.js historicos-padrao.js historicos-routes.js vincular-empresa.js vincular-folha-pagamento.js layouts-bancarios-padrao.js layout-quality-cases.js layout-quality-evidence.js auditai/conciliacao-arquivos.js scripts/check-duplicate-routes.js scripts/test-layouts.js scripts/test-bb-conta-atual.js scripts/test-bb-cash-ocr.js scripts/test-itau-extrato-mensal.js scripts/test-safra-extrato.js scripts/test-clude-itau-historicos.js scripts/test-clude-layout-quality.js scripts/test-clude-servicos-tomados.js scripts/test-santander-layouts.js scripts/test-bradesco-netempresa.js scripts/test-product-quality-features.js; do node --check \"$f\" || exit 1; done && node scripts/check-duplicate-routes.js && npm run test:layouts && npm run test:bb && npm run test:bb-cash && npm run test:itau && npm run test:safra && npm run test:clude-itau && npm run test:clude-layouts && npm run test:clude-servicos && npm run test:santander && npm run test:bradesco && npm run test:product-quality",
     "test:layouts": "node scripts/test-layouts.js",
     "test:bb": "node scripts/test-bb-conta-atual.js",
     "test:bb-cash": "node scripts/test-bb-cash-ocr.js",
@@ -14,6 +14,7 @@
     "test:safra": "node scripts/test-safra-extrato.js",
     "test:clude-itau": "node scripts/test-clude-itau-historicos.js",
     "test:clude-layouts": "node scripts/test-clude-layout-quality.js",
+    "test:clude-servicos": "node scripts/test-clude-servicos-tomados.js",
     "test:santander": "node scripts/test-santander-layouts.js",
     "test:bradesco": "node scripts/test-bradesco-netempresa.js",
     "test:product-quality": "node scripts/test-product-quality-features.js"
