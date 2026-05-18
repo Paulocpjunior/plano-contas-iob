@@ -4286,10 +4286,41 @@
         }
 
         // State Management
+        const LIMITE_LOCAL_STORAGE_SESSAO = 1800000;
+        const LIMITE_ENTRIES_LOCAL_STORAGE = 350;
+
         function loadState() {
             const s = localStorage.getItem('consultorContabil_v2');
             if (s) {
-                const d = JSON.parse(s);
+                let d = null;
+                try {
+                    d = JSON.parse(s);
+                } catch (e) {
+                    console.warn('[loadState] snapshot local invalido; removendo:', e);
+                    localStorage.removeItem('consultorContabil_v2');
+                    d = null;
+                }
+                if (!d) {
+                    if (!Array.isArray(state.mappings)) state.mappings = [];
+                    return;
+                }
+                if (s.length > LIMITE_LOCAL_STORAGE_SESSAO && Array.isArray(d.entries) && d.entries.length) {
+                    console.warn('[loadState] snapshot local grande; mantendo apenas metadados e usando servidor para lançamentos.');
+                    d.entries = [];
+                    d.semLancamentosLocal = true;
+                    try {
+                        localStorage.setItem('consultorContabil_v2', JSON.stringify({
+                            entries: [],
+                            mappings: Array.isArray(d.mappings) ? d.mappings : [],
+                            info: d.info || null,
+                            infoConfirmed: !!d.infoConfirmed,
+                            lastFile: d.lastFile || null,
+                            compactado: true,
+                            semLancamentosLocal: true,
+                            atualizadoEm: new Date().toISOString()
+                        }));
+                    } catch(e) {}
+                }
                 state.entries = d.entries || [];
                 state.mappings = Array.isArray(d.mappings) ? d.mappings : (Array.isArray(state.mappings) ? state.mappings : []);
                 state.info = d.info || null;
@@ -4335,8 +4366,13 @@
         function saveState() {
             const tsAgora = String(Date.now());
             try {
-                localStorage.setItem('consultorContabil_v2', JSON.stringify(criarSnapshotState()));
+                const entries = state.entries || [];
+                const salvarLeve = entries.length > LIMITE_ENTRIES_LOCAL_STORAGE;
+                localStorage.setItem('consultorContabil_v2', JSON.stringify(criarSnapshotState({ semLancamentos: salvarLeve })));
                 localStorage.setItem('consultorContabil_v2_ts', tsAgora);
+                if (salvarLeve && typeof atualizarIndicadorSalvamento === 'function') {
+                    atualizarIndicadorSalvamento('💾 Sessão no servidor', 'ok');
+                }
             } catch (e) {
                 console.warn('[saveState] localStorage cheio; salvando snapshot sem lancamentos:', e);
                 try {
@@ -6001,6 +6037,15 @@
             return m ? `${m[2]}/${m[1]}` : (comp || '-');
         }
 
+        function fiscalGatewayResumo(serpro) {
+            if (!serpro || !serpro.ok) return '';
+            const partes = [];
+            if (serpro.das && serpro.das.ok) partes.push('DAS: ' + fiscalEscape(serpro.das.mode || 'ativo'));
+            if (serpro.dctfweb && serpro.dctfweb.ok) partes.push('DCTFWeb: ' + fiscalEscape(serpro.dctfweb.mode || 'ativo'));
+            if (serpro.caixaPostal && serpro.caixaPostal.ok) partes.push('Caixa Postal: ' + fiscalEscape(serpro.caixaPostal.mode || 'ativo'));
+            return partes.join(' • ');
+        }
+
         async function carregarFiscal() {
             const cnpj = fiscalCnpjAtual();
             const empresaInfo = document.getElementById('fiscalEmpresaInfo');
@@ -6026,9 +6071,17 @@
         async function carregarFiscalCertificado() {
             const box = document.getElementById('fiscalCertificadoBox');
             if (!box || !window.API || !window.API.fiscalCertificadoStatus) return;
-            const cert = await window.API.fiscalCertificadoStatus();
+            const [cert, serpro] = await Promise.all([
+                window.API.fiscalCertificadoStatus(),
+                window.API.fiscalSerproStatus ? window.API.fiscalSerproStatus().catch(() => null) : Promise.resolve(null)
+            ]);
             if (cert.erro) throw new Error(cert.erro);
             if (!cert.cadastrado) {
+                if (serpro && serpro.ok && serpro.bridge && serpro.token_configurado) {
+                    box.innerHTML = '<strong>🔎 Ponte SERPRO ativa:</strong> consulta protegida pelo app fiscal do escritório.' +
+                        '<br><span style="font-size:12px;color:#64748b">' + fiscalGatewayResumo(serpro) + '. Certificado e segredos permanecem fora deste navegador.</span>';
+                    return;
+                }
                 box.innerHTML = '<strong>🔐 Certificado do escritório:</strong> ainda não vinculado ao módulo fiscal. O controle manual/importação permanece ativo; para integração automática, configure o caminho Firebase do certificado no ambiente <code>FISCAL_CERT_DOC_PATH</code>.';
                 return;
             }

@@ -1471,6 +1471,21 @@ app.get('/api/fiscal/certificado-status', async (req, res) => {
   }
 });
 
+app.get('/api/fiscal/serpro-status', async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    const statusGateway = await fiscalGatewayJson('/api/internal/plano-contas/status', { timeoutMs: 12000 });
+    res.json({
+      ok: true,
+      gateway_url: FISCAL_GATEWAY_URL,
+      token_configurado: !!FISCAL_GATEWAY_TOKEN,
+      ...statusGateway
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ ok: false, erro: err.message });
+  }
+});
+
 app.get('/api/empresas/:cnpj/fiscal/impostos', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
