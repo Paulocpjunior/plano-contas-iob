@@ -2242,8 +2242,22 @@ app.get('/admin', (req, res) => {
 });
 
 // AuditAI — app React buildado
-app.use('/auditai', express.static(path.join(__dirname, 'auditai'), { index: 'index.html' }));
+// HTML e scripts soltos precisam sempre chegar frescos; a conciliacao usa
+// cache-buster de versao, mas Safari/Cloud Run podem manter copia antiga.
+app.use('/auditai', express.static(path.join(__dirname, 'auditai'), {
+  index: 'index.html',
+  setHeaders: (res, filePath) => {
+    if (/\.(html|js)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 app.get('/auditai*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'auditai', 'index.html'));
 });
 

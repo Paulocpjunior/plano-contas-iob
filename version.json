@@ -1,7 +1,9 @@
 {
-  "version": "3.2.19",
-  "build_date": "2026-05-18T07:08:00-03:00",
+  "version": "3.2.20",
+  "build_date": "2026-05-18T09:44:26-03:00",
   "release_notes": [
+    "AuditAI passa a carregar a conciliacao de arquivos com cache-buster atualizado",
+    "HTML e scripts do AuditAI agora saem com no-cache para evitar tela antiga apos deploy",
     "Aba Situacao Fiscal passa a exibir Ponte SERPRO ativa quando usa o app fiscal externo",
     "Snapshot local foi reduzido para evitar recarregamento do Safari por uso excessivo de memoria",
     "Novo status da ponte SERPRO mostra DAS, DCTFWeb e Caixa Postal sem expor segredos",

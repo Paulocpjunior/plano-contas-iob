@@ -18,6 +18,8 @@ assertContains('server.js', "app.patch('/api/layouts-bancarios/:id/homologacao'"
 assertContains('server.js', "app.get('/api/layout-quality/ops'", 'metricas operacionais de qualidade');
 assertContains('server.js', "app.get('/api/fiscal/certificado-status'", 'status do certificado fiscal sem expor segredo');
 assertContains('server.js', "app.get('/api/fiscal/serpro-status'", 'status da ponte SERPRO sem expor segredo');
+assertContains('server.js', "app.use('/auditai', express.static", 'static do AuditAI configurado');
+assertContains('server.js', "no-store, no-cache, must-revalidate", 'cache desabilitado para AuditAI');
 assertContains('server.js', 'FISCAL_CERT_DOC_PATH', 'configuracao do caminho Firebase do certificado fiscal');
 assertContains('server.js', 'FISCAL_CERT_PROJECT_ID', 'configuracao do projeto Firebase do certificado fiscal');
 assertContains('server.js', 'FISCAL_CERT_SENSITIVE_KEYS', 'mascara de campos sensiveis do certificado fiscal');
@@ -77,6 +79,8 @@ assertContains('index.html', 'Ponte SERPRO ativa', 'aviso correto quando a integ
 assertContains('index.html', 'LIMITE_ENTRIES_LOCAL_STORAGE', 'limite de snapshot local para evitar recarregamento por memoria');
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
 assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
+assertContains('auditai/index.html', 'conciliacao-arquivos.js?v=3.2.20', 'cache-buster atual da conciliacao AuditAI');
+assertContains('auditai/conciliacao.html', 'conciliacao-arquivos.js?v=3.2.20', 'cache-buster atual da pagina dedicada de conciliacao');
 assertContains('api-adapter.js', 'fiscalListarImpostos', 'adapter fiscal para listar impostos');
 assertContains('api-adapter.js', 'fiscalCertificadoStatus', 'adapter fiscal para status do certificado');
 assertContains('api-adapter.js', 'fiscalSerproStatus', 'adapter fiscal para status SERPRO');
