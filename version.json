@@ -1,7 +1,9 @@
 {
-  "version": "3.2.20",
-  "build_date": "2026-05-18T09:44:26-03:00",
+  "version": "3.2.21",
+  "build_date": "2026-05-18T10:02:00-03:00",
   "release_notes": [
+    "AuditAI passa a usar aviso de atualizacao proprio, separado da tela principal",
+    "Conciliacao de Arquivos exibe a versao do motor e limpa resultado antigo ao trocar arquivo",
     "AuditAI passa a carregar a conciliacao de arquivos com cache-buster atualizado",
     "HTML e scripts do AuditAI agora saem com no-cache para evitar tela antiga apos deploy",
     "Aba Situacao Fiscal passa a exibir Ponte SERPRO ativa quando usa o app fiscal externo",

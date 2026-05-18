@@ -1,6 +1,9 @@
 (function () {
   'use strict';
 
+  const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.21';
+
   const STATE = {
     files: { a: null, b: null },
     rows: { a: [], b: [] },
@@ -1071,7 +1074,7 @@
     button.onclick = function () {
       button.disabled = true;
       button.textContent = 'Atualizando...';
-      localStorage.setItem('plano_contas_iob_versao_vista', info.version);
+      localStorage.setItem(AUDITAI_VERSION_KEY, info.version);
       if ('caches' in window) {
         caches.keys().then(function (keys) {
           return Promise.all(keys.map(function (key) { return caches.delete(key); }));
@@ -1092,9 +1095,9 @@
       const footer = document.getElementById('sp-version-footer');
       if (footer) {
         const date = info.build_date ? new Date(info.build_date).toLocaleDateString('pt-BR') : '';
-        footer.textContent = 'v' + info.version + (date ? ' • ' + date : '');
+        footer.textContent = 'v' + info.version + (date ? ' • ' + date : '') + ' • AuditAI';
       }
-      if (localStorage.getItem('plano_contas_iob_versao_vista') !== info.version) {
+      if (localStorage.getItem(AUDITAI_VERSION_KEY) !== info.version) {
         showVersionModal(info);
       }
     } catch (err) {
@@ -1156,6 +1159,7 @@
       stat('Sem vínculo B', r.unmatchedB.length, 'text-red-600'),
       stat('Aderência', pct + '%', 'text-blue-600'),
       '</div>',
+      '<div class="mb-4 text-xs font-bold text-slate-500 dark:text-slate-400">' + AUDITAI_MOTOR_LABEL + ' · resultado recalculado nesta tela</div>',
       '<div class="grid grid-cols-1 xl:grid-cols-2 gap-5">',
       section('Itens conciliados automaticamente', renderMatches(r.matches)),
       section('Revisão manual', renderAmbiguous(r.ambiguous || [])),
@@ -1239,7 +1243,7 @@
       fileCard('a', 'Arquivo A', 'Ex.: planilha de pagamentos, relatório financeiro, contas a pagar') +
       fileCard('b', 'Arquivo B', 'Ex.: extrato bancário em PDF, CSV, XLSX ou TXT') +
       '</section>' +
-      '<div class="flex flex-wrap items-center gap-3"><button id="sp-conciliacao-analisar" class="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-black hover:bg-blue-700 disabled:opacity-50">Comparar e Conciliar</button><button id="sp-conciliacao-exportar" class="px-5 py-3 rounded-xl bg-white dark:bg-slate-800 border dark:border-slate-700 text-sm font-bold">Exportar CSV</button><span id="sp-conciliacao-status" class="text-sm text-slate-500"></span></div>' +
+      '<div class="flex flex-wrap items-center gap-3"><button id="sp-conciliacao-analisar" class="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-black hover:bg-blue-700 disabled:opacity-50">Comparar e Conciliar</button><button id="sp-conciliacao-exportar" class="px-5 py-3 rounded-xl bg-white dark:bg-slate-800 border dark:border-slate-700 text-sm font-bold">Exportar CSV</button><span class="text-xs font-bold text-slate-400">' + AUDITAI_MOTOR_LABEL + '</span><span id="sp-conciliacao-status" class="text-sm text-slate-500"></span></div>' +
       '<div id="sp-conciliacao-result"></div>' +
       '</main></div>';
 
@@ -1247,6 +1251,9 @@
       document.getElementById('sp-file-' + side).addEventListener('change', function (ev) {
         const file = ev.target.files && ev.target.files[0];
         STATE.files[side] = file || null;
+        STATE.result = null;
+        document.getElementById('sp-conciliacao-result').innerHTML = '';
+        document.getElementById('sp-conciliacao-status').textContent = 'Arquivos alterados. Clique em Comparar e Conciliar para recalcular.';
         document.getElementById('sp-file-name-' + side).textContent = file ? file.name : 'Selecionar arquivo';
       });
     });
