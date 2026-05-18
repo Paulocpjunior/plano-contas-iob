@@ -2,7 +2,7 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.24';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.26';
 
   const STATE = {
     files: { a: null, b: null },
@@ -1019,10 +1019,42 @@
       unmatchedB: unmatchedB,
       possible: possible.slice(0, 80),
       ambiguous: ambiguous,
+      totalA: aRows.length,
+      totalB: bRows.length,
       matchedA: usedA.size,
       matchedB: usedB.size,
+      ambiguousA: ambiguousA.size,
+      ambiguousB: ambiguousB.size,
       comparableA: usedA.size + ambiguousA.size,
       comparableB: usedB.size + ambiguousB.size
+    };
+  }
+
+  function reconciliationMetrics(r) {
+    const totalA = Math.max(0, Number(r.totalA || 0));
+    const totalB = Math.max(0, Number(r.totalB || 0));
+    const matchedA = Math.max(0, Number(r.matchedA || 0));
+    const matchedB = Math.max(0, Number(r.matchedB || 0));
+    const ambiguousA = Math.max(0, Number(r.ambiguousA || 0));
+    const ambiguousB = Math.max(0, Number(r.ambiguousB || 0));
+    const unmatchedA = (r.unmatchedA || []).length;
+    const unmatchedB = (r.unmatchedB || []).length;
+    const baseA = totalA || (matchedA + ambiguousA + unmatchedA);
+    const baseB = totalB || (matchedB + ambiguousB + unmatchedB);
+    const coverageA = baseA ? matchedA / baseA : 0;
+    const coverageB = baseB ? matchedB / baseB : 0;
+    const adherence = Math.round(Math.min(1, (coverageA + coverageB) / 2) * 100);
+    return {
+      totalA: baseA,
+      totalB: baseB,
+      matchedA: matchedA,
+      matchedB: matchedB,
+      ambiguousA: ambiguousA,
+      ambiguousB: ambiguousB,
+      unmatchedA: unmatchedA,
+      unmatchedB: unmatchedB,
+      adherence: adherence,
+      labelConciliados: matchedA === matchedB ? String(matchedA) : (matchedA + ' A / ' + matchedB + ' B')
     };
   }
 
@@ -1147,19 +1179,17 @@
     const r = STATE.result;
     const box = document.getElementById('sp-conciliacao-result');
     if (!box || !r) return;
-    const covered = Math.max(r.matchedA || r.matches.length, r.matchedB || r.matches.length);
-    const comparable = Math.max(r.comparableA || covered, r.comparableB || covered, 1);
-    const pct = Math.min(100, Math.round((covered / comparable) * 100));
+    const metrics = reconciliationMetrics(r);
     const ambiguousCount = (r.ambiguous || []).length;
     box.innerHTML = [
       '<div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-5">',
-      stat('Conciliados', covered, 'text-green-600'),
+      stat('Conciliados', metrics.labelConciliados, 'text-green-600'),
       stat('Revisão manual', ambiguousCount, 'text-blue-600'),
       stat('Sem vínculo A', r.unmatchedA.length, 'text-red-600'),
       stat('Sem vínculo B', r.unmatchedB.length, 'text-red-600'),
-      stat('Aderência', pct + '%', 'text-blue-600'),
+      stat('Aderência', metrics.adherence + '%', 'text-blue-600'),
       '</div>',
-      '<div class="mb-4 text-xs font-bold text-slate-500 dark:text-slate-400">' + AUDITAI_MOTOR_LABEL + ' · resultado recalculado nesta tela</div>',
+      '<div class="mb-4 text-xs font-bold text-slate-500 dark:text-slate-400">' + AUDITAI_MOTOR_LABEL + ' · resultado recalculado nesta tela · cobertura A ' + metrics.matchedA + '/' + metrics.totalA + ' · cobertura B ' + metrics.matchedB + '/' + metrics.totalB + '</div>',
       '<div class="grid grid-cols-1 xl:grid-cols-2 gap-5">',
       section('Itens conciliados automaticamente', renderMatches(r.matches)),
       section('Revisão manual', renderAmbiguous(r.ambiguous || [])),

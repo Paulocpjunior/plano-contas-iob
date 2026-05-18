@@ -80,10 +80,12 @@ assertContains('index.html', 'LIMITE_ENTRIES_LOCAL_STORAGE', 'limite de snapshot
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
 assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
 assertContains('index.html', 'parser-santander-empresas-ocr.js?v=3.2.25', 'cache-buster atual do parser Santander');
-assertContains('auditai/index.html', 'conciliacao-arquivos.js?v=3.2.24', 'cache-buster atual da conciliacao AuditAI');
-assertContains('auditai/conciliacao.html', 'conciliacao-arquivos.js?v=3.2.24', 'cache-buster atual da pagina dedicada de conciliacao');
+assertContains('auditai/index.html', 'conciliacao-arquivos.js?v=3.2.26', 'cache-buster atual da conciliacao AuditAI');
+assertContains('auditai/conciliacao.html', 'conciliacao-arquivos.js?v=3.2.26', 'cache-buster atual da pagina dedicada de conciliacao');
 assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_versao_vista', 'chave propria de aviso de versao no AuditAI');
-assertContains('auditai/conciliacao-arquivos.js', 'Motor conciliacao v3.2.24', 'versao visivel do motor de conciliacao');
+assertContains('auditai/conciliacao-arquivos.js', 'Motor conciliacao v3.2.26', 'versao visivel do motor de conciliacao');
+assertContains('auditai/conciliacao-arquivos.js', 'reconciliationMetrics', 'metricas de conciliacao sem inflar aderencia por lote 1:N');
+assertContains('auditai/conciliacao-arquivos.js', 'cobertura A', 'detalhe de cobertura por arquivo na conciliacao');
 assertContains('api-adapter.js', 'fiscalListarImpostos', 'adapter fiscal para listar impostos');
 assertContains('api-adapter.js', 'fiscalCertificadoStatus', 'adapter fiscal para status do certificado');
 assertContains('api-adapter.js', 'fiscalSerproStatus', 'adapter fiscal para status SERPRO');
