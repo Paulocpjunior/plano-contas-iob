@@ -1,6 +1,6 @@
 {
-  "version": "3.2.22",
-  "build_date": "2026-05-18T11:10:00-03:00",
+  "version": "3.2.23",
+  "build_date": "2026-05-18T11:32:00-03:00",
   "release_notes": [
     "Novo layout CLUDE - Servicos Tomados Fiscal importa relatorio E-Fiscal em PDF como lancamentos fiscais",
     "Importacao PDF passa a tentar apenas layouts PDF, evitando erros de parser XLSX em arquivos fiscais",

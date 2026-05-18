@@ -48,16 +48,70 @@
     return m ? parseMoneyBR(m[1]) : 0;
   }
 
-  function parsearTexto_CludeServicosTomados(textoCompleto) {
-    const texto = String(textoCompleto || '');
-    const detector = normalizarTexto(texto).toUpperCase();
-    if (!/RELACAO DE NFS DE SERVICOS TOMADOS/.test(detector) || !/CLUDE/.test(detector)) {
-      return { detectado: false, lancamentos: [] };
-    }
+  function criarLancamentoFiscal({ cnpj, fornecedor, valor, documento, data, periodo }) {
+    const fornecedorLimpo = normalizarFornecedor(fornecedor);
+    const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
+    if (!fornecedorLimpo || !valor || !data) return null;
 
-    const periodo = extrairPeriodo(texto);
-    const totalOficial = extrairTotalOficial(texto);
-    const linhas = texto.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const descricao = ['Servicos tomados', fornecedorLimpo, documentoLimpo ? ('NF ' + documentoLimpo) : '', 'CNPJ ' + cnpj]
+      .filter(Boolean)
+      .join(' - ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return {
+      data,
+      descricao,
+      descricao_memoria: fornecedorLimpo,
+      memoriaDescricoes: [
+        fornecedorLimpo,
+        'Servicos tomados - ' + fornecedorLimpo,
+        'Servicos tomados',
+        cnpj,
+        documentoLimpo ? ('NF ' + documentoLimpo) : ''
+      ].filter(Boolean),
+      valor: -Math.abs(valor),
+      documento: documentoLimpo,
+      cnpj_fornecedor: cnpj,
+      codigoHistorico: '1207',
+      historico: 'PAGTO SERVICOS TOMADOS',
+      layoutNome: 'CLUDE - Servicos Tomados Fiscal',
+      layoutParser: 'parsearPDF_Clude_ServicosTomados',
+      conta: 'Fiscal CLUDE - Servicos Tomados',
+      nome_conta: 'Fiscal CLUDE - Servicos Tomados',
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim
+    };
+  }
+
+  function parsearBlocoRegistro(bloco, periodo) {
+    const cnpj = (String(bloco || '').match(/^\s*(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/) || [])[1];
+    if (!cnpj) return null;
+
+    const dataMatch = String(bloco || '').match(/(\d{2}\/\d{2}\/\d{4})/);
+    if (!dataMatch) return null;
+
+    const antesData = String(bloco || '').slice(String(bloco || '').indexOf(cnpj) + cnpj.length, dataMatch.index)
+      .replace(/\s+/g, ' ')
+      .trim();
+    const depoisData = String(bloco || '').slice(dataMatch.index + dataMatch[0].length)
+      .replace(/\s+/g, ' ')
+      .trim();
+    const valorDocMatch = depoisData.match(/([0-9.]+,\d{2})\s*(\d{8,})\s*$/);
+    if (!valorDocMatch) return null;
+
+    return criarLancamentoFiscal({
+      cnpj,
+      fornecedor: antesData,
+      valor: parseMoneyBR(valorDocMatch[1]),
+      documento: valorDocMatch[2],
+      data: parseDateBR(dataMatch[1]),
+      periodo
+    });
+  }
+
+  function parsearRegistrosPorLinha(texto, periodo) {
+    const linhas = String(texto || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const registros = [];
 
     for (let i = 0; i < linhas.length; i++) {
@@ -78,53 +132,47 @@
         j++;
       }
 
-      const dataMatch = bloco.match(/(\d{2}\/\d{2}\/\d{4})(.*)$/);
-      if (!dataMatch) continue;
-
-      const cnpj = (bloco.match(/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/) || [''])[0];
-      if (!cnpj) continue;
-
-      const antesData = bloco.slice(cnpj.length, dataMatch.index).trim();
-      const depoisData = dataMatch[2] || '';
-      const valorDocMatch = depoisData.match(/([0-9.]+,\d{2})(\d{8,})$/);
-      if (!valorDocMatch) continue;
-
-      const fornecedor = normalizarFornecedor(antesData);
-      const valor = parseMoneyBR(valorDocMatch[1]);
-      const documento = String(valorDocMatch[2] || '').replace(/^0+(?=\d)/, '');
-      if (!fornecedor || !valor) continue;
-
-      const data = parseDateBR(dataMatch[1]);
-      const descricao = ['Servicos tomados', fornecedor, documento ? ('NF ' + documento) : '', 'CNPJ ' + cnpj]
-        .filter(Boolean)
-        .join(' - ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      registros.push({
-        data,
-        descricao,
-        descricao_memoria: fornecedor,
-        memoriaDescricoes: [
-          fornecedor,
-          'Servicos tomados - ' + fornecedor,
-          'Servicos tomados',
-          cnpj,
-          documento ? ('NF ' + documento) : ''
-        ].filter(Boolean),
-        valor: -Math.abs(valor),
-        documento,
-        cnpj_fornecedor: cnpj,
-        codigoHistorico: '1207',
-        historico: 'PAGTO SERVICOS TOMADOS',
-        layoutNome: 'CLUDE - Servicos Tomados Fiscal',
-        layoutParser: 'parsearPDF_Clude_ServicosTomados',
-        conta: 'Fiscal CLUDE - Servicos Tomados',
-        nome_conta: 'Fiscal CLUDE - Servicos Tomados',
-        periodo_inicio: periodo.inicio,
-        periodo_fim: periodo.fim
-      });
+      const lanc = parsearBlocoRegistro(bloco, periodo);
+      if (lanc) registros.push(lanc);
     }
+    return registros;
+  }
+
+  function parsearRegistrosPorCnpj(texto, periodo) {
+    const registros = [];
+    const flat = String(texto || '')
+      .replace(/\r?\n/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const re = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})([\s\S]*?)(?=\s+\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b|\s+Total\s+|$)/g;
+    let m;
+    while ((m = re.exec(flat))) {
+      const lanc = parsearBlocoRegistro((m[1] + ' ' + m[2]).trim(), periodo);
+      if (lanc) registros.push(lanc);
+    }
+    return registros;
+  }
+
+  function unirRegistros(registros) {
+    const seen = new Set();
+    return (registros || []).filter(function(l) {
+      const k = [l.data, l.cnpj_fornecedor, l.documento, Math.round(Math.abs(Number(l.valor || 0)) * 100)].join('|');
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+
+  function parsearTexto_CludeServicosTomados(textoCompleto) {
+    const texto = String(textoCompleto || '');
+    const detector = normalizarTexto(texto).toUpperCase();
+    if (!/RELACAO DE NFS DE SERVICOS TOMADOS/.test(detector) || !/CLUDE/.test(detector)) {
+      return { detectado: false, lancamentos: [] };
+    }
+
+    const periodo = extrairPeriodo(texto);
+    const totalOficial = extrairTotalOficial(texto);
+    const registros = unirRegistros(parsearRegistrosPorLinha(texto, periodo).concat(parsearRegistrosPorCnpj(texto, periodo)));
 
     const totalDebito = registros.reduce((acc, l) => acc + Math.abs(Number(l.valor) || 0), 0);
 
@@ -174,12 +222,23 @@
 
     const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
     const paginas = [];
+    const sequencia = [];
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
+      sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
       paginas.push(agruparItensPdfEmLinhas(content.items).join('\n'));
     }
-    return parsearTexto_CludeServicosTomados(paginas.join('\n'));
+    const agrupado = paginas.join('\n');
+    const raw = sequencia.join('\n');
+    let resultado = parsearTexto_CludeServicosTomados(agrupado);
+    if (!resultado.detectado || !resultado.lancamentos || !resultado.lancamentos.length) {
+      resultado = parsearTexto_CludeServicosTomados(raw);
+    } else {
+      const combinado = parsearTexto_CludeServicosTomados(agrupado + '\n' + raw);
+      if (combinado.detectado && combinado.lancamentos.length > resultado.lancamentos.length) resultado = combinado;
+    }
+    return resultado;
   }
 
   root.parsearTexto_CludeServicosTomados = parsearTexto_CludeServicosTomados;
