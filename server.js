@@ -8,6 +8,7 @@ const { LAYOUT_QUALITY_EVIDENCE } = require('./layout-quality-evidence');
 
 const app = express();
 app.set('trust proxy', true);
+app.set('etag', false);
 const PORT = process.env.PORT || 8080;
 const db = new Firestore();
 const firestorePorProjeto = new Map();
@@ -2246,18 +2247,26 @@ app.get('/admin', (req, res) => {
 // cache-buster de versao, mas Safari/Cloud Run podem manter copia antiga.
 app.use('/auditai', express.static(path.join(__dirname, 'auditai'), {
   index: 'index.html',
+  etag: false,
+  lastModified: false,
   setHeaders: (res, filePath) => {
     if (/\.(html|js)$/i.test(filePath)) {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+      if (/\.html$/i.test(filePath)) {
+        res.setHeader('Clear-Site-Data', '"cache"');
+      }
     }
   }
 }));
 app.get('/auditai*', (req, res) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  res.setHeader('Clear-Site-Data', '"cache"');
   res.sendFile(path.join(__dirname, 'auditai', 'index.html'));
 });
 

@@ -2,7 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.26';
+  const AUDITAI_MOTOR_VERSION = '3.2.27';
+  const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.27';
 
   const STATE = {
     files: { a: null, b: null },
@@ -1107,12 +1109,13 @@
       button.disabled = true;
       button.textContent = 'Atualizando...';
       localStorage.setItem(AUDITAI_VERSION_KEY, info.version);
+      const freshUrl = location.pathname + '?auditaiFresh=' + encodeURIComponent(info.version) + '&t=' + Date.now();
       if ('caches' in window) {
         caches.keys().then(function (keys) {
           return Promise.all(keys.map(function (key) { return caches.delete(key); }));
-        }).finally(function () { window.location.reload(true); });
+        }).finally(function () { window.location.replace(freshUrl); });
       } else {
-        window.location.reload(true);
+        window.location.replace(freshUrl);
       }
     };
   }
@@ -1328,7 +1331,30 @@
     document.head.appendChild(style);
   }
 
+  function clearRuntimeCache() {
+    if (!('caches' in window)) return Promise.resolve();
+    return caches.keys().then(function (keys) {
+      return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+    });
+  }
+
+  function ensureFreshMotor() {
+    try {
+      const previous = localStorage.getItem(AUDITAI_MOTOR_CACHE_KEY);
+      localStorage.setItem(AUDITAI_MOTOR_CACHE_KEY, AUDITAI_MOTOR_VERSION);
+      if (previous && previous !== AUDITAI_MOTOR_VERSION && !/[?&]auditaiFresh=/.test(location.search)) {
+        const freshUrl = location.pathname + '?auditaiFresh=' + encodeURIComponent(AUDITAI_MOTOR_VERSION) + '&t=' + Date.now();
+        clearRuntimeCache().finally(function () { location.replace(freshUrl); });
+        return false;
+      }
+    } catch (_) {
+      return true;
+    }
+    return true;
+  }
+
   function boot() {
+    if (!ensureFreshMotor()) return;
     checkVersionNotice();
     if (new URLSearchParams(location.search).get('modulo') === 'conciliacao') {
       location.replace('/auditai/conciliacao.html');

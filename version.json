@@ -1,7 +1,11 @@
 {
-  "version": "3.2.26",
-  "build_date": "2026-05-18T16:35:00-03:00",
+  "version": "3.2.27",
+  "build_date": "2026-05-19T07:30:00-03:00",
   "release_notes": [
+    "AuditAI agora limpa cache antigo do navegador ao abrir a tela de conciliacao",
+    "HTML e scripts do AuditAI desativam ETag e Last-Modified para impedir motor antigo em abas reabertas",
+    "Botao Atualizar do AuditAI redireciona para URL fresca com auditaiFresh em vez de reaproveitar reload do navegador",
+    "Motor de conciliacao AuditAI atualizado para v3.2.27 com autocorrecao de versao local",
     "AuditAI Conciliação de Arquivos passa a calcular aderência pela cobertura real dos dois arquivos",
     "Indicador Conciliados deixa de inflar resultado em lotes 1:N e passa a mostrar cobertura A/B",
     "Motor de conciliação AuditAI atualizado para v3.2.26 com cache-buster novo",
