@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.2.27';
+  const AUDITAI_MOTOR_VERSION = '3.2.28';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.27';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.28';
 
   const STATE = {
     files: { a: null, b: null },
@@ -639,6 +639,12 @@
     return '';
   }
 
+  function isOutOfScopeBankMovement(row) {
+    const text = searchableText(row && row.description);
+    if (!text) return false;
+    return /\b(APL\s+APLIC\s+AUT\s+MAIS|APLIC\s+AUT\s+MAIS|RES\s+APLIC\s+AUT\s+MAIS|APLICACAO\s+AUTOMATICA|RESGATE\s+AUTOMATICO|SALDO\s+APLIC)\b/.test(text);
+  }
+
   function sameReceiptBucket(a, b) {
     const left = aggregateBucket(a);
     const right = aggregateBucket(b);
@@ -955,10 +961,34 @@
       });
     }
 
+    function matchExactDailyResiduals() {
+      const groups = new Map();
+      function collect(rows, usedSet, side) {
+        rows.forEach(function (row, index) {
+          if (usedSet.has(index) || isOutOfScopeBankMovement(row)) return;
+          if (!row.date || !Number.isFinite(row.amount) || Math.abs(row.amount) === 0) return;
+          const key = [row.date, row.amount < 0 ? 'D' : 'C'].join('|');
+          if (!groups.has(key)) groups.set(key, { a: [], b: [] });
+          groups.get(key)[side].push({ row: row, index: index });
+        });
+      }
+      collect(aRows, usedA, 'a');
+      collect(bRows, usedB, 'b');
+      groups.forEach(function (group) {
+        if (!group.a.length || !group.b.length) return;
+        if (group.a.length === 1 && group.b.length === 1) return;
+        const leftSum = sumCents(group.a.map(function (item) { return item.row; }));
+        const rightSum = sumCents(group.b.map(function (item) { return item.row; }));
+        if (Math.abs(leftSum - rightSum) > groupToleranceCents(group.a.concat(group.b).map(function (item) { return item.row; }))) return;
+        addAggregateMatch(group.a, group.b, 'residuo diario exato', 90);
+      });
+    }
+
     matchCollectionBatches();
     matchPaymentBatches();
     matchResidualPaymentBatches();
     matchResidualCreditBatches();
+    matchExactDailyResiduals();
 
     matches.sort(function (x, y) {
       return String(x.a.date || '').localeCompare(String(y.a.date || '')) ||
@@ -998,8 +1028,12 @@
       });
     });
 
-    const unmatchedA = aRows.filter(function (_, index) { return !usedA.has(index) && !ambiguousA.has(index); });
-    const unmatchedB = bRows.filter(function (_, index) { return !usedB.has(index) && !ambiguousB.has(index); });
+    const openA = aRows.filter(function (_, index) { return !usedA.has(index) && !ambiguousA.has(index); });
+    const openB = bRows.filter(function (_, index) { return !usedB.has(index) && !ambiguousB.has(index); });
+    const outOfScopeA = openA.filter(isOutOfScopeBankMovement);
+    const outOfScopeB = openB.filter(isOutOfScopeBankMovement);
+    const unmatchedA = openA.filter(function (row) { return !isOutOfScopeBankMovement(row); });
+    const unmatchedB = openB.filter(function (row) { return !isOutOfScopeBankMovement(row); });
     const possible = [];
     unmatchedA.forEach(function (a) {
       unmatchedB.forEach(function (b) {
@@ -1021,6 +1055,8 @@
       unmatchedB: unmatchedB,
       possible: possible.slice(0, 80),
       ambiguous: ambiguous,
+      outOfScopeA: outOfScopeA,
+      outOfScopeB: outOfScopeB,
       totalA: aRows.length,
       totalB: bRows.length,
       matchedA: usedA.size,
@@ -1041,8 +1077,10 @@
     const ambiguousB = Math.max(0, Number(r.ambiguousB || 0));
     const unmatchedA = (r.unmatchedA || []).length;
     const unmatchedB = (r.unmatchedB || []).length;
-    const baseA = totalA || (matchedA + ambiguousA + unmatchedA);
-    const baseB = totalB || (matchedB + ambiguousB + unmatchedB);
+    const outOfScopeA = (r.outOfScopeA || []).length;
+    const outOfScopeB = (r.outOfScopeB || []).length;
+    const baseA = Math.max(0, (totalA || (matchedA + ambiguousA + unmatchedA + outOfScopeA)) - outOfScopeA);
+    const baseB = Math.max(0, (totalB || (matchedB + ambiguousB + unmatchedB + outOfScopeB)) - outOfScopeB);
     const coverageA = baseA ? matchedA / baseA : 0;
     const coverageB = baseB ? matchedB / baseB : 0;
     const adherence = Math.round(Math.min(1, (coverageA + coverageB) / 2) * 100);
@@ -1055,6 +1093,8 @@
       ambiguousB: ambiguousB,
       unmatchedA: unmatchedA,
       unmatchedB: unmatchedB,
+      outOfScopeA: outOfScopeA,
+      outOfScopeB: outOfScopeB,
       adherence: adherence,
       labelConciliados: matchedA === matchedB ? String(matchedA) : (matchedA + ' A / ' + matchedB + ' B')
     };
@@ -1178,6 +1218,42 @@
       }).join('') + '</tbody></table></div>';
   }
 
+  function renderDailyResiduals(result) {
+    const grouped = new Map();
+    function cents(value) {
+      return Math.round(Number(value || 0) * 100);
+    }
+    function add(rows, side) {
+      (rows || []).forEach(function (row) {
+        const key = [row.date || '-', row.amount < 0 ? 'Débito' : 'Crédito'].join('|');
+        if (!grouped.has(key)) grouped.set(key, { date: row.date || '-', type: row.amount < 0 ? 'Débito' : 'Crédito', countA: 0, countB: 0, sumA: 0, sumB: 0 });
+        const item = grouped.get(key);
+        if (side === 'a') {
+          item.countA++;
+          item.sumA += cents(row.amount);
+        } else {
+          item.countB++;
+          item.sumB += cents(row.amount);
+        }
+      });
+    }
+    add(result.unmatchedA, 'a');
+    add(result.unmatchedB, 'b');
+    const rows = Array.from(grouped.values())
+      .filter(function (row) { return row.countA || row.countB; })
+      .sort(function (a, b) {
+        return String(a.date).localeCompare(String(b.date)) || String(a.type).localeCompare(String(b.type));
+      });
+    if (!rows.length) return '<p class="text-sm text-slate-500">Nenhuma diferença diária residual.</p>';
+    return '<div class="overflow-auto max-h-80"><table class="w-full text-xs"><thead class="bg-amber-50 dark:bg-amber-900/20 sticky top-0"><tr><th class="p-2 text-left">Data</th><th class="p-2 text-left">Tipo</th><th class="p-2 text-right">Qtd A</th><th class="p-2 text-right">Total A</th><th class="p-2 text-right">Qtd B</th><th class="p-2 text-right">Total B</th><th class="p-2 text-right">Diferença</th></tr></thead><tbody>' +
+      rows.slice(0, 120).map(function (row) {
+        const totalA = row.sumA / 100;
+        const totalB = row.sumB / 100;
+        const diff = (row.sumA - row.sumB) / 100;
+        return '<tr class="border-t dark:border-slate-700"><td class="p-2 whitespace-nowrap">' + escapeHtml(row.date) + '</td><td class="p-2">' + row.type + '</td><td class="p-2 text-right">' + row.countA + '</td><td class="p-2 text-right font-mono">' + money(totalA) + '</td><td class="p-2 text-right">' + row.countB + '</td><td class="p-2 text-right font-mono">' + money(totalB) + '</td><td class="p-2 text-right font-mono">' + money(diff) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
   function renderResult() {
     const r = STATE.result;
     const box = document.getElementById('sp-conciliacao-result');
@@ -1185,20 +1261,23 @@
     const metrics = reconciliationMetrics(r);
     const ambiguousCount = (r.ambiguous || []).length;
     box.innerHTML = [
-      '<div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-5">',
+      '<div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">',
       stat('Conciliados', metrics.labelConciliados, 'text-green-600'),
       stat('Revisão manual', ambiguousCount, 'text-blue-600'),
       stat('Sem vínculo A', r.unmatchedA.length, 'text-red-600'),
       stat('Sem vínculo B', r.unmatchedB.length, 'text-red-600'),
+      stat('Fora do escopo', metrics.outOfScopeA + metrics.outOfScopeB, 'text-slate-500'),
       stat('Aderência', metrics.adherence + '%', 'text-blue-600'),
       '</div>',
-      '<div class="mb-4 text-xs font-bold text-slate-500 dark:text-slate-400">' + AUDITAI_MOTOR_LABEL + ' · resultado recalculado nesta tela · cobertura A ' + metrics.matchedA + '/' + metrics.totalA + ' · cobertura B ' + metrics.matchedB + '/' + metrics.totalB + '</div>',
+      '<div class="mb-4 text-xs font-bold text-slate-500 dark:text-slate-400">' + AUDITAI_MOTOR_LABEL + ' · resultado recalculado nesta tela · cobertura A ' + metrics.matchedA + '/' + metrics.totalA + ' · cobertura B ' + metrics.matchedB + '/' + metrics.totalB + ' · fora do escopo A ' + metrics.outOfScopeA + ' / B ' + metrics.outOfScopeB + '</div>',
       '<div class="grid grid-cols-1 xl:grid-cols-2 gap-5">',
       section('Itens conciliados automaticamente', renderMatches(r.matches)),
       section('Revisão manual', renderAmbiguous(r.ambiguous || [])),
       section('Diferenças prováveis', renderPossible(r.possible)),
+      section('Resumo diário das diferenças', renderDailyResiduals(r)),
       section('Sem vínculo no Arquivo A', renderTable(r.unmatchedA, 'A')),
       section('Sem vínculo no Arquivo B', renderTable(r.unmatchedB, 'B')),
+      section('Fora do escopo bancário', renderTable((r.outOfScopeA || []).concat(r.outOfScopeB || []), 'fora do escopo')),
       '</div>'
     ].join('');
   }
@@ -1222,6 +1301,8 @@
     });
     STATE.result.unmatchedA.forEach(function (r) { rows.push(['pendente_a', r.date, r.description, r.amount, '', '', '', '', '']); });
     STATE.result.unmatchedB.forEach(function (r) { rows.push(['pendente_b', '', '', '', r.date, r.description, r.amount, '', '']); });
+    (STATE.result.outOfScopeA || []).forEach(function (r) { rows.push(['fora_escopo_a', r.date, r.description, r.amount, '', '', '', '', 'aplicacao/resgate automatico sem contraparte']); });
+    (STATE.result.outOfScopeB || []).forEach(function (r) { rows.push(['fora_escopo_b', '', '', '', r.date, r.description, r.amount, '', 'aplicacao/resgate automatico sem contraparte']); });
     const csv = rows.map(function (r) { return r.map(function (v) { return '"' + String(v ?? '').replace(/"/g, '""') + '"'; }).join(';'); }).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
