@@ -1,7 +1,8 @@
 {
-  "version": "3.2.35",
-  "build_date": "2026-05-19T16:52:00-03:00",
+  "version": "3.2.36",
+  "build_date": "2026-05-19T17:22:00-03:00",
   "release_notes": [
+    "Hotfix AuditAI: remove nome minificado W$ e stylesheet quebrado que impediam carregamento no Safari",
     "Hotfix AuditAI: parecer financeiro passa a usar totais oficiais sem criar ajuste artificial para fechar balanco",
     "Hotfix AuditAI: contas oficiais e grupos contabeis do balanco deixam de aparecer como Top Contas Suspeitas por falsa grafia incorreta",
     "Hotfix AuditAI: corrige chamada do extrator interno que gerava erro Can't find variable $$ ao iniciar analise",

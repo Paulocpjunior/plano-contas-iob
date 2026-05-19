@@ -83,7 +83,7 @@ assertContains('index.html', 'LIMITE_ENTRIES_LOCAL_STORAGE', 'limite de snapshot
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
 assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
 assertContains('index.html', 'parser-santander-empresas-ocr.js?v=3.2.25', 'cache-buster atual do parser Santander');
-assertContains('auditai/index.html', 'index-DREfix3160.js?v=3.2.35', 'cache-buster atual da analise individual AuditAI');
+assertContains('auditai/index.html', 'index-DREfix3160.js?v=3.2.36', 'cache-buster atual da analise individual AuditAI');
 assertContains('auditai/index.html', 'conciliacao-arquivos.js?v=3.2.30', 'cache-buster atual da conciliacao AuditAI');
 assertContains('auditai/conciliacao.html', 'conciliacao-arquivos.js?v=3.2.30', 'cache-buster atual da pagina dedicada de conciliacao');
 assertContains('auditai/assets/index-DREfix3160.js', 'i>1||s===3?t=t.replace(/\\./g,"")', 'parser numerico AuditAI trata pontos de milhar brasileiros');
