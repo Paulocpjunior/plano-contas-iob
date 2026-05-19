@@ -1,7 +1,8 @@
 {
-  "version": "3.2.33",
-  "build_date": "2026-05-19T16:15:49-03:00",
+  "version": "3.2.34",
+  "build_date": "2026-05-19T16:30:00-03:00",
   "release_notes": [
+    "Hotfix AuditAI: contas oficiais e grupos contabeis do balanco deixam de aparecer como Top Contas Suspeitas por falsa grafia incorreta",
     "Hotfix AuditAI: corrige chamada do extrator interno que gerava erro Can't find variable $$ ao iniciar analise",
     "Hotfix AuditAI: remove conflito de nome no bundle da Analise Individual que deixava a tela em branco no Safari",
     "FORTYMIL: Total Ativo, Patrimonio Liquido e Resultado no Exercicio deixam de ser recalculados por linhas soltas quando o PDF traz totais oficiais",
