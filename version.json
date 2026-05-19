@@ -1,7 +1,10 @@
 {
-  "version": "3.2.29",
-  "build_date": "2026-05-19T13:45:00-03:00",
+  "version": "3.2.30",
+  "build_date": "2026-05-19T14:19:16-03:00",
   "release_notes": [
+    "AuditAI Conciliacao de Arquivos consolida diferencas residuais por data e debito/credito para fechar cobertura operacional",
+    "Itens que antes ficavam soltos em Sem vinculo passam para Revisao manual consolidada com totais A/B e diferenca explicita",
+    "Card Aderencia foi renomeado para Cobertura para separar conciliacao automatica de pendencias analisadas",
     "AuditAI Analise Individual corrige leitura de valores brasileiros inteiros com ponto de milhar em balancos patrimoniais",
     "Balanços com totais como 127.245.720 deixam de ser interpretados como 127,24",
     "Tela principal do AuditAI passa a carregar bundle da análise individual com cache-buster proprio",

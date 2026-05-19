@@ -84,11 +84,11 @@ assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto 
 assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
 assertContains('index.html', 'parser-santander-empresas-ocr.js?v=3.2.25', 'cache-buster atual do parser Santander');
 assertContains('auditai/index.html', 'index-DREfix3160.js?v=3.2.29', 'cache-buster atual da analise individual AuditAI');
-assertContains('auditai/index.html', 'conciliacao-arquivos.js?v=3.2.28', 'cache-buster atual da conciliacao AuditAI');
-assertContains('auditai/conciliacao.html', 'conciliacao-arquivos.js?v=3.2.28', 'cache-buster atual da pagina dedicada de conciliacao');
+assertContains('auditai/index.html', 'conciliacao-arquivos.js?v=3.2.30', 'cache-buster atual da conciliacao AuditAI');
+assertContains('auditai/conciliacao.html', 'conciliacao-arquivos.js?v=3.2.30', 'cache-buster atual da pagina dedicada de conciliacao');
 assertContains('auditai/assets/index-DREfix3160.js', 'i>1||s===3?t=t.replace(/\\./g,"")', 'parser numerico AuditAI trata pontos de milhar brasileiros');
 assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_versao_vista', 'chave propria de aviso de versao no AuditAI');
-assertContains('auditai/conciliacao-arquivos.js', 'Motor conciliacao v3.2.28', 'versao visivel do motor de conciliacao');
+assertContains('auditai/conciliacao-arquivos.js', 'Motor conciliacao v3.2.30', 'versao visivel do motor de conciliacao');
 assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_motor_cache', 'chave de autocorrecao de cache do motor AuditAI');
 assertContains('auditai/conciliacao-arquivos.js', 'auditaiFresh', 'URL fresca para impedir aba antiga do AuditAI');
 assertContains('auditai/conciliacao-arquivos.js', 'reconciliationMetrics', 'metricas de conciliacao sem inflar aderencia por lote 1:N');
@@ -97,6 +97,8 @@ assertContains('auditai/conciliacao-arquivos.js', 'isOutOfScopeBankMovement', 's
 assertContains('auditai/conciliacao-arquivos.js', 'Fora do escopo bancário', 'secao visual de itens fora do escopo bancario');
 assertContains('auditai/conciliacao-arquivos.js', 'Resumo diário das diferenças', 'resumo diario das diferencas residuais da conciliacao');
 assertContains('auditai/conciliacao-arquivos.js', 'residuo diario exato', 'casamento de residuo diario exato em lote');
+assertContains('auditai/conciliacao-arquivos.js', 'diferenca diaria consolidada', 'fechamento de revisao manual consolidada por dia');
+assertContains('auditai/conciliacao-arquivos.js', 'Revisão manual consolidada', 'secao de revisao manual consolidada na conciliacao');
 assertContains('api-adapter.js', 'fiscalListarImpostos', 'adapter fiscal para listar impostos');
 assertContains('api-adapter.js', 'fiscalCertificadoStatus', 'adapter fiscal para status do certificado');
 assertContains('api-adapter.js', 'fiscalSerproStatus', 'adapter fiscal para status SERPRO');

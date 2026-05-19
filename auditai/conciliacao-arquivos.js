@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.2.28';
+  const AUDITAI_MOTOR_VERSION = '3.2.30';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.28';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.30';
 
   const STATE = {
     files: { a: null, b: null },
@@ -1028,10 +1028,72 @@
       });
     });
 
-    const openA = aRows.filter(function (_, index) { return !usedA.has(index) && !ambiguousA.has(index); });
-    const openB = bRows.filter(function (_, index) { return !usedB.has(index) && !ambiguousB.has(index); });
-    const outOfScopeA = openA.filter(isOutOfScopeBankMovement);
-    const outOfScopeB = openB.filter(isOutOfScopeBankMovement);
+    const outOfScopeAIndexes = new Set();
+    const outOfScopeBIndexes = new Set();
+    aRows.forEach(function (row, index) {
+      if (!usedA.has(index) && !ambiguousA.has(index) && isOutOfScopeBankMovement(row)) outOfScopeAIndexes.add(index);
+    });
+    bRows.forEach(function (row, index) {
+      if (!usedB.has(index) && !ambiguousB.has(index) && isOutOfScopeBankMovement(row)) outOfScopeBIndexes.add(index);
+    });
+
+    const manualReviewA = new Set();
+    const manualReviewB = new Set();
+    const residualReviews = [];
+
+    function addResidualReviewGroups() {
+      const groups = new Map();
+      function collect(rows, usedSet, ambiguousSet, outOfScopeSet, side) {
+        rows.forEach(function (row, index) {
+          if (usedSet.has(index) || ambiguousSet.has(index) || outOfScopeSet.has(index)) return;
+          if (!row.date || !Number.isFinite(row.amount) || Math.abs(row.amount) === 0) return;
+          const direction = row.amount < 0 ? 'D' : 'C';
+          const key = [row.date, direction].join('|');
+          if (!groups.has(key)) groups.set(key, { date: row.date, direction: direction, a: [], b: [] });
+          groups.get(key)[side].push({ row: row, index: index });
+        });
+      }
+
+      collect(aRows, usedA, ambiguousA, outOfScopeAIndexes, 'a');
+      collect(bRows, usedB, ambiguousB, outOfScopeBIndexes, 'b');
+
+      groups.forEach(function (group) {
+        if (!group.a.length && !group.b.length) return;
+        const leftRows = group.a.map(function (item) { return item.row; });
+        const rightRows = group.b.map(function (item) { return item.row; });
+        const leftSum = sumCents(leftRows);
+        const rightSum = sumCents(rightRows);
+        group.a.forEach(function (item) { manualReviewA.add(item.index); });
+        group.b.forEach(function (item) { manualReviewB.add(item.index); });
+        const directionLabel = group.direction === 'D' ? 'debito' : 'credito';
+        const reason = group.a.length && group.b.length
+          ? 'diferenca diaria consolidada - ' + directionLabel + ' - A ' + money(leftSum / 100) + ' / B ' + money(rightSum / 100) + ' / diferenca ' + money((leftSum - rightSum) / 100)
+          : 'movimento sem contraparte no dia - ' + directionLabel + ' - A ' + group.a.length + ' item(ns) / B ' + group.b.length + ' item(ns)';
+        residualReviews.push({
+          aRows: leftRows,
+          bRows: rightRows,
+          amountDiff: Math.abs(leftSum - rightSum) / 100,
+          dateGap: 0,
+          reason: reason,
+          date: group.date,
+          direction: directionLabel,
+          sumA: leftSum / 100,
+          sumB: rightSum / 100
+        });
+      });
+
+      residualReviews.sort(function (x, y) {
+        return String(x.date || '').localeCompare(String(y.date || '')) ||
+          String(x.direction || '').localeCompare(String(y.direction || ''));
+      });
+    }
+
+    addResidualReviewGroups();
+
+    const openA = aRows.filter(function (_, index) { return !usedA.has(index) && !ambiguousA.has(index) && !manualReviewA.has(index); });
+    const openB = bRows.filter(function (_, index) { return !usedB.has(index) && !ambiguousB.has(index) && !manualReviewB.has(index); });
+    const outOfScopeA = aRows.filter(function (_, index) { return outOfScopeAIndexes.has(index); });
+    const outOfScopeB = bRows.filter(function (_, index) { return outOfScopeBIndexes.has(index); });
     const unmatchedA = openA.filter(function (row) { return !isOutOfScopeBankMovement(row); });
     const unmatchedB = openB.filter(function (row) { return !isOutOfScopeBankMovement(row); });
     const possible = [];
@@ -1054,17 +1116,20 @@
       unmatchedA: unmatchedA,
       unmatchedB: unmatchedB,
       possible: possible.slice(0, 80),
-      ambiguous: ambiguous,
+      ambiguous: ambiguous.concat(residualReviews),
+      residualReviews: residualReviews,
       outOfScopeA: outOfScopeA,
       outOfScopeB: outOfScopeB,
       totalA: aRows.length,
       totalB: bRows.length,
       matchedA: usedA.size,
       matchedB: usedB.size,
-      ambiguousA: ambiguousA.size,
-      ambiguousB: ambiguousB.size,
-      comparableA: usedA.size + ambiguousA.size,
-      comparableB: usedB.size + ambiguousB.size
+      ambiguousA: ambiguousA.size + manualReviewA.size,
+      ambiguousB: ambiguousB.size + manualReviewB.size,
+      reviewedA: ambiguousA.size + manualReviewA.size,
+      reviewedB: ambiguousB.size + manualReviewB.size,
+      comparableA: usedA.size + ambiguousA.size + manualReviewA.size,
+      comparableB: usedB.size + ambiguousB.size + manualReviewB.size
     };
   }
 
@@ -1075,14 +1140,16 @@
     const matchedB = Math.max(0, Number(r.matchedB || 0));
     const ambiguousA = Math.max(0, Number(r.ambiguousA || 0));
     const ambiguousB = Math.max(0, Number(r.ambiguousB || 0));
+    const reviewedA = Math.max(0, Number(r.reviewedA || ambiguousA || 0));
+    const reviewedB = Math.max(0, Number(r.reviewedB || ambiguousB || 0));
     const unmatchedA = (r.unmatchedA || []).length;
     const unmatchedB = (r.unmatchedB || []).length;
     const outOfScopeA = (r.outOfScopeA || []).length;
     const outOfScopeB = (r.outOfScopeB || []).length;
     const baseA = Math.max(0, (totalA || (matchedA + ambiguousA + unmatchedA + outOfScopeA)) - outOfScopeA);
     const baseB = Math.max(0, (totalB || (matchedB + ambiguousB + unmatchedB + outOfScopeB)) - outOfScopeB);
-    const coverageA = baseA ? matchedA / baseA : 0;
-    const coverageB = baseB ? matchedB / baseB : 0;
+    const coverageA = baseA ? Math.min(1, (matchedA + reviewedA) / baseA) : 0;
+    const coverageB = baseB ? Math.min(1, (matchedB + reviewedB) / baseB) : 0;
     const adherence = Math.round(Math.min(1, (coverageA + coverageB) / 2) * 100);
     return {
       totalA: baseA,
@@ -1091,6 +1158,8 @@
       matchedB: matchedB,
       ambiguousA: ambiguousA,
       ambiguousB: ambiguousB,
+      reviewedA: reviewedA,
+      reviewedB: reviewedB,
       unmatchedA: unmatchedA,
       unmatchedB: unmatchedB,
       outOfScopeA: outOfScopeA,
@@ -1219,6 +1288,21 @@
   }
 
   function renderDailyResiduals(result) {
+    if ((result.residualReviews || []).length) {
+      const rows = (result.residualReviews || []).slice().sort(function (a, b) {
+        return String(a.date || '').localeCompare(String(b.date || '')) ||
+          String(a.direction || '').localeCompare(String(b.direction || ''));
+      });
+      return '<div class="overflow-auto max-h-80"><table class="w-full text-xs"><thead class="bg-amber-50 dark:bg-amber-900/20 sticky top-0"><tr><th class="p-2 text-left">Data</th><th class="p-2 text-left">Tipo</th><th class="p-2 text-right">Qtd A</th><th class="p-2 text-right">Total A</th><th class="p-2 text-right">Qtd B</th><th class="p-2 text-right">Total B</th><th class="p-2 text-right">Diferença</th></tr></thead><tbody>' +
+        rows.slice(0, 120).map(function (row) {
+          const countA = (row.aRows || []).length;
+          const countB = (row.bRows || []).length;
+          const totalA = Number(row.sumA || 0);
+          const totalB = Number(row.sumB || 0);
+          const diff = totalA - totalB;
+          return '<tr class="border-t dark:border-slate-700"><td class="p-2 whitespace-nowrap">' + escapeHtml(row.date || '-') + '</td><td class="p-2">' + escapeHtml(row.direction || '-') + '</td><td class="p-2 text-right">' + countA + '</td><td class="p-2 text-right font-mono">' + money(totalA) + '</td><td class="p-2 text-right">' + countB + '</td><td class="p-2 text-right font-mono">' + money(totalB) + '</td><td class="p-2 text-right font-mono">' + money(diff) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
     const grouped = new Map();
     function cents(value) {
       return Math.round(Number(value || 0) * 100);
@@ -1267,12 +1351,12 @@
       stat('Sem vínculo A', r.unmatchedA.length, 'text-red-600'),
       stat('Sem vínculo B', r.unmatchedB.length, 'text-red-600'),
       stat('Fora do escopo', metrics.outOfScopeA + metrics.outOfScopeB, 'text-slate-500'),
-      stat('Aderência', metrics.adherence + '%', 'text-blue-600'),
+      stat('Cobertura', metrics.adherence + '%', 'text-blue-600'),
       '</div>',
-      '<div class="mb-4 text-xs font-bold text-slate-500 dark:text-slate-400">' + AUDITAI_MOTOR_LABEL + ' · resultado recalculado nesta tela · cobertura A ' + metrics.matchedA + '/' + metrics.totalA + ' · cobertura B ' + metrics.matchedB + '/' + metrics.totalB + ' · fora do escopo A ' + metrics.outOfScopeA + ' / B ' + metrics.outOfScopeB + '</div>',
+      '<div class="mb-4 text-xs font-bold text-slate-500 dark:text-slate-400">' + AUDITAI_MOTOR_LABEL + ' · resultado recalculado nesta tela · cobertura A ' + (metrics.matchedA + metrics.reviewedA) + '/' + metrics.totalA + ' · cobertura B ' + (metrics.matchedB + metrics.reviewedB) + '/' + metrics.totalB + ' · automatico A ' + metrics.matchedA + ' / B ' + metrics.matchedB + ' · revisao A ' + metrics.reviewedA + ' / B ' + metrics.reviewedB + ' · fora do escopo A ' + metrics.outOfScopeA + ' / B ' + metrics.outOfScopeB + '</div>',
       '<div class="grid grid-cols-1 xl:grid-cols-2 gap-5">',
       section('Itens conciliados automaticamente', renderMatches(r.matches)),
-      section('Revisão manual', renderAmbiguous(r.ambiguous || [])),
+      section('Revisão manual consolidada', renderAmbiguous(r.ambiguous || [])),
       section('Diferenças prováveis', renderPossible(r.possible)),
       section('Resumo diário das diferenças', renderDailyResiduals(r)),
       section('Sem vínculo no Arquivo A', renderTable(r.unmatchedA, 'A')),
