@@ -83,7 +83,7 @@ assertContains('index.html', 'LIMITE_ENTRIES_LOCAL_STORAGE', 'limite de snapshot
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
 assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
 assertContains('index.html', 'parser-santander-empresas-ocr.js?v=3.2.25', 'cache-buster atual do parser Santander');
-assertContains('auditai/index.html', 'index-DREfix3160.js?v=3.2.34', 'cache-buster atual da analise individual AuditAI');
+assertContains('auditai/index.html', 'index-DREfix3160.js?v=3.2.35', 'cache-buster atual da analise individual AuditAI');
 assertContains('auditai/index.html', 'conciliacao-arquivos.js?v=3.2.30', 'cache-buster atual da conciliacao AuditAI');
 assertContains('auditai/conciliacao.html', 'conciliacao-arquivos.js?v=3.2.30', 'cache-buster atual da pagina dedicada de conciliacao');
 assertContains('auditai/assets/index-DREfix3160.js', 'i>1||s===3?t=t.replace(/\\./g,"")', 'parser numerico AuditAI trata pontos de milhar brasileiros');
@@ -94,6 +94,8 @@ assertContains('auditai/assets/index-DREfix3160.js', 'officialTotals:Object.keys
 assertContains('auditai/assets/index-DREfix3160.js', 'ae.ac=xe.ativoCirculante||0,ae.anc=xe.ativoNaoCirculante||0', 'Dashboard AuditAI usa abertura oficial de ativo e passivo');
 assertContains('auditai/assets/index-DREfix3160.js', 'JxAuditShouldSkipSpellcheckAlert', 'AuditAI filtra falsos positivos de grafia em contas contabeis oficiais');
 assertContains('auditai/assets/index-DREfix3160.js', 'OBRIGACOES FINANCEIRAS', 'AuditAI nao trata grupo contabil normal como conta suspeita');
+assertContains('auditai/assets/index-DREfix3160.js', 'NAO recalcule nem substitua Total Ativo', 'Parecer AuditAI preserva totais oficiais do balanco');
+assertContains('auditai/assets/index-DREfix3160.js', 'NAO crie ajuste para fechar balanco', 'Parecer AuditAI nao inventa ajuste de fechamento');
 assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_versao_vista', 'chave propria de aviso de versao no AuditAI');
 assertContains('auditai/conciliacao-arquivos.js', 'Motor conciliacao v3.2.30', 'versao visivel do motor de conciliacao');
 assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_motor_cache', 'chave de autocorrecao de cache do motor AuditAI');
