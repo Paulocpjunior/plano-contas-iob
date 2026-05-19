@@ -1,7 +1,8 @@
 {
-  "version": "3.2.31",
-  "build_date": "2026-05-19T18:39:36.658-03:00",
+  "version": "3.2.32",
+  "build_date": "2026-05-19T18:53:31.128-03:00",
   "release_notes": [
+    "Hotfix AuditAI: remove conflito de nome no bundle da Analise Individual que deixava a tela em branco no Safari",
     "FORTYMIL: Total Ativo, Patrimonio Liquido e Resultado no Exercicio deixam de ser recalculados por linhas soltas quando o PDF traz totais oficiais",
     "AuditAI Analise Individual passa a usar totais oficiais de balancos sem casas decimais, preservando valores inteiros do relatorio",
     "AuditAI Conciliacao de Arquivos consolida diferencas residuais por data e debito/credito para fechar cobertura operacional",
