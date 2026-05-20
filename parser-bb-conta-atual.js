@@ -106,7 +106,8 @@
   function parsearTextoBBContaAtual(textoCompleto) {
     textoCompleto = String(textoCompleto || '');
     // Deteccao: header G<16digitos> + "Cliente - Conta atual" + colunas do BB
-    const ehBB = /G\d{16}/.test(textoCompleto)
+    const temCabecalhoBB = /G\d{16}/.test(textoCompleto) || /Banco\s+do\s+Brasil|BCO\s+DO\s+BRASIL|EMPRESA/i.test(textoCompleto);
+    const ehBB = temCabecalhoBB
               && /Cliente\s*-\s*Conta\s*atual/i.test(textoCompleto)
               && /Dt\.?\s*balancete/i.test(textoCompleto)
               && /Hist[oó]rico/i.test(textoCompleto);
@@ -119,7 +120,7 @@
     const linhas = textoCompleto.split(/\r?\n/);
 
     const lancamentos = [];
-    const IGNORAR = /^(Saldo\s+Anterior|S\s*A\s*L\s*D\s*O|Tar\.\s*agrupadas)/i;
+    const IGNORAR = /^(Saldo\s+Anterior|Saldo\s+do\s+dia|Saldo\s+total|Saldo\s+final|S\s*A\s*L\s*D\s*O|Tar\.\s*agrupadas)/i;
 
     for (let i = 0; i < linhas.length; i++) {
       const linha = linhas[i].trim();

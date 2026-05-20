@@ -361,9 +361,12 @@
       const t = String(text || '').replace(/\s+/g, ' ').trim();
       if (!t) return;
       if (/^(Extrato Mensal|COMUNIDADE|Nome do usu|Data da opera|Folha|Ag[eê]ncia|Extrato de:|Data Lan[cç]amento|Cr[eé]dito|Os dados|[ÚU]ltimos Lan[cç]amentos|Saldos Invest)/i.test(t)) return;
-      if (/^REM:/i.test(t)) return;
       if (/^SALDO ANTERIOR/i.test(t)) return;
-      pendingDesc = t;
+      if (/^(REM|FAV|PAG|ORIGEM):/i.test(t) && pendingDesc) {
+        pendingDesc = pendingDesc + ' - ' + t;
+        return;
+      }
+      pendingDesc = pendingDesc ? (pendingDesc + ' - ' + t) : t;
     }
 
     lines.forEach(function(line) {

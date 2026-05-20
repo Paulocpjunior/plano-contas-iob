@@ -16,7 +16,8 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.39"></script>
+    <script src="/parser-ofx.js?v=3.2.40"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.40"></script>
     <script src="/parser-safra-extrato.js?v=3.1.91"></script>
     <script src="/parser-bb-conta-atual.js?v=3.1.91"></script>
     <script src="/parser-bb-cash-ocr.js?v=3.1.91"></script>
@@ -8779,29 +8780,10 @@
 
         // OFX Parser
         function parseOFX(t) {
-            const entries = [];
-            const re = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi;
-            let m;
-            while ((m = re.exec(t)) !== null) {
-                const b = m[1];
-                const dt = (b.match(/<DTPOSTED>([^<\n]+)/) || [])[1] || '';
-                const val = parseValorOFX((b.match(/<TRNAMT>([^<\n]+)/) || [])[1]);
-                const memo = (b.match(/<MEMO>([^<\n]+)/) || [])[1] || '';
-                entries.push({
-                    id: crypto.randomUUID(),
-                    data: `${dt.slice(0,4)}-${dt.slice(4,6)}-${dt.slice(6,8)}`,
-                    descricao: memo,
-                    valor: val,
-                    empresa: '',
-                    cnpj: '',
-                    categoria: 'Não categorizado',
-                    contaDebito: '',
-                    contaCredito: '',
-                    historico: '',
-                    incomum: false
-                });
+            if (window.SP_ParseOFX && typeof window.SP_ParseOFX.parseOFXText === 'function') {
+                return window.SP_ParseOFX.parseOFXText(t);
             }
-            return entries;
+            return [];
         }
         
         // CSV Parser
