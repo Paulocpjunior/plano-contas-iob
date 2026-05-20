@@ -16,14 +16,14 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.37"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.38"></script>
     <script src="/parser-safra-extrato.js?v=3.1.91"></script>
     <script src="/parser-bb-conta-atual.js?v=3.1.91"></script>
     <script src="/parser-bb-cash-ocr.js?v=3.1.91"></script>
     <script src="/parser-itau-extrato-mensal.js?v=3.1.91"></script>
     <script src="/parser-santander-empresas-ocr.js?v=3.2.25"></script>
     <script src="/parser-btg-pactual.js?v=3.1.91"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.23"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.38"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -2068,6 +2068,8 @@
                             <div class="sub" id="totalDebitoQtd">0 saída(s)</div>
                         </div>
                     </div>
+
+                    <div id="painelCreditoPisCofins" class="hidden" style="margin:18px 0 22px"></div>
                     
                     <!-- Filters -->
                     <div class="filters-section">
@@ -2652,6 +2654,7 @@
             infoConfirmed: false,
             entries: [],
             lastFile: null,
+            pisCofinsCreditoCategorias: {},
             mappings: [
                 {k:'DIZIMO',d:'111',c:'501',cat:'Receita'},
                 {k:'OFERTA',d:'111',c:'501',cat:'Receita'},
@@ -4316,6 +4319,7 @@
                             info: d.info || null,
                             infoConfirmed: !!d.infoConfirmed,
                             lastFile: d.lastFile || null,
+                            pisCofinsCreditoCategorias: d.pisCofinsCreditoCategorias || {},
                             compactado: true,
                             semLancamentosLocal: true,
                             atualizadoEm: new Date().toISOString()
@@ -4327,8 +4331,10 @@
                 state.info = d.info || null;
                 state.infoConfirmed = d.infoConfirmed || false;
                 state.lastFile = d.lastFile || null;
+                state.pisCofinsCreditoCategorias = d.pisCofinsCreditoCategorias || {};
             }
             if (!Array.isArray(state.mappings)) state.mappings = [];
+            if (!state.pisCofinsCreditoCategorias || typeof state.pisCofinsCreditoCategorias !== 'object') state.pisCofinsCreditoCategorias = {};
         }
 
         function entradaPersistivel(e) {
@@ -4340,7 +4346,9 @@
                 'incomum','bancoId','bancoNome','importacaoId','importacaoTitulo',
                 'layoutNome','layoutParser','conta','nome_conta','periodo_inicio',
                 'periodo_fim','totalCreditoOficial','totalDebitoOficial','aba_origem',
-                '_fingerprint_imp','_acao_dup','status_origem'
+                '_fingerprint_imp','_acao_dup','status_origem','valorNota',
+                'baseCalculoPisCofins','baseCalculoPisCofinsOrigem','categoriaFiscal',
+                'tipoDocumentoFiscal'
             ].forEach(function(k) {
                 if (e[k] !== undefined && e[k] !== null && e[k] !== '') out[k] = e[k];
             });
@@ -4358,6 +4366,7 @@
                 info: state.info,
                 infoConfirmed: state.infoConfirmed,
                 lastFile: state.lastFile,
+                pisCofinsCreditoCategorias: state.pisCofinsCreditoCategorias || {},
                 compactado: true,
                 semLancamentosLocal: !!opts.semLancamentos,
                 atualizadoEm: new Date().toISOString()
@@ -4419,6 +4428,7 @@
                     state.info = d.info || state.info;
                     state.infoConfirmed = d.infoConfirmed || state.infoConfirmed;
                     state.lastFile = d.lastFile || state.lastFile;
+                    state.pisCofinsCreditoCategorias = d.pisCofinsCreditoCategorias || state.pisCofinsCreditoCategorias || {};
                     localStorage.setItem('consultorContabil_v2_ts', String(remotoTs));
                     saveState();
                     showToast('✅ Sessão sincronizada do servidor (' + qtdRemoto + ' lançamentos)', 'success');
@@ -5057,11 +5067,24 @@
                         .replace(/\s+/g, ' ')
                         .trim();
                 };
+                const categoriaFiscalClude = function(valor) {
+                    const f = limparFornecedorFiscal(valor).toUpperCase();
+                    if (/\b(GOOGLE|MICROSOFT|AWS|AMAZON|FACEBK|FACEBOOK|META|CLICKSIGN|RD GESTAO|SISTEMAS|SOFTWARE|LICENCA|TECNOLOGIA|INTERNET)\b/.test(f)) return 'LICENCA TI';
+                    if (/\b(MEDIC|CLINIC|HOSPITAL|SAUDE|OCUPACIONAL|LABORATORIO|DOUTOR|DRA\b|DR\b)\b/.test(f)) return 'MEDICINA';
+                    if (/\b(PSICOLOG|TERAP|MENTAL)\b/.test(f)) return 'PSICOLOGIA';
+                    if (/\b(NUTRI|ALIMENTACAO|DIETA)\b/.test(f)) return 'NUTRICAO';
+                    if (/\b(VIVO|CLARO|TIM|TELEFON|ROCK TELECOM|SMS)\b/.test(f)) return 'TELEFONIA';
+                    if (/\b(CONSULT|ASSESSOR|AUDIT|ADVOG|OAB|JURID|CONTABIL|GESTAO)\b/.test(f)) return 'CONSULTORIA';
+                    if (/\b(LIMPEZA|MATERIAL|SUPRI|GIMBA|ESCRITORIO)\b/.test(f)) return 'DESPESA';
+                    return '— Sem categoria —';
+                };
 
-                const montarLancamentoServico = function(data, fornecedor, cnpj, documento, valor, sheetName) {
+                const montarLancamentoServico = function(data, fornecedor, cnpj, documento, valor, sheetName, categoriaPlanilha) {
                     const fornecedorLimpo = limparFornecedorFiscal(fornecedor);
                     const docLimpo = String(documento || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
                     const cnpjLimpo = String(cnpj || '').trim();
+                    const valorNota = Math.abs(valor);
+                    const categoriaFiscal = String(categoriaPlanilha || '').trim() || categoriaFiscalClude(fornecedorLimpo);
                     const descricao = ['Servicos tomados', fornecedorLimpo, docLimpo ? ('NF ' + docLimpo) : '', cnpjLimpo ? ('CNPJ ' + cnpjLimpo) : '']
                         .filter(Boolean)
                         .join(' - ')
@@ -5078,7 +5101,13 @@
                             cnpjLimpo,
                             docLimpo ? ('NF ' + docLimpo) : ''
                         ].filter(Boolean),
-                        valor: -Math.abs(valor),
+                        valor: -valorNota,
+                        valorNota: valorNota,
+                        baseCalculoPisCofins: valorNota,
+                        baseCalculoPisCofinsOrigem: 'valor_da_nota',
+                        categoriaFiscal: categoriaFiscal,
+                        categoria: categoriaFiscal,
+                        tipoDocumentoFiscal: 'SERVICO_TOMADO',
                         documento: docLimpo,
                         cnpj_fornecedor: cnpjLimpo,
                         codigoHistorico: '1207',
@@ -5131,6 +5160,7 @@
                         const cValor = colPorRegex([/valor da nf/, /valor nf/, /^valor$/]);
                         const cData = colPorRegex([/emissao/, /^data$/]);
                         const cNumero = colPorRegex([/^numero$/, /numero nf/, /^nf$/, /documento/]);
+                        const cCategoria = colPorRegex([/^categoria$/, /^classif/, /^natureza$/, /^grupo$/, /^lista de servico$/, /^lista servico$/, /^item servico$/]);
                         let count = 0;
 
                         for (let i = hIdx + 1; i < rows.length; i++) {
@@ -5140,8 +5170,9 @@
                             const fornecedor = String(r[cFornecedor] || '').replace(/\s+/g, ' ').trim();
                             const cnpj = String(r[cCnpj] || '').replace(/\s+/g, ' ').trim();
                             const documento = cNumero >= 0 ? String(r[cNumero] || '').trim() : '';
+                            const categoria = cCategoria >= 0 ? String(r[cCategoria] || '').trim() : '';
                             if (!data || valor === null || Math.abs(valor) === 0 || !fornecedor) continue;
-                            todosServicos.push(montarLancamentoServico(data, fornecedor, cnpj, documento, valor, sheetName));
+                            todosServicos.push(montarLancamentoServico(data, fornecedor, cnpj, documento, valor, sheetName, categoria));
                             count++;
                         }
                         abasServicos.push({ aba: sheetName, detectados: count, layout: 'CLUDE - Servicos Tomados Fiscal' });
@@ -6943,6 +6974,153 @@
             const sufixo = filtrado ? ' exibida' : ' importada';
             if (credQtdEl) credQtdEl.textContent = creditos.length + ' entrada' + (creditos.length !== 1 ? 's' : '') + sufixo + (creditos.length !== 1 ? 's' : '');
             if (debQtdEl) debQtdEl.textContent = debitos.length + ' saída' + (debitos.length !== 1 ? 's' : '') + sufixo + (debitos.length !== 1 ? 's' : '');
+        }
+
+        function chaveCategoriaPisCofins(categoria) {
+            return String(categoria || '— Sem categoria —')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase()
+                .replace(/[^A-Z0-9]+/g, '_')
+                .replace(/^_+|_+$/g, '') || 'SEM_CATEGORIA';
+        }
+
+        function chaveEmpresaPisCofins() {
+            const cnpj = state.info && state.info.cnpj ? String(state.info.cnpj).replace(/\D/g, '') : '';
+            return cnpj || 'GLOBAL';
+        }
+
+        function isLancamentoCludeServicosTomados(lanc) {
+            const texto = String([
+                lanc && lanc.layoutNome,
+                lanc && lanc.layoutParser,
+                lanc && lanc.conta,
+                lanc && lanc.nome_conta,
+                lanc && lanc.tipoDocumentoFiscal
+            ].filter(Boolean).join(' ')).toUpperCase();
+            return texto.indexOf('CLUDE') >= 0
+                && (texto.indexOf('SERVICOS TOMADOS') >= 0 || texto.indexOf('SERVIÇOS TOMADOS') >= 0 || texto.indexOf('SERVICO_TOMADO') >= 0);
+        }
+
+        function categoriaCreditoPisCofins(lanc) {
+            return String((lanc && (lanc.categoria || lanc.categoriaFiscal)) || '— Sem categoria —').trim() || '— Sem categoria —';
+        }
+
+        function valorNotaCreditoPisCofins(lanc) {
+            const valorNota = Number(lanc && lanc.valorNota);
+            if (Number.isFinite(valorNota) && valorNota > 0) return valorNota;
+            const base = Number(lanc && lanc.baseCalculoPisCofins);
+            if (Number.isFinite(base) && base > 0) return base;
+            return Math.abs(Number(lanc && lanc.valor) || 0);
+        }
+
+        function categoriaPisCofinsElegivel(categoria) {
+            const empresaKey = chaveEmpresaPisCofins();
+            const chave = chaveCategoriaPisCofins(categoria);
+            const cfg = (state.pisCofinsCreditoCategorias && state.pisCofinsCreditoCategorias[empresaKey]) || {};
+            if (Object.prototype.hasOwnProperty.call(cfg, chave)) return cfg[chave] === true;
+            return true;
+        }
+
+        function toggleCategoriaPisCofins(categoria, marcado) {
+            const empresaKey = chaveEmpresaPisCofins();
+            const chave = chaveCategoriaPisCofins(categoria);
+            if (!state.pisCofinsCreditoCategorias || typeof state.pisCofinsCreditoCategorias !== 'object') {
+                state.pisCofinsCreditoCategorias = {};
+            }
+            if (!state.pisCofinsCreditoCategorias[empresaKey]) state.pisCofinsCreditoCategorias[empresaKey] = {};
+            state.pisCofinsCreditoCategorias[empresaKey][chave] = !!marcado;
+            saveState();
+            atualizarPainelCreditoPisCofins(obterEntriesFiltrados());
+        }
+
+        function calcularCreditoPisCofinsClude(lista) {
+            const entries = (Array.isArray(lista) ? lista : []).filter(isLancamentoCludeServicosTomados);
+            const gruposMap = {};
+            entries.forEach(function(e) {
+                const categoria = categoriaCreditoPisCofins(e);
+                const chave = chaveCategoriaPisCofins(categoria);
+                const valor = valorNotaCreditoPisCofins(e);
+                if (!gruposMap[chave]) {
+                    gruposMap[chave] = {
+                        chave,
+                        categoria,
+                        fornecedores: new Set(),
+                        nfs: 0,
+                        base: 0,
+                        elegivel: categoriaPisCofinsElegivel(categoria)
+                    };
+                }
+                gruposMap[chave].nfs += 1;
+                gruposMap[chave].base += valor;
+                const fornecedor = String(e.descricao_memoria || e.fornecedor || e.descricao || '').trim();
+                if (fornecedor) gruposMap[chave].fornecedores.add(fornecedor);
+            });
+            const grupos = Object.keys(gruposMap).map(function(k) {
+                const g = gruposMap[k];
+                return {
+                    chave: g.chave,
+                    categoria: g.categoria,
+                    fornecedores: g.fornecedores.size,
+                    nfs: g.nfs,
+                    base: g.base,
+                    elegivel: g.elegivel
+                };
+            }).sort(function(a, b) { return b.base - a.base; });
+            const baseCredito = grupos.filter(function(g) { return g.elegivel; }).reduce(function(acc, g) { return acc + g.base; }, 0);
+            return {
+                totalNotas: entries.length,
+                grupos,
+                baseCredito,
+                pis: baseCredito * 0.0165,
+                cofins: baseCredito * 0.076,
+                totalCredito: baseCredito * 0.0925
+            };
+        }
+
+        function atualizarPainelCreditoPisCofins(lista) {
+            const painel = document.getElementById('painelCreditoPisCofins');
+            if (!painel) return;
+            const resumo = calcularCreditoPisCofinsClude(Array.isArray(lista) ? lista : (state.entries || []));
+            if (!resumo.totalNotas) {
+                painel.classList.add('hidden');
+                painel.innerHTML = '';
+                return;
+            }
+            painel.classList.remove('hidden');
+            const rows = resumo.grupos.map(function(g) {
+                const categoriaEsc = escaparHtmlImportacao(g.categoria);
+                return '<tr>'
+                    + '<td style="padding:10px 12px;color:#0f172a;font-weight:600">' + categoriaEsc + '</td>'
+                    + '<td style="padding:10px 12px;text-align:center;color:#475569">' + g.fornecedores + '</td>'
+                    + '<td style="padding:10px 12px;text-align:center;color:#475569">' + g.nfs + '</td>'
+                    + '<td style="padding:10px 12px;text-align:right;font-weight:700;color:#0f172a">' + formatarMoedaBR(g.base) + '</td>'
+                    + '<td style="padding:10px 12px;text-align:center">'
+                    + '<label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#334155;cursor:pointer">'
+                    + '<input type="checkbox" data-categoria="' + categoriaEsc + '" ' + (g.elegivel ? 'checked' : '') + ' onchange="toggleCategoriaPisCofins(this.getAttribute(\'data-categoria\'), this.checked)">'
+                    + 'Credita'
+                    + '</label>'
+                    + '</td>'
+                    + '</tr>';
+            }).join('');
+            painel.innerHTML =
+                '<div style="border:1px solid #e5e7eb;border-radius:12px;background:#fff;box-shadow:0 1px 4px rgba(15,23,42,.06);overflow:hidden">'
+                + '<div style="padding:16px 18px 10px">'
+                + '<h3 style="margin:0 0 4px;font-size:16px;color:#0f172a">Crédito PIS/COFINS — Lucro Real (não-cumulativo)</h3>'
+                + '<p style="margin:0;color:#64748b;font-size:13px">Alíquotas: PIS 1,65% · COFINS 7,60% · CLUDE usa Valor da Nota das categorias elegíveis, não Base de Cálculo/Retenção.</p>'
+                + '</div>'
+                + '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:12px 18px 14px">'
+                + '<div style="background:#eff6ff;border-radius:10px;padding:13px"><div style="font-size:11px;color:#2563eb">Base de Crédito</div><div style="font-size:18px;font-weight:800;color:#1e40af">' + formatarMoedaBR(resumo.baseCredito) + '</div></div>'
+                + '<div style="background:#f5f3ff;border-radius:10px;padding:13px"><div style="font-size:11px;color:#7c3aed">Crédito PIS</div><div style="font-size:18px;font-weight:800;color:#6d28d9">' + formatarMoedaBR(resumo.pis) + '</div></div>'
+                + '<div style="background:#fff7ed;border-radius:10px;padding:13px"><div style="font-size:11px;color:#c2410c">Crédito COFINS</div><div style="font-size:18px;font-weight:800;color:#9a3412">' + formatarMoedaBR(resumo.cofins) + '</div></div>'
+                + '<div style="background:#ecfdf5;border-radius:10px;padding:13px"><div style="font-size:11px;color:#047857">Crédito Total</div><div style="font-size:18px;font-weight:800;color:#065f46">' + formatarMoedaBR(resumo.totalCredito) + '</div></div>'
+                + '</div>'
+                + '<div style="padding:0 18px 16px">'
+                + '<div style="font-size:12px;color:#64748b;margin:0 0 8px">Marque apenas as categorias/listas de serviço que geram crédito. A base apresentada abaixo é o Valor da Nota.</div>'
+                + '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+                + '<thead><tr style="background:#f8fafc;color:#475569;text-transform:uppercase;font-size:11px">'
+                + '<th style="padding:9px 12px;text-align:left">Categoria</th><th style="padding:9px 12px;text-align:center">Fornecedores</th><th style="padding:9px 12px;text-align:center">NFs</th><th style="padding:9px 12px;text-align:right">Valor da Nota</th><th style="padding:9px 12px;text-align:center">PIS/COFINS</th>'
+                + '</tr></thead><tbody>' + rows + '</tbody></table>'
+                + '</div></div>';
         }
 
         function novoIdLancamento() {
@@ -8808,6 +8986,7 @@
             
             if (!state.entries.length) {
                 atualizarCardsTotaisImportados([]);
+                atualizarPainelCreditoPisCofins([]);
                 c.innerHTML = '<div class="empty-state"><div class="icon">📄</div><h3>Nenhum lançamento</h3><p>Importe um extrato bancário para começar.</p></div>';
                 document.getElementById('alertsContainer').innerHTML = '';
                 document.getElementById('tableCount').textContent = 'Exibindo 0 de 0 transações';
@@ -8818,6 +8997,7 @@
             // v3.1.8: usa funcao centralizada (reusada por exportIOB)
             let list = obterEntriesFiltrados();
             atualizarCardsTotaisImportados(list);
+            atualizarPainelCreditoPisCofins(list);
             
             // Update count
             document.getElementById('tableCount').textContent = `Exibindo ${list.length} de ${state.entries.length} transações`;

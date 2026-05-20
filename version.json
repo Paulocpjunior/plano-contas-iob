@@ -1,7 +1,10 @@
 {
-  "version": "3.2.37",
-  "build_date": "2026-05-20T06:45:00-03:00",
+  "version": "3.2.38",
+  "build_date": "2026-05-20T07:25:00-03:00",
   "release_notes": [
+    "Hotfix CLUDE PIS/COFINS: base de credito passa a usar Valor da Nota dos servicos tomados, nao Base de Calculo/Retencao",
+    "Distribuicao por categoria permite marcar quais listas de servicos entram no credito PIS/COFINS",
+    "Parser CLUDE Servicos Tomados preserva valorNota, baseCalculoPisCofins e origem valor_da_nota para auditoria fiscal",
     "Hotfix Bradesco Net Empresa: historico passa a ser preenchido automaticamente pela descricao do lancamento",
     "Regressao Bradesco jan/2025 adicionada para impedir retorno de historicos em branco",
     "Cache-buster do parser Bradesco atualizado para evitar navegador usando layout antigo",

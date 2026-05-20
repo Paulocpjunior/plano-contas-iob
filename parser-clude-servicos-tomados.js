@@ -28,6 +28,18 @@
     return Number.isFinite(n) ? n : 0;
   }
 
+  function categoriaFiscalClude(fornecedor) {
+    const f = normalizarTexto(fornecedor).toUpperCase();
+    if (/\b(GOOGLE|MICROSOFT|AWS|AMAZON|FACEBK|FACEBOOK|META|CLICKSIGN|RD GESTAO|SISTEMAS|SOFTWARE|LICENCA|TECNOLOGIA|INTERNET)\b/.test(f)) return 'LICENCA TI';
+    if (/\b(MEDIC|CLINIC|HOSPITAL|SAUDE|OCUPACIONAL|LABORATORIO|DOUTOR|DRA\b|DR\b)\b/.test(f)) return 'MEDICINA';
+    if (/\b(PSICOLOG|TERAP|MENTAL)\b/.test(f)) return 'PSICOLOGIA';
+    if (/\b(NUTRI|ALIMENTACAO|DIETA)\b/.test(f)) return 'NUTRICAO';
+    if (/\b(VIVO|CLARO|TIM|TELEFON|ROCK TELECOM|SMS)\b/.test(f)) return 'TELEFONIA';
+    if (/\b(CONSULT|ASSESSOR|AUDIT|ADVOG|OAB|JURID|CONTABIL|GESTAO)\b/.test(f)) return 'CONSULTORIA';
+    if (/\b(LIMPEZA|MATERIAL|SUPRI|GIMBA|ESCRITORIO)\b/.test(f)) return 'DESPESA';
+    return '— Sem categoria —';
+  }
+
   function parseDateBR(valor) {
     const m = String(valor || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
     if (!m) return '';
@@ -52,6 +64,8 @@
     const fornecedorLimpo = normalizarFornecedor(fornecedor);
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
     if (!fornecedorLimpo || !valor || !data) return null;
+    const valorNota = Math.abs(valor);
+    const categoriaFiscal = categoriaFiscalClude(fornecedorLimpo);
 
     const descricao = ['Servicos tomados', fornecedorLimpo, documentoLimpo ? ('NF ' + documentoLimpo) : '', 'CNPJ ' + cnpj]
       .filter(Boolean)
@@ -70,7 +84,13 @@
         cnpj,
         documentoLimpo ? ('NF ' + documentoLimpo) : ''
       ].filter(Boolean),
-      valor: -Math.abs(valor),
+      valor: -valorNota,
+      valorNota: valorNota,
+      baseCalculoPisCofins: valorNota,
+      baseCalculoPisCofinsOrigem: 'valor_da_nota',
+      categoriaFiscal: categoriaFiscal,
+      categoria: categoriaFiscal,
+      tipoDocumentoFiscal: 'SERVICO_TOMADO',
       documento: documentoLimpo,
       cnpj_fornecedor: cnpj,
       codigoHistorico: '1207',
