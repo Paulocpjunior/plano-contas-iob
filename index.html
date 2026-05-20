@@ -16,14 +16,14 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.38"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.39"></script>
     <script src="/parser-safra-extrato.js?v=3.1.91"></script>
     <script src="/parser-bb-conta-atual.js?v=3.1.91"></script>
     <script src="/parser-bb-cash-ocr.js?v=3.1.91"></script>
     <script src="/parser-itau-extrato-mensal.js?v=3.1.91"></script>
     <script src="/parser-santander-empresas-ocr.js?v=3.2.25"></script>
     <script src="/parser-btg-pactual.js?v=3.1.91"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.38"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.39"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -7006,11 +7006,42 @@
         }
 
         function valorNotaCreditoPisCofins(lanc) {
+            if (isLancamentoCludeServicosTomados(lanc)) {
+                const valorNotaClude = Number(lanc && lanc.valorNota);
+                if (Number.isFinite(valorNotaClude) && valorNotaClude > 0) return valorNotaClude;
+                return Math.abs(Number(lanc && lanc.valor) || 0);
+            }
             const valorNota = Number(lanc && lanc.valorNota);
             if (Number.isFinite(valorNota) && valorNota > 0) return valorNota;
             const base = Number(lanc && lanc.baseCalculoPisCofins);
             if (Number.isFinite(base) && base > 0) return base;
             return Math.abs(Number(lanc && lanc.valor) || 0);
+        }
+
+        function corrigirBasePisCofinsClude(entries) {
+            let alterados = 0;
+            (Array.isArray(entries) ? entries : []).forEach(function(e) {
+                if (!isLancamentoCludeServicosTomados(e)) return;
+                const valorNota = Math.abs(Number(e.valorNota || e.valor || 0));
+                if (!valorNota) return;
+                if (Math.round(Number(e.valorNota || 0) * 100) !== Math.round(valorNota * 100)) {
+                    e.valorNota = valorNota;
+                    alterados++;
+                }
+                if (Math.round(Number(e.baseCalculoPisCofins || 0) * 100) !== Math.round(valorNota * 100)) {
+                    e.baseCalculoPisCofins = valorNota;
+                    alterados++;
+                }
+                if (e.baseCalculoPisCofinsOrigem !== 'valor_da_nota') {
+                    e.baseCalculoPisCofinsOrigem = 'valor_da_nota';
+                    alterados++;
+                }
+                if (!e.tipoDocumentoFiscal) {
+                    e.tipoDocumentoFiscal = 'SERVICO_TOMADO';
+                    alterados++;
+                }
+            });
+            return alterados;
         }
 
         function categoriaPisCofinsElegivel(categoria) {
@@ -7035,6 +7066,7 @@
 
         function calcularCreditoPisCofinsClude(lista) {
             const entries = (Array.isArray(lista) ? lista : []).filter(isLancamentoCludeServicosTomados);
+            corrigirBasePisCofinsClude(entries);
             const gruposMap = {};
             entries.forEach(function(e) {
                 const categoria = categoriaCreditoPisCofins(e);
@@ -8975,6 +9007,13 @@
                 console.log('[integridade] ' + corrigidos + ' ajuste(s) em lancamentos sem id/valor numerico');
             }
             try { aplicarHistoricosFallback(state.entries || []); } catch(e) {}
+            try {
+                const basesCorrigidas = corrigirBasePisCofinsClude(state.entries || []);
+                if (basesCorrigidas > 0) {
+                    saveState();
+                    console.log('[pis/cofins clude] ' + basesCorrigidas + ' base(s) fiscal(is) corrigida(s) para Valor da Nota');
+                }
+            } catch(e) {}
             try {
                 const histCorrigidos = normalizarHistoricosClassificados(state.entries || []);
                 if (histCorrigidos > 0) {

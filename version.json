@@ -1,7 +1,9 @@
 {
-  "version": "3.2.38",
-  "build_date": "2026-05-20T07:25:00-03:00",
+  "version": "3.2.39",
+  "build_date": "2026-05-20T13:25:00-03:00",
   "release_notes": [
+    "Hotfix CLUDE PIS/COFINS: sessoes antigas tambem sao corrigidas para ignorar base de retencao e usar Valor da Nota",
+    "Calculo de credito CLUDE passa a sobrescrever baseCalculoPisCofins antiga com Valor da Nota ao renderizar lancamentos",
     "Hotfix CLUDE PIS/COFINS: base de credito passa a usar Valor da Nota dos servicos tomados, nao Base de Calculo/Retencao",
     "Distribuicao por categoria permite marcar quais listas de servicos entram no credito PIS/COFINS",
     "Parser CLUDE Servicos Tomados preserva valorNota, baseCalculoPisCofins e origem valor_da_nota para auditoria fiscal",
