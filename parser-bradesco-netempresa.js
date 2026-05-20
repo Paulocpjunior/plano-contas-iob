@@ -184,10 +184,45 @@
       || /^SALDO ANTERIOR/i.test(t);
   }
 
+  function normalizarHistoricoBradesco(texto) {
+    return String(texto || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function historicoBradescoPorDescricao(descricao, tipo) {
+    const d = normalizarHistoricoBradesco(descricao);
+    if (!d) return tipo === 'C' ? 'CREDITO BRADESCO' : 'DEBITO BRADESCO';
+    const regras = [
+      { re: /\b(TARIFA|CESTA|ENCARGO|IOF)\b/, hist: 'TARIFA BANCARIA' },
+      { re: /\b(PIX|QRCODE|QR CODE|TRANSF PGTO PIX)\b/, hist: 'PIX' },
+      { re: /\b(BOLETO|PAGAMENTO|LIQUIDACAO|TITULO)\b/, hist: 'PAGAMENTO' },
+      { re: /\b(TED|DOC|TRANSF|TRANSFERENCIA)\b/, hist: 'TRANSFERENCIA' },
+      { re: /\b(SAQUE|CARTAO|ESPECIE)\b/, hist: 'SAQUE' },
+      { re: /\b(CHEQUE|CHQ)\b/, hist: 'CHEQUE' },
+      { re: /\b(REDE|REDECARD|CIELO|GETNET|CARTAO)\b/, hist: 'CARTAO' },
+      { re: /\b(RENDIMENTO|RENDIMENTOS|REND)\b/, hist: 'RENDIMENTOS' },
+      { re: /\b(APLICACAO|APLIC)\b/, hist: 'APLICACAO' },
+      { re: /\b(RESGATE|RESG)\b/, hist: 'RESGATE' },
+      { re: /\b(DEPOSITO|DEPOS|DEP)\b/, hist: 'DEPOSITO' }
+    ];
+    const achada = regras.find(function(r) { return r.re.test(d); });
+    if (achada) return achada.hist;
+    const base = d
+      .replace(/\b(REM|DES)\b:?/g, ' ')
+      .replace(/[^A-Z0-9 ]/g, ' ')
+      .replace(/\b(DA|DE|DO|DOS|DAS|E|S A|SA|LTDA|ME|EPP)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return (base.split(' ').slice(0, 3).join(' ') || (tipo === 'C' ? 'CREDITO BRADESCO' : 'DEBITO BRADESCO')).slice(0, 40);
+  }
+
   function parsearTextoBradescoNetEmpresa(textoCompleto) {
     const texto = String(textoCompleto || '');
-    const ehBradesco = /Extrato Mensal\s*\/\s*Por Per[ií]odo/i.test(texto)
-      && /Data\s*Lan[cç]amento\s*Dcto\.?\s*Cr[eé]dito/i.test(texto);
+    const ehBradesco = /Extrato\s+(?:Mensal|de:)/i.test(texto)
+      && /Data\s*Lan[cç]amento\s*Dcto\.?\s*Cr[eé]dito|DataLan[cç]amentoDcto\.?Cr[eé]dito/i.test(texto);
     if (!ehBradesco) return { detectado: false, lancamentos: [], textoCompleto: texto };
 
     const linhas = texto.split(/\r?\n/).map(function(l) {
@@ -240,6 +275,7 @@
       const mov = parseLinhaValoresBradesco(linha, saldoAnterior);
       if (mov) {
         const desc = pendingDesc || mov.prefixo || 'Lancamento Bradesco';
+        const historico = historicoBradescoPorDescricao(desc, mov.tipo);
         lancamentos.push({
           id: uuid(),
           data: currentDate,
@@ -252,7 +288,7 @@
           categoria: 'Nao categorizado',
           contaDebito: '',
           contaCredito: '',
-          historico: '',
+          historico: historico,
           incomum: false,
           origem: 'pdf-bradesco-netempresa'
         });
@@ -261,7 +297,7 @@
         return;
       }
 
-      if (!textoIgnoradoBradesco(linha) && !moneyToken(linha)) {
+      if (!textoIgnoradoBradesco(linha) && !moneyToken(linha) && !/^Data\s*Lan[cç]amento\s*Dcto\.?/i.test(linha) && !/^DataLan[cç]amentoDcto\.?/i.test(linha)) {
         pendingDesc = pendingDesc ? (pendingDesc + ' - ' + linha) : linha;
       }
     });
@@ -362,10 +398,11 @@
         const debito = debitItem ? Math.abs(parseValorBR(debitItem.s)) : 0;
         const valor = credito > 0 ? credito : -debito;
         if (valor !== 0) {
+          const desc = pendingDesc || 'Lancamento Bradesco';
           lancamentos.push({
             id: uuid(),
             data: currentDate,
-            descricao: pendingDesc || 'Lancamento Bradesco',
+            descricao: desc,
             documento: String(docItem.s || '').trim(),
             valor: valor,
             tipo: valor < 0 ? 'D' : 'C',
@@ -374,7 +411,7 @@
             categoria: 'Nao categorizado',
             contaDebito: '',
             contaCredito: '',
-            historico: '',
+            historico: historicoBradescoPorDescricao(desc, valor < 0 ? 'D' : 'C'),
             incomum: false,
             origem: 'pdf-bradesco-netempresa'
           });
@@ -413,6 +450,7 @@
       parseLinhaValoresBradesco: parseLinhaValoresBradesco,
       parseTotaisBradescoLinha: parseTotaisBradescoLinha,
       splitDocumentoValorBradesco: splitDocumentoValorBradesco,
+      historicoBradescoPorDescricao: historicoBradescoPorDescricao,
       parsearTextoBradescoNetEmpresa: parsearTextoBradescoNetEmpresa
     }
   };
