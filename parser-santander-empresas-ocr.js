@@ -310,7 +310,7 @@
         categoria: 'Nao categorizado',
         contaDebito: '',
         contaCredito: '',
-        historico: '',
+        historico: descricao,
         incomum: false,
         origem: 'pdf-santander-internet-banking'
       });
@@ -438,7 +438,7 @@
         categoria: 'Nao categorizado',
         contaDebito: '',
         contaCredito: '',
-        historico: '',
+        historico: descricao,
         incomum: false,
         origem: isInternetBankingOCRNumerico ? 'pdf-santander-internet-banking' : 'pdf-santander-empresas-ocr'
       });

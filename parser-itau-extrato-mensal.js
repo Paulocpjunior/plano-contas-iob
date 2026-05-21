@@ -161,7 +161,7 @@
         categoria: 'Nao categorizado',
         contaDebito: '',
         contaCredito: '',
-        historico: '',
+        historico: descricao,
         incomum: false,
         origem: 'pdf-itau-lancamentos-periodo'
       });
@@ -355,7 +355,7 @@
         categoria: 'Nao categorizado',
         contaDebito: '',
         contaCredito: '',
-        historico: '',
+        historico: desc,
         incomum: false,
         origem: 'pdf-itau-extrato-mensal'
       });

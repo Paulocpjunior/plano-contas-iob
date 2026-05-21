@@ -112,7 +112,7 @@
       categoria: 'Nao categorizado',
       contaDebito: '',
       contaCredito: '',
-      historico: '',
+      historico: descricao,
       incomum: false,
       origem: 'pdf-safra-extrato-textual'
     };
@@ -252,7 +252,7 @@
         categoria: 'Nao categorizado',
         contaDebito: '',
         contaCredito: '',
-        historico: '',
+        historico: descricao,
         incomum: false,
         origem: 'pdf-safra-extrato'
       });

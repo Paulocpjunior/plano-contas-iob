@@ -169,7 +169,7 @@
           categoria: 'Nao categorizado',
           contaDebito: '',
           contaCredito: '',
-          historico: '',
+          historico: descricao,
           incomum: false,
           origem: 'pdf-bb-cash-ocr'
         });

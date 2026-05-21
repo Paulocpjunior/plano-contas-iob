@@ -11,7 +11,7 @@
 set -euo pipefail
 
 URL_BASE="${1:-https://plano-contas-iob-q4woqnee3a-uw.a.run.app}"
-SEED_FILE="${SEED_FILE:-seeds/historicos-padrao-seed.json}"
+SEED_FILE="${SEED_FILE:-historicos-padrao-seed.json}"
 
 if [[ ! -f "$SEED_FILE" ]]; then
   echo "❌ Arquivo de seed não encontrado: $SEED_FILE"

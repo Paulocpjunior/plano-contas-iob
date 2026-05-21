@@ -1,7 +1,10 @@
 {
-  "version": "3.2.40",
-  "build_date": "2026-05-20T13:45:00-03:00",
+  "version": "3.2.41",
+  "build_date": "2026-05-21T07:31:00-03:00",
   "release_notes": [
+    "Hardening geral dos importadores: parsers PDF sensiveis passam a preencher historico minimo pela descricao extraida",
+    "Cache-buster dos parsers e AuditAI alinhado com a versao publica para evitar navegador usando motor antigo",
+    "Seed operacional de historicos padrao corrigido para o caminho real do arquivo no projeto",
     "Hotfix OFX definitivo: SALDO ANTERIOR, SALDO DO DIA e SALDO TOTAL DISPONIVEL DIA deixam de ser importados como lancamentos",
     "Parser OFX passa a preservar historico por NAME + MEMO, corrigindo Banco do Brasil quando MEMO vem vazio",
     "Regressao OFX Itau/BB jan-fev 2026 adicionada ao npm run check para impedir retorno de saldos e historicos vazios",

@@ -3,6 +3,7 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const { version } = JSON.parse(read('version.json'));
 const assertContains = (file, pattern, label) => {
   const source = read(file);
   const ok = pattern instanceof RegExp ? pattern.test(source) : source.includes(pattern);
@@ -82,10 +83,10 @@ assertContains('index.html', 'Ponte SERPRO ativa', 'aviso correto quando a integ
 assertContains('index.html', 'LIMITE_ENTRIES_LOCAL_STORAGE', 'limite de snapshot local para evitar recarregamento por memoria');
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
 assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
-assertContains('index.html', 'parser-santander-empresas-ocr.js?v=3.2.25', 'cache-buster atual do parser Santander');
-assertContains('auditai/index.html', 'index-DREfix3160.js?v=3.2.36', 'cache-buster atual da analise individual AuditAI');
-assertContains('auditai/index.html', 'conciliacao-arquivos.js?v=3.2.30', 'cache-buster atual da conciliacao AuditAI');
-assertContains('auditai/conciliacao.html', 'conciliacao-arquivos.js?v=3.2.30', 'cache-buster atual da pagina dedicada de conciliacao');
+assertContains('index.html', `parser-santander-empresas-ocr.js?v=${version}`, 'cache-buster atual do parser Santander');
+assertContains('auditai/index.html', `index-DREfix3160.js?v=${version}`, 'cache-buster atual da analise individual AuditAI');
+assertContains('auditai/index.html', `conciliacao-arquivos.js?v=${version}`, 'cache-buster atual da conciliacao AuditAI');
+assertContains('auditai/conciliacao.html', `conciliacao-arquivos.js?v=${version}`, 'cache-buster atual da pagina dedicada de conciliacao');
 assertContains('auditai/assets/index-DREfix3160.js', 'i>1||s===3?t=t.replace(/\\./g,"")', 'parser numerico AuditAI trata pontos de milhar brasileiros');
 assertContains('auditai/assets/index-DREfix3160.js', 'OFFICIAL_TOTAL_ATIVO', 'AuditAI solicita e preserva total oficial do ativo');
 assertContains('auditai/assets/index-DREfix3160.js', 'OFFICIAL_RESULTADO_EXERCICIO', 'AuditAI solicita e preserva resultado oficial do exercicio');
@@ -97,7 +98,7 @@ assertContains('auditai/assets/index-DREfix3160.js', 'OBRIGACOES FINANCEIRAS', '
 assertContains('auditai/assets/index-DREfix3160.js', 'NAO recalcule nem substitua Total Ativo', 'Parecer AuditAI preserva totais oficiais do balanco');
 assertContains('auditai/assets/index-DREfix3160.js', 'NAO crie ajuste para fechar balanco', 'Parecer AuditAI nao inventa ajuste de fechamento');
 assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_versao_vista', 'chave propria de aviso de versao no AuditAI');
-assertContains('auditai/conciliacao-arquivos.js', 'Motor conciliacao v3.2.30', 'versao visivel do motor de conciliacao');
+assertContains('auditai/conciliacao-arquivos.js', `Motor conciliacao v${version}`, 'versao visivel do motor de conciliacao');
 assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_motor_cache', 'chave de autocorrecao de cache do motor AuditAI');
 assertContains('auditai/conciliacao-arquivos.js', 'auditaiFresh', 'URL fresca para impedir aba antiga do AuditAI');
 assertContains('auditai/conciliacao-arquivos.js', 'reconciliationMetrics', 'metricas de conciliacao sem inflar aderencia por lote 1:N');
