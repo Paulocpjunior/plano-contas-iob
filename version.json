@@ -1,7 +1,9 @@
 {
-  "version": "3.2.47",
-  "build_date": "2026-05-21T13:20:00-03:00",
+  "version": "3.2.48",
+  "build_date": "2026-05-21T15:35:00-03:00",
   "release_notes": [
+    "Hotfix Caixa 104: detector do Extrato por Periodo Gerenciador aceita variacoes de espacamento do PDF.js no navegador",
+    "Parser Caixa 104 reforcado para reconhecer linhas reais por data/documento/valor C-D antes de rejeitar o arquivo",
     "Novo layout Caixa Economica Federal 104 - Extrato por Periodo Gerenciador cadastrado na central de layouts bancarios",
     "Parser Caixa 104 passa a ler linhas compactadas com data, documento, historico, valor C/D e saldo, sem importar saldos informativos",
     "Regressao Caixa MONACO jan/2025 adicionada ao npm run check para impedir retorno do erro de layout nao cadastrado",

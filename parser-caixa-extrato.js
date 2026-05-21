@@ -81,7 +81,7 @@
 
   function parseLinhaCaixa(raw) {
     const line = String(raw || '').replace(/\s+/g, ' ').trim();
-    const m = line.match(/^(\d{2}\/\d{2}\/\d{4})(\d{6})(.*?)([\d.]+,\d{2})\s*([CD])([\d.]+,\d{2})\s*([CD])$/);
+    const m = line.match(/^(\d{2}\/\d{2}\/\d{4})\s*(\d{6})\s*(.*?)([\d.]+,\d{2})\s*([CD])\s*([\d.]+,\d{2})\s*([CD])$/);
     if (!m) return null;
 
     const descricao = m[3].trim();
@@ -104,14 +104,6 @@
 
   function parsearTextoCaixaExtrato(textoCompleto) {
     const texto = String(textoCompleto || '');
-    const ehCaixa = /CA\.?IxA|CAIXA|Gerenciad\.or/i.test(texto)
-      && /Extrato por per[ií]odo/i.test(texto)
-      && /Data Mov\.Nr\. Doc\.Hist[oó]ricoValorSaldo/i.test(texto);
-
-    if (!ehCaixa) {
-      return { detectado: false, lancamentos: [], textoCompleto: texto };
-    }
-
     const periodo = extrairPeriodoCaixa(texto);
     const conta = extrairContaCaixa(texto);
     const cliente = extrairNomeClienteCaixa(texto);
@@ -140,6 +132,15 @@
         saldo: parsed.saldo
       });
     });
+
+    const cabecalhoCaixa = /CA\.?IXA|Gerenciador\.caixa|SIIBC|Extrato por per[ií]odo/i.test(texto);
+    const gradeCaixa = /Data\s*Mov\.?\s*Nr\.?\s*Doc\.?\s*Hist[oó]rico\s*Valor\s*Saldo/i.test(texto);
+    const estruturaCaixa = /\bCliente:/i.test(texto) && /\bConta:/i.test(texto) && /\bM[eê]s:/i.test(texto);
+    const ehCaixa = (cabecalhoCaixa || gradeCaixa || estruturaCaixa) && lancamentos.length >= 3;
+
+    if (!ehCaixa) {
+      return { detectado: false, lancamentos: [], textoCompleto: texto };
+    }
 
     const totalCredito = lancamentos
       .filter(function(l) { return l.valor > 0; })
