@@ -1,12 +1,12 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.2.43",
+  "version": "3.2.44",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "seed": "node seed.js",
-    "check": "node --check server.js && for f in parser-*.js api-adapter.js historicos-padrao.js historicos-routes.js vincular-empresa.js vincular-folha-pagamento.js layouts-bancarios-padrao.js layout-quality-cases.js layout-quality-evidence.js auditai/conciliacao-arquivos.js scripts/check-duplicate-routes.js scripts/test-layouts.js scripts/test-bb-conta-atual.js scripts/test-bb-cash-ocr.js scripts/test-itau-extrato-mensal.js scripts/test-safra-extrato.js scripts/test-clude-itau-historicos.js scripts/test-clude-layout-quality.js scripts/test-clude-servicos-tomados.js scripts/test-santander-layouts.js scripts/test-bradesco-netempresa.js scripts/test-ofx-import.js scripts/test-product-quality-features.js scripts/test-import-quality-gate.js; do node --check \"$f\" || exit 1; done && node scripts/check-duplicate-routes.js && npm run test:layouts && npm run test:bb && npm run test:bb-cash && npm run test:itau && npm run test:safra && npm run test:clude-itau && npm run test:clude-layouts && npm run test:clude-servicos && npm run test:santander && npm run test:bradesco && npm run test:ofx && npm run test:product-quality && npm run test:quality-gate",
+    "check": "node --check server.js && for f in parser-*.js api-adapter.js historicos-padrao.js historicos-routes.js vincular-empresa.js vincular-folha-pagamento.js layouts-bancarios-padrao.js layout-quality-cases.js layout-quality-evidence.js auditai/conciliacao-arquivos.js scripts/check-duplicate-routes.js scripts/test-layouts.js scripts/test-bb-conta-atual.js scripts/test-bb-cash-ocr.js scripts/test-itau-extrato-mensal.js scripts/test-safra-extrato.js scripts/test-clude-itau-historicos.js scripts/test-clude-layout-quality.js scripts/test-clude-servicos-tomados.js scripts/test-santander-layouts.js scripts/test-bradesco-netempresa.js scripts/test-ofx-import.js scripts/test-auditai-itau-conciliacao.js scripts/test-product-quality-features.js scripts/test-import-quality-gate.js; do node --check \"$f\" || exit 1; done && node scripts/check-duplicate-routes.js && npm run test:layouts && npm run test:bb && npm run test:bb-cash && npm run test:itau && npm run test:safra && npm run test:clude-itau && npm run test:clude-layouts && npm run test:clude-servicos && npm run test:santander && npm run test:bradesco && npm run test:ofx && npm run test:auditai-itau && npm run test:product-quality && npm run test:quality-gate",
     "test:layouts": "node scripts/test-layouts.js",
     "test:bb": "node scripts/test-bb-conta-atual.js",
     "test:bb-cash": "node scripts/test-bb-cash-ocr.js",
@@ -18,6 +18,7 @@
     "test:santander": "node scripts/test-santander-layouts.js",
     "test:bradesco": "node scripts/test-bradesco-netempresa.js",
     "test:ofx": "node scripts/test-ofx-import.js",
+    "test:auditai-itau": "node scripts/test-auditai-itau-conciliacao.js",
     "test:product-quality": "node scripts/test-product-quality-features.js",
     "test:quality-gate": "node scripts/test-import-quality-gate.js"
   },

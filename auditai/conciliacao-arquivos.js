@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.2.43';
+  const AUDITAI_MOTOR_VERSION = '3.2.44';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.43';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.44';
 
   const STATE = {
     files: { a: null, b: null },
@@ -352,10 +352,12 @@
     const months = {
       janeiro: '01', fevereiro: '02', marco: '03', março: '03', abril: '04',
       maio: '05', junho: '06', julho: '07', agosto: '08', setembro: '09',
-      outubro: '10', novembro: '11', dezembro: '12'
+      outubro: '10', novembro: '11', dezembro: '12',
+      jan: '01', fev: '02', mar: '03', abr: '04', mai: '05', jun: '06',
+      jul: '07', ago: '08', set: '09', out: '10', nov: '11', dez: '12'
     };
     const normalized = String(text || '').toLowerCase();
-    const m = normalized.match(/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\/(\d{4})/);
+    const m = normalized.match(/\b(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[\/\s]+(\d{4})\b/);
     if (m) return { month: months[m[1].replace('ç', 'c')] || months[m[1]], year: m[2] };
     const m2 = normalized.match(/\b(\d{1,2})\/(\d{4})\b/);
     if (m2) return { month: String(m2[1]).padStart(2, '0'), year: m2[2] };
@@ -376,7 +378,7 @@
 
     function cleanDescription(text) {
       return String(text || '')
-        .replace(/^\d{2}\/\d{2}\s+/, '')
+        .replace(/^\d{2}\/\d{2}\s*/, '')
         .replace(/\b\d{4}\/\d{6,}\b/g, '')
         .replace(/\s+-\s*$/g, '')
         .replace(/\s+/g, ' ')
@@ -406,7 +408,7 @@
         return;
       }
 
-      const dateMatch = text.match(/^(\d{2})\/(\d{2})\b/);
+      const dateMatch = text.match(/^(\d{2})\/(\d{2})(?=\D|$)/);
       if (dateMatch) currentDate = period.year + '-' + dateMatch[2] + '-' + dateMatch[1];
 
       const descItems = line.items.filter(function (item) {
@@ -448,36 +450,57 @@
   }
 
   function parseItauDetailedLines(lines, allText) {
-    if (!/Extrato Detalhado/i.test(allText) || !/Conta:\s*ITAU/i.test(allText) || !/Emiss[aã]o\s+Vencimento/i.test(allText)) return [];
+    const isDetailedLayout = /Extrato\s+Banc[aá]rio\s+Detalhado/i.test(allText) ||
+      /ContasBancarias_Geral_Extrato_Detalhado/i.test(allText) ||
+      /Lan[cç]amento\s+no\s+extrato\s+banc[aá]rio/i.test(allText) ||
+      /Emiss[aã]o\s*Vcto\s*Cheque\s*Valor\s*Descri[cç][aã]o/i.test(allText);
+    const isItauLite = /ITAU\s*17841/i.test(allText) ||
+      /NOVA\s*ERA\s*ITAU/i.test(allText) ||
+      /Ag[eê]ncia:\s*Conta:\s*8151\s*17841/i.test(allText);
+    if (!isDetailedLayout || !isItauLite) return [];
     const rows = [];
     const seen = new Set();
+    const moneyTokenRe = /-?\d{1,3}(?:\.\d{3})*,\d{2}/g;
 
     lines.forEach(function (line, index) {
       const text = String(line.text || '').replace(/\s+/g, ' ').trim();
-      const head = text.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+([A-Z])\s+(.+)$/);
-      if (!head) return;
+      const compact = text.match(/^(\d{2})[./](\d{2})[./](\d{4})(\d{2})[./](\d{2})[./](\d{4})(.+)$/);
+      const spaced = text.match(/^(\d{2}[\/.]\d{2}[\/.]\d{4})\s+(\d{2}[\/.]\d{2}[\/.]\d{4})\s+(.+)$/);
+      if (!compact && !spaced) return;
 
-      const values = text.match(MONEY_RE) || [];
+      const dueDate = compact
+        ? [compact[6], compact[5], compact[4]].join('-')
+        : parseDate(spaced[2].replace(/\./g, '/'));
+      const rest = compact ? compact[7] : spaced[3];
+      const values = Array.from(rest.matchAll(moneyTokenRe)).map(function (match) {
+        return { raw: match[0], index: match.index || 0 };
+      });
       if (values.length < 2) return;
-      const amountToken = values[values.length - 2];
-      const saldoToken = values[values.length - 1];
-      const amount = parseMoney(amountToken);
+      const amountToken = values[0];
+      const saldoToken = values[1];
+      const amount = parseMoney(amountToken.raw);
       if (amount === null || Math.abs(amount) === 0) return;
 
-      const descStart = text.indexOf(head[3], head[0].indexOf(head[3]));
-      let desc = text.slice(descStart).replace(amountToken, ' ').replace(saldoToken, ' ');
-      desc = desc.replace(/^\s*[A-Z]\s+/, '').replace(/\s+/g, ' ').trim();
-      if (!desc || /^Valor:?$/i.test(desc)) return;
+      const tipo = rest
+        .slice(amountToken.index + amountToken.raw.length, saldoToken.index)
+        .replace(/^[^A-Za-zÀ-ÿ]+/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const complemento = rest
+        .slice(saldoToken.index + saldoToken.raw.length)
+        .replace(/\s+/g, ' ')
+        .trim();
+      const desc = [tipo, complemento].filter(Boolean).join(' - ').trim();
+      if (!desc || /^Saldo\b/i.test(desc) || /Saldo anterior ao per[ií]odo/i.test(desc)) return;
 
-      const date = parseDate(head[2]);
-      const key = [date, desc.toUpperCase(), amount.toFixed(2)].join('|');
+      const key = [dueDate, desc.toUpperCase(), amount.toFixed(2)].join('|');
       if (seen.has(key)) return;
       seen.add(key);
 
       rows.push(buildRow({
         sourceLine: index + 1,
-        date: date,
-        description: 'ITAU 17841 ' + desc,
+        date: dueDate,
+        description: 'ITAU 17841 - ' + desc,
         amount: amount,
         raw: text
       }));
@@ -487,17 +510,23 @@
   }
 
   function parseItauMonthlyLines(lines, allText) {
-    if (!/extrato mensal\s+ag\s+\d+\s+cc\s+/i.test(allText) || !/Conta Corrente\s*\|\s*Movimenta[cç][aã]o/i.test(allText)) return [];
+    const isItauMonthly = /(?:extrato\s*mensal|extratomensal)\s+ag\s+\d+\s+cc\s+/i.test(allText) ||
+      /Minha\s+conta\s*\n?\s*17841/i.test(allText);
+    const hasMovementBlock = /Conta\s+Corrente\s*\|\s*Movimenta[cç][aã]o/i.test(allText) ||
+      /data\s*descri[cç][aã]o\s*entradas/i.test(allText);
+    if (!isItauMonthly || !hasMovementBlock) return [];
     const period = extractStatementYear(allText);
     const rows = [];
     const seen = new Set();
     let inStatement = false;
     let currentDate = '';
+    const monthlyAmountRe = /(-?\d{1,3}(?:\.\d{3})*,\d{2}-?|-?\d+,\d{2}-?)\s*$/;
 
     function cleanDesc(text, valueToken) {
       return String(text || '')
-        .replace(/^\d{2}\/\d{2}\s+/, '')
+        .replace(/^\d{2}\/\d{2}\s*/, '')
         .replace(valueToken, ' ')
+        .replace(/\d{6,}(?=\d{1,3}(?:\.\d{3})*,\d{2}-?\s*$)/, ' ')
         .replace(/\b035052\s+B001A\b.*$/i, ' ')
         .replace(/\s+/g, ' ')
         .trim();
@@ -505,7 +534,7 @@
 
     lines.forEach(function (line, index) {
       let text = String(line.text || '').replace(/\s+/g, ' ').trim();
-      if (/Conta Corrente\s*\|\s*Movimenta[cç][aã]o/i.test(text)) {
+      if (/Conta\s+Corrente\s*\|\s*Movimenta[cç][aã]o/i.test(text) || /data\s*descri[cç][aã]o\s*entradas/i.test(text)) {
         inStatement = true;
         return;
       }
@@ -526,21 +555,27 @@
       if (/^data\s+descri[cç][aã]o|^\(?cr[eé]ditos\)?|^\(?d[eé]bitos\)?|^extrato mensal/i.test(text)) return;
       if (/Saldo anterior|SALDO APLIC|Saldo em C\/C|Saldo final/i.test(text)) return;
 
-      const dateMatch = text.match(/^(\d{2})\/(\d{2})\b/);
+      const dateMatch = text.match(/^(\d{2})\/(\d{2})(?=\D|$)/);
       if (dateMatch) {
         currentDate = period.year + '-' + dateMatch[2] + '-' + dateMatch[1];
       }
       if (!currentDate) return;
 
-      const values = text.match(MONEY_RE) || [];
-      if (!values.length) return;
-      const valueToken = values[0];
+      const chequeMatch = text.match(/^((?:\d{2}\/\d{2})?\s*D\s*Ch\s+Compensado\s+\d{3}\s+)(\d{6})(\d{1,3}(?:\.\d{3})*,\d{2}-?)$/i);
+      const amountMatch = chequeMatch ? null : text.match(monthlyAmountRe);
+      if (!chequeMatch && !amountMatch) return;
+      let valueToken = chequeMatch ? chequeMatch[3] : amountMatch[1];
+      let textWithoutAmount = chequeMatch ? (chequeMatch[1] + chequeMatch[2]).trim() : text.slice(0, amountMatch.index).trim();
+      if (!chequeMatch && /\/$/.test(textWithoutAmount) && /^\d{2}\d{1,3}(?:\.\d{3})*,\d{2}-?$/.test(valueToken)) {
+        textWithoutAmount += valueToken.slice(0, 2);
+        valueToken = valueToken.slice(2);
+      }
       let amount = parseMoney(valueToken);
       if (amount === null || Math.abs(amount) === 0) return;
       if (/-$/.test(valueToken) || /^-/.test(valueToken)) amount = -Math.abs(amount);
       else amount = Math.abs(amount);
 
-      const desc = cleanDesc(text, valueToken);
+      const desc = cleanDesc(textWithoutAmount, valueToken);
       if (!desc || /^(R\$|total|saldo|data|entradas|saidas)$/i.test(desc)) return;
 
       const key = [currentDate, desc.toUpperCase(), amount.toFixed(2)].join('|');
@@ -1565,6 +1600,14 @@
     observer.observe(document.body, { childList: true, subtree: true });
     injectButton();
   }
+
+  window.SP_AuditAIConciliacaoTest = {
+    parseItauDetailedLines: parseItauDetailedLines,
+    parseItauMonthlyLines: parseItauMonthlyLines,
+    reconcileRows: reconcileRows,
+    rowsFromText: rowsFromText,
+    parseMoney: parseMoney
+  };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

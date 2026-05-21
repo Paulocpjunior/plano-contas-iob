@@ -1,7 +1,10 @@
 {
-  "version": "3.2.43",
-  "build_date": "2026-05-21T10:41:22-03:00",
+  "version": "3.2.44",
+  "build_date": "2026-05-21T12:32:41-03:00",
   "release_notes": [
+    "AuditAI Conciliação reconhece o layout Itaú Lite Detalhado com datas e valores colados no PDF",
+    "AuditAI Conciliação reconhece Extrato Mensal Itaú consolidado com cabeçalho extratomensal e movimentos colados",
+    "Regressão AuditAI Itaú abril/2026 adicionada ao npm run check para impedir retorno do erro de layout",
     "Hotfix OFX Banco do Brasil: cobrancas de IOF e juros com texto Saldo Devedor Conta deixam de ser descartadas como saldo informativo",
     "Central de Qualidade passa a exibir status operacional dos layouts: aprovado, em teste e bloqueado",
     "Arquivos rejeitados passam a gravar diagnostico estruturado com categoria, layouts tentados e acao sugerida por banco/arquivo",
