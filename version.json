@@ -1,7 +1,8 @@
 {
-  "version": "3.2.44",
-  "build_date": "2026-05-21T12:32:41-03:00",
+  "version": "3.2.45",
+  "build_date": "2026-05-21T12:45:00-03:00",
   "release_notes": [
+    "Hotfix AuditAI Conciliação: corrige renderização de Fora do escopo que chamava helper normalize inexistente no navegador",
     "AuditAI Conciliação reconhece o layout Itaú Lite Detalhado com datas e valores colados no PDF",
     "AuditAI Conciliação reconhece Extrato Mensal Itaú consolidado com cabeçalho extratomensal e movimentos colados",
     "Regressão AuditAI Itaú abril/2026 adicionada ao npm run check para impedir retorno do erro de layout",

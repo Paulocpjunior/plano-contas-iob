@@ -61,6 +61,9 @@ async function main() {
   const result = api.reconcileRows(rowsA, rowsB);
   assert.ok(result.matches.length >= 45, `Conciliação deve encontrar ao menos 45 vinculos automaticos; veio ${result.matches.length}`);
   assert.strictEqual(result.unmatchedA.length, 0, 'Arquivo A nao deve sobrar como sem vinculo nesse par conhecido');
+  assert.doesNotThrow(function () {
+    api.renderOutOfScope(result.outOfScopeB);
+  }, 'Renderizacao de Fora do escopo nao deve chamar helper inexistente no navegador');
 
   console.log(`OK: AuditAI concilia ${path.basename(ARQUIVO_A)} x ${path.basename(ARQUIVO_B)} com layouts Itau gravados no motor.`);
 }

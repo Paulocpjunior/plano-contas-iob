@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.2.44';
+  const AUDITAI_MOTOR_VERSION = '3.2.45';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.44';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.45';
 
   const STATE = {
     files: { a: null, b: null },
@@ -1374,7 +1374,7 @@
   }
 
   function explicarForaDoEscopo(row) {
-    const desc = normalize(row && row.description || '');
+    const desc = searchableText(row && row.description || '');
     if (/APLIC|CDB|FUNDO|INVEST|RESGATE|REND/.test(desc)) {
       return 'Aplicacao, resgate ou rendimento bancario sem documento financeiro correspondente esperado.';
     }
@@ -1605,6 +1605,7 @@
     parseItauDetailedLines: parseItauDetailedLines,
     parseItauMonthlyLines: parseItauMonthlyLines,
     reconcileRows: reconcileRows,
+    renderOutOfScope: renderOutOfScope,
     rowsFromText: rowsFromText,
     parseMoney: parseMoney
   };
