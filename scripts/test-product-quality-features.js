@@ -42,6 +42,9 @@ assertContains('server.js', 'layouts_aprovaveis', 'contador de layouts aptos a a
 assertContains('server.js', 'qualidade_apto_aprovacao', 'metadados de qualidade em layouts bancarios');
 assertContains('server.js', "db.collection('layout_events').add", 'registro de sucesso operacional por layout');
 assertContains('server.js', "app.put('/api/empresas/:cnpj/aprendizado/:hash'", 'edicao da memoria por empresa');
+assertContains('server.js', 'normalizarDiagnosticoLayout', 'diagnostico estruturado de rejeicao de layout');
+assertContains('server.js', "db.collection('aprendizado_events').add", 'trilha auditavel da memoria por empresa');
+assertContains('server.js', 'layouts_aprovados_operacao', 'status operacional dos layouts na central de qualidade');
 assertContains('server.js', 'confiabilidade_bancos', 'relatorio de confiabilidade por banco');
 
 assertContains('admin.html', 'testarLayoutAdmin', 'teste manual de layout no admin');
@@ -62,11 +65,17 @@ assertContains('admin.html', 'Resumo mensal de qualidade operacional', 'painel m
 assertContains('admin.html', 'Banco com mais rejeições', 'destaque mensal de banco critico');
 assertContains('admin.html', 'Alertas de qualidade operacional', 'painel de alertas operacionais de qualidade');
 assertContains('admin.html', 'Revisar rejeições e rodar teste de layout', 'acao sugerida para alerta de banco');
+assertContains('admin.html', 'Status operacional dos layouts', 'status aprovado/em teste/bloqueado na central');
+assertContains('admin.html', 'Diagnóstico', 'diagnostico de rejeicao por banco e arquivo');
+assertContains('admin.html', 'Tentados:', 'layouts tentados no relatorio de rejeicao');
 
 assertContains('index.html', 'abrirConferenciaImportacao', 'modo conferencia antes de gravar');
 assertContains('index.html', 'modalMemoriaEmpresa', 'modal de memoria da empresa');
 assertContains('index.html', 'salvarMemoriaEmpresa', 'edicao de memoria no app');
 assertContains('index.html', 'registrarArquivoRejeitado', 'registro de arquivo rejeitado pelo extrator');
+assertContains('index.html', 'diagnosticarFalhaImportacao', 'diagnostico client-side da falha de importacao');
+assertContains('index.html', 'layouts_tentados', 'persistencia dos layouts tentados na rejeicao');
+assertContains('index.html', 'Auditável', 'memoria de classificacao mostra trilha auditavel');
 assertContains('index.html', 'sugerirLancamentoManualAssistido', 'lancamento manual assistido');
 assertContains('index.html', 'agendarSugestaoLancamentoManual', 'gatilho de sugestao manual');
 assertContains('index.html', 'uploadLayoutPdfStatus', 'aviso de homologacao no seletor de layout PDF');
@@ -105,6 +114,8 @@ assertContains('auditai/conciliacao-arquivos.js', 'reconciliationMetrics', 'metr
 assertContains('auditai/conciliacao-arquivos.js', 'cobertura A', 'detalhe de cobertura por arquivo na conciliacao');
 assertContains('auditai/conciliacao-arquivos.js', 'isOutOfScopeBankMovement', 'separacao de aplicacao/resgate automatico fora do escopo');
 assertContains('auditai/conciliacao-arquivos.js', 'Fora do escopo bancário', 'secao visual de itens fora do escopo bancario');
+assertContains('auditai/conciliacao-arquivos.js', 'Como interpretar este resultado', 'explicacao operacional da conciliacao');
+assertContains('auditai/conciliacao-arquivos.js', 'renderOutOfScope', 'fora do escopo com motivo explicito');
 assertContains('auditai/conciliacao-arquivos.js', 'Resumo diário das diferenças', 'resumo diario das diferencas residuais da conciliacao');
 assertContains('auditai/conciliacao-arquivos.js', 'residuo diario exato', 'casamento de residuo diario exato em lote');
 assertContains('auditai/conciliacao-arquivos.js', 'diferenca diaria consolidada', 'fechamento de revisao manual consolidada por dia');

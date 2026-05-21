@@ -16,15 +16,15 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.41"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.41"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.41"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.41"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.41"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.41"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.41"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.41"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.41"></script>
+    <script src="/parser-ofx.js?v=3.2.42"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.42"></script>
+    <script src="/parser-safra-extrato.js?v=3.2.42"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.2.42"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.2.42"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.2.42"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.2.42"></script>
+    <script src="/parser-btg-pactual.js?v=3.2.42"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.42"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -8242,6 +8242,7 @@
         function registrarArquivoRejeitado(meta) {
             try {
                 if (!window.API || !window.API.apiFetch || !meta || !meta.motivo) return;
+                const diagnostico = diagnosticarFalhaImportacao(meta);
                 window.API.apiFetch('/api/layout-rejections', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -8258,12 +8259,46 @@
                         periodo_inicio: meta.periodo_inicio || '',
                         periodo_fim: meta.periodo_fim || '',
                         motivo: meta.motivo || '',
+                        diagnostico: diagnostico,
+                        categoria_erro: diagnostico.categoria_erro,
+                        acao_sugerida: diagnostico.acao_sugerida,
+                        layouts_tentados: diagnostico.layouts_tentados,
+                        versao_app: diagnostico.versao_app,
                         origem: 'extrator'
                     })
                 }).catch(function(e) { console.warn('[layout rejeitado] falha ao registrar:', e.message || e); });
             } catch (e) {
                 console.warn('[layout rejeitado] falha ao registrar:', e.message || e);
             }
+        }
+
+        function extrairLayoutsTentadosMensagem(motivo) {
+            const texto = String(motivo || '');
+            const m = texto.match(/Layouts tentados:\s*(.+)$/i);
+            if (!m) return [];
+            return m[1].split(/\s*,\s*|\s*\|\s*/).map(function(v) { return v.trim(); }).filter(Boolean).slice(0, 20);
+        }
+
+        function diagnosticarFalhaImportacao(meta) {
+            const motivo = String(meta && meta.motivo || '');
+            let categoria = 'falha_importacao';
+            if (/parser n[aã]o carregado|parser nao carregado/i.test(motivo)) categoria = 'parser_nao_carregado';
+            else if (/total de cr[eé]dito divergente|total de debito divergente|total de d[eé]bito divergente/i.test(motivo)) categoria = 'total_oficial_divergente';
+            else if (/Nenhuma transa/i.test(motivo)) categoria = 'sem_transacoes';
+            else if (/layout n[aã]o reconhecido|nao reconhecido neste arquivo|não reconhecido neste arquivo/i.test(motivo)) categoria = 'layout_nao_reconhecido';
+            let acao = 'Revisar o arquivo rejeitado na Central de Qualidade e registrar evidencia da correcao.';
+            if (categoria === 'parser_nao_carregado') acao = 'Conferir publicacao do script do parser e cache-buster da versao antes de testar novamente.';
+            if (categoria === 'total_oficial_divergente') acao = 'Conferir totais oficiais do arquivo e ajustar regra do layout com regressao de total.';
+            if (categoria === 'sem_transacoes') acao = 'Validar se o arquivo e de extrato, fiscal ou relatorio auxiliar antes de criar novo layout.';
+            if (categoria === 'layout_nao_reconhecido') acao = 'Testar no Admin com layout Automatico e anexar o arquivo como evidencia de parametrizacao.';
+            return {
+                categoria_erro: categoria,
+                acao_sugerida: acao,
+                layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
+                parser_selecionado: meta && meta.parser || '',
+                layout_selecionado: meta && meta.layout || '',
+                versao_app: '3.2.42'
+            };
         }
 
         let resolverConferenciaImportacao = null;
@@ -9465,7 +9500,7 @@
                 return;
             }
             modal.style.display = 'flex';
-            body.innerHTML = '<tr><td colspan="7" style="padding:18px;color:#64748b">Carregando memoria da empresa...</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" style="padding:18px;color:#64748b">Carregando memoria da empresa...</td></tr>';
             if (count) count.textContent = '';
             try {
                 const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado');
@@ -9476,7 +9511,7 @@
                 });
                 renderMemoriaEmpresa();
             } catch (e) {
-                body.innerHTML = '<tr><td colspan="7" style="padding:18px;color:#991b1b">Erro ao carregar memoria: ' + escaparHtmlMemoria(e.message || e) + '</td></tr>';
+                body.innerHTML = '<tr><td colspan="8" style="padding:18px;color:#991b1b">Erro ao carregar memoria: ' + escaparHtmlMemoria(e.message || e) + '</td></tr>';
             }
         }
 
@@ -9505,12 +9540,15 @@
             });
             if (count) count.textContent = lista.length + ' regra' + (lista.length === 1 ? '' : 's');
             if (!lista.length) {
-                body.innerHTML = '<tr><td colspan="7" style="padding:18px;color:#64748b">Nenhuma regra encontrada para esta busca.</td></tr>';
+                body.innerHTML = '<tr><td colspan="8" style="padding:18px;color:#64748b">Nenhuma regra encontrada para esta busca.</td></tr>';
                 return;
             }
             body.innerHTML = lista.map(function(item) {
                 const hash = item.hash || '';
                 const hist = item.historicoPadraoDescricao || item.historico || '';
+                const auditoria = item.atualizado_em || item.ultima_vez || item.criado_em || '';
+                const auditoriaTexto = auditoria ? fmtDate(auditoria) : '-';
+                const auditoriaEmail = item.atualizado_por_email || item.created_by_email || item.created_by || '-';
                 return '<tr>' +
                     '<td style="min-width:220px"><strong>' + escaparHtmlMemoria(item.descricao_normalizada || '-') + '</strong><br><span style="font-size:11px;color:#64748b">' + escaparHtmlMemoria(item.descricao_exemplo || '') + '</span></td>' +
                     '<td><input id="memDeb_' + hash + '" value="' + escaparHtmlMemoria(item.contaDebito || '') + '" style="width:92px;padding:8px;border:1px solid #cbd5e1;border-radius:7px;font-family:monospace"></td>' +
@@ -9518,6 +9556,7 @@
                     '<td><input id="memCod_' + hash + '" list="historicosIOBList" maxlength="4" value="' + escaparHtmlMemoria(item.codigoHistorico || '') + '" style="width:74px;padding:8px;border:1px solid #cbd5e1;border-radius:7px;font-family:monospace;text-align:center"></td>' +
                     '<td style="min-width:220px"><input id="memHist_' + hash + '" value="' + escaparHtmlMemoria(hist) + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:7px"></td>' +
                     '<td style="font-size:12px;color:#64748b">' + escaparHtmlMemoria(item.vezes_usado || 0) + ' uso(s)</td>' +
+                    '<td style="font-size:11px;color:#64748b;min-width:150px"><strong>Auditável</strong><br>' + escaparHtmlMemoria(auditoriaTexto) + '<br>' + escaparHtmlMemoria(auditoriaEmail) + '</td>' +
                     '<td style="white-space:nowrap"><button onclick="salvarMemoriaEmpresa(\'' + hash + '\')" style="padding:8px 10px;border:none;border-radius:7px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer">Salvar</button> ' +
                     '<button onclick="excluirMemoriaEmpresa(\'' + hash + '\')" style="padding:8px 10px;border:none;border-radius:7px;background:#fee2e2;color:#991b1b;font-weight:800;cursor:pointer">Excluir</button></td>' +
                 '</tr>';
@@ -10894,6 +10933,7 @@ async function confirmarVincularPlano() {
               <th style="padding:10px;text-align:left">Cód IOB</th>
               <th style="padding:10px;text-align:left">Histórico</th>
               <th style="padding:10px;text-align:left">Uso</th>
+              <th style="padding:10px;text-align:left">Auditoria</th>
               <th style="padding:10px;text-align:left">Ações</th>
             </tr>
           </thead>

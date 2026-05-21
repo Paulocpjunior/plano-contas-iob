@@ -529,6 +529,7 @@ function renderLayoutQuality() {
       <div class="layout-card"><div class="bank">Evidências</div><div class="count">${resumo.evidencias || 0}</div><div class="caption">Arquivos já recebidos/tratados</div></div>
       <div class="layout-card"><div class="bank">Cobertura</div><div class="count">${resumo.cobertura || 0}%</div><div class="caption">${resumo.layouts_oficiais || 0} layouts oficiais</div></div>
       <div class="layout-card"><div class="bank">Aptos a aprovar</div><div class="count">${resumo.layouts_aprovaveis || 0}</div><div class="caption">Com caso e evidência aprovados</div></div>
+      <div class="layout-card"><div class="bank">Layouts aprovados</div><div class="count">${resumo.layouts_aprovados_operacao || 0}</div><div class="caption">${resumo.layouts_em_teste || 0} em teste • ${resumo.layouts_bloqueados || 0} bloqueados</div></div>
       <div class="layout-card"><div class="bank">Pendentes da fila</div><div class="count">${opResumo.pendentes || 0}</div><div class="caption">${opResumo.em_parametrizacao || 0} em parametrização</div></div>
       <div class="layout-card"><div class="bank">Rejeições resolvidas</div><div class="count">${opResumo.resolvidos || 0}</div><div class="caption">${opResumo.rejeicoes || 0} rejeições monitoradas</div></div>
     </div>`;
@@ -585,6 +586,26 @@ function renderLayoutQuality() {
     });
     html += '</tbody></table>';
   }
+  if (aprovacaoLayouts.length) {
+    html += '<h3 style="margin:22px 0 10px;color:#111827">Status operacional dos layouts</h3>';
+    html += '<table><thead><tr><th>Banco/Layout</th><th>Status</th><th>Provas</th><th>Uso</th><th>Próxima ação</th></tr></thead><tbody>';
+    aprovacaoLayouts.slice(0, 80).forEach(l => {
+      const st = l.homologacao_status || 'em_teste';
+      const cls = st === 'aprovado' ? 'badge-ok' : (st === 'bloqueado' ? 'badge-logout' : 'badge-warn');
+      const provas = (l.casos_aprovados || 0) + ' caso(s) / ' + (l.evidencias_aprovadas || 0) + ' evidência(s)';
+      const acao = st === 'aprovado'
+        ? 'Monitorar rejeições e manter regressão verde'
+        : (l.apto ? 'Promover para aprovado' : 'Cadastrar evidência e caso de regressão');
+      html += `<tr>
+        <td><strong>${escapeHtml(l.banco)} - ${escapeHtml(l.nomeBanco || '')}</strong><br><span style="font-size:12px;color:#374151">${escapeHtml(l.layout || '')}</span><br><span class="text-mono" style="font-size:11px;color:#9ca3af">${escapeHtml(l.parser || '')}</span></td>
+        <td><span class="badge ${cls}">${escapeHtml(st.replace(/_/g, ' '))}</span><br><span style="font-size:11px;color:#6b7280">${escapeHtml(l.homologacao_observacao || '')}</span></td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(provas)}<br>${l.apto ? '<span class="badge badge-ok">Apto</span>' : '<span class="badge badge-warn">Falta prova</span>'}</td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(l.total_usos || 0)} uso(s)<br><span style="font-size:11px;color:#9ca3af">${escapeHtml(l.ultimoTeste || '-')}</span></td>
+        <td style="font-size:12px;color:#374151">${escapeHtml(acao)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
   if (porColaborador.length) {
     html += '<h3 style="margin:22px 0 10px;color:#111827">Taxa operacional por colaborador</h3>';
     html += '<table><thead><tr><th>Colaborador</th><th>Taxa</th><th>Sucessos</th><th>Rejeições</th><th>Status pendente</th><th>Bancos</th></tr></thead><tbody>';
@@ -636,13 +657,18 @@ function renderLayoutQuality() {
 
   if (rejeicoes.length) {
     html += '<h3 style="margin:22px 0 10px;color:#111827">Fila de arquivos rejeitados</h3>';
-    html += '<table><thead><tr><th>Quando</th><th>Banco/Arquivo</th><th>Empresa</th><th>Motivo</th><th>Status</th><th>Usuário</th><th>Ações</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>Quando</th><th>Banco/Arquivo</th><th>Empresa</th><th>Diagnóstico</th><th>Motivo</th><th>Status</th><th>Usuário</th><th>Ações</th></tr></thead><tbody>';
     rejeicoes.forEach(r => {
       const st = r.status || 'pendente_parametrizacao';
+      const diag = r.diagnostico || {};
+      const categoria = r.categoria_erro || diag.categoria_erro || 'sem_categoria';
+      const acao = r.acao_sugerida || diag.acao_sugerida || 'Revisar na Central de Qualidade';
+      const layoutsTentados = r.layouts_tentados || diag.layouts_tentados || [];
       html += `<tr>
         <td style="font-size:12px">${fmtDate(r.criado_em)}</td>
         <td><strong>${escapeHtml(r.banco || '-')} ${escapeHtml(r.nomeBanco || '')}</strong><br>${escapeHtml(r.arquivo || '')}<br><span style="font-size:11px;color:#9ca3af">${escapeHtml(r.formato || '')} ${r.tamanho ? '• ' + Math.round(r.tamanho / 1024) + ' KB' : ''}</span></td>
         <td style="font-size:12px;color:#374151">${escapeHtml(r.empresa || '-')}<br>${escapeHtml(r.cnpj || '')}</td>
+        <td style="font-size:12px;color:#374151"><span class="badge badge-info">${escapeHtml(categoria.replace(/_/g, ' '))}</span><br><strong>Ação:</strong> ${escapeHtml(acao)}<br><span style="color:#64748b">Tentados: ${escapeHtml(layoutsTentados.join(', ') || '-')}</span></td>
         <td style="font-size:12px;color:#991b1b">${escapeHtml(r.motivo || '').slice(0, 260)}</td>
         <td><select onchange="atualizarStatusRejeicao('${escapeHtml(r.id)}', this.value)" style="padding:7px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px">
           <option value="pendente_parametrizacao" ${st === 'pendente_parametrizacao' ? 'selected' : ''}>Pendente</option>

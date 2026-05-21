@@ -1,7 +1,11 @@
 {
-  "version": "3.2.41",
-  "build_date": "2026-05-21T07:31:00-03:00",
+  "version": "3.2.42",
+  "build_date": "2026-05-21T10:13:37-03:00",
   "release_notes": [
+    "Central de Qualidade passa a exibir status operacional dos layouts: aprovado, em teste e bloqueado",
+    "Arquivos rejeitados passam a gravar diagnostico estruturado com categoria, layouts tentados e acao sugerida por banco/arquivo",
+    "Memoria de classificacao por empresa passa a ter trilha auditavel em aprendizado_events e mostra autor/data no modal",
+    "AuditAI Conciliação passa a explicar Conciliados, Revisao manual, Sem vinculo e Fora do escopo na propria tela",
     "Hardening geral dos importadores: parsers PDF sensiveis passam a preencher historico minimo pela descricao extraida",
     "Cache-buster dos parsers e AuditAI alinhado com a versao publica para evitar navegador usando motor antigo",
     "Seed operacional de historicos padrao corrigido para o caminho real do arquivo no projeto",

@@ -551,6 +551,37 @@ function _validarReduzidoFB(s) {
   return /^\d{1,14}$/.test(clean) ? clean.padStart(14, '0').slice(-14) : null;
 }
 
+function snapshotAprendizadoAudit(dados) {
+  if (!dados) return null;
+  return {
+    descricao_normalizada: dados.descricao_normalizada || '',
+    descricao_exemplo: dados.descricao_exemplo || '',
+    contaDebito: dados.contaDebito || '',
+    contaCredito: dados.contaCredito || '',
+    codigoHistorico: dados.codigoHistorico || '',
+    historico: dados.historico || '',
+    historicoPadraoDescricao: dados.historicoPadraoDescricao || ''
+  };
+}
+
+async function registrarEventoAprendizado(tipo, cnpj, hash, antes, depois, req) {
+  try {
+    await db.collection('aprendizado_events').add({
+      tipo,
+      cnpj,
+      hash,
+      antes: snapshotAprendizadoAudit(antes),
+      depois: snapshotAprendizadoAudit(depois),
+      criado_em: new Date(),
+      criado_por_uid: req.user && req.user.uid || '',
+      criado_por_email: req.user && req.user.email || '',
+      origem: 'memoria_empresa'
+    });
+  } catch (err) {
+    console.warn('[aprendizado_events] falha ao registrar auditoria:', err.message || err);
+  }
+}
+
 // Lista todos os padroes aprendidos da empresa
 app.get('/api/empresas/:cnpj/aprendizado', async (req, res) => {
   try {
@@ -595,11 +626,17 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
       vezes_usado: existing.exists ? (existing.data().vezes_usado || 0) + 1 : 1,
       criado_em: existing.exists ? existing.data().criado_em : now,
       ultima_vez: now,
+      auditavel: true,
+      fonte_ultima_alteracao: 'memorizar_lancamento',
+      atualizado_em: now,
+      atualizado_por_uid: req.user.uid,
+      atualizado_por_email: req.user.email,
       created_by: req.user.uid,
       created_by_email: req.user.email
     };
     
     await ref.set(dados);
+    await registrarEventoAprendizado(existing.exists ? 'atualizado_por_memorizacao' : 'criado', cnpj, hash, existing.exists ? existing.data() : null, dados, req);
     res.json({ ok: true, docId: docId, vezes_usado: dados.vezes_usado });
   } catch (err) {
     console.error('[POST aprendizado] erro:', err);
@@ -625,9 +662,12 @@ app.put('/api/empresas/:cnpj/aprendizado/:hash', async (req, res) => {
       historicoPadraoDescricao: String(body.historicoPadraoDescricao || '').substring(0, 200),
       atualizado_em: new Date(),
       atualizado_por_uid: req.user.uid,
-      atualizado_por_email: req.user.email
+      atualizado_por_email: req.user.email,
+      auditavel: true,
+      fonte_ultima_alteracao: 'modal_memoria_empresa'
     };
     await ref.set(atualizacao, { merge: true });
+    await registrarEventoAprendizado('editado', cnpj, hash, doc.data(), { ...doc.data(), ...atualizacao }, req);
     res.json({ ok: true, docId, ...atualizacao });
   } catch (err) {
     console.error('[PUT aprendizado] erro:', err);
@@ -642,7 +682,10 @@ app.delete('/api/empresas/:cnpj/aprendizado/:hash', async (req, res) => {
     const hash = req.params.hash;
     if (cnpj.length !== 14 || !hash) return res.status(400).json({ erro: 'CNPJ e hash obrigatorios' });
     const docId = cnpj + '_' + hash;
-    await db.collection('aprendizado').doc(docId).delete();
+    const ref = db.collection('aprendizado').doc(docId);
+    const doc = await ref.get();
+    await ref.delete();
+    await registrarEventoAprendizado('excluido', cnpj, hash, doc.exists ? doc.data() : null, null, req);
     res.json({ ok: true });
   } catch (err) {
     console.error('[DELETE aprendizado] erro:', err);
@@ -1890,18 +1933,28 @@ app.get('/api/layout-quality', async (req, res) => {
     const layoutsOficiais = (LAYOUTS_BANCARIOS_PADRAO || [])
       .filter(l => l.status !== 'Inativo')
       .map(l => ({ ...l, banco: normalizarBancoLayout(l.banco) }));
+    const layoutsDbSnap = await db.collection('layouts_bancarios').get();
+    const statusLayoutsDb = new Map(layoutsDbSnap.docs.map(d => [d.id, d.data() || {}]));
     const evidenciasPorLayout = new Set(evidencias.map(e => e.banco + '_' + e.parser));
-    const aprovacao_layouts = layoutsOficiais.map(l => ({
-      id: layoutBancoId(l),
-      banco: l.banco,
-      nomeBanco: l.nomeBanco,
-      layout: l.nome,
-      parser: l.parser,
-      formato: l.formato,
-      confiabilidade: l.confiabilidade,
-      ultimoTeste: l.ultimoTeste,
-      ...avaliarAprovacaoLayoutBanco(l.banco, l.parser)
-    }));
+    const aprovacao_layouts = layoutsOficiais.map(l => {
+      const id = layoutBancoId(l);
+      const dbLayout = statusLayoutsDb.get(id) || {};
+      return {
+        id,
+        banco: l.banco,
+        nomeBanco: l.nomeBanco,
+        layout: l.nome,
+        parser: l.parser,
+        formato: l.formato,
+        confiabilidade: l.confiabilidade,
+        ultimoTeste: l.ultimoTeste,
+        homologacao_status: dbLayout.homologacao_status || 'em_teste',
+        homologacao_observacao: dbLayout.homologacao_observacao || '',
+        total_usos: dbLayout.total_usos || 0,
+        ultimo_uso_em: dbLayout.ultimo_uso_em || null,
+        ...avaliarAprovacaoLayoutBanco(l.banco, l.parser)
+      };
+    });
     const pendentes = layoutsOficiais
       .filter(l => !cobertos.has(l.banco + '_' + l.parser))
       .map(l => ({
@@ -1927,6 +1980,9 @@ app.get('/api/layout-quality', async (req, res) => {
       layouts_oficiais: layoutsOficiais.length,
       layouts_pendentes: pendentes.length,
       layouts_aprovaveis: aprovacao_layouts.filter(l => l.apto).length,
+      layouts_aprovados_operacao: aprovacao_layouts.filter(l => l.homologacao_status === 'aprovado').length,
+      layouts_em_teste: aprovacao_layouts.filter(l => l.homologacao_status === 'em_teste').length,
+      layouts_bloqueados: aprovacao_layouts.filter(l => l.homologacao_status === 'bloqueado').length,
       cobertura
     };
     const porBancoMap = new Map();
@@ -2003,6 +2059,38 @@ app.post('/api/layouts-bancarios/uso', async (req, res) => {
   }
 });
 
+function normalizarDiagnosticoLayout(body) {
+  const diag = body && typeof body.diagnostico === 'object' && body.diagnostico ? body.diagnostico : {};
+  const motivo = String(body.motivo || diag.motivo || '');
+  const layoutsRaw = Array.isArray(body.layouts_tentados)
+    ? body.layouts_tentados
+    : (Array.isArray(diag.layouts_tentados) ? diag.layouts_tentados : []);
+  let categoria = String(body.categoria_erro || diag.categoria_erro || '').trim();
+  if (!categoria) {
+    if (/parser n[aã]o carregado|parser nao carregado/i.test(motivo)) categoria = 'parser_nao_carregado';
+    else if (/total de cr[eé]dito divergente|total de debito divergente|total de d[eé]bito divergente/i.test(motivo)) categoria = 'total_oficial_divergente';
+    else if (/Nenhuma transa/i.test(motivo)) categoria = 'sem_transacoes';
+    else if (/layout n[aã]o reconhecido|nao reconhecido neste arquivo|não reconhecido neste arquivo/i.test(motivo)) categoria = 'layout_nao_reconhecido';
+    else categoria = 'falha_importacao';
+  }
+  let acao = String(body.acao_sugerida || diag.acao_sugerida || '').trim();
+  if (!acao) {
+    if (categoria === 'parser_nao_carregado') acao = 'Verificar se o script do parser esta publicado no HTML e se o cache-buster da versao foi atualizado.';
+    else if (categoria === 'total_oficial_divergente') acao = 'Conferir totais oficiais do PDF e ajustar regra do layout antes de liberar para producao.';
+    else if (categoria === 'sem_transacoes') acao = 'Validar se o arquivo tem linhas transacionais ou se o modelo deve ser tratado por layout fiscal/financeiro especifico.';
+    else if (categoria === 'layout_nao_reconhecido') acao = 'Testar o arquivo na Central de Qualidade e anexar evidencia antes de aprovar o layout.';
+    else acao = 'Revisar o arquivo rejeitado na Central de Qualidade e registrar evidencia da correcao.';
+  }
+  return {
+    categoria_erro: categoria.slice(0, 90),
+    acao_sugerida: acao.slice(0, 500),
+    layouts_tentados: layoutsRaw.map(v => String(v || '').slice(0, 180)).filter(Boolean).slice(0, 20),
+    parser_selecionado: String(body.parser || diag.parser_selecionado || '').slice(0, 120),
+    layout_selecionado: String(body.layout || diag.layout_selecionado || '').slice(0, 220),
+    versao_app: String(body.versao_app || diag.versao_app || '').slice(0, 40)
+  };
+}
+
 app.post('/api/layout-rejections', async (req, res) => {
   try {
     const body = req.body || {};
@@ -2010,6 +2098,7 @@ app.post('/api/layout-rejections', async (req, res) => {
     const arquivo = String(body.arquivo || '').slice(0, 220);
     const motivo = String(body.motivo || '').slice(0, 1200);
     if (!arquivo || !motivo) return res.status(400).json({ erro: 'arquivo e motivo obrigatorios' });
+    const diagnostico = normalizarDiagnosticoLayout({ ...body, motivo });
     const doc = {
       banco,
       nomeBanco: body.nomeBanco || '',
@@ -2023,6 +2112,11 @@ app.post('/api/layout-rejections', async (req, res) => {
       periodo_inicio: body.periodo_inicio || '',
       periodo_fim: body.periodo_fim || '',
       motivo,
+      diagnostico,
+      categoria_erro: diagnostico.categoria_erro,
+      acao_sugerida: diagnostico.acao_sugerida,
+      layouts_tentados: diagnostico.layouts_tentados,
+      versao_app: diagnostico.versao_app,
       status: body.status || 'pendente_parametrizacao',
       origem: body.origem || 'extrator',
       criado_em: new Date(),
@@ -2086,6 +2180,7 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
     const bancos = new Map();
     const meses = new Map();
     const status = {};
+    const categoriasErro = {};
     const mesEvento = (valor) => {
       const ms = valor && typeof valor.toMillis === 'function'
         ? valor.toMillis()
@@ -2132,6 +2227,8 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
     rejeicoesSnap.docs.forEach(d => {
       const r = d.data() || {};
       const st = r.status || 'pendente_parametrizacao';
+      const categoria = r.categoria_erro || (r.diagnostico && r.diagnostico.categoria_erro) || 'sem_categoria';
+      categoriasErro[categoria] = (categoriasErro[categoria] || 0) + 1;
       status[st] = (status[st] || 0) + 1;
       const u = ensureUsuario(r.criado_por_email || '');
       u.rejeicoes++;
@@ -2223,7 +2320,8 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
         pendentes: status.pendente_parametrizacao || 0,
         em_parametrizacao: status.em_parametrizacao || 0,
         resolvidos: status.resolvido || 0,
-        ignorados: status.ignorado || 0
+        ignorados: status.ignorado || 0,
+        categorias_erro: categoriasErro
       },
       status,
       por_colaborador,

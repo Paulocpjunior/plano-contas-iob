@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.2.41';
+  const AUDITAI_MOTOR_VERSION = '3.2.42';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.41';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.42';
 
   const STATE = {
     files: { a: null, b: null },
@@ -1338,6 +1338,36 @@
       }).join('') + '</tbody></table></div>';
   }
 
+  function explicarForaDoEscopo(row) {
+    const desc = normalize(row && row.description || '');
+    if (/APLIC|CDB|FUNDO|INVEST|RESGATE|REND/.test(desc)) {
+      return 'Aplicacao, resgate ou rendimento bancario sem documento financeiro correspondente esperado.';
+    }
+    if (/SALDO/.test(desc)) return 'Linha de saldo informativa, nao e lancamento conciliavel.';
+    return 'Movimento bancario classificado como auxiliar ou sem contraparte esperada no arquivo financeiro.';
+  }
+
+  function renderOutOfScope(rows) {
+    if (!rows || !rows.length) return '<p class="text-sm text-slate-500">Nenhum item fora do escopo.</p>';
+    return '<div class="overflow-auto max-h-80"><table class="w-full text-xs"><thead class="bg-slate-100 dark:bg-slate-700 sticky top-0"><tr><th class="p-2 text-left">Data</th><th class="p-2 text-left">Descrição</th><th class="p-2 text-right">Valor</th><th class="p-2 text-left">Por que saiu da cobertura</th></tr></thead><tbody>' +
+      rows.slice(0, 140).map(function (row) {
+        return '<tr class="border-t dark:border-slate-700"><td class="p-2 whitespace-nowrap">' + escapeHtml(row.date || '-') + '</td><td class="p-2">' + escapeHtml(row.description || '-') + '</td><td class="p-2 text-right font-mono">' + money(row.amount) + '</td><td class="p-2 text-slate-500">' + escapeHtml(explicarForaDoEscopo(row)) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
+  function renderOperationalGuide(r, metrics) {
+    const outScope = (metrics.outOfScopeA || 0) + (metrics.outOfScopeB || 0);
+    return '<section class="mb-5 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-2xl p-4 text-sm text-slate-700 dark:text-slate-200">' +
+      '<h3 class="font-black text-slate-900 dark:text-white mb-2">Como interpretar este resultado</h3>' +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs leading-relaxed">' +
+      '<div><strong>Conciliados automaticamente:</strong> data, valor e descricao/lote ficaram consistentes entre os dois arquivos. Estes itens entram na cobertura fechada.</div>' +
+      '<div><strong>Revisao manual:</strong> existe mesma data e valor, mas ha mais de uma opcao possivel ou lote agrupado. O colaborador decide qual contraparte e correta.</div>' +
+      '<div><strong>Sem vinculo:</strong> item transacional que nao encontrou contraparte suficiente. Deve ser conferido no arquivo de origem antes de concluir a conciliacao.</div>' +
+      '<div><strong>Fora do escopo:</strong> ' + outScope + ' item(ns) informativo(s), aplicacao/resgate/rendimento ou saldo que nao deve reduzir a qualidade da conciliacao.</div>' +
+      '</div>' +
+      '</section>';
+  }
+
   function renderResult() {
     const r = STATE.result;
     const box = document.getElementById('sp-conciliacao-result');
@@ -1354,6 +1384,7 @@
       stat('Cobertura', metrics.adherence + '%', 'text-blue-600'),
       '</div>',
       '<div class="mb-4 text-xs font-bold text-slate-500 dark:text-slate-400">' + AUDITAI_MOTOR_LABEL + ' · resultado recalculado nesta tela · cobertura A ' + (metrics.matchedA + metrics.reviewedA) + '/' + metrics.totalA + ' · cobertura B ' + (metrics.matchedB + metrics.reviewedB) + '/' + metrics.totalB + ' · automatico A ' + metrics.matchedA + ' / B ' + metrics.matchedB + ' · revisao A ' + metrics.reviewedA + ' / B ' + metrics.reviewedB + ' · fora do escopo A ' + metrics.outOfScopeA + ' / B ' + metrics.outOfScopeB + '</div>',
+      renderOperationalGuide(r, metrics),
       '<div class="grid grid-cols-1 xl:grid-cols-2 gap-5">',
       section('Itens conciliados automaticamente', renderMatches(r.matches)),
       section('Revisão manual consolidada', renderAmbiguous(r.ambiguous || [])),
@@ -1361,7 +1392,7 @@
       section('Resumo diário das diferenças', renderDailyResiduals(r)),
       section('Sem vínculo no Arquivo A', renderTable(r.unmatchedA, 'A')),
       section('Sem vínculo no Arquivo B', renderTable(r.unmatchedB, 'B')),
-      section('Fora do escopo bancário', renderTable((r.outOfScopeA || []).concat(r.outOfScopeB || []), 'fora do escopo')),
+      section('Fora do escopo bancário', renderOutOfScope((r.outOfScopeA || []).concat(r.outOfScopeB || []))),
       '</div>'
     ].join('');
   }
