@@ -1,7 +1,10 @@
 {
-  "version": "3.2.46",
+  "version": "3.2.47",
   "build_date": "2026-05-21T13:20:00-03:00",
   "release_notes": [
+    "Novo layout Caixa Economica Federal 104 - Extrato por Periodo Gerenciador cadastrado na central de layouts bancarios",
+    "Parser Caixa 104 passa a ler linhas compactadas com data, documento, historico, valor C/D e saldo, sem importar saldos informativos",
+    "Regressao Caixa MONACO jan/2025 adicionada ao npm run check para impedir retorno do erro de layout nao cadastrado",
     "AuditAI Conciliação separa Cobertura consolidada de Revisao manual para nao tratar totais/lotes como pendencia manual",
     "AuditAI Conciliação impede fallback generico de inflar Itaú Lite Detalhado com totais e agendamentos",
     "Hotfix AuditAI Conciliação: corrige renderização de Fora do escopo que chamava helper normalize inexistente no navegador",

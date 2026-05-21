@@ -283,6 +283,25 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-05-18T11:05:00-03:00',
     observacao: 'Relatorio E-Fiscal de NFs de Servicos Tomados. Importa somente notas com valor e preenche historico padrao de servicos automaticamente.'
+  },
+  {
+    id: 'caixa-monaco-2025-01',
+    banco: '104',
+    nomeBanco: 'Caixa Economica Federal',
+    layout: 'Caixa - Extrato por Periodo Gerenciador',
+    parser: 'parsearPDF_Caixa_Extrato',
+    arquivo: 'extrato 003 - 01-2025 B15.pdf',
+    empresa: 'MONACO MONACO LOTERIAS LTDA',
+    periodo_inicio: '2025-01-01',
+    periodo_fim: '2025-01-31',
+    esperado: {
+      total_lancamentos: 209,
+      total_credito: 306333.60,
+      total_debito: 396809.12
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-21T10:45:00-03:00',
+    observacao: 'Layout textual do Gerenciador CAIXA com linhas compactadas. Regressao confere que saldo anterior de R$ 92.031,17 fecha no saldo final de R$ 1.555,65.'
   }
 ];
 

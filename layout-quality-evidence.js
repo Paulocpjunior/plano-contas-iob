@@ -268,6 +268,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     etapa: 'regressao_aprovada',
     status: 'Regressao aprovada',
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js para PDF fiscal de NFs de Servicos Tomados.'
+  },
+  {
+    id: 'caixa-monaco-2025-01',
+    banco: '104',
+    nomeBanco: 'Caixa Economica Federal',
+    layout: 'Caixa - Extrato por Periodo Gerenciador',
+    parser: 'parsearPDF_Caixa_Extrato',
+    arquivo: 'extrato 003 - 01-2025 B15.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/extrato 003 - 01-2025 B15.pdf',
+    empresa: 'MONACO MONACO LOTERIAS LTDA',
+    periodo_inicio: '2025-01-01',
+    periodo_fim: '2025-01-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js com leitura de valor/sinal C-D e saldo colados nas linhas do Gerenciador CAIXA.'
   }
 ];
 
