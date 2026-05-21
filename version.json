@@ -1,7 +1,8 @@
 {
-  "version": "3.2.42",
-  "build_date": "2026-05-21T10:13:37-03:00",
+  "version": "3.2.43",
+  "build_date": "2026-05-21T10:41:22-03:00",
   "release_notes": [
+    "Hotfix OFX Banco do Brasil: cobrancas de IOF e juros com texto Saldo Devedor Conta deixam de ser descartadas como saldo informativo",
     "Central de Qualidade passa a exibir status operacional dos layouts: aprovado, em teste e bloqueado",
     "Arquivos rejeitados passam a gravar diagnostico estruturado com categoria, layouts tentados e acao sugerida por banco/arquivo",
     "Memoria de classificacao por empresa passa a ter trilha auditavel em aprendizado_events e mostra autor/data no modal",

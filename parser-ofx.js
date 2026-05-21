@@ -53,8 +53,11 @@
   function descricaoEhSaldoOFX(descricao) {
     const d = normalizarBusca(descricao);
     if (!d) return false;
-    return /\bSALDO\b/.test(d)
-      || /\bBALANCE\b/.test(d)
+    if (/\b(COBRANCA|COBRANCAO|COBRANÇA|IOF|I\s*O\s*F|JUROS|TARIFA|ENCARGO)\b/.test(d)) {
+      return false;
+    }
+    return /^SALDO(\s|$)/.test(d)
+      || /^BALANCE(\s|$)/.test(d)
       || /\bSALDO\s+(ANTERIOR|INICIAL|DO\s+DIA|TOTAL|FINAL|DISPONIVEL|DISPONIVEL\s+DIA|BLOQUEADO)\b/.test(d)
       || /\bSALDO\s+TOTAL\s+DISPONIVEL\s+DIA\b/.test(d);
   }

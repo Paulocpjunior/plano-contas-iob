@@ -14,6 +14,16 @@ const CASES = [
     path: '/Users/paulocesarpereirajunior/Downloads/Extrato conta corrente - 012026.ofx',
     forbiddenValues: [1281.82, 1291.29, 2000],
     requiredDescriptions: ['BB GIRO PRONAMPE', 'Estorno de Débito', 'Pix - Recebido - 09/01']
+  },
+  {
+    name: 'Banco do Brasil fevereiro 2026 - IOF e juros saldo devedor',
+    path: '/Users/paulocesarpereirajunior/Downloads/Extrato conta corrente - 022026.ofx',
+    forbiddenValues: [95887.76, 93189.29],
+    requiredDescriptions: ['Cobrança de I.O.F.', 'IOF Saldo Devedor Conta', 'Cobrança de Juros', 'Juros Saldo Devedor Conta'],
+    requiredTransactions: [
+      { value: -14.78, text: 'IOF Saldo Devedor Conta' },
+      { value: -59.62, text: 'Juros Saldo Devedor Conta' }
+    ]
   }
 ];
 
@@ -35,6 +45,12 @@ for (const caso of CASES) {
   }
   for (const expected of caso.requiredDescriptions) {
     assert(entries.some((e) => e.descricao.includes(expected)), `${caso.name}: descricao esperada nao preservada: ${expected}`);
+  }
+  for (const expected of caso.requiredTransactions || []) {
+    assert(
+      entries.some((e) => valorIgual(e.valor, expected.value) && e.descricao.includes(expected.text)),
+      `${caso.name}: lancamento esperado nao preservado: ${expected.text} ${expected.value}`
+    );
   }
   console.log('OK:', caso.name, entries.length, 'lancamentos reais, sem saldos e com historico preservado.');
 }
