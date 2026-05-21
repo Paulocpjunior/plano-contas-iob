@@ -49,9 +49,12 @@ async function main() {
   const mensal = await textLines(ARQUIVO_B);
   const rowsA = api.parseItauDetailedLines(detalhado.lines, detalhado.text);
   const rowsB = api.parseItauMonthlyLines(mensal.lines, mensal.text);
+  const rowsAFromFallback = api.rowsFromText(detalhado.text);
 
   assert.ok(rowsA.length >= 160, `Itaú Lite detalhado deveria ter pelo menos 160 lancamentos; veio ${rowsA.length}`);
   assert.ok(rowsB.length >= 1000, `Itaú mensal consolidado deveria ter pelo menos 1000 lancamentos; veio ${rowsB.length}`);
+  assert.ok(rowsAFromFallback.length >= 150 && rowsAFromFallback.length <= 220, `Fallback textual nao deve inflar o Itau detalhado com totais/agendamentos; veio ${rowsAFromFallback.length}`);
+  assert.ok(rowsAFromFallback.some(row => row.date === '2026-04-01' && row.amount === -46116.32 && /cdc itau/i.test(row.description)), 'Fallback textual do Arquivo A deve reconhecer pagamento CDC ITAU sem ler total/agendamento');
 
   assert.ok(rowsA.some(row => row.date === '2026-04-01' && row.amount === -46116.32 && /cdc itau/i.test(row.description)), 'Arquivo A deve reconhecer pagamento CDC ITAU');
   assert.ok(rowsA.some(row => row.date === '2026-04-30' && row.amount === 25647037 && /acerto saldo/i.test(row.description)), 'Arquivo A deve reconhecer transferencia de acerto de saldo');
@@ -61,6 +64,8 @@ async function main() {
   const result = api.reconcileRows(rowsA, rowsB);
   assert.ok(result.matches.length >= 45, `Conciliação deve encontrar ao menos 45 vinculos automaticos; veio ${result.matches.length}`);
   assert.strictEqual(result.unmatchedA.length, 0, 'Arquivo A nao deve sobrar como sem vinculo nesse par conhecido');
+  assert.ok((result.residualReviews || []).length > 0, 'Totais/lotes residuais devem ser apresentados como cobertura consolidada separada');
+  assert.ok((result.ambiguous || []).every(item => !/diferenca diaria consolidada|movimento sem contraparte no dia/i.test(item.reason || '')), 'Revisao manual nao deve misturar cobertura consolidada por totais/lotes');
   assert.doesNotThrow(function () {
     api.renderOutOfScope(result.outOfScopeB);
   }, 'Renderizacao de Fora do escopo nao deve chamar helper inexistente no navegador');

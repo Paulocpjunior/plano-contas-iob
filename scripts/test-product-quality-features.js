@@ -119,7 +119,7 @@ assertContains('auditai/conciliacao-arquivos.js', 'renderOutOfScope', 'fora do e
 assertContains('auditai/conciliacao-arquivos.js', 'Resumo diário das diferenças', 'resumo diario das diferencas residuais da conciliacao');
 assertContains('auditai/conciliacao-arquivos.js', 'residuo diario exato', 'casamento de residuo diario exato em lote');
 assertContains('auditai/conciliacao-arquivos.js', 'diferenca diaria consolidada', 'fechamento de revisao manual consolidada por dia');
-assertContains('auditai/conciliacao-arquivos.js', 'Revisão manual consolidada', 'secao de revisao manual consolidada na conciliacao');
+assertContains('auditai/conciliacao-arquivos.js', 'Cobertura consolidada por totais/lotes', 'secao de cobertura consolidada separada da revisao manual');
 assertContains('api-adapter.js', 'fiscalListarImpostos', 'adapter fiscal para listar impostos');
 assertContains('api-adapter.js', 'fiscalCertificadoStatus', 'adapter fiscal para status do certificado');
 assertContains('api-adapter.js', 'fiscalSerproStatus', 'adapter fiscal para status SERPRO');

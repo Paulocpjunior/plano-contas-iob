@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.2.45';
+  const AUDITAI_MOTOR_VERSION = '3.2.46';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.45';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.46';
 
   const STATE = {
     files: { a: null, b: null },
@@ -332,6 +332,10 @@
   }
 
   function rowsFromText(text) {
+    const itauDetailed = parseItauDetailedTextRows(text);
+    if (itauDetailed.length) return itauDetailed;
+    const itauMonthly = parseItauMonthlyTextRows(text);
+    if (itauMonthly.length) return itauMonthly;
     return text.split(/\r?\n/).map(function (line, i) {
       const values = line.match(MONEY_RE) || [];
       if (!values.length) return null;
@@ -462,6 +466,21 @@
     const seen = new Set();
     const moneyTokenRe = /-?\d{1,3}(?:\.\d{3})*,\d{2}/g;
 
+    function pushDetailedRow(input) {
+      if (!input.date || !input.description || input.amount === null || Math.abs(input.amount) === 0) return;
+      if (/^Saldo\b/i.test(input.description) || /Saldo anterior ao per[ií]odo/i.test(input.description)) return;
+      const key = [input.date, input.description.toUpperCase(), input.amount.toFixed(2)].join('|');
+      if (seen.has(key)) return;
+      seen.add(key);
+      rows.push(buildRow({
+        sourceLine: input.sourceLine,
+        date: input.date,
+        description: 'ITAU 17841 - ' + input.description,
+        amount: input.amount,
+        raw: input.raw
+      }));
+    }
+
     lines.forEach(function (line, index) {
       const text = String(line.text || '').replace(/\s+/g, ' ').trim();
       const compact = text.match(/^(\d{2})[./](\d{2})[./](\d{4})(\d{2})[./](\d{2})[./](\d{4})(.+)$/);
@@ -491,22 +510,78 @@
         .replace(/\s+/g, ' ')
         .trim();
       const desc = [tipo, complemento].filter(Boolean).join(' - ').trim();
-      if (!desc || /^Saldo\b/i.test(desc) || /Saldo anterior ao per[ií]odo/i.test(desc)) return;
-
-      const key = [dueDate, desc.toUpperCase(), amount.toFixed(2)].join('|');
-      if (seen.has(key)) return;
-      seen.add(key);
-
-      rows.push(buildRow({
+      pushDetailedRow({
         sourceLine: index + 1,
         date: dueDate,
-        description: 'ITAU 17841 - ' + desc,
+        description: desc,
         amount: amount,
         raw: text
-      }));
+      });
+    });
+
+    parseItauDetailedTextRows(allText).forEach(function (row) {
+      pushDetailedRow({
+        sourceLine: row.sourceLine,
+        date: row.date,
+        description: String(row.description || '').replace(/^ITAU 17841\s+-\s+/i, ''),
+        amount: row.amount,
+        raw: row.raw
+      });
     });
 
     return rows;
+  }
+
+  function parseItauDetailedTextRows(text) {
+    const rawText = String(text || '');
+    const isDetailedLayout = /Extrato\s+Banc[aá]rio\s+Detalhado/i.test(rawText) ||
+      /ContasBancarias_Geral_Extrato_Detalhado/i.test(rawText) ||
+      /Lan[cç]amento\s+no\s+extrato\s+banc[aá]rio/i.test(rawText) ||
+      /Emiss[aã]o\s*Vcto\s*Cheque\s*Valor\s*Descri[cç][aã]o/i.test(rawText);
+    const isItauLite = /ITAU\s*17841/i.test(rawText) ||
+      /NOVA\s*ERA\s*ITAU/i.test(rawText) ||
+      /Ag[eê]ncia:\s*Conta:\s*8151\s*17841/i.test(rawText);
+    if (!isDetailedLayout || !isItauLite) return [];
+    const rows = [];
+    const seen = new Set();
+    const normalized = rawText
+      .replace(/\r/g, '\n')
+      .replace(/(\d{2}[./]\d{2}[./]\d{4})(\d{2}[./]\d{2}[./]\d{4})/g, '$1 $2')
+      .replace(/([a-zÀ-ÿ])(\d{2}[./]\d{2}[./]\d{4})/gi, '$1\n$2');
+    const lineRe = /(\d{2})[./]\s*(\d{2})[./]\s*(\d{4})\s+(\d{2})[./]\s*(\d{2})[./]\s*(\d{4})\s*(-?\d{1,3}(?:\.\d{3})*,\d{2})\s*([A-Za-zÀ-ÿ][^-0-9\n]{1,60})\s*(-?\d{1,3}(?:\.\d{3})*,\d{2})\s*([^\n]{0,180})/g;
+    let match;
+    while ((match = lineRe.exec(normalized))) {
+      const amount = parseMoney(match[7]);
+      if (amount === null || Math.abs(amount) === 0) continue;
+      const tipo = String(match[8] || '').replace(/\s+/g, ' ').trim();
+      let complemento = String(match[10] || '')
+        .replace(/Numer[aá]rios que comp[õo]e.*$/i, '')
+        .replace(/Agendamento que comp[õo]e.*$/i, '')
+        .replace(/Conta\s+Data\s+Vcto.*$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const desc = [tipo, complemento].filter(Boolean).join(' - ').trim();
+      if (!desc || /^Saldo\b/i.test(desc) || /Saldo anterior ao per[ií]odo/i.test(desc)) continue;
+      const date = [match[6], match[5], match[4]].join('-');
+      const key = [date, desc.toUpperCase(), amount.toFixed(2)].join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push(buildRow({
+        sourceLine: rows.length + 1,
+        date: date,
+        description: 'ITAU 17841 - ' + desc,
+        amount: amount,
+        raw: match[0]
+      }));
+    }
+    return rows;
+  }
+
+  function parseItauMonthlyTextRows(text) {
+    const lines = String(text || '').split(/\r?\n/)
+      .map(function (line, index) { return { text: line.trim(), items: [], page: 1, y: 1000 - index }; })
+      .filter(function (line) { return line.text; });
+    return parseItauMonthlyLines(lines, text);
   }
 
   function parseItauMonthlyLines(lines, allText) {
@@ -1151,7 +1226,7 @@
       unmatchedA: unmatchedA,
       unmatchedB: unmatchedB,
       possible: possible.slice(0, 80),
-      ambiguous: ambiguous.concat(residualReviews),
+      ambiguous: ambiguous,
       residualReviews: residualReviews,
       outOfScopeA: outOfScopeA,
       outOfScopeB: outOfScopeB,
@@ -1159,10 +1234,12 @@
       totalB: bRows.length,
       matchedA: usedA.size,
       matchedB: usedB.size,
-      ambiguousA: ambiguousA.size + manualReviewA.size,
-      ambiguousB: ambiguousB.size + manualReviewB.size,
-      reviewedA: ambiguousA.size + manualReviewA.size,
-      reviewedB: ambiguousB.size + manualReviewB.size,
+      ambiguousA: ambiguousA.size,
+      ambiguousB: ambiguousB.size,
+      reviewedA: ambiguousA.size,
+      reviewedB: ambiguousB.size,
+      consolidatedA: manualReviewA.size,
+      consolidatedB: manualReviewB.size,
       comparableA: usedA.size + ambiguousA.size + manualReviewA.size,
       comparableB: usedB.size + ambiguousB.size + manualReviewB.size
     };
@@ -1177,14 +1254,16 @@
     const ambiguousB = Math.max(0, Number(r.ambiguousB || 0));
     const reviewedA = Math.max(0, Number(r.reviewedA || ambiguousA || 0));
     const reviewedB = Math.max(0, Number(r.reviewedB || ambiguousB || 0));
+    const consolidatedA = Math.max(0, Number(r.consolidatedA || 0));
+    const consolidatedB = Math.max(0, Number(r.consolidatedB || 0));
     const unmatchedA = (r.unmatchedA || []).length;
     const unmatchedB = (r.unmatchedB || []).length;
     const outOfScopeA = (r.outOfScopeA || []).length;
     const outOfScopeB = (r.outOfScopeB || []).length;
     const baseA = Math.max(0, (totalA || (matchedA + ambiguousA + unmatchedA + outOfScopeA)) - outOfScopeA);
     const baseB = Math.max(0, (totalB || (matchedB + ambiguousB + unmatchedB + outOfScopeB)) - outOfScopeB);
-    const coverageA = baseA ? Math.min(1, (matchedA + reviewedA) / baseA) : 0;
-    const coverageB = baseB ? Math.min(1, (matchedB + reviewedB) / baseB) : 0;
+    const coverageA = baseA ? Math.min(1, (matchedA + reviewedA + consolidatedA) / baseA) : 0;
+    const coverageB = baseB ? Math.min(1, (matchedB + reviewedB + consolidatedB) / baseB) : 0;
     const adherence = Math.round(Math.min(1, (coverageA + coverageB) / 2) * 100);
     return {
       totalA: baseA,
@@ -1195,6 +1274,8 @@
       ambiguousB: ambiguousB,
       reviewedA: reviewedA,
       reviewedB: reviewedB,
+      consolidatedA: consolidatedA,
+      consolidatedB: consolidatedB,
       unmatchedA: unmatchedA,
       unmatchedB: unmatchedB,
       outOfScopeA: outOfScopeA,
@@ -1314,6 +1395,26 @@
       }).join('') + '</tbody></table></div>';
   }
 
+  function renderConsolidatedCoverage(rows) {
+    if (!rows || !rows.length) return '<p class="text-sm text-slate-500">Nenhuma cobertura consolidada por totais/lotes.</p>';
+    const sorted = rows.slice().sort(function (a, b) {
+      return String(a.date || '').localeCompare(String(b.date || '')) ||
+        String(a.direction || '').localeCompare(String(b.direction || ''));
+    });
+    return '<div class="overflow-auto max-h-80"><table class="w-full text-xs"><thead class="bg-emerald-50 dark:bg-emerald-900/20 sticky top-0"><tr><th class="p-2 text-left">Data</th><th class="p-2 text-left">Tipo</th><th class="p-2 text-right">Itens A</th><th class="p-2 text-right">Total A</th><th class="p-2 text-right">Itens B</th><th class="p-2 text-right">Total B</th><th class="p-2 text-right">Diferença</th><th class="p-2 text-left">Evidência</th></tr></thead><tbody>' +
+      sorted.slice(0, 120).map(function (row) {
+        const countA = (row.aRows || []).length;
+        const countB = (row.bRows || []).length;
+        const totalA = Number(row.sumA || 0);
+        const totalB = Number(row.sumB || 0);
+        const diff = totalA - totalB;
+        const evidence = countA && countB
+          ? 'Total/lote confrontado por data e natureza.'
+          : 'Movimento sem contraparte no outro arquivo, mantido fora da revisão manual.';
+        return '<tr class="border-t dark:border-slate-700"><td class="p-2 whitespace-nowrap">' + escapeHtml(row.date || '-') + '</td><td class="p-2">' + escapeHtml(row.direction || '-') + '</td><td class="p-2 text-right">' + countA + '</td><td class="p-2 text-right font-mono">' + money(totalA) + '</td><td class="p-2 text-right">' + countB + '</td><td class="p-2 text-right font-mono">' + money(totalB) + '</td><td class="p-2 text-right font-mono">' + money(diff) + '</td><td class="p-2 text-emerald-700 dark:text-emerald-300">' + escapeHtml(evidence) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
   function renderPossible(rows) {
     if (!rows.length) return '<p class="text-sm text-slate-500">Nenhuma possível divergência encontrada.</p>';
     return '<div class="overflow-auto max-h-80"><table class="w-full text-xs"><thead class="bg-amber-50 dark:bg-amber-900/20 sticky top-0"><tr><th class="p-2 text-left">Arquivo A</th><th class="p-2 text-left">Arquivo B</th><th class="p-2 text-left">Motivo</th><th class="p-2 text-right">Diferença</th></tr></thead><tbody>' +
@@ -1323,21 +1424,6 @@
   }
 
   function renderDailyResiduals(result) {
-    if ((result.residualReviews || []).length) {
-      const rows = (result.residualReviews || []).slice().sort(function (a, b) {
-        return String(a.date || '').localeCompare(String(b.date || '')) ||
-          String(a.direction || '').localeCompare(String(b.direction || ''));
-      });
-      return '<div class="overflow-auto max-h-80"><table class="w-full text-xs"><thead class="bg-amber-50 dark:bg-amber-900/20 sticky top-0"><tr><th class="p-2 text-left">Data</th><th class="p-2 text-left">Tipo</th><th class="p-2 text-right">Qtd A</th><th class="p-2 text-right">Total A</th><th class="p-2 text-right">Qtd B</th><th class="p-2 text-right">Total B</th><th class="p-2 text-right">Diferença</th></tr></thead><tbody>' +
-        rows.slice(0, 120).map(function (row) {
-          const countA = (row.aRows || []).length;
-          const countB = (row.bRows || []).length;
-          const totalA = Number(row.sumA || 0);
-          const totalB = Number(row.sumB || 0);
-          const diff = totalA - totalB;
-          return '<tr class="border-t dark:border-slate-700"><td class="p-2 whitespace-nowrap">' + escapeHtml(row.date || '-') + '</td><td class="p-2">' + escapeHtml(row.direction || '-') + '</td><td class="p-2 text-right">' + countA + '</td><td class="p-2 text-right font-mono">' + money(totalA) + '</td><td class="p-2 text-right">' + countB + '</td><td class="p-2 text-right font-mono">' + money(totalB) + '</td><td class="p-2 text-right font-mono">' + money(diff) + '</td></tr>';
-        }).join('') + '</tbody></table></div>';
-    }
     const grouped = new Map();
     function cents(value) {
       return Math.round(Number(value || 0) * 100);
@@ -1396,8 +1482,9 @@
       '<h3 class="font-black text-slate-900 dark:text-white mb-2">Como interpretar este resultado</h3>' +
       '<div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs leading-relaxed">' +
       '<div><strong>Conciliados automaticamente:</strong> data, valor e descricao/lote ficaram consistentes entre os dois arquivos. Estes itens entram na cobertura fechada.</div>' +
-      '<div><strong>Revisao manual:</strong> existe mesma data e valor, mas ha mais de uma opcao possivel ou lote agrupado. O colaborador decide qual contraparte e correta.</div>' +
+      '<div><strong>Revisao manual:</strong> existe mesma data e valor, mas ha mais de uma opcao possivel. O colaborador decide qual contraparte e correta.</div>' +
       '<div><strong>Sem vinculo:</strong> item transacional que nao encontrou contraparte suficiente. Deve ser conferido no arquivo de origem antes de concluir a conciliacao.</div>' +
+      '<div><strong>Cobertura consolidada:</strong> totais ou lotes explicados por data e natureza. Serve como evidência de fechamento, sem entrar como revisão manual.</div>' +
       '<div><strong>Fora do escopo:</strong> ' + outScope + ' item(ns) informativo(s), aplicacao/resgate/rendimento ou saldo que nao deve reduzir a qualidade da conciliacao.</div>' +
       '</div>' +
       '</section>';
@@ -1409,20 +1496,23 @@
     if (!box || !r) return;
     const metrics = reconciliationMetrics(r);
     const ambiguousCount = (r.ambiguous || []).length;
+    const consolidatedCount = (r.residualReviews || []).length;
     box.innerHTML = [
-      '<div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">',
+      '<div class="grid grid-cols-1 md:grid-cols-7 gap-3 mb-5">',
       stat('Conciliados', metrics.labelConciliados, 'text-green-600'),
       stat('Revisão manual', ambiguousCount, 'text-blue-600'),
+      stat('Cobertura consolidada', consolidatedCount, 'text-emerald-600'),
       stat('Sem vínculo A', r.unmatchedA.length, 'text-red-600'),
       stat('Sem vínculo B', r.unmatchedB.length, 'text-red-600'),
       stat('Fora do escopo', metrics.outOfScopeA + metrics.outOfScopeB, 'text-slate-500'),
       stat('Cobertura', metrics.adherence + '%', 'text-blue-600'),
       '</div>',
-      '<div class="mb-4 text-xs font-bold text-slate-500 dark:text-slate-400">' + AUDITAI_MOTOR_LABEL + ' · resultado recalculado nesta tela · cobertura A ' + (metrics.matchedA + metrics.reviewedA) + '/' + metrics.totalA + ' · cobertura B ' + (metrics.matchedB + metrics.reviewedB) + '/' + metrics.totalB + ' · automatico A ' + metrics.matchedA + ' / B ' + metrics.matchedB + ' · revisao A ' + metrics.reviewedA + ' / B ' + metrics.reviewedB + ' · fora do escopo A ' + metrics.outOfScopeA + ' / B ' + metrics.outOfScopeB + '</div>',
+      '<div class="mb-4 text-xs font-bold text-slate-500 dark:text-slate-400">' + AUDITAI_MOTOR_LABEL + ' · resultado recalculado nesta tela · cobertura A ' + (metrics.matchedA + metrics.reviewedA + metrics.consolidatedA) + '/' + metrics.totalA + ' · cobertura B ' + (metrics.matchedB + metrics.reviewedB + metrics.consolidatedB) + '/' + metrics.totalB + ' · automatico A ' + metrics.matchedA + ' / B ' + metrics.matchedB + ' · revisao A ' + metrics.reviewedA + ' / B ' + metrics.reviewedB + ' · consolidado A ' + metrics.consolidatedA + ' / B ' + metrics.consolidatedB + ' · fora do escopo A ' + metrics.outOfScopeA + ' / B ' + metrics.outOfScopeB + '</div>',
       renderOperationalGuide(r, metrics),
       '<div class="grid grid-cols-1 xl:grid-cols-2 gap-5">',
       section('Itens conciliados automaticamente', renderMatches(r.matches)),
-      section('Revisão manual consolidada', renderAmbiguous(r.ambiguous || [])),
+      section('Revisão manual', renderAmbiguous(r.ambiguous || [])),
+      section('Cobertura consolidada por totais/lotes', renderConsolidatedCoverage(r.residualReviews || [])),
       section('Diferenças prováveis', renderPossible(r.possible)),
       section('Resumo diário das diferenças', renderDailyResiduals(r)),
       section('Sem vínculo no Arquivo A', renderTable(r.unmatchedA, 'A')),
@@ -1448,6 +1538,11 @@
       const left = (m.aRows || []).map(function (r) { return [r.date, r.description, r.amount].join(' | '); }).join(' || ');
       const right = (m.bRows || []).map(function (r) { return [r.date, r.description, r.amount].join(' | '); }).join(' || ');
       rows.push(['revisao_manual', '', left, '', '', right, '', '', m.reason || '']);
+    });
+    (STATE.result.residualReviews || []).forEach(function (m) {
+      const left = (m.aRows || []).map(function (r) { return [r.date, r.description, r.amount].join(' | '); }).join(' || ');
+      const right = (m.bRows || []).map(function (r) { return [r.date, r.description, r.amount].join(' | '); }).join(' || ');
+      rows.push(['cobertura_consolidada', m.date || '', left, m.sumA || '', m.date || '', right, m.sumB || '', '', m.reason || '']);
     });
     STATE.result.unmatchedA.forEach(function (r) { rows.push(['pendente_a', r.date, r.description, r.amount, '', '', '', '', '']); });
     STATE.result.unmatchedB.forEach(function (r) { rows.push(['pendente_b', '', '', '', r.date, r.description, r.amount, '', '']); });
