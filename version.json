@@ -1,7 +1,10 @@
 {
-  "version": "3.2.48",
-  "build_date": "2026-05-21T15:35:00-03:00",
+  "version": "3.2.49",
+  "build_date": "2026-05-22T12:35:00-03:00",
   "release_notes": [
+    "Interface principal passa a manter somente o indicador operacional de versao no rodape direito",
+    "Versao duplicada no cabecalho principal deixa de ser exibida",
+    "Badges legados de versao/release no canto inferior esquerdo sao removidos automaticamente",
     "Hotfix Caixa 104: detector do Extrato por Periodo Gerenciador aceita variacoes de espacamento do PDF.js no navegador",
     "Parser Caixa 104 reforcado para reconhecer linhas reais por data/documento/valor C-D antes de rejeitar o arquivo",
     "Novo layout Caixa Economica Federal 104 - Extrato por Periodo Gerenciador cadastrado na central de layouts bancarios",

@@ -16,16 +16,16 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.48"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.48"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.48"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.48"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.48"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.48"></script>
-    <script src="/parser-caixa-extrato.js?v=3.2.48"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.48"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.48"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.48"></script>
+    <script src="/parser-ofx.js?v=3.2.49"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.49"></script>
+    <script src="/parser-safra-extrato.js?v=3.2.49"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.2.49"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.2.49"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.2.49"></script>
+    <script src="/parser-caixa-extrato.js?v=3.2.49"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.2.49"></script>
+    <script src="/parser-btg-pactual.js?v=3.2.49"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.49"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -219,11 +219,6 @@
         .header-title h1 {
             font-size: 18px;
             font-weight: 800;
-        }
-        .header-title .version {
-            font-size: 11px;
-            opacity: 0.7;
-            font-weight: 500;
         }
         .header-right {
             display: flex;
@@ -1623,7 +1618,6 @@
                 <div class="header-logo">📊</div>
                 <div class="header-title">
                     <h1>CONSULTOR CONTÁBIL INTELIGENTE</h1>
-                    <span class="version" id="headerVersion">Carregando versão…</span>
                 </div>
             </div>
             <div class="header-right">
@@ -8298,7 +8292,7 @@
                 layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
                 parser_selecionado: meta && meta.parser || '',
                 layout_selecionado: meta && meta.layout || '',
-                versao_app: '3.2.48'
+                versao_app: '3.2.49'
             };
         }
 
@@ -11335,12 +11329,45 @@ window.confirmarTrocarPlano = async function() {
             }
 
             function _atualizarFooter(info) {
+                _removerBadgesVersaoLegados();
                 const el = document.getElementById('versionFooter');
                 const data = info.build_date ? new Date(info.build_date).toLocaleDateString('pt-BR') : '';
                 const textoVersao = 'v' + info.version;
                 if (el) el.textContent = textoVersao + (data ? ' • ' + data : '');
                 const header = document.getElementById('headerVersion');
-                if (header) header.textContent = textoVersao + ' • Colaborativo';
+                if (header) header.remove();
+            }
+
+            function _removerBadgesVersaoLegados() {
+                const seletores = [
+                    '#releaseBadge',
+                    '#versionBadge',
+                    '.release-badge',
+                    '.version-badge',
+                    '.legacy-version-badge',
+                    '[data-release-badge]',
+                    '[data-version-badge]'
+                ];
+
+                seletores.forEach(function(seletor) {
+                    document.querySelectorAll(seletor).forEach(function(el) {
+                        if (el.id !== 'versionFooter' && !el.closest('#versionModal')) el.remove();
+                    });
+                });
+
+                document.querySelectorAll('body > div, body > span').forEach(function(el) {
+                    if (!el || el.id === 'versionFooter' || el.closest('#versionModal')) return;
+                    const texto = (el.textContent || '').replace(/\s+/g, ' ').trim();
+                    if (!texto) return;
+                    const estilo = window.getComputedStyle(el);
+                    const cantoInferiorEsquerdo = estilo.position === 'fixed' &&
+                        estilo.left !== 'auto' &&
+                        estilo.bottom !== 'auto' &&
+                        estilo.right === 'auto';
+                    const pareceVersaoAntiga = /^v\d+\.\d+\.\d+\s*[•-]/.test(texto) ||
+                        /\b20\d{2}\.\d{2}\b/.test(texto);
+                    if (cantoInferiorEsquerdo && pareceVersaoAntiga) el.remove();
+                });
             }
 
             function _mostrarModalAtualizacao(info) {
@@ -11384,8 +11411,12 @@ window.confirmarTrocarPlano = async function() {
 
             // Boot: checa imediatamente e depois a cada 5 min
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', function(){ checarVersaoApp(false); });
+                document.addEventListener('DOMContentLoaded', function(){
+                    _removerBadgesVersaoLegados();
+                    checarVersaoApp(false);
+                });
             } else {
+                _removerBadgesVersaoLegados();
                 checarVersaoApp(false);
             }
             setInterval(function(){ checarVersaoApp(true); }, _CHECAR_INTERVALO_MS);
