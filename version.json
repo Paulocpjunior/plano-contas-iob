@@ -1,7 +1,9 @@
 {
-  "version": "3.2.49",
-  "build_date": "2026-05-22T12:35:00-03:00",
+  "version": "3.2.50",
+  "build_date": "2026-05-22T12:55:00-03:00",
   "release_notes": [
+    "Importador principal passa a bloquear CSV de evidencias da conciliacao AuditAI para impedir total falso no card de conferencia",
+    "Mensagem do CSV de conciliacao orienta usar arquivos originais ou CSV operacional com Data, Descricao e Valor",
     "Interface principal passa a manter somente o indicador operacional de versao no rodape direito",
     "Versao duplicada no cabecalho principal deixa de ser exibida",
     "Badges legados de versao/release no canto inferior esquerdo sao removidos automaticamente",

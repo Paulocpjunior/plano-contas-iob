@@ -16,16 +16,16 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.49"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.49"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.49"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.49"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.49"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.49"></script>
-    <script src="/parser-caixa-extrato.js?v=3.2.49"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.49"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.49"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.49"></script>
+    <script src="/parser-ofx.js?v=3.2.50"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.50"></script>
+    <script src="/parser-safra-extrato.js?v=3.2.50"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.2.50"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.2.50"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.2.50"></script>
+    <script src="/parser-caixa-extrato.js?v=3.2.50"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.2.50"></script>
+    <script src="/parser-btg-pactual.js?v=3.2.50"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.50"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -5686,6 +5686,23 @@
             return mapa;
         }
 
+        function ehCsvEvidenciaConciliacaoAuditAI(rows) {
+            if (!Array.isArray(rows) || !rows.length) return false;
+            const normalizarHeader = function(v) {
+                return String(v || '').trim().toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\s+/g, '_');
+            };
+            const header = (rows[0] || []).map(normalizarHeader);
+            const obrigatorias = ['tipo', 'data_a', 'descricao_a', 'valor_a', 'data_b', 'descricao_b', 'valor_b'];
+            return obrigatorias.every(function(col) { return header.includes(col); });
+        }
+
+        function bloquearCsvEvidenciaConciliacaoAuditAI(rows) {
+            if (!ehCsvEvidenciaConciliacaoAuditAI(rows)) return;
+            throw new Error('Este CSV é um relatório de conciliação do AuditAI, não um extrato/lançamento para importação. Use os arquivos originais ou exporte um CSV operacional com colunas Data, Descrição e Valor.');
+        }
+
         // Procura linha de cabecalho por "densidade" de palavras-chave
         function acharLinhaCabecalho(rows) {
             const max = Math.min(15, rows.length);
@@ -5826,6 +5843,7 @@
             const rows = linhas.map(l => l.split(melhorSep).map(c => c.trim().replace(/^["']|["']$/g, '')));
             console.log('[CSV-DEBUG] separador escolhido:', JSON.stringify(melhorSep), 'score:', melhorScore);
             console.log('[CSV-DEBUG] header row:', rows[0]);
+            bloquearCsvEvidenciaConciliacaoAuditAI(rows);
             const resultado = extrairLancamentosDeMatriz(rows, opts);
             console.log('[CSV-DEBUG] lancamentos extraidos:', resultado.length);
             return resultado;
@@ -8292,7 +8310,7 @@
                 layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
                 parser_selecionado: meta && meta.parser || '',
                 layout_selecionado: meta && meta.layout || '',
-                versao_app: '3.2.49'
+                versao_app: '3.2.50'
             };
         }
 

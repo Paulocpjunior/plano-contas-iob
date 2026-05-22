@@ -75,6 +75,8 @@ assertContains('index.html', 'salvarMemoriaEmpresa', 'edicao de memoria no app')
 assertContains('index.html', 'registrarArquivoRejeitado', 'registro de arquivo rejeitado pelo extrator');
 assertContains('index.html', 'diagnosticarFalhaImportacao', 'diagnostico client-side da falha de importacao');
 assertContains('index.html', 'layouts_tentados', 'persistencia dos layouts tentados na rejeicao');
+assertContains('index.html', 'ehCsvEvidenciaConciliacaoAuditAI', 'bloqueio de CSV de evidencia do AuditAI no importador principal');
+assertContains('index.html', 'Este CSV é um relatório de conciliação do AuditAI', 'mensagem clara para CSV de conciliacao usado como extrato');
 assertContains('index.html', 'Auditável', 'memoria de classificacao mostra trilha auditavel');
 assertContains('index.html', 'sugerirLancamentoManualAssistido', 'lancamento manual assistido');
 assertContains('index.html', 'agendarSugestaoLancamentoManual', 'gatilho de sugestao manual');
