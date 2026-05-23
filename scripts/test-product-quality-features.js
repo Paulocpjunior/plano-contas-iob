@@ -93,6 +93,10 @@ assertContains('index.html', 'sincronizarFiscalSerpro', 'acao frontend de sincro
 assertContains('index.html', 'Ponte SERPRO ativa', 'aviso correto quando a integracao usa app fiscal externo');
 assertContains('index.html', 'LIMITE_ENTRIES_LOCAL_STORAGE', 'limite de snapshot local para evitar recarregamento por memoria');
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
+assertContains('index.html', 'Validador de Obrigações ECD / ECF', 'aba de validador de obrigacoes restaurada');
+assertContains('index.html', 'Layouts das obrigações cadastrados', 'lista visivel de layouts ECD/ECF');
+assertContains('index.html', 'ECD - Escrituração Contábil Digital', 'layout ECD visivel no validador');
+assertContains('index.html', 'ECF - Escrituração Contábil Fiscal', 'layout ECF visivel no validador');
 assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
 assertContains('index.html', `parser-santander-empresas-ocr.js?v=${version}`, 'cache-buster atual do parser Santander');
 assertContains('auditai/index.html', `index-DREfix3160.js?v=${version}`, 'cache-buster atual da analise individual AuditAI');

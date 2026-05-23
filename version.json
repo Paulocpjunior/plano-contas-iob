@@ -1,7 +1,10 @@
 {
-  "version": "3.2.51",
-  "build_date": "2026-05-22T16:58:00-03:00",
+  "version": "3.2.52",
+  "build_date": "2026-05-23T00:00:00-03:00",
   "release_notes": [
+    "Hotfix visual: menu principal preserva a aba Validador Obrigacoes sem adicionar novo card/aba operacional",
+    "Layouts ECD e ECF ficam visiveis dentro do Validador Obrigacoes com registros SPED monitorados",
+    "Situacao Fiscal permanece como acao secundaria, sem substituir nem poluir o fluxo ECD/ECF",
     "Aba Validador Obrigacoes ECD/ECF restaurada no menu principal sem ser substituida pela Situacao Fiscal",
     "Validador Obrigacoes volta como modulo proprio para conferir layout ECD/ECF, CNPJ esperado e registros SPED estruturais",
     "Situacao Fiscal permanece separada para impostos/SERPRO e nao ocupa mais o fluxo de validacao de obrigacoes",

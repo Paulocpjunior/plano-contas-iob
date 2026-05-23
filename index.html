@@ -16,16 +16,16 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.51"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.51"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.51"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.51"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.51"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.51"></script>
-    <script src="/parser-caixa-extrato.js?v=3.2.51"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.51"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.51"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.51"></script>
+    <script src="/parser-ofx.js?v=3.2.52"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.52"></script>
+    <script src="/parser-safra-extrato.js?v=3.2.52"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.2.52"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.2.52"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.2.52"></script>
+    <script src="/parser-caixa-extrato.js?v=3.2.52"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.2.52"></script>
+    <script src="/parser-btg-pactual.js?v=3.2.52"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.52"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1651,7 +1651,6 @@
             <button onclick="showPage('plano')"><span>📚</span> Plano de Contas / Histórico</button>
             <button onclick="showPage('mapeamento')"><span>🔗</span> Mapeamento</button>
             <button onclick="showPage('validador')"><span>✅</span> Validador Obrigações</button>
-            <button onclick="showPage('fiscal')"><span>🧾</span> Situação Fiscal</button>
             <button onclick="showPage('exportar')"><span>💾</span> Exportar</button>
             <button onclick="showPage('sobre')"><span>ℹ️</span> Sobre</button>
             <button id="btnAuditAiNav" onclick="window.open('/auditai', '_blank')" style="display:none;margin-left:auto;color:#2563eb;font-weight:700"><span>🔍</span> AuditAI</button>
@@ -2289,6 +2288,7 @@
                     <div class="card-header">
                         <h2><span class="icon">✅</span> Validador de Obrigações ECD / ECF</h2>
                         <div class="action-buttons">
+                            <button class="btn-action btn-action-secondary" onclick="showPage('fiscal')">🧾 Situação Fiscal</button>
                             <button class="btn-action btn-action-secondary" onclick="limparValidadorObrigacoes()">Limpar</button>
                             <button class="btn-action btn-action-primary" onclick="document.getElementById('obrigacaoFileInput').click()">📁 Selecionar arquivo</button>
                         </div>
@@ -2309,6 +2309,36 @@
                             <h3>Status da última validação</h3>
                             <div class="value" id="obrigacaoStatusResumo" style="font-size:26px;color:#64748b">Aguardando</div>
                             <div class="sub" id="obrigacaoArquivoResumo">Nenhum arquivo selecionado</div>
+                        </div>
+                    </div>
+
+                    <div style="margin:18px 0 20px">
+                        <h3 style="margin:0 0 10px;color:#111827;font-size:16px">Layouts das obrigações cadastrados</h3>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
+                            <div style="border:1px solid #dbeafe;background:#eff6ff;border-radius:8px;padding:14px">
+                                <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+                                    <div>
+                                        <strong style="display:block;color:#1d4ed8;font-size:15px">ECD - Escrituração Contábil Digital</strong>
+                                        <span style="color:#475569;font-size:12px">SPED Contábil | Assinatura LECD</span>
+                                    </div>
+                                    <span style="background:#dcfce7;color:#166534;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800">Ativo</span>
+                                </div>
+                                <div style="margin-top:10px;color:#334155;font-size:12px;line-height:1.5">
+                                    Registros estruturais monitorados: 0000, I010, I030, I050, I100, I150, I155, J005, J100, J150, J900, J930 e 9999.
+                                </div>
+                            </div>
+                            <div style="border:1px solid #fef3c7;background:#fffbeb;border-radius:8px;padding:14px">
+                                <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+                                    <div>
+                                        <strong style="display:block;color:#92400e;font-size:15px">ECF - Escrituração Contábil Fiscal</strong>
+                                        <span style="color:#475569;font-size:12px">SPED ECF | Assinatura LECF</span>
+                                    </div>
+                                    <span style="background:#dcfce7;color:#166534;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800">Ativo</span>
+                                </div>
+                                <div style="margin-top:10px;color:#334155;font-size:12px;line-height:1.5">
+                                    Registros estruturais monitorados: 0000, 0010, 0020, 0030, 0930, J001, K001, L001, M001, N001, P001, X001, Y001 e 9999.
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -8533,7 +8563,7 @@
                 layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
                 parser_selecionado: meta && meta.parser || '',
                 layout_selecionado: meta && meta.layout || '',
-                versao_app: '3.2.51'
+                versao_app: '3.2.52'
             };
         }
 
