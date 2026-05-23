@@ -97,6 +97,8 @@ assertContains('index.html', 'Validador de Obrigações ECD / ECF', 'aba de vali
 assertContains('index.html', 'Layouts das obrigações cadastrados', 'lista visivel de layouts ECD/ECF');
 assertContains('index.html', 'ECD - Escrituração Contábil Digital', 'layout ECD visivel no validador');
 assertContains('index.html', 'ECF - Escrituração Contábil Fiscal', 'layout ECF visivel no validador');
+assertContains('index.html', 'Próximo prazo', 'contador de prazo no validador de obrigacoes');
+assertContains('index.html', 'diasAtePrazoObrigacao', 'calculo diario do prazo de entrega ECD/ECF');
 assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
 assertContains('index.html', `parser-santander-empresas-ocr.js?v=${version}`, 'cache-buster atual do parser Santander');
 assertContains('auditai/index.html', `index-DREfix3160.js?v=${version}`, 'cache-buster atual da analise individual AuditAI');

@@ -1,7 +1,9 @@
 {
-  "version": "3.2.52",
-  "build_date": "2026-05-23T00:00:00-03:00",
+  "version": "3.2.53",
+  "build_date": "2026-05-23T00:12:00-03:00",
   "release_notes": [
+    "Validador Obrigacoes passa a exibir contador diario do prazo de entrega ECD/ECF",
+    "Cards ECD e ECF mostram data limite e dias restantes sem alterar o menu principal",
     "Hotfix visual: menu principal preserva a aba Validador Obrigacoes sem adicionar novo card/aba operacional",
     "Layouts ECD e ECF ficam visiveis dentro do Validador Obrigacoes com registros SPED monitorados",
     "Situacao Fiscal permanece como acao secundaria, sem substituir nem poluir o fluxo ECD/ECF",

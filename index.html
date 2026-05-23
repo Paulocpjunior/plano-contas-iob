@@ -16,16 +16,16 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.52"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.52"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.52"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.52"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.52"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.52"></script>
-    <script src="/parser-caixa-extrato.js?v=3.2.52"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.52"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.52"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.52"></script>
+    <script src="/parser-ofx.js?v=3.2.53"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.53"></script>
+    <script src="/parser-safra-extrato.js?v=3.2.53"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.2.53"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.2.53"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.2.53"></script>
+    <script src="/parser-caixa-extrato.js?v=3.2.53"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.2.53"></script>
+    <script src="/parser-btg-pactual.js?v=3.2.53"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.53"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -2310,6 +2310,11 @@
                             <div class="value" id="obrigacaoStatusResumo" style="font-size:26px;color:#64748b">Aguardando</div>
                             <div class="sub" id="obrigacaoArquivoResumo">Nenhum arquivo selecionado</div>
                         </div>
+                        <div class="import-total-card credit">
+                            <h3>Próximo prazo</h3>
+                            <div class="value" id="obrigacaoPrazoResumo" style="font-size:26px;color:#f59e0b">-</div>
+                            <div class="sub" id="obrigacaoPrazoDetalhe">Contagem diária ECD/ECF</div>
+                        </div>
                     </div>
 
                     <div style="margin:18px 0 20px">
@@ -2326,6 +2331,10 @@
                                 <div style="margin-top:10px;color:#334155;font-size:12px;line-height:1.5">
                                     Registros estruturais monitorados: 0000, I010, I030, I050, I100, I150, I155, J005, J100, J150, J900, J930 e 9999.
                                 </div>
+                                <div style="margin-top:10px;display:flex;justify-content:space-between;gap:8px;align-items:center;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:8px">
+                                    <span id="obrigacaoPrazoEcdData" style="color:#475569;font-size:12px">Prazo: 30/06/2026</span>
+                                    <strong id="obrigacaoPrazoEcdDias" style="color:#1d4ed8;font-size:13px">-</strong>
+                                </div>
                             </div>
                             <div style="border:1px solid #fef3c7;background:#fffbeb;border-radius:8px;padding:14px">
                                 <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
@@ -2337,6 +2346,10 @@
                                 </div>
                                 <div style="margin-top:10px;color:#334155;font-size:12px;line-height:1.5">
                                     Registros estruturais monitorados: 0000, 0010, 0020, 0030, 0930, J001, K001, L001, M001, N001, P001, X001, Y001 e 9999.
+                                </div>
+                                <div style="margin-top:10px;display:flex;justify-content:space-between;gap:8px;align-items:center;background:#fff;border:1px solid #fde68a;border-radius:6px;padding:8px">
+                                    <span id="obrigacaoPrazoEcfData" style="color:#475569;font-size:12px">Prazo: 31/07/2026</span>
+                                    <strong id="obrigacaoPrazoEcfDias" style="color:#92400e;font-size:13px">-</strong>
                                 </div>
                             </div>
                         </div>
@@ -6597,14 +6610,17 @@
             ECD: {
                 nome: 'ECD - Escrituração Contábil Digital',
                 assinatura: 'LECD',
+                prazoEntrega: '2026-06-30',
                 registrosObrigatorios: ['0000', 'I010', 'I030', 'I050', 'I100', 'I150', 'I155', 'J005', 'J100', 'J150', 'J900', 'J930', '9999']
             },
             ECF: {
                 nome: 'ECF - Escrituração Contábil Fiscal',
                 assinatura: 'LECF',
+                prazoEntrega: '2026-07-31',
                 registrosObrigatorios: ['0000', '0010', '0020', '0030', '0930', 'J001', 'K001', 'L001', 'M001', 'N001', 'P001', 'X001', 'Y001', '9999']
             }
         };
+        let obrigacoesPrazoTimer = null;
 
         function validadorEscape(v) {
             return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
@@ -6616,6 +6632,66 @@
             const cnpjEl = document.getElementById('obrigacaoCnpjEsperado');
             if (cnpjEl && !cnpjEl.value && state.info && state.info.cnpj) {
                 cnpjEl.value = state.info.cnpj;
+            }
+            atualizarPrazosObrigacoes();
+            if (!obrigacoesPrazoTimer) {
+                obrigacoesPrazoTimer = setInterval(atualizarPrazosObrigacoes, 60 * 60 * 1000);
+            }
+        }
+
+        function dataLocalPrazoObrigacao(iso) {
+            const partes = String(iso || '').split('-').map(Number);
+            if (partes.length !== 3 || partes.some(isNaN)) return null;
+            return new Date(partes[0], partes[1] - 1, partes[2], 23, 59, 59, 999);
+        }
+
+        function diasAtePrazoObrigacao(iso, hoje) {
+            const prazo = dataLocalPrazoObrigacao(iso);
+            if (!prazo) return null;
+            const base = hoje || new Date();
+            const inicioHoje = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+            const fimPrazo = new Date(prazo.getFullYear(), prazo.getMonth(), prazo.getDate());
+            return Math.ceil((fimPrazo - inicioHoje) / 86400000);
+        }
+
+        function formatarDataPrazoObrigacao(iso) {
+            const prazo = dataLocalPrazoObrigacao(iso);
+            return prazo ? prazo.toLocaleDateString('pt-BR') : '-';
+        }
+
+        function textoDiasPrazoObrigacao(dias) {
+            if (dias == null) return '-';
+            if (dias < 0) return 'Vencido há ' + Math.abs(dias) + ' dia(s)';
+            if (dias === 0) return 'Vence hoje';
+            return dias + ' dia(s)';
+        }
+
+        function atualizarPrazosObrigacoes() {
+            const itens = Object.keys(OBRIGACOES_LAYOUTS).map(function(tipo) {
+                const layout = OBRIGACOES_LAYOUTS[tipo];
+                return {
+                    tipo,
+                    nome: layout.nome,
+                    prazo: layout.prazoEntrega,
+                    dias: diasAtePrazoObrigacao(layout.prazoEntrega)
+                };
+            }).filter(function(item) { return item.dias != null; });
+
+            itens.forEach(function(item) {
+                const tipoLower = item.tipo.toLowerCase();
+                const dataEl = document.getElementById('obrigacaoPrazo' + tipoLower.charAt(0).toUpperCase() + tipoLower.slice(1) + 'Data');
+                const diasEl = document.getElementById('obrigacaoPrazo' + tipoLower.charAt(0).toUpperCase() + tipoLower.slice(1) + 'Dias');
+                if (dataEl) dataEl.textContent = 'Prazo: ' + formatarDataPrazoObrigacao(item.prazo);
+                if (diasEl) diasEl.textContent = textoDiasPrazoObrigacao(item.dias);
+            });
+
+            const futuro = itens.filter(function(item) { return item.dias >= 0; }).sort(function(a, b) { return a.dias - b.dias; })[0]
+                || itens.sort(function(a, b) { return b.dias - a.dias; })[0];
+            const resumo = document.getElementById('obrigacaoPrazoResumo');
+            const detalhe = document.getElementById('obrigacaoPrazoDetalhe');
+            if (futuro && resumo && detalhe) {
+                resumo.textContent = textoDiasPrazoObrigacao(futuro.dias);
+                detalhe.textContent = futuro.tipo + ' até ' + formatarDataPrazoObrigacao(futuro.prazo);
             }
         }
 
@@ -8563,7 +8639,7 @@
                 layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
                 parser_selecionado: meta && meta.parser || '',
                 layout_selecionado: meta && meta.layout || '',
-                versao_app: '3.2.52'
+                versao_app: '3.2.53'
             };
         }
 
