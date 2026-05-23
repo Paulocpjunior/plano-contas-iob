@@ -16,16 +16,16 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.50"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.50"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.50"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.50"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.50"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.50"></script>
-    <script src="/parser-caixa-extrato.js?v=3.2.50"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.50"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.50"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.50"></script>
+    <script src="/parser-ofx.js?v=3.2.51"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.51"></script>
+    <script src="/parser-safra-extrato.js?v=3.2.51"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.2.51"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.2.51"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.2.51"></script>
+    <script src="/parser-caixa-extrato.js?v=3.2.51"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.2.51"></script>
+    <script src="/parser-btg-pactual.js?v=3.2.51"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.51"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1650,6 +1650,7 @@
             <button onclick="showPage('lancamentos')"><span>📋</span> Lançamentos</button>
             <button onclick="showPage('plano')"><span>📚</span> Plano de Contas / Histórico</button>
             <button onclick="showPage('mapeamento')"><span>🔗</span> Mapeamento</button>
+            <button onclick="showPage('validador')"><span>✅</span> Validador Obrigações</button>
             <button onclick="showPage('fiscal')"><span>🧾</span> Situação Fiscal</button>
             <button onclick="showPage('exportar')"><span>💾</span> Exportar</button>
             <button onclick="showPage('sobre')"><span>ℹ️</span> Sobre</button>
@@ -2279,6 +2280,72 @@
                         </div>
                     </div>
                     <div id="mappingTable"></div>
+                </div>
+            </div>
+
+            <!-- Page: Validador Obrigacoes -->
+            <div id="pageValidador" class="hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><span class="icon">✅</span> Validador de Obrigações ECD / ECF</h2>
+                        <div class="action-buttons">
+                            <button class="btn-action btn-action-secondary" onclick="limparValidadorObrigacoes()">Limpar</button>
+                            <button class="btn-action btn-action-primary" onclick="document.getElementById('obrigacaoFileInput').click()">📁 Selecionar arquivo</button>
+                        </div>
+                    </div>
+                    <p style="color:var(--text-muted);margin-bottom:18px">
+                        Valide arquivos SPED antes do envio: identifica layout ECD/ECF, confere CNPJ da empresa ativa e verifica registros estruturais obrigatórios.
+                    </p>
+
+                    <input type="file" id="obrigacaoFileInput" accept=".txt,.ecd,.ecf,.sped" style="display:none" onchange="processarArquivoObrigacao(event)">
+
+                    <div class="import-totals-grid">
+                        <div class="import-total-card credit">
+                            <h3>Layouts ativos</h3>
+                            <div class="value" style="font-size:26px;color:#2563eb">ECD / ECF</div>
+                            <div class="sub">SPED Contábil e ECF</div>
+                        </div>
+                        <div class="import-total-card debit">
+                            <h3>Status da última validação</h3>
+                            <div class="value" id="obrigacaoStatusResumo" style="font-size:26px;color:#64748b">Aguardando</div>
+                            <div class="sub" id="obrigacaoArquivoResumo">Nenhum arquivo selecionado</div>
+                        </div>
+                    </div>
+
+                    <div class="filters-section">
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Tipo de Obrigação</label>
+                                <select id="obrigacaoTipoEsperado">
+                                    <option value="auto">Detectar automaticamente</option>
+                                    <option value="ECD">ECD - Escrituração Contábil Digital</option>
+                                    <option value="ECF">ECF - Escrituração Contábil Fiscal</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>CNPJ esperado</label>
+                                <input type="text" id="obrigacaoCnpjEsperado" placeholder="Usa a empresa ativa quando houver">
+                            </div>
+                            <div class="filter-group">
+                                <label>Layout detectado</label>
+                                <input type="text" id="obrigacaoLayoutDetectado" readonly placeholder="-">
+                            </div>
+                            <div class="filter-group">
+                                <label>Registros lidos</label>
+                                <input type="text" id="obrigacaoQtdRegistros" readonly placeholder="-">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <div id="obrigacaoResultado">
+                            <div class="empty-state">
+                                <div class="icon">✅</div>
+                                <h3>Nenhuma obrigação validada</h3>
+                                <p>Selecione um arquivo ECD ou ECF para conferir o layout antes do envio.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -6435,7 +6502,7 @@
                     || document.querySelector('.nav button[data-page="'+p+'"]');
                 if (navBtn) navBtn.classList.add('active');
             }
-            ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Plano', 'Mapeamento', 'Fiscal', 'Exportar', 'Sobre'].forEach(n => {
+            ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Plano', 'Mapeamento', 'Validador', 'Fiscal', 'Exportar', 'Sobre'].forEach(n => {
                 const el = document.getElementById('page' + n);
                 if (el) el.classList.add('hidden');
             });
@@ -6455,6 +6522,9 @@
             // Carregar lista de empresas quando aba Empresas for exibida
             if (p === 'empresas') {
                 try { if (typeof loadEmpresasPage === 'function') loadEmpresasPage(); } catch(e) {}
+            }
+            if (p === 'validador') {
+                try { if (typeof prepararValidadorObrigacoes === 'function') prepararValidadorObrigacoes(); } catch(e) {}
             }
             if (p === 'fiscal') {
                 try { if (typeof carregarFiscal === 'function') carregarFiscal(); } catch(e) {}
@@ -6490,6 +6560,159 @@
                 dataEl.textContent = '-';
                 tituloEl.textContent = 'Atualizações';
                 notesEl.innerHTML = '<li>Não foi possível carregar as informações de versão.</li>';
+            }
+        }
+
+        const OBRIGACOES_LAYOUTS = {
+            ECD: {
+                nome: 'ECD - Escrituração Contábil Digital',
+                assinatura: 'LECD',
+                registrosObrigatorios: ['0000', 'I010', 'I030', 'I050', 'I100', 'I150', 'I155', 'J005', 'J100', 'J150', 'J900', 'J930', '9999']
+            },
+            ECF: {
+                nome: 'ECF - Escrituração Contábil Fiscal',
+                assinatura: 'LECF',
+                registrosObrigatorios: ['0000', '0010', '0020', '0030', '0930', 'J001', 'K001', 'L001', 'M001', 'N001', 'P001', 'X001', 'Y001', '9999']
+            }
+        };
+
+        function validadorEscape(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+                return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+            });
+        }
+
+        function prepararValidadorObrigacoes() {
+            const cnpjEl = document.getElementById('obrigacaoCnpjEsperado');
+            if (cnpjEl && !cnpjEl.value && state.info && state.info.cnpj) {
+                cnpjEl.value = state.info.cnpj;
+            }
+        }
+
+        function limparValidadorObrigacoes() {
+            const input = document.getElementById('obrigacaoFileInput');
+            if (input) input.value = '';
+            ['obrigacaoLayoutDetectado', 'obrigacaoQtdRegistros'].forEach(function(id) {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const status = document.getElementById('obrigacaoStatusResumo');
+            const arquivo = document.getElementById('obrigacaoArquivoResumo');
+            if (status) {
+                status.textContent = 'Aguardando';
+                status.style.color = '#64748b';
+            }
+            if (arquivo) arquivo.textContent = 'Nenhum arquivo selecionado';
+            const resultado = document.getElementById('obrigacaoResultado');
+            if (resultado) {
+                resultado.innerHTML = '<div class="empty-state"><div class="icon">✅</div><h3>Nenhuma obrigação validada</h3><p>Selecione um arquivo ECD ou ECF para conferir o layout antes do envio.</p></div>';
+            }
+        }
+
+        function detectarLayoutObrigacao(texto, tipoEsperado) {
+            const primeiraLinha = (texto.split(/\r?\n/).find(function(l) { return l.trim(); }) || '').toUpperCase();
+            const trecho = texto.slice(0, 120000).toUpperCase();
+            if (tipoEsperado && tipoEsperado !== 'auto') return tipoEsperado;
+            if (primeiraLinha.includes('|0000|LECD|') || trecho.includes('|0000|LECD|')) return 'ECD';
+            if (primeiraLinha.includes('|0000|LECF|') || trecho.includes('|0000|LECF|')) return 'ECF';
+            if (primeiraLinha.includes('|I010|') || trecho.includes('|J900|')) return 'ECD';
+            if (primeiraLinha.includes('|0010|') || trecho.includes('|Y001|')) return 'ECF';
+            return '';
+        }
+
+        function extrairRegistrosSped(texto) {
+            const registros = new Map();
+            const linhas = texto.split(/\r?\n/);
+            linhas.forEach(function(linha) {
+                const m = linha.match(/^\|([A-Z0-9]{4})\|/i);
+                if (!m) return;
+                const reg = m[1].toUpperCase();
+                registros.set(reg, (registros.get(reg) || 0) + 1);
+            });
+            return { registros, linhas: linhas.length };
+        }
+
+        function extrairCnpjObrigacao(texto) {
+            const m = texto.match(/\|0000\|[^|\r\n]*\|[^|\r\n]*\|[^|\r\n]*\|[^|\r\n]*\|(\d{14})\|/);
+            if (m) return m[1];
+            const solto = texto.match(/\b\d{14}\b/);
+            return solto ? solto[0] : '';
+        }
+
+        function formatarCnpjBasico(cnpj) {
+            const v = String(cnpj || '').replace(/\D/g, '').slice(0, 14);
+            if (v.length !== 14) return v || '-';
+            return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+        }
+
+        async function processarArquivoObrigacao(event) {
+            const file = event && event.target && event.target.files ? event.target.files[0] : null;
+            if (!file) return;
+            prepararValidadorObrigacoes();
+            const status = document.getElementById('obrigacaoStatusResumo');
+            const arquivo = document.getElementById('obrigacaoArquivoResumo');
+            const layoutEl = document.getElementById('obrigacaoLayoutDetectado');
+            const qtdEl = document.getElementById('obrigacaoQtdRegistros');
+            const resultado = document.getElementById('obrigacaoResultado');
+            if (status) {
+                status.textContent = 'Processando';
+                status.style.color = '#2563eb';
+            }
+            if (arquivo) arquivo.textContent = file.name;
+
+            try {
+                const texto = await file.text();
+                const tipoEsperado = document.getElementById('obrigacaoTipoEsperado') ? document.getElementById('obrigacaoTipoEsperado').value : 'auto';
+                const tipo = detectarLayoutObrigacao(texto, tipoEsperado);
+                const layout = OBRIGACOES_LAYOUTS[tipo];
+                const infoReg = extrairRegistrosSped(texto);
+                const cnpjArquivo = extrairCnpjObrigacao(texto);
+                const cnpjEsperado = (document.getElementById('obrigacaoCnpjEsperado') ? document.getElementById('obrigacaoCnpjEsperado').value : '').replace(/\D/g, '');
+                const faltantes = layout ? layout.registrosObrigatorios.filter(function(reg) { return !infoReg.registros.has(reg); }) : [];
+                const cnpjOk = !cnpjEsperado || !cnpjArquivo || cnpjArquivo === cnpjEsperado;
+                const tipoOk = !!layout;
+                const aprovado = tipoOk && cnpjOk && faltantes.length === 0;
+
+                if (layoutEl) layoutEl.value = layout ? layout.nome : 'Não reconhecido';
+                if (qtdEl) qtdEl.value = String(Array.from(infoReg.registros.values()).reduce(function(a, b) { return a + b; }, 0));
+                if (status) {
+                    status.textContent = aprovado ? 'Aprovado' : 'Revisar';
+                    status.style.color = aprovado ? '#059669' : '#dc2626';
+                }
+
+                const linhasRegistros = layout ? layout.registrosObrigatorios.map(function(reg) {
+                    const ok = infoReg.registros.has(reg);
+                    return '<tr>' +
+                        '<td style="padding:10px 12px;font-family:monospace;font-weight:700">' + reg + '</td>' +
+                        '<td style="padding:10px 12px">' + (ok ? 'Encontrado' : 'Ausente') + '</td>' +
+                        '<td style="padding:10px 12px;text-align:right">' + (infoReg.registros.get(reg) || 0) + '</td>' +
+                        '</tr>';
+                }).join('') : '';
+
+                resultado.innerHTML =
+                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px">' +
+                    '<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:14px"><div style="font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase">Arquivo</div><div style="font-weight:800;color:#0f172a">' + validadorEscape(file.name) + '</div></div>' +
+                    '<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:14px"><div style="font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase">Layout</div><div style="font-weight:800;color:#0f172a">' + validadorEscape(layout ? layout.nome : 'Não reconhecido') + '</div></div>' +
+                    '<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:14px"><div style="font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase">CNPJ do arquivo</div><div style="font-weight:800;color:#0f172a">' + validadorEscape(formatarCnpjBasico(cnpjArquivo)) + '</div></div>' +
+                    '<div style="background:' + (aprovado ? '#ecfdf5' : '#fef2f2') + ';border:1px solid ' + (aprovado ? '#bbf7d0' : '#fecaca') + ';border-radius:8px;padding:14px"><div style="font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase">Resultado</div><div style="font-weight:900;color:' + (aprovado ? '#059669' : '#dc2626') + '">' + (aprovado ? 'Arquivo consistente' : 'Exige revisão') + '</div></div>' +
+                    '</div>' +
+                    '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">' +
+                    '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+                    '<thead style="background:#f1f5f9;color:#475569;text-transform:uppercase;font-size:11px"><tr><th style="padding:10px 12px;text-align:left">Registro</th><th style="padding:10px 12px;text-align:left">Status</th><th style="padding:10px 12px;text-align:right">Ocorrências</th></tr></thead>' +
+                    '<tbody>' + (linhasRegistros || '<tr><td colspan="3" style="padding:14px;color:#dc2626">Layout ECD/ECF não reconhecido. Confira se o arquivo SPED está íntegro.</td></tr>') + '</tbody>' +
+                    '</table></div>' +
+                    ((!cnpjOk || faltantes.length) ? '<div style="margin-top:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;color:#9a3412;font-size:13px;font-weight:700">' +
+                    (!cnpjOk ? 'CNPJ do arquivo diferente do CNPJ esperado. ' : '') +
+                    (faltantes.length ? 'Registros faltantes: ' + faltantes.join(', ') + '.' : '') +
+                    '</div>' : '');
+            } catch (e) {
+                if (status) {
+                    status.textContent = 'Erro';
+                    status.style.color = '#dc2626';
+                }
+                if (resultado) {
+                    resultado.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;color:#991b1b;font-weight:700">Erro ao validar obrigação: ' + validadorEscape(e.message || e) + '</div>';
+                }
             }
         }
         
@@ -8310,7 +8533,7 @@
                 layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
                 parser_selecionado: meta && meta.parser || '',
                 layout_selecionado: meta && meta.layout || '',
-                versao_app: '3.2.50'
+                versao_app: '3.2.51'
             };
         }
 
