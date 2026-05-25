@@ -1,7 +1,11 @@
 {
-  "version": "3.2.54",
-  "build_date": "2026-05-25T09:58:00-03:00",
+  "version": "3.2.55",
+  "build_date": "2026-05-25T14:42:00-03:00",
   "release_notes": [
+    "Novo layout CLUDE Analise Creditos PIS COFINS importa PDF gerado pelo Consultor Fiscal",
+    "Parser CLUDE Servicos Tomados passa a reconhecer relatorio SP Contabil de creditos PIS/COFINS",
+    "Importacao fiscal CLUDE usa Valor da Nota como base e preenche historico padrao nos PDFs de analise",
+    "Central de Qualidade registra regressao do arquivo 733 CLUDE SERV. TOMADOS ABRIL",
     "Validador ECD/ECF passa a separar erro bloqueante de ponto de atencao",
     "Analise de obrigacoes mostra CNPJ esperado versus CNPJ do arquivo e orienta o ajuste correto",
     "Registro ECD I100 deixa de gerar falso erro bloqueante quando nao aplicavel ao arquivo",

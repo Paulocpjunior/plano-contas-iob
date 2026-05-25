@@ -270,6 +270,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js para PDF fiscal de NFs de Servicos Tomados.'
   },
   {
+    id: 'clude-analise-creditos-pis-cofins-2026-04',
+    banco: 'CLU',
+    nomeBanco: 'CLUDE - Club de Beneficios',
+    layout: 'CLUDE - Analise Creditos PIS COFINS',
+    parser: 'parsearPDF_Clude_AnaliseCreditos',
+    arquivo: '733  CLUDE SERV. TOMADOS ABRIL.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/733  CLUDE SERV. TOMADOS ABRIL.pdf',
+    empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js para PDF do Consultor Fiscal Analise de Creditos PIS/COFINS.'
+  },
+  {
     id: 'caixa-monaco-2025-01',
     banco: '104',
     nomeBanco: 'Caixa Economica Federal',

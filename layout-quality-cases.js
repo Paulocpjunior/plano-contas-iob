@@ -285,6 +285,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Relatorio E-Fiscal de NFs de Servicos Tomados. Importa somente notas com valor e preenche historico padrao de servicos automaticamente.'
   },
   {
+    id: 'clude-analise-creditos-pis-cofins-2026-04',
+    banco: 'CLU',
+    nomeBanco: 'CLUDE - Club de Beneficios',
+    layout: 'CLUDE - Analise Creditos PIS COFINS',
+    parser: 'parsearPDF_Clude_AnaliseCreditos',
+    arquivo: '733  CLUDE SERV. TOMADOS ABRIL.pdf',
+    empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 189,
+      total_credito: 0,
+      total_debito: 630918.28
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-25T14:35:00-03:00',
+    observacao: 'PDF gerado pelo Consultor Fiscal com Analise de Creditos PIS/COFINS. Usa Valor da Nota como base de importacao e historico padrao de servicos.'
+  },
+  {
     id: 'caixa-monaco-2025-01',
     banco: '104',
     nomeBanco: 'Caixa Economica Federal',

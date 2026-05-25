@@ -60,6 +60,11 @@
     return m ? parseMoneyBR(m[1]) : 0;
   }
 
+  function extrairTotalAnaliseCreditos(texto) {
+    const m = String(texto || '').match(/Base\s+de\s+Calculo\s*(?:\r?\n|\s)*R\$\s*([0-9.]+,\d{2})/i);
+    return m ? parseMoneyBR(m[1]) : 0;
+  }
+
   function criarLancamentoFiscal({ cnpj, fornecedor, valor, documento, data, periodo }) {
     const fornecedorLimpo = normalizarFornecedor(fornecedor);
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
@@ -101,6 +106,101 @@
       nome_conta: 'Fiscal CLUDE - Servicos Tomados',
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim
+    };
+  }
+
+  function parsearLinhaAnaliseCreditos(linha, categoriaAtual, periodo) {
+    const texto = String(linha || '').replace(/\s+/g, ' ').trim();
+    const dataMatch = texto.match(/^(\d{2})\/0?(\d{2,3})\/(\d{4})(.*)$/);
+    if (!dataMatch) return null;
+
+    const dataBr = dataMatch[1] + '/' + dataMatch[2].slice(-2) + '/' + dataMatch[3];
+    const resto = dataMatch[4] || '';
+    const cpfCnpjRegex = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/;
+    const docMatch = resto.match(cpfCnpjRegex);
+    const valores = [...resto.matchAll(/R\$\s*([0-9.]+,\d{2})/g)];
+    const valoresSemPrefixo = [...resto.matchAll(/(?<![\d.,])([0-9]{1,3}(?:\.\d{3})*,\d{2})(?![\d.,])/g)];
+    const moneyMatches = valores.length ? valores : valoresSemPrefixo;
+    if (moneyMatches.length < 2) return null;
+
+    const valorNotaToken = moneyMatches[moneyMatches.length - 2][1];
+    const primeiroValorIdx = moneyMatches[moneyMatches.length - 2].index || 0;
+    const valorNota = parseMoneyBR(valorNotaToken);
+    if (!valorNota) return null;
+
+    let documento = '';
+    let cnpj = '';
+    let fornecedor = '';
+    if (docMatch && docMatch.index < primeiroValorIdx) {
+      documento = resto.slice(0, docMatch.index).trim();
+      cnpj = docMatch[1];
+      fornecedor = resto.slice(docMatch.index + docMatch[1].length, primeiroValorIdx).trim();
+    } else {
+      const antesValor = resto.slice(0, primeiroValorIdx).trim();
+      const partes = antesValor.match(/^(\S+)\s*(.*)$/);
+      documento = partes ? partes[1] : '';
+      fornecedor = partes ? partes[2] : antesValor;
+      cnpj = '00.000.000/0000-00';
+    }
+
+    const lanc = criarLancamentoFiscal({
+      cnpj,
+      fornecedor,
+      valor: valorNota,
+      documento,
+      data: parseDateBR(dataBr),
+      periodo
+    });
+    if (!lanc) return null;
+
+    lanc.categoriaFiscal = categoriaAtual || lanc.categoriaFiscal;
+    lanc.categoria = lanc.categoriaFiscal;
+    lanc.layoutNome = 'CLUDE - Analise Creditos PIS COFINS';
+    lanc.layoutParser = 'parsearPDF_Clude_ServicosTomados';
+    lanc.baseCalculoRelatorio = parseMoneyBR(moneyMatches[moneyMatches.length - 1][1]);
+    lanc.baseCalculoPisCofins = valorNota;
+    lanc.baseCalculoPisCofinsOrigem = 'valor_da_nota_relatorio_creditos';
+    return lanc;
+  }
+
+  function parsearAnaliseCreditosClude(textoCompleto) {
+    const texto = String(textoCompleto || '');
+    const detector = normalizarTexto(texto).toUpperCase();
+    if (!/ANALISE DE CREDITOS PIS\/COFINS/.test(detector) || !/SERVICOS TOMADOS/.test(detector) || !/CLUDE/.test(detector)) {
+      return { detectado: false, lancamentos: [] };
+    }
+
+    const periodo = extrairPeriodo(texto);
+    const totalOficial = extrairTotalAnaliseCreditos(texto);
+    const linhas = texto.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const registros = [];
+    let categoriaAtual = '';
+
+    for (const linha of linhas) {
+      const categoriaMatch = linha.match(/^([A-ZÁÉÍÓÚÂÊÔÃÕÇ ]+)\s+\(\d+\s+NFs?\)\s*Base:/i);
+      if (categoriaMatch) {
+        categoriaAtual = normalizarTexto(categoriaMatch[1]).toUpperCase();
+        continue;
+      }
+      if (!/^\d{2}\/0?\d{2,3}\/\d{4}/.test(linha)) continue;
+      const lanc = parsearLinhaAnaliseCreditos(linha, categoriaAtual, periodo);
+      if (lanc) registros.push(lanc);
+    }
+
+    const lancamentos = unirRegistros(registros);
+    const totalDebito = lancamentos.reduce((acc, l) => acc + Math.abs(Number(l.valor) || 0), 0);
+
+    return {
+      detectado: lancamentos.length > 0,
+      banco_detectado: 'CLU',
+      conta_detectada: 'ANALISE_CREDITOS_PIS_COFINS',
+      nome_conta_detectado: 'CLUDE - Analise Creditos PIS COFINS',
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim,
+      total_credito: 0,
+      total_debito: totalOficial || totalDebito,
+      total_oficial: totalOficial || totalDebito,
+      lancamentos
     };
   }
 
@@ -186,6 +286,9 @@
   function parsearTexto_CludeServicosTomados(textoCompleto) {
     const texto = String(textoCompleto || '');
     const detector = normalizarTexto(texto).toUpperCase();
+    const resultadoAnalise = parsearAnaliseCreditosClude(texto);
+    if (resultadoAnalise.detectado) return resultadoAnalise;
+
     if (!/RELACAO DE NFS DE SERVICOS TOMADOS/.test(detector) || !/CLUDE/.test(detector)) {
       return { detectado: false, lancamentos: [] };
     }
@@ -261,13 +364,19 @@
     return resultado;
   }
 
+  async function parsearPDF_Clude_AnaliseCreditos(arrayBuffer) {
+    return parsearPDF_Clude_ServicosTomados(arrayBuffer);
+  }
+
   root.parsearTexto_CludeServicosTomados = parsearTexto_CludeServicosTomados;
   root.parsearPDF_Clude_ServicosTomados = parsearPDF_Clude_ServicosTomados;
+  root.parsearPDF_Clude_AnaliseCreditos = parsearPDF_Clude_AnaliseCreditos;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       parsearTexto_CludeServicosTomados,
       parsearPDF_Clude_ServicosTomados,
+      parsearPDF_Clude_AnaliseCreditos,
       __test__: { parsearTexto_CludeServicosTomados }
     };
   }
