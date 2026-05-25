@@ -1,7 +1,11 @@
 {
-  "version": "3.2.53",
-  "build_date": "2026-05-23T00:12:00-03:00",
+  "version": "3.2.54",
+  "build_date": "2026-05-25T09:58:00-03:00",
   "release_notes": [
+    "Validador ECD/ECF passa a separar erro bloqueante de ponto de atencao",
+    "Analise de obrigacoes mostra CNPJ esperado versus CNPJ do arquivo e orienta o ajuste correto",
+    "Registro ECD I100 deixa de gerar falso erro bloqueante quando nao aplicavel ao arquivo",
+    "Resultado da validacao passa a listar correcoes necessarias antes do envio",
     "Validador Obrigacoes passa a exibir contador diario do prazo de entrega ECD/ECF",
     "Cards ECD e ECF mostram data limite e dias restantes sem alterar o menu principal",
     "Hotfix visual: menu principal preserva a aba Validador Obrigacoes sem adicionar novo card/aba operacional",

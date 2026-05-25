@@ -99,6 +99,9 @@ assertContains('index.html', 'ECD - Escrituração Contábil Digital', 'layout E
 assertContains('index.html', 'ECF - Escrituração Contábil Fiscal', 'layout ECF visivel no validador');
 assertContains('index.html', 'Próximo prazo', 'contador de prazo no validador de obrigacoes');
 assertContains('index.html', 'diasAtePrazoObrigacao', 'calculo diario do prazo de entrega ECD/ECF');
+assertContains('index.html', 'Correções necessárias antes do envio', 'validador ECD/ECF mostra ajustes acionaveis');
+assertContains('index.html', 'CNPJ esperado', 'validador ECD/ECF compara CNPJ esperado e arquivo');
+assertContains('index.html', 'Condicional / não localizado', 'validador ECD/ECF separa registro condicional de erro bloqueante');
 assertContains('index.html', 'rolarTopoDaAbaAtiva', 'troca de aba reposiciona a tela no topo');
 assertContains('index.html', `parser-santander-empresas-ocr.js?v=${version}`, 'cache-buster atual do parser Santander');
 assertContains('auditai/index.html', `index-DREfix3160.js?v=${version}`, 'cache-buster atual da analise individual AuditAI');

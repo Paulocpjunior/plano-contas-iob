@@ -16,16 +16,16 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.53"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.53"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.53"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.53"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.53"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.53"></script>
-    <script src="/parser-caixa-extrato.js?v=3.2.53"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.53"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.53"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.53"></script>
+    <script src="/parser-ofx.js?v=3.2.54"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.54"></script>
+    <script src="/parser-safra-extrato.js?v=3.2.54"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.2.54"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.2.54"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.2.54"></script>
+    <script src="/parser-caixa-extrato.js?v=3.2.54"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.2.54"></script>
+    <script src="/parser-btg-pactual.js?v=3.2.54"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.54"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -2329,7 +2329,7 @@
                                     <span style="background:#dcfce7;color:#166534;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800">Ativo</span>
                                 </div>
                                 <div style="margin-top:10px;color:#334155;font-size:12px;line-height:1.5">
-                                    Registros estruturais monitorados: 0000, I010, I030, I050, I100, I150, I155, J005, J100, J150, J900, J930 e 9999.
+                                    Registros estruturais monitorados: 0000, I010, I030, I050, I150, I155, I990, J005, J100, J150, J900, J930, J990, 9990 e 9999. I100 é conferência condicional.
                                 </div>
                                 <div style="margin-top:10px;display:flex;justify-content:space-between;gap:8px;align-items:center;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:8px">
                                     <span id="obrigacaoPrazoEcdData" style="color:#475569;font-size:12px">Prazo: 30/06/2026</span>
@@ -6611,13 +6611,15 @@
                 nome: 'ECD - Escrituração Contábil Digital',
                 assinatura: 'LECD',
                 prazoEntrega: '2026-06-30',
-                registrosObrigatorios: ['0000', 'I010', 'I030', 'I050', 'I100', 'I150', 'I155', 'J005', 'J100', 'J150', 'J900', 'J930', '9999']
+                registrosObrigatorios: ['0000', '0001', 'I001', 'I010', 'I030', 'I050', 'I150', 'I155', 'I990', 'J001', 'J005', 'J100', 'J150', 'J900', 'J930', 'J990', '9001', '9900', '9990', '9999'],
+                registrosRevisao: ['I100', 'I200', 'I250', 'I350', 'I355', 'J800']
             },
             ECF: {
                 nome: 'ECF - Escrituração Contábil Fiscal',
                 assinatura: 'LECF',
                 prazoEntrega: '2026-07-31',
-                registrosObrigatorios: ['0000', '0010', '0020', '0030', '0930', 'J001', 'K001', 'L001', 'M001', 'N001', 'P001', 'X001', 'Y001', '9999']
+                registrosObrigatorios: ['0000', '0010', '0020', '0030', '0930', 'J001', 'K001', 'L001', 'M001', 'N001', 'P001', 'X001', 'Y001', '9001', '9900', '9990', '9999'],
+                registrosRevisao: ['L100', 'L300', 'M300', 'M350', 'N500', 'N630', 'P100', 'P150', 'X390', 'Y600']
             }
         };
         let obrigacoesPrazoTimer = null;
@@ -6739,10 +6741,106 @@
         }
 
         function extrairCnpjObrigacao(texto) {
-            const m = texto.match(/\|0000\|[^|\r\n]*\|[^|\r\n]*\|[^|\r\n]*\|[^|\r\n]*\|(\d{14})\|/);
-            if (m) return m[1];
+            const linha0000 = texto.split(/\r?\n/).find(function(l) { return /^\|0000\|/i.test(l); }) || '';
+            const campos = linha0000.split('|');
+            if (campos[1] === '0000') {
+                const candidato = campos.find(function(campo, idx) {
+                    return idx > 4 && /^\d{14}$/.test(String(campo || '').trim());
+                });
+                if (candidato) return candidato;
+            }
             const solto = texto.match(/\b\d{14}\b/);
             return solto ? solto[0] : '';
+        }
+
+        function descricaoRegistroObrigacao(reg) {
+            const desc = {
+                '0000': 'abertura do arquivo e identificacao da empresa',
+                '0001': 'abertura do bloco 0',
+                '0010': 'parametros de tributacao',
+                '0020': 'parametros complementares',
+                '0030': 'dados cadastrais',
+                '0930': 'signatarios da ECF',
+                'I001': 'abertura do bloco I',
+                'I010': 'forma da escrituracao contabil',
+                'I030': 'termo de abertura',
+                'I050': 'plano de contas',
+                'I100': 'centro de custos, quando utilizado',
+                'I150': 'saldos periodicos',
+                'I155': 'detalhe dos saldos periodicos',
+                'I200': 'lancamentos contabeis',
+                'I250': 'partidas dos lancamentos',
+                'I350': 'saldos das contas de resultado',
+                'I355': 'detalhe das contas de resultado',
+                'I990': 'encerramento do bloco I',
+                'J001': 'abertura do bloco J',
+                'J005': 'demonstracoes contabeis',
+                'J100': 'balanco patrimonial',
+                'J150': 'DRE',
+                'J800': 'outras informacoes anexas',
+                'J900': 'termo de encerramento',
+                'J930': 'signatarios da ECD',
+                'J990': 'encerramento do bloco J',
+                '9001': 'abertura do bloco 9',
+                '9900': 'totalizacao dos registros',
+                '9990': 'encerramento do bloco 9',
+                '9999': 'encerramento do arquivo'
+            };
+            return desc[reg] || 'registro estrutural';
+        }
+
+        function analisarAjustesObrigacao(layout, infoReg, cnpjArquivo, cnpjEsperado) {
+            const obrigatorios = layout ? (layout.registrosObrigatorios || []) : [];
+            const revisao = layout ? (layout.registrosRevisao || []) : [];
+            const faltantes = obrigatorios.filter(function(reg) { return !infoReg.registros.has(reg); });
+            const ausentesRevisao = revisao.filter(function(reg) { return !infoReg.registros.has(reg); });
+            const esperadoValido = String(cnpjEsperado || '').replace(/\D/g, '').length === 14;
+            const arquivoValido = String(cnpjArquivo || '').replace(/\D/g, '').length === 14;
+            const cnpjOk = !esperadoValido || !arquivoValido || cnpjArquivo === cnpjEsperado;
+            const erros = [];
+            const alertas = [];
+            if (!layout) {
+                erros.push({
+                    titulo: 'Layout ECD/ECF nao reconhecido',
+                    detalhe: 'Confirme se o arquivo e um TXT do SPED ECD ou ECF exportado sem conversao.',
+                    ajuste: 'Reexportar a obrigacao no PVA/Office Contabil e enviar o arquivo TXT original.'
+                });
+            }
+            if (esperadoValido && arquivoValido && !cnpjOk) {
+                erros.push({
+                    titulo: 'CNPJ divergente',
+                    detalhe: 'Arquivo: ' + formatarCnpjBasico(cnpjArquivo) + ' | Empresa ativa/esperada: ' + formatarCnpjBasico(cnpjEsperado),
+                    ajuste: 'Selecionar a empresa correta antes de validar ou enviar a ECD/ECF correspondente ao CNPJ ativo.'
+                });
+            }
+            faltantes.forEach(function(reg) {
+                erros.push({
+                    titulo: 'Registro obrigatorio ausente: ' + reg,
+                    detalhe: descricaoRegistroObrigacao(reg),
+                    ajuste: 'Regerar o arquivo no sistema contábil/PVA garantindo a geração do bloco ou registro ' + reg + '.'
+                });
+            });
+            ausentesRevisao.forEach(function(reg) {
+                alertas.push({
+                    titulo: 'Registro nao localizado: ' + reg,
+                    detalhe: descricaoRegistroObrigacao(reg),
+                    ajuste: 'Nao bloqueia sozinho. Conferir se este registro e aplicavel ao perfil da escrituração.'
+                });
+            });
+            return { erros, alertas, faltantes, ausentesRevisao, cnpjOk };
+        }
+
+        function renderListaAjustesObrigacao(titulo, itens, cor) {
+            if (!itens.length) return '';
+            return '<div style="margin-top:14px;border:1px solid ' + cor.borda + ';background:' + cor.fundo + ';border-radius:8px;padding:12px">' +
+                '<div style="font-size:13px;font-weight:900;color:' + cor.titulo + ';margin-bottom:8px">' + titulo + '</div>' +
+                '<div style="display:grid;gap:8px">' + itens.map(function(item) {
+                    return '<div style="background:#fff;border:1px solid ' + cor.borda + ';border-radius:6px;padding:10px">' +
+                        '<div style="font-weight:800;color:#0f172a">' + validadorEscape(item.titulo) + '</div>' +
+                        '<div style="font-size:12px;color:#475569;margin-top:3px">' + validadorEscape(item.detalhe) + '</div>' +
+                        '<div style="font-size:12px;color:' + cor.titulo + ';margin-top:5px;font-weight:700">Ajuste: ' + validadorEscape(item.ajuste) + '</div>' +
+                    '</div>';
+                }).join('') + '</div></div>';
         }
 
         function formatarCnpjBasico(cnpj) {
@@ -6774,24 +6872,35 @@
                 const infoReg = extrairRegistrosSped(texto);
                 const cnpjArquivo = extrairCnpjObrigacao(texto);
                 const cnpjEsperado = (document.getElementById('obrigacaoCnpjEsperado') ? document.getElementById('obrigacaoCnpjEsperado').value : '').replace(/\D/g, '');
-                const faltantes = layout ? layout.registrosObrigatorios.filter(function(reg) { return !infoReg.registros.has(reg); }) : [];
-                const cnpjOk = !cnpjEsperado || !cnpjArquivo || cnpjArquivo === cnpjEsperado;
+                const analise = analisarAjustesObrigacao(layout, infoReg, cnpjArquivo, cnpjEsperado);
+                const faltantes = analise.faltantes;
+                const cnpjOk = analise.cnpjOk;
                 const tipoOk = !!layout;
-                const aprovado = tipoOk && cnpjOk && faltantes.length === 0;
+                const aprovado = tipoOk && analise.erros.length === 0;
+                const exigeRevisao = !aprovado && analise.erros.length > 0;
+                const resultadoTexto = aprovado ? (analise.alertas.length ? 'Aprovado com atenção' : 'Arquivo consistente') : 'Exige correção';
+                const resultadoCor = aprovado ? (analise.alertas.length ? '#d97706' : '#059669') : '#dc2626';
 
                 if (layoutEl) layoutEl.value = layout ? layout.nome : 'Não reconhecido';
                 if (qtdEl) qtdEl.value = String(Array.from(infoReg.registros.values()).reduce(function(a, b) { return a + b; }, 0));
                 if (status) {
-                    status.textContent = aprovado ? 'Aprovado' : 'Revisar';
-                    status.style.color = aprovado ? '#059669' : '#dc2626';
+                    status.textContent = aprovado ? (analise.alertas.length ? 'Atenção' : 'Aprovado') : 'Corrigir';
+                    status.style.color = resultadoCor;
                 }
 
-                const linhasRegistros = layout ? layout.registrosObrigatorios.map(function(reg) {
+                const linhasRegistros = layout ? (layout.registrosObrigatorios || []).map(function(reg) {
                     const ok = infoReg.registros.has(reg);
                     return '<tr>' +
                         '<td style="padding:10px 12px;font-family:monospace;font-weight:700">' + reg + '</td>' +
-                        '<td style="padding:10px 12px">' + (ok ? 'Encontrado' : 'Ausente') + '</td>' +
+                        '<td style="padding:10px 12px">' + (ok ? 'Encontrado' : 'Obrigatório ausente') + '</td>' +
                         '<td style="padding:10px 12px;text-align:right">' + (infoReg.registros.get(reg) || 0) + '</td>' +
+                        '</tr>';
+                }).join('') + (layout.registrosRevisao || []).map(function(reg) {
+                    const ok = infoReg.registros.has(reg);
+                    return '<tr>' +
+                        '<td style="padding:10px 12px;font-family:monospace;font-weight:700;color:#64748b">' + reg + '</td>' +
+                        '<td style="padding:10px 12px;color:#64748b">' + (ok ? 'Encontrado (revisão)' : 'Condicional / não localizado') + '</td>' +
+                        '<td style="padding:10px 12px;text-align:right;color:#64748b">' + (infoReg.registros.get(reg) || 0) + '</td>' +
                         '</tr>';
                 }).join('') : '';
 
@@ -6800,17 +6909,17 @@
                     '<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:14px"><div style="font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase">Arquivo</div><div style="font-weight:800;color:#0f172a">' + validadorEscape(file.name) + '</div></div>' +
                     '<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:14px"><div style="font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase">Layout</div><div style="font-weight:800;color:#0f172a">' + validadorEscape(layout ? layout.nome : 'Não reconhecido') + '</div></div>' +
                     '<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:14px"><div style="font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase">CNPJ do arquivo</div><div style="font-weight:800;color:#0f172a">' + validadorEscape(formatarCnpjBasico(cnpjArquivo)) + '</div></div>' +
-                    '<div style="background:' + (aprovado ? '#ecfdf5' : '#fef2f2') + ';border:1px solid ' + (aprovado ? '#bbf7d0' : '#fecaca') + ';border-radius:8px;padding:14px"><div style="font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase">Resultado</div><div style="font-weight:900;color:' + (aprovado ? '#059669' : '#dc2626') + '">' + (aprovado ? 'Arquivo consistente' : 'Exige revisão') + '</div></div>' +
+                    '<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:14px"><div style="font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase">CNPJ esperado</div><div style="font-weight:800;color:#0f172a">' + validadorEscape(formatarCnpjBasico(cnpjEsperado)) + '</div></div>' +
+                    '<div style="background:' + (aprovado ? (analise.alertas.length ? '#fffbeb' : '#ecfdf5') : '#fef2f2') + ';border:1px solid ' + (aprovado ? (analise.alertas.length ? '#fde68a' : '#bbf7d0') : '#fecaca') + ';border-radius:8px;padding:14px"><div style="font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase">Resultado</div><div style="font-weight:900;color:' + resultadoCor + '">' + resultadoTexto + '</div></div>' +
                     '</div>' +
+                    (analise.erros.length ? renderListaAjustesObrigacao('Correções necessárias antes do envio', analise.erros, { fundo: '#fef2f2', borda: '#fecaca', titulo: '#b91c1c' }) : '') +
+                    (analise.alertas.length ? renderListaAjustesObrigacao('Pontos de atenção para conferência', analise.alertas, { fundo: '#fffbeb', borda: '#fed7aa', titulo: '#9a3412' }) : '') +
+                    (!analise.erros.length ? '<div style="margin-top:14px;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:8px;padding:12px;color:#047857;font-size:13px;font-weight:800">Nenhum erro bloqueante encontrado para o layout ' + validadorEscape(tipo || '-') + '.</div>' : '') +
                     '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">' +
                     '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
                     '<thead style="background:#f1f5f9;color:#475569;text-transform:uppercase;font-size:11px"><tr><th style="padding:10px 12px;text-align:left">Registro</th><th style="padding:10px 12px;text-align:left">Status</th><th style="padding:10px 12px;text-align:right">Ocorrências</th></tr></thead>' +
                     '<tbody>' + (linhasRegistros || '<tr><td colspan="3" style="padding:14px;color:#dc2626">Layout ECD/ECF não reconhecido. Confira se o arquivo SPED está íntegro.</td></tr>') + '</tbody>' +
-                    '</table></div>' +
-                    ((!cnpjOk || faltantes.length) ? '<div style="margin-top:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;color:#9a3412;font-size:13px;font-weight:700">' +
-                    (!cnpjOk ? 'CNPJ do arquivo diferente do CNPJ esperado. ' : '') +
-                    (faltantes.length ? 'Registros faltantes: ' + faltantes.join(', ') + '.' : '') +
-                    '</div>' : '');
+                    '</table></div>';
             } catch (e) {
                 if (status) {
                     status.textContent = 'Erro';
@@ -8639,7 +8748,7 @@
                 layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
                 parser_selecionado: meta && meta.parser || '',
                 layout_selecionado: meta && meta.layout || '',
-                versao_app: '3.2.53'
+                versao_app: '3.2.54'
             };
         }
 
