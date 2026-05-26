@@ -16,16 +16,16 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.55"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.55"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.55"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.55"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.55"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.55"></script>
-    <script src="/parser-caixa-extrato.js?v=3.2.55"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.55"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.55"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.55"></script>
+    <script src="/parser-ofx.js?v=3.2.56"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.56"></script>
+    <script src="/parser-safra-extrato.js?v=3.2.56"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.2.56"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.2.56"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.2.56"></script>
+    <script src="/parser-caixa-extrato.js?v=3.2.56"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.2.56"></script>
+    <script src="/parser-btg-pactual.js?v=3.2.56"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.56"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -3622,7 +3622,8 @@
         // === BACEN / Importacao ===
         let BANCOS_BACEN = [];
         const BANCOS_CUSTOMIZADOS = [
-            { code: 'CLU', name: 'CLUDE - CLUB DE BENEFICIOS' }
+            { code: 'CLU', name: 'CLUDE - CLUB DE BENEFICIOS' },
+            { code: '1183', name: 'DAXX MIDIA LTDA' }
         ];
         const BANCOS_BACEN_CACHE_KEY = 'bancos_bacen_v2';
         const BANCOS_BACEN_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -8748,7 +8749,7 @@
                 layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
                 parser_selecionado: meta && meta.parser || '',
                 layout_selecionado: meta && meta.layout || '',
-                versao_app: '3.2.55'
+                versao_app: '3.2.56'
             };
         }
 
@@ -8981,6 +8982,46 @@
 	            let buf = null;
 	            try {
 	                buf = await f.arrayBuffer();
+
+                    // Relatorios fiscais gerados pelo Consultor Fiscal nao devem cair em layout bancario
+                    // herdado da empresa (ex.: Itau). Detectamos antes dos layouts por banco.
+                    if (typeof window.parsearPDF_Fiscal_AnaliseCreditosPISCOFINS === 'function') {
+                        try {
+                            const rFiscal = await window.parsearPDF_Fiscal_AnaliseCreditosPISCOFINS(buf.slice(0));
+                            if (rFiscal && rFiscal.detectado && rFiscal.lancamentos && rFiscal.lancamentos.length) {
+                                const bancoFiscal = rFiscal.banco_detectado || bancoResolvido || '';
+                                const lancsFiscal = enriquecerResultadoParserBanco(
+                                    rFiscal,
+                                    bancoFiscal,
+                                    bancoFiscal || rFiscal.nome_banco_detectado || '',
+                                    rFiscal.conta_detectada || '',
+                                    rFiscal.nome_conta_detectado || '',
+                                    f.name
+                                );
+                                const credFiscal = lancsFiscal.filter(l => l.valor > 0).reduce((a,l) => a + l.valor, 0);
+                                const debFiscal = lancsFiscal.filter(l => l.valor < 0).reduce((a,l) => a + Math.abs(l.valor), 0);
+                                if (rFiscal.total_credito && Math.abs(Math.round(credFiscal * 100) - Math.round(rFiscal.total_credito * 100)) > 1) {
+                                    throw new Error('total de credito divergente do total oficial fiscal');
+                                }
+                                if (rFiscal.total_debito && Math.abs(Math.round(debFiscal * 100) - Math.round(rFiscal.total_debito * 100)) > 1) {
+                                    throw new Error('total de debito divergente do total oficial fiscal');
+                                }
+                                lancsFiscal.forEach(function(l) {
+                                    l.layoutNome = rFiscal.nome_conta_detectado || l.layoutNome || 'Analise Creditos PIS COFINS';
+                                    l.layoutParser = l.layoutParser || 'parsearPDF_Fiscal_AnaliseCreditosPISCOFINS';
+                                    l.bancoSelecionado = bancoFiscal;
+                                    l.totalCreditoOficial = rFiscal.total_credito || 0;
+                                    l.totalDebitoOficial = rFiscal.total_debito || 0;
+                                    l.periodo_inicio = rFiscal.periodo_inicio || l.periodo_inicio || '';
+                                    l.periodo_fim = rFiscal.periodo_fim || l.periodo_fim || '';
+                                });
+                                showToast('✅ Layout fiscal aplicado: ' + (rFiscal.nome_conta_detectado || 'Analise Creditos PIS/COFINS') + ' • ' + lancsFiscal.length + ' lançamentos', 'success');
+                                return lancsFiscal;
+                            }
+                        } catch (eFiscal) {
+                            console.warn('[processPDF] parser fiscal Analise Creditos falhou, tentando layout do banco:', eFiscal.message || eFiscal);
+                        }
+                    }
 	                return await processPDFComLayoutDoBanco(buf, bancoResolvido, f.name, parserSelecionado);
 
 	                // [BRADESCO] Parser nativo para Extrato Mensal / Por Periodo.

@@ -1,7 +1,10 @@
 {
-  "version": "3.2.55",
-  "build_date": "2026-05-25T14:42:00-03:00",
+  "version": "3.2.56",
+  "build_date": "2026-05-26T12:30:00-03:00",
   "release_notes": [
+    "Novo layout DAXX Analise Creditos PIS COFINS importa PDF gerado pelo Consultor Fiscal",
+    "Parser fiscal de Analise Creditos PIS COFINS deixa de ficar restrito a CLUDE e reconhece empresa/cnpj do cabecalho",
+    "Importador PDF detecta relatorios fiscais do Consultor Fiscal antes de tentar layout bancario herdado da empresa",
     "Novo layout CLUDE Analise Creditos PIS COFINS importa PDF gerado pelo Consultor Fiscal",
     "Parser CLUDE Servicos Tomados passa a reconhecer relatorio SP Contabil de creditos PIS/COFINS",
     "Importacao fiscal CLUDE usa Valor da Nota como base e preenche historico padrao nos PDFs de analise",

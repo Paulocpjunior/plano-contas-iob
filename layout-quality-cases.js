@@ -304,6 +304,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'PDF gerado pelo Consultor Fiscal com Analise de Creditos PIS/COFINS. Usa Valor da Nota como base de importacao e historico padrao de servicos.'
   },
   {
+    id: 'daxx-analise-creditos-pis-cofins-2026-04',
+    banco: '1183',
+    nomeBanco: 'DAXX MIDIA LTDA',
+    layout: 'DAXX - Analise Creditos PIS COFINS',
+    parser: 'parsearPDF_Fiscal_AnaliseCreditosPISCOFINS',
+    arquivo: '1183 - SERVICOS TOMADOS 042026.pdf',
+    empresa: 'DAXX MIDIA LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 30,
+      total_credito: 0,
+      total_debito: 300146.11
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-26T12:20:00-03:00',
+    observacao: 'PDF gerado pelo Consultor Fiscal para DAXX. Usa Valor da Nota como base, ignora notas zeradas e evita queda indevida no layout Itau herdado da empresa.'
+  },
+  {
     id: 'caixa-monaco-2025-01',
     banco: '104',
     nomeBanco: 'Caixa Economica Federal',

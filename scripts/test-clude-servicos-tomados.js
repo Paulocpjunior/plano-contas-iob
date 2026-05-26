@@ -5,6 +5,7 @@ const { parsearTexto_CludeServicosTomados } = require('../parser-clude-servicos-
 
 const arquivo = '/Users/paulocesarpereirajunior/Downloads/733 serviços tomados clude.pdf';
 const arquivoAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/733  CLUDE SERV. TOMADOS ABRIL.pdf';
+const arquivoDaxxAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/1183 - SERVIÇOS TOMADOS 042026.pdf';
 
 function money(n) {
   return Math.round(Number(n || 0) * 100) / 100;
@@ -54,5 +55,24 @@ function money(n) {
     assert.ok(resultadoAnalise.lancamentos.some(l => l.layoutNome === 'CLUDE - Analise Creditos PIS COFINS'), 'layout novo deve ficar identificado');
   }
 
-  console.log('OK: CLUDE Servicos Tomados Fiscal e Analise Creditos PIS COFINS importados com historico e totais corretos.');
+  if (fs.existsSync(arquivoDaxxAnaliseCreditos)) {
+    const parsedDaxx = await pdf(fs.readFileSync(arquivoDaxxAnaliseCreditos));
+    const resultadoDaxx = parsearTexto_CludeServicosTomados(parsedDaxx.text);
+
+    assert.strictEqual(resultadoDaxx.detectado, true);
+    assert.strictEqual(resultadoDaxx.banco_detectado, '1183');
+    assert.strictEqual(resultadoDaxx.nome_conta_detectado, 'DAXX - Analise Creditos PIS COFINS');
+    assert.strictEqual(resultadoDaxx.cnpj_detectado, '11.775.820/0001-71');
+    assert.strictEqual(resultadoDaxx.periodo_inicio, '2026-04-01');
+    assert.strictEqual(resultadoDaxx.periodo_fim, '2026-04-30');
+    assert.strictEqual(resultadoDaxx.lancamentos.length, 30);
+    assert.strictEqual(money(resultadoDaxx.total_credito), 0);
+    assert.strictEqual(money(resultadoDaxx.total_debito), 300146.11);
+    assert.strictEqual(money(resultadoDaxx.lancamentos.reduce((a, l) => a + Math.abs(l.valor), 0)), 300146.11);
+    assert.ok(resultadoDaxx.lancamentos.every(l => l.valor < 0), 'analise DAXX deve entrar como saida');
+    assert.ok(resultadoDaxx.lancamentos.every(l => l.baseCalculoPisCofins === Math.abs(l.valor)), 'DAXX deve usar Valor da Nota');
+    assert.ok(resultadoDaxx.lancamentos.every(l => l.historico === 'PAGTO SERVICOS TOMADOS'), 'historico padrao deve ser preenchido para DAXX');
+  }
+
+  console.log('OK: Servicos Tomados Fiscal e Analise Creditos PIS COFINS importados com historico e totais corretos.');
 })();

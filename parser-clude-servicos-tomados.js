@@ -1,4 +1,4 @@
-// Parser fiscal CLUDE - Relacao de NFs de Servicos Tomados (E-Fiscal)
+// Parser fiscal - Relacao de NFs de Servicos Tomados e Analise de Creditos PIS/COFINS
 (function(root) {
   'use strict';
 
@@ -65,6 +65,35 @@
     return m ? parseMoneyBR(m[1]) : 0;
   }
 
+  function extrairEmpresaAnaliseCreditos(texto) {
+    const m = String(texto || '').match(/(?:Gerado em:\s*\d{2}\/\d{2}\/\d{4}\s*)?\n?\s*(\d{3,4})\s*-\s*([^\n]+?)\s*\n\s*CNPJ:\s*([\d./-]+)/i);
+    if (!m) {
+      const cnpj = (String(texto || '').match(/CNPJ:\s*([\d./-]+)/i) || [])[1] || '';
+      return { codigo: '', nome: '', cnpj };
+    }
+    return {
+      codigo: String(m[1] || '').trim(),
+      nome: normalizarTexto(m[2] || '').toUpperCase(),
+      cnpj: String(m[3] || '').trim()
+    };
+  }
+
+  function bancoFiscalPorEmpresa(meta) {
+    const codigo = String((meta && meta.codigo) || '').trim();
+    const nome = normalizarTexto((meta && meta.nome) || '').toUpperCase();
+    if (codigo === '733' || nome.indexOf('CLUDE') >= 0) return 'CLU';
+    return codigo || 'FISCAL';
+  }
+
+  function nomeLayoutAnaliseCreditos(meta) {
+    const banco = bancoFiscalPorEmpresa(meta);
+    const nome = normalizarTexto((meta && meta.nome) || '').toUpperCase();
+    if (banco === 'CLU') return 'CLUDE - Analise Creditos PIS COFINS';
+    if (nome.indexOf('DAXX') >= 0) return 'DAXX - Analise Creditos PIS COFINS';
+    const codigo = String((meta && meta.codigo) || '').trim();
+    return (codigo ? codigo + ' - ' : '') + 'Analise Creditos PIS COFINS';
+  }
+
   function criarLancamentoFiscal({ cnpj, fornecedor, valor, documento, data, periodo }) {
     const fornecedorLimpo = normalizarFornecedor(fornecedor);
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
@@ -109,7 +138,7 @@
     };
   }
 
-  function parsearLinhaAnaliseCreditos(linha, categoriaAtual, periodo) {
+  function parsearLinhaAnaliseCreditos(linha, categoriaAtual, periodo, metaEmpresa) {
     const texto = String(linha || '').replace(/\s+/g, ' ').trim();
     const dataMatch = texto.match(/^(\d{2})\/0?(\d{2,3})\/(\d{4})(.*)$/);
     if (!dataMatch) return null;
@@ -155,8 +184,13 @@
 
     lanc.categoriaFiscal = categoriaAtual || lanc.categoriaFiscal;
     lanc.categoria = lanc.categoriaFiscal;
-    lanc.layoutNome = 'CLUDE - Analise Creditos PIS COFINS';
-    lanc.layoutParser = 'parsearPDF_Clude_ServicosTomados';
+    lanc.layoutNome = nomeLayoutAnaliseCreditos(metaEmpresa);
+    lanc.layoutParser = bancoFiscalPorEmpresa(metaEmpresa) === 'CLU' ? 'parsearPDF_Clude_ServicosTomados' : 'parsearPDF_Fiscal_AnaliseCreditosPISCOFINS';
+    lanc.conta = 'Fiscal ' + (metaEmpresa && metaEmpresa.codigo ? metaEmpresa.codigo : bancoFiscalPorEmpresa(metaEmpresa)) + ' - Servicos Tomados';
+    lanc.nome_conta = lanc.conta;
+    lanc.empresaCodigoFiscal = (metaEmpresa && metaEmpresa.codigo) || '';
+    lanc.empresaCnpjFiscal = (metaEmpresa && metaEmpresa.cnpj) || '';
+    lanc.empresaNomeFiscal = (metaEmpresa && metaEmpresa.nome) || '';
     lanc.baseCalculoRelatorio = parseMoneyBR(moneyMatches[moneyMatches.length - 1][1]);
     lanc.baseCalculoPisCofins = valorNota;
     lanc.baseCalculoPisCofinsOrigem = 'valor_da_nota_relatorio_creditos';
@@ -166,10 +200,11 @@
   function parsearAnaliseCreditosClude(textoCompleto) {
     const texto = String(textoCompleto || '');
     const detector = normalizarTexto(texto).toUpperCase();
-    if (!/ANALISE DE CREDITOS PIS\/COFINS/.test(detector) || !/SERVICOS TOMADOS/.test(detector) || !/CLUDE/.test(detector)) {
+    if (!/ANALISE DE CREDITOS PIS\/COFINS/.test(detector) || !/SERVICOS TOMADOS/.test(detector)) {
       return { detectado: false, lancamentos: [] };
     }
 
+    const metaEmpresa = extrairEmpresaAnaliseCreditos(texto);
     const periodo = extrairPeriodo(texto);
     const totalOficial = extrairTotalAnaliseCreditos(texto);
     const linhas = texto.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -183,7 +218,7 @@
         continue;
       }
       if (!/^\d{2}\/0?\d{2,3}\/\d{4}/.test(linha)) continue;
-      const lanc = parsearLinhaAnaliseCreditos(linha, categoriaAtual, periodo);
+      const lanc = parsearLinhaAnaliseCreditos(linha, categoriaAtual, periodo, metaEmpresa);
       if (lanc) registros.push(lanc);
     }
 
@@ -192,9 +227,12 @@
 
     return {
       detectado: lancamentos.length > 0,
-      banco_detectado: 'CLU',
+      banco_detectado: bancoFiscalPorEmpresa(metaEmpresa),
+      nome_banco_detectado: metaEmpresa.nome || nomeLayoutAnaliseCreditos(metaEmpresa),
       conta_detectada: 'ANALISE_CREDITOS_PIS_COFINS',
-      nome_conta_detectado: 'CLUDE - Analise Creditos PIS COFINS',
+      nome_conta_detectado: nomeLayoutAnaliseCreditos(metaEmpresa),
+      cnpj_detectado: metaEmpresa.cnpj || '',
+      empresa_codigo_detectado: metaEmpresa.codigo || '',
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim,
       total_credito: 0,
@@ -368,15 +406,21 @@
     return parsearPDF_Clude_ServicosTomados(arrayBuffer);
   }
 
+  async function parsearPDF_Fiscal_AnaliseCreditosPISCOFINS(arrayBuffer) {
+    return parsearPDF_Clude_ServicosTomados(arrayBuffer);
+  }
+
   root.parsearTexto_CludeServicosTomados = parsearTexto_CludeServicosTomados;
   root.parsearPDF_Clude_ServicosTomados = parsearPDF_Clude_ServicosTomados;
   root.parsearPDF_Clude_AnaliseCreditos = parsearPDF_Clude_AnaliseCreditos;
+  root.parsearPDF_Fiscal_AnaliseCreditosPISCOFINS = parsearPDF_Fiscal_AnaliseCreditosPISCOFINS;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       parsearTexto_CludeServicosTomados,
       parsearPDF_Clude_ServicosTomados,
       parsearPDF_Clude_AnaliseCreditos,
+      parsearPDF_Fiscal_AnaliseCreditosPISCOFINS,
       __test__: { parsearTexto_CludeServicosTomados }
     };
   }
