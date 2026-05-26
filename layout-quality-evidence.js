@@ -180,6 +180,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js com Redecard/Rede e rendimentos recuperados por linhas vizinhas.'
   },
   {
+    id: 'itau-lanchonete-jo-bras-2025-05-12-ocr',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 1 - Extrato Mensal',
+    parser: 'parsearPDF_Itau_ExtratoMensal',
+    arquivo: 'ITAU 05 A 12.2025.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/ITAU 05 A 12.2025.pdf',
+    empresa: 'LANCHONETE JO BRAS LTDA',
+    periodo_inicio: '2025-01-01',
+    periodo_fim: '2025-12-01',
+    etapa: 'layout_parametrizado',
+    status: 'Evidencia OCR recebida',
+    observacao: 'Mesmo layout Itau Extrato Mensal, mas o PDF chegou sem camada de texto. O parser agora usa OCR posicional antes de rejeitar o arquivo.'
+  },
+  {
     id: 'clude-stripe-2026-04',
     banco: 'CLU',
     nomeBanco: 'CLUDE - Club de Beneficios',

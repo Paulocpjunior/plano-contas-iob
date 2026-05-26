@@ -104,8 +104,36 @@
         || /^SALDO TOTAL DISPON[IÍ]VEL DIA\b/i.test(text);
     }
 
-    function extrairValorFinal(text) {
+    function extrairValorFinal(text, line) {
       const source = String(text || '');
+      if (line && Array.isArray(line.items)) {
+        const moneyItems = line.items
+          .map(function(item) {
+            const raw = String(item && item.s || '').trim();
+            return moneyToken(raw) ? { raw: raw, x: Number(item.x || 0), valor: parseValorBR(raw) } : null;
+          })
+          .filter(Boolean);
+        if (moneyItems.length >= 2 && /^\d{2}\/\d{2}\/\d{4}\b/.test(source)) {
+          const valueItem = moneyItems[moneyItems.length - 2];
+          const valoresTexto = Array.from(source.matchAll(/-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d+,\d{2}\b/g));
+          const valueMatch = valoresTexto.length >= 2 ? valoresTexto[valoresTexto.length - 2] : null;
+          const idx = valueMatch ? valueMatch.index : source.lastIndexOf(valueItem.raw);
+          return {
+            raw: valueItem.raw,
+            index: idx >= 0 ? idx : source.length,
+            valor: valueItem.valor
+          };
+        }
+      }
+      const valoresLinha = Array.from(source.matchAll(/-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d+,\d{2}\b/g));
+      if (!line && valoresLinha.length >= 2 && /^\d{2}\/\d{2}\/\d{4}\b/.test(source)) {
+        const valueMatch = valoresLinha[valoresLinha.length - 2];
+        return {
+          raw: valueMatch[0],
+          index: valueMatch.index,
+          valor: parseValorBR(valueMatch[0])
+        };
+      }
       const coladoDocumentoValor = source.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+,\d{2})\s*$/);
       if (coladoDocumentoValor) {
         const raw = coladoDocumentoValor[2];
@@ -185,7 +213,7 @@
       pendente = null;
     }
 
-    function processarLinhaTexto(textoLinha) {
+    function processarLinhaTexto(textoLinha, line) {
       const text = normalizarLinha(textoLinha);
       if (ignorarLinha(text)) return;
 
@@ -196,7 +224,14 @@
           data: start[3] + '-' + start[2] + '-' + start[1],
           text: start[4] || ''
         };
-        if (extrairValorFinal(pendente.text)) flush();
+        const valueLine = extrairValorFinal(text, line);
+        if (valueLine) {
+          const desc = limparDescricao(text.slice(10, valueLine.index));
+          adicionarLancamento(pendente.data, desc, valueLine.valor);
+          pendente = null;
+        } else if (extrairValorFinal(pendente.text)) {
+          flush();
+        }
         return;
       }
 
@@ -205,8 +240,15 @@
       if (extrairValorFinal(pendente.text)) flush();
     }
 
+    const temLinhasComValorESaldo = lines.some(function(line) {
+      const text = normalizarLinha(line && line.text);
+      if (!/^\d{2}\/\d{2}\/\d{4}\b/.test(text)) return false;
+      const valores = Array.from(text.matchAll(/-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d+,\d{2}\b/g));
+      return valores.length >= 2;
+    });
+
     lines.forEach(function(line) {
-      processarLinhaTexto(line.text);
+      processarLinhaTexto(line.text, line);
     });
     flush();
 
@@ -214,9 +256,11 @@
     // linhas textuais diferentes das linhas posicionais do pdf.js. Rodamos uma
     // segunda passada pelo texto completo para recuperar casos como Redecard e
     // Rendimentos; a chave `vistos` evita duplicidade.
-    pendente = null;
-    String(textoCompleto || '').split(/\n+/).forEach(processarLinhaTexto);
-    flush();
+    if (!temLinhasComValorESaldo) {
+      pendente = null;
+      String(textoCompleto || '').split(/\n+/).forEach(processarLinhaTexto);
+      flush();
+    }
 
     // Em alguns PDFs o Itau posiciona a descricao na linha acima, a data/CNPJ
     // e valor na linha central, e o complemento na linha abaixo. Essa passada
@@ -260,6 +304,89 @@
     };
   }
 
+  function itemTextoOCR(word) {
+    return String((word && (word.text || word.s || word.symbol || word.str)) || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function bboxOCR(word) {
+    if (!word) return null;
+    if (word.bbox) return word.bbox;
+    if (word.baseline && word.baseline.bbox) return word.baseline.bbox;
+    return null;
+  }
+
+  function linhasDePalavrasOCR(words, pageNum, pageWidth) {
+    const validas = (words || []).map(function(w) {
+      const text = itemTextoOCR(w);
+      const bbox = bboxOCR(w);
+      if (!text || !bbox) return null;
+      return {
+        text: text,
+        x: Number(bbox.x0 || 0),
+        y: Number((Number(bbox.y0 || 0) + Number(bbox.y1 || 0)) / 2),
+        h: Math.max(8, Math.abs(Number(bbox.y1 || 0) - Number(bbox.y0 || 0)))
+      };
+    }).filter(Boolean);
+    if (!validas.length) return [];
+
+    validas.sort(function(a, b) { return a.y - b.y || a.x - b.x; });
+    const grupos = [];
+    validas.forEach(function(w) {
+      let g = grupos[grupos.length - 1];
+      const tolerancia = Math.max(8, Math.min(18, w.h * 0.75));
+      if (!g || Math.abs(g.y - w.y) > tolerancia) {
+        g = { y: w.y, words: [] };
+        grupos.push(g);
+      }
+      g.words.push(w);
+      g.y = ((g.y * (g.words.length - 1)) + w.y) / g.words.length;
+    });
+
+    const scaleX = pageWidth ? 595 / pageWidth : 1;
+    return grupos.map(function(g) {
+      const items = g.words.sort(function(a,b){ return a.x - b.x; }).map(function(w) {
+        return { x: Math.round(w.x * scaleX), s: w.text };
+      });
+      const text = cleanLineText(items);
+      return text ? { page: pageNum, y: Math.round(g.y), items: items, text: text } : null;
+    }).filter(Boolean);
+  }
+
+  async function linhasItauComOCR(pdf) {
+    if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js nao carregado para OCR Itau');
+    if (typeof document === 'undefined') throw new Error('OCR Itau indisponivel fora do navegador');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const lines = [];
+    let textoCompleto = '';
+    for (let p = 1; p <= pdf.numPages; p++) {
+      if (typeof showToast === 'function') showToast('OCR Itau pagina ' + p + '/' + pdf.numPages + '...', 'success');
+      const page = await pdf.getPage(p);
+      const viewport = page.getViewport({ scale: 2.8 });
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+      const result = await Tesseract.recognize(canvas, 'por', {
+        tessedit_pageseg_mode: '6',
+        logger: m => console.log('[itau-ocr]', m.status, m.progress)
+      });
+      const words = result && result.data && result.data.words ? result.data.words : [];
+      let linhasPagina = linhasDePalavrasOCR(words, p, viewport.width);
+      if (!linhasPagina.length && result && result.data && result.data.text) {
+        linhasPagina = String(result.data.text).split(/\r?\n/).map(function(text, idx) {
+          const t = String(text || '').replace(/\s+/g, ' ').trim();
+          return t ? { page: p, y: idx, items: [{ x: 0, s: t }], text: t } : null;
+        }).filter(Boolean);
+      }
+      linhasPagina.forEach(function(line) {
+        lines.push(line);
+        textoCompleto += line.text + '\n';
+      });
+    }
+    return { lines: lines, textoCompleto: textoCompleto };
+  }
+
   async function parsearPDF_Itau_ExtratoMensal(arrayBuffer) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -293,6 +420,25 @@
 
     if (!ehItau) {
       const periodo = parseItauLancamentosPeriodo(lines, textoCompleto);
+      if (periodo && periodo.detectado && periodo.lancamentos && periodo.lancamentos.length) return periodo;
+
+      const precisaOCR = textoCompleto.trim().length < 120
+        || (/Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto) && !(periodo && periodo.detectado));
+      if (precisaOCR) {
+        try {
+          const ocr = await linhasItauComOCR(pdf);
+          const periodoOCR = parseItauLancamentosPeriodo(ocr.lines, ocr.textoCompleto);
+          if (periodoOCR && periodoOCR.detectado && periodoOCR.lancamentos && periodoOCR.lancamentos.length) {
+            periodoOCR.origem_ocr = true;
+            periodoOCR.textoCompleto = ocr.textoCompleto;
+            periodoOCR.fingerprint = String(periodoOCR.fingerprint || 'itau-lancamentos-periodo') + '-ocr';
+            periodoOCR.lancamentos.forEach(function(l) { l.origem = 'pdf-itau-lancamentos-periodo-ocr'; });
+            return periodoOCR;
+          }
+        } catch (eOCR) {
+          console.warn('[itau-ocr] falha no OCR:', eOCR.message || eOCR);
+        }
+      }
       return periodo || { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
     }
 
@@ -383,6 +529,7 @@
       moneyToken: moneyToken,
       periodoLancamentosItau: periodoLancamentosItau,
       parseItauLancamentosPeriodo: parseItauLancamentosPeriodo,
+      linhasDePalavrasOCR: linhasDePalavrasOCR,
       ignorarLancamentoTecnicoExtratoMensal: ignorarLancamentoTecnicoExtratoMensal
     }
   };

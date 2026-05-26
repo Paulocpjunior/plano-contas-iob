@@ -1,7 +1,10 @@
 {
-  "version": "3.2.56",
-  "build_date": "2026-05-26T12:30:00-03:00",
+  "version": "3.2.57",
+  "build_date": "2026-05-26T16:45:00-03:00",
   "release_notes": [
+    "Layout Itau 1 - Extrato Mensal passa a usar OCR posicional quando o PDF nao possui camada de texto",
+    "Parser Itau Lancamentos do periodo passa a diferenciar Valor do lancamento e Saldo para evitar totais inflados",
+    "Central de Qualidade registra evidencia OCR do arquivo ITAU 05 A 12.2025 da empresa 1327 LANCHONETE JO BRAS LTDA",
     "Novo layout DAXX Analise Creditos PIS COFINS importa PDF gerado pelo Consultor Fiscal",
     "Parser fiscal de Analise Creditos PIS COFINS deixa de ficar restrito a CLUDE e reconhece empresa/cnpj do cabecalho",
     "Importador PDF detecta relatorios fiscais do Consultor Fiscal antes de tentar layout bancario herdado da empresa",
