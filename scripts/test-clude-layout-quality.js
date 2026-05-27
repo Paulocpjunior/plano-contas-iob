@@ -8,7 +8,8 @@ const obrigatorios = [
   ['clude-demonstrativo-itaucard-2026', 'parsearArquivoXLSX', 44, 40408.60, 0],
   ['clude-servicos-tomados-2026-04', 'parsearPDF_Clude_ServicosTomados', 147, 0, 597231.75],
   ['clude-analise-creditos-pis-cofins-2026-04', 'parsearPDF_Clude_AnaliseCreditos', 189, 0, 630918.28],
-  ['daxx-analise-creditos-pis-cofins-2026-04', 'parsearPDF_Fiscal_AnaliseCreditosPISCOFINS', 30, 0, 300146.11]
+  ['daxx-analise-creditos-pis-cofins-2026-04', 'parsearPDF_Fiscal_AnaliseCreditosPISCOFINS', 30, 0, 300146.11],
+  ['daxx-servicos-prestados-iob-sage-2026-04', 'parsearPDF_IOB_Sage_ServicosPrestados', 36, 2208848.23, 0]
 ];
 
 for (const [id, parser, totalLancamentos, totalCredito, totalDebito] of obrigatorios) {

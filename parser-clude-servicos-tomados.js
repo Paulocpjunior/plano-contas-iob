@@ -1,4 +1,4 @@
-// Parser fiscal - Relacao de NFs de Servicos Tomados e Analise de Creditos PIS/COFINS
+// Parser fiscal - Relacao de NFs de Servicos Tomados/Prestados e Analise de Creditos PIS/COFINS
 (function(root) {
   'use strict';
 
@@ -13,6 +13,13 @@
     return normalizarTexto(valor)
       .replace(/(?:0,00|\d{1,3}(?:\.\d{3})*,\d{2})+$/g, '')
       .replace(/\b(?:NF|A|U|E)\s*$/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function normalizarTomadorPrestado(valor) {
+    return normalizarTexto(valor)
+      .replace(/(?:0,00|\d{1,3}(?:\.\d{3})*,\d{2})+$/g, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -94,6 +101,19 @@
     return (codigo ? codigo + ' - ' : '') + 'Analise Creditos PIS COFINS';
   }
 
+  function extrairEmpresaIOBSage(texto) {
+    const m = String(texto || '').match(/Empresa:\s*(\d{3,4})\s*-\s*([^\n]+?)\s*C\.?N\.?P\.?J\.?:\s*([\d./-]+)/i);
+    if (!m) {
+      const cnpj = (String(texto || '').match(/C\.?N\.?P\.?J\.?:\s*([\d./-]+)/i) || [])[1] || '';
+      return { codigo: '', nome: '', cnpj };
+    }
+    return {
+      codigo: String(m[1] || '').trim(),
+      nome: normalizarTexto(m[2] || '').toUpperCase(),
+      cnpj: String(m[3] || '').trim()
+    };
+  }
+
   function criarLancamentoFiscal({ cnpj, fornecedor, valor, documento, data, periodo }) {
     const fornecedorLimpo = normalizarFornecedor(fornecedor);
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
@@ -133,6 +153,57 @@
       layoutParser: 'parsearPDF_Clude_ServicosTomados',
       conta: 'Fiscal CLUDE - Servicos Tomados',
       nome_conta: 'Fiscal CLUDE - Servicos Tomados',
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim
+    };
+  }
+
+  function criarLancamentoServicoPrestado({ cnpj, tomador, valor, documento, data, periodo, metaEmpresa, servico }) {
+    const tomadorLimpo = normalizarTomadorPrestado(tomador);
+    const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
+    if (!tomadorLimpo || !valor || !data) return null;
+    const valorNota = Math.abs(valor);
+    const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim() || 'FISCAL';
+    const layoutNome = codigoEmpresa === '1183'
+      ? 'DAXX - Servicos Prestados Fiscal'
+      : codigoEmpresa + ' - Servicos Prestados Fiscal';
+
+    const descricao = ['Servicos prestados', tomadorLimpo, documentoLimpo ? ('NF ' + documentoLimpo) : '', cnpj ? ('CNPJ ' + cnpj) : '', servico ? ('Servico ' + servico) : '']
+      .filter(Boolean)
+      .join(' - ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return {
+      data,
+      descricao,
+      descricao_memoria: tomadorLimpo,
+      memoriaDescricoes: [
+        tomadorLimpo,
+        'Servicos prestados - ' + tomadorLimpo,
+        'Servicos prestados',
+        cnpj,
+        documentoLimpo ? ('NF ' + documentoLimpo) : ''
+      ].filter(Boolean),
+      valor: valorNota,
+      valorNota: valorNota,
+      baseCalculoPisCofins: 0,
+      baseCalculoPisCofinsOrigem: 'servico_prestado_sem_credito',
+      categoriaFiscal: 'RECEITA_SERVICOS',
+      categoria: 'Receita de Servicos',
+      tipoDocumentoFiscal: 'SERVICO_PRESTADO',
+      documento: documentoLimpo,
+      cnpj_tomador: cnpj,
+      codigo_servico: servico || '',
+      codigoHistorico: '0000',
+      historico: 'SERVICOS PRESTADOS',
+      layoutNome,
+      layoutParser: 'parsearPDF_IOB_Sage_ServicosPrestados',
+      conta: 'Fiscal ' + codigoEmpresa + ' - Servicos Prestados',
+      nome_conta: 'Fiscal ' + codigoEmpresa + ' - Servicos Prestados',
+      empresaCodigoFiscal: codigoEmpresa,
+      empresaCnpjFiscal: (metaEmpresa && metaEmpresa.cnpj) || '',
+      empresaNomeFiscal: (metaEmpresa && metaEmpresa.nome) || '',
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim
     };
@@ -311,6 +382,50 @@
     return registros;
   }
 
+  function parsearRegistrosServicosPrestadosIOB(texto, periodo, metaEmpresa) {
+    const registros = [];
+    const flat = String(texto || '')
+      .replace(/\r?\n/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const re = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})([\s\S]*?)(?=\s+\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b|\s+\( \* \)|\s+Total\s+|$)/g;
+    const tailValor = /(?:([0-9.]+,\d{2}))?([0-9]{1,2},\d{2})(\d{4})([0-9.]+,\d{2})$/;
+    let m;
+    while ((m = re.exec(flat))) {
+      const segmento = (m[1] + m[2]).trim();
+      const dataMatch = segmento.match(/(\d{2}\/\d{2}\/\d{4})/);
+      if (!dataMatch) continue;
+
+      const antesData = segmento.slice(0, dataMatch.index).trim();
+      const dadosValor = antesData.match(tailValor);
+      if (!dadosValor) continue;
+
+      const valorNota = parseMoneyBR(dadosValor[4]);
+      if (!valorNota) continue;
+
+      const tomador = antesData.slice(m[1].length, dadosValor.index)
+        .replace(/(?:0,00|\d{1,3}(?:\.\d{3})*,\d{2})+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const depoisData = segmento.slice(dataMatch.index + dataMatch[0].length).trim();
+      const documentoMatch = depoisData.match(/(\d{7})(\d{3})$/);
+      const documento = documentoMatch ? documentoMatch[1] : '';
+
+      const lanc = criarLancamentoServicoPrestado({
+        cnpj: m[1],
+        tomador,
+        valor: valorNota,
+        documento,
+        data: parseDateBR(dataMatch[1]),
+        periodo,
+        metaEmpresa,
+        servico: dadosValor[3]
+      });
+      if (lanc) registros.push(lanc);
+    }
+    return registros;
+  }
+
   function unirRegistros(registros) {
     const seen = new Set();
     return (registros || []).filter(function(l) {
@@ -347,6 +462,40 @@
       total_credito: 0,
       total_debito: totalOficial || totalDebito,
       total_oficial: totalOficial || totalDebito,
+      lancamentos: registros
+    };
+  }
+
+  function parsearTexto_IOBSageServicosPrestados(textoCompleto) {
+    const texto = String(textoCompleto || '');
+    const detector = normalizarTexto(texto).toUpperCase();
+    if (!/RELACAO DE NFS DE SERVICOS PRESTADOS/.test(detector)) {
+      return { detectado: false, lancamentos: [] };
+    }
+
+    const periodo = extrairPeriodo(texto);
+    const metaEmpresa = extrairEmpresaIOBSage(texto);
+    const totalOficial = extrairTotalOficial(texto);
+    const registros = unirRegistros(parsearRegistrosServicosPrestadosIOB(texto, periodo, metaEmpresa));
+    const totalCredito = registros.reduce((acc, l) => acc + Math.abs(Number(l.valor) || 0), 0);
+    const codigoEmpresa = String(metaEmpresa.codigo || '').trim() || 'FISCAL';
+    const nomeLayout = codigoEmpresa === '1183'
+      ? 'DAXX - Servicos Prestados Fiscal'
+      : codigoEmpresa + ' - Servicos Prestados Fiscal';
+
+    return {
+      detectado: registros.length > 0,
+      banco_detectado: codigoEmpresa,
+      nome_banco_detectado: metaEmpresa.nome || nomeLayout,
+      conta_detectada: 'SERVICOS_PRESTADOS',
+      nome_conta_detectado: nomeLayout,
+      cnpj_detectado: metaEmpresa.cnpj || '',
+      empresa_codigo_detectado: metaEmpresa.codigo || '',
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim,
+      total_credito: totalOficial || totalCredito,
+      total_debito: 0,
+      total_oficial: totalOficial || totalCredito,
       lancamentos: registros
     };
   }
@@ -402,6 +551,33 @@
     return resultado;
   }
 
+  async function parsearPDF_IOB_Sage_ServicosPrestados(arrayBuffer) {
+    const pdfjs = root.pdfjsLib || (typeof pdfjsLib !== 'undefined' ? pdfjsLib : null);
+    if (!pdfjs || !pdfjs.getDocument) {
+      throw new Error('PDF.js nao carregado para ler servicos prestados IOB SAGE.');
+    }
+
+    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const paginas = [];
+    const sequencia = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
+      paginas.push(agruparItensPdfEmLinhas(content.items).join('\n'));
+    }
+    const agrupado = paginas.join('\n');
+    const raw = sequencia.join('\n');
+    let resultado = parsearTexto_IOBSageServicosPrestados(agrupado);
+    if (!resultado.detectado || !resultado.lancamentos || !resultado.lancamentos.length) {
+      resultado = parsearTexto_IOBSageServicosPrestados(raw);
+    } else {
+      const combinado = parsearTexto_IOBSageServicosPrestados(agrupado + '\n' + raw);
+      if (combinado.detectado && combinado.lancamentos.length > resultado.lancamentos.length) resultado = combinado;
+    }
+    return resultado;
+  }
+
   async function parsearPDF_Clude_AnaliseCreditos(arrayBuffer) {
     return parsearPDF_Clude_ServicosTomados(arrayBuffer);
   }
@@ -411,17 +587,21 @@
   }
 
   root.parsearTexto_CludeServicosTomados = parsearTexto_CludeServicosTomados;
+  root.parsearTexto_IOBSageServicosPrestados = parsearTexto_IOBSageServicosPrestados;
   root.parsearPDF_Clude_ServicosTomados = parsearPDF_Clude_ServicosTomados;
   root.parsearPDF_Clude_AnaliseCreditos = parsearPDF_Clude_AnaliseCreditos;
   root.parsearPDF_Fiscal_AnaliseCreditosPISCOFINS = parsearPDF_Fiscal_AnaliseCreditosPISCOFINS;
+  root.parsearPDF_IOB_Sage_ServicosPrestados = parsearPDF_IOB_Sage_ServicosPrestados;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       parsearTexto_CludeServicosTomados,
+      parsearTexto_IOBSageServicosPrestados,
       parsearPDF_Clude_ServicosTomados,
       parsearPDF_Clude_AnaliseCreditos,
       parsearPDF_Fiscal_AnaliseCreditosPISCOFINS,
-      __test__: { parsearTexto_CludeServicosTomados }
+      parsearPDF_IOB_Sage_ServicosPrestados,
+      __test__: { parsearTexto_CludeServicosTomados, parsearTexto_IOBSageServicosPrestados }
     };
   }
 })(typeof window !== 'undefined' ? window : globalThis);

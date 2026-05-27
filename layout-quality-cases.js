@@ -323,6 +323,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'PDF gerado pelo Consultor Fiscal para DAXX. Usa Valor da Nota como base, ignora notas zeradas e evita queda indevida no layout Itau herdado da empresa.'
   },
   {
+    id: 'daxx-servicos-prestados-iob-sage-2026-04',
+    banco: '1183',
+    nomeBanco: 'DAXX MIDIA LTDA',
+    layout: 'DAXX - Servicos Prestados Fiscal',
+    parser: 'parsearPDF_IOB_Sage_ServicosPrestados',
+    arquivo: '1183 - SERV. PRESTADOS 04.2026 FISCAL 1.pdf',
+    empresa: 'DAXX MIDIA LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 36,
+      total_credito: 2208848.23,
+      total_debito: 0
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-27T14:10:00-03:00',
+    observacao: 'Relatorio fixo Office Fiscal/IOB SAGE de NFs de Servicos Prestados. Usa Valor da NF como credito e preserva tomador, NF e codigo de servico para parametrizacao.'
+  },
+  {
     id: 'caixa-monaco-2025-01',
     banco: '104',
     nomeBanco: 'Caixa Economica Federal',

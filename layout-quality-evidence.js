@@ -315,6 +315,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js para PDF do Consultor Fiscal Analise de Creditos PIS/COFINS da DAXX.'
   },
   {
+    id: 'daxx-servicos-prestados-iob-sage-2026-04',
+    banco: '1183',
+    nomeBanco: 'DAXX MIDIA LTDA',
+    layout: 'DAXX - Servicos Prestados Fiscal',
+    parser: 'parsearPDF_IOB_Sage_ServicosPrestados',
+    arquivo: '1183 - SERV. PRESTADOS 04.2026 FISCAL 1.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/1183 - SERV.  PRESTADOS 04.2026 FISCAL 1.pdf',
+    empresa: 'DAXX MIDIA LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js para relatorio fixo IOB SAGE de NFs de Servicos Prestados.'
+  },
+  {
     id: 'caixa-monaco-2025-01',
     banco: '104',
     nomeBanco: 'Caixa Economica Federal',

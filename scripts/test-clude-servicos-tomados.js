@@ -1,11 +1,12 @@
 const assert = require('assert');
 const fs = require('fs');
 const pdf = require('pdf-parse');
-const { parsearTexto_CludeServicosTomados } = require('../parser-clude-servicos-tomados');
+const { parsearTexto_CludeServicosTomados, parsearTexto_IOBSageServicosPrestados } = require('../parser-clude-servicos-tomados');
 
 const arquivo = '/Users/paulocesarpereirajunior/Downloads/733 serviços tomados clude.pdf';
 const arquivoAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/733  CLUDE SERV. TOMADOS ABRIL.pdf';
 const arquivoDaxxAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/1183 - SERVIÇOS TOMADOS 042026.pdf';
+const arquivoDaxxServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/1183 - SERV.  PRESTADOS 04.2026 FISCAL 1.pdf';
 
 function money(n) {
   return Math.round(Number(n || 0) * 100) / 100;
@@ -74,5 +75,26 @@ function money(n) {
     assert.ok(resultadoDaxx.lancamentos.every(l => l.historico === 'PAGTO SERVICOS TOMADOS'), 'historico padrao deve ser preenchido para DAXX');
   }
 
-  console.log('OK: Servicos Tomados Fiscal e Analise Creditos PIS COFINS importados com historico e totais corretos.');
+  if (fs.existsSync(arquivoDaxxServicosPrestados)) {
+    const parsedDaxxPrestados = await pdf(fs.readFileSync(arquivoDaxxServicosPrestados));
+    const resultadoPrestados = parsearTexto_IOBSageServicosPrestados(parsedDaxxPrestados.text);
+
+    assert.strictEqual(resultadoPrestados.detectado, true);
+    assert.strictEqual(resultadoPrestados.banco_detectado, '1183');
+    assert.strictEqual(resultadoPrestados.nome_conta_detectado, 'DAXX - Servicos Prestados Fiscal');
+    assert.strictEqual(resultadoPrestados.cnpj_detectado, '11.775.820/0001-71');
+    assert.strictEqual(resultadoPrestados.periodo_inicio, '2026-04-01');
+    assert.strictEqual(resultadoPrestados.periodo_fim, '2026-04-30');
+    assert.strictEqual(resultadoPrestados.lancamentos.length, 36);
+    assert.strictEqual(money(resultadoPrestados.total_credito), 2208848.23);
+    assert.strictEqual(money(resultadoPrestados.total_debito), 0);
+    assert.strictEqual(money(resultadoPrestados.lancamentos.reduce((a, l) => a + Number(l.valor || 0), 0)), 2208848.23);
+    assert.ok(resultadoPrestados.lancamentos.every(l => l.valor > 0), 'servicos prestados devem entrar como credito');
+    assert.ok(resultadoPrestados.lancamentos.every(l => l.tipoDocumentoFiscal === 'SERVICO_PRESTADO'), 'tipo fiscal prestado deve ser preservado');
+    assert.ok(resultadoPrestados.lancamentos.some(l => /MIDIA PARTNERS/.test(l.descricao)), 'tomador deve ser preservado na descricao');
+    assert.ok(resultadoPrestados.lancamentos.some(l => l.codigo_servico === '2496'), 'codigo de servico deve ser preservado');
+    assert.ok(resultadoPrestados.lancamentos.every(l => l.historico === 'SERVICOS PRESTADOS'), 'historico padrao deve vir preenchido para parametrizacao');
+  }
+
+  console.log('OK: Servicos Tomados/Prestados Fiscal e Analise Creditos PIS COFINS importados com historico e totais corretos.');
 })();
