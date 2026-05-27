@@ -96,5 +96,27 @@ function money(n) {
     assert.ok(resultadoPrestados.lancamentos.every(l => l.historico === 'SERVICOS PRESTADOS'), 'historico padrao deve vir preenchido para parametrizacao');
   }
 
+  const textoDaxxVisualPdfjs = `
+Office Fiscal
+Data: 27/05/2026
+Empresa: 1183 - DAXX MIDIA LTDA
+C.N.P.J.: 11.775.820/0001-71
+Período: 01/04/2026 á 30/04/2026
+Relação de NFs de Serviços Prestados - Modelo 51 e 53
+Serviço Número Série CNPJ/CPF Razão Social Valor da NF Base de Cálculo Alíquota Valor do ISS Iss Retido Emissão
+6394 0002829 002 07.858.953/0001-34 MIDIA PARTNERS PROMOCAO DE 26.460,00 26.460,00 5,00 1.323,00 0,00 01/04/2026
+6394 0002830 002 07.858.953/0001-34 MIDIA PARTNERS PROMOCAO DE 40.000,00 40.000,00 5,00 2.000,00 0,00 01/04/2026
+Total 66.460,00 66.460,00 3.323,00 0,00
+`;
+  const resultadoDaxxVisual = parsearTexto_IOBSageServicosPrestados(textoDaxxVisualPdfjs);
+  assert.strictEqual(resultadoDaxxVisual.detectado, true, 'layout DAXX deve reconhecer texto visual do PDF.js no navegador');
+  assert.strictEqual(resultadoDaxxVisual.banco_detectado, '1183');
+  assert.strictEqual(resultadoDaxxVisual.cnpj_detectado, '11.775.820/0001-71');
+  assert.strictEqual(resultadoDaxxVisual.lancamentos.length, 2);
+  assert.strictEqual(money(resultadoDaxxVisual.total_credito), 66460);
+  assert.strictEqual(money(resultadoDaxxVisual.lancamentos.reduce((a, l) => a + Number(l.valor || 0), 0)), 66460);
+  assert.ok(resultadoDaxxVisual.lancamentos.every(l => l.codigo_servico === '6394'), 'texto visual deve preservar codigo de servico, sem confundir com ano da data');
+  assert.ok(resultadoDaxxVisual.lancamentos.every(l => l.historico === 'SERVICOS PRESTADOS'), 'texto visual tambem deve preencher historico');
+
   console.log('OK: Servicos Tomados/Prestados Fiscal e Analise Creditos PIS COFINS importados com historico e totais corretos.');
 })();
