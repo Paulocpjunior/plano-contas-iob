@@ -24,6 +24,28 @@
       .trim();
   }
 
+  function somenteDigitos(valor) {
+    return String(valor || '').replace(/\D/g, '');
+  }
+
+  function cnpjIgual(a, b) {
+    const da = somenteDigitos(a);
+    const db = somenteDigitos(b);
+    return !!da && !!db && da === db;
+  }
+
+  function ehTrechoCabecalhoServicoPrestado(valor) {
+    const t = normalizarTexto(valor).toUpperCase();
+    return /SERVICO\s+NUMERO\s+SERIE/.test(t)
+      || /CNPJ\/CPF/.test(t)
+      || /RAZAO\s+SOCIAL/.test(t)
+      || /PAGINA\s*:\s*\d+/.test(t)
+      || /RELACAO\s+DE\s+NFS/.test(t)
+      || /VALOR\s+DA\s+NF/.test(t)
+      || /BASE\s+DE\s+CALCULO/.test(t)
+      || /VALOR\s+DO\s+ISS/.test(t);
+  }
+
   function parseMoneyBR(valor) {
     if (typeof valor === 'number') return valor;
     const s = String(valor || '')
@@ -81,8 +103,20 @@
     if (!resultado || !totalOficial) return resultado;
     resultado.total_oficial = totalOficial;
     resultado.total_oficial_detectado = true;
-    if (tipo === 'credito') resultado.total_credito = totalOficial;
-    if (tipo === 'debito') resultado.total_debito = totalOficial;
+    resultado.total_divergente = false;
+    if (tipo === 'credito') resultado.total_credito = somaAbsolutaLancamentos(resultado.lancamentos);
+    if (tipo === 'debito') resultado.total_debito = somaAbsolutaLancamentos(resultado.lancamentos);
+    return resultado;
+  }
+
+  function marcarTotalOficialDivergente(resultado, totalOficial, tipo) {
+    if (!resultado || !totalOficial) return resultado;
+    resultado.total_oficial = totalOficial;
+    resultado.total_oficial_detectado = true;
+    resultado.total_divergente = true;
+    resultado.diferenca_total_oficial = Math.round((somaAbsolutaLancamentos(resultado.lancamentos) - totalOficial) * 100) / 100;
+    if (tipo === 'credito') resultado.total_credito = somaAbsolutaLancamentos(resultado.lancamentos);
+    if (tipo === 'debito') resultado.total_debito = somaAbsolutaLancamentos(resultado.lancamentos);
     return resultado;
   }
 
@@ -105,7 +139,7 @@
         return Math.abs(centavos(somaAbsolutaLancamentos(a.lancamentos)) - centavos(totalOficial))
           - Math.abs(centavos(somaAbsolutaLancamentos(b.lancamentos)) - centavos(totalOficial));
       })[0];
-      return aplicarTotalOficial(maisProximo, totalOficial, tipo);
+      return marcarTotalOficialDivergente(maisProximo, totalOficial, tipo);
     }
 
     return validos[0];
@@ -214,6 +248,9 @@
     const tomadorLimpo = normalizarTomadorPrestado(tomador);
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
     if (!tomadorLimpo || !valor || !data) return null;
+    if (cnpjIgual(cnpj, metaEmpresa && metaEmpresa.cnpj)) return null;
+    if (ehTrechoCabecalhoServicoPrestado(tomadorLimpo)) return null;
+    if (/^(SERVICO|NUMERO|SERIE|CNPJ|CPF|RAZAO|SOCIAL)$/i.test(tomadorLimpo)) return null;
     const valorNota = Math.abs(valor);
     const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim() || 'FISCAL';
     const layoutNome = codigoEmpresa === '1183'
@@ -445,6 +482,8 @@
     let m;
     while ((m = re.exec(flat))) {
       const segmento = (m[1] + m[2]).trim();
+      if (cnpjIgual(m[1], metaEmpresa && metaEmpresa.cnpj)) continue;
+      if (ehTrechoCabecalhoServicoPrestado(segmento)) continue;
       const dataMatch = segmento.match(/(\d{2}\/\d{2}\/\d{4})/);
       if (!dataMatch) continue;
 
@@ -487,6 +526,7 @@
 
     for (let i = 0; i < linhas.length; i++) {
       if (!cpfCnpj.test(linhas[i])) continue;
+      if (ehTrechoCabecalhoServicoPrestado(linhas[i])) continue;
 
       let bloco = linhas[i];
       let j = i + 1;
@@ -504,10 +544,12 @@
       }
 
       bloco = bloco.replace(/\bTotal\b[\s\S]*$/i, '').trim();
+      if (ehTrechoCabecalhoServicoPrestado(bloco)) continue;
 
       const cnpjMatch = bloco.match(cpfCnpj);
       const dataMatch = bloco.match(/(\d{2}\/\d{2}\/\d{4})/);
       if (!cnpjMatch || !dataMatch) continue;
+      if (cnpjIgual(cnpjMatch[0], metaEmpresa && metaEmpresa.cnpj)) continue;
 
       const valores = [...bloco.matchAll(money)]
         .map(m => ({ token: m[1], valor: parseMoneyBR(m[1]), index: m.index || 0 }))
@@ -615,6 +657,7 @@
         .concat(parsearRegistrosServicosPrestadosVisual(texto, periodo, metaEmpresa))
     );
     const totalCredito = registros.reduce((acc, l) => acc + Math.abs(Number(l.valor) || 0), 0);
+    const totalConfere = totalOficial ? Math.abs(centavos(totalCredito) - centavos(totalOficial)) <= 1 : true;
     const codigoEmpresa = String(metaEmpresa.codigo || '').trim() || 'FISCAL';
     const nomeLayout = codigoEmpresa === '1183'
       ? 'DAXX - Servicos Prestados Fiscal'
@@ -630,9 +673,12 @@
       empresa_codigo_detectado: metaEmpresa.codigo || '',
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim,
-      total_credito: totalOficial || totalCredito,
+      total_credito: totalCredito,
       total_debito: 0,
       total_oficial: totalOficial || totalCredito,
+      total_oficial_detectado: !!totalOficial,
+      total_divergente: !!totalOficial && !totalConfere,
+      diferenca_total_oficial: totalOficial && !totalConfere ? Math.round((totalCredito - totalOficial) * 100) / 100 : 0,
       lancamentos: registros
     };
   }

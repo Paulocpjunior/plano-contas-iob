@@ -133,5 +133,31 @@ Total 66.460,00 66.460,00 3.323,00 0,00
   assert.strictEqual(escolhido.lancamentos.length, 2, 'selecao do PDF deve preferir candidato que fecha com o total oficial, nao o que tem mais linhas');
   assert.strictEqual(money(escolhido.total_credito), 66460);
 
+  const textoSomenteCabecalhoETotalPagina = `
+Data: 27/05/2026 Empresa: 1183 - DAXX MIDIA LTDA
+C.N.P.J.: 11.775.820/0001-71 Período: 01/04/2026 á 30/04/2026 Página: 1
+Relação de NFs de Serviços Prestados - Modelo 51 e 53
+Serviço Número Série CNPJ/CPF Razão Social Valor da NF Base de Cálculo Alíquota Valor do ISS Iss Retido Emissão
+Total 357.478,00 357.478,00 17.873,90 0,00
+Data: 27/05/2026 Empresa: 1183 - DAXX MIDIA LTDA
+C.N.P.J.: 11.775.820/0001-71 Período: 01/04/2026 á 30/04/2026 Página: 2
+Relação de NFs de Serviços Prestados - Modelo 51 e 53
+Serviço Número Série CNPJ/CPF Razão Social Valor da NF Base de Cálculo Alíquota Valor do ISS Iss Retido Emissão
+Total 415.979,13 415.979,13 20.798,96 0,00
+`;
+  const resultadoSomentePagina = parsearTexto_IOBSageServicosPrestados(textoSomenteCabecalhoETotalPagina);
+  assert.strictEqual(resultadoSomentePagina.detectado, false, 'cabecalho e total de pagina nao podem virar lancamentos fiscais');
+  assert.strictEqual(resultadoSomentePagina.lancamentos.length, 0);
+
+  const parcialDivergente = {
+    detectado: true,
+    total_credito: 100,
+    lancamentos: [{ valor: 100 }]
+  };
+  const divergente = __test__.escolherResultadoPorTotalOficial([parcialDivergente], 200, 'credito');
+  assert.strictEqual(money(divergente.total_credito), 100, 'total oficial divergente nao pode sobrescrever a soma dos lancamentos');
+  assert.strictEqual(money(divergente.total_oficial), 200);
+  assert.strictEqual(divergente.total_divergente, true);
+
   console.log('OK: Servicos Tomados/Prestados Fiscal e Analise Creditos PIS COFINS importados com historico e totais corretos.');
 })();

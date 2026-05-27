@@ -1,7 +1,10 @@
 {
-  "version": "3.2.61",
-  "build_date": "2026-05-27T16:12:00-03:00",
+  "version": "3.2.62",
+  "build_date": "2026-05-27T20:06:28.816Z",
   "release_notes": [
+    "Hotfix DAXX Servicos Prestados Fiscal bloqueia cabecalho e total de pagina como lancamento",
+    "Importador deixa de sobrescrever total extraido quando os lancamentos nao explicam o total oficial",
+    "Regressao DAXX 1183 garante 36 NFs reais e total oficial R$ 2.208.848,23",
     "Validador ECD passa a bloquear I150 sem I155 em cada periodo, reproduzindo o erro apontado pelo PVA/SPED",
     "Arquivo ECD1352.TXT deixa de ser aprovado quando o Bloco I seria rejeitado por registro obrigatorio nao encontrado",
     "Tela de Validacao de Obrigacoes mostra ajuste objetivo para regerar a ECD com detalhes de saldos periodicos",
