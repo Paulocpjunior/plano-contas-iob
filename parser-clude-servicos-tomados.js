@@ -67,6 +67,50 @@
     return m ? parseMoneyBR(m[1]) : 0;
   }
 
+  function somaAbsolutaLancamentos(lancamentos) {
+    return (lancamentos || []).reduce(function(acc, l) {
+      return acc + Math.abs(Number((l && l.valor) || 0));
+    }, 0);
+  }
+
+  function centavos(valor) {
+    return Math.round(Number(valor || 0) * 100);
+  }
+
+  function aplicarTotalOficial(resultado, totalOficial, tipo) {
+    if (!resultado || !totalOficial) return resultado;
+    resultado.total_oficial = totalOficial;
+    resultado.total_oficial_detectado = true;
+    if (tipo === 'credito') resultado.total_credito = totalOficial;
+    if (tipo === 'debito') resultado.total_debito = totalOficial;
+    return resultado;
+  }
+
+  function resultadoConfereComTotal(resultado, totalOficial) {
+    if (!resultado || !totalOficial) return false;
+    return Math.abs(centavos(somaAbsolutaLancamentos(resultado.lancamentos)) - centavos(totalOficial)) <= 1;
+  }
+
+  function escolherResultadoPorTotalOficial(candidatos, totalOficial, tipo) {
+    const validos = (candidatos || []).filter(function(r) {
+      return r && r.detectado && r.lancamentos && r.lancamentos.length;
+    });
+    if (!validos.length) return { detectado: false, lancamentos: [] };
+
+    if (totalOficial) {
+      const exato = validos.find(function(r) { return resultadoConfereComTotal(r, totalOficial); });
+      if (exato) return aplicarTotalOficial(exato, totalOficial, tipo);
+
+      const maisProximo = validos.slice().sort(function(a, b) {
+        return Math.abs(centavos(somaAbsolutaLancamentos(a.lancamentos)) - centavos(totalOficial))
+          - Math.abs(centavos(somaAbsolutaLancamentos(b.lancamentos)) - centavos(totalOficial));
+      })[0];
+      return aplicarTotalOficial(maisProximo, totalOficial, tipo);
+    }
+
+    return validos[0];
+  }
+
   function extrairTotalAnaliseCreditos(texto) {
     const m = String(texto || '').match(/Base\s+de\s+Calculo\s*(?:\r?\n|\s)*R\$\s*([0-9.]+,\d{2})/i);
     return m ? parseMoneyBR(m[1]) : 0;
@@ -490,7 +534,8 @@
       }
 
       const numerosLongos = [...bloco.matchAll(/\b(\d{6,})\b/g)].map(m => m[1]);
-      const documento = numerosLongos.find(n => n.length === 7) || numerosLongos[numerosLongos.length - 1] || '';
+      const documento = numerosLongos.find(n => n.length === 7) || '';
+      if (!documento) continue;
       const antesCnpj = bloco.slice(0, cnpjMatch.index || 0);
       const depoisCnpj = bloco.slice((cnpjMatch.index || 0) + cnpjMatch[0].length);
       const servicosAntes = [...antesCnpj.matchAll(/\b(\d{4})\b/g)].map(m => m[1]);
@@ -660,14 +705,13 @@
     }
     const agrupado = paginas.join('\n');
     const raw = sequencia.join('\n');
-    let resultado = parsearTexto_IOBSageServicosPrestados(agrupado);
-    if (!resultado.detectado || !resultado.lancamentos || !resultado.lancamentos.length) {
-      resultado = parsearTexto_IOBSageServicosPrestados(raw);
-    } else {
-      const combinado = parsearTexto_IOBSageServicosPrestados(agrupado + '\n' + raw);
-      if (combinado.detectado && combinado.lancamentos.length > resultado.lancamentos.length) resultado = combinado;
-    }
-    return resultado;
+    const combinado = agrupado + '\n' + raw;
+    const totalOficial = extrairTotalOficial(raw) || extrairTotalOficial(agrupado) || extrairTotalOficial(combinado);
+    return escolherResultadoPorTotalOficial([
+      parsearTexto_IOBSageServicosPrestados(raw),
+      parsearTexto_IOBSageServicosPrestados(agrupado),
+      parsearTexto_IOBSageServicosPrestados(combinado)
+    ], totalOficial, 'credito');
   }
 
   async function parsearPDF_Clude_AnaliseCreditos(arrayBuffer) {
@@ -693,7 +737,12 @@
       parsearPDF_Clude_AnaliseCreditos,
       parsearPDF_Fiscal_AnaliseCreditosPISCOFINS,
       parsearPDF_IOB_Sage_ServicosPrestados,
-      __test__: { parsearTexto_CludeServicosTomados, parsearTexto_IOBSageServicosPrestados }
+      __test__: {
+        parsearTexto_CludeServicosTomados,
+        parsearTexto_IOBSageServicosPrestados,
+        escolherResultadoPorTotalOficial,
+        somaAbsolutaLancamentos
+      }
     };
   }
 })(typeof window !== 'undefined' ? window : globalThis);

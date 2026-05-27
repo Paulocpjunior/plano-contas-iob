@@ -1,7 +1,11 @@
 const assert = require('assert');
 const fs = require('fs');
 const pdf = require('pdf-parse');
-const { parsearTexto_CludeServicosTomados, parsearTexto_IOBSageServicosPrestados } = require('../parser-clude-servicos-tomados');
+const {
+  parsearTexto_CludeServicosTomados,
+  parsearTexto_IOBSageServicosPrestados,
+  __test__
+} = require('../parser-clude-servicos-tomados');
 
 const arquivo = '/Users/paulocesarpereirajunior/Downloads/733 serviços tomados clude.pdf';
 const arquivoAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/733  CLUDE SERV. TOMADOS ABRIL.pdf';
@@ -117,6 +121,17 @@ Total 66.460,00 66.460,00 3.323,00 0,00
   assert.strictEqual(money(resultadoDaxxVisual.lancamentos.reduce((a, l) => a + Number(l.valor || 0), 0)), 66460);
   assert.ok(resultadoDaxxVisual.lancamentos.every(l => l.codigo_servico === '6394'), 'texto visual deve preservar codigo de servico, sem confundir com ano da data');
   assert.ok(resultadoDaxxVisual.lancamentos.every(l => l.historico === 'SERVICOS PRESTADOS'), 'texto visual tambem deve preencher historico');
+
+  const textoDaxxVisualComRuido = textoDaxxVisualPdfjs.replace(
+    'Total 66.460,00 66.460,00 3.323,00 0,00',
+    '6394 0002831 002 60.628.922/0001-70 RADIO PANAMERICANA SA 52.161,31 52.161,31 5,00 2.608,07 0,00 01/04/2026\nTotal 66.460,00 66.460,00 3.323,00 0,00'
+  );
+  const resultadoComRuido = parsearTexto_IOBSageServicosPrestados(textoDaxxVisualComRuido);
+  assert.strictEqual(resultadoComRuido.lancamentos.length, 3, 'candidato visual ruidoso deve existir para testar a selecao por total oficial');
+  assert.notStrictEqual(money(__test__.somaAbsolutaLancamentos(resultadoComRuido.lancamentos)), 66460, 'candidato ruidoso nao pode fechar com o total oficial');
+  const escolhido = __test__.escolherResultadoPorTotalOficial([resultadoComRuido, resultadoDaxxVisual], 66460, 'credito');
+  assert.strictEqual(escolhido.lancamentos.length, 2, 'selecao do PDF deve preferir candidato que fecha com o total oficial, nao o que tem mais linhas');
+  assert.strictEqual(money(escolhido.total_credito), 66460);
 
   console.log('OK: Servicos Tomados/Prestados Fiscal e Analise Creditos PIS COFINS importados com historico e totais corretos.');
 })();

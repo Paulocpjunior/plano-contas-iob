@@ -1,7 +1,10 @@
 {
-  "version": "3.2.59",
-  "build_date": "2026-05-27T15:10:00-03:00",
+  "version": "3.2.60",
+  "build_date": "2026-05-27T15:39:20-03:00",
   "release_notes": [
+    "Hotfix DAXX Servicos Prestados Fiscal valida o total oficial antes de aceitar a leitura visual do PDF",
+    "Parser IOB SAGE de servicos prestados deixa de escolher candidato com mais linhas quando ele nao fecha com o total do relatorio",
+    "Regressao fiscal garante que leitura ruidosa do PDF.js nao infle Total Credito no modal de conferencia",
     "Hotfix DAXX Servicos Prestados Fiscal reconhece texto visual do PDF.js no navegador",
     "Parser IOB SAGE de servicos prestados deduplica por CNPJ do tomador para evitar duplicidade entre leitura raw e visual",
     "Regressao DAXX Servicos Prestados agora cobre a ordem visual do navegador alem do texto bruto do PDF",
