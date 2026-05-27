@@ -16,16 +16,16 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.60"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.60"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.60"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.60"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.60"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.60"></script>
-    <script src="/parser-caixa-extrato.js?v=3.2.60"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.60"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.60"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.60"></script>
+    <script src="/parser-ofx.js?v=3.2.61"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.61"></script>
+    <script src="/parser-safra-extrato.js?v=3.2.61"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.2.61"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.2.61"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.2.61"></script>
+    <script src="/parser-caixa-extrato.js?v=3.2.61"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.2.61"></script>
+    <script src="/parser-btg-pactual.js?v=3.2.61"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.61"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -6790,7 +6790,52 @@
             return desc[reg] || 'registro estrutural';
         }
 
-        function analisarAjustesObrigacao(layout, infoReg, cnpjArquivo, cnpjEsperado) {
+        function formatarDataSpedObrigacao(valor) {
+            const v = String(valor || '').replace(/\D/g, '');
+            if (v.length !== 8) return valor || '-';
+            return v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
+        }
+
+        function validarEstruturaECDI150I155(texto) {
+            const linhas = String(texto || '').split(/\r?\n/);
+            const erros = [];
+            let periodoAtual = null;
+
+            function registrarI150SemDetalhe(proximoRegistro) {
+                if (!periodoAtual || periodoAtual.temI155) return;
+                erros.push({
+                    titulo: 'Registro obrigatorio I155 nao encontrado apos I150',
+                    detalhe: 'Linha ' + periodoAtual.linha + ': periodo ' + formatarDataSpedObrigacao(periodoAtual.inicio) + ' a ' + formatarDataSpedObrigacao(periodoAtual.fim) + ' foi aberto em I150 sem nenhum I155 antes de ' + proximoRegistro + '.',
+                    ajuste: 'Regerar a ECD incluindo os detalhes de saldos periodicos I155 para este I150. No PVA/SPED este erro impede a importacao do bloco I.'
+                });
+            }
+
+            linhas.forEach(function(linha, idx) {
+                if (/^\|I150\|/i.test(linha)) {
+                    registrarI150SemDetalhe('outro I150');
+                    const campos = linha.split('|');
+                    periodoAtual = {
+                        linha: idx + 1,
+                        inicio: campos[2] || '',
+                        fim: campos[3] || '',
+                        temI155: false
+                    };
+                    return;
+                }
+                if (/^\|I155\|/i.test(linha) && periodoAtual) {
+                    periodoAtual.temI155 = true;
+                    return;
+                }
+                if (/^\|I990\|/i.test(linha)) {
+                    registrarI150SemDetalhe('I990');
+                    periodoAtual = null;
+                }
+            });
+
+            return erros;
+        }
+
+        function analisarAjustesObrigacao(layout, infoReg, cnpjArquivo, cnpjEsperado, texto, tipo) {
             const obrigatorios = layout ? (layout.registrosObrigatorios || []) : [];
             const revisao = layout ? (layout.registrosRevisao || []) : [];
             const faltantes = obrigatorios.filter(function(reg) { return !infoReg.registros.has(reg); });
@@ -6821,6 +6866,17 @@
                     ajuste: 'Regerar o arquivo no sistema contábil/PVA garantindo a geração do bloco ou registro ' + reg + '.'
                 });
             });
+            if (tipo === 'ECD') {
+                const errosEstrutura = validarEstruturaECDI150I155(texto);
+                if (errosEstrutura.length) {
+                    erros.push({
+                        titulo: 'Bloco I sera rejeitado pelo validador SPED',
+                        detalhe: errosEstrutura.length + ' periodo(s) I150 sem o respectivo detalhamento I155.',
+                        ajuste: 'Corrigir a geracao dos saldos periodicos no sistema contabil e gerar novamente o TXT antes de importar/transmitir.'
+                    });
+                    errosEstrutura.forEach(function(erro) { erros.push(erro); });
+                }
+            }
             ausentesRevisao.forEach(function(reg) {
                 alertas.push({
                     titulo: 'Registro nao localizado: ' + reg,
@@ -6873,7 +6929,7 @@
                 const infoReg = extrairRegistrosSped(texto);
                 const cnpjArquivo = extrairCnpjObrigacao(texto);
                 const cnpjEsperado = (document.getElementById('obrigacaoCnpjEsperado') ? document.getElementById('obrigacaoCnpjEsperado').value : '').replace(/\D/g, '');
-                const analise = analisarAjustesObrigacao(layout, infoReg, cnpjArquivo, cnpjEsperado);
+                const analise = analisarAjustesObrigacao(layout, infoReg, cnpjArquivo, cnpjEsperado, texto, tipo);
                 const faltantes = analise.faltantes;
                 const cnpjOk = analise.cnpjOk;
                 const tipoOk = !!layout;
@@ -8749,7 +8805,7 @@
                 layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
                 parser_selecionado: meta && meta.parser || '',
                 layout_selecionado: meta && meta.layout || '',
-                versao_app: '3.2.60'
+                versao_app: '3.2.61'
             };
         }
 

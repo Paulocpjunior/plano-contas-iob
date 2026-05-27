@@ -1,7 +1,10 @@
 {
-  "version": "3.2.60",
-  "build_date": "2026-05-27T15:39:20-03:00",
+  "version": "3.2.61",
+  "build_date": "2026-05-27T16:12:00-03:00",
   "release_notes": [
+    "Validador ECD passa a bloquear I150 sem I155 em cada periodo, reproduzindo o erro apontado pelo PVA/SPED",
+    "Arquivo ECD1352.TXT deixa de ser aprovado quando o Bloco I seria rejeitado por registro obrigatorio nao encontrado",
+    "Tela de Validacao de Obrigacoes mostra ajuste objetivo para regerar a ECD com detalhes de saldos periodicos",
     "Hotfix DAXX Servicos Prestados Fiscal valida o total oficial antes de aceitar a leitura visual do PDF",
     "Parser IOB SAGE de servicos prestados deixa de escolher candidato com mais linhas quando ele nao fecha com o total do relatorio",
     "Regressao fiscal garante que leitura ruidosa do PDF.js nao infle Total Credito no modal de conferencia",
