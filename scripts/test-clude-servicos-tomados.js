@@ -122,6 +122,15 @@ Total 66.460,00 66.460,00 3.323,00 0,00
   assert.ok(resultadoDaxxVisual.lancamentos.every(l => l.codigo_servico === '6394'), 'texto visual deve preservar codigo de servico, sem confundir com ano da data');
   assert.ok(resultadoDaxxVisual.lancamentos.every(l => l.historico === 'SERVICOS PRESTADOS'), 'texto visual tambem deve preencher historico');
 
+  const textoDaxxVisualComNotaZerada = textoDaxxVisualPdfjs.replace(
+    'Total 66.460,00 66.460,00 3.323,00 0,00',
+    '6394 0002843 002 10.436.363/0001-28 GASPARII III COMERCIO DE CALC 0,00 0,00 5,00 0,00 0,00 08/04/2026\nTotal 66.460,00 66.460,00 3.323,00 0,00'
+  );
+  const resultadoNotaZerada = parsearTexto_IOBSageServicosPrestados(textoDaxxVisualComNotaZerada);
+  assert.strictEqual(resultadoNotaZerada.lancamentos.length, 2, 'NF com Valor da NF zerado nao pode virar faturamento por causa da aliquota');
+  assert.strictEqual(money(resultadoNotaZerada.total_credito), 66460);
+  assert.ok(!resultadoNotaZerada.lancamentos.some(l => /GASPARII/.test(l.descricao)), 'linha zerada deve ser ignorada');
+
   const textoDaxxVisualComRuido = textoDaxxVisualPdfjs.replace(
     'Total 66.460,00 66.460,00 3.323,00 0,00',
     '6394 0002831 002 60.628.922/0001-70 RADIO PANAMERICANA SA 52.161,31 52.161,31 5,00 2.608,07 0,00 01/04/2026\nTotal 66.460,00 66.460,00 3.323,00 0,00'

@@ -553,13 +553,13 @@
 
       const valores = [...bloco.matchAll(money)]
         .map(m => ({ token: m[1], valor: parseMoneyBR(m[1]), index: m.index || 0 }))
-        .filter(m => m.valor > 0);
+        .filter(m => Number.isFinite(m.valor));
       if (!valores.length) continue;
 
-      const valorNota = valores.reduce((maior, atual) => atual.valor > maior.valor ? atual : maior, valores[0]).valor;
+      const valorNota = valores[0].valor;
       if (!valorNota) continue;
 
-      const primeiroValorIndex = valores.reduce((min, atual) => Math.min(min, atual.index), Number.POSITIVE_INFINITY);
+      const primeiroValorIndex = valores[0].index;
       const fimTomador = Number.isFinite(primeiroValorIndex) ? primeiroValorIndex : dataMatch.index;
       let tomador = bloco.slice((cnpjMatch.index || 0) + cnpjMatch[0].length, fimTomador)
         .replace(/\b\d{6,}\b/g, ' ')

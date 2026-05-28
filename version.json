@@ -1,7 +1,10 @@
 {
-  "version": "3.2.62",
-  "build_date": "2026-05-27T20:06:28.816Z",
+  "version": "3.2.63",
+  "build_date": "2026-05-28T19:49:29.859Z",
   "release_notes": [
+    "Hotfix DAXX Servicos Prestados Fiscal ignora NFs com Valor da NF zerado",
+    "Parser visual deixa de somar Aliquota 5 como faturamento quando a nota fiscal nao tem valor",
+    "Regressao DAXX garante que somente Valor da NF compoe o Total Credito",
     "Hotfix DAXX Servicos Prestados Fiscal bloqueia cabecalho e total de pagina como lancamento",
     "Importador deixa de sobrescrever total extraido quando os lancamentos nao explicam o total oficial",
     "Regressao DAXX 1183 garante 36 NFs reais e total oficial R$ 2.208.848,23",
