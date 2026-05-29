@@ -1,7 +1,10 @@
 {
-  "version": "3.2.65",
-  "build_date": "2026-05-29T13:49:21.259Z",
+  "version": "3.2.66",
+  "build_date": "2026-05-29T14:36:00.000Z",
   "release_notes": [
+    "Hotfix AuditAI: bundle principal recebeu novo nome fisico para quebrar cache de navegador que ainda executava codigo antigo",
+    "AuditAI passa a carregar index-DREfix3266.js e evita repetir a mensagem antiga Unexpected token ao chamar Gemini",
+    "Regressao garante que o index do AuditAI aponte para o bundle fresco da versao publica",
     "Hotfix AuditAI: rotas Gemini passam a ficar antes do fallback HTML do frontend",
     "AuditAI deixa de receber index.html ao chamar /api/gemini/generate e /api/gemini/chat",
     "Cliente Gemini do AuditAI valida JSON antes de ler a resposta e exibe erro claro quando a API retorna HTML ou sessao expirada",
