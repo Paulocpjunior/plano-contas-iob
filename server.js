@@ -2392,6 +2392,10 @@ app.post('/api/gemini/chat', adminRequired, async (req, res) => {
   }
 });
 
+app.use('/api', (req, res) => {
+  res.status(404).json({ erro: `Rota API nao encontrada: ${req.originalUrl}` });
+});
+
 // AuditAI — app React buildado
 // HTML e scripts soltos precisam sempre chegar frescos; a conciliacao usa
 // cache-buster de versao, mas Safari/Cloud Run podem manter copia antiga.

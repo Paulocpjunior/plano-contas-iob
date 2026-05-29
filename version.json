@@ -1,7 +1,10 @@
 {
-  "version": "3.2.67",
-  "build_date": "2026-05-29T15:08:00.000Z",
+  "version": "3.2.68",
+  "build_date": "2026-05-29T16:56:47.906Z",
   "release_notes": [
+    "Hotfix AuditAI definitivo: fallback /api passa a devolver JSON antes de qualquer HTML do frontend",
+    "Todos os bundles ativos e legados do AuditAI convertem retorno HTML da IA em mensagem controlada",
+    "Regressao impede que abas/cache antigos voltem a exibir Unexpected token ao analisar documentos",
     "Validador ECD passa a bloquear 0000.IND_MUDANCA_PC = 1 sem registro I157, igual ao PGE/SPED",
     "Arquivo ECD0261.TXT deixa de ser aprovado quando o validador governamental exige transferencia de saldos I157",
     "Regressao ECD garante deteccao de mudanca de plano de contas sem I157 antes de liberar a obrigacao",
