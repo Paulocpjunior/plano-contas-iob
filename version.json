@@ -1,7 +1,10 @@
 {
-  "version": "3.2.66",
-  "build_date": "2026-05-29T14:36:00.000Z",
+  "version": "3.2.67",
+  "build_date": "2026-05-29T15:08:00.000Z",
   "release_notes": [
+    "Validador ECD passa a bloquear 0000.IND_MUDANCA_PC = 1 sem registro I157, igual ao PGE/SPED",
+    "Arquivo ECD0261.TXT deixa de ser aprovado quando o validador governamental exige transferencia de saldos I157",
+    "Regressao ECD garante deteccao de mudanca de plano de contas sem I157 antes de liberar a obrigacao",
     "Hotfix AuditAI: bundle principal recebeu novo nome fisico para quebrar cache de navegador que ainda executava codigo antigo",
     "AuditAI passa a carregar index-DREfix3266.js e evita repetir a mensagem antiga Unexpected token ao chamar Gemini",
     "Regressao garante que o index do AuditAI aponte para o bundle fresco da versao publica",

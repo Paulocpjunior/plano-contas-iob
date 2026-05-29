@@ -29,8 +29,8 @@ assertBefore('/api/gemini/chat', chatRoute, 'fallback estatico', staticFallback)
 assertBefore('/api/gemini/generate', generateRoute, "app.get('*')", catchAll);
 assertBefore('/api/gemini/chat', chatRoute, "app.get('*')", catchAll);
 
-if (!auditAiIndex.includes('/auditai/assets/index-DREfix3266.js?v=3.2.66')) {
-  throw new Error('auditai/index.html deve apontar para o bundle fresco index-DREfix3266.js?v=3.2.66 para evitar cache antigo do Safari/Chrome');
+if (!auditAiIndex.includes('/auditai/assets/index-DREfix3266.js?v=3.2.67')) {
+  throw new Error('auditai/index.html deve apontar para o bundle fresco index-DREfix3266.js?v=3.2.67 para evitar cache antigo do Safari/Chrome');
 }
 
 console.log('OK: rotas Gemini do AuditAI estao antes dos fallbacks HTML e bundle fresco esta referenciado');

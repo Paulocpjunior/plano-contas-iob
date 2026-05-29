@@ -16,16 +16,16 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.66"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.66"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.66"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.66"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.66"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.66"></script>
-    <script src="/parser-caixa-extrato.js?v=3.2.66"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.66"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.66"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.66"></script>
+    <script src="/parser-ofx.js?v=3.2.67"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.67"></script>
+    <script src="/parser-safra-extrato.js?v=3.2.67"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.2.67"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.2.67"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.2.67"></script>
+    <script src="/parser-caixa-extrato.js?v=3.2.67"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.2.67"></script>
+    <script src="/parser-btg-pactual.js?v=3.2.67"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.67"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -6769,6 +6769,7 @@
                 'I100': 'centro de custos, quando utilizado',
                 'I150': 'saldos periodicos',
                 'I155': 'detalhe dos saldos periodicos',
+                'I157': 'transferencia de saldos de plano de contas anterior',
                 'I200': 'lancamentos contabeis',
                 'I250': 'partidas dos lancamentos',
                 'I350': 'saldos das contas de resultado',
@@ -6835,6 +6836,22 @@
             return erros;
         }
 
+        function validarECDMudancaPlanoI157(texto) {
+            const linhas = String(texto || '').split(/\r?\n/);
+            const linha0000Index = linhas.findIndex(function(linha) { return /^\|0000\|/i.test(linha); });
+            const linha0000 = linha0000Index >= 0 ? linhas[linha0000Index] : '';
+            const campos0000 = linha0000.split('|');
+            const indMudancaPlano = String(campos0000[22] || '').trim();
+            const temI157 = linhas.some(function(linha) { return /^\|I157\|/i.test(linha); });
+
+            if (indMudancaPlano !== '1' || temI157) return [];
+            return [{
+                titulo: 'Registro obrigatorio I157 nao encontrado',
+                detalhe: 'Linha ' + (linha0000Index + 1) + ': o registro 0000 informa IND_MUDANCA_PC = 1, mas nao existe nenhum I157 no arquivo.',
+                ajuste: 'Gerar ao menos um registro I157 com a transferencia dos saldos do plano de contas anterior, ou corrigir o indicador IND_MUDANCA_PC no registro 0000 se nao houve mudanca de plano. No PVA/SPED este erro impede a validacao da ECD.'
+            }];
+        }
+
         function analisarAjustesObrigacao(layout, infoReg, cnpjArquivo, cnpjEsperado, texto, tipo) {
             const obrigatorios = layout ? (layout.registrosObrigatorios || []) : [];
             const revisao = layout ? (layout.registrosRevisao || []) : [];
@@ -6868,6 +6885,7 @@
             });
             if (tipo === 'ECD') {
                 const errosEstrutura = validarEstruturaECDI150I155(texto);
+                const errosMudancaPlano = validarECDMudancaPlanoI157(texto);
                 if (errosEstrutura.length) {
                     erros.push({
                         titulo: 'Bloco I sera rejeitado pelo validador SPED',
@@ -6875,6 +6893,14 @@
                         ajuste: 'Corrigir a geracao dos saldos periodicos no sistema contabil e gerar novamente o TXT antes de importar/transmitir.'
                     });
                     errosEstrutura.forEach(function(erro) { erros.push(erro); });
+                }
+                if (errosMudancaPlano.length) {
+                    erros.push({
+                        titulo: 'Plano de contas alterado sem I157',
+                        detalhe: 'O PVA/SPED exige ao menos um I157 quando 0000.IND_MUDANCA_PC esta igual a 1.',
+                        ajuste: 'Corrigir o TXT no sistema contabil antes de importar/transmitir: incluir I157 ou ajustar o indicador de mudanca do plano de contas.'
+                    });
+                    errosMudancaPlano.forEach(function(erro) { erros.push(erro); });
                 }
             }
             ausentesRevisao.forEach(function(reg) {
@@ -8805,7 +8831,7 @@
                 layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
                 parser_selecionado: meta && meta.parser || '',
                 layout_selecionado: meta && meta.layout || '',
-                versao_app: '3.2.66'
+                versao_app: '3.2.67'
             };
         }
 
