@@ -2340,42 +2340,10 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// AuditAI — app React buildado
-// HTML e scripts soltos precisam sempre chegar frescos; a conciliacao usa
-// cache-buster de versao, mas Safari/Cloud Run podem manter copia antiga.
-app.use('/auditai', express.static(path.join(__dirname, 'auditai'), {
-  index: 'index.html',
-  etag: false,
-  lastModified: false,
-  setHeaders: (res, filePath) => {
-    if (/\.(html|js)$/i.test(filePath)) {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.setHeader('Surrogate-Control', 'no-store');
-      if (/\.html$/i.test(filePath)) {
-        res.setHeader('Clear-Site-Data', '"cache"');
-      }
-    }
-  }
-}));
-app.get('/auditai*', (req, res) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.setHeader('Surrogate-Control', 'no-store');
-  res.setHeader('Clear-Site-Data', '"cache"');
-  res.sendFile(path.join(__dirname, 'auditai', 'index.html'));
-});
-
-app.use(express.static(__dirname, { index: 'index.html' }));
-app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
-
-
 // ═══════════════════════════════════════════════════════════════════════════
 // GEMINI SDK ENDPOINTS — AuditAI e Extratos (admin-only)
-// Separado do proxy /api/ai/gemini existente (que continua aberto para o
-// classificador IA do plano-contas-iob usado por todos os usuarios).
+// Deve ficar antes dos fallbacks estaticos. Se ficar depois do fallback geral,
+// o frontend recebe index.html e quebra ao tentar interpretar HTML como JSON.
 // ═══════════════════════════════════════════════════════════════════════════
 let _geminiClient = null;
 function getGeminiClient() {
@@ -2423,6 +2391,37 @@ app.post('/api/gemini/chat', adminRequired, async (req, res) => {
     res.status(500).json({ erro: (err && err.message) || 'Erro chat' });
   }
 });
+
+// AuditAI — app React buildado
+// HTML e scripts soltos precisam sempre chegar frescos; a conciliacao usa
+// cache-buster de versao, mas Safari/Cloud Run podem manter copia antiga.
+app.use('/auditai', express.static(path.join(__dirname, 'auditai'), {
+  index: 'index.html',
+  etag: false,
+  lastModified: false,
+  setHeaders: (res, filePath) => {
+    if (/\.(html|js)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+      if (/\.html$/i.test(filePath)) {
+        res.setHeader('Clear-Site-Data', '"cache"');
+      }
+    }
+  }
+}));
+app.get('/auditai*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  res.setHeader('Clear-Site-Data', '"cache"');
+  res.sendFile(path.join(__dirname, 'auditai', 'index.html'));
+});
+
+app.use(express.static(__dirname, { index: 'index.html' }));
+app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
 
 app.listen(PORT, () => {

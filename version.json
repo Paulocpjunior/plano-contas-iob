@@ -1,7 +1,10 @@
 {
-  "version": "3.2.64",
-  "build_date": "2026-05-29T12:55:44.541Z",
+  "version": "3.2.65",
+  "build_date": "2026-05-29T13:49:21.259Z",
   "release_notes": [
+    "Hotfix AuditAI: rotas Gemini passam a ficar antes do fallback HTML do frontend",
+    "AuditAI deixa de receber index.html ao chamar /api/gemini/generate e /api/gemini/chat",
+    "Cliente Gemini do AuditAI valida JSON antes de ler a resposta e exibe erro claro quando a API retorna HTML ou sessao expirada",
     "Importador passa a aceitar arquivos .OFC/Open Financial no mesmo fluxo validado do OFX",
     "Layout Open Financial EXPERTE 0147 validado com extrato Bradesco 0237 em formato OFC",
     "Mensagem de formato suportado passa a orientar OFX/OFC e evita bloqueio indevido por extensao",
