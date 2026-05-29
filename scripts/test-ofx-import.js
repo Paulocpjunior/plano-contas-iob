@@ -24,6 +24,18 @@ const CASES = [
       { value: -14.78, text: 'IOF Saldo Devedor Conta' },
       { value: -59.62, text: 'Juros Saldo Devedor Conta' }
     ]
+  },
+  {
+    name: 'Open Financial OFC Bradesco - Experte 0147',
+    path: '/Users/paulocesarpereirajunior/Downloads/EXTRATO_MENSAL_140526_170708 set).ofc',
+    options: { origem: 'ofc' },
+    requiredDescriptions: ['RESGATE INVEST FACIL', 'PAGTO ELETRON COBRANCA BRADESCO VIDA E PREVIDENCIA', 'CONTA DE AGUA SABESP'],
+    requiredTransactions: [
+      { value: 2550.30, text: 'RESGATE INVEST FACIL' },
+      { value: -1679.12, text: 'PAGTO ELETRON COBRANCA BRADESCO VIDA E PREVIDENCIA' },
+      { value: -570.48, text: 'CONTA DE AGUA SABESP' }
+    ],
+    expectedOrigem: 'ofc'
   }
 ];
 
@@ -36,11 +48,12 @@ for (const caso of CASES) {
     console.log('SKIP: arquivo OFX nao encontrado:', caso.path);
     continue;
   }
-  const entries = parseOFXText(fs.readFileSync(caso.path, 'utf8'));
+  const encoding = caso.path.toLowerCase().endsWith('.ofc') ? 'latin1' : 'utf8';
+  const entries = parseOFXText(fs.readFileSync(caso.path, encoding), caso.options);
   assert(entries.length > 0, `${caso.name}: deveria importar lancamentos reais`);
   assert(!entries.some((e) => !e.descricao || e.descricao.trim().length < 3), `${caso.name}: descricao vazia`);
   assert(!entries.some((e) => descricaoEhSaldoOFX(e.descricao)), `${caso.name}: saldo foi importado como lancamento`);
-  for (const value of caso.forbiddenValues) {
+  for (const value of caso.forbiddenValues || []) {
     assert(!entries.some((e) => valorIgual(Math.abs(e.valor), value) && /SALDO/i.test(e.descricao)), `${caso.name}: saldo ${value} entrou como lancamento`);
   }
   for (const expected of caso.requiredDescriptions) {
@@ -51,6 +64,9 @@ for (const caso of CASES) {
       entries.some((e) => valorIgual(e.valor, expected.value) && e.descricao.includes(expected.text)),
       `${caso.name}: lancamento esperado nao preservado: ${expected.text} ${expected.value}`
     );
+  }
+  if (caso.expectedOrigem) {
+    assert(entries.every((e) => e.origem === caso.expectedOrigem), `${caso.name}: origem deveria ser ${caso.expectedOrigem}`);
   }
   console.log('OK:', caso.name, entries.length, 'lancamentos reais, sem saldos e com historico preservado.');
 }

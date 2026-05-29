@@ -105,7 +105,9 @@
     return 'ofx-' + fitid.replace(/[^A-Za-z0-9_-]/g, '') + '-' + indice;
   }
 
-  function parseOFXText(texto) {
+  function parseOFXText(texto, opcoes) {
+    const opts = opcoes || {};
+    const origem = opts.origem || 'ofx';
     const entries = [];
     const re = /<STMTTRN>([\s\S]*?)(?=<\/STMTTRN>|<STMTTRN>|<\/BANKTRANLIST>|$)/gi;
     let m;
@@ -148,7 +150,7 @@
         contaCredito: '',
         historico: historicoOFXPorDescricao(descFinal, tipo),
         incomum: false,
-        origem: 'ofx'
+        origem: origem
       });
       idx += 1;
     }

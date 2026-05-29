@@ -1,7 +1,10 @@
 {
-  "version": "3.2.63",
-  "build_date": "2026-05-28T19:49:29.859Z",
+  "version": "3.2.64",
+  "build_date": "2026-05-29T12:55:44.541Z",
   "release_notes": [
+    "Importador passa a aceitar arquivos .OFC/Open Financial no mesmo fluxo validado do OFX",
+    "Layout Open Financial EXPERTE 0147 validado com extrato Bradesco 0237 em formato OFC",
+    "Mensagem de formato suportado passa a orientar OFX/OFC e evita bloqueio indevido por extensao",
     "Hotfix DAXX Servicos Prestados Fiscal ignora NFs com Valor da NF zerado",
     "Parser visual deixa de somar Aliquota 5 como faturamento quando a nota fiscal nao tem valor",
     "Regressao DAXX garante que somente Valor da NF compoe o Total Credito",

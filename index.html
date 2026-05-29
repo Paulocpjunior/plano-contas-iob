@@ -16,16 +16,16 @@
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.63"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.63"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.63"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.63"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.63"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.63"></script>
-    <script src="/parser-caixa-extrato.js?v=3.2.63"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.63"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.63"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.63"></script>
+    <script src="/parser-ofx.js?v=3.2.64"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.2.64"></script>
+    <script src="/parser-safra-extrato.js?v=3.2.64"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.2.64"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.2.64"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.2.64"></script>
+    <script src="/parser-caixa-extrato.js?v=3.2.64"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.2.64"></script>
+    <script src="/parser-btg-pactual.js?v=3.2.64"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.2.64"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1870,14 +1870,14 @@
                     </div>
                     <div class="upload-section" id="uploadSection">
                         <h3>Envie extrato bancário ou planilha de lançamentos</h3>
-                        <p>Inteligência Artificial extrai automaticamente todas as transações — suporta PDF, OFX, CSV, XLSX (multi-abas)</p>
+                        <p>Inteligência Artificial extrai automaticamente todas as transações — suporta PDF, OFX/OFC, CSV, XLSX (multi-abas)</p>
                         <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
                             <div class="upload-icon">📁</div>
                             <h4>Arraste ou clique para selecionar</h4>
                             <p class="subtitle">Suporta diversos formatos bancários</p>
                             <div class="upload-formats">
                                 <span class="format-badge pdf">📕 PDF (IA)</span>
-                                <span class="format-badge ofx">📗 OFX</span>
+                                <span class="format-badge ofx">📗 OFX/OFC</span>
                                 <span class="format-badge csv">📙 CSV</span>
                                 <span class="format-badge xlsx" style="background:#dcfce7;color:#166534">📊 XLSX</span>
                                 <span class="format-badge xlsx" style="background:#dbeafe;color:#1e40af">📋 Lançamentos</span>
@@ -1887,7 +1887,7 @@
                                 <span>PDFs processados com IA Gemini 2.5</span>
                             </div>
                         </div>
-                        <input type="file" id="fileInput" accept=".pdf,.ofx,.csv,.xlsx,.xls,.txt,.o2" style="display:none" onchange="handleFileSelect(this.files[0])">
+                        <input type="file" id="fileInput" accept=".pdf,.ofx,.ofc,.csv,.xlsx,.xls,.txt,.o2" style="display:none" onchange="handleFileSelect(this.files[0])">
                         
                         <div class="file-preview" id="filePreview">
                             <div class="file-info">
@@ -8463,8 +8463,8 @@
             }
             
             const ext = f.name.split('.').pop().toLowerCase();
-            if (!['pdf', 'ofx', 'csv', 'xlsx', 'xls'].includes(ext)) {
-                showToast('Formato não suportado! Use PDF, OFX, CSV, XLSX ou XLS.', 'error');
+            if (!['pdf', 'ofx', 'ofc', 'csv', 'xlsx', 'xls'].includes(ext)) {
+                showToast('Formato não suportado! Use PDF, OFX/OFC, CSV, XLSX ou XLS.', 'error');
                 return;
             }
             ajustarCamposUploadPorExtensao(ext);
@@ -8483,10 +8483,10 @@
                 icon.className = 'file-icon pdf';
                 icon.textContent = '📕';
                 type.textContent = 'PDF - Layout automático';
-            } else if (ext === 'ofx') {
+            } else if (ext === 'ofx' || ext === 'ofc') {
                 icon.className = 'file-icon ofx';
                 icon.textContent = '📗';
-                type.textContent = 'OFX - Open Financial Exchange';
+                type.textContent = ext === 'ofc' ? 'OFC - Open Financial' : 'OFX - Open Financial Exchange';
             } else if (ext === 'xlsx' || ext === 'xls') {
                 icon.className = 'file-icon xlsx';
                 icon.textContent = '📊';
@@ -8571,8 +8571,8 @@
                 let entries = [];
 	                if (ext === 'pdf') {
 	                    entries = await processPDF(selectedFile, bancoCode, layoutPdfSelecionado);
-                } else if (ext === 'ofx') {
-                    entries = parseOFX(await lerArquivoTexto(selectedFile, 'windows-1252'));
+                } else if (ext === 'ofx' || ext === 'ofc') {
+                    entries = parseOFX(await lerArquivoTexto(selectedFile, 'windows-1252'), ext);
                 } else if (ext === 'xlsx' || ext === 'xls') {
                     entries = await parsearArquivoXLSX(selectedFile, {});
                     if (ehAnaliseRazaoNotas(entries)) {
@@ -8805,7 +8805,7 @@
                 layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
                 parser_selecionado: meta && meta.parser || '',
                 layout_selecionado: meta && meta.layout || '',
-                versao_app: '3.2.63'
+                versao_app: '3.2.64'
             };
         }
 
@@ -9362,9 +9362,9 @@
         }
 
         // OFX Parser
-        function parseOFX(t) {
+        function parseOFX(t, ext) {
             if (window.SP_ParseOFX && typeof window.SP_ParseOFX.parseOFXText === 'function') {
-                return window.SP_ParseOFX.parseOFXText(t);
+                return window.SP_ParseOFX.parseOFXText(t, { origem: ext === 'ofc' ? 'ofc' : 'ofx' });
             }
             return [];
         }
