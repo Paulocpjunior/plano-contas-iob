@@ -359,6 +359,44 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-05-21T10:45:00-03:00',
     observacao: 'Layout textual do Gerenciador CAIXA com linhas compactadas. Regressao confere que saldo anterior de R$ 92.031,17 fecha no saldo final de R$ 1.555,65.'
+  },
+  {
+    id: 'abc-flanacar-2026-04',
+    banco: '246',
+    nomeBanco: 'Banco ABC Brasil',
+    layout: 'Banco ABC - Extrato Consolidado',
+    parser: 'parsearPDF_ABC_Extrato',
+    arquivo: 'EXTRATO ABC 2244444-2.pdf',
+    empresa: 'FLANACAR COM DE AUTO-PECAS LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 72,
+      total_credito: 3050693.59,
+      total_debito: 3050389.94
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-29T14:15:00-03:00',
+    observacao: 'Layout Banco ABC Extrato consolidado. Ignora saldo anterior e captura apenas o valor do movimento quando o saldo diario vem colado na mesma linha.'
+  },
+  {
+    id: 'abc-flanacar-2026-04-xlsx',
+    banco: '246',
+    nomeBanco: 'Banco ABC Brasil',
+    layout: 'Banco ABC - Extrato XLSX',
+    parser: 'parsearArquivoXLSXBancoABC',
+    arquivo: 'EXTRATO ABC -FLANACAR 042026.xlsx',
+    empresa: 'FLANACAR COM DE AUTO-PECAS LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 193,
+      total_credito: 4501831.14,
+      total_debito: 4501527.49
+    },
+    status: 'Aprovado',
+    validado_em: '2026-05-29T14:45:00-03:00',
+    observacao: 'Layout Banco ABC XLSX com colunas ENTRADAS e SAIDAS separadas. Nao soma SALDO ATUAL ao total importado.'
   }
 ];
 

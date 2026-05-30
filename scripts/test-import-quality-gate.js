@@ -50,6 +50,19 @@ assert.strictEqual(
 );
 
 const indexHtml = read('index.html');
+assert(
+  indexHtml.includes(`/vendor/xlsx/xlsx.full.min.js?v=${version}`),
+  `index.html deve carregar SheetJS local em /vendor/xlsx/xlsx.full.min.js?v=${version}`
+);
+assert(
+  !/cdnjs\.cloudflare\.com\/ajax\/libs\/xlsx/i.test(indexHtml),
+  'index.html nao pode voltar a depender do CDN externo do SheetJS/XLSX'
+);
+assert(
+  fs.existsSync(path.join(root, 'node_modules', 'xlsx', 'dist', 'xlsx.full.min.js')),
+  'Dependencia local xlsx/dist/xlsx.full.min.js precisa existir para importar planilhas sem CDN'
+);
+
 const parserScripts = Array.from(
   indexHtml.matchAll(/<script src="\/(parser-[^"?]+\.js)\?v=([^"]+)"/g),
   ([, file, scriptVersion]) => ({ file, version: scriptVersion })
@@ -82,6 +95,14 @@ assert(
   `AUDITAI_MOTOR_VERSION deve estar alinhado a ${version}`
 );
 assert(
+  auditaiEngine.includes("loadScript('/vendor/xlsx/xlsx.full.min.js?v=' + AUDITAI_MOTOR_VERSION)"),
+  'AuditAI Conciliacao deve carregar SheetJS/XLSX local, nao via CDN externo'
+);
+assert(
+  !/cdnjs\.cloudflare\.com\/ajax\/libs\/xlsx/i.test(auditaiEngine),
+  'AuditAI Conciliacao nao pode voltar a depender do CDN externo do SheetJS/XLSX'
+);
+assert(
   auditaiEngine.includes(`Motor conciliacao v${version}`),
   `Texto do motor de conciliacao deve estar alinhado a ${version}`
 );
@@ -98,7 +119,8 @@ const officialHistoryParsers = [
   'parser-itau-extrato-mensal.js',
   'parser-bb-cash-ocr.js',
   'parser-santander-empresas-ocr.js',
-  'parser-safra-extrato.js'
+  'parser-safra-extrato.js',
+  'parser-abc-extrato.js'
 ];
 
 const blankHistoryParsers = officialHistoryParsers

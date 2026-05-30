@@ -343,6 +343,36 @@ const LAYOUT_QUALITY_EVIDENCE = [
     etapa: 'regressao_aprovada',
     status: 'Regressao aprovada',
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js com leitura de valor/sinal C-D e saldo colados nas linhas do Gerenciador CAIXA.'
+  },
+  {
+    id: 'abc-flanacar-2026-04',
+    banco: '246',
+    nomeBanco: 'Banco ABC Brasil',
+    layout: 'Banco ABC - Extrato Consolidado',
+    parser: 'parsearPDF_ABC_Extrato',
+    arquivo: 'EXTRATO ABC 2244444-2.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/EXTRATO ABC 2244444-2.pdf',
+    empresa: 'FLANACAR COM DE AUTO-PECAS LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js para Banco ABC Extrato consolidado com Data, Quantidade, Historico, Operacao, Valor e Saldo diario.'
+  },
+  {
+    id: 'abc-flanacar-2026-04-xlsx',
+    banco: '246',
+    nomeBanco: 'Banco ABC Brasil',
+    layout: 'Banco ABC - Extrato XLSX',
+    parser: 'parsearArquivoXLSXBancoABC',
+    arquivo: 'EXTRATO ABC -FLANACAR 042026.xlsx',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/EXTRATO ABC -FLANACAR 042026.xlsx',
+    empresa: 'FLANACAR COM DE AUTO-PECAS LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js para Banco ABC XLSX com ENTRADAS, SAIDAS e SALDO ATUAL.'
   }
 ];
 

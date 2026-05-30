@@ -34,8 +34,8 @@ assertBefore('fallback JSON /api', apiJsonFallback, 'static do AuditAI', auditAi
 assertBefore('fallback JSON /api', apiJsonFallback, 'fallback estatico', staticFallback);
 assertBefore('fallback JSON /api', apiJsonFallback, "app.get('*')", catchAll);
 
-if (!auditAiIndex.includes('/auditai/assets/index-DREfix3266.js?v=3.2.68')) {
-  throw new Error('auditai/index.html deve apontar para o bundle fresco index-DREfix3266.js?v=3.2.68 para evitar cache antigo do Safari/Chrome');
+if (!auditAiIndex.includes('/auditai/assets/index-DREfix3266.js?v=3.2.72')) {
+  throw new Error('auditai/index.html deve apontar para o bundle fresco index-DREfix3266.js?v=3.2.72 para evitar cache antigo do Safari/Chrome');
 }
 
 const assetsDir = path.join(__dirname, '..', 'auditai', 'assets');

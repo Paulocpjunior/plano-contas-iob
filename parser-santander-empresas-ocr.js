@@ -31,6 +31,9 @@
 
   function limparLinhaOCR(s) {
     return removerAcentos(reconstruirLinhaEspacadaPDF(s))
+      .replace(/\bSe\s*x\s*ta\b/ig, 'Sexta')
+      .replace(/\bR\s+\$/g, 'R$')
+      .replace(/^([A-Za-z]+)\s*,\s*/i, '$1, ')
       .replace(/[—–_]+/g, ' ')
       .replace(/[¢©]/g, 'C')
       .replace(/\s+/g, ' ')
@@ -254,7 +257,7 @@
     const temSantander = /santander/.test(t);
     const temInternet = /internet banking empresarial/.test(t) && /agencia:\s*\d+/.test(t) && /conta:\s*\d+/.test(t);
     const temConta = /conta corrente|saldo de conta corrente|saldo disponivel|extrato consolidado inteligente/.test(t) || temInternet;
-    const temMov = /movimentacao|movimentos\s*\(r\$?\)|creditos\s+debitos|total de creditos|total de debitos|data\s*historico\s*documento\s*valor|credito\s*r\$|debito\s*r\$|\d{2}\/\d{2}\/20\d{2}\s+(pix|ted|compra|pagamento|resgate|resg|aplicacao|tarifa|transferencia)/.test(t);
+    const temMov = /movimentacao|movimentos\s*\(r\s*\$?\)|creditos\s+debitos|total de creditos|total de debitos|data\s*historico\s*documento\s*valor|credito\s*r\s*\$|debito\s*r\s*\$|\d{2}\/\d{2}\/20\d{2}\s+(pix|ted|compra|pagamento|resgate|resg|aplicacao|tarifa|transferencia)/.test(t);
     return temSantander && temConta && temMov;
   }
 
@@ -288,7 +291,7 @@
       if (!currentDate) continue;
       if (/^(Internet Banking Empresarial|Central de Atendimento|SAC |Ouvidoria|0800|4004|Pagina:|\d+)$/i.test(linha)) continue;
 
-      const m = linha.match(/^(.+?)(CREDITO|DEBITO)\s*R\$\s*([\d.]+,\d{2})$/i);
+      const m = linha.match(/^(.+?)(CREDITO|DEBITO)\s*R\s*\$\s*([\d.]+,\d{2})$/i);
       if (!m) continue;
       const descricao = limparDescricao(m[1]);
       const tipo = removerAcentos(m[2]).toUpperCase() === 'DEBITO' ? 'D' : 'C';

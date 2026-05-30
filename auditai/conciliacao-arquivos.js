@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.2.68';
+  const AUDITAI_MOTOR_VERSION = '3.2.72';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.68';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.72';
 
   const STATE = {
     files: { a: null, b: null },
@@ -28,7 +28,7 @@
 
   async function ensureParsers() {
     if (!window.XLSX) {
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+      await loadScript('/vendor/xlsx/xlsx.full.min.js?v=' + AUDITAI_MOTOR_VERSION);
     }
     if (!window.pdfjsLib) {
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');

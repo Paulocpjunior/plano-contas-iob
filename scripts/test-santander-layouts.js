@@ -45,6 +45,36 @@ Saldo em Investimentos com Resgate Automatico 552,34`;
   return resultado;
 }
 
+function assertSantanderInternetBankingPDFJSNative() {
+  const texto = `Santander
+Internet Banking Empresarial
+ARMAZEM DE BICHOS VET E PETCETERA COMERC Agência: 3782 Conta: 130001645
+Quinta , 30 de abril de 2026
+
+PAGAMENTO CARTAO DE CREDITO CREDITO R $ 99,76
+Terça , 28 de abril de 2026
+
+APLICACAO CONTAMAX DEBITO R $ 2.555,80
+PAGAMENTO CARTAO DE CREDITO CREDITO R $ 508,30
+PAGAMENTO CARTAO DE CREDITO CREDITO R $ 1.784,47
+PAGAMENTO CARTAO DE DEBITO CREDITO R $ 29,01
+PAGAMENTO CARTAO DE DEBITO CREDITO R $ 234,02
+Se x ta , 24 de abril de 2026
+
+APLICACAO CONTAMAX DEBITO R $ 855,08
+PAGAMENTO CARTAO DE CREDITO CREDITO R $ 617,56
+PAGAMENTO CARTAO DE CREDITO CREDITO R $ 237,52`;
+  assert.ok(__test__.pareceExtratoSantander(texto), 'Santander PDF.js navegador: assinatura nao reconhecida');
+  const resultado = __test__.parsearTexto_SantanderEmpresas(texto);
+  assert.ok(resultado.detectado, 'Santander PDF.js navegador: parser nao detectou layout');
+  assert.strictEqual(resultado.periodo_inicio, '2026-04-01', 'Santander PDF.js navegador: periodo_inicio');
+  assert.strictEqual(resultado.periodo_fim, '2026-04-30', 'Santander PDF.js navegador: periodo_fim');
+  assert.ok(resultado.lancamentos.some((l) => l.descricao === 'APLICACAO CONTAMAX' && cents(l.valor) === cents(-2555.80)), 'Santander PDF.js navegador: aplicacao 28/04 ausente');
+  assert.ok(resultado.lancamentos.some((l) => l.descricao === 'PAGAMENTO CARTAO DE DEBITO' && cents(l.valor) === cents(234.02)), 'Santander PDF.js navegador: cartao debito ausente');
+  assert.ok(resultado.lancamentos.some((l) => l.data === '2026-04-24' && l.descricao === 'APLICACAO CONTAMAX' && cents(l.valor) === cents(-855.08)), 'Santander PDF.js navegador: sexta quebrada por PDF.js deve ser data valida');
+  return resultado;
+}
+
 async function parsePdfText(caminho) {
   const data = await pdf(fs.readFileSync(caminho));
   return data.text;
@@ -67,6 +97,7 @@ async function assertSantander(label, caminho, esperado) {
 
 (async () => {
   assertSantanderInternetBankingOCR();
+  assertSantanderInternetBankingPDFJSNative();
 
   const internet = await assertSantander(
     'Santander 1 Internet Banking',
@@ -82,6 +113,20 @@ async function assertSantander(label, caminho, esperado) {
   );
   assert.ok(internet.lancamentos.some((l) => l.descricao === 'APLICACAO CONTAMAX' && l.valor < 0), 'Santander 1: aplicacao debito ausente');
   assert.ok(internet.lancamentos.some((l) => l.descricao === 'PAGAMENTO CARTAO DE CREDITO' && l.valor > 0), 'Santander 1: credito cartao ausente');
+
+  const internetSegundoArquivo = await assertSantander(
+    'Santander 1 Internet Banking - arquivo 2',
+    '/Users/paulocesarpereirajunior/Downloads/santander abril 26 2.pdf',
+    {
+      total_lancamentos: 30,
+      total_credito: 6426.15,
+      total_debito: 6326.39,
+      periodo_inicio: '2026-04-01',
+      periodo_fim: '2026-04-30',
+      origem: 'pdf-santander-internet-banking'
+    }
+  );
+  assert.ok(internetSegundoArquivo.lancamentos.some((l) => l.descricao === 'PAGAMENTO CARTAO DE DEBITO' && l.valor > 0), 'Santander 1 arquivo 2: credito cartao debito ausente');
 
   const consolidado = await assertSantander(
     'Santander 2 Consolidado Inteligente',

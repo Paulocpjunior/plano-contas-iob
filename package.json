@@ -1,18 +1,19 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.2.68",
+  "version": "3.2.72",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "seed": "node seed.js",
-    "check": "node --check server.js && for f in parser-*.js api-adapter.js historicos-padrao.js historicos-routes.js vincular-empresa.js vincular-folha-pagamento.js layouts-bancarios-padrao.js layout-quality-cases.js layout-quality-evidence.js auditai/conciliacao-arquivos.js scripts/check-duplicate-routes.js scripts/test-layouts.js scripts/test-bb-conta-atual.js scripts/test-bb-cash-ocr.js scripts/test-itau-extrato-mensal.js scripts/test-safra-extrato.js scripts/test-caixa-extrato.js scripts/test-clude-itau-historicos.js scripts/test-clude-layout-quality.js scripts/test-clude-servicos-tomados.js scripts/test-santander-layouts.js scripts/test-bradesco-netempresa.js scripts/test-ofx-import.js scripts/test-auditai-itau-conciliacao.js scripts/test-product-quality-features.js scripts/test-import-quality-gate.js scripts/test-validador-obrigacoes-ecd.js scripts/test-auditai-gemini-route-order.js; do node --check \"$f\" || exit 1; done && node scripts/check-duplicate-routes.js && node scripts/test-auditai-gemini-route-order.js && npm run test:layouts && npm run test:bb && npm run test:bb-cash && npm run test:itau && npm run test:safra && npm run test:caixa && npm run test:clude-itau && npm run test:clude-layouts && npm run test:clude-servicos && npm run test:santander && npm run test:bradesco && npm run test:ofx && npm run test:auditai-itau && npm run test:product-quality && npm run test:quality-gate && npm run test:validador-obrigacoes",
+    "check": "node --check server.js && for f in parser-*.js api-adapter.js historicos-padrao.js historicos-routes.js vincular-empresa.js vincular-folha-pagamento.js layouts-bancarios-padrao.js layout-quality-cases.js layout-quality-evidence.js auditai/conciliacao-arquivos.js scripts/check-duplicate-routes.js scripts/test-layouts.js scripts/test-bb-conta-atual.js scripts/test-bb-cash-ocr.js scripts/test-itau-extrato-mensal.js scripts/test-safra-extrato.js scripts/test-caixa-extrato.js scripts/test-abc-extrato.js scripts/test-clude-itau-historicos.js scripts/test-clude-layout-quality.js scripts/test-clude-servicos-tomados.js scripts/test-santander-layouts.js scripts/test-bradesco-netempresa.js scripts/test-ofx-import.js scripts/test-auditai-itau-conciliacao.js scripts/test-product-quality-features.js scripts/test-import-quality-gate.js scripts/test-validador-obrigacoes-ecd.js scripts/test-auditai-gemini-route-order.js; do node --check \"$f\" || exit 1; done && node scripts/check-duplicate-routes.js && node scripts/test-auditai-gemini-route-order.js && npm run test:layouts && npm run test:bb && npm run test:bb-cash && npm run test:itau && npm run test:safra && npm run test:caixa && npm run test:abc && npm run test:clude-itau && npm run test:clude-layouts && npm run test:clude-servicos && npm run test:santander && npm run test:bradesco && npm run test:ofx && npm run test:auditai-itau && npm run test:product-quality && npm run test:quality-gate && npm run test:validador-obrigacoes",
     "test:layouts": "node scripts/test-layouts.js",
     "test:bb": "node scripts/test-bb-conta-atual.js",
     "test:bb-cash": "node scripts/test-bb-cash-ocr.js",
     "test:itau": "node scripts/test-itau-extrato-mensal.js",
     "test:safra": "node scripts/test-safra-extrato.js",
     "test:caixa": "node scripts/test-caixa-extrato.js",
+    "test:abc": "node scripts/test-abc-extrato.js",
     "test:clude-itau": "node scripts/test-clude-itau-historicos.js",
     "test:clude-layouts": "node scripts/test-clude-layout-quality.js",
     "test:clude-servicos": "node scripts/test-clude-servicos-tomados.js",
@@ -30,6 +31,7 @@
     "express": "^4.19.2",
     "firebase-admin": "^12.7.0",
     "multer": "^2.1.1",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5"
   }
 }
