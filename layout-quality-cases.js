@@ -476,7 +476,26 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-06-02T00:00:00-03:00',
     observacao: 'Layout generico XLSX para extratos conciliados. Deve funcionar com qualquer banco selecionado e nao pode herdar conta/layout Banco ABC.'
-  }
+  },
+  {
+    id: 'c6-bank-extrato-daxx-2026-06',
+    banco: '336',
+    nomeBanco: 'Banco C6',
+    layout: 'C6 BANK - Extrato Conta Corrente',
+    parser: 'parsearPDF_C6_Bank',
+    arquivo: 'EXTRATO C6BANK_PERIODO - ABERTURA DE CONTA.pdf',
+    empresa: 'DAXX SOLUTIONS LTDA.',
+    periodo_inicio: '2025-06-29',
+    periodo_fim: '2026-06-29',
+    esperado: {
+      total_lancamentos: 4,
+      total_credito: 30000.00,
+      total_debito: 13237.00
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-02T13:30:00-03:00',
+    observacao: 'Extrato C6 OCR agrupado por mes com colunas Entrada/Saida e sinal do valor; ignora Saldo do dia, Cheque Especial e totais mensais. Regressao coberta por scripts/test-c6-bank-extrato.js (npm run test:c6).'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_CASES };

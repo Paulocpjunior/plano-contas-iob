@@ -2,7 +2,7 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.3.3';
+  const AUDITAI_MOTOR_VERSION = '3.4.1';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
   const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.1';
 

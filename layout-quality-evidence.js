@@ -434,7 +434,22 @@ const LAYOUT_QUALITY_EVIDENCE = [
     etapa: 'regressao_aprovada',
     status: 'Regressao aprovada',
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js para Extrato Conciliado XLSX generico com DATA, OPERACAO, PREFIXO/TITULO, ENTRADAS, SAIDAS e SALDO ATUAL.'
-  }
+  },
+  {
+    id: 'c6-bank-extrato-daxx-2026-06',
+    banco: '336',
+    nomeBanco: 'Banco C6',
+    layout: 'C6 BANK - Extrato Conta Corrente',
+    parser: 'parsearPDF_C6_Bank',
+    arquivo: 'EXTRATO C6BANK_PERIODO - ABERTURA DE CONTA.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/EXTRATO C6BANK_PERIODO - ABERTURA DE CONTA.pdf',
+    empresa: 'DAXX SOLUTIONS LTDA.',
+    periodo_inicio: '2025-06-29',
+    periodo_fim: '2026-06-29',
+    etapa: 'parser_ajustado',
+    status: 'Evidencia recebida',
+    observacao: 'PDF OCR do C6 usado na criacao do layout; movimentos classificados por Entrada/Saida com exclusao de saldo do dia, cheque especial e totais mensais.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_EVIDENCE };
