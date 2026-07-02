@@ -25,7 +25,7 @@
     <script src="/parser-itau-extrato-mensal.js?v=3.3.4"></script>
     <script src="/parser-itau-fatura-cartao.js?v=3.3.4"></script>
     <script src="/parser-caixa-extrato.js?v=3.3.4"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.0"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.1"></script>
     <script src="/parser-btg-pactual.js?v=3.3.4"></script>
     <script src="/parser-c6-bank-extrato.js?v=3.3.5"></script>
     <script src="/parser-abc-extrato.js?v=3.3.4"></script>
@@ -2878,6 +2878,19 @@
                 </div>
             </div>
 
+            <!-- Modal: selecao obrigatoria de empresa a cada novo acesso -->
+            <div id="modalSelecaoEmpresa" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:99998;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)">
+                <div style="background:#fff;border-radius:14px;max-width:520px;width:100%;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center">
+                    <div style="font-size:44px;margin-bottom:10px">🔒</div>
+                    <h3 style="margin:0 0 10px 0;font-size:20px;color:#111827">Selecione a empresa desta sessão</h3>
+                    <p style="font-size:14px;color:#6b7280;margin:0 0 22px 0">Por segurança, o sistema não carrega mais a última empresa automaticamente. Escolha a empresa em que vai trabalhar para evitar importações e lançamentos na empresa errada. O trabalho anterior está salvo e será restaurado ao ativar a mesma empresa.</p>
+                    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+                        <button onclick="fecharModalSelecaoEmpresa('empresas')" style="padding:12px 22px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">🏢 Selecionar empresa</button>
+                        <button onclick="fecharModalSelecaoEmpresa('nova')" style="padding:12px 22px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">➕ Nova empresa</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Page: Sobre -->
             <div id="pageSobre" class="hidden">
                 <div class="card">
@@ -4825,6 +4838,12 @@
         
         function saveState() {
             const tsAgora = String(Date.now());
+            // [TRAVA DE SESSAO] marca a empresa como selecionada explicitamente NESTA sessao do navegador
+            try {
+                if (state.infoConfirmed && state.info && state.info.cnpj) {
+                    sessionStorage.setItem('cc_empresa_sessao', String(state.info.cnpj).replace(/\D/g, ''));
+                }
+            } catch (e) {}
             try {
                 const entries = state.entries || [];
                 const salvarLeve = entries.length > LIMITE_ENTRIES_LOCAL_STORAGE;
@@ -4889,6 +4908,23 @@
 
         // Init
         function initApp() {
+            // [TRAVA DE SESSAO] Novo acesso NAO carrega a ultima empresa automaticamente:
+            // o usuario e' obrigado a selecionar a empresa, evitando importacoes na empresa errada.
+            try {
+                const _cnpjSessao = sessionStorage.getItem('cc_empresa_sessao') || '';
+                const _cnpjState = (state.info && state.info.cnpj) ? String(state.info.cnpj).replace(/\D/g, '') : '';
+                if (state.infoConfirmed && (!_cnpjSessao || _cnpjSessao !== _cnpjState)) {
+                    // snapshot da sessao anterior e' serializado sincronamente antes de zerar
+                    try { salvarSessaoRemotoAgora(); } catch (e) { console.warn('[trava-sessao] snapshot:', e); }
+                    state.entries = [];
+                    state.info = null;
+                    state.infoConfirmed = false;
+                    state.lastFile = null;
+                    localStorage.removeItem('consultorContabil_v2_ts');
+                    saveState();
+                    setTimeout(abrirModalSelecaoEmpresa, 300);
+                }
+            } catch (e) { console.warn('[trava-sessao]', e); }
             loadPlanosCadastrados(); // Carregar planos cadastrados
             populateCategorias();
             // Sync com Firestore em paralelo (nao bloqueia)
@@ -4915,6 +4951,22 @@
             setupDragDrop();
         }
         
+        function abrirModalSelecaoEmpresa() {
+            const m = document.getElementById('modalSelecaoEmpresa');
+            if (m) m.style.display = 'flex';
+        }
+
+        function fecharModalSelecaoEmpresa(acao) {
+            const m = document.getElementById('modalSelecaoEmpresa');
+            if (m) m.style.display = 'none';
+            if (acao === 'empresas') {
+                showPage('empresas');
+            } else if (acao === 'nova') {
+                try { novaEmpresa(); } catch (e) { console.warn('[trava-sessao] novaEmpresa:', e); }
+                showPage('inicio');
+            }
+        }
+
         function populateCategorias() {
             ['filterCategoria', 'newCategoria'].forEach(id => {
                 const sel = document.getElementById(id);

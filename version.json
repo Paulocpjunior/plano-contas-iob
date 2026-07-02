@@ -1,7 +1,8 @@
 {
-  "version": "3.4.0",
-  "build_date": "2026-07-02T11:30:00Z",
+  "version": "3.4.1",
+  "build_date": "2026-07-02T13:00:00Z",
   "release_notes": [
+    "SEGURANCA: novo acesso nao carrega mais a ultima empresa automaticamente - o usuario e' obrigado a selecionar a empresa da sessao, evitando importacoes/lancamentos na empresa errada",
     "NOVA ABA ECD/ECF: consolidacao de ECD matriz + filiais em TXT unico (leiaute 9.00) para entrega da ECD/ECF",
     "ECD/ECF: validador de CNPJ da MATRIZ (/0001) via BrasilAPI + digitos verificadores; saldos anteriores manuais ou importados da ECD anterior",
     "ECD/ECF: auto-analise do TXT gerado com 17 verificacoes (contagens de blocos, partidas dobradas, Ativo=Passivo, hierarquia J100, numeracao I200 unica)",
