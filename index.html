@@ -1657,6 +1657,7 @@
             <button onclick="showPage('mapeamento')"><span>🔗</span> Mapeamento</button>
             <button onclick="showPage('fiscal')"><span>🧾</span> Situação Fiscal</button>
             <button onclick="showPage('exportar')"><span>💾</span> Exportar</button>
+            <button onclick="showPage('ecdecf')"><span>📑</span> ECD/ECF</button>
             <button onclick="showPage('sobre')"><span>ℹ️</span> Sobre</button>
             <button id="btnAuditAiNav" onclick="window.open('/auditai', '_blank')" style="display:none;margin-left:auto;color:#2563eb;font-weight:700"><span>🔍</span> AuditAI</button>
             <button id="btnAdminNav" onclick="window.open('/admin', '_blank')" style="display:none;color:#059669;font-weight:700"><span>👑</span> Admin</button>
@@ -2498,6 +2499,102 @@
                 </div>
             </div>
             
+            <!-- Page: ECD/ECF (consolidacao matriz + filiais) -->
+            <div id="pageEcdecf" class="hidden">
+                <!-- Contadores -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+                    <div class="card" style="padding:18px 24px">
+                        <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase">⏳ Prazo final ECF 2026 — 31/07/2026</div>
+                        <div id="ecdecfCountdown" style="font-size:28px;font-weight:800;color:#dc2626;margin-top:6px">--</div>
+                        <div style="font-size:12px;color:#9ca3af">Contador regressivo até o último dia útil de julho/2026</div>
+                    </div>
+                    <div class="card" style="padding:18px 24px">
+                        <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase">🏢 Empresas MATRIZ geradas</div>
+                        <div id="ecdecfContadorMatrizes" style="font-size:28px;font-weight:800;color:#059669;margin-top:6px">0</div>
+                        <div style="font-size:12px;color:#9ca3af">Consolidações salvas no banco de dados</div>
+                    </div>
+                </div>
+
+                <!-- Dados da matriz -->
+                <div class="card" style="padding:24px;margin-bottom:16px">
+                    <h2 style="margin:0 0 14px 0;font-size:20px;color:#111827">📑 ECD/ECF — Consolidação Matriz + Filiais</h2>
+                    <div style="display:grid;grid-template-columns:220px 1fr 140px;gap:12px;align-items:end">
+                        <div>
+                            <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px">CNPJ da MATRIZ (aglutinadora)</label>
+                            <div style="position:relative">
+                                <input id="ecdecfCnpj" type="text" maxlength="18" placeholder="00.000.000/0001-00" style="width:100%;padding:9px 34px 9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px" oninput="ecdecfMascaraCnpj(this)" onblur="ecdecfValidarCnpj()">
+                                <span id="ecdecfCnpjIcon" style="position:absolute;right:10px;top:9px;font-size:15px"></span>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px">Razão Social (Receita Federal via BrasilAPI)</label>
+                            <input id="ecdecfRazao" type="text" disabled style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;background:#f9fafb">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px">Ano-calendário</label>
+                            <select id="ecdecfAno" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+                                <option value="2025" selected>2025</option>
+                                <option value="2024">2024</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="ecdecfCnpjMsg" style="font-size:12px;margin-top:6px;color:#6b7280"></div>
+                </div>
+
+                <!-- Upload dos arquivos ECD -->
+                <div class="card" style="padding:24px;margin-bottom:16px">
+                    <h3 style="margin:0 0 10px 0;font-size:16px;color:#111827">📂 Arquivos ECD (.txt) — matriz e filiais do ano-calendário</h3>
+                    <p style="font-size:13px;color:#6b7280;margin:0 0 12px 0">Envie o TXT da matriz (/0001) e das filiais. A matriz é identificada automaticamente pelo CNPJ do registro |0000|.</p>
+                    <input id="ecdecfFiles" type="file" accept=".txt,.TXT" multiple onchange="ecdecfCarregarArquivos(this.files)" style="font-size:14px">
+                    <div id="ecdecfListaArquivos" style="margin-top:14px"></div>
+                </div>
+
+                <!-- Saldos anteriores -->
+                <div class="card" style="padding:24px;margin-bottom:16px">
+                    <h3 style="margin:0 0 10px 0;font-size:16px;color:#111827">💰 Saldos anteriores (ECD do exercício anterior)</h3>
+                    <p style="font-size:13px;color:#6b7280;margin:0 0 12px 0">Ajustes aglutinados ao <strong>saldo inicial</strong> das contas de balanço (I155 / J100). Informe manualmente ou importe da ECD anterior transmitida.</p>
+                    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+                        <button onclick="document.getElementById('ecdecfFileAnterior').click()" style="padding:8px 14px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">📥 Importar da ECD anterior (.txt)</button>
+                        <input id="ecdecfFileAnterior" type="file" accept=".txt,.TXT" style="display:none" onchange="ecdecfImportarAnterior(this.files[0])">
+                        <button onclick="ecdecfAddAjuste('','','D')" style="padding:8px 14px;background:#e5e7eb;color:#111827;border:none;border-radius:6px;cursor:pointer;font-size:13px">➕ Adicionar ajuste manual</button>
+                    </div>
+                    <table style="width:100%;border-collapse:collapse;font-size:13px">
+                        <thead><tr style="background:#f3f4f6"><th style="padding:6px;text-align:left">Conta (código I050)</th><th style="padding:6px;text-align:right">Valor (R$)</th><th style="padding:6px">D/C</th><th style="padding:6px"></th></tr></thead>
+                        <tbody id="ecdecfAjustesBody"><tr><td colspan="4" style="padding:10px;color:#9ca3af;text-align:center">Nenhum ajuste de saldo anterior informado</td></tr></tbody>
+                    </table>
+                </div>
+
+                <!-- Acoes -->
+                <div class="card" style="padding:24px;margin-bottom:16px">
+                    <div style="display:flex;gap:12px;flex-wrap:wrap">
+                        <button id="ecdecfBtnConsolidar" onclick="ecdecfConsolidarExportar()" style="padding:12px 22px;background:#059669;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">⚙️ Consolidar + Validar + Exportar TXT</button>
+                        <button onclick="ecdecfAbrirValidador()" style="padding:12px 22px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">🛡️ Validador de Obrigações</button>
+                    </div>
+                    <div id="ecdecfResumo" style="margin-top:14px;font-size:13px;color:#374151"></div>
+                </div>
+
+                <!-- Matrizes geradas -->
+                <div class="card" style="padding:24px">
+                    <h3 style="margin:0 0 10px 0;font-size:16px;color:#111827">🗂️ Matrizes consolidadas (Firebase)</h3>
+                    <table style="width:100%;border-collapse:collapse;font-size:13px">
+                        <thead><tr style="background:#f3f4f6"><th style="padding:6px;text-align:left">CNPJ</th><th style="padding:6px;text-align:left">Razão Social</th><th style="padding:6px">Ano</th><th style="padding:6px">Arquivos</th><th style="padding:6px">Validação</th><th style="padding:6px">Atualizado</th><th style="padding:6px"></th></tr></thead>
+                        <tbody id="ecdecfMatrizesBody"><tr><td colspan="7" style="padding:10px;color:#9ca3af;text-align:center">Carregando...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal: Validador de Obrigacoes ECD/ECF -->
+            <div id="ecdecfModalValidador" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:10000;align-items:center;justify-content:center;padding:20px">
+                <div style="background:#fff;border-radius:12px;max-width:760px;width:100%;max-height:90vh;overflow-y:auto;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                        <h3 style="margin:0;font-size:19px;color:#111827">🛡️ Validador de Obrigações — ECD/ECF 2026</h3>
+                        <button onclick="document.getElementById('ecdecfModalValidador').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280">✕</button>
+                    </div>
+                    <div id="ecdecfValidadorStatus" style="padding:12px;border-radius:8px;font-weight:700;margin-bottom:14px;text-align:center"></div>
+                    <div id="ecdecfValidadorChecks"></div>
+                </div>
+            </div>
+
             <!-- Page: Sobre -->
             <div id="pageSobre" class="hidden">
                 <div class="card">
@@ -6422,14 +6519,16 @@
                     || document.querySelector('.nav button[data-page="'+p+'"]');
                 if (navBtn) navBtn.classList.add('active');
             }
-            ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Plano', 'Mapeamento', 'Fiscal', 'Exportar', 'Sobre'].forEach(n => {
+            ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Plano', 'Mapeamento', 'Fiscal', 'Exportar', 'Ecdecf', 'Sobre'].forEach(n => {
                 const el = document.getElementById('page' + n);
                 if (el) el.classList.add('hidden');
             });
             const alvo = document.getElementById('page' + p.charAt(0).toUpperCase() + p.slice(1));
             if (alvo) alvo.classList.remove('hidden');
             rolarTopoDaAbaAtiva();
-            
+
+            if (p === 'ecdecf' && typeof ecdecfInit === 'function') ecdecfInit();
+
             // Refresh charts when showing inicio
             if (p === 'inicio' && state.infoConfirmed) {
                 setTimeout(() => updateCharts(), 100);
@@ -10090,7 +10189,21 @@
                 showToast('Plano vinculado tem ' + totalContasPlano + ' contas, mas nenhuma com codigo reduzido. Reimporte o plano com a coluna de reduzido.', 'error');
                 return;
             }
-            
+
+            // === v3.1.9: SENTIDO PELA COLUNA, NUNCA PELO HISTORICO ===
+            // Disponibilidades (banco/caixa) = grupo contabil 1.1.1 (fallback: descricao).
+            // Usado para forcar a orientacao debito/credito do lancamento bancario
+            // pelo SINAL do valor (coluna Credito/Debito), ignorando o texto do historico.
+            const bancoReduzidos = new Set(
+                contasPlano.filter(function(c){
+                    const cod = String(c.codigo || '').replace(/^5G/, '');
+                    const desc = String(c.descricao || '').toUpperCase();
+                    return cod.indexOf('1.1.1') === 0 || /\b(BANC|CAIXA|DISPON|CONTA CORRENTE|C\/C)\b/.test(desc);
+                }).map(function(c){ return c.reduzido; })
+            );
+            console.log('[IA v2] contas de disponivel (banco/caixa) detectadas:', bancoReduzidos.size);
+            let reorientadasSentido = 0;
+
             showToast(`🤖 Classificando ${state.entries.length} transações com plano ${nomePlano}...`, 'success');
             
             const btn = document.getElementById('btnClassificarIA');
@@ -10293,8 +10406,23 @@ Responda APENAS JSON valido, sem texto antes/depois:
                                     return;
                                 }
                                 
-                                state.entries[entryIdx].contaDebito = dbt;
-                                state.entries[entryIdx].contaCredito = crd;
+                                // === v3.1.9: trava de sentido pela coluna ===
+                                // O texto do historico NAO decide entrada/saida. O sinal do
+                                // valor (coluna Credito/Debito do extrato) e' a unica fonte:
+                                //   entrada (valor>=0) -> BANCO no DEBITO
+                                //   saida   (valor<0)  -> BANCO no CREDITO
+                                // Se a IA inverteu as pontas, reorientamos (apenas troca de lado;
+                                // as contas escolhidas pela IA sao mantidas).
+                                let _dbt = dbt, _crd = crd;
+                                const _valor = state.entries[entryIdx].valor || 0;
+                                const _dbtBanco = bancoReduzidos.has(_dbt);
+                                const _crdBanco = bancoReduzidos.has(_crd);
+                                if (_dbtBanco !== _crdBanco) { // lancamento bancario tipico: 1 ponta e' o banco
+                                    if (_valor >= 0 && _crdBanco) { _dbt = crd; _crd = dbt; reorientadasSentido++; }
+                                    else if (_valor < 0 && _dbtBanco) { _dbt = crd; _crd = dbt; reorientadasSentido++; }
+                                }
+                                state.entries[entryIdx].contaDebito = _dbt;
+                                state.entries[entryIdx].contaCredito = _crd;
                                 state.entries[entryIdx]._iaJustificativa = c.justificativa || '';
                                 // Nao usar c.historico no complemento do FI.
                                 // O codigoHistorico valida o Historico Padrao; observacoes usam a descricao original.
@@ -10330,7 +10458,8 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 renderLancamentos();
                 
                 const comCodIOB = state.entries.filter(function(e){ return codigoHistoricoValido(e.codigoHistorico); }).length;
-                showToast(`✅ ${classificadas} transações classificadas (${comCodIOB} com código IOB SAGE)`, 'success');
+                if (reorientadasSentido > 0) console.log('[IA v2] sentido corrigido pela coluna em', reorientadasSentido, 'lancamento(s) — historico nao decide entrada/saida');
+                showToast(`✅ ${classificadas} transações classificadas (${comCodIOB} com código IOB SAGE)` + (reorientadasSentido > 0 ? ` · ${reorientadasSentido} com sentido corrigido pela coluna` : ''), 'success');
                 
             } catch (err) {
                 console.error('Erro ao classificar:', err);
@@ -11351,5 +11480,715 @@ window.confirmarTrocarPlano = async function() {
         })();
     </script>
     <!-- ===== FIM VERSAO ===== -->
+
+    <!-- ===== ECD/ECF: CONSOLIDACAO MATRIZ + FILIAIS (leiaute ECD 9.00) ===== -->
+    <script>
+    // ===ECDECF-ENGINE-START===
+    (function(root){
+        'use strict';
+        function num(s){ return s ? Math.round(parseFloat(s.replace(',', '.')) * 100) : 0; }
+        function fmt(c){ var v = Math.abs(c); return String(Math.trunc(v / 100)) + ',' + String(v % 100).padStart(2, '0'); }
+        function sgn(v, dc){ return dc === 'D' ? v : -v; }
+        function dcOf(c){ return c >= 0 ? 'D' : 'C'; }
+        function fields(l){ return l.split('|'); }
+
+        function parseEcd(text){
+            var lines = text.split(/\r?\n/).filter(function(l){ return l.trim() !== ''; });
+            var groups = {};
+            lines.forEach(function(l){
+                var t = fields(l)[1];
+                (groups[t] = groups[t] || []).push(l);
+            });
+            var f0 = groups['0000'] ? fields(groups['0000'][0]) : [];
+            return {
+                lines: lines, groups: groups,
+                dtIni: f0[3] || '', dtFin: f0[4] || '',
+                nome: f0[5] || '', cnpj: (f0[6] || '').replace(/\D/g, ''),
+                isMatriz: ((f0[6] || '').replace(/\D/g, '')).substr(8, 4) === '0001',
+                lancamentos: (groups['I200'] || []).length
+            };
+        }
+
+        function splitPeriods(lines){
+            var out = [], cur = null;
+            lines.forEach(function(l){
+                var t = fields(l)[1];
+                if (t === 'I150'){ cur = { i150: l, i155: [] }; out.push(cur); }
+                else if (t === 'I155' && cur) cur.i155.push(l);
+            });
+            return out;
+        }
+
+        function splitLancamentos(lines){
+            var out = [], cur = null;
+            lines.forEach(function(l){
+                var t = fields(l)[1];
+                if (t === 'I200'){ cur = { i200: l, i250: [] }; out.push(cur); }
+                else if (t === 'I250' && cur) cur.i250.push(l);
+            });
+            return out;
+        }
+
+        function planoGroups(lines){
+            var g = {}, ordem = [], cur = null;
+            lines.forEach(function(l){
+                var t = fields(l)[1];
+                if (t === 'I050'){ cur = fields(l)[6]; if (!g[cur]){ g[cur] = []; ordem.push(cur); } g[cur].push(l); }
+                else if ((t === 'I051' || t === 'I052') && cur && g[cur]) g[cur].push(l);
+            });
+            return { g: g, ordem: ordem };
+        }
+
+        // Consolida matriz + N filiais. ajustes: [{conta, delta}] (delta em centavos, D positivo)
+        function consolidar(matriz, filiais, ajustes){
+            ajustes = ajustes || [];
+            var avisos = [];
+            var todos = [matriz].concat(filiais);
+
+            // ---- I150/I155 por periodo ----
+            var pers = todos.map(function(a){ return splitPeriods(a.lines); });
+            var nper = pers[0].length;
+            pers.forEach(function(p, i){
+                if (p.length !== nper) throw new Error('Arquivo ' + (todos[i].nomeArquivo || i) + ' tem ' + p.length + ' periodos I150 (esperado ' + nper + ')');
+            });
+            var ajMap = {};
+            ajustes.forEach(function(a){ if (a.conta && a.delta) ajMap[a.conta] = (ajMap[a.conta] || 0) + a.delta; });
+
+            var i15x = [];
+            for (var p = 0; p < nper; p++){
+                var f150 = fields(pers[0][p].i150);
+                for (var i = 1; i < pers.length; i++){
+                    if (fields(pers[i][p].i150)[2] !== f150[2]) throw new Error('Periodos I150 divergentes entre matriz e filial (' + f150[2] + ')');
+                }
+                i15x.push(pers[0][p].i150);
+                var acc = {}, keys = [];
+                pers.forEach(function(pp){
+                    pp[p].i155.forEach(function(l){
+                        var f = fields(l), k = f[2] + ' ' + f[3];
+                        if (!acc[k]){ acc[k] = [0, 0, 0, 0]; keys.push(k); }
+                        acc[k][0] += sgn(num(f[4]), f[5]);
+                        acc[k][1] += num(f[6]);
+                        acc[k][2] += num(f[7]);
+                        acc[k][3] += sgn(num(f[8]), f[9]);
+                    });
+                });
+                keys.sort();
+                keys.forEach(function(k){
+                    var kk = k.split(' '), e = acc[k];
+                    var d = ajMap[kk[0]] || 0;   // saldo anterior: desloca inicial e final em todos os periodos
+                    var si = e[0] + d, sf = e[3] + d;
+                    i15x.push('|I155|' + kk[0] + '|' + kk[1] + '|' + fmt(si) + '|' + dcOf(si) + '|' + fmt(e[1]) + '|' + fmt(e[2]) + '|' + fmt(sf) + '|' + dcOf(sf) + '|');
+                });
+            }
+
+            // ---- I200/I250: ordem cronologica, renumeracao unica ----
+            var lctos = [];
+            todos.forEach(function(a){ splitLancamentos(a.lines).forEach(function(x){ lctos.push(x); }); });
+            lctos.sort(function(a, b){
+                var da = fields(a.i200)[3], db2 = fields(b.i200)[3];
+                var ka = da.substr(4, 4) + da.substr(2, 2) + da.substr(0, 2);
+                var kb = db2.substr(4, 4) + db2.substr(2, 2) + db2.substr(0, 2);
+                return ka < kb ? -1 : (ka > kb ? 1 : 0);   // sort estavel: matriz antes de filiais na mesma data
+            });
+            var i2xx = [], n = 0;
+            lctos.forEach(function(x){
+                n++;
+                var f = fields(x.i200); f[2] = String(n).padStart(10, '0');
+                i2xx.push(f.join('|'));
+                x.i250.forEach(function(l, si2){
+                    var f2 = fields(l); f2[6] = String(n).padStart(10, '0') + '-' + String(si2 + 1).padStart(2, '0');
+                    i2xx.push(f2.join('|'));
+                });
+            });
+
+            // ---- I350/I355 ----
+            var i350 = matriz.groups['I350'][0];
+            var acc355 = {}, k355 = [];
+            todos.forEach(function(a){
+                (a.groups['I355'] || []).forEach(function(l){
+                    var f = fields(l), k = f[2] + ' ' + f[3];
+                    if (!(k in acc355)){ acc355[k] = 0; k355.push(k); }
+                    acc355[k] += sgn(num(f[4]), f[5]);
+                });
+            });
+            k355.sort();
+            var i355 = k355.map(function(k){
+                var kk = k.split(' '), v = acc355[k];
+                return '|I355|' + kk[0] + '|' + kk[1] + '|' + fmt(v) + '|' + dcOf(v) + '|';
+            });
+
+            // ---- J100/J150: estrutura da matriz + soma; contas exclusivas de filial inseridas em ordem ----
+            function mergeJ(tipo, codi, vi, di, vf, df){
+                var fmap = {}, out = [];
+                filiais.forEach(function(a){
+                    (a.groups[tipo] || []).forEach(function(l){
+                        var f = fields(l);
+                        (fmap[f[codi]] = fmap[f[codi]] || []).push(f);
+                    });
+                });
+                var usados = {};
+                (matriz.groups[tipo] || []).forEach(function(l){
+                    var f = fields(l), cod = f[codi];
+                    var si = sgn(num(f[vi]), f[di]), sf = sgn(num(f[vf]), f[df]);
+                    (fmap[cod] || []).forEach(function(g){
+                        si += sgn(num(g[vi]), g[di]);
+                        sf += sgn(num(g[vf]), g[df]);
+                    });
+                    usados[cod] = true;
+                    f[vi] = fmt(si); f[di] = dcOf(si); f[vf] = fmt(sf); f[df] = dcOf(sf);
+                    out.push(f.join('|'));
+                });
+                Object.keys(fmap).forEach(function(cod){
+                    if (usados[cod]) return;
+                    avisos.push('Conta ' + cod + ' (' + tipo + ') existe apenas na filial — inserida no consolidado');
+                    fmap[cod].forEach(function(g){
+                        var somaI = 0, somaF = 0;
+                        fmap[cod].forEach(function(h){ somaI += sgn(num(h[vi]), h[di]); somaF += sgn(num(h[vf]), h[df]); });
+                        g = g.slice(); g[vi] = fmt(somaI); g[di] = dcOf(somaI); g[vf] = fmt(somaF); g[df] = dcOf(somaF);
+                        var line = g.join('|'), pos = out.length;
+                        for (var i = 0; i < out.length; i++){ if (fields(out[i])[codi] > cod){ pos = i; break; } }
+                        out.splice(pos, 0, line);
+                        fmap[cod] = [];   // insere uma unica vez (ja somado)
+                    });
+                });
+                return out;
+            }
+            var j100 = mergeJ('J100', 2, 8, 9, 10, 11);
+            var j150 = mergeJ('J150', 3, 8, 9, 10, 11);
+
+            // ajustes de saldo anterior no J100 (conta + cadeia de superiores)
+            if (Object.keys(ajMap).length){
+                var idx = {}, sup = {};
+                j100.forEach(function(l, i){ var f = fields(l); idx[f[2]] = i; sup[f[2]] = f[5]; });
+                Object.keys(ajMap).forEach(function(conta){
+                    if (!(conta in idx)){ avisos.push('Ajuste de saldo anterior: conta ' + conta + ' nao encontrada no J100'); return; }
+                    var d = ajMap[conta], c = conta;
+                    while (c && (c in idx)){
+                        var f = fields(j100[idx[c]]);
+                        var si = sgn(num(f[8]), f[9]) + d, sf = sgn(num(f[10]), f[11]) + d;
+                        f[8] = fmt(si); f[9] = dcOf(si); f[10] = fmt(sf); f[11] = dcOf(sf);
+                        j100[idx[c]] = f.join('|');
+                        c = sup[c];
+                    }
+                });
+            }
+
+            // ---- montagem ----
+            var out = [];
+            out = out.concat(matriz.groups['0000'], matriz.groups['0001'], matriz.groups['0007'] || []);
+            out.push('|0990|' + (out.length + 1) + '|');
+
+            var bi = [];
+            bi = bi.concat(matriz.groups['I001'], matriz.groups['I010'], matriz.groups['I030']);
+            // plano de contas: matriz + contas exclusivas das filiais, em ordem de codigo
+            var plm = planoGroups(matriz.lines);
+            filiais.forEach(function(a){
+                var plf = planoGroups(a.lines);
+                plf.ordem.forEach(function(c){
+                    if (plm.g[c]) return;
+                    avisos.push('Conta ' + c + ' (I050) existe apenas na filial ' + (a.nomeArquivo || '') + ' — adicionada ao plano consolidado');
+                    var pos = plm.ordem.length;
+                    for (var i = 0; i < plm.ordem.length; i++){ if (plm.ordem[i] > c){ pos = i; break; } }
+                    plm.ordem.splice(pos, 0, c);
+                    plm.g[c] = plf.g[c].filter(function(l){ return fields(l)[1] !== 'I051'; });  // I051 so se a matriz usa referencial
+                    if ((matriz.groups['I051'] || []).length) plm.g[c] = plf.g[c];
+                });
+            });
+            plm.ordem.forEach(function(c){ bi = bi.concat(plm.g[c]); });
+            bi = bi.concat(matriz.groups['I075'] || []);
+            bi = bi.concat(i15x, i2xx);
+            bi.push(i350);
+            bi = bi.concat(i355);
+            bi.push('|I990|' + (bi.length + 1) + '|');
+            out = out.concat(bi);
+
+            var bj = [];
+            bj = bj.concat(matriz.groups['J001'], matriz.groups['J005'], j100, j150, matriz.groups['J900'], matriz.groups['J930'] || []);
+            bj.push('|J990|' + (bj.length + 1) + '|');
+            out = out.concat(bj);
+
+            // bloco 9
+            var cnt = {}, tipos = [];
+            out.forEach(function(l){
+                var t = fields(l)[1];
+                if (!(t in cnt)){ cnt[t] = 0; tipos.push(t); }
+                cnt[t]++;
+            });
+            var n9900 = tipos.length + 4;   // + 9001, 9990, 9999, 9900
+            var b9 = ['|9001|0|'];
+            tipos.forEach(function(t){ b9.push('|9900|' + t + '|' + cnt[t] + '|'); });
+            b9.push('|9900|9001|1|');
+            b9.push('|9900|9990|1|');
+            b9.push('|9900|9999|1|');
+            b9.push('|9900|9900|' + n9900 + '|');
+            b9.push('|9990|' + (n9900 + 3) + '|');
+            b9.push('|9999|' + (out.length + n9900 + 3) + '|');
+            out = out.concat(b9);
+
+            // stats
+            var ativo = 0, passivo = 0;
+            j100.forEach(function(l){
+                var f = fields(l);
+                if (f[4] === '1'){
+                    var v = sgn(num(f[10]), f[11]);
+                    if (f[6] === 'A') ativo += v; else passivo += -v;
+                }
+            });
+            return {
+                lines: out, avisos: avisos,
+                stats: { linhas: out.length, lancamentos: n, ativo: ativo, passivo: passivo, arquivos: todos.length }
+            };
+        }
+
+        // Validador de Obrigacoes: auto-analise do TXT gerado (ECD base da ECF)
+        function validar(lines, opts){
+            opts = opts || {};
+            var checks = [];
+            function add(nome, ok, det){ checks.push({ nome: nome, ok: !!ok, detalhe: det || '' }); }
+
+            var f0 = lines.length ? fields(lines[0]) : [];
+            add('Registro |0000| LECD', f0[1] === '0000' && f0[2] === 'LECD', lines.length ? lines[0].substring(0, 80) : 'arquivo vazio');
+            var cnpjArq = (f0[6] || '').replace(/\D/g, '');
+            if (opts.cnpjEsperado) add('CNPJ do arquivo = CNPJ da MATRIZ informada', cnpjArq === opts.cnpjEsperado, cnpjArq + ' x ' + opts.cnpjEsperado);
+            add('CNPJ do arquivo e MATRIZ (/0001)', cnpjArq.substr(8, 4) === '0001', cnpjArq);
+            add('Periodo dentro do mesmo ano-calendario', (f0[3] || '').substr(4) === (f0[4] || '').substr(4), (f0[3] || '') + ' a ' + (f0[4] || ''));
+
+            // contagens
+            var cnt = {}, bloco = { '0': 0, 'I': 0, 'J': 0, '9': 0, 'C': 0 };
+            lines.forEach(function(l){
+                var t = fields(l)[1];
+                cnt[t] = (cnt[t] || 0) + 1;
+                var b = (t === '9001' || t === '9900' || t === '9990' || t === '9999') ? '9' : t.charAt(0);
+                if (b in bloco) bloco[b]++;
+            });
+            function reg1(t){ var l = lines.filter(function(x){ return fields(x)[1] === t; })[0]; return l ? num2(fields(l)[2]) : -1; }
+            function num2(s){ return parseInt(s, 10); }
+            add('|9999| = total de linhas do arquivo', reg1('9999') === lines.length, reg1('9999') + ' x ' + lines.length);
+            add('|9990| = linhas do bloco 9 (incluindo ele mesmo)', reg1('9990') === bloco['9'], reg1('9990') + ' x ' + bloco['9']);
+            add('|0990| = linhas do bloco 0', reg1('0990') === bloco['0'], reg1('0990') + ' x ' + bloco['0']);
+            add('|I990| = linhas do bloco I', reg1('I990') === bloco['I'], reg1('I990') + ' x ' + bloco['I']);
+            add('|J990| = linhas do bloco J', reg1('J990') === bloco['J'], reg1('J990') + ' x ' + bloco['J']);
+            var err9900 = [];
+            lines.forEach(function(l){
+                var f = fields(l);
+                if (f[1] !== '9900') return;
+                if ((cnt[f[2]] || 0) !== num2(f[3])) err9900.push(f[2] + ': declarado ' + f[3] + ', real ' + (cnt[f[2]] || 0));
+            });
+            add('|9900| totalizacao por registro', err9900.length === 0, err9900.length ? err9900.slice(0, 5).join('; ') : (cnt['9900'] || 0) + ' registros conferidos');
+
+            // lancamentos
+            var nums = {}, dup = 0, desb = [], totD = 0, totC = 0, curNum = null, curD = 0, curC = 0;
+            function fechaLcto(){ if (curNum !== null && curD !== curC) desb.push(curNum + ' (D ' + fmt(curD) + ' x C ' + fmt(curC) + ')'); }
+            lines.forEach(function(l){
+                var f = fields(l);
+                if (f[1] === 'I200'){
+                    fechaLcto();
+                    if (nums[f[2]]) dup++; nums[f[2]] = true;
+                    curNum = f[2]; curD = 0; curC = 0;
+                } else if (f[1] === 'I250'){
+                    var v = num(f[4]);
+                    if (f[5] === 'D'){ totD += v; curD += v; } else { totC += v; curC += v; }
+                }
+            });
+            fechaLcto();
+            var qtd = Object.keys(nums).length;
+            add('Numeracao I200 unica (sem repeticao)', dup === 0, dup ? dup + ' duplicados' : qtd + ' lancamentos');
+            add('Partidas dobradas por lancamento (I250 D = C)', desb.length === 0, desb.length ? desb.slice(0, 3).join('; ') + (desb.length > 3 ? ' (+' + (desb.length - 3) + ')' : '') : 'todos os lancamentos equilibrados');
+            add('Total geral debitos = creditos', totD === totC, 'D ' + fmt(totD) + ' x C ' + fmt(totC));
+
+            // J100: ativo = passivo, hierarquia T = soma dos filhos
+            var j100 = lines.filter(function(l){ return fields(l)[1] === 'J100'; }).map(fields);
+            var ativo = 0, passivo = 0;
+            j100.forEach(function(f){
+                if (f[4] === '1'){
+                    var v = sgn(num(f[10]), f[11]);
+                    if (f[6] === 'A') ativo += v; else passivo += -v;
+                }
+            });
+            add('Balanco patrimonial: ATIVO = PASSIVO', ativo === passivo, 'Ativo R$ ' + fmt(ativo) + ' x Passivo R$ ' + fmt(passivo));
+            var filhos = {};
+            j100.forEach(function(f){ if (f[5]) { (filhos[f[5]] = filhos[f[5]] || []).push(f); } });
+            var errH = [];
+            j100.forEach(function(f){
+                if (f[3] !== 'T' || !filhos[f[2]]) return;
+                var s = 0; filhos[f[2]].forEach(function(g){ s += sgn(num(g[10]), g[11]); });
+                if (s !== sgn(num(f[10]), f[11])) errH.push(f[2]);
+            });
+            add('Hierarquia J100: totalizadoras (T) = soma dos detalhes (D)', errH.length === 0, errH.length ? errH.slice(0, 5).join(', ') : j100.length + ' linhas verificadas');
+
+            // I155 ultimo periodo x J100
+            var iPer = [], curP = null;
+            lines.forEach(function(l){
+                var t = fields(l)[1];
+                if (t === 'I150'){ curP = []; iPer.push(curP); }
+                else if (t === 'I155' && curP) curP.push(fields(l));
+            });
+            var mapI = {};
+            if (iPer.length) iPer[iPer.length - 1].forEach(function(f){ mapI[f[2]] = sgn(num(f[8]), f[9]); });
+            var errIJ = [];
+            j100.forEach(function(f){
+                if (f[3] !== 'D') return;
+                if ((mapI[f[2]] || 0) !== sgn(num(f[10]), f[11])) errIJ.push(f[2]);
+            });
+            add('Saldo final I155 (dez) = J100 (contas analiticas)', errIJ.length === 0, errIJ.length ? errIJ.slice(0, 5).join(', ') : 'saldos conferem');
+
+            // contas usadas existem no plano
+            var plano = {};
+            lines.forEach(function(l){ var f = fields(l); if (f[1] === 'I050') plano[f[6]] = true; });
+            var semPlano = {};
+            lines.forEach(function(l){
+                var f = fields(l);
+                if ((f[1] === 'I155' || f[1] === 'I250' || f[1] === 'I355') && f[2] && !plano[f[2]]) semPlano[f[2]] = true;
+            });
+            var sp = Object.keys(semPlano);
+            add('Contas de I155/I250/I355 existem no plano (I050)', sp.length === 0, sp.length ? sp.slice(0, 5).join(', ') : Object.keys(plano).length + ' contas no plano');
+
+            var falhas = checks.filter(function(c){ return !c.ok; }).length;
+            return { status: falhas === 0 ? 'APTO' : 'REPROVADO', falhas: falhas, checks: checks };
+        }
+
+        function toLatin1Bytes(lines){
+            var s = lines.join('\r\n') + '\r\n';
+            var b = new Uint8Array(s.length);
+            for (var i = 0; i < s.length; i++){
+                var c = s.charCodeAt(i);
+                b[i] = c <= 0xFF ? c : 63;
+            }
+            return b;
+        }
+
+        root.EcdEcfEngine = { parseEcd: parseEcd, consolidar: consolidar, validar: validar, toLatin1Bytes: toLatin1Bytes, num: num, fmt: fmt };
+    })(typeof window !== 'undefined' ? window : globalThis);
+    // ===ECDECF-ENGINE-END===
+    </script>
+
+    <script>
+    // ===== ECD/ECF: UI =====
+    (function(){
+        'use strict';
+        var E = window.EcdEcfEngine;
+        var st = { arquivos: [], ajustes: [], validacao: null, cnpj: '', razao: '', municipio: '', uf: '', timer: null, inited: false };
+        window._ecdecfState = st;
+
+        var PRAZO_ECF = new Date('2026-07-31T23:59:59-03:00');
+
+        window.ecdecfInit = function(){
+            if (!st.timer){
+                st.timer = setInterval(ecdecfTickCountdown, 1000);
+                ecdecfTickCountdown();
+            }
+            ecdecfCarregarMatrizes();
+        };
+
+        function ecdecfTickCountdown(){
+            var el = document.getElementById('ecdecfCountdown');
+            if (!el) return;
+            var ms = PRAZO_ECF - new Date();
+            if (ms <= 0){ el.textContent = '⛔ PRAZO ENCERRADO'; el.style.color = '#991b1b'; return; }
+            var d = Math.floor(ms / 86400000), h = Math.floor(ms % 86400000 / 3600000),
+                m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
+            el.textContent = d + 'd ' + String(h).padStart(2, '0') + 'h ' + String(m).padStart(2, '0') + 'm ' + String(s).padStart(2, '0') + 's';
+            el.style.color = d < 7 ? '#dc2626' : (d < 30 ? '#d97706' : '#059669');
+        }
+
+        window.ecdecfMascaraCnpj = function(inp){
+            var v = inp.value.replace(/\D/g, '').substring(0, 14);
+            var f = v;
+            if (v.length > 12) f = v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, '$1.$2.$3/$4-$5');
+            else if (v.length > 8) f = v.replace(/(\d{2})(\d{3})(\d{3})(\d{0,4})/, '$1.$2.$3/$4');
+            else if (v.length > 5) f = v.replace(/(\d{2})(\d{3})(\d{0,3})/, '$1.$2.$3');
+            else if (v.length > 2) f = v.replace(/(\d{2})(\d{0,3})/, '$1.$2');
+            inp.value = f;
+        };
+
+        function cnpjDigitoOk(cnpj){
+            if (typeof validarCNPJDigito === 'function') return validarCNPJDigito(cnpj);
+            if (!/^\d{14}$/.test(cnpj) || /^(\d)\1{13}$/.test(cnpj)) return false;
+            function dv(base){
+                var p = base.length - 7, s = 0;
+                for (var i = 0; i < base.length; i++){ s += parseInt(base[i]) * p--; if (p < 2) p = 9; }
+                var r = s % 11; return r < 2 ? 0 : 11 - r;
+            }
+            return dv(cnpj.substr(0, 12)) === parseInt(cnpj[12]) && dv(cnpj.substr(0, 13)) === parseInt(cnpj[13]);
+        }
+
+        window.ecdecfValidarCnpj = async function(){
+            var inp = document.getElementById('ecdecfCnpj'),
+                icon = document.getElementById('ecdecfCnpjIcon'),
+                msg = document.getElementById('ecdecfCnpjMsg'),
+                raz = document.getElementById('ecdecfRazao');
+            var cnpj = inp.value.replace(/\D/g, '');
+            st.cnpj = ''; st.razao = '';
+            if (cnpj.length !== 14){ icon.textContent = ''; msg.textContent = ''; return; }
+            if (!cnpjDigitoOk(cnpj)){
+                icon.textContent = '✗'; msg.textContent = '❌ CNPJ inválido (dígitos verificadores não conferem)'; msg.style.color = '#dc2626';
+                showToast('❌ CNPJ inválido (dígitos verificadores não conferem)', 'error'); return;
+            }
+            if (cnpj.substr(8, 4) !== '0001'){
+                icon.textContent = '✗'; msg.textContent = '❌ Este CNPJ não é MATRIZ — toda matriz possui numeração /0001-**'; msg.style.color = '#dc2626';
+                showToast('❌ CNPJ informado não é de MATRIZ (/0001)', 'error'); return;
+            }
+            icon.textContent = '⟳'; msg.textContent = 'Consultando Receita Federal (BrasilAPI)...'; msg.style.color = '#6b7280';
+            try {
+                var r = await fetch('https://brasilapi.com.br/api/cnpj/v1/' + cnpj);
+                if (r.status === 404){
+                    icon.textContent = '✗'; msg.textContent = '❌ CNPJ não encontrado na Receita Federal'; msg.style.color = '#dc2626'; return;
+                }
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                var d = await r.json();
+                st.cnpj = cnpj;
+                st.razao = d.razao_social || d.nome_fantasia || '';
+                st.municipio = d.municipio || ''; st.uf = d.uf || '';
+                raz.value = st.razao;
+                var sit = d.descricao_situacao_cadastral || '';
+                icon.textContent = '✓';
+                msg.textContent = '✅ MATRIZ validada na Receita Federal — ' + (d.municipio || '') + '/' + (d.uf || '') + (sit ? ' — Situação: ' + sit : '');
+                msg.style.color = sit && sit.toUpperCase() !== 'ATIVA' ? '#d97706' : '#059669';
+            } catch (e){
+                icon.textContent = '⚠';
+                st.cnpj = cnpj;   // digito ok; permite prosseguir offline
+                msg.textContent = '⚠️ BrasilAPI indisponível — CNPJ validado apenas pelos dígitos verificadores'; msg.style.color = '#d97706';
+            }
+        };
+
+        window.ecdecfCarregarArquivos = async function(fileList){
+            st.arquivos = [];
+            var files = Array.from(fileList || []);
+            for (var i = 0; i < files.length; i++){
+                var buf = await files[i].arrayBuffer();
+                var txt = new TextDecoder('iso-8859-1').decode(buf);
+                try {
+                    var p = E.parseEcd(txt);
+                    p.nomeArquivo = files[i].name;
+                    st.arquivos.push(p);
+                } catch (e){
+                    showToast('❌ ' + files[i].name + ': não parece um TXT de ECD válido', 'error');
+                }
+            }
+            ecdecfRenderArquivos();
+        };
+
+        function ecdecfRenderArquivos(){
+            var el = document.getElementById('ecdecfListaArquivos');
+            if (!st.arquivos.length){ el.innerHTML = ''; return; }
+            var raiz = {};
+            var rows = st.arquivos.map(function(a){
+                raiz[a.cnpj.substr(0, 8)] = true;
+                var badge = a.isMatriz
+                    ? '<span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:12px;font-weight:700;font-size:11px">MATRIZ</span>'
+                    : '<span style="background:#dbeafe;color:#1e40af;padding:2px 10px;border-radius:12px;font-weight:700;font-size:11px">FILIAL</span>';
+                return '<tr><td style="padding:6px;border-bottom:1px solid #f3f4f6">' + a.nomeArquivo + '</td>' +
+                    '<td style="padding:6px;border-bottom:1px solid #f3f4f6">' + a.cnpj + '</td>' +
+                    '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:center">' + badge + '</td>' +
+                    '<td style="padding:6px;border-bottom:1px solid #f3f4f6">' + a.dtIni + ' a ' + a.dtFin + '</td>' +
+                    '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:right">' + a.lines.length.toLocaleString('pt-BR') + '</td>' +
+                    '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:right">' + a.lancamentos.toLocaleString('pt-BR') + '</td></tr>';
+            }).join('');
+            var alertas = [];
+            var nm = st.arquivos.filter(function(a){ return a.isMatriz; }).length;
+            if (nm === 0) alertas.push('⚠️ Nenhum arquivo de MATRIZ (/0001) identificado.');
+            if (nm > 1) alertas.push('⚠️ Mais de um arquivo de MATRIZ — envie apenas um.');
+            if (Object.keys(raiz).length > 1) alertas.push('⚠️ Arquivos com raízes de CNPJ diferentes — matriz e filiais devem ter a mesma raiz.');
+            el.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f3f4f6">' +
+                '<th style="padding:6px;text-align:left">Arquivo</th><th style="padding:6px;text-align:left">CNPJ</th><th style="padding:6px">Tipo</th>' +
+                '<th style="padding:6px;text-align:left">Período</th><th style="padding:6px;text-align:right">Linhas</th><th style="padding:6px;text-align:right">Lançtos</th></tr></thead>' +
+                '<tbody>' + rows + '</tbody></table>' +
+                (alertas.length ? '<div style="margin-top:10px;background:#fef3c7;color:#92400e;padding:10px;border-radius:6px;font-size:13px">' + alertas.join('<br>') + '</div>' : '');
+        }
+
+        // ---- Saldos anteriores ----
+        window.ecdecfAddAjuste = function(conta, valor, dc){
+            st.ajustes.push({ conta: conta || '', valor: valor || '', dc: dc || 'D' });
+            ecdecfRenderAjustes();
+        };
+        window.ecdecfRmAjuste = function(i){ st.ajustes.splice(i, 1); ecdecfRenderAjustes(); };
+        window.ecdecfUpAjuste = function(i, campo, v){ st.ajustes[i][campo] = v; };
+
+        function ecdecfRenderAjustes(){
+            var tb = document.getElementById('ecdecfAjustesBody');
+            if (!st.ajustes.length){
+                tb.innerHTML = '<tr><td colspan="4" style="padding:10px;color:#9ca3af;text-align:center">Nenhum ajuste de saldo anterior informado</td></tr>';
+                return;
+            }
+            tb.innerHTML = st.ajustes.map(function(a, i){
+                return '<tr>' +
+                    '<td style="padding:4px"><input value="' + a.conta + '" placeholder="1.1.1.01.0001" oninput="ecdecfUpAjuste(' + i + ',\'conta\',this.value)" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:5px;font-size:13px"></td>' +
+                    '<td style="padding:4px"><input value="' + a.valor + '" placeholder="0,00" oninput="ecdecfUpAjuste(' + i + ',\'valor\',this.value)" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:5px;font-size:13px;text-align:right"></td>' +
+                    '<td style="padding:4px;text-align:center"><select onchange="ecdecfUpAjuste(' + i + ',\'dc\',this.value)" style="padding:6px;border:1px solid #d1d5db;border-radius:5px;font-size:13px"><option' + (a.dc === 'D' ? ' selected' : '') + '>D</option><option' + (a.dc === 'C' ? ' selected' : '') + '>C</option></select></td>' +
+                    '<td style="padding:4px;text-align:center"><button onclick="ecdecfRmAjuste(' + i + ')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:15px">🗑️</button></td></tr>';
+            }).join('');
+        }
+
+        window.ecdecfImportarAnterior = async function(file){
+            if (!file) return;
+            if (!st.arquivos.length){ showToast('Carregue antes os arquivos ECD do ano atual', 'error'); return; }
+            var buf = await file.arrayBuffer();
+            var ant = E.parseEcd(new TextDecoder('iso-8859-1').decode(buf));
+            // saldo final por conta analitica (ultimo periodo I155) da ECD anterior
+            var pers = (function(){ var out = [], cur = null; ant.lines.forEach(function(l){ var t = l.split('|')[1]; if (t === 'I150'){ cur = []; out.push(cur); } else if (t === 'I155' && cur) cur.push(l.split('|')); }); return out; })();
+            if (!pers.length){ showToast('ECD anterior sem registros I150/I155', 'error'); return; }
+            var fin = {};
+            pers[pers.length - 1].forEach(function(f){ fin[f[2]] = (f[9] === 'D' ? 1 : -1) * E.num(f[8]); });
+            // saldo inicial consolidado atual (1o periodo, todos os arquivos)
+            var ini = {};
+            st.arquivos.forEach(function(a){
+                var p1 = null;
+                for (var i = 0; i < a.lines.length; i++){
+                    var f = a.lines[i].split('|');
+                    if (f[1] === 'I150'){ if (p1 === null) p1 = true; else break; }
+                    else if (f[1] === 'I155' && p1) ini[f[2]] = (ini[f[2]] || 0) + (f[5] === 'D' ? 1 : -1) * E.num(f[4]);
+                }
+            });
+            var props = 0;
+            st.ajustes = [];
+            Object.keys(fin).forEach(function(c){
+                if (c.charAt(0) !== '1' && c.charAt(0) !== '2') return;   // apenas contas patrimoniais
+                var d = fin[c] - (ini[c] || 0);
+                if (d !== 0){ st.ajustes.push({ conta: c, valor: E.fmt(Math.abs(d)), dc: d >= 0 ? 'D' : 'C' }); props++; }
+            });
+            ecdecfRenderAjustes();
+            showToast(props ? '✅ ' + props + ' ajuste(s) de saldo anterior propostos a partir da ECD ' + ant.dtIni.substr(4) : '✅ Saldos iniciais já conferem com a ECD anterior', 'success');
+        };
+
+        // ---- Consolidar + validar + exportar ----
+        window.ecdecfConsolidarExportar = async function(){
+            if (!st.cnpj){ showToast('Informe e valide o CNPJ da MATRIZ primeiro', 'error'); return; }
+            var matriz = st.arquivos.filter(function(a){ return a.cnpj === st.cnpj; })[0] ||
+                         st.arquivos.filter(function(a){ return a.isMatriz; })[0];
+            if (!matriz){ showToast('Nenhum arquivo da MATRIZ (/0001) carregado', 'error'); return; }
+            if (matriz.cnpj !== st.cnpj){ showToast('❌ O CNPJ da MATRIZ informado não confere com o arquivo |0000| (' + matriz.cnpj + ')', 'error'); return; }
+            var filiais = st.arquivos.filter(function(a){ return a !== matriz; });
+            var ajustes = st.ajustes.map(function(a){
+                var v = Math.round(parseFloat(String(a.valor).replace(/\./g, '').replace(',', '.')) * 100) || 0;
+                return { conta: a.conta.trim(), delta: a.dc === 'D' ? v : -v };
+            }).filter(function(a){ return a.conta && a.delta; });
+
+            var btn = document.getElementById('ecdecfBtnConsolidar');
+            btn.disabled = true; btn.textContent = '⟳ Consolidando...';
+            try {
+                var r = E.consolidar(matriz, filiais, ajustes);
+                st.validacao = E.validar(r.lines, { cnpjEsperado: st.cnpj });
+                st.ultimoResultado = r;
+
+                // download TXT (ISO-8859-1 + CRLF, padrao SPED)
+                var ano = document.getElementById('ecdecfAno').value;
+                var blob = new Blob([E.toLatin1Bytes(r.lines)], { type: 'text/plain;charset=iso-8859-1' });
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'ECD_CONSOLIDADA_' + st.cnpj + '_' + ano + '.txt';
+                a.click();
+                URL.revokeObjectURL(a.href);
+
+                var res = document.getElementById('ecdecfResumo');
+                res.innerHTML = '✅ <strong>' + r.stats.linhas.toLocaleString('pt-BR') + '</strong> linhas | <strong>' +
+                    r.stats.lancamentos.toLocaleString('pt-BR') + '</strong> lançamentos únicos | Ativo <strong>R$ ' + E.fmt(r.stats.ativo) +
+                    '</strong> x Passivo <strong>R$ ' + E.fmt(r.stats.passivo) + '</strong> | ' + (filiais.length) + ' filial(is) aglutinada(s)' +
+                    (r.avisos.length ? '<div style="margin-top:8px;background:#fef3c7;color:#92400e;padding:8px;border-radius:6px">' + r.avisos.map(function(x){ return '⚠️ ' + x; }).join('<br>') + '</div>' : '');
+
+                // salvar no Firebase
+                await ecdecfSalvar(ano, r, filiais.length);
+                // auto-analise: Validador de Obrigacoes
+                ecdecfAbrirValidador();
+                showToast(st.validacao.status === 'APTO' ? '✅ Arquivo consolidado APTO — validação concluída' : '⚠️ Arquivo gerado com ' + st.validacao.falhas + ' pendência(s) — veja o Validador', st.validacao.status === 'APTO' ? 'success' : 'error');
+            } catch (e){
+                console.error('[ECDECF]', e);
+                showToast('❌ Erro na consolidação: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = '⚙️ Consolidar + Validar + Exportar TXT';
+            }
+        };
+
+        async function ecdecfSalvar(ano, r, nFiliais){
+            try {
+                var payload = {
+                    cnpj: st.cnpj, ano: ano, gerado: true,
+                    razao_social: st.razao || null, municipio: st.municipio || null, uf: st.uf || null,
+                    arquivos: st.arquivos.map(function(a){ return { nome: a.nomeArquivo, cnpj: a.cnpj, tipo: a.isMatriz ? 'MATRIZ' : 'FILIAL', linhas: a.lines.length, lancamentos: a.lancamentos, periodo: a.dtIni + '-' + a.dtFin }; }),
+                    ajustes_saldos: st.ajustes,
+                    validacao: { status: st.validacao.status, falhas: st.validacao.falhas, checks: st.validacao.checks },
+                    stats: r.stats
+                };
+                var resp = await window.API.apiFetch('/api/ecdecf/matrizes', { method: 'POST', body: JSON.stringify(payload) });
+                var j = await resp.json();
+                if (!resp.ok) throw new Error(j.erro || 'HTTP ' + resp.status);
+                var cEl = document.getElementById('ecdecfContadorMatrizes');
+                if (cEl && j.total_matrizes != null) cEl.textContent = j.total_matrizes;
+                ecdecfCarregarMatrizes();
+            } catch (e){
+                console.warn('[ECDECF] falha ao salvar no Firebase:', e);
+                showToast('⚠️ Arquivo gerado, mas houve falha ao salvar no banco: ' + e.message, 'error');
+            }
+        }
+
+        window.ecdecfAbrirValidador = function(){
+            var modal = document.getElementById('ecdecfModalValidador'),
+                stEl = document.getElementById('ecdecfValidadorStatus'),
+                ck = document.getElementById('ecdecfValidadorChecks');
+            modal.style.display = 'flex';
+            if (!st.validacao){
+                stEl.textContent = 'Nenhum arquivo consolidado nesta sessão — clique em "Consolidar + Validar + Exportar TXT" para executar a auto-análise.';
+                stEl.style.background = '#f3f4f6'; stEl.style.color = '#374151';
+                ck.innerHTML = '';
+                return;
+            }
+            var v = st.validacao;
+            stEl.textContent = v.status === 'APTO'
+                ? '✅ APTO PARA TRANSMISSÃO — ' + v.checks.length + ' verificações aprovadas (base ECD para geração da ECF 2026)'
+                : '❌ ' + v.falhas + ' PENDÊNCIA(S) ENCONTRADA(S) — corrija antes de transmitir';
+            stEl.style.background = v.status === 'APTO' ? '#dcfce7' : '#fee2e2';
+            stEl.style.color = v.status === 'APTO' ? '#166534' : '#991b1b';
+            ck.innerHTML = v.checks.map(function(c){
+                return '<div style="display:flex;gap:10px;padding:9px 6px;border-bottom:1px solid #f3f4f6;font-size:13px;align-items:baseline">' +
+                    '<span style="font-size:15px">' + (c.ok ? '✅' : '❌') + '</span>' +
+                    '<div><strong>' + c.nome + '</strong><br><span style="color:#6b7280">' + c.detalhe + '</span></div></div>';
+            }).join('');
+        };
+
+        async function ecdecfCarregarMatrizes(){
+            var tb = document.getElementById('ecdecfMatrizesBody'),
+                cEl = document.getElementById('ecdecfContadorMatrizes');
+            try {
+                var resp = await window.API.apiFetch('/api/ecdecf/matrizes');
+                var list = await resp.json();
+                if (!resp.ok) throw new Error(list.erro || 'HTTP ' + resp.status);
+                if (cEl) cEl.textContent = list.length;
+                if (!list.length){
+                    tb.innerHTML = '<tr><td colspan="7" style="padding:10px;color:#9ca3af;text-align:center">Nenhuma matriz consolidada ainda</td></tr>';
+                    return;
+                }
+                tb.innerHTML = list.map(function(m){
+                    var val = m.validacao ? (m.validacao.status === 'APTO' ? '<span style="color:#059669;font-weight:700">✅ APTO</span>' : '<span style="color:#dc2626;font-weight:700">❌ ' + (m.validacao.falhas || '?') + ' pend.</span>') : '-';
+                    var dt = m.atualizado_em && m.atualizado_em._seconds ? new Date(m.atualizado_em._seconds * 1000).toLocaleDateString('pt-BR') : '-';
+                    return '<tr>' +
+                        '<td style="padding:6px;border-bottom:1px solid #f3f4f6">' + m.cnpj + '</td>' +
+                        '<td style="padding:6px;border-bottom:1px solid #f3f4f6">' + (m.razao_social || '-') + '</td>' +
+                        '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:center">' + m.ano + '</td>' +
+                        '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:center">' + ((m.arquivos || []).length) + '</td>' +
+                        '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:center">' + val + '</td>' +
+                        '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:center">' + dt + '</td>' +
+                        '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:center"><button onclick="ecdecfReabrir(\'' + m.cnpj + '\')" style="padding:4px 10px;background:#2563eb;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px">🔄 Revalidar</button></td></tr>';
+                }).join('');
+            } catch (e){
+                if (cEl) cEl.textContent = '0';
+                tb.innerHTML = '<tr><td colspan="7" style="padding:10px;color:#dc2626;text-align:center">Erro ao carregar do banco: ' + e.message + '</td></tr>';
+            }
+        }
+        window.ecdecfCarregarMatrizes = ecdecfCarregarMatrizes;
+
+        // reabre empresa ja validada para ajustes/inclusoes/novas validacoes
+        window.ecdecfReabrir = function(cnpj){
+            var inp = document.getElementById('ecdecfCnpj');
+            inp.value = cnpj;
+            ecdecfMascaraCnpj(inp);
+            ecdecfValidarCnpj();
+            document.getElementById('ecdecfFiles').value = '';
+            st.arquivos = []; ecdecfRenderArquivos();
+            document.getElementById('ecdecfResumo').innerHTML = 'ℹ️ Empresa recarregada do banco — envie novamente os TXT (ajustados) para nova consolidação e validação.';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            showToast('Empresa ' + cnpj + ' reaberta para ajustes e nova validação', 'success');
+        };
+    })();
+    </script>
+    <!-- ===== FIM ECD/ECF ===== -->
 </body>
 </html>

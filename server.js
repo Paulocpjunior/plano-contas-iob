@@ -2327,6 +2327,46 @@ app.post('/api/gemini/chat', adminRequired, async (req, res) => {
 });
 
 
+// ===== ECD/ECF: consolidacao matriz + filiais (colecao ecdecf_matrizes) =====
+// GET lista todas as matrizes consolidadas (contador + tabela da aba ECD/ECF)
+app.get('/api/ecdecf/matrizes', async (req, res) => {
+  try {
+    const snap = await db.collection('ecdecf_matrizes').orderBy('atualizado_em', 'desc').get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+// POST upsert de matriz consolidada (id = cnpj_ano) - permite ajustes/novas validacoes de empresas ja validadas
+app.post('/api/ecdecf/matrizes', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const cnpj = String(b.cnpj || '').replace(/\D/g, '');
+    if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    if (cnpj.substr(8, 4) !== '0001') return res.status(400).json({ erro: 'CNPJ informado nao e MATRIZ (/0001)' });
+    const ano = String(b.ano || '').replace(/\D/g, '');
+    if (!ano) return res.status(400).json({ erro: 'Ano-calendario obrigatorio' });
+    const ref = db.collection('ecdecf_matrizes').doc(cnpj + '_' + ano);
+    const prev = await ref.get();
+    const geracoes = ((prev.exists && prev.data().geracoes) || 0) + (b.gerado ? 1 : 0);
+    await ref.set({
+      cnpj, ano,
+      razao_social: b.razao_social || null,
+      municipio: b.municipio || null,
+      uf: b.uf || null,
+      arquivos: b.arquivos || [],
+      ajustes_saldos: b.ajustes_saldos || [],
+      validacao: b.validacao || null,
+      stats: b.stats || null,
+      geracoes,
+      criado_em: prev.exists ? (prev.data().criado_em || new Date()) : new Date(),
+      atualizado_em: new Date(),
+      atualizado_por: req.user.email
+    }, { merge: true });
+    const total = (await db.collection('ecdecf_matrizes').count().get()).data().count;
+    res.json({ ok: true, id: cnpj + '_' + ano, geracoes, total_matrizes: total });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
 app.listen(PORT, () => {
   const versao = lerVersao().version || require('./package.json').version || 'dev';
   console.log('[plano-contas-iob v' + versao + '] porta ' + PORT);

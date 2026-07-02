@@ -1,7 +1,15 @@
 {
-  "version": "3.2.40",
-  "build_date": "2026-05-20T13:45:00-03:00",
+  "version": "3.3.0",
+  "build_date": "2026-07-02T10:00:00Z",
   "release_notes": [
+    "NOVA ABA ECD/ECF: consolidacao de ECD matriz + filiais em TXT unico (leiaute 9.00) para entrega da ECD/ECF",
+    "Validador de CNPJ da MATRIZ (/0001) via BrasilAPI + digitos verificadores; saldos anteriores manuais ou importados da ECD anterior",
+    "Validador de Obrigacoes: auto-analise com 17 verificacoes (contagens de blocos, partidas dobradas, Ativo=Passivo, hierarquia J100, numeracao I200 unica)",
+    "Contador regressivo ate 31/07/2026 (prazo ECF) e contador de matrizes geradas; tudo persistido no Firebase (colecao ecdecf_matrizes)",
+    "Sentido (entrada/saida) agora vem SEMPRE da coluna Credito/Debito (sinal do valor), nunca do texto do historico",
+    "Trava de orientacao na classificacao por IA: identifica a conta de disponivel (grupo 1.1.1 banco/caixa) e forca o banco no Debito (entrada) ou no Credito (saida) conforme o sinal do valor",
+    "Corrige casos como recebimento com historico 'PAGAMENTO A FORNECEDORES' (texto do pagador) sendo lancado como saida",
+    "Apenas reorienta as pontas escolhidas pela IA; as contas continuam sendo as sugeridas. Fail-safe: sem contas de disponivel detectadas, nada e' alterado",
     "Hotfix OFX definitivo: SALDO ANTERIOR, SALDO DO DIA e SALDO TOTAL DISPONIVEL DIA deixam de ser importados como lancamentos",
     "Parser OFX passa a preservar historico por NAME + MEMO, corrigindo Banco do Brasil quando MEMO vem vazio",
     "Regressao OFX Itau/BB jan-fev 2026 adicionada ao npm run check para impedir retorno de saldos e historicos vazios",
