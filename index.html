@@ -8407,6 +8407,15 @@
         function showProcessing() {
             const o = document.getElementById('processingOverlay');
             o.classList.add('show');
+            // [WATCHDOG] modal nunca pode ficar aberto para sempre
+            clearTimeout(window.__processingWatchdog);
+            window.__processingWatchdog = setTimeout(function() {
+                const ov = document.getElementById('processingOverlay');
+                if (ov && ov.classList.contains('show')) {
+                    ov.classList.remove('show');
+                    showToast('Tempo esgotado ao processar o arquivo (5 min). Abra o Console (F12) para detalhes e tente novamente.', 'error');
+                }
+            }, 300000);
             document.getElementById('progressFill').style.width = '0%';
             updateStep(1, true); updateStep(2, false); updateStep(3, false); updateStep(4, false);
             
@@ -8433,6 +8442,7 @@
         }
         
         function hideProcessing() {
+            clearTimeout(window.__processingWatchdog);
             document.getElementById('processingOverlay').classList.remove('show');
             document.getElementById('progressFill').style.width = '100%';
         }
@@ -8588,12 +8598,38 @@
 	        }
 
 	        // PDF Processing
+	        // [OCR-GUARD] Detecta PDF escaneado (sem camada de texto) nas 3 primeiras paginas
+	        async function pdfTemCamadaDeTexto(buf) {
+	            try {
+	                const pdf = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+	                const maxP = Math.min(pdf.numPages, 3);
+	                let chars = 0;
+	                for (let i = 1; i <= maxP; i++) {
+	                    const page = await pdf.getPage(i);
+	                    const tc = await page.getTextContent();
+	                    chars += (tc.items || []).reduce(function(a, it) { return a + String(it.str || '').trim().length; }, 0);
+	                    if (chars > 80) return true;
+	                }
+	                return chars > 80;
+	            } catch (e) {
+	                console.warn('[processPDF] probe de texto falhou, assumindo PDF textual:', e.message || e);
+	                return true;
+	            }
+	        }
+
 	        async function processPDF(f, bancoCode, parserSelecionado) {
 	            const bancoResolvido = resolverBancoLegado(bancoCode) || bancoCode || '';
 	            const usarLayoutBanco = !!bancoResolvido;
 	            let buf = null;
+	            let pdfEscaneado = false;
 	            try {
 	                buf = await f.arrayBuffer();
+	                pdfEscaneado = !(await pdfTemCamadaDeTexto(buf));
+	                if (pdfEscaneado) {
+	                    console.warn('[processPDF] PDF escaneado (sem camada de texto) — pulando parsers nativos, lendo com IA');
+	                    showToast('\ud83d\udcc4 Extrato escaneado detectado — lendo com IA (pode levar 1-2 min)...', 'success');
+	                    throw new Error('__PDF_ESCANEADO__');
+	                }
 	                return await processPDFComLayoutDoBanco(buf, bancoResolvido, f.name, parserSelecionado);
 
 	                // [BRADESCO] Parser nativo para Extrato Mensal / Por Periodo.
@@ -8787,8 +8823,8 @@
                     return lancsEnriquecidos;
                 }
 	            } catch (e) {
-	                if (usarLayoutBanco) throw e;
-	                console.warn('[processPDF] parser nativo falhou, caindo no Gemini:', e.message);
+	                if (usarLayoutBanco && !pdfEscaneado) throw e;
+	                if (String(e.message) !== '__PDF_ESCANEADO__') console.warn('[processPDF] parser nativo falhou, caindo no Gemini:', e.message);
 	            }
 
             let conferenciaTotaisPDF = null;
@@ -8825,7 +8861,18 @@
             t = t.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
             
             let p;
-            try { p = JSON.parse(t); } catch { p = { transactions: [] }; }
+            try { p = JSON.parse(t); } catch {
+                // [TRUNC-FIX] resposta cortada no limite de tokens: recupera ate o ultimo lancamento completo
+                const corte = t.lastIndexOf('},');
+                p = { transactions: [] };
+                if (corte > 0) {
+                    try {
+                        p = JSON.parse(t.slice(0, corte + 1) + ']}');
+                        console.warn('[gemini] JSON truncado — recuperados', (p.transactions || []).length, 'lancamentos completos');
+                        showToast('\u26a0\ufe0f Resposta da IA truncada — importados apenas os lancamentos completos. Confira os totais.', 'error');
+                    } catch (e2) { p = { transactions: [] }; }
+                }
+            }
             if (!p.transactions) return [];
             
             let entriesGemini = p.transactions.map(x => ({
