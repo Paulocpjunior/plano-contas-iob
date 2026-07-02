@@ -112,6 +112,12 @@ assertContains('auditai/assets/index-DREfix3266.js', 'OFFICIAL_TOTAL_ATIVO', 'Au
 assertContains('auditai/assets/index-DREfix3266.js', 'OFFICIAL_RESULTADO_EXERCICIO', 'AuditAI solicita e preserva resultado oficial do exercicio');
 assertContains('auditai/assets/index-DREfix3266.js', 'means 127245720, not 1272457.20', 'AuditAI nao infere centavos em balanco sem casas decimais');
 assertContains('auditai/assets/index-DREfix3266.js', 'officialTotals:Object.keys(officialTotals).length?officialTotals:null', 'AuditAI persiste totais oficiais na analise');
+assertContains('auditai/assets/index-DREfix3266.js', 'auditaiGroupReducedCode=e=>', 'AuditAI Grupo identifica prefixo de conta reduzida');
+assertContains('auditai/assets/index-DREfix3266.js', 'auditaiGroupDisplayCode=e=>', 'AuditAI Grupo exibe codigo reduzido quando a IA mistura codigo hierarquico e conta analitica');
+assertContains('auditai/assets/index-DREfix3266.js', 'auditaiGroupReducedCode(e.account_name)?"":/^\\d+(?:\\.\\d+)+$/', 'AuditAI Grupo nao mistura conta reduzida com chave hierarquica');
+assertContains('auditai/assets/index-DREfix3266.js', 'auditaiGroupHierSortCode=e=>', 'AuditAI Grupo diferencia codigo hierarquico de codigo reduzido na ordenacao');
+assertContains('auditai/assets/index-DREfix3266.js', 'n?"0:"+auditaiGroupPathSort(n)+".999:"+String(i).padStart(14,"0")', 'AuditAI Grupo ordena contas analiticas inferidas dentro do grupo contabil correto');
+assertContains('auditai/assets/index-DREfix3266.js', 'if(Math.abs(t)+Math.abs(r)+Math.abs(n)>0)return t-Math.abs(r)-Math.abs(n)', 'AuditAI Grupo calcula resultado do trimestre por receitas custos e despesas antes do resultado oficial do balanco');
 assertContains('auditai/assets/index-DREfix3266.js', 'ae.ac=xe.ativoCirculante||0,ae.anc=xe.ativoNaoCirculante||0', 'Dashboard AuditAI usa abertura oficial de ativo e passivo');
 assertContains('auditai/assets/index-DREfix3266.js', 'JxAuditShouldSkipSpellcheckAlert', 'AuditAI filtra falsos positivos de grafia em contas contabeis oficiais');
 assertContains('auditai/assets/index-DREfix3266.js', 'OBRIGACOES FINANCEIRAS', 'AuditAI nao trata grupo contabil normal como conta suspeita');

@@ -132,9 +132,11 @@
   }
 
   async function vincularEmpresaPlano(cnpj, razao_social, plano_id) {
-    const r = await apiFetch(API_BASE + '/api/admin/vincular-empresa-plano', { method: 'POST', body: JSON.stringify({ cnpj, razao_social, plano_id }) });
-    if (r.status === 403) return { erro: 'admin-only' };
-    return await r.json();
+    const r = await apiFetch(API_BASE + '/api/vincular-empresa-plano', { method: 'POST', body: JSON.stringify({ cnpj, razao_social, plano_id }) });
+    const body = await r.json().catch(() => ({}));
+    if (r.status === 403) return { erro: body.erro || 'Sem permissao para vincular este plano' };
+    if (!r.ok) return { erro: body.erro || ('Erro ' + r.status) };
+    return body;
   }
 
   async function callGemini(payload, model) {
@@ -218,7 +220,83 @@
     return await r.json();
   }
 
-  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro };
+  async function mercadoPagoStatus(cnpj) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/mercadopago/status');
+    return await r.json();
+  }
+
+  async function mercadoPagoOAuthUrl(cnpj) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/mercadopago/oauth-url', { method: 'POST', body: JSON.stringify({}) });
+    return await r.json();
+  }
+
+  async function mercadoPagoPreviewReport(cnpj, dados) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/mercadopago/preview-report', {
+      method: 'POST',
+      body: JSON.stringify(dados || {})
+    });
+    return await r.json();
+  }
+
+  async function mercadoPagoSolicitarRelatorio(cnpj, dados) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/mercadopago/solicitar-relatorio', {
+      method: 'POST',
+      body: JSON.stringify(dados || {})
+    });
+    return await r.json();
+  }
+
+  async function reinfVersao() {
+    const r = await apiFetch(API_BASE + '/api/reinf/versao');
+    return await r.json();
+  }
+
+  async function reinfCertificado() {
+    const r = await apiFetch(API_BASE + '/api/reinf/certificado');
+    return await r.json();
+  }
+
+  async function reinfSalvarCertificado(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/certificado', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
+  async function reinfGerarR1000(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/r1000', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
+  async function reinfGerarR4010(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/r4010', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
+  async function reinfAplicarAcumuloIrrf(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/acumulo-irrf', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
+  async function reinfGerarR4099(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/r4099', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
+  async function reinfTransmitir(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/transmitir', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
+  async function reinfConsultarLote(protocolo, tpAmb) {
+    const qs = tpAmb ? ('?tpAmb=' + encodeURIComponent(tpAmb)) : '';
+    const r = await apiFetch(API_BASE + '/api/reinf/lote/' + encodeURIComponent(protocolo) + qs);
+    return await r.json();
+  }
+
+  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfCertificado, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfConsultarLote };
   console.log('[API Adapter v3] carregado');
 })();
 

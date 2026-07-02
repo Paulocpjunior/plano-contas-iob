@@ -45,6 +45,17 @@ async function main() {
   const api = loadAuditAiTestApi();
   assert.ok(api, 'API de teste da conciliacao AuditAI nao foi exposta');
 
+  const csvComSaldo = [
+    'Data;Descricao;Credito;Debito;Saldo',
+    '01/04/2026;"PIX recebido; cliente";100,00;;3.840.660.404,21',
+    '02/04/2026;Pagamento fornecedor;;50,00;3.840.660.354,21'
+  ].join('\n');
+  const rowsCsv = api.rowsFromDelimitedText(csvComSaldo, 'csv');
+  assert.strictEqual(rowsCsv.length, 2, 'CSV estruturado deve gerar apenas os movimentos, sem transformar saldo em lancamento');
+  assert.strictEqual(rowsCsv[0].amount, 100, 'CSV deve usar a coluna Credito como valor positivo');
+  assert.strictEqual(rowsCsv[1].amount, -50, 'CSV deve usar a coluna Debito como valor negativo');
+  assert.ok(rowsCsv.every(row => Math.abs(row.amount) < 1000), 'CSV com saldo alto nao pode inflar o total de conciliacao');
+
   const detalhado = await textLines(ARQUIVO_A);
   const mensal = await textLines(ARQUIVO_B);
   const rowsA = api.parseItauDetailedLines(detalhado.lines, detalhado.text);

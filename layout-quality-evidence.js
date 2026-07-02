@@ -60,6 +60,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js com totais oficiais e leitura por diferenca de saldo.'
   },
   {
+    id: 'bradesco-simples-conferencia-2045-2025-03',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco - Simples Conferencia',
+    parser: 'parsearPDF_Bradesco_SimplesConferencia',
+    arquivo: 'extrato_2968_ref_32025_03062026112729 2.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/extrato_2968_ref_32025_03062026112729 2.pdf',
+    empresa: 'Empresa 2045 - 20.069.635/0001-52',
+    periodo_inicio: '2025-03-05',
+    periodo_fim: '2025-04-01',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js para Bradesco Simples Conferencia OCR, com pagina em duas metades, 2179 movimentos e complementos REM preservados.'
+  },
+  {
     id: 'santander-ra-carpetes-2025-05',
     banco: '033',
     nomeBanco: 'Santander',
@@ -178,6 +193,37 @@ const LAYOUT_QUALITY_EVIDENCE = [
     etapa: 'regressao_aprovada',
     status: 'Regressao aprovada',
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js com Redecard/Rede e rendimentos recuperados por linhas vizinhas.'
+  },
+  {
+    id: 'itau-fatura-cartao-comum-2026-05',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'FATURA CARTAO ITAU',
+    parser: 'parsearPDF_Itau_FaturaCartao',
+    arquivo: '05_FATURA MAIO.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/05_FATURA MAIO.pdf',
+    empresa: 'Uso comum - fatura Itau Empresas Mastercard',
+    periodo_inicio: '2026-01-25',
+    periodo_fim: '2026-05-07',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso cadastrado em layout-quality-cases.js. Regressao valida 118 lancamentos, compras como debito, estornos/creditos como credito e total liquido R$ 59.524,39.'
+  },
+  {
+    id: 'itau-casa-betinho-ocr-scan-2026-04',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 1 - Extrato Mensal',
+    parser: 'parsearPDF_Itau_ExtratoMensal',
+    arquivo: '58208-8abr26CasaBetinho.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/58208-8abr26CasaBetinho.pdf',
+    empresa: '606 - CASA DA CRIANCA BETINHO',
+    cnpj: '62.827.860/0001-50',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF Adobe Scan/OCR usado no ajuste de parametro da empresa 606. O parser aceita cabecalhos distorcidos do Itau e preserva totais oficiais de entradas/saidas.'
   },
   {
     id: 'itau-lanchonete-jo-bras-2025-05-12-ocr',
@@ -373,6 +419,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     etapa: 'regressao_aprovada',
     status: 'Regressao aprovada',
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js para Banco ABC XLSX com ENTRADAS, SAIDAS e SALDO ATUAL.'
+  },
+  {
+    id: 'extrato-conciliado-flanacar-itau-2026-04-xlsx',
+    banco: 'GEN',
+    nomeBanco: 'Todos os bancos',
+    layout: 'Extrato Conciliado',
+    parser: 'parsearArquivoXLSXExtratoConciliado',
+    arquivo: 'EXTRATO ITAU-FLANACAR 042026.xlsx',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/EXTRATO ITAU-FLANACAR 042026.xlsx',
+    empresa: 'FLANACAR COMERCIO DE PECAS 2026',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js para Extrato Conciliado XLSX generico com DATA, OPERACAO, PREFIXO/TITULO, ENTRADAS, SAIDAS e SALDO ATUAL.'
   }
 ];
 

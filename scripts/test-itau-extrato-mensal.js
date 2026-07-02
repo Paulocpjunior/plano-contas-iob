@@ -72,7 +72,27 @@ async function main() {
   const rendimento = resultado.lancamentos.find(l => /RENDIMENTOS REND PAGO APLIC/i.test(l.descricao) && l.valor === 7.03);
   assert.ok(rendimento, 'deve importar rendimento de aplicacao de 01/04/2026');
 
-  console.log(`OK: Itau Extrato Mensal importa ${path.basename(arquivo)} com Redecard/Rede e rendimentos.`);
+  const casaBetinho = '/Users/paulocesarpereirajunior/Downloads/58208-8abr26CasaBetinho.pdf';
+  assert.ok(fs.existsSync(casaBetinho), `Arquivo de regressao nao encontrado: ${casaBetinho}`);
+
+  const bytesCasaBetinho = new Uint8Array(fs.readFileSync(casaBetinho));
+  const betinho = await itau.parsearPDF_Itau_ExtratoMensal(bytesCasaBetinho);
+
+  assert.strictEqual(betinho.detectado, true);
+  assert.strictEqual(betinho.periodo_inicio, '2026-04-01');
+  assert.strictEqual(betinho.periodo_fim, '2026-04-30');
+  assert.strictEqual(betinho.lancamentos.length, 489);
+  assert.strictEqual(Number(betinho.total_credito.toFixed(2)), 1020977.17);
+  assert.strictEqual(Number(betinho.total_debito.toFixed(2)), 939901.17);
+  assert.strictEqual(Number(betinho.total_credito_oficial_resumo.toFixed(2)), 1025764.82);
+  assert.strictEqual(Number(betinho.total_debito_oficial_resumo.toFixed(2)), 1019074.26);
+  assert.match(betinho.observacao_importacao, /PDF escaneado\/OCR/i);
+  assert.ok(betinho.lancamentos.every(l => /^2026-04-(0[1-9]|[12]\d|30)$/.test(l.data)), 'Casa Betinho deve manter datas somente em abril/2026');
+  assert.ok(!betinho.lancamentos.some(l => /saldo|aplic|apllc|aplfc|aut mais|m1ls/i.test(l.descricao)), 'Casa Betinho nao deve importar saldo/aplicacao automatica como lancamento');
+  assert.ok(betinho.lancamentos.some(l => /PIX ENVIADO/i.test(l.descricao) && l.valor < 0), 'Casa Betinho deve recuperar saidas PIX');
+  assert.ok(betinho.lancamentos.some(l => /PIX TRANSF|TED|Mov/i.test(l.descricao) && l.valor > 0), 'Casa Betinho deve recuperar entradas');
+
+  console.log(`OK: Itau Extrato Mensal importa ${path.basename(arquivo)} e ${path.basename(casaBetinho)}.`);
 }
 
 main().catch(err => {

@@ -237,6 +237,11 @@
     return 'C';
   }
 
+  function tipoPorSinalSantanderEmpresas(valorRaw) {
+    const raw = String(valorRaw || '').trim();
+    return /^-/.test(raw) || /-$/.test(raw) ? 'D' : 'C';
+  }
+
   function limparDescricao(desc) {
     return limparLinhaOCR(desc)
       .replace(/\bPAGAMENTOCARTAODECREDITO\b/ig, 'PAGAMENTO CARTAO DE CREDITO')
@@ -421,7 +426,10 @@
       let descricao = limparDescricao([descBase].concat(extras).filter(Boolean).join(' - '));
       if (!descricao || /^-+$/.test(descricao)) descricao = 'Lancamento Santander';
 
-      const tipo = (isInternetBankingOCRNumerico && /^-/.test(String(mov.raw || ''))) ? 'D' : tipoPorDescricao(descricao, mov.raw);
+      const rawMovimento = String(mov.raw || '');
+      const tipo = isInternetBankingOCRNumerico
+        ? ((/^-/.test(rawMovimento) || /-$/.test(rawMovimento)) ? 'D' : tipoPorDescricao(descricao, rawMovimento))
+        : tipoPorSinalSantanderEmpresas(rawMovimento);
       const valor = tipo === 'D' ? -Math.abs(mov.valor) : Math.abs(mov.valor);
       if (!valor) continue;
 

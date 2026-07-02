@@ -9,24 +9,27 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.2.72"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.3.3"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.2.72"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.2.72"></script>
-    <script src="/parser-safra-extrato.js?v=3.2.72"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.2.72"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.2.72"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.2.72"></script>
-    <script src="/parser-caixa-extrato.js?v=3.2.72"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.2.72"></script>
-    <script src="/parser-btg-pactual.js?v=3.2.72"></script>
-    <script src="/parser-abc-extrato.js?v=3.2.72"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.2.72"></script>
+    <script src="/parser-ofx.js?v=3.3.4"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.3.4"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.3.4"></script>
+    <script src="/parser-safra-extrato.js?v=3.3.4"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.3.4"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.3.4"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.3.4"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.3.4"></script>
+    <script src="/parser-caixa-extrato.js?v=3.3.4"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.3.4"></script>
+    <script src="/parser-btg-pactual.js?v=3.3.4"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.3.5"></script>
+    <script src="/parser-abc-extrato.js?v=3.3.4"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.3.4"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1652,6 +1655,7 @@
             <button onclick="showPage('plano')"><span>📚</span> Plano de Contas / Histórico</button>
             <button onclick="showPage('mapeamento')"><span>🔗</span> Mapeamento</button>
             <button onclick="showPage('validador')"><span>✅</span> Validador Obrigações</button>
+            <button onclick="showPage('reinf')"><span>📄</span> EFD-Reinf / Informes</button>
             <button onclick="showPage('exportar')"><span>💾</span> Exportar</button>
             <button onclick="showPage('sobre')"><span>ℹ️</span> Sobre</button>
             <button id="btnAuditAiNav" onclick="window.open('/auditai', '_blank')" style="display:none;margin-left:auto;color:#2563eb;font-weight:700"><span>🔍</span> AuditAI</button>
@@ -1872,6 +1876,11 @@
                     <div class="upload-section" id="uploadSection">
                         <h3>Envie extrato bancário ou planilha de lançamentos</h3>
                         <p>Inteligência Artificial extrai automaticamente todas as transações — suporta PDF, OFX/OFC, CSV, XLSX (multi-abas)</p>
+                        <div style="display:flex;justify-content:center;margin:14px 0 18px 0">
+                            <button class="btn-action btn-action-secondary" type="button" onclick="abrirModalMercadoPago()" style="background:#eef2ff;color:#1d4ed8;border:1px solid #c7d2fe">
+                                🟦 Mercado Pago API / Relatório
+                            </button>
+                        </div>
                         <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
                             <div class="upload-icon">📁</div>
                             <h4>Arraste ou clique para selecionar</h4>
@@ -1885,7 +1894,7 @@
                             </div>
                             <div class="upload-hint">
                                 <span>✨</span>
-                                <span>PDFs processados com IA Gemini 2.5</span>
+                                <span>PDFs processados com IA Gemini 3.5</span>
                             </div>
                         </div>
                         <input type="file" id="fileInput" accept=".pdf,.ofx,.ofc,.csv,.xlsx,.xls,.txt,.o2" style="display:none" onchange="handleFileSelect(this.files[0])">
@@ -2330,7 +2339,7 @@
                                     <span style="background:#dcfce7;color:#166534;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800">Ativo</span>
                                 </div>
                                 <div style="margin-top:10px;color:#334155;font-size:12px;line-height:1.5">
-                                    Registros estruturais monitorados: 0000, I010, I030, I050, I150, I155, I990, J005, J100, J150, J900, J930, J990, 9990 e 9999. I100 é conferência condicional.
+                                    Registros estruturais monitorados: 0000, I010, I030, I050, I150, I155, I990, J005, J100, J150, J900, J930, J990, 9990 e 9999. A sequência I150 -> I155 e a regra 0000.IND_MUDANCA_PC = 1 -> I157 são bloqueantes no PVA; I100/J800 são condicionais.
                                 </div>
                                 <div style="margin-top:10px;display:flex;justify-content:space-between;gap:8px;align-items:center;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:8px">
                                     <span id="obrigacaoPrazoEcdData" style="color:#475569;font-size:12px">Prazo: 30/06/2026</span>
@@ -2534,6 +2543,174 @@
                 </div>
             </div>
             
+            <!-- Page: EFD-Reinf / Informes -->
+            <div id="pageReinf" class="hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><span class="icon">📄</span> EFD-Reinf / Informes de Rendimentos</h2>
+                        <div class="action-buttons">
+                            <button class="btn-action btn-action-secondary" onclick="prepararReinf()">🔁 Atualizar</button>
+                            <button class="btn-action btn-action-secondary" onclick="consultarCertificadoReinf()">🔐 Certificado</button>
+                            <button class="btn-action btn-action-secondary" onclick="toggleUploadCertificadoReinf()">⬆️ Enviar A1</button>
+                            <button class="btn-action btn-action-primary" onclick="gerarR4010Reinf()">⚙️ Gerar R-4010</button>
+                            <button class="btn-action btn-action-success" onclick="transmitirReinf()">🚀 Transmitir lote</button>
+                        </div>
+                    </div>
+                    <p style="color:var(--text-muted);margin-bottom:18px">Geração e transmissão de eventos R-4000 da EFD-Reinf usando o certificado A1 do escritório e o mesmo login do Consultor Contábil.</p>
+
+                    <div class="import-totals-grid">
+                        <div class="import-total-card credit">
+                            <h3>Leiaute</h3>
+                            <div class="value" id="reinfLeiaute">-</div>
+                            <div class="sub" id="reinfXsd">Aguardando consulta</div>
+                        </div>
+                        <div class="import-total-card">
+                            <h3>Certificado A1</h3>
+                            <div class="value" id="reinfCertResumo" style="font-size:20px">Não consultado</div>
+                            <div class="sub" id="reinfCertValidade">-</div>
+                        </div>
+                        <div class="import-total-card">
+                            <h3>Beneficiários</h3>
+                            <div class="value" id="reinfQtdBeneficiarios">0</div>
+                            <div class="sub" id="reinfTotalBruto">Bruto: R$ 0,00</div>
+                        </div>
+                        <div class="import-total-card debit">
+                            <h3>IRRF</h3>
+                            <div class="value" id="reinfTotalIrrf">R$ 0,00</div>
+                            <div class="sub" id="reinfEventosGerados">0 evento(s)</div>
+                        </div>
+                    </div>
+
+                    <div id="reinfStatusBox" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:18px;color:#475569">
+                        Módulo pronto para gerar R-4010 em ambiente restrito. Consulte o certificado antes de transmitir.
+                    </div>
+
+                    <div id="reinfCertUploadPanel" class="filters-section hidden" style="border-color:#bfdbfe;background:#eff6ff">
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Certificado A1 (.pfx/.p12)</label>
+                                <input type="file" id="reinfCertArquivo" accept=".pfx,.p12">
+                            </div>
+                            <div class="filter-group">
+                                <label>Senha do certificado</label>
+                                <input type="password" id="reinfCertSenha" placeholder="Senha do A1">
+                            </div>
+                            <div class="filter-group">
+                                <label>&nbsp;</label>
+                                <button class="btn-action btn-action-primary" onclick="salvarCertificadoReinf()">Salvar certificado</button>
+                            </div>
+                            <div class="filter-group">
+                                <label>&nbsp;</label>
+                                <button class="btn-action btn-action-secondary" onclick="toggleUploadCertificadoReinf(false)">Cancelar</button>
+                            </div>
+                        </div>
+                        <div style="font-size:12px;color:#1e40af;margin-top:8px">
+                            O arquivo e a senha são enviados apenas para validação e gravação no Secret Manager. Eles não ficam salvos no navegador.
+                        </div>
+                    </div>
+
+                    <div class="filters-section">
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>CNPJ Fonte Pagadora</label>
+                                <input type="text" id="reinfCnpjFonte" placeholder="00.000.000/0000-00">
+                            </div>
+                            <div class="filter-group">
+                                <label>CNPJ Estabelecimento</label>
+                                <input type="text" id="reinfCnpjEstab" placeholder="00.000.000/0000-00">
+                            </div>
+                            <div class="filter-group">
+                                <label>Competência</label>
+                                <input type="month" id="reinfCompetencia">
+                            </div>
+                            <div class="filter-group">
+                                <label>Ambiente</label>
+                                <select id="reinfTpAmb">
+                                    <option value="2">Produção restrita</option>
+                                    <option value="1">Produção</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Natureza Rendimento</label>
+                                <input type="text" id="reinfNatRend" value="13002" placeholder="Ex: 13002">
+                            </div>
+                            <div class="filter-group">
+                                <label>Data Pagamento</label>
+                                <input type="date" id="reinfDataPagamento">
+                            </div>
+                            <div class="filter-group">
+                                <label>Contato Responsável</label>
+                                <input type="text" id="reinfContatoNome" placeholder="Nome do responsável">
+                            </div>
+                            <div class="filter-group">
+                                <label>CPF Responsável</label>
+                                <input type="text" id="reinfContatoCpf" placeholder="000.000.000-00">
+                            </div>
+                        </div>
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Importar beneficiários CSV/XLSX</label>
+                                <input type="file" id="reinfArquivo" accept=".csv,.txt,.xlsx,.xls" onchange="importarArquivoReinf(event)">
+                            </div>
+                            <div class="filter-group">
+                                <label>CPF beneficiário manual</label>
+                                <input type="text" id="reinfCpfManual" placeholder="000.000.000-00">
+                            </div>
+                            <div class="filter-group">
+                                <label>Nome beneficiário manual</label>
+                                <input type="text" id="reinfNomeManual" placeholder="Nome">
+                            </div>
+                            <div class="filter-group">
+                                <label>Bruto / IRRF manual</label>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                                    <input type="number" id="reinfBrutoManual" step="0.01" placeholder="Bruto">
+                                    <input type="number" id="reinfIrrfManual" step="0.01" placeholder="IRRF">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="filters-row">
+                            <button class="btn-action btn-action-secondary" onclick="adicionarBeneficiarioReinf()">➕ Adicionar beneficiário</button>
+                            <button class="btn-action btn-action-secondary" onclick="limparBeneficiariosReinf()">Limpar beneficiários</button>
+                        </div>
+                    </div>
+
+                    <div class="table-info">
+                        <div class="table-info-left">
+                            <span id="reinfEmpresaInfo">Selecione uma empresa para pré-preencher os CNPJs.</span>
+                        </div>
+                    </div>
+                    <div class="table-container" style="margin-bottom:18px">
+                        <div id="reinfTabelaBeneficiarios">
+                            <div class="empty-state">
+                                <div class="icon">📄</div>
+                                <h3>Nenhum beneficiário carregado</h3>
+                                <p>Importe uma planilha CSV/XLSX ou adicione um beneficiário manualmente.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filters-section">
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Protocolo do lote</label>
+                                <input type="text" id="reinfProtocolo" placeholder="Informe o protocolo para consulta">
+                            </div>
+                            <div class="filter-group">
+                                <label>&nbsp;</label>
+                                <button class="btn-action btn-action-secondary" onclick="consultarLoteReinf()">🔎 Consultar lote</button>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label>Prévia XML / Retorno</label>
+                            <div id="reinfRetornoResumo" style="display:none;margin:0 0 10px;padding:12px;border-radius:8px;border:1px solid #e5e7eb;background:#f8fafc;color:#334155;font-size:13px;line-height:1.45"></div>
+                            <textarea id="reinfXmlPreview" rows="10" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-family:monospace;font-size:12px" placeholder="A prévia do XML gerado ou retorno da Receita aparecerá aqui."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Page: Exportar -->
             <div id="pageExportar" class="hidden">
                 <div class="card">
@@ -2618,7 +2795,7 @@
                             <table style="font-size:14px">
                                 <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Versão atual:</td><td><strong id="sobreVersaoAtual">Carregando...</strong></td></tr>
                                 <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Release:</td><td><strong id="sobreDataRelease">Carregando...</strong></td></tr>
-                                <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Motor IA:</td><td><strong>Google Gemini 2.5 Flash</strong></td></tr>
+                                <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Motor IA:</td><td><strong>Google Gemini 3.5 Flash</strong></td></tr>
                                 <tr><td style="padding:6px 24px 6px 0;color:var(--text-muted)">Desenvolvido para:</td><td><strong>SP Assessoria Contábil</strong></td></tr>
                             </table>
                         </div>
@@ -2747,7 +2924,7 @@
         // Constants
         const DOMAIN = '@spassessoriacontabil.com.br';
         // GEMINI_KEY removida - agora via proxy /api/ai/gemini (chave no Secret Manager)
-        const GEMINI_MODEL = 'gemini-2.5-flash';
+        const GEMINI_MODEL = 'gemini-3.5-flash';
         
         // Feature flag: true = API Firestore, false = localStorage apenas
         window.USE_API = true;
@@ -3882,6 +4059,70 @@
                 return raw.replace(/[^A-Z0-9]/g, '');
             }
 
+            function ehCodigoLayoutGenerico(valor) {
+                const raw = (valor || '').toString().trim().toUpperCase();
+                return ['GEN', 'ANY', 'TODOS', 'GERAL'].includes(raw);
+            }
+
+            function normalizarCodigoBancoOuLayout(valor) {
+                const raw = (valor || '').toString().trim();
+                if (ehCodigoLayoutGenerico(raw)) return raw.toUpperCase();
+                return normalizarCodigoBancoLayout(resolverBancoLegado(raw) || raw || '');
+            }
+
+            function bancoLayoutCompativel(codigoSelecionado, codigoLayout) {
+                const selecionado = normalizarCodigoBancoOuLayout(codigoSelecionado);
+                const layout = normalizarCodigoBancoOuLayout(codigoLayout);
+                if (ehCodigoLayoutGenerico(layout)) return true;
+                if (!selecionado || !layout) return true;
+                if (selecionado === layout) return true;
+                if ((selecionado === '033' || selecionado === '352') && (layout === '033' || layout === '352')) return true;
+                return false;
+            }
+
+            function bancoLayoutDosLancamentos(entries) {
+                const primeiro = (entries || []).find(function(e) {
+                    return e && (e.layoutBanco || e.bancoLayout || e.layoutNome || e.layoutParser || e.conta || e.nome_conta);
+                }) || {};
+                let codigo = primeiro.layoutBanco || primeiro.bancoLayout || '';
+                const assinatura = [
+                    primeiro.layoutNome,
+                    primeiro.layoutParser,
+                    primeiro.conta,
+                    primeiro.nome_conta
+                ].join(' ').toLowerCase();
+                if (!codigo) {
+                    if (/banco abc/.test(assinatura)) codigo = '246';
+                    else if (/clude|stripe|cartao_itau_clude/.test(assinatura)) codigo = 'CLU';
+                    else if (/santander/.test(assinatura)) codigo = '033';
+                    else if (/itau|ita[uú]/.test(assinatura)) codigo = '341';
+                    else if (/bradesco/.test(assinatura)) codigo = '237';
+                    else if (/banco do brasil|\bbb\b/.test(assinatura)) codigo = '001';
+                    else if (/safra/.test(assinatura)) codigo = '422';
+                    else if (/caixa/.test(assinatura)) codigo = '104';
+                }
+                return {
+                    codigo: normalizarCodigoBancoOuLayout(codigo),
+                    nome: primeiro.layoutNome || primeiro.layoutParser || primeiro.conta || primeiro.nome_conta || ''
+                };
+            }
+
+            function validarLayoutCompativelComBanco(entries, bancoSelecionado) {
+                const banco = normalizarCodigoBancoOuLayout(bancoSelecionado);
+                if (!banco || !(entries || []).length) return true;
+                const origem = bancoLayoutDosLancamentos(entries);
+                if (!origem.codigo) return true;
+                if (bancoLayoutCompativel(banco, origem.codigo)) return true;
+                const esperado = nomeBanco(banco) || banco;
+                const detectado = nomeBanco(origem.codigo) || origem.codigo;
+                throw new Error(
+                    'Layout incompatível com o banco selecionado. Selecionado: ' +
+                    banco + ' — ' + esperado + '. Detectado: ' +
+                    origem.codigo + ' — ' + detectado + ' (' + (origem.nome || 'layout sem nome') + '). ' +
+                    'Selecione o banco correto ou use um arquivo/layout compatível.'
+                );
+            }
+
             let layoutsBancariosCache = null;
             let layoutsBancariosCacheTs = 0;
 
@@ -4703,6 +4944,7 @@
         }
 
         async function parsearArquivoXLSX(file, opts) {
+            opts = opts || {};
             if (typeof XLSX === 'undefined') throw new Error('SheetJS nao carregada. Recarregue a pagina.');
             let wb;
             try {
@@ -4735,6 +4977,17 @@
                 if (/protegido|criptografado/i.test(e.message || '')) throw e;
                 throw new Error('Falha ao ler XLSX: ' + e.message);
             }
+
+            const bancoXLSXSelecionado = normalizarCodigoBancoLayout(resolverBancoLegado(opts.bancoCode || opts.bancoSelecionado || '') || opts.bancoCode || opts.bancoSelecionado || '');
+            const layoutXLSXPermitido = function(codigoLayout) {
+                if (!bancoXLSXSelecionado) return true;
+                return bancoLayoutCompativel(bancoXLSXSelecionado, codigoLayout);
+            };
+            const layoutXLSXBloqueado = function(nomeLayout, codigoLayout) {
+                if (layoutXLSXPermitido(codigoLayout)) return false;
+                console.warn('[parsearArquivoXLSX] layout ignorado por banco incompatível:', nomeLayout, 'layout=', codigoLayout, 'selecionado=', bancoXLSXSelecionado);
+                return true;
+            };
 
             // Normalizador de cabecalho (remove acentos, lowercase, trim)
             const normH = (s) => String(s || '').toLowerCase().trim().replace(/\s+/g,' ')
@@ -4786,6 +5039,13 @@
                 }
                 const isoDateTime = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T]\d{2}:\d{2}(?::\d{2})?)?/);
                 if (isoDateTime) return isoDateTime[1] + '-' + isoDateTime[2] + '-' + isoDateTime[3];
+                const dataJs = new Date(s);
+                if (!Number.isNaN(dataJs.getTime()) && /(?:gmt|utc|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(s)) {
+                    const y = dataJs.getFullYear();
+                    const m = String(dataJs.getMonth() + 1).padStart(2, '0');
+                    const d = String(dataJs.getDate()).padStart(2, '0');
+                    return y + '-' + m + '-' + d;
+                }
                 const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
                 if (m) { const y = m[3].length===2 ? '20'+m[3] : m[3]; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
                 if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
@@ -5227,6 +5487,8 @@
                         aba_origem: sheetName,
                         layoutNome: 'CLUDE - Servicos Tomados Fiscal',
                         layoutParser: 'parsearArquivoXLSXCludeServicosTomados',
+                        layoutBanco: 'CLU',
+                        bancoLayout: 'CLU',
                         conta: 'Fiscal CLUDE - Servicos Tomados',
                         nome_conta: 'Fiscal CLUDE - Servicos Tomados'
                     };
@@ -5295,7 +5557,12 @@
                             todosServicos.push({
                                 ...l,
                                 aba_origem: sheetName,
-                                layoutParser: 'parsearArquivoXLSXCludeServicosTomados'
+                                layoutNome: 'CLUDE - Servicos Tomados Fiscal',
+                                layoutParser: 'parsearArquivoXLSXCludeServicosTomados',
+                                layoutBanco: 'CLU',
+                                bancoLayout: 'CLU',
+                                conta: l.conta || 'Fiscal CLUDE - Servicos Tomados',
+                                nome_conta: l.nome_conta || 'Fiscal CLUDE - Servicos Tomados'
                             });
                         });
                         abasServicos.push({ aba: sheetName, detectados: lancs.length, layout: 'CLUDE - Servicos Tomados Fiscal' });
@@ -5391,6 +5658,8 @@
                             aba_origem: sheetName,
                             layoutNome: 'CLUDE - Stripe / Recebimentos',
                             layoutParser: 'parsearArquivoXLSXCludeStripe',
+                            layoutBanco: 'CLU',
+                            bancoLayout: 'CLU',
                             conta: 'Stripe CLUDE',
                             nome_conta: 'Stripe CLUDE'
                         });
@@ -5540,6 +5809,8 @@
                             aba_origem: sheetName,
                             layoutNome: 'CLUDE - Itau Movimentacao Financeira',
                             layoutParser: 'parsearArquivoXLSXCludeItau',
+                            layoutBanco: 'CLU',
+                            bancoLayout: 'CLU',
                             conta: 'Itau CLUDE',
                             nome_conta: 'Itau CLUDE'
                         });
@@ -5665,6 +5936,8 @@
                             aba_origem: sheetName,
                             layoutNome: 'CARTAO_ITAU_CLUDE',
                             layoutParser: 'parsearArquivoXLSXCartaoItauClude',
+                            layoutBanco: 'CLU',
+                            bancoLayout: 'CLU',
                             conta: 'Cartao Itau CLUDE',
                             nome_conta: 'Cartao Itau CLUDE'
                         });
@@ -5689,6 +5962,158 @@
                     });
                     window.__ultimaImportacaoAbas = abasCartao;
                     return dedupCartao;
+                }
+                return null;
+            };
+
+            const parsearLayoutExtratoConciliadoXLSX = () => {
+                const todosConciliado = [];
+                const abasConciliado = [];
+                const headerTem = (h, aliases) => aliases.some(alias => h.includes(normH(alias)));
+                const possuiValorNaColuna = v => Math.abs(parseValor(v) || 0) > 0;
+                const ehHeaderConciliado = h => headerTem(h, ['data', 'dt movimento', 'data movimento'])
+                    && headerTem(h, ['operacao', 'operação', 'historico', 'histórico', 'descricao', 'descrição', 'descrição lançamento banco'])
+                    && headerTem(h, ['entradas', 'entrada', 'entrada extrato', 'credito', 'crédito', 'valor credito', 'valor crédito'])
+                    && headerTem(h, ['saidas', 'saídas', 'saida', 'saída', 'saida extrato', 'saída extrato', 'debito', 'débito', 'valor debito', 'valor débito']);
+                const pareceExtratoConciliadoPorEstrutura = (rows, hIdx) => {
+                    const inicio = Math.max(0, (hIdx >= 0 ? hIdx + 1 : 1));
+                    let linhasValidas = 0;
+                    for (let i = inicio; i < Math.min(rows.length, inicio + 30); i++) {
+                        const r = rows[i] || [];
+                        const data = parseDataConciliada(r[0]);
+                        const descricao = String(r[1] || '').trim();
+                        const temValor = possuiValorNaColuna(r[3]) || possuiValorNaColuna(r[4]) || possuiValorNaColuna(r[6]) || possuiValorNaColuna(r[7]);
+                        if (data && descricao && temValor) linhasValidas++;
+                        if (linhasValidas >= 3) return true;
+                    }
+                    return false;
+                };
+                const parseDataConciliada = (v) => {
+                    if (!v && v !== 0) return null;
+                    if (v instanceof Date) {
+                        return v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0') + '-' + String(v.getDate()).padStart(2, '0');
+                    }
+                    if (typeof v === 'number' && XLSX.SSF) {
+                        const d = XLSX.SSF.parse_date_code(v);
+                        if (d && d.y) return d.y + '-' + String(d.m).padStart(2, '0') + '-' + String(d.d).padStart(2, '0');
+                    }
+                    const s = String(v).trim();
+                    const dataJs = new Date(s);
+                    if (!Number.isNaN(dataJs.getTime()) && /(?:gmt|utc|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(s)) {
+                        return dataJs.getFullYear() + '-' + String(dataJs.getMonth() + 1).padStart(2, '0') + '-' + String(dataJs.getDate()).padStart(2, '0');
+                    }
+                    const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+                    if (m) {
+                        const a = Number(m[1]);
+                        const b = Number(m[2]);
+                        const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+                        const usarMesDia = b > 12 && a >= 1 && a <= 12;
+                        const mes = usarMesDia ? a : b;
+                        const dia = usarMesDia ? b : a;
+                        if (mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) {
+                            return y + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+                        }
+                    }
+                    return parseData(v);
+                };
+
+                for (const sheetName of wb.SheetNames) {
+                    const sheet = wb.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+                    if (!rows.length) {
+                        abasConciliado.push({ aba: sheetName, detectados: 0, motivo: 'vazia' });
+                        continue;
+                    }
+
+                    let hIdx = -1;
+                    for (let i = 0; i < Math.min(rows.length, 25); i++) {
+                        const h = (rows[i] || []).map(normH);
+                        if (ehHeaderConciliado(h)) { hIdx = i; break; }
+                    }
+                    if (hIdx === -1) {
+                        if (pareceExtratoConciliadoPorEstrutura(rows, -1)) {
+                            hIdx = 0;
+                        } else {
+                            abasConciliado.push({ aba: sheetName, detectados: 0, motivo: 'nao e layout Extrato Conciliado' });
+                            continue;
+                        }
+                    }
+
+                    const headers = rows[hIdx].map(normH);
+                    const colAny = aliases => {
+                        for (const alias of aliases) {
+                            const idx = headers.indexOf(normH(alias));
+                            if (idx >= 0) return idx;
+                        }
+                        return -1;
+                    };
+                    const cData = colAny(['DATA', 'DT MOVIMENTO', 'DATA MOVIMENTO']);
+                    const cOperacao = colAny(['OPERACAO', 'OPERAÇÃO', 'HISTORICO', 'HISTÓRICO', 'DESCRICAO', 'DESCRIÇÃO', 'DESCRIÇÃO LANÇAMENTO BANCO', 'DESCRICAO LANCAMENTO BANCO']);
+                    const cPrefixo = colAny(['DESCRIÇÃO FORNECEDOR/CLIENTE', 'DESCRICAO FORNECEDOR/CLIENTE', 'FORNECEDOR/CLIENTE', 'FORNECEDOR', 'CLIENTE', 'PREFIXO/TITULO', 'PREFIXO/TÍTULO', 'PREFIXO TITULO', 'PREFIXO TÍTULO', 'DOCUMENTO', 'TITULO', 'TÍTULO']);
+                    const cDocumento = colAny(['NF / DOC', 'NF/DOC', 'Nº NF', 'NO NF', 'NÚMERO NF', 'NUMERO NF', 'NOTA FISCAL', 'NUMERO NOTA', 'NÚMERO NOTA']);
+                    const cEntradas = colAny(['ENTRADA EXTRATO', 'ENTRADAS EXTRATO', 'ENTRADAS', 'ENTRADA', 'CREDITO', 'CRÉDITO', 'VALOR CREDITO', 'VALOR CRÉDITO']);
+                    const cSaidas = colAny(['SAIDA EXTRATO', 'SAÍDA EXTRATO', 'SAIDAS EXTRATO', 'SAÍDAS EXTRATO', 'SAIDAS', 'SAÍDAS', 'SAIDA', 'SAÍDA', 'DEBITO', 'DÉBITO', 'VALOR DEBITO', 'VALOR DÉBITO']);
+                    const cSaldo = colAny(['SALDO ATUAL', 'SALDO', 'SALDO FINAL']);
+                    const usarColunasPadrao = [cData, cOperacao, cEntradas, cSaidas].some(idx => idx < 0) && pareceExtratoConciliadoPorEstrutura(rows, hIdx);
+                    const idxData = usarColunasPadrao ? 0 : cData;
+                    const idxOperacao = usarColunasPadrao ? 1 : cOperacao;
+                    const idxPrefixo = usarColunasPadrao ? 2 : cPrefixo;
+                    const idxEntradas = usarColunasPadrao ? 3 : cEntradas;
+                    const idxSaidas = usarColunasPadrao ? 4 : cSaidas;
+                    const idxSaldo = usarColunasPadrao ? 5 : cSaldo;
+                    let count = 0;
+
+                    for (let i = hIdx + 1; i < rows.length; i++) {
+                        const r = rows[i];
+                        if (!r || r.every(c => c === null || c === '' || c === undefined)) continue;
+                        const data = parseDataConciliada(r[idxData]);
+                        const entrada = Math.abs(parseValor(r[idxEntradas]) || 0);
+                        const saida = Math.abs(parseValor(r[idxSaidas]) || 0);
+                        const saldo = parseValor(r[idxSaldo]);
+                        const operacao = String(r[idxOperacao] || '').replace(/\s+/g, ' ').trim();
+                        const prefixo = String(r[idxPrefixo] || '').replace(/\s+/g, ' ').trim();
+                        const documento = cDocumento >= 0 ? String(r[cDocumento] || '').replace(/\s+/g, ' ').trim() : '';
+                        if (!data || (!entrada && !saida)) continue;
+                        if (/saldo\s+(anterior|final|do dia|atual|inicial)/i.test(operacao)) continue;
+
+                        const complementoDocumento = documento ? 'NF/DOC ' + documento : '';
+                        const descricao = [operacao, prefixo, complementoDocumento].filter(Boolean).join(' - ').replace(/\s+/g, ' ').trim();
+                        todosConciliado.push({
+                            data,
+                            descricao: descricao || 'Movimento Extrato Conciliado',
+                            valor: entrada ? entrada : -saida,
+                            saldo_atual: saldo,
+                            complemento: complementoDocumento,
+                            documento,
+                            aba_origem: sheetName,
+                            layoutNome: 'Extrato Conciliado',
+                            layoutParser: 'parsearArquivoXLSXExtratoConciliado',
+                            layoutBanco: 'GEN',
+                            bancoLayout: 'GEN',
+                            conta: 'Extrato Conciliado',
+                            nome_conta: 'Extrato Conciliado'
+                        });
+                        count++;
+                    }
+                    abasConciliado.push({ aba: sheetName, detectados: count, layout: 'Extrato Conciliado', fallbackEstrutural: usarColunasPadrao });
+                }
+
+                const seenConciliado = new Set();
+                const dedupConciliado = todosConciliado.filter(t => {
+                    const k = t.data + '|' + t.descricao + '|' + t.valor + '|' + t.aba_origem;
+                    if (seenConciliado.has(k)) return false;
+                    seenConciliado.add(k);
+                    return true;
+                });
+
+                if (dedupConciliado.length) {
+                    const datas = dedupConciliado.map(t => t.data).sort();
+                    dedupConciliado.forEach(t => {
+                        t.periodo_inicio = datas[0] || '';
+                        t.periodo_fim = datas[datas.length - 1] || '';
+                    });
+                    window.__ultimaImportacaoAbas = abasConciliado;
+                    return dedupConciliado;
                 }
                 return null;
             };
@@ -5752,6 +6177,8 @@
                             aba_origem: sheetName,
                             layoutNome: 'Banco ABC - Extrato XLSX',
                             layoutParser: 'parsearArquivoXLSXBancoABC',
+                            layoutBanco: '246',
+                            bancoLayout: '246',
                             conta: 'Banco ABC',
                             nome_conta: 'Banco ABC'
                         });
@@ -5789,32 +6216,49 @@
                 return razaoNotas;
             }
 
-            const cludeServicos = parsearLayoutCludeServicosTomados();
+            const cludeServicos = layoutXLSXBloqueado('CLUDE - Servicos Tomados Fiscal', 'CLU') ? null : parsearLayoutCludeServicosTomados();
             if (cludeServicos) {
                 console.log('[parsearArquivoXLSX] layout CLUDE Servicos Tomados detectado:', cludeServicos.length);
                 return cludeServicos;
             }
 
-            const clude = parsearLayoutClude();
+            const clude = layoutXLSXBloqueado('CLUDE - Stripe / Recebimentos', 'CLU') ? null : parsearLayoutClude();
             if (clude) {
                 console.log('[parsearArquivoXLSX] layout CLUDE detectado:', clude.length);
                 return clude;
             }
-            const cludeItau = parsearLayoutCludeItau();
+            const cludeItau = layoutXLSXBloqueado('CLUDE - Itau Movimentacao Financeira', 'CLU') ? null : parsearLayoutCludeItau();
             if (cludeItau) {
                 console.log('[parsearArquivoXLSX] layout CLUDE Itau detectado:', cludeItau.length);
                 return cludeItau;
             }
-            const cartaoItauClude = parsearLayoutCartaoItauClude();
+            const cartaoItauClude = layoutXLSXBloqueado('CARTAO_ITAU_CLUDE', 'CLU') ? null : parsearLayoutCartaoItauClude();
             if (cartaoItauClude) {
                 console.log('[parsearArquivoXLSX] layout CARTAO_ITAU_CLUDE detectado:', cartaoItauClude.length);
                 return cartaoItauClude;
             }
 
-            const bancoABCXLSX = parsearLayoutBancoABCXLSX();
+            const tentarExtratoConciliadoAntesDoABC = !layoutXLSXPermitido('246');
+            if (tentarExtratoConciliadoAntesDoABC) {
+                const extratoConciliadoXLSX = layoutXLSXBloqueado('Extrato Conciliado', 'GEN') ? null : parsearLayoutExtratoConciliadoXLSX();
+                if (extratoConciliadoXLSX) {
+                    console.log('[parsearArquivoXLSX] layout Extrato Conciliado detectado:', extratoConciliadoXLSX.length);
+                    return extratoConciliadoXLSX;
+                }
+            }
+
+            const bancoABCXLSX = layoutXLSXBloqueado('Banco ABC - Extrato XLSX', '246') ? null : parsearLayoutBancoABCXLSX();
             if (bancoABCXLSX) {
                 console.log('[parsearArquivoXLSX] layout Banco ABC XLSX detectado:', bancoABCXLSX.length);
                 return bancoABCXLSX;
+            }
+
+            if (!tentarExtratoConciliadoAntesDoABC) {
+                const extratoConciliadoXLSX = layoutXLSXBloqueado('Extrato Conciliado', 'GEN') ? null : parsearLayoutExtratoConciliadoXLSX();
+                if (extratoConciliadoXLSX) {
+                    console.log('[parsearArquivoXLSX] layout Extrato Conciliado detectado:', extratoConciliadoXLSX.length);
+                    return extratoConciliadoXLSX;
+                }
             }
 
             for (const sheetName of wb.SheetNames) {
@@ -5868,6 +6312,193 @@
             // Expor log pro modal de preview
             window.__ultimaImportacaoAbas = abasLog;
 
+            return deduped;
+        }
+
+        async function parsearExtratoConciliadoXLSXObrigatorio(file) {
+            if (typeof XLSX === 'undefined') return [];
+            let wb;
+            try {
+                const buf = await obterArrayBufferArquivo(file);
+                wb = XLSX.read(buf, { type: 'array', cellDates: true });
+            } catch (e) {
+                console.warn('[Extrato Conciliado obrigatório] falha ao ler XLSX:', e);
+                return [];
+            }
+
+            const normLocal = (s) => String(s || '').toLowerCase().trim().replace(/\s+/g, ' ')
+                .replace(/[áàâãä]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[íìîï]/g, 'i')
+                .replace(/[óòôõö]/g, 'o').replace(/[úùûü]/g, 'u').replace(/[ç]/g, 'c');
+            const parseValorLocal = (v) => {
+                if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+                let s = String(v || '').trim();
+                if (!s) return 0;
+                const negativo = /^-/.test(s) || /-$/.test(s) || /\(\s*-?\s*[\d.,]+\s*\)/.test(s);
+                s = s.replace(/R\$/gi, '').replace(/\s/g, '').replace(/[()]/g, '').replace(/-/g, '');
+                if (!s) return 0;
+                if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
+                else if (s.includes(',')) s = s.replace(',', '.');
+                const n = Number(s);
+                if (!Number.isFinite(n)) return 0;
+                return negativo ? -Math.abs(n) : n;
+            };
+            const parseDataLocal = (v) => {
+                if (!v && v !== 0) return null;
+                if (v instanceof Date) {
+                    return v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0') + '-' + String(v.getDate()).padStart(2, '0');
+                }
+                if (typeof v === 'number' && XLSX.SSF) {
+                    const d = XLSX.SSF.parse_date_code(v);
+                    if (d && d.y) return d.y + '-' + String(d.m).padStart(2, '0') + '-' + String(d.d).padStart(2, '0');
+                }
+                const s = String(v).trim();
+                if (/^\d{4,6}(?:\.\d+)?$/.test(s) && XLSX.SSF) {
+                    const n = Number(s);
+                    if (n > 20000 && n < 80000) {
+                        const d = XLSX.SSF.parse_date_code(n);
+                        if (d && d.y) return d.y + '-' + String(d.m).padStart(2, '0') + '-' + String(d.d).padStart(2, '0');
+                    }
+                }
+                const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
+                const dataJs = new Date(s);
+                if (!Number.isNaN(dataJs.getTime()) && /(?:gmt|utc|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(s)) {
+                    return dataJs.getFullYear() + '-' + String(dataJs.getMonth() + 1).padStart(2, '0') + '-' + String(dataJs.getDate()).padStart(2, '0');
+                }
+                const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+                if (!m) return null;
+                const a = Number(m[1]);
+                const b = Number(m[2]);
+                const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+                const usarMesDia = b > 12 && a >= 1 && a <= 12;
+                const mes = usarMesDia ? a : b;
+                const dia = usarMesDia ? b : a;
+                if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+                return y + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+            };
+            const colAnyLocal = (headers, aliases) => {
+                for (const alias of aliases) {
+                    const idx = headers.indexOf(normLocal(alias));
+                    if (idx >= 0) return idx;
+                }
+                return -1;
+            };
+            const headerTemLocal = (headers, aliases) => aliases.some(alias => headers.includes(normLocal(alias)));
+            const ehHeaderConciliadoLocal = (headers) => headerTemLocal(headers, ['data', 'dt movimento', 'data movimento'])
+                && headerTemLocal(headers, ['operacao', 'operação', 'historico', 'histórico', 'descricao', 'descrição', 'descrição lançamento banco'])
+                && headerTemLocal(headers, ['entradas', 'entrada', 'entrada extrato', 'credito', 'crédito', 'valor credito', 'valor crédito'])
+                && headerTemLocal(headers, ['saidas', 'saídas', 'saida', 'saída', 'saida extrato', 'saída extrato', 'debito', 'débito', 'valor debito', 'valor débito']);
+            const possuiValorNaColunaLocal = (v) => Math.abs(parseValorLocal(v) || 0) > 0;
+            const pareceExtratoConciliadoEstruturalLocal = (rows, hIdx) => {
+                const inicio = Math.max(0, (hIdx >= 0 ? hIdx + 1 : 1));
+                let linhasValidas = 0;
+                for (let i = inicio; i < Math.min(rows.length, inicio + 40); i++) {
+                    const r = rows[i] || [];
+                    const data = parseDataLocal(r[0]);
+                    const descricao = String(r[1] || '').trim();
+                    const temValor = possuiValorNaColunaLocal(r[3]) || possuiValorNaColunaLocal(r[4]) || possuiValorNaColunaLocal(r[6]) || possuiValorNaColunaLocal(r[7]);
+                    if (data && descricao && temValor) linhasValidas++;
+                    if (linhasValidas >= 3) return true;
+                }
+                return false;
+            };
+
+            const todos = [];
+            const abas = [];
+            for (const sheetName of wb.SheetNames) {
+                const sheet = wb.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+                if (!rows.length) {
+                    abas.push({ aba: sheetName, detectados: 0, motivo: 'vazia' });
+                    continue;
+                }
+
+                let hIdx = -1;
+                for (let i = 0; i < Math.min(rows.length, 25); i++) {
+                    const headers = (rows[i] || []).map(normLocal);
+                    if (ehHeaderConciliadoLocal(headers)) { hIdx = i; break; }
+                }
+                if (hIdx === -1) {
+                    if (pareceExtratoConciliadoEstruturalLocal(rows, -1)) hIdx = 0;
+                    else {
+                        abas.push({ aba: sheetName, detectados: 0, motivo: 'nao e layout Extrato Conciliado' });
+                        continue;
+                    }
+                }
+
+                const headers = (rows[hIdx] || []).map(normLocal);
+                const cData = colAnyLocal(headers, ['DATA', 'DT MOVIMENTO', 'DATA MOVIMENTO']);
+                const cOperacao = colAnyLocal(headers, ['OPERACAO', 'OPERAÇÃO', 'HISTORICO', 'HISTÓRICO', 'DESCRICAO', 'DESCRIÇÃO', 'DESCRIÇÃO LANÇAMENTO BANCO', 'DESCRICAO LANCAMENTO BANCO']);
+                const cPrefixo = colAnyLocal(headers, ['DESCRIÇÃO FORNECEDOR/CLIENTE', 'DESCRICAO FORNECEDOR/CLIENTE', 'FORNECEDOR/CLIENTE', 'FORNECEDOR', 'CLIENTE', 'PREFIXO/TITULO', 'PREFIXO/TÍTULO', 'PREFIXO TITULO', 'PREFIXO TÍTULO', 'DOCUMENTO', 'TITULO', 'TÍTULO']);
+                const cDocumento = colAnyLocal(headers, ['NF / DOC', 'NF/DOC', 'Nº NF', 'NO NF', 'NÚMERO NF', 'NUMERO NF', 'NOTA FISCAL', 'NUMERO NOTA', 'NÚMERO NOTA']);
+                const cEntradas = colAnyLocal(headers, ['ENTRADA EXTRATO', 'ENTRADAS EXTRATO', 'ENTRADAS', 'ENTRADA', 'CREDITO', 'CRÉDITO', 'VALOR CREDITO', 'VALOR CRÉDITO']);
+                const cSaidas = colAnyLocal(headers, ['SAIDA EXTRATO', 'SAÍDA EXTRATO', 'SAIDAS EXTRATO', 'SAÍDAS EXTRATO', 'SAIDAS', 'SAÍDAS', 'SAIDA', 'SAÍDA', 'DEBITO', 'DÉBITO', 'VALOR DEBITO', 'VALOR DÉBITO']);
+                const cSaldo = colAnyLocal(headers, ['SALDO ATUAL', 'SALDO', 'SALDO FINAL']);
+                const usarPadrao = [cData, cOperacao, cEntradas, cSaidas].some(idx => idx < 0) && pareceExtratoConciliadoEstruturalLocal(rows, hIdx);
+                const idxData = usarPadrao ? 0 : cData;
+                const idxOperacao = usarPadrao ? 1 : cOperacao;
+                const idxPrefixo = usarPadrao ? 2 : cPrefixo;
+                const idxEntradas = usarPadrao ? 3 : cEntradas;
+                const idxSaidas = usarPadrao ? 4 : cSaidas;
+                const idxSaldo = usarPadrao ? 5 : cSaldo;
+                let count = 0;
+
+                for (let i = hIdx + 1; i < rows.length; i++) {
+                    const r = rows[i] || [];
+                    if (r.every(c => c === null || c === '' || c === undefined)) continue;
+                    const data = parseDataLocal(r[idxData]);
+                    const entrada = Math.abs(parseValorLocal(r[idxEntradas]) || 0);
+                    const saida = Math.abs(parseValorLocal(r[idxSaidas]) || 0);
+                    const operacao = String(r[idxOperacao] || '').replace(/\s+/g, ' ').trim();
+                    const prefixo = String(r[idxPrefixo] || '').replace(/\s+/g, ' ').trim();
+                    const documento = cDocumento >= 0 ? String(r[cDocumento] || '').replace(/\s+/g, ' ').trim() : '';
+                    if (!data || (!entrada && !saida)) continue;
+                    if (/saldo\s+(anterior|final|do dia|atual|inicial)/i.test(operacao)) continue;
+                    const complementoDocumento = documento ? 'NF/DOC ' + documento : '';
+                    const descricao = [operacao, prefixo, complementoDocumento].filter(Boolean).join(' - ').replace(/\s+/g, ' ').trim();
+                    todos.push({
+                        data,
+                        descricao: descricao || 'Movimento Extrato Conciliado',
+                        valor: entrada ? entrada : -saida,
+                        saldo_atual: idxSaldo >= 0 ? parseValorLocal(r[idxSaldo]) : 0,
+                        complemento: complementoDocumento,
+                        documento,
+                        aba_origem: sheetName,
+                        layoutNome: 'Extrato Conciliado',
+                        layoutParser: 'parsearArquivoXLSXExtratoConciliado',
+                        layoutBanco: 'GEN',
+                        bancoLayout: 'GEN',
+                        conta: 'Extrato Conciliado',
+                        nome_conta: 'Extrato Conciliado'
+                    });
+                    count++;
+                }
+                abas.push({ aba: sheetName, detectados: count, layout: 'Extrato Conciliado', fallbackObrigatorio: true, fallbackEstrutural: usarPadrao });
+            }
+
+            const seen = new Set();
+            const deduped = todos.filter(t => {
+                const k = t.data + '|' + t.descricao + '|' + t.valor + '|' + t.aba_origem;
+                if (seen.has(k)) return false;
+                seen.add(k);
+                return true;
+            });
+            if (deduped.length) {
+                const datas = deduped.map(t => t.data).sort();
+                deduped.forEach(t => {
+                    t.periodo_inicio = datas[0] || '';
+                    t.periodo_fim = datas[datas.length - 1] || '';
+                });
+                if (typeof window !== 'undefined') {
+                    window.__ultimaImportacaoAbas = abas;
+                    window.__extratoConciliadoFallbackObrigatorio = {
+                        arquivo: file && file.name,
+                        total: deduped.length,
+                        abas
+                    };
+                }
+                console.warn('[Extrato Conciliado obrigatório] fallback acionado:', deduped.length, abas);
+            }
             return deduped;
         }
 
@@ -6627,6 +7258,583 @@
             carregarFiscal();
         }
 
+        const reinfState = {
+            preparado: false,
+            beneficiarios: [],
+            eventos: [],
+            acumulos: [],
+            ultimoPayload: null,
+            ultimoPayloadOriginal: null
+        };
+
+        function reinfDigits(valor) {
+            return String(valor || '').replace(/\D/g, '');
+        }
+
+        function reinfEscape(valor) {
+            return String(valor == null ? '' : valor)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function reinfValor(valor) {
+            if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+            let s = String(valor == null ? '' : valor).trim();
+            if (!s) return 0;
+            s = s.replace(/[^\d,.-]/g, '');
+            if (s.includes(',') && s.includes('.')) {
+                s = s.replace(/\./g, '').replace(',', '.');
+            } else if (s.includes(',')) {
+                s = s.replace(',', '.');
+            }
+            const n = Number(s);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function reinfMoney(valor) {
+            if (typeof formatarMoedaBR === 'function') return formatarMoedaBR(valor);
+            return 'R$ ' + (Number(valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function reinfToday() {
+            return new Date().toISOString().slice(0, 10);
+        }
+
+        function reinfSetStatus(msg, tipo = 'info') {
+            const box = document.getElementById('reinfStatusBox');
+            if (!box) return;
+            const styles = {
+                info: ['#f8fafc', '#e5e7eb', '#475569'],
+                success: ['#ecfdf5', '#bbf7d0', '#166534'],
+                warn: ['#fffbeb', '#fed7aa', '#92400e'],
+                error: ['#fef2f2', '#fecaca', '#991b1b']
+            };
+            const s = styles[tipo] || styles.info;
+            box.style.background = s[0];
+            box.style.borderColor = s[1];
+            box.style.color = s[2];
+            box.innerHTML = msg;
+        }
+
+        function reinfMesAtual() {
+            const d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        }
+
+        function reinfAtualizarResumo() {
+            const lista = reinfState.beneficiarios || [];
+            const totalBruto = lista.reduce((a, b) => a + reinfValor(b.valorBruto), 0);
+            const totalIrrf = lista.reduce((a, b) => a + reinfValor(b.valorIrrf), 0);
+            const qtd = document.getElementById('reinfQtdBeneficiarios');
+            const bruto = document.getElementById('reinfTotalBruto');
+            const irrf = document.getElementById('reinfTotalIrrf');
+            const eventos = document.getElementById('reinfEventosGerados');
+            if (qtd) qtd.textContent = String(lista.length);
+            if (bruto) bruto.textContent = 'Bruto: ' + reinfMoney(totalBruto);
+            if (irrf) irrf.textContent = reinfMoney(totalIrrf);
+            if (eventos) eventos.textContent = (reinfState.eventos || []).length + ' evento(s)';
+            reinfRenderTabela(lista);
+        }
+
+        function reinfRenderTabela(lista) {
+            const el = document.getElementById('reinfTabelaBeneficiarios');
+            if (!el) return;
+            if (!lista || !lista.length) {
+                el.innerHTML = '<div class="empty-state"><div class="icon">📄</div><h3>Nenhum beneficiário carregado</h3><p>Importe uma planilha CSV/XLSX ou adicione um beneficiário manualmente.</p></div>';
+                return;
+            }
+            let html = '<table class="data-table"><thead><tr><th>CPF</th><th>Nome</th><th>Bruto</th><th>IRRF</th><th>Ações</th></tr></thead><tbody>';
+            lista.forEach((b, idx) => {
+                html += '<tr>' +
+                    '<td><strong>' + reinfEscape(b.cpfBenef) + '</strong></td>' +
+                    '<td>' + reinfEscape(b.nomeBenef) + (b.observacao ? '<br><span style="font-size:11px;color:#64748b">' + reinfEscape(b.observacao) + '</span>' : '') + '</td>' +
+                    '<td>' + reinfEscape(reinfMoney(b.valorBruto)) + '</td>' +
+                    '<td>' + reinfEscape(reinfMoney(b.valorIrrf)) + '</td>' +
+                    '<td><button class="btn-action btn-action-danger" style="padding:6px 10px;font-size:12px" onclick="removerBeneficiarioReinf(' + idx + ')">Excluir</button></td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table>';
+            el.innerHTML = html;
+        }
+
+        async function prepararReinf() {
+            const info = state && state.info ? state.info : {};
+            const cnpj = reinfDigits(info.cnpj || info.cnpjEmpresa || '');
+            const cnpjFonte = document.getElementById('reinfCnpjFonte');
+            const cnpjEstab = document.getElementById('reinfCnpjEstab');
+            const competencia = document.getElementById('reinfCompetencia');
+            const pagamento = document.getElementById('reinfDataPagamento');
+            const contato = document.getElementById('reinfContatoNome');
+            const empresaInfo = document.getElementById('reinfEmpresaInfo');
+            if (cnpj && cnpjFonte && !reinfDigits(cnpjFonte.value)) cnpjFonte.value = cnpj;
+            if (cnpj && cnpjEstab && !reinfDigits(cnpjEstab.value)) cnpjEstab.value = cnpj;
+            if (competencia && !competencia.value) {
+                const inicio = String(info.periodoInicio || '').match(/^(\d{4})-(\d{2})/);
+                competencia.value = inicio ? (inicio[1] + '-' + inicio[2]) : reinfMesAtual();
+            }
+            if (pagamento && !pagamento.value) pagamento.value = reinfToday();
+            if (contato && !contato.value) contato.value = info.responsavel || info.usuario || '';
+            if (empresaInfo) {
+                empresaInfo.textContent = cnpj
+                    ? ((info.empresa || 'Empresa') + ' - ' + cnpj + ' - ' + reinfState.beneficiarios.length + ' beneficiário(s)')
+                    : 'Selecione uma empresa para pré-preencher os CNPJs.';
+            }
+            try {
+                if (window.API && window.API.reinfVersao) {
+                    const v = await window.API.reinfVersao();
+                    if (v && !v.erro) {
+                        const leiaute = document.getElementById('reinfLeiaute');
+                        const xsd = document.getElementById('reinfXsd');
+                        if (leiaute) leiaute.textContent = v.leiaute || '-';
+                        if (xsd) xsd.textContent = 'R-4010 ' + (v.xsdR4010 || '-') + ' • lote ' + (v.loteXsd || '-');
+                    }
+                }
+                await consultarCertificadoReinf({ silent: true });
+            } catch (e) {
+                reinfSetStatus('Módulo Reinf carregado, mas não foi possível consultar versão/certificado: ' + reinfEscape(e.message || e), 'warn');
+            }
+            reinfState.preparado = true;
+            reinfAtualizarResumo();
+        }
+
+        async function consultarCertificadoReinf(opts = {}) {
+            if (!window.API || !window.API.reinfCertificado) {
+                reinfSetStatus('API Reinf indisponível nesta versão.', 'error');
+                return;
+            }
+            const resp = await window.API.reinfCertificado();
+            const resumo = document.getElementById('reinfCertResumo');
+            const validade = document.getElementById('reinfCertValidade');
+            if (resp && resp.erro) {
+                if (resumo) resumo.textContent = 'Não vinculado';
+                if (validade) validade.textContent = resp.erro;
+                reinfSetStatus('Certificado não localizado/configurado: ' + reinfEscape(resp.erro), 'warn');
+                if (!opts.silent) showToast('Certificado Reinf não localizado.', 'error');
+                if (!opts.silent) toggleUploadCertificadoReinf(true);
+                return;
+            }
+            if (resumo) resumo.textContent = (resp && resp.titular) ? resp.titular : 'Certificado localizado';
+            if (validade) validade.textContent = resp && resp.validade ? ('Validade: ' + fiscalDataBR(resp.validade)) : 'Validade não informada';
+            reinfSetStatus('Certificado A1 localizado no backend. Dados sensíveis não são exibidos no navegador.', 'success');
+            if (!opts.silent) showToast('Certificado Reinf consultado.', 'success');
+        }
+
+        function toggleUploadCertificadoReinf(force) {
+            const panel = document.getElementById('reinfCertUploadPanel');
+            if (!panel) return;
+            const mostrar = typeof force === 'boolean' ? force : panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !mostrar);
+        }
+
+        function reinfArquivoBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const result = String(reader.result || '');
+                    resolve(result.includes(',') ? result.split(',').pop() : result);
+                };
+                reader.onerror = () => reject(reader.error || new Error('Falha ao ler o certificado.'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function salvarCertificadoReinf() {
+            try {
+                const file = document.getElementById('reinfCertArquivo')?.files?.[0];
+                const senhaEl = document.getElementById('reinfCertSenha');
+                const password = senhaEl ? senhaEl.value : '';
+                if (!file) throw new Error('Selecione o arquivo .pfx ou .p12.');
+                if (!/\.(pfx|p12)$/i.test(file.name)) throw new Error('O certificado precisa estar em .pfx ou .p12.');
+                if (file.size > 8 * 1024 * 1024) throw new Error('Certificado acima de 8 MB.');
+                if (!String(password || '').trim()) throw new Error('Informe a senha do certificado.');
+                if (!window.API || !window.API.reinfSalvarCertificado) throw new Error('API de upload do certificado indisponível.');
+
+                reinfSetStatus('Validando e gravando certificado A1...', 'info');
+                const pfxBase64 = await reinfArquivoBase64(file);
+                const resp = await window.API.reinfSalvarCertificado({
+                    filename: file.name,
+                    password,
+                    pfxBase64
+                });
+                if (!resp || resp.erro || resp.ok === false) {
+                    throw new Error((resp && resp.erro) || 'Falha ao salvar certificado.');
+                }
+
+                const arquivoEl = document.getElementById('reinfCertArquivo');
+                if (arquivoEl) arquivoEl.value = '';
+                if (senhaEl) senhaEl.value = '';
+                toggleUploadCertificadoReinf(false);
+
+                const resumo = document.getElementById('reinfCertResumo');
+                const validade = document.getElementById('reinfCertValidade');
+                if (resumo) resumo.textContent = resp.titular || 'Certificado salvo';
+                if (validade) validade.textContent = resp.validade ? ('Validade: ' + fiscalDataBR(resp.validade)) : 'Validade não informada';
+                reinfSetStatus('Certificado A1 salvo e validado. Ele já pode ser usado na transmissão Reinf.', 'success');
+                showToast('Certificado Reinf salvo.', 'success');
+            } catch (e) {
+                reinfSetStatus('Erro ao salvar certificado: ' + reinfEscape(e.message || e), 'error');
+                showToast(e.message || 'Erro ao salvar certificado Reinf.', 'error');
+            }
+        }
+
+        function reinfDetectarSeparador(linha) {
+            const candidatos = [';', '\t', ','];
+            return candidatos.sort((a, b) => (linha.split(b).length - linha.split(a).length))[0];
+        }
+
+        function reinfParseCsv(texto) {
+            const linhas = String(texto || '').split(/\r?\n/).filter(l => l.trim());
+            if (!linhas.length) return [];
+            const sep = reinfDetectarSeparador(linhas[0]);
+            return linhas.map(l => l.split(sep).map(c => c.replace(/^"|"$/g, '').trim()));
+        }
+
+        function reinfNormalizarHeader(valor) {
+            return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        }
+
+        function reinfIndiceCabecalho(headers, aliases) {
+            const norm = headers.map(reinfNormalizarHeader);
+            return norm.findIndex(h => aliases.some(a => h.includes(a)));
+        }
+
+        function reinfMapearBeneficiarios(rows) {
+            if (!Array.isArray(rows) || !rows.length) return [];
+            let headerIdx = -1;
+            let indices = null;
+            for (let i = 0; i < Math.min(rows.length, 30); i++) {
+                const row = rows[i] || [];
+                const idxCpf = reinfIndiceCabecalho(row, ['CPF', 'CPFCNPJ', 'DOCUMENTO']);
+                const idxNome = reinfIndiceCabecalho(row, ['NOME', 'BENEFICIARIO', 'RAZAOSOCIAL', 'FAVORECIDO']);
+                const idxBruto = reinfIndiceCabecalho(row, ['VALORBRUTO', 'BRUTO', 'RENDIMENTO', 'VALORNF', 'VALOR']);
+                if (idxCpf >= 0 && idxNome >= 0 && idxBruto >= 0) {
+                    headerIdx = i;
+                    indices = {
+                        cpf: idxCpf,
+                        nome: idxNome,
+                        bruto: idxBruto,
+                        irrf: reinfIndiceCabecalho(row, ['IRRF', 'VALORIR', 'IMPOSTORENDA', 'RETENCAO'])
+                    };
+                    break;
+                }
+            }
+            if (!indices) return [];
+            const out = [];
+            for (let i = headerIdx + 1; i < rows.length; i++) {
+                const r = rows[i] || [];
+                const cpf = reinfDigits(r[indices.cpf]);
+                const nome = String(r[indices.nome] || '').trim();
+                const bruto = reinfValor(r[indices.bruto]);
+                const irrf = indices.irrf >= 0 ? reinfValor(r[indices.irrf]) : 0;
+                if (cpf.length === 11 && nome && (bruto > 0 || irrf > 0)) {
+                    out.push({ cpfBenef: cpf, nomeBenef: nome, valorBruto: bruto, valorIrrf: irrf, observacao: 'Linha ' + (i + 1) });
+                }
+            }
+            return out;
+        }
+
+        async function importarArquivoReinf(evt) {
+            const file = evt && evt.target && evt.target.files ? evt.target.files[0] : null;
+            if (!file) return;
+            try {
+                let rows = [];
+                const name = file.name.toLowerCase();
+                if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+                    if (typeof XLSX === 'undefined') throw new Error('Biblioteca XLSX indisponível nesta tela.');
+                    const buf = await file.arrayBuffer();
+                    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+                    wb.SheetNames.forEach(sheet => {
+                        const arr = XLSX.utils.sheet_to_json(wb.Sheets[sheet], { header: 1, defval: '', raw: false });
+                        if (arr && arr.length) rows.push(...arr);
+                    });
+                } else {
+                    rows = reinfParseCsv(await file.text());
+                }
+                const novos = reinfMapearBeneficiarios(rows);
+                if (!novos.length) throw new Error('Nenhum beneficiário R-4010 encontrado. Verifique colunas CPF, Nome, Valor Bruto e IRRF.');
+                reinfState.beneficiarios = reinfState.beneficiarios.concat(novos);
+                reinfState.eventos = [];
+                reinfAtualizarResumo();
+                reinfSetStatus(novos.length + ' beneficiário(s) importado(s) de ' + reinfEscape(file.name) + '.', 'success');
+                showToast('Beneficiários Reinf importados.', 'success');
+            } catch (e) {
+                reinfSetStatus('Erro ao importar beneficiários: ' + reinfEscape(e.message || e), 'error');
+                showToast('Erro Reinf: ' + (e.message || e), 'error');
+            } finally {
+                if (evt && evt.target) evt.target.value = '';
+            }
+        }
+
+        function adicionarBeneficiarioReinf() {
+            const cpf = reinfDigits(document.getElementById('reinfCpfManual')?.value);
+            const nome = String(document.getElementById('reinfNomeManual')?.value || '').trim();
+            const bruto = reinfValor(document.getElementById('reinfBrutoManual')?.value);
+            const irrf = reinfValor(document.getElementById('reinfIrrfManual')?.value);
+            if (cpf.length !== 11) return showToast('CPF do beneficiário deve ter 11 dígitos.', 'warn');
+            if (!nome) return showToast('Informe o nome do beneficiário.', 'warn');
+            if (bruto <= 0 && irrf <= 0) return showToast('Informe bruto ou IRRF maior que zero.', 'warn');
+            reinfState.beneficiarios.push({ cpfBenef: cpf, nomeBenef: nome, valorBruto: bruto, valorIrrf: irrf, observacao: 'Manual' });
+            reinfState.eventos = [];
+            ['reinfCpfManual','reinfNomeManual','reinfBrutoManual','reinfIrrfManual'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            reinfAtualizarResumo();
+        }
+
+        function removerBeneficiarioReinf(idx) {
+            reinfState.beneficiarios.splice(idx, 1);
+            reinfState.eventos = [];
+            reinfAtualizarResumo();
+        }
+
+        function limparBeneficiariosReinf() {
+            if (reinfState.beneficiarios.length && !confirm('Limpar todos os beneficiários Reinf carregados?')) return;
+            reinfState.beneficiarios = [];
+            reinfState.eventos = [];
+            reinfState.acumulos = [];
+            reinfState.ultimoPayload = null;
+            reinfState.ultimoPayloadOriginal = null;
+            const preview = document.getElementById('reinfXmlPreview');
+            if (preview) preview.value = '';
+            reinfOcultarRetornoResumo();
+            reinfAtualizarResumo();
+        }
+
+        function montarPayloadReinf() {
+            const cnpjFonte = reinfDigits(document.getElementById('reinfCnpjFonte')?.value);
+            const cnpjEstab = reinfDigits(document.getElementById('reinfCnpjEstab')?.value || cnpjFonte);
+            const perApur = document.getElementById('reinfCompetencia')?.value || '';
+            const dtPagamento = document.getElementById('reinfDataPagamento')?.value || '';
+            const tpAmb = Number(document.getElementById('reinfTpAmb')?.value || 2);
+            const natRend = reinfDigits(document.getElementById('reinfNatRend')?.value || '13002');
+            const contatoNome = String(document.getElementById('reinfContatoNome')?.value || 'SP Assessoria Contabil').trim();
+            const contatoCpf = reinfDigits(document.getElementById('reinfContatoCpf')?.value || '');
+            if (cnpjFonte.length !== 14) throw new Error('CNPJ Fonte Pagadora deve ter 14 dígitos.');
+            if (cnpjEstab.length !== 14) throw new Error('CNPJ Estabelecimento deve ter 14 dígitos.');
+            if (!/^\d{4}-\d{2}$/.test(perApur)) throw new Error('Competência deve estar no formato AAAA-MM.');
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dtPagamento)) throw new Error('Data de pagamento obrigatória.');
+            if (!/^\d{5}$/.test(natRend)) throw new Error('Natureza de rendimento deve ter 5 dígitos.');
+            if (!reinfState.beneficiarios.length) throw new Error('Inclua ao menos um beneficiário.');
+            const payload = {
+                contribuinte: { tpInsc: 1, nrInsc: cnpjFonte },
+                estabelecimento: { tpInscEstab: 1, nrInscEstab: cnpjEstab },
+                loteContribuinte: { tpInsc: 1, nrInsc: cnpjFonte },
+                perApur,
+                tpAmb,
+                dtPagamento,
+                natRend,
+                iniValid: perApur,
+                classTrib: '99',
+                incluirR1000: false,
+                locadores: reinfState.beneficiarios.map(b => ({
+                    cpf: b.cpfBenef,
+                    nome: b.nomeBenef,
+                    bruto: reinfValor(b.valorBruto),
+                    irrf: reinfValor(b.valorIrrf)
+                }))
+            };
+            if (contatoCpf.length === 11) {
+                payload.respInfo = { nome: contatoNome, cpf: contatoCpf };
+            }
+            return payload;
+        }
+
+        function reinfClonarPayload(payload) {
+            return JSON.parse(JSON.stringify(payload || {}));
+        }
+
+        function reinfResumoAcumulos(acumulos) {
+            const lista = Array.isArray(acumulos) ? acumulos : [];
+            const acumulados = lista.filter(a => a && a.situacao === 'acumulado');
+            const liberados = lista.filter(a => a && a.situacao === 'liberado_com_saldo');
+            if (!acumulados.length && !liberados.length) return '';
+            const partes = [];
+            if (acumulados.length) {
+                const total = acumulados.reduce((s, a) => s + reinfValor(a.saldoPendente), 0);
+                partes.push(acumulados.length + ' CPF(s) com IRRF abaixo de R$ 10,00 acumulado (' + reinfMoney(total) + ')');
+            }
+            if (liberados.length) {
+                const total = liberados.reduce((s, a) => s + reinfValor(a.irrfEnviado), 0);
+                partes.push(liberados.length + ' CPF(s) liberado(s) com saldo anterior (' + reinfMoney(total) + ')');
+            }
+            return partes.join(' • ');
+        }
+
+        function reinfExtrairTagXml(xml, tag) {
+            const texto = String(xml || '');
+            const re = new RegExp('<(?:\\w+:)?' + tag + '>([\\s\\S]*?)<\\/(?:\\w+:)?' + tag + '>', 'i');
+            const match = texto.match(re);
+            return match ? match[1].trim() : '';
+        }
+
+        function reinfOcultarRetornoResumo() {
+            const box = document.getElementById('reinfRetornoResumo');
+            if (!box) return;
+            box.style.display = 'none';
+            box.innerHTML = '';
+        }
+
+        function reinfParseRetorno(resp, chaveXml) {
+            const fonte = resp || {};
+            const xml = String(fonte[chaveXml] || fonte.xmlRetorno || fonte.xml || '');
+            return {
+                httpStatus: fonte.httpStatus || '',
+                cdResposta: String(fonte.cdResposta || reinfExtrairTagXml(xml, 'cdResposta') || '').trim(),
+                descResposta: String(fonte.descResposta || reinfExtrairTagXml(xml, 'descResposta') || '').trim(),
+                protocolo: String(fonte.protocolo || reinfExtrairTagXml(xml, 'protocoloEnvio') || '').trim(),
+                dhRecepcao: String(fonte.dhRecepcao || reinfExtrairTagXml(xml, 'dhRecepcao') || '').trim(),
+                versaoAplicativoRecepcao: String(fonte.versaoAplicativoRecepcao || reinfExtrairTagXml(xml, 'versaoAplicativoRecepcao') || '').trim(),
+                xml
+            };
+        }
+
+        function reinfClassificarRetorno(info) {
+            const cd = String(info && info.cdResposta || '').trim();
+            const desc = String(info && info.descResposta || '').toLowerCase();
+            if (cd === '1' || desc.includes('aguardando')) {
+                return {
+                    tipo: 'warn',
+                    titulo: 'Lote recebido pela Receita e aguardando processamento',
+                    detalhe: 'Isto não é rejeição. Consulte novamente usando o protocolo informado.'
+                };
+            }
+            if (desc.includes('erro') || desc.includes('rejeit') || desc.includes('inval')) {
+                return {
+                    tipo: 'error',
+                    titulo: 'Retorno da Receita exige correção',
+                    detalhe: 'Abra o XML/retorno abaixo e confira a mensagem oficial.'
+                };
+            }
+            return {
+                tipo: 'success',
+                titulo: 'Retorno da Receita recebido',
+                detalhe: 'Confira o protocolo, a resposta e o XML oficial abaixo.'
+            };
+        }
+
+        function reinfRenderRetornoResumo(resp, chaveXml) {
+            const info = reinfParseRetorno(resp, chaveXml);
+            const box = document.getElementById('reinfRetornoResumo');
+            if (!box) return info;
+            if (!info.xml && !info.cdResposta && !info.descResposta && !info.protocolo) {
+                reinfOcultarRetornoResumo();
+                return info;
+            }
+            const status = reinfClassificarRetorno(info);
+            const cores = {
+                success: ['#ecfdf5', '#bbf7d0', '#166534'],
+                warn: ['#fffbeb', '#fed7aa', '#92400e'],
+                error: ['#fef2f2', '#fecaca', '#991b1b']
+            };
+            const cor = cores[status.tipo] || cores.warn;
+            const linhas = [];
+            const item = (label, value) => {
+                if (!value) return;
+                linhas.push('<div><strong>' + reinfEscape(label) + ':</strong> ' + reinfEscape(value) + '</div>');
+            };
+            item('Resposta', info.cdResposta + (info.descResposta ? ' - ' + info.descResposta : ''));
+            item('Protocolo', info.protocolo);
+            item('Recepção', info.dhRecepcao);
+            item('Aplicativo Receita', info.versaoAplicativoRecepcao);
+            box.style.display = 'block';
+            box.style.background = cor[0];
+            box.style.borderColor = cor[1];
+            box.style.color = cor[2];
+            box.innerHTML = '<div style="font-weight:700;margin-bottom:4px">' + reinfEscape(status.titulo) + '</div>'
+                + '<div style="margin-bottom:8px">' + reinfEscape(status.detalhe) + '</div>'
+                + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 14px">' + linhas.join('') + '</div>';
+            return info;
+        }
+
+        async function reinfAplicarAcumuloIrrfNoPayload(payload, persistir = false, extra = {}) {
+            const original = reinfClonarPayload(payload);
+            if (String(original.natRend || '') !== '13002') {
+                reinfState.acumulos = [];
+                return original;
+            }
+            if (!window.API || !window.API.reinfAplicarAcumuloIrrf) {
+                throw new Error('API de acúmulo de IRRF indisponível nesta versão.');
+            }
+            const resp = await window.API.reinfAplicarAcumuloIrrf({ ...original, ...extra, persistir });
+            if (!resp || resp.erro || resp.ok === false) {
+                throw new Error((resp && resp.erro) || 'Falha ao aplicar acúmulo de IRRF.');
+            }
+            reinfState.acumulos = resp.acumulos || [];
+            return { ...original, locadores: resp.locadores || original.locadores };
+        }
+
+        async function gerarR4010Reinf() {
+            try {
+                reinfOcultarRetornoResumo();
+                const payloadOriginal = montarPayloadReinf();
+                const payload = await reinfAplicarAcumuloIrrfNoPayload(payloadOriginal, false);
+                if (!window.API || !window.API.reinfGerarR4010) throw new Error('API Reinf indisponível.');
+                const resp = await window.API.reinfGerarR4010(payload);
+                if (resp.erro) throw new Error(resp.erro);
+                reinfState.ultimoPayloadOriginal = payloadOriginal;
+                reinfState.ultimoPayload = payload;
+                reinfState.eventos = resp.eventos || [];
+                const preview = document.getElementById('reinfXmlPreview');
+                if (preview) preview.value = (reinfState.eventos[0] && reinfState.eventos[0].xml) || JSON.stringify(resp, null, 2);
+                reinfAtualizarResumo();
+                const resumoAcumulo = reinfResumoAcumulos(reinfState.acumulos);
+                reinfSetStatus((resp.qtdEventos || reinfState.eventos.length) + ' evento(s) R-4010 gerado(s). Confira a prévia antes de transmitir.' + (resumoAcumulo ? '<br><strong>Acúmulo IRRF aluguel:</strong> ' + reinfEscape(resumoAcumulo) : ''), 'success');
+                showToast('R-4010 gerado.', 'success');
+            } catch (e) {
+                reinfSetStatus('Erro ao gerar R-4010: ' + reinfEscape(e.message || e), 'error');
+                showToast('Erro Reinf: ' + (e.message || e), 'error');
+            }
+        }
+
+        async function transmitirReinf() {
+            try {
+                const payloadOriginal = montarPayloadReinf();
+                if (payloadOriginal.tpAmb === 1 && !confirm('Transmitir em PRODUÇÃO para a Receita?')) return;
+                const payload = await reinfAplicarAcumuloIrrfNoPayload(payloadOriginal, false);
+                if (!window.API || !window.API.reinfTransmitir) throw new Error('API de transmissão Reinf indisponível.');
+                const resp = await window.API.reinfTransmitir(payload);
+                if (resp.erro) throw new Error(resp.erro);
+                if (resp.ok) {
+                    await reinfAplicarAcumuloIrrfNoPayload(payloadOriginal, true, { protocolo: resp.protocolo || null });
+                }
+                reinfState.ultimoPayloadOriginal = payloadOriginal;
+                reinfState.ultimoPayload = payload;
+                const protocolo = document.getElementById('reinfProtocolo');
+                const preview = document.getElementById('reinfXmlPreview');
+                if (protocolo && resp.protocolo) protocolo.value = resp.protocolo;
+                if (preview) preview.value = resp.xmlRetorno || JSON.stringify(resp, null, 2);
+                const retornoInfo = reinfRenderRetornoResumo(resp, 'xmlRetorno');
+                const retornoStatus = reinfClassificarRetorno(retornoInfo);
+                const resumoAcumulo = reinfResumoAcumulos(reinfState.acumulos);
+                reinfSetStatus('Lote enviado. HTTP ' + (resp.httpStatus || '-') + (retornoInfo.cdResposta ? ' • resposta ' + reinfEscape(retornoInfo.cdResposta) : '') + (retornoInfo.protocolo ? ' • protocolo ' + reinfEscape(retornoInfo.protocolo) : '') + (retornoInfo.descResposta ? '. ' + reinfEscape(retornoInfo.descResposta) : '.') + (resp.ok && resumoAcumulo ? '<br><strong>Saldo de IRRF aluguel atualizado:</strong> ' + reinfEscape(resumoAcumulo) : ''), retornoStatus.tipo);
+                showToast(retornoInfo.cdResposta === '1' ? 'Lote Reinf aguardando processamento.' : (resp.ok ? 'Lote Reinf transmitido.' : 'Lote Reinf retornou atenção.'), retornoStatus.tipo === 'error' ? 'error' : (retornoStatus.tipo === 'warn' ? 'warn' : 'success'));
+            } catch (e) {
+                reinfSetStatus('Erro ao transmitir lote: ' + reinfEscape(e.message || e), 'error');
+                showToast('Erro Reinf: ' + (e.message || e), 'error');
+            }
+        }
+
+        async function consultarLoteReinf() {
+            const protocolo = String(document.getElementById('reinfProtocolo')?.value || '').trim();
+            const tpAmb = Number(document.getElementById('reinfTpAmb')?.value || 2);
+            if (!protocolo) return showToast('Informe o protocolo do lote.', 'warn');
+            try {
+                if (!window.API || !window.API.reinfConsultarLote) throw new Error('API de consulta Reinf indisponível.');
+                const resp = await window.API.reinfConsultarLote(protocolo, tpAmb);
+                if (resp.erro) throw new Error(resp.erro);
+                const preview = document.getElementById('reinfXmlPreview');
+                if (preview) preview.value = resp.xml || JSON.stringify(resp, null, 2);
+                const retornoInfo = reinfRenderRetornoResumo(resp, 'xml');
+                const retornoStatus = reinfClassificarRetorno(retornoInfo);
+                reinfSetStatus('Consulta do lote concluída. HTTP ' + (resp.httpStatus || '-') + (retornoInfo.cdResposta ? ' • resposta ' + reinfEscape(retornoInfo.cdResposta) : '') + (retornoInfo.descResposta ? ' • ' + reinfEscape(retornoInfo.descResposta) : '') + '.', retornoStatus.tipo);
+                showToast(retornoInfo.cdResposta === '1' ? 'Lote aguardando processamento.' : 'Consulta Reinf concluída.', retornoStatus.tipo === 'error' ? 'error' : (retornoStatus.tipo === 'warn' ? 'warn' : 'success'));
+            } catch (e) {
+                reinfSetStatus('Erro ao consultar lote: ' + reinfEscape(e.message || e), 'error');
+                showToast('Erro Reinf: ' + (e.message || e), 'error');
+            }
+        }
+
         function rolarTopoDaAbaAtiva() {
             requestAnimationFrame(function() {
                 window.scrollTo({ top: 0, behavior: 'auto' });
@@ -6644,7 +7852,7 @@
                     || document.querySelector('.nav button[data-page="'+p+'"]');
                 if (navBtn) navBtn.classList.add('active');
             }
-            ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Plano', 'Mapeamento', 'Validador', 'Fiscal', 'Exportar', 'Sobre'].forEach(n => {
+            ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Plano', 'Mapeamento', 'Validador', 'Fiscal', 'Reinf', 'Exportar', 'Sobre'].forEach(n => {
                 const el = document.getElementById('page' + n);
                 if (el) el.classList.add('hidden');
             });
@@ -6670,6 +7878,9 @@
             }
             if (p === 'fiscal') {
                 try { if (typeof carregarFiscal === 'function') carregarFiscal(); } catch(e) {}
+            }
+            if (p === 'reinf') {
+                try { if (typeof prepararReinf === 'function') prepararReinf(); } catch(e) {}
             }
             if (p === 'sobre') {
                 carregarInformacoesSobre();
@@ -6711,7 +7922,7 @@
                 assinatura: 'LECD',
                 prazoEntrega: '2026-06-30',
                 registrosObrigatorios: ['0000', '0001', 'I001', 'I010', 'I030', 'I050', 'I150', 'I155', 'I990', 'J001', 'J005', 'J100', 'J150', 'J900', 'J930', 'J990', '9001', '9900', '9990', '9999'],
-                registrosRevisao: ['I100', 'I200', 'I250', 'I350', 'I355', 'J800']
+                registrosRevisao: ['I100', 'I157', 'I200', 'I250', 'I350', 'I355', 'J800']
             },
             ECF: {
                 nome: 'ECF - Escrituração Contábil Fiscal',
@@ -6903,15 +8114,19 @@
             function registrarI150SemDetalhe(proximoRegistro) {
                 if (!periodoAtual || periodoAtual.temI155) return;
                 erros.push({
-                    titulo: 'Registro obrigatorio I155 nao encontrado apos I150',
-                    detalhe: 'Linha ' + periodoAtual.linha + ': periodo ' + formatarDataSpedObrigacao(periodoAtual.inicio) + ' a ' + formatarDataSpedObrigacao(periodoAtual.fim) + ' foi aberto em I150 sem nenhum I155 antes de ' + proximoRegistro + '.',
-                    ajuste: 'Regerar a ECD incluindo os detalhes de saldos periodicos I155 para este I150. No PVA/SPED este erro impede a importacao do bloco I.'
+                    titulo: 'Registro obrigatorio nao encontrado: I155',
+                    detalhe: 'Linha ' + periodoAtual.linha + ' | Campo 1 - REG | Valor esperado: I155 | Conteudo encontrado: ' + proximoRegistro + ' | Registro base: I150 | Periodo ' + formatarDataSpedObrigacao(periodoAtual.inicio) + ' a ' + formatarDataSpedObrigacao(periodoAtual.fim) + '.',
+                    ajuste: 'No sistema contabil, regerar os saldos periodicos do bloco I para que cada I150 tenha ao menos um I155 antes do proximo I150/I990. Este erro impede a importacao do bloco I no PVA/SPED.',
+                    registro: 'I150',
+                    esperado: 'I155',
+                    encontrado: proximoRegistro,
+                    linha: periodoAtual.linha
                 });
             }
 
             linhas.forEach(function(linha, idx) {
                 if (/^\|I150\|/i.test(linha)) {
-                    registrarI150SemDetalhe('outro I150');
+                    registrarI150SemDetalhe('I150');
                     const campos = linha.split('|');
                     periodoAtual = {
                         linha: idx + 1,
@@ -6944,9 +8159,13 @@
 
             if (indMudancaPlano !== '1' || temI157) return [];
             return [{
-                titulo: 'Registro obrigatorio I157 nao encontrado',
-                detalhe: 'Linha ' + (linha0000Index + 1) + ': o registro 0000 informa IND_MUDANCA_PC = 1, mas nao existe nenhum I157 no arquivo.',
-                ajuste: 'Gerar ao menos um registro I157 com a transferencia dos saldos do plano de contas anterior, ou corrigir o indicador IND_MUDANCA_PC no registro 0000 se nao houve mudanca de plano. No PVA/SPED este erro impede a validacao da ECD.'
+                titulo: 'Registro obrigatorio nao encontrado: I157',
+                detalhe: 'Linha ' + (linha0000Index + 1) + ' | Campo 22 - IND_MUDANCA_PC | Conteudo do campo: 1 | Valor esperado: ao menos um registro I157 no bloco I.',
+                ajuste: 'Gerar ao menos um registro I157 com a transferencia dos saldos do plano de contas anterior, ou corrigir o indicador IND_MUDANCA_PC no registro 0000 se nao houve mudanca de plano. No PVA/SPED este erro impede a validacao da ECD.',
+                registro: '0000',
+                esperado: 'I157',
+                encontrado: 'ausente',
+                linha: linha0000Index + 1
             }];
         }
 
@@ -6986,8 +8205,8 @@
                 const errosMudancaPlano = validarECDMudancaPlanoI157(texto);
                 if (errosEstrutura.length) {
                     erros.push({
-                        titulo: 'Bloco I sera rejeitado pelo validador SPED',
-                        detalhe: errosEstrutura.length + ' periodo(s) I150 sem o respectivo detalhamento I155.',
+                        titulo: 'Bloco I nao sera importado pelo PVA/SPED',
+                        detalhe: errosEstrutura.length + ' periodo(s) I150 sem o respectivo detalhamento I155. O PVA/SPED acusa "Registro obrigatorio nao encontrado" e rejeita o bloco I nessa situacao.',
                         ajuste: 'Corrigir a geracao dos saldos periodicos no sistema contabil e gerar novamente o TXT antes de importar/transmitir.'
                     });
                     errosEstrutura.forEach(function(erro) { erros.push(erro); });
@@ -7059,7 +8278,7 @@
                 const tipoOk = !!layout;
                 const aprovado = tipoOk && analise.erros.length === 0;
                 const exigeRevisao = !aprovado && analise.erros.length > 0;
-                const resultadoTexto = aprovado ? (analise.alertas.length ? 'Aprovado com atenção' : 'Arquivo consistente') : 'Exige correção';
+                const resultadoTexto = aprovado ? (analise.alertas.length ? 'Aprovado com atenção' : 'Arquivo consistente') : 'Exige revisão';
                 const resultadoCor = aprovado ? (analise.alertas.length ? '#d97706' : '#059669') : '#dc2626';
 
                 if (layoutEl) layoutEl.value = layout ? layout.nome : 'Não reconhecido';
@@ -8698,7 +9917,11 @@
                 } else if (ext === 'ofx' || ext === 'ofc') {
                     entries = parseOFX(await lerArquivoTexto(selectedFile, 'windows-1252'), ext);
                 } else if (ext === 'xlsx' || ext === 'xls') {
-                    entries = await parsearArquivoXLSX(selectedFile, {});
+                    entries = await parsearArquivoXLSX(selectedFile, { bancoCode });
+                    if (!entries || !entries.length) {
+                        console.warn('[processFile] XLSX sem lançamentos no parser principal. Tentando fallback obrigatório Extrato Conciliado.');
+                        entries = await parsearExtratoConciliadoXLSXObrigatorio(selectedFile);
+                    }
                     if (ehAnaliseRazaoNotas(entries)) {
                         hideProcessing();
                         mostrarAnaliseRazaoNotas(entries);
@@ -8721,6 +9944,8 @@
                     }
                     throw new Error('Nenhuma transação encontrada no arquivo.');
                 }
+
+                validarLayoutCompativelComBanco(entries, bancoCode);
                 
                 // Apply mappings and detect unusual
                 garantirIntegridadeLancamentos(entries);
@@ -8929,7 +10154,7 @@
                 layouts_tentados: extrairLayoutsTentadosMensagem(motivo),
                 parser_selecionado: meta && meta.parser || '',
                 layout_selecionado: meta && meta.layout || '',
-                versao_app: '3.2.72'
+                versao_app: '3.2.84'
             };
         }
 
@@ -9104,8 +10329,8 @@
                             qtd: lancs.length,
                             credito: cred,
                             debito: deb,
-                            totalCreditoOficial: resultado.total_credito || 0,
-                            totalDebitoOficial: resultado.total_debito || 0
+                            totalCreditoOficial: resultado.total_credito_oficial_resumo || resultado.total_credito || 0,
+                            totalDebitoOficial: resultado.total_debito_oficial_resumo || resultado.total_debito || 0
                         });
 	                    if (resultado.total_credito && Math.abs(Math.round(cred * 100) - Math.round(resultado.total_credito * 100)) > 1) {
 	                        throw new Error('total de credito divergente do total oficial');
@@ -9114,11 +10339,14 @@
                         throw new Error('total de debito divergente do total oficial');
                     }
 	                    lancs.forEach(function(l) {
-	                        l.layoutNome = layout.nome;
-	                        l.layoutParser = layout.parser;
+                        l.layoutNome = layout.nome;
+                        l.layoutParser = layout.parser;
                         l.bancoSelecionado = bancoCode;
-                        l.totalCreditoOficial = resultado.total_credito || 0;
-                        l.totalDebitoOficial = resultado.total_debito || 0;
+                        l.totalCreditoOficial = resultado.total_credito_oficial_resumo || resultado.total_credito || 0;
+                        l.totalDebitoOficial = resultado.total_debito_oficial_resumo || resultado.total_debito || 0;
+                        l.totalCreditoImportado = resultado.total_credito || 0;
+                        l.totalDebitoImportado = resultado.total_debito || 0;
+                        l.observacaoImportacao = resultado.observacao_importacao || '';
                         l.periodo_inicio = resultado.periodo_inicio || l.periodo_inicio || '';
 	                        l.periodo_fim = resultado.periodo_fim || l.periodo_fim || '';
 	                    });
@@ -10054,8 +11282,35 @@
                 && String(a.codigoHistorico || '').replace(/\D/g, '').padStart(4, '0').slice(-4) === String(b.codigoHistorico || '').replace(/\D/g, '').padStart(4, '0').slice(-4);
         }
 
-        function buscarAprendizadoSimilar(cache, candidatosNorm) {
-            const registros = Object.values(cache || {}).filter(classificacaoAprendidaValida);
+        function contextoMemoriaLancamento(lanc) {
+            const bancoRaw = (lanc && (lanc.bancoId || lanc.bancoSelecionado || lanc.layoutBanco || lanc.bancoLayout)) || (state.info && state.info.banco) || '';
+            const banco = normalizarCodigoBancoLayout(resolverBancoLegado(bancoRaw) || bancoRaw || '');
+            const layout = String((lanc && (lanc.layoutParser || lanc.layoutNome)) || '').trim().toLowerCase();
+            return { banco, layout };
+        }
+
+        function contextoAprendizado(aprendido) {
+            const bancoRaw = (aprendido && (aprendido.bancoCodigo || aprendido.bancoId || aprendido.banco || aprendido.layoutBanco || aprendido.bancoLayout)) || '';
+            const banco = normalizarCodigoBancoLayout(resolverBancoLegado(bancoRaw) || bancoRaw || '');
+            const layout = String((aprendido && (aprendido.layoutParser || aprendido.layoutNome)) || '').trim().toLowerCase();
+            return { banco, layout };
+        }
+
+        function contextoMemoriaCompativel(aprendido, lanc) {
+            const alvo = contextoMemoriaLancamento(lanc || {});
+            const regra = contextoAprendizado(aprendido || {});
+            if (alvo.banco) {
+                if (!regra.banco) return false;
+                if (!bancoLayoutCompativel(alvo.banco, regra.banco)) return false;
+            }
+            if (alvo.layout && regra.layout && alvo.layout !== regra.layout) return false;
+            return true;
+        }
+
+        function buscarAprendizadoSimilar(cache, candidatosNorm, lanc) {
+            const registros = Object.values(cache || {})
+                .filter(classificacaoAprendidaValida)
+                .filter(function(aprendido) { return contextoMemoriaCompativel(aprendido, lanc || {}); });
             if (!registros.length) return null;
             let melhor = null;
             let amb = false;
@@ -10121,8 +11376,11 @@
             return corrigidos;
         }
 
-        async function hashDescricao(cnpj, descNorm) {
-            const data = (cnpj || '') + ':' + (descNorm || '');
+        async function hashDescricao(cnpj, descNorm, contexto) {
+            const ctx = contexto || {};
+            const banco = ctx.banco ? (':' + ctx.banco) : '';
+            const layout = ctx.layout ? (':' + ctx.layout) : '';
+            const data = (cnpj || '') + banco + layout + ':' + (descNorm || '');
             const buf = new TextEncoder().encode(data);
             const hashBuf = await crypto.subtle.digest('SHA-1', buf);
             return Array.from(new Uint8Array(hashBuf)).slice(0, 4).map(b => b.toString(16).padStart(2,'0')).join('');
@@ -10248,7 +11506,11 @@
                 contaCredito: ((document.getElementById('memCred_' + hash) || {}).value || '').trim(),
                 codigoHistorico: codigoHistoricoValido(codigoHistorico) ? codigoHistorico : '',
                 historico: ((document.getElementById('memHist_' + hash) || {}).value || '').trim() || histPadrao,
-                historicoPadraoDescricao: histPadrao || ''
+                historicoPadraoDescricao: histPadrao || '',
+                bancoCodigo: item.bancoCodigo || item.bancoId || item.banco || '',
+                layoutParser: item.layoutParser || '',
+                layoutNome: item.layoutNome || '',
+                escopo: item.escopo || ''
             };
             try {
                 const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado/' + hash, {
@@ -10313,12 +11575,13 @@
             }
             const histPadrao = textoHistoricoPadrao(lanc.codigoHistorico) || lanc.historicoPadraoDescricao || '';
             const histLivre = histPadrao || (historicoTextoValido(lanc.historico) ? lanc.historico : '');
+            const contextoMemoria = contextoMemoriaLancamento(lanc);
             try {
                 let ultimoJson = null;
                 window._aprendizadoCache[cnpj] = window._aprendizadoCache[cnpj] || {};
                 for (let c = 0; c < candidatosValidos.length; c++) {
                     const descNorm = candidatosValidos[c];
-                    const hash = await hashDescricao(cnpj, descNorm);
+                    const hash = await hashDescricao(cnpj, descNorm, contextoMemoria);
                     const r = await window.API.apiFetch('/api/empresas/' + cnpj + '/aprendizado', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -10330,7 +11593,11 @@
                             contaCredito: lanc.contaCredito,
                             codigoHistorico: lanc.codigoHistorico,
                             historico: histLivre || '',
-                            historicoPadraoDescricao: histPadrao || ''
+                            historicoPadraoDescricao: histPadrao || '',
+                            bancoCodigo: contextoMemoria.banco || '',
+                            layoutParser: lanc.layoutParser || '',
+                            layoutNome: lanc.layoutNome || '',
+                            escopo: contextoMemoria.banco ? 'banco_layout' : 'empresa'
                         })
                     });
                     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -10341,6 +11608,10 @@
                         codigoHistorico: lanc.codigoHistorico,
                         historico: histLivre || '',
                         historicoPadraoDescricao: histPadrao || '',
+                        bancoCodigo: contextoMemoria.banco || '',
+                        layoutParser: lanc.layoutParser || '',
+                        layoutNome: lanc.layoutNome || '',
+                        escopo: contextoMemoria.banco ? 'banco_layout' : 'empresa',
                         vezes_usado: (ultimoJson && ultimoJson.vezes_usado) || 1
                     };
                 }
@@ -10414,17 +11685,27 @@
                 let aprendido = null;
                 const candidatos = candidatosDescricaoMemoria(e);
                 const candidatosNorm = [];
+                const contextoMemoria = contextoMemoriaLancamento(e);
                 for (let c = 0; c < candidatos.length; c++) {
                     const descNorm = normalizarDescricao(candidatos[c]);
                     if (!descNorm) continue;
                     if (!candidatosNorm.includes(descNorm)) candidatosNorm.push(descNorm);
-                    const hash = await hashDescricao(cnpjLimpo, descNorm);
-                    if (cache[hash]) {
+                    const hash = await hashDescricao(cnpjLimpo, descNorm, contextoMemoria);
+                    if (cache[hash] && contextoMemoriaCompativel(cache[hash], e)) {
                         aprendido = cache[hash];
                         break;
                     }
                 }
-                if (!aprendido) aprendido = buscarAprendizadoSimilar(cache, candidatosNorm);
+                if (!aprendido && !contextoMemoria.banco) {
+                    for (let c = 0; c < candidatosNorm.length; c++) {
+                        const hashLegado = await hashDescricao(cnpjLimpo, candidatosNorm[c]);
+                        if (cache[hashLegado] && contextoMemoriaCompativel(cache[hashLegado], e)) {
+                            aprendido = cache[hashLegado];
+                            break;
+                        }
+                    }
+                }
+                if (!aprendido) aprendido = buscarAprendizadoSimilar(cache, candidatosNorm, e);
                 if (aprendido) {
                     if (aprendido.contaDebito) e.contaDebito = aprendido.contaDebito;
                     if (aprendido.contaCredito) e.contaCredito = aprendido.contaCredito;
@@ -11399,6 +12680,124 @@ Responda APENAS JSON valido, sem texto antes/depois:
             a.click();
             
             showToast('JSON exportado com sucesso!', 'success');
+        }
+
+        function arquivoParaTexto(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result || '');
+                reader.onerror = () => reject(new Error('Falha ao ler arquivo'));
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+
+        function arquivoParaBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const txt = String(e.target.result || '');
+                    resolve(txt.includes(',') ? txt.split(',').pop() : txt);
+                };
+                reader.onerror = () => reject(new Error('Falha ao ler arquivo'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function abrirModalMercadoPago() {
+            const cnpj = (state.info && state.info.cnpj || '').replace(/\D/g, '');
+            if (!cnpj || cnpj.length !== 14) {
+                showToast('Informe e confirme a empresa antes de conectar Mercado Pago.', 'error');
+                showPage('inicio');
+                return;
+            }
+            const antigo = document.getElementById('modalMercadoPago');
+            if (antigo) antigo.remove();
+            const html = '<div id="modalMercadoPago" style="display:flex;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10000;align-items:center;justify-content:center;padding:20px">' +
+                '<div style="background:#fff;border-radius:14px;padding:24px;max-width:760px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.28)">' +
+                '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px">' +
+                '<div><h3 style="margin:0;color:#111827;font-size:22px">🟦 Mercado Pago</h3><p style="margin:6px 0 0;color:#64748b;font-size:14px">Vincule a conta do cliente ou importe o relatório Account Money exportado pelo Mercado Pago.</p></div>' +
+                '<button onclick="fecharModalMercadoPago()" style="border:0;background:#f1f5f9;border-radius:10px;padding:10px 14px;cursor:pointer;font-size:18px">×</button>' +
+                '</div>' +
+                '<div id="mpStatusBox" style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:14px;color:#334155">Consultando vínculo...</div>' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">' +
+                '<button onclick="conectarMercadoPago()" style="padding:12px 14px;background:#2563eb;color:white;border:0;border-radius:10px;font-weight:700;cursor:pointer">Conectar via OAuth</button>' +
+                '<button onclick="solicitarRelatorioMercadoPago()" style="padding:12px 14px;background:#0f172a;color:white;border:0;border-radius:10px;font-weight:700;cursor:pointer">Solicitar relatório automático</button>' +
+                '</div>' +
+                '<div style="border:1px solid #dbeafe;background:#eff6ff;border-radius:10px;padding:14px;margin-bottom:14px">' +
+                '<div style="font-weight:800;color:#1e3a8a;margin-bottom:8px">Importar relatório já baixado</div>' +
+                '<div style="display:grid;grid-template-columns:1fr 220px;gap:12px;align-items:end">' +
+                '<div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Arquivo CSV/XLSX do Mercado Pago</label><input id="mpReportFile" type="file" accept=".csv,.txt,.xlsx,.xls" style="width:100%;padding:10px;background:#fff;border:1px solid #bfdbfe;border-radius:8px"></div>' +
+                '<div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Valor de importação</label><select id="mpBaseValor" style="width:100%;padding:10px;background:#fff;border:1px solid #bfdbfe;border-radius:8px"><option value="liquido">Líquido recebido/pago</option><option value="bruto_com_taxa">Bruto + tarifa separada</option></select></div>' +
+                '</div>' +
+                '<button onclick="processarRelatorioMercadoPagoLocal()" style="margin-top:12px;padding:12px 16px;background:#059669;color:white;border:0;border-radius:10px;font-weight:800;cursor:pointer">Gerar prévia no importador</button>' +
+                '</div>' +
+                '<div style="font-size:12px;line-height:1.45;color:#64748b">Para conciliação, use o relatório de dinheiro em conta/saldo do Mercado Pago. O token OAuth fica salvo apenas no servidor; o navegador nunca recebe access_token.</div>' +
+                '</div></div>';
+            document.body.insertAdjacentHTML('beforeend', html);
+            await atualizarStatusMercadoPago();
+        }
+
+        function fecharModalMercadoPago() {
+            const modal = document.getElementById('modalMercadoPago');
+            if (modal) modal.remove();
+        }
+
+        async function atualizarStatusMercadoPago() {
+            const box = document.getElementById('mpStatusBox');
+            const cnpj = (state.info && state.info.cnpj || '').replace(/\D/g, '');
+            if (!box || !window.API || !window.API.mercadoPagoStatus) return;
+            try {
+                const status = await window.API.mercadoPagoStatus(cnpj);
+                const cor = status.conectado ? '#065f46' : '#92400e';
+                const bg = status.conectado ? '#ecfdf5' : '#fffbeb';
+                box.style.background = bg;
+                box.style.color = cor;
+                box.innerHTML = '<strong>Status:</strong> ' + (status.conectado ? 'conectado' : 'não conectado') +
+                    ' · OAuth: ' + (status.oauth_configurado ? 'configurado' : 'pendente') +
+                    ' · Relatório automático: ' + (status.relatorio_automatico_configurado ? 'configurado' : 'pendente');
+            } catch (e) {
+                box.innerHTML = '<strong>Status:</strong> erro ao consultar Mercado Pago.';
+            }
+        }
+
+        async function conectarMercadoPago() {
+            const cnpj = (state.info && state.info.cnpj || '').replace(/\D/g, '');
+            if (!window.API || !window.API.mercadoPagoOAuthUrl) return showToast('API Mercado Pago indisponível.', 'error');
+            const resp = await window.API.mercadoPagoOAuthUrl(cnpj);
+            if (!resp.ok || !resp.auth_url) return showToast(resp.erro || 'Configure as credenciais Mercado Pago no servidor.', 'error');
+            window.open(resp.auth_url, '_blank', 'noopener,noreferrer');
+            showToast('Janela de autorização Mercado Pago aberta.', 'success');
+        }
+
+        async function solicitarRelatorioMercadoPago() {
+            const cnpj = (state.info && state.info.cnpj || '').replace(/\D/g, '');
+            if (!window.API || !window.API.mercadoPagoSolicitarRelatorio) return showToast('API Mercado Pago indisponível.', 'error');
+            const resp = await window.API.mercadoPagoSolicitarRelatorio(cnpj, {});
+            if (!resp.ok) return showToast(resp.erro || 'Relatório automático Mercado Pago ainda não configurado.', 'warning');
+            showToast('Solicitação enviada ao Mercado Pago.', 'success');
+        }
+
+        async function processarRelatorioMercadoPagoLocal() {
+            const input = document.getElementById('mpReportFile');
+            const file = input && input.files && input.files[0];
+            if (!file) return showToast('Selecione o CSV ou XLSX do Mercado Pago.', 'error');
+            const cnpj = (state.info && state.info.cnpj || '').replace(/\D/g, '');
+            const ext = file.name.split('.').pop().toLowerCase();
+            const payload = {
+                filename: file.name,
+                baseValor: (document.getElementById('mpBaseValor') || {}).value || 'liquido'
+            };
+            try {
+                if (ext === 'xlsx' || ext === 'xls') payload.xlsxBase64 = await arquivoParaBase64(file);
+                else payload.csv = await arquivoParaTexto(file);
+                const resp = await window.API.mercadoPagoPreviewReport(cnpj, payload);
+                if (!resp.ok) throw new Error(resp.erro || 'Falha ao processar Mercado Pago');
+                fecharModalMercadoPago();
+                abrirModalImportarLancamento(resp.lancamentos || [], file.name, 'Mercado Pago');
+                showToast('Prévia Mercado Pago gerada com ' + (resp.total || 0) + ' lançamento(s).', 'success');
+            } catch (e) {
+                showToast(e.message || 'Erro ao processar relatório Mercado Pago.', 'error');
+            }
         }
         
         // Toast

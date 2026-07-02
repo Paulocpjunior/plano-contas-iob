@@ -13,11 +13,14 @@ function assert(condition, message) {
 }
 
 assert(indexHtml.includes('validarEstruturaECDI150I155'), 'validador ECD deve ter checagem estrutural I150/I155');
-assert(indexHtml.includes('Registro obrigatorio I155 nao encontrado apos I150'), 'mensagem bloqueante de I155 ausente deve existir');
-assert(indexHtml.includes('Bloco I sera rejeitado pelo validador SPED'), 'resumo bloqueante do bloco I deve existir');
+assert(indexHtml.includes('Registro obrigatorio nao encontrado: I155'), 'mensagem bloqueante de I155 ausente deve existir');
+assert(indexHtml.includes('Campo 1 - REG'), 'erro de I155 deve informar campo equivalente ao PVA');
+assert(indexHtml.includes('Bloco I nao sera importado pelo PVA/SPED'), 'resumo bloqueante do bloco I deve existir');
 assert(indexHtml.includes('validarECDMudancaPlanoI157'), 'validador ECD deve checar IND_MUDANCA_PC x I157');
-assert(indexHtml.includes('Registro obrigatorio I157 nao encontrado'), 'mensagem bloqueante de I157 ausente deve existir');
+assert(indexHtml.includes('Registro obrigatorio nao encontrado: I157'), 'mensagem bloqueante de I157 ausente deve existir');
+assert(indexHtml.includes('Campo 22 - IND_MUDANCA_PC'), 'erro de I157 deve informar o campo condicional do registro 0000');
 assert(indexHtml.includes('Plano de contas alterado sem I157'), 'resumo bloqueante de mudanca de plano sem I157 deve existir');
+assert(indexHtml.includes('Exige revisão'), 'resultado bloqueante deve ficar como Exige revisao');
 
 function encontrarI150SemI155(texto) {
   const linhas = String(texto || '').split(/\r?\n/);
@@ -84,6 +87,16 @@ if (fs.existsSync(fixtureMudancaPlano)) {
   console.log('OK: ECD0261.TXT reproduz erro bloqueante 0000.IND_MUDANCA_PC sem I157');
 } else {
   console.log('SKIP: fixture ECD0261.TXT nao encontrado em Downloads');
+}
+
+const fixtureSemMudancaPlano = '/Users/paulocesarpereirajunior/Downloads/ECD0057.TXT';
+if (fs.existsSync(fixtureSemMudancaPlano)) {
+  const texto = fs.readFileSync(fixtureSemMudancaPlano, 'latin1');
+  const erro = encontrarMudancaPlanoSemI157(texto);
+  assert(!erro, 'ECD0057.TXT nao deve bloquear I157 quando IND_MUDANCA_PC nao e 1');
+  console.log('OK: ECD0057.TXT nao gera falso bloqueio de I157');
+} else {
+  console.log('SKIP: fixture ECD0057.TXT nao encontrado em Downloads');
 }
 
 console.log('OK: validador de obrigacoes ECD cobre I150/I155 e IND_MUDANCA_PC/I157');

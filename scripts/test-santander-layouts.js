@@ -75,6 +75,40 @@ PAGAMENTO CARTAO DE CREDITO CREDITO R $ 237,52`;
   return resultado;
 }
 
+function assertSantanderEmpresasPriorizaSinalDoValor() {
+  const texto = `Santander Empresas
+Extrato Consolidado Inteligente
+APATEL SERVICOS LTDA
+Conta Corrente
+Movimentacao
+Periodo: 01/03/2026 a 31/03/2026
+Data Descricao N Documento Movimentos (R$) Creditos Debitos Saldo (R$)
+09/03/2026 PAGAMENTO A FORNECEDORES 300109 1.176,00
+TEL TELECO 06084614000185
+09/03/2026 APLICACAO CONTAMAX - 51.421,54-
+`;
+  assert.ok(__test__.pareceExtratoSantander(texto), 'Santander Empresas/APATEL: assinatura nao reconhecida');
+  const resultado = __test__.parsearTexto_SantanderEmpresas(texto);
+  assert.ok(resultado.detectado, 'Santander Empresas/APATEL: parser nao detectou layout');
+
+  const pagamento = resultado.lancamentos.find((l) => /PAGAMENTO A FORNECEDORES/.test(l.descricao));
+  assert.ok(pagamento, 'Santander Empresas/APATEL: pagamento fornecedor ausente');
+  assert.strictEqual(
+    cents(pagamento.valor),
+    cents(1176),
+    'Santander Empresas/APATEL: pagamento fornecedor sem hifen no valor deve ser credito'
+  );
+
+  const aplicacao = resultado.lancamentos.find((l) => /APLICACAO CONTAMAX/.test(l.descricao));
+  assert.ok(aplicacao, 'Santander Empresas/APATEL: aplicacao ausente');
+  assert.strictEqual(
+    cents(aplicacao.valor),
+    cents(-51421.54),
+    'Santander Empresas/APATEL: valor com hifen final deve ser debito'
+  );
+  return resultado;
+}
+
 async function parsePdfText(caminho) {
   const data = await pdf(fs.readFileSync(caminho));
   return data.text;
@@ -98,6 +132,7 @@ async function assertSantander(label, caminho, esperado) {
 (async () => {
   assertSantanderInternetBankingOCR();
   assertSantanderInternetBankingPDFJSNative();
+  assertSantanderEmpresasPriorizaSinalDoValor();
 
   const internet = await assertSantander(
     'Santander 1 Internet Banking',
@@ -133,8 +168,8 @@ async function assertSantander(label, caminho, esperado) {
     '/Users/paulocesarpereirajunior/Downloads/MAIO_EXTRATO SANTANDER- RA CARPETES.pdf',
     {
       total_lancamentos: 106,
-      total_credito: 126535.73,
-      total_debito: 82371.83,
+      total_credito: 104484.73,
+      total_debito: 104422.83,
       periodo_inicio: '2025-05-01',
       periodo_fim: '2025-05-31',
       origem: 'pdf-santander-empresas-ocr'

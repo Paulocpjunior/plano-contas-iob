@@ -5,6 +5,8 @@ const path = require('path');
 const { LAYOUTS_BANCARIOS_PADRAO, normalizarBancoLayout, layoutBancoId } = require('./layouts-bancarios-padrao');
 const { LAYOUT_QUALITY_CASES } = require('./layout-quality-cases');
 const { LAYOUT_QUALITY_EVIDENCE } = require('./layout-quality-evidence');
+const { registrarRotasMercadoPago, registrarRotasPublicasMercadoPago } = require('./mercadopago-integration');
+const registrarRotasReinf = require('./reinf-routes');
 
 const app = express();
 app.set('trust proxy', true);
@@ -51,6 +53,8 @@ app.get('/api/health', async (req, res) => {
   } catch (err) { res.status(500).json({ status: 'erro', erro: err.message }); }
 });
 
+registrarRotasPublicasMercadoPago(app, { db });
+
 async function authRequired(req, res, next) {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -70,6 +74,8 @@ function adminRequired(req, res, next) {
 }
 
 app.use('/api', authRequired);
+registrarRotasReinf(app, { db });
+registrarRotasMercadoPago(app, { db, adminRequired });
 
 function chaveLayoutQualidade(banco, parser) {
   return normalizarBancoLayout(banco) + '_' + String(parser || '').trim();
@@ -601,7 +607,7 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
   try {
     const cnpj = (req.params.cnpj || '').replace(/\D/g, '');
     if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
-    const { hash, descricao_normalizada, descricao_exemplo, contaDebito, contaCredito, codigoHistorico, historico, historicoPadraoDescricao } = req.body;
+    const { hash, descricao_normalizada, descricao_exemplo, contaDebito, contaCredito, codigoHistorico, historico, historicoPadraoDescricao, bancoCodigo, bancoNome, layoutParser, layoutNome, escopo } = req.body;
     if (!hash || !descricao_normalizada) return res.status(400).json({ erro: 'hash e descricao_normalizada obrigatorios' });
     
     // Validar codigoHistorico (4 digitos)
@@ -623,6 +629,11 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
       codigoHistorico: codHist || '',
       historico: String(historico || '').substring(0, 200),
       historicoPadraoDescricao: String(historicoPadraoDescricao || '').substring(0, 200),
+      bancoCodigo: String(bancoCodigo || '').substring(0, 20),
+      bancoNome: String(bancoNome || '').substring(0, 120),
+      layoutParser: String(layoutParser || '').substring(0, 120),
+      layoutNome: String(layoutNome || '').substring(0, 160),
+      escopo: String(escopo || '').substring(0, 40),
       vezes_usado: existing.exists ? (existing.data().vezes_usado || 0) + 1 : 1,
       criado_em: existing.exists ? existing.data().criado_em : now,
       ultima_vez: now,
@@ -660,6 +671,11 @@ app.put('/api/empresas/:cnpj/aprendizado/:hash', async (req, res) => {
       codigoHistorico: body.codigoHistorico ? String(body.codigoHistorico).replace(/\D/g, '').padStart(4, '0').slice(-4) : '',
       historico: String(body.historico || '').substring(0, 200),
       historicoPadraoDescricao: String(body.historicoPadraoDescricao || '').substring(0, 200),
+      ...(body.bancoCodigo !== undefined ? { bancoCodigo: String(body.bancoCodigo || '').substring(0, 20) } : {}),
+      ...(body.bancoNome !== undefined ? { bancoNome: String(body.bancoNome || '').substring(0, 120) } : {}),
+      ...(body.layoutParser !== undefined ? { layoutParser: String(body.layoutParser || '').substring(0, 120) } : {}),
+      ...(body.layoutNome !== undefined ? { layoutNome: String(body.layoutNome || '').substring(0, 160) } : {}),
+      ...(body.escopo !== undefined ? { escopo: String(body.escopo || '').substring(0, 40) } : {}),
       atualizado_em: new Date(),
       atualizado_por_uid: req.user.uid,
       atualizado_por_email: req.user.email,
@@ -1015,11 +1031,20 @@ app.post('/api/users/:uid/demote', adminRequired, async (req, res) => {
 });
 
 // ==================== PROXY GEMINI (protege API key) ====================
+const GEMINI_DEFAULT_MODEL = process.env.GEMINI_MODEL || process.env.GEMINI_FLASH_MODEL || 'gemini-3.5-flash';
+const GEMINI_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || process.env.GEMINI_PRO_MODEL || GEMINI_DEFAULT_MODEL;
+const GEMINI_ALLOW_CLIENT_MODEL = String(process.env.GEMINI_ALLOW_CLIENT_MODEL || '').toLowerCase() === 'true';
+
+function resolverModeloGemini(modeloSolicitado, modeloFallback) {
+  if (GEMINI_ALLOW_CLIENT_MODEL && modeloSolicitado) return modeloSolicitado;
+  return modeloFallback;
+}
+
 app.post('/api/ai/gemini', async (req, res) => {
   try {
     const key = process.env.GEMINI_API_KEY;
     if (!key) return res.status(500).json({ erro: 'GEMINI_API_KEY nao configurada no servidor' });
-    const model = (req.body && req.body._model) || 'gemini-2.5-flash';
+    const model = resolverModeloGemini(req.body && req.body._model, GEMINI_DEFAULT_MODEL);
     const payload = Object.assign({}, req.body || {});
     delete payload._model;
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(key);
@@ -1165,7 +1190,7 @@ app.get('/api/empresas/:cnpj/historico-planos', async (req, res) => {
   } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
-app.post('/api/admin/vincular-empresa-plano', adminRequired, async (req, res) => {
+async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
   try {
     const { cnpj, plano_id } = req.body || {};
     const razao_social = req.body.razao_social || req.body['razão_social'] || '';
@@ -1176,12 +1201,36 @@ app.post('/api/admin/vincular-empresa-plano', adminRequired, async (req, res) =>
     if (!planoDoc.exists) return res.status(404).json({ erro: 'Plano nao encontrado' });
     const empresaRef = db.collection('empresas').doc(cnpjLimpo);
     const empresaDoc = await empresaRef.get();
+    const empresaAtual = empresaDoc.exists ? (empresaDoc.data() || {}) : null;
+    const isAdmin = !!(req.user && req.user.is_admin);
+    const adminOverride = opts.adminOverride === true;
+
+    if (!isAdmin && !adminOverride && empresaAtual) {
+      const ownerUid = empresaAtual.owner_uid || '';
+      const planoAtual = empresaAtual.plano_id || '';
+      const usuarioEhOwner = ownerUid && ownerUid === req.user.uid;
+      const empresaSemDono = !ownerUid;
+      const empresaSemPlano = !planoAtual;
+      const mesmoPlano = planoAtual && planoAtual === plano_id;
+      if (!usuarioEhOwner && !empresaSemDono && !empresaSemPlano && !mesmoPlano) {
+        return res.status(403).json({ erro: 'Sem permissao para trocar o plano desta empresa. Solicite ao administrador.' });
+      }
+    }
+
     const dados = { plano_id, ativo: true, updated_at: new Date(), vinculado_por_uid: req.user.uid, vinculado_por_email: req.user.email, vinculado_em: new Date() };
     if (razao_social) dados.razao_social = razao_social;
     if (!empresaDoc.exists) { dados.created_at = new Date(); dados.created_by = req.user.uid; dados.created_by_email = req.user.email; dados.owner_uid = req.user.uid; }
     await empresaRef.set(dados, { merge: true });
     res.json({ ok: true, cnpj: cnpjLimpo, plano_id });
   } catch (e) { console.error('vincular-empresa-plano erro:', e); res.status(500).json({ erro: e.message }); }
+}
+
+app.post('/api/vincular-empresa-plano', async (req, res) => {
+  return vincularEmpresaPlanoHandler(req, res);
+});
+
+app.post('/api/admin/vincular-empresa-plano', adminRequired, async (req, res) => {
+  return vincularEmpresaPlanoHandler(req, res, { adminOverride: true });
 });
 
 // ==================== SESSAO DE TRABALHO (state persistente) ====================
@@ -2358,7 +2407,8 @@ function getGeminiClient() {
 app.post('/api/gemini/generate', adminRequired, async (req, res) => {
   const client = getGeminiClient();
   if (!client) return res.status(503).json({ erro: 'GEMINI_API_KEY nao configurada' });
-  const { model = 'gemini-2.5-flash', contents, config = {}, systemInstruction } = req.body || {};
+  const { model: requestedModel, contents, config = {}, systemInstruction } = req.body || {};
+  const model = resolverModeloGemini(requestedModel, GEMINI_DEFAULT_MODEL);
   if (!contents) return res.status(400).json({ erro: 'contents obrigatorio' });
   try {
     const response = await client.models.generateContent({
@@ -2377,7 +2427,8 @@ app.post('/api/gemini/generate', adminRequired, async (req, res) => {
 app.post('/api/gemini/chat', adminRequired, async (req, res) => {
   const client = getGeminiClient();
   if (!client) return res.status(503).json({ erro: 'GEMINI_API_KEY nao configurada' });
-  const { model = 'gemini-2.5-pro', history = [], message, systemInstruction, tools } = req.body || {};
+  const { model: requestedModel, history = [], message, systemInstruction, tools } = req.body || {};
+  const model = resolverModeloGemini(requestedModel, GEMINI_CHAT_MODEL);
   if (!message) return res.status(400).json({ erro: 'message obrigatorio' });
   try {
     const cfg = {};

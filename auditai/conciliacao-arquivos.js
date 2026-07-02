@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.2.72';
+  const AUDITAI_MOTOR_VERSION = '3.3.3';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.2.72';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.3.3';
 
   const STATE = {
     files: { a: null, b: null },
@@ -299,8 +299,7 @@
     return -1;
   }
 
-  function rowsFromSheet(sheet) {
-    const matrix = window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, blankrows: false });
+  function rowsFromMatrix(matrix) {
     const rows = matrix.filter(function (r) { return r.some(function (v) { return String(v || '').trim() !== ''; }); });
     if (!rows.length) return [];
     const headerRow = findHeaderRow(rows);
@@ -329,6 +328,71 @@
         raw: joined
       });
     }).filter(function (r) { return r.amount !== null && Math.abs(r.amount) > 0 && r.description; });
+  }
+
+  function rowsFromSheet(sheet) {
+    const matrix = window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, blankrows: false });
+    return rowsFromMatrix(matrix);
+  }
+
+  function splitDelimitedLine(line, delimiter) {
+    const values = [];
+    let current = '';
+    let quoted = false;
+    const text = String(line || '').replace(/^\uFEFF/, '');
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '"') {
+        if (quoted && text[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          quoted = !quoted;
+        }
+      } else if (ch === delimiter && !quoted) {
+        values.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    values.push(current.trim());
+    return values;
+  }
+
+  function detectDelimiter(lines, ext) {
+    if (ext === 'tsv') return '\t';
+    const candidates = [';', ',', '\t'];
+    const sample = lines.slice(0, 20).filter(function (line) { return String(line || '').trim(); });
+    let best = ';';
+    let bestScore = -1;
+    candidates.forEach(function (delimiter) {
+      const counts = sample.map(function (line) { return splitDelimitedLine(line, delimiter).length; });
+      const useful = counts.filter(function (count) { return count > 1; });
+      if (!useful.length) return;
+      const distribution = useful.reduce(function (acc, count) {
+        acc[count] = (acc[count] || 0) + 1;
+        return acc;
+      }, {});
+      const mode = Number(Object.keys(distribution).sort(function (a, b) {
+        return distribution[b] - distribution[a];
+      })[0]);
+      const score = distribution[mode] * mode;
+      if (score > bestScore) { bestScore = score; best = delimiter; }
+    });
+    return best;
+  }
+
+  function rowsFromDelimitedText(text, ext) {
+    const lines = String(text || '').split(/\r?\n/);
+    const delimiter = detectDelimiter(lines, ext);
+    const matrix = lines
+      .map(function (line) { return splitDelimitedLine(line, delimiter); })
+      .filter(function (row) { return row.some(function (value) { return String(value || '').trim(); }); });
+    const hasStructuredRows = matrix.some(function (row) { return row.length > 2; });
+    if (!hasStructuredRows) return rowsFromText(text);
+    const rows = rowsFromMatrix(matrix);
+    return rows.length ? rows : rowsFromText(text);
   }
 
   function rowsFromText(text) {
@@ -718,6 +782,7 @@
       const wb = window.XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
       return wb.SheetNames.flatMap(function (name) { return rowsFromSheet(wb.Sheets[name]); });
     }
+    if (ext === 'csv' || ext === 'tsv') return rowsFromDelimitedText(await file.text(), ext);
     if (ext === 'pdf') return parsePdf(file);
     return rowsFromText(await file.text());
   }
@@ -1587,7 +1652,7 @@
       '<div class="text-xs font-black text-blue-600 uppercase tracking-widest mb-2">' + title + '</div>' +
       '<div class="font-bold text-slate-800 dark:text-white mb-1" id="sp-file-name-' + side + '">Selecionar arquivo</div>' +
       '<div class="text-xs text-slate-500">' + help + '</div>' +
-      '<input id="sp-file-' + side + '" type="file" accept=".xlsx,.xls,.csv,.txt,.pdf" class="hidden">' +
+      '<input id="sp-file-' + side + '" type="file" accept=".xlsx,.xls,.csv,.tsv,.txt,.pdf" class="hidden">' +
       '</label>';
   }
 
@@ -1701,6 +1766,7 @@
     parseItauMonthlyLines: parseItauMonthlyLines,
     reconcileRows: reconcileRows,
     renderOutOfScope: renderOutOfScope,
+    rowsFromDelimitedText: rowsFromDelimitedText,
     rowsFromText: rowsFromText,
     parseMoney: parseMoney
   };

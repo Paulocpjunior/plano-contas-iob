@@ -171,6 +171,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Layout Bradesco Net Empresa textual com documento, valor e saldo colados. A regressao confere totais oficiais pelo saldo anterior versus saldo atual.'
   },
   {
+    id: 'bradesco-simples-conferencia-2045-2025-03',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco - Simples Conferencia',
+    parser: 'parsearPDF_Bradesco_SimplesConferencia',
+    arquivo: 'extrato_2968_ref_32025_03062026112729 2.pdf',
+    empresa: 'Empresa 2045 - 20.069.635/0001-52',
+    periodo_inicio: '2025-03-05',
+    periodo_fim: '2025-04-01',
+    esperado: {
+      total_lancamentos: 2179,
+      total_credito: 0,
+      total_debito: 0
+    },
+    status: 'Aprovado',
+    validado_em: '2026-06-04T00:00:00-03:00',
+    observacao: 'Layout OCR Bradesco Simples Conferencia. O PDF tem duas vias por pagina; a regressao exige OCR em metades, ignora saldo/transporte e preserva complementos REM. Totais ficam calculados pelos movimentos extraidos.'
+  },
+  {
     id: 'itau-clude-pdf-2026-04',
     banco: '341',
     nomeBanco: 'Itau Unibanco',
@@ -188,6 +207,47 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-05-17T06:10:00-03:00',
     observacao: 'Layout Itau PDF por periodo com descricao em linhas vizinhas; cobre Redecard/Rede e rendimentos que ficavam fora da importacao.'
+  },
+  {
+    id: 'itau-fatura-cartao-comum-2026-05',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'FATURA CARTAO ITAU',
+    parser: 'parsearPDF_Itau_FaturaCartao',
+    arquivo: '05_FATURA MAIO.pdf',
+    empresa: 'Uso comum - fatura Itau Empresas Mastercard',
+    periodo_inicio: '2026-01-25',
+    periodo_fim: '2026-05-07',
+    esperado: {
+      total_lancamentos: 118,
+      total_credito: 4514.60,
+      total_debito: 64038.99
+    },
+    status: 'Aprovado',
+    validado_em: '2026-06-30T00:00:00-03:00',
+    observacao: 'Layout comum de fatura Itau Empresas Mastercard. Compras entram como debito e creditos/estornos como credito; valida fechamento liquido contra Total da fatura de R$ 59.524,39.'
+  },
+  {
+    id: 'itau-casa-betinho-ocr-scan-2026-04',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 1 - Extrato Mensal',
+    parser: 'parsearPDF_Itau_ExtratoMensal',
+    arquivo: '58208-8abr26CasaBetinho.pdf',
+    empresa: '606 - CASA DA CRIANCA BETINHO',
+    cnpj: '62.827.860/0001-50',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 489,
+      total_credito: 1020977.17,
+      total_debito: 939901.17,
+      total_credito_oficial_resumo: 1025764.82,
+      total_debito_oficial_resumo: 1019074.26
+    },
+    status: 'Aprovado',
+    validado_em: '2026-06-18T00:00:00-03:00',
+    observacao: 'PDF Adobe Scan/OCR do Itau Extrato Mensal. A regressao valida cabecalhos OCR distorcidos, totais oficiais e evita importar saldo/aplicacao automatica como movimento.'
   },
   {
     id: 'clude-itau-xlsx-2026-04',
@@ -397,6 +457,25 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-05-29T14:45:00-03:00',
     observacao: 'Layout Banco ABC XLSX com colunas ENTRADAS e SAIDAS separadas. Nao soma SALDO ATUAL ao total importado.'
+  },
+  {
+    id: 'extrato-conciliado-flanacar-itau-2026-04-xlsx',
+    banco: 'GEN',
+    nomeBanco: 'Todos os bancos',
+    layout: 'Extrato Conciliado',
+    parser: 'parsearArquivoXLSXExtratoConciliado',
+    arquivo: 'EXTRATO ITAU-FLANACAR 042026.xlsx',
+    empresa: 'FLANACAR COMERCIO DE PECAS 2026',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 450,
+      total_credito: 4044803.01,
+      total_debito: 4044803.01
+    },
+    status: 'Aprovado',
+    validado_em: '2026-06-02T00:00:00-03:00',
+    observacao: 'Layout generico XLSX para extratos conciliados. Deve funcionar com qualquer banco selecionado e nao pode herdar conta/layout Banco ABC.'
   }
 ];
 

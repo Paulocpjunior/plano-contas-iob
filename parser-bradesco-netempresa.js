@@ -22,6 +22,32 @@
     return /^-?[\d.]+,\d{2}-?$/.test(String(s || '').trim());
   }
 
+  function tokensMoedaBradesco(texto) {
+    return String(texto || '').match(/-?\d{1,3}(?:\.\d{3})*,\d{2}-?|-?\d+,\d{2}-?/g) || [];
+  }
+
+  function linhaBradescoSemPrefixo(texto) {
+    return String(texto || '').replace(/\s+/g, ' ').trim().replace(/^\d+\s+/, '').trim();
+  }
+
+  function compactarLinhaBradesco(texto) {
+    return linhaBradescoSemPrefixo(texto).replace(/\s+/g, '');
+  }
+
+  function prefixoLegivelBradesco(texto) {
+    let t = linhaBradescoSemPrefixo(texto).replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    t = t.replace(/(\d{2}\/\d{2})(?:\d[\d.,-]*)$/, '$1');
+    t = t.replace(/\d[\d.,-]*$/, '');
+    return t.replace(/\s+/g, ' ').trim();
+  }
+
+  function linhaInicioExtratoBradesco(texto) {
+    const t = compactarLinhaBradesco(texto);
+    return /^DataLan[cç]amentoDcto\.?Cr[eé]dito/i.test(t)
+      || /^DataLan[cç]amentoDcto\.?Valor/i.test(t);
+  }
+
   function cleanLineText(items) {
     return items.map(function(i){ return i.s; }).join(' ').replace(/\s+/g, ' ').trim();
   }
@@ -143,7 +169,71 @@
     return null;
   }
 
+  function escapeRegExpBradesco(texto) {
+    return String(texto || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function limparDescricaoMovimentoBradesco(texto, documento) {
+    let t = String(texto || '').replace(/\s+/g, ' ').trim();
+    const doc = String(documento || '').trim();
+    if (doc) {
+      t = t.replace(new RegExp('(?:\\s|^)' + escapeRegExpBradesco(doc) + '(?:\\s|$).*$', 'i'), ' ').trim();
+    }
+    t = t.replace(/\s+-?\d{1,3}(?:\.\d{3})*,\d{2}-?\s*$/, '').trim();
+    t = t.replace(/\s+\d{1,3}(?:\.\d{3})*,\d{2}-?\s+\d{1,3}(?:\.\d{3})*,\d{2}-?\s*$/, '').trim();
+    return t.replace(/\s+/g, ' ').trim();
+  }
+
+  function parseLinhaValoresBradescoPorTokens(texto) {
+    const original = String(texto || '').replace(/\s+/g, ' ').trim();
+    if (!original || /^Total\b/i.test(original) || /^SALDO ANTERIOR/i.test(original)) return null;
+
+    const moedaRe = /-?\d{1,3}(?:\.\d{3})*,\d{2}-?|-?\d+,\d{2}-?/g;
+    const matches = Array.from(original.matchAll(moedaRe));
+    if (matches.length < 2) return null;
+
+    const saldoMatch = matches[matches.length - 1];
+    const valorMatch = matches[matches.length - 2];
+    const charAntesValor = valorMatch.index > 0 ? original[valorMatch.index - 1] : ' ';
+    const charAntesSaldo = saldoMatch.index > 0 ? original[saldoMatch.index - 1] : ' ';
+    if (!/\s/.test(charAntesValor) || !/\s/.test(charAntesSaldo)) return null;
+    const saldo = parseValorBR(saldoMatch[0]);
+    const valor = parseValorBR(valorMatch[0]);
+    if (!Number.isFinite(saldo) || !Number.isFinite(valor) || valor === 0) return null;
+
+    const antesValor = original.slice(0, valorMatch.index).trim();
+    const docMatch = antesValor.match(/(?:^|\s)(\d{3,})\s*$/);
+    const documento = docMatch ? docMatch[1] : '';
+    const prefixoBruto = documento ? antesValor.slice(0, docMatch.index).trim() : antesValor;
+    const prefixo = limparDescricaoMovimentoBradesco(prefixoBruto, documento);
+    if (!prefixo && !documento) return null;
+
+    return {
+      documento: documento,
+      valor: valor,
+      tipo: valor < 0 ? 'D' : 'C',
+      saldo: saldo,
+      saldoTexto: saldoMatch[0],
+      prefixo: prefixo
+    };
+  }
+
+  function descricaoLinhaCoordenadaBradesco(line, docItem) {
+    const limiteDoc = docItem && Number.isFinite(docItem.x) ? docItem.x : 240;
+    return cleanLineText((line.items || []).filter(function(i) {
+      const t = String(i.s || '').trim();
+      if (!t) return false;
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(t)) return false;
+      if (moneyToken(t)) return false;
+      if (/^\d+$/.test(t) && i.x >= Math.max(180, limiteDoc - 40)) return false;
+      return i.x >= 75 && i.x < limiteDoc;
+    }));
+  }
+
   function parseLinhaValoresBradesco(texto, saldoAnterior) {
+    const tokenizado = parseLinhaValoresBradescoPorTokens(texto);
+    if (tokenizado && tokensMoedaBradesco(texto).length >= 2) return tokenizado;
+
     const raw = String(texto || '').replace(/\s+/g, '').trim();
     const coerente = escolherMovimentoPorSaldoBradesco(raw, saldoAnterior);
     const saldoInfo = coerente ? coerente.saldoInfo : extrairSaldoFinalBradesco(raw, saldoAnterior);
@@ -155,20 +245,29 @@
       valor = arredondarCentavos(saldoInfo.valor - saldoAnterior);
     }
     if (!valor) return null;
+    const documento = coerente && coerente.documentoTexto ? coerente.documentoTexto : (info && info.documento ? info.documento : (antesSaldo.match(/(\d{3,})$/) || [,''])[1]);
+    const prefixoBruto = prefixoLegivelBradesco(texto) || raw.slice(0, saldoInfo.inicio).replace(/[-\d.,]+$/, '').trim();
     return {
-      documento: coerente && coerente.documentoTexto ? coerente.documentoTexto : (info && info.documento ? info.documento : (antesSaldo.match(/(\d{3,})$/) || [,''])[1]),
+      documento: documento,
       valor: valor,
       tipo: valor < 0 ? 'D' : 'C',
       saldo: saldoInfo.valor,
       saldoTexto: saldoInfo.texto,
-      prefixo: raw.slice(0, saldoInfo.inicio).replace(/[-\d.,]+$/, '').trim()
+      prefixo: limparDescricaoMovimentoBradesco(prefixoBruto, documento)
     };
   }
 
   function parseTotaisBradescoLinha(texto) {
-    const raw = String(texto || '').replace(/\s+/g, '').trim();
-    if (!/^Total/i.test(raw)) return null;
-    const valores = raw.match(/-?[\d.]+,\d{2}/g) || [];
+    const raw = compactarLinhaBradesco(texto);
+    if (/ContaTotalDispon/i.test(raw)) return null;
+    const totalIdx = raw.search(/Total/i);
+    if (totalIdx < 0) return null;
+    const trechoTotal = raw.slice(totalIdx);
+    if (!/^Total/i.test(trechoTotal)) return null;
+    const moedaGrupo = '-?(?:\\d{1,3}(?:\\.\\d{3})*|\\d+),\\d{2}';
+    const corpo = trechoTotal.replace(/^Total/i, '');
+    const direto = corpo.match(new RegExp('^(' + moedaGrupo + ')(' + moedaGrupo + ')(' + moedaGrupo + ')$'));
+    const valores = direto ? [direto[1], direto[2], direto[3]] : tokensMoedaBradesco(trechoTotal).slice(-3);
     if (valores.length < 3) return null;
     return {
       totalCredito: Math.abs(parseValorBR(valores[0])),
@@ -177,11 +276,38 @@
     };
   }
 
+  function totalBradescoPareceResumoInterno(totais) {
+    if (!totais) return false;
+    const credito = Number(totais.totalCredito || 0);
+    const debito = Number(totais.totalDebito || 0);
+    const saldo = Number(totais.saldoFinal || 0);
+    return Math.abs(credito - debito) <= 0.01 && Math.abs(saldo) <= 10;
+  }
+
   function textoIgnoradoBradesco(texto) {
-    const t = String(texto || '').replace(/\s+/g, ' ').trim();
+    const t = linhaBradescoSemPrefixo(texto);
     return !t
-      || /^(Extrato Mensal|COMUNIDADE|Nome do usu|Data da opera|Folha|Ag[eê]ncia|Extrato de:|Data Lan[cç]amento|Cr[eé]dito|Os dados|[ÚU]ltimos Lan[cç]amentos|Saldos Invest|Central de Atendimento|Atendimento|Ouvidoria|SAC|0800|4004|Pagina)/i.test(t)
-      || /^SALDO ANTERIOR/i.test(t);
+      || /^(Extrato Mensal|Extrato Consolidado|COMUNIDADE|Nome do usu|Data da opera|Folha|Ag[eê]ncia|Extrato de:|Data Lan[cç]amento|DataLan[cç]amento|Cr[eé]dito|Os dados|[ÚU]ltimos Lan[cç]amentos|Saldos Invest|DataHist[oó]ricoValor|Central de Atendimento|Atendimento|Ouvidoria|SAC|0800|4004|Pagina)/i.test(t)
+      || /^SALDO ANTERIOR/i.test(t)
+      || /\b(SALDO INVEST|Saldos Invest)\b/i.test(t);
+  }
+
+  function deveEncerrarBlocoBradesco(texto) {
+    const t = linhaBradescoSemPrefixo(texto);
+    return /^(Saldos Invest|DataHist[oó]ricoValor|Os dados acima|[ÚU]ltimos Lan[cç]amentos|Central de Atendimento|Atendimento Bradesco|Ouvidoria|SAC\b)/i.test(t)
+      || /\bSaldos Invest\b/i.test(t);
+  }
+
+  function juntarDescricaoBradesco(a, b) {
+    const p1 = String(a || '').replace(/\s+/g, ' ').trim();
+    const p2 = String(b || '').replace(/\s+/g, ' ').trim();
+    if (!p1) return p2;
+    if (!p2) return p1;
+    const n1 = normalizarHistoricoBradesco(p1);
+    const n2 = normalizarHistoricoBradesco(p2);
+    if (n1.includes(n2)) return p1;
+    if (n2.includes(n1)) return p2;
+    return p1 + ' - ' + p2;
   }
 
   function normalizarHistoricoBradesco(texto) {
@@ -221,8 +347,8 @@
 
   function parsearTextoBradescoNetEmpresa(textoCompleto) {
     const texto = String(textoCompleto || '');
-    const ehBradesco = /Extrato\s+(?:Mensal|de:)/i.test(texto)
-      && /Data\s*Lan[cç]amento\s*Dcto\.?\s*Cr[eé]dito|DataLan[cç]amentoDcto\.?Cr[eé]dito/i.test(texto);
+    const ehBradesco = /Extrato\s+(?:Mensal|Consolidado|de:)/i.test(texto)
+      && (/Data\s*Lan[cç]amento\s*Dcto\.?\s*Cr[eé]dito/i.test(texto) || linhaInicioExtratoBradesco(texto));
     if (!ehBradesco) return { detectado: false, lancamentos: [], textoCompleto: texto };
 
     const linhas = texto.split(/\r?\n/).map(function(l) {
@@ -240,7 +366,7 @@
 
     linhas.forEach(function(linha) {
       if (done) return;
-      if (/^Data\s*Lan[cç]amento\s*Dcto\./i.test(linha)) {
+      if (/^Data\s*Lan[cç]amento\s*Dcto\./i.test(linha) || linhaInicioExtratoBradesco(linha)) {
         inExtrato = true;
         return;
       }
@@ -248,9 +374,22 @@
 
       const totais = parseTotaisBradescoLinha(linha);
       if (totais) {
+        if (totalBradescoPareceResumoInterno(totais)) {
+          lancamentos.length = 0;
+          currentDate = '';
+          pendingDesc = '';
+          saldoAnterior = null;
+          inExtrato = false;
+          return;
+        }
         totalCredito = totais.totalCredito;
         totalDebito = totais.totalDebito;
         saldoFinal = totais.saldoFinal;
+        done = lancamentos.length > 0;
+        return;
+      }
+
+      if (deveEncerrarBlocoBradesco(linha)) {
         done = lancamentos.length > 0;
         return;
       }
@@ -259,7 +398,7 @@
         pendingDesc = '';
         return;
       }
-      if (saldoAnterior === null && /^[\d.]+,\d{2}$/.test(linha)) {
+      if (saldoAnterior === null && /^-?[\d.]+,\d{2}-?$/.test(linha)) {
         saldoAnterior = parseValorBR(linha);
         return;
       }
@@ -267,14 +406,20 @@
       const dataLinha = linha.match(/^(\d{2}\/\d{2}\/\d{4})(.*)$/);
       if (dataLinha) {
         currentDate = parseDataBR(dataLinha[1]);
+        pendingDesc = '';
         linha = dataLinha[2].trim();
         if (!linha) return;
       }
       if (!currentDate) return;
 
+      if (textoIgnoradoBradesco(linha)) {
+        pendingDesc = '';
+        return;
+      }
+
       const mov = parseLinhaValoresBradesco(linha, saldoAnterior);
       if (mov) {
-        const desc = pendingDesc || mov.prefixo || 'Lancamento Bradesco';
+        const desc = juntarDescricaoBradesco(pendingDesc, mov.prefixo) || 'Lancamento Bradesco';
         const historico = historicoBradescoPorDescricao(desc, mov.tipo);
         lancamentos.push({
           id: uuid(),
@@ -297,7 +442,7 @@
         return;
       }
 
-      if (!textoIgnoradoBradesco(linha) && !moneyToken(linha) && !/^Data\s*Lan[cç]amento\s*Dcto\.?/i.test(linha) && !/^DataLan[cç]amentoDcto\.?/i.test(linha)) {
+      if (!deveEncerrarBlocoBradesco(linha) && !textoIgnoradoBradesco(linha) && !tokensMoedaBradesco(linha).length && !/^Data\s*Lan[cç]amento\s*Dcto\.?/i.test(linha) && !linhaInicioExtratoBradesco(linha)) {
         pendingDesc = pendingDesc ? (pendingDesc + ' - ' + linha) : linha;
       }
     });
@@ -341,13 +486,15 @@
       });
     }
 
-    const ehBradesco = /Extrato Mensal\s*\/\s*Por Per[ií]odo/i.test(textoCompleto)
-      && /Ag[eê]ncia\s*\|\s*Conta|Extrato de:\s*Ag:/i.test(textoCompleto)
-      && /Cr[eé]dito\s*\(R\$\).*D[eé]bito\s*\(R\$\).*Saldo\s*\(R\$\)/is.test(textoCompleto);
-
-    if (!ehBradesco) return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
-
     const textual = parsearTextoBradescoNetEmpresa(textoCompleto);
+
+    const ehBradesco = /Extrato\s+(?:Mensal|Consolidado)\s*\/\s*Por Per[ií]odo/i.test(textoCompleto)
+      && /Ag[eê]ncia\s*\|\s*Conta|Extrato de:\s*Ag:/i.test(textoCompleto)
+      && (/Cr[eé]dito\s*\(R\$\).*D[eé]bito\s*\(R\$\).*Saldo\s*\(R\$\)/is.test(textoCompleto) || linhaInicioExtratoBradesco(textoCompleto));
+
+    if (!ehBradesco && !(textual && textual.detectado && textual.lancamentos && textual.lancamentos.length)) {
+      return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+    }
     const lancamentos = [];
     let inExtrato = false;
     let currentDate = '';
@@ -360,7 +507,7 @@
     function setPendingDesc(text) {
       const t = String(text || '').replace(/\s+/g, ' ').trim();
       if (!t) return;
-      if (/^(Extrato Mensal|COMUNIDADE|Nome do usu|Data da opera|Folha|Ag[eê]ncia|Extrato de:|Data Lan[cç]amento|Cr[eé]dito|Os dados|[ÚU]ltimos Lan[cç]amentos|Saldos Invest)/i.test(t)) return;
+      if (deveEncerrarBlocoBradesco(t) || /^(Extrato Mensal|Extrato Consolidado|COMUNIDADE|Nome do usu|Data da opera|Folha|Ag[eê]ncia|Extrato de:|Data Lan[cç]amento|DataLan[cç]amento|Cr[eé]dito|Os dados|[ÚU]ltimos Lan[cç]amentos|Saldos Invest)/i.test(t)) return;
       if (/^SALDO ANTERIOR/i.test(t)) return;
       if (/^(REM|FAV|PAG|ORIGEM):/i.test(t) && pendingDesc) {
         pendingDesc = pendingDesc + ' - ' + t;
@@ -372,11 +519,32 @@
     lines.forEach(function(line) {
       if (stopped) return;
       const text = line.text;
-      if (/^Data\s+Lan[cç]amento\s+Dcto\./i.test(text)) {
+      if (/^Data\s+Lan[cç]amento\s+Dcto\./i.test(text) || linhaInicioExtratoBradesco(text)) {
         inExtrato = true;
         return;
       }
       if (!inExtrato) return;
+
+      const totaisTexto = parseTotaisBradescoLinha(text);
+      if (totaisTexto) {
+        if (totalBradescoPareceResumoInterno(totaisTexto)) {
+          lancamentos.length = 0;
+          currentDate = '';
+          pendingDesc = '';
+          inExtrato = false;
+          return;
+        }
+        totalCredito = totaisTexto.totalCredito;
+        totalDebito = totaisTexto.totalDebito;
+        saldoFinal = totaisTexto.saldoFinal;
+        stopped = true;
+        return;
+      }
+
+      if (deveEncerrarBlocoBradesco(text)) {
+        stopped = true;
+        return;
+      }
 
       if (/^Total\b/i.test(text)) {
         const credit = line.items.find(function(i){ return i.x >= 320 && i.x < 410 && moneyToken(i.s); });
@@ -390,7 +558,10 @@
       }
 
       const dateItem = line.items.find(function(i){ return i.x < 100 && /^\d{2}\/\d{2}\/\d{4}$/.test(String(i.s || '').trim()); });
-      if (dateItem) currentDate = parseDataBR(dateItem.s);
+      if (dateItem) {
+        currentDate = parseDataBR(dateItem.s);
+        pendingDesc = '';
+      }
 
       const docItem = line.items.find(function(i){ return i.x >= 240 && i.x < 325 && /^\d+$/.test(String(i.s || '').trim()); });
       const creditItem = line.items.find(function(i){ return i.x >= 330 && i.x < 410 && moneyToken(i.s); });
@@ -401,7 +572,8 @@
         const debito = debitItem ? Math.abs(parseValorBR(debitItem.s)) : 0;
         const valor = credito > 0 ? credito : -debito;
         if (valor !== 0) {
-          const desc = pendingDesc || 'Lancamento Bradesco';
+          const linhaDesc = descricaoLinhaCoordenadaBradesco(line, docItem);
+          const desc = juntarDescricaoBradesco(pendingDesc, linhaDesc) || 'Lancamento Bradesco';
           lancamentos.push({
             id: uuid(),
             data: currentDate,
@@ -423,7 +595,7 @@
         return;
       }
 
-      if (!moneyToken(text)) setPendingDesc(text);
+      if (!tokensMoedaBradesco(text).length) setPendingDesc(text);
     });
 
     const coordenado = {
@@ -451,8 +623,11 @@
       parseValorBR: parseValorBR,
       parseDataBR: parseDataBR,
       parseLinhaValoresBradesco: parseLinhaValoresBradesco,
+      parseLinhaValoresBradescoPorTokens: parseLinhaValoresBradescoPorTokens,
       parseTotaisBradescoLinha: parseTotaisBradescoLinha,
       splitDocumentoValorBradesco: splitDocumentoValorBradesco,
+      limparDescricaoMovimentoBradesco: limparDescricaoMovimentoBradesco,
+      descricaoLinhaCoordenadaBradesco: descricaoLinhaCoordenadaBradesco,
       historicoBradescoPorDescricao: historicoBradescoPorDescricao,
       parsearTextoBradescoNetEmpresa: parsearTextoBradescoNetEmpresa
     }

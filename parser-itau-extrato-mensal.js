@@ -17,8 +17,49 @@
     return negative ? -Math.abs(n) : n;
   }
 
+  function normalizarValorOCR(s) {
+    let raw = String(s || '').trim();
+    if (!raw) return '';
+    raw = raw
+      .replace(/[Ooº°]/g, '0')
+      .replace(/[Ss]/g, '5')
+      .replace(/[Il|!]/g, '1')
+      .replace(/[Aa]/g, '4')
+      .replace(/[nN]/g, '7')
+      .replace(/[·•*]/g, '-')
+      .replace(/[−–—]/g, '-')
+      .replace(/"/g, '')
+      .replace(/\s+/g, ' ');
+    const negative = /-$/.test(raw) || /^-/.test(raw);
+    raw = raw.replace(/-/g, '');
+    raw = raw.replace(/[^\d,.]/g, '');
+    if (!raw) return '';
+    if (!raw.includes(',') && /\.\d{2}$/.test(raw)) {
+      const i = raw.lastIndexOf('.');
+      raw = raw.slice(0, i).replace(/\./g, '') + ',' + raw.slice(i + 1);
+    }
+    return (negative ? '-' : '') + raw;
+  }
+
+  function parseValorOCR(s) {
+    const raw = normalizarValorOCR(s);
+    if (!raw || !/[,.]\d{2}$/.test(raw.replace(/^-/, ''))) return 0;
+    return parseValorBR(raw);
+  }
+
   function moneyToken(s) {
     return /^(?:R\$\s*)?-?[\d.]+,\d{2}-?$/.test(String(s || '').trim());
+  }
+
+  function extrairValoresOCRToken(s) {
+    const raw = String(s || '').trim();
+    if (!raw) return [];
+    const matches = raw.match(/["]?[A-Za-z0-9.]+[,\.][A-Za-z0-9]{2}[·•*−–—-]?/g) || [];
+    return matches.map(function(m) {
+      const valor = parseValorOCR(m);
+      if (!valor || !Number.isFinite(valor)) return null;
+      return { raw: m, valor: valor };
+    }).filter(Boolean);
   }
 
   function cleanLineText(items) {
@@ -30,7 +71,7 @@
       jan: '01', fev: '02', mar: '03', abr: '04', mai: '05', jun: '06',
       jul: '07', ago: '08', set: '09', out: '10', nov: '11', dez: '12'
     };
-    const m = String(texto || '').match(/\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+(\d{4})\b/i);
+    const m = String(texto || '').match(/\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s*\.?\s*(\d{4})\b/i);
     if (!m) return { ano: String(new Date().getFullYear()), mes: '' };
     return { ano: m[2], mes: meses[m[1].toLowerCase()] || '' };
   }
@@ -387,6 +428,276 @@
     return { lines: lines, textoCompleto: textoCompleto };
   }
 
+  function normalizarTextoOCR(s) {
+    return String(s || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[|!]/g, 'I')
+      .replace(/\s+/g, ' ')
+      .toLowerCase()
+      .trim();
+  }
+
+  function ehItauExtratoMensalOCRScaneado(textoCompleto) {
+    const t = normalizarTextoOCR(textoCompleto);
+    return /(extrato mensal|minha conta|conta corrente)/i.test(textoCompleto)
+      && /\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s*\.?\s*\d{4}\b/i.test(textoCompleto)
+      && /(conta corrente|corrente)/.test(t)
+      && /(movimenta|movlmenta|dekr|ducr|entradasr|enh'adasr|safdasr|aaid11r)/.test(t)
+      && /(entradas|enh'adas|entradu|entr1du|safdas|saidas|aaid11)/.test(t);
+  }
+
+  function extrairTotaisResumoOCR(lines) {
+    let credito = 0;
+    let debito = 0;
+    lines.forEach(function(line) {
+      if (!line || line.page !== 1 || !Array.isArray(line.items)) return;
+      line.items.forEach(function(item) {
+        const valores = extrairValoresOCRToken(item.s);
+        if (!valores.length) return;
+        const valor = Math.abs(valores[0].valor);
+        if (!valor || valor < 100000) return;
+        if (item.x >= 135 && item.x <= 190) credito = valor;
+        if (item.x >= 210 && item.x <= 280) debito = valor;
+      });
+    });
+    return { credito: credito, debito: debito };
+  }
+
+  function dataCurtaOCR(text) {
+    const m = String(text || '')
+      .replace(/[Oo]/g, '0')
+      .replace(/[Il|]/g, '1')
+      .match(/(\d{2})\s*\/\s*(\d{2})/);
+    return m ? (m[1] + '/' + m[2]) : '';
+  }
+
+  function dataCurtaLinhaOCR(line) {
+    if (line && Array.isArray(line.items)) {
+      const itemData = line.items.find(function(item) {
+        const x = Number(item.x || 0);
+        return x >= 135 && x <= 180 && dataCurtaOCR(item.s);
+      });
+      if (itemData) return dataCurtaOCR(itemData.s);
+    }
+    const text = String(line && line.text || line || '');
+    const m = text
+      .replace(/[Oo]/g, '0')
+      .replace(/[Il|]/g, '1')
+      .match(/^\s*(\d{1,2})\s*\/\s*(\d{2})\b/);
+    return m ? (m[1].padStart(2, '0') + '/' + m[2]) : '';
+  }
+
+  function linhaIgnoradaOCR(text) {
+    const t = normalizarTextoOCR(text);
+    return !t
+      || /saldo anterior|saldo final|saldoemc\/c|saldo em c\/c|saldo aplic|saldo aplk|saldo r\$|&aldo/.test(t)
+      || /totalizador|total entradas|total saldas|total saidas|entrada r\$|slkll r\$|crhitos|crtdltos|dtbltos|debito|credito/.test(t)
+      || /notas explicativas|menu conta|este material|099277|pagina|folha/.test(t)
+      || /bolsa de valores|a compensar|aplic.*programada|poupanca automat|para demais|explicativ/.test(t)
+      || /rend pago.*aut mais|rend pago aplic|rend pago apl|aplic aut mais|apllc aut mais|apl1c aut|aplfc aut|_pile aut|pilgo apllc/.test(t)
+      || /^(apt|apl|apite|aut mais|res apl|res aplic|res apllc|saldo apl)/.test(t)
+      || /^\(?[acdgpb]\s*=/.test(t)
+      || /^[-\s.]+$/.test(t);
+  }
+
+  function descricaoOCRInvalida(desc) {
+    const raw = String(desc || '').replace(/\s+/g, ' ').trim();
+    if (!raw) return true;
+    const t = normalizarTextoOCR(raw);
+    const semDatas = t.replace(/\b\d{1,2}\s*\/\s*\d{2}\b/g, ' ');
+    const letras = semDatas.replace(/[^a-z]/g, '');
+    if (letras.length < 2) return true;
+    if (/^(p|d|c|a|g|b|de|da|do|oe|e\s*\d{1,2}\s*\/\s*\d{2}|oe\s*\d{1,2}\s*\/\s*\d{2})$/.test(t)) return true;
+    if (/^(?:\d+[.,]\d{2}|[-.,\s]+)$/.test(t)) return true;
+    if (/aut mais/.test(t) && /(apl|aplic|apllc|aplfc|aplk|apl1c|rend|res|saldo|pago)/.test(t)) return true;
+    if (/(aplic|apllc|aplfc|aplk|apl1c|_pile|pilgo).*(aut|m[ai1]is|m1ls)/.test(t)) return true;
+    if (/^rend(?:\s+pago)?$/.test(t)) return true;
+    return false;
+  }
+
+  function descOCR(line, valorRaw) {
+    if (!line || !Array.isArray(line.items)) return '';
+    const partes = [];
+    line.items.forEach(function(item) {
+      if (item.x < 185 || item.x > 335) return;
+      const s = String(item.s || '').trim();
+      if (!s || extrairValoresOCRToken(s).length) return;
+      partes.push(s);
+    });
+    let desc = partes.join(' ').replace(/\s+/g, ' ').trim();
+    if (!desc) {
+      desc = String(line.text || '')
+        .replace(valorRaw || '', ' ')
+        .replace(/^\s*\d{2}\s*\/\s*\d{2}\s*/, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    return desc
+      .replace(/\b\d{2}\s*\/\s*\d{2}\s*S?\b/ig, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function valorMovimentoOCR(line) {
+    if (!line || !Array.isArray(line.items)) return null;
+    const candidatos = [];
+    line.items.forEach(function(item) {
+      const valores = extrairValoresOCRToken(item.s);
+      valores.forEach(function(v, idx) {
+        const x = Number(item.x || 0);
+        if (x >= 455) return;
+        if (x < 320) return;
+        let valor = v.valor;
+        if (x >= 388 && valor > 0) valor = -Math.abs(valor);
+        candidatos.push({
+          raw: v.raw,
+          valor: valor,
+          x: x,
+          score: (x >= 335 && x <= 465 ? 10 : 0) - idx
+        });
+      });
+    });
+    candidatos.sort(function(a, b) { return b.score - a.score || Math.abs(400 - a.x) - Math.abs(400 - b.x); });
+    return candidatos[0] || null;
+  }
+
+  function adicionarLancamentoOCR(ctx, data, desc, valor) {
+    const descricao = String(desc || '').replace(/\s+/g, ' ').trim();
+    if (!data || !descricao || !valor || Math.abs(valor) === 0) return false;
+    if (descricaoOCRInvalida(descricao)) return false;
+    if (linhaIgnoradaOCR(descricao)) return false;
+    if (ignorarLancamentoTecnicoExtratoMensal(descricao)) return false;
+    const chave = [data, descricao.toLowerCase(), Number(valor).toFixed(2)].join('|');
+    if (ctx.vistos.has(chave)) return false;
+    ctx.vistos.add(chave);
+    ctx.lancamentos.push({
+      id: uuid(),
+      data: data,
+      descricao: descricao,
+      documento: '',
+      valor: valor,
+      tipo: valor < 0 ? 'D' : 'C',
+      empresa: '',
+      cnpj: '',
+      categoria: 'Nao categorizado',
+      contaDebito: '',
+      contaCredito: '',
+      historico: descricao,
+      incomum: false,
+      origem: 'pdf-itau-extrato-mensal-ocr-scan'
+    });
+    return true;
+  }
+
+  function parseItauExtratoMensalOCRScaneado(lines, textoCompleto) {
+    if (!ehItauExtratoMensalOCRScaneado(textoCompleto)) return null;
+    const ref = anoMesDoCabecalho(textoCompleto);
+    if (!ref.mes) return null;
+    const totaisResumo = extrairTotaisResumoOCR(lines);
+    const contaMatch = String(textoCompleto || '').match(/Minha\s+conta\s+([0-9Il|OoSs.-]+-\d)/i);
+    const ctx = { lancamentos: [], vistos: new Set() };
+    let currentDate = '';
+    let pendingValue = null;
+    let lastDesc = '';
+    let inMov = false;
+    let stopped = false;
+
+    function finalizarPendenteComDesc(desc) {
+      if (!pendingValue || !desc) return false;
+      const ok = adicionarLancamentoOCR(ctx, pendingValue.data || currentDate, desc, pendingValue.valor);
+      pendingValue = null;
+      return ok;
+    }
+
+    lines.forEach(function(line) {
+      const text = String(line && line.text || '').trim();
+      if (!text || stopped) return;
+      const normal = normalizarTextoOCR(text);
+      if (!inMov) {
+        if (/movimenta|movlmenta|data\s+de|ducrl|dekr/.test(normal)) inMov = true;
+        return;
+      }
+      if (/saldo final|totalizador/.test(normal)) {
+        stopped = true;
+        pendingValue = null;
+        lastDesc = '';
+        return;
+      }
+      if (linhaIgnoradaOCR(text)) {
+        const descPendente = descOCR(line, '');
+        if (pendingValue && descPendente && !descricaoOCRInvalida(descPendente) && !linhaIgnoradaOCR(descPendente)) {
+          const dataIgnorada = dataCurtaLinhaOCR(line);
+          if (dataIgnorada) currentDate = parseDataCurta(dataIgnorada, ref);
+          finalizarPendenteComDesc(descPendente);
+          lastDesc = descPendente;
+          return;
+        }
+        pendingValue = null;
+        lastDesc = '';
+        return;
+      }
+      const dataLinha = dataCurtaLinhaOCR(line);
+      if (dataLinha) currentDate = parseDataCurta(dataLinha, ref);
+      const valor = valorMovimentoOCR(line);
+      const desc = descOCR(line, valor && valor.raw);
+
+      if (pendingValue && desc && !valor) {
+        finalizarPendenteComDesc(desc);
+        lastDesc = desc;
+        return;
+      }
+
+      if (!valor) {
+        if (desc && !linhaIgnoradaOCR(desc)) lastDesc = desc;
+        return;
+      }
+
+      const data = currentDate || (dataLinha ? parseDataCurta(dataLinha, ref) : '');
+      if (!data) {
+        if (!desc) pendingValue = { data: '', valor: valor.valor };
+        return;
+      }
+
+      if (desc && !linhaIgnoradaOCR(desc)) {
+        adicionarLancamentoOCR(ctx, data, desc, valor.valor);
+        lastDesc = desc;
+        return;
+      }
+
+      if (lastDesc && Math.abs(Number(line.y || 0)) > 0) {
+        if (adicionarLancamentoOCR(ctx, data, lastDesc, valor.valor)) {
+          lastDesc = '';
+          return;
+        }
+      }
+      pendingValue = { data: data || currentDate, valor: valor.valor };
+    });
+
+    if (pendingValue && lastDesc) finalizarPendenteComDesc(lastDesc);
+    if (!ctx.lancamentos.length) return null;
+    const totalCredito = ctx.lancamentos.filter(function(l){ return l.valor > 0; }).reduce(function(a,l){ return a + l.valor; }, 0);
+    const totalDebito = ctx.lancamentos.filter(function(l){ return l.valor < 0; }).reduce(function(a,l){ return a + Math.abs(l.valor); }, 0);
+    return {
+      detectado: true,
+      lancamentos: ctx.lancamentos,
+      textoCompleto: textoCompleto,
+      fingerprint: 'itau-extrato-mensal-ocr-scan-' + (contaMatch ? normalizarValorOCR(contaMatch[1]).replace(',', '') : 'x') + '-' + ref.ano + ref.mes,
+      banco_detectado: 'ITAU',
+      conta_detectada: contaMatch ? ('CC-' + contaMatch[1]) : '',
+      nome_conta_detectado: 'CONTA CORRENTE ITAU',
+      total_credito: totalCredito,
+      total_debito: totalDebito,
+      total_credito_oficial_resumo: totaisResumo.credito || 0,
+      total_debito_oficial_resumo: totaisResumo.debito || 0,
+      total_credito_calculado: totalCredito,
+      total_debito_calculado: totalDebito,
+      periodo_inicio: ref.ano + '-' + ref.mes + '-01',
+      periodo_fim: new Date(Number(ref.ano), Number(ref.mes), 0).toISOString().slice(0, 10),
+      origem_ocr_scan: true,
+      observacao_importacao: 'PDF escaneado/OCR: totais oficiais do resumo preservados para conferencia; totais importaveis calculados pelos lancamentos extraidos.'
+    };
+  }
+
   async function parsearPDF_Itau_ExtratoMensal(arrayBuffer) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -421,6 +732,9 @@
     if (!ehItau) {
       const periodo = parseItauLancamentosPeriodo(lines, textoCompleto);
       if (periodo && periodo.detectado && periodo.lancamentos && periodo.lancamentos.length) return periodo;
+
+      const ocrScan = parseItauExtratoMensalOCRScaneado(lines, textoCompleto);
+      if (ocrScan && ocrScan.detectado && ocrScan.lancamentos && ocrScan.lancamentos.length) return ocrScan;
 
       const precisaOCR = textoCompleto.trim().length < 120
         || (/Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto) && !(periodo && periodo.detectado));
@@ -529,6 +843,7 @@
       moneyToken: moneyToken,
       periodoLancamentosItau: periodoLancamentosItau,
       parseItauLancamentosPeriodo: parseItauLancamentosPeriodo,
+      parseItauExtratoMensalOCRScaneado: parseItauExtratoMensalOCRScaneado,
       linhasDePalavrasOCR: linhasDePalavrasOCR,
       ignorarLancamentoTecnicoExtratoMensal: ignorarLancamentoTecnicoExtratoMensal
     }
