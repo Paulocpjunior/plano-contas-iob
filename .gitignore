@@ -10,3 +10,4 @@ node_modules/
 *.js.bak.*
 index.html.bak*
 backups/
+tmp/
