@@ -1,7 +1,11 @@
 {
-  "version": "3.3.8",
-  "build_date": "2026-07-01",
+  "version": "3.4.0",
+  "build_date": "2026-07-02T11:30:00Z",
   "release_notes": [
+    "NOVA ABA ECD/ECF: consolidacao de ECD matriz + filiais em TXT unico (leiaute 9.00) para entrega da ECD/ECF",
+    "ECD/ECF: validador de CNPJ da MATRIZ (/0001) via BrasilAPI + digitos verificadores; saldos anteriores manuais ou importados da ECD anterior",
+    "ECD/ECF: auto-analise do TXT gerado com 17 verificacoes (contagens de blocos, partidas dobradas, Ativo=Passivo, hierarquia J100, numeracao I200 unica)",
+    "ECD/ECF: contador regressivo ate 31/07/2026 (prazo ECF) e contador de matrizes geradas; persistencia no Firebase (colecao ecdecf_matrizes)",
     "Validador ECD passa a reproduzir erros bloqueantes do PVA/SPED para I150 sem I155 e 0000.IND_MUDANCA_PC = 1 sem I157",
     "Aba Validador Obrigacoes agora mostra Exige revisao com linha, campo, valor esperado e conteudo encontrado nos erros estruturais de ECD",
     "Regressao ECD valida ECD1352, ECD0261 e ECD0057 para evitar aprovar arquivos que o PVA bloqueia ou gerar falso bloqueio de I157",
