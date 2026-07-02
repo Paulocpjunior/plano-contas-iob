@@ -142,8 +142,17 @@
   async function callGemini(payload, model) {
     const body = Object.assign({}, payload || {});
     if (model) body._model = model;
-    const r = await apiFetch(API_BASE + '/api/ai/gemini', { method: 'POST', body: JSON.stringify(body) });
-    return r;
+    const ctrl = new AbortController();
+    const timer = setTimeout(function() { ctrl.abort(); }, 240000);
+    try {
+      const r = await apiFetch(API_BASE + '/api/ai/gemini', { method: 'POST', body: JSON.stringify(body), signal: ctrl.signal });
+      return r;
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw new Error('IA demorou mais de 4 minutos e a chamada foi cancelada. Tente novamente.');
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async function salvarSessaoEmpresa(cnpj, state_json, resumo) {
