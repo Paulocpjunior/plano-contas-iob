@@ -4914,8 +4914,13 @@
                 const _cnpjSessao = sessionStorage.getItem('cc_empresa_sessao') || '';
                 const _cnpjState = (state.info && state.info.cnpj) ? String(state.info.cnpj).replace(/\D/g, '') : '';
                 if (state.infoConfirmed && (!_cnpjSessao || _cnpjSessao !== _cnpjState)) {
-                    // snapshot da sessao anterior e' serializado sincronamente antes de zerar
-                    try { salvarSessaoRemotoAgora(); } catch (e) { console.warn('[trava-sessao] snapshot:', e); }
+                    // snapshot da sessao anterior e' serializado sincronamente antes de zerar.
+                    // ATENCAO: so salva se houver lancamentos em memoria — quando o snapshot local
+                    // foi gravado "leve" (sem lancamentos, dados apenas no servidor), salvar aqui
+                    // sobrescreveria a sessao boa do servidor com 0 lancamentos (perda de dados).
+                    if ((state.entries || []).length > 0) {
+                        try { salvarSessaoRemotoAgora(); } catch (e) { console.warn('[trava-sessao] snapshot:', e); }
+                    }
                     state.entries = [];
                     state.info = null;
                     state.infoConfirmed = false;
