@@ -1,7 +1,9 @@
 {
-  "version": "3.4.2",
-  "build_date": "2026-07-02T18:14:41Z",
+  "version": "3.4.3",
+  "build_date": "2026-07-03T12:49:36Z",
   "release_notes": [
+    "fix(sessao): trava de sessao nao sobrescreve mais a sessao do servidor com 0 lancamentos",
+    "feat(recuperacao): script de leitura point-in-time da sessao no Firestore",
     "fix: extrato escaneado (PDF sem texto) travava modal — probe OCR-GUARD + fallback IA + watchdog 5min + timeout callGemini + recuperacao JSON truncado",
     "feat(seguranca): trava de sessao - novo acesso exige selecao explicita de empresa v3.4.1",
     "fix(ecdecf): registra rotas /api/ecdecf antes do fallback 404 de /api",
@@ -9,8 +11,6 @@
     "wip: estado deployado em producao v3.3.8 (revisao 00409)",
     "fix: stabilize bank layout imports",
     "Harden AuditAI JSON fallback handling",
-    "Match ECD validator rule for missing I157",
-    "Force fresh AuditAI bundle for Gemini fix",
-    "Fix AuditAI Gemini route fallback"
+    "Match ECD validator rule for missing I157"
   ]
 }

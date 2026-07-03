@@ -4659,8 +4659,17 @@
         });
         
         // ============ AUTO-SAVE REMOTO (Firestore) ============
+        // [SERVIDOR = FONTE DA VERDADE] Lancamentos NUNCA sao persistidos no navegador
+        // (localStorage guarda so metadados). Toda alteracao marca a sessao como "suja"
+        // e o auto-save grava no banco: debounce de 3s, save forcado apos 15s de edicao
+        // continua, retry automatico em falha e flush ao ocultar/fechar a aba.
         let _sessaoDebounceTimer = null;
         let _sessaoSalvando = false;
+        let _sessaoSavePendente = false;
+        let _sessaoDirty = false;
+        let _sessaoDirtyDesde = 0;
+        let _sessaoRetryTimer = null;
+        let _tokenFlush = null;
 
         function atualizarIndicadorSalvamento(texto, cor) {
             let el = document.getElementById('sessaoIndicador');
@@ -4678,30 +4687,70 @@
         }
 
         async function salvarSessaoRemotoAgora() {
+            if (!state.infoConfirmed || !state.info || !state.info.cnpj) return;
+            const cnpj = (state.info.cnpj || '').replace(/\D/g, '');
+            if (cnpj.length !== 14) return;
+            if (!window.API || !window.API.salvarSessaoEmpresa) return;
+            if (_sessaoSalvando) { _sessaoSavePendente = true; return; }
+            _sessaoSalvando = true;
             try {
-                if (!state.infoConfirmed || !state.info || !state.info.cnpj) return;
-                const cnpj = (state.info.cnpj || '').replace(/\D/g, '');
-                if (cnpj.length !== 14) return;
-                if (!window.API || !window.API.salvarSessaoEmpresa) return;
-                _sessaoSalvando = true;
                 atualizarIndicadorSalvamento('💾 Salvando...', 'warn');
+                // token em cache para o flush sincrono de saida da pagina
+                try { if (window.API.getToken) _tokenFlush = await window.API.getToken() || _tokenFlush; } catch (e) {}
                 const state_json = JSON.stringify(criarSnapshotState({ remoto: true }));
                 const resumo = { total_lancamentos: (state.entries || []).length, periodo: state.info.periodoInicio + ' a ' + state.info.periodoFim, banco: state.info.banco || null };
                 const r = await window.API.salvarSessaoEmpresa(cnpj, state_json, resumo);
-                _sessaoSalvando = false;
-                if (r && r.ok) atualizarIndicadorSalvamento('✅ Sessão salva', 'ok');
-                else atualizarIndicadorSalvamento('⚠️ Erro ao salvar', 'err');
+                if (r && r.ok) {
+                    _sessaoDirty = false;
+                    _sessaoDirtyDesde = 0;
+                    if (_sessaoRetryTimer) { clearTimeout(_sessaoRetryTimer); _sessaoRetryTimer = null; }
+                    atualizarIndicadorSalvamento('✅ Salvo no servidor', 'ok');
+                } else {
+                    throw new Error((r && r.erro) || 'resposta invalida');
+                }
             } catch (e) {
+                console.warn('[sessao] falha ao salvar remoto (retry em 10s):', e);
+                atualizarIndicadorSalvamento('⚠️ Não salvo — tentando de novo...', 'err');
+                if (_sessaoRetryTimer) clearTimeout(_sessaoRetryTimer);
+                _sessaoRetryTimer = setTimeout(function() { _sessaoRetryTimer = null; salvarSessaoRemotoAgora(); }, 10000);
+            } finally {
                 _sessaoSalvando = false;
-                console.warn('[sessao] falha ao salvar remoto:', e);
-                atualizarIndicadorSalvamento('⚠️ Offline', 'err');
+                if (_sessaoSavePendente) { _sessaoSavePendente = false; agendarSaveRemoto(); }
             }
         }
 
         function agendarSaveRemoto() {
+            _sessaoDirty = true;
+            if (!_sessaoDirtyDesde) _sessaoDirtyDesde = Date.now();
             if (_sessaoDebounceTimer) clearTimeout(_sessaoDebounceTimer);
-            _sessaoDebounceTimer = setTimeout(salvarSessaoRemotoAgora, 3000);
+            // debounce de 3s; se o usuario esta editando sem parar ha mais de 15s, salva ja
+            const espera = (Date.now() - _sessaoDirtyDesde > 15000) ? 0 : 3000;
+            _sessaoDebounceTimer = setTimeout(salvarSessaoRemotoAgora, espera);
         }
+
+        // Flush best-effort quando a aba e ocultada/fechada: envia o estado pendente com
+        // fetch keepalive (sobrevive ao unload). O timer de debounce continua armado como
+        // 2a linha de defesa caso a aba apenas fique em segundo plano.
+        function flushSessaoAoSair() {
+            try {
+                if (!_sessaoDirty || _sessaoSalvando) return;
+                if (!state.infoConfirmed || !state.info || !state.info.cnpj) return;
+                const cnpj = (state.info.cnpj || '').replace(/\D/g, '');
+                if (cnpj.length !== 14 || !_tokenFlush) return;
+                const state_json = JSON.stringify(criarSnapshotState({ remoto: true }));
+                const resumo = { total_lancamentos: (state.entries || []).length, periodo: state.info.periodoInicio + ' a ' + state.info.periodoFim, banco: state.info.banco || null };
+                fetch(window.location.origin + '/api/empresas/' + cnpj + '/sessao', {
+                    method: 'POST',
+                    keepalive: true,
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tokenFlush },
+                    body: JSON.stringify({ state_json: state_json, resumo: resumo })
+                }).catch(function(e) { console.warn('[sessao] flush keepalive falhou:', e); });
+            } catch (e) { console.warn('[sessao] flush:', e); }
+        }
+        window.addEventListener('pagehide', flushSessaoAoSair);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') flushSessaoAoSair();
+        });
 
         function chaveSessaoZerada(cnpj) {
             return 'consultorContabil_v2_zerado_' + String(cnpj || '').replace(/\D/g, '');
@@ -4754,7 +4803,6 @@
 
         // State Management
         const LIMITE_LOCAL_STORAGE_SESSAO = 1800000;
-        const LIMITE_ENTRIES_LOCAL_STORAGE = 350;
 
         function loadState() {
             const s = localStorage.getItem('consultorContabil_v2');
@@ -4844,32 +4892,44 @@
                     sessionStorage.setItem('cc_empresa_sessao', String(state.info.cnpj).replace(/\D/g, ''));
                 }
             } catch (e) {}
+            // [SERVIDOR = FONTE DA VERDADE] Lancamentos nunca sao gravados no navegador:
+            // o snapshot local guarda apenas metadados (empresa, mappings, preferencias)
+            // e o conteudo real vai para o banco via auto-save remoto logo abaixo.
             try {
-                const entries = state.entries || [];
-                const salvarLeve = entries.length > LIMITE_ENTRIES_LOCAL_STORAGE;
-                localStorage.setItem('consultorContabil_v2', JSON.stringify(criarSnapshotState({ semLancamentos: salvarLeve })));
+                localStorage.setItem('consultorContabil_v2', JSON.stringify(criarSnapshotState({ semLancamentos: true })));
                 localStorage.setItem('consultorContabil_v2_ts', tsAgora);
-                if (salvarLeve && typeof atualizarIndicadorSalvamento === 'function') {
-                    atualizarIndicadorSalvamento('💾 Sessão no servidor', 'ok');
-                }
             } catch (e) {
-                console.warn('[saveState] localStorage cheio; salvando snapshot sem lancamentos:', e);
-                try {
-                    localStorage.removeItem('consultorContabil_v2');
-                    localStorage.setItem('consultorContabil_v2', JSON.stringify(criarSnapshotState({ semLancamentos: true })));
-                    localStorage.setItem('consultorContabil_v2_ts', tsAgora);
-                    if (typeof atualizarIndicadorSalvamento === 'function') atualizarIndicadorSalvamento('⚠️ Navegador cheio; usando servidor', 'warn');
-                } catch (e2) {
-                    console.warn('[saveState] fallback local tambem falhou:', e2);
-                }
+                console.warn('[saveState] falha ao gravar snapshot local de metadados:', e);
             }
-            // Auto-save remoto (debounced 3s) so quando tem empresa confirmada
+            // Auto-save remoto (debounced) so quando tem empresa confirmada
             if (state.infoConfirmed && state.info && state.info.cnpj) {
                 try { agendarSaveRemoto(); } catch (e) {}
             }
         }
         
-        // Sincroniza sessao local com Firestore (puxa remota se for mais nova)
+        // Aplica uma sessao vinda do servidor no estado em memoria e re-renderiza a UI.
+        // NAO usa location.reload(): como os lancamentos nao sao persistidos no navegador,
+        // recarregar a pagina descartaria o que acabou de ser aplicado.
+        function aplicarSessaoServidor(sess, remotoTs) {
+            const d = JSON.parse(sess.state_json);
+            state.entries = d.entries || [];
+            state.mappings = Array.isArray(d.mappings) ? d.mappings : (Array.isArray(state.mappings) ? state.mappings : []);
+            state.info = d.info || state.info;
+            state.infoConfirmed = d.infoConfirmed || state.infoConfirmed;
+            state.lastFile = d.lastFile || state.lastFile;
+            state.pisCofinsCreditoCategorias = d.pisCofinsCreditoCategorias || state.pisCofinsCreditoCategorias || {};
+            if (remotoTs) localStorage.setItem('consultorContabil_v2_ts', String(remotoTs));
+            _sessaoDirty = false;
+            saveState();
+            try { popularFiltroImportacoes(); } catch (e) {}
+            try { renderAll(); } catch (e) {}
+            try { updateDashboard(); } catch (e) {}
+        }
+
+        // Sincroniza sessao com o Firestore. [SERVIDOR = FONTE DA VERDADE]
+        // Sem lancamentos em memoria (todo inicio de pagina), carrega direto do servidor,
+        // sem popup — nao ha nada local a perder. So pergunta quando ha trabalho em
+        // memoria E o servidor tem uma versao mais nova/maior (outro colaborador salvou).
         async function sincronizarSessaoRemoto() {
             try {
                 if (!state.info || !state.info.cnpj) return;
@@ -4880,10 +4940,15 @@
                 const sess = await window.API.carregarSessaoEmpresa(cnpj);
                 if (!sess || !sess.encontrada || !sess.state_json) return;
                 const remotoTs = sess.updated_at && sess.updated_at._seconds ? sess.updated_at._seconds * 1000 : 0;
-                const localTs = parseInt(localStorage.getItem('consultorContabil_v2_ts') || '0', 10);
                 const qtdRemoto = (sess.resumo && sess.resumo.total_lancamentos) || 0;
                 const qtdLocal = (state.entries || []).length;
-                // Se remoto eh mais novo OU tem mais dados significativos, pergunta
+                if (qtdLocal === 0) {
+                    if (!qtdRemoto) return;
+                    aplicarSessaoServidor(sess, remotoTs);
+                    showToast('📂 ' + qtdRemoto + ' lançamento(s) carregados do servidor', 'success');
+                    return;
+                }
+                const localTs = parseInt(localStorage.getItem('consultorContabil_v2_ts') || '0', 10);
                 const remotoMaisNovo = remotoTs > localTs + 5000; // 5s de tolerancia
                 const remotoTemMais = qtdRemoto > qtdLocal + 5;
                 if (!remotoMaisNovo && !remotoTemMais) return;
@@ -4891,17 +4956,8 @@
                 const por = sess.updated_by_email || 'outro usuario';
                 const msg = '🔄 Versão mais recente no servidor\n\nLocal: ' + qtdLocal + ' lançamento(s)\nServidor: ' + qtdRemoto + ' lançamento(s)\nÚltimo save: ' + quando + '\nPor: ' + por + '\n\nCarregar versão do servidor?';
                 if (confirm(msg)) {
-                    const d = JSON.parse(sess.state_json);
-                    state.entries = d.entries || [];
-                    state.mappings = Array.isArray(d.mappings) ? d.mappings : (Array.isArray(state.mappings) ? state.mappings : []);
-                    state.info = d.info || state.info;
-                    state.infoConfirmed = d.infoConfirmed || state.infoConfirmed;
-                    state.lastFile = d.lastFile || state.lastFile;
-                    state.pisCofinsCreditoCategorias = d.pisCofinsCreditoCategorias || state.pisCofinsCreditoCategorias || {};
-                    localStorage.setItem('consultorContabil_v2_ts', String(remotoTs));
-                    saveState();
+                    aplicarSessaoServidor(sess, remotoTs);
                     showToast('✅ Sessão sincronizada do servidor (' + qtdRemoto + ' lançamentos)', 'success');
-                    setTimeout(() => location.reload(), 1500);
                 }
             } catch (e) { console.warn('[sessao] sync:', e); }
         }
@@ -4914,8 +4970,13 @@
                 const _cnpjSessao = sessionStorage.getItem('cc_empresa_sessao') || '';
                 const _cnpjState = (state.info && state.info.cnpj) ? String(state.info.cnpj).replace(/\D/g, '') : '';
                 if (state.infoConfirmed && (!_cnpjSessao || _cnpjSessao !== _cnpjState)) {
-                    // snapshot da sessao anterior e' serializado sincronamente antes de zerar
-                    try { salvarSessaoRemotoAgora(); } catch (e) { console.warn('[trava-sessao] snapshot:', e); }
+                    // snapshot da sessao anterior e' serializado sincronamente antes de zerar.
+                    // ATENCAO: so salva se houver lancamentos em memoria — quando o snapshot local
+                    // foi gravado "leve" (sem lancamentos, dados apenas no servidor), salvar aqui
+                    // sobrescreveria a sessao boa do servidor com 0 lancamentos (perda de dados).
+                    if ((state.entries || []).length > 0) {
+                        try { salvarSessaoRemotoAgora(); } catch (e) { console.warn('[trava-sessao] snapshot:', e); }
+                    }
                     state.entries = [];
                     state.info = null;
                     state.infoConfirmed = false;
