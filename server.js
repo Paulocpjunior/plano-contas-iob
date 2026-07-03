@@ -2464,8 +2464,16 @@ app.post('/api/ecdecf/matrizes', async (req, res) => {
     const ref = db.collection('ecdecf_matrizes').doc(cnpj + '_' + ano);
     const prev = await ref.get();
     const geracoes = ((prev.exists && prev.data().geracoes) || 0) + (b.gerado ? 1 : 0);
+    // Ranking por colaborador: incrementa o contador do usuario autenticado a cada geracao
+    const gpuPrev = (prev.exists && prev.data().geracoes_por_usuario) || {};
+    if (b.gerado) {
+      const emailKey = String(req.user.email || 'desconhecido').toLowerCase().replace(/[^a-z0-9@_-]/g, '_');
+      const atualUser = (gpuPrev[emailKey] && gpuPrev[emailKey].count) || 0;
+      gpuPrev[emailKey] = { email: req.user.email || 'desconhecido', count: atualUser + 1 };
+    }
     await ref.set({
       cnpj, ano,
+      geracoes_por_usuario: gpuPrev,
       razao_social: b.razao_social || null,
       municipio: b.municipio || null,
       uf: b.uf || null,

@@ -9,27 +9,27 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.1"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.2"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.1"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.1"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.1"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.1"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.1"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.1"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.1"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.1"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.1"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.1"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.1"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.1"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.1"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.1"></script>
+    <script src="/parser-ofx.js?v=3.4.2"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.2"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.2"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.2"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.2"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.2"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.2"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.2"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.2"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.2"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.2"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.2"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.2"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -2795,6 +2795,17 @@
                         <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase">🏢 Empresas MATRIZ geradas</div>
                         <div id="ecdecfContadorMatrizes" style="font-size:28px;font-weight:800;color:#059669;margin-top:6px">0</div>
                         <div style="font-size:12px;color:#9ca3af">Consolidações salvas no banco de dados</div>
+                    </div>
+                </div>
+
+                <!-- Ranking de envios por colaborador -->
+                <div class="card" style="padding:20px 24px;margin-bottom:16px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                        <h3 style="margin:0;font-size:16px;color:#111827">🏆 Ranking de colaboradores — ECFs geradas</h3>
+                        <span style="font-size:12px;color:#9ca3af">Atualizado a cada consolidação salva no banco</span>
+                    </div>
+                    <div id="ecdecfRankingBody" style="margin-top:12px">
+                        <div style="padding:8px;color:#9ca3af;text-align:center;font-size:13px">Nenhuma geração registrada ainda</div>
                     </div>
                 </div>
 
@@ -14399,6 +14410,7 @@ window.confirmarTrocarPlano = async function() {
                 var list = await resp.json();
                 if (!resp.ok) throw new Error(list.erro || 'HTTP ' + resp.status);
                 if (cEl) cEl.textContent = list.length;
+                try { ecdecfRenderRanking(list); } catch (e) { console.warn('[ECDECF] ranking:', e); }
                 if (!list.length){
                     tb.innerHTML = '<tr><td colspan="7" style="padding:10px;color:#9ca3af;text-align:center">Nenhuma matriz consolidada ainda</td></tr>';
                     return;
@@ -14421,6 +14433,46 @@ window.confirmarTrocarPlano = async function() {
             }
         }
         window.ecdecfCarregarMatrizes = ecdecfCarregarMatrizes;
+
+        // Ranking de colaboradores: soma geracoes por usuario em todas as matrizes
+        function ecdecfRenderRanking(list){
+            var el = document.getElementById('ecdecfRankingBody');
+            if (!el) return;
+            var mapa = {};
+            (list || []).forEach(function(m){
+                var gpu = m.geracoes_por_usuario;
+                if (gpu && Object.keys(gpu).length){
+                    Object.keys(gpu).forEach(function(k){
+                        var e = gpu[k] || {};
+                        var email = e.email || k;
+                        mapa[email] = (mapa[email] || 0) + (e.count || 0);
+                    });
+                } else if (m.atualizado_por && m.geracoes){
+                    // matrizes antigas (antes do ranking): credita ao ultimo usuario que atualizou
+                    mapa[m.atualizado_por] = (mapa[m.atualizado_por] || 0) + m.geracoes;
+                }
+            });
+            var rank = Object.keys(mapa).map(function(e){ return { email: e, qtd: mapa[e] }; })
+                .filter(function(r){ return r.qtd > 0; })
+                .sort(function(a, b){ return b.qtd - a.qtd || a.email.localeCompare(b.email); });
+            if (!rank.length){
+                el.innerHTML = '<div style="padding:8px;color:#9ca3af;text-align:center;font-size:13px">Nenhuma geração registrada ainda</div>';
+                return;
+            }
+            var max = rank[0].qtd;
+            var euMesmo = (window.CURRENT_USER && window.CURRENT_USER.email) || '';
+            var medalhas = ['🥇', '🥈', '🥉'];
+            el.innerHTML = rank.map(function(r, i){
+                var pct = Math.max(6, Math.round(r.qtd / max * 100));
+                var nome = r.email.split('@')[0];
+                var destaque = r.email === euMesmo;
+                return '<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #f3f4f6' + (destaque ? ';background:#eff6ff;border-radius:6px' : '') + '">' +
+                    '<span style="width:32px;text-align:center;font-size:' + (i < 3 ? '18' : '13') + 'px;font-weight:700;color:#6b7280">' + (medalhas[i] || (i + 1) + 'º') + '</span>' +
+                    '<span style="min-width:160px;font-size:13px;font-weight:' + (destaque ? '800' : '600') + ';color:#111827">' + nome + (destaque ? ' (você)' : '') + '</span>' +
+                    '<div style="flex:1;background:#f3f4f6;border-radius:10px;height:14px;overflow:hidden"><div style="width:' + pct + '%;height:100%;border-radius:10px;background:' + (i === 0 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : '#2563eb') + '"></div></div>' +
+                    '<span style="width:90px;text-align:right;font-size:13px;font-weight:800;color:#059669">' + r.qtd + ' ECF' + (r.qtd > 1 ? 's' : '') + '</span></div>';
+            }).join('');
+        }
 
         // reabre empresa ja validada para ajustes/inclusoes/novas validacoes
         window.ecdecfReabrir = function(cnpj){
