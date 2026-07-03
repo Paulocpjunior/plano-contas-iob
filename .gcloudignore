@@ -7,3 +7,4 @@ Dockerfile.nginx.backup
 nginx.conf.backup
 *.md
 .DS_Store
+sessao-recuperada-*.json
