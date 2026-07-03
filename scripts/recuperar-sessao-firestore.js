@@ -17,12 +17,16 @@
  *     [--saida sessao-recuperada.json] \
  *     [--restaurar]
  *
- * --quando    Momento NO PASSADO em que a sessão ainda estava íntegra
- *             (ex.: alguns minutos ANTES do save vazio mostrado no popup).
- *             Aceita ISO 8601 com timezone. Deve estar dentro da janela de
- *             versões do banco (1h padrão / 7 dias com PITR).
- * --restaurar Depois de recuperar, grava o estado de volta em sessoes/current
- *             (a versão atual é preservada em sessoes/backup_pre_restauracao).
+ * --quando     Momento NO PASSADO em que a sessão ainda estava íntegra
+ *              (ex.: alguns minutos ANTES do save vazio mostrado no popup).
+ *              Aceita ISO 8601 com timezone. Deve estar dentro da janela de
+ *              versões do banco (1h padrão / 7 dias com PITR).
+ * --de-arquivo Em vez de ler o Firestore, carrega a sessão de um dump JSON
+ *              gerado anteriormente por este script (--saida). Use com
+ *              --restaurar para gravar o dump de volta no servidor sem
+ *              depender da janela de versões. Dispensa --quando.
+ * --restaurar  Depois de recuperar, grava o estado de volta em sessoes/current
+ *              (a versão atual é preservada em sessoes/backup_pre_restauracao).
  *
  * Autenticação: usa Application Default Credentials.
  *   gcloud auth application-default login
@@ -45,23 +49,27 @@ function arg(nome, padrao) {
 
 const CNPJ = String(arg('cnpj', '')).replace(/\D/g, '');
 const QUANDO = arg('quando', null);
+const DE_ARQUIVO = arg('de-arquivo', null);
 const PROJETO = arg('projeto', process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || undefined);
 const SAIDA = arg('saida', 'sessao-recuperada-' + CNPJ + '.json');
 const RESTAURAR = arg('restaurar', false) === true;
 
-if (CNPJ.length !== 14 || !QUANDO) {
-  console.error('Uso: node scripts/recuperar-sessao-firestore.js --cnpj <14 digitos> --quando "<ISO 8601>" [--projeto <id>] [--saida <arquivo>] [--restaurar]');
+if (CNPJ.length !== 14 || (!QUANDO && !DE_ARQUIVO)) {
+  console.error('Uso: node scripts/recuperar-sessao-firestore.js --cnpj <14 digitos> (--quando "<ISO 8601>" | --de-arquivo <dump.json>) [--projeto <id>] [--saida <arquivo>] [--restaurar]');
   process.exit(1);
 }
 
-const dataAlvo = new Date(QUANDO);
-if (isNaN(dataAlvo.getTime())) {
-  console.error('Valor de --quando invalido: ' + QUANDO);
-  process.exit(1);
-}
-if (dataAlvo.getTime() >= Date.now()) {
-  console.error('--quando precisa estar no passado.');
-  process.exit(1);
+let dataAlvo = null;
+if (QUANDO && !DE_ARQUIVO) {
+  dataAlvo = new Date(QUANDO);
+  if (isNaN(dataAlvo.getTime())) {
+    console.error('Valor de --quando invalido: ' + QUANDO);
+    process.exit(1);
+  }
+  if (dataAlvo.getTime() >= Date.now()) {
+    console.error('--quando precisa estar no passado.');
+    process.exit(1);
+  }
 }
 
 const admin = require('firebase-admin');
@@ -159,9 +167,28 @@ async function restaurar(dados) {
   console.log('   Agora basta abrir o Consultor, selecionar a empresa e aceitar o popup "Carregar versão do servidor?".');
 }
 
+function lerSessaoDeArquivo(caminho) {
+  const bruto = JSON.parse(fs.readFileSync(path.resolve(caminho), 'utf-8'));
+  // aceita tanto o dump gerado por este script ({cnpj, sessao: {...}}) quanto o objeto da sessao puro
+  const dados = bruto && bruto.sessao ? bruto.sessao : bruto;
+  if (bruto && bruto.cnpj && String(bruto.cnpj).replace(/\D/g, '') !== CNPJ) {
+    console.error('❌ O dump e de outro CNPJ (' + bruto.cnpj + '); abortando para nao gravar na empresa errada.');
+    process.exit(1);
+  }
+  if (!dados || !dados.state_json) {
+    console.error('❌ Arquivo nao contem state_json — nao parece um dump valido deste script.');
+    process.exit(1);
+  }
+  return dados;
+}
+
 (async () => {
-  console.log('Lendo empresas/' + CNPJ + '/sessoes/current como estava em ' + dataAlvo.toISOString() + ' ...');
   let dados;
+  if (DE_ARQUIVO) {
+    console.log('Carregando sessão do arquivo ' + DE_ARQUIVO + ' ...');
+    dados = lerSessaoDeArquivo(DE_ARQUIVO);
+  } else {
+  console.log('Lendo empresas/' + CNPJ + '/sessoes/current como estava em ' + dataAlvo.toISOString() + ' ...');
   try {
     dados = await lerSessaoEm(dataAlvo);
   } catch (e) {
@@ -176,9 +203,10 @@ async function restaurar(dados) {
     }
     process.exit(2);
   }
+  }
 
   const resumo = resumirSessao(dados);
-  console.log('\nResultado da leitura point-in-time:');
+  console.log('\nResultado da leitura:');
   console.log(JSON.stringify(resumo, null, 2));
 
   if (!dados || !dados.state_json) {
@@ -186,9 +214,11 @@ async function restaurar(dados) {
     process.exit(3);
   }
 
-  const destino = path.resolve(SAIDA);
-  fs.writeFileSync(destino, JSON.stringify({ recuperado_em: new Date().toISOString(), read_time: dataAlvo.toISOString(), cnpj: CNPJ, sessao: dados }, null, 2));
-  console.log('\n💾 Cópia completa salva em: ' + destino);
+  if (!DE_ARQUIVO) {
+    const destino = path.resolve(SAIDA);
+    fs.writeFileSync(destino, JSON.stringify({ recuperado_em: new Date().toISOString(), read_time: dataAlvo.toISOString(), cnpj: CNPJ, sessao: dados }, null, 2));
+    console.log('\n💾 Cópia completa salva em: ' + destino);
+  }
 
   if (typeof resumo.total_lancamentos === 'number' && resumo.total_lancamentos === 0) {
     console.log('\n⚠️ A sessão nesse horário também estava com 0 lançamentos — tente um --quando anterior (o arquivo salvo acima reflete esse horário).');
