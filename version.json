@@ -1,7 +1,9 @@
 {
-  "version": "3.4.2",
-  "build_date": "2026-07-02T14:30:00Z",
+  "version": "3.4.4",
+  "build_date": "2026-07-03T18:14:35Z",
   "release_notes": [
+    "fix(bradesco): linhas complementares de historico passam a ser anexadas ao mesmo lancamento no parser Net Empresa",
+    "test(bradesco): protege caso PDF.js com historico em duas linhas ao redor da linha de documento/valor",
     "ECD/ECF: novo ranking de colaboradores com a quantidade de ECFs geradas por usuario, atualizado a cada consolidacao salva no banco",
     "fix: extrato escaneado (PDF sem texto) travava modal — probe OCR-GUARD + fallback IA + watchdog 5min + timeout callGemini + recuperacao JSON truncado",
     "feat(seguranca): trava de sessao - novo acesso exige selecao explicita de empresa v3.4.1",

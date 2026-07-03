@@ -98,6 +98,25 @@ function assertMoney(actual, expected, label) {
   }, { x: 257, s: '35741' });
   assert(descCoord === 'REIS OFFICE PRODUCTS COMERCIAL L', `Descricao coordenada Bradesco divergente: ${descCoord}`);
 
+  const resultadoCoordenadoQuebrado = helper.parsearLinhasCoordenadasBradesco([
+    { y: 746, text: 'Data Lançamento Dcto. Crédito (R$) Débito (R$) Saldo (R$)', items: [{ x: 40, s: 'Data' }, { x: 80, s: 'Lançamento' }, { x: 257, s: 'Dcto.' }] },
+    { y: 728, text: '30/12/2025 SALDO ANTERIOR 1,00', items: [{ x: 45, s: '30/12/2025' }, { x: 102, s: 'SALDO ANTERIOR' }, { x: 540, s: '1,00' }] },
+    { y: 718, text: 'LIQUIDACAO DE COBRANCA', items: [{ x: 102, s: 'LIQUIDACAO DE COBRANCA' }] },
+    { y: 713, text: '02/01/2026 9093760 158.100,28 158.101,28', items: [{ x: 45, s: '02/01/2026' }, { x: 257, s: '9093760' }, { x: 347, s: '158.100,28' }, { x: 540, s: '158.101,28' }] },
+    { y: 709, text: 'VALOR DISPONIVEL', items: [{ x: 102, s: 'VALOR DISPONIVEL' }] },
+    { y: 699, text: 'TED-TRANSF ELET DISPON', items: [{ x: 102, s: 'TED-TRANSF ELET DISPON' }] },
+    { y: 694, text: '5997875 7.956,30 166.057,58', items: [{ x: 257, s: '5997875' }, { x: 347, s: '7.956,30' }, { x: 540, s: '166.057,58' }] },
+    { y: 690, text: 'REMET.COMPANHIA DE GAS DE', items: [{ x: 102, s: 'REMET.COMPANHIA DE GAS DE' }] },
+    { y: 680, text: 'Total 166.056,58 0,00 166.057,58', items: [{ x: 102, s: 'Total' }, { x: 347, s: '166.056,58' }, { x: 430, s: '0,00' }, { x: 540, s: '166.057,58' }] }
+  ], 'Extrato de: Ag: 298 | CC: 0093760-6');
+  assert(resultadoCoordenadoQuebrado.lancamentos.length === 2, `Bradesco coordenado multiline qtd divergente: ${resultadoCoordenadoQuebrado.lancamentos.length}`);
+  assert(/LIQUIDACAO DE COBRANCA.*VALOR DISPONIVEL/i.test(resultadoCoordenadoQuebrado.lancamentos[0].descricao), 'Complemento posterior do primeiro lancamento nao foi anexado');
+  assert(!/TED-TRANSF/i.test(resultadoCoordenadoQuebrado.lancamentos[0].descricao), 'Inicio do segundo lancamento vazou para o primeiro');
+  assert(/TED-TRANSF ELET DISPON.*REMET\.COMPANHIA DE GAS DE/i.test(resultadoCoordenadoQuebrado.lancamentos[1].descricao), 'Complemento posterior do segundo lancamento nao foi anexado');
+  assert(!/VALOR DISPONIVEL/i.test(resultadoCoordenadoQuebrado.lancamentos[1].descricao), 'Complemento do primeiro lancamento vazou para o segundo');
+  assertMoney(resultadoCoordenadoQuebrado.lancamentos[0].valor, 158100.28, 'Valor Bradesco coordenado 1');
+  assertMoney(resultadoCoordenadoQuebrado.lancamentos[1].valor, 7956.30, 'Valor Bradesco coordenado 2');
+
   const parsedPdf = await pdf(fs.readFileSync(PDF_BRADESCO));
   const resultado = helper.parsearTextoBradescoNetEmpresa(parsedPdf.text);
   const totalCreditoExtraido = resultado.lancamentos

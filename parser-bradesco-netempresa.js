@@ -310,6 +310,25 @@
     return p1 + ' - ' + p2;
   }
 
+  function limparLinhaDescricaoPendenteBradesco(texto) {
+    return String(texto || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^\d{2}\/\d{2}\/\d{4}\s+/, '')
+      .trim();
+  }
+
+  function atualizarDescricaoLancamentoBradesco(lancamento, complemento) {
+    if (!lancamento) return false;
+    const extra = limparLinhaDescricaoPendenteBradesco(complemento);
+    if (!extra) return false;
+    const nova = juntarDescricaoBradesco(lancamento.descricao, extra);
+    if (!nova || nova === lancamento.descricao) return false;
+    lancamento.descricao = nova;
+    lancamento.historico = historicoBradescoPorDescricao(nova, lancamento.tipo);
+    return true;
+  }
+
   function normalizarHistoricoBradesco(texto) {
     return String(texto || '')
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -343,6 +362,157 @@
       .replace(/\s+/g, ' ')
       .trim();
     return (base.split(' ').slice(0, 3).join(' ') || (tipo === 'C' ? 'CREDITO BRADESCO' : 'DEBITO BRADESCO')).slice(0, 40);
+  }
+
+  function parsearLinhasCoordenadasBradesco(lines, textoCompleto) {
+    const lancamentos = [];
+    let inExtrato = false;
+    let currentDate = '';
+    let pendingDesc = '';
+    let stopped = false;
+    let totalCredito = 0;
+    let totalDebito = 0;
+    let saldoFinal = 0;
+    let ultimoLancamento = null;
+    let ultimoMovimentoY = null;
+    let ultimoComplementoY = null;
+
+    function resetarComplementoPosterior() {
+      ultimoLancamento = null;
+      ultimoMovimentoY = null;
+      ultimoComplementoY = null;
+    }
+
+    function setPendingDesc(text) {
+      const t = limparLinhaDescricaoPendenteBradesco(text);
+      if (!t) return;
+      if (deveEncerrarBlocoBradesco(t) || /^(Extrato Mensal|Extrato Consolidado|COMUNIDADE|Nome do usu|Data da opera|Folha|Ag[eê]ncia|Extrato de:|Data Lan[cç]amento|DataLan[cç]amento|Cr[eé]dito|Os dados|[ÚU]ltimos Lan[cç]amentos|Saldos Invest)/i.test(t)) return;
+      if (/^SALDO ANTERIOR/i.test(t)) return;
+      resetarComplementoPosterior();
+      if (/^(REM|FAV|PAG|ORIGEM):/i.test(t) && pendingDesc) {
+        pendingDesc = pendingDesc + ' - ' + t;
+        return;
+      }
+      pendingDesc = pendingDesc ? (pendingDesc + ' - ' + t) : t;
+    }
+
+    function anexarOuPendenciarDescricao(line) {
+      const t = limparLinhaDescricaoPendenteBradesco(line && line.text);
+      if (!t) return;
+      const yBase = Number.isFinite(ultimoComplementoY) ? ultimoComplementoY : ultimoMovimentoY;
+      if (ultimoLancamento && Number.isFinite(yBase) && Number.isFinite(line.y) && Math.abs(yBase - line.y) <= 6) {
+        if (atualizarDescricaoLancamentoBradesco(ultimoLancamento, t)) {
+          ultimoComplementoY = line.y;
+          return;
+        }
+      }
+      setPendingDesc(t);
+    }
+
+    (lines || []).forEach(function(line) {
+      if (stopped) return;
+      const text = line.text;
+      if (/^Data\s+Lan[cç]amento\s+Dcto\./i.test(text) || linhaInicioExtratoBradesco(text)) {
+        inExtrato = true;
+        resetarComplementoPosterior();
+        return;
+      }
+      if (!inExtrato) return;
+
+      const totaisTexto = parseTotaisBradescoLinha(text);
+      if (totaisTexto) {
+        if (totalBradescoPareceResumoInterno(totaisTexto)) {
+          lancamentos.length = 0;
+          currentDate = '';
+          pendingDesc = '';
+          inExtrato = false;
+          resetarComplementoPosterior();
+          return;
+        }
+        totalCredito = totaisTexto.totalCredito;
+        totalDebito = totaisTexto.totalDebito;
+        saldoFinal = totaisTexto.saldoFinal;
+        stopped = true;
+        return;
+      }
+
+      if (deveEncerrarBlocoBradesco(text)) {
+        stopped = true;
+        return;
+      }
+
+      if (/^Total\b/i.test(text)) {
+        const credit = line.items.find(function(i){ return i.x >= 320 && i.x < 410 && moneyToken(i.s); });
+        const debit = line.items.find(function(i){ return i.x >= 410 && i.x < 500 && moneyToken(i.s); });
+        const saldo = line.items.find(function(i){ return i.x >= 500 && moneyToken(i.s); });
+        totalCredito = credit ? Math.abs(parseValorBR(credit.s)) : 0;
+        totalDebito = debit ? Math.abs(parseValorBR(debit.s)) : 0;
+        saldoFinal = saldo ? parseValorBR(saldo.s) : 0;
+        stopped = true;
+        return;
+      }
+
+      const docItem = line.items.find(function(i){ return i.x >= 240 && i.x < 325 && /^\d+$/.test(String(i.s || '').trim()); });
+      const creditItem = line.items.find(function(i){ return i.x >= 330 && i.x < 410 && moneyToken(i.s); });
+      const debitItem = line.items.find(function(i){ return i.x >= 410 && i.x < 500 && moneyToken(i.s); });
+      const dateItem = line.items.find(function(i){ return i.x < 100 && /^\d{2}\/\d{2}\/\d{4}$/.test(String(i.s || '').trim()); });
+      const temMovimento = docItem && (creditItem || debitItem);
+      const textoSemData = dateItem ? text.replace(String(dateItem.s || ''), ' ').replace(/\s+/g, ' ').trim() : text;
+      if (dateItem) {
+        currentDate = parseDataBR(dateItem.s);
+        if (!temMovimento || /[A-Za-zÀ-ÿ]/.test(textoSemData)) {
+          pendingDesc = '';
+          resetarComplementoPosterior();
+        }
+      }
+
+      if (temMovimento && currentDate) {
+        const credito = creditItem ? Math.abs(parseValorBR(creditItem.s)) : 0;
+        const debito = debitItem ? Math.abs(parseValorBR(debitItem.s)) : 0;
+        const valor = credito > 0 ? credito : -debito;
+        if (valor !== 0) {
+          const linhaDesc = descricaoLinhaCoordenadaBradesco(line, docItem);
+          const desc = juntarDescricaoBradesco(pendingDesc, linhaDesc) || 'Lancamento Bradesco';
+          const lancamento = {
+            id: uuid(),
+            data: currentDate,
+            descricao: desc,
+            documento: String(docItem.s || '').trim(),
+            valor: valor,
+            tipo: valor < 0 ? 'D' : 'C',
+            empresa: '',
+            cnpj: '',
+            categoria: 'Nao categorizado',
+            contaDebito: '',
+            contaCredito: '',
+            historico: historicoBradescoPorDescricao(desc, valor < 0 ? 'D' : 'C'),
+            incomum: false,
+            origem: 'pdf-bradesco-netempresa'
+          };
+          lancamentos.push(lancamento);
+          ultimoLancamento = lancamento;
+          ultimoMovimentoY = line.y;
+          ultimoComplementoY = null;
+        }
+        pendingDesc = '';
+        return;
+      }
+
+      if (!tokensMoedaBradesco(text).length) anexarOuPendenciarDescricao(line);
+    });
+
+    return {
+      detectado: true,
+      lancamentos: lancamentos,
+      textoCompleto: textoCompleto || '',
+      fingerprint: 'bradesco-netempresa-extrato-mensal-v1',
+      banco_detectado: 'BRADESCO',
+      conta_detectada: (String(textoCompleto || '').match(/Ag:\s*(\d+)\s*\|\s*CC:\s*([0-9.-]+)/i) || []).slice(1).join('/CC-'),
+      nome_conta_detectado: 'CONTA CORRENTE BRADESCO',
+      total_credito: totalCredito,
+      total_debito: totalDebito,
+      saldo_final: saldoFinal
+    };
   }
 
   function parsearTextoBradescoNetEmpresa(textoCompleto) {
@@ -406,11 +576,16 @@
       const dataLinha = linha.match(/^(\d{2}\/\d{2}\/\d{4})(.*)$/);
       if (dataLinha) {
         currentDate = parseDataBR(dataLinha[1]);
-        pendingDesc = '';
         linha = dataLinha[2].trim();
+        if (!linha || /[A-Za-zÀ-ÿ]/.test(linha)) pendingDesc = '';
         if (!linha) return;
       }
-      if (!currentDate) return;
+      if (!currentDate) {
+        if (!deveEncerrarBlocoBradesco(linha) && !textoIgnoradoBradesco(linha) && !tokensMoedaBradesco(linha).length && !/^Data\s*Lan[cç]amento\s*Dcto\.?/i.test(linha) && !linhaInicioExtratoBradesco(linha)) {
+          pendingDesc = pendingDesc ? (pendingDesc + ' - ' + linha) : linha;
+        }
+        return;
+      }
 
       if (textoIgnoradoBradesco(linha)) {
         pendingDesc = '';
@@ -495,122 +670,8 @@
     if (!ehBradesco && !(textual && textual.detectado && textual.lancamentos && textual.lancamentos.length)) {
       return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
     }
-    const lancamentos = [];
-    let inExtrato = false;
-    let currentDate = '';
-    let pendingDesc = '';
-    let stopped = false;
-    let totalCredito = 0;
-    let totalDebito = 0;
-    let saldoFinal = 0;
-
-    function setPendingDesc(text) {
-      const t = String(text || '').replace(/\s+/g, ' ').trim();
-      if (!t) return;
-      if (deveEncerrarBlocoBradesco(t) || /^(Extrato Mensal|Extrato Consolidado|COMUNIDADE|Nome do usu|Data da opera|Folha|Ag[eê]ncia|Extrato de:|Data Lan[cç]amento|DataLan[cç]amento|Cr[eé]dito|Os dados|[ÚU]ltimos Lan[cç]amentos|Saldos Invest)/i.test(t)) return;
-      if (/^SALDO ANTERIOR/i.test(t)) return;
-      if (/^(REM|FAV|PAG|ORIGEM):/i.test(t) && pendingDesc) {
-        pendingDesc = pendingDesc + ' - ' + t;
-        return;
-      }
-      pendingDesc = pendingDesc ? (pendingDesc + ' - ' + t) : t;
-    }
-
-    lines.forEach(function(line) {
-      if (stopped) return;
-      const text = line.text;
-      if (/^Data\s+Lan[cç]amento\s+Dcto\./i.test(text) || linhaInicioExtratoBradesco(text)) {
-        inExtrato = true;
-        return;
-      }
-      if (!inExtrato) return;
-
-      const totaisTexto = parseTotaisBradescoLinha(text);
-      if (totaisTexto) {
-        if (totalBradescoPareceResumoInterno(totaisTexto)) {
-          lancamentos.length = 0;
-          currentDate = '';
-          pendingDesc = '';
-          inExtrato = false;
-          return;
-        }
-        totalCredito = totaisTexto.totalCredito;
-        totalDebito = totaisTexto.totalDebito;
-        saldoFinal = totaisTexto.saldoFinal;
-        stopped = true;
-        return;
-      }
-
-      if (deveEncerrarBlocoBradesco(text)) {
-        stopped = true;
-        return;
-      }
-
-      if (/^Total\b/i.test(text)) {
-        const credit = line.items.find(function(i){ return i.x >= 320 && i.x < 410 && moneyToken(i.s); });
-        const debit = line.items.find(function(i){ return i.x >= 410 && i.x < 500 && moneyToken(i.s); });
-        const saldo = line.items.find(function(i){ return i.x >= 500 && moneyToken(i.s); });
-        totalCredito = credit ? Math.abs(parseValorBR(credit.s)) : 0;
-        totalDebito = debit ? Math.abs(parseValorBR(debit.s)) : 0;
-        saldoFinal = saldo ? parseValorBR(saldo.s) : 0;
-        stopped = true;
-        return;
-      }
-
-      const dateItem = line.items.find(function(i){ return i.x < 100 && /^\d{2}\/\d{2}\/\d{4}$/.test(String(i.s || '').trim()); });
-      if (dateItem) {
-        currentDate = parseDataBR(dateItem.s);
-        pendingDesc = '';
-      }
-
-      const docItem = line.items.find(function(i){ return i.x >= 240 && i.x < 325 && /^\d+$/.test(String(i.s || '').trim()); });
-      const creditItem = line.items.find(function(i){ return i.x >= 330 && i.x < 410 && moneyToken(i.s); });
-      const debitItem = line.items.find(function(i){ return i.x >= 410 && i.x < 500 && moneyToken(i.s); });
-
-      if (docItem && (creditItem || debitItem) && currentDate) {
-        const credito = creditItem ? Math.abs(parseValorBR(creditItem.s)) : 0;
-        const debito = debitItem ? Math.abs(parseValorBR(debitItem.s)) : 0;
-        const valor = credito > 0 ? credito : -debito;
-        if (valor !== 0) {
-          const linhaDesc = descricaoLinhaCoordenadaBradesco(line, docItem);
-          const desc = juntarDescricaoBradesco(pendingDesc, linhaDesc) || 'Lancamento Bradesco';
-          lancamentos.push({
-            id: uuid(),
-            data: currentDate,
-            descricao: desc,
-            documento: String(docItem.s || '').trim(),
-            valor: valor,
-            tipo: valor < 0 ? 'D' : 'C',
-            empresa: '',
-            cnpj: '',
-            categoria: 'Nao categorizado',
-            contaDebito: '',
-            contaCredito: '',
-            historico: historicoBradescoPorDescricao(desc, valor < 0 ? 'D' : 'C'),
-            incomum: false,
-            origem: 'pdf-bradesco-netempresa'
-          });
-        }
-        pendingDesc = '';
-        return;
-      }
-
-      if (!tokensMoedaBradesco(text).length) setPendingDesc(text);
-    });
-
-    const coordenado = {
-      detectado: true,
-      lancamentos: lancamentos,
-      textoCompleto: textoCompleto,
-      fingerprint: 'bradesco-netempresa-extrato-mensal-v1',
-      banco_detectado: 'BRADESCO',
-      conta_detectada: (textoCompleto.match(/Ag:\s*(\d+)\s*\|\s*CC:\s*([0-9.-]+)/i) || []).slice(1).join('/CC-'),
-      nome_conta_detectado: 'CONTA CORRENTE BRADESCO',
-      total_credito: totalCredito,
-      total_debito: totalDebito,
-      saldo_final: saldoFinal
-    };
-    if (textual.detectado && textual.lancamentos.length >= coordenado.lancamentos.length) {
+    const coordenado = parsearLinhasCoordenadasBradesco(lines, textoCompleto);
+    if (textual.detectado && textual.lancamentos.length > coordenado.lancamentos.length) {
       textual.conta_detectada = coordenado.conta_detectada;
       return textual;
     }
@@ -629,7 +690,8 @@
       limparDescricaoMovimentoBradesco: limparDescricaoMovimentoBradesco,
       descricaoLinhaCoordenadaBradesco: descricaoLinhaCoordenadaBradesco,
       historicoBradescoPorDescricao: historicoBradescoPorDescricao,
-      parsearTextoBradescoNetEmpresa: parsearTextoBradescoNetEmpresa
+      parsearTextoBradescoNetEmpresa: parsearTextoBradescoNetEmpresa,
+      parsearLinhasCoordenadasBradesco: parsearLinhasCoordenadasBradesco
     }
   };
 
