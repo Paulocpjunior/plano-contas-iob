@@ -18,7 +18,7 @@ admin.initializeApp({ projectId: 'projetos-app-sp' });
 const adminAuth = admin.auth();
 const DOMAIN = '@spassessoriacontabil.com.br';
 
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '100mb' }));
 
 // === Endpoint de versao (consumido pelo frontend para detectar atualizacoes) ===
 const VERSION_FILE_PATH = require('path').join(__dirname, 'version.json');
@@ -1759,9 +1759,18 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     const chunksRef = sessaoRef.collection('chunks');
     const chunksAntigos = await chunksRef.get();
     if (!chunksAntigos.empty) {
-      const batchChunks = db.batch();
-      chunksAntigos.docs.forEach(d => batchChunks.delete(d.ref));
-      await batchChunks.commit();
+      let batchChunks = db.batch();
+      let opsChunks = 0;
+      for (const d of chunksAntigos.docs) {
+        batchChunks.delete(d.ref);
+        opsChunks++;
+        if (opsChunks >= 450) {
+          await batchChunks.commit();
+          batchChunks = db.batch();
+          opsChunks = 0;
+        }
+      }
+      if (opsChunks > 0) await batchChunks.commit();
     }
     const payloadSessao = {
       resumo: resumo || null,
@@ -1773,11 +1782,19 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     if (String(state_json).length > limiteChunk) {
       const partes = [];
       for (let i = 0; i < state_json.length; i += limiteChunk) partes.push(state_json.slice(i, i + limiteChunk));
-      const batch = db.batch();
-      partes.forEach((parte, idx) => {
+      let batch = db.batch();
+      let batchOps = 0;
+      for (let idx = 0; idx < partes.length; idx++) {
+        const parte = partes[idx];
         batch.set(chunksRef.doc(String(idx).padStart(4, '0')), { idx, parte });
-      });
-      await batch.commit();
+        batchOps++;
+        if (batchOps >= 450) {
+          await batch.commit();
+          batch = db.batch();
+          batchOps = 0;
+        }
+      }
+      if (batchOps > 0) await batch.commit();
       payloadSessao.state_json = null;
       payloadSessao.state_chunked = true;
       payloadSessao.state_chunks = partes.length;

@@ -11,7 +11,6 @@ const {
   gerarR4010,
   gerarR4099,
   gerarEventosR4010DaPlanilha,
-  gerarTrioReinf,
 } = require('./reinf/reinf-utils');
 const { assinarEventoReinf } = require('./reinf/assinador');
 const { loadCertificado, salvarCertificadoUpload } = require('./reinf/cert-loader');
@@ -19,6 +18,15 @@ const { enviarLote, consultarLote } = require('./reinf/transmissor');
 
 function limparCnpj(v) {
   return String(v || '').replace(/\D/g, '');
+}
+
+function normalizarContribuinteLote(contribuinte) {
+  const tpInsc = Number(contribuinte && contribuinte.tpInsc);
+  const nr = limparCnpj(contribuinte && contribuinte.nrInsc);
+  return {
+    tpInsc,
+    nrInsc: tpInsc === 1 && nr.length === 14 ? nr.slice(0, 8) : nr,
+  };
 }
 
 function respostaErro(res, status, err) {
@@ -33,6 +41,142 @@ function extrairTagXml(xml, tag) {
   return match ? match[1].trim() : null;
 }
 
+function extrairTagsXml(xml, tag) {
+  const texto = String(xml || '');
+  const re = new RegExp('<(?:\\w+:)?' + tag + '>([\\s\\S]*?)<\\/(?:\\w+:)?' + tag + '>', 'gi');
+  return Array.from(texto.matchAll(re)).map((m) => String(m[1] || '').trim());
+}
+
+function reinfReciboDocId({ tpAmb, perApur, cnpjEstab, cpf, ideEvtAdic }) {
+  return [
+    String(tpAmb || ''),
+    String(perApur || '').replace(/[^0-9]/g, ''),
+    limparCnpj(cnpjEstab),
+    limparCnpj(cpf),
+    String(ideEvtAdic || 'padrao').replace(/[^A-Za-z0-9_-]/g, '_'),
+  ].filter(Boolean).join('_');
+}
+
+function extrairBlocosXml(xml, tag) {
+  const texto = String(xml || '');
+  const re = new RegExp('<(?:\\w+:)?' + tag + '\\b[\\s\\S]*?<\\/(?:\\w+:)?' + tag + '>', 'gi');
+  return Array.from(texto.matchAll(re)).map((m) => m[0]);
+}
+
+function parseRetornoEventos(xml) {
+  return extrairBlocosXml(xml, 'retornoEvento').map((bloco) => ({
+    idEv: extrairTagXml(bloco, 'idEv'),
+    tpEv: extrairTagXml(bloco, 'tpEv'),
+    nrRecArqBase: extrairTagXml(bloco, 'nrRecArqBase'),
+    cdRetorno: extrairTagXml(bloco, 'cdRetorno'),
+    descRetorno: extrairTagXml(bloco, 'descRetorno'),
+    codResp: extrairTagsXml(bloco, 'codResp').filter(Boolean),
+    dscResp: extrairTagsXml(bloco, 'dscResp').filter(Boolean),
+  }));
+}
+
+async function buscarRecibosR4010(db, p, tpAmb) {
+  if (!db || !p || !Array.isArray(p.locadores)) return new Map();
+  const cnpjFonte = limparCnpj(p.contribuinte && p.contribuinte.nrInsc);
+  if (cnpjFonte.length !== 14) return new Map();
+  const out = new Map();
+  const col = db.collection('empresas').doc(cnpjFonte).collection('reinf_eventos');
+  for (const loc of p.locadores) {
+    const cpf = limparCnpj(loc && (loc.cpf || loc.cpfBenef));
+    const cnpjEstab = limparCnpj(loc && loc.cnpjEstab) || limparCnpj(p.estabelecimento && p.estabelecimento.nrInscEstab) || cnpjFonte;
+    if (cpf.length !== 11 || cnpjEstab.length !== 14) continue;
+    const key = reinfReciboDocId({ tpAmb, perApur: p.perApur, cnpjEstab, cpf, ideEvtAdic: loc.ideEvtAdic });
+    try {
+      const doc = await col.doc(key).get();
+      if (doc.exists) {
+        const dados = doc.data() || {};
+        if (dados.nrRecibo) out.set(key, dados.nrRecibo);
+      }
+    } catch (err) {
+      console.warn('[reinf/recibos] falha ao buscar recibo:', err.message);
+    }
+  }
+  return out;
+}
+
+function aplicarRecibosLocadores(p, tpAmb, recibos) {
+  const cnpjFonte = limparCnpj(p && p.contribuinte && p.contribuinte.nrInsc);
+  return (Array.isArray(p.locadores) ? p.locadores : []).map((loc) => {
+    const cpf = limparCnpj(loc && (loc.cpf || loc.cpfBenef));
+    const cnpjEstab = limparCnpj(loc && loc.cnpjEstab) || limparCnpj(p.estabelecimento && p.estabelecimento.nrInscEstab) || cnpjFonte;
+    const key = reinfReciboDocId({ tpAmb, perApur: p.perApur, cnpjEstab, cpf, ideEvtAdic: loc && loc.ideEvtAdic });
+    const nrRecibo = recibos && recibos.get(key);
+    return nrRecibo ? { ...loc, nrReciboR4010: nrRecibo } : loc;
+  });
+}
+
+async function registrarLoteReinfPendente(db, req, protocolo, eventos, p, tpAmb) {
+  if (!db || !protocolo) return;
+  const cnpjFonte = limparCnpj(p && p.contribuinte && p.contribuinte.nrInsc);
+  const cnpjEstabPadrao = limparCnpj(p && p.estabelecimento && p.estabelecimento.nrInscEstab) || cnpjFonte;
+  const loteRef = db.collection('reinf_lotes').doc(String(protocolo));
+  await loteRef.set({
+    protocolo: String(protocolo),
+    tpAmb,
+    cnpjFonte,
+    perApur: p && p.perApur || null,
+    criado_em: new Date(),
+    criado_por_uid: req.user && req.user.uid || null,
+    criado_por_email: req.user && req.user.email || null,
+  }, { merge: true });
+  const batch = db.batch();
+  eventos.forEach((ev) => {
+    const cpf = limparCnpj(ev && ev.cpf);
+    const cnpjEstab = limparCnpj(ev && ev.cnpjEstab) || cnpjEstabPadrao;
+    batch.set(loteRef.collection('eventos').doc(ev.id), {
+      id: ev.id,
+      tpEv: ev.cpf ? '4010' : '4099',
+      cpf,
+      nome: ev.nome || null,
+      cnpjFonte,
+      cnpjEstab,
+      perApur: p && p.perApur || null,
+      tpAmb,
+      reciboDocId: cpf ? reinfReciboDocId({ tpAmb, perApur: p.perApur, cnpjEstab, cpf, ideEvtAdic: ev.ideEvtAdic }) : null,
+      atualizado_em: new Date(),
+    }, { merge: true });
+  });
+  await batch.commit();
+}
+
+async function registrarRetornoLoteReinf(db, protocolo, tpAmb, xml) {
+  if (!db || !protocolo || !xml) return { eventos: [], recibosGravados: 0, duplicidades: 0 };
+  const loteRef = db.collection('reinf_lotes').doc(String(protocolo));
+  const eventos = parseRetornoEventos(xml);
+  let recibosGravados = 0;
+  let duplicidades = 0;
+  for (const ret of eventos) {
+    if (!ret.idEv) continue;
+    const pendente = await loteRef.collection('eventos').doc(ret.idEv).get();
+    const meta = pendente.exists ? (pendente.data() || {}) : {};
+    await loteRef.collection('eventos').doc(ret.idEv).set({
+      retorno: ret,
+      retorno_at: new Date(),
+    }, { merge: true });
+    if (ret.codResp.includes('MS1254')) duplicidades++;
+    if (ret.tpEv === '4010' && ret.nrRecArqBase && meta.cnpjFonte && meta.reciboDocId) {
+      await db.collection('empresas').doc(meta.cnpjFonte).collection('reinf_eventos').doc(meta.reciboDocId).set({
+        nrRecibo: ret.nrRecArqBase,
+        protocolo,
+        tpAmb,
+        perApur: meta.perApur,
+        cnpjEstab: meta.cnpjEstab,
+        cpf: meta.cpf,
+        nome: meta.nome || null,
+        idEv: ret.idEv,
+        atualizado_em: new Date(),
+      }, { merge: true });
+      recibosGravados++;
+    }
+  }
+  return { eventos, recibosGravados, duplicidades };
+}
+
 function parseRetornoReinf(retorno) {
   const xml = String((retorno && retorno.xml) || '');
   return {
@@ -43,6 +187,51 @@ function parseRetornoReinf(retorno) {
     versaoAplicativoRecepcao: extrairTagXml(xml, 'versaoAplicativoRecepcao'),
     xml,
   };
+}
+
+function retornoReinfPendente(info) {
+  const cd = String(info && info.cdResposta || '').trim();
+  const desc = String(info && info.descResposta || '').toLowerCase();
+  return cd === '1' || desc.includes('aguardando');
+}
+
+function retornoReinfComErro(info) {
+  const xml = String(info && info.xml || '');
+  const cd = String(info && info.cdResposta || '').trim();
+  const desc = String(info && info.descResposta || '').toLowerCase();
+  const codigos = extrairTagsXml(xml, 'codResp').filter(Boolean);
+  const descricoes = extrairTagsXml(xml, 'dscResp').join(' ').toLowerCase();
+  return cd === '7'
+    || cd === '99'
+    || codigos.length > 0
+    || desc.includes('erro')
+    || desc.includes('rejeit')
+    || desc.includes('inval')
+    || descricoes.includes('erro')
+    || descricoes.includes('não existem');
+}
+
+function retornoR1000JaVigente(info) {
+  const codigos = extrairTagsXml(info && info.xml, 'codResp').filter(Boolean);
+  return codigos.length > 0 && codigos.every((codigo) => codigo === 'MS1005');
+}
+
+function esperar(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function consultarLoteAteProcessar(protocolo, tpAmb, { tentativas = 10, intervaloMs = 3000 } = {}) {
+  let ultimo = null;
+  for (let i = 0; i < tentativas; i++) {
+    const retorno = await consultarLote(protocolo, tpAmb);
+    ultimo = {
+      httpStatus: retorno.status,
+      ...parseRetornoReinf(retorno),
+    };
+    if (!retornoReinfPendente(ultimo)) return ultimo;
+    if (i < tentativas - 1) await esperar(intervaloMs);
+  }
+  return ultimo;
 }
 
 function adminReinfRequired(req, res, next) {
@@ -107,7 +296,9 @@ async function aplicarAcumuloIrrfAluguel(db, body, { persistir = false, meta = {
       continue;
     }
 
-    const docId = reinfSaldoDocId({ cnpjFonte, cnpjEstab, natRend, cpf });
+    const cnpjFonteLocador = limparCnpj(locador.cnpjFonte || (locador.contribuinte && locador.contribuinte.nrInsc) || cnpjFonte);
+    const cnpjEstabLocador = limparCnpj(locador.cnpjEstab || (locador.estabelecimento && locador.estabelecimento.nrInscEstab) || cnpjEstab);
+    const docId = reinfSaldoDocId({ cnpjFonte: cnpjFonteLocador, cnpjEstab: cnpjEstabLocador, natRend, cpf });
     const ref = db ? db.collection('reinf_saldos_irrf').doc(docId) : null;
     const snap = ref ? await ref.get() : null;
     const atual = snap && snap.exists ? (snap.data() || {}) : {};
@@ -154,8 +345,8 @@ async function aplicarAcumuloIrrfAluguel(db, body, { persistir = false, meta = {
           usuario: meta.usuario || null,
         };
         await ref.set({
-          cnpjFonte,
-          cnpjEstab,
+          cnpjFonte: cnpjFonteLocador,
+          cnpjEstab: cnpjEstabLocador,
           natRend,
           cpf,
           nome: String(locador.nome || locador.nomeBenef || '').trim(),
@@ -179,6 +370,8 @@ async function aplicarAcumuloIrrfAluguel(db, body, { persistir = false, meta = {
     acumulos.push({
       cpf,
       nome: String(locador.nome || locador.nomeBenef || '').trim(),
+      cnpjFonte: cnpjFonteLocador,
+      cnpjEstab: cnpjEstabLocador,
       irrfMes: reinfFromCents(irrfMesCentavos),
       saldoAnterior: reinfFromCents(saldoAnteriorCentavos),
       irrfEnviado: reinfFromCents(irrfEnviadoCentavos),
@@ -275,18 +468,74 @@ function registrarRotasReinf(app, { db } = {}) {
 
   router.post('/r4010', async (req, res) => {
     try {
-      const eventos = gerarEventosR4010DaPlanilha(req.body || {});
+      const body = req.body || {};
+      const tpAmb = Number(body.tpAmb || 2);
+      const recibosR4010 = await buscarRecibosR4010(db, body, tpAmb);
+      const eventos = gerarEventosR4010DaPlanilha({
+        ...body,
+        locadores: aplicarRecibosLocadores(body, tpAmb, recibosR4010),
+      });
       await registrarLog(db, req, 'gerar_r4010', {
-        contribuinte: limparCnpj(req.body && req.body.contribuinte && req.body.contribuinte.nrInsc),
-        perApur: req.body && req.body.perApur,
+        contribuinte: limparCnpj(body && body.contribuinte && body.contribuinte.nrInsc),
+        perApur: body && body.perApur,
         qtdEventos: eventos.length,
+        retificacoesR4010: eventos.filter((e) => e.nrRecibo).length,
       });
       res.json({
         ok: true,
         leiaute: LEIAUTE_REINF,
         qtdEventos: eventos.length,
+        retificacoesR4010: eventos.filter((e) => e.nrRecibo).length,
         eventos: eventos.map((e) => ({ id: e.id, cpf: e.cpf, nome: e.nome, xml: e.xml })),
       });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  router.post('/recibos-r4010', async (req, res) => {
+    try {
+      if (!db) throw new Error('Banco de dados indisponível para gravar recibo R-4010.');
+      const body = req.body || {};
+      const tpAmb = Number(body.tpAmb || 2);
+      const perApur = String(body.perApur || '').trim();
+      const cnpjFonte = limparCnpj(body.contribuinte && body.contribuinte.nrInsc);
+      const cnpjEstab = limparCnpj((body.estabelecimento && body.estabelecimento.nrInscEstab) || body.cnpjEstab || cnpjFonte);
+      const cpf = limparCnpj(body.cpf || body.cpfBenef);
+      const nome = String(body.nome || body.nomeBenef || '').trim();
+      const nrRecibo = String(body.nrRecibo || body.nrReciboR4010 || '').trim();
+      const ideEvtAdic = String(body.ideEvtAdic || '').trim();
+      if (![1, 2].includes(tpAmb)) throw new Error('Ambiente Reinf inválido para recibo R-4010.');
+      if (!/^\d{4}-\d{2}$/.test(perApur)) throw new Error('Competência do recibo deve estar no formato AAAA-MM.');
+      if (cnpjFonte.length !== 14) throw new Error('CNPJ fonte pagadora inválido para recibo R-4010.');
+      if (cnpjEstab.length !== 14) throw new Error('CNPJ estabelecimento inválido para recibo R-4010.');
+      if (cpf.length !== 11) throw new Error('CPF do beneficiário inválido para recibo R-4010.');
+      if (!/^[A-Za-z0-9_.-]{10,80}$/.test(nrRecibo)) throw new Error('Número de recibo R-4010 inválido.');
+
+      const docId = reinfReciboDocId({ tpAmb, perApur, cnpjEstab, cpf, ideEvtAdic });
+      await db.collection('empresas').doc(cnpjFonte).collection('reinf_eventos').doc(docId).set({
+        nrRecibo,
+        tpAmb,
+        perApur,
+        cnpjFonte,
+        cnpjEstab,
+        cpf,
+        nome: nome || null,
+        ideEvtAdic: ideEvtAdic || null,
+        origem: 'manual',
+        atualizado_em: new Date(),
+        atualizado_por_uid: req.user && req.user.uid || null,
+        atualizado_por_email: req.user && req.user.email || null,
+      }, { merge: true });
+      await registrarLog(db, req, 'registrar_recibo_r4010_manual', {
+        contribuinte: cnpjFonte,
+        cnpjEstab,
+        cpf,
+        perApur,
+        tpAmb,
+        docId,
+      });
+      res.json({ ok: true, docId, nrRecibo });
     } catch (err) {
       respostaErro(res, 400, err);
     }
@@ -336,12 +585,92 @@ function registrarRotasReinf(app, { db } = {}) {
     try {
       const p = req.body || {};
       const tpAmb = Number(p.tpAmb || 2);
-      const trio = gerarTrioReinf(p);
       const cert = await loadCertificado();
-      const assinados = trio.eventos.map((e) => assinarEventoReinf(e.xml, cert));
-      const loteContrib = p.loteContribuinte || p.contribuinte;
+      const loteContrib = normalizarContribuinteLote(p.loteContribuinte || p.contribuinte);
+
+      let retornoR1000 = null;
+      let protocoloR1000 = null;
+      if (p.incluirR1000 !== false) {
+        const r1000 = gerarR1000({
+          contribuinte: p.contribuinte,
+          tpAmb,
+          iniValid: p.iniValid || p.perApur,
+          fimValid: p.fimValid,
+          classTrib: p.classTrib,
+          indEscrituracao: p.indEscrituracao,
+          indDesoneracao: p.indDesoneracao,
+          indAcordoIsenMulta: p.indAcordoIsenMulta,
+          indSitPJ: p.indSitPJ,
+          contato: p.contato || p.respInfo,
+          seq: 1,
+        });
+        const envioR1000 = await enviarLote([assinarEventoReinf(r1000.xml, cert)], loteContrib, tpAmb);
+        const infoEnvioR1000 = parseRetornoReinf(envioR1000);
+        protocoloR1000 = infoEnvioR1000.protocolo;
+        retornoR1000 = protocoloR1000
+          ? await consultarLoteAteProcessar(protocoloR1000, tpAmb)
+          : { httpStatus: envioR1000.status, ...infoEnvioR1000 };
+
+        await registrarLog(db, req, 'transmitir_r1000_previo', {
+          contribuinte: limparCnpj(loteContrib && loteContrib.nrInsc),
+          tpAmb,
+          protocolo: protocoloR1000 || null,
+          httpStatus: envioR1000.status,
+          cdResposta: retornoR1000.cdResposta || null,
+        });
+
+        const r1000JaVigente = retornoR1000JaVigente(retornoR1000);
+        if (!retornoR1000 || retornoReinfPendente(retornoR1000) || (retornoReinfComErro(retornoR1000) && !r1000JaVigente)) {
+          return res.json({
+            ok: false,
+            etapa: 'r1000',
+            motivo: retornoReinfPendente(retornoR1000)
+              ? 'R-1000 ainda aguardando processamento. Consulte o protocolo e transmita o movimento após o aceite.'
+              : 'R-1000 não foi aceito pela Receita. O movimento R-4010/R-4099 não foi transmitido para evitar rejeição em lote.',
+            httpStatus: retornoR1000.httpStatus || envioR1000.status,
+            protocolo: protocoloR1000,
+            protocoloR1000,
+            cdResposta: retornoR1000.cdResposta,
+            descResposta: retornoR1000.descResposta,
+            dhRecepcao: retornoR1000.dhRecepcao,
+            versaoAplicativoRecepcao: retornoR1000.versaoAplicativoRecepcao,
+            xmlRetorno: retornoR1000.xml,
+          });
+        }
+      }
+
+      const recibosR4010 = await buscarRecibosR4010(db, p, tpAmb);
+      const locadoresComRecibo = aplicarRecibosLocadores(p, tpAmb, recibosR4010);
+      let seq = p.incluirR1000 !== false ? 2 : 1;
+      const r4010 = gerarEventosR4010DaPlanilha({
+        contribuinte: p.contribuinte,
+        estabelecimento: p.estabelecimento,
+        perApur: p.perApur,
+        tpAmb,
+        dtPagamento: p.dtPagamento,
+        natRend: p.natRend,
+        locadores: locadoresComRecibo,
+        seqInicial: seq,
+      });
+      seq += r4010.length;
+      const r4099 = gerarR4099({
+        contribuinte: p.contribuinte,
+        perApur: p.perApur,
+        tpAmb,
+        fechRet: p.fechRet,
+        respInfo: p.respInfo,
+        seq,
+      });
+      const eventosMovimento = [...r4010, r4099];
+      const assinados = eventosMovimento.map((e) => assinarEventoReinf(e.xml, cert));
       const retorno = await enviarLote(assinados, loteContrib, tpAmb);
       const infoRetorno = parseRetornoReinf(retorno);
+      if (infoRetorno.protocolo) {
+        await registrarLoteReinfPendente(db, req, infoRetorno.protocolo, eventosMovimento, {
+          ...p,
+          locadores: locadoresComRecibo,
+        }, tpAmb);
+      }
       await registrarLog(db, req, 'transmitir_lote', {
         contribuinte: limparCnpj(loteContrib && loteContrib.nrInsc),
         tpAmb,
@@ -349,17 +678,23 @@ function registrarRotasReinf(app, { db } = {}) {
         httpStatus: retorno.status,
         cdResposta: infoRetorno.cdResposta || null,
         qtdEventos: assinados.length,
+        retificacoesR4010: recibosR4010.size,
+        protocoloR1000: protocoloR1000 || null,
       });
       res.json({
         ok: retorno.status === 201,
+        etapa: 'movimento',
         httpStatus: retorno.status,
         protocolo: infoRetorno.protocolo,
+        protocoloR1000,
+        retornoR1000,
         cdResposta: infoRetorno.cdResposta,
         descResposta: infoRetorno.descResposta,
         dhRecepcao: infoRetorno.dhRecepcao,
         versaoAplicativoRecepcao: infoRetorno.versaoAplicativoRecepcao,
         qtdEventos: assinados.length,
-        ids: trio.eventos.map((e) => e.id),
+        retificacoesR4010: recibosR4010.size,
+        ids: eventosMovimento.map((e) => e.id),
         xmlRetorno: infoRetorno.xml,
       });
     } catch (err) {
@@ -372,11 +707,15 @@ function registrarRotasReinf(app, { db } = {}) {
       const tpAmb = Number(req.query.tpAmb || 2);
       const retorno = await consultarLote(req.params.protocolo, tpAmb);
       const infoRetorno = parseRetornoReinf(retorno);
+      const persistencia = await registrarRetornoLoteReinf(db, req.params.protocolo, tpAmb, infoRetorno.xml);
       await registrarLog(db, req, 'consultar_lote', {
         protocolo: req.params.protocolo,
         tpAmb,
         httpStatus: retorno.status,
         cdResposta: infoRetorno.cdResposta || null,
+        eventosRetorno: persistencia.eventos.length,
+        recibosGravados: persistencia.recibosGravados,
+        duplicidades: persistencia.duplicidades,
       });
       res.json({
         ok: true,
@@ -386,6 +725,9 @@ function registrarRotasReinf(app, { db } = {}) {
         protocolo: infoRetorno.protocolo || req.params.protocolo,
         dhRecepcao: infoRetorno.dhRecepcao,
         versaoAplicativoRecepcao: infoRetorno.versaoAplicativoRecepcao,
+        eventosRetorno: persistencia.eventos.length,
+        recibosGravados: persistencia.recibosGravados,
+        duplicidades: persistencia.duplicidades,
         xml: infoRetorno.xml,
       });
     } catch (err) {

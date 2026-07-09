@@ -9,27 +9,29 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.4"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.32"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.32"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.4"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.4"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.4"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.4"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.4"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.4"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.4"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.4"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.4"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.4"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.4"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.4"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.4"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.4"></script>
+    <script src="/parser-ofx.js?v=3.4.32"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.32"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.32"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.32"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.32"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.32"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.32"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.32"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.32"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.32"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.32"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.32"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.32"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.32"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.32"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -2652,6 +2654,26 @@
                         </div>
                         <div class="filters-grid">
                             <div class="filter-group">
+                                <label>Classificação Tributária</label>
+                                <input type="text" id="reinfClassTrib" value="99" placeholder="99">
+                            </div>
+                            <div class="filter-group">
+                                <label>Situação PJ</label>
+                                <select id="reinfIndSitPJ">
+                                    <option value="0">0</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Telefone Contato</label>
+                                <input type="text" id="reinfContatoTelefone" placeholder="11999999999">
+                            </div>
+                        </div>
+                        <div class="filters-grid">
+                            <div class="filter-group">
                                 <label>Importar beneficiários CSV/XLSX</label>
                                 <input type="file" id="reinfArquivo" accept=".csv,.txt,.xlsx,.xls" onchange="importarArquivoReinf(event)">
                             </div>
@@ -3923,7 +3945,8 @@
         const BANCOS_CUSTOMIZADOS = [
             { code: '246', name: 'BANCO ABC BRASIL S.A.' },
             { code: 'CLU', name: 'CLUDE - CLUB DE BENEFICIOS' },
-            { code: '1183', name: 'DAXX MIDIA LTDA' }
+            { code: '1183', name: 'DAXX MIDIA LTDA' },
+            { code: '1237', name: 'FLANACAR - REGISTRO DE ENTRADAS FISCAL CSV' }
         ];
         const BANCOS_BACEN_CACHE_KEY = 'bancos_bacen_v2';
         const BANCOS_BACEN_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -4164,7 +4187,12 @@
                 'safra': '422',
                 'clude': 'CLU',
                 'club de beneficios': 'CLU',
-                'club de benefícios': 'CLU'
+                'club de benefícios': 'CLU',
+                'flanacar': '1237',
+                'flanacar comercio de autopecas': '1237',
+                'flanacar comercio de pecas': '1237',
+                'registro de entradas': '1237',
+                'registro de entradas fiscal': '1237'
             };
             if (mapa[v]) return mapa[v];
 	            const match = BANCOS_BACEN.find(b => b.name.toLowerCase().includes(v) || v.includes(b.name.toLowerCase()));
@@ -4221,6 +4249,7 @@
                     else if (/banco do brasil|\bbb\b/.test(assinatura)) codigo = '001';
                     else if (/safra/.test(assinatura)) codigo = '422';
                     else if (/caixa/.test(assinatura)) codigo = '104';
+                    else if (/flanacar|registro de entradas/.test(assinatura)) codigo = '1237';
                 }
                 return {
                     codigo: normalizarCodigoBancoOuLayout(codigo),
@@ -4672,6 +4701,7 @@
         // ============ AUTO-SAVE REMOTO (Firestore) ============
         let _sessaoDebounceTimer = null;
         let _sessaoSalvando = false;
+        const LIMITE_SNAPSHOT_REMOTO_SEGURO = 95 * 1024 * 1024;
 
         function atualizarIndicadorSalvamento(texto, cor) {
             let el = document.getElementById('sessaoIndicador');
@@ -4688,7 +4718,8 @@
             if (cor === 'ok') { setTimeout(() => { if (el) el.textContent = ''; el.style.background = 'transparent'; }, 2500); }
         }
 
-        async function salvarSessaoRemotoAgora() {
+        async function salvarSessaoRemotoAgora(opts) {
+            opts = opts || {};
             try {
                 if (!state.infoConfirmed || !state.info || !state.info.cnpj) return;
                 const cnpj = (state.info.cnpj || '').replace(/\D/g, '');
@@ -4696,22 +4727,46 @@
                 if (!window.API || !window.API.salvarSessaoEmpresa) return;
                 _sessaoSalvando = true;
                 atualizarIndicadorSalvamento('💾 Salvando...', 'warn');
-                const state_json = JSON.stringify(criarSnapshotState({ remoto: true }));
-                const resumo = { total_lancamentos: (state.entries || []).length, periodo: state.info.periodoInicio + ' a ' + state.info.periodoFim, banco: state.info.banco || null };
+                const totalLancamentos = (state.entries || []).length;
+                let snapshot = criarSnapshotState({ remoto: true });
+                let state_json = JSON.stringify(snapshot);
+                let snapshotLeve = false;
+                if (state_json.length > LIMITE_SNAPSHOT_REMOTO_SEGURO) {
+                    snapshot = criarSnapshotState({ remoto: true, semLancamentos: true });
+                    state_json = JSON.stringify(snapshot);
+                    snapshotLeve = true;
+                }
+                const resumo = {
+                    total_lancamentos: totalLancamentos,
+                    periodo: (state.info.periodoInicio || '') + ' a ' + (state.info.periodoFim || ''),
+                    banco: state.info.banco || null,
+                    snapshot_leve: snapshotLeve,
+                    state_bytes: state_json.length
+                };
                 const r = await window.API.salvarSessaoEmpresa(cnpj, state_json, resumo);
                 _sessaoSalvando = false;
-                if (r && r.ok) atualizarIndicadorSalvamento('✅ Sessão salva', 'ok');
-                else atualizarIndicadorSalvamento('⚠️ Erro ao salvar', 'err');
+                if (r && r.ok) {
+                    atualizarIndicadorSalvamento(snapshotLeve ? '✅ Metadados salvos' : ('✅ Sessão salva (' + totalLancamentos + ')'), snapshotLeve ? 'warn' : 'ok');
+                    return r;
+                }
+                throw new Error((r && r.erro) || 'Erro ao salvar sessão');
             } catch (e) {
                 _sessaoSalvando = false;
                 console.warn('[sessao] falha ao salvar remoto:', e);
-                atualizarIndicadorSalvamento('⚠️ Offline', 'err');
+                const msg = e && e.message ? e.message : 'falha desconhecida';
+                atualizarIndicadorSalvamento('⚠️ Erro ao salvar', 'err');
+                if (opts.mostrarErro && typeof showToast === 'function') {
+                    showToast('Erro ao salvar sessão: ' + msg, 'error');
+                }
+                throw e;
             }
         }
 
         function agendarSaveRemoto() {
             if (_sessaoDebounceTimer) clearTimeout(_sessaoDebounceTimer);
-            _sessaoDebounceTimer = setTimeout(salvarSessaoRemotoAgora, 3000);
+            _sessaoDebounceTimer = setTimeout(function(){
+                salvarSessaoRemotoAgora().catch(function(){});
+            }, 3000);
         }
 
         function chaveSessaoZerada(cnpj) {
@@ -4822,7 +4877,15 @@
                 'periodo_fim','totalCreditoOficial','totalDebitoOficial','aba_origem',
                 '_fingerprint_imp','_acao_dup','status_origem','valorNota',
                 'baseCalculoPisCofins','baseCalculoPisCofinsOrigem','categoriaFiscal',
-                'tipoDocumentoFiscal'
+                'tipoDocumentoFiscal','naturezaLancamento','direcaoFiscal','descricao_memoria',
+                'memoriaDescricoes','fornecedor','cnpj_fornecedor','documento','numero_nf',
+                'cfop','cfops','cfopValores','chave_nfe','chave_cte_substituido',
+                'inscricao_estadual','cidade','uf','situacaoDocumento','emissao',
+                'entradaSaida','especie','serie','subserie','observacao','ufDestino',
+                'ufRemetente','valorContabil','valorFrete','baseIcms','valorIcms',
+                'baseIcmsSt','valorIcmsSt','baseIpi','valorIpi','valorPis','valorCofins',
+                'linhasComplementaresAgregadas','empresaCodigoFiscal','empresaNomeFiscal',
+                'layoutBanco','bancoLayout'
             ].forEach(function(k) {
                 if (e[k] !== undefined && e[k] !== null && e[k] !== '') out[k] = e[k];
             });
@@ -4879,6 +4942,22 @@
                 try { agendarSaveRemoto(); } catch (e) {}
             }
         }
+
+        window.addEventListener('beforeunload', function() {
+            try {
+                if (state && state.infoConfirmed) saveState();
+            } catch (e) {}
+        });
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState !== 'hidden') return;
+            try {
+                if (state && state.infoConfirmed) {
+                    saveState();
+                    salvarSessaoRemotoAgora().catch(function(){});
+                }
+            } catch (e) {}
+        });
         
         // Sincroniza sessao local com Firestore (puxa remota se for mais nova)
         async function sincronizarSessaoRemoto() {
@@ -6825,6 +6904,14 @@
             const textoNorm = texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             const mesAno = textoNorm.match(/\b(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(\d{4})\b/);
             if (mesAno && !opts.anoPadrao) opts.anoPadrao = mesAno[2];
+            if (typeof window !== 'undefined' && typeof window.parsearCSV_FlanacarRegistroEntradas === 'function') {
+                const fiscalFlanacar = window.parsearCSV_FlanacarRegistroEntradas(texto, opts);
+                if (fiscalFlanacar && fiscalFlanacar.detectado && fiscalFlanacar.lancamentos && fiscalFlanacar.lancamentos.length) {
+                    window.__ultimoLayoutTextoDetectado = fiscalFlanacar;
+                    console.log('[CSV-DEBUG] layout FLANACAR Registro Entradas detectado antes do CSV generico:', fiscalFlanacar.lancamentos.length);
+                    return fiscalFlanacar.lancamentos;
+                }
+            }
             const candidatos = [';', ',', '\t', '|'];
             let melhorSep = ','; let melhorScore = 0;
             candidatos.forEach(sep => {
@@ -6849,13 +6936,21 @@
             return resultado;
         }
 
-        function lerArquivoTexto(file) {
-            return new Promise((resolve, reject) => {
-                const r = new FileReader();
-                r.onload = e => resolve(e.target.result);
-                r.onerror = () => reject(new Error('Falha ao ler arquivo'));
-                r.readAsText(file, 'UTF-8');
-            });
+        async function lerArquivoTexto(file, encoding) {
+            const normalizarEncoding = function(enc) {
+                const raw = String(enc || 'utf-8').trim().toLowerCase();
+                if (raw === 'iso-8859-1' || raw === 'latin1' || raw === 'latin-1' || raw === 'windows-1252') return 'windows-1252';
+                return enc || 'utf-8';
+            };
+            const buf = await file.arrayBuffer();
+            const decodificar = function(enc) {
+                return new TextDecoder(normalizarEncoding(enc)).decode(buf);
+            };
+            if (encoding) return decodificar(encoding);
+            const utf8 = decodificar('utf-8');
+            const invalidos = (String(utf8 || '').match(/\uFFFD/g) || []).length;
+            if (invalidos === 0) return utf8;
+            return decodificar('windows-1252');
         }
 
         async function parsearArquivoO2(file) {
@@ -7423,6 +7518,8 @@
             beneficiarios: [],
             eventos: [],
             acumulos: [],
+            importMeta: null,
+            consultaAutomatica: null,
             ultimoPayload: null,
             ultimoPayloadOriginal: null
         };
@@ -7446,7 +7543,11 @@
             if (!s) return 0;
             s = s.replace(/[^\d,.-]/g, '');
             if (s.includes(',') && s.includes('.')) {
-                s = s.replace(/\./g, '').replace(',', '.');
+                const lastComma = s.lastIndexOf(',');
+                const lastDot = s.lastIndexOf('.');
+                s = lastComma > lastDot
+                    ? s.replace(/\./g, '').replace(',', '.')
+                    : s.replace(/,/g, '');
             } else if (s.includes(',')) {
                 s = s.replace(',', '.');
             }
@@ -7457,6 +7558,33 @@
         function reinfMoney(valor) {
             if (typeof formatarMoedaBR === 'function') return formatarMoedaBR(valor);
             return 'R$ ' + (Number(valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function reinfFormatCpfCnpj(valor) {
+            const d = reinfDigits(valor);
+            if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+            if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+            return valor || '';
+        }
+
+        function reinfResumoImportacao(meta) {
+            if (!meta) return '';
+            const partes = [];
+            if (meta.competencias && meta.competencias.length === 1) partes.push('competência ' + meta.competencias[0]);
+            if (meta.codigosReceita && meta.codigosReceita.length) partes.push('código ' + meta.codigosReceita.join(', '));
+            if (meta.cnpjsFonte && meta.cnpjsFonte.length) partes.push(meta.cnpjsFonte.length + ' CNPJ(s) fonte');
+            if (meta.ignoradosPJ) partes.push(meta.ignoradosPJ + ' proprietário(s) PJ ignorado(s)');
+            if (meta.irrfCalculado) partes.push(meta.irrfCalculado + ' IRRF calculado/zerado pela tabela 2026');
+            if (meta.divergenciasIrrf) partes.push(meta.divergenciasIrrf + ' IRRF informado diferente do cálculo sugerido');
+            if (meta.ignoradosOutroCnpj) partes.push(meta.ignoradosOutroCnpj + ' linha(s) fora do CNPJ selecionado');
+            return partes.join(' • ');
+        }
+
+        function reinfStatusDarf(b) {
+            const irrf = reinfValor(b && b.valorIrrf);
+            if (irrf >= 10) return 'DARF/DCTFWeb';
+            if (irrf > 0) return 'Acumular < R$ 10';
+            return 'Sem DARF';
         }
 
         function reinfToday() {
@@ -7506,14 +7634,25 @@
                 el.innerHTML = '<div class="empty-state"><div class="icon">📄</div><h3>Nenhum beneficiário carregado</h3><p>Importe uma planilha CSV/XLSX ou adicione um beneficiário manualmente.</p></div>';
                 return;
             }
-            let html = '<table class="data-table"><thead><tr><th>CPF</th><th>Nome</th><th>Bruto</th><th>IRRF</th><th>Ações</th></tr></thead><tbody>';
+            let html = '<table class="data-table"><thead><tr><th>CPF</th><th>Nome</th><th>CNPJ Origem</th><th>Bruto</th><th>Base IRRF</th><th>IRRF / DARF</th><th>Retificação</th><th>Ações</th></tr></thead><tbody>';
             lista.forEach((b, idx) => {
+                const origem = b.cnpjFonte || b.cnpjEstab || '';
+                const statusDarf = reinfStatusDarf(b);
+                const origemIrrf = b.origemIrrf === 'calculado' ? 'calculado' : 'informado';
+                const alertaIrrf = b.divergenciaIrrf ? '<br><span style="font-size:11px;color:#b45309">Dif. cálculo: ' + reinfEscape(reinfMoney(b.divergenciaIrrf)) + '</span>' : '';
+                const recibo = String(b.nrReciboR4010 || b.nrRecibo || '').trim();
+                const badgeRecibo = recibo
+                    ? '<span style="display:inline-block;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700">Com recibo</span><br><span style="font-size:11px;color:#64748b">' + reinfEscape(recibo) + '</span>'
+                    : '<span style="font-size:11px;color:#94a3b8">Original</span>';
                 html += '<tr>' +
-                    '<td><strong>' + reinfEscape(b.cpfBenef) + '</strong></td>' +
+                    '<td><strong>' + reinfEscape(reinfFormatCpfCnpj(b.cpfBenef)) + '</strong></td>' +
                     '<td>' + reinfEscape(b.nomeBenef) + (b.observacao ? '<br><span style="font-size:11px;color:#64748b">' + reinfEscape(b.observacao) + '</span>' : '') + '</td>' +
+                    '<td>' + (origem ? reinfEscape(reinfFormatCpfCnpj(origem)) : '-') + (b.localidade ? '<br><span style="font-size:11px;color:#64748b">' + reinfEscape(b.localidade) + '</span>' : '') + '</td>' +
                     '<td>' + reinfEscape(reinfMoney(b.valorBruto)) + '</td>' +
-                    '<td>' + reinfEscape(reinfMoney(b.valorIrrf)) + '</td>' +
-                    '<td><button class="btn-action btn-action-danger" style="padding:6px 10px;font-size:12px" onclick="removerBeneficiarioReinf(' + idx + ')">Excluir</button></td>' +
+                    '<td>' + reinfEscape(reinfMoney(b.baseIrrf || b.valorBruto)) + '</td>' +
+                    '<td>' + reinfEscape(reinfMoney(b.valorIrrf)) + '<br><span style="font-size:11px;color:#64748b">' + reinfEscape(statusDarf + ' • ' + origemIrrf) + '</span>' + alertaIrrf + '</td>' +
+                    '<td>' + badgeRecibo + '</td>' +
+                    '<td><button class="btn-action btn-action-secondary" style="padding:6px 10px;font-size:12px;margin-right:6px" onclick="registrarReciboR4010Beneficiario(' + idx + ')">Recibo R-4010</button><button class="btn-action btn-action-danger" style="padding:6px 10px;font-size:12px" onclick="removerBeneficiarioReinf(' + idx + ')">Excluir</button></td>' +
                     '</tr>';
             });
             html += '</tbody></table>';
@@ -7662,38 +7801,13 @@
         }
 
         function reinfMapearBeneficiarios(rows) {
+            if (window.ReinfAluguelUtils && window.ReinfAluguelUtils.mapearBeneficiarios) {
+                const resultado = window.ReinfAluguelUtils.mapearBeneficiarios(rows);
+                reinfState.importMeta = resultado.meta || null;
+                return resultado.beneficiarios || [];
+            }
             if (!Array.isArray(rows) || !rows.length) return [];
-            let headerIdx = -1;
-            let indices = null;
-            for (let i = 0; i < Math.min(rows.length, 30); i++) {
-                const row = rows[i] || [];
-                const idxCpf = reinfIndiceCabecalho(row, ['CPF', 'CPFCNPJ', 'DOCUMENTO']);
-                const idxNome = reinfIndiceCabecalho(row, ['NOME', 'BENEFICIARIO', 'RAZAOSOCIAL', 'FAVORECIDO']);
-                const idxBruto = reinfIndiceCabecalho(row, ['VALORBRUTO', 'BRUTO', 'RENDIMENTO', 'VALORNF', 'VALOR']);
-                if (idxCpf >= 0 && idxNome >= 0 && idxBruto >= 0) {
-                    headerIdx = i;
-                    indices = {
-                        cpf: idxCpf,
-                        nome: idxNome,
-                        bruto: idxBruto,
-                        irrf: reinfIndiceCabecalho(row, ['IRRF', 'VALORIR', 'IMPOSTORENDA', 'RETENCAO'])
-                    };
-                    break;
-                }
-            }
-            if (!indices) return [];
-            const out = [];
-            for (let i = headerIdx + 1; i < rows.length; i++) {
-                const r = rows[i] || [];
-                const cpf = reinfDigits(r[indices.cpf]);
-                const nome = String(r[indices.nome] || '').trim();
-                const bruto = reinfValor(r[indices.bruto]);
-                const irrf = indices.irrf >= 0 ? reinfValor(r[indices.irrf]) : 0;
-                if (cpf.length === 11 && nome && (bruto > 0 || irrf > 0)) {
-                    out.push({ cpfBenef: cpf, nomeBenef: nome, valorBruto: bruto, valorIrrf: irrf, observacao: 'Linha ' + (i + 1) });
-                }
-            }
-            return out;
+            return [];
         }
 
         async function importarArquivoReinf(evt) {
@@ -7708,17 +7822,45 @@
                     const wb = XLSX.read(buf, { type: 'array', cellDates: true });
                     wb.SheetNames.forEach(sheet => {
                         const arr = XLSX.utils.sheet_to_json(wb.Sheets[sheet], { header: 1, defval: '', raw: false });
-                        if (arr && arr.length) rows.push(...arr);
+                        if (arr && arr.length) {
+                            arr.forEach((row, idx) => rows.push({ row, sheet, rowNumber: idx + 1 }));
+                        }
                     });
                 } else {
                     rows = reinfParseCsv(await file.text());
                 }
                 const novos = reinfMapearBeneficiarios(rows);
-                if (!novos.length) throw new Error('Nenhum beneficiário R-4010 encontrado. Verifique colunas CPF, Nome, Valor Bruto e IRRF.');
+                const meta = reinfState.importMeta || {};
+                if (!novos.length) {
+                    const detalhe = reinfResumoImportacao(meta);
+                    throw new Error('Nenhum beneficiário PF R-4010 encontrado. Para aluguel, a EFD-Reinf importa pagamentos PJ->PF; proprietários PJ residentes no Brasil ficam fora da Reinf. ' + (detalhe || 'Verifique CPF/CNPJ proprietário, nome, bruto e código 3208.'));
+                }
+                const competenciaEl = document.getElementById('reinfCompetencia');
+                if (competenciaEl && meta.competencias && meta.competencias.length === 1 && (!competenciaEl.value || competenciaEl.value === reinfMesAtual())) {
+                    competenciaEl.value = meta.competencias[0];
+                }
+                const cnpjFonteEl = document.getElementById('reinfCnpjFonte');
+                const cnpjEstabEl = document.getElementById('reinfCnpjEstab');
+                if (meta.cnpjsFonte && meta.cnpjsFonte.length === 1) {
+                    if (cnpjFonteEl && !reinfDigits(cnpjFonteEl.value)) cnpjFonteEl.value = reinfFormatCpfCnpj(meta.cnpjsFonte[0]);
+                    if (cnpjEstabEl && !reinfDigits(cnpjEstabEl.value)) cnpjEstabEl.value = reinfFormatCpfCnpj(meta.cnpjsFonte[0]);
+                } else if (meta.cnpjsFonte && meta.cnpjsFonte.length > 1) {
+                    const selecionado = reinfDigits((cnpjEstabEl && cnpjEstabEl.value) || (cnpjFonteEl && cnpjFonteEl.value) || '');
+                    if (!meta.cnpjsFonte.includes(selecionado)) {
+                        const primeiroCnpjArquivo = reinfDigits((novos.find(b => reinfDigits(b.cnpjEstab || b.cnpjFonte).length === 14) || {}).cnpjEstab || meta.cnpjsFonte[0]);
+                        if (primeiroCnpjArquivo.length === 14) {
+                            if (cnpjFonteEl) cnpjFonteEl.value = reinfFormatCpfCnpj(primeiroCnpjArquivo);
+                            if (cnpjEstabEl) cnpjEstabEl.value = reinfFormatCpfCnpj(primeiroCnpjArquivo);
+                            meta.cnpjSelecionadoAutomatico = primeiroCnpjArquivo;
+                        }
+                    }
+                }
                 reinfState.beneficiarios = reinfState.beneficiarios.concat(novos);
                 reinfState.eventos = [];
                 reinfAtualizarResumo();
-                reinfSetStatus(novos.length + ' beneficiário(s) importado(s) de ' + reinfEscape(file.name) + '.', 'success');
+                const resumo = reinfResumoImportacao(meta);
+                const tipoStatus = meta.cnpjsFonte && meta.cnpjsFonte.length > 1 ? 'warn' : (meta.divergenciasIrrf ? 'warn' : 'success');
+                reinfSetStatus(novos.length + ' beneficiário(s) PF importado(s) de ' + reinfEscape(file.name) + '.' + (resumo ? '<br>' + reinfEscape(resumo) : '') + (meta.cnpjsFonte && meta.cnpjsFonte.length > 1 ? '<br><strong>Atenção:</strong> arquivo possui múltiplos CNPJs. A geração do R-4010/DARF usará o CNPJ Fonte/Estabelecimento selecionado na tela.' : '') + (meta.cnpjSelecionadoAutomatico ? '<br>CNPJ da empresa aberta não consta na planilha; campo CNPJ preenchido com o primeiro CNPJ fonte do arquivo: ' + reinfEscape(reinfFormatCpfCnpj(meta.cnpjSelecionadoAutomatico)) + '.' : ''), tipoStatus);
                 showToast('Beneficiários Reinf importados.', 'success');
             } catch (e) {
                 reinfSetStatus('Erro ao importar beneficiários: ' + reinfEscape(e.message || e), 'error');
@@ -7748,17 +7890,68 @@
             reinfAtualizarResumo();
         }
 
+        async function registrarReciboR4010Beneficiario(idx) {
+            try {
+                const b = reinfState.beneficiarios[idx];
+                if (!b) return;
+                const atual = String(b.nrReciboR4010 || b.nrRecibo || '').trim();
+                const nrRecibo = String(prompt('Informe o recibo R-4010 já aceito na Receita para este CPF. O próximo envio será retificação.', atual) || '').trim();
+                if (!nrRecibo) return;
+                if (!/^[A-Za-z0-9_.-]{10,80}$/.test(nrRecibo)) {
+                    return showToast('Recibo R-4010 inválido. Confira o número retornado pela Receita.', 'warn');
+                }
+                const cnpjFonte = reinfDigits(document.getElementById('reinfCnpjFonte')?.value);
+                const cnpjEstab = reinfDigits(document.getElementById('reinfCnpjEstab')?.value || cnpjFonte);
+                const perApur = document.getElementById('reinfCompetencia')?.value || '';
+                const tpAmb = Number(document.getElementById('reinfTpAmb')?.value || 2);
+                if (!window.API || !window.API.reinfSalvarReciboR4010) throw new Error('API para gravar recibo R-4010 indisponível.');
+                const resp = await window.API.reinfSalvarReciboR4010({
+                    contribuinte: { tpInsc: 1, nrInsc: cnpjFonte },
+                    estabelecimento: { tpInscEstab: 1, nrInscEstab: cnpjEstab },
+                    perApur,
+                    tpAmb,
+                    cpf: b.cpfBenef,
+                    nome: b.nomeBenef,
+                    ideEvtAdic: b.ideEvtAdic || '',
+                    nrRecibo
+                });
+                if (!resp || resp.erro || resp.ok === false) throw new Error((resp && resp.erro) || 'Falha ao gravar recibo R-4010.');
+                reinfState.beneficiarios[idx] = { ...b, nrReciboR4010: nrRecibo };
+                reinfState.eventos = [];
+                reinfAtualizarResumo();
+                reinfSetStatus('Recibo R-4010 gravado para ' + reinfEscape(b.nomeBenef || reinfFormatCpfCnpj(b.cpfBenef)) + '. O próximo R-4010 deste CPF será enviado como retificação.', 'success');
+                showToast('Recibo R-4010 gravado.', 'success');
+            } catch (e) {
+                reinfSetStatus('Erro ao gravar recibo R-4010: ' + reinfEscape(e.message || e), 'error');
+                showToast('Erro Reinf: ' + (e.message || e), 'error');
+            }
+        }
+
         function limparBeneficiariosReinf() {
             if (reinfState.beneficiarios.length && !confirm('Limpar todos os beneficiários Reinf carregados?')) return;
             reinfState.beneficiarios = [];
             reinfState.eventos = [];
             reinfState.acumulos = [];
+            reinfState.importMeta = null;
             reinfState.ultimoPayload = null;
             reinfState.ultimoPayloadOriginal = null;
             const preview = document.getElementById('reinfXmlPreview');
             if (preview) preview.value = '';
             reinfOcultarRetornoResumo();
             reinfAtualizarResumo();
+        }
+
+        function reinfBeneficiariosPorCnpjSelecionado(beneficiarios, cnpjEstab, cnpjFonte) {
+            const lista = Array.isArray(beneficiarios) ? beneficiarios : [];
+            const alvo = reinfDigits(cnpjEstab || cnpjFonte || '');
+            if (alvo.length !== 14) return lista;
+            const origens = [...new Set(lista.map(b => reinfDigits(b.cnpjEstab || b.cnpjFonte)).filter(c => c.length === 14))];
+            if (origens.length <= 1) return lista;
+            const filtrados = lista.filter(b => {
+                const origem = reinfDigits(b.cnpjEstab || b.cnpjFonte);
+                return origem.length !== 14 || origem === alvo;
+            });
+            return filtrados;
         }
 
         function montarPayloadReinf() {
@@ -7770,12 +7963,30 @@
             const natRend = reinfDigits(document.getElementById('reinfNatRend')?.value || '13002');
             const contatoNome = String(document.getElementById('reinfContatoNome')?.value || 'SP Assessoria Contabil').trim();
             const contatoCpf = reinfDigits(document.getElementById('reinfContatoCpf')?.value || '');
+            const contatoTelefone = reinfDigits(document.getElementById('reinfContatoTelefone')?.value || '');
+            const classTrib = reinfDigits(document.getElementById('reinfClassTrib')?.value || '99');
+            const indSitPJ = String(document.getElementById('reinfIndSitPJ')?.value || '0').trim();
             if (cnpjFonte.length !== 14) throw new Error('CNPJ Fonte Pagadora deve ter 14 dígitos.');
             if (cnpjEstab.length !== 14) throw new Error('CNPJ Estabelecimento deve ter 14 dígitos.');
             if (!/^\d{4}-\d{2}$/.test(perApur)) throw new Error('Competência deve estar no formato AAAA-MM.');
             if (!/^\d{4}-\d{2}-\d{2}$/.test(dtPagamento)) throw new Error('Data de pagamento obrigatória.');
             if (!/^\d{5}$/.test(natRend)) throw new Error('Natureza de rendimento deve ter 5 dígitos.');
+            if (!/^\d{2}$/.test(classTrib)) throw new Error('Classificação Tributária deve ter 2 dígitos.');
+            if (!/^[0-4]$/.test(indSitPJ)) throw new Error('Situação PJ deve ser de 0 a 4.');
+            if (contatoCpf.length !== 11) throw new Error('CPF do responsável é obrigatório para transmitir o R-1000.');
+            if (contatoCpf.length === 11 && contatoTelefone.length > 0 && contatoTelefone.length < 10) throw new Error('Telefone do contato deve ter DDD e ao menos 10 dígitos.');
             if (!reinfState.beneficiarios.length) throw new Error('Inclua ao menos um beneficiário.');
+            const beneficiariosPayload = reinfBeneficiariosPorCnpjSelecionado(reinfState.beneficiarios, cnpjEstab, cnpjFonte);
+            if (!beneficiariosPayload.length) {
+                throw new Error('Nenhum beneficiário encontrado para o CNPJ selecionado (' + reinfFormatCpfCnpj(cnpjEstab) + '). Confira o CNPJ Fonte/Estabelecimento ou importe a empresa correta.');
+            }
+            const cnpjsOrigem = [...new Set(beneficiariosPayload.map(b => reinfDigits(b.cnpjEstab || b.cnpjFonte)).filter(c => c.length === 14))];
+            if (cnpjsOrigem.length > 1) {
+                throw new Error('A importação possui múltiplos CNPJs de origem (' + cnpjsOrigem.map(reinfFormatCpfCnpj).join(', ') + '). Informe o CNPJ Fonte/Estabelecimento para gerar uma empresa por vez.');
+            }
+            if (cnpjsOrigem.length === 1 && cnpjsOrigem[0] !== cnpjEstab) {
+                throw new Error('O CNPJ do arquivo (' + reinfFormatCpfCnpj(cnpjsOrigem[0]) + ') difere do CNPJ Estabelecimento informado (' + reinfFormatCpfCnpj(cnpjEstab) + ').');
+            }
             const payload = {
                 contribuinte: { tpInsc: 1, nrInsc: cnpjFonte },
                 estabelecimento: { tpInscEstab: 1, nrInscEstab: cnpjEstab },
@@ -7785,16 +7996,25 @@
                 dtPagamento,
                 natRend,
                 iniValid: perApur,
-                classTrib: '99',
-                incluirR1000: false,
-                locadores: reinfState.beneficiarios.map(b => ({
+                classTrib,
+                indSitPJ: Number(indSitPJ),
+                incluirR1000: true,
+                locadores: beneficiariosPayload.map(b => ({
                     cpf: b.cpfBenef,
                     nome: b.nomeBenef,
                     bruto: reinfValor(b.valorBruto),
-                    irrf: reinfValor(b.valorIrrf)
+                    irrf: reinfValor(b.valorIrrf),
+                    baseIrrf: reinfValor(b.baseIrrf || b.valorBruto),
+                    cnpjFonte: reinfDigits(b.cnpjFonte || cnpjFonte),
+                    cnpjEstab: reinfDigits(b.cnpjEstab || cnpjEstab),
+                    codigoReceita: b.codigoReceita || '3208',
+                    origemIrrf: b.origemIrrf || 'informado',
+                    nrReciboR4010: String(b.nrReciboR4010 || b.nrRecibo || '').trim()
                 }))
             };
             if (contatoCpf.length === 11) {
+                if (contatoTelefone.length < 10) throw new Error('Telefone do contato é obrigatório para transmitir o R-1000.');
+                payload.contato = { nome: contatoNome, cpf: contatoCpf, foneCel: contatoTelefone };
                 payload.respInfo = { nome: contatoNome, cpf: contatoCpf };
             }
             return payload;
@@ -7828,6 +8048,19 @@
             return match ? match[1].trim() : '';
         }
 
+        function reinfRetornoContemCodigo(info, codigo) {
+            const alvo = String(codigo || '').toUpperCase();
+            const texto = String((info && info.xml) || '').toUpperCase();
+            if (!alvo) return false;
+            const re = new RegExp('<(?:\\w+:)?CODRESP>' + alvo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '<\\/(?:\\w+:)?CODRESP>', 'i');
+            return re.test(texto);
+        }
+
+        function reinfRetornoTemOcorrencia(info) {
+            const texto = String((info && info.xml) || '');
+            return /<(?:\w+:)?codResp>/i.test(texto) || /<(?:\w+:)?dscResp>/i.test(texto);
+        }
+
         function reinfOcultarRetornoResumo() {
             const box = document.getElementById('reinfRetornoResumo');
             if (!box) return;
@@ -7852,6 +8085,13 @@
         function reinfClassificarRetorno(info) {
             const cd = String(info && info.cdResposta || '').trim();
             const desc = String(info && info.descResposta || '').toLowerCase();
+            if (reinfRetornoContemCodigo(info, 'MS1254')) {
+                return {
+                    tipo: 'error',
+                    titulo: 'R-4010 já existe para este beneficiário/período',
+                    detalhe: 'A Receita recusou duplicidade. Para reenviar o mesmo CPF, competência e estabelecimento, é necessário retificar usando o recibo do evento anterior; a ferramenta passa a gravar e reaproveitar esse recibo nos próximos envios aceitos.'
+                };
+            }
             if (cd === '1' || desc.includes('aguardando')) {
                 return {
                     tipo: 'warn',
@@ -7859,7 +8099,7 @@
                     detalhe: 'Isto não é rejeição. Consulte novamente usando o protocolo informado.'
                 };
             }
-            if (desc.includes('erro') || desc.includes('rejeit') || desc.includes('inval')) {
+            if (cd === '3' || cd === '7' || cd === '99' || reinfRetornoTemOcorrencia(info) || desc.includes('erro') || desc.includes('rejeit') || desc.includes('inval')) {
                 return {
                     tipo: 'error',
                     titulo: 'Retorno da Receita exige correção',
@@ -7871,6 +8111,28 @@
                 titulo: 'Retorno da Receita recebido',
                 detalhe: 'Confira o protocolo, a resposta e o XML oficial abaixo.'
             };
+        }
+
+        function reinfRetornoPendente(info) {
+            const cd = String(info && info.cdResposta || '').trim();
+            const desc = String(info && info.descResposta || '').toLowerCase();
+            return cd === '1' || desc.includes('aguardando');
+        }
+
+        function reinfRetornoComErro(info) {
+            const cd = String(info && info.cdResposta || '').trim();
+            const desc = String(info && info.descResposta || '').toLowerCase();
+            return cd === '3' || cd === '7' || cd === '99' || reinfRetornoTemOcorrencia(info) || desc.includes('erro') || desc.includes('rejeit') || desc.includes('inval');
+        }
+
+        function reinfRetornoAceito(info) {
+            return !!(info && (info.cdResposta || info.descResposta || info.xml)) && !reinfRetornoPendente(info) && !reinfRetornoComErro(info);
+        }
+
+        function reinfAvisoAmbiente() {
+            const tpAmb = Number(document.getElementById('reinfTpAmb')?.value || 2);
+            if (tpAmb === 2) return ' Ambiente atual: PRODUÇÃO RESTRITA. Eventos enviados aqui não aparecem no e-CAC de produção.';
+            return '';
         }
 
         function reinfRenderRetornoResumo(resp, chaveXml) {
@@ -7897,6 +8159,7 @@
             item('Protocolo', info.protocolo);
             item('Recepção', info.dhRecepcao);
             item('Aplicativo Receita', info.versaoAplicativoRecepcao);
+            item('Ambiente', Number(document.getElementById('reinfTpAmb')?.value || 2) === 2 ? 'Produção restrita - não aparece no e-CAC de produção' : 'Produção');
             box.style.display = 'block';
             box.style.background = cor[0];
             box.style.borderColor = cor[1];
@@ -7905,6 +8168,33 @@
                 + '<div style="margin-bottom:8px">' + reinfEscape(status.detalhe) + '</div>'
                 + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 14px">' + linhas.join('') + '</div>';
             return info;
+        }
+
+        function reinfPararConsultaAutomatica() {
+            if (reinfState.consultaAutomatica && reinfState.consultaAutomatica.timer) {
+                clearTimeout(reinfState.consultaAutomatica.timer);
+            }
+            reinfState.consultaAutomatica = null;
+        }
+
+        function reinfAgendarConsultaAutomatica(protocolo, tpAmb, tentativa = 1) {
+            reinfPararConsultaAutomatica();
+            if (!protocolo) return;
+            const maxTentativas = 12;
+            const delay = tentativa <= 3 ? 15000 : 30000;
+            reinfState.consultaAutomatica = {
+                protocolo,
+                tpAmb,
+                tentativa,
+                timer: setTimeout(async function() {
+                    try {
+                        await consultarLoteReinf({ automatico: true, tentativa, maxTentativas });
+                    } catch (e) {
+                        console.warn('[reinf] consulta automatica falhou:', e && e.message ? e.message : e);
+                    }
+                }, delay)
+            };
+            reinfSetStatus('Lote recebido e aguardando processamento. Consulta automática agendada (' + tentativa + '/' + maxTentativas + ') para o protocolo ' + reinfEscape(protocolo) + '.' + reinfEscape(reinfAvisoAmbiente()), 'warn');
         }
 
         async function reinfAplicarAcumuloIrrfNoPayload(payload, persistir = false, extra = {}) {
@@ -7955,9 +8245,6 @@
                 if (!window.API || !window.API.reinfTransmitir) throw new Error('API de transmissão Reinf indisponível.');
                 const resp = await window.API.reinfTransmitir(payload);
                 if (resp.erro) throw new Error(resp.erro);
-                if (resp.ok) {
-                    await reinfAplicarAcumuloIrrfNoPayload(payloadOriginal, true, { protocolo: resp.protocolo || null });
-                }
                 reinfState.ultimoPayloadOriginal = payloadOriginal;
                 reinfState.ultimoPayload = payload;
                 const protocolo = document.getElementById('reinfProtocolo');
@@ -7967,7 +8254,12 @@
                 const retornoInfo = reinfRenderRetornoResumo(resp, 'xmlRetorno');
                 const retornoStatus = reinfClassificarRetorno(retornoInfo);
                 const resumoAcumulo = reinfResumoAcumulos(reinfState.acumulos);
-                reinfSetStatus('Lote enviado. HTTP ' + (resp.httpStatus || '-') + (retornoInfo.cdResposta ? ' • resposta ' + reinfEscape(retornoInfo.cdResposta) : '') + (retornoInfo.protocolo ? ' • protocolo ' + reinfEscape(retornoInfo.protocolo) : '') + (retornoInfo.descResposta ? '. ' + reinfEscape(retornoInfo.descResposta) : '.') + (resp.ok && resumoAcumulo ? '<br><strong>Saldo de IRRF aluguel atualizado:</strong> ' + reinfEscape(resumoAcumulo) : ''), retornoStatus.tipo);
+                if (reinfRetornoAceito(retornoInfo)) {
+                    await reinfAplicarAcumuloIrrfNoPayload(payloadOriginal, true, { protocolo: resp.protocolo || retornoInfo.protocolo || null });
+                } else if (reinfRetornoPendente(retornoInfo) && (resp.protocolo || retornoInfo.protocolo)) {
+                    reinfAgendarConsultaAutomatica(resp.protocolo || retornoInfo.protocolo, payloadOriginal.tpAmb || 2, 1);
+                }
+                reinfSetStatus('Lote enviado. HTTP ' + (resp.httpStatus || '-') + (retornoInfo.cdResposta ? ' • resposta ' + reinfEscape(retornoInfo.cdResposta) : '') + (retornoInfo.protocolo ? ' • protocolo ' + reinfEscape(retornoInfo.protocolo) : '') + (retornoInfo.descResposta ? '. ' + reinfEscape(retornoInfo.descResposta) : '.') + reinfEscape(reinfAvisoAmbiente()) + (reinfRetornoAceito(retornoInfo) && resumoAcumulo ? '<br><strong>Saldo de IRRF aluguel atualizado:</strong> ' + reinfEscape(resumoAcumulo) : ''), retornoStatus.tipo);
                 showToast(retornoInfo.cdResposta === '1' ? 'Lote Reinf aguardando processamento.' : (resp.ok ? 'Lote Reinf transmitido.' : 'Lote Reinf retornou atenção.'), retornoStatus.tipo === 'error' ? 'error' : (retornoStatus.tipo === 'warn' ? 'warn' : 'success'));
             } catch (e) {
                 reinfSetStatus('Erro ao transmitir lote: ' + reinfEscape(e.message || e), 'error');
@@ -7975,7 +8267,7 @@
             }
         }
 
-        async function consultarLoteReinf() {
+        async function consultarLoteReinf(opts = {}) {
             const protocolo = String(document.getElementById('reinfProtocolo')?.value || '').trim();
             const tpAmb = Number(document.getElementById('reinfTpAmb')?.value || 2);
             if (!protocolo) return showToast('Informe o protocolo do lote.', 'warn');
@@ -7987,7 +8279,17 @@
                 if (preview) preview.value = resp.xml || JSON.stringify(resp, null, 2);
                 const retornoInfo = reinfRenderRetornoResumo(resp, 'xml');
                 const retornoStatus = reinfClassificarRetorno(retornoInfo);
-                reinfSetStatus('Consulta do lote concluída. HTTP ' + (resp.httpStatus || '-') + (retornoInfo.cdResposta ? ' • resposta ' + reinfEscape(retornoInfo.cdResposta) : '') + (retornoInfo.descResposta ? ' • ' + reinfEscape(retornoInfo.descResposta) : '') + '.', retornoStatus.tipo);
+                if (reinfRetornoAceito(retornoInfo) && reinfState.ultimoPayloadOriginal) {
+                    await reinfAplicarAcumuloIrrfNoPayload(reinfState.ultimoPayloadOriginal, true, { protocolo: retornoInfo.protocolo || protocolo });
+                    reinfPararConsultaAutomatica();
+                } else if (reinfRetornoComErro(retornoInfo)) {
+                    reinfPararConsultaAutomatica();
+                } else if (reinfRetornoPendente(retornoInfo) && opts.automatico && Number(opts.tentativa || 1) < Number(opts.maxTentativas || 12)) {
+                    reinfAgendarConsultaAutomatica(protocolo, tpAmb, Number(opts.tentativa || 1) + 1);
+                } else if (!opts.automatico) {
+                    reinfPararConsultaAutomatica();
+                }
+                reinfSetStatus('Consulta do lote concluída. HTTP ' + (resp.httpStatus || '-') + (retornoInfo.cdResposta ? ' • resposta ' + reinfEscape(retornoInfo.cdResposta) : '') + (retornoInfo.descResposta ? ' • ' + reinfEscape(retornoInfo.descResposta) : '') + '.' + reinfEscape(reinfAvisoAmbiente()), retornoStatus.tipo);
                 showToast(retornoInfo.cdResposta === '1' ? 'Lote aguardando processamento.' : 'Consulta Reinf concluída.', retornoStatus.tipo === 'error' ? 'error' : (retornoStatus.tipo === 'warn' ? 'warn' : 'success'));
             } catch (e) {
                 reinfSetStatus('Erro ao consultar lote: ' + reinfEscape(e.message || e), 'error');
@@ -8331,6 +8633,381 @@
             }];
         }
 
+        function parseValorSpedCentavos(valor) {
+            let texto = String(valor || '').trim();
+            if (!texto) return 0;
+            let negativo = false;
+            if (/-$/.test(texto)) {
+                negativo = true;
+                texto = texto.replace(/-$/, '');
+            }
+            if (/^-/.test(texto)) {
+                negativo = true;
+                texto = texto.replace(/^-/, '');
+            }
+            texto = texto.replace(/[^\d,.-]/g, '');
+            if (!texto) return 0;
+            if (texto.indexOf(',') >= 0) texto = texto.replace(/\./g, '').replace(',', '.');
+            const numero = Number(texto);
+            if (!Number.isFinite(numero)) return 0;
+            const centavos = Math.round(Math.abs(numero) * 100);
+            return negativo ? -centavos : centavos;
+        }
+
+        function saldoSpedAssinadoCentavos(valor, indicador) {
+            const centavos = Math.abs(parseValorSpedCentavos(valor));
+            return String(indicador || '').trim().toUpperCase() === 'C' ? -centavos : centavos;
+        }
+
+        function formatarMoedaCentavosObrigacao(centavos) {
+            const valor = Math.abs(centavos) / 100;
+            const moeda = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            return centavos < 0 ? '-' + moeda : moeda;
+        }
+
+        function chaveContaCentroObrigacao(codCta, codCcus) {
+            return String(codCta || '').trim() + '|' + String(codCcus || '').trim();
+        }
+
+        function criarErroECDPVA(titulo, detalhe, ajuste, registro, linha, extras) {
+            return Object.assign({
+                titulo: titulo,
+                detalhe: detalhe,
+                ajuste: ajuste,
+                registro: registro || '',
+                linha: linha || 0
+            }, extras || {});
+        }
+
+        function validarECDRegrasPVA(texto) {
+            const linhas = String(texto || '').split(/\r?\n/);
+            const erros = [];
+            const limitePorRegra = 30;
+            const contas = new Map();
+            const i155PorPeriodo = [];
+            const j100 = [];
+            const j150Ordens = new Map();
+            const chavesI155 = new Map();
+            const chavesJ100 = new Map();
+            const chavesI157 = new Set();
+            const c155Recuperados = [];
+            const j930Qualificacoes = new Set();
+            let linha0000 = -1;
+            let campos0000 = [];
+            let contaAtual = null;
+            let periodoAtual = null;
+
+            function registrarErro(erro, contador) {
+                if (contador && contador.valor >= limitePorRegra) return;
+                if (contador) contador.valor += 1;
+                erros.push(erro);
+            }
+
+            linhas.forEach(function(linha, idx) {
+                if (!linha || linha.charAt(0) !== '|') return;
+                const campos = linha.split('|');
+                const reg = String(campos[1] || '').toUpperCase();
+                const linhaNumero = idx + 1;
+
+                if (reg === '0000') {
+                    linha0000 = linhaNumero;
+                    campos0000 = campos;
+                    return;
+                }
+                if (reg === 'I050') {
+                    contaAtual = {
+                        cod: String(campos[6] || '').trim(),
+                        data: campos[2] || '',
+                        natureza: campos[4] || '',
+                        nivel: Number(campos[5] || 0),
+                        superior: String(campos[7] || '').trim(),
+                        nome: campos[8] || '',
+                        temI051: false,
+                        linha: linhaNumero
+                    };
+                    if (contaAtual.cod) contas.set(contaAtual.cod, contaAtual);
+                    return;
+                }
+                if (reg === 'I051' && contaAtual) {
+                    contaAtual.temI051 = true;
+                    return;
+                }
+                if (reg === 'I150') {
+                    periodoAtual = {
+                        inicio: campos[2] || '',
+                        fim: campos[3] || '',
+                        linha: linhaNumero,
+                        itens: [],
+                        mapaIni: new Map(),
+                        mapaFim: new Map()
+                    };
+                    i155PorPeriodo.push(periodoAtual);
+                    return;
+                }
+                if (reg === 'I155' && periodoAtual) {
+                    const item = {
+                        codCta: String(campos[2] || '').trim(),
+                        codCcus: String(campos[3] || '').trim(),
+                        ini: saldoSpedAssinadoCentavos(campos[4], campos[5]),
+                        deb: parseValorSpedCentavos(campos[6]),
+                        cred: parseValorSpedCentavos(campos[7]),
+                        fim: saldoSpedAssinadoCentavos(campos[8], campos[9]),
+                        linha: linhaNumero
+                    };
+                    periodoAtual.itens.push(item);
+                    const chave = chaveContaCentroObrigacao(item.codCta, item.codCcus);
+                    periodoAtual.mapaIni.set(chave, (periodoAtual.mapaIni.get(chave) || 0) + item.ini);
+                    periodoAtual.mapaFim.set(chave, (periodoAtual.mapaFim.get(chave) || 0) + item.fim);
+                    const chaveDuplicidade = periodoAtual.fim + '|' + chave;
+                    if (chavesI155.has(chaveDuplicidade)) {
+                        chavesI155.set(chaveDuplicidade, chavesI155.get(chaveDuplicidade).concat(linhaNumero));
+                    } else {
+                        chavesI155.set(chaveDuplicidade, [linhaNumero]);
+                    }
+                    return;
+                }
+                if (reg === 'I157') {
+                    chavesI157.add(chaveContaCentroObrigacao(campos[2], campos[3]));
+                    return;
+                }
+                if (reg === 'C155') {
+                    c155Recuperados.push({
+                        codCta: String(campos[2] || '').trim(),
+                        codCcus: String(campos[3] || '').trim(),
+                        linha: linhaNumero
+                    });
+                    return;
+                }
+                if (reg === 'J100') {
+                    const item = {
+                        codAgl: String(campos[2] || '').trim(),
+                        indCodAgl: String(campos[3] || '').trim(),
+                        nivel: Number(campos[4] || 0),
+                        codAglSup: String(campos[5] || '').trim(),
+                        indGrpBal: String(campos[6] || '').trim().toUpperCase(),
+                        descricao: campos[7] || '',
+                        ini: saldoSpedAssinadoCentavos(campos[8], campos[9]),
+                        fim: saldoSpedAssinadoCentavos(campos[10], campos[11]),
+                        linha: linhaNumero
+                    };
+                    j100.push(item);
+                    const chave = [item.codAgl, item.indCodAgl, item.nivel, item.codAglSup, item.indGrpBal].join('|');
+                    if (chavesJ100.has(chave)) {
+                        chavesJ100.set(chave, chavesJ100.get(chave).concat(linhaNumero));
+                    } else {
+                        chavesJ100.set(chave, [linhaNumero]);
+                    }
+                    return;
+                }
+                if (reg === 'J150') {
+                    const ordem = String(campos[2] || '').trim();
+                    if (!ordem) return;
+                    if (j150Ordens.has(ordem)) {
+                        j150Ordens.set(ordem, j150Ordens.get(ordem).concat(linhaNumero));
+                    } else {
+                        j150Ordens.set(ordem, [linhaNumero]);
+                    }
+                    return;
+                }
+                if (reg === 'J930') {
+                    j930Qualificacoes.add(String(campos[4] || '').trim());
+                }
+            });
+
+            const indMudancaPlano = String(campos0000[22] || '').trim();
+            const codPlanoRef = String(campos0000[23] || '').trim();
+            if (indMudancaPlano === '1' && !linhas.some(function(linha) { return /^\|I157\|/i.test(linha); })) {
+                registrarErro(criarErroECDPVA(
+                    'Registro obrigatorio nao encontrado: I157',
+                    'Linha ' + linha0000 + ' | 0000.IND_MUDANCA_PC = 1, mas nao ha I157 para transferir saldos do plano anterior.',
+                    'Inclua o I157 gerado pelo sistema contabil ou corrija o indicador de mudanca de plano antes da validacao no PVA.',
+                    '0000',
+                    linha0000,
+                    { esperado: 'I157', encontrado: 'ausente' }
+                ));
+            }
+
+            if (codPlanoRef) {
+                const contadorI051 = { valor: 0 };
+                contas.forEach(function(conta) {
+                    if (conta.natureza === 'A' && !conta.temI051) {
+                        registrarErro(criarErroECDPVA(
+                            'Registro obrigatorio nao encontrado: I051',
+                            'Linha ' + conta.linha + ' | Conta analitica ' + conta.cod + ' sem plano referencial, mas 0000.COD_PLAN_REF = ' + codPlanoRef + '.',
+                            'Vincule a conta ao plano referencial no sistema contabil e gere novamente a ECD.',
+                            'I050',
+                            conta.linha,
+                            { esperado: 'I051', encontrado: 'ausente' }
+                        ), contadorI051);
+                    }
+                });
+            }
+
+            if (c155Recuperados.length && i155PorPeriodo.length) {
+                const primeiroPeriodo = i155PorPeriodo[0];
+                const contadorC155 = { valor: 0 };
+                c155Recuperados.forEach(function(item) {
+                    const chave = chaveContaCentroObrigacao(item.codCta, item.codCcus);
+                    if (!primeiroPeriodo.mapaIni.has(chave) && !chavesI157.has(chave)) {
+                        registrarErro(criarErroECDPVA(
+                            'Conta/Centro recuperado sem saldo inicial: C155',
+                            'Linha ' + item.linha + ' | Conta/centro recuperado da ECD anterior nao existe no primeiro I155/I157 da escrituração atual: ' + item.codCta + '.',
+                            'Inclua o saldo inicial correspondente no primeiro mes da ECD ou gere o I157 de transferencia.',
+                            'C155',
+                            item.linha
+                        ), contadorC155);
+                    }
+                });
+            }
+
+            const contadorIni = { valor: 0 };
+            const contadorFim = { valor: 0 };
+            i155PorPeriodo.forEach(function(periodo) {
+                const somaIni = periodo.itens.reduce(function(total, item) { return total + item.ini; }, 0);
+                const somaFim = periodo.itens.reduce(function(total, item) { return total + item.fim; }, 0);
+                if (somaIni !== 0) {
+                    registrarErro(criarErroECDPVA(
+                        'Soma dos saldos iniciais I155 nao fecha',
+                        'Periodo ' + formatarDataSpedObrigacao(periodo.inicio) + ' a ' + formatarDataSpedObrigacao(periodo.fim) + ' | diferenca ' + formatarMoedaCentavosObrigacao(somaIni) + '.',
+                        'Recalcule os saldos periodicos do bloco I. A soma de saldos iniciais devedores e credores deve zerar por periodo.',
+                        'I155',
+                        periodo.linha
+                    ), contadorIni);
+                }
+                if (somaFim !== 0) {
+                    registrarErro(criarErroECDPVA(
+                        'Soma dos saldos finais I155 nao fecha',
+                        'Periodo ' + formatarDataSpedObrigacao(periodo.inicio) + ' a ' + formatarDataSpedObrigacao(periodo.fim) + ' | diferenca ' + formatarMoedaCentavosObrigacao(somaFim) + '.',
+                        'Recalcule os saldos periodicos do bloco I. A soma de saldos finais devedores e credores deve zerar por periodo.',
+                        'I155',
+                        periodo.linha
+                    ), contadorFim);
+                }
+            });
+
+            const contadorContinuidade = { valor: 0 };
+            for (let i = 1; i < i155PorPeriodo.length; i += 1) {
+                const anterior = i155PorPeriodo[i - 1];
+                const atual = i155PorPeriodo[i];
+                atual.mapaIni.forEach(function(valorIni, chave) {
+                    if (!anterior.mapaFim.has(chave)) return;
+                    const valorFimAnterior = anterior.mapaFim.get(chave);
+                    if (valorIni !== valorFimAnterior) {
+                        registrarErro(criarErroECDPVA(
+                            'Saldo inicial diferente do saldo final do periodo anterior',
+                            'Periodo ' + formatarDataSpedObrigacao(atual.inicio) + ' | Conta/centro ' + chave + ' | inicial ' + formatarMoedaCentavosObrigacao(valorIni) + ' x final anterior ' + formatarMoedaCentavosObrigacao(valorFimAnterior) + '.',
+                            'Recalcule a sequencia de saldos periodicos para que cada I155 inicie com o saldo final do periodo anterior.',
+                            'I155',
+                            atual.linha
+                        ), contadorContinuidade);
+                    }
+                });
+            }
+
+            const contadorDupI155 = { valor: 0 };
+            chavesI155.forEach(function(linhasDuplicadas, chave) {
+                if (linhasDuplicadas.length <= 1) return;
+                registrarErro(criarErroECDPVA(
+                    'Registro duplicado em relacao a chave: I155',
+                    'Chave ' + chave + ' aparece nas linhas ' + linhasDuplicadas.join(', ') + '.',
+                    'Remova duplicidades do saldo periodico antes de importar no PVA.',
+                    'I155',
+                    linhasDuplicadas[0]
+                ), contadorDupI155);
+            });
+
+            const contadorDupJ100 = { valor: 0 };
+            chavesJ100.forEach(function(linhasDuplicadas, chave) {
+                if (linhasDuplicadas.length <= 1) return;
+                registrarErro(criarErroECDPVA(
+                    'Registro duplicado em relacao a chave: J100',
+                    'Chave ' + chave + ' aparece nas linhas ' + linhasDuplicadas.join(', ') + '.',
+                    'Remova duplicidades do balanco patrimonial antes de importar no PVA.',
+                    'J100',
+                    linhasDuplicadas[0]
+                ), contadorDupJ100);
+            });
+
+            const j100RaizAtivo = j100.filter(function(item) { return item.indGrpBal === 'A' && item.nivel === 1; });
+            const j100RaizPassivo = j100.filter(function(item) { return item.indGrpBal === 'P' && item.nivel === 1; });
+            const ativoIni = j100RaizAtivo.reduce(function(total, item) { return total + Math.abs(item.ini); }, 0);
+            const ativoFim = j100RaizAtivo.reduce(function(total, item) { return total + Math.abs(item.fim); }, 0);
+            const passivoIni = j100RaizPassivo.reduce(function(total, item) { return total + Math.abs(item.ini); }, 0);
+            const passivoFim = j100RaizPassivo.reduce(function(total, item) { return total + Math.abs(item.fim); }, 0);
+            if ((ativoIni || passivoIni) && ativoIni !== passivoIni) {
+                registrarErro(criarErroECDPVA(
+                    'Balanco Patrimonial inicial: ATIVO diferente de PASSIVO',
+                    'Ativo inicial ' + formatarMoedaCentavosObrigacao(ativoIni) + ' x Passivo/PL inicial ' + formatarMoedaCentavosObrigacao(passivoIni) + '.',
+                    'Corrija os valores iniciais do J100 ou os saldos I155 que alimentam o balanco.',
+                    'J100',
+                    j100RaizAtivo[0] ? j100RaizAtivo[0].linha : 0
+                ));
+            }
+            if ((ativoFim || passivoFim) && ativoFim !== passivoFim) {
+                registrarErro(criarErroECDPVA(
+                    'Balanco Patrimonial final: ATIVO diferente de PASSIVO',
+                    'Ativo final ' + formatarMoedaCentavosObrigacao(ativoFim) + ' x Passivo/PL final ' + formatarMoedaCentavosObrigacao(passivoFim) + '.',
+                    'Corrija os valores finais do J100 ou os saldos I155 que alimentam o balanco.',
+                    'J100',
+                    j100RaizAtivo[0] ? j100RaizAtivo[0].linha : 0
+                ));
+            }
+
+            if (i155PorPeriodo.length) {
+                const primeiro = i155PorPeriodo[0];
+                const ultimo = i155PorPeriodo[i155PorPeriodo.length - 1];
+                const contadorJ100Ini = { valor: 0 };
+                const contadorJ100Fim = { valor: 0 };
+                j100.forEach(function(item) {
+                    if (item.indCodAgl !== 'A') return;
+                    const chaveSemCentro = chaveContaCentroObrigacao(item.codAgl, '');
+                    if (primeiro.mapaIni.has(chaveSemCentro) && primeiro.mapaIni.get(chaveSemCentro) !== item.ini) {
+                        registrarErro(criarErroECDPVA(
+                            'J100.VL_CTA_INI diferente do I155',
+                            'Linha ' + item.linha + ' | Conta ' + item.codAgl + ' | J100 ' + formatarMoedaCentavosObrigacao(item.ini) + ' x I155 ' + formatarMoedaCentavosObrigacao(primeiro.mapaIni.get(chaveSemCentro)) + '.',
+                            'Alinhe o saldo inicial da linha analitica do balanco com o I155 da mesma conta.',
+                            'J100',
+                            item.linha
+                        ), contadorJ100Ini);
+                    }
+                    if (ultimo.mapaFim.has(chaveSemCentro) && ultimo.mapaFim.get(chaveSemCentro) !== item.fim) {
+                        registrarErro(criarErroECDPVA(
+                            'J100.VL_CTA_FIN diferente do I155',
+                            'Linha ' + item.linha + ' | Conta ' + item.codAgl + ' | J100 ' + formatarMoedaCentavosObrigacao(item.fim) + ' x I155 ' + formatarMoedaCentavosObrigacao(ultimo.mapaFim.get(chaveSemCentro)) + '.',
+                            'Alinhe o saldo final da linha analitica do balanco com o I155 da mesma conta.',
+                            'J100',
+                            item.linha
+                        ), contadorJ100Fim);
+                    }
+                });
+            }
+
+            const contadorJ150 = { valor: 0 };
+            j150Ordens.forEach(function(linhasDuplicadas, ordem) {
+                if (linhasDuplicadas.length <= 1) return;
+                registrarErro(criarErroECDPVA(
+                    'Mesmo numero de ordem informado em mais de uma linha da DRE',
+                    'Ordem ' + ordem + ' aparece nas linhas ' + linhasDuplicadas.join(', ') + '.',
+                    'Corrija a ordenacao do J150 no demonstrativo de resultado.',
+                    'J150',
+                    linhasDuplicadas[0]
+                ), contadorJ150);
+            });
+
+            if (!j930Qualificacoes.has('910')) {
+                registrarErro(criarErroECDPVA(
+                    'Assinatura obrigatoria do contador nao encontrada',
+                    'Nao ha signatario J930 com qualificacao 910.',
+                    'Inclua a assinatura do contador/contabilista responsavel pelo termo de verificacao antes de transmitir.',
+                    'J930',
+                    0,
+                    { esperado: '910', encontrado: Array.from(j930Qualificacoes).join(', ') || 'ausente' }
+                ));
+            }
+
+            return erros;
+        }
+
         function analisarAjustesObrigacao(layout, infoReg, cnpjArquivo, cnpjEsperado, texto, tipo) {
             const obrigatorios = layout ? (layout.registrosObrigatorios || []) : [];
             const revisao = layout ? (layout.registrosRevisao || []) : [];
@@ -8365,6 +9042,9 @@
             if (tipo === 'ECD') {
                 const errosEstrutura = validarEstruturaECDI150I155(texto);
                 const errosMudancaPlano = validarECDMudancaPlanoI157(texto);
+                const errosPVA = validarECDRegrasPVA(texto).filter(function(erro) {
+                    return !(erro.titulo === 'Registro obrigatorio nao encontrado: I157' && errosMudancaPlano.length);
+                });
                 if (errosEstrutura.length) {
                     erros.push({
                         titulo: 'Bloco I nao sera importado pelo PVA/SPED',
@@ -8380,6 +9060,14 @@
                         ajuste: 'Corrigir o TXT no sistema contabil antes de importar/transmitir: incluir I157 ou ajustar o indicador de mudanca do plano de contas.'
                     });
                     errosMudancaPlano.forEach(function(erro) { erros.push(erro); });
+                }
+                if (errosPVA.length) {
+                    erros.push({
+                        titulo: 'ECD rejeitada pelo conjunto de regras do PVA',
+                        detalhe: errosPVA.length + ' inconsistencia(s) encontradas em saldos periodicos, J100/J150, I051/I157, duplicidades ou assinatura.',
+                        ajuste: 'Corrija o TXT no sistema contabil/consolidador antes de transmitir. Esta validacao replica as principais criticas bloqueantes do PVA.'
+                    });
+                    errosPVA.forEach(function(erro) { erros.push(erro); });
                 }
             }
             ausentesRevisao.forEach(function(reg) {
@@ -9968,8 +10656,8 @@
             }
             
             const ext = f.name.split('.').pop().toLowerCase();
-            if (!['pdf', 'ofx', 'ofc', 'csv', 'xlsx', 'xls'].includes(ext)) {
-                showToast('Formato não suportado! Use PDF, OFX/OFC, CSV, XLSX ou XLS.', 'error');
+            if (!['pdf', 'ofx', 'ofc', 'csv', 'txt', 'xlsx', 'xls'].includes(ext)) {
+                showToast('Formato não suportado! Use PDF, OFX/OFC, CSV, TXT, XLSX ou XLS.', 'error');
                 return;
             }
             ajustarCamposUploadPorExtensao(ext);
@@ -10006,6 +10694,29 @@
             document.getElementById('successMessage').classList.remove('show');
             preview.classList.add('show');
             try { atualizarLayoutsUpload(); } catch(e) { console.warn('[layouts upload] atualizar arquivo:', e); }
+            detectarBancoFiscalFlanacarNoPreview(f, ext).catch(function(e) {
+                console.warn('[FLANACAR Registro Entradas] pre-deteccao no preview falhou:', e);
+            });
+        }
+
+        async function detectarBancoFiscalFlanacarNoPreview(file, ext) {
+            if (!(ext === 'csv' || ext === 'txt')) return;
+            if (typeof window.parsearCSV_FlanacarRegistroEntradas !== 'function') return;
+            const textoProbe = await lerArquivoTexto(file);
+            const fiscalProbe = window.parsearCSV_FlanacarRegistroEntradas(textoProbe, {});
+            const detectado = !!(fiscalProbe && fiscalProbe.detectado && fiscalProbe.lancamentos && fiscalProbe.lancamentos.length);
+            if (!detectado || selectedFile !== file) return;
+
+            _comboboxSelecionar('uploadBanco', '1237');
+            const uploadBanco = document.getElementById('uploadBanco');
+            if (uploadBanco) uploadBanco.dispatchEvent(new Event('change', { bubbles: true }));
+
+            const titulo = document.getElementById('uploadTitulo');
+            if (titulo && !titulo.value) titulo.value = 'FLANACAR - Registro de Entradas Fiscal';
+
+            const type = document.getElementById('fileType');
+            if (type) type.textContent = 'CSV - FLANACAR Registro de Entradas Fiscal';
+            try { atualizarLayoutsUpload(); } catch(e) { console.warn('[layouts upload] atualizar flanacar preview:', e); }
         }
         
         function formatSize(b) {
@@ -10045,14 +10756,30 @@
                 elUploadBanco.value = resolverBancoLegado(state.info.banco);
             }
             
-            const bancoCode = document.getElementById('uploadBanco')?.value || '';
-            const titulo = document.getElementById('uploadTitulo')?.value?.trim() || '';
+            let bancoCode = document.getElementById('uploadBanco')?.value || '';
+            let titulo = document.getElementById('uploadTitulo')?.value?.trim() || '';
             const ext = selectedFile.name.split('.').pop().toLowerCase();
             const layoutPdfSelecionado = ext === 'pdf' ? ((document.getElementById('uploadLayoutPdf') || {}).value || '') : '';
             const layoutPdfMetaSelecionado = ext === 'pdf' ? layoutPdfUploadSelecionado() : null;
+            let csvFiscalFlanacarDetectado = false;
+            let resultadoCsvFiscalFlanacar = null;
+            if ((ext === 'csv' || ext === 'txt') && typeof window.parsearCSV_FlanacarRegistroEntradas === 'function') {
+                try {
+                    const textoProbe = await lerArquivoTexto(selectedFile);
+                    const fiscalProbe = window.parsearCSV_FlanacarRegistroEntradas(textoProbe, {});
+                    csvFiscalFlanacarDetectado = !!(fiscalProbe && fiscalProbe.detectado && fiscalProbe.lancamentos && fiscalProbe.lancamentos.length);
+                    if (csvFiscalFlanacarDetectado) {
+                        resultadoCsvFiscalFlanacar = fiscalProbe;
+                        bancoCode = '1237';
+                        if (!titulo) titulo = 'FLANACAR - Registro de Entradas Fiscal';
+                    }
+                } catch (eProbe) {
+                    console.warn('[FLANACAR Registro Entradas] pre-deteccao falhou:', eProbe);
+                }
+            }
             if (ext !== 'xlsx' && ext !== 'xls') {
-                if (!bancoCode) { showToast('Selecione o banco do extrato.', 'error'); return; }
-                if (!titulo) { showToast('Informe o titulo do relatorio.', 'error'); return; }
+                if (!csvFiscalFlanacarDetectado && !bancoCode) { showToast('Selecione o banco do extrato.', 'error'); return; }
+                if (!csvFiscalFlanacarDetectado && !titulo) { showToast('Informe o titulo do relatorio.', 'error'); return; }
             }
             if (layoutPdfMetaSelecionado && layoutPdfMetaSelecionado.homologacaoStatus === 'bloqueado') {
                 showToast('Layout PDF bloqueado pelo Admin. Selecione outro layout ou use Automático.', 'error');
@@ -10092,8 +10819,30 @@
                     }
                     if (!bancoCode) { hideProcessing(); showToast('XLSX não reconhecido como razão de saldos. Para importar como extrato, selecione o banco.', 'error'); return; }
                     if (!titulo) { hideProcessing(); showToast('XLSX não reconhecido como razão de saldos. Para importar como extrato, informe o título.', 'error'); return; }
+                } else if (resultadoCsvFiscalFlanacar && resultadoCsvFiscalFlanacar.lancamentos && resultadoCsvFiscalFlanacar.lancamentos.length) {
+                    window.__ultimoLayoutTextoDetectado = resultadoCsvFiscalFlanacar;
+                    entries = resultadoCsvFiscalFlanacar.lancamentos;
+                    console.log('[processFile] CSV FLANACAR usado diretamente da pre-deteccao:', entries.length);
                 } else {
-                    entries = await parsearArquivoTexto(selectedFile, 'csv', {});
+                    try {
+                        if ((ext === 'csv' || ext === 'txt') && bancoCode === '1237' && typeof window.parsearCSV_FlanacarRegistroEntradas === 'function') {
+                            const textoFiscal = await lerArquivoTexto(selectedFile);
+                            const fiscalDireto = window.parsearCSV_FlanacarRegistroEntradas(textoFiscal, {});
+                            if (fiscalDireto && fiscalDireto.detectado && fiscalDireto.lancamentos && fiscalDireto.lancamentos.length) {
+                                window.__ultimoLayoutTextoDetectado = fiscalDireto;
+                                entries = fiscalDireto.lancamentos;
+                                console.log('[processFile] CSV FLANACAR detectado por banco 1237:', entries.length);
+                            }
+                        }
+                        if (!entries.length) {
+                            entries = await parsearArquivoTexto(selectedFile, 'csv', {});
+                        }
+                    } catch (eCsv) {
+                        if ((ext === 'csv' || ext === 'txt') && bancoCode === '1237') {
+                            throw new Error('CSV FLANACAR nao reconhecido. Confirme se o arquivo e o RelatorioNotas fiscal original em CSV e tente novamente.');
+                        }
+                        throw eCsv;
+                    }
                 }
                 
                 // [A3-FIX] Array vazio pode significar: arquivo realmente vazio OU usuario cancelou no modal JA IMPORTADO
@@ -10901,15 +11650,6 @@
             });
         }
         
-        function lerArquivoTexto(file, encoding) {
-            return new Promise(function(resolve, reject) {
-                const reader = new FileReader();
-                reader.onload = function(e) { resolve(e.target.result || ''); };
-                reader.onerror = function() { reject(reader.error || new Error('Falha ao ler arquivo')); };
-                reader.readAsText(file, encoding || 'UTF-8');
-            });
-        }
-
         function parseValorOFX(valor) {
             let s = String(valor || '').trim();
             if (!s) return 0;
@@ -11245,7 +11985,12 @@
                                 <span title="${e.descricao}">${e.descricao.slice(0, 35)}${e.descricao.length > 35 ? '...' : ''}</span>
                             </div>
                         </td>
-                        <td class="${vc}">${vf}</td>
+                        <td class="${vc}">
+                            <input type="text" class="editable-input" value="${e.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}"
+                                onchange="updateEntry(${idx},'valor',this.value)"
+                                title="Editar valor do lançamento"
+                                style="width:105px;font-family:monospace;font-size:11px;text-align:right;color:inherit">
+                        </td>
                         <td>
                             <input type="text" class="editable-input" value="${e.contaDebito || ''}" 
                                 onchange="updateEntry(${idx},'contaDebito',this.value)" 
@@ -11946,6 +12691,18 @@
         function updateEntry(i, f, v) {
             if (f === 'codigoHistorico') {
                 aplicarHistoricoAoLancamento(state.entries[i], v);
+            } else if (f === 'valor') {
+                const n = parseNumeroLancamento(v);
+                if (!Number.isFinite(n) || n === 0) {
+                    showToast('Valor invalido.', 'error');
+                    renderLancamentos();
+                    return;
+                }
+                state.entries[i][f] = ehRegistroEntradaFiscal(state.entries[i]) ? -Math.abs(n) : n;
+                if (ehRegistroEntradaFiscal(state.entries[i])) {
+                    state.entries[i].valorNota = Math.abs(state.entries[i][f]);
+                    state.entries[i].valorContabil = Math.abs(state.entries[i][f]);
+                }
             } else {
                 state.entries[i][f] = v;
             }
@@ -11956,7 +12713,7 @@
             if (replicados > 0 && typeof showToast === 'function') {
                 showToast('Classificação replicada para ' + replicados + ' lançamento' + (replicados !== 1 ? 's' : '') + ' selecionado' + (replicados !== 1 ? 's' : '') + '.', 'success');
             }
-            if (f === 'codigoHistorico' || replicados > 0) renderLancamentos();
+            if (f === 'codigoHistorico' || f === 'valor' || replicados > 0) renderLancamentos();
         }
         
         function removeEntry(i) {
@@ -12238,6 +12995,42 @@
                 document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
             }
         });
+
+        function ehRegistroEntradaFiscal(lanc) {
+            const tipo = String(lanc && lanc.tipoDocumentoFiscal || '').toUpperCase();
+            const layout = String((lanc && (lanc.layoutParser || lanc.layoutNome)) || '').toUpperCase();
+            return tipo === 'REGISTRO_ENTRADA_FISCAL' || /FLANACAR|REGISTRO_ENTRADAS|REGISTRO DE ENTRADAS/.test(layout);
+        }
+
+        function contextoIALancamento(lanc) {
+            const partes = [];
+            const add = function(label, valor) {
+                const v = Array.isArray(valor) ? valor.filter(Boolean).join('/') : String(valor || '').trim();
+                if (v) partes.push(label + '=' + v);
+            };
+            add('descricao', lanc && lanc.descricao);
+            if (ehRegistroEntradaFiscal(lanc)) {
+                add('tipoDocumentoFiscal', 'REGISTRO_ENTRADA_FISCAL');
+                add('fornecedor', lanc.fornecedor || lanc.descricao_memoria);
+                add('cnpjFornecedor', lanc.cnpj_fornecedor);
+                add('nf', lanc.numero_nf || lanc.documento);
+                add('cfop', lanc.cfops || lanc.cfop);
+                add('chaveNFe', lanc.chave_nfe);
+                add('valorNota', lanc.valorNota || Math.abs(Number(lanc.valor || 0)));
+                add('baseIcms', lanc.baseIcms);
+                add('valorIcms', lanc.valorIcms);
+                add('valorIcmsSt', lanc.valorIcmsSt);
+                add('valorIpi', lanc.valorIpi);
+                add('valorPis', lanc.valorPis);
+                add('valorCofins', lanc.valorCofins);
+                add('impostoFiscalTipo', lanc.impostoFiscalTipo);
+                add('valorImpostoFiscal', lanc.valorImpostoFiscal);
+                add('baseImpostoFiscal', lanc.baseImpostoFiscal);
+                add('naturezaLancamento', lanc.naturezaLancamento);
+                add('categoriaFiscal', lanc.categoriaFiscal || lanc.categoria);
+            }
+            return partes.join(' | ');
+        }
         
         // Classificar transações com IA usando plano de contas vinculado ao CNPJ
         async function classificarComIA() {
@@ -12434,7 +13227,7 @@ Ex6: "COMBUSTIVEL POSTO XX | R$ 280 | DEBITO"
 -> codigoHistorico: 1302 (PAGTO DESP C/COMBUSTIVEL)
 
 TRANSACOES PARA CLASSIFICAR:
-${batch.map((item, idx) => (idx + 1) + '. ' + item.e.data + ' | ' + (item.e.descricao || '') + ' | R$ ' + Math.abs(item.e.valor).toFixed(2) + ' | ' + (item.e.valor >= 0 ? 'CREDITO_ENTRADA' : 'DEBITO_SAIDA')).join('\n')}
+${batch.map((item, idx) => (idx + 1) + '. ' + item.e.data + ' | ' + contextoIALancamento(item.e) + ' | R$ ' + Math.abs(item.e.valor).toFixed(2) + ' | ' + (ehRegistroEntradaFiscal(item.e) ? 'REGISTRO_ENTRADA_FISCAL_COMPRA' : (item.e.valor >= 0 ? 'CREDITO_ENTRADA' : 'DEBITO_SAIDA'))).join('\n')}
 
 REGRAS ABSOLUTAS:
 1. SEMPRE retorne o codigo REDUZIDO_14_DIGITOS (ex: "00010000000391"), NUNCA o estruturado (ex: "2.1.1.07.0001").
@@ -12442,9 +13235,12 @@ REGRAS ABSOLUTAS:
 3. Debito e Credito SEMPRE sao preenchidos (nunca vazios).
 4. Para DEBITO_SAIDA bancaria: Credito eh o BANCO ITAU. Debito varia (fornecedor/despesa/imposto).
 5. Para CREDITO_ENTRADA bancaria: Debito eh o BANCO ITAU. Credito varia (receita/cliente/outro).
-6. Identifique o BANCO ITAU procurando no plano uma conta com "BANCO ITAU" na descricao.
-7. historico: use a DESCRICAO do Historico Padrao correspondente ao codigoHistorico. Nunca retorne somente numeros como "1", "15" ou "201".
-8. codigoHistorico: 4 digitos EXATOS da tabela HISTORICOS PADRAO IOB SAGE acima.
+6. As regras de banco/caixa acima valem somente para extrato bancario. Se a transacao tiver REGISTRO_ENTRADA_FISCAL_COMPRA, ela NAO e extrato bancario e NAO deve usar banco/caixa, salvo se a descricao falar explicitamente de pagamento/baixa bancaria.
+7. Para REGISTRO_ENTRADA_FISCAL_COMPRA: debite mercadorias/estoque/compras/fretes/impostos recuperaveis/despesa conforme CFOP e plano; credite fornecedor/fornecedores a pagar. Se existir conta analitica do fornecedor, use-a; senao use a conta generica de fornecedores compatível.
+8. Fornecedor, CNPJ, NF e CFOP sao contexto forte para separar classificacoes por fornecedor no plano de contas.
+9. Identifique o BANCO ITAU procurando no plano uma conta com "BANCO ITAU" na descricao apenas quando for lancamento bancario.
+10. historico: use a DESCRICAO do Historico Padrao correspondente ao codigoHistorico. Nunca retorne somente numeros como "1", "15" ou "201".
+11. codigoHistorico: 4 digitos EXATOS da tabela HISTORICOS PADRAO IOB SAGE acima.
    Use o codigo mais especifico aplicavel. Defaults aceitaveis para descricoes vagas:
    - Pagamento generico de fornecedor: 0899
    - Recebimento generico: 0013
@@ -12456,8 +13252,8 @@ REGRAS ABSOLUTAS:
    - IPTU: 1230
    - Licenca de software/sistemas: 1305
    - Prestacao de servicos/consultoria: 1207
-9. Se a descricao for vaga ou nao reconhecer, use a conta mais GENERICA do tipo correto (ex: DIVERSOS A PAGAR, OUTRAS DESPESAS).
-10. Justifique em UMA frase curta cada classificacao (campo "justificativa").
+12. Se a descricao for vaga ou nao reconhecer, use a conta mais GENERICA do tipo correto (ex: DIVERSOS A PAGAR, OUTRAS DESPESAS).
+13. Justifique em UMA frase curta cada classificacao (campo "justificativa").
 
 Responda APENAS JSON valido, sem texto antes/depois:
 {
@@ -12519,7 +13315,7 @@ Responda APENAS JSON valido, sem texto antes/depois:
                                 const _valor = state.entries[entryIdx].valor || 0;
                                 const _dbtBanco = bancoReduzidos.has(_dbt);
                                 const _crdBanco = bancoReduzidos.has(_crd);
-                                if (_dbtBanco !== _crdBanco) { // lancamento bancario tipico: 1 ponta e' o banco
+                                if (!ehRegistroEntradaFiscal(state.entries[entryIdx]) && _dbtBanco !== _crdBanco) { // lancamento bancario tipico: 1 ponta e' o banco
                                     if (_valor >= 0 && _crdBanco) { _dbt = crd; _crd = dbt; reorientadasSentido++; }
                                     else if (_valor < 0 && _dbtBanco) { _dbt = crd; _crd = dbt; reorientadasSentido++; }
                                 }
@@ -13593,22 +14389,27 @@ window.confirmarTrocarPlano = async function() {
   })();
 </script>
     <!-- ===== VERSAO E POPUP DE ATUALIZACAO (auto-injetado) ===== -->
-    <div id="versionModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:99999;backdrop-filter:blur(4px);align-items:center;justify-content:center">
+    <div id="versionModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:99999;backdrop-filter:blur(2px);align-items:center;justify-content:center">
         <div style="background:#fff;border-radius:14px;max-width:520px;width:90%;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center">
             <div style="font-size:48px;margin-bottom:8px">🚀</div>
             <h2 style="margin:0 0 8px;color:#0f172a;font-size:22px;font-weight:700">Nova versao disponivel</h2>
             <p style="margin:0 0 4px;color:#64748b;font-size:14px">Versao <strong id="versionModalNumero">-</strong></p>
-            <p style="margin:0 0 20px;color:#94a3b8;font-size:12px">Para continuar usando o sistema, atualize agora.</p>
+            <p style="margin:0 0 20px;color:#64748b;font-size:12px">Voce pode atualizar agora ou continuar trabalhando e atualizar depois.</p>
             <div id="versionModalNotes" style="text-align:left;background:#f8fafc;border-radius:8px;padding:14px;margin-bottom:24px;max-height:240px;overflow-y:auto;font-size:13px;color:#334155;line-height:1.5"></div>
-            <button id="versionModalReload" style="background:#2563eb;color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;width:100%">Atualizar agora</button>
-            <p style="margin:14px 0 0;color:#cbd5e1;font-size:11px">A pagina sera recarregada</p>
+            <div style="display:flex;gap:10px;align-items:center;justify-content:center">
+                <button id="versionModalLater" style="background:#e2e8f0;color:#334155;border:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;min-width:140px">Depois</button>
+                <button id="versionModalReload" style="background:#2563eb;color:#fff;border:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;min-width:180px">Atualizar agora</button>
+            </div>
+            <p style="margin:14px 0 0;color:#94a3b8;font-size:11px">Ao atualizar agora, a sessao sera salva antes do recarregamento.</p>
         </div>
     </div>
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            let _versaoAtual = null;
+            const _VERSAO_BUILD = '3.4.32';
+            let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
+            const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
             const _CHECAR_INTERVALO_MS = 5 * 60 * 1000; // 5 min
 
             async function checarVersaoApp(silencioso) {
@@ -13619,23 +14420,12 @@ window.confirmarTrocarPlano = async function() {
                     if (!info || !info.version) return;
                     _atualizarFooter(info);
 
-                    const versaoVista = localStorage.getItem(_VERSAO_VISTA_KEY);
-                    if (versaoVista !== info.version) {
-                        console.log('[version] Aviso de versao pendente:', versaoVista, '->', info.version);
-                        _mostrarModalAtualizacao(info);
-                        _versaoAtual = info.version;
-                        return;
-                    }
+                    if (info.version === _VERSAO_BUILD) localStorage.setItem(_VERSAO_VISTA_KEY, info.version);
 
-                    // Primeira chamada apos versao confirmada - so memoriza
-                    if (_versaoAtual === null) {
-                        _versaoAtual = info.version;
-                        return;
-                    }
-
-                    // Mudou? Mostra modal bloqueante
-                    if (info.version !== _versaoAtual) {
-                        console.log('[version] Nova versao detectada:', _versaoAtual, '->', info.version);
+                    // Mudou enquanto o colaborador esta usando? Avisa sem forcar reload.
+                    if (info.version !== _VERSAO_BUILD) {
+                        console.log('[version] Nova versao detectada:', _VERSAO_BUILD, '->', info.version);
+                        if (localStorage.getItem(_VERSAO_ADIADA_KEY) === info.version) return;
                         _mostrarModalAtualizacao(info);
                     }
                 } catch (e) {
@@ -13690,7 +14480,8 @@ window.confirmarTrocarPlano = async function() {
                 const numero = document.getElementById('versionModalNumero');
                 const notes = document.getElementById('versionModalNotes');
                 const btn = document.getElementById('versionModalReload');
-                if (!modal || !numero || !notes || !btn) return;
+                const btnLater = document.getElementById('versionModalLater');
+                if (!modal || !numero || !notes || !btn || !btnLater) return;
 
                 numero.textContent = info.version;
                 if (Array.isArray(info.release_notes) && info.release_notes.length > 0) {
@@ -13703,10 +14494,25 @@ window.confirmarTrocarPlano = async function() {
                 }
 
                 modal.style.display = 'flex';
-                btn.onclick = function() {
+                btnLater.onclick = function() {
+                    localStorage.setItem(_VERSAO_ADIADA_KEY, info.version);
+                    modal.style.display = 'none';
+                    const footer = document.getElementById('versionFooter');
+                    if (footer) footer.textContent = 'v' + _versaoAtual + ' • atualizacao v' + info.version + ' pendente';
+                };
+                btn.onclick = async function() {
                     btn.disabled = true;
+                    btnLater.disabled = true;
+                    btn.textContent = 'Salvando...';
+                    try {
+                        if (typeof saveState === 'function') saveState();
+                        if (typeof salvarSessaoRemotoAgora === 'function') await salvarSessaoRemotoAgora({ mostrarErro: true });
+                    } catch (e) {
+                        console.warn('[version] falha ao salvar antes de atualizar:', e);
+                    }
                     btn.textContent = 'Atualizando...';
                     localStorage.setItem(_VERSAO_VISTA_KEY, info.version);
+                    localStorage.removeItem(_VERSAO_ADIADA_KEY);
                     // Forca revalidacao de tudo
                     if ('caches' in window) {
                         caches.keys().then(function(keys){
@@ -13786,6 +14592,15 @@ window.confirmarTrocarPlano = async function() {
             });
             return out;
         }
+        function spedDateKey(data){
+            var d = String(data || '');
+            if (/^\d{8}$/.test(d)) return d.substr(4, 4) + d.substr(2, 2) + d.substr(0, 2);
+            return d;
+        }
+        function dataDentroPeriodoSped(data, ini, fim){
+            var k = spedDateKey(data), a = spedDateKey(ini), b = spedDateKey(fim);
+            return !!k && (!a || k >= a) && (!b || k <= b);
+        }
 
         function planoGroups(lines){
             var g = {}, ordem = [], cur = null;
@@ -13796,12 +14611,87 @@ window.confirmarTrocarPlano = async function() {
             });
             return { g: g, ordem: ordem };
         }
+        function chaveContaCentro(conta, centro){ return String(conta || '') + '::cc::' + String(centro || ''); }
+        function separarChaveContaCentro(chave){
+            var partes = String(chave || '').split('::cc::');
+            return { conta: partes[0] || '', centro: partes.slice(1).join('::cc::') || '' };
+        }
+        function contaSuperior(conta){
+            var c = String(conta || '');
+            var p = c.split('.');
+            if (p.length < 2) return '';
+            p[p.length - 1] = '0000';
+            return p.join('.');
+        }
+        function nomeContaRecuperada(conta, parentLine){
+            var parent = parentLine ? fields(parentLine) : [];
+            var nomeParent = parent[8] || 'CONTA';
+            var sufixo = String(conta || '').split('.').pop() || '';
+            if (/DEPREC/i.test(nomeParent)) return '(-) DEPREC. ACUM. CONTA RECUPERADA ' + sufixo;
+            return nomeParent + ' - CONTA RECUPERADA ' + sufixo;
+        }
+        function grupoPlanoReferencia(plano, conta){
+            var parent = contaSuperior(conta);
+            var melhor = null;
+            Object.keys(plano.g || {}).sort().forEach(function(c){
+                if (melhor) return;
+                if (c === conta) return;
+                if (parent && c.indexOf(parent.replace(/0000$/, '')) === 0) melhor = plano.g[c];
+            });
+            return melhor || null;
+        }
+        function criarGrupoPlanoRecuperado(plano, conta, avisos){
+            if (!conta || plano.g[conta]) return;
+            var parent = contaSuperior(conta);
+            var parentLine = plano.g[parent] && plano.g[parent][0];
+            var refGroup = grupoPlanoReferencia(plano, conta) || [];
+            var refI050 = (refGroup.find ? refGroup.find(function(l){ return fields(l)[1] === 'I050'; }) : null) || parentLine;
+            var f = refI050 ? fields(refI050).slice() : ['', 'I050', '', '01', 'A', '5', conta, parent, nomeContaRecuperada(conta, parentLine), ''];
+            f[1] = 'I050'; f[4] = 'A'; f[6] = conta; f[7] = parent || f[7] || '';
+            f[5] = String((parentLine ? Number(fields(parentLine)[5] || 4) + 1 : Number(f[5] || 5)) || 5);
+            f[8] = nomeContaRecuperada(conta, parentLine);
+            var grupo = [f.join('|')];
+            refGroup.forEach(function(l){
+                var g = fields(l).slice();
+                if (g[1] === 'I051') grupo.push(g.join('|'));
+                if (g[1] === 'I052') { g[2] = ''; g[3] = conta; grupo.push(g.join('|')); }
+            });
+            plano.g[conta] = grupo;
+            var pos = plano.ordem.length;
+            for (var i = 0; i < plano.ordem.length; i++){ if (plano.ordem[i] > conta){ pos = i; break; } }
+            plano.ordem.splice(pos, 0, conta);
+            if (avisos) avisos.push('Conta ' + conta + ' (I050) criada automaticamente porque aparece no I155/I250/I355 consolidado.');
+        }
+        function contasUsadasBlocoI(linhas){
+            var out = {};
+            linhas.forEach(function(l){
+                var f = fields(l);
+                if ((f[1] === 'I155' || f[1] === 'I250' || f[1] === 'I355') && f[2]) out[f[2]] = true;
+            });
+            return Object.keys(out).sort();
+        }
+
 
         // Consolida matriz + N filiais. ajustes: [{conta, delta}] (delta em centavos, D positivo)
-        function consolidar(matriz, filiais, ajustes){
+        function consolidar(matriz, filiais, ajustes, opts){
             ajustes = ajustes || [];
+            opts = opts || {};
             var avisos = [];
             var todos = [matriz].concat(filiais);
+            var baseDemonstracoes = todos.find(function(a){
+                return (a.groups['J100'] || []).length && (a.groups['J150'] || []).length;
+            }) || matriz;
+            var planoJ100 = {};
+            todos.forEach(function(a){
+                var contaAtual = '';
+                a.lines.forEach(function(l){
+                    var f = fields(l);
+                    if (f[1] === 'I050') {
+                        contaAtual = f[6];
+                        if (!planoJ100[contaAtual]) planoJ100[contaAtual] = f;
+                    }
+                });
+            });
 
             // ---- I150/I155 por periodo ----
             var pers = todos.map(function(a){ return splitPeriods(a.lines); });
@@ -13809,8 +14699,33 @@ window.confirmarTrocarPlano = async function() {
             pers.forEach(function(p, i){
                 if (p.length !== nper) throw new Error('Arquivo ' + (todos[i].nomeArquivo || i) + ' tem ' + p.length + ' periodos I150 (esperado ' + nper + ')');
             });
-            var ajMap = {};
-            ajustes.forEach(function(a){ if (a.conta && a.delta) ajMap[a.conta] = (ajMap[a.conta] || 0) + a.delta; });
+            var ajMap = {}, ajMeta = {};
+            ajustes.forEach(function(a){
+                if (!a.conta || !a.delta) return;
+                ajMap[a.conta] = (ajMap[a.conta] || 0) + a.delta;
+                ajMeta[a.conta] = Object.assign({}, ajMeta[a.conta] || {}, a);
+            });
+            var f0000Consolidacao = fields((matriz.groups['0000'] || [''])[0] || '');
+            var gerarI157 = String(f0000Consolidacao[22] || '').trim() === '1';
+
+            var lctosOrigem = [];
+            todos.forEach(function(a){ splitLancamentos(a.lines).forEach(function(x){ lctosOrigem.push(x); }); });
+            var movimentosPorPeriodo = [];
+            for (var mp = 0; mp < nper; mp++) {
+                var f150Mov = fields(pers[0][mp].i150);
+                var mov = {};
+                lctosOrigem.forEach(function(lcto){
+                    var f200 = fields(lcto.i200);
+                    if (!dataDentroPeriodoSped(f200[3], f150Mov[2], f150Mov[3])) return;
+                    lcto.i250.forEach(function(l){
+                        var f = fields(l), k = chaveContaCentro(f[2], f[3]);
+                        if (!mov[k]) mov[k] = [0, 0];
+                        if (f[5] === 'D') mov[k][0] += num(f[4]);
+                        else mov[k][1] += num(f[4]);
+                    });
+                });
+                movimentosPorPeriodo[mp] = mov;
+            }
 
             var i15x = [];
             for (var p = 0; p < nper; p++){
@@ -13822,7 +14737,7 @@ window.confirmarTrocarPlano = async function() {
                 var acc = {}, keys = [];
                 pers.forEach(function(pp){
                     pp[p].i155.forEach(function(l){
-                        var f = fields(l), k = f[2] + ' ' + f[3];
+                        var f = fields(l), k = chaveContaCentro(f[2], f[3]);
                         if (!acc[k]){ acc[k] = [0, 0, 0, 0]; keys.push(k); }
                         acc[k][0] += sgn(num(f[4]), f[5]);
                         acc[k][1] += num(f[6]);
@@ -13830,52 +14745,133 @@ window.confirmarTrocarPlano = async function() {
                         acc[k][3] += sgn(num(f[8]), f[9]);
                     });
                 });
+                Object.keys(ajMap).forEach(function(conta){
+                    var meta = ajMeta[conta] || {};
+                    var centro = meta.centro || meta.centroAnterior || '';
+                    var k = chaveContaCentro(conta, centro);
+                    if (!acc[k]){ acc[k] = [0, 0, 0, 0]; keys.push(k); }
+                });
+                Object.keys(movimentosPorPeriodo[p] || {}).forEach(function(k){
+                    if (!acc[k]){ acc[k] = [0, 0, 0, 0]; keys.push(k); }
+                    acc[k][1] = movimentosPorPeriodo[p][k][0];
+                    acc[k][2] = movimentosPorPeriodo[p][k][1];
+                });
                 keys.sort();
                 keys.forEach(function(k){
-                    var kk = k.split(' '), e = acc[k];
-                    var d = ajMap[kk[0]] || 0;   // saldo anterior: desloca inicial e final em todos os periodos
-                    var si = e[0] + d, sf = e[3] + d;
-                    i15x.push('|I155|' + kk[0] + '|' + kk[1] + '|' + fmt(si) + '|' + dcOf(si) + '|' + fmt(e[1]) + '|' + fmt(e[2]) + '|' + fmt(sf) + '|' + dcOf(sf) + '|');
+                    var kk = separarChaveContaCentro(k), e = acc[k];
+                    var movPeriodo = (movimentosPorPeriodo[p] || {})[k] || [0, 0];
+                    e[1] = movPeriodo[0];
+                    e[2] = movPeriodo[1];
+                    var d = ajMap[kk.conta] || 0;   // saldo anterior: desloca inicial e final em todos os periodos
+                    var si = e[0] + d;
+                    var sf = si + e[1] - e[2];
+                    i15x.push('|I155|' + kk.conta + '|' + kk.centro + '|' + fmt(si) + '|' + dcOf(si) + '|' + fmt(e[1]) + '|' + fmt(e[2]) + '|' + fmt(sf) + '|' + dcOf(sf) + '|');
+                    if (gerarI157 && p === 0 && d) {
+                        var meta = ajMeta[kk.conta] || {};
+                        var contaAnterior = meta.contaAnterior || kk.conta;
+                        var centroAnterior = meta.centroAnterior || kk.centro || '';
+                        i15x.push('|I157|' + contaAnterior + '|' + centroAnterior + '|' + fmt(si) + '|' + dcOf(si) + '|');
+                    }
                 });
             }
 
-            // ---- I200/I250: ordem cronologica, renumeracao unica ----
-            var lctos = [];
-            todos.forEach(function(a){ splitLancamentos(a.lines).forEach(function(x){ lctos.push(x); }); });
-            lctos.sort(function(a, b){
-                var da = fields(a.i200)[3], db2 = fields(b.i200)[3];
-                var ka = da.substr(4, 4) + da.substr(2, 2) + da.substr(0, 2);
-                var kb = db2.substr(4, 4) + db2.substr(2, 2) + db2.substr(0, 2);
-                return ka < kb ? -1 : (ka > kb ? 1 : 0);   // sort estavel: matriz antes de filiais na mesma data
-            });
-            var i2xx = [], n = 0;
-            lctos.forEach(function(x){
-                n++;
-                var f = fields(x.i200); f[2] = String(n).padStart(10, '0');
-                i2xx.push(f.join('|'));
-                x.i250.forEach(function(l, si2){
-                    var f2 = fields(l); f2[6] = String(n).padStart(10, '0') + '-' + String(si2 + 1).padStart(2, '0');
-                    i2xx.push(f2.join('|'));
+            var divergenciasSaldosBloqueantes = [];
+            function validarI155PatrimonialSemAjuste(){
+                var out = [], periodo = [], periodoInfo = null;
+                function flush(){
+                    if (!periodo.length) return;
+                    var ativoIni = 0, passivoIni = 0, ativoFin = 0, passivoFin = 0;
+                    periodo.forEach(function(item, idx){
+                        if (item.f[1] !== 'I155') return;
+                        var conta = item.f[2] || '';
+                        if (conta.charAt(0) === '1') {
+                            ativoIni += sgn(num(item.f[4]), item.f[5]);
+                            ativoFin += sgn(num(item.f[8]), item.f[9]);
+                        } else if (conta.charAt(0) === '2') {
+                            passivoIni += -sgn(num(item.f[4]), item.f[5]);
+                            passivoFin += -sgn(num(item.f[8]), item.f[9]);
+                        }
+                    });
+                    var deltaIni = passivoIni - ativoIni;
+                    var deltaFin = passivoFin - ativoFin;
+                    if (deltaIni || deltaFin) {
+                        divergenciasSaldosBloqueantes.push(
+                            'I155 patrimonial ' + (periodoInfo ? ((periodoInfo[2] || '') + '-' + (periodoInfo[3] || '')) : '') +
+                            ': Ativo inicial ' + fmt(ativoIni) + ' x Passivo inicial ' + fmt(passivoIni) +
+                            ' | Ativo final ' + fmt(ativoFin) + ' x Passivo final ' + fmt(passivoFin)
+                        );
+                    }
+                    periodo.forEach(function(item){ out.push(item.f.join('|')); });
+                    periodo = [];
+                    periodoInfo = null;
+                }
+                i15x.forEach(function(l){
+                    var f = fields(l);
+                    if (f[1] === 'I150') {
+                        flush();
+                        out.push(l);
+                        periodoInfo = f;
+                    } else if (f[1] === 'I155' || f[1] === 'I157') {
+                        periodo.push({ f: f, raw: l });
+                    } else {
+                        out.push(l);
+                    }
                 });
-            });
+                flush();
+                i15x = out;
+            }
+            validarI155PatrimonialSemAjuste();
+
+            // ---- I200/I250: ordem cronologica, renumeracao unica ----
+            var lctosBase = [];
+            todos.forEach(function(a){ splitLancamentos(a.lines).forEach(function(x){ lctosBase.push(x); }); });
+            var i2xx = [], n = 0;
+            function reconstruirI2xx(){
+                var lctos = lctosBase.slice();
+                lctos.sort(function(a, b){
+                    var da = fields(a.i200)[3], db2 = fields(b.i200)[3];
+                    var ka = da.substr(4, 4) + da.substr(2, 2) + da.substr(0, 2);
+                    var kb = db2.substr(4, 4) + db2.substr(2, 2) + db2.substr(0, 2);
+                    return ka < kb ? -1 : (ka > kb ? 1 : 0);   // sort estavel: matriz antes de filiais na mesma data
+                });
+                i2xx = []; n = 0;
+                lctos.forEach(function(x){
+                    n++;
+                    var f = fields(x.i200); f[2] = String(n).padStart(10, '0');
+                    i2xx.push(f.join('|'));
+                    x.i250.forEach(function(l, si2){
+                        var f2 = fields(l); f2[6] = String(n).padStart(10, '0') + '-' + String(si2 + 1).padStart(2, '0');
+                        i2xx.push(f2.join('|'));
+                    });
+                });
+            }
+            reconstruirI2xx();
 
             // ---- I350/I355 ----
-            var i350 = matriz.groups['I350'][0];
+            var i350 = ((matriz.groups['I350'] || baseDemonstracoes.groups['I350'] || [])[0]) || '';
             var acc355 = {}, k355 = [];
             todos.forEach(function(a){
                 (a.groups['I355'] || []).forEach(function(l){
-                    var f = fields(l), k = f[2] + ' ' + f[3];
+                    var f = fields(l), k = chaveContaCentro(f[2], f[3]);
                     if (!(k in acc355)){ acc355[k] = 0; k355.push(k); }
                     acc355[k] += sgn(num(f[4]), f[5]);
                 });
             });
             k355.sort();
             var i355 = k355.map(function(k){
-                var kk = k.split(' '), v = acc355[k];
-                return '|I355|' + kk[0] + '|' + kk[1] + '|' + fmt(v) + '|' + dcOf(v) + '|';
+                var kk = separarChaveContaCentro(k), v = acc355[k];
+                return '|I355|' + kk.conta + '|' + kk.centro + '|' + fmt(v) + '|' + dcOf(v) + '|';
             });
 
             // ---- J100/J150: estrutura da matriz + soma; contas exclusivas de filial inseridas em ordem ----
+            var planoJ100Virtual = planoGroups(todos.reduce(function(acc, a){ return acc.concat(a.lines); }, []));
+            contasUsadasBlocoI(i15x).forEach(function(conta){
+                if (conta.charAt(0) !== '1' && conta.charAt(0) !== '2') return;
+                if (!planoJ100[conta]) {
+                    criarGrupoPlanoRecuperado(planoJ100Virtual, conta, avisos);
+                    if (planoJ100Virtual.g[conta]) planoJ100[conta] = fields(planoJ100Virtual.g[conta][0]);
+                }
+            });
             function mergeJ(tipo, codi, vi, di, vf, df){
                 var fmap = {}, out = [];
                 filiais.forEach(function(a){
@@ -13899,20 +14895,75 @@ window.confirmarTrocarPlano = async function() {
                 Object.keys(fmap).forEach(function(cod){
                     if (usados[cod]) return;
                     avisos.push('Conta ' + cod + ' (' + tipo + ') existe apenas na filial — inserida no consolidado');
-                    fmap[cod].forEach(function(g){
-                        var somaI = 0, somaF = 0;
-                        fmap[cod].forEach(function(h){ somaI += sgn(num(h[vi]), h[di]); somaF += sgn(num(h[vf]), h[df]); });
-                        g = g.slice(); g[vi] = fmt(somaI); g[di] = dcOf(somaI); g[vf] = fmt(somaF); g[df] = dcOf(somaF);
-                        var line = g.join('|'), pos = out.length;
-                        for (var i = 0; i < out.length; i++){ if (fields(out[i])[codi] > cod){ pos = i; break; } }
-                        out.splice(pos, 0, line);
-                        fmap[cod] = [];   // insere uma unica vez (ja somado)
-                    });
+                    var somaI = 0, somaF = 0;
+                    fmap[cod].forEach(function(h){ somaI += sgn(num(h[vi]), h[di]); somaF += sgn(num(h[vf]), h[df]); });
+                    var g = fmap[cod][0].slice();
+                    g[vi] = fmt(somaI); g[di] = dcOf(somaI); g[vf] = fmt(somaF); g[df] = dcOf(somaF);
+                    var line = g.join('|'), pos = out.length;
+                    for (var i = 0; i < out.length; i++){ if (fields(out[i])[codi] > cod){ pos = i; break; } }
+                    out.splice(pos, 0, line);
                 });
                 return out;
             }
             var j100 = mergeJ('J100', 2, 8, 9, 10, 11);
             var j150 = mergeJ('J150', 3, 8, 9, 10, 11);
+            j150 = j150.map(function(l, idx){ var f = fields(l); f[2] = String(idx + 1); return f.join('|'); });
+
+            function sincronizarJ150ComEcdAnterior(){
+                if (!opts.ecdAnteriorLines || !opts.ecdAnteriorLines.length) return;
+                var ant = {};
+                opts.ecdAnteriorLines.forEach(function(l){
+                    var f = fields(l);
+                    if (f[1] !== 'J150' || !f[3]) return;
+                    ant[f[3]] = { valor: sgn(num(f[10]), f[11]), dc: f[11] || 'D', linha: l };
+                });
+                var idx = {};
+                j150.forEach(function(l, i){ idx[fields(l)[3]] = i; });
+                Object.keys(ant).sort().forEach(function(cod){
+                    if (idx[cod] != null) return;
+                    var f = fields(ant[cod].linha).slice();
+                    f[8] = fmt(ant[cod].valor);
+                    f[9] = dcOf(ant[cod].valor);
+                    f[10] = fmt(ant[cod].valor);
+                    f[11] = dcOf(ant[cod].valor);
+                    j150.push(f.join('|'));
+                    idx[cod] = j150.length - 1;
+                });
+                j150.sort(function(a, b){ return fields(a)[3] < fields(b)[3] ? -1 : (fields(a)[3] > fields(b)[3] ? 1 : 0); });
+                var alterados = 0;
+                j150 = j150.map(function(l){
+                    var f = fields(l), ref = ant[f[3]];
+                    if (!ref) return l;
+                    var atual = sgn(num(f[8]), f[9]);
+                    if (atual !== ref.valor) {
+                        f[8] = fmt(ref.valor);
+                        f[9] = dcOf(ref.valor);
+                        alterados++;
+                    }
+                    return f.join('|');
+                });
+                j150 = j150.map(function(l, idxLinha){ var f = fields(l); f[2] = String(idxLinha + 1); return f.join('|'); });
+                if (alterados) avisos.push('J150: ' + alterados + ' linha(s) tiveram saldo inicial alinhado ao saldo final da DRE da ECD anterior.');
+            }
+            sincronizarJ150ComEcdAnterior();
+
+            function inserirJ100AjustesRecuperados(){
+                var idx = {};
+                j100.forEach(function(l, i){ idx[fields(l)[2]] = i; });
+                Object.keys(ajMap).forEach(function(conta){
+                    if (idx[conta] != null) return;
+                    var meta = ajMeta[conta] || {};
+                    if (!meta.j100Line){ avisos.push('Ajuste de saldo anterior: conta ' + conta + ' sem J100 recuperado da ECD anterior'); return; }
+                    var f = fields(meta.j100Line);
+                    f[8] = '0,00'; f[9] = 'D'; f[10] = '0,00'; f[11] = 'D';
+                    var line = f.join('|'), pos = j100.length;
+                    for (var i = 0; i < j100.length; i++){ if (fields(j100[i])[2] > conta){ pos = i; break; } }
+                    j100.splice(pos, 0, line);
+                    idx[conta] = pos;
+                    avisos.push('Conta ' + conta + ' (J100) recuperada da ECD anterior para fechar saldos iniciais.');
+                });
+            }
+            inserirJ100AjustesRecuperados();
 
             // ajustes de saldo anterior no J100 (conta + cadeia de superiores)
             if (Object.keys(ajMap).length){
@@ -13931,13 +14982,151 @@ window.confirmarTrocarPlano = async function() {
                 });
             }
 
+            function mapasI155Consolidados(){
+                var periodos = [], cur = null;
+                i15x.forEach(function(l){
+                    var f = fields(l);
+                    if (f[1] === 'I150') { cur = []; periodos.push(cur); }
+                    else if (f[1] === 'I155' && cur) cur.push(f);
+                });
+                function somaPeriodo(p, ini){
+                    var out = {};
+                    (p || []).forEach(function(f){
+                        var valor = ini ? sgn(num(f[4]), f[5]) : sgn(num(f[8]), f[9]);
+                        out[f[2]] = (out[f[2]] || 0) + valor;
+                    });
+                    return out;
+                }
+                return { ini: somaPeriodo(periodos[0], true), fin: somaPeriodo(periodos[periodos.length - 1], false) };
+            }
+
+            function linhaJ100DePlano(conta){
+                var p = planoJ100[conta] || null;
+                if (!p) return null;
+                var ind = p[4] === 'A' ? 'D' : 'T';
+                var grupo = p[3] === '01' ? 'A' : 'P';
+                return '|J100|' + p[6] + '|' + ind + '|' + p[5] + '|' + (p[7] || '') + '|' + grupo + '|' + (p[8] || '') + '|0,00|D|0,00|D||';
+            }
+
+            function sincronizarJ100ComI155(){
+                var saldos = mapasI155Consolidados();
+                var contaEquilibrio = '2.4.7.01.0001';
+                if (planoJ100['2.4.7.01.0002']) contaEquilibrio = '2.4.7.01.0002';
+                var idx = {};
+                j100.forEach(function(l, i){ idx[fields(l)[2]] = i; });
+                function contasSaldosJ100(){
+                    var out = {};
+                    Object.keys(saldos.ini || {}).forEach(function(c){ out[c] = true; });
+                    Object.keys(saldos.fin || {}).forEach(function(c){ out[c] = true; });
+                    return Object.keys(out).sort();
+                }
+                contasSaldosJ100().forEach(function(conta){
+                    if (conta.charAt(0) !== '1' && conta.charAt(0) !== '2') return;
+                    if (idx[conta] == null) {
+                        var nova = linhaJ100DePlano(conta);
+                        if (!nova) return;
+                        var pos = j100.length;
+                        for (var i = 0; i < j100.length; i++){ if (fields(j100[i])[2] > conta){ pos = i; break; } }
+                        j100.splice(pos, 0, nova);
+                        avisos.push('Conta ' + conta + ' (J100) criada a partir do I155 consolidado.');
+                    }
+                });
+
+                idx = {};
+                j100.forEach(function(l, i){ idx[fields(l)[2]] = i; });
+                contasSaldosJ100().forEach(function(conta){
+                    if (idx[conta] == null) return;
+                    var f = fields(j100[idx[conta]]);
+                    if (f[3] !== 'D') return;
+                    if (saldos.ini[conta] == null && saldos.fin[conta] == null) return;
+                    var si = saldos.ini[conta] || 0, sf = saldos.fin[conta] || 0;
+                    f[8] = fmt(si); f[9] = dcOf(si); f[10] = fmt(sf); f[11] = dcOf(sf);
+                    j100[idx[conta]] = f.join('|');
+                });
+
+                function candidatosSuperioresJ100(conta){
+                    var partes = String(conta || '').split('.');
+                    var out = [];
+                    for (var i = partes.length - 1; i >= 1; i--) {
+                        var c = partes.slice();
+                        for (var j = i; j < c.length; j++) c[j] = c[j].replace(/\d/g, '0');
+                        var cod = c.join('.');
+                        if (cod !== conta && out.indexOf(cod) < 0) out.push(cod);
+                    }
+                    return out;
+                }
+                function normalizarSuperioresJ100(){
+                    var existentes = {};
+                    j100.forEach(function(l){ existentes[fields(l)[2]] = true; });
+                    j100 = j100.map(function(l){
+                        var f = fields(l);
+                        if (!f[5] || existentes[f[5]]) return l;
+                        var candidatos = candidatosSuperioresJ100(f[2]);
+                        for (var i = 0; i < candidatos.length; i++) {
+                            if (existentes[candidatos[i]]) {
+                                avisos.push('J100: conta ' + f[2] + ' vinculada ao superior existente ' + candidatos[i] + ' porque ' + f[5] + ' nao estava no consolidado.');
+                                f[5] = candidatos[i];
+                                return f.join('|');
+                            }
+                        }
+                        return l;
+                    });
+                }
+                normalizarSuperioresJ100();
+
+                var changed = true, guard = 0;
+                while (changed && guard++ < 20) {
+                    changed = false;
+                    var filhos = {};
+                    j100.forEach(function(l){
+                        var f = fields(l);
+                        if (f[5]) (filhos[f[5]] = filhos[f[5]] || []).push(f);
+                    });
+                    j100.forEach(function(l, i){
+                        var f = fields(l);
+                        if (f[3] !== 'T' || !filhos[f[2]]) return;
+                        var si = 0, sf = 0;
+                        filhos[f[2]].forEach(function(g){ si += sgn(num(g[8]), g[9]); sf += sgn(num(g[10]), g[11]); });
+                        var novoIni = fmt(si), novoDcIni = dcOf(si), novoFin = fmt(sf), novoDcFin = dcOf(sf);
+                        if (f[8] !== novoIni || f[9] !== novoDcIni || f[10] !== novoFin || f[11] !== novoDcFin) {
+                            f[8] = novoIni; f[9] = novoDcIni; f[10] = novoFin; f[11] = novoDcFin;
+                            j100[i] = f.join('|');
+                            changed = true;
+                        }
+                    });
+                }
+
+                function diagnosticarRaizJ100(){
+                    var ativo = 0, passivo = 0;
+                    j100.forEach(function(l){
+                        var f = fields(l);
+                        if (f[4] !== '1') return;
+                        var v = sgn(num(f[10]), f[11]);
+                        if (f[6] === 'A') ativo += v;
+                        else if (f[6] === 'P') passivo += -v;
+                    });
+                    var diff = ativo - passivo;
+                    if (!diff) return;
+                    divergenciasSaldosBloqueantes.push(
+                        'J100 raiz: Ativo ' + fmt(ativo) + ' x Passivo ' + fmt(passivo) +
+                        ' | diferença ' + fmt(diff) + '. Corrija a origem/recuperacao antes da exportacao.'
+                    );
+                }
+                diagnosticarRaizJ100();
+            }
+            sincronizarJ100ComI155();
+            reconstruirI2xx();
+            if (divergenciasSaldosBloqueantes.length) {
+                avisos.push('Divergencias contabeis bloqueantes: ' + divergenciasSaldosBloqueantes.slice(0, 5).join(' | '));
+            }
+
             // ---- montagem ----
             var out = [];
             out = out.concat(matriz.groups['0000'], matriz.groups['0001'], matriz.groups['0007'] || []);
             out.push('|0990|' + (out.length + 1) + '|');
 
             var bi = [];
-            bi = bi.concat(matriz.groups['I001'], matriz.groups['I010'], matriz.groups['I030']);
+            bi = bi.concat(matriz.groups['I001'] || [], matriz.groups['I010'] || [], matriz.groups['I030'] || []);
             // plano de contas: matriz + contas exclusivas das filiais, em ordem de codigo
             var plm = planoGroups(matriz.lines);
             filiais.forEach(function(a){
@@ -13952,16 +15141,34 @@ window.confirmarTrocarPlano = async function() {
                     if ((matriz.groups['I051'] || []).length) plm.g[c] = plf.g[c];
                 });
             });
+            Object.keys(ajMap).forEach(function(c){
+                if (plm.g[c]) return;
+                var meta = ajMeta[c] || {};
+                if (!meta.i050Line){ criarGrupoPlanoRecuperado(plm, c, avisos); return; }
+                var pos = plm.ordem.length;
+                for (var i = 0; i < plm.ordem.length; i++){ if (plm.ordem[i] > c){ pos = i; break; } }
+                plm.ordem.splice(pos, 0, c);
+                plm.g[c] = [meta.i050Line].concat(meta.i051Lines || [], meta.i052Lines || []);
+                avisos.push('Conta ' + c + ' (I050) recuperada da ECD anterior para suportar I155' + (gerarI157 ? '/I157.' : '.'));
+            });
+            contasUsadasBlocoI(i15x.concat(i2xx, i355)).forEach(function(c){ if (!plm.g[c]) criarGrupoPlanoRecuperado(plm, c, avisos); });
             plm.ordem.forEach(function(c){ bi = bi.concat(plm.g[c]); });
             bi = bi.concat(matriz.groups['I075'] || []);
             bi = bi.concat(i15x, i2xx);
-            bi.push(i350);
+            if (i350) bi.push(i350);
             bi = bi.concat(i355);
             bi.push('|I990|' + (bi.length + 1) + '|');
             out = out.concat(bi);
 
             var bj = [];
-            bj = bj.concat(matriz.groups['J001'], matriz.groups['J005'], j100, j150, matriz.groups['J900'], matriz.groups['J930'] || []);
+            bj = bj.concat(
+                matriz.groups['J001'] || baseDemonstracoes.groups['J001'] || [],
+                matriz.groups['J005'] || baseDemonstracoes.groups['J005'] || [],
+                j100,
+                j150,
+                matriz.groups['J900'] || baseDemonstracoes.groups['J900'] || [],
+                matriz.groups['J930'] || baseDemonstracoes.groups['J930'] || []
+            );
             bj.push('|J990|' + (bj.length + 1) + '|');
             out = out.concat(bj);
 
@@ -14034,6 +15241,19 @@ window.confirmarTrocarPlano = async function() {
             });
             add('|9900| totalizacao por registro', err9900.length === 0, err9900.length ? err9900.slice(0, 5).join('; ') : (cnt['9900'] || 0) + ' registros conferidos');
 
+            var layoutCampos = { I155: 9, I157: 5, I200: 5, I250: 9, I350: 3, I355: 8, J100: 10, J150: 10 };
+            var errosCampos = [];
+            lines.forEach(function(l, idx){
+                var f = fields(l), reg = f[1];
+                if (!layoutCampos[reg]) return;
+                var internos = f.length - 2;
+                if (internos !== layoutCampos[reg]) {
+                    errosCampos.push('Linha ' + (idx + 1) + ' ' + reg + ': ' + internos + ' campo(s), esperado ' + layoutCampos[reg]);
+                }
+            });
+            add('Quantidade de campos por registro SPED', errosCampos.length === 0,
+                errosCampos.length ? errosCampos.slice(0, 5).join('; ') : 'campos conferem para registros criticos');
+
             // lancamentos
             var nums = {}, dup = 0, desb = [], totD = 0, totC = 0, curNum = null, curD = 0, curC = 0;
             function fechaLcto(){ if (curNum !== null && curD !== curC) desb.push(curNum + ' (D ' + fmt(curD) + ' x C ' + fmt(curC) + ')'); }
@@ -14053,6 +15273,55 @@ window.confirmarTrocarPlano = async function() {
             add('Numeracao I200 unica (sem repeticao)', dup === 0, dup ? dup + ' duplicados' : qtd + ' lancamentos');
             add('Partidas dobradas por lancamento (I250 D = C)', desb.length === 0, desb.length ? desb.slice(0, 3).join('; ') + (desb.length > 3 ? ' (+' + (desb.length - 3) + ')' : '') : 'todos os lancamentos equilibrados');
             add('Total geral debitos = creditos', totD === totC, 'D ' + fmt(totD) + ' x C ' + fmt(totC));
+
+            var errosFormulaI155 = [];
+            lines.forEach(function(l){
+                var f = fields(l);
+                if (f[1] !== 'I155') return;
+                var ini = sgn(num(f[4]), f[5]);
+                var deb = num(f[6]);
+                var cred = num(f[7]);
+                var fin = sgn(num(f[8]), f[9]);
+                if (ini + deb - cred !== fin) errosFormulaI155.push(f[2]);
+            });
+            add('Saldo final I155 = inicial + debitos - creditos', errosFormulaI155.length === 0, errosFormulaI155.length ? errosFormulaI155.slice(0, 5).join(', ') : 'saldos periodicos conferem');
+
+            var periodosI155Mov = [], curI155Mov = null;
+            lines.forEach(function(l){
+                var f = fields(l);
+                if (f[1] === 'I150') { curI155Mov = { i150: f, i155: [] }; periodosI155Mov.push(curI155Mov); }
+                else if (f[1] === 'I155' && curI155Mov) curI155Mov.i155.push(f);
+            });
+            var lancamentosMov = [], curLancMov = null;
+            lines.forEach(function(l){
+                var f = fields(l);
+                if (f[1] === 'I200') { curLancMov = { i200: f, i250: [] }; lancamentosMov.push(curLancMov); }
+                else if (f[1] === 'I250' && curLancMov) curLancMov.i250.push(f);
+            });
+            var divergenciasI155I250 = [];
+            periodosI155Mov.forEach(function(periodo){
+                var mov = {};
+                lancamentosMov.forEach(function(lcto){
+                    if (!dataDentroPeriodoSped(lcto.i200[3], periodo.i150[2], periodo.i150[3])) return;
+                    lcto.i250.forEach(function(f){
+                        var k = chaveContaCentro(f[2], f[3]);
+                        if (!mov[k]) mov[k] = [0, 0];
+                        if (f[5] === 'D') mov[k][0] += num(f[4]);
+                        else mov[k][1] += num(f[4]);
+                    });
+                });
+                periodo.i155.forEach(function(f){
+                    var k = chaveContaCentro(f[2], f[3]);
+                    var m = mov[k] || [0, 0];
+                    var deb = num(f[6]), cred = num(f[7]);
+                    if (deb !== m[0] || cred !== m[1]) {
+                        divergenciasI155I250.push(f[2] + ' ' + (periodo.i150[2] || '') + '-' + (periodo.i150[3] || '') +
+                            ' I155 D ' + fmt(deb) + ' C ' + fmt(cred) + ' x I250 D ' + fmt(m[0]) + ' C ' + fmt(m[1]));
+                    }
+                });
+            });
+            add('Movimentos I155 = I250 por periodo/conta', divergenciasI155I250.length === 0,
+                divergenciasI155I250.length ? divergenciasI155I250.slice(0, 5).join('; ') : 'debitos e creditos periodicos conferem com os lancamentos');
 
             // J100: ativo = passivo, hierarquia T = soma dos filhos
             var j100 = lines.filter(function(l){ return fields(l)[1] === 'J100'; }).map(fields);
@@ -14090,6 +15359,96 @@ window.confirmarTrocarPlano = async function() {
             });
             add('Saldo final I155 (dez) = J100 (contas analiticas)', errIJ.length === 0, errIJ.length ? errIJ.slice(0, 5).join(', ') : 'saldos conferem');
 
+            if (opts.ecdAnteriorLines && opts.ecdAnteriorLines.length) {
+                function resumoJ100Raiz(linhas, inicial){
+                    var r = { ativo: 0, passivo: 0 };
+                    linhas.forEach(function(l){
+                        var f = fields(l);
+                        if (f[1] !== 'J100' || f[4] !== '1') return;
+                        var v = inicial ? sgn(num(f[8]), f[9]) : sgn(num(f[10]), f[11]);
+                        if (f[6] === 'A') r.ativo += v;
+                        if (f[6] === 'P') r.passivo += -v;
+                    });
+                    return r;
+                }
+                function mapaJ100Analitico(linhas, inicial){
+                    var out = {};
+                    linhas.forEach(function(l){
+                        var f = fields(l);
+                        if (f[1] !== 'J100' || f[3] !== 'D') return;
+                        if (f[6] !== 'A' && f[6] !== 'P') return;
+                        out[f[2]] = inicial ? sgn(num(f[8]), f[9]) : sgn(num(f[10]), f[11]);
+                    });
+                    return out;
+                }
+                function mapaI155Periodo(linhas, inicial, ultimo){
+                    var periodos = [], cur = null;
+                    linhas.forEach(function(l){
+                        var f = fields(l);
+                        if (f[1] === 'I150') { cur = []; periodos.push(cur); }
+                        else if (f[1] === 'I155' && cur) cur.push(f);
+                    });
+                    var p = ultimo ? periodos[periodos.length - 1] : periodos[0];
+                    var out = {};
+                    (p || []).forEach(function(f){
+                        var chave = chaveContaCentro(f[2], f[3]);
+                        var valor = inicial ? sgn(num(f[4]), f[5]) : sgn(num(f[8]), f[9]);
+                        out[chave] = (out[chave] || 0) + valor;
+                    });
+                    return out;
+                }
+                function mapaJ150Demonstracao(linhas, inicial){
+                    var out = {};
+                    linhas.forEach(function(l){
+                        var f = fields(l);
+                        if (f[1] !== 'J150' || !f[3]) return;
+                        out[f[3]] = inicial ? sgn(num(f[8]), f[9]) : sgn(num(f[10]), f[11]);
+                    });
+                    return out;
+                }
+                var antRaiz = resumoJ100Raiz(opts.ecdAnteriorLines, false);
+                var atuRaiz = resumoJ100Raiz(lines, true);
+                add('Abertura J100 = encerramento da ECD anterior', antRaiz.ativo === atuRaiz.ativo && antRaiz.passivo === atuRaiz.passivo,
+                    'Ativo anterior R$ ' + fmt(antRaiz.ativo) + ' x abertura R$ ' + fmt(atuRaiz.ativo) +
+                    ' | Passivo anterior R$ ' + fmt(antRaiz.passivo) + ' x abertura R$ ' + fmt(atuRaiz.passivo));
+
+                var antJ = mapaJ100Analitico(opts.ecdAnteriorLines, false);
+                var atuJ = mapaJ100Analitico(lines, true);
+                var difJ = [];
+                Object.keys(antJ).forEach(function(c){
+                    if (c.charAt(0) !== '1' && c.charAt(0) !== '2') return;
+                    if ((atuJ[c] || 0) !== antJ[c]) difJ.push(c + ' anterior ' + fmt(antJ[c]) + ' x abertura ' + fmt(atuJ[c] || 0));
+                });
+                add('Abertura analitica J100 = ECD anterior', difJ.length === 0, difJ.length ? difJ.slice(0, 5).join('; ') : 'contas analiticas conferem');
+
+                var antI = mapaI155Periodo(opts.ecdAnteriorLines, false, true);
+                var atuI = mapaI155Periodo(lines, true, false);
+                var difI = [];
+                Object.keys(antI).forEach(function(k){
+                    var conta = separarChaveContaCentro(k).conta;
+                    if (conta.charAt(0) !== '1' && conta.charAt(0) !== '2') return;
+                    if ((atuI[k] || 0) !== antI[k]) difI.push(conta + ' anterior ' + fmt(antI[k]) + ' x abertura ' + fmt(atuI[k] || 0));
+                });
+                add('Abertura I155 = encerramento da ECD anterior', difI.length === 0, difI.length ? difI.slice(0, 5).join('; ') : 'saldos periodicos iniciais conferem');
+
+                var antJ150 = mapaJ150Demonstracao(opts.ecdAnteriorLines, false);
+                var atuJ150 = mapaJ150Demonstracao(lines, true);
+                var difJ150 = [];
+                Object.keys(antJ150).forEach(function(c){
+                    if ((atuJ150[c] || 0) !== antJ150[c]) difJ150.push(c + ' anterior ' + fmt(antJ150[c]) + ' x abertura ' + fmt(atuJ150[c] || 0));
+                });
+                add('Abertura J150 = encerramento da DRE anterior', difJ150.length === 0, difJ150.length ? difJ150.slice(0, 5).join('; ') : 'DRE inicial confere com a ECD anterior');
+            }
+
+            var ordemJ150 = {}, dupJ150 = [];
+            lines.forEach(function(l){
+                var f = fields(l);
+                if (f[1] !== 'J150') return;
+                if (ordemJ150[f[2]]) dupJ150.push(f[2]);
+                ordemJ150[f[2]] = true;
+            });
+            add('Numeracao J150 unica (sem repeticao)', dupJ150.length === 0, dupJ150.length ? dupJ150.slice(0, 5).join(', ') : Object.keys(ordemJ150).length + ' linhas DRE');
+
             // contas usadas existem no plano
             var plano = {};
             lines.forEach(function(l){ var f = fields(l); if (f[1] === 'I050') plano[f[6]] = true; });
@@ -14125,7 +15484,7 @@ window.confirmarTrocarPlano = async function() {
     (function(){
         'use strict';
         var E = window.EcdEcfEngine;
-        var st = { arquivos: [], ajustes: [], validacao: null, cnpj: '', razao: '', municipio: '', uf: '', timer: null, inited: false };
+        var st = { arquivos: [], ajustes: [], ecdAnterior: null, validacao: null, cnpj: '', razao: '', municipio: '', uf: '', timer: null, inited: false };
         window._ecdecfState = st;
 
         var PRAZO_ECF = new Date('2026-07-31T23:59:59-03:00');
@@ -14282,11 +15641,35 @@ window.confirmarTrocarPlano = async function() {
             if (!st.arquivos.length){ showToast('Carregue antes os arquivos ECD do ano atual', 'error'); return; }
             var buf = await file.arrayBuffer();
             var ant = E.parseEcd(new TextDecoder('iso-8859-1').decode(buf));
+            ant.nomeArquivo = file.name;
+            st.ecdAnterior = ant;
+            var planoAnterior = {}, j100Anterior = {}, contaPlanoAnteriorAtual = '';
+            ant.lines.forEach(function(l){
+                var f = l.split('|');
+                if (f[1] === 'I050') {
+                    planoAnterior[f[6]] = { i050Line: l, i051Lines: [], i052Lines: [] };
+                    contaPlanoAnteriorAtual = f[6];
+                } else if ((f[1] === 'I051' || f[1] === 'I052') && contaPlanoAnteriorAtual) {
+                    if (planoAnterior[contaPlanoAnteriorAtual]) {
+                        if (f[1] === 'I051') planoAnterior[contaPlanoAnteriorAtual].i051Lines.push(l);
+                        if (f[1] === 'I052') planoAnterior[contaPlanoAnteriorAtual].i052Lines.push(l);
+                    }
+                } else if (f[1] === 'J100') {
+                    j100Anterior[f[2]] = l;
+                }
+            });
             // saldo final por conta analitica (ultimo periodo I155) da ECD anterior
             var pers = (function(){ var out = [], cur = null; ant.lines.forEach(function(l){ var t = l.split('|')[1]; if (t === 'I150'){ cur = []; out.push(cur); } else if (t === 'I155' && cur) cur.push(l.split('|')); }); return out; })();
             if (!pers.length){ showToast('ECD anterior sem registros I150/I155', 'error'); return; }
-            var fin = {};
-            pers[pers.length - 1].forEach(function(f){ fin[f[2]] = (f[9] === 'D' ? 1 : -1) * E.num(f[8]); });
+            var fin = {}, centroAnterior = {};
+            pers[pers.length - 1].forEach(function(f){ fin[f[2]] = (fin[f[2]] || 0) + (f[9] === 'D' ? 1 : -1) * E.num(f[8]); centroAnterior[f[2]] = f[3] || ''; });
+            Object.keys(j100Anterior).forEach(function(c){
+                var f = j100Anterior[c].split('|');
+                if (f[3] !== 'D') return;
+                if (f[6] !== 'A' && f[6] !== 'P') return;
+                if (c.charAt(0) !== '1' && c.charAt(0) !== '2') return;
+                fin[c] = (f[11] === 'D' ? 1 : -1) * E.num(f[10]);
+            });
             // saldo inicial consolidado atual (1o periodo, todos os arquivos)
             var ini = {};
             st.arquivos.forEach(function(a){
@@ -14302,7 +15685,21 @@ window.confirmarTrocarPlano = async function() {
             Object.keys(fin).forEach(function(c){
                 if (c.charAt(0) !== '1' && c.charAt(0) !== '2') return;   // apenas contas patrimoniais
                 var d = fin[c] - (ini[c] || 0);
-                if (d !== 0){ st.ajustes.push({ conta: c, valor: E.fmt(Math.abs(d)), dc: d >= 0 ? 'D' : 'C' }); props++; }
+                if (d !== 0){
+                    st.ajustes.push({
+                        conta: c,
+                        contaAnterior: c,
+                        centro: centroAnterior[c] || '',
+                        centroAnterior: centroAnterior[c] || '',
+                        valor: E.fmt(Math.abs(d)),
+                        dc: d >= 0 ? 'D' : 'C',
+                        i050Line: planoAnterior[c] && planoAnterior[c].i050Line,
+                        i051Lines: planoAnterior[c] && planoAnterior[c].i051Lines,
+                        i052Lines: planoAnterior[c] && planoAnterior[c].i052Lines,
+                        j100Line: j100Anterior[c] || ''
+                    });
+                    props++;
+                }
             });
             ecdecfRenderAjustes();
             showToast(props ? '✅ ' + props + ' ajuste(s) de saldo anterior propostos a partir da ECD ' + ant.dtIni.substr(4) : '✅ Saldos iniciais já conferem com a ECD anterior', 'success');
@@ -14318,17 +15715,53 @@ window.confirmarTrocarPlano = async function() {
             var filiais = st.arquivos.filter(function(a){ return a !== matriz; });
             var ajustes = st.ajustes.map(function(a){
                 var v = Math.round(parseFloat(String(a.valor).replace(/\./g, '').replace(',', '.')) * 100) || 0;
-                return { conta: a.conta.trim(), delta: a.dc === 'D' ? v : -v };
+                return Object.assign({}, a, {
+                    conta: String(a.conta || '').trim(),
+                    delta: a.dc === 'D' ? v : -v
+                });
             }).filter(function(a){ return a.conta && a.delta; });
 
             var btn = document.getElementById('ecdecfBtnConsolidar');
             btn.disabled = true; btn.textContent = '⟳ Consolidando...';
             try {
-                var r = E.consolidar(matriz, filiais, ajustes);
-                st.validacao = E.validar(r.lines, { cnpjEsperado: st.cnpj });
+                var r = E.consolidar(matriz, filiais, ajustes, { ecdAnteriorLines: st.ecdAnterior ? st.ecdAnterior.lines : null });
+                st.validacao = E.validar(r.lines, { cnpjEsperado: st.cnpj, ecdAnteriorLines: st.ecdAnterior ? st.ecdAnterior.lines : null });
                 st.ultimoResultado = r;
+                function ecdecfAdicionarFalhaCritica(nome, detalhe){
+                    st.validacao.checks.push({ nome: nome, ok: false, detalhe: detalhe });
+                    st.validacao.falhas = st.validacao.checks.filter(function(c){ return !c.ok; }).length;
+                    st.validacao.status = st.validacao.falhas === 0 ? 'APTO' : 'REPROVADO';
+                }
+                if (!st.ecdAnterior) {
+                    ecdecfAdicionarFalhaCritica(
+                        'ECD anterior obrigatoria para consolidacao',
+                        'Importe a ECD anterior transmitida antes de exportar. Sem ela, a abertura J100/J150/I155 nao e comparada com o encerramento anterior.'
+                    );
+                }
+                var ajustesTecnicos = (r.avisos || []).filter(function(aviso){
+                    return /I155\/I250|Fechamento automatico J100|Divergencias contabeis bloqueantes/i.test(aviso);
+                });
+                if (ajustesTecnicos.length) {
+                    ecdecfAdicionarFalhaCritica(
+                        'Divergencias contabeis exigem correcao na origem',
+                        ajustesTecnicos.slice(0, 3).join(' | ') + '. O TXT nao sera exportado enquanto I155/J100 nao fecharem sem ajuste automatico.'
+                    );
+                }
 
-                // download TXT (ISO-8859-1 + CRLF, padrao SPED)
+                var res = document.getElementById('ecdecfResumo');
+                res.innerHTML = '✅ <strong>' + r.stats.linhas.toLocaleString('pt-BR') + '</strong> linhas | <strong>' +
+                    r.stats.lancamentos.toLocaleString('pt-BR') + '</strong> lançamentos únicos | Ativo <strong>R$ ' + E.fmt(r.stats.ativo) +
+                    '</strong> x Passivo <strong>R$ ' + E.fmt(r.stats.passivo) + '</strong> | ' + (filiais.length) + ' filial(is) aglutinada(s)' +
+                    (st.ecdAnterior ? '<div style="margin-top:8px;background:#eef2ff;color:#3730a3;padding:8px;border-radius:6px">ECD anterior usada na validação: ' + st.ecdAnterior.nomeArquivo + '</div>' : '<div style="margin-top:8px;background:#fffbeb;color:#92400e;padding:8px;border-radius:6px">ECD anterior não importada: a abertura 2025 não foi comparada com o encerramento 2024.</div>') +
+                    (r.avisos.length ? '<div style="margin-top:8px;background:#fef3c7;color:#92400e;padding:8px;border-radius:6px">' + r.avisos.map(function(x){ return '⚠️ ' + x; }).join('<br>') + '</div>' : '');
+
+                if (st.validacao.status !== 'APTO') {
+                    ecdecfAbrirValidador();
+                    showToast('❌ Arquivo NÃO exportado: ' + st.validacao.falhas + ' pendência(s) no Validador ECD/ECF', 'error');
+                    return;
+                }
+
+                // download TXT (ISO-8859-1 + CRLF, padrao SPED) somente depois da validacao apta
                 var ano = document.getElementById('ecdecfAno').value;
                 var blob = new Blob([E.toLatin1Bytes(r.lines)], { type: 'text/plain;charset=iso-8859-1' });
                 var a = document.createElement('a');
@@ -14336,12 +15769,6 @@ window.confirmarTrocarPlano = async function() {
                 a.download = 'ECD_CONSOLIDADA_' + st.cnpj + '_' + ano + '.txt';
                 a.click();
                 URL.revokeObjectURL(a.href);
-
-                var res = document.getElementById('ecdecfResumo');
-                res.innerHTML = '✅ <strong>' + r.stats.linhas.toLocaleString('pt-BR') + '</strong> linhas | <strong>' +
-                    r.stats.lancamentos.toLocaleString('pt-BR') + '</strong> lançamentos únicos | Ativo <strong>R$ ' + E.fmt(r.stats.ativo) +
-                    '</strong> x Passivo <strong>R$ ' + E.fmt(r.stats.passivo) + '</strong> | ' + (filiais.length) + ' filial(is) aglutinada(s)' +
-                    (r.avisos.length ? '<div style="margin-top:8px;background:#fef3c7;color:#92400e;padding:8px;border-radius:6px">' + r.avisos.map(function(x){ return '⚠️ ' + x; }).join('<br>') + '</div>' : '');
 
                 // salvar no Firebase
                 await ecdecfSalvar(ano, r, filiais.length);

@@ -158,7 +158,11 @@
   async function salvarSessaoEmpresa(cnpj, state_json, resumo) {
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
     const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao', { method: 'POST', body: JSON.stringify({ state_json, resumo: resumo || null }) });
-    return await r.json();
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || data.erro) {
+      throw new Error(data.erro || ('Erro HTTP ' + r.status + ' ao salvar sessão'));
+    }
+    return data;
   }
 
   async function carregarSessaoEmpresa(cnpj) {
@@ -284,6 +288,11 @@
     return await r.json();
   }
 
+  async function reinfSalvarReciboR4010(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/recibos-r4010', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
   async function reinfAplicarAcumuloIrrf(dados) {
     const r = await apiFetch(API_BASE + '/api/reinf/acumulo-irrf', { method: 'POST', body: JSON.stringify(dados || {}) });
     return await r.json();
@@ -305,7 +314,7 @@
     return await r.json();
   }
 
-  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfCertificado, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfConsultarLote };
+  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfCertificado, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfConsultarLote };
   console.log('[API Adapter v3] carregado');
 })();
 

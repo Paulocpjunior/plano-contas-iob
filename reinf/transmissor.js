@@ -54,7 +54,15 @@ function montarLote(eventosAssinadosXml, contribuinte) {
     throw new Error('transmissor: contribuinte.nrInsc do lote invalido');
 
   const vistos = new Set();
-  const eventos = eventosAssinadosXml.map((xml) => {
+  function idWrapperLote(idEvento, idx) {
+    const base = String(idEvento || '');
+    if (/^ID\d{34}$/.test(base)) {
+      return base.slice(0, -5) + String(90001 + idx).padStart(5, '0');
+    }
+    return `Lote${idx + 1}_${base}`.replace(/[^A-Za-z0-9_.:-]/g, '_');
+  }
+
+  const eventos = eventosAssinadosXml.map((xml, idx) => {
     const limpo = String(xml).replace(/^\s*<\?xml[^?]*\?>\s*/i, '').trim();
     const m = limpo.match(/<(?:evtInfoContri|evtRetPF|evtFech)\s+id="(ID\d{34})"/);
     if (!m) throw new Error('transmissor: nao foi possivel extrair o id de um evento');
@@ -66,8 +74,10 @@ function montarLote(eventosAssinadosXml, contribuinte) {
       );
     }
     vistos.add(id);
-    // o Id do <evento> e o proprio id do evento (chave de mapeamento do retorno)
-    return `   <evento Id="${id}">\n${limpo}\n   </evento>`;
+    // O wrapper <evento Id> tambem e tratado como ID XML pelo validador.
+    // Nao pode repetir o id assinado do <evt... id>, senao a Reference "#ID..."
+    // fica ambigua dentro do lote e a Receita rejeita com MS0017.
+    return `   <evento Id="${idWrapperLote(id, idx)}">\n${limpo}\n   </evento>`;
   }).join('\n');
 
   const lote =
@@ -137,7 +147,7 @@ async function enviarLote(eventosAssinadosXml, contribuinte, tpAmb = 2) {
 
   // HTTP 201 = lote recebido; body traz o XML com o protocolo.
   let protocolo = null;
-  const m = r.body && r.body.match(/<protocolo[^>]*>([^<]+)<\/protocolo>/i);
+  const m = r.body && r.body.match(/<(?:\w+:)?(?:protocoloEnvio|protocolo)[^>]*>([^<]+)<\/(?:\w+:)?(?:protocoloEnvio|protocolo)>/i);
   if (m) protocolo = m[1].trim();
 
   return { status: r.status, protocolo, xml: r.body };

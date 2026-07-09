@@ -49,6 +49,11 @@ assertContains('server.js', 'confiabilidade_bancos', 'relatorio de confiabilidad
 
 assertContains('admin.html', 'testarLayoutAdmin', 'teste manual de layout no admin');
 assertContains('admin.html', 'qualityTestFile', 'upload de teste de layout no admin');
+assertContains('admin.html', 'accept=".pdf,.csv,.txt,.xlsx,.xls"', 'upload de qualidade aceita CSV e planilhas alem de PDF');
+assertContains('admin.html', 'parser-flanacar-registro-entradas.js', 'admin carrega parser CSV FLANACAR para teste de qualidade');
+assertContains('admin.html', 'qualityPayloadArquivo', 'admin converte CSV/TXT para texto antes de testar parser');
+assertContains('admin.html', 'Selecione um arquivo PDF, CSV, TXT, XLS ou XLSX para testar.', 'mensagem de upload nao restringe teste a PDF');
+assertContains('admin.html', /^(?![\s\S]*Selecione um PDF para testar\.)[\s\S]*$/, 'mensagem antiga restrita a PDF removida do admin');
 assertContains('admin.html', 'Fila de arquivos rejeitados', 'fila de rejeicoes no admin');
 assertContains('admin.html', 'Confiabilidade por banco', 'relatorio de confiabilidade no admin');
 assertContains('admin.html', 'Taxa operacional por colaborador', 'taxa operacional por colaborador');
@@ -75,6 +80,19 @@ assertContains('index.html', 'salvarMemoriaEmpresa', 'edicao de memoria no app')
 assertContains('index.html', 'registrarArquivoRejeitado', 'registro de arquivo rejeitado pelo extrator');
 assertContains('index.html', 'diagnosticarFalhaImportacao', 'diagnostico client-side da falha de importacao');
 assertContains('index.html', 'layouts_tentados', 'persistencia dos layouts tentados na rejeicao');
+assertContains('index.html', "if (invalidos === 0) return utf8;", 'fallback ISO-8859-1 deve disparar com qualquer caractere invalido em CSV');
+assertContains('index.html', "new TextDecoder(normalizarEncoding(enc)).decode(buf)", 'leitura CSV deve usar arrayBuffer/TextDecoder e nao FileReader sobrescrito');
+assertContains('index.html', "return decodificar('windows-1252');", 'fallback Latin-1/Windows-1252 deve ser caminho efetivo do runtime');
+assertContains('index.html', 'layout FLANACAR Registro Entradas detectado antes do CSV generico', 'parser FLANACAR deve rodar antes da rejeicao CSV generica');
+assertContains('index.html', 'resultadoCsvFiscalFlanacar', 'processFile guarda resultado da pre-deteccao FLANACAR');
+assertContains('index.html', 'CSV FLANACAR usado diretamente da pre-deteccao', 'processFile usa lancamentos FLANACAR sem reabrir parser generico');
+assertContains('index.html', 'CSV FLANACAR detectado por banco 1237', 'processFile tenta parser fiscal quando banco 1237 foi selecionado');
+assertContains('index.html', 'FLANACAR - REGISTRO DE ENTRADAS FISCAL CSV', 'campo Banco exibe opcao FLANACAR fiscal com descricao clara');
+assertContains('index.html', 'impostoFiscalTipo', 'IA recebe tipo de imposto destacado FLANACAR para classificacao');
+assertContains('index.html', 'valorImpostoFiscal', 'IA recebe valor do imposto destacado FLANACAR para classificacao');
+assertContains('index.html', 'detectarBancoFiscalFlanacarNoPreview', 'preview preenche banco 1237 automaticamente para CSV FLANACAR');
+assertContains('index.html', 'CSV - FLANACAR Registro de Entradas Fiscal', 'preview identifica visualmente CSV FLANACAR fiscal');
+assertContains('index.html', 'Formato nao reconhecido (use CSV com ;, , tab ou |)', 'mensagem de rejeicao CSV generica preservada');
 assertContains('index.html', 'ehCsvEvidenciaConciliacaoAuditAI', 'bloqueio de CSV de evidencia do AuditAI no importador principal');
 assertContains('index.html', 'Este CSV é um relatório de conciliação do AuditAI', 'mensagem clara para CSV de conciliacao usado como extrato');
 assertContains('index.html', 'Auditável', 'memoria de classificacao mostra trilha auditavel');
@@ -92,11 +110,46 @@ assertContains('index.html', 'Consultar SERPRO', 'botao para consultar dados SER
 assertContains('index.html', 'sincronizarFiscalSerpro', 'acao frontend de sincronizacao SERPRO');
 assertContains('index.html', 'Ponte SERPRO ativa', 'aviso correto quando a integracao usa app fiscal externo');
 assertContains('index.html', 'LIMITE_ENTRIES_LOCAL_STORAGE', 'limite de snapshot local para evitar recarregamento por memoria');
+assertContains('index.html', 'versionModalLater', 'popup de atualizacao permite adiar sem interromper trabalho');
+assertContains('index.html', 'Voce pode atualizar agora ou continuar trabalhando e atualizar depois.', 'popup de atualizacao nao deve ser bloqueante');
+assertContains('index.html', 'salvarSessaoRemotoAgora({ mostrarErro: true })', 'atualizacao agora salva sessao antes do reload');
+assertContains('index.html', 'beforeunload', 'sessao local salva antes de fechar/recarregar aba');
+assertContains('index.html', 'visibilitychange', 'sessao tenta autosave quando aba vai para segundo plano');
+assertContains('api-adapter.js', 'Erro HTTP ', 'adapter deve propagar erro real de salvamento de sessao');
+assertContains('server.js', "express.json({ limit: '100mb' })", 'backend aceita sessoes grandes dos colaboradores');
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
 assertContains('index.html', 'Validador de Obrigações ECD / ECF', 'aba de validador de obrigacoes restaurada');
 assertContains('index.html', 'Layouts das obrigações cadastrados', 'lista visivel de layouts ECD/ECF');
 assertContains('index.html', 'ECD - Escrituração Contábil Digital', 'layout ECD visivel no validador');
 assertContains('index.html', 'ECF - Escrituração Contábil Fiscal', 'layout ECF visivel no validador');
+assertContains('index.html', `var gerarI157 = String(f0000Consolidacao[22] || '').trim() === '1'`, 'ECD gera I157 somente quando IND_MUDANCA_PC exige');
+assertContains('index.html', 'Saldo final I155 = inicial + debitos - creditos', 'validador ECD replica formula de saldo periodico do PVA');
+assertContains('index.html', 'Numeracao J150 unica (sem repeticao)', 'validador ECD bloqueia numero de ordem duplicado na DRE');
+assertContains('index.html', 'criarGrupoPlanoRecuperado', 'consolidador ECD cria I050 recuperado para conta usada no I155');
+assertContains('index.html', 'Abertura J100 = encerramento da ECD anterior', 'validador ECD compara abertura J100 contra encerramento anterior');
+assertContains('index.html', 'Abertura I155 = encerramento da ECD anterior', 'validador ECD compara abertura I155 contra encerramento anterior');
+assertContains('index.html', 'Arquivo NÃO exportado', 'ECD/ECF nao baixa TXT quando a validacao final reprova');
+assertContains('index.html', 'Quantidade de campos por registro SPED', 'validador ECD bloqueia quantidade de campos invalida no layout SPED');
+assertContains('index.html', 'ECD anterior obrigatoria para consolidacao', 'consolidador ECD bloqueia exportacao sem recuperar ECD anterior');
+assertContains('index.html', 'Divergencias contabeis exigem correcao na origem', 'consolidador ECD bloqueia exportacao quando I155/J100 nao fecham sem ajuste automatico');
+assertContains('index.html', 'Divergencias contabeis bloqueantes', 'consolidador ECD diagnostica diferencas sem gerar lancamento tecnico');
+assertContains('index.html', 'contasSaldosJ100', 'consolidador ECD sincroniza J100 por saldos iniciais e finais');
+assertContains('index.html', 'normalizarSuperioresJ100', 'consolidador ECD evita J100 analitico orfao de totalizadora');
+assertContains('index.html', 'reinfBeneficiariosPorCnpjSelecionado', 'R-4010 filtra beneficiarios pelo CNPJ selecionado em planilha multiempresa');
+assertContains('index.html', 'A geração do R-4010/DARF usará o CNPJ Fonte/Estabelecimento selecionado na tela.', 'mensagem Reinf orienta filtro por CNPJ selecionado');
+assertContains('index.html', 'CNPJ da empresa aberta não consta na planilha; campo CNPJ preenchido com o primeiro CNPJ fonte do arquivo', 'Reinf nao bloqueia importacao quando empresa aberta difere dos CNPJs da planilha');
+assertContains('index.html', 'reinfAgendarConsultaAutomatica', 'Reinf consulta automaticamente protocolo pendente apos envio');
+assertContains('index.html', 'reinfRetornoAceito', 'Reinf separa recebido pendente de aceite processado');
+assertContains('index.html', "cd === '3'", 'Reinf trata lote processado com ocorrencia como erro');
+assertContains('index.html', 'reinfRetornoTemOcorrencia', 'Reinf detecta codResp/dscResp no retorno da Receita');
+assertContains('index.html', 'PRODUÇÃO RESTRITA. Eventos enviados aqui não aparecem no e-CAC de produção.', 'Reinf alerta ambiente restrito que nao aparece no e-CAC de producao');
+assertContains('index.html', /if \(reinfRetornoAceito\(retornoInfo\)\) \{\s*await reinfAplicarAcumuloIrrfNoPayload/, 'Reinf so persiste acumulo IRRF apos retorno processado com aceite');
+assertContains('index.html', /window\.ReinfAluguelUtils\.mapearBeneficiarios\(rows\)/, 'importacao Reinf deve carregar planilha inteira antes do filtro de geracao');
+assertContains('index.html', /^(?![\s\S]*cnpjFiltro: filtroCnpj)[\s\S]*$/, 'importacao Reinf nao pode filtrar antecipadamente pelo CNPJ da empresa aberta');
+assertContains('index.html', 'registrarReciboR4010Beneficiario', 'Reinf permite gravar recibo antigo por beneficiario para retificacao');
+assertContains('index.html', 'nrReciboR4010: String(b.nrReciboR4010 || b.nrRecibo || \'\').trim()', 'payload Reinf leva recibo R-4010 para gerar retificacao');
+assertContains('reinf-routes.js', "router.post('/recibos-r4010'", 'backend Reinf persiste recibo R-4010 manual para reenvio retificador');
+assertContains('reinf-routes.js', 'aplicarRecibosLocadores(body, tpAmb, recibosR4010)', 'previa R-4010 aplica recibos persistidos antes de gerar XML');
 assertContains('index.html', 'Próximo prazo', 'contador de prazo no validador de obrigacoes');
 assertContains('index.html', 'diasAtePrazoObrigacao', 'calculo diario do prazo de entrega ECD/ECF');
 assertContains('index.html', 'Correções necessárias antes do envio', 'validador ECD/ECF mostra ajustes acionaveis');
@@ -141,5 +194,11 @@ assertContains('api-adapter.js', 'fiscalListarImpostos', 'adapter fiscal para li
 assertContains('api-adapter.js', 'fiscalCertificadoStatus', 'adapter fiscal para status do certificado');
 assertContains('api-adapter.js', 'fiscalSerproStatus', 'adapter fiscal para status SERPRO');
 assertContains('api-adapter.js', 'fiscalSincronizarSerpro', 'adapter fiscal para sincronizacao SERPRO');
+
+const indexSource = read('index.html');
+const lerArquivoTextoDefs = (indexSource.match(/function\s+lerArquivoTexto\s*\(/g) || []).length;
+if (lerArquivoTextoDefs !== 1) {
+  throw new Error(`esperado exatamente 1 lerArquivoTexto efetivo; encontrado ${lerArquivoTextoDefs}`);
+}
 
 console.log('OK - recursos de qualidade, memoria e importacao assistida presentes.');

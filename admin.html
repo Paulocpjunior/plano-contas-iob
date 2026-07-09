@@ -9,13 +9,21 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="/api-adapter.js"></script>
-<script src="/parser-bradesco-netempresa.js"></script>
-<script src="/parser-safra-extrato.js"></script>
-<script src="/parser-bb-conta-atual.js"></script>
-<script src="/parser-bb-cash-ocr.js"></script>
-<script src="/parser-itau-extrato-mensal.js"></script>
-<script src="/parser-santander-empresas-ocr.js"></script>
-<script src="/parser-btg-pactual.js"></script>
+<script src="/parser-ofx.js?v=3.4.17"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.17"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.17"></script>
+<script src="/parser-safra-extrato.js?v=3.4.17"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.17"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.17"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.17"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.17"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.17"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.17"></script>
+<script src="/parser-btg-pactual.js?v=3.4.17"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.17"></script>
+<script src="/parser-abc-extrato.js?v=3.4.17"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.17"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.17"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -159,7 +167,7 @@
       <div class="quality-tool">
         <div>
           <label>Arquivo para teste</label>
-          <input type="file" id="qualityTestFile" accept=".pdf">
+          <input type="file" id="qualityTestFile" accept=".pdf,.csv,.txt,.xlsx,.xls">
         </div>
         <div>
           <label>Banco</label>
@@ -858,16 +866,35 @@ function setQualityResult(tipo, html) {
   el.innerHTML = html || '';
 }
 
+function qualityExtensaoArquivo(file) {
+  const nome = String(file && file.name || '').toLowerCase();
+  const m = nome.match(/\.([a-z0-9]+)$/);
+  return m ? m[1] : '';
+}
+
+async function qualityPayloadArquivo(file) {
+  const buf = await file.arrayBuffer();
+  const ext = qualityExtensaoArquivo(file);
+  if (ext === 'csv' || ext === 'txt') {
+    let texto = new TextDecoder('utf-8').decode(buf);
+    if (texto.includes('\uFFFD')) {
+      texto = new TextDecoder('iso-8859-1').decode(buf);
+    }
+    return texto;
+  }
+  return buf;
+}
+
 async function testarLayoutAdmin() {
   const file = (document.getElementById('qualityTestFile') || {}).files?.[0];
   const banco = (document.getElementById('qualityTestBanco') || {}).value || '';
   const parserSelecionado = (document.getElementById('qualityTestLayout') || {}).value || '';
-  if (!file) { setQualityResult('error', 'Selecione um PDF para testar.'); return; }
+  if (!file) { setQualityResult('error', 'Selecione um arquivo PDF, CSV, TXT, XLS ou XLSX para testar.'); return; }
   if (!banco) { setQualityResult('error', 'Selecione o banco antes de testar.'); return; }
   const layouts = (currentLayoutsBancarios || []).filter(l => l.banco === banco && (!parserSelecionado || l.parser === parserSelecionado));
   if (!layouts.length) { setQualityResult('error', 'Nenhum layout carregado para este banco.'); return; }
   setQualityResult('ok', 'Testando ' + escapeHtml(file.name) + '...');
-  const buf = await file.arrayBuffer();
+  const payload = await qualityPayloadArquivo(file);
   const tentativas = [];
   for (const layout of layouts) {
     const fn = window[layout.parser];
@@ -876,7 +903,8 @@ async function testarLayoutAdmin() {
       continue;
     }
     try {
-      const r = await fn(buf.slice(0));
+      const entrada = payload instanceof ArrayBuffer ? payload.slice(0) : payload;
+      const r = await fn(entrada);
       if (!r || !r.detectado || !r.lancamentos || !r.lancamentos.length) {
         tentativas.push(layout.layout + ': não reconhecido');
         continue;

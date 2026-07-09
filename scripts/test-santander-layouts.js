@@ -178,10 +178,27 @@ async function assertSantander(label, caminho, esperado) {
   assert.ok(consolidado.lancamentos.some((l) => /PIX RECEBIDO/.test(l.descricao) && l.valor > 0), 'Santander 2: pix recebido ausente');
   assert.ok(consolidado.lancamentos.some((l) => /PIX ENVIADO/.test(l.descricao) && l.valor < 0), 'Santander 2: pix enviado ausente');
 
+  const internetTabela = await assertSantander(
+    'Santander 1 Internet Banking - tabela Data/Historico/Valor',
+    '/Users/paulocesarpereirajunior/Downloads/EXTRATO 0426.pdf',
+    {
+      total_lancamentos: 85,
+      total_credito: 73294.56,
+      total_debito: 42295.25,
+      periodo_inicio: '2026-04-01',
+      periodo_fim: '2026-04-30',
+      origem: 'pdf-santander-internet-banking'
+    }
+  );
+  assert.strictEqual(internetTabela.conta_detectada, 'AG-4790/CC-130035079', 'Santander tabela: conta_detectada');
+  assert.ok(internetTabela.lancamentos.every((l) => !/Saldo do dia/i.test(l.descricao)), 'Santander tabela: saldos diarios nao devem virar lancamento');
+  assert.ok(internetTabela.lancamentos.some((l) => l.descricao.includes('Pagamento De Boleto Outros Bancos GEWA COM E CONF LTDA') && cents(l.valor) === cents(-1494.13)), 'Santander tabela: boleto com complemento deve ser lancamento unico');
+  assert.ok(internetTabela.lancamentos.some((l) => l.descricao.includes('Pagamento A Fornecedores') && cents(l.valor) === cents(800)), 'Santander tabela: valor sem hifen deve permanecer credito mesmo com descricao Pagamento');
+
   assert.strictEqual(__test__.separarValorSaldoGluedSantander('430,000,00'), '430,00', 'valor/saldo colado deve preservar movimento');
   assert.strictEqual(cents(__test__.extrairMovimentoSantander('PIX RECEBIDO 77052609800000000430,00').valor), cents(430), 'movimento colado ao documento');
 
-  console.log('OK: layouts Santander 1 e Santander 2 protegidos com PDFs reais, OCR Internet Banking e alias 033/352.');
+  console.log('OK: layouts Santander 1 e Santander 2 protegidos com PDFs reais, OCR Internet Banking, tabela Data/Historico/Valor e alias 033/352.');
 })().catch((err) => {
   console.error(err);
   process.exit(1);

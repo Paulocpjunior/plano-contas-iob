@@ -262,7 +262,7 @@
     const temSantander = /santander/.test(t);
     const temInternet = /internet banking empresarial/.test(t) && /agencia:\s*\d+/.test(t) && /conta:\s*\d+/.test(t);
     const temConta = /conta corrente|saldo de conta corrente|saldo disponivel|extrato consolidado inteligente/.test(t) || temInternet;
-    const temMov = /movimentacao|movimentos\s*\(r\s*\$?\)|creditos\s+debitos|total de creditos|total de debitos|data\s*historico\s*documento\s*valor|credito\s*r\s*\$|debito\s*r\s*\$|\d{2}\/\d{2}\/20\d{2}\s+(pix|ted|compra|pagamento|resgate|resg|aplicacao|tarifa|transferencia)/.test(t);
+    const temMov = /movimentacao|movimentos\s*\(r\s*\$?\)|creditos\s+debitos|total de creditos|total de debitos|data\s*historico\s*(documento\s*)?valor|historico\s+valor|saldo do dia cc|credito\s*r\s*\$|debito\s*r\s*\$|\d{2}\/\d{2}\/20\d{2}\s+(pix|ted|compra|pagamento|resgate|resg|aplicacao|tarifa|transferencia|rendimento|debito)/.test(t);
     return temSantander && temConta && temMov;
   }
 
@@ -339,10 +339,173 @@
     };
   }
 
+  function temLayoutInternetBankingTabela(texto) {
+    const t = removerAcentos(String(texto || '')).toLowerCase().replace(/\s+/g, ' ');
+    const compacto = t.replace(/\s+/g, '');
+    return (/internet banking empresarial/.test(t) || /internetbankingempresarial/.test(compacto))
+      && (/data\s*historico\s*valor/.test(t)
+        || /historico\s*valor/.test(t)
+        || /datahistoricovalor/.test(compacto)
+        || /historicovalor/.test(compacto)
+        || /saldo do dia cc/.test(t)
+        || /saldododiacc/.test(compacto));
+  }
+
+  function linhaRuidoTabelaSantander(linha) {
+    const clean = limparLinhaOCR(linha);
+    const t = removerAcentos(clean).toLowerCase().replace(/\s+/g, ' ').trim();
+    const compacto = t.replace(/\s+/g, '');
+    if (!t) return true;
+    if (/^(data|historico|valor|historicovalor)$/.test(compacto)) return true;
+    if (/^(internet banking empresarial|ibpj|santander)$/.test(t)) return true;
+    if (/^about:blank\s*\d*\s*\/?\s*\d*$/i.test(clean)) return true;
+    if (/^\d{2}\/\d{2}\/20\d{2},\s*\d{2}:\d{2}\s*ibpj$/i.test(t)) return true;
+    if (/^(central de atendimento|sac\b|ouvidoria|sac e ouvidoria|canal exclusivo|https:\/\/|das \d{1,2}h|0800|4004|55 \()/i.test(t)) return true;
+    if (/^(capitais|demais localidades|atendimento 24h|no exterior)/i.test(t)) return true;
+    return false;
+  }
+
+  function extrairValorSantanderTabela(linha) {
+    const text = normalizarValorToken(linha || '').replace(/\s+/g, ' ').trim();
+    const m = text.match(/((?:-\s*)?R\s*\$\s*-?\s*[\d.]+,\d{2}-?|(?:-\s*)?[\d.]+,\d{2}-?)\s*$/i);
+    if (!m) return null;
+    const raw = m[1].replace(/\s+/g, ' ').trim();
+    const rawValor = raw
+      .replace(/^R\s*\$\s*-/i, '-R$ ')
+      .replace(/^-\s*R\s*\$/i, '-R$');
+    const valor = parseValorBR(rawValor);
+    if (!Math.abs(valor)) return null;
+    return { raw: raw, index: m.index, valor: valor };
+  }
+
+  function valorNegativoSantanderTabela(raw) {
+    return /(^|\s)-\s*(R\s*\$)?/i.test(String(raw || '')) || /R\s*\$\s*-/i.test(String(raw || '')) || /-$/.test(String(raw || '').trim());
+  }
+
+  function montarLancamentoTabelaSantander(partes, ref) {
+    const texto = partes.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+    if (!texto) return null;
+    const data = dataNoInicio(texto, ref);
+    if (!data || !data.rest) return null;
+    if (ref.fim && data.iso > ref.fim) return null;
+
+    const mov = extrairValorSantanderTabela(data.rest);
+    if (!mov) return null;
+    const descRaw = data.rest.slice(0, mov.index).trim();
+    if (/saldo\s+do\s+dia/i.test(descRaw) || /saldododia/i.test(descRaw)) return null;
+
+    let descricao = limparDescricao(descRaw);
+    if (!descricao || /^-+$/.test(descricao)) descricao = 'Lancamento Santander';
+    const tipo = valorNegativoSantanderTabela(mov.raw) ? 'D' : 'C';
+    const valor = tipo === 'D' ? -Math.abs(mov.valor) : Math.abs(mov.valor);
+    if (!valor) return null;
+
+    return {
+      data: data.iso,
+      descricao: descricao,
+      valor: valor,
+      tipo: tipo,
+      rawValor: mov.raw
+    };
+  }
+
+  function parsearTexto_SantanderInternetBankingTabela(textoPorPagina) {
+    const paginas = Array.isArray(textoPorPagina) ? textoPorPagina : String(textoPorPagina || '').split(/\f/);
+    const textoCompleto = paginas.join('\n').split(/\r?\n/).map(limparLinhaOCR).join('\n');
+    if (!temLayoutInternetBankingTabela(textoCompleto)) {
+      return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+    }
+
+    const ref = periodoInternetBanking(textoCompleto);
+    const linhas = textoCompleto
+      .split(/\r?\n/)
+      .map(limparLinhaOCR)
+      .filter(Boolean);
+    const metaLinha = linhas.find(function(l) { return /Agencia:\s*\d+.*Conta:\s*\d+/i.test(l); }) || '';
+    const meta = metaLinha.match(/(.+?)\s*Agencia:\s*(\d+)\s+Conta:\s*(\d+)/i);
+    const titular = meta ? meta[1].trim() : '';
+    const agencia = meta ? meta[2] : '';
+    const conta = meta ? meta[3] : '';
+    const lancamentos = [];
+    const vistos = new Set();
+
+    function adicionar(lanc) {
+      if (!lanc) return false;
+      const chave = [lanc.data, lanc.descricao.toLowerCase(), Math.abs(lanc.valor).toFixed(2), lanc.tipo].join('|');
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      lancamentos.push({
+        id: uuid(),
+        data: lanc.data,
+        descricao: lanc.descricao,
+        documento: '',
+        valor: lanc.valor,
+        tipo: lanc.tipo,
+        empresa: '',
+        cnpj: '',
+        categoria: 'Nao categorizado',
+        contaDebito: '',
+        contaCredito: '',
+        historico: lanc.descricao,
+        incomum: false,
+        origem: 'pdf-santander-internet-banking'
+      });
+      return true;
+    }
+
+    for (let i = 0; i < linhas.length; i++) {
+      const linha = linhas[i];
+      if (linhaRuidoTabelaSantander(linha)) continue;
+      const data = dataNoInicio(linha, ref);
+      if (!data) continue;
+
+      const movNaLinha = montarLancamentoTabelaSantander([linha], ref);
+      if (movNaLinha) {
+        adicionar(movNaLinha);
+        continue;
+      }
+
+      if (data.rest) continue;
+      const partes = [linha];
+      let consumiuValor = false;
+      for (let j = i + 1; j < Math.min(i + 6, linhas.length); j++) {
+        const prox = linhas[j];
+        if (linhaRuidoTabelaSantander(prox)) continue;
+        if (dataNoInicio(prox, ref) && !extrairValorSantanderTabela(prox)) break;
+        partes.push(prox);
+        if (extrairValorSantanderTabela(prox)) {
+          const lanc = montarLancamentoTabelaSantander(partes, ref);
+          if (adicionar(lanc)) {
+            i = j;
+            consumiuValor = true;
+          }
+          break;
+        }
+      }
+      if (consumiuValor) continue;
+    }
+
+    return {
+      detectado: lancamentos.length > 0,
+      lancamentos: lancamentos,
+      textoCompleto: textoCompleto,
+      fingerprint: 'santander-internet-banking-tabela-' + (agencia || 'x') + '-' + (conta || 'x') + '-' + ref.ano + (ref.mes || ''),
+      banco_detectado: 'SANTANDER',
+      conta_detectada: (agencia ? 'AG-' + agencia : '') + (conta ? '/CC-' + conta : ''),
+      nome_conta_detectado: titular || 'INTERNET BANKING EMPRESARIAL SANTANDER',
+      periodo_inicio: ref.inicio,
+      periodo_fim: ref.fim,
+      total_credito: lancamentos.filter(function(l) { return l.valor > 0; }).reduce(function(a, l) { return a + l.valor; }, 0),
+      total_debito: lancamentos.filter(function(l) { return l.valor < 0; }).reduce(function(a, l) { return a + Math.abs(l.valor); }, 0)
+    };
+  }
+
   function parsearTexto_SantanderEmpresas(textoPorPagina) {
     const paginas = Array.isArray(textoPorPagina) ? textoPorPagina : String(textoPorPagina || '').split(/\f/);
     const textoCompleto = paginas.join('\n').split(/\r?\n/).map(limparLinhaOCR).join('\n');
     if (!pareceExtratoSantander(textoCompleto)) return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+    const internetTabela = parsearTexto_SantanderInternetBankingTabela(paginas);
+    if (internetTabela.detectado && internetTabela.lancamentos.length) return internetTabela;
     const internet = parsearTexto_SantanderInternetBanking(paginas);
     if (internet.detectado && internet.lancamentos.length) return internet;
 
@@ -524,25 +687,35 @@
   function textoNativoComLinhas(items) {
     const linhas = [];
     (items || []).forEach(function(it) {
-      const str = String((it && it.str) || '').trim();
+      const str = String((it && it.str) || '');
       if (!str) return;
       const tr = it.transform || [];
       const x = Number(tr[4] || 0);
       const y = Number(tr[5] || 0);
+      const width = Number(it.width || 0);
       let linha = linhas.find(function(l) { return Math.abs(l.y - y) < 3; });
       if (!linha) {
         linha = { y: y, itens: [] };
         linhas.push(linha);
       }
-      linha.itens.push({ x: x, str: str });
+      linha.itens.push({ x: x, width: width, str: str });
     });
     return linhas
       .sort(function(a, b) { return b.y - a.y; })
       .map(function(l) {
-        return l.itens
+        let out = '';
+        let prevEnd = null;
+        l.itens
           .sort(function(a, b) { return a.x - b.x; })
-          .map(function(i) { return i.str; })
-          .join(' ')
+          .forEach(function(i) {
+            if (prevEnd !== null) {
+              const gap = i.x - prevEnd;
+              if (gap > 2 && out && !/\s$/.test(out) && !/^\s/.test(i.str)) out += ' ';
+            }
+            out += i.str;
+            prevEnd = Math.max(prevEnd === null ? -Infinity : prevEnd, i.x + (i.width || 0));
+          });
+        return out
           .replace(/\s+/g, ' ')
           .trim();
       })
@@ -556,6 +729,7 @@
     __test__: {
       parsearTexto_SantanderEmpresas: parsearTexto_SantanderEmpresas,
       parsearTexto_SantanderInternetBanking: parsearTexto_SantanderInternetBanking,
+      parsearTexto_SantanderInternetBankingTabela: parsearTexto_SantanderInternetBankingTabela,
       pareceExtratoSantander: pareceExtratoSantander,
       extrairMovimentoSantander: extrairMovimentoSantander,
       separarValorSaldoGluedSantander: separarValorSaldoGluedSantander,

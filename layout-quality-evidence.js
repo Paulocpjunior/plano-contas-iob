@@ -105,6 +105,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js com totais esperados.'
   },
   {
+    id: 'santander-internet-banking-gmx-2026-04',
+    banco: '033',
+    nomeBanco: 'Santander',
+    layout: 'Santander 1 - Internet Banking Empresarial - Data/Historico/Valor',
+    parser: 'parsearPDF_Santander_InternetBanking',
+    arquivo: 'EXTRATO 0426.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/EXTRATO 0426.pdf',
+    empresa: 'GMX COMERCIAL DE UNIFORMES LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js: 85 movimentos, saldos diarios ignorados, credito R$ 73.294,56 e debito R$ 42.295,25.'
+  },
+  {
     id: 'santander-consolidado-130069243',
     banco: '033',
     nomeBanco: 'Santander',
@@ -344,6 +359,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     etapa: 'regressao_aprovada',
     status: 'Regressao aprovada',
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js para PDF do Consultor Fiscal Analise de Creditos PIS/COFINS.'
+  },
+  {
+    id: 'flanacar-registro-entradas-csv-2026-04',
+    banco: '1237',
+    nomeBanco: 'FLANACAR COMERCIO DE AUTOPECAS',
+    layout: 'FLANACAR - Registro de Entradas Fiscal CSV',
+    parser: 'parsearCSV_FlanacarRegistroEntradas',
+    arquivo: '1237_RelatorioNotas_20260401_20260430.Csv',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/1237_RelatorioNotas_20260401_20260430.Csv',
+    empresa: 'FLANACAR COMERCIO DE AUTOPECAS',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso tambem cadastrado em layout-quality-cases.js com 2268 notas, total debito R$ 11.141.217,12 e 136 linhas complementares agregadas.'
   },
   {
     id: 'daxx-analise-creditos-pis-cofins-2026-04',

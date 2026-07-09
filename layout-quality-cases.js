@@ -38,6 +38,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Layout Santander Internet Banking Empresarial agrupado por data em extenso, com linhas CREDITO/DEBITO R$ valor.'
   },
   {
+    id: 'santander-internet-banking-gmx-2026-04',
+    banco: '033',
+    nomeBanco: 'Santander',
+    layout: 'Santander 1 - Internet Banking Empresarial - Data/Historico/Valor',
+    parser: 'parsearPDF_Santander_InternetBanking',
+    arquivo: 'EXTRATO 0426.pdf',
+    empresa: 'GMX COMERCIAL DE UNIFORMES LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 85,
+      total_credito: 73294.56,
+      total_debito: 42295.25
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-09T10:58:00-03:00',
+    observacao: 'Layout Santander Internet Banking Empresarial em tabela Data, Historico e Valor. Ignora saldos diarios e preserva complemento do historico no mesmo lancamento.'
+  },
+  {
     id: 'santander-ctvm-internet-banking-armazem-bichos-2026-04',
     banco: '352',
     nomeBanco: 'Santander CTVM',
@@ -362,6 +381,25 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-05-25T14:35:00-03:00',
     observacao: 'PDF gerado pelo Consultor Fiscal com Analise de Creditos PIS/COFINS. Usa Valor da Nota como base de importacao e historico padrao de servicos.'
+  },
+  {
+    id: 'flanacar-registro-entradas-csv-2026-04',
+    banco: '1237',
+    nomeBanco: 'FLANACAR COMERCIO DE AUTOPECAS',
+    layout: 'FLANACAR - Registro de Entradas Fiscal CSV',
+    parser: 'parsearCSV_FlanacarRegistroEntradas',
+    arquivo: '1237_RelatorioNotas_20260401_20260430.Csv',
+    empresa: 'FLANACAR COMERCIO DE AUTOPECAS',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 2268,
+      total_credito: 0,
+      total_debito: 11141217.12
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-07T00:00:00-03:00',
+    observacao: 'CSV fiscal ISO-8859-1 com cabecalho na segunda linha. Agrega 136 linhas complementares de CFOP/imposto nas notas anteriores e preserva fornecedor, CNPJ, NF, CFOP e tributos para classificacao por fornecedor.'
   },
   {
     id: 'daxx-analise-creditos-pis-cofins-2026-04',

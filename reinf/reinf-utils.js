@@ -42,6 +42,13 @@ const escXml = (s) =>
 
 const soDigitos = (v) => String(v ?? '').replace(/\D/g, '');
 
+function nrInscContribuinteReinf(contribuinte) {
+  const tpInsc = Number(contribuinte && contribuinte.tpInsc);
+  const nr = soDigitos(contribuinte && contribuinte.nrInsc);
+  if (tpInsc === 1 && nr.length === 14) return nr.slice(0, 8);
+  return nr;
+}
+
 /** Formata número no padrão monetário da REINF: "1234,56" (vírgula, 2 casas). */
 function fmtValorReinf(n) {
   const num = Number(n);
@@ -60,7 +67,10 @@ function fmtValorReinf(n) {
  * Composição: ID + tpInsc(1) + nrInsc(14) + timestamp(14) + sequencial(5).
  */
 function gerarIdEvento({ tpInsc, nrInsc, seq = 1, data = new Date() }) {
-  const insc14 = soDigitos(nrInsc).padStart(14, '0').slice(0, 14);
+  const nr = soDigitos(nrInsc);
+  const insc14 = Number(tpInsc) === 1
+    ? (nr.length === 14 ? nr.slice(0, 8) : nr.slice(0, 8)).padEnd(14, '0')
+    : nr.padStart(14, '0').slice(0, 14);
   const ts =
     data.getFullYear().toString() +
     String(data.getMonth() + 1).padStart(2, '0') +
@@ -154,14 +164,13 @@ ${ideEventoLinhas.join('\n')}
    </ideEvento>
    <ideContri>
     <tpInsc>${contribuinte.tpInsc}</tpInsc>
-    <nrInsc>${soDigitos(contribuinte.nrInsc)}</nrInsc>
+    <nrInsc>${nrInscContribuinteReinf(contribuinte)}</nrInsc>
    </ideContri>
    <ideEstab>
     <tpInscEstab>${estabelecimento.tpInscEstab}</tpInscEstab>
     <nrInscEstab>${soDigitos(estabelecimento.nrInscEstab)}</nrInscEstab>
     <ideBenef>
      <cpfBenef>${soDigitos(beneficiario.cpf)}</cpfBenef>
-     <nmBenef>${escXml(String(beneficiario.nome).slice(0, 70))}</nmBenef>
 ${idePgtoXml}
     </ideBenef>
    </ideEstab>
@@ -195,7 +204,6 @@ function validarEntradaR4010(ev) {
 
   if (!beneficiario || !/^[0-9]{11}$/.test(soDigitos(beneficiario?.cpf)))
     e.push('beneficiario.cpf deve ter 11 dígitos');
-  if (!beneficiario?.nome) e.push('beneficiario.nome ausente');
 
   if (!Array.isArray(pagamentos) || pagamentos.length === 0)
     e.push('pagamentos deve ser uma lista não vazia');
@@ -229,22 +237,70 @@ function gerarEventosR4010DaPlanilha({
   if (!Array.isArray(locadores) || !locadores.length) {
     throw new Error('Lista de locadores vazia.');
   }
-  return locadores.map((loc, idx) => {
+  const grupos = new Map();
+  for (const loc of locadores) {
+    const contribuinteLocador = loc.contribuinte || {
+      ...contribuinte,
+      nrInsc: loc.cnpjFonte || contribuinte.nrInsc,
+    };
+    const estabelecimentoLocador = loc.estabelecimento || {
+      ...estabelecimento,
+      nrInscEstab: loc.cnpjEstab || estabelecimento.nrInscEstab,
+    };
+    const chave = [
+      soDigitos(loc.cpf),
+      soDigitos(contribuinteLocador.nrInsc),
+      soDigitos(estabelecimentoLocador.nrInscEstab),
+      String(loc.ideEvtAdic || 'padrao'),
+      String(loc.nrRecibo || loc.nrReciboR4010 || ''),
+    ].join('|');
     const bruto = Number(loc.bruto) || 0;
     const irrf = Number(loc.irrf) || 0;
+    const baseIrrf = loc.baseIrrf != null ? (Number(loc.baseIrrf) || bruto) : bruto;
+    if (!grupos.has(chave)) {
+      grupos.set(chave, {
+        loc,
+        contribuinteLocador,
+        estabelecimentoLocador,
+        brutoTotal: 0,
+        irrfTotal: 0,
+        pagamentos: [],
+      });
+    }
+    const grupo = grupos.get(chave);
+    grupo.brutoTotal += bruto;
+    grupo.irrfTotal += irrf;
+    grupo.pagamentos.push({
+      natRend,
+      dtFG: loc.dtPagamento || loc.dtFG || dtPagamento,
+      vlrRendBruto: bruto,
+      vlrRendTrib: baseIrrf,
+      vlrIR: irrf,
+    });
+  }
+  return Array.from(grupos.values()).map((grupo, idx) => {
+    const { loc, contribuinteLocador, estabelecimentoLocador } = grupo;
     const res = gerarR4010({
-      contribuinte, estabelecimento, perApur, tpAmb,
+      contribuinte: contribuinteLocador, estabelecimento: estabelecimentoLocador, perApur, tpAmb,
+      indRetif: (loc.nrRecibo || loc.nrReciboR4010) ? 2 : 1,
+      nrRecibo: loc.nrRecibo || loc.nrReciboR4010 || '',
       seq: seqInicial + idx,
       beneficiario: { cpf: loc.cpf, nome: loc.nome },
-      pagamentos: [{
-        natRend,
-        dtFG: dtPagamento,
-        vlrRendBruto: bruto,
-        vlrRendTrib: bruto,   // aluguel simples: tributável = bruto
-        vlrIR: irrf,          // IRRF retido vindo da planilha (NÃO recalcular)
-      }],
+      pagamentos: grupo.pagamentos,
     });
-    return { ...res, nome: loc.nome };
+    return {
+      ...res,
+      cpf: loc.cpf,
+      nome: loc.nome,
+      cnpjFonte: contribuinteLocador.nrInsc,
+      cnpjEstab: estabelecimentoLocador.nrInscEstab,
+      ideEvtAdic: loc.ideEvtAdic || null,
+      bruto: grupo.brutoTotal,
+      irrf: grupo.irrfTotal,
+      qtdPagamentos: grupo.pagamentos.length,
+      indRetif: (loc.nrRecibo || loc.nrReciboR4010) ? 2 : 1,
+      nrRecibo: loc.nrRecibo || loc.nrReciboR4010 || '',
+    };
   });
 }
 
@@ -277,6 +333,7 @@ const NS_R4099 =
  * @param {0|1}    [p.indEscrituracao=0]   obrigado a ECD?
  * @param {0|1}    [p.indDesoneracao=0]    desoneração da folha (CPRB)?
  * @param {0|1}    [p.indAcordoIsenMulta=0] acordo internacional isenção multa?
+ * @param {0|1|2|3|4} [p.indSitPJ=0] situação da pessoa jurídica
  * @param {object} p.contato       { nome, cpf, foneFixo?, foneCel?, email? }
  * @param {number} [p.seq=1]
  * @returns {{ id, xml }}
@@ -294,15 +351,26 @@ function gerarR1000(p) {
     erros.push('fimValid deve estar no formato AAAA-MM');
   if (!/^[0-9]{2}$/.test(String(p && p.classTrib || '')))
     erros.push('classTrib obrigatório: 2 dígitos da Tabela 08 (Classificação Tributária)');
+  if (p && p.contribuinte && Number(p.contribuinte.tpInsc) === 1 && !/^[0-4]$/.test(String(p.indSitPJ != null ? p.indSitPJ : 0)))
+    erros.push('indSitPJ deve ser informado para CNPJ com valor de 0 a 4');
   if (!p || !p.contato || !p.contato.nome)
     erros.push('contato.nome ausente');
   if (!p || !p.contato || !/^[0-9]{11}$/.test(soDigitos(p.contato && p.contato.cpf)))
     erros.push('contato.cpf deve ter 11 dígitos');
+  const foneFixo = soDigitos(p && p.contato && p.contato.foneFixo);
+  const foneCel = soDigitos(p && p.contato && p.contato.foneCel);
+  if (!foneFixo && !foneCel)
+    erros.push('contato.foneFixo ou contato.foneCel deve ser informado com DDD');
+  if (foneFixo && foneFixo.length < 10)
+    erros.push('contato.foneFixo deve ter ao menos 10 dígitos com DDD');
+  if (foneCel && foneCel.length < 10)
+    erros.push('contato.foneCel deve ter ao menos 10 dígitos com DDD');
   if (erros.length) throw new Error('R-1000 inválido:\n - ' + erros.join('\n - '));
 
   const indEscrituracao = p.indEscrituracao != null ? p.indEscrituracao : 0;
   const indDesoneracao = p.indDesoneracao != null ? p.indDesoneracao : 0;
   const indAcordoIsenMulta = p.indAcordoIsenMulta != null ? p.indAcordoIsenMulta : 0;
+  const indSitPJ = p.indSitPJ != null ? p.indSitPJ : 0;
 
   const id = gerarIdEvento({
     tpInsc: p.contribuinte.tpInsc,
@@ -334,7 +402,7 @@ function gerarR1000(p) {
    </ideEvento>
    <ideContri>
     <tpInsc>${p.contribuinte.tpInsc}</tpInsc>
-    <nrInsc>${soDigitos(p.contribuinte.nrInsc)}</nrInsc>
+    <nrInsc>${nrInscContribuinteReinf(p.contribuinte)}</nrInsc>
    </ideContri>
    <infoContri>
     <inclusao>
@@ -346,6 +414,7 @@ ${idePeriodo}
       <indEscrituracao>${indEscrituracao}</indEscrituracao>
       <indDesoneracao>${indDesoneracao}</indDesoneracao>
       <indAcordoIsenMulta>${indAcordoIsenMulta}</indAcordoIsenMulta>
+      <indSitPJ>${indSitPJ}</indSitPJ>
       <contato>
 ${contatoLinhas.join('\n')}
       </contato>
@@ -367,7 +436,7 @@ ${contatoLinhas.join('\n')}
  * @param {object} p.contribuinte  { tpInsc, nrInsc }
  * @param {string} p.perApur       "AAAA-MM"
  * @param {1|2}    p.tpAmb
- * @param {0|1}    [p.fechRet=1]    1 = fecha o movimento; 0 = não fecha
+ * @param {0|1}    [p.fechRet=0]    0 = fechamento; 1 = reabertura
  * @param {object} [p.respInfo]    { nome, cpf, telefone?, email? } responsável
  * @param {number} [p.seq=1]
  * @returns {{ id, xml }}
@@ -383,7 +452,7 @@ function gerarR4099(p) {
   if (![1, 2].includes(p && p.tpAmb)) erros.push('tpAmb deve ser 1 ou 2');
   if (erros.length) throw new Error('R-4099 inválido:\n - ' + erros.join('\n - '));
 
-  const fechRet = p.fechRet != null ? p.fechRet : 1;
+  const fechRet = p.fechRet != null ? p.fechRet : 0;
   const id = gerarIdEvento({
     tpInsc: p.contribuinte.tpInsc,
     nrInsc: p.contribuinte.nrInsc,
@@ -414,7 +483,7 @@ function gerarR4099(p) {
    </ideEvento>
    <ideContri>
     <tpInsc>${p.contribuinte.tpInsc}</tpInsc>
-    <nrInsc>${soDigitos(p.contribuinte.nrInsc)}</nrInsc>
+    <nrInsc>${nrInscContribuinteReinf(p.contribuinte)}</nrInsc>
    </ideContri>${ideRespInf}
    <infoFech>
     <fechRet>${fechRet}</fechRet>
@@ -457,7 +526,8 @@ function gerarTrioReinf(p) {
       contribuinte: p.contribuinte, tpAmb: p.tpAmb,
       iniValid: p.iniValid, fimValid: p.fimValid, classTrib: p.classTrib,
       indEscrituracao: p.indEscrituracao, indDesoneracao: p.indDesoneracao,
-      indAcordoIsenMulta: p.indAcordoIsenMulta, contato: p.contato, seq: seq++,
+      indAcordoIsenMulta: p.indAcordoIsenMulta, indSitPJ: p.indSitPJ,
+      contato: p.contato, seq: seq++,
     });
     eventos.push(r1000);
   }
