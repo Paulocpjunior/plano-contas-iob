@@ -56,6 +56,20 @@
     'valorPis', 'valorCofins'
   ];
 
+  const COLUMN_GROUPS = {
+    es: 'Identificacao', situacaoDocumento: 'Identificacao', dataEmissao: 'Identificacao',
+    dataEntrada: 'Identificacao', numeroNf: 'Identificacao', especie: 'Identificacao',
+    serie: 'Identificacao', subserie: 'Identificacao', cnpj: 'Fornecedor',
+    inscricaoEstadual: 'Fornecedor', razaoSocial: 'Fornecedor', cidade: 'Fornecedor', uf: 'Fornecedor',
+    chaveNfe: 'Documento fiscal', chaveCteSubstituido: 'Documento fiscal', cfop: 'Documento fiscal', ci: 'Documento fiscal',
+    valorContabil: 'Valores da nota', valorFrete: 'Valores da nota',
+    baseIcms: 'ICMS', aliquotaIcms: 'ICMS', valorIcms: 'ICMS', isentasIcms: 'ICMS', outrasIcms: 'ICMS',
+    baseIcmsSt: 'ICMS ST', valorIcmsSt: 'ICMS ST',
+    baseIpi: 'IPI', aliquotaIpi: 'IPI', valorIpi: 'IPI', isentasIpi: 'IPI', outrasIpi: 'IPI',
+    valorPis: 'PIS e COFINS', valorCofins: 'PIS e COFINS',
+    observacao: 'Complementares', ufDestino: 'Complementares', ufRemetente: 'Complementares'
+  };
+
   function removerAcentos(valor) {
     return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
@@ -171,6 +185,50 @@
     return mapa;
   }
 
+  function normalizarSelecaoColunas(colunasSelecionadas) {
+    if (!Array.isArray(colunasSelecionadas)) return null;
+    const validas = new Set(Object.keys(COLUMN_ALIASES));
+    const selecionadas = new Set(colunasSelecionadas.filter(function(key) { return validas.has(key); }));
+    REQUIRED.forEach(function(key) { selecionadas.add(key); });
+    return selecionadas;
+  }
+
+  function aplicarSelecaoMapa(mapa, selecionadas) {
+    if (!selecionadas) return Object.assign({}, mapa);
+    const filtrado = {};
+    Object.keys(mapa).forEach(function(key) {
+      filtrado[key] = selecionadas.has(key) ? mapa[key] : -1;
+    });
+    return filtrado;
+  }
+
+  function descreverColunas(headerRow, rows, mapa, selecionadas) {
+    return Object.keys(mapa)
+      .filter(function(key) { return mapa[key] >= 0; })
+      .map(function(key) {
+        const indice = mapa[key];
+        let preenchidos = 0;
+        let amostra = '';
+        rows.forEach(function(row) {
+          const valor = limparCampo((row || [])[indice]);
+          if (!valor) return;
+          preenchidos++;
+          if (!amostra) amostra = valor;
+        });
+        return {
+          chave: key,
+          nome: limparCampo((headerRow || [])[indice]) || key,
+          indice: indice,
+          grupo: COLUMN_GROUPS[key] || 'Outros',
+          obrigatoria: REQUIRED.includes(key),
+          selecionada: !selecionadas || selecionadas.has(key),
+          preenchidos: preenchidos,
+          amostra: amostra
+        };
+      })
+      .sort(function(a, b) { return a.indice - b.indice; });
+  }
+
   function linhaTemAssinatura(mapa) {
     return REQUIRED.every(function(key) { return mapa[key] >= 0; });
   }
@@ -236,16 +294,23 @@
       observacao: valorColuna(row, mapa, 'observacao'),
       ufDestino: valorColuna(row, mapa, 'ufDestino'),
       ufRemetente: valorColuna(row, mapa, 'ufRemetente'),
+      ci: valorColuna(row, mapa, 'ci'),
       valorContabil: 0,
       valorFrete: 0,
       baseIcms: 0,
       valorIcms: 0,
+      isentasIcms: 0,
+      outrasIcms: 0,
       baseIcmsSt: 0,
       valorIcmsSt: 0,
       baseIpi: 0,
       valorIpi: 0,
+      isentasIpi: 0,
+      outrasIpi: 0,
       valorPis: 0,
       valorCofins: 0,
+      aliquotasIcms: [],
+      aliquotasIpi: [],
       cfopValores: {}
     };
 
@@ -263,6 +328,10 @@
       }
     });
     draft.valorContabil = Math.round((Number(draft.valorContabil || 0) + valor) * 100) / 100;
+    const aliquotaIcms = valorColuna(row, mapa, 'aliquotaIcms');
+    const aliquotaIpi = valorColuna(row, mapa, 'aliquotaIpi');
+    if (aliquotaIcms && !draft.aliquotasIcms.includes(aliquotaIcms)) draft.aliquotasIcms.push(aliquotaIcms);
+    if (aliquotaIpi && !draft.aliquotasIpi.includes(aliquotaIpi)) draft.aliquotasIpi.push(aliquotaIpi);
     atualizarCfop(draft, valorColuna(row, mapa, 'cfop'), valor);
   }
 
@@ -310,11 +379,17 @@
       valorContabil: valorNota,
       valorFrete: draft.valorFrete,
       baseIcms: draft.baseIcms,
+      aliquotaIcms: draft.aliquotasIcms.join('/'),
       valorIcms: draft.valorIcms,
+      isentasIcms: draft.isentasIcms,
+      outrasIcms: draft.outrasIcms,
       baseIcmsSt: draft.baseIcmsSt,
       valorIcmsSt: draft.valorIcmsSt,
       baseIpi: draft.baseIpi,
+      aliquotaIpi: draft.aliquotasIpi.join('/'),
       valorIpi: draft.valorIpi,
+      isentasIpi: draft.isentasIpi,
+      outrasIpi: draft.outrasIpi,
       valorPis: draft.valorPis,
       valorCofins: draft.valorCofins,
       categoria,
@@ -327,6 +402,7 @@
       documento: draft.numeroNf,
       numero_nf: draft.numeroNf,
       cfop: cfopPrincipal,
+      ci: draft.ci,
       cfops,
       cfopValores: draft.cfopValores,
       chave_nfe: draft.chaveNfe,
@@ -426,10 +502,20 @@
     return [principal].concat(impostos);
   }
 
-  function parsearTexto_FlanacarRegistroEntradas(textoCompleto) {
+  function parsearTexto_FlanacarRegistroEntradas(textoCompleto, opts) {
+    opts = opts || {};
     const matriz = linhasParaMatriz(textoCompleto);
     const cab = encontrarCabecalho(matriz.rows);
     if (!cab) return { detectado: false, lancamentos: [], motivo: 'cabecalho_nao_reconhecido' };
+
+    const selecionadas = normalizarSelecaoColunas(opts.colunasSelecionadas);
+    const colunasDisponiveis = descreverColunas(
+      matriz.rows[cab.index],
+      matriz.rows.slice(cab.index + 1),
+      cab.mapa,
+      selecionadas
+    );
+    const mapaAtivo = aplicarSelecaoMapa(cab.mapa, selecionadas);
 
     const drafts = [];
     let atual = null;
@@ -437,13 +523,13 @@
     for (let i = cab.index + 1; i < matriz.rows.length; i++) {
       const row = matriz.rows[i] || [];
       if (!row.some(function(c) { return limparCampo(c); })) continue;
-      const es = valorColuna(row, cab.mapa, 'es');
-      const temNovaNota = !!es || !!valorColuna(row, cab.mapa, 'dataEntrada') || !!valorColuna(row, cab.mapa, 'numeroNf') || !!valorColuna(row, cab.mapa, 'razaoSocial');
+      const es = valorColuna(row, mapaAtivo, 'es');
+      const temNovaNota = !!es || !!valorColuna(row, mapaAtivo, 'dataEntrada') || !!valorColuna(row, mapaAtivo, 'numeroNf') || !!valorColuna(row, mapaAtivo, 'razaoSocial');
       if (temNovaNota && es) {
-        atual = criarDraft(row, cab.mapa, i + 1);
+        atual = criarDraft(row, mapaAtivo, i + 1);
         if (atual) drafts.push(atual);
-      } else if (atual && valorColuna(row, cab.mapa, 'cfop') && moedaCampo(row, cab.mapa, 'valorContabil')) {
-        agregarLinhaFiscal(atual, row, cab.mapa);
+      } else if (atual && valorColuna(row, mapaAtivo, 'cfop') && moedaCampo(row, mapaAtivo, 'valorContabil')) {
+        agregarLinhaFiscal(atual, row, mapaAtivo);
         complementares++;
       }
     }
@@ -474,6 +560,8 @@
       total_oficial: totalDebito,
       total_lancamentos: lancamentos.length,
       linhas_complementares_agregadas: complementares,
+      colunas_disponiveis: colunasDisponiveis,
+      colunas_selecionadas: colunasDisponiveis.filter(function(c) { return c.selecionada; }).map(function(c) { return c.chave; }),
       lancamentos
     };
   }

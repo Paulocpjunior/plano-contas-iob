@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.41"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.41"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.41"></script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.42"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.42"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.42"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -19,29 +19,29 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.41"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.41"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.42"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.42"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.41"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.41"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.41"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.41"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.41"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.41"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.41"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.41"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.41"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.41"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.41"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.41"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.41"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.41"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.41"></script>
+    <script src="/parser-ofx.js?v=3.4.42"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.42"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.42"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.42"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.42"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.42"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.42"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.42"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.42"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.42"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.42"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.42"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.42"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.42"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.42"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1555,9 +1555,37 @@
             justify-content: flex-end;
             margin-top: 18px;
         }
+        .flanacar-columns-card { width: min(920px, 100%); }
+        .flanacar-columns-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .flanacar-columns-toolbar p { margin: 0; color: var(--text-muted); font-size: 13px; }
+        .flanacar-columns-toolbar .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .flanacar-columns-table-wrap {
+            max-height: min(52vh, 480px);
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .flanacar-columns-table { margin-top: 0; }
+        .flanacar-columns-table thead { position: sticky; top: 0; z-index: 1; }
+        .flanacar-columns-table td:first-child,
+        .flanacar-columns-table th:first-child { width: 44px; text-align: center; }
+        .flanacar-columns-table input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); }
+        .flanacar-column-required { color: var(--primary); font-size: 11px; font-weight: 700; }
+        .flanacar-column-sample { color: var(--text-muted); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         @media (max-width: 768px) {
             .confirm-import-grid { grid-template-columns: 1fr; }
             .confirm-import-actions { flex-direction: column-reverse; }
+            .flanacar-columns-toolbar { align-items: flex-start; flex-direction: column; }
+            .flanacar-columns-table th:nth-child(3),
+            .flanacar-columns-table td:nth-child(3),
+            .flanacar-columns-table th:nth-child(5),
+            .flanacar-columns-table td:nth-child(5) { display: none; }
         }
         @keyframes slideIn {
             from { transform: translateX(120%); }
@@ -3056,6 +3084,36 @@
     
     <!-- Toast -->
     <div id="toast" class="toast hidden"></div>
+
+    <!-- FLANACAR Fiscal Column Selection -->
+    <div class="confirm-import-overlay" id="flanacarColumnsOverlay">
+        <div class="confirm-import-card flanacar-columns-card">
+            <div class="confirm-import-head">
+                <div>
+                    <h3>Selecionar colunas da entrada fiscal</h3>
+                    <p>Layout FLANACAR validado. Escolha os campos que devem seguir para a importação.</p>
+                </div>
+                <button class="btn-remove" type="button" onclick="responderSelecaoColunasFlanacar(false)" aria-label="Fechar">✕</button>
+            </div>
+            <div class="flanacar-columns-toolbar">
+                <p id="flanacarColumnsSummary">-</p>
+                <div class="actions">
+                    <button class="btn btn-secondary" type="button" onclick="marcarColunasFlanacar(false)">Limpar opcionais</button>
+                    <button class="btn btn-secondary" type="button" onclick="marcarColunasFlanacar(true)">Selecionar todas</button>
+                </div>
+            </div>
+            <div class="flanacar-columns-table-wrap">
+                <table class="confirm-import-table flanacar-columns-table">
+                    <thead><tr><th></th><th>Coluna</th><th>Grupo</th><th>Linhas preenchidas</th><th>Exemplo</th></tr></thead>
+                    <tbody id="flanacarColumnsBody"></tbody>
+                </table>
+            </div>
+            <div class="confirm-import-actions">
+                <button class="btn btn-secondary" type="button" onclick="responderSelecaoColunasFlanacar(false)">Cancelar</button>
+                <button class="btn btn-primary" type="button" onclick="responderSelecaoColunasFlanacar(true)">Importar colunas selecionadas</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Import Confirmation -->
     <div class="confirm-import-overlay" id="confirmImportOverlay">
@@ -11120,9 +11178,11 @@
             const layoutPdfMetaSelecionado = ext === 'pdf' ? layoutPdfUploadSelecionado() : null;
             let csvFiscalFlanacarDetectado = false;
             let resultadoCsvFiscalFlanacar = null;
+            let textoCsvFiscalFlanacar = '';
             if ((ext === 'csv' || ext === 'txt') && typeof window.parsearCSV_FlanacarRegistroEntradas === 'function') {
                 try {
                     const textoProbe = await lerArquivoTexto(selectedFile);
+                    textoCsvFiscalFlanacar = textoProbe;
                     const fiscalProbe = window.parsearCSV_FlanacarRegistroEntradas(textoProbe, {});
                     csvFiscalFlanacarDetectado = !!(fiscalProbe && fiscalProbe.detectado && fiscalProbe.lancamentos && fiscalProbe.lancamentos.length);
                     if (csvFiscalFlanacarDetectado) {
@@ -11149,6 +11209,17 @@
                     showToast('Importacao cancelada. Selecione outro layout ou use Automatico.', 'warn');
                     return;
                 }
+            }
+
+            if (resultadoCsvFiscalFlanacar && resultadoCsvFiscalFlanacar.colunas_disponiveis) {
+                const colunasSelecionadas = await abrirSelecaoColunasFlanacar(resultadoCsvFiscalFlanacar);
+                if (!colunasSelecionadas) {
+                    showToast('Importacao FLANACAR cancelada. Nenhum lancamento foi gravado.', 'error');
+                    return;
+                }
+                resultadoCsvFiscalFlanacar = window.parsearCSV_FlanacarRegistroEntradas(textoCsvFiscalFlanacar, {
+                    colunasSelecionadas
+                });
             }
             
             const importacaoId = (crypto.randomUUID ? crypto.randomUUID() : 'imp_' + Date.now() + '_' + Math.random().toString(36).slice(2));
@@ -11184,8 +11255,16 @@
                     try {
                         if ((ext === 'csv' || ext === 'txt') && bancoCode === '1237' && typeof window.parsearCSV_FlanacarRegistroEntradas === 'function') {
                             const textoFiscal = await lerArquivoTexto(selectedFile);
-                            const fiscalDireto = window.parsearCSV_FlanacarRegistroEntradas(textoFiscal, {});
+                            let fiscalDireto = window.parsearCSV_FlanacarRegistroEntradas(textoFiscal, {});
                             if (fiscalDireto && fiscalDireto.detectado && fiscalDireto.lancamentos && fiscalDireto.lancamentos.length) {
+                                hideProcessing();
+                                const colunasSelecionadas = await abrirSelecaoColunasFlanacar(fiscalDireto);
+                                if (!colunasSelecionadas) {
+                                    showToast('Importacao FLANACAR cancelada. Nenhum lancamento foi gravado.', 'error');
+                                    return;
+                                }
+                                fiscalDireto = window.parsearCSV_FlanacarRegistroEntradas(textoFiscal, { colunasSelecionadas });
+                                showProcessing();
                                 window.__ultimoLayoutTextoDetectado = fiscalDireto;
                                 entries = fiscalDireto.lancamentos;
                                 console.log('[processFile] CSV FLANACAR detectado por banco 1237:', entries.length);
@@ -11427,6 +11506,55 @@
         }
 
         let resolverConferenciaImportacao = null;
+
+        let resolverSelecaoColunasFlanacar = null;
+        function atualizarResumoColunasFlanacar() {
+            const caixas = Array.from(document.querySelectorAll('#flanacarColumnsBody input[data-flanacar-column]'));
+            const selecionadas = caixas.filter(function(c) { return c.checked; }).length;
+            const obrigatorias = caixas.filter(function(c) { return c.disabled; }).length;
+            const resumo = document.getElementById('flanacarColumnsSummary');
+            if (resumo) resumo.textContent = selecionadas + ' de ' + caixas.length + ' colunas selecionadas • ' + obrigatorias + ' estruturais protegidas';
+        }
+
+        function marcarColunasFlanacar(marcar) {
+            document.querySelectorAll('#flanacarColumnsBody input[data-flanacar-column]').forEach(function(caixa) {
+                if (!caixa.disabled) caixa.checked = !!marcar;
+            });
+            atualizarResumoColunasFlanacar();
+        }
+
+        function responderSelecaoColunasFlanacar(ok) {
+            const overlay = document.getElementById('flanacarColumnsOverlay');
+            if (overlay) overlay.classList.remove('show');
+            if (!resolverSelecaoColunasFlanacar) return;
+            const resolve = resolverSelecaoColunasFlanacar;
+            resolverSelecaoColunasFlanacar = null;
+            const selecionadas = ok
+                ? Array.from(document.querySelectorAll('#flanacarColumnsBody input[data-flanacar-column]:checked')).map(function(c) { return c.getAttribute('data-flanacar-column'); })
+                : null;
+            resolve(selecionadas);
+        }
+
+        function abrirSelecaoColunasFlanacar(resultado) {
+            const overlay = document.getElementById('flanacarColumnsOverlay');
+            const body = document.getElementById('flanacarColumnsBody');
+            const colunas = Array.isArray(resultado && resultado.colunas_disponiveis) ? resultado.colunas_disponiveis : [];
+            if (!overlay || !body || !colunas.length) return Promise.resolve(null);
+            body.innerHTML = colunas.map(function(coluna) {
+                const protegida = coluna.obrigatoria ? '<div class="flanacar-column-required">Obrigatória</div>' : '';
+                return '<tr>' +
+                    '<td><input type="checkbox" data-flanacar-column="' + escaparHtmlImportacao(coluna.chave) + '" ' + (coluna.selecionada ? 'checked ' : '') + (coluna.obrigatoria ? 'disabled ' : '') + 'onchange="atualizarResumoColunasFlanacar()"></td>' +
+                    '<td><strong>' + escaparHtmlImportacao(coluna.nome) + '</strong>' + protegida + '</td>' +
+                    '<td>' + escaparHtmlImportacao(coluna.grupo || '-') + '</td>' +
+                    '<td>' + Number(coluna.preenchidos || 0).toLocaleString('pt-BR') + '</td>' +
+                    '<td class="flanacar-column-sample" title="' + escaparHtmlImportacao(coluna.amostra || '') + '">' + escaparHtmlImportacao(coluna.amostra || '-') + '</td>' +
+                    '</tr>';
+            }).join('');
+            atualizarResumoColunasFlanacar();
+            overlay.classList.add('show');
+            return new Promise(function(resolve) { resolverSelecaoColunasFlanacar = resolve; });
+        }
+
         function responderConferenciaImportacao(ok) {
             const overlay = document.getElementById('confirmImportOverlay');
             if (overlay) overlay.classList.remove('show');
@@ -14763,7 +14891,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = '3.4.41';
+            const _VERSAO_BUILD = '3.4.42';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
