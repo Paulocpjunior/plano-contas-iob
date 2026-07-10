@@ -52,6 +52,46 @@
     return String(valor == null ? '' : valor).replace(/\D/g, '');
   }
 
+  function cpfValido(cpf) {
+    const doc = digits(cpf);
+    if (!/^\d{11}$/.test(doc) || /^(\d)\1+$/.test(doc)) return false;
+    const digito = tamanho => {
+      let soma = 0;
+      for (let i = 0; i < tamanho; i++) soma += Number(doc[i]) * (tamanho + 1 - i);
+      const resto = (soma * 10) % 11;
+      return resto === 10 ? 0 : resto;
+    };
+    return digito(9) === Number(doc[9]) && digito(10) === Number(doc[10]);
+  }
+
+  function cnpjValido(cnpj) {
+    const doc = digits(cnpj);
+    if (!/^\d{14}$/.test(doc) || /^(\d)\1+$/.test(doc)) return false;
+    const digito = base => {
+      let peso = base.length - 7;
+      let soma = 0;
+      for (const n of base) {
+        soma += Number(n) * peso--;
+        if (peso < 2) peso = 9;
+      }
+      const resto = soma % 11;
+      return resto < 2 ? 0 : 11 - resto;
+    };
+    return digito(doc.slice(0, 12)) === Number(doc[12]) && digito(doc.slice(0, 13)) === Number(doc[13]);
+  }
+
+  function normalizarCpfBeneficiario(valor) {
+    const doc = digits(valor);
+    if (doc.length === 10 && cpfValido(doc.padStart(11, '0'))) return doc.padStart(11, '0');
+    return doc;
+  }
+
+  function normalizarCnpjFonte(valor) {
+    const doc = digits(valor);
+    if (doc.length === 13 && cnpjValido(doc.padStart(14, '0'))) return doc.padStart(14, '0');
+    return doc;
+  }
+
   function normalize(valor) {
     return String(valor == null ? '' : valor)
       .normalize('NFD')
@@ -276,6 +316,12 @@
       ignoradosCodigo: 0,
       ignoradosOutroCnpj: 0,
       ignoradosSemDocumento: 0,
+      linhasComIrrf: 0,
+      irrfImportado: 0,
+      irrfNaoImportado: 0,
+      documentosRecuperados: 0,
+      brutosRecuperados: 0,
+      pendenciasIrrf: [],
       irrfCalculado: 0,
       irrfInformado: 0,
       divergenciasIrrf: 0,
@@ -300,12 +346,32 @@
       }
       if (!indices) continue;
 
-      const doc = digits(r[indices.doc]);
+      const docOriginal = digits(r[indices.doc]);
+      const doc = normalizarCpfBeneficiario(r[indices.doc]);
       const nome = String(r[indices.nome] || '').trim();
-      const bruto = valorMonetario(r[indices.bruto]);
-      const codigo = indices.codigo >= 0 ? digits(r[indices.codigo]) : '';
-      const cnpjFonte = indices.cnpjFonte >= 0 ? digits(r[indices.cnpjFonte]) : '';
+      const rawIrrf = indices.irrf >= 0 ? r[indices.irrf] : '';
+      const informado = indices.irrf >= 0 && temNumeroInformado(rawIrrf);
+      const irrfInformado = informado ? valorMonetario(rawIrrf) : 0;
+      const liquido = indices.liquido >= 0 ? valorMonetario(r[indices.liquido]) : 0;
+      let bruto = valorMonetario(r[indices.bruto]);
+      const codigoDigitos = indices.codigo >= 0 ? digits(r[indices.codigo]) : '';
+      const codigo = /^3208(?:0+)?$/.test(codigoDigitos)
+        ? TABELA_IRRF_ALUGUEL_2026.codigoReceita
+        : codigoDigitos;
+      const cnpjFonte = indices.cnpjFonte >= 0 ? normalizarCnpjFonte(r[indices.cnpjFonte]) : '';
       const competencia = indices.competencia >= 0 ? parseCompetencia(r[indices.competencia]) : '';
+      const sheet = rowSheet(item);
+      const numeroLinha = rowNumber(item, i + 1);
+      const referenciaLinha = (sheet ? sheet + ' | ' : '') + 'Linha ' + numeroLinha;
+      let brutoRecuperado = false;
+
+      if (informado && irrfInformado > 0) meta.linhasComIrrf += 1;
+      if (bruto <= 0 && liquido > 0 && irrfInformado > 0) {
+        bruto = round2(liquido + irrfInformado);
+        brutoRecuperado = true;
+        meta.brutosRecuperados += 1;
+      }
+      if (docOriginal.length === 10 && doc.length === 11) meta.documentosRecuperados += 1;
 
       if (codigo) meta.codigosReceita.push(codigo);
       if (cnpjFonte.length === 14) meta.cnpjsFonte.push(cnpjFonte);
@@ -313,10 +379,18 @@
 
       if (!doc || !nome || bruto <= 0) {
         if (!doc && (nome || bruto > 0)) meta.ignoradosSemDocumento += 1;
+        if (irrfInformado > 0) {
+          meta.irrfNaoImportado += 1;
+          meta.pendenciasIrrf.push(referenciaLinha + ': linha com IRRF nao importada por documento, nome ou valor bruto ausente.');
+        }
         continue;
       }
       if (codigo && codigo !== TABELA_IRRF_ALUGUEL_2026.codigoReceita) {
         meta.ignoradosCodigo += 1;
+        if (irrfInformado > 0) {
+          meta.irrfNaoImportado += 1;
+          meta.pendenciasIrrf.push(referenciaLinha + ': linha com IRRF usa codigo ' + codigo + ' em vez de 3208.');
+        }
         continue;
       }
       if (cnpjFiltro.length === 14 && cnpjFonte.length === 14 && cnpjFonte !== cnpjFiltro) {
@@ -325,28 +399,35 @@
       }
       if (doc.length === 14) {
         meta.ignoradosPJ += 1;
+        if (irrfInformado > 0) {
+          meta.irrfNaoImportado += 1;
+          meta.pendenciasIrrf.push(referenciaLinha + ': proprietario PJ com IRRF informado nao pertence ao R-4010 de beneficiario PF.');
+        }
         continue;
       }
       if (doc.length !== 11) {
         meta.ignoradosSemDocumento += 1;
+        if (irrfInformado > 0) {
+          meta.irrfNaoImportado += 1;
+          meta.pendenciasIrrf.push(referenciaLinha + ': CPF com ' + doc.length + ' digito(s), esperado 11.');
+        }
         continue;
       }
 
       const baseIrrf = indices.base >= 0 ? valorMonetario(r[indices.base]) || bruto : bruto;
-      const rawIrrf = indices.irrf >= 0 ? r[indices.irrf] : '';
-      const informado = indices.irrf >= 0 && temNumeroInformado(rawIrrf);
       const calculo = calcularIrrfAluguel2026(bruto, { baseCalculo: baseIrrf });
-      const valorIrrf = informado ? valorMonetario(rawIrrf) : calculo.valor;
+      const valorIrrf = informado ? irrfInformado : calculo.valor;
       const diff = round2(valorIrrf - calculo.valor);
       const obs = [];
-      const sheet = rowSheet(item);
-      const numeroLinha = rowNumber(item, i + 1);
       if (sheet) obs.push(sheet);
       obs.push('Linha ' + numeroLinha);
       if (cnpjFonte.length === 14) obs.push('CNPJ ' + cnpjFonte);
       if (competencia) obs.push('Competencia ' + competencia);
+      if (docOriginal.length === 10) obs.push('CPF recuperado com zero a esquerda');
+      if (brutoRecuperado) obs.push('Bruto recuperado por Liquido + IRRF; revisar valor');
       if (informado) {
         meta.irrfInformado += 1;
+        if (valorIrrf > 0) meta.irrfImportado += 1;
         if (Math.abs(diff) > 0.05) {
           meta.divergenciasIrrf += 1;
           obs.push('IRRF informado preservado; calculo sugerido ' + calculo.valor.toFixed(2).replace('.', ','));
@@ -388,6 +469,8 @@
   return {
     TABELA_IRRF_ALUGUEL_2026,
     digits,
+    normalizarCpfBeneficiario,
+    normalizarCnpjFonte,
     normalize,
     valorMonetario,
     parseCompetencia,

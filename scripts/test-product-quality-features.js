@@ -158,6 +158,9 @@ assertContains('index.html', 'registrarReciboR4010Beneficiario', 'Reinf permite 
 assertContains('index.html', 'nrReciboR4010: String(b.nrReciboR4010 || b.nrRecibo || \'\').trim()', 'payload Reinf leva recibo R-4010 para gerar retificacao');
 assertContains('index.html', 'Lucros e Dividendos (R-4010 natureza 12001)', 'Reinf exibe painel de dividendos natureza 12001');
 assertContains('index.html', 'reinfDividendosCalcular', 'Reinf possui acao de calculo de dividendos');
+assertContains('index.html', 'Linhas com IRRF não importadas', 'Reinf aluguel nao pode omitir silenciosamente linha com imposto retido');
+assertContains('reinf/reinf-aluguel-utils.js', 'normalizarCpfBeneficiario', 'Reinf aluguel recupera CPF numerico com zero a esquerda');
+assertContains('reinf/reinf-aluguel-utils.js', 'Bruto recuperado por Liquido + IRRF; revisar valor', 'Reinf aluguel recupera linha retida quando formula de bruto chega sem cache');
 assertContains('index.html', 'Enviar e-mail Microsoft 365', 'Reinf possui disparo real de solicitacao por Microsoft 365');
 assertContains('index.html', "baseIrrf: b.baseIrrf != null ? reinfValor(b.baseIrrf) : reinfValor(b.valorBruto)", 'payload Reinf preserva base IRRF zero para dividendos isentos');
 assertContains('reinf-routes.js', "router.post('/recibos-r4010'", 'backend Reinf persiste recibo R-4010 manual para reenvio retificador');

@@ -46,6 +46,34 @@ assert.strictEqual(meta.cnpjsFonte.length, 5, 'planilha CAIXA possui cinco CNPJs
 assert.strictEqual(meta.totalBruto, 300647.03);
 assert.strictEqual(meta.totalIrrf, 22397.95);
 
+const linhasRetidasCaixa4 = [
+  { row: ['Localidade', 'CNPJ', 'Código', 'Nome (Proprietário)', 'CNPJ (Proprietário)', 'Apuração', 'Bruto', 'IRRF', 'Líquido'], sheet: 'Caixa 4', rowNumber: 1 },
+  { row: ['Belém', 2881939000138, 3208, 'Jose Maria Ferreira Gomes', 9448225253, 'jun/26', '6.379,80', '289,17', '5.452,66'], sheet: 'Caixa 4', rowNumber: 12 },
+  { row: ['Guará - Reg. VIII', 9350712000105, '3208,00', 'Djalma Ferreira Dos Santos Junior', 60632119187, 'jun/26', '', '2.691,79', '11.008,21'], sheet: 'Caixa 4', rowNumber: 13 },
+];
+const retidosCaixa4 = mapearBeneficiarios(linhasRetidasCaixa4);
+assert.strictEqual(retidosCaixa4.beneficiarios.length, 2, 'linhas Caixa 4 com IRRF nao podem ser descartadas');
+const jose = retidosCaixa4.beneficiarios.find(b => b.cpfBenef === '09448225253');
+const djalma = retidosCaixa4.beneficiarios.find(b => b.cpfBenef === '60632119187');
+assert.ok(jose, 'Jose Maria deve recuperar zero a esquerda do CPF numerico');
+assert.strictEqual(jose.cnpjFonte, '02881939000138');
+assert.strictEqual(jose.valorIrrf, 289.17);
+assert.ok(djalma, 'Djalma deve ser importado mesmo quando o bruto calculado chega sem cache');
+assert.strictEqual(djalma.cnpjFonte, '09350712000105');
+assert.strictEqual(djalma.valorBruto, 13700);
+assert.strictEqual(djalma.valorIrrf, 2691.79);
+assert.strictEqual(retidosCaixa4.meta.irrfImportado, 2);
+assert.strictEqual(retidosCaixa4.meta.irrfNaoImportado, 0);
+assert.strictEqual(retidosCaixa4.meta.documentosRecuperados, 1);
+assert.strictEqual(retidosCaixa4.meta.brutosRecuperados, 1);
+
+const retidoInvalido = mapearBeneficiarios([
+  linhasRetidasCaixa4[0],
+  { row: ['Belém', '02.881.939/0001-38', 3208, 'CPF incompleto', '123', 'jun/26', '1.000,00', '15,00', '985,00'], sheet: 'Caixa 4', rowNumber: 99 },
+]);
+assert.strictEqual(retidoInvalido.meta.irrfNaoImportado, 1, 'linha com IRRF descartada deve virar pendencia explicita');
+assert.ok(retidoInvalido.meta.pendenciasIrrf[0].includes('Linha 99'));
+
 const filtroCnpj = '03954491000106';
 const filtrado = mapearBeneficiarios(rows, { cnpjFiltro: filtroCnpj });
 assert.strictEqual(filtrado.beneficiarios.length, 29, 'filtro por CNPJ deve separar a empresa selecionada em planilha multi-CNPJ');

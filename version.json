@@ -1,9 +1,9 @@
 {
-  "version": "3.4.38",
-  "build_date": "2026-07-10T15:30:00.000Z",
+  "version": "3.4.39",
+  "build_date": "2026-07-10T13:34:05.000Z",
   "release_notes": [
-    "ECD: abertura e inicio de obrigatoriedade deixam de exigir uma ECD anterior inexistente.",
-    "ECD: validador passa a aceitar a quantidade correta de campos do leiaute 9 em I200, I350, I355, J100 e J150.",
-    "ECD: diferencas mensais do I155 por resultado ainda nao encerrado deixam de bloquear a consolidacao; o J100 final continua obrigatoriamente equilibrado."
+    "Reinf aluguel: CPFs e CNPJs numericos com zero a esquerda deixam de ser descartados na importacao.",
+    "Reinf aluguel: Jose Maria Ferreira Gomes e Djalma Ferreira dos Santos Junior ficam protegidos por regressao com seus IRRF informados.",
+    "Reinf aluguel: linhas com IRRF que nao puderem ser importadas passam a exibir aba, linha e motivo em vez de sumirem silenciosamente."
   ]
 }

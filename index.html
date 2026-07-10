@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.38"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.38"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.38"></script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.39"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.39"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.39"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -19,29 +19,29 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.38"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.38"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.39"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.39"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.38"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.38"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.38"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.38"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.38"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.38"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.38"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.38"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.38"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.38"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.38"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.38"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.38"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.38"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.38"></script>
+    <script src="/parser-ofx.js?v=3.4.39"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.39"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.39"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.39"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.39"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.39"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.39"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.39"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.39"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.39"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.39"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.39"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.39"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.39"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.39"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -7672,6 +7672,10 @@
             if (meta.cnpjsFonte && meta.cnpjsFonte.length) partes.push(meta.cnpjsFonte.length + ' CNPJ(s) fonte');
             if (meta.ignoradosPJ) partes.push(meta.ignoradosPJ + ' proprietário(s) PJ ignorado(s)');
             if (meta.irrfCalculado) partes.push(meta.irrfCalculado + ' IRRF calculado/zerado pela tabela 2026');
+            if (meta.irrfImportado) partes.push(meta.irrfImportado + ' linha(s) com IRRF importada(s)');
+            if (meta.documentosRecuperados) partes.push(meta.documentosRecuperados + ' CPF/CNPJ recuperado(s) com zero à esquerda');
+            if (meta.brutosRecuperados) partes.push(meta.brutosRecuperados + ' bruto(s) recuperado(s) por líquido + IRRF para revisão');
+            if (meta.irrfNaoImportado) partes.push(meta.irrfNaoImportado + ' linha(s) com IRRF exigem correção');
             if (meta.divergenciasIrrf) partes.push(meta.divergenciasIrrf + ' IRRF informado diferente do cálculo sugerido');
             if (meta.ignoradosOutroCnpj) partes.push(meta.ignoradosOutroCnpj + ' linha(s) fora do CNPJ selecionado');
             return partes.join(' • ');
@@ -8141,8 +8145,11 @@
                 reinfState.eventos = [];
                 reinfAtualizarResumo();
                 const resumo = reinfResumoImportacao(meta);
-                const tipoStatus = meta.cnpjsFonte && meta.cnpjsFonte.length > 1 ? 'warn' : (meta.divergenciasIrrf ? 'warn' : 'success');
-                reinfSetStatus(novos.length + ' beneficiário(s) PF importado(s) de ' + reinfEscape(file.name) + '.' + (resumo ? '<br>' + reinfEscape(resumo) : '') + (meta.cnpjsFonte && meta.cnpjsFonte.length > 1 ? '<br><strong>Atenção:</strong> arquivo possui múltiplos CNPJs. A geração do R-4010/DARF usará o CNPJ Fonte/Estabelecimento selecionado na tela.' : '') + (meta.cnpjSelecionadoAutomatico ? '<br>CNPJ da empresa aberta não consta na planilha; campo CNPJ preenchido com o primeiro CNPJ fonte do arquivo: ' + reinfEscape(reinfFormatCpfCnpj(meta.cnpjSelecionadoAutomatico)) + '.' : ''), tipoStatus);
+                const tipoStatus = meta.irrfNaoImportado || (meta.cnpjsFonte && meta.cnpjsFonte.length > 1) || meta.divergenciasIrrf ? 'warn' : 'success';
+                const pendenciasIrrf = meta.pendenciasIrrf && meta.pendenciasIrrf.length
+                    ? '<br><strong>Linhas com IRRF não importadas:</strong><br>' + meta.pendenciasIrrf.slice(0, 8).map(reinfEscape).join('<br>')
+                    : '';
+                reinfSetStatus(novos.length + ' beneficiário(s) PF importado(s) de ' + reinfEscape(file.name) + '.' + (resumo ? '<br>' + reinfEscape(resumo) : '') + pendenciasIrrf + (meta.cnpjsFonte && meta.cnpjsFonte.length > 1 ? '<br><strong>Atenção:</strong> arquivo possui múltiplos CNPJs. A geração do R-4010/DARF usará o CNPJ Fonte/Estabelecimento selecionado na tela.' : '') + (meta.cnpjSelecionadoAutomatico ? '<br>CNPJ da empresa aberta não consta na planilha; campo CNPJ preenchido com o primeiro CNPJ fonte do arquivo: ' + reinfEscape(reinfFormatCpfCnpj(meta.cnpjSelecionadoAutomatico)) + '.' : ''), tipoStatus);
                 showToast('Beneficiários Reinf importados.', 'success');
             } catch (e) {
                 reinfSetStatus('Erro ao importar beneficiários: ' + reinfEscape(e.message || e), 'error');
@@ -14688,7 +14695,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = '3.4.38';
+            const _VERSAO_BUILD = '3.4.39';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
