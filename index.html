@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.43"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.43"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.43"></script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.44"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.44"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.44"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -19,29 +19,29 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.43"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.43"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.44"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.44"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.43"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.43"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.43"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.43"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.43"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.43"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.43"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.43"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.43"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.43"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.43"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.43"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.43"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.43"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.43"></script>
+    <script src="/parser-ofx.js?v=3.4.44"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.44"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.44"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.44"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.44"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.44"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.44"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.44"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.44"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.44"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.44"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.44"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.44"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.44"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.44"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1974,6 +1974,9 @@
                                 </div>
                                 <div id="uploadRazaoHint" style="display:none;grid-column:1/-1;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12px;font-weight:600">
                                     Para razão de saldos, Banco e Título não são obrigatórios. Clique em Processar arquivo para gerar o relatório de notas pagas e abertas.
+                                </div>
+                                <div id="uploadFlanacarColumnsHint" style="display:none;grid-column:1/-1;background:#ecfdf5;color:#166534;border:1px solid #86efac;border-radius:8px;padding:10px 12px;font-size:12px;font-weight:700">
+                                    FLANACAR Entrada Fiscal validado. Ao processar, você poderá escolher as colunas deste arquivo antes da importação.
                                 </div>
                             </div>
                         </div>
@@ -11076,6 +11079,7 @@
                 return;
             }
             ajustarCamposUploadPorExtensao(ext);
+            atualizarIndicadorFlanacar(false);
             
             selectedFile = f;
             const preview = document.getElementById('filePreview');
@@ -11131,7 +11135,17 @@
 
             const type = document.getElementById('fileType');
             if (type) type.textContent = 'CSV - FLANACAR Registro de Entradas Fiscal';
+            atualizarIndicadorFlanacar(true);
             try { atualizarLayoutsUpload(); } catch(e) { console.warn('[layouts upload] atualizar flanacar preview:', e); }
+        }
+
+        function atualizarIndicadorFlanacar(validado) {
+            const hint = document.getElementById('uploadFlanacarColumnsHint');
+            if (hint) hint.style.display = validado ? 'block' : 'none';
+            const botao = document.querySelector('#filePreview .btn-process');
+            if (botao) botao.innerHTML = validado
+                ? '<span>☑</span> Selecionar colunas e processar'
+                : '<span>⚡</span> Processar arquivo';
         }
         
         function formatSize(b) {
@@ -11142,6 +11156,7 @@
         
         function removeFile() {
             selectedFile = null;
+            atualizarIndicadorFlanacar(false);
             document.getElementById('filePreview').classList.remove('show');
             document.getElementById('dropZone').style.display = 'block';
             document.getElementById('fileInput').value = '';
@@ -11152,6 +11167,7 @@
         
         function novoUpload() {
             selectedFile = null;
+            atualizarIndicadorFlanacar(false);
             document.getElementById('filePreview').classList.remove('show');
             document.getElementById('successMessage').classList.remove('show');
             document.getElementById('dropZone').style.display = 'block';
@@ -14891,7 +14907,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = '3.4.43';
+            const _VERSAO_BUILD = '3.4.44';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';

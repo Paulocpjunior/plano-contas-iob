@@ -96,6 +96,10 @@ assertContains('index.html', 'Selecionar colunas da entrada fiscal', 'FLANACAR d
 assertContains('index.html', 'abrirSelecaoColunasFlanacar', 'selecao de colunas deve fazer parte do fluxo FLANACAR');
 assertContains('index.html', 'colunasSelecionadas', 'FLANACAR deve reprocessar o arquivo com as colunas escolhidas');
 assertContains('index.html', 'Limpar opcionais', 'selecao FLANACAR deve preservar obrigatorias e permitir limpar opcionais');
+assertContains('index.html', 'FLANACAR Entrada Fiscal validado', 'preview deve confirmar visualmente o layout FLANACAR reconhecido');
+assertContains('index.html', 'Selecionar colunas e processar', 'botao FLANACAR deve deixar explicita a etapa de colunas');
+assertContains('index.html', 'atualizarIndicadorFlanacar(true)', 'indicador de colunas deve aparecer somente apos detectar FLANACAR');
+assertContains('server.js', 'parser-flanacar-registro-entradas\\.js', 'parser FLANACAR deve ser servido sem cache antigo');
 assertContains('index.html', 'Formato nao reconhecido (use CSV com ;, , tab ou |)', 'mensagem de rejeicao CSV generica preservada');
 assertContains('index.html', 'ehCsvEvidenciaConciliacaoAuditAI', 'bloqueio de CSV de evidencia do AuditAI no importador principal');
 assertContains('index.html', 'Este CSV é um relatório de conciliação do AuditAI', 'mensagem clara para CSV de conciliacao usado como extrato');

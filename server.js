@@ -2575,8 +2575,19 @@ app.get('/auditai*', (req, res) => {
   res.sendFile(path.join(__dirname, 'auditai', 'index.html'));
 });
 
-app.use(express.static(__dirname, { index: 'index.html' }));
-app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
+function headersAppPrincipal(res, filePath) {
+  if (!/(?:^|\/)(?:index\.html|parser-flanacar-registro-entradas\.js)$/i.test(filePath || '')) return;
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+}
+
+app.use(express.static(__dirname, { index: 'index.html', setHeaders: headersAppPrincipal }));
+app.get('*', (req, res) => {
+  headersAppPrincipal(res, path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 
 app.listen(PORT, () => {
