@@ -1,11 +1,9 @@
 {
-  "version": "3.4.40",
-  "build_date": "2026-07-10T14:05:00.000Z",
+  "version": "3.4.41",
+  "build_date": "2026-07-10T17:19:05.000Z",
   "release_notes": [
-    "Reinf aluguel: importacao XLSX combina o valor formatado com o valor bruto interno de cada celula.",
-    "Reinf aluguel: CPF e nome podem ser recuperados pela leitura completa da linha quando a celula mapeada chega vazia ou deslocada.",
-    "Reinf aluguel: pendencias com IRRF passam a informar exatamente se faltou documento, nome ou valor bruto.",
-    "Sessao: servidor permanece como fonte da verdade, com fila, retry e flush de saida integrados ao limite seguro de snapshot.",
-    "Recuperacao: script para restaurar sessao pelo dump JSON local incorporado ao repositorio."
+    "Reinf aluguel: linhas de total e subtotal deixam de ser tratadas como beneficiarios sem CPF ou nome.",
+    "Reinf aluguel: CAIXA 4 real protege Jose Maria, Djalma Ferreira e seus IRRF informados.",
+    "Reinf aluguel: totais das linhas 13 e 32 deixam de gerar falso alerta de importacao."
   ]
 }

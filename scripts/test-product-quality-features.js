@@ -163,6 +163,7 @@ assertContains('reinf/reinf-aluguel-utils.js', 'normalizarCpfBeneficiario', 'Rei
 assertContains('reinf/reinf-aluguel-utils.js', 'Bruto recuperado por Liquido + IRRF; revisar valor', 'Reinf aluguel recupera linha retida quando formula de bruto chega sem cache');
 assertContains('index.html', 'const arrBruto = XLSX.utils.sheet_to_json', 'Reinf combina valor formatado e valor bruto das celulas XLSX');
 assertContains('reinf/reinf-aluguel-utils.js', 'CPF recuperado pela leitura completa da linha', 'Reinf recupera CPF deslocado quando a celula mapeada chega vazia');
+assertContains('reinf/reinf-aluguel-utils.js', 'linhaTotalSemBeneficiario', 'Reinf ignora totalizadores sem CPF e nome em vez de gerar falso erro');
 assertContains('index.html', 'Enviar e-mail Microsoft 365', 'Reinf possui disparo real de solicitacao por Microsoft 365');
 assertContains('index.html', "baseIrrf: b.baseIrrf != null ? reinfValor(b.baseIrrf) : reinfValor(b.valorBruto)", 'payload Reinf preserva base IRRF zero para dividendos isentos');
 assertContains('reinf-routes.js', "router.post('/recibos-r4010'", 'backend Reinf persiste recibo R-4010 manual para reenvio retificador');

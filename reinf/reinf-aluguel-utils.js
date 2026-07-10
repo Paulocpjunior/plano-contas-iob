@@ -345,6 +345,7 @@
       irrfNaoImportado: 0,
       documentosRecuperados: 0,
       brutosRecuperados: 0,
+      linhasTotalIgnoradas: 0,
       pendenciasIrrf: [],
       irrfCalculado: 0,
       irrfInformado: 0,
@@ -406,13 +407,22 @@
         }
       }
 
-      if (informado && irrfInformado > 0) meta.linhasComIrrf += 1;
       if (bruto <= 0 && liquido > 0 && irrfInformado > 0) {
         bruto = round2(liquido + irrfInformado);
         brutoRecuperado = true;
         meta.brutosRecuperados += 1;
       }
       if ((docOriginal.length === 10 || docRecuperadoDaLinha) && doc.length === 11) meta.documentosRecuperados += 1;
+
+      const linhaTotalSemBeneficiario = !doc && !nome && !cnpjFonte && !codigo && !competencia
+        && !String(indices.localidade >= 0 ? r[indices.localidade] || '' : '').trim()
+        && (bruto > 0 || irrfInformado > 0 || liquido > 0);
+      if (linhaTotalSemBeneficiario) {
+        meta.linhasTotalIgnoradas += 1;
+        continue;
+      }
+
+      if (informado && irrfInformado > 0) meta.linhasComIrrf += 1;
 
       if (codigo) meta.codigosReceita.push(codigo);
       if (cnpjFonte.length === 14) meta.cnpjsFonte.push(cnpjFonte);

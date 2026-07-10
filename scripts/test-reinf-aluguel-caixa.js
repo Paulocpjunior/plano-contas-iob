@@ -12,6 +12,7 @@ const { gerarEventosR4010DaPlanilha } = require('../reinf/reinf-utils');
 
 const arquivoPadrao = '/Users/paulocesarpereirajunior/Downloads/CAIXA 1- Junho de 2026 3208.xlsx';
 const arquivo = process.env.REINF_CAIXA_3208_XLSX || arquivoPadrao;
+const arquivoCaixa4 = '/Users/paulocesarpereirajunior/Downloads/CAIXA 4- Junho de 2026 3208 (1).xlsx';
 
 assert.strictEqual(valorMonetario('2,000.00'), 2000, 'valor EN-US de planilha CAIXA deve ser lido corretamente');
 assert.strictEqual(valorMonetario('2.000,00'), 2000, 'valor pt-BR deve continuar suportado');
@@ -83,6 +84,31 @@ assert.strictEqual(camposDeslocados.beneficiarios.length, 1, 'linha com celulas 
 assert.strictEqual(camposDeslocados.beneficiarios[0].cpfBenef, '09448225253');
 assert.strictEqual(camposDeslocados.beneficiarios[0].nomeBenef, 'Jose Maria Ferreira Gomes');
 assert.ok(camposDeslocados.beneficiarios[0].observacao.includes('leitura completa da linha'));
+
+if (fs.existsSync(arquivoCaixa4)) {
+  const wbCaixa4 = XLSX.readFile(arquivoCaixa4, { raw: false });
+  const rowsCaixa4 = [];
+  wbCaixa4.SheetNames
+    .filter(sheet => ['PA', 'DF'].includes(sheet.trim().slice(0, 2)))
+    .forEach(sheet => {
+      const arr = XLSX.utils.sheet_to_json(wbCaixa4.Sheets[sheet], {
+        header: 1,
+        defval: '',
+        raw: false,
+        blankrows: false,
+      });
+      arr.forEach((row, idx) => rowsCaixa4.push({ row, sheet, rowNumber: idx + 1 }));
+    });
+  const caixa4 = mapearBeneficiarios(rowsCaixa4);
+  const joseReal = caixa4.beneficiarios.find(b => b.cpfBenef === '09448225253');
+  const djalmaReal = caixa4.beneficiarios.find(b => b.cpfBenef === '60632119187');
+  assert.ok(joseReal, 'CAIXA 4 real deve importar Jose Maria da linha 12');
+  assert.strictEqual(joseReal.valorIrrf, 289.17);
+  assert.ok(djalmaReal, 'CAIXA 4 real deve importar Djalma da linha 31');
+  assert.strictEqual(djalmaReal.valorIrrf, 2691.79);
+  assert.strictEqual(caixa4.meta.irrfNaoImportado, 0, 'totais das linhas 13 e 32 nao podem gerar falso erro de IRRF');
+  assert.strictEqual(caixa4.meta.linhasTotalIgnoradas, 3, 'totais PA e DF devem ser reconhecidos e ignorados');
+}
 
 const filtroCnpj = '03954491000106';
 const filtrado = mapearBeneficiarios(rows, { cnpjFiltro: filtroCnpj });
