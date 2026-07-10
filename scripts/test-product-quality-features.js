@@ -109,7 +109,7 @@ assertContains('index.html', 'FISCAL_CERT_DOC_PATH', 'orientacao para vincular c
 assertContains('index.html', 'Consultar SERPRO', 'botao para consultar dados SERPRO');
 assertContains('index.html', 'sincronizarFiscalSerpro', 'acao frontend de sincronizacao SERPRO');
 assertContains('index.html', 'Ponte SERPRO ativa', 'aviso correto quando a integracao usa app fiscal externo');
-assertContains('index.html', 'LIMITE_ENTRIES_LOCAL_STORAGE', 'limite de snapshot local para evitar recarregamento por memoria');
+assertContains('index.html', "criarSnapshotState({ semLancamentos: true })", 'snapshot local guarda apenas metadados e evita recarregamento por memoria');
 assertContains('index.html', 'versionModalLater', 'popup de atualizacao permite adiar sem interromper trabalho');
 assertContains('index.html', 'Voce pode atualizar agora ou continuar trabalhando e atualizar depois.', 'popup de atualizacao nao deve ser bloqueante');
 assertContains('index.html', 'salvarSessaoRemotoAgora({ mostrarErro: true })', 'atualizacao agora salva sessao antes do reload');

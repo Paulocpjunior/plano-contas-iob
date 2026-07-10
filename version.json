@@ -4,6 +4,8 @@
   "release_notes": [
     "Reinf aluguel: importacao XLSX combina o valor formatado com o valor bruto interno de cada celula.",
     "Reinf aluguel: CPF e nome podem ser recuperados pela leitura completa da linha quando a celula mapeada chega vazia ou deslocada.",
-    "Reinf aluguel: pendencias com IRRF passam a informar exatamente se faltou documento, nome ou valor bruto."
+    "Reinf aluguel: pendencias com IRRF passam a informar exatamente se faltou documento, nome ou valor bruto.",
+    "Sessao: servidor permanece como fonte da verdade, com fila, retry e flush de saida integrados ao limite seguro de snapshot.",
+    "Recuperacao: script para restaurar sessao pelo dump JSON local incorporado ao repositorio."
   ]
 }

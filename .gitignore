@@ -11,3 +11,6 @@ node_modules/
 index.html.bak*
 backups/
 tmp/
+
+# Dumps de recuperacao de sessao (contem dados financeiros de clientes; NUNCA subir no deploy)
+sessao-recuperada-*.json

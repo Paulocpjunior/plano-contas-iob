@@ -1758,6 +1758,32 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     const sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
     const chunksRef = sessaoRef.collection('chunks');
     const chunksAntigos = await chunksRef.get();
+    // [REDE DE SEGURANCA] Se um save SEM lancamentos for sobrescrever uma sessao COM
+    // lancamentos, preserva a versao atual (doc + chunks) em sessoes/anterior antes de
+    // apagar — undo de 1 nivel contra sobrescritas acidentais (cada save apaga os chunks
+    // antigos, entao sem esta copia a unica recuperacao seria o PITR do Firestore).
+    try {
+      const qtdNova = resumo ? Number(resumo.total_lancamentos || 0) : 0;
+      if (!qtdNova) {
+        const docAtual = await sessaoRef.get();
+        const qtdAtual = (docAtual.exists && docAtual.data().resumo) ? Number(docAtual.data().resumo.total_lancamentos || 0) : 0;
+        if (qtdAtual > 0) {
+          const anteriorRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('anterior');
+          const chunksAnterior = await anteriorRef.collection('chunks').get();
+          if (!chunksAnterior.empty) {
+            const batchLimpa = db.batch();
+            chunksAnterior.docs.forEach(d => batchLimpa.delete(d.ref));
+            await batchLimpa.commit();
+          }
+          await anteriorRef.set({ ...docAtual.data(), backup_de: 'current', backup_em: new Date() });
+          if (!chunksAntigos.empty) {
+            const batchCopia = db.batch();
+            chunksAntigos.docs.forEach(d => batchCopia.set(anteriorRef.collection('chunks').doc(d.id), d.data()));
+            await batchCopia.commit();
+          }
+        }
+      }
+    } catch (eBk) { console.warn('[sessao] backup pre-sobrescrita falhou:', eBk.message || eBk); }
     if (!chunksAntigos.empty) {
       let batchChunks = db.batch();
       let opsChunks = 0;
