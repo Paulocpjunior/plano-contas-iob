@@ -92,6 +92,30 @@
     return doc;
   }
 
+  function cpfNaLinha(row, ignorarIndices) {
+    const ignorar = new Set(ignorarIndices || []);
+    for (let i = 0; i < (row || []).length; i++) {
+      if (ignorar.has(i)) continue;
+      const doc = normalizarCpfBeneficiario(row[i]);
+      if (doc.length === 11 && cpfValido(doc)) return doc;
+    }
+    return '';
+  }
+
+  function nomeNaLinha(row, ignorarIndices) {
+    const ignorar = new Set(ignorarIndices || []);
+    return (row || []).map((valor, idx) => ({
+      idx,
+      valor: String(valor == null ? '' : valor).trim(),
+    })).filter(item => {
+      if (ignorar.has(item.idx) || !item.valor) return false;
+      const norm = normalize(item.valor);
+      if (!/[A-Z]{2}/.test(norm) || /^J(?:AN|UN)|^FEV|^MAR|^ABR|^MAI|^JUL|^AGO|^SET|^OUT|^NOV|^DEZ/.test(norm)) return false;
+      if (/^(LOCALIDADE|CNPJ|CPF|CODIGO|APURACAO|BRUTO|IRRF|LIQUIDO)/.test(norm)) return false;
+      return item.valor.replace(/[^A-Za-zÀ-ÿ]/g, '').length >= 5;
+    }).sort((a, b) => b.valor.length - a.valor.length)[0]?.valor || '';
+  }
+
   function normalize(valor) {
     return String(valor == null ? '' : valor)
       .normalize('NFD')
@@ -347,8 +371,8 @@
       if (!indices) continue;
 
       const docOriginal = digits(r[indices.doc]);
-      const doc = normalizarCpfBeneficiario(r[indices.doc]);
-      const nome = String(r[indices.nome] || '').trim();
+      let doc = normalizarCpfBeneficiario(r[indices.doc]);
+      let nome = String(r[indices.nome] || '').trim();
       const rawIrrf = indices.irrf >= 0 ? r[indices.irrf] : '';
       const informado = indices.irrf >= 0 && temNumeroInformado(rawIrrf);
       const irrfInformado = informado ? valorMonetario(rawIrrf) : 0;
@@ -364,6 +388,23 @@
       const numeroLinha = rowNumber(item, i + 1);
       const referenciaLinha = (sheet ? sheet + ' | ' : '') + 'Linha ' + numeroLinha;
       let brutoRecuperado = false;
+      let docRecuperadoDaLinha = false;
+      let nomeRecuperadoDaLinha = false;
+
+      if (doc.length !== 11 && doc.length !== 14) {
+        const encontrado = cpfNaLinha(r, [indices.cnpjFonte, indices.codigo, indices.bruto, indices.irrf, indices.liquido]);
+        if (encontrado) {
+          doc = encontrado;
+          docRecuperadoDaLinha = true;
+        }
+      }
+      if (!nome) {
+        const encontrado = nomeNaLinha(r, [indices.localidade, indices.cnpjFonte, indices.doc, indices.codigo, indices.competencia, indices.bruto, indices.irrf, indices.liquido]);
+        if (encontrado) {
+          nome = encontrado;
+          nomeRecuperadoDaLinha = true;
+        }
+      }
 
       if (informado && irrfInformado > 0) meta.linhasComIrrf += 1;
       if (bruto <= 0 && liquido > 0 && irrfInformado > 0) {
@@ -371,7 +412,7 @@
         brutoRecuperado = true;
         meta.brutosRecuperados += 1;
       }
-      if (docOriginal.length === 10 && doc.length === 11) meta.documentosRecuperados += 1;
+      if ((docOriginal.length === 10 || docRecuperadoDaLinha) && doc.length === 11) meta.documentosRecuperados += 1;
 
       if (codigo) meta.codigosReceita.push(codigo);
       if (cnpjFonte.length === 14) meta.cnpjsFonte.push(cnpjFonte);
@@ -380,8 +421,12 @@
       if (!doc || !nome || bruto <= 0) {
         if (!doc && (nome || bruto > 0)) meta.ignoradosSemDocumento += 1;
         if (irrfInformado > 0) {
+          const faltantes = [];
+          if (!doc) faltantes.push('documento vazio');
+          if (!nome) faltantes.push('nome vazio');
+          if (bruto <= 0) faltantes.push('bruto zerado/ausente');
           meta.irrfNaoImportado += 1;
-          meta.pendenciasIrrf.push(referenciaLinha + ': linha com IRRF nao importada por documento, nome ou valor bruto ausente.');
+          meta.pendenciasIrrf.push(referenciaLinha + ': linha com IRRF nao importada: ' + faltantes.join(', ') + '.');
         }
         continue;
       }
@@ -424,6 +469,8 @@
       if (cnpjFonte.length === 14) obs.push('CNPJ ' + cnpjFonte);
       if (competencia) obs.push('Competencia ' + competencia);
       if (docOriginal.length === 10) obs.push('CPF recuperado com zero a esquerda');
+      if (docRecuperadoDaLinha) obs.push('CPF recuperado pela leitura completa da linha');
+      if (nomeRecuperadoDaLinha) obs.push('Nome recuperado pela leitura completa da linha');
       if (brutoRecuperado) obs.push('Bruto recuperado por Liquido + IRRF; revisar valor');
       if (informado) {
         meta.irrfInformado += 1;
@@ -471,6 +518,8 @@
     digits,
     normalizarCpfBeneficiario,
     normalizarCnpjFonte,
+    cpfNaLinha,
+    nomeNaLinha,
     normalize,
     valorMonetario,
     parseCompetencia,

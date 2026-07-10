@@ -1,9 +1,9 @@
 {
-  "version": "3.4.39",
-  "build_date": "2026-07-10T13:34:05.000Z",
+  "version": "3.4.40",
+  "build_date": "2026-07-10T14:05:00.000Z",
   "release_notes": [
-    "Reinf aluguel: CPFs e CNPJs numericos com zero a esquerda deixam de ser descartados na importacao.",
-    "Reinf aluguel: Jose Maria Ferreira Gomes e Djalma Ferreira dos Santos Junior ficam protegidos por regressao com seus IRRF informados.",
-    "Reinf aluguel: linhas com IRRF que nao puderem ser importadas passam a exibir aba, linha e motivo em vez de sumirem silenciosamente."
+    "Reinf aluguel: importacao XLSX combina o valor formatado com o valor bruto interno de cada celula.",
+    "Reinf aluguel: CPF e nome podem ser recuperados pela leitura completa da linha quando a celula mapeada chega vazia ou deslocada.",
+    "Reinf aluguel: pendencias com IRRF passam a informar exatamente se faltou documento, nome ou valor bruto."
   ]
 }

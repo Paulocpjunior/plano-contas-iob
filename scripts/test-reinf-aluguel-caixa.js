@@ -73,6 +73,16 @@ const retidoInvalido = mapearBeneficiarios([
 ]);
 assert.strictEqual(retidoInvalido.meta.irrfNaoImportado, 1, 'linha com IRRF descartada deve virar pendencia explicita');
 assert.ok(retidoInvalido.meta.pendenciasIrrf[0].includes('Linha 99'));
+assert.ok(retidoInvalido.meta.pendenciasIrrf[0].includes('CPF com 3 digito(s)'));
+
+const camposDeslocados = mapearBeneficiarios([
+  linhasRetidasCaixa4[0],
+  { row: ['Belém', '02.881.939/0001-38', 3208, '', '', 'jun/26', '6.379,80', '289,17', '5.452,66', 'Jose Maria Ferreira Gomes', '094.482.252-53'], sheet: 'PA 02.881.939 0001-38', rowNumber: 13 },
+]);
+assert.strictEqual(camposDeslocados.beneficiarios.length, 1, 'linha com celulas principais deslocadas deve ser recuperada');
+assert.strictEqual(camposDeslocados.beneficiarios[0].cpfBenef, '09448225253');
+assert.strictEqual(camposDeslocados.beneficiarios[0].nomeBenef, 'Jose Maria Ferreira Gomes');
+assert.ok(camposDeslocados.beneficiarios[0].observacao.includes('leitura completa da linha'));
 
 const filtroCnpj = '03954491000106';
 const filtrado = mapearBeneficiarios(rows, { cnpjFiltro: filtroCnpj });
