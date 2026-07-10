@@ -1,9 +1,9 @@
 {
-  "version": "3.4.42",
-  "build_date": "2026-07-10T18:18:07.000Z",
+  "version": "3.4.43",
+  "build_date": "2026-07-10T18:35:51.000Z",
   "release_notes": [
-    "FLANACAR Entrada Fiscal: nova visualizacao de colunas apos a validacao do arquivo.",
-    "Colunas estruturais permanecem protegidas e campos fiscais opcionais podem ser selecionados antes da importacao.",
-    "A escolha e aplicada ao reprocessamento real do CSV sem criar ou duplicar layouts."
+    "ECD/ECF: recuperacao do J100 passa a considerar somente o ultimo demonstrativo delimitado pelo J005.",
+    "Periodos historicos da ECD anterior deixam de ser somados indevidamente na validacao da abertura.",
+    "Regional Sao Jose validada com matriz, tres filiais e ECD anterior sem falsa divergencia no J100."
   ]
 }

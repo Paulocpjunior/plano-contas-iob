@@ -134,9 +134,25 @@ function assert(condition, message) {
 
 function resumoJ100Raiz(lines, inicial) {
   const resumo = { ativo: 0, passivo: 0 };
+  const blocos = [];
+  let bloco = null;
   lines.forEach((line) => {
     const f = fields(line);
-    if (f[1] !== 'J100' || f[4] !== '1') return;
+    if (f[1] === 'J005') {
+      bloco = [];
+      blocos.push(bloco);
+    } else if (f[1] === 'J100') {
+      if (!bloco) {
+        bloco = [];
+        blocos.push(bloco);
+      }
+      bloco.push(line);
+    }
+  });
+  const ultimo = [...blocos].reverse().find((item) => item.length) || [];
+  ultimo.forEach((line) => {
+    const f = fields(line);
+    if (f[4] !== '1') return;
     const valor = inicial ? sgn(num(f[8]), f[9]) : sgn(num(f[10]), f[11]);
     if (f[6] === 'A') resumo.ativo += valor;
     if (f[6] === 'P') resumo.passivo += -valor;
@@ -290,4 +306,33 @@ assert(!(gruposSemMudanca.I157 || []).length, 'Consolidado sem IND_MUDANCA_PC=1 
 assert((gruposSemMudanca.I155 || []).some((f) => f[2] === '1.2.3.01.0003'), 'Ajuste sem mudanca deve gerar I155 da conta recuperada');
 assert((gruposSemMudanca.I050 || []).some((f) => f[6] === '1.2.3.01.0003'), 'Conta recuperada usada no I155 deve existir no I050');
 
-console.log(`OK: ECD igreja consolidada com ${filiais.length} filiais bloqueia divergencia real sem gerar lancamento tecnico, preserva I157 quando aplicavel e cria I050 recuperado.`);
+const arquivosSaoJose = [
+  '/Users/paulocesarpereirajunior/Downloads/ECD0212.TXT',
+  '/Users/paulocesarpereirajunior/Downloads/ECD2311.TXT',
+  '/Users/paulocesarpereirajunior/Downloads/ECD2313.TXT',
+  '/Users/paulocesarpereirajunior/Downloads/ECD2314.TXT',
+];
+const anteriorSaoJose = '/Users/paulocesarpereirajunior/Downloads/07043084000190-07043084000190-20240101-20241231-G-49EC0D3DFA6CAAF26994AB211F41BD8B697C69BD-7-SPED-ECD.txt';
+if (arquivosSaoJose.concat(anteriorSaoJose).every(fs.existsSync)) {
+  const atuaisSaoJose = arquivosSaoJose.map(parseFile);
+  const matrizSaoJose = atuaisSaoJose.find((arquivo) => arquivo.isMatriz);
+  const filiaisSaoJose = atuaisSaoJose.filter((arquivo) => arquivo !== matrizSaoJose);
+  const recuperadaSaoJose = parseFile(anteriorSaoJose);
+  const ajustesSaoJose = ajustesDaEcdAnterior(recuperadaSaoJose, atuaisSaoJose);
+  const consolidadoSaoJose = E.consolidar(matrizSaoJose, filiaisSaoJose, ajustesSaoJose, { ecdAnteriorLines: recuperadaSaoJose.lines });
+  const validacaoSaoJose = E.validar(consolidadoSaoJose.lines, {
+    cnpjEsperado: '07043084000190',
+    ecdAnteriorLines: recuperadaSaoJose.lines,
+  });
+  const raizRecuperadaSaoJose = resumoJ100Raiz(recuperadaSaoJose.lines, false);
+  const raizAberturaSaoJose = resumoJ100Raiz(consolidadoSaoJose.lines, true);
+  assert(raizRecuperadaSaoJose.ativo === 52199539, 'ECD recuperada deve usar encerramento do ultimo J005/J100, sem somar janeiro com fevereiro-dezembro');
+  assert(raizRecuperadaSaoJose.passivo === 52199539, 'Passivo recuperado deve vir do ultimo demonstrativo J100');
+  assert(raizAberturaSaoJose.ativo === raizRecuperadaSaoJose.ativo, 'Abertura J100 consolidada deve conferir com o ultimo J100 recuperado');
+  assert(raizAberturaSaoJose.passivo === raizRecuperadaSaoJose.passivo, 'Passivo de abertura deve conferir com o ultimo J100 recuperado');
+  const checkJ100SaoJose = validacaoSaoJose.checks.find((check) => check.nome === 'Abertura J100 = encerramento da ECD anterior');
+  assert(checkJ100SaoJose && checkJ100SaoJose.ok, `Regional Sao Jose nao pode ter falsa divergencia J100: ${checkJ100SaoJose && checkJ100SaoJose.detalhe}`);
+  assert(validacaoSaoJose.falhas === 0, `Regional Sao Jose deve ficar apta: ${validacaoSaoJose.checks.filter((check) => !check.ok).map((check) => check.nome).join(', ')}`);
+}
+
+console.log(`OK: ECD igreja consolidada protege divergencia real e usa somente o ultimo J005/J100 da ECD recuperada.`);

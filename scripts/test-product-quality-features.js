@@ -134,6 +134,7 @@ assertContains('index.html', 'Saldo final I155 = inicial + debitos - creditos', 
 assertContains('index.html', 'Numeracao J150 unica (sem repeticao)', 'validador ECD bloqueia numero de ordem duplicado na DRE');
 assertContains('index.html', 'criarGrupoPlanoRecuperado', 'consolidador ECD cria I050 recuperado para conta usada no I155');
 assertContains('index.html', 'Abertura J100 = encerramento da ECD anterior', 'validador ECD compara abertura J100 contra encerramento anterior');
+assertContains('index.html', 'ultimoBlocoDemonstracao', 'validador ECD usa somente o ultimo J005/J100 recuperado');
 assertContains('index.html', 'Abertura I155 = encerramento da ECD anterior', 'validador ECD compara abertura I155 contra encerramento anterior');
 assertContains('index.html', 'Arquivo NÃO exportado', 'ECD/ECF nao baixa TXT quando a validacao final reprova');
 assertContains('index.html', 'Quantidade de campos por registro SPED', 'validador ECD bloqueia quantidade de campos invalida no layout SPED');
