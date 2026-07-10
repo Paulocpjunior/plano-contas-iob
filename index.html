@@ -4,34 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.38"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.38"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.38"></script>
+    <script>
+      if (!window.firebase) {
+        document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
+        document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"><\\/script>');
+        document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"><\\/script>');
+      } else {
+        if (!window.firebase.auth) document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"><\\/script>');
+        if (!window.firebase.firestore) document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"><\\/script>');
+      }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.32"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.32"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.38"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.38"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.32"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.32"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.32"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.32"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.32"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.32"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.32"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.32"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.32"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.32"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.32"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.32"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.32"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.32"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.32"></script>
+    <script src="/parser-ofx.js?v=3.4.38"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.38"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.38"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.38"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.38"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.38"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.38"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.38"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.38"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.38"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.38"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.38"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.38"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.38"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.38"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -2714,6 +2724,67 @@
                         </div>
                     </div>
 
+                    <div class="filters-section" id="reinfDividendosPanel" style="border-color:#bbf7d0;background:#f0fdf4">
+                        <h3 style="margin:0 0 12px 0;color:#14532d">Lucros e Dividendos (R-4010 natureza 12001)</h3>
+                        <div style="font-size:12px;color:#166534;margin-bottom:14px">
+                            Calcula a incidência de 10% para pagamentos mensais acima de R$ 50.000,00 por mesma empresa ao mesmo sócio PF, abatendo saldo de ATA aprovado até 31/12/2025 com pagamento até 2028.
+                        </div>
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>E-mail Reinf do cliente</label>
+                                <input type="email" id="reinfDividendosEmail" placeholder="cliente@empresa.com.br">
+                            </div>
+                            <div class="filter-group">
+                                <label>Valor registrado em ATA</label>
+                                <input type="number" id="reinfDividendosAtaTotal" step="0.01" placeholder="0,00">
+                            </div>
+                            <div class="filter-group">
+                                <label>Saldo ATA disponível</label>
+                                <input type="number" id="reinfDividendosAtaSaldo" step="0.01" placeholder="0,00">
+                            </div>
+                            <div class="filter-group">
+                                <label>Valor distribuído no mês</label>
+                                <input type="number" id="reinfDividendosValorMes" step="0.01" placeholder="0,00">
+                            </div>
+                        </div>
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>ATA aprovada até 31/12/2025?</label>
+                                <select id="reinfDividendosAtaAprovada">
+                                    <option value="sim">Sim</option>
+                                    <option value="nao">Não</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Pagamento dentro da regra até 2028?</label>
+                                <select id="reinfDividendosAta2028">
+                                    <option value="sim">Sim</option>
+                                    <option value="nao">Não</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Responsável dividendos</label>
+                                <input type="text" id="reinfDividendosResponsavel" placeholder="Nome do contato no cliente">
+                            </div>
+                            <div class="filter-group">
+                                <label>Competência de solicitação</label>
+                                <input type="month" id="reinfDividendosCompetenciaEmail">
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label>Sócios PF (CPF; Nome; E-mail; %)</label>
+                            <textarea id="reinfDividendosSocios" rows="4" spellcheck="false" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-family:monospace;font-size:12px" placeholder="00000000000; Nome do Sócio; socio@email.com; 50"></textarea>
+                        </div>
+                        <div class="filters-row">
+                            <button class="btn-action btn-action-secondary" onclick="carregarDividendosReinf()">Carregar cadastro</button>
+                            <button class="btn-action btn-action-secondary" onclick="salvarDividendosReinf()">Salvar cadastro</button>
+                            <button class="btn-action btn-action-primary" id="reinfDividendosCalcular" onclick="calcularDividendosReinf()">Calcular dividendos</button>
+                            <button class="btn-action btn-action-success" onclick="adicionarDividendosAoR4010()">Adicionar ao R-4010</button>
+                            <button class="btn-action btn-action-secondary" onclick="enviarSolicitacaoDividendosReinf()">Enviar e-mail Microsoft 365</button>
+                        </div>
+                        <div id="reinfDividendosResultado" style="display:none;margin-top:12px;padding:12px;border-radius:8px;border:1px solid #bbf7d0;background:white;color:#14532d;font-size:13px;line-height:1.45"></div>
+                    </div>
+
                     <div class="filters-section">
                         <div class="filters-grid">
                             <div class="filter-group">
@@ -3055,17 +3126,24 @@
     </div>
     
     <script>
+        // Constants
+        const DOMAIN = '@spassessoriacontabil.com.br';
         // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyCQC3uBKSIr2zYEbQHe82B9g-GSt3837PY",
             authDomain: "projetos-app-sp.firebaseapp.com",
             projectId: "projetos-app-sp"
         };
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        
-        // Constants
-        const DOMAIN = '@spassessoriacontabil.com.br';
+        let auth = null;
+        try {
+            if (!window.firebase || !firebase.initializeApp || !firebase.auth) {
+                throw new Error('Biblioteca Firebase Auth não carregada.');
+            }
+            if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+        } catch (e) {
+            console.error('[auth] Firebase indisponível:', e);
+        }
         // GEMINI_KEY removida - agora via proxy /api/ai/gemini (chave no Secret Manager)
         const GEMINI_MODEL = 'gemini-3.5-flash';
         
@@ -3073,7 +3151,11 @@
         window.USE_API = true;
 
         // PDF.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        } else {
+            console.warn('[pdfjs] PDF.js não carregado; login seguirá disponível e importação PDF avisará ao usuário se necessário.');
+        }
         
         // State
         let state = {
@@ -4586,6 +4668,10 @@
             const email = document.getElementById('email').value.trim();
             const pass = document.getElementById('password').value;
             hideError('errorMsg');
+            if (!auth) {
+                showError('errorMsg', 'Autenticação não carregou. Atualize a página e tente novamente.');
+                return;
+            }
             if (!email.toLowerCase().endsWith(DOMAIN)) {
                 showError('errorMsg', 'Use e-mail ' + DOMAIN);
                 return;
@@ -4601,6 +4687,10 @@
             }
             if (!email.toLowerCase().endsWith(DOMAIN)) {
                 showError(messageId, 'Use e-mail ' + DOMAIN);
+                return Promise.resolve(false);
+            }
+            if (!auth) {
+                showError(messageId, 'Autenticação não carregou. Atualize a página e tente novamente.');
                 return Promise.resolve(false);
             }
 
@@ -4631,6 +4721,10 @@
             const p1 = document.getElementById('regPassword').value;
             const p2 = document.getElementById('regPassword2').value;
             hideError('regErrorMsg');
+            if (!auth) {
+                showError('regErrorMsg', 'Autenticação não carregou. Atualize a página e tente novamente.');
+                return;
+            }
             if (!email.toLowerCase().endsWith(DOMAIN)) {
                 showError('regErrorMsg', 'Use e-mail ' + DOMAIN);
                 return;
@@ -4655,10 +4749,12 @@
         }
         
         function doLogout() {
-            auth.signOut();
+            if (auth) auth.signOut();
         }
         
-        auth.onAuthStateChanged(async u => {
+        if (!auth) {
+            setTimeout(() => showError('errorMsg', 'Não foi possível carregar a autenticação. Atualize a página; se persistir, limpe o cache do navegador.'), 250);
+        } else auth.onAuthStateChanged(async u => {
             if (u) {
                 document.getElementById('loginContainer').style.display = 'none';
                 document.getElementById('appContainer').style.display = 'block';
@@ -7521,7 +7617,8 @@
             importMeta: null,
             consultaAutomatica: null,
             ultimoPayload: null,
-            ultimoPayloadOriginal: null
+            ultimoPayloadOriginal: null,
+            ultimoDividendos: null
         };
 
         function reinfDigits(valor) {
@@ -7659,6 +7756,186 @@
             el.innerHTML = html;
         }
 
+        function reinfDividendosCnpjAtual() {
+            return reinfDigits(document.getElementById('reinfCnpjFonte')?.value || (state && state.info && state.info.cnpj) || '');
+        }
+
+        function reinfDividendosSociosTextoParaLista() {
+            const texto = String(document.getElementById('reinfDividendosSocios')?.value || '');
+            return texto.split(/\r?\n/).map(linha => linha.trim()).filter(Boolean).map(linha => {
+                const partes = linha.split(/[;\t|]/).map(p => p.trim());
+                return {
+                    cpf: reinfDigits(partes[0] || ''),
+                    nome: partes[1] || '',
+                    email: partes[2] || '',
+                    percentual: reinfValor(partes[3] || '0')
+                };
+            });
+        }
+
+        function reinfDividendosListaParaTexto(lista) {
+            return (Array.isArray(lista) ? lista : []).map(s => [
+                reinfDigits(s.cpf || s.cpfBenef),
+                s.nome || s.nomeBenef || '',
+                s.email || '',
+                String(s.percentual == null ? '' : s.percentual).replace('.', ',')
+            ].join('; ')).join('\n');
+        }
+
+        function reinfDividendosPayloadBase() {
+            const cnpj = reinfDividendosCnpjAtual();
+            const competencia = document.getElementById('reinfCompetencia')?.value || reinfMesAtual();
+            return {
+                cnpj,
+                cnpjFonte: cnpj,
+                cnpjEstab: reinfDigits(document.getElementById('reinfCnpjEstab')?.value || cnpj),
+                competencia,
+                dtPagamento: document.getElementById('reinfDataPagamento')?.value || reinfToday(),
+                valorDistribuido: reinfValor(document.getElementById('reinfDividendosValorMes')?.value),
+                ataValorTotal: reinfValor(document.getElementById('reinfDividendosAtaTotal')?.value),
+                ataSaldoAnterior: reinfValor(document.getElementById('reinfDividendosAtaSaldo')?.value),
+                ataAprovadaAte2025: document.getElementById('reinfDividendosAtaAprovada')?.value === 'sim',
+                ataValidaAte2028: document.getElementById('reinfDividendosAta2028')?.value !== 'nao',
+                socios: reinfDividendosSociosTextoParaLista()
+            };
+        }
+
+        function reinfRenderDividendosResultado(resp) {
+            const box = document.getElementById('reinfDividendosResultado');
+            if (!box) return;
+            const r = resp && resp.resultado ? resp.resultado : resp;
+            if (!r || !r.ok) {
+                box.style.display = 'none';
+                box.innerHTML = '';
+                return;
+            }
+            const socios = (r.socios || []).map(s => '<tr>'
+                + '<td>' + reinfEscape(reinfFormatCpfCnpj(s.cpf)) + '</td>'
+                + '<td>' + reinfEscape(s.nome) + '</td>'
+                + '<td>' + reinfEscape(String(s.percentual).replace('.', ',')) + '%</td>'
+                + '<td>' + reinfEscape(reinfMoney(s.valorBruto)) + '</td>'
+                + '<td>' + reinfEscape(reinfMoney(s.valorAtaIsento)) + '</td>'
+                + '<td>' + reinfEscape(reinfMoney(s.valorTributavel)) + '</td>'
+                + '<td>' + reinfEscape(reinfMoney(s.irrf)) + '</td>'
+                + '</tr>').join('');
+            box.style.display = 'block';
+            box.innerHTML = '<strong>Resumo dividendos:</strong> bruto ' + reinfEscape(reinfMoney(r.valorDistribuido))
+                + ' • ATA usada ' + reinfEscape(reinfMoney(r.ataUsado))
+                + ' • saldo ATA após pagamento ' + reinfEscape(reinfMoney(r.ataSaldoApos))
+                + ' • base IRRF ' + reinfEscape(reinfMoney(r.totalBaseTributavel))
+                + ' • IRRF 10% ' + reinfEscape(reinfMoney(r.totalIrrf))
+                + '<br><strong>Alerta ATA:</strong> ' + reinfEscape((r.alertaAta && r.alertaAta.mensagem) || '-')
+                + '<div class="table-container" style="margin-top:10px"><table class="data-table"><thead><tr><th>CPF</th><th>Sócio</th><th>%</th><th>Bruto</th><th>ATA isenta</th><th>Base IRRF</th><th>IRRF</th></tr></thead><tbody>'
+                + socios + '</tbody></table></div>';
+        }
+
+        async function carregarDividendosReinf(opts = {}) {
+            try {
+                const cnpj = reinfDividendosCnpjAtual();
+                if (cnpj.length !== 14) return showToast('Informe o CNPJ Fonte Pagadora antes de carregar dividendos.', 'warn');
+                if (!window.API || !window.API.reinfDividendosCadastro) throw new Error('API de cadastro de dividendos indisponível.');
+                const resp = await window.API.reinfDividendosCadastro(cnpj);
+                if (!resp || resp.erro || resp.ok === false) throw new Error((resp && resp.erro) || 'Falha ao carregar cadastro de dividendos.');
+                const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val == null ? '' : val; };
+                setVal('reinfDividendosEmail', resp.emailSolicitacaoReinf || '');
+                setVal('reinfDividendosResponsavel', resp.responsavelDividendos || '');
+                setVal('reinfDividendosAtaTotal', resp.ataValorTotal || 0);
+                setVal('reinfDividendosAtaSaldo', resp.ataSaldo || 0);
+                setVal('reinfDividendosSocios', reinfDividendosListaParaTexto(resp.socios || []));
+                setVal('reinfDividendosAtaAprovada', resp.ataAprovadaAte2025 ? 'sim' : 'nao');
+                setVal('reinfDividendosAta2028', resp.ataValidaAte2028 ? 'sim' : 'nao');
+                if (!opts.silent) showToast('Cadastro de dividendos carregado.', 'success');
+            } catch (e) {
+                if (!opts.silent) {
+                    reinfSetStatus('Erro ao carregar dividendos: ' + reinfEscape(e.message || e), 'error');
+                    showToast('Erro dividendos: ' + (e.message || e), 'error');
+                }
+            }
+        }
+
+        async function salvarDividendosReinf() {
+            try {
+                if (!window.CURRENT_USER || !window.CURRENT_USER.is_admin) return showToast('Apenas administradores podem salvar cadastro de dividendos.', 'warn');
+                const cnpj = reinfDividendosCnpjAtual();
+                if (cnpj.length !== 14) return showToast('Informe o CNPJ Fonte Pagadora.', 'warn');
+                if (!window.API || !window.API.reinfDividendosSalvarCadastro) throw new Error('API de cadastro de dividendos indisponível.');
+                const resp = await window.API.reinfDividendosSalvarCadastro(cnpj, {
+                    emailSolicitacaoReinf: document.getElementById('reinfDividendosEmail')?.value || '',
+                    responsavelDividendos: document.getElementById('reinfDividendosResponsavel')?.value || '',
+                    ataValorTotal: reinfValor(document.getElementById('reinfDividendosAtaTotal')?.value),
+                    ataSaldo: reinfValor(document.getElementById('reinfDividendosAtaSaldo')?.value),
+                    ataAprovadaAte2025: document.getElementById('reinfDividendosAtaAprovada')?.value === 'sim',
+                    ataValidaAte2028: document.getElementById('reinfDividendosAta2028')?.value !== 'nao',
+                    socios: reinfDividendosSociosTextoParaLista()
+                });
+                if (!resp || resp.erro || resp.ok === false) throw new Error((resp && resp.erro) || 'Falha ao salvar cadastro.');
+                showToast('Cadastro de dividendos salvo.', 'success');
+            } catch (e) {
+                reinfSetStatus('Erro ao salvar dividendos: ' + reinfEscape(e.message || e), 'error');
+                showToast('Erro dividendos: ' + (e.message || e), 'error');
+            }
+        }
+
+        async function calcularDividendosReinf() {
+            try {
+                if (!window.API || !window.API.reinfDividendosCalcular) throw new Error('API de cálculo de dividendos indisponível.');
+                const resp = await window.API.reinfDividendosCalcular(reinfDividendosPayloadBase());
+                if (!resp || resp.erro || resp.ok === false) throw new Error((resp && resp.erro) || 'Falha ao calcular dividendos.');
+                reinfState.ultimoDividendos = resp;
+                reinfRenderDividendosResultado(resp);
+                reinfSetStatus('Dividendos calculados para R-4010 natureza 12001. Base IRRF: ' + reinfMoney(resp.resultado.totalBaseTributavel) + ' • IRRF: ' + reinfMoney(resp.resultado.totalIrrf) + '.', resp.resultado.totalIrrf > 0 ? 'warn' : 'success');
+                showToast('Dividendos calculados.', 'success');
+                return resp;
+            } catch (e) {
+                reinfSetStatus('Erro ao calcular dividendos: ' + reinfEscape(e.message || e), 'error');
+                showToast('Erro dividendos: ' + (e.message || e), 'error');
+                return null;
+            }
+        }
+
+        async function adicionarDividendosAoR4010() {
+            const resp = reinfState.ultimoDividendos || await calcularDividendosReinf();
+            if (!resp || !resp.locadores || !resp.locadores.length) return;
+            const natEl = document.getElementById('reinfNatRend');
+            if (reinfState.beneficiarios.length && natEl && reinfDigits(natEl.value || '') !== '12001') {
+                if (!confirm('Há beneficiários de outra natureza na tela. Limpar a lista atual e preparar R-4010 de dividendos?')) return;
+                reinfState.beneficiarios = [];
+            }
+            if (natEl) natEl.value = '12001';
+            reinfState.beneficiarios = reinfState.beneficiarios.concat(resp.locadores.map(loc => ({
+                cpfBenef: loc.cpf,
+                nomeBenef: loc.nome,
+                valorBruto: loc.bruto,
+                baseIrrf: loc.baseIrrf,
+                valorIrrf: loc.irrf,
+                cnpjFonte: loc.cnpjFonte,
+                cnpjEstab: loc.cnpjEstab,
+                origemIrrf: loc.origemIrrf,
+                codigoReceita: loc.codigoReceita,
+                ideEvtAdic: loc.ideEvtAdic,
+                observacao: 'Dividendos natureza 12001'
+            })));
+            reinfState.eventos = [];
+            reinfAtualizarResumo();
+            showToast('Dividendos adicionados ao R-4010.', 'success');
+        }
+
+        async function enviarSolicitacaoDividendosReinf() {
+            try {
+                if (!window.CURRENT_USER || !window.CURRENT_USER.is_admin) return showToast('Apenas administradores podem disparar e-mail aos clientes.', 'warn');
+                const competenciaReferencia = document.getElementById('reinfDividendosCompetenciaEmail')?.value || document.getElementById('reinfCompetencia')?.value || reinfMesAtual();
+                if (!confirm('Enviar solicitação de dividendos via Microsoft 365 para clientes com e-mail Reinf cadastrado?')) return;
+                if (!window.API || !window.API.reinfDividendosSolicitar) throw new Error('API de e-mail de dividendos indisponível.');
+                const resp = await window.API.reinfDividendosSolicitar({ competenciaReferencia });
+                if (!resp || resp.erro || resp.ok === false) throw new Error((resp && resp.erro) || 'Falha ao enviar e-mails.');
+                reinfSetStatus('Solicitação de dividendos enviada via Microsoft 365 para ' + (resp.enviados || []).length + ' cliente(s). Ignorados: ' + (resp.ignorados || []).length + '.', 'success');
+                showToast('Solicitações enviadas.', 'success');
+            } catch (e) {
+                reinfSetStatus('Erro ao enviar solicitação Microsoft 365: ' + reinfEscape(e.message || e), 'error');
+                showToast('Erro Microsoft 365: ' + (e.message || e), 'error');
+            }
+        }
+
         async function prepararReinf() {
             const info = state && state.info ? state.info : {};
             const cnpj = reinfDigits(info.cnpj || info.cnpjEmpresa || '');
@@ -7676,6 +7953,8 @@
             }
             if (pagamento && !pagamento.value) pagamento.value = reinfToday();
             if (contato && !contato.value) contato.value = info.responsavel || info.usuario || '';
+            const compEmail = document.getElementById('reinfDividendosCompetenciaEmail');
+            if (compEmail && !compEmail.value && competencia && competencia.value) compEmail.value = competencia.value;
             if (empresaInfo) {
                 empresaInfo.textContent = cnpj
                     ? ((info.empresa || 'Empresa') + ' - ' + cnpj + ' - ' + reinfState.beneficiarios.length + ' beneficiário(s)')
@@ -7692,6 +7971,9 @@
                     }
                 }
                 await consultarCertificadoReinf({ silent: true });
+                if (cnpj && window.API && window.API.reinfDividendosCadastro) {
+                    await carregarDividendosReinf({ silent: true }).catch(() => {});
+                }
             } catch (e) {
                 reinfSetStatus('Módulo Reinf carregado, mas não foi possível consultar versão/certificado: ' + reinfEscape(e.message || e), 'warn');
             }
@@ -8004,7 +8286,7 @@
                     nome: b.nomeBenef,
                     bruto: reinfValor(b.valorBruto),
                     irrf: reinfValor(b.valorIrrf),
-                    baseIrrf: reinfValor(b.baseIrrf || b.valorBruto),
+                    baseIrrf: b.baseIrrf != null ? reinfValor(b.baseIrrf) : reinfValor(b.valorBruto),
                     cnpjFonte: reinfDigits(b.cnpjFonte || cnpjFonte),
                     cnpjEstab: reinfDigits(b.cnpjEstab || cnpjEstab),
                     codigoReceita: b.codigoReceita || '3208',
@@ -14406,7 +14688,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = '3.4.32';
+            const _VERSAO_BUILD = '3.4.38';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
@@ -14569,8 +14851,14 @@ window.confirmarTrocarPlano = async function() {
                 dtIni: f0[3] || '', dtFin: f0[4] || '',
                 nome: f0[5] || '', cnpj: (f0[6] || '').replace(/\D/g, ''),
                 isMatriz: ((f0[6] || '').replace(/\D/g, '')).substr(8, 4) === '0001',
+                indSitIniPer: String(f0[12] || '').trim(),
                 lancamentos: (groups['I200'] || []).length
             };
+        }
+
+        function exigeEcdAnterior(ecd){
+            var ind = String((ecd && ecd.indSitIniPer) || '').trim();
+            return ind !== '1' && ind !== '3';
         }
 
         function splitPeriods(lines){
@@ -14775,52 +15063,11 @@ window.confirmarTrocarPlano = async function() {
                 });
             }
 
+            // O I155 e um balancete mensal. Antes do encerramento, a diferenca entre
+            // contas patrimoniais pode corresponder ao resultado ainda nao transferido.
+            // O equilibrio bloqueante pertence ao J100 final; formula e movimentos do
+            // I155 continuam validados abaixo contra os registros I250.
             var divergenciasSaldosBloqueantes = [];
-            function validarI155PatrimonialSemAjuste(){
-                var out = [], periodo = [], periodoInfo = null;
-                function flush(){
-                    if (!periodo.length) return;
-                    var ativoIni = 0, passivoIni = 0, ativoFin = 0, passivoFin = 0;
-                    periodo.forEach(function(item, idx){
-                        if (item.f[1] !== 'I155') return;
-                        var conta = item.f[2] || '';
-                        if (conta.charAt(0) === '1') {
-                            ativoIni += sgn(num(item.f[4]), item.f[5]);
-                            ativoFin += sgn(num(item.f[8]), item.f[9]);
-                        } else if (conta.charAt(0) === '2') {
-                            passivoIni += -sgn(num(item.f[4]), item.f[5]);
-                            passivoFin += -sgn(num(item.f[8]), item.f[9]);
-                        }
-                    });
-                    var deltaIni = passivoIni - ativoIni;
-                    var deltaFin = passivoFin - ativoFin;
-                    if (deltaIni || deltaFin) {
-                        divergenciasSaldosBloqueantes.push(
-                            'I155 patrimonial ' + (periodoInfo ? ((periodoInfo[2] || '') + '-' + (periodoInfo[3] || '')) : '') +
-                            ': Ativo inicial ' + fmt(ativoIni) + ' x Passivo inicial ' + fmt(passivoIni) +
-                            ' | Ativo final ' + fmt(ativoFin) + ' x Passivo final ' + fmt(passivoFin)
-                        );
-                    }
-                    periodo.forEach(function(item){ out.push(item.f.join('|')); });
-                    periodo = [];
-                    periodoInfo = null;
-                }
-                i15x.forEach(function(l){
-                    var f = fields(l);
-                    if (f[1] === 'I150') {
-                        flush();
-                        out.push(l);
-                        periodoInfo = f;
-                    } else if (f[1] === 'I155' || f[1] === 'I157') {
-                        periodo.push({ f: f, raw: l });
-                    } else {
-                        out.push(l);
-                    }
-                });
-                flush();
-                i15x = out;
-            }
-            validarI155PatrimonialSemAjuste();
 
             // ---- I200/I250: ordem cronologica, renumeracao unica ----
             var lctosBase = [];
@@ -15241,7 +15488,7 @@ window.confirmarTrocarPlano = async function() {
             });
             add('|9900| totalizacao por registro', err9900.length === 0, err9900.length ? err9900.slice(0, 5).join('; ') : (cnt['9900'] || 0) + ' registros conferidos');
 
-            var layoutCampos = { I155: 9, I157: 5, I200: 5, I250: 9, I350: 3, I355: 8, J100: 10, J150: 10 };
+            var layoutCampos = { I155: 9, I157: 5, I200: 6, I250: 9, I350: 2, I355: 5, J100: 12, J150: 13 };
             var errosCampos = [];
             lines.forEach(function(l, idx){
                 var f = fields(l), reg = f[1];
@@ -15474,7 +15721,7 @@ window.confirmarTrocarPlano = async function() {
             return b;
         }
 
-        root.EcdEcfEngine = { parseEcd: parseEcd, consolidar: consolidar, validar: validar, toLatin1Bytes: toLatin1Bytes, num: num, fmt: fmt };
+        root.EcdEcfEngine = { parseEcd: parseEcd, exigeEcdAnterior: exigeEcdAnterior, consolidar: consolidar, validar: validar, toLatin1Bytes: toLatin1Bytes, num: num, fmt: fmt };
     })(typeof window !== 'undefined' ? window : globalThis);
     // ===ECDECF-ENGINE-END===
     </script>
@@ -15732,11 +15979,18 @@ window.confirmarTrocarPlano = async function() {
                     st.validacao.falhas = st.validacao.checks.filter(function(c){ return !c.ok; }).length;
                     st.validacao.status = st.validacao.falhas === 0 ? 'APTO' : 'REPROVADO';
                 }
-                if (!st.ecdAnterior) {
+                var exigeAnterior = E.exigeEcdAnterior(matriz);
+                if (!st.ecdAnterior && exigeAnterior) {
                     ecdecfAdicionarFalhaCritica(
                         'ECD anterior obrigatoria para consolidacao',
                         'Importe a ECD anterior transmitida antes de exportar. Sem ela, a abertura J100/J150/I155 nao e comparada com o encerramento anterior.'
                     );
+                } else if (!st.ecdAnterior) {
+                    st.validacao.checks.push({
+                        nome: 'ECD anterior dispensada pelo indicador de inicio do periodo',
+                        ok: true,
+                        detalhe: 'Registro |0000| campo 12 (IND_SIT_INI_PER) = ' + matriz.indSitIniPer + ': abertura ou inicio de obrigatoriedade sem ECD anterior.'
+                    });
                 }
                 var ajustesTecnicos = (r.avisos || []).filter(function(aviso){
                     return /I155\/I250|Fechamento automatico J100|Divergencias contabeis bloqueantes/i.test(aviso);
@@ -15752,7 +16006,9 @@ window.confirmarTrocarPlano = async function() {
                 res.innerHTML = '✅ <strong>' + r.stats.linhas.toLocaleString('pt-BR') + '</strong> linhas | <strong>' +
                     r.stats.lancamentos.toLocaleString('pt-BR') + '</strong> lançamentos únicos | Ativo <strong>R$ ' + E.fmt(r.stats.ativo) +
                     '</strong> x Passivo <strong>R$ ' + E.fmt(r.stats.passivo) + '</strong> | ' + (filiais.length) + ' filial(is) aglutinada(s)' +
-                    (st.ecdAnterior ? '<div style="margin-top:8px;background:#eef2ff;color:#3730a3;padding:8px;border-radius:6px">ECD anterior usada na validação: ' + st.ecdAnterior.nomeArquivo + '</div>' : '<div style="margin-top:8px;background:#fffbeb;color:#92400e;padding:8px;border-radius:6px">ECD anterior não importada: a abertura 2025 não foi comparada com o encerramento 2024.</div>') +
+                    (st.ecdAnterior ? '<div style="margin-top:8px;background:#eef2ff;color:#3730a3;padding:8px;border-radius:6px">ECD anterior usada na validação: ' + st.ecdAnterior.nomeArquivo + '</div>' :
+                        (exigeAnterior ? '<div style="margin-top:8px;background:#fffbeb;color:#92400e;padding:8px;border-radius:6px">ECD anterior não importada: a abertura do período não foi comparada com o encerramento anterior.</div>' :
+                        '<div style="margin-top:8px;background:#ecfdf5;color:#065f46;padding:8px;border-radius:6px">ECD anterior dispensada: o registro |0000| identifica abertura ou início de obrigatoriedade.</div>')) +
                     (r.avisos.length ? '<div style="margin-top:8px;background:#fef3c7;color:#92400e;padding:8px;border-radius:6px">' + r.avisos.map(function(x){ return '⚠️ ' + x; }).join('<br>') + '</div>' : '');
 
                 if (st.validacao.status !== 'APTO') {

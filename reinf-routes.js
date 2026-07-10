@@ -15,6 +15,11 @@ const {
 const { assinarEventoReinf } = require('./reinf/assinador');
 const { loadCertificado, salvarCertificadoUpload } = require('./reinf/cert-loader');
 const { enviarLote, consultarLote } = require('./reinf/transmissor');
+const {
+  calcularDividendos,
+  locadoresDividendosParaR4010,
+  emailSolicitacaoDividendos,
+} = require('./reinf/reinf-dividendos-utils');
 
 function limparCnpj(v) {
   return String(v || '').replace(/\D/g, '');
@@ -241,6 +246,13 @@ function adminReinfRequired(req, res, next) {
   next();
 }
 
+function adminReinfCadastroRequired(req, res, next) {
+  if (!req.user || req.user.is_admin !== true) {
+    return res.status(403).json({ ok: false, erro: 'Apenas administradores podem alterar cadastro Reinf/dividendos ou disparar e-mails.' });
+  }
+  next();
+}
+
 function reinfToCents(valor) {
   if (typeof valor === 'number') {
     return Number.isFinite(valor) ? Math.round(valor * 100) : 0;
@@ -259,6 +271,73 @@ function reinfToCents(valor) {
 
 function reinfFromCents(centavos) {
   return Math.round(Number(centavos || 0)) / 100;
+}
+
+function reinfEmailValido(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+}
+
+function reinfMicrosoft365Config() {
+  const cfg = {
+    tenantId: process.env.MS365_TENANT_ID || process.env.MICROSOFT_365_TENANT_ID || process.env.GRAPH_TENANT_ID || '',
+    clientId: process.env.MS365_CLIENT_ID || process.env.MICROSOFT_365_CLIENT_ID || process.env.GRAPH_CLIENT_ID || '',
+    clientSecret: process.env.MS365_CLIENT_SECRET || process.env.MICROSOFT_365_CLIENT_SECRET || process.env.GRAPH_CLIENT_SECRET || '',
+    sender: process.env.MS365_SENDER_EMAIL || process.env.MICROSOFT_365_SENDER_EMAIL || process.env.GRAPH_REMETENTE || process.env.NOTIF_REMETENTE_EMAIL || '',
+  };
+  return { ...cfg, configured: !!(cfg.tenantId && cfg.clientId && cfg.clientSecret && cfg.sender) };
+}
+
+async function reinfObterTokenMicrosoft365() {
+  const cfg = reinfMicrosoft365Config();
+  if (!cfg.configured) {
+    const err = new Error('Microsoft 365 não configurado. Use as mesmas variáveis do Consultor Fiscal: GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET e GRAPH_REMETENTE/NOTIF_REMETENTE_EMAIL.');
+    err.statusCode = 503;
+    throw err;
+  }
+  const params = new URLSearchParams();
+  params.set('client_id', cfg.clientId);
+  params.set('client_secret', cfg.clientSecret);
+  params.set('scope', 'https://graph.microsoft.com/.default');
+  params.set('grant_type', 'client_credentials');
+  const resp = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(cfg.tenantId)}/oauth2/v2.0/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data.access_token) {
+    const err = new Error(data.error_description || data.error || 'Falha ao autenticar no Microsoft 365 Graph.');
+    err.statusCode = 502;
+    throw err;
+  }
+  return { token: data.access_token, sender: cfg.sender };
+}
+
+async function reinfEnviarEmailMicrosoft365({ to, subject, html, text }) {
+  if (!reinfEmailValido(to)) throw new Error(`E-mail inválido para envio Microsoft 365: ${to || '(vazio)'}`);
+  const { token, sender } = await reinfObterTokenMicrosoft365();
+  const resp = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(sender)}/sendMail`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: {
+        subject,
+        body: { contentType: 'HTML', content: html || String(text || '').replace(/\n/g, '<br>') },
+        toRecipients: [{ emailAddress: { address: to } }],
+      },
+      saveToSentItems: true,
+    }),
+  });
+  if (!resp.ok) {
+    const detalhe = await resp.text().catch(() => '');
+    const err = new Error(`Microsoft 365 recusou o envio para ${to}: HTTP ${resp.status}${detalhe ? ' - ' + detalhe.slice(0, 400) : ''}`);
+    err.statusCode = 502;
+    throw err;
+  }
+  return { ok: true, to, sender };
 }
 
 function reinfSaldoDocId({ cnpjFonte, cnpjEstab, natRend, cpf }) {
@@ -410,6 +489,190 @@ function registrarRotasReinf(app, { db } = {}) {
       loteXsd: 'v1_00_00',
       modulo: 'EFD-Reinf R-4000 / Informes',
     });
+  });
+
+  router.get('/dividendos/microsoft365/status', adminReinfCadastroRequired, (req, res) => {
+    const cfg = reinfMicrosoft365Config();
+    res.json({ ok: true, configured: cfg.configured, sender: cfg.sender || null });
+  });
+
+  router.get('/dividendos/empresa/:cnpj', async (req, res) => {
+    try {
+      if (!db) throw new Error('Banco de dados indisponível para cadastro de dividendos.');
+      const cnpj = limparCnpj(req.params.cnpj);
+      if (cnpj.length !== 14) throw new Error('CNPJ inválido.');
+      const snap = await db.collection('empresas').doc(cnpj).get();
+      if (!snap.exists) return res.status(404).json({ ok: false, erro: 'Empresa não encontrada.' });
+      const dados = snap.data() || {};
+      const div = dados.reinfDividendos || {};
+      res.json({
+        ok: true,
+        cnpj,
+        empresa: dados.razao_social || dados.empresa || dados.nome || null,
+        emailSolicitacaoReinf: div.emailSolicitacaoReinf || dados.email_reinf || dados.email || '',
+        responsavelDividendos: div.responsavelDividendos || '',
+        ataValorTotal: reinfFromCents(Number(div.ataValorTotalCentavos || 0)),
+        ataSaldo: reinfFromCents(Number(div.ataSaldoCentavos || 0)),
+        ataAprovadaAte2025: div.ataAprovadaAte2025 === true,
+        ataValidaAte2028: div.ataValidaAte2028 !== false,
+        socios: Array.isArray(div.socios) ? div.socios : [],
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  router.put('/dividendos/empresa/:cnpj', adminReinfCadastroRequired, async (req, res) => {
+    try {
+      if (!db) throw new Error('Banco de dados indisponível para cadastro de dividendos.');
+      const cnpj = limparCnpj(req.params.cnpj);
+      if (cnpj.length !== 14) throw new Error('CNPJ inválido.');
+      const body = req.body || {};
+      const email = String(body.emailSolicitacaoReinf || '').trim();
+      if (email && !reinfEmailValido(email)) throw new Error('E-mail de solicitação inválido.');
+      const socios = Array.isArray(body.socios) ? body.socios.map((s) => ({
+        cpf: limparCnpj(s.cpf || s.cpfBenef),
+        nome: String(s.nome || s.nomeBenef || '').trim(),
+        email: String(s.email || '').trim(),
+        percentual: Number(String(s.percentual || 0).replace(',', '.')) || 0,
+      })).filter((s) => s.cpf || s.nome || s.percentual) : [];
+      const update = {
+        email_reinf: email || null,
+        reinfDividendos: {
+          emailSolicitacaoReinf: email || '',
+          responsavelDividendos: String(body.responsavelDividendos || '').trim(),
+          ataValorTotalCentavos: reinfToCents(body.ataValorTotal),
+          ataSaldoCentavos: reinfToCents(body.ataSaldo),
+          ataAprovadaAte2025: body.ataAprovadaAte2025 === true || body.ataAprovadaAte2025 === 'sim',
+          ataValidaAte2028: body.ataValidaAte2028 !== false && body.ataValidaAte2028 !== 'nao',
+          socios,
+          atualizado_em: new Date(),
+          atualizado_por_uid: req.user && req.user.uid || null,
+          atualizado_por_email: req.user && req.user.email || null,
+        },
+      };
+      await db.collection('empresas').doc(cnpj).set(update, { merge: true });
+      await registrarLog(db, req, 'dividendos_salvar_cadastro', { cnpj, socios: socios.length, email: !!email });
+      res.json({ ok: true, cnpj, socios: socios.length });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  router.post('/dividendos/calcular', async (req, res) => {
+    try {
+      const body = req.body || {};
+      const cnpj = limparCnpj(body.cnpj || body.cnpjFonte || body.cnpjEmpresa);
+      let cadastro = {};
+      if (db && cnpj.length === 14) {
+        const snap = await db.collection('empresas').doc(cnpj).get();
+        cadastro = snap.exists ? ((snap.data() || {}).reinfDividendos || {}) : {};
+      }
+      const resultado = calcularDividendos({
+        ...body,
+        cnpj,
+        socios: Array.isArray(body.socios) && body.socios.length ? body.socios : cadastro.socios,
+        ataValorTotal: body.ataValorTotal != null ? body.ataValorTotal : reinfFromCents(cadastro.ataValorTotalCentavos),
+        ataSaldoAnterior: body.ataSaldoAnterior != null ? body.ataSaldoAnterior : (body.ataSaldo != null ? body.ataSaldo : reinfFromCents(cadastro.ataSaldoCentavos)),
+        ataAprovadaAte2025: body.ataAprovadaAte2025 != null ? body.ataAprovadaAte2025 : cadastro.ataAprovadaAte2025,
+        ataValidaAte2028: body.ataValidaAte2028 != null ? body.ataValidaAte2028 : cadastro.ataValidaAte2028,
+      });
+      const locadores = locadoresDividendosParaR4010(resultado, {
+        cnpjFonte: body.cnpjFonte || cnpj,
+        cnpjEstab: body.cnpjEstab || body.cnpjFonte || cnpj,
+        dtPagamento: body.dtPagamento,
+      });
+      res.json({ ok: true, resultado, locadores });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  router.post('/dividendos/registrar', adminReinfCadastroRequired, async (req, res) => {
+    try {
+      if (!db) throw new Error('Banco de dados indisponível para registrar dividendos.');
+      const body = req.body || {};
+      const resultado = calcularDividendos(body);
+      const cnpj = limparCnpj(resultado.cnpj);
+      const docId = String(resultado.competencia || '').replace(/\D/g, '');
+      await db.collection('empresas').doc(cnpj).collection('reinf_dividendos').doc(docId).set({
+        ...resultado,
+        registrado_em: new Date(),
+        registrado_por_uid: req.user && req.user.uid || null,
+        registrado_por_email: req.user && req.user.email || null,
+      }, { merge: true });
+      await db.collection('empresas').doc(cnpj).set({
+        reinfDividendos: {
+          ataSaldoCentavos: reinfToCents(resultado.ataSaldoApos),
+          atualizado_em: new Date(),
+          atualizado_por_email: req.user && req.user.email || null,
+        },
+      }, { merge: true });
+      await registrarLog(db, req, 'dividendos_registrar_competencia', {
+        cnpj,
+        competencia: resultado.competencia,
+        totalIrrf: resultado.totalIrrf,
+        ataSaldoApos: resultado.ataSaldoApos,
+      });
+      res.json({ ok: true, resultado });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  router.post('/dividendos/solicitar', adminReinfCadastroRequired, async (req, res) => {
+    try {
+      if (!db) throw new Error('Banco de dados indisponível para disparo de solicitações.');
+      const body = req.body || {};
+      const competenciaReferencia = String(body.competenciaReferencia || '').trim();
+      const cnpjs = Array.isArray(body.cnpjs) ? body.cnpjs.map(limparCnpj).filter((c) => c.length === 14) : [];
+      const empresas = [];
+      if (cnpjs.length) {
+        for (const cnpj of cnpjs) {
+          const snap = await db.collection('empresas').doc(cnpj).get();
+          if (snap.exists) empresas.push({ cnpj, ...snap.data() });
+        }
+      } else {
+        const snap = await db.collection('empresas').get();
+        snap.forEach((doc) => empresas.push({ cnpj: doc.id, ...doc.data() }));
+      }
+
+      const enviados = [];
+      const ignorados = [];
+      for (const empresa of empresas) {
+        const div = empresa.reinfDividendos || {};
+        const email = String(div.emailSolicitacaoReinf || empresa.email_reinf || empresa.email || '').trim();
+        if (!reinfEmailValido(email)) {
+          ignorados.push({ cnpj: empresa.cnpj, motivo: 'sem e-mail Reinf válido' });
+          continue;
+        }
+        const modelo = emailSolicitacaoDividendos({ empresa, competenciaReferencia });
+        const envio = await reinfEnviarEmailMicrosoft365({
+          to: email,
+          subject: modelo.assunto,
+          html: modelo.html,
+          text: modelo.texto,
+        });
+        enviados.push({ cnpj: empresa.cnpj, email, sender: envio.sender });
+        await db.collection('empresas').doc(limparCnpj(empresa.cnpj)).collection('reinf_emails').add({
+          tipo: 'solicitacao_dividendos',
+          competenciaReferencia,
+          email,
+          assunto: modelo.assunto,
+          enviado_em: new Date(),
+          enviado_por_uid: req.user && req.user.uid || null,
+          enviado_por_email: req.user && req.user.email || null,
+        });
+      }
+      await registrarLog(db, req, 'dividendos_solicitar_email', {
+        competenciaReferencia,
+        enviados: enviados.length,
+        ignorados: ignorados.length,
+      });
+      res.json({ ok: true, enviados, ignorados });
+    } catch (err) {
+      respostaErro(res, err.statusCode || 400, err);
+    }
   });
 
   router.get('/certificado', async (req, res) => {

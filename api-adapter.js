@@ -314,7 +314,42 @@
     return await r.json();
   }
 
-  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfCertificado, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfConsultarLote };
+  async function reinfDividendosStatusMicrosoft365() {
+    const r = await apiFetch(API_BASE + '/api/reinf/dividendos/microsoft365/status');
+    return await r.json();
+  }
+
+  async function reinfDividendosCadastro(cnpj) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/reinf/dividendos/empresa/' + cnpjLimpo);
+    return await r.json();
+  }
+
+  async function reinfDividendosSalvarCadastro(cnpj, dados) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/reinf/dividendos/empresa/' + cnpjLimpo, {
+      method: 'PUT',
+      body: JSON.stringify(dados || {})
+    });
+    return await r.json();
+  }
+
+  async function reinfDividendosCalcular(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/dividendos/calcular', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
+  async function reinfDividendosRegistrar(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/dividendos/registrar', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
+  async function reinfDividendosSolicitar(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/dividendos/solicitar', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
+  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfCertificado, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfConsultarLote, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
   console.log('[API Adapter v3] carregado');
 })();
 

@@ -13,6 +13,13 @@ vm.runInNewContext(match[0], sandbox);
 const E = sandbox.window.EcdEcfEngine || sandbox.globalThis.EcdEcfEngine;
 if (!E) throw new Error('EcdEcfEngine nao inicializado');
 
+const ecdAbertura = E.parseEcd('|0000|LECD|01012025|31122025|EMPRESA EM ABERTURA|58271340000137|SC||4205407|||1|0|0||0|0||N|N|0|0|5|');
+const ecdInicioObrigatoriedade = E.parseEcd('|0000|LECD|01012025|31122025|INICIO OBRIGATORIEDADE|58271340000137|SC||4205407|||3|0|0||0|0||N|N|0|0|5|');
+const ecdContinuidade = E.parseEcd('|0000|LECD|01012025|31122025|EMPRESA CONTINUA|58271340000137|SC||4205407|||0|0|0||0|0||N|N|0|0|5|');
+if (E.exigeEcdAnterior(ecdAbertura)) throw new Error('ECD de abertura (0000 campo 12 = 1) nao pode exigir ECD anterior');
+if (E.exigeEcdAnterior(ecdInicioObrigatoriedade)) throw new Error('Inicio de obrigatoriedade (0000 campo 12 = 3) nao pode exigir ECD anterior');
+if (!E.exigeEcdAnterior(ecdContinuidade)) throw new Error('ECD normal (0000 campo 12 = 0) deve exigir ECD anterior');
+
 const arquivosAtuais = [
   '/Users/paulocesarpereirajunior/Downloads/ECD2055.TXT',
   '/Users/paulocesarpereirajunior/Downloads/ECD3451.TXT',
@@ -230,6 +237,8 @@ let passivo = 0;
 });
 assert(ativo !== passivo, 'Fixture real deve permanecer bloqueado quando a origem contábil nao fecha Ativo/Passivo sem ajuste artificial');
 assert(resultado.avisos.some((aviso) => /Divergencias contabeis bloqueantes/.test(aviso)), 'Consolidacao deve diagnosticar divergencia contabil bloqueante em vez de ajustar automaticamente');
+assert(!resultado.avisos.some((aviso) => /I155 patrimonial/.test(aviso)), 'Balancete mensal I155 nao deve ser bloqueado por resultado ainda nao encerrado');
+assert(validacao.checks.some((check) => check.nome === 'Quantidade de campos por registro SPED' && check.ok), 'Leiaute 9 deve aceitar I200/I350/I355/J100/J150 com a quantidade oficial de campos');
 
 const raizAnterior = resumoJ100Raiz(anterior.lines, false);
 const raizAbertura = resumoJ100Raiz(resultado.lines, true);

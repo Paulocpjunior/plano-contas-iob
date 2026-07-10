@@ -1,9 +1,9 @@
 {
-  "version": "3.4.32",
-  "build_date": "2026-07-09T14:05:00.000Z",
+  "version": "3.4.38",
+  "build_date": "2026-07-10T15:30:00.000Z",
   "release_notes": [
-    "Santander: parametrizado Internet Banking Empresarial no modelo Data/Historico/Valor.",
-    "Santander: saldos diarios deixam de virar lancamentos e complementos do historico ficam no mesmo movimento.",
-    "Santander: regressao real EXTRATO 0426.pdf protege 85 movimentos de abril/2026."
+    "ECD: abertura e inicio de obrigatoriedade deixam de exigir uma ECD anterior inexistente.",
+    "ECD: validador passa a aceitar a quantidade correta de campos do leiaute 9 em I200, I350, I355, J100 e J150.",
+    "ECD: diferencas mensais do I155 por resultado ainda nao encerrado deixam de bloquear a consolidacao; o J100 final continua obrigatoriamente equilibrado."
   ]
 }

@@ -29,6 +29,7 @@ const VER_PROC = 'RetencoesREINF-1.0';       // máx. 20 chars
 // Aluguéis/locação/sublocação pagos a PF = 13002.
 const NAT_REND = {
   ALUGUEL_PF: '13002',
+  LUCROS_DIVIDENDOS: '12001',
   SERVICOS_PROF: '13005',
   COMISSOES: '13008',
 };
@@ -256,7 +257,8 @@ function gerarEventosR4010DaPlanilha({
     ].join('|');
     const bruto = Number(loc.bruto) || 0;
     const irrf = Number(loc.irrf) || 0;
-    const baseIrrf = loc.baseIrrf != null ? (Number(loc.baseIrrf) || bruto) : bruto;
+    const baseInformada = loc.baseIrrf != null ? Number(loc.baseIrrf) : bruto;
+    const baseIrrf = Number.isFinite(baseInformada) ? Math.max(0, baseInformada) : bruto;
     if (!grupos.has(chave)) {
       grupos.set(chave, {
         loc,
@@ -270,13 +272,14 @@ function gerarEventosR4010DaPlanilha({
     const grupo = grupos.get(chave);
     grupo.brutoTotal += bruto;
     grupo.irrfTotal += irrf;
-    grupo.pagamentos.push({
+    const pagamento = {
       natRend,
       dtFG: loc.dtPagamento || loc.dtFG || dtPagamento,
       vlrRendBruto: bruto,
-      vlrRendTrib: baseIrrf,
-      vlrIR: irrf,
-    });
+    };
+    if (baseIrrf > 0 || irrf > 0) pagamento.vlrRendTrib = baseIrrf;
+    if (irrf > 0) pagamento.vlrIR = irrf;
+    grupo.pagamentos.push(pagamento);
   }
   return Array.from(grupos.values()).map((grupo, idx) => {
     const { loc, contribuinteLocador, estabelecimentoLocador } = grupo;
