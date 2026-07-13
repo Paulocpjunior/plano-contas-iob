@@ -1,9 +1,12 @@
 {
-  "version": "3.4.44",
-  "build_date": "2026-07-10T18:47:58.000Z",
+  "version": "3.4.46",
+  "build_date": "2026-07-13T20:08:46.000Z",
   "release_notes": [
-    "FLANACAR Entrada Fiscal: confirmacao visual aparece assim que o CSV correto e validado.",
-    "O botao muda para Selecionar colunas e processar exclusivamente no layout FLANACAR fiscal.",
-    "HTML principal e parser FLANACAR passam a ser servidos sem cache antigo para garantir a atualizacao aos colaboradores."
+    "ECD/ECF: saldos de abertura do J100 e J150 passam a herdar integralmente o encerramento da ECD recuperada.",
+    "Contas patrimoniais novas no ano atual recebem abertura zero quando nao existem na ECD anterior.",
+    "Validador agora detecta contas extras na abertura, evitando falso resultado de saldos analiticos conferidos.",
+    "Igrejas: nova Conferencia de Caixa compara o Extrato Financeiro com o razao contabil em Excel ou PDF.",
+    "O de-para separa conciliados, valores divergentes, movimentos ausentes e lancamentos extras sem reutilizar registros.",
+    "A conferencia compara saldos inicial e final e permite exportar CSV ou imprimir o relatorio em PDF."
   ]
 }

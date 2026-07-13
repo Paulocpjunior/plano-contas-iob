@@ -109,9 +109,10 @@ function ajustesDaEcdAnterior(anterior, atuais) {
 
   const ini = primeiroI155(atuais);
   const ajustes = [];
-  Object.keys(fin).forEach((conta) => {
+  const contasAbertura = new Set([...Object.keys(fin), ...Object.keys(ini)]);
+  contasAbertura.forEach((conta) => {
     if (conta.charAt(0) !== '1' && conta.charAt(0) !== '2') return;
-    const delta = fin[conta] - (ini[conta] || 0);
+    const delta = (fin[conta] || 0) - (ini[conta] || 0);
     if (!delta) return;
     ajustes.push({
       conta,
@@ -335,4 +336,49 @@ if (arquivosSaoJose.concat(anteriorSaoJose).every(fs.existsSync)) {
   assert(validacaoSaoJose.falhas === 0, `Regional Sao Jose deve ficar apta: ${validacaoSaoJose.checks.filter((check) => !check.ok).map((check) => check.nome).join(', ')}`);
 }
 
-console.log(`OK: ECD igreja consolidada protege divergencia real e usa somente o ultimo J005/J100 da ECD recuperada.`);
+const zipJoaoPessoa = '/Users/paulocesarpereirajunior/Downloads/JOA\u0303O PESSOA 227.zip';
+if (fs.existsSync(zipJoaoPessoa)) {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const pastaZip = fs.mkdtempSync(path.join(os.tmpdir(), 'ecdecf-joao-pessoa-'));
+  execFileSync('unzip', ['-q', zipJoaoPessoa, '-d', pastaZip]);
+  const pastaArquivos = fs.readdirSync(pastaZip, { withFileTypes: true })
+    .find((entrada) => entrada.isDirectory());
+  assert(pastaArquivos, 'ZIP Joao Pessoa deve conter uma pasta com os arquivos ECD');
+  const pastaEcd = path.join(pastaZip, pastaArquivos.name);
+  const arquivosZip = fs.readdirSync(pastaEcd);
+  const entradaAnterior = arquivosZip.find((nome) => /20240101-20241231.*SPED-ECD\.txt$/i.test(nome));
+  const entradasAtuais = arquivosZip.filter((nome) => /^ECD[^/]*\.TXT$/i.test(nome));
+  assert(entradaAnterior && entradasAtuais.length, 'ZIP Joao Pessoa deve conter ECD anterior e arquivos atuais');
+
+  function parseZipEntry(nome) {
+    const text = fs.readFileSync(path.join(pastaEcd, nome), 'latin1');
+    const parsed = E.parseEcd(text);
+    parsed.nomeArquivo = path.basename(nome);
+    return parsed;
+  }
+
+  const atuaisJoaoPessoa = entradasAtuais.map(parseZipEntry);
+  const matrizJoaoPessoa = atuaisJoaoPessoa.find((arquivo) => arquivo.isMatriz);
+  const filiaisJoaoPessoa = atuaisJoaoPessoa.filter((arquivo) => arquivo !== matrizJoaoPessoa);
+  const anteriorJoaoPessoa = parseZipEntry(entradaAnterior);
+  const ajustesJoaoPessoa = ajustesDaEcdAnterior(anteriorJoaoPessoa, atuaisJoaoPessoa);
+  const ajusteContaNova = ajustesJoaoPessoa.find((ajuste) => ajuste.conta === '2.4.6.01.0002');
+  assert(ajusteContaNova && ajusteContaNova.delta === -803595, 'Conta nova de deficit deve ter abertura zerada por nao existir na ECD anterior');
+
+  const consolidadoJoaoPessoa = E.consolidar(matrizJoaoPessoa, filiaisJoaoPessoa, ajustesJoaoPessoa, {
+    ecdAnteriorLines: anteriorJoaoPessoa.lines,
+  });
+  const validacaoJoaoPessoa = E.validar(consolidadoJoaoPessoa.lines, {
+    cnpjEsperado: '35501634000102',
+    ecdAnteriorLines: anteriorJoaoPessoa.lines,
+  });
+  const raizAnteriorJoaoPessoa = resumoJ100Raiz(anteriorJoaoPessoa.lines, false);
+  const raizAberturaJoaoPessoa = resumoJ100Raiz(consolidadoJoaoPessoa.lines, true);
+  assert(raizAnteriorJoaoPessoa.ativo === raizAberturaJoaoPessoa.ativo, 'Joao Pessoa deve herdar o Ativo final da ECD anterior');
+  assert(raizAnteriorJoaoPessoa.passivo === raizAberturaJoaoPessoa.passivo, 'Joao Pessoa deve herdar o Passivo final da ECD anterior');
+  assert(validacaoJoaoPessoa.falhas === 0, `Joao Pessoa deve ficar apta: ${validacaoJoaoPessoa.checks.filter((check) => !check.ok).map((check) => `${check.nome}: ${check.detalhe}`).join('; ')}`);
+  fs.rmSync(pastaZip, { recursive: true, force: true });
+}
+
+console.log(`OK: ECD igreja consolidada herda a abertura da ECD recuperada, inclusive para contas novas no ano atual.`);
