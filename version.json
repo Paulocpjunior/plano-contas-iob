@@ -1,7 +1,9 @@
 {
-  "version": "3.4.47",
-  "build_date": "2026-07-14T09:21:24.000Z",
+  "version": "3.4.48",
+  "build_date": "2026-07-14T09:27:28.000Z",
   "release_notes": [
+    "O popup de atualizacao volta a aparecer uma vez para cada nova versao publicada.",
+    "Quando a versao ja esta carregada, o colaborador confirma as novidades com Entendi sem recarregar a pagina.",
     "Igrejas: o botao Conferir Caixa agora aparece para cadastros antigos que nao possuem segmento de empresa gravado.",
     "A validacao do arquivo mantem a funcao exclusiva para o Extrato Financeiro das Igrejas.",
     "A Conferencia de Caixa compara o Extrato Financeiro com o razao contabil em Excel ou PDF.",

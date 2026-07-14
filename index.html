@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.47"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.47"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.47"></script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.48"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.48"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.48"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -19,30 +19,30 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.47"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.47"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.48"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.48"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.47"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.47"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.47"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.47"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.47"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.47"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.47"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.47"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.47"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.47"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.47"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.47"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.47"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.47"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.47"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.47"></script>
+    <script src="/parser-ofx.js?v=3.4.48"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.48"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.48"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.48"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.48"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.48"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.48"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.48"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.48"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.48"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.48"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.48"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.48"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.48"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.48"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.48"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -14894,25 +14894,26 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:99999;backdrop-filter:blur(2px);align-items:center;justify-content:center">
         <div style="background:#fff;border-radius:14px;max-width:520px;width:90%;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center">
             <div style="font-size:48px;margin-bottom:8px">🚀</div>
-            <h2 style="margin:0 0 8px;color:#0f172a;font-size:22px;font-weight:700">Nova versao disponivel</h2>
+            <h2 id="versionModalTitle" style="margin:0 0 8px;color:#0f172a;font-size:22px;font-weight:700">Nova versao disponivel</h2>
             <p style="margin:0 0 4px;color:#64748b;font-size:14px">Versao <strong id="versionModalNumero">-</strong></p>
-            <p style="margin:0 0 20px;color:#64748b;font-size:12px">Voce pode atualizar agora ou continuar trabalhando e atualizar depois.</p>
+            <p id="versionModalDescription" style="margin:0 0 20px;color:#64748b;font-size:12px">Voce pode atualizar agora ou continuar trabalhando e atualizar depois.</p>
             <div id="versionModalNotes" style="text-align:left;background:#f8fafc;border-radius:8px;padding:14px;margin-bottom:24px;max-height:240px;overflow-y:auto;font-size:13px;color:#334155;line-height:1.5"></div>
             <div style="display:flex;gap:10px;align-items:center;justify-content:center">
                 <button id="versionModalLater" style="background:#e2e8f0;color:#334155;border:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;min-width:140px">Depois</button>
                 <button id="versionModalReload" style="background:#2563eb;color:#fff;border:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;min-width:180px">Atualizar agora</button>
             </div>
-            <p style="margin:14px 0 0;color:#94a3b8;font-size:11px">Ao atualizar agora, a sessao sera salva antes do recarregamento.</p>
+            <p id="versionModalHint" style="margin:14px 0 0;color:#94a3b8;font-size:11px">Ao atualizar agora, a sessao sera salva antes do recarregamento.</p>
         </div>
     </div>
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = '3.4.47';
+            const _VERSAO_BUILD = '3.4.48';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
             const _CHECAR_INTERVALO_MS = 5 * 60 * 1000; // 5 min
+            let _versaoAdiadaNestaSessao = '';
 
             async function checarVersaoApp(silencioso) {
                 try {
@@ -14922,14 +14923,21 @@ window.confirmarTrocarPlano = async function() {
                     if (!info || !info.version) return;
                     _atualizarFooter(info);
 
-                    if (info.version === _VERSAO_BUILD) localStorage.setItem(_VERSAO_VISTA_KEY, info.version);
+                    const versaoJaVista = localStorage.getItem(_VERSAO_VISTA_KEY) === info.version;
+                    const versaoJaCarregada = info.version === _VERSAO_BUILD;
+
+                    // Ao abrir uma nova publicacao, mostra as novidades uma vez por navegador.
+                    if (versaoJaCarregada) {
+                        if (!versaoJaVista && _versaoAdiadaNestaSessao !== info.version) {
+                            _mostrarModalAtualizacao(info, true);
+                        }
+                        return;
+                    }
 
                     // Mudou enquanto o colaborador esta usando? Avisa sem forcar reload.
-                    if (info.version !== _VERSAO_BUILD) {
-                        console.log('[version] Nova versao detectada:', _VERSAO_BUILD, '->', info.version);
-                        if (localStorage.getItem(_VERSAO_ADIADA_KEY) === info.version) return;
-                        _mostrarModalAtualizacao(info);
-                    }
+                    console.log('[version] Nova versao detectada:', _VERSAO_BUILD, '->', info.version);
+                    if (localStorage.getItem(_VERSAO_ADIADA_KEY) === info.version) return;
+                    _mostrarModalAtualizacao(info, false);
                 } catch (e) {
                     if (!silencioso) console.warn('[version] falha ao checar:', e.message);
                 }
@@ -14977,15 +14985,29 @@ window.confirmarTrocarPlano = async function() {
                 });
             }
 
-            function _mostrarModalAtualizacao(info) {
+            function _mostrarModalAtualizacao(info, versaoJaCarregada) {
                 const modal = document.getElementById('versionModal');
+                const title = document.getElementById('versionModalTitle');
+                const description = document.getElementById('versionModalDescription');
+                const hint = document.getElementById('versionModalHint');
                 const numero = document.getElementById('versionModalNumero');
                 const notes = document.getElementById('versionModalNotes');
                 const btn = document.getElementById('versionModalReload');
                 const btnLater = document.getElementById('versionModalLater');
-                if (!modal || !numero || !notes || !btn || !btnLater) return;
+                if (!modal || !title || !description || !hint || !numero || !notes || !btn || !btnLater) return;
 
                 numero.textContent = info.version;
+                title.textContent = versaoJaCarregada ? 'Nova versao publicada' : 'Nova versao disponivel';
+                description.textContent = versaoJaCarregada
+                    ? 'Confira as novidades que ja estao disponiveis para voce.'
+                    : 'Voce pode atualizar agora ou continuar trabalhando e atualizar depois.';
+                hint.textContent = versaoJaCarregada
+                    ? 'Este aviso aparece uma vez para cada nova versao publicada.'
+                    : 'Ao atualizar agora, a sessao sera salva antes do recarregamento.';
+                btn.disabled = false;
+                btnLater.disabled = false;
+                btn.textContent = versaoJaCarregada ? 'Entendi' : 'Atualizar agora';
+                btnLater.textContent = versaoJaCarregada ? 'Ver depois' : 'Depois';
                 if (Array.isArray(info.release_notes) && info.release_notes.length > 0) {
                     notes.innerHTML = '<strong style="display:block;margin-bottom:8px;color:#0f172a">O que mudou:</strong>' +
                         '<ul style="margin:0;padding-left:18px">' +
@@ -14997,12 +15019,23 @@ window.confirmarTrocarPlano = async function() {
 
                 modal.style.display = 'flex';
                 btnLater.onclick = function() {
+                    if (versaoJaCarregada) {
+                        _versaoAdiadaNestaSessao = info.version;
+                        modal.style.display = 'none';
+                        return;
+                    }
                     localStorage.setItem(_VERSAO_ADIADA_KEY, info.version);
                     modal.style.display = 'none';
                     const footer = document.getElementById('versionFooter');
                     if (footer) footer.textContent = 'v' + _versaoAtual + ' • atualizacao v' + info.version + ' pendente';
                 };
                 btn.onclick = async function() {
+                    if (versaoJaCarregada) {
+                        localStorage.setItem(_VERSAO_VISTA_KEY, info.version);
+                        localStorage.removeItem(_VERSAO_ADIADA_KEY);
+                        modal.style.display = 'none';
+                        return;
+                    }
                     btn.disabled = true;
                     btnLater.disabled = true;
                     btn.textContent = 'Salvando...';
