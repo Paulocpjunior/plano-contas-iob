@@ -402,11 +402,24 @@
     });
     var contagens = { conciliado:0, valor_divergente:0, ausente_razao:0, extra_razao:0 };
     itens.forEach(function(i) { contagens[i.status]++; });
+    function totais(movimentos) {
+      return (movimentos || []).reduce(function(total, item) {
+        if (item.valorCentavos > 0) total.entradasCentavos += item.valorCentavos;
+        else if (item.valorCentavos < 0) total.saidasCentavos += Math.abs(item.valorCentavos);
+        return total;
+      }, { entradasCentavos: 0, saidasCentavos: 0 });
+    }
+    var totaisIgreja = totais(src);
+    var totaisRazao = totais(acc);
     return {
       itens: itens,
       contagens: contagens,
       totalIgrejaCentavos: src.reduce(function(t, i) { return t + i.valorCentavos; }, 0),
       totalRazaoCentavos: acc.reduce(function(t, i) { return t + i.valorCentavos; }, 0),
+      totaisIgreja: totaisIgreja,
+      totaisRazao: totaisRazao,
+      entradasDiferencaCentavos: totaisIgreja.entradasCentavos - totaisRazao.entradasCentavos,
+      saidasDiferencaCentavos: totaisIgreja.saidasCentavos - totaisRazao.saidasCentavos,
       saldoInicialDiferencaCentavos: igreja.aberturaCentavos - razao.aberturaCentavos,
       saldoFinalDiferencaCentavos: igreja.fechamentoCentavos - razao.fechamentoCentavos,
       aderencia: src.length ? Math.round(contagens.conciliado * 100 / src.length) : 0
@@ -440,7 +453,7 @@
       .ccig-btn{border:1px solid #cbd5e1;border-radius:6px;padding:9px 13px;background:#fff;color:#0f172a;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}.ccig-btn-primary{background:#2563eb;border-color:#2563eb;color:#fff}.ccig-btn:disabled{opacity:.45;cursor:not-allowed}\
       .ccig-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #e5e7eb}.ccig-actions-right{display:flex;gap:8px;flex-wrap:wrap}.ccig-status{font-size:12px;color:#64748b}.ccig-status.error{color:#b91c1c}.ccig-status.success{color:#047857}\
       .ccig-metrics{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;margin:15px 0}.ccig-metric{border:1px solid #e2e8f0;border-radius:6px;padding:11px;background:#fff}.ccig-metric span{display:block;font-size:10px;text-transform:uppercase;color:#64748b;font-weight:700}.ccig-metric strong{display:block;font-size:20px;margin-top:3px}.ccig-ok{color:#059669}.ccig-warn{color:#d97706}.ccig-bad{color:#dc2626}\
-      .ccig-balances{display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:6px;margin-bottom:14px}.ccig-balance{display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;font-size:12px}.ccig-balance strong{font-size:12px}.ccig-diff{font-weight:800}\
+      .ccig-balances{display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:6px;margin-bottom:14px}.ccig-balance-heading{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:12px}.ccig-balance-heading strong{font-size:13px}.ccig-balance-heading span{font-size:11px;color:#64748b}.ccig-balance{display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;font-size:12px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:10px}.ccig-balance strong{font-size:12px}.ccig-balance-secondary{background:transparent;border-style:dashed;color:#64748b}.ccig-diff{font-weight:800}\
       .ccig-toolbar{display:flex;align-items:end;gap:10px;margin:12px 0}.ccig-field{display:flex;flex-direction:column;gap:4px}.ccig-field label{font-size:10px;text-transform:uppercase;color:#64748b;font-weight:700}.ccig-field select,.ccig-field input{height:36px;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;font-size:12px}.ccig-search{flex:1}\
       .ccig-table-wrap{border:1px solid #e2e8f0;border-radius:6px;overflow:auto;max-height:390px}.ccig-table{width:100%;border-collapse:collapse;font-size:11px}.ccig-table th{position:sticky;top:0;background:#f1f5f9;text-align:left;padding:9px 8px;z-index:1;white-space:nowrap}.ccig-table td{padding:8px;border-top:1px solid #e5e7eb;vertical-align:top}.ccig-money{text-align:right;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.ccig-desc{min-width:230px;max-width:320px}.ccig-badge{display:inline-block;border-radius:12px;padding:3px 8px;font-size:10px;font-weight:800;white-space:nowrap}.ccig-badge-conciliado{background:#dcfce7;color:#166534}.ccig-badge-valor_divergente{background:#fef3c7;color:#92400e}.ccig-badge-ausente_razao,.ccig-badge-extra_razao{background:#fee2e2;color:#991b1b}\
       .ccig-empty{text-align:center;padding:36px;color:#64748b}.ccig-hidden{display:none!important}\
@@ -521,7 +534,12 @@
       state.resultado = conciliar(state.igreja, state.razao);
       state.filtro = 'todos'; state.busca = '';
       root.document.getElementById('ccigFilter').value = 'todos'; root.document.getElementById('ccigSearch').value = '';
-      renderResultado(); setStatus('Conferência concluída sem alterar os arquivos originais.', 'success');
+      renderResultado();
+      var totaisConferem = Math.abs(state.resultado.entradasDiferencaCentavos) <= 1 && Math.abs(state.resultado.saidasDiferencaCentavos) <= 1;
+      setStatus(totaisConferem
+        ? 'Conferência concluída: totais de entradas e saídas conferem.'
+        : 'Conferência concluída: existe diferença nos totais de entradas ou saídas.',
+        totaisConferem ? 'success' : 'error');
     } catch (e) {
       console.error('[Conferencia Igrejas]', e); setStatus(e.message || String(e), 'error');
     } finally { btn.disabled = false; btn.textContent = 'Conferir arquivos'; atualizarBotao(); }
@@ -535,11 +553,17 @@
       metric('Movimentos igreja', state.igreja.movimentos.length, '') + metric('Lançamentos razão', state.razao.movimentos.length, '') +
       metric('Conciliados', c.conciliado, 'ccig-ok') + metric('Valor divergente', c.valor_divergente, 'ccig-warn') +
       metric('Ausentes / extras', c.ausente_razao + c.extra_razao, 'ccig-bad') + metric('Aderência', r.aderencia + '%', r.aderencia === 100 ? 'ccig-ok' : 'ccig-bad');
-    function balance(label, a, b) {
+    function balance(label, a, b, secondary) {
       var d = a - b, cls = d === 0 ? 'ccig-ok' : 'ccig-bad';
-      return '<div class="ccig-balance"><strong>' + label + '</strong><span>Igreja: ' + formatarMoeda(a, true) + '</span><span>Razão: ' + formatarMoeda(b, true) + '</span><span class="ccig-diff ' + cls + '">Dif.: ' + formatarMoeda(d, true) + '</span></div>';
+      return '<div class="ccig-balance' + (secondary ? ' ccig-balance-secondary' : '') + '"><strong>' + label + '</strong><span>Igreja: ' + formatarMoeda(a, true) + '</span><span>Razão: ' + formatarMoeda(b, true) + '</span><span class="ccig-diff ' + cls + '">Dif.: ' + formatarMoeda(d, true) + '</span></div>';
     }
-    root.document.getElementById('ccigBalances').innerHTML = balance('Saldo inicial', state.igreja.aberturaCentavos, state.razao.aberturaCentavos) + balance('Saldo final', state.igreja.fechamentoCentavos, state.razao.fechamentoCentavos);
+    root.document.getElementById('ccigBalances').innerHTML =
+      '<div class="ccig-balance-heading"><strong>Totais do período - conferência principal</strong><span>Compara o centro de custo mesmo quando o razão possui lançamentos segregados.</span></div>' +
+      balance('Entradas', r.totaisIgreja.entradasCentavos, r.totaisRazao.entradasCentavos, false) +
+      balance('Saídas', r.totaisIgreja.saidasCentavos, r.totaisRazao.saidasCentavos, false) +
+      '<div class="ccig-balance-heading"><strong>Saldos informativos</strong><span>Podem divergir porque o razão considera o caixa geral, e não apenas o centro de custo.</span></div>' +
+      balance('Saldo inicial', state.igreja.aberturaCentavos, state.razao.aberturaCentavos, true) +
+      balance('Saldo final', state.igreja.fechamentoCentavos, state.razao.fechamentoCentavos, true);
     root.document.getElementById('ccigResults').classList.remove('ccig-hidden');
     root.document.getElementById('ccigCsv').classList.remove('ccig-hidden'); root.document.getElementById('ccigPdf').classList.remove('ccig-hidden');
     renderTabela();
@@ -568,7 +592,16 @@
   }
 
   function exportarCsv() {
-    var rows = [['Status','Motivo','Data','Categoria igreja','Histórico igreja','Valor igreja','Lançamento razão','Histórico razão','Valor razão','Diferença']];
+    var r = state.resultado;
+    var rows = [
+      ['Conferência de totais','','Igreja','Razão','Diferença'],
+      ['Entradas','', (r.totaisIgreja.entradasCentavos/100).toFixed(2), (r.totaisRazao.entradasCentavos/100).toFixed(2), (r.entradasDiferencaCentavos/100).toFixed(2)],
+      ['Saídas','', (r.totaisIgreja.saidasCentavos/100).toFixed(2), (r.totaisRazao.saidasCentavos/100).toFixed(2), (r.saidasDiferencaCentavos/100).toFixed(2)],
+      ['Saldo inicial (informativo)','', (state.igreja.aberturaCentavos/100).toFixed(2), (state.razao.aberturaCentavos/100).toFixed(2), (r.saldoInicialDiferencaCentavos/100).toFixed(2)],
+      ['Saldo final (informativo)','', (state.igreja.fechamentoCentavos/100).toFixed(2), (state.razao.fechamentoCentavos/100).toFixed(2), (r.saldoFinalDiferencaCentavos/100).toFixed(2)],
+      [],
+      ['Status','Motivo','Data','Categoria igreja','Histórico igreja','Valor igreja','Lançamento razão','Histórico razão','Valor razão','Diferença']
+    ];
     state.resultado.itens.forEach(function(i) {
       var s=i.igreja,a=i.razao,r=s||a;
       rows.push([STATUS_LABELS[i.status],i.motivo,formatarData(r.data),s&&s.categoria||'',s&&s.descricao||'',s?(s.valorCentavos/100).toFixed(2):'',a&&a.lancamento||'',a&&a.descricao||'',a?(a.valorCentavos/100).toFixed(2):'',(i.diferencaCentavos/100).toFixed(2)]);
@@ -583,8 +616,12 @@
 
   function imprimirPdf() {
     var win = root.open('', '_blank'); if (!win) return setStatus('Permita pop-ups para gerar o PDF.', 'error');
+    var r = state.resultado;
     var rows = state.resultado.itens.map(function(i) { var s=i.igreja,a=i.razao,r=s||a; return '<tr><td>'+STATUS_LABELS[i.status]+'</td><td>'+formatarData(r.data)+'</td><td>'+escapar(s&&s.descricao||'-')+'</td><td class="n">'+(s?formatarMoeda(s.valorCentavos,true):'-')+'</td><td>'+escapar(a&&a.descricao||'-')+'</td><td class="n">'+(a?formatarMoeda(a.valorCentavos,true):'-')+'</td><td class="n">'+formatarMoeda(i.diferencaCentavos,true)+'</td></tr>'; }).join('');
-    win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Conferência de Caixa - Igrejas</title><style>@page{size:A4 landscape;margin:12mm}body{font:11px Arial;color:#111}h1{font-size:18px;margin:0 0 4px}p{margin:2px 0 12px}.summary{display:flex;gap:18px;padding:8px 0;border-block:1px solid #bbb;margin-bottom:10px}.summary b{font-size:14px}table{width:100%;border-collapse:collapse;font-size:8px}th,td{border:1px solid #ccc;padding:4px;vertical-align:top}th{background:#eee}.n{text-align:right;white-space:nowrap}</style></head><body><h1>Conferência de Caixa - Igrejas</h1><p>'+escapar(state.igreja.nome)+' | '+escapar(state.igreja.periodo)+' | '+new Date().toLocaleString('pt-BR')+'</p><div class="summary"><span>Conciliados <b>'+state.resultado.contagens.conciliado+'</b></span><span>Valor divergente <b>'+state.resultado.contagens.valor_divergente+'</b></span><span>Ausentes <b>'+state.resultado.contagens.ausente_razao+'</b></span><span>Extras <b>'+state.resultado.contagens.extra_razao+'</b></span><span>Aderência <b>'+state.resultado.aderencia+'%</b></span></div><table><thead><tr><th>Status</th><th>Data</th><th>Relatório da igreja</th><th>Valor</th><th>Razão contábil</th><th>Valor</th><th>Diferença</th></tr></thead><tbody>'+rows+'</tbody></table><script>window.onload=function(){window.print()}<\/script></body></html>');
+    var totals = '<table class="totals"><thead><tr><th>Conferência principal</th><th>Igreja</th><th>Razão contábil</th><th>Diferença</th></tr></thead><tbody>' +
+      '<tr><th>Entradas</th><td class="n">'+formatarMoeda(r.totaisIgreja.entradasCentavos,true)+'</td><td class="n">'+formatarMoeda(r.totaisRazao.entradasCentavos,true)+'</td><td class="n">'+formatarMoeda(r.entradasDiferencaCentavos,true)+'</td></tr>' +
+      '<tr><th>Saídas</th><td class="n">'+formatarMoeda(r.totaisIgreja.saidasCentavos,true)+'</td><td class="n">'+formatarMoeda(r.totaisRazao.saidasCentavos,true)+'</td><td class="n">'+formatarMoeda(r.saidasDiferencaCentavos,true)+'</td></tr></tbody></table>';
+    win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Conferência de Caixa - Igrejas</title><style>@page{size:A4 landscape;margin:12mm}body{font:11px Arial;color:#111}h1{font-size:18px;margin:0 0 4px}p{margin:2px 0 12px}.summary{display:flex;gap:18px;padding:8px 0;border-block:1px solid #bbb;margin-bottom:10px}.summary b{font-size:14px}.totals{margin:10px 0 5px;font-size:10px}.note{font-size:9px;color:#555;margin-bottom:10px}table{width:100%;border-collapse:collapse;font-size:8px}th,td{border:1px solid #ccc;padding:4px;vertical-align:top}th{background:#eee}.n{text-align:right;white-space:nowrap}</style></head><body><h1>Conferência de Caixa - Igrejas</h1><p>'+escapar(state.igreja.nome)+' | '+escapar(state.igreja.periodo)+' | '+new Date().toLocaleString('pt-BR')+'</p><div class="summary"><span>Conciliados <b>'+r.contagens.conciliado+'</b></span><span>Valor divergente <b>'+r.contagens.valor_divergente+'</b></span><span>Ausentes <b>'+r.contagens.ausente_razao+'</b></span><span>Extras <b>'+r.contagens.extra_razao+'</b></span><span>Aderência <b>'+r.aderencia+'%</b></span></div>'+totals+'<p class="note">Entradas e saídas são a conferência principal por centro de custo. Os saldos inicial e final não determinam a conclusão porque o razão pode considerar o caixa geral.</p><table><thead><tr><th>Status</th><th>Data</th><th>Relatório da igreja</th><th>Valor</th><th>Razão contábil</th><th>Valor</th><th>Diferença</th></tr></thead><tbody>'+rows+'</tbody></table><script>window.onload=function(){window.print()}<\/script></body></html>');
     win.document.close();
   }
 

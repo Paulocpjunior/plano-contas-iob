@@ -1,7 +1,11 @@
 {
-  "version": "3.4.49",
-  "build_date": "2026-07-14T09:36:35.000Z",
+  "version": "3.4.50",
+  "build_date": "2026-07-14T11:37:48.000Z",
   "release_notes": [
+    "Igrejas: a conferencia agora compara os totais de entradas e saidas dos dois relatorios.",
+    "Valores agrupados no relatorio da igreja e segregados no razao podem conferir pelos totais do periodo.",
+    "Saldos inicial e final permanecem apenas informativos, pois o razao pode considerar o caixa geral.",
+    "Os resumos de entradas e saidas tambem foram incluidos nas exportacoes CSV e PDF.",
     "Igrejas: o botao Conferir Caixa agora permanece visivel mesmo antes de abrir ou cadastrar uma empresa.",
     "A conferencia abre diretamente pela navegacao e continua aceitando somente o Extrato Financeiro original das Igrejas.",
     "O popup de atualizacao volta a aparecer uma vez para cada nova versao publicada.",

@@ -74,6 +74,23 @@ assert.strictEqual(splitPdf.movimentos[0].valorCentavos, -2000);
 assert.strictEqual(splitPdf.movimentos[0].lancamento, '0000000001');
 assert.strictEqual(splitPdf.fechamentoCentavos, 8500);
 
+const totaisFrancesinha = conferencia.conciliar(
+  { aberturaCentavos:0, fechamentoCentavos:5000, movimentos:[
+    { data:'2026-06-01', valorCentavos:10000, natureza:'dizimo', descricao:'Dízimos agrupados' },
+    { data:'2026-06-02', valorCentavos:-5000, natureza:'redizima', descricao:'Redízimas agrupadas' }
+  ] },
+  { aberturaCentavos:0, fechamentoCentavos:5000, movimentos:[
+    { data:'2026-06-01', valorCentavos:4000, natureza:'dizimo', descricao:'Dízimo A' },
+    { data:'2026-06-01', valorCentavos:6000, natureza:'dizimo', descricao:'Dízimo B' },
+    { data:'2026-06-02', valorCentavos:-2000, natureza:'redizima', descricao:'Redízima A' },
+    { data:'2026-06-02', valorCentavos:-3000, natureza:'redizima', descricao:'Redízima B' }
+  ] }
+);
+assert.deepStrictEqual(totaisFrancesinha.totaisIgreja, { entradasCentavos:10000, saidasCentavos:5000 });
+assert.deepStrictEqual(totaisFrancesinha.totaisRazao, { entradasCentavos:10000, saidasCentavos:5000 });
+assert.strictEqual(totaisFrancesinha.entradasDiferencaCentavos, 0, 'Entradas devem conferir mesmo com razão segregado');
+assert.strictEqual(totaisFrancesinha.saidasDiferencaCentavos, 0, 'Saídas devem conferir mesmo com razão segregado');
+
 const sourcePath = process.env.IGREJAS_EXTRATO_FIXTURE || '/Users/paulocesarpereirajunior/Downloads/exportar_extrato.xls';
 const ledgerPath = process.env.IGREJAS_RAZAO_FIXTURE || '/Users/paulocesarpereirajunior/Downloads/razao_saldos_012025_a_01.xls';
 
@@ -101,6 +118,8 @@ if (fs.existsSync(sourcePath) && fs.existsSync(ledgerPath)) {
     extra_razao: 146
   });
   assert.strictEqual(result.aderencia, 12);
+  assert.strictEqual(result.entradasDiferencaCentavos, result.totaisIgreja.entradasCentavos - result.totaisRazao.entradasCentavos);
+  assert.strictEqual(result.saidasDiferencaCentavos, result.totaisIgreja.saidasCentavos - result.totaisRazao.saidasCentavos);
   assert.strictEqual(result.saldoInicialDiferencaCentavos, -92049);
   assert.strictEqual(result.saldoFinalDiferencaCentavos, -498411);
 } else {
@@ -113,10 +132,14 @@ const moduleSource = fs.readFileSync(path.join(__dirname, '..', 'igrejas-confere
 assert(moduleSource.includes('btnConferenciaIgrejaNav'), 'O acesso exclusivo deve existir na navegação');
 assert(!moduleSource.includes("btn.style.display='none'"), 'O botão não pode nascer oculto');
 assert(!moduleSource.includes('Abra uma empresa antes de iniciar'), 'A conferência não pode exigir empresa aberta');
+assert(moduleSource.includes("balance('Entradas'"), 'A tela deve comparar o total de entradas');
+assert(moduleSource.includes("balance('Saídas'"), 'A tela deve comparar o total de saídas');
+assert(moduleSource.includes("['Conferência de totais'"), 'O CSV deve levar o resumo de entradas e saídas');
+assert(moduleSource.includes('class="totals"'), 'O PDF deve levar o resumo de entradas e saídas');
 
 global.state = { infoConfirmed: false, info: {} };
 assert.strictEqual(conferencia.empresaAtivaEhIgreja(), true, 'Sem empresa aberta o acesso deve permanecer disponível');
 global.state = { infoConfirmed: true, info: { cnpj: '09.350.712/0001-05', empresa: 'Cadastro legado sem segmento' } };
 assert.strictEqual(conferencia.empresaAtivaEhIgreja(), true, 'Empresa legada também deve exibir a conferência; o arquivo valida o uso exclusivo');
 
-console.log('OK: Conferência de Caixa para Igrejas validada com conciliação um-para-um, Excel e quebra de página do PDF.');
+console.log('OK: Conferência de Caixa para Igrejas validada com totais de entradas/saídas, francesinha, Excel e quebra de página do PDF.');
