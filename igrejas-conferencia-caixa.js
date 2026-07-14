@@ -414,16 +414,8 @@
   }
 
   function empresaAtivaEhIgreja() {
-    var appState = root.state || {};
-    var info = appState.info || {};
-    if (!appState.infoConfirmed || !info.cnpj) return false;
-    var plano = null;
-    try { if (typeof root.verificarPlanoPorCNPJ === 'function' && info.cnpj) plano = root.verificarPlanoPorCNPJ(info.cnpj); } catch (_) {}
-    var parts = [info.empresa, info.planoNome, info.plano_id, plano && plano.nome, plano && plano.plano && plano.plano.tipo];
-    var value = normalizarTexto(parts.filter(Boolean).join(' '));
-    if (/IGREJA|EVANGELIC|PAROQUIA|TEMPLO|MINISTERIO|COMUNIDADE RELIGIOSA|PLANO.*IGREJA/.test(value)) return true;
-    // Cadastros legados nao possuem o segmento da empresa. O formato do arquivo
-    // continua sendo a trava definitiva: somente o Extrato Financeiro de Igrejas e aceito.
+    // O acesso nao depende de uma empresa aberta: os arquivos originais carregam
+    // os dados da igreja e o parser do Extrato Financeiro e a trava definitiva.
     return true;
   }
 
@@ -597,10 +589,6 @@
   }
 
   function abrirModal() {
-    if (!empresaAtivaEhIgreja()) {
-      if (typeof root.showToast === 'function') root.showToast('Abra uma empresa antes de iniciar a Conferência de Caixa.', 'error');
-      return false;
-    }
     injetarEstilos(); criarModal(); return true;
   }
 
@@ -609,7 +597,7 @@
   function init() {
     if (!root.document || root.document.getElementById('btnConferenciaIgrejaNav')) return;
     var nav = root.document.querySelector('.nav'); if (!nav) return;
-    var btn = root.document.createElement('button'); btn.id='btnConferenciaIgrejaNav'; btn.type='button'; btn.style.display='none'; btn.innerHTML='<span>✓</span> Conferir Caixa'; btn.onclick=abrirModal;
+    var btn = root.document.createElement('button'); btn.id='btnConferenciaIgrejaNav'; btn.type='button'; btn.innerHTML='<span>✓</span> Conferir Caixa'; btn.onclick=abrirModal;
     var exportBtn = Array.from(nav.querySelectorAll('button')).find(function(b){ return /Exportar/.test(b.textContent); });
     nav.insertBefore(btn, exportBtn || null); atualizarAcesso();
     var bar = root.document.getElementById('companyBar'); if (bar && root.MutationObserver) new root.MutationObserver(atualizarAcesso).observe(bar,{subtree:true,childList:true,characterData:true,attributes:true});

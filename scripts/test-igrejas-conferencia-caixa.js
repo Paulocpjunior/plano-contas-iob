@@ -110,12 +110,13 @@ if (fs.existsSync(sourcePath) && fs.existsSync(ledgerPath)) {
 const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 assert(indexHtml.includes('/igrejas-conferencia-caixa.js'), 'Módulo da conferência deve estar carregado no app');
 const moduleSource = fs.readFileSync(path.join(__dirname, '..', 'igrejas-conferencia-caixa.js'), 'utf8');
-assert(moduleSource.includes('empresaAtivaEhIgreja()'), 'A abertura da modal deve validar o perfil Igreja');
 assert(moduleSource.includes('btnConferenciaIgrejaNav'), 'O acesso exclusivo deve existir na navegação');
+assert(!moduleSource.includes("btn.style.display='none'"), 'O botão não pode nascer oculto');
+assert(!moduleSource.includes('Abra uma empresa antes de iniciar'), 'A conferência não pode exigir empresa aberta');
 
 global.state = { infoConfirmed: false, info: {} };
-assert.strictEqual(conferencia.empresaAtivaEhIgreja(), false, 'Sem empresa aberta o acesso deve permanecer oculto');
+assert.strictEqual(conferencia.empresaAtivaEhIgreja(), true, 'Sem empresa aberta o acesso deve permanecer disponível');
 global.state = { infoConfirmed: true, info: { cnpj: '09.350.712/0001-05', empresa: 'Cadastro legado sem segmento' } };
-assert.strictEqual(conferencia.empresaAtivaEhIgreja(), true, 'Empresa legada aberta deve exibir a conferência; o arquivo valida o uso exclusivo');
+assert.strictEqual(conferencia.empresaAtivaEhIgreja(), true, 'Empresa legada também deve exibir a conferência; o arquivo valida o uso exclusivo');
 
 console.log('OK: Conferência de Caixa para Igrejas validada com conciliação um-para-um, Excel e quebra de página do PDF.');
