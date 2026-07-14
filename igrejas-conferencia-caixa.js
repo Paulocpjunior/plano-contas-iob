@@ -416,11 +416,15 @@
   function empresaAtivaEhIgreja() {
     var appState = root.state || {};
     var info = appState.info || {};
+    if (!appState.infoConfirmed || !info.cnpj) return false;
     var plano = null;
     try { if (typeof root.verificarPlanoPorCNPJ === 'function' && info.cnpj) plano = root.verificarPlanoPorCNPJ(info.cnpj); } catch (_) {}
     var parts = [info.empresa, info.planoNome, info.plano_id, plano && plano.nome, plano && plano.plano && plano.plano.tipo];
     var value = normalizarTexto(parts.filter(Boolean).join(' '));
-    return !!(appState.infoConfirmed && /IGREJA|EVANGELIC|PAROQUIA|TEMPLO|MINISTERIO|COMUNIDADE RELIGIOSA|PLANO.*IGREJA/.test(value));
+    if (/IGREJA|EVANGELIC|PAROQUIA|TEMPLO|MINISTERIO|COMUNIDADE RELIGIOSA|PLANO.*IGREJA/.test(value)) return true;
+    // Cadastros legados nao possuem o segmento da empresa. O formato do arquivo
+    // continua sendo a trava definitiva: somente o Extrato Financeiro de Igrejas e aceito.
+    return true;
   }
 
   function atualizarAcesso() {
@@ -594,7 +598,7 @@
 
   function abrirModal() {
     if (!empresaAtivaEhIgreja()) {
-      if (typeof root.showToast === 'function') root.showToast('Esta conferência é exclusiva para empresas vinculadas a Igrejas.', 'error');
+      if (typeof root.showToast === 'function') root.showToast('Abra uma empresa antes de iniciar a Conferência de Caixa.', 'error');
       return false;
     }
     injetarEstilos(); criarModal(); return true;
@@ -609,6 +613,7 @@
     var exportBtn = Array.from(nav.querySelectorAll('button')).find(function(b){ return /Exportar/.test(b.textContent); });
     nav.insertBefore(btn, exportBtn || null); atualizarAcesso();
     var bar = root.document.getElementById('companyBar'); if (bar && root.MutationObserver) new root.MutationObserver(atualizarAcesso).observe(bar,{subtree:true,childList:true,characterData:true,attributes:true});
+    root.document.addEventListener('click', function() { setTimeout(atualizarAcesso, 0); }, true);
   }
 
   if (root.document) {

@@ -113,4 +113,9 @@ const moduleSource = fs.readFileSync(path.join(__dirname, '..', 'igrejas-confere
 assert(moduleSource.includes('empresaAtivaEhIgreja()'), 'A abertura da modal deve validar o perfil Igreja');
 assert(moduleSource.includes('btnConferenciaIgrejaNav'), 'O acesso exclusivo deve existir na navegação');
 
+global.state = { infoConfirmed: false, info: {} };
+assert.strictEqual(conferencia.empresaAtivaEhIgreja(), false, 'Sem empresa aberta o acesso deve permanecer oculto');
+global.state = { infoConfirmed: true, info: { cnpj: '09.350.712/0001-05', empresa: 'Cadastro legado sem segmento' } };
+assert.strictEqual(conferencia.empresaAtivaEhIgreja(), true, 'Empresa legada aberta deve exibir a conferência; o arquivo valida o uso exclusivo');
+
 console.log('OK: Conferência de Caixa para Igrejas validada com conciliação um-para-um, Excel e quebra de página do PDF.');
