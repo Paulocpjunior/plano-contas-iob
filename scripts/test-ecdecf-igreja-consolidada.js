@@ -381,4 +381,82 @@ if (fs.existsSync(zipJoaoPessoa)) {
   fs.rmSync(pastaZip, { recursive: true, force: true });
 }
 
+const zipEcd229 = '/Users/paulocesarpereirajunior/Downloads/ECD 229.zip';
+if (fs.existsSync(zipEcd229)) {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const pastaZip = fs.mkdtempSync(path.join(os.tmpdir(), 'ecdecf-229-'));
+  execFileSync('unzip', ['-q', zipEcd229, '-d', pastaZip]);
+  const entradasAtuais = [];
+  function listarTxt(dir) {
+    fs.readdirSync(dir, { withFileTypes: true }).forEach((entrada) => {
+      const completo = path.join(dir, entrada.name);
+      if (entrada.isDirectory()) listarTxt(completo);
+      else if (/^ECD[^/]*\.TXT$/i.test(entrada.name)) entradasAtuais.push(completo);
+    });
+  }
+  listarTxt(pastaZip);
+  assert(entradasAtuais.length === 36, `ECD 229 deve conter 36 arquivos atuais, encontrados ${entradasAtuais.length}`);
+
+  const atuais229 = entradasAtuais.map(parseFile);
+  const matriz229 = atuais229.find((arquivo) => arquivo.isMatriz);
+  const filiais229 = atuais229.filter((arquivo) => arquivo !== matriz229);
+  assert(matriz229 && matriz229.cnpj === '11238262000105', 'ECD 229 deve identificar a matriz 11.238.262/0001-05');
+
+  const base229 = E.consolidar(matriz229, filiais229, []);
+  const ultimoJ100Base = E.ultimoBlocoDemonstracao(base229.lines, 'J100');
+  const porCodigo = {};
+  ultimoJ100Base.forEach((line) => { porCodigo[fields(line)[2]] = fields(line); });
+  const analiticosAtivo = ultimoJ100Base.map(fields).filter((f) => f[3] === 'D' && f[6] === 'A');
+  const analiticosPassivo = ultimoJ100Base.map(fields).filter((f) => f[3] === 'D' && f[6] === 'P');
+  assert(analiticosAtivo.length && analiticosPassivo.length, 'ECD 229 deve possuir contas analiticas de ativo e passivo no J100');
+
+  const delta = 123456;
+  function alterarCadeia(conta, valor) {
+    let atual = conta;
+    while (atual && porCodigo[atual]) {
+      const f = porCodigo[atual];
+      const saldo = sgn(num(f[10]), f[11]) + valor;
+      f[10] = E.fmt(Math.abs(saldo));
+      f[11] = saldo >= 0 ? 'D' : 'C';
+      atual = f[5] || '';
+    }
+  }
+  alterarCadeia(analiticosAtivo[0][2], delta);
+  alterarCadeia(analiticosPassivo[0][2], -delta);
+  const blocoFinal = ultimoJ100Base.map((line) => porCodigo[fields(line)[2]].join('|'));
+  const blocoAntigoIncorreto = blocoFinal.map((line) => {
+    const f = fields(line);
+    if (f[3] === 'D') {
+      const saldo = sgn(num(f[10]), f[11]) + 999;
+      f[10] = E.fmt(Math.abs(saldo));
+      f[11] = saldo >= 0 ? 'D' : 'C';
+    }
+    return f.join('|');
+  });
+  const anteriorSintetica = [
+    '|0000|LECD|01012024|31122024|ECD ANTERIOR TESTE 229|11238262000105|PB||2507507|||0|0|0||0|0||N|N|0|0|5|',
+    '|J005|01012024|31012024|1|BLOCO ANTIGO|',
+    ...blocoAntigoIncorreto,
+    '|J005|01022024|31122024|1|BLOCO FINAL|',
+    ...blocoFinal,
+  ];
+
+  const consolidado229 = E.consolidar(matriz229, filiais229, [], { ecdAnteriorLines: anteriorSintetica });
+  const validacao229 = E.validar(consolidado229.lines, {
+    cnpjEsperado: '11238262000105',
+    ecdAnteriorLines: anteriorSintetica,
+  });
+  const raizAnterior229 = resumoJ100Raiz(anteriorSintetica, false);
+  const raizAbertura229 = resumoJ100Raiz(consolidado229.lines, true);
+  assert(raizAnterior229.ativo === raizAbertura229.ativo, 'ECD 229 deve usar o ativo final do ultimo J100 de 2024 como abertura de 2025');
+  assert(raizAnterior229.passivo === raizAbertura229.passivo, 'ECD 229 deve usar o passivo final do ultimo J100 de 2024 como abertura de 2025');
+  const checkJ100 = validacao229.checks.find((check) => check.nome === 'Abertura J100 = encerramento da ECD anterior');
+  const checkAnalitico = validacao229.checks.find((check) => check.nome === 'Abertura analitica J100 = ECD anterior');
+  assert(checkJ100 && checkJ100.ok, `ECD 229 nao pode divergir no J100 consolidado: ${checkJ100 && checkJ100.detalhe}`);
+  assert(checkAnalitico && checkAnalitico.ok, `ECD 229 nao pode divergir nas contas analiticas J100: ${checkAnalitico && checkAnalitico.detalhe}`);
+  assert(consolidado229.avisos.some((aviso) => /alinhada\(s\) ao fechamento do ultimo J100/.test(aviso)), 'ECD 229 deve registrar o alinhamento automatico pelo ultimo J100 recuperado');
+  fs.rmSync(pastaZip, { recursive: true, force: true });
+}
+
 console.log(`OK: ECD igreja consolidada herda a abertura da ECD recuperada, inclusive para contas novas no ano atual.`);

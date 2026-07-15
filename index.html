@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.50"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.50"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.50"></script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.51"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.51"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.51"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -19,30 +19,30 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.50"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.50"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.51"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.51"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.50"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.50"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.50"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.50"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.50"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.50"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.50"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.50"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.50"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.50"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.50"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.50"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.50"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.50"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.50"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.50"></script>
+    <script src="/parser-ofx.js?v=3.4.51"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.51"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.51"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.51"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.51"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.51"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.51"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.51"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.51"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.51"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.51"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.51"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.51"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.51"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.51"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.51"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -14908,7 +14908,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = '3.4.50';
+            const _VERSAO_BUILD = '3.4.51';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
@@ -15091,6 +15091,27 @@ window.confirmarTrocarPlano = async function() {
         function dcOf(c){ return c >= 0 ? 'D' : 'C'; }
         function fields(l){ return l.split('|'); }
 
+        function ultimoBlocoDemonstracao(linhas, tipo){
+            var blocos = [], atual = null;
+            (linhas || []).forEach(function(l){
+                var f = fields(l);
+                if (f[1] === 'J005') {
+                    atual = [];
+                    blocos.push(atual);
+                } else if (f[1] === tipo) {
+                    if (!atual) {
+                        atual = [];
+                        blocos.push(atual);
+                    }
+                    atual.push(l);
+                }
+            });
+            for (var i = blocos.length - 1; i >= 0; i--) {
+                if (blocos[i].length) return blocos[i];
+            }
+            return [];
+        }
+
         function parseEcd(text){
             var lines = text.split(/\r?\n/).filter(function(l){ return l.trim() !== ''; });
             var groups = {};
@@ -15246,6 +15267,44 @@ window.confirmarTrocarPlano = async function() {
                 ajMap[a.conta] = (ajMap[a.conta] || 0) + a.delta;
                 ajMeta[a.conta] = Object.assign({}, ajMeta[a.conta] || {}, a);
             });
+
+            // A ECD recuperada e a fonte definitiva da abertura patrimonial. Recalcula
+            // os deltas pelo fechamento analitico do ultimo J005/J100, sem depender da
+            // lista proposta pela interface e sem misturar demonstrativos anteriores.
+            if (opts.ecdAnteriorLines && opts.ecdAnteriorLines.length) {
+                var anteriorJ100 = {}, centroAtualPorConta = {}, iniAtualPorConta = {};
+                ultimoBlocoDemonstracao(opts.ecdAnteriorLines, 'J100').forEach(function(l){
+                    var f = fields(l);
+                    if (f[3] !== 'D' || (f[6] !== 'A' && f[6] !== 'P')) return;
+                    if (f[2].charAt(0) !== '1' && f[2].charAt(0) !== '2') return;
+                    anteriorJ100[f[2]] = { valor: sgn(num(f[10]), f[11]), linha: l };
+                });
+                pers.forEach(function(periodosArquivo){
+                    var primeiroPeriodo = periodosArquivo[0];
+                    (primeiroPeriodo ? primeiroPeriodo.i155 : []).forEach(function(l){
+                        var f = fields(l), conta = f[2];
+                        iniAtualPorConta[conta] = (iniAtualPorConta[conta] || 0) + sgn(num(f[4]), f[5]);
+                        if (centroAtualPorConta[conta] == null) centroAtualPorConta[conta] = f[3] || '';
+                    });
+                });
+                var alinhamentosJ100 = 0;
+                Object.keys(anteriorJ100).forEach(function(conta){
+                    var delta = anteriorJ100[conta].valor - (iniAtualPorConta[conta] || 0);
+                    if (delta) {
+                        ajMap[conta] = delta;
+                        alinhamentosJ100++;
+                    } else {
+                        delete ajMap[conta];
+                    }
+                    ajMeta[conta] = Object.assign({}, ajMeta[conta] || {}, {
+                        conta: conta,
+                        centro: (ajMeta[conta] && (ajMeta[conta].centro || ajMeta[conta].centroAnterior)) || centroAtualPorConta[conta] || '',
+                        j100Line: anteriorJ100[conta].linha,
+                        origemAbertura: 'ultimo-j100-ecd-anterior'
+                    });
+                });
+                if (alinhamentosJ100) avisos.push('Abertura patrimonial: ' + alinhamentosJ100 + ' conta(s) alinhada(s) ao fechamento do ultimo J100 da ECD anterior.');
+            }
             var f0000Consolidacao = fields((matriz.groups['0000'] || [''])[0] || '');
             var gerarI157 = String(f0000Consolidacao[22] || '').trim() === '1';
 
@@ -15303,7 +15362,11 @@ window.confirmarTrocarPlano = async function() {
                     var movPeriodo = (movimentosPorPeriodo[p] || {})[k] || [0, 0];
                     e[1] = movPeriodo[0];
                     e[2] = movPeriodo[1];
-                    var d = ajMap[kk.conta] || 0;   // saldo anterior: desloca inicial e final em todos os periodos
+                    var metaAjusteConta = ajMeta[kk.conta] || {};
+                    var centroAjusteConta = metaAjusteConta.centro || metaAjusteConta.centroAnterior || '';
+                    // O delta e por conta consolidada. Aplica-lo em cada centro de custo
+                    // multiplicaria a abertura; por isso somente a linha-alvo recebe o ajuste.
+                    var d = chaveContaCentro(kk.conta, centroAjusteConta) === k ? (ajMap[kk.conta] || 0) : 0;
                     var si = e[0] + d;
                     var sf = si + e[1] - e[2];
                     i15x.push('|I155|' + kk.conta + '|' + kk.centro + '|' + fmt(si) + '|' + dcOf(si) + '|' + fmt(e[1]) + '|' + fmt(e[2]) + '|' + fmt(sf) + '|' + dcOf(sf) + '|');
@@ -15860,26 +15923,6 @@ window.confirmarTrocarPlano = async function() {
             add('Saldo final I155 (dez) = J100 (contas analiticas)', errIJ.length === 0, errIJ.length ? errIJ.slice(0, 5).join(', ') : 'saldos conferem');
 
             if (opts.ecdAnteriorLines && opts.ecdAnteriorLines.length) {
-                function ultimoBlocoDemonstracao(linhas, tipo){
-                    var blocos = [], atual = null;
-                    linhas.forEach(function(l){
-                        var f = fields(l);
-                        if (f[1] === 'J005') {
-                            atual = [];
-                            blocos.push(atual);
-                        } else if (f[1] === tipo) {
-                            if (!atual) {
-                                atual = [];
-                                blocos.push(atual);
-                            }
-                            atual.push(l);
-                        }
-                    });
-                    for (var i = blocos.length - 1; i >= 0; i--) {
-                        if (blocos[i].length) return blocos[i];
-                    }
-                    return [];
-                }
                 function resumoJ100Raiz(linhas, inicial){
                     var r = { ativo: 0, passivo: 0 };
                     ultimoBlocoDemonstracao(linhas, 'J100').forEach(function(l){
@@ -16000,7 +16043,7 @@ window.confirmarTrocarPlano = async function() {
             return b;
         }
 
-        root.EcdEcfEngine = { parseEcd: parseEcd, exigeEcdAnterior: exigeEcdAnterior, consolidar: consolidar, validar: validar, toLatin1Bytes: toLatin1Bytes, num: num, fmt: fmt };
+        root.EcdEcfEngine = { parseEcd: parseEcd, exigeEcdAnterior: exigeEcdAnterior, consolidar: consolidar, validar: validar, toLatin1Bytes: toLatin1Bytes, num: num, fmt: fmt, ultimoBlocoDemonstracao: ultimoBlocoDemonstracao };
     })(typeof window !== 'undefined' ? window : globalThis);
     // ===ECDECF-ENGINE-END===
     </script>
@@ -16180,9 +16223,11 @@ window.confirmarTrocarPlano = async function() {
                         if (f[1] === 'I051') planoAnterior[contaPlanoAnteriorAtual].i051Lines.push(l);
                         if (f[1] === 'I052') planoAnterior[contaPlanoAnteriorAtual].i052Lines.push(l);
                     }
-                } else if (f[1] === 'J100') {
-                    j100Anterior[f[2]] = l;
                 }
+            });
+            E.ultimoBlocoDemonstracao(ant.lines, 'J100').forEach(function(l){
+                var f = l.split('|');
+                j100Anterior[f[2]] = l;
             });
             // saldo final por conta analitica (ultimo periodo I155) da ECD anterior
             var pers = (function(){ var out = [], cur = null; ant.lines.forEach(function(l){ var t = l.split('|')[1]; if (t === 'I150'){ cur = []; out.push(cur); } else if (t === 'I155' && cur) cur.push(l.split('|')); }); return out; })();

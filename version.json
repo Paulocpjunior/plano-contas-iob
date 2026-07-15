@@ -1,7 +1,10 @@
 {
-  "version": "3.4.50",
-  "build_date": "2026-07-14T11:37:48.000Z",
+  "version": "3.4.51",
+  "build_date": "2026-07-15T12:17:24.000Z",
   "release_notes": [
+    "ECD/ECF: a abertura de 2025 agora usa diretamente o fechamento do ultimo bloco J100 da ECD anterior.",
+    "J100 e I155 passam a compartilhar a mesma origem recuperada, eliminando divergencias artificiais na consolidacao.",
+    "O ajuste patrimonial e aplicado uma unica vez por conta, mesmo quando existem centros de custo.",
     "Igrejas: a conferencia agora compara os totais de entradas e saidas dos dois relatorios.",
     "Valores agrupados no relatorio da igreja e segregados no razao podem conferir pelos totais do periodo.",
     "Saldos inicial e final permanecem apenas informativos, pois o razao pode considerar o caixa geral.",
