@@ -152,6 +152,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Layout BTG textual com data, descricao multiline, valor e saldo em colunas fixas.'
   },
   {
+    id: 'btg-wealth-waldesa-2026-01',
+    banco: '208',
+    nomeBanco: 'Banco BTG Pactual',
+    layout: 'BTG Pactual - Extrato Conta Corrente Wealth',
+    parser: 'parsearPDF_BTG_Wealth',
+    arquivo: 'BTG Extrato Conta 01.2026.pdf',
+    empresa: 'WALDESA COMERCIO IMPORTACAO E REPRESENTACOES LTDA',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    esperado: {
+      total_lancamentos: 167,
+      total_credito: 2275636.45,
+      total_debito: 2236975.45
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-17T14:20:00-03:00',
+    observacao: 'Layout BTG Wealth com debito, credito e saldo em colunas independentes e diferenca vertical de 1 ponto entre data e valores.'
+  },
+  {
     id: 'safra-waldesa-2026-01',
     banco: '422',
     nomeBanco: 'Banco Safra',

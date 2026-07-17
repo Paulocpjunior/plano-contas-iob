@@ -1,7 +1,10 @@
 {
-  "version": "3.4.51",
-  "build_date": "2026-07-15T12:17:24.000Z",
+  "version": "3.4.52",
+  "build_date": "2026-07-17T17:16:34.000Z",
   "release_notes": [
+    "BTG Pactual: novo layout Extrato Conta Corrente Wealth disponivel para uso geral.",
+    "O novo modelo identifica automaticamente debitos, creditos, periodo, agencia, conta e CNPJ.",
+    "Os layouts BTG Wealth e Conta corrente PJ permanecem isolados e protegidos por testes com os PDFs reais.",
     "ECD/ECF: a abertura de 2025 agora usa diretamente o fechamento do ultimo bloco J100 da ECD anterior.",
     "J100 e I155 passam a compartilhar a mesma origem recuperada, eliminando divergencias artificiais na consolidacao.",
     "O ajuste patrimonial e aplicado uma unica vez por conta, mesmo quando existem centros de custo.",

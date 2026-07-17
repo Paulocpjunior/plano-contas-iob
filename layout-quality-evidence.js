@@ -331,6 +331,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js com totais esperados.'
   },
   {
+    id: 'btg-wealth-waldesa-2026-01',
+    banco: '208',
+    nomeBanco: 'Banco BTG Pactual',
+    layout: 'BTG Pactual - Extrato Conta Corrente Wealth',
+    parser: 'parsearPDF_BTG_Wealth',
+    arquivo: 'BTG Extrato Conta 01.2026.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/BTG Extrato Conta 01.2026.pdf',
+    empresa: 'WALDESA COMERCIO IMPORTACAO E REPRESENTACOES LTDA',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF real BTG Wealth protegido por quantidade, totais, sinais, conta, CNPJ e periodo.'
+  },
+  {
     id: 'clude-servicos-tomados-2026-04',
     banco: 'CLU',
     nomeBanco: 'CLUDE - Club de Beneficios',
