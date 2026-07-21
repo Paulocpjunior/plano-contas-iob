@@ -1,7 +1,10 @@
 {
-  "version": "3.4.54",
-  "build_date": "2026-07-21T20:00:00.000Z",
+  "version": "3.4.55",
+  "build_date": "2026-07-21T21:30:00.000Z",
   "release_notes": [
+    "Bradesco escaneado: falhas de integridade agora interrompem a importacao e nunca retornam ao leitor generico.",
+    "PDFs incompletos ou com paginas de contas diferentes exibem uma orientacao clara para envio do extrato completo.",
+    "O BRADESCO.pdf incompleto foi corretamente bloqueado; o bradesco 2.pdf completo preservou 326 movimentos e os totais impressos.",
     "FLANACAR/Banco ABC: o Extrato Conciliado agora aceita o arquivo CSV original alem do XLSX.",
     "As colunas ENTRADAS e SAIDAS sao importadas corretamente, mantendo PREFIXO/TITULO no historico.",
     "SALDO ATUAL permanece somente informativo e nunca e transformado em lancamento.",

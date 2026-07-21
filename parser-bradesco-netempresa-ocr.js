@@ -47,6 +47,18 @@
     return erro;
   }
 
+  function erroFechamentoConta(grupo, mensagemPadrao) {
+    const primeiraQuebra = grupo && grupo.divergenciasSaldoIntermediario && grupo.divergenciasSaldoIntermediario[0];
+    if (primeiraQuebra) {
+      return erroValidacao(
+        'PDF incompleto ou com paginas de contas diferentes. A pagina ' + primeiraQuebra.pagina +
+        ' nao continua o saldo da conta ' + grupo.conta + '. Envie o extrato completo, desde o SALDO ANTERIOR ate a pagina final da conta.',
+        primeiraQuebra.pagina
+      );
+    }
+    return erroValidacao(mensagemPadrao, grupo.paginas[grupo.paginas.length - 1]);
+  }
+
   function consolidarPaginas(paginas, opcoes) {
     const opts = opcoes || {};
     const contas = new Map();
@@ -169,15 +181,15 @@
       }
       const totais = somarMovimentos(grupo.lancamentos);
       if (grupo.totalCreditoOficial !== null && Math.abs(totais.credito - grupo.totalCreditoOficial) > TOLERANCIA) {
-        throw erroValidacao('Credito da conta ' + grupo.conta + ' divergente do total impresso no extrato.', grupo.paginas[grupo.paginas.length - 1]);
+        throw erroFechamentoConta(grupo, 'Credito da conta ' + grupo.conta + ' divergente do total impresso no extrato.');
       }
       if (grupo.totalDebitoOficial !== null && Math.abs(totais.debito - grupo.totalDebitoOficial) > TOLERANCIA) {
-        throw erroValidacao('Debito da conta ' + grupo.conta + ' divergente do total impresso no extrato.', grupo.paginas[grupo.paginas.length - 1]);
+        throw erroFechamentoConta(grupo, 'Debito da conta ' + grupo.conta + ' divergente do total impresso no extrato.');
       }
       if (grupo.saldoInicial !== null) {
         const fechamento = arredondar(grupo.saldoInicial + totais.credito - totais.debito);
         if (grupo.saldoFinalImpresso === null || Math.abs(fechamento - grupo.saldoFinalImpresso) > TOLERANCIA) {
-          throw erroValidacao('Saldo final da conta ' + grupo.conta + ' nao fecha com os movimentos extraidos.', grupo.paginas[grupo.paginas.length - 1]);
+          throw erroFechamentoConta(grupo, 'Saldo final da conta ' + grupo.conta + ' nao fecha com os movimentos extraidos.');
         }
         grupo.saldoFinal = fechamento;
       }

@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const parser = require('../parser-bradesco-netempresa-ocr.js').__test__;
 
 function pagina(dados) {
@@ -78,6 +80,34 @@ assert.throws(function() {
       transactions: [{ date: '2025-03-01', description: 'PIX', document: '', credit: 10, debit: 0, balance: 9 }]
     })
   ]);
-}, /Saldo final da conta/, 'Divergencia no fechamento deve bloquear a importacao.');
+}, /PDF incompleto ou com paginas de contas diferentes/, 'Quebra na sequencia de saldos deve bloquear a importacao.');
+
+assert.throws(function() {
+  parser.consolidarPaginas([
+    pagina({
+      page_number: 1,
+      account: '0025287-5',
+      opening_balance: -100,
+      transactions: [{ date: '2025-03-01', description: 'PIX CONTA A', document: '1', credit: 10, debit: 0, balance: -90 }]
+    }),
+    pagina({
+      page_number: 2,
+      account: '',
+      total_credit: 30,
+      total_debit: 0,
+      transactions: [{ date: '2025-03-02', description: 'PIX CONTA B SEM CABECALHO', document: '2', credit: 20, debit: 0, balance: 520 }]
+    })
+  ]);
+}, /PDF incompleto ou com paginas de contas diferentes.*pagina 2.*0025287-5/, 'Paginas misturadas nao podem ser aceitas como uma unica conta.');
+
+const indexSource = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+assert(
+  indexSource.includes("if (pdfEscaneado && normalizarCodigoBancoLayout(bancoResolvido) === '237') throw e;"),
+  'Bradesco escaneado nao pode cair no leitor generico depois de uma falha de integridade.'
+);
+assert(
+  indexSource.includes('if (!layoutNaoReconhecido) throw erroNetEmpresaOCR;'),
+  'Falha de saldo/totais do Bradesco deve interromper a importacao antes de tentar outro layout.'
+);
 
 console.log('OK: Bradesco Net Empresa escaneado valida paginas, contas, totais e sequencia de saldos.');
