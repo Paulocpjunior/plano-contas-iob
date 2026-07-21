@@ -60,6 +60,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js com totais oficiais e leitura por diferenca de saldo.'
   },
   {
+    id: 'bradesco-netempresa-ocr-igreja-2025-03',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco Net Empresa - Escaneado por Pagina',
+    parser: 'parsearPDF_Bradesco_NetEmpresaOCR',
+    arquivo: 'bradesco 2.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/bradesco 2.pdf',
+    empresa: 'Igreja - duas contas correntes Bradesco',
+    periodo_inicio: '2025-03-01',
+    periodo_fim: '2025-03-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Extrato escaneado real conferido pagina por pagina: 326 movimentos, credito R$ 59.630,96 e debito R$ 56.040,78 em duas contas. O arquivo BRADESCO.pdf valida isoladamente a segunda conta pelos totais impressos.'
+  },
+  {
     id: 'bradesco-simples-conferencia-2045-2025-03',
     banco: '237',
     nomeBanco: 'Bradesco',

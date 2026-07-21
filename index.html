@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.52"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.52"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.52"></script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.53"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.53"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.53"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -19,30 +19,31 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.52"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.52"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.53"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.53"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.52"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.52"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.52"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.52"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.52"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.52"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.52"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.52"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.52"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.52"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.52"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.52"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.52"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.52"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.52"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.52"></script>
+    <script src="/parser-ofx.js?v=3.4.53"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.53"></script>
+    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.53"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.53"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.53"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.53"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.53"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.53"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.53"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.53"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.53"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.53"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.53"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.53"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.53"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.53"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.53"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -11416,6 +11417,7 @@
             const totalDebito = debitos.reduce((a,e) => a + Math.abs(Number(e.valor || 0)), 0);
             const datas = entries.map(e => e.data).filter(Boolean).sort();
             const primeiro = entries[0] || {};
+            const contasImportacao = Array.from(new Set(entries.map(function(e) { return String(e.conta || '').trim(); }).filter(Boolean)));
             const periodoIni = primeiro.periodo_inicio || (state.info && state.info.periodoInicio) || datas[0] || '';
             const periodoFim = primeiro.periodo_fim || (state.info && state.info.periodoFim) || datas[datas.length - 1] || '';
             const totalCreditoOficial = Number(primeiro.totalCreditoOficial || 0);
@@ -11429,7 +11431,7 @@
                 arquivo: meta.arquivo,
                 banco: (meta.bancoCode ? meta.bancoCode + ' — ' : '') + (meta.bancoNome || nomeBanco(meta.bancoCode) || '-'),
                 layout: primeiro.layoutNome || (meta.formato || 'Arquivo'),
-                conta: primeiro.conta || primeiro.nome_conta || '-',
+                conta: contasImportacao.length > 1 ? contasImportacao.join(' / ') : (primeiro.conta || primeiro.nome_conta || '-'),
                 periodo: (periodoIni || periodoFim) ? (formatarDataBR(periodoIni) + ' a ' + formatarDataBR(periodoFim)) : '-',
                 qtd: entries.length,
                 totalCredito,
@@ -11681,25 +11683,35 @@
 	            }
 	            const lancsEnriquecidos = resultado.lancamentos.map(l => ({
 	                ...l,
-	                banco: bancoPDF,
-	                conta: contaPDF,
-	                nome_conta: nomeContaPDF,
+	                banco: l.banco || bancoPDF,
+	                conta: l.conta || contaPDF,
+	                nome_conta: l.nome_conta || nomeContaPDF,
 	                periodo_inicio: (state.info && state.info.periodoInicio) || '',
 	                periodo_fim: (state.info && state.info.periodoFim) || ''
 	            }));
 	            const cnpjA3 = (state.info && state.info.cnpj || '').replace(/\D/g,'');
 	            const pIni = state.info && state.info.periodoInicio || '';
 	            const pFim = state.info && state.info.periodoFim || '';
-	            const fp = window.gerarFingerprintImportacao(cnpjA3, bancoPDF, contaPDF, pIni, pFim);
-	            lancsEnriquecidos.forEach(l => { l._fingerprint_imp = fp; l._acao_dup = 'novo'; });
+	            const gruposConta = new Map();
+	            lancsEnriquecidos.forEach(function(l) {
+	                const bancoLanc = l.banco || bancoPDF;
+	                const contaLanc = l.conta || contaPDF;
+	                const fp = window.gerarFingerprintImportacao(cnpjA3, bancoLanc, contaLanc, pIni, pFim);
+	                l._fingerprint_imp = fp;
+	                l._acao_dup = 'novo';
+	                if (!gruposConta.has(fp)) gruposConta.set(fp, { fingerprint: fp, banco: bancoLanc, conta: contaLanc, nome_conta: l.nome_conta || nomeContaPDF, total: 0 });
+	                gruposConta.get(fp).total++;
+	            });
 	            try {
 	                if (cnpjA3 && window.API && window.API.importacoesGravar) {
-	                    window.API.importacoesGravar(cnpjA3, {
-	                        fingerprint: fp, banco: bancoPDF, conta: contaPDF, nome_conta: nomeContaPDF,
-	                        periodo_inicio: pIni, periodo_fim: pFim,
-	                        total_lancamentos: lancsEnriquecidos.length,
-	                        arquivo_exemplo: arquivoNome
-	                    }).catch(e => console.warn('[layout banco] gravar importacao:', e.message));
+	                    gruposConta.forEach(function(grupo) {
+	                        window.API.importacoesGravar(cnpjA3, {
+	                            fingerprint: grupo.fingerprint, banco: grupo.banco, conta: grupo.conta, nome_conta: grupo.nome_conta,
+	                            periodo_inicio: pIni, periodo_fim: pFim,
+	                            total_lancamentos: grupo.total,
+	                            arquivo_exemplo: arquivoNome
+	                        }).catch(e => console.warn('[layout banco] gravar importacao:', e.message));
+	                    });
 	                }
 	            } catch(e) { console.warn('[layout banco] gravar importacao:', e.message); }
 	            return lancsEnriquecidos;
@@ -11835,8 +11847,22 @@
 	                buf = await f.arrayBuffer();
 	                pdfEscaneado = !(await pdfTemCamadaDeTexto(buf));
 	                if (pdfEscaneado) {
-	                    console.warn('[processPDF] PDF escaneado (sem camada de texto) — pulando parsers nativos, lendo com IA');
-	                    showToast('\ud83d\udcc4 Extrato escaneado detectado — lendo com IA (pode levar 1-2 min)...', 'success');
+	                    console.warn('[processPDF] PDF escaneado (sem camada de texto)');
+	                    showToast('\ud83d\udcc4 Extrato escaneado detectado — conferindo pagina por pagina...', 'success');
+	                    if (normalizarCodigoBancoLayout(bancoResolvido) === '237' && parserSelecionado !== 'parsearPDF_Bradesco_SimplesConferencia') {
+	                        try {
+	                            return await processPDFComLayoutDoBanco(buf, bancoResolvido, f.name, 'parsearPDF_Bradesco_NetEmpresaOCR');
+	                        } catch (erroNetEmpresaOCR) {
+	                            if (parserSelecionado === 'parsearPDF_Bradesco_NetEmpresaOCR') throw erroNetEmpresaOCR;
+	                            console.warn('[processPDF] nao e Bradesco Net Empresa escaneado; tentando Simples Conferencia:', erroNetEmpresaOCR.message || erroNetEmpresaOCR);
+	                            try {
+	                                return await processPDFComLayoutDoBanco(buf, bancoResolvido, f.name, 'parsearPDF_Bradesco_SimplesConferencia');
+	                            } catch (erroSimples) {
+	                                throw new Error((erroNetEmpresaOCR.message || erroNetEmpresaOCR) + ' | Simples Conferencia: ' + (erroSimples.message || erroSimples));
+	                            }
+	                        }
+	                    }
+	                    if (parserSelecionado) return await processPDFComLayoutDoBanco(buf, bancoResolvido, f.name, parserSelecionado);
 	                    throw new Error('__PDF_ESCANEADO__');
 	                }
 
@@ -14908,7 +14934,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = '3.4.52';
+            const _VERSAO_BUILD = '3.4.53';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';

@@ -1,7 +1,11 @@
 {
-  "version": "3.4.52",
-  "build_date": "2026-07-17T17:16:34.000Z",
+  "version": "3.4.53",
+  "build_date": "2026-07-21T18:30:00.000Z",
   "release_notes": [
+    "Bradesco escaneado: o extrato agora e lido e conferido pagina por pagina antes da importacao.",
+    "Arquivos com duas ou mais contas preservam cada conta separadamente e ignoram paginas de investimentos.",
+    "A importacao e bloqueada se faltar pagina, se a sequencia de saldo quebrar ou se os totais impressos divergirem.",
+    "O arquivo real com duas contas foi validado com 326 movimentos, R$ 59.630,96 em creditos e R$ 56.040,78 em debitos.",
     "BTG Pactual: novo layout Extrato Conta Corrente Wealth disponivel para uso geral.",
     "O novo modelo identifica automaticamente debitos, creditos, periodo, agencia, conta e CNPJ.",
     "Os layouts BTG Wealth e Conta corrente PJ permanecem isolados e protegidos por testes com os PDFs reais.",

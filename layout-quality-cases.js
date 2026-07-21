@@ -209,6 +209,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Layout Bradesco Net Empresa textual com documento, valor e saldo colados. A regressao confere totais oficiais pelo saldo anterior versus saldo atual.'
   },
   {
+    id: 'bradesco-netempresa-ocr-igreja-2025-03',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco Net Empresa - Escaneado por Pagina',
+    parser: 'parsearPDF_Bradesco_NetEmpresaOCR',
+    arquivo: 'bradesco 2.pdf',
+    empresa: 'Igreja - duas contas correntes Bradesco',
+    periodo_inicio: '2025-03-01',
+    periodo_fim: '2025-03-31',
+    esperado: {
+      total_lancamentos: 326,
+      total_credito: 59630.96,
+      total_debito: 56040.78
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-21T15:30:00-03:00',
+    observacao: 'PDF digitalizado com 14 paginas: 238 movimentos na conta 25287-5 e 88 na conta 14609-9. Paginas de investimentos sao ignoradas e cada conta fecha pelos totais impressos e pela sequencia de saldos.'
+  },
+  {
     id: 'bradesco-simples-conferencia-2045-2025-03',
     banco: '237',
     nomeBanco: 'Bradesco',
