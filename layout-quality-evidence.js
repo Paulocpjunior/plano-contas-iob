@@ -496,6 +496,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js para Extrato Conciliado XLSX generico com DATA, OPERACAO, PREFIXO/TITULO, ENTRADAS, SAIDAS e SALDO ATUAL.'
   },
   {
+    id: 'extrato-conciliado-flanacar-abc-2026-05-csv',
+    banco: 'GEN',
+    nomeBanco: 'Todos os bancos',
+    layout: 'Extrato Conciliado',
+    parser: 'parsearArquivoXLSXExtratoConciliado',
+    arquivo: 'Fl12371237.05.csv',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Fl12371237.05.csv',
+    empresa: 'FLANACAR COMERCIO DE PECAS 2026',
+    periodo_inicio: '2026-05-04',
+    periodo_fim: '2026-05-29',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'CSV real do Banco ABC validado com 152 movimentos, credito R$ 2.355.681,45 e debito R$ 2.355.918,48, sem transformar SALDO ATUAL em movimento.'
+  },
+  {
     id: 'c6-bank-extrato-daxx-2026-06',
     banco: '336',
     nomeBanco: 'Banco C6',

@@ -1,7 +1,11 @@
 {
-  "version": "3.4.53",
-  "build_date": "2026-07-21T18:30:00.000Z",
+  "version": "3.4.54",
+  "build_date": "2026-07-21T20:00:00.000Z",
   "release_notes": [
+    "FLANACAR/Banco ABC: o Extrato Conciliado agora aceita o arquivo CSV original alem do XLSX.",
+    "As colunas ENTRADAS e SAIDAS sao importadas corretamente, mantendo PREFIXO/TITULO no historico.",
+    "SALDO ATUAL permanece somente informativo e nunca e transformado em lancamento.",
+    "O arquivo real de maio foi validado com 152 movimentos, R$ 2.355.681,45 em creditos e R$ 2.355.918,48 em debitos.",
     "Bradesco escaneado: o extrato agora e lido e conferido pagina por pagina antes da importacao.",
     "Arquivos com duas ou mais contas preservam cada conta separadamente e ignoram paginas de investimentos.",
     "A importacao e bloqueada se faltar pagina, se a sequencia de saldo quebrar ou se os totais impressos divergirem.",

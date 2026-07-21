@@ -554,6 +554,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Layout generico XLSX para extratos conciliados. Deve funcionar com qualquer banco selecionado e nao pode herdar conta/layout Banco ABC.'
   },
   {
+    id: 'extrato-conciliado-flanacar-abc-2026-05-csv',
+    banco: 'GEN',
+    nomeBanco: 'Todos os bancos',
+    layout: 'Extrato Conciliado',
+    parser: 'parsearArquivoXLSXExtratoConciliado',
+    arquivo: 'Fl12371237.05.csv',
+    empresa: 'FLANACAR COMERCIO DE PECAS 2026',
+    periodo_inicio: '2026-05-04',
+    periodo_fim: '2026-05-29',
+    esperado: {
+      total_lancamentos: 152,
+      total_credito: 2355681.45,
+      total_debito: 2355918.48
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-21T17:00:00-03:00',
+    observacao: 'Extensao CSV do mesmo Extrato Conciliado para FLANACAR/Banco ABC. Usa ENTRADAS e SAIDAS como movimentos e nunca importa SALDO ATUAL.'
+  },
+  {
     id: 'c6-bank-extrato-daxx-2026-06',
     banco: '336',
     nomeBanco: 'Banco C6',

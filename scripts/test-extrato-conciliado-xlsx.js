@@ -4,6 +4,7 @@ const XLSX = require('xlsx');
 const { LAYOUTS_BANCARIOS_PADRAO } = require('../layouts-bancarios-padrao');
 const { LAYOUT_QUALITY_CASES } = require('../layout-quality-cases');
 const { LAYOUT_QUALITY_EVIDENCE } = require('../layout-quality-evidence');
+const { parsearCSV_ExtratoConciliado } = require('../parser-extrato-conciliado.js');
 
 function assert(cond, msg) {
   if (!cond) {
@@ -176,6 +177,18 @@ assert(Math.round(daxxDebit * 100) === 167165, 'DAXX expected debit 1671.65 from
 assert(daxxEntries.some(e => e.descricao.includes('NF/DOC 2725')), 'DAXX must carry invoice number as complemento, not movement value');
 assert(!daxxEntries.some(e => /IRPJ ABRIL2026/.test(e.descricao) && Math.round(Math.abs(e.valor) * 100) === 24596), 'DAXX VALOR NF/DOC without ENTRADA/SAIDA must not become a movement');
 
+const abcCsvFixture = '/Users/paulocesarpereirajunior/Downloads/Fl12371237.05.csv';
+assert(fs.existsSync(abcCsvFixture), 'fixture not found: ' + abcCsvFixture);
+const abcCsv = parsearCSV_ExtratoConciliado(fs.readFileSync(abcCsvFixture, 'utf8'));
+assert(abcCsv.detectado, 'FLANACAR Banco ABC CSV must be detected as Extrato Conciliado');
+assert(abcCsv.lancamentos.length === 152, 'FLANACAR Banco ABC CSV expected 152 movements, got ' + abcCsv.lancamentos.length);
+assert(Math.round(abcCsv.total_credito * 100) === 235568145, 'FLANACAR Banco ABC CSV credit total mismatch: ' + abcCsv.total_credito);
+assert(Math.round(abcCsv.total_debito * 100) === 235591848, 'FLANACAR Banco ABC CSV debit total mismatch: ' + abcCsv.total_debito);
+assert(abcCsv.periodo_inicio === '2026-05-04' && abcCsv.periodo_fim === '2026-05-29', 'FLANACAR Banco ABC CSV period mismatch');
+assert(abcCsv.lancamentos[0].descricao === 'DEVOLUCAO DE APLICACAO', 'placeholder PREFIXO/TITULO must not pollute history');
+assert(abcCsv.lancamentos.at(-1).valor === -200857.82, 'SALDO ATUAL must not replace the last debit value');
+assert(abcCsv.lancamentos.every(item => item.layoutBanco === 'GEN'), 'CSV Extrato Conciliado must remain compatible with selected bank 246');
+
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 assert(html.includes("layoutNome: 'Extrato Conciliado'"), 'index must emit layoutNome Extrato Conciliado');
 assert(html.includes("layoutBanco: 'GEN'"), 'index must emit generic layout bank GEN');
@@ -194,6 +207,7 @@ assert(html.includes("const cSaidas = colAny(['SAIDA EXTRATO'"), 'index must pre
 assert(html.includes('parsearExtratoConciliadoXLSXObrigatorio'), 'processFile must include mandatory Extrato Conciliado XLSX fallback');
 assert(html.includes('XLSX sem lançamentos no parser principal. Tentando fallback obrigatório Extrato Conciliado.'), 'empty XLSX parser result must trigger mandatory fallback before user error');
 assert(html.includes('__extratoConciliadoFallbackObrigatorio'), 'mandatory fallback must expose diagnostics for production support');
+assert(html.includes('window.parsearCSV_ExtratoConciliado(texto)'), 'CSV import flow must call the Extrato Conciliado parser before the generic value-column parser');
 
 assert(
   LAYOUTS_BANCARIOS_PADRAO.some(layout => layout.banco === 'GEN' && layout.nome === 'Extrato Conciliado' && layout.parser === 'parsearArquivoXLSXExtratoConciliado'),
@@ -207,5 +221,10 @@ assert(
   LAYOUT_QUALITY_EVIDENCE.some(item => item.id === 'extrato-conciliado-flanacar-itau-2026-04-xlsx'),
   'quality evidence must include FLANACAR generic XLSX regression'
 );
+assert(
+  LAYOUT_QUALITY_CASES.some(item => item.id === 'extrato-conciliado-flanacar-abc-2026-05-csv') &&
+  LAYOUT_QUALITY_EVIDENCE.some(item => item.id === 'extrato-conciliado-flanacar-abc-2026-05-csv'),
+  'quality catalog must include FLANACAR Banco ABC CSV regression and evidence'
+);
 
-console.log('OK: Extrato Conciliado XLSX generic layout parses FLANACAR and DAXX without Banco ABC leakage or NF/DOC as value');
+console.log('OK: Extrato Conciliado XLSX/CSV parses FLANACAR Banco ABC, FLANACAR Itau and DAXX without saldo/NF leakage');
