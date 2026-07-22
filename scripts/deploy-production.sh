@@ -29,9 +29,7 @@ if [[ "$service_url" != "$EXPECTED_URL" ]]; then
   exit 1
 fi
 
-if [[ ! -d node_modules ]]; then
-  npm ci --no-audit --no-fund
-fi
+npm ci --no-audit --no-fund
 
 npm run check
 
