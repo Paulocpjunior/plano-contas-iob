@@ -1,7 +1,11 @@
 {
-  "version": "3.4.56",
-  "build_date": "2026-07-22T12:00:00.000Z",
+  "version": "3.4.57",
+  "build_date": "2026-07-22T18:00:00.000Z",
   "release_notes": [
+    "Nova rotina administrativa permite excluir lançamentos por empresa, data inicial, data final e importações selecionadas.",
+    "A exclusão exige prévia, seleção explícita, confirmação digitada e validação da quantidade antes de alterar a sessão.",
+    "Um backup integral recuperável e um registro de auditoria são gravados com o administrador responsável.",
+    "Sessões antigas são bloqueadas após a exclusão para impedir que abas desatualizadas restaurem lançamentos removidos.",
     "EFD-Reinf / Informes agora inclui uma área de aplicações financeiras por cliente.",
     "O novo fluxo solicita extratos via Microsoft 365 e trabalha por layouts bancários, sem limitar a análise a uma única instituição.",
     "Foram validados o Extrato de Cotista Consolidado XP, a Posição de Investimentos Itaú, a Posição Detalhada Histórica XP e um modelo CSV/XLSX multibanco.",

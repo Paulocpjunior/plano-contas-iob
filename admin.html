@@ -9,21 +9,21 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="/api-adapter.js"></script>
-<script src="/parser-ofx.js?v=3.4.17"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.17"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.17"></script>
-<script src="/parser-safra-extrato.js?v=3.4.17"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.17"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.17"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.17"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.17"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.17"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.17"></script>
-<script src="/parser-btg-pactual.js?v=3.4.17"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.17"></script>
-<script src="/parser-abc-extrato.js?v=3.4.17"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.17"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.17"></script>
+<script src="/parser-ofx.js?v=3.4.57"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.57"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.57"></script>
+<script src="/parser-safra-extrato.js?v=3.4.57"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.57"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.57"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.57"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.57"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.57"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.57"></script>
+<script src="/parser-btg-pactual.js?v=3.4.57"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.57"></script>
+<script src="/parser-abc-extrato.js?v=3.4.57"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.57"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.57"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -108,6 +108,21 @@
   .quality-result { margin-bottom:18px; padding:14px; border-radius:10px; border:1px solid #bfdbfe; background:#eff6ff; color:#1e3a8a; font-size:13px; line-height:1.5; display:none; }
   .quality-result.error { display:block; border-color:#fecaca; background:#fef2f2; color:#991b1b; }
   .quality-result.ok { display:block; border-color:#bbf7d0; background:#f0fdf4; color:#166534; }
+  .danger-card { border-color:#fecaca; box-shadow:0 12px 32px rgba(185,28,28,.08); }
+  .danger-alert { padding:14px 16px; border:1px solid #fecaca; background:#fef2f2; color:#991b1b; border-radius:10px; font-size:13px; line-height:1.55; margin-bottom:18px; }
+  .exclusao-form { display:grid; grid-template-columns:minmax(280px,2fr) minmax(150px,1fr) minmax(150px,1fr) auto; gap:12px; align-items:end; }
+  .exclusao-form label, .confirmacao-exclusao label { display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-weight:800; }
+  .exclusao-form input, .exclusao-form select, .confirmacao-exclusao input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:#fff; font-family:inherit; }
+  .btn-danger { background:linear-gradient(135deg,#dc2626,#991b1b); }
+  .btn:disabled { opacity:.45; cursor:not-allowed; transform:none; filter:none; }
+  .exclusao-status { display:none; margin-top:16px; padding:13px 15px; border-radius:9px; font-size:13px; line-height:1.5; }
+  .exclusao-status.info { display:block; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; }
+  .exclusao-status.error { display:block; background:#fef2f2; border:1px solid #fecaca; color:#991b1b; }
+  .exclusao-status.ok { display:block; background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; }
+  .exclusao-preview { margin-top:18px; }
+  .exclusao-preview table input[type="checkbox"] { width:17px; height:17px; accent-color:#dc2626; }
+  .confirmacao-exclusao { display:none; margin-top:18px; padding:18px; border:1px solid #fca5a5; border-radius:10px; background:#fff7f7; }
+  .confirmacao-exclusao.active { display:block; }
   @media (max-width: 768px) {
     .container { padding: 18px 12px 30px; }
     .header { align-items: flex-start; flex-direction: column; }
@@ -115,6 +130,7 @@
     .tabs { border-radius: 10px; }
     input[type="search"] { min-width: 100%; }
     .quality-tool { grid-template-columns: 1fr; }
+    .exclusao-form { grid-template-columns:1fr; }
   }
 </style>
 </head>
@@ -148,6 +164,7 @@
     <button class="active" onclick="showTab('resumo')">📊 Resumo</button>
     <button onclick="showTab('layouts')">🏦 Layouts Bancários</button>
     <button onclick="showTab('qualidade')">✅ Qualidade de Layouts</button>
+    <button onclick="showTab('exclusao', this)">🗑️ Exclusão de Lançamentos</button>
     <button onclick="showTab('usuarios')">👥 Usuários</button>
     <button onclick="showTab('logs')">📜 Log de Acesso</button>
   </div>
@@ -200,6 +217,44 @@
         <button class="btn" onclick="renderLayouts()">🔄 Atualizar</button>
       </div>
       <div id="layoutsContent" class="loading">Carregando…</div>
+    </div>
+  </div>
+
+  <div id="tab-exclusao" class="tab-content">
+    <div class="card danger-card">
+      <div style="margin-bottom:16px">
+        <h2 style="font-size:20px;margin-bottom:5px;color:#991b1b">🗑️ Exclusão administrativa de lançamentos</h2>
+        <p style="font-size:13px;color:#64748b">Selecione a empresa e o intervalo de datas. A prévia separa os lançamentos por importação para você escolher exatamente o que será removido.</p>
+      </div>
+      <div class="danger-alert">
+        <strong>Área restrita a administradores.</strong> A exclusão atinge somente os lançamentos da sessão atual que estejam simultaneamente no período e nas importações marcadas. Cadastros, plano de contas, relatórios fechados e lançamentos fora do filtro são preservados. Antes da alteração, o sistema grava uma cópia integral recuperável e registra o administrador responsável.
+      </div>
+      <div class="exclusao-form">
+        <div>
+          <label for="exclusaoEmpresa">Empresa</label>
+          <select id="exclusaoEmpresa" onchange="invalidarPreviaExclusao()"><option value="">Carregando empresas…</option></select>
+        </div>
+        <div>
+          <label for="exclusaoDataInicial">Data inicial</label>
+          <input id="exclusaoDataInicial" type="date" onchange="invalidarPreviaExclusao()">
+        </div>
+        <div>
+          <label for="exclusaoDataFinal">Data final</label>
+          <input id="exclusaoDataFinal" type="date" onchange="invalidarPreviaExclusao()">
+        </div>
+        <button id="btnPreviaExclusao" class="btn" onclick="previsualizarExclusaoAdmin()">Gerar prévia</button>
+      </div>
+      <div id="exclusaoStatus" class="exclusao-status"></div>
+      <div id="exclusaoPreview" class="exclusao-preview"></div>
+      <div id="exclusaoConfirmacao" class="confirmacao-exclusao">
+        <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap">
+          <div style="flex:1;min-width:260px">
+            <label for="exclusaoTextoConfirmacao">Para confirmar, digite <strong>EXCLUIR</strong></label>
+            <input id="exclusaoTextoConfirmacao" autocomplete="off" placeholder="EXCLUIR" oninput="atualizarBotaoExclusao()">
+          </div>
+          <button id="btnExecutarExclusao" class="btn btn-danger" disabled onclick="executarExclusaoAdmin()">Excluir lançamentos selecionados</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -279,6 +334,8 @@ let currentUsers = [];
 let currentLogs = [];
 let currentLayoutsBancarios = null;
 let currentLayoutQuality = null;
+let currentExclusaoPreview = null;
+let exclusaoEmpresasCarregadas = false;
 
 function fmtDate(ts) {
   if (!ts) return '-';
@@ -338,6 +395,7 @@ auth.onAuthStateChanged(async u => {
   loadLayoutQuality();
   loadUsers();
   loadLogs();
+  loadExclusaoEmpresas();
 });
 
 function showTab(tab, sourceButton) {
@@ -348,6 +406,7 @@ function showTab(tab, sourceButton) {
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'layouts') renderLayouts();
   if (tab === 'qualidade') loadLayoutQuality();
+  if (tab === 'exclusao') loadExclusaoEmpresas();
 }
 
 function escapeHtml(v) {
@@ -486,6 +545,181 @@ async function atualizarHomologacaoLayout(id, status) {
 function formatMoney(v) {
   const n = Number(v || 0);
   return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function dataLocalIso(data) {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
+function setExclusaoStatus(tipo, mensagem) {
+  const el = document.getElementById('exclusaoStatus');
+  if (!el) return;
+  el.className = 'exclusao-status' + (tipo ? ' ' + tipo : '');
+  el.innerHTML = mensagem || '';
+}
+
+async function loadExclusaoEmpresas() {
+  const select = document.getElementById('exclusaoEmpresa');
+  if (!select || exclusaoEmpresasCarregadas) return;
+  try {
+    const empresas = await window.API.listarMinhasEmpresas();
+    if (!Array.isArray(empresas)) throw new Error((empresas && empresas.erro) || 'Resposta inválida ao listar empresas');
+    empresas.sort((a, b) => String(a.razao_social || a.nome || a.cnpj).localeCompare(String(b.razao_social || b.nome || b.cnpj), 'pt-BR'));
+    select.innerHTML = '<option value="">Selecione a empresa</option>' + empresas.map(empresa => {
+      const nome = empresa.razao_social || empresa.nome || 'Empresa sem razão social';
+      return `<option value="${escapeHtml(empresa.cnpj)}">${escapeHtml(nome)} — ${escapeHtml(empresa.cnpj)}</option>`;
+    }).join('');
+    exclusaoEmpresasCarregadas = true;
+    const hoje = new Date();
+    const inicio = document.getElementById('exclusaoDataInicial');
+    const fim = document.getElementById('exclusaoDataFinal');
+    if (inicio && !inicio.value) inicio.value = dataLocalIso(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+    if (fim && !fim.value) fim.value = dataLocalIso(new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0));
+  } catch (e) {
+    select.innerHTML = '<option value="">Falha ao carregar empresas</option>';
+    setExclusaoStatus('error', 'Erro ao carregar empresas: ' + escapeHtml(e.message || e));
+  }
+}
+
+function invalidarPreviaExclusao() {
+  currentExclusaoPreview = null;
+  const preview = document.getElementById('exclusaoPreview');
+  const confirmacao = document.getElementById('exclusaoConfirmacao');
+  const texto = document.getElementById('exclusaoTextoConfirmacao');
+  if (preview) preview.innerHTML = '';
+  if (confirmacao) confirmacao.classList.remove('active');
+  if (texto) texto.value = '';
+  atualizarBotaoExclusao();
+}
+
+async function previsualizarExclusaoAdmin() {
+  const cnpj = (document.getElementById('exclusaoEmpresa') || {}).value || '';
+  const dataInicial = (document.getElementById('exclusaoDataInicial') || {}).value || '';
+  const dataFinal = (document.getElementById('exclusaoDataFinal') || {}).value || '';
+  if (!cnpj || !dataInicial || !dataFinal) {
+    setExclusaoStatus('error', 'Selecione a empresa, a data inicial e a data final.');
+    return;
+  }
+  invalidarPreviaExclusao();
+  const botao = document.getElementById('btnPreviaExclusao');
+  botao.disabled = true;
+  setExclusaoStatus('info', 'Consultando a sessão salva e calculando a prévia, sem alterar dados…');
+  try {
+    const resultado = await window.API.adminPrevisualizarExclusaoLancamentos({ cnpj, dataInicial, dataFinal });
+    currentExclusaoPreview = resultado;
+    renderExclusaoPreview();
+    if (resultado.previa.totalPeriodo > 0) {
+      setExclusaoStatus('info', 'Prévia gerada. Marque uma ou mais importações e confira a quantidade antes de confirmar.');
+    } else {
+      setExclusaoStatus('ok', 'Nenhum lançamento com data válida foi encontrado no período informado. Nada pode ser excluído.');
+    }
+  } catch (e) {
+    currentExclusaoPreview = null;
+    setExclusaoStatus('error', escapeHtml(e.message || e));
+  } finally {
+    botao.disabled = false;
+  }
+}
+
+function renderExclusaoPreview() {
+  const el = document.getElementById('exclusaoPreview');
+  const confirmacao = document.getElementById('exclusaoConfirmacao');
+  const resultado = currentExclusaoPreview;
+  if (!el || !resultado || !resultado.previa) return;
+  const previa = resultado.previa;
+  let html = `
+    <div class="summary-grid" style="margin-bottom:16px">
+      <div class="layout-card"><div class="bank">Lançamentos na sessão</div><div class="count">${previa.totalSessao}</div></div>
+      <div class="layout-card"><div class="bank">No período informado</div><div class="count">${previa.totalPeriodo}</div><div class="caption">${escapeHtml(previa.dataInicial)} a ${escapeHtml(previa.dataFinal)}</div></div>
+      <div class="layout-card"><div class="bank">Datas inválidas preservadas</div><div class="count">${previa.datasInvalidas}</div><div class="caption">Nunca entram na exclusão por período</div></div>
+    </div>`;
+  if (!previa.importacoes.length) {
+    el.innerHTML = html;
+    if (confirmacao) confirmacao.classList.remove('active');
+    return;
+  }
+  html += `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <strong>Importações encontradas no período</strong>
+      <div><button class="btn-sm" onclick="selecionarImportacoesExclusao(true)">Marcar todas</button> <button class="btn-sm" onclick="selecionarImportacoesExclusao(false)">Desmarcar todas</button></div>
+    </div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Selecionar</th><th>Importação</th><th>Banco</th><th>Período encontrado</th><th>No período</th><th>Total da importação</th><th>Créditos</th><th>Débitos</th></tr></thead><tbody>`;
+  previa.importacoes.forEach(grupo => {
+    html += `<tr>
+      <td><input class="exclusao-importacao-check" type="checkbox" value="${escapeHtml(grupo.chave)}" onchange="atualizarBotaoExclusao()" aria-label="Selecionar ${escapeHtml(grupo.titulo)}"></td>
+      <td><strong>${escapeHtml(grupo.titulo)}</strong><br><span class="text-mono" style="color:#94a3b8">${escapeHtml(grupo.importacaoId || 'sem importação')}</span></td>
+      <td>${escapeHtml(grupo.banco || '-')}</td>
+      <td>${escapeHtml(grupo.dataInicial)}<br>${escapeHtml(grupo.dataFinal)}</td>
+      <td><strong>${grupo.quantidadePeriodo}</strong></td>
+      <td>${grupo.quantidadeTotalImportacao}</td>
+      <td style="color:#047857">${formatMoney(grupo.creditos)}</td>
+      <td style="color:#b91c1c">${formatMoney(grupo.debitos)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div><div id="exclusaoSelecionadoResumo" style="margin-top:12px;font-size:13px;font-weight:800;color:#991b1b"></div>';
+  el.innerHTML = html;
+  if (confirmacao) confirmacao.classList.add('active');
+  atualizarBotaoExclusao();
+}
+
+function selecionarImportacoesExclusao(marcar) {
+  document.querySelectorAll('.exclusao-importacao-check').forEach(check => { check.checked = !!marcar; });
+  atualizarBotaoExclusao();
+}
+
+function selecaoAtualExclusao() {
+  const chaves = [...document.querySelectorAll('.exclusao-importacao-check:checked')].map(check => check.value);
+  const grupos = currentExclusaoPreview && currentExclusaoPreview.previa ? currentExclusaoPreview.previa.importacoes : [];
+  const selecionadas = new Set(chaves);
+  const quantidade = grupos.filter(grupo => selecionadas.has(grupo.chave)).reduce((soma, grupo) => soma + Number(grupo.quantidadePeriodo || 0), 0);
+  return { chaves, quantidade };
+}
+
+function atualizarBotaoExclusao() {
+  const selecao = selecaoAtualExclusao();
+  const confirmacao = (document.getElementById('exclusaoTextoConfirmacao') || {}).value || '';
+  const botao = document.getElementById('btnExecutarExclusao');
+  const resumo = document.getElementById('exclusaoSelecionadoResumo');
+  if (resumo) resumo.textContent = selecao.quantidade ? `${selecao.quantidade} lançamento(s) selecionado(s) para exclusão` : 'Nenhum lançamento selecionado';
+  if (botao) botao.disabled = !currentExclusaoPreview || !selecao.quantidade || confirmacao !== 'EXCLUIR';
+}
+
+async function executarExclusaoAdmin() {
+  if (!currentExclusaoPreview) return;
+  const selecao = selecaoAtualExclusao();
+  if (!selecao.quantidade) {
+    setExclusaoStatus('error', 'Selecione ao menos uma importação.');
+    return;
+  }
+  const empresa = currentExclusaoPreview.empresa || {};
+  const previa = currentExclusaoPreview.previa;
+  const mensagem = `Excluir ${selecao.quantidade} lançamento(s) de ${empresa.razao_social || empresa.cnpj}, no período de ${previa.dataInicial} a ${previa.dataFinal}?\n\nUm backup integral será criado antes da alteração.`;
+  if (!confirm(mensagem)) return;
+  const botao = document.getElementById('btnExecutarExclusao');
+  botao.disabled = true;
+  setExclusaoStatus('info', 'Criando o backup recuperável e aplicando a exclusão… Não feche esta página.');
+  try {
+    const resultado = await window.API.adminExecutarExclusaoLancamentos({
+      cnpj: empresa.cnpj,
+      dataInicial: previa.dataInicial,
+      dataFinal: previa.dataFinal,
+      chavesSelecionadas: selecao.chaves,
+      previewToken: currentExclusaoPreview.previewToken,
+      quantidadeEsperada: selecao.quantidade,
+      confirmacao: (document.getElementById('exclusaoTextoConfirmacao') || {}).value || '',
+    });
+    const resumo = resultado.resumo || {};
+    invalidarPreviaExclusao();
+    const avisos = Array.isArray(resultado.avisos) && resultado.avisos.length ? '<br><strong>Aviso:</strong> ' + escapeHtml(resultado.avisos.join(' ')) : '';
+    setExclusaoStatus('ok', `<strong>Exclusão concluída.</strong> ${resumo.quantidadeRemovida || 0} lançamento(s) removido(s), ${resumo.quantidadeDepois || 0} preservado(s), ${resultado.importacoesLiberadas || 0} marcador(es) de importação liberado(s). Backup recuperável: <span class="text-mono">${escapeHtml(resultado.backupId || '-')}</span>.${avisos}`);
+  } catch (e) {
+    setExclusaoStatus('error', escapeHtml(e.message || e) + ((e && e.status === 409) ? ' Gere uma nova prévia antes de tentar novamente.' : ''));
+    if (e && e.status === 409) invalidarPreviaExclusao();
+    else atualizarBotaoExclusao();
+  }
 }
 
 async function loadLayoutQuality() {
