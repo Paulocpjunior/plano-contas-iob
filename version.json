@@ -1,7 +1,14 @@
 {
-  "version": "3.4.55",
-  "build_date": "2026-07-21T21:30:00.000Z",
+  "version": "3.4.56",
+  "build_date": "2026-07-22T12:00:00.000Z",
   "release_notes": [
+    "EFD-Reinf / Informes agora inclui uma área de aplicações financeiras por cliente.",
+    "O novo fluxo solicita extratos via Microsoft 365 e trabalha por layouts bancários, sem limitar a análise a uma única instituição.",
+    "Foram validados o Extrato de Cotista Consolidado XP, a Posição de Investimentos Itaú, a Posição Detalhada Histórica XP e um modelo CSV/XLSX multibanco.",
+    "Fundos e títulos são classificados por regra tributária, com faixas regressivas de IRRF, tratamento distinto para PF/PJ e casos ambíguos enviados à revisão.",
+    "A análise preserva o IR e o IOF informados pela instituição e não inventa recálculo de posições de fundos sem histórico de lotes e come-cotas.",
+    "Rendimentos e IRRF do mês podem ser levados aos lançamentos após conferência, sempre com contas contábeis em branco para validação do plano da empresa.",
+    "O registro guarda apenas dados normalizados e a impressão digital do arquivo; o PDF bancário bruto não é armazenado.",
     "Bradesco escaneado: falhas de integridade agora interrompem a importacao e nunca retornam ao leitor generico.",
     "PDFs incompletos ou com paginas de contas diferentes exibem uma orientacao clara para envio do extrato completo.",
     "O BRADESCO.pdf incompleto foi corretamente bloqueado; o bradesco 2.pdf completo preservou 326 movimentos e os totais impressos.",

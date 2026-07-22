@@ -20,6 +20,11 @@ const {
   locadoresDividendosParaR4010,
   emailSolicitacaoDividendos,
 } = require('./reinf/reinf-dividendos-utils');
+const {
+  VERSAO_REGRAS: VERSAO_REGRAS_APLICACOES,
+  FONTE_REGRAS: FONTE_REGRAS_APLICACOES,
+  emailSolicitacaoAplicacoes,
+} = require('./reinf/reinf-aplicacoes-utils');
 
 function limparCnpj(v) {
   return String(v || '').replace(/\D/g, '');
@@ -277,6 +282,61 @@ function reinfEmailValido(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
 }
 
+function reinfAplicacoesRegimeValido(regime) {
+  return ['lucro_real', 'lucro_presumido', 'lucro_arbitrado', 'simples', 'isenta', 'imune', 'nao_informado'].includes(String(regime || ''));
+}
+
+function reinfAplicacoesTipoBeneficiarioValido(tipo) {
+  return ['pj', 'pf'].includes(String(tipo || ''));
+}
+
+function reinfAplicacoesNumero(valor) {
+  const n = Number(valor);
+  return Number.isFinite(n) ? Math.round(n * 1000000) / 1000000 : 0;
+}
+
+function reinfAplicacoesSanitizarItem(item) {
+  const origem = item && item.regraIrrf || {};
+  return {
+    produto: String(item && item.produto || '').trim().slice(0, 300),
+    tipo: String(item && item.tipo || '').trim().slice(0, 80),
+    evento: String(item && item.evento || 'posicao').trim().slice(0, 40),
+    dataAplicacao: String(item && item.dataAplicacao || '').trim().slice(0, 10),
+    dataEvento: String(item && item.dataEvento || '').trim().slice(0, 10),
+    valorAplicadoCentavos: reinfToCents(item && item.valorAplicado),
+    valorBrutoCentavos: reinfToCents(item && item.valorBruto),
+    valorLiquidoCentavos: reinfToCents(item && item.valorLiquido),
+    rendimentoTotalCentavos: reinfToCents(item && item.rendimentoTotal),
+    rendimentoPeriodoCentavos: reinfToCents(item && item.rendimentoPeriodo),
+    irrfInformadoCentavos: reinfToCents(item && item.irrfInformado),
+    irrfPeriodoCentavos: reinfToCents(item && item.irrfPeriodo),
+    iofInformadoCentavos: reinfToCents(item && item.iofInformado),
+    statusIrrf: String(origem.status || 'revisar').slice(0, 40),
+    aliquotaIrrf: origem.aliquota == null ? null : reinfAplicacoesNumero(origem.aliquota),
+    irrfEsperadoCentavos: origem.irrfEsperado == null ? null : reinfToCents(origem.irrfEsperado),
+    tratamentoIrrf: String(origem.tratamento || '').slice(0, 80),
+    explicacaoIrrf: String(origem.explicacao || '').slice(0, 600),
+    origem: String(item && item.origem || '').slice(0, 300),
+  };
+}
+
+function reinfAplicacoesResumo(itens) {
+  const lista = Array.isArray(itens) ? itens : [];
+  const somar = campo => lista.reduce((s, item) => s + Number(item[campo] || 0), 0);
+  return {
+    qtdInvestimentos: lista.length,
+    valorAplicadoCentavos: somar('valorAplicadoCentavos'),
+    valorBrutoCentavos: somar('valorBrutoCentavos'),
+    valorLiquidoCentavos: somar('valorLiquidoCentavos'),
+    rendimentoPeriodoCentavos: somar('rendimentoPeriodoCentavos'),
+    irrfInformadoCentavos: somar('irrfInformadoCentavos'),
+    irrfPeriodoCentavos: somar('irrfPeriodoCentavos'),
+    iofInformadoCentavos: somar('iofInformadoCentavos'),
+    pendencias: lista.filter(item => ['revisar', 'divergente'].includes(item.statusIrrf)).length,
+    divergencias: lista.filter(item => item.statusIrrf === 'divergente').length,
+  };
+}
+
 function reinfMicrosoft365Config() {
   const cfg = {
     tenantId: process.env.MS365_TENANT_ID || process.env.MICROSOFT_365_TENANT_ID || process.env.GRAPH_TENANT_ID || '',
@@ -489,6 +549,174 @@ function registrarRotasReinf(app, { db } = {}) {
       loteXsd: 'v1_00_00',
       modulo: 'EFD-Reinf R-4000 / Informes',
     });
+  });
+
+  router.get('/aplicacoes/empresa/:cnpj', async (req, res) => {
+    try {
+      if (!db) throw new Error('Banco de dados indisponível para cadastro de aplicações financeiras.');
+      const cnpj = limparCnpj(req.params.cnpj);
+      if (cnpj.length !== 14) throw new Error('CNPJ inválido.');
+      const snap = await db.collection('empresas').doc(cnpj).get();
+      if (!snap.exists) return res.status(404).json({ ok: false, erro: 'Empresa não encontrada.' });
+      const dados = snap.data() || {};
+      const apl = dados.reinfAplicacoes || {};
+      res.json({
+        ok: true,
+        cnpj,
+        empresa: dados.razao_social || dados.empresa || dados.nome || null,
+        emailSolicitacao: apl.emailSolicitacao || dados.email_reinf || dados.email || '',
+        responsavel: apl.responsavel || '',
+        regimeTributario: reinfAplicacoesRegimeValido(apl.regimeTributario) ? apl.regimeTributario : 'nao_informado',
+        tipoBeneficiario: reinfAplicacoesTipoBeneficiarioValido(apl.tipoBeneficiario) ? apl.tipoBeneficiario : 'pj',
+        solicitarMensalmente: apl.solicitarMensalmente !== false,
+        versaoRegras: VERSAO_REGRAS_APLICACOES,
+        fonteRegras: FONTE_REGRAS_APLICACOES,
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  router.put('/aplicacoes/empresa/:cnpj', adminReinfCadastroRequired, async (req, res) => {
+    try {
+      if (!db) throw new Error('Banco de dados indisponível para cadastro de aplicações financeiras.');
+      const cnpj = limparCnpj(req.params.cnpj);
+      if (cnpj.length !== 14) throw new Error('CNPJ inválido.');
+      const body = req.body || {};
+      const email = String(body.emailSolicitacao || '').trim();
+      const regimeTributario = String(body.regimeTributario || 'nao_informado').trim();
+      const tipoBeneficiario = String(body.tipoBeneficiario || 'pj').trim();
+      if (email && !reinfEmailValido(email)) throw new Error('E-mail de solicitação de extratos inválido.');
+      if (!reinfAplicacoesRegimeValido(regimeTributario)) throw new Error('Regime tributário inválido para aplicações financeiras.');
+      if (!reinfAplicacoesTipoBeneficiarioValido(tipoBeneficiario)) throw new Error('Tipo de beneficiário inválido.');
+      await db.collection('empresas').doc(cnpj).set({
+        reinfAplicacoes: {
+          emailSolicitacao: email,
+          responsavel: String(body.responsavel || '').trim().slice(0, 160),
+          regimeTributario,
+          tipoBeneficiario,
+          solicitarMensalmente: body.solicitarMensalmente !== false,
+          atualizado_em: new Date(),
+          atualizado_por_uid: req.user && req.user.uid || null,
+          atualizado_por_email: req.user && req.user.email || null,
+        },
+      }, { merge: true });
+      await registrarLog(db, req, 'aplicacoes_salvar_cadastro', { cnpj, email: !!email, regimeTributario, tipoBeneficiario });
+      res.json({ ok: true, cnpj });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  router.post('/aplicacoes/registrar', adminReinfCadastroRequired, async (req, res) => {
+    try {
+      if (!db) throw new Error('Banco de dados indisponível para registrar análise de aplicações financeiras.');
+      const body = req.body || {};
+      const cnpj = limparCnpj(body.cnpj || body.cnpjEmpresa);
+      const competencia = String(body.competencia || '').trim();
+      const hashArquivo = String(body.hashArquivo || '').toLowerCase().replace(/[^a-f0-9]/g, '');
+      const nomeArquivo = String(body.nomeArquivo || '').trim().slice(0, 300);
+      const regimeTributario = String(body.regimeTributario || 'nao_informado').trim();
+      const tipoBeneficiario = String(body.tipoBeneficiario || 'pj').trim();
+      if (cnpj.length !== 14) throw new Error('Selecione uma empresa com CNPJ válido antes de registrar a análise.');
+      if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(competencia)) throw new Error('Competência inválida. Use AAAA-MM.');
+      if (hashArquivo.length < 32) throw new Error('Não foi possível validar a identidade do arquivo analisado.');
+      if (!nomeArquivo) throw new Error('Nome do arquivo não informado.');
+      if (!reinfAplicacoesRegimeValido(regimeTributario)) throw new Error('Regime tributário inválido.');
+      if (!reinfAplicacoesTipoBeneficiarioValido(tipoBeneficiario)) throw new Error('Tipo de beneficiário inválido.');
+      if (!Array.isArray(body.investimentos) || !body.investimentos.length) throw new Error('A análise não possui investimentos para registrar.');
+      if (body.investimentos.length > 500) throw new Error('Análise acima do limite de 500 investimentos por arquivo.');
+
+      const investimentos = body.investimentos.map(reinfAplicacoesSanitizarItem);
+      if (investimentos.some(item => !item.produto)) throw new Error('Existe investimento sem identificação do produto.');
+      const resumo = reinfAplicacoesResumo(investimentos);
+      const docId = `${competencia.replace('-', '')}_${hashArquivo.slice(0, 32)}`;
+      const ref = db.collection('empresas').doc(cnpj).collection('reinf_aplicacoes_analises').doc(docId);
+      const anterior = await ref.get();
+      await ref.set({
+        cnpj,
+        competencia,
+        nomeArquivo,
+        hashArquivo,
+        tamanhoArquivo: Math.max(0, Number(body.tamanhoArquivo) || 0),
+        layout: String(body.layout || '').slice(0, 160),
+        instituicao: String(body.instituicao || '').slice(0, 200),
+        regimeTributario,
+        tipoBeneficiario,
+        versaoRegras: VERSAO_REGRAS_APLICACOES,
+        fonteRegras: FONTE_REGRAS_APLICACOES,
+        resumo,
+        investimentos,
+        atualizado_em: new Date(),
+        atualizado_por_uid: req.user && req.user.uid || null,
+        atualizado_por_email: req.user && req.user.email || null,
+        criado_em: anterior.exists && anterior.data().criado_em ? anterior.data().criado_em : new Date(),
+      }, { merge: true });
+      await registrarLog(db, req, anterior.exists ? 'aplicacoes_atualizar_analise' : 'aplicacoes_registrar_analise', {
+        cnpj,
+        competencia,
+        docId,
+        nomeArquivo,
+        qtdInvestimentos: resumo.qtdInvestimentos,
+        pendencias: resumo.pendencias,
+      });
+      res.json({ ok: true, docId, atualizado: anterior.exists, resumo });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  router.post('/aplicacoes/solicitar', adminReinfCadastroRequired, async (req, res) => {
+    try {
+      if (!db) throw new Error('Banco de dados indisponível para solicitar extratos de aplicações.');
+      const body = req.body || {};
+      const competencia = String(body.competencia || '').trim();
+      const cnpjs = Array.isArray(body.cnpjs) ? [...new Set(body.cnpjs.map(limparCnpj).filter(c => c.length === 14))] : [];
+      if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(competencia)) throw new Error('Competência inválida para solicitação.');
+      if (!cnpjs.length) throw new Error('Informe ao menos uma empresa para enviar a solicitação. O envio em massa não é presumido automaticamente.');
+      if (cnpjs.length > 100) throw new Error('Limite de 100 empresas por solicitação.');
+      const enviados = [];
+      const ignorados = [];
+      for (const cnpj of cnpjs) {
+        const snap = await db.collection('empresas').doc(cnpj).get();
+        if (!snap.exists) {
+          ignorados.push({ cnpj, motivo: 'empresa não encontrada' });
+          continue;
+        }
+        const empresa = snap.data() || {};
+        const cadastro = empresa.reinfAplicacoes || {};
+        const email = String(cadastro.emailSolicitacao || empresa.email_reinf || empresa.email || '').trim();
+        if (cadastro.solicitarMensalmente === false) {
+          ignorados.push({ cnpj, motivo: 'solicitação mensal desativada' });
+          continue;
+        }
+        if (!reinfEmailValido(email)) {
+          ignorados.push({ cnpj, motivo: 'sem e-mail válido para aplicações' });
+          continue;
+        }
+        const modelo = emailSolicitacaoAplicacoes({
+          empresa: empresa.razao_social || empresa.empresa || empresa.nome || cnpj,
+          responsavel: cadastro.responsavel,
+          competencia,
+          prazo: body.prazo,
+        });
+        const envio = await reinfEnviarEmailMicrosoft365({ to: email, subject: modelo.assunto, html: modelo.html, text: modelo.texto });
+        enviados.push({ cnpj, email, sender: envio.sender });
+        await db.collection('empresas').doc(cnpj).collection('reinf_emails').add({
+          tipo: 'solicitacao_extratos_aplicacoes',
+          competencia,
+          email,
+          assunto: modelo.assunto,
+          enviado_em: new Date(),
+          enviado_por_uid: req.user && req.user.uid || null,
+          enviado_por_email: req.user && req.user.email || null,
+        });
+      }
+      await registrarLog(db, req, 'aplicacoes_solicitar_email', { competencia, cnpjs: cnpjs.length, enviados: enviados.length, ignorados: ignorados.length });
+      res.json({ ok: true, enviados, ignorados });
+    } catch (err) {
+      respostaErro(res, err.statusCode || 400, err);
+    }
   });
 
   router.get('/dividendos/microsoft365/status', adminReinfCadastroRequired, (req, res) => {
