@@ -1,4 +1,5 @@
 const assert = require('assert');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -92,7 +93,39 @@ async function main() {
   assert.ok(betinho.lancamentos.some(l => /PIX ENVIADO/i.test(l.descricao) && l.valor < 0), 'Casa Betinho deve recuperar saidas PIX');
   assert.ok(betinho.lancamentos.some(l => /PIX TRANSF|TED|Mov/i.test(l.descricao) && l.valor > 0), 'Casa Betinho deve recuperar entradas');
 
-  console.log(`OK: Itau Extrato Mensal importa ${path.basename(arquivo)} e ${path.basename(casaBetinho)}.`);
+  const janeiroAplicacaoAutomatica = '/Users/paulocesarpereirajunior/Downloads/Extrato Mensal_Janeiro2026 (1).pdf';
+  assert.ok(fs.existsSync(janeiroAplicacaoAutomatica), `Arquivo de regressao nao encontrado: ${janeiroAplicacaoAutomatica}`);
+  const bufferJaneiro = fs.readFileSync(janeiroAplicacaoAutomatica);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferJaneiro).digest('hex'),
+    '4852fb7892a5d8fe1f20415863bb97eca83f0a18466513b193b30ad9a7593414',
+    'fixture Itau janeiro/2026 deve ser o PDF real validado'
+  );
+  const janeiro = await itau.parsearPDF_Itau_ExtratoMensal(new Uint8Array(bufferJaneiro));
+  const automaticos = janeiro.lancamentos.filter(l => l.movimentoAplicacaoAutomatica);
+  const aplicacoes = automaticos.filter(l => l.naturezaLancamento === 'APLICACAO_AUTOMATICA');
+  const resgates = automaticos.filter(l => l.naturezaLancamento === 'RESGATE_AUTOMATICO');
+
+  assert.strictEqual(janeiro.detectado, true);
+  assert.strictEqual(janeiro.periodo_inicio, '2026-01-01');
+  assert.strictEqual(janeiro.periodo_fim, '2026-01-31');
+  assert.strictEqual(janeiro.lancamentos.length, 676);
+  assert.strictEqual(automaticos.length, 21);
+  assert.strictEqual(aplicacoes.length, 9);
+  assert.strictEqual(resgates.length, 12);
+  assert.strictEqual(Number(aplicacoes.reduce((s, l) => s + Math.abs(l.valor), 0).toFixed(2)), 955463.26);
+  assert.strictEqual(Number(resgates.reduce((s, l) => s + l.valor, 0).toFixed(2)), 1388874.58);
+  assert.strictEqual(Number(janeiro.total_credito.toFixed(2)), 5572904.00);
+  assert.strictEqual(Number(janeiro.total_debito.toFixed(2)), 5572904.00);
+  assert.strictEqual(Number(janeiro.total_credito_oficial_resumo.toFixed(2)), 4184029.42);
+  assert.strictEqual(Number(janeiro.total_debito_oficial_resumo.toFixed(2)), 4617440.74);
+  assert.strictEqual(janeiro.totais_oficiais_excluem_aplicacoes_automaticas, true);
+  assert.match(janeiro.observacao_importacao, /resgates automáticos foram importados/i);
+  assert.ok(janeiro.lancamentos.some(l => l.data === '2026-01-02' && l.naturezaLancamento === 'APLICACAO_AUTOMATICA' && l.valor === -71707.23));
+  assert.ok(janeiro.lancamentos.some(l => l.data === '2026-01-30' && l.naturezaLancamento === 'RESGATE_AUTOMATICO' && l.valor === 261333.82));
+  assert.ok(!janeiro.lancamentos.some(l => /^SALDO APLIC AUT MAIS$/i.test(l.descricao)), 'saldo da aplicação deve continuar apenas informativo');
+
+  console.log(`OK: Itau Extrato Mensal importa ${path.basename(arquivo)}, ${path.basename(casaBetinho)} e ${path.basename(janeiroAplicacaoAutomatica)} com aplicações/resgates automáticos.`);
 }
 
 main().catch(err => {

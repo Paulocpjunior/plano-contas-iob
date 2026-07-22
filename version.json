@@ -1,7 +1,11 @@
 {
-  "version": "3.4.57",
-  "build_date": "2026-07-22T18:00:00.000Z",
+  "version": "3.4.58",
+  "build_date": "2026-07-22T16:49:48.000Z",
   "release_notes": [
+    "Itaú Extrato Mensal agora importa aplicações e resgates automáticos como movimentos contábeis identificados.",
+    "O saldo da aplicação continua apenas informativo e nunca é transformado em lançamento.",
+    "O extrato real de janeiro de 2026 foi validado com 21 movimentos automáticos: 9 aplicações e 12 resgates.",
+    "Os totais importados fecham em R$ 5.572.904,00 nos créditos e nos débitos, preservando separadamente os totais impressos pelo Itaú.",
     "Nova rotina administrativa permite excluir lançamentos por empresa, data inicial, data final e importações selecionadas.",
     "A exclusão exige prévia, seleção explícita, confirmação digitada e validação da quantidade antes de alterar a sessão.",
     "Um backup integral recuperável e um registro de auditoria são gravados com o administrador responsável.",

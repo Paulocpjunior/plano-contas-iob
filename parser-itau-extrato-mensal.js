@@ -117,6 +117,13 @@
       || /^na\s+conta\s+corrente\b/.test(d);
   }
 
+  function tipoMovimentoAplicacaoAutomatica(desc) {
+    const d = String(desc || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (/^apl\s+aplic\s+aut\s+mais\b/.test(d)) return 'APLICACAO_AUTOMATICA';
+    if (/^res\s+aplic\s+aut\s+mais\b/.test(d)) return 'RESGATE_AUTOMATICO';
+    return '';
+  }
+
   function parseItauLancamentosPeriodo(lines, textoCompleto) {
     const ehPeriodo = /Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto)
       && /Data\s+Lan[cç]amentos\s+Raz[aã]o Social\s+CNPJ\/CPF\s+Valor/i.test(textoCompleto)
@@ -794,7 +801,8 @@
         .replace(/\s+/g, ' ')
         .trim();
       if (!desc) return;
-      if (ignorarLancamentoTecnicoExtratoMensal(desc)) return;
+      const movimentoAplicacaoAutomatica = tipoMovimentoAplicacaoAutomatica(desc);
+      if (ignorarLancamentoTecnicoExtratoMensal(desc) && !movimentoAplicacaoAutomatica) return;
 
       const creditItem = line.items.find(function(i){ return i.x >= 340 && i.x < 410 && moneyToken(i.s); });
       const debitItem = line.items.find(function(i){ return i.x >= 415 && i.x < 480 && moneyToken(i.s); });
@@ -812,14 +820,22 @@
         tipo: valor < 0 ? 'D' : 'C',
         empresa: '',
         cnpj: '',
-        categoria: 'Nao categorizado',
+        categoria: movimentoAplicacaoAutomatica === 'APLICACAO_AUTOMATICA'
+          ? 'Aplicação automática'
+          : (movimentoAplicacaoAutomatica === 'RESGATE_AUTOMATICO' ? 'Resgate automático' : 'Nao categorizado'),
         contaDebito: '',
         contaCredito: '',
         historico: desc,
         incomum: false,
+        naturezaLancamento: movimentoAplicacaoAutomatica,
+        movimentoAplicacaoAutomatica: !!movimentoAplicacaoAutomatica,
         origem: 'pdf-itau-extrato-mensal'
       });
     });
+
+    const totalCreditoCalculado = lancamentos.filter(function(l){ return l.valor > 0; }).reduce(function(a,l){ return a + l.valor; }, 0);
+    const totalDebitoCalculado = lancamentos.filter(function(l){ return l.valor < 0; }).reduce(function(a,l){ return a + Math.abs(l.valor); }, 0);
+    const possuiMovimentosAutomaticos = lancamentos.some(function(l){ return l.movimentoAplicacaoAutomatica; });
 
     return {
       detectado: true,
@@ -829,8 +845,16 @@
       banco_detectado: 'ITAU',
       conta_detectada: contaMatch ? ('AG-' + contaMatch[1] + '/CC-' + contaMatch[2]) : '',
       nome_conta_detectado: 'CONTA CORRENTE ITAU',
-      total_credito: totalCredito,
-      total_debito: totalDebito,
+      total_credito: totalCreditoCalculado,
+      total_debito: totalDebitoCalculado,
+      total_credito_calculado: totalCreditoCalculado,
+      total_debito_calculado: totalDebitoCalculado,
+      total_credito_oficial_resumo: totalCredito,
+      total_debito_oficial_resumo: totalDebito,
+      totais_oficiais_excluem_aplicacoes_automaticas: possuiMovimentosAutomaticos,
+      observacao_importacao: possuiMovimentosAutomaticos
+        ? 'Aplicações e resgates automáticos foram importados. O resumo impresso do Itaú exclui essas transferências internas dos totais de entradas e saídas.'
+        : '',
       periodo_inicio: ref.mes ? (ref.ano + '-' + ref.mes + '-01') : '',
       periodo_fim: ref.mes ? new Date(Number(ref.ano), Number(ref.mes), 0).toISOString().slice(0, 10) : ''
     };
@@ -845,7 +869,8 @@
       parseItauLancamentosPeriodo: parseItauLancamentosPeriodo,
       parseItauExtratoMensalOCRScaneado: parseItauExtratoMensalOCRScaneado,
       linhasDePalavrasOCR: linhasDePalavrasOCR,
-      ignorarLancamentoTecnicoExtratoMensal: ignorarLancamentoTecnicoExtratoMensal
+      ignorarLancamentoTecnicoExtratoMensal: ignorarLancamentoTecnicoExtratoMensal,
+      tipoMovimentoAplicacaoAutomatica: tipoMovimentoAplicacaoAutomatica
     }
   };
 
