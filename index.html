@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.58"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.58"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.58"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.59';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.59"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.59"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.59"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -19,33 +20,33 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.58"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.58"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.58"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.59"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.59"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.59"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.58"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.58"></script>
-    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.58"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.58"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.58"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.58"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.58"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.58"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.58"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.58"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.58"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.58"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.58"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.58"></script>
-    <script src="/parser-extrato-conciliado.js?v=3.4.58"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.58"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.58"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.58"></script>
+    <script src="/parser-ofx.js?v=3.4.59"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.59"></script>
+    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.59"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.59"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.59"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.59"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.59"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.59"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.59"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.59"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.59"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.59"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.59"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.59"></script>
+    <script src="/parser-extrato-conciliado.js?v=3.4.59"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.59"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.59"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.59"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -3230,6 +3231,14 @@
                     <span class="label">Lançamentos</span>
                     <span class="value" id="confImpQtd">0</span>
                 </div>
+                <div class="confirm-import-metric">
+                    <span class="label">Aplicações automáticas</span>
+                    <span class="value" id="confImpAplicacoesAutomaticas">0</span>
+                </div>
+                <div class="confirm-import-metric">
+                    <span class="label">Resgates automáticos</span>
+                    <span class="value" id="confImpResgatesAutomaticos">0</span>
+                </div>
                 <div class="confirm-import-metric credit">
                     <span class="label">Total crédito</span>
                     <span class="value" id="confImpCredito">R$ 0,00</span>
@@ -5057,7 +5066,8 @@
                     body: JSON.stringify({
                         state_json: state_json,
                         resumo: resumo,
-                        session_revision: window.API && window.API.getSessaoRevision ? window.API.getSessaoRevision(cnpj) : null
+                        session_revision: window.API && window.API.getSessaoRevision ? window.API.getSessaoRevision(cnpj) : null,
+                        client_version: window.__PLANO_CONTAS_IOB_BUILD__ || null
                     })
                 }).catch(function(e) { console.warn('[sessao] flush keepalive falhou:', e); });
             } catch (e) { console.warn('[sessao] flush:', e); }
@@ -11712,6 +11722,10 @@
         // Process File
         async function processFile() {
             if (!selectedFile) return;
+            if (typeof window.__verificarVersaoAntesDeImportar === 'function') {
+                const versaoAtual = await window.__verificarVersaoAntesDeImportar();
+                if (!versaoAtual) return;
+            }
             
             // Pre-seleciona banco do uploadBanco com base na empresa, se ainda vazio
             const elUploadBanco = document.getElementById('uploadBanco');
@@ -11943,6 +11957,12 @@
         function resumirImportacao(entries, meta) {
             const creditos = entries.filter(e => Number(e.valor) > 0);
             const debitos = entries.filter(e => Number(e.valor) < 0);
+            const aplicacoesAutomaticas = entries.filter(function(e) {
+                return e.naturezaLancamento === 'APLICACAO_AUTOMATICA' || /^\s*Apl\s+Aplic\s+Aut\s+Mais\b/i.test(String(e.descricao || ''));
+            });
+            const resgatesAutomaticos = entries.filter(function(e) {
+                return e.naturezaLancamento === 'RESGATE_AUTOMATICO' || /^\s*Res\s+Aplic\s+Aut\s+Mais\b/i.test(String(e.descricao || ''));
+            });
             const totalCredito = creditos.reduce((a,e) => a + Number(e.valor || 0), 0);
             const totalDebito = debitos.reduce((a,e) => a + Math.abs(Number(e.valor || 0)), 0);
             const datas = entries.map(e => e.data).filter(Boolean).sort();
@@ -11969,6 +11989,8 @@
                 conta: contasImportacao.length > 1 ? contasImportacao.join(' / ') : (primeiro.conta || primeiro.nome_conta || '-'),
                 periodo: (periodoIni || periodoFim) ? (formatarDataBR(periodoIni) + ' a ' + formatarDataBR(periodoFim)) : '-',
                 qtd: entries.length,
+                qtdAplicacoesAutomaticas: aplicacoesAutomaticas.length,
+                qtdResgatesAutomaticos: resgatesAutomaticos.length,
                 totalCredito,
                 totalDebito,
                 status: status.join(' • ')
@@ -12129,6 +12151,8 @@
             document.getElementById('confImpConta').textContent = resumo.conta || '-';
             document.getElementById('confImpPeriodo').textContent = resumo.periodo || '-';
             document.getElementById('confImpQtd').textContent = String(resumo.qtd || 0);
+            document.getElementById('confImpAplicacoesAutomaticas').textContent = String(resumo.qtdAplicacoesAutomaticas || 0);
+            document.getElementById('confImpResgatesAutomaticos').textContent = String(resumo.qtdResgatesAutomaticos || 0);
             document.getElementById('confImpCredito').textContent = formatarMoedaBR(resumo.totalCredito);
             document.getElementById('confImpDebito').textContent = formatarMoedaBR(resumo.totalDebito);
             document.getElementById('confImpStatus').textContent = resumo.status || '-';
@@ -15474,7 +15498,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = '3.4.58';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.59';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
@@ -15551,7 +15575,7 @@ window.confirmarTrocarPlano = async function() {
                 });
             }
 
-            function _mostrarModalAtualizacao(info, versaoJaCarregada) {
+            function _mostrarModalAtualizacao(info, versaoJaCarregada, atualizacaoObrigatoria) {
                 const modal = document.getElementById('versionModal');
                 const title = document.getElementById('versionModalTitle');
                 const description = document.getElementById('versionModalDescription');
@@ -15572,8 +15596,14 @@ window.confirmarTrocarPlano = async function() {
                     : 'Ao atualizar agora, a sessao sera salva antes do recarregamento.';
                 btn.disabled = false;
                 btnLater.disabled = false;
+                btnLater.style.display = atualizacaoObrigatoria ? 'none' : '';
                 btn.textContent = versaoJaCarregada ? 'Entendi' : 'Atualizar agora';
                 btnLater.textContent = versaoJaCarregada ? 'Ver depois' : 'Depois';
+                if (atualizacaoObrigatoria) {
+                    title.textContent = 'Atualização necessária para importar';
+                    description.textContent = 'A importação foi bloqueada porque esta tela está usando um parser antigo.';
+                    hint.textContent = 'Atualize a página e selecione o extrato novamente. Nenhum lançamento foi gravado.';
+                }
                 if (Array.isArray(info.release_notes) && info.release_notes.length > 0) {
                     notes.innerHTML = '<strong style="display:block;margin-bottom:8px;color:#0f172a">O que mudou:</strong>' +
                         '<ul style="margin:0;padding-left:18px">' +
@@ -15624,6 +15654,27 @@ window.confirmarTrocarPlano = async function() {
                     }
                 };
             }
+
+            window.__verificarVersaoAntesDeImportar = async function() {
+                try {
+                    const resp = await fetch('/api/version?ts=' + Date.now(), { cache: 'no-store' });
+                    if (!resp.ok) throw new Error('Falha ao consultar a versão ativa');
+                    const info = await resp.json();
+                    if (!info || !info.version) throw new Error('Versão ativa não informada');
+                    if (info.version === _VERSAO_BUILD) return true;
+                    localStorage.removeItem(_VERSAO_ADIADA_KEY);
+                    _mostrarModalAtualizacao(info, false, true);
+                    if (typeof showToast === 'function') {
+                        showToast('Importação bloqueada: atualize a página antes de processar o extrato.', 'error');
+                    }
+                    return false;
+                } catch (e) {
+                    if (typeof showToast === 'function') {
+                        showToast('Não foi possível confirmar a versão do importador. Tente novamente em instantes.', 'error');
+                    }
+                    return false;
+                }
+            };
 
             function _escaparHtml(s) {
                 return String(s).replace(/[&<>"']/g, function(c){

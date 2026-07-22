@@ -160,7 +160,12 @@
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
     const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao', {
       method: 'POST',
-      body: JSON.stringify({ state_json, resumo: resumo || null, session_revision: sessaoRevisoes.get(cnpjLimpo) || null })
+      body: JSON.stringify({
+        state_json,
+        resumo: resumo || null,
+        session_revision: sessaoRevisoes.get(cnpjLimpo) || null,
+        client_version: window.__PLANO_CONTAS_IOB_BUILD__ || null
+      })
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok || data.erro) {

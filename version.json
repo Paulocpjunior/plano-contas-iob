@@ -1,7 +1,10 @@
 {
-  "version": "3.4.58",
-  "build_date": "2026-07-22T16:49:48.000Z",
+  "version": "3.4.59",
+  "build_date": "2026-07-22T17:44:51.000Z",
   "release_notes": [
+    "Novas importações agora exigem que a tela esteja na mesma versão ativa no servidor; abas antigas são bloqueadas antes de gravar dados incompletos.",
+    "A conferência da importação mostra separadamente a quantidade de aplicações e de resgates automáticos.",
+    "O diagnóstico da sessão real confirmou que o teste anterior usou o parser antigo de 655 lançamentos; a versão atual preserva os 676 movimentos do extrato.",
     "Itaú Extrato Mensal agora importa aplicações e resgates automáticos como movimentos contábeis identificados.",
     "O saldo da aplicação continua apenas informativo e nunca é transformado em lançamento.",
     "O extrato real de janeiro de 2026 foi validado com 21 movimentos automáticos: 9 aplicações e 12 resgates.",

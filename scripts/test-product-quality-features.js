@@ -127,6 +127,10 @@ assertContains('index.html', '/vendor/firebase/firebase-auth-compat.js', 'login 
 assertContains('index.html', '/vendor/firebase/firebase-app-compat.js', 'login usa Firebase App local servido pelo app');
 assertContains('index.html', 'if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions)', 'PDF.js nao pode bloquear inicializacao de login');
 assertContains('api-adapter.js', 'Erro HTTP ', 'adapter deve propagar erro real de salvamento de sessao');
+assertContains('api-adapter.js', 'client_version: window.__PLANO_CONTAS_IOB_BUILD__', 'autosave identifica a versao real da tela');
+assertContains('server.js', 'validarVersaoParaNovaImportacao', 'backend bloqueia nova importacao criada por parser desatualizado');
+assertContains('index.html', 'confImpAplicacoesAutomaticas', 'conferencia mostra a quantidade de aplicacoes automaticas');
+assertContains('index.html', 'confImpResgatesAutomaticos', 'conferencia mostra a quantidade de resgates automaticos');
 assertContains('server.js', "express.json({ limit: '100mb' })", 'backend aceita sessoes grandes dos colaboradores');
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
 assertContains('index.html', 'Validador de Obrigações ECD / ECF', 'aba de validador de obrigacoes restaurada');

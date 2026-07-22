@@ -1,5 +1,6 @@
 const express = require('express');
 const { Firestore } = require('@google-cloud/firestore');
+const { validarVersaoParaNovaImportacao } = require('./session-import-version-guard');
 const admin = require('firebase-admin');
 const path = require('path');
 const { LAYOUTS_BANCARIOS_PADRAO, normalizarBancoLayout, layoutBancoId } = require('./layouts-bancarios-padrao');
@@ -1996,7 +1997,7 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const { state_json, resumo, session_revision } = req.body || {};
+    const { state_json, resumo, session_revision, client_version } = req.body || {};
     if (typeof state_json !== 'string' || !state_json) return res.status(400).json({ erro: 'state_json obrigatorio' });
     sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
     tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'autosave');
@@ -2004,6 +2005,20 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     const exigirRevisao = !!(atual.dados && atual.dados.require_session_revision);
     if (exigirRevisao && (!session_revision || session_revision !== atual.dados.session_revision)) {
       throw erroSessao('Esta sessão foi alterada por um administrador. Recarregue a empresa antes de salvar novamente.', 409, 'SESSAO_DESATUALIZADA');
+    }
+    const versaoServidor = lerVersao().version || '';
+    const validacaoVersao = validarVersaoParaNovaImportacao({
+      stateJsonNovo: state_json,
+      stateJsonAtual: atual.stateJson,
+      versaoCliente: client_version,
+      versaoServidor,
+    });
+    if (!validacaoVersao.ok) {
+      throw erroSessao(
+        'A versão do aplicativo aberta está desatualizada. A nova importação não foi gravada. Recarregue a página e importe novamente.',
+        409,
+        'SESSAO_DESATUALIZADA'
+      );
     }
 
     // Rede de segurança anterior: ao zerar uma sessão com lançamentos, mantém uma cópia de um nível.
