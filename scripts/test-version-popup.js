@@ -31,5 +31,17 @@ assert(
   source.includes("window.location.reload(true)"),
   'Uma versao detectada durante o uso deve continuar recarregando a aplicacao.'
 );
+assert(
+  source.includes('window.__verificarVersaoAntesDeImportar = async function()'),
+  'Toda importacao deve consultar a versao ativa antes de processar o arquivo.'
+);
+assert(
+  source.includes("btnLater.style.display = atualizacaoObrigatoria ? 'none' : ''"),
+  'A atualizacao nao pode ser adiada quando uma importacao usa parser antigo.'
+);
+assert(
+  source.includes('if (!versaoAtual) return;'),
+  'O processamento do arquivo deve parar quando a versao estiver desatualizada.'
+);
 
 console.log('OK: popup de atualizacao validado para versao carregada e versao pendente.');

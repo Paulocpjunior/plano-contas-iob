@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.55"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.55"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.55"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.60';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.60"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.60"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.60"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -19,32 +20,33 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.55"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.55"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.60"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.60"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.60"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.55"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.55"></script>
-    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.55"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.55"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.55"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.55"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.55"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.55"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.55"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.55"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.55"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.55"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.55"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.55"></script>
-    <script src="/parser-extrato-conciliado.js?v=3.4.55"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.55"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.55"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.55"></script>
+    <script src="/parser-ofx.js?v=3.4.60"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.60"></script>
+    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.60"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.60"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.60"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.60"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.60"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.60"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.60"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.60"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.60"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.60"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.60"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.60"></script>
+    <script src="/parser-extrato-conciliado.js?v=3.4.60"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.60"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.60"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.60"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -2758,6 +2760,79 @@
                         </div>
                     </div>
 
+                    <div class="filters-section" id="reinfAplicacoesPanel" style="border-color:#bfdbfe;background:#eff6ff">
+                        <h3 style="margin:0 0 8px;color:#1e3a8a">Aplicações financeiras — extratos multibanco, IRRF e lançamentos</h3>
+                        <div style="font-size:12px;color:#1e40af;margin-bottom:14px;line-height:1.5">
+                            Analisa o extrato recebido do cliente, classifica fundos e títulos, confere a regra de IRRF e prepara lançamentos para revisão. O banco ou a corretora é a fonte pagadora responsável pela retenção e pela informação na EFD-Reinf; esta área não cria R-4020 em nome do cliente investidor.
+                        </div>
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>E-mail para solicitar extratos</label>
+                                <input type="email" id="reinfAplicacoesEmail" placeholder="cliente@empresa.com.br">
+                            </div>
+                            <div class="filter-group">
+                                <label>Responsável no cliente</label>
+                                <input type="text" id="reinfAplicacoesResponsavel" placeholder="Nome do contato">
+                            </div>
+                            <div class="filter-group">
+                                <label>Regime tributário</label>
+                                <select id="reinfAplicacoesRegime" onchange="reinfAplicacoesRecalcular()">
+                                    <option value="nao_informado">Confirmar regime</option>
+                                    <option value="lucro_real">Lucro Real</option>
+                                    <option value="lucro_presumido">Lucro Presumido</option>
+                                    <option value="lucro_arbitrado">Lucro Arbitrado</option>
+                                    <option value="simples">Simples Nacional</option>
+                                    <option value="isenta">Pessoa jurídica isenta</option>
+                                    <option value="imune">Pessoa jurídica imune</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Tipo do beneficiário</label>
+                                <select id="reinfAplicacoesBeneficiario" onchange="reinfAplicacoesRecalcular()">
+                                    <option value="pj">Pessoa jurídica</option>
+                                    <option value="pf">Pessoa física</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Competência dos extratos</label>
+                                <input type="month" id="reinfAplicacoesCompetencia">
+                            </div>
+                            <div class="filter-group">
+                                <label>Extrato ou posição de investimentos</label>
+                                <input type="file" id="reinfAplicacoesArquivo" accept=".pdf,.csv,.txt,.xlsx,.xls" onchange="analisarArquivoAplicacoesReinf(event)">
+                            </div>
+                            <div class="filter-group">
+                                <label>Incluir nas solicitações</label>
+                                <select id="reinfAplicacoesSolicitarMensalmente">
+                                    <option value="sim">Sim, incluir na solicitação mensal</option>
+                                    <option value="nao">Não incluir</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Prazo no e-mail (opcional)</label>
+                                <input type="date" id="reinfAplicacoesPrazoEmail">
+                            </div>
+                        </div>
+                        <div class="filters-row" style="flex-wrap:wrap">
+                            <button class="btn-action btn-action-secondary" onclick="salvarCadastroAplicacoesReinf()">Salvar cadastro</button>
+                            <button class="btn-action btn-action-secondary" onclick="solicitarExtratosAplicacoesReinf()">Enviar solicitação</button>
+                            <button class="btn-action btn-action-secondary" onclick="baixarModeloAplicacoesReinf()">Baixar modelo CSV</button>
+                            <button class="btn-action btn-action-primary" id="reinfAplicacoesRegistrarBtn" onclick="registrarAnaliseAplicacoesReinf()" disabled>Registrar análise</button>
+                            <button class="btn-action btn-action-success" id="reinfAplicacoesLancamentosBtn" onclick="adicionarLancamentosAplicacoesReinf()" disabled>Levar para Lançamentos</button>
+                            <button class="btn-action btn-action-secondary" id="reinfAplicacoesCsvBtn" onclick="baixarAnaliseAplicacoesReinf()" disabled>Exportar conferência</button>
+                        </div>
+                        <div id="reinfAplicacoesStatus" style="margin-top:12px;padding:10px 12px;border-radius:8px;background:#fff;border:1px solid #bfdbfe;color:#1e40af;font-size:12px">
+                            Importe um PDF/XLSX de layout validado ou use o modelo CSV/XLSX para qualquer banco ou corretora. Um layout desconhecido permanece bloqueado até ser conferido com um documento real.
+                        </div>
+                        <div id="reinfAplicacoesResumo" style="display:none;margin-top:14px"></div>
+                        <div id="reinfAplicacoesTabela" class="table-container" style="display:none;margin-top:12px;max-height:460px;overflow:auto"></div>
+                        <div style="font-size:11px;color:#475569;margin-top:10px">
+                            Layouts validados: XP Cotistas, Itaú Posição de Investimentos, XP Posição Detalhada Histórica e modelo multibanco CSV/XLSX. Regras versionadas: MAFON/RFB. Para PJ, LCI/LCA/CRI/CRA não recebem automaticamente a isenção prevista para PF. Fundos sem classe tributária explícita ficam pendentes até confirmação.
+                        </div>
+                    </div>
+
                     <div class="filters-section" id="reinfDividendosPanel" style="border-color:#bbf7d0;background:#f0fdf4">
                         <h3 style="margin:0 0 12px 0;color:#14532d">Lucros e Dividendos (R-4010 natureza 12001)</h3>
                         <div style="font-size:12px;color:#166534;margin-bottom:14px">
@@ -3155,6 +3230,14 @@
                 <div class="confirm-import-metric">
                     <span class="label">Lançamentos</span>
                     <span class="value" id="confImpQtd">0</span>
+                </div>
+                <div class="confirm-import-metric">
+                    <span class="label">Aplicações automáticas</span>
+                    <span class="value" id="confImpAplicacoesAutomaticas">0</span>
+                </div>
+                <div class="confirm-import-metric">
+                    <span class="label">Resgates automáticos</span>
+                    <span class="value" id="confImpResgatesAutomaticos">0</span>
                 </div>
                 <div class="confirm-import-metric credit">
                     <span class="label">Total crédito</span>
@@ -4870,6 +4953,7 @@
         let _sessaoDirtyDesde = 0;
         let _sessaoRetryTimer = null;
         let _tokenFlush = null;
+        let _sessaoBloqueadaPorRevisao = false;
         const LIMITE_SNAPSHOT_REMOTO_SEGURO = 95 * 1024 * 1024;
 
         function atualizarIndicadorSalvamento(texto, cor) {
@@ -4916,6 +5000,7 @@
                 };
                 const r = await window.API.salvarSessaoEmpresa(cnpj, state_json, resumo);
                 if (r && r.ok) {
+                    _sessaoBloqueadaPorRevisao = false;
                     _sessaoDirty = false;
                     _sessaoDirtyDesde = 0;
                     if (_sessaoRetryTimer) { clearTimeout(_sessaoRetryTimer); _sessaoRetryTimer = null; }
@@ -4924,6 +5009,15 @@
                 }
                 throw new Error((r && r.erro) || 'Erro ao salvar sessão');
             } catch (e) {
+                if (e && (e.status === 409 || e.code === 'SESSAO_DESATUALIZADA') && e.code === 'SESSAO_DESATUALIZADA') {
+                    _sessaoBloqueadaPorRevisao = true;
+                    if (_sessaoRetryTimer) { clearTimeout(_sessaoRetryTimer); _sessaoRetryTimer = null; }
+                    atualizarIndicadorSalvamento('⛔ Sessão alterada pelo admin — recarregue a página', 'err');
+                    if (typeof showToast === 'function') {
+                        showToast('Esta empresa foi alterada por um administrador. Recarregue a página antes de continuar para não restaurar lançamentos excluídos.', 'error');
+                    }
+                    return;
+                }
                 console.warn('[sessao] falha ao salvar remoto (retry em 10s):', e);
                 atualizarIndicadorSalvamento('⚠️ Não salvo — tentando de novo...', 'err');
                 if (_sessaoRetryTimer) clearTimeout(_sessaoRetryTimer);
@@ -4934,11 +5028,18 @@
                 }
             } finally {
                 _sessaoSalvando = false;
-                if (_sessaoSavePendente) { _sessaoSavePendente = false; agendarSaveRemoto(); }
+                if (_sessaoSavePendente) {
+                    _sessaoSavePendente = false;
+                    if (!_sessaoBloqueadaPorRevisao) agendarSaveRemoto();
+                }
             }
         }
 
         function agendarSaveRemoto() {
+            if (_sessaoBloqueadaPorRevisao) {
+                atualizarIndicadorSalvamento('⛔ Recarregue a página antes de editar', 'err');
+                return;
+            }
             _sessaoDirty = true;
             if (!_sessaoDirtyDesde) _sessaoDirtyDesde = Date.now();
             if (_sessaoDebounceTimer) clearTimeout(_sessaoDebounceTimer);
@@ -4962,7 +5063,12 @@
                     method: 'POST',
                     keepalive: true,
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tokenFlush },
-                    body: JSON.stringify({ state_json: state_json, resumo: resumo })
+                    body: JSON.stringify({
+                        state_json: state_json,
+                        resumo: resumo,
+                        session_revision: window.API && window.API.getSessaoRevision ? window.API.getSessaoRevision(cnpj) : null,
+                        client_version: window.__PLANO_CONTAS_IOB_BUILD__ || null
+                    })
                 }).catch(function(e) { console.warn('[sessao] flush keepalive falhou:', e); });
             } catch (e) { console.warn('[sessao] flush:', e); }
         }
@@ -5085,6 +5191,7 @@
                 'entradaSaida','especie','serie','subserie','observacao','ufDestino',
                 'ufRemetente','valorContabil','valorFrete','baseIcms','valorIcms',
                 'baseIcmsSt','valorIcmsSt','baseIpi','valorIpi','valorPis','valorCofins',
+                'movimentoAplicacaoAutomatica','totaisOficiaisExcluemAplicacoesAutomaticas',
                 'linhasComplementaresAgregadas','empresaCodigoFiscal','empresaNomeFiscal',
                 'layoutBanco','bancoLayout'
             ].forEach(function(k) {
@@ -7743,7 +7850,13 @@
             consultaAutomatica: null,
             ultimoPayload: null,
             ultimoPayloadOriginal: null,
-            ultimoDividendos: null
+            ultimoDividendos: null,
+            aplicacoes: {
+                analise: null,
+                arquivo: null,
+                hashArquivo: '',
+                textoExtraido: ''
+            }
         };
 
         function reinfDigits(valor) {
@@ -7837,6 +7950,405 @@
         function reinfMesAtual() {
             const d = new Date();
             return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        }
+
+        function reinfAplicacoesCnpjAtual() {
+            return reinfDigits(state && state.info && (state.info.cnpj || state.info.cnpjEmpresa));
+        }
+
+        function reinfAplicacoesOpcoes() {
+            return {
+                competencia: document.getElementById('reinfAplicacoesCompetencia')?.value || '',
+                regimeTributario: document.getElementById('reinfAplicacoesRegime')?.value || 'nao_informado',
+                tipoBeneficiario: document.getElementById('reinfAplicacoesBeneficiario')?.value || 'pj'
+            };
+        }
+
+        function reinfAplicacoesSetStatus(msg, tipo) {
+            const el = document.getElementById('reinfAplicacoesStatus');
+            if (!el) return;
+            const estilos = {
+                info: ['#fff', '#bfdbfe', '#1e40af'],
+                success: ['#ecfdf5', '#86efac', '#166534'],
+                warn: ['#fffbeb', '#fcd34d', '#92400e'],
+                error: ['#fef2f2', '#fca5a5', '#991b1b']
+            };
+            const cor = estilos[tipo || 'info'] || estilos.info;
+            el.style.background = cor[0];
+            el.style.borderColor = cor[1];
+            el.style.color = cor[2];
+            el.innerHTML = msg;
+        }
+
+        function reinfAplicacoesAtualizarBotoes(ativo) {
+            ['reinfAplicacoesRegistrarBtn', 'reinfAplicacoesLancamentosBtn', 'reinfAplicacoesCsvBtn'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = !ativo;
+            });
+        }
+
+        function reinfAplicacoesStatusRotulo(status) {
+            const mapa = {
+                conforme: ['Conforme', '#dcfce7', '#166534'],
+                isento: ['Isento PF', '#dcfce7', '#166534'],
+                informado_extrato: ['IR do extrato', '#dbeafe', '#1e40af'],
+                irrf_nao_informado: ['IR não informado', '#f1f5f9', '#475569'],
+                sem_retencao_no_periodo: ['Sem retenção', '#f1f5f9', '#475569'],
+                divergente: ['Divergente', '#fee2e2', '#991b1b'],
+                revisar: ['Revisar', '#fef3c7', '#92400e']
+            };
+            return mapa[status] || [status || 'Revisar', '#fef3c7', '#92400e'];
+        }
+
+        function reinfAplicacoesRender() {
+            const analise = reinfState.aplicacoes.analise;
+            const resumoEl = document.getElementById('reinfAplicacoesResumo');
+            const tabelaEl = document.getElementById('reinfAplicacoesTabela');
+            if (!analise || !analise.investimentos || !analise.investimentos.length) {
+                if (resumoEl) resumoEl.style.display = 'none';
+                if (tabelaEl) tabelaEl.style.display = 'none';
+                reinfAplicacoesAtualizarBotoes(false);
+                return;
+            }
+            const r = analise.resumo || {};
+            if (resumoEl) {
+                resumoEl.style.display = 'grid';
+                resumoEl.style.gridTemplateColumns = 'repeat(auto-fit,minmax(170px,1fr))';
+                resumoEl.style.gap = '10px';
+                resumoEl.innerHTML = [
+                    ['Investimentos', r.qtdInvestimentos || 0, (analise.meta && analise.meta.layout) || '-'],
+                    ['Posição informada', reinfMoney(r.valorBruto || r.valorLiquido), 'Aplicado: ' + reinfMoney(r.valorAplicado) + ' • Líquido: ' + reinfMoney(r.valorLiquido)],
+                    ['Rendimento do mês', reinfMoney(r.rendimentoPeriodo), 'Base para lançamentos sugeridos'],
+                    ['IR informado', reinfMoney(r.irrfInformado), (r.pendencias || 0) + ' pendência(s)']
+                ].map(card => '<div style="background:#fff;border:1px solid #bfdbfe;border-radius:10px;padding:12px">'
+                    + '<div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700">' + reinfEscape(card[0]) + '</div>'
+                    + '<div style="font-size:19px;color:#0f172a;font-weight:800;margin-top:3px">' + reinfEscape(card[1]) + '</div>'
+                    + '<div style="font-size:11px;color:#64748b;margin-top:2px">' + reinfEscape(card[2]) + '</div></div>').join('');
+            }
+            if (tabelaEl) {
+                const utils = window.ReinfAplicacoesUtils;
+                const tipos = utils && utils.ROTULOS_TIPO ? utils.ROTULOS_TIPO : {};
+                const rows = analise.investimentos.map((item, idx) => {
+                    const regra = item.regraIrrf || {};
+                    const badge = reinfAplicacoesStatusRotulo(regra.status);
+                    const options = Object.keys(tipos).map(tipo => '<option value="' + reinfEscape(tipo) + '"' + (tipo === item.tipo ? ' selected' : '') + '>' + reinfEscape(tipos[tipo]) + '</option>').join('');
+                    const aliquota = regra.aliquota == null ? '-' : ((Number(regra.aliquota) * 100).toFixed(1).replace('.', ',') + '%');
+                    const esperado = regra.irrfEsperado == null ? '-' : reinfMoney(regra.irrfEsperado);
+                    return '<tr style="border-bottom:1px solid #e2e8f0">'
+                        + '<td style="padding:9px;min-width:240px"><strong>' + reinfEscape(item.produto) + '</strong><br><span style="font-size:10px;color:#64748b">' + reinfEscape(item.origem || analise.meta.instituicao || '') + '</span></td>'
+                        + '<td style="padding:9px;min-width:230px"><select onchange="reinfAplicacoesAlterarTipo(' + idx + ',this.value)" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px">' + options + '</select></td>'
+                        + '<td style="padding:9px;text-align:right;white-space:nowrap">' + reinfEscape(reinfMoney(item.valorAplicado)) + '</td>'
+                        + '<td style="padding:9px;text-align:right;white-space:nowrap">' + reinfEscape(reinfMoney(item.valorBruto)) + '</td>'
+                        + '<td style="padding:9px;text-align:right;white-space:nowrap">' + reinfEscape(reinfMoney(item.valorLiquido)) + '</td>'
+                        + '<td style="padding:9px;text-align:right;white-space:nowrap;font-weight:700;color:#166534">' + reinfEscape(reinfMoney(item.rendimentoPeriodo)) + '</td>'
+                        + '<td style="padding:9px;text-align:right;white-space:nowrap">' + reinfEscape(reinfMoney(item.irrfInformado)) + '</td>'
+                        + '<td style="padding:9px;min-width:210px"><span style="display:inline-block;padding:3px 8px;border-radius:999px;background:' + badge[1] + ';color:' + badge[2] + ';font-size:10px;font-weight:800">' + reinfEscape(badge[0]) + '</span><br><span style="font-size:10px;color:#64748b">Alíquota: ' + reinfEscape(aliquota) + ' • esperado: ' + reinfEscape(esperado) + '<br>' + reinfEscape(regra.explicacao || '') + '</span></td>'
+                        + '</tr>';
+                }).join('');
+                tabelaEl.style.display = 'block';
+                tabelaEl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff"><thead><tr style="background:#dbeafe;color:#1e3a8a">'
+                    + '<th style="padding:9px;text-align:left">Produto</th><th style="padding:9px;text-align:left">Classe tributária</th><th style="padding:9px;text-align:right">Aplicado</th><th style="padding:9px;text-align:right">Bruto</th><th style="padding:9px;text-align:right">Líquido</th><th style="padding:9px;text-align:right">Rend. mês</th><th style="padding:9px;text-align:right">IR extrato</th><th style="padding:9px;text-align:left">Conferência</th>'
+                    + '</tr></thead><tbody>' + rows + '</tbody></table>';
+            }
+            reinfAplicacoesAtualizarBotoes(true);
+            const temLancamentos = analise.investimentos.some(item => Number(item.rendimentoPeriodo || 0) > 0 || Number(item.irrfPeriodo || 0) > 0);
+            const lancamentosBtn = document.getElementById('reinfAplicacoesLancamentosBtn');
+            if (lancamentosBtn) {
+                lancamentosBtn.disabled = !temLancamentos;
+                lancamentosBtn.title = temLancamentos ? '' : 'Este documento informa posição, mas não traz rendimento ou IRRF monetário do período.';
+            }
+        }
+
+        function reinfAplicacoesAlterarTipo(idx, tipo) {
+            const analise = reinfState.aplicacoes.analise;
+            if (!analise || !analise.investimentos || !analise.investimentos[idx]) return;
+            analise.investimentos[idx].tipo = tipo;
+            reinfAplicacoesRecalcular();
+        }
+
+        function reinfAplicacoesRecalcular() {
+            const utils = window.ReinfAplicacoesUtils;
+            if (!utils || !utils.recalcularAnalise || !reinfState.aplicacoes.analise) return;
+            const metaOriginal = reinfState.aplicacoes.analise.meta || {};
+            reinfState.aplicacoes.analise = utils.recalcularAnalise(reinfState.aplicacoes.analise, {
+                ...metaOriginal,
+                ...reinfAplicacoesOpcoes()
+            });
+            reinfAplicacoesRender();
+        }
+
+        async function reinfAplicacoesHash(file) {
+            const buf = await file.arrayBuffer();
+            const hash = await crypto.subtle.digest('SHA-256', buf);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function reinfAplicacoesTextoPdf(file) {
+            if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js indisponível para ler o extrato.');
+            const buf = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+            const paginas = [];
+            for (let pagina = 1; pagina <= pdf.numPages; pagina++) {
+                const page = await pdf.getPage(pagina);
+                const content = await page.getTextContent();
+                const linhas = [];
+                let linha = '';
+                let yAnterior = null;
+                content.items.forEach(item => {
+                    const y = item && item.transform ? Number(item.transform[5]) : null;
+                    if (yAnterior != null && y != null && Math.abs(y - yAnterior) > 1.5) {
+                        if (linha.trim()) linhas.push(linha);
+                        linha = '';
+                    }
+                    linha += String(item.str || '');
+                    yAnterior = y;
+                });
+                if (linha.trim()) linhas.push(linha);
+                paginas.push(linhas.join('\n'));
+            }
+            return paginas.join('\n');
+        }
+
+        async function reinfAplicacoesRowsArquivo(file) {
+            const name = file.name.toLowerCase();
+            if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+                if (typeof XLSX === 'undefined') throw new Error('Biblioteca XLSX indisponível.');
+                const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+                const rows = [];
+                wb.SheetNames.forEach(sheet => {
+                    const arr = XLSX.utils.sheet_to_json(wb.Sheets[sheet], { header: 1, defval: '', raw: false, blankrows: false });
+                    arr.forEach((row, idx) => rows.push({ row, sheet, rowNumber: idx + 1 }));
+                });
+                return rows;
+            }
+            return reinfParseCsv(await file.text());
+        }
+
+        async function analisarArquivoAplicacoesReinf(evt) {
+            const file = evt && evt.target && evt.target.files ? evt.target.files[0] : null;
+            if (!file) return;
+            try {
+                const utils = window.ReinfAplicacoesUtils;
+                if (!utils) throw new Error('Motor de aplicações financeiras não carregado. Atualize a página.');
+                if (file.size > 25 * 1024 * 1024) throw new Error('Arquivo acima do limite de 25 MB.');
+                reinfAplicacoesSetStatus('Lendo e conferindo ' + reinfEscape(file.name) + '...', 'info');
+                const opcoes = { ...reinfAplicacoesOpcoes(), fonteArquivo: file.name };
+                let analise = null;
+                let textoExtraido = '';
+                if (/\.pdf$/i.test(file.name)) {
+                    textoExtraido = await reinfAplicacoesTextoPdf(file);
+                    analise = utils.parseAplicacoesPdf(textoExtraido, opcoes);
+                    if (!analise || !analise.ok) {
+                        throw new Error('Layout PDF ainda não validado. Nenhum valor foi presumido. Use o modelo CSV/XLSX ou encaminhe um exemplo real para criar o layout específico.');
+                    }
+                } else if (/\.(csv|txt|xlsx|xls)$/i.test(file.name)) {
+                    analise = utils.analisarArquivoRows(await reinfAplicacoesRowsArquivo(file), opcoes);
+                    if (!analise || !analise.ok) throw new Error('Nenhuma linha de aplicação reconhecida. Use as colunas do modelo disponibilizado.');
+                } else {
+                    throw new Error('Formato não suportado. Use PDF, CSV ou XLSX.');
+                }
+                const competenciaArquivo = analise.meta && analise.meta.competencia;
+                const competenciaEl = document.getElementById('reinfAplicacoesCompetencia');
+                if (competenciaArquivo && competenciaEl) competenciaEl.value = competenciaArquivo;
+                analise.meta = { ...(analise.meta || {}), ...reinfAplicacoesOpcoes(), competencia: competenciaArquivo || reinfAplicacoesOpcoes().competencia };
+                analise = utils.recalcularAnalise(analise, analise.meta);
+                reinfState.aplicacoes = {
+                    analise,
+                    arquivo: { nome: file.name, tamanho: file.size, tipo: file.type || '' },
+                    hashArquivo: await reinfAplicacoesHash(file),
+                    textoExtraido
+                };
+                reinfAplicacoesRender();
+                const pendencias = analise.resumo && analise.resumo.pendencias || 0;
+                const somentePosicao = !!(analise.meta && analise.meta.somentePosicao);
+                reinfAplicacoesSetStatus(
+                    analise.investimentos.length + ' investimento(s) analisado(s) em ' + reinfEscape(analise.meta.layout || 'layout reconhecido') + '. '
+                    + (somentePosicao ? '<strong>O documento informa posição, mas não traz rendimento/IRRF monetário do período; nenhum lançamento será presumido.</strong> ' : '')
+                    + (pendencias ? '<strong>' + pendencias + ' item(ns) precisam de revisão antes do fechamento.</strong>' : 'Todos os itens possuem tratamento identificado.'),
+                    pendencias ? 'warn' : 'success'
+                );
+                showToast('Extrato de aplicações analisado.', 'success');
+            } catch (e) {
+                reinfState.aplicacoes = { analise: null, arquivo: null, hashArquivo: '', textoExtraido: '' };
+                reinfAplicacoesRender();
+                reinfAplicacoesSetStatus('Falha na análise: ' + reinfEscape(e.message || e), 'error');
+                showToast(e.message || 'Erro ao analisar aplicações.', 'error');
+            } finally {
+                if (evt && evt.target) evt.target.value = '';
+            }
+        }
+
+        async function carregarCadastroAplicacoesReinf(opts) {
+            const cnpj = reinfAplicacoesCnpjAtual();
+            if (cnpj.length !== 14 || !window.API || !window.API.reinfAplicacoesCadastro) return;
+            const resp = await window.API.reinfAplicacoesCadastro(cnpj);
+            if (!resp || resp.erro || resp.ok === false) throw new Error((resp && resp.erro) || 'Cadastro de aplicações indisponível.');
+            const setVal = (id, valor) => { const el = document.getElementById(id); if (el) el.value = valor == null ? '' : valor; };
+            setVal('reinfAplicacoesEmail', resp.emailSolicitacao || '');
+            setVal('reinfAplicacoesResponsavel', resp.responsavel || '');
+            setVal('reinfAplicacoesRegime', resp.regimeTributario || 'nao_informado');
+            setVal('reinfAplicacoesBeneficiario', resp.tipoBeneficiario || 'pj');
+            setVal('reinfAplicacoesSolicitarMensalmente', resp.solicitarMensalmente === false ? 'nao' : 'sim');
+            if (!(opts && opts.silent)) showToast('Cadastro de aplicações carregado.', 'success');
+        }
+
+        async function salvarCadastroAplicacoesReinf() {
+            try {
+                const cnpj = reinfAplicacoesCnpjAtual();
+                if (cnpj.length !== 14) throw new Error('Selecione uma empresa com CNPJ válido.');
+                if (!window.API || !window.API.reinfAplicacoesSalvarCadastro) throw new Error('API de aplicações indisponível.');
+                const resp = await window.API.reinfAplicacoesSalvarCadastro(cnpj, {
+                    emailSolicitacao: document.getElementById('reinfAplicacoesEmail')?.value || '',
+                    responsavel: document.getElementById('reinfAplicacoesResponsavel')?.value || '',
+                    regimeTributario: document.getElementById('reinfAplicacoesRegime')?.value || 'nao_informado',
+                    tipoBeneficiario: document.getElementById('reinfAplicacoesBeneficiario')?.value || 'pj',
+                    solicitarMensalmente: document.getElementById('reinfAplicacoesSolicitarMensalmente')?.value !== 'nao'
+                });
+                if (!resp || resp.erro || resp.ok === false) throw new Error((resp && resp.erro) || 'Falha ao salvar cadastro.');
+                reinfAplicacoesRecalcular();
+                showToast('Cadastro de aplicações salvo.', 'success');
+            } catch (e) {
+                showToast(e.message || 'Erro ao salvar cadastro de aplicações.', 'error');
+            }
+        }
+
+        async function solicitarExtratosAplicacoesReinf() {
+            try {
+                const cnpj = reinfAplicacoesCnpjAtual();
+                const competencia = document.getElementById('reinfAplicacoesCompetencia')?.value || '';
+                if (cnpj.length !== 14) throw new Error('Selecione uma empresa com CNPJ válido.');
+                if (!competencia) throw new Error('Informe a competência da solicitação.');
+                if (!confirm('Enviar agora a solicitação de extratos de aplicações para a empresa selecionada?')) return;
+                if (!window.API || !window.API.reinfAplicacoesSolicitar) throw new Error('API de solicitação indisponível.');
+                const resp = await window.API.reinfAplicacoesSolicitar({
+                    cnpjs: [cnpj],
+                    competencia,
+                    prazo: document.getElementById('reinfAplicacoesPrazoEmail')?.value || ''
+                });
+                if (!resp || resp.erro || resp.ok === false) throw new Error((resp && resp.erro) || 'Falha no envio.');
+                if (!(resp.enviados || []).length) throw new Error((resp.ignorados && resp.ignorados[0] && resp.ignorados[0].motivo) || 'Nenhum e-mail enviado.');
+                reinfAplicacoesSetStatus('Solicitação de extratos enviada via Microsoft 365 para ' + reinfEscape(resp.enviados[0].email) + '.', 'success');
+                showToast('Solicitação de extratos enviada.', 'success');
+            } catch (e) {
+                reinfAplicacoesSetStatus('Erro ao solicitar extratos: ' + reinfEscape(e.message || e), 'error');
+                showToast(e.message || 'Erro ao solicitar extratos.', 'error');
+            }
+        }
+
+        async function registrarAnaliseAplicacoesReinf() {
+            try {
+                const analise = reinfState.aplicacoes.analise;
+                const arquivo = reinfState.aplicacoes.arquivo;
+                const cnpj = reinfAplicacoesCnpjAtual();
+                const opcoes = reinfAplicacoesOpcoes();
+                if (!analise || !arquivo) throw new Error('Analise um arquivo antes de registrar.');
+                if (cnpj.length !== 14) throw new Error('Selecione uma empresa com CNPJ válido.');
+                if (!opcoes.competencia) throw new Error('Informe a competência do extrato.');
+                if (!window.API || !window.API.reinfAplicacoesRegistrar) throw new Error('API de registro indisponível.');
+                const resp = await window.API.reinfAplicacoesRegistrar({
+                    cnpj,
+                    competencia: opcoes.competencia,
+                    regimeTributario: opcoes.regimeTributario,
+                    tipoBeneficiario: opcoes.tipoBeneficiario,
+                    nomeArquivo: arquivo.nome,
+                    tamanhoArquivo: arquivo.tamanho,
+                    hashArquivo: reinfState.aplicacoes.hashArquivo,
+                    layout: analise.meta && analise.meta.layout,
+                    instituicao: analise.meta && analise.meta.instituicao,
+                    investimentos: analise.investimentos
+                });
+                if (!resp || resp.erro || resp.ok === false) throw new Error((resp && resp.erro) || 'Falha ao registrar análise.');
+                reinfAplicacoesSetStatus('Análise registrada com rastreabilidade. Identificador: <strong>' + reinfEscape(resp.docId) + '</strong>. O PDF original não foi armazenado.', 'success');
+                showToast(resp.atualizado ? 'Análise atualizada.' : 'Análise registrada.', 'success');
+            } catch (e) {
+                reinfAplicacoesSetStatus('Erro ao registrar análise: ' + reinfEscape(e.message || e), 'error');
+                showToast(e.message || 'Erro ao registrar análise.', 'error');
+            }
+        }
+
+        async function adicionarLancamentosAplicacoesReinf() {
+            try {
+                const utils = window.ReinfAplicacoesUtils;
+                const analise = reinfState.aplicacoes.analise;
+                const opcoes = reinfAplicacoesOpcoes();
+                if (!utils || !analise) throw new Error('Analise um arquivo antes de gerar lançamentos.');
+                if (opcoes.regimeTributario === 'nao_informado') throw new Error('Confirme o regime tributário antes de tratar o IRRF contabilmente.');
+                const info = state && state.info || {};
+                const novos = utils.gerarLancamentosContabeis(analise, {
+                    ...opcoes,
+                    cnpj: reinfAplicacoesCnpjAtual(),
+                    empresa: info.empresa || '',
+                    hashArquivo: reinfState.aplicacoes.hashArquivo
+                });
+                if (!novos.length) throw new Error('O extrato não contém rendimento mensal ou IRRF do mês para gerar lançamentos.');
+                const existentes = new Set((state.entries || []).map(e => [e.origemArquivoHash, e.naturezaLancamento, e.produtoAplicacao, e.data, Number(e.valor || 0).toFixed(2)].join('|')));
+                const dedup = novos.filter(e => !existentes.has([e.origemArquivoHash, e.naturezaLancamento, e.produtoAplicacao, e.data, Number(e.valor || 0).toFixed(2)].join('|')));
+                if (!dedup.length) throw new Error('Esses lançamentos já foram adicionados para o mesmo arquivo.');
+                const importacaoId = crypto.randomUUID ? crypto.randomUUID() : ('reinf_apl_' + Date.now());
+                dedup.forEach(e => {
+                    e.id = novoIdLancamento();
+                    e.importacaoId = importacaoId;
+                    e.importacaoTitulo = 'Aplicações financeiras - ' + (opcoes.competencia || 'sem competência');
+                });
+                const confirmado = typeof abrirConferenciaImportacao === 'function'
+                    ? await abrirConferenciaImportacao(dedup, {
+                        arquivo: reinfState.aplicacoes.arquivo.nome,
+                        bancoCode: '',
+                        bancoNome: analise.meta && analise.meta.instituicao || 'Investimentos',
+                        titulo: 'Aplicações financeiras - ' + opcoes.competencia,
+                        formato: 'ANÁLISE FISCAL'
+                    })
+                    : confirm('Adicionar ' + dedup.length + ' lançamento(s) sugerido(s) para revisão?');
+                if (!confirmado) return;
+                state.entries = (state.entries || []).concat(dedup);
+                state.lastFile = reinfState.aplicacoes.arquivo.nome;
+                saveState();
+                updateDashboard();
+                updateCharts();
+                popularFiltroImportacoes();
+                renderLancamentos();
+                reinfAplicacoesSetStatus(dedup.length + ' lançamento(s) adicionados com contas contábeis em branco e marcados para revisão. Nenhuma classificação ambígua foi aplicada automaticamente.', 'success');
+                showToast('Lançamentos sugeridos adicionados para revisão.', 'success');
+            } catch (e) {
+                reinfAplicacoesSetStatus('Erro ao gerar lançamentos: ' + reinfEscape(e.message || e), 'error');
+                showToast(e.message || 'Erro ao gerar lançamentos.', 'error');
+            }
+        }
+
+        function reinfAplicacoesDownload(nome, conteudo, tipo) {
+            const blob = new Blob(['\uFEFF' + conteudo], { type: tipo || 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nome;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function baixarModeloAplicacoesReinf() {
+            const utils = window.ReinfAplicacoesUtils;
+            if (!utils || !utils.modeloCsv) return showToast('Modelo de aplicações indisponível.', 'error');
+            reinfAplicacoesDownload('modelo-aplicacoes-financeiras.csv', utils.modeloCsv());
+        }
+
+        function baixarAnaliseAplicacoesReinf() {
+            const analise = reinfState.aplicacoes.analise;
+            if (!analise) return showToast('Nenhuma análise disponível.', 'warn');
+            const escCsv = valor => '"' + String(valor == null ? '' : valor).replace(/"/g, '""') + '"';
+            const linhas = [['Produto', 'Tipo tributário', 'Evento', 'Valor aplicado', 'Valor bruto', 'Valor líquido', 'Rendimento do mês', 'IR informado', 'Alíquota esperada', 'IR esperado', 'Status', 'Tratamento', 'Explicação']];
+            analise.investimentos.forEach(item => {
+                const regra = item.regraIrrf || {};
+                linhas.push([
+                    item.produto, item.tipo, item.evento, item.valorAplicado, item.valorBruto, item.valorLiquido, item.rendimentoPeriodo,
+                    item.irrfInformado, regra.aliquota == null ? '' : regra.aliquota, regra.irrfEsperado == null ? '' : regra.irrfEsperado,
+                    regra.status, regra.tratamento, regra.explicacao
+                ]);
+            });
+            const csv = linhas.map(row => row.map(escCsv).join(';')).join('\n');
+            const competencia = (analise.meta && analise.meta.competencia) || reinfAplicacoesOpcoes().competencia || 'sem-competencia';
+            reinfAplicacoesDownload('conferencia-aplicacoes-' + competencia + '.csv', csv);
         }
 
         function reinfAtualizarResumo() {
@@ -8085,6 +8597,8 @@
             if (contato && !contato.value) contato.value = info.responsavel || info.usuario || '';
             const compEmail = document.getElementById('reinfDividendosCompetenciaEmail');
             if (compEmail && !compEmail.value && competencia && competencia.value) compEmail.value = competencia.value;
+            const compAplicacoes = document.getElementById('reinfAplicacoesCompetencia');
+            if (compAplicacoes && !compAplicacoes.value && competencia && competencia.value) compAplicacoes.value = competencia.value;
             if (empresaInfo) {
                 empresaInfo.textContent = cnpj
                     ? ((info.empresa || 'Empresa') + ' - ' + cnpj + ' - ' + reinfState.beneficiarios.length + ' beneficiário(s)')
@@ -8103,6 +8617,10 @@
                 await consultarCertificadoReinf({ silent: true });
                 if (cnpj && window.API && window.API.reinfDividendosCadastro) {
                     await carregarDividendosReinf({ silent: true }).catch(() => {});
+                }
+                if (cnpj && window.API && window.API.reinfAplicacoesCadastro) {
+                    await carregarCadastroAplicacoesReinf({ silent: true }).catch(() => {});
+                    reinfAplicacoesRecalcular();
                 }
             } catch (e) {
                 reinfSetStatus('Módulo Reinf carregado, mas não foi possível consultar versão/certificado: ' + reinfEscape(e.message || e), 'warn');
@@ -11204,6 +11722,10 @@
         // Process File
         async function processFile() {
             if (!selectedFile) return;
+            if (typeof window.__verificarVersaoAntesDeImportar === 'function') {
+                const versaoAtual = await window.__verificarVersaoAntesDeImportar();
+                if (!versaoAtual) return;
+            }
             
             // Pre-seleciona banco do uploadBanco com base na empresa, se ainda vazio
             const elUploadBanco = document.getElementById('uploadBanco');
@@ -11435,6 +11957,12 @@
         function resumirImportacao(entries, meta) {
             const creditos = entries.filter(e => Number(e.valor) > 0);
             const debitos = entries.filter(e => Number(e.valor) < 0);
+            const aplicacoesAutomaticas = entries.filter(function(e) {
+                return e.naturezaLancamento === 'APLICACAO_AUTOMATICA' || /^\s*Apl\s+Aplic\s+Aut\s+Mais\b/i.test(String(e.descricao || ''));
+            });
+            const resgatesAutomaticos = entries.filter(function(e) {
+                return e.naturezaLancamento === 'RESGATE_AUTOMATICO' || /^\s*Res\s+Aplic\s+Aut\s+Mais\b/i.test(String(e.descricao || ''));
+            });
             const totalCredito = creditos.reduce((a,e) => a + Number(e.valor || 0), 0);
             const totalDebito = debitos.reduce((a,e) => a + Math.abs(Number(e.valor || 0)), 0);
             const datas = entries.map(e => e.data).filter(Boolean).sort();
@@ -11444,10 +11972,15 @@
             const periodoFim = primeiro.periodo_fim || (state.info && state.info.periodoFim) || datas[datas.length - 1] || '';
             const totalCreditoOficial = Number(primeiro.totalCreditoOficial || 0);
             const totalDebitoOficial = Number(primeiro.totalDebitoOficial || 0);
+            const totaisOficiaisExcluemAplicacoes = primeiro.totaisOficiaisExcluemAplicacoesAutomaticas === true;
             const status = [];
             if (primeiro.layoutNome) status.push('Layout validado');
-            if (totalCreditoOficial) status.push(Math.round(totalCredito * 100) === Math.round(totalCreditoOficial * 100) ? 'Credito confere' : 'Credito divergente');
-            if (totalDebitoOficial) status.push(Math.round(totalDebito * 100) === Math.round(totalDebitoOficial * 100) ? 'Debito confere' : 'Debito divergente');
+            if (totaisOficiaisExcluemAplicacoes) {
+                status.push('Aplicações/resgates automáticos incluídos');
+            } else {
+                if (totalCreditoOficial) status.push(Math.round(totalCredito * 100) === Math.round(totalCreditoOficial * 100) ? 'Credito confere' : 'Credito divergente');
+                if (totalDebitoOficial) status.push(Math.round(totalDebito * 100) === Math.round(totalDebitoOficial * 100) ? 'Debito confere' : 'Debito divergente');
+            }
             if (!status.length) status.push(meta.formato + ' processado');
             return {
                 arquivo: meta.arquivo,
@@ -11456,6 +11989,8 @@
                 conta: contasImportacao.length > 1 ? contasImportacao.join(' / ') : (primeiro.conta || primeiro.nome_conta || '-'),
                 periodo: (periodoIni || periodoFim) ? (formatarDataBR(periodoIni) + ' a ' + formatarDataBR(periodoFim)) : '-',
                 qtd: entries.length,
+                qtdAplicacoesAutomaticas: aplicacoesAutomaticas.length,
+                qtdResgatesAutomaticos: resgatesAutomaticos.length,
                 totalCredito,
                 totalDebito,
                 status: status.join(' • ')
@@ -11616,6 +12151,8 @@
             document.getElementById('confImpConta').textContent = resumo.conta || '-';
             document.getElementById('confImpPeriodo').textContent = resumo.periodo || '-';
             document.getElementById('confImpQtd').textContent = String(resumo.qtd || 0);
+            document.getElementById('confImpAplicacoesAutomaticas').textContent = String(resumo.qtdAplicacoesAutomaticas || 0);
+            document.getElementById('confImpResgatesAutomaticos').textContent = String(resumo.qtdResgatesAutomaticos || 0);
             document.getElementById('confImpCredito').textContent = formatarMoedaBR(resumo.totalCredito);
             document.getElementById('confImpDebito').textContent = formatarMoedaBR(resumo.totalDebito);
             document.getElementById('confImpStatus').textContent = resumo.status || '-';
@@ -11803,6 +12340,7 @@
                         l.totalDebitoOficial = resultado.total_debito_oficial_resumo || resultado.total_debito || 0;
                         l.totalCreditoImportado = resultado.total_credito || 0;
                         l.totalDebitoImportado = resultado.total_debito || 0;
+                        l.totaisOficiaisExcluemAplicacoesAutomaticas = resultado.totais_oficiais_excluem_aplicacoes_automaticas === true;
                         l.observacaoImportacao = resultado.observacao_importacao || '';
                         l.periodo_inicio = resultado.periodo_inicio || l.periodo_inicio || '';
 	                        l.periodo_fim = resultado.periodo_fim || l.periodo_fim || '';
@@ -14960,7 +15498,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = '3.4.55';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.60';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
@@ -15037,7 +15575,7 @@ window.confirmarTrocarPlano = async function() {
                 });
             }
 
-            function _mostrarModalAtualizacao(info, versaoJaCarregada) {
+            function _mostrarModalAtualizacao(info, versaoJaCarregada, atualizacaoObrigatoria) {
                 const modal = document.getElementById('versionModal');
                 const title = document.getElementById('versionModalTitle');
                 const description = document.getElementById('versionModalDescription');
@@ -15058,8 +15596,14 @@ window.confirmarTrocarPlano = async function() {
                     : 'Ao atualizar agora, a sessao sera salva antes do recarregamento.';
                 btn.disabled = false;
                 btnLater.disabled = false;
+                btnLater.style.display = atualizacaoObrigatoria ? 'none' : '';
                 btn.textContent = versaoJaCarregada ? 'Entendi' : 'Atualizar agora';
                 btnLater.textContent = versaoJaCarregada ? 'Ver depois' : 'Depois';
+                if (atualizacaoObrigatoria) {
+                    title.textContent = 'Atualização necessária para importar';
+                    description.textContent = 'A importação foi bloqueada porque esta tela está usando um parser antigo.';
+                    hint.textContent = 'Atualize a página e selecione o extrato novamente. Nenhum lançamento foi gravado.';
+                }
                 if (Array.isArray(info.release_notes) && info.release_notes.length > 0) {
                     notes.innerHTML = '<strong style="display:block;margin-bottom:8px;color:#0f172a">O que mudou:</strong>' +
                         '<ul style="margin:0;padding-left:18px">' +
@@ -15110,6 +15654,27 @@ window.confirmarTrocarPlano = async function() {
                     }
                 };
             }
+
+            window.__verificarVersaoAntesDeImportar = async function() {
+                try {
+                    const resp = await fetch('/api/version?ts=' + Date.now(), { cache: 'no-store' });
+                    if (!resp.ok) throw new Error('Falha ao consultar a versão ativa');
+                    const info = await resp.json();
+                    if (!info || !info.version) throw new Error('Versão ativa não informada');
+                    if (info.version === _VERSAO_BUILD) return true;
+                    localStorage.removeItem(_VERSAO_ADIADA_KEY);
+                    _mostrarModalAtualizacao(info, false, true);
+                    if (typeof showToast === 'function') {
+                        showToast('Importação bloqueada: atualize a página antes de processar o extrato.', 'error');
+                    }
+                    return false;
+                } catch (e) {
+                    if (typeof showToast === 'function') {
+                        showToast('Não foi possível confirmar a versão do importador. Tente novamente em instantes.', 'error');
+                    }
+                    return false;
+                }
+            };
 
             function _escaparHtml(s) {
                 return String(s).replace(/[&<>"']/g, function(c){

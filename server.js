@@ -1,5 +1,6 @@
 const express = require('express');
 const { Firestore } = require('@google-cloud/firestore');
+const { validarVersaoParaNovaImportacao } = require('./session-import-version-guard');
 const admin = require('firebase-admin');
 const path = require('path');
 const { LAYOUTS_BANCARIOS_PADRAO, normalizarBancoLayout, layoutBancoId } = require('./layouts-bancarios-padrao');
@@ -7,6 +8,8 @@ const { LAYOUT_QUALITY_CASES } = require('./layout-quality-cases');
 const { LAYOUT_QUALITY_EVIDENCE } = require('./layout-quality-evidence');
 const { registrarRotasMercadoPago, registrarRotasPublicasMercadoPago } = require('./mercadopago-integration');
 const registrarRotasReinf = require('./reinf-routes');
+const cryptoAdmin = require('crypto');
+const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados } = require('./admin-exclusao-lancamentos');
 
 const app = express();
 app.set('trust proxy', true);
@@ -1747,94 +1750,304 @@ app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro', async (req, res) => {
   }
 });
 
+const LIMITE_CHUNK_SESSAO = 200000;
+
+function erroSessao(mensagem, status, codigo) {
+  const erro = new Error(mensagem);
+  erro.status = status || 500;
+  erro.codigo = codigo || 'ERRO_SESSAO';
+  return erro;
+}
+
+function hashSessao(stateJson) {
+  return cryptoAdmin.createHash('sha256').update(String(stateJson || ''), 'utf8').digest('hex');
+}
+
+function tokenPreviaExclusao(stateJson, cnpj, dataInicial, dataFinal) {
+  return hashSessao([hashSessao(stateJson), cnpj, dataInicial, dataFinal].join('|'));
+}
+
+function novaRevisaoSessao() {
+  return cryptoAdmin.randomBytes(18).toString('hex');
+}
+
+function millisTimestamp(valor) {
+  if (!valor) return 0;
+  if (typeof valor.toMillis === 'function') return valor.toMillis();
+  const data = valor instanceof Date ? valor : new Date(valor);
+  return Number.isNaN(data.getTime()) ? 0 : data.getTime();
+}
+
+function dividirTexto(texto, limite) {
+  const valor = String(texto || '');
+  const partes = [];
+  for (let i = 0; i < valor.length; i += limite) partes.push(valor.slice(i, i + limite));
+  return partes;
+}
+
+async function gravarPartes(colecaoRef, partes, geracao) {
+  let batch = db.batch();
+  let operacoes = 0;
+  for (let idx = 0; idx < partes.length; idx++) {
+    const id = `${geracao}_${String(idx).padStart(4, '0')}`;
+    batch.set(colecaoRef.doc(id), { geracao, idx, parte: partes[idx] });
+    operacoes++;
+    if (operacoes >= 450) {
+      await batch.commit();
+      batch = db.batch();
+      operacoes = 0;
+    }
+  }
+  if (operacoes) await batch.commit();
+}
+
+async function excluirDocumentosEmLotes(documentos) {
+  let batch = db.batch();
+  let operacoes = 0;
+  for (const documento of documentos) {
+    batch.delete(documento.ref);
+    operacoes++;
+    if (operacoes >= 450) {
+      await batch.commit();
+      batch = db.batch();
+      operacoes = 0;
+    }
+  }
+  if (operacoes) await batch.commit();
+}
+
+async function limparChunksAntigos(sessaoRef, geracaoAtual) {
+  const chunks = await sessaoRef.collection('chunks').get();
+  const antigos = chunks.docs.filter(documento => {
+    if (!geracaoAtual) return true;
+    return String(documento.data().geracao || '') !== String(geracaoAtual);
+  });
+  if (antigos.length) await excluirDocumentosEmLotes(antigos);
+}
+
+async function carregarSessaoAtualPorRef(sessaoRef) {
+  const doc = await sessaoRef.get();
+  if (!doc.exists) return { encontrada: false, doc, dados: null, stateJson: '' };
+  const dados = doc.data() || {};
+  let stateJson = typeof dados.state_json === 'string' ? dados.state_json : '';
+  if (dados.state_chunked) {
+    const chunks = await sessaoRef.collection('chunks').get();
+    const geracao = String(dados.state_generation || '');
+    const partes = chunks.docs
+      .map(documento => documento.data() || {})
+      .filter(parte => !geracao || String(parte.geracao || '') === geracao)
+      .sort((a, b) => Number(a.idx || 0) - Number(b.idx || 0));
+    if (Number(dados.state_chunks || 0) !== partes.length) {
+      throw erroSessao('A sessão está incompleta no armazenamento. Nenhuma alteração foi realizada.', 409, 'SESSAO_INCOMPLETA');
+    }
+    stateJson = partes.map(parte => parte.parte || '').join('');
+  }
+  return {
+    encontrada: true,
+    doc,
+    dados,
+    stateJson,
+    updateMillis: millisTimestamp(doc.updateTime),
+  };
+}
+
+async function adquirirTravaSessao(sessaoRef, user, tipo, updateMillisEsperado) {
+  const token = novaRevisaoSessao();
+  const agora = Date.now();
+  await db.runTransaction(async transacao => {
+    const atual = await transacao.get(sessaoRef);
+    const dados = atual.exists ? (atual.data() || {}) : {};
+    const trava = dados.session_write_lock || null;
+    if (trava && millisTimestamp(trava.expires_at) > agora) {
+      throw erroSessao('A sessão está sendo atualizada. Aguarde alguns segundos e tente novamente.', 409, 'SESSAO_EM_ATUALIZACAO');
+    }
+    if (updateMillisEsperado != null && millisTimestamp(atual.updateTime) !== Number(updateMillisEsperado)) {
+      throw erroSessao('A sessão mudou depois da prévia. Gere uma nova prévia antes de excluir.', 409, 'PREVIA_DESATUALIZADA');
+    }
+    transacao.set(sessaoRef, {
+      session_write_lock: {
+        token,
+        tipo,
+        uid: user.uid,
+        email: user.email,
+        acquired_at: new Date(agora),
+        expires_at: new Date(agora + (15 * 60 * 1000)),
+      },
+    }, { merge: true });
+  });
+  return token;
+}
+
+async function liberarTravaSessao(sessaoRef, token) {
+  try {
+    await db.runTransaction(async transacao => {
+      const atual = await transacao.get(sessaoRef);
+      const trava = atual.exists ? (atual.data().session_write_lock || null) : null;
+      if (trava && trava.token === token) {
+        transacao.set(sessaoRef, { session_write_lock: admin.firestore.FieldValue.delete() }, { merge: true });
+      }
+    });
+  } catch (erro) {
+    console.warn('[sessao] falha ao liberar trava:', erro.message || erro);
+  }
+}
+
+async function gravarDocumentoJson(ref, stateJson, metadados) {
+  const partes = dividirTexto(stateJson, LIMITE_CHUNK_SESSAO);
+  const chunked = String(stateJson).length > LIMITE_CHUNK_SESSAO;
+  const geracao = chunked ? novaRevisaoSessao() : null;
+  if (chunked) await gravarPartes(ref.collection('chunks'), partes, geracao);
+  await ref.set({
+    ...(metadados || {}),
+    state_json: chunked ? null : stateJson,
+    state_chunked: chunked,
+    state_chunks: chunked ? partes.length : 0,
+    state_bytes: String(stateJson).length,
+    state_generation: geracao,
+  });
+  await limparChunksAntigos(ref, geracao).catch(erro => console.warn('[sessao] limpeza de chunks antigos falhou:', erro.message || erro));
+}
+
+async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes) {
+  const opts = opcoes || {};
+  const partes = dividirTexto(stateJson, LIMITE_CHUNK_SESSAO);
+  const chunked = String(stateJson).length > LIMITE_CHUNK_SESSAO;
+  const geracao = chunked ? novaRevisaoSessao() : null;
+  if (chunked) await gravarPartes(sessaoRef.collection('chunks'), partes, geracao);
+  const revisao = novaRevisaoSessao();
+  await sessaoRef.set({
+    resumo: resumo || null,
+    updated_at: new Date(),
+    updated_by_uid: user.uid,
+    updated_by_email: user.email,
+    state_json: chunked ? null : stateJson,
+    state_chunked: chunked,
+    state_chunks: chunked ? partes.length : 0,
+    state_bytes: String(stateJson).length,
+    state_generation: geracao,
+    session_revision: revisao,
+    require_session_revision: opts.exigirRevisao === true,
+    session_write_lock: admin.firestore.FieldValue.delete(),
+  }, { merge: true });
+  await limparChunksAntigos(sessaoRef, geracao).catch(erro => console.warn('[sessao] limpeza de chunks antigos falhou:', erro.message || erro));
+  return { revisao, chunked, chunks: chunked ? partes.length : 0 };
+}
+
+async function gravarTextoBackup(backupRef, subcolecao, texto) {
+  const partes = dividirTexto(texto, LIMITE_CHUNK_SESSAO);
+  const geracao = novaRevisaoSessao();
+  if (partes.length) await gravarPartes(backupRef.collection(subcolecao), partes, geracao);
+  return { geracao, partes: partes.length, bytes: String(texto || '').length };
+}
+
+async function prepararBackupMetadadosImportacao(cnpj, fingerprints, backupRef) {
+  const unicos = [...new Set((fingerprints || []).map(String).filter(fp => fp && fp.length <= 500 && !fp.includes('/')))];
+  if (!unicos.length) return [];
+  const refs = unicos.map(fingerprint => db.collection('empresas').doc(cnpj).collection('importacoes').doc(fingerprint));
+  const documentos = [];
+  for (let inicio = 0; inicio < refs.length; inicio += 300) {
+    documentos.push(...await db.getAll(...refs.slice(inicio, inicio + 300)));
+  }
+  let batch = db.batch();
+  let operacoes = 0;
+  const existentes = [];
+  for (let idx = 0; idx < documentos.length; idx++) {
+    const documento = documentos[idx];
+    const fingerprint = unicos[idx];
+    const idBackup = cryptoAdmin.createHash('sha256').update(fingerprint).digest('hex');
+    batch.set(backupRef.collection('importacoes_metadata').doc(idBackup), {
+      fingerprint,
+      existia: documento.exists,
+      dados: documento.exists ? documento.data() : null,
+    });
+    if (documento.exists) existentes.push({ fingerprint, ref: documento.ref });
+    operacoes++;
+    if (operacoes >= 450) {
+      await batch.commit();
+      batch = db.batch();
+      operacoes = 0;
+    }
+  }
+  if (operacoes) await batch.commit();
+  return existentes;
+}
+
+async function excluirMetadadosImportacao(documentos) {
+  if (!documentos || !documentos.length) return;
+  await excluirDocumentosEmLotes(documentos.map(item => ({ ref: item.ref })));
+}
+
+function parsearStateJson(stateJson) {
+  try {
+    const state = JSON.parse(stateJson);
+    if (!state || typeof state !== 'object' || !Array.isArray(state.entries)) {
+      throw new Error('entries ausente');
+    }
+    return state;
+  } catch (erro) {
+    throw erroSessao('A sessão da empresa não possui uma estrutura válida de lançamentos. Nenhuma alteração foi realizada.', 422, 'SESSAO_INVALIDA');
+  }
+}
+
 app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const { state_json, resumo } = req.body || {};
-    if (!state_json) return res.status(400).json({ erro: 'state_json obrigatorio' });
-    const sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
-    const chunksRef = sessaoRef.collection('chunks');
-    const chunksAntigos = await chunksRef.get();
-    // [REDE DE SEGURANCA] Se um save SEM lancamentos for sobrescrever uma sessao COM
-    // lancamentos, preserva a versao atual (doc + chunks) em sessoes/anterior antes de
-    // apagar — undo de 1 nivel contra sobrescritas acidentais (cada save apaga os chunks
-    // antigos, entao sem esta copia a unica recuperacao seria o PITR do Firestore).
-    try {
-      const qtdNova = resumo ? Number(resumo.total_lancamentos || 0) : 0;
-      if (!qtdNova) {
-        const docAtual = await sessaoRef.get();
-        const qtdAtual = (docAtual.exists && docAtual.data().resumo) ? Number(docAtual.data().resumo.total_lancamentos || 0) : 0;
-        if (qtdAtual > 0) {
-          const anteriorRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('anterior');
-          const chunksAnterior = await anteriorRef.collection('chunks').get();
-          if (!chunksAnterior.empty) {
-            const batchLimpa = db.batch();
-            chunksAnterior.docs.forEach(d => batchLimpa.delete(d.ref));
-            await batchLimpa.commit();
-          }
-          await anteriorRef.set({ ...docAtual.data(), backup_de: 'current', backup_em: new Date() });
-          if (!chunksAntigos.empty) {
-            const batchCopia = db.batch();
-            chunksAntigos.docs.forEach(d => batchCopia.set(anteriorRef.collection('chunks').doc(d.id), d.data()));
-            await batchCopia.commit();
-          }
-        }
-      }
-    } catch (eBk) { console.warn('[sessao] backup pre-sobrescrita falhou:', eBk.message || eBk); }
-    if (!chunksAntigos.empty) {
-      let batchChunks = db.batch();
-      let opsChunks = 0;
-      for (const d of chunksAntigos.docs) {
-        batchChunks.delete(d.ref);
-        opsChunks++;
-        if (opsChunks >= 450) {
-          await batchChunks.commit();
-          batchChunks = db.batch();
-          opsChunks = 0;
-        }
-      }
-      if (opsChunks > 0) await batchChunks.commit();
+    const { state_json, resumo, session_revision, client_version } = req.body || {};
+    if (typeof state_json !== 'string' || !state_json) return res.status(400).json({ erro: 'state_json obrigatorio' });
+    sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'autosave');
+    const atual = await carregarSessaoAtualPorRef(sessaoRef);
+    const exigirRevisao = !!(atual.dados && atual.dados.require_session_revision);
+    if (exigirRevisao && (!session_revision || session_revision !== atual.dados.session_revision)) {
+      throw erroSessao('Esta sessão foi alterada por um administrador. Recarregue a empresa antes de salvar novamente.', 409, 'SESSAO_DESATUALIZADA');
     }
-    const payloadSessao = {
-      resumo: resumo || null,
-      updated_at: new Date(),
-      updated_by_uid: req.user.uid,
-      updated_by_email: req.user.email
-    };
-    const limiteChunk = 450000;
-    if (String(state_json).length > limiteChunk) {
-      const partes = [];
-      for (let i = 0; i < state_json.length; i += limiteChunk) partes.push(state_json.slice(i, i + limiteChunk));
-      let batch = db.batch();
-      let batchOps = 0;
-      for (let idx = 0; idx < partes.length; idx++) {
-        const parte = partes[idx];
-        batch.set(chunksRef.doc(String(idx).padStart(4, '0')), { idx, parte });
-        batchOps++;
-        if (batchOps >= 450) {
-          await batch.commit();
-          batch = db.batch();
-          batchOps = 0;
-        }
-      }
-      if (batchOps > 0) await batch.commit();
-      payloadSessao.state_json = null;
-      payloadSessao.state_chunked = true;
-      payloadSessao.state_chunks = partes.length;
-      payloadSessao.state_bytes = state_json.length;
-    } else {
-      payloadSessao.state_json = state_json;
-      payloadSessao.state_chunked = false;
-      payloadSessao.state_chunks = 0;
-      payloadSessao.state_bytes = state_json.length;
+    const versaoServidor = lerVersao().version || '';
+    const validacaoVersao = validarVersaoParaNovaImportacao({
+      stateJsonNovo: state_json,
+      stateJsonAtual: atual.stateJson,
+      versaoCliente: client_version,
+      versaoServidor,
+    });
+    if (!validacaoVersao.ok) {
+      throw erroSessao(
+        'A versão do aplicativo aberta está desatualizada. A nova importação não foi gravada. Recarregue a página e importe novamente.',
+        409,
+        'SESSAO_DESATUALIZADA'
+      );
     }
-    await sessaoRef.set(payloadSessao, { merge: true });
+
+    // Rede de segurança anterior: ao zerar uma sessão com lançamentos, mantém uma cópia de um nível.
+    const qtdNova = resumo ? Number(resumo.total_lancamentos || 0) : 0;
+    const qtdAtual = atual.dados && atual.dados.resumo ? Number(atual.dados.resumo.total_lancamentos || 0) : 0;
+    if (!qtdNova && qtdAtual > 0 && atual.stateJson) {
+      try {
+        const anteriorRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('anterior');
+        await gravarDocumentoJson(anteriorRef, atual.stateJson, {
+          resumo: atual.dados.resumo || null,
+          backup_de: 'current',
+          backup_em: new Date(),
+          backup_por_uid: req.user.uid,
+          backup_por_email: req.user.email,
+        });
+      } catch (erroBackup) {
+        console.warn('[sessao] backup pre-sobrescrita falhou:', erroBackup.message || erroBackup);
+      }
+    }
+
+    const resultado = await gravarSessaoBloqueada(sessaoRef, state_json, resumo, req.user, { exigirRevisao });
+    tokenTrava = null;
     await db.collection('empresas').doc(cnpjLimpo).set({ last_session_at: new Date(), last_session_by_email: req.user.email }, { merge: true });
-    res.json({ ok: true, chunked: !!payloadSessao.state_chunked, chunks: payloadSessao.state_chunks || 0 });
-  } catch (e) { console.error('salvar sessao erro:', e); res.status(500).json({ erro: e.message }); }
+    res.json({ ok: true, chunked: resultado.chunked, chunks: resultado.chunks, session_revision: resultado.revisao });
+  } catch (e) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    console.error('salvar sessao erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_SALVAR_SESSAO' });
+  }
 });
 
 app.get('/api/empresas/:cnpj/sessao', async (req, res) => {
@@ -1843,15 +2056,158 @@ app.get('/api/empresas/:cnpj/sessao', async (req, res) => {
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const doc = await db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current').get();
-    if (!doc.exists) return res.json({ encontrada: false });
-    const dados = doc.data();
-    if (dados && dados.state_chunked) {
-      const chunks = await doc.ref.collection('chunks').orderBy('idx').get();
-      dados.state_json = chunks.docs.map(d => d.data().parte || '').join('');
-    }
+    const sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada) return res.json({ encontrada: false });
+    const dados = { ...sessao.dados, state_json: sessao.stateJson };
+    delete dados.session_write_lock;
     res.json({ encontrada: true, ...dados });
-  } catch (e) { console.error('carregar sessao erro:', e); res.status(500).json({ erro: e.message }); }
+  } catch (e) {
+    console.error('carregar sessao erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_CARREGAR_SESSAO' });
+  }
+});
+
+app.post('/api/admin/exclusao-lancamentos/preview', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.body && req.body.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'Selecione uma empresa com CNPJ válido.' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) return res.status(404).json({ erro: 'A empresa não possui uma sessão de lançamentos salva.' });
+    const state = parsearStateJson(sessao.stateJson);
+    const previa = montarPreviaExclusao(state.entries, req.body.dataInicial, req.body.dataFinal);
+    res.json({
+      ok: true,
+      empresa: { cnpj: cnpjLimpo, razao_social: chk.empresa.razao_social || chk.empresa.nome || cnpjLimpo },
+      previa,
+      previewToken: tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, previa.dataInicial, previa.dataFinal),
+      sessaoAtualizadaEm: sessao.dados.updated_at || null,
+    });
+  } catch (e) {
+    console.error('preview exclusao lancamentos erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_PREVIEW_EXCLUSAO' });
+  }
+});
+
+app.post('/api/admin/exclusao-lancamentos/executar', adminRequired, async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
+  let backupRef = null;
+  try {
+    const body = req.body || {};
+    const cnpjLimpo = String(body.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'Selecione uma empresa com CNPJ válido.' });
+    if (body.confirmacao !== 'EXCLUIR') return res.status(400).json({ erro: 'Digite EXCLUIR exatamente para confirmar.' });
+    if (!/^[a-f0-9]{64}$/.test(String(body.previewToken || ''))) return res.status(400).json({ erro: 'Prévia inválida. Gere uma nova prévia.' });
+    const quantidadeEsperada = Number(body.quantidadeEsperada);
+    if (!Number.isInteger(quantidadeEsperada) || quantidadeEsperada <= 0) return res.status(400).json({ erro: 'A quantidade esperada para exclusão é inválida.' });
+    const chavesSelecionadas = Array.isArray(body.chavesSelecionadas) ? [...new Set(body.chavesSelecionadas.map(String).filter(Boolean))] : [];
+    if (!chavesSelecionadas.length || chavesSelecionadas.length > 500) return res.status(400).json({ erro: 'Selecione ao menos uma importação válida.' });
+    if (chavesSelecionadas.some(chave => chave.length > 500)) return res.status(400).json({ erro: 'Uma das importações selecionadas possui um identificador inválido.' });
+
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) return res.status(404).json({ erro: 'A empresa não possui uma sessão de lançamentos salva.' });
+    const state = parsearStateJson(sessao.stateJson);
+    const exclusao = aplicarExclusao(state.entries, body.dataInicial, body.dataFinal, chavesSelecionadas);
+    if (tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, exclusao.resumo.dataInicial, exclusao.resumo.dataFinal) !== body.previewToken) {
+      throw erroSessao('A sessão ou o período mudou depois da prévia. Gere uma nova prévia antes de excluir.', 409, 'PREVIA_DESATUALIZADA');
+    }
+    if (exclusao.resumo.quantidadeRemovida !== quantidadeEsperada) {
+      throw erroSessao('A quantidade de lançamentos mudou. Gere uma nova prévia antes de excluir.', 409, 'QUANTIDADE_DIVERGENTE');
+    }
+
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'exclusao_admin', sessao.updateMillis);
+    const estadoAnteriorHash = hashSessao(sessao.stateJson);
+    const removidosJson = JSON.stringify(exclusao.removidos);
+    const fingerprintsLiberados = fingerprintsImportacaoLiberados(exclusao.mantidos, exclusao.removidos);
+    state.entries = exclusao.mantidos;
+    const novoStateJson = JSON.stringify(state);
+    const novoResumo = {
+      ...(sessao.dados.resumo || {}),
+      total_lancamentos: exclusao.resumo.quantidadeDepois,
+      ultima_exclusao_admin_em: new Date().toISOString(),
+      ultima_exclusao_admin_quantidade: exclusao.resumo.quantidadeRemovida,
+    };
+
+    backupRef = db.collection('empresas').doc(cnpjLimpo).collection('exclusoes_admin').doc();
+    await backupRef.set({
+      status: 'gravando_backup',
+      cnpj: cnpjLimpo,
+      empresa: chk.empresa.razao_social || chk.empresa.nome || cnpjLimpo,
+      data_inicial: exclusao.resumo.dataInicial,
+      data_final: exclusao.resumo.dataFinal,
+      chaves_importacao: chavesSelecionadas,
+      quantidade_antes: exclusao.resumo.quantidadeAntes,
+      quantidade_removida: exclusao.resumo.quantidadeRemovida,
+      quantidade_depois: exclusao.resumo.quantidadeDepois,
+      creditos_removidos: exclusao.resumo.creditosRemovidos,
+      debitos_removidos: exclusao.resumo.debitosRemovidos,
+      fingerprints_importacao_liberados: fingerprintsLiberados,
+      hash_estado_anterior: estadoAnteriorHash,
+      hash_estado_novo: hashSessao(novoStateJson),
+      criado_em: new Date(),
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email,
+    });
+    const backupEstado = await gravarTextoBackup(backupRef, 'estado_anterior_chunks', sessao.stateJson);
+    const backupRemovidos = await gravarTextoBackup(backupRef, 'lancamentos_removidos_chunks', removidosJson);
+    const metadadosImportacao = await prepararBackupMetadadosImportacao(cnpjLimpo, fingerprintsLiberados, backupRef);
+    await backupRef.set({
+      status: 'backup_pronto',
+      estado_anterior_backup: backupEstado,
+      lancamentos_removidos_backup: backupRemovidos,
+      importacoes_metadata_backup: metadadosImportacao.length,
+      backup_concluido_em: new Date(),
+    }, { merge: true });
+
+    let resultado;
+    try {
+      resultado = await gravarSessaoBloqueada(sessaoRef, novoStateJson, novoResumo, req.user, { exigirRevisao: true });
+      tokenTrava = null;
+    } catch (erroAplicacao) {
+      await backupRef.set({ status: 'backup_pronto_falha_aplicacao', falha_aplicacao: String(erroAplicacao.message || erroAplicacao).slice(0, 500) }, { merge: true });
+      throw erroAplicacao;
+    }
+    const avisos = [];
+    try {
+      await excluirMetadadosImportacao(metadadosImportacao);
+    } catch (erroMetadata) {
+      avisos.push('Os lançamentos foram excluídos, mas alguns marcadores de importação não puderam ser liberados automaticamente.');
+      console.warn('[exclusao-admin] metadados de importacao:', erroMetadata.message || erroMetadata);
+    }
+    await backupRef.set({
+      status: avisos.length ? 'aplicado_com_aviso' : 'aplicado',
+      aplicado_em: new Date(),
+      session_revision_nova: resultado.revisao,
+      avisos,
+    }, { merge: true }).catch(erro => console.warn('[exclusao-admin] atualizar backup aplicado falhou:', erro.message || erro));
+    await db.collection('empresas').doc(cnpjLimpo).set({ last_session_at: new Date(), last_session_by_email: req.user.email }, { merge: true })
+      .catch(erro => console.warn('[exclusao-admin] atualizar empresa falhou:', erro.message || erro));
+    await db.collection('admin_audit_logs').add({
+      evento: 'exclusao_lancamentos_importacao',
+      cnpj: cnpjLimpo,
+      empresa: chk.empresa.razao_social || chk.empresa.nome || cnpjLimpo,
+      backup_id: backupRef.id,
+      ...exclusao.resumo,
+      timestamp: new Date(),
+      uid: req.user.uid,
+      email: req.user.email,
+    }).catch(erroAudit => console.warn('[exclusao-admin] audit log falhou:', erroAudit.message || erroAudit));
+    res.json({ ok: true, backupId: backupRef.id, resumo: exclusao.resumo, importacoesLiberadas: metadadosImportacao.length, avisos, session_revision: resultado.revisao });
+  } catch (e) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    if (backupRef) {
+      await backupRef.set({ status: 'falha', falha: String(e.message || e).slice(0, 500), falha_em: new Date() }, { merge: true }).catch(() => {});
+    }
+    console.error('executar exclusao lancamentos erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_EXECUTAR_EXCLUSAO' });
+  }
 });
 
 app.post('/api/empresas/:cnpj/relatorio', async (req, res) => {
