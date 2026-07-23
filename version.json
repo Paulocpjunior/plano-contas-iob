@@ -1,7 +1,15 @@
 {
-  "version": "3.4.59",
-  "build_date": "2026-07-22T17:44:51.000Z",
+  "version": "3.4.60",
+  "build_date": "2026-07-23T17:09:27.000Z",
   "release_notes": [
+    "AuditAI agora possui relatório específico de Receita Operacional Líquida por empresa e CNPJ.",
+    "A R.O.L. preserva os valores oficiais impressos na DRE e reconcilia Receita Operacional Bruta menos Deduções da Receita.",
+    "Devoluções, vendas canceladas, descontos, abatimentos e impostos incidentes sobre vendas são exibidos separadamente na memória de cálculo.",
+    "IRPJ e CSLL não são tratados como deduções da receita.",
+    "O módulo Grupo / Holding consolida Receita Bruta, Deduções e R.O.L. por CNPJ e apresenta o total agregado do grupo.",
+    "DREs de períodos diferentes são bloqueadas antes da agregação e cada empresa exige CNPJ válido.",
+    "Os relatórios de R.O.L. podem ser exportados em PDF e Excel, tanto individualmente quanto para o grupo.",
+    "O total do grupo é identificado como agregado gerencial sem eliminações intragrupo.",
     "Novas importações agora exigem que a tela esteja na mesma versão ativa no servidor; abas antigas são bloqueadas antes de gravar dados incompletos.",
     "A conferência da importação mostra separadamente a quantidade de aplicações e de resgates automáticos.",
     "O diagnóstico da sessão real confirmou que o teste anterior usou o parser antigo de 655 lançamentos; a versão atual preserva os 676 movimentos do extrato.",
