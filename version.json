@@ -1,7 +1,12 @@
 {
-  "version": "3.4.61",
-  "build_date": "2026-07-28T11:40:14.000Z",
+  "version": "3.4.62",
+  "build_date": "2026-07-28T15:14:43.000Z",
   "release_notes": [
+    "O campo Banco da tela Informacoes do Relatorio volta a ser editavel e sincronizado com o valor usado na validacao.",
+    "Cadastros antigos da FLANACAR com o rotulo Registro de Entradas sao migrados automaticamente para o codigo 1237.",
+    "O codigo 1237 agora exibe o rotulo unico FLANACAR - Registros Fiscais CSV (Entradas/Saidas), pois o livro correto e detectado pelo arquivo.",
+    "O cache antigo da lista de bancos foi invalidado para que todos os colaboradores recebam o novo rotulo.",
+    "A confirmacao recupera com seguranca o codigo pelo campo visivel quando uma sessao antiga deixou o valor oculto vazio.",
     "FLANACAR agora possui um layout exclusivo para o Livro de Saidas em CSV do Office Fiscal/IOB SAGE.",
     "O novo layout preserva cliente, CNPJ, NF-e, CFOP e todos os campos fiscais selecionados pelo usuario.",
     "As notas de venda entram como creditos; ICMS, ICMS ST, IPI, PIS e COFINS destacados entram separadamente como debitos para classificacao contabil.",

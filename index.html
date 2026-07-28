@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.61';</script>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.61"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.61"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.61"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.62';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.62"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.62"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.62"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -20,33 +20,33 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.61"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.61"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.61"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.62"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.62"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.62"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.61"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.61"></script>
-    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.61"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.61"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.61"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.61"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.61"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.61"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.61"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.61"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.61"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.61"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.61"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.61"></script>
-    <script src="/parser-extrato-conciliado.js?v=3.4.61"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.61"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.61"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.61"></script>
+    <script src="/parser-ofx.js?v=3.4.62"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.62"></script>
+    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.62"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.62"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.62"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.62"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.62"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.62"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.62"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.62"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.62"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.62"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.62"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.62"></script>
+    <script src="/parser-extrato-conciliado.js?v=3.4.62"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.62"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.62"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.62"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -4177,12 +4177,15 @@
             { code: '1183', name: 'DAXX MIDIA LTDA' },
             { code: '1237', name: 'FLANACAR - REGISTROS FISCAIS CSV (ENTRADAS/SAÍDAS)' }
         ];
-        const BANCOS_BACEN_CACHE_KEY = 'bancos_bacen_v2';
+        const BANCOS_BACEN_CACHE_KEY = 'bancos_bacen_v3';
         const BANCOS_BACEN_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
 
         function aplicarBancosCustomizados() {
             BANCOS_CUSTOMIZADOS.forEach(function(banco) {
-                if (!BANCOS_BACEN.some(function(b) { return b.code === banco.code; })) {
+                const existente = BANCOS_BACEN.findIndex(function(b) { return b.code === banco.code; });
+                if (existente >= 0) {
+                    BANCOS_BACEN[existente] = Object.assign({}, BANCOS_BACEN[existente], banco);
+                } else {
                     BANCOS_BACEN.push(banco);
                 }
             });
@@ -4261,12 +4264,14 @@
             if (!original) return;
 
             // Preserva valor atual (compat: pode ser code ou nome legado)
-            const valorPrevio = original.value || '';
+            const valorPrevio = original.value || original.dataset.pendingBanco || '';
             const valorResolvido = valorPrevio ? resolverBancoLegado(valorPrevio) : '';
 
             // Se ja foi convertido em combobox, so atualiza valor
-            if (original.dataset.combobox === '1') {
-                if (valorResolvido) _comboboxSelecionar(selectId, valorResolvido);
+            const wrapExistente = original.parentNode && original.parentNode.dataset
+                && original.parentNode.dataset.comboFor === selectId ? original.parentNode : null;
+            if (original.dataset.combobox === '1' || wrapExistente) {
+                sincronizarComboboxBanco(selectId, valorResolvido || valorPrevio);
                 return;
             }
             original.dataset.combobox = '1';
@@ -4277,6 +4282,7 @@
             hidden.id = selectId;
             hidden.name = original.name || selectId;
             hidden.value = valorResolvido;
+            hidden.dataset.combobox = '1';
 
             // Wrapper visivel
             const wrap = document.createElement('div');
@@ -4384,6 +4390,34 @@
             hidden.value = code || '';
             if (input) input.value = (b ? (b.code + ' — ' + b.name) : '');
         }
+
+        function sincronizarComboboxBanco(selectId, valor) {
+            const campo = document.getElementById(selectId);
+            if (!campo) return '';
+            const resolvido = resolverBancoLegado(valor || campo.value || '');
+            const wrap = campo.parentNode;
+            if (wrap && wrap.dataset && wrap.dataset.comboFor === selectId) {
+                _comboboxSelecionar(selectId, resolvido);
+            } else {
+                campo.value = resolvido;
+                if (resolvido && campo.value !== resolvido) campo.dataset.pendingBanco = resolvido;
+                else delete campo.dataset.pendingBanco;
+            }
+            return resolvido;
+        }
+
+        function valorComboboxBanco(selectId) {
+            const campo = document.getElementById(selectId);
+            if (!campo) return '';
+            let valor = resolverBancoLegado(campo.value || '');
+            if (valor) return valor;
+            const wrap = campo.parentNode;
+            const visivel = wrap && wrap.dataset && wrap.dataset.comboFor === selectId
+                ? wrap.querySelector('input[type="text"]') : null;
+            valor = resolverBancoLegado(visivel ? visivel.value : '');
+            if (valor) sincronizarComboboxBanco(selectId, valor);
+            return valor;
+        }
         
         function nomeBanco(code) {
             const b = BANCOS_BACEN.find(x => x.code === code);
@@ -4393,8 +4427,17 @@
         // Compat: aceita codigo COMPE (novo) OU nome legado (Bradesco, Itau, etc.)
 	        function resolverBancoLegado(valor) {
 	            if (!valor) return '';
-	            if (BANCOS_BACEN.find(b => b.code === valor)) return valor;
-	            const v = valor.toString().toLowerCase().trim();
+	            const raw = valor.toString().trim();
+	            if (BANCOS_BACEN.find(b => b.code === raw)) return raw;
+	            const prefixoCodigo = raw.match(/^([A-Z]{3}|\d{1,4})(?:\s*(?:[-—–]|$))/i);
+	            if (prefixoCodigo) {
+	                const codigo = prefixoCodigo[1].toUpperCase();
+	                if (/^\d{3,4}$/.test(codigo)
+	                    || BANCOS_CUSTOMIZADOS.some(b => b.code === codigo)
+	                    || BANCOS_BACEN.find(b => b.code === codigo)) return codigo;
+	            }
+	            const v = raw.toLowerCase();
+	            if (/flanacar|registro de entradas|registro de saidas|registro de saídas/.test(v)) return '1237';
             const mapa = {
                 'banco do brasil': '001',
                 'abc': '246',
@@ -4421,7 +4464,13 @@
                 'flanacar comercio de autopecas': '1237',
                 'flanacar comercio de pecas': '1237',
                 'registro de entradas': '1237',
-                'registro de entradas fiscal': '1237'
+                'registro de entradas fiscal': '1237',
+                'registro de saidas': '1237',
+                'registro de saídas': '1237',
+                'registro de saidas fiscal': '1237',
+                'registro de saídas fiscal': '1237',
+                'registros fiscais csv (entradas/saidas)': '1237',
+                'registros fiscais csv (entradas/saídas)': '1237'
             };
             if (mapa[v]) return mapa[v];
 	            const match = BANCOS_BACEN.find(b => b.name.toLowerCase().includes(v) || v.includes(b.name.toLowerCase()));
@@ -5408,8 +5457,7 @@
                     const el = document.getElementById(id);
                     if (el) el.value = '';
                 });
-                const selBanco = document.getElementById('infoBanco');
-                if (selBanco) selBanco.selectedIndex = 0;
+                sincronizarComboboxBanco('infoBanco', '');
                 // Resetar header (barra preta com nome da empresa)
                 ['barEmpresa', 'barCNPJ', 'barBanco', 'barUsuario', 'barPeriodo'].forEach(id => {
                     const el = document.getElementById(id);
@@ -7561,12 +7609,13 @@
             const base = sessaoInfo || {};
             const razao = (cadastro && (cadastro.razao_social || cadastro.empresa || cadastro.nome || cadastro.nome_fantasia)) || '';
             const bancoCadastro = cadastro && cadastro.banco ? cadastro.banco : '';
+            const bancoAtivo = resolverBancoLegado(bancoCadastro || base.banco || '') || bancoCadastro || base.banco || '';
             const hojeISO = new Date().toISOString().slice(0, 10);
             return {
                 ...base,
                 cnpj: cnpjFmt,
                 empresa: razao || base.empresa || '',
-                banco: bancoCadastro || base.banco || '',
+                banco: bancoAtivo,
                 usuario: base.usuario || (window.CURRENT_USER && window.CURRENT_USER.email ? window.CURRENT_USER.email.split('@')[0] : ''),
                 periodoInicio: base.periodoInicio || hojeISO,
                 periodoFim: base.periodoFim || hojeISO,
@@ -7624,7 +7673,7 @@
                     setTimeout(() => {
                         document.getElementById('infoCNPJ').value = state.info.cnpj;
                         document.getElementById('infoEmpresa').value = state.info.empresa;
-                        if (state.info.banco) document.getElementById('infoBanco').value = state.info.banco;
+                        if (state.info.banco) sincronizarComboboxBanco('infoBanco', state.info.banco);
                     }, 200);
                 }
             } catch (e) {
@@ -10250,7 +10299,7 @@
 	                                ...(d.info || {}),
 	                                cnpj: document.getElementById('infoCNPJ').value,
 	                                empresa: document.getElementById('infoEmpresa').value,
-	                                banco: document.getElementById('infoBanco').value || ((d.info || {}).banco || ''),
+	                                banco: valorComboboxBanco('infoBanco') || resolverBancoLegado((d.info || {}).banco || ''),
 	                                usuario: (d.info || {}).usuario || document.getElementById('infoUsuario').value,
 	                                periodoInicio: (d.info || {}).periodoInicio || document.getElementById('infoPeriodoInicio').value,
 	                                periodoFim: (d.info || {}).periodoFim || document.getElementById('infoPeriodoFim').value
@@ -10265,7 +10314,7 @@
 	                            await zerarSessaoEmpresa(cnpj, {
 	                                cnpj: document.getElementById('infoCNPJ').value,
 	                                empresa: document.getElementById('infoEmpresa').value,
-	                                banco: document.getElementById('infoBanco').value,
+	                                banco: valorComboboxBanco('infoBanco'),
 	                                usuario: document.getElementById('infoUsuario').value,
 	                                periodoInicio: document.getElementById('infoPeriodoInicio').value,
 	                                periodoFim: document.getElementById('infoPeriodoFim').value
@@ -10399,7 +10448,7 @@
 	            const info = {
 	                cnpj: document.getElementById('infoCNPJ').value,
 	                empresa: document.getElementById('infoEmpresa').value,
-	                banco: document.getElementById('infoBanco').value,
+	                banco: valorComboboxBanco('infoBanco'),
 	                usuario: document.getElementById('infoUsuario').value,
 	                periodoInicio: document.getElementById('infoPeriodoInicio').value,
 	                periodoFim: document.getElementById('infoPeriodoFim').value
@@ -10408,7 +10457,9 @@
                 if (cadastroAtual && String(cadastroAtual.cnpj || '').replace(/\D/g, '') === String(info.cnpj || '').replace(/\D/g, '')) {
                     info.plano_id = cadastroAtual.plano_id || cadastroAtual.planoId || '';
                     info.planoNome = cadastroAtual.plano_nome || cadastroAtual.plano_id || '';
-                    if (!info.banco && cadastroAtual.banco) info.banco = cadastroAtual.banco;
+                    if (!info.banco && cadastroAtual.banco) {
+                        info.banco = resolverBancoLegado(cadastroAtual.banco) || cadastroAtual.banco;
+                    }
                 }
 
             // [ISOLAMENTO POR CNPJ] Detecta troca de empresa e carrega sessao da nova
@@ -10483,7 +10534,7 @@
             if (state.info) {
                 document.getElementById('infoCNPJ').value = state.info.cnpj;
                 document.getElementById('infoEmpresa').value = state.info.empresa;
-                document.getElementById('infoBanco').value = state.info.banco;
+                sincronizarComboboxBanco('infoBanco', state.info.banco);
                 document.getElementById('infoUsuario').value = state.info.usuario;
                 document.getElementById('infoPeriodoInicio').value = state.info.periodoInicio;
                 document.getElementById('infoPeriodoFim').value = state.info.periodoFim;
@@ -15543,7 +15594,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.61';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.62';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
