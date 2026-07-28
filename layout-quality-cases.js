@@ -629,6 +629,25 @@ const LAYOUT_QUALITY_CASES = [
     validado_em: '2026-07-02T13:30:00-03:00',
     observacao: 'Extrato C6 OCR agrupado por mes com colunas Entrada/Saida e sinal do valor; ignora Saldo do dia, Cheque Especial e totais mensais. Regressao coberta por scripts/test-c6-bank-extrato.js (npm run test:c6).'
   },
+  {
+    id: 'inter-auss-2026-01',
+    banco: '077',
+    nomeBanco: 'Banco Inter',
+    layout: 'Banco Inter - Extrato da Conta',
+    parser: 'parsearPDF_Inter_Extrato',
+    arquivo: 'Extrato Janeiro - Inter Auss (1).pdf',
+    empresa: 'Auss Eventos E Gastronomia Ltda',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    esperado: {
+      total_lancamentos: 112,
+      total_credito: 168500.00,
+      total_debito: 166333.65
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-28T18:30:00-03:00',
+    observacao: 'Extrato textual Banco Inter validado pelo texto extraido e pelo PDF.js do navegador. Os 112 movimentos fecham desde o saldo anterior calculado de R$ 172,00 ate R$ 2.338,35 e conferem os 15 saldos diarios impressos.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_CASES };

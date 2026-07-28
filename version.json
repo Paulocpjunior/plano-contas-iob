@@ -1,7 +1,12 @@
 {
-  "version": "3.4.65",
-  "build_date": "2026-07-28T17:42:06.000Z",
+  "version": "3.4.66",
+  "build_date": "2026-07-28T19:46:46.000Z",
   "release_notes": [
+    "Banco Inter agora possui layout PDF oficial para o Extrato da Conta vinculado ao codigo bancario 077.",
+    "O novo parser preserva data, descricao, valor, tipo, agencia, conta, CNPJ e saldo de cada movimento.",
+    "Antes de liberar a importacao, o sistema confere a sequencia completa e o saldo final impresso de cada dia; qualquer divergencia bloqueia todo o arquivo.",
+    "O extrato real da AUSS foi validado com 112 movimentos, R$ 168.500,00 em creditos, R$ 166.333,65 em debitos e saldo final de R$ 2.338,35.",
+    "O saldo total exibido no cabecalho do Banco Inter permanece apenas informativo e nao e transformado em lancamento.",
     "Bradesco Net Empresa escaneado agora reconhece a secao adicional Ultimos Lancamentos depois do primeiro total.",
     "Quando uma pagina possui duas tabelas com subtotais, creditos e debitos sao somados antes da conferencia do saldo final.",
     "O arquivo real da Ferrante foi validado com 46 movimentos, R$ 42.891,45 em creditos, R$ 44.427,08 em debitos e saldo final de R$ 198,54.",

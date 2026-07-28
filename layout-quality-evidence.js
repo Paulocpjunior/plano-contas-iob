@@ -555,6 +555,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     status: 'Evidencia recebida',
     observacao: 'PDF OCR do C6 usado na criacao do layout; movimentos classificados por Entrada/Saida com exclusao de saldo do dia, cheque especial e totais mensais.'
   },
+  {
+    id: 'inter-auss-2026-01',
+    banco: '077',
+    nomeBanco: 'Banco Inter',
+    layout: 'Banco Inter - Extrato da Conta',
+    parser: 'parsearPDF_Inter_Extrato',
+    arquivo: 'Extrato Janeiro - Inter Auss (1).pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Extrato Janeiro - Inter Auss (1).pdf',
+    empresa: 'Auss Eventos E Gastronomia Ltda',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF real de 4 paginas com camada textual. Validado com 112 movimentos, credito de R$ 168.500,00, debito de R$ 166.333,65, 15 saldos diarios conciliados e saldo final de R$ 2.338,35.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_EVIDENCE };
