@@ -1,7 +1,13 @@
 {
-  "version": "3.4.62",
-  "build_date": "2026-07-28T15:14:43.000Z",
+  "version": "3.4.63",
+  "build_date": "2026-07-28T15:33:46.000Z",
   "release_notes": [
+    "A troca ou o vinculo de plano agora atualiza o cadastro oficial e a sessao de trabalho ativa ao mesmo tempo.",
+    "O plano oficial da empresa prevalece sobre referencias antigas mantidas em sessoes anteriores.",
+    "Colaboradores que vinculam o plano passam a ter acesso a empresa e ao extrator sem substituir o proprietario original.",
+    "A confirmacao aguarda a recarga real do plano, eliminando a corrida de 300 ms que reabria o formulario.",
+    "O aplicativo preserva uma empresa ja confirmada durante a recarga assincrona dos planos.",
+    "Os dois planos APOSTROFO foram preservados; o cadastro atual usa o plano 0841 com 597 contas.",
     "O campo Banco da tela Informacoes do Relatorio volta a ser editavel e sincronizado com o valor usado na validacao.",
     "Cadastros antigos da FLANACAR com o rotulo Registro de Entradas sao migrados automaticamente para o codigo 1237.",
     "O codigo 1237 agora exibe o rotulo unico FLANACAR - Registros Fiscais CSV (Entradas/Saidas), pois o livro correto e detectado pelo arquivo.",

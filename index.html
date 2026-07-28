@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.62';</script>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.62"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.62"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.62"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.63';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.63"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.63"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.63"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -20,33 +20,33 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.62"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.62"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.62"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.63"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.63"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.63"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.62"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.62"></script>
-    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.62"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.62"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.62"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.62"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.62"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.62"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.62"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.62"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.62"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.62"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.62"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.62"></script>
-    <script src="/parser-extrato-conciliado.js?v=3.4.62"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.62"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.62"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.62"></script>
+    <script src="/parser-ofx.js?v=3.4.63"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.63"></script>
+    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.63"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.63"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.63"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.63"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.63"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.63"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.63"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.63"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.63"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.63"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.63"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.63"></script>
+    <script src="/parser-extrato-conciliado.js?v=3.4.63"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.63"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.63"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.63"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -3373,7 +3373,7 @@
             }
             // 2. Carga assincrona da API (sobrescreve se sucesso)
             if (window.USE_API && window.API && typeof window.API.loadPlanos === 'function') {
-                window.API.loadPlanos().then(function(planosAPI) {
+                return window.API.loadPlanos().then(function(planosAPI) {
                     planosCadastrados = planosAPI;
                     console.log('[API] planosCadastrados atualizado com ' + Object.keys(planosAPI).length + ' planos da API');
                     if (typeof renderListaPlanosVinculados === 'function') {
@@ -3385,10 +3385,13 @@
                             updateDashboard();
                         } catch(e) { console.warn('[planos] atualizacao pos-API:', e); }
                     }
+                    return planosAPI;
                 }).catch(function(err) {
                     console.warn('[API] Falha ao carregar da API, usando localStorage:', err);
+                    return planosCadastrados;
                 });
             }
+            return Promise.resolve(planosCadastrados);
         }
         
         // Salvar planos cadastrados (v4: API e fonte da verdade, no-op)
@@ -3397,24 +3400,32 @@
         // Verificar se CNPJ tem plano cadastrado
         function verificarPlanoPorCNPJ(cnpj) {
             const cnpjLimpo = cnpj.replace(/\D/g, '');
+            function localizarPorId(planoId, nomePreferido) {
+                if (!planoId) return null;
+                for (const [nome, plano] of Object.entries(planosCadastrados)) {
+                    const idPlano = plano && (plano.plano_id || plano.id || plano._id);
+                    if (idPlano === planoId) {
+                        return { nome: nomePreferido || nome, plano: { ...plano, cnpj: plano.cnpj || cnpjLimpo } };
+                    }
+                }
+                return {
+                    nome: nomePreferido || planoId,
+                    plano: { plano_id: planoId, cnpj: cnpjLimpo, total_contas: '?' }
+                };
+            }
+            // O cadastro oficial sempre prevalece sobre plano salvo em sessao antiga.
+            const cadastroOficial = window.__empresaCadastroInternoAtual || null;
+            const cnpjCadastro = cadastroOficial && cadastroOficial.cnpj
+                ? String(cadastroOficial.cnpj).replace(/\D/g, '') : '';
+            const planoIdCadastro = cadastroOficial && (cadastroOficial.plano_id || cadastroOficial.planoId);
+            if (cnpjCadastro === cnpjLimpo && planoIdCadastro) {
+                return localizarPorId(planoIdCadastro, cadastroOficial.plano_nome || '');
+            }
             const infoAtiva = state && state.info ? state.info : null;
             const cnpjAtivo = infoAtiva && infoAtiva.cnpj ? infoAtiva.cnpj.replace(/\D/g, '') : '';
             const planoIdAtivo = infoAtiva && (infoAtiva.plano_id || infoAtiva.planoId);
             if (cnpjAtivo === cnpjLimpo && planoIdAtivo) {
-                for (const [nome, plano] of Object.entries(planosCadastrados)) {
-                    const idPlano = plano && (plano.plano_id || plano.id || plano._id);
-                    if (idPlano === planoIdAtivo) {
-                        return { nome, plano: { ...plano, cnpj: plano.cnpj || cnpjLimpo } };
-                    }
-                }
-                return {
-                    nome: infoAtiva.planoNome || planoIdAtivo,
-                    plano: {
-                        plano_id: planoIdAtivo,
-                        cnpj: cnpjLimpo,
-                        total_contas: infoAtiva.total_contas || '?'
-                    }
-                };
+                return localizarPorId(planoIdAtivo, infoAtiva.planoNome || '');
             }
             for (const [nome, plano] of Object.entries(planosCadastrados)) {
                 if (plano.cnpj === cnpjLimpo) {
@@ -5312,7 +5323,17 @@
             const d = JSON.parse(sess.state_json);
             state.entries = d.entries || [];
             state.mappings = Array.isArray(d.mappings) ? d.mappings : (Array.isArray(state.mappings) ? state.mappings : []);
-            state.info = d.info || state.info;
+            const infoSessao = d.info || state.info || {};
+            const cadastroOficial = window.__empresaCadastroInternoAtual || {};
+            const cnpjSessao = String(infoSessao.cnpj || '').replace(/\D/g, '');
+            const cnpjCadastro = String(cadastroOficial.cnpj || '').replace(/\D/g, '');
+            state.info = cnpjSessao && cnpjSessao === cnpjCadastro && cadastroOficial.plano_id
+                ? {
+                    ...infoSessao,
+                    plano_id: cadastroOficial.plano_id,
+                    planoNome: cadastroOficial.plano_nome || cadastroOficial.plano_id
+                }
+                : infoSessao;
             state.infoConfirmed = d.infoConfirmed || state.infoConfirmed;
             state.lastFile = d.lastFile || state.lastFile;
             state.pisCofinsCreditoCategorias = d.pisCofinsCreditoCategorias || state.pisCofinsCreditoCategorias || {};
@@ -5360,6 +5381,43 @@
             } catch (e) { console.warn('[sessao] sync:', e); }
         }
 
+        function exibirEmpresaConfirmada() {
+            if (!state.infoConfirmed || !state.info) return;
+            document.getElementById('formCard').classList.add('hidden');
+            document.getElementById('dashboardCard').classList.remove('hidden');
+            document.getElementById('companyBar').classList.add('show');
+            document.getElementById('btnEditInfo').style.display = 'flex';
+            updateCompanyBar();
+            updateDashboard();
+            initCharts();
+        }
+
+        async function revalidarPlanoEmpresaAtiva() {
+            if (!state.infoConfirmed || !state.info || !state.info.cnpj) return;
+            const cnpj = String(state.info.cnpj).replace(/\D/g, '');
+            try {
+                const cadastroOficial = await consultarEmpresaNoBancoInterno(cnpj);
+                if (cadastroOficial) {
+                    window.__empresaCadastroInternoAtual = cadastroOficial;
+                    state.info.plano_id = cadastroOficial.plano_id || cadastroOficial.planoId || state.info.plano_id || '';
+                    state.info.planoNome = cadastroOficial.plano_nome || cadastroOficial.plano_id || state.info.planoNome || '';
+                }
+                const planoEncontrado = verificarPlanoPorCNPJ(cnpj);
+                if (!planoEncontrado) {
+                    console.warn('[planos] vinculo nao confirmado apos carga; estado preservado para nova tentativa');
+                    return;
+                }
+                state.info.plano_id = (planoEncontrado.plano && (
+                    planoEncontrado.plano.plano_id || planoEncontrado.plano.id || planoEncontrado.plano._id
+                )) || state.info.plano_id || '';
+                state.info.planoNome = planoEncontrado.nome || state.info.planoNome || '';
+                saveState();
+                exibirEmpresaConfirmada();
+            } catch (e) {
+                console.warn('[planos] revalidacao oficial falhou; estado preservado:', e);
+            }
+        }
+
         // Init
         function initApp() {
             // [TRAVA DE SESSAO] Novo acesso NAO carrega a ultima empresa automaticamente:
@@ -5384,27 +5442,14 @@
                     setTimeout(abrirModalSelecaoEmpresa, 300);
                 }
             } catch (e) { console.warn('[trava-sessao]', e); }
-            loadPlanosCadastrados(); // Carregar planos cadastrados
+            const carregamentoPlanos = loadPlanosCadastrados(); // Carregar planos cadastrados
             populateCategorias();
             // Sync com Firestore em paralelo (nao bloqueia)
             sincronizarSessaoRemoto();
             if (state.infoConfirmed && state.info) {
-                // Verificar se o plano ainda existe para o CNPJ
-                const planoEncontrado = verificarPlanoPorCNPJ(state.info.cnpj);
-                if (!planoEncontrado) {
-                    // Plano foi removido - resetar
-                    state.infoConfirmed = false;
-                    saveState();
-                    showToast('⚠️ Plano de contas não encontrado. Recadastre.', 'error');
-                } else {
-                    document.getElementById('formCard').classList.add('hidden');
-                    document.getElementById('dashboardCard').classList.remove('hidden');
-                    document.getElementById('companyBar').classList.add('show');
-                    document.getElementById('btnEditInfo').style.display = 'flex';
-                    updateCompanyBar();
-                    updateDashboard();
-                    initCharts();
-                }
+                // Exibe o estado confirmado sem depender de uma resposta de rede imediata.
+                exibirEmpresaConfirmada();
+                Promise.resolve(carregamentoPlanos).then(revalidarPlanoEmpresaAtiva);
             }
             renderAll();
             setupDragDrop();
@@ -10293,6 +10338,7 @@
 	                            const sessCnpj = ((d.info && d.info.cnpj) || '').replace(/\D/g, '');
 	                            const cnpjAtual = String(cnpj || '').replace(/\D/g, '');
 	                            const sessaoCompativel = !sessCnpj || sessCnpj === cnpjAtual;
+                                const cadastroOficial = window.__empresaCadastroInternoAtual || {};
 	                            state.entries = sessaoCompativel ? (d.entries || []) : [];
 	                            state.mappings = sessaoCompativel ? (d.mappings || state.mappings) : state.mappings;
 	                            state.info = {
@@ -10302,7 +10348,11 @@
 	                                banco: valorComboboxBanco('infoBanco') || resolverBancoLegado((d.info || {}).banco || ''),
 	                                usuario: (d.info || {}).usuario || document.getElementById('infoUsuario').value,
 	                                periodoInicio: (d.info || {}).periodoInicio || document.getElementById('infoPeriodoInicio').value,
-	                                periodoFim: (d.info || {}).periodoFim || document.getElementById('infoPeriodoFim').value
+	                                periodoFim: (d.info || {}).periodoFim || document.getElementById('infoPeriodoFim').value,
+                                    plano_id: cadastroOficial.plano_id || cadastroOficial.planoId
+                                        || (d.info || {}).plano_id || (d.info || {}).planoId || '',
+                                    planoNome: cadastroOficial.plano_nome
+                                        || (d.info || {}).planoNome || cadastroOficial.plano_id || ''
 	                            };
 	                            state.infoConfirmed = !!(state.info && state.info.cnpj && state.info.empresa && state.info.banco && state.info.periodoInicio && state.info.periodoFim);
 	                            state.lastFile = sessaoCompativel ? (d.lastFile || null) : null;
@@ -10425,9 +10475,10 @@
 	            // [CAMADA 4] Confere novamente cadastro interno, caso tenha sido criado durante a consulta externa
 	            try {
 	                if (window.API && window.API.apiFetch) {
-	                    const rSys = await window.API.apiFetch('/api/empresas/' + cnpj);
+                    const rSys = await window.API.apiFetch('/api/empresas/' + cnpj);
                     if (rSys.ok) {
                         const empSys = await rSys.json();
+                        window.__empresaCadastroInternoAtual = empSys;
                         // Ja cadastrada no sistema — esconder botoes de plano
                         aplicarUICadastroEmpresa(true, empSys.ativo !== false);
                         showToast('ℹ️ Empresa ja cadastrada no sistema', 'success');
@@ -10453,7 +10504,7 @@
 	                periodoInicio: document.getElementById('infoPeriodoInicio').value,
 	                periodoFim: document.getElementById('infoPeriodoFim').value
 	            };
-                const cadastroAtual = window.__empresaCadastroInternoAtual || null;
+                let cadastroAtual = window.__empresaCadastroInternoAtual || null;
                 if (cadastroAtual && String(cadastroAtual.cnpj || '').replace(/\D/g, '') === String(info.cnpj || '').replace(/\D/g, '')) {
                     info.plano_id = cadastroAtual.plano_id || cadastroAtual.planoId || '';
                     info.planoNome = cadastroAtual.plano_nome || cadastroAtual.plano_id || '';
@@ -10500,6 +10551,22 @@
                 showToast('Data inicial não pode ser maior que data final!', 'error');
                 return;
             }
+
+            // Confirma o vinculo na fonte oficial antes de consultar caches/sessoes locais.
+            try {
+                const cadastroOficial = await consultarEmpresaNoBancoInterno(cnpjNovo);
+                if (cadastroOficial) {
+                    cadastroAtual = cadastroOficial;
+                    window.__empresaCadastroInternoAtual = cadastroOficial;
+                    info.plano_id = cadastroOficial.plano_id || cadastroOficial.planoId || info.plano_id || '';
+                    info.planoNome = cadastroOficial.plano_nome || cadastroOficial.plano_id || info.planoNome || '';
+                    if (!info.banco && cadastroOficial.banco) {
+                        info.banco = resolverBancoLegado(cadastroOficial.banco) || cadastroOficial.banco;
+                    }
+                }
+            } catch (e) {
+                console.warn('[confirmarInfo] cadastro oficial:', e);
+            }
             
             // Verificar se existe plano cadastrado para este CNPJ
             const planoEncontrado = verificarPlanoPorCNPJ(info.cnpj);
@@ -10513,6 +10580,9 @@
             
             // Plano encontrado - carregar mapeamentos do plano
             info.planoNome = planoEncontrado.nome;
+            info.plano_id = (planoEncontrado.plano && (
+                planoEncontrado.plano.plano_id || planoEncontrado.plano.id || planoEncontrado.plano._id
+            )) || info.plano_id || '';
             showToast('✅ Plano "' + planoEncontrado.nome + '" carregado!', 'success');
             
             state.info = info;
@@ -15172,27 +15242,40 @@ async function confirmarVincularPlano() {
     if (r.erro) { msg.style.color='#dc2626'; msg.textContent = 'Erro: ' + r.erro; return; }
     msg.style.color = '#059669';
     msg.textContent = '✅ Plano vinculado com sucesso!';
-    setTimeout(async () => {
-      fecharVincularPlanoModal();
-      // Atualiza o cache local de planos ANTES de revalidar (fix trava seguranca)
-      try {
-        const atual = await window.API.loadPlanos();
-        if (atual && typeof atual === 'object') {
-          planosCadastrados = atual;
-          try { localStorage.setItem('planosCadastrados_sp', JSON.stringify(atual)); } catch(e) {}
-          console.log('[vincular] cache planos atualizado com', Object.keys(atual).length, 'entradas');
-        }
-      } catch (e) { console.warn('[vincular] falha recarga cache:', e); }
-      // Revalida CNPJ (agora o cache ja tem a nova vinculacao)
-      if (typeof buscarCNPJ === 'function') { try { buscarCNPJ(); } catch(e) {} }
-      // [A1] Retoma confirmarInfo se houver info pendente
-      if (state._pendingInfo) {
-        const pend = state._pendingInfo;
-        delete state._pendingInfo;
-        setTimeout(() => { try { confirmarInfo(); } catch(e) { console.warn('[A1] retomar confirmarInfo falhou:', e); } }, 300);
+    const planoNome = r.plano_nome
+      || (document.getElementById('vinpPlano').selectedOptions[0] || {}).textContent
+      || plano_id;
+    window.__empresaCadastroInternoAtual = {
+      ...(window.__empresaCadastroInternoAtual || {}),
+      cnpj: cnpj.replace(/\D/g, ''),
+      razao_social: razao,
+      plano_id,
+      plano_nome: planoNome
+    };
+
+    // Atualiza o cache antes de continuar e elimina a corrida fixa de 300 ms.
+    try {
+      const atual = await window.API.loadPlanos();
+      if (atual && typeof atual === 'object') {
+        planosCadastrados = atual;
+        try { localStorage.setItem('planosCadastrados_sp', JSON.stringify(atual)); } catch(e) {}
+        console.log('[vincular] cache planos atualizado com', Object.keys(atual).length, 'entradas');
       }
+    } catch (e) { console.warn('[vincular] falha recarga cache:', e); }
+    try {
+      const cadastroOficial = await consultarEmpresaNoBancoInterno(cnpj.replace(/\D/g, ''));
+      if (cadastroOficial) window.__empresaCadastroInternoAtual = cadastroOficial;
+    } catch (e) { console.warn('[vincular] falha cadastro oficial:', e); }
+
+    fecharVincularPlanoModal();
+    if (state._pendingInfo) {
+      state._pendingInfo.plano_id = plano_id;
+      state._pendingInfo.planoNome = planoNome;
+      delete state._pendingInfo;
+      await confirmarInfo();
+    } else {
       showToast('✅ Plano vinculado! Clique em \'Confirmar e Continuar\' para prosseguir', 'success');
-    }, 700);
+    }
   } catch (e) {
     msg.style.color = '#dc2626';
     msg.textContent = 'Erro: ' + e.message;
@@ -15594,7 +15677,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.62';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.63';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';

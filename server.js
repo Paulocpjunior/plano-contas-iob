@@ -1,6 +1,7 @@
 const express = require('express');
-const { Firestore } = require('@google-cloud/firestore');
+const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { validarVersaoParaNovaImportacao } = require('./session-import-version-guard');
+const { aplicarPlanoNaSessao, usuarioPodeAcessarEmpresa } = require('./empresa-plano-vinculo');
 const admin = require('firebase-admin');
 const path = require('path');
 const { LAYOUTS_BANCARIOS_PADRAO, normalizarBancoLayout, layoutBancoId } = require('./layouts-bancarios-padrao');
@@ -726,13 +727,32 @@ app.delete('/api/planos/:id', adminRequired, async (req, res) => {
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
+async function listarEmpresasAcessiveis(user, opcoes) {
+  const opts = opcoes || {};
+  if (user && user.is_admin && opts.somenteVinculadas !== true) {
+    const snap = await db.collection('empresas').get();
+    return snap.docs;
+  }
+  const uid = user && user.uid ? String(user.uid) : '';
+  if (!uid) return [];
+  const consultas = [
+    db.collection('empresas').where('owner_uid', '==', uid).get(),
+    db.collection('empresas').where('vinculado_por_uid', '==', uid).get(),
+    db.collection('empresas').where('acesso_uids', 'array-contains', uid).get()
+  ];
+  const resultados = await Promise.all(consultas);
+  const unicos = new Map();
+  resultados.forEach(function(snap) {
+    snap.docs.forEach(function(doc) { unicos.set(doc.id, doc); });
+  });
+  return Array.from(unicos.values());
+}
+
 // EMPRESAS - COLABORATIVO
 app.get('/api/empresas', async (req, res) => {
   try {
-    let query = db.collection('empresas');
-    if (!req.user.is_admin) query = query.where('owner_uid', '==', req.user.uid);
-    const snap = await query.get();
-    res.json(snap.docs.map(d => ({ cnpj: d.id, ...d.data() })));
+    const docs = await listarEmpresasAcessiveis(req.user);
+    res.json(docs.map(d => ({ cnpj: d.id, ...d.data() })));
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
@@ -740,11 +760,11 @@ app.get('/api/empresas', async (req, res) => {
 app.get('/api/empresas/listar', async (req, res) => {
   try {
     const { q, banco, status, periodo_de, periodo_ate, sort, order, limit, offset, admin_ver_tudo } = req.query || {};
-    let query = db.collection('empresas');
     const verTudo = req.user.is_admin && admin_ver_tudo === '1';
-    if (!req.user.is_admin || !verTudo) query = query.where('owner_uid', '==', req.user.uid);
-    const snap = await query.get();
-    let empresas = snap.docs.map(d => ({ cnpj: d.id, ...d.data() }));
+    const docs = verTudo
+      ? (await db.collection('empresas').get()).docs
+      : await listarEmpresasAcessiveis(req.user, { somenteVinculadas: true });
+    let empresas = docs.map(d => ({ cnpj: d.id, ...d.data() }));
 
     // Carregar nomes dos planos para enriquecer (uma passada so)
     const planoIds = Array.from(new Set(empresas.map(e => e.plano_id).filter(Boolean)));
@@ -1065,6 +1085,47 @@ app.post('/api/ai/gemini', async (req, res) => {
 });
 
 // ==================== VINCULAR PLANO A EMPRESA (ADMIN) ====================
+async function sincronizarPlanoSessaoEmpresa(cnpj, planoId, planoNome, user, opcoes) {
+  const sessaoRef = db.collection('empresas').doc(cnpj).collection('sessoes').doc('current');
+  const sessaoInicial = await carregarSessaoAtualPorRef(sessaoRef);
+  if (!sessaoInicial.encontrada || !sessaoInicial.stateJson) {
+    return { sincronizada: false, motivo: 'sem_sessao', totalAfetados: 0 };
+  }
+  let tokenTrava = null;
+  try {
+    tokenTrava = await adquirirTravaSessao(sessaoRef, user, 'sincronizar_plano');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    const atualizada = aplicarPlanoNaSessao(sessao.stateJson, planoId, planoNome, opcoes);
+    if (!atualizada.alterado) {
+      await liberarTravaSessao(sessaoRef, tokenTrava);
+      tokenTrava = null;
+      return { sincronizada: true, motivo: 'ja_atualizada', totalAfetados: 0 };
+    }
+    const resumo = {
+      ...(sessao.dados.resumo || {}),
+      plano_id: planoId,
+      plano_nome: planoNome || planoId
+    };
+    const gravacao = await gravarSessaoBloqueada(
+      sessaoRef,
+      atualizada.stateJson,
+      resumo,
+      user,
+      { exigirRevisao: true }
+    );
+    tokenTrava = null;
+    return {
+      sincronizada: true,
+      motivo: 'atualizada',
+      totalAfetados: atualizada.totalAfetados,
+      session_revision: gravacao.revisao
+    };
+  } catch (e) {
+    if (tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    throw e;
+  }
+}
+
 app.post('/api/admin/trocar-plano-empresa', adminRequired, async (req, res) => {
   try {
     const { cnpj, novo_plano_id, descartar_classificacoes } = req.body || {};
@@ -1090,26 +1151,20 @@ app.post('/api/admin/trocar-plano-empresa', adminRequired, async (req, res) => {
       } catch (e) {}
     }
 
-    let totalAfetados = 0;
-    if (descartar_classificacoes) {
-      try {
-        const sessRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('ativa');
-        const sessDoc = await sessRef.get();
-        if (sessDoc.exists) {
-          const sess = sessDoc.data();
-          if (sess.state_json) {
-            const st = JSON.parse(sess.state_json);
-            if (Array.isArray(st.entries)) {
-              totalAfetados = st.entries.length;
-              st.entries.forEach(function(e){ e.contaDebito=''; e.contaCredito=''; e.categoria='Nao categorizado'; e.historico=''; });
-              await sessRef.update({ state_json: JSON.stringify(st), atualizado_em: new Date(), atualizado_por: req.user.email });
-            }
-          }
-        }
-      } catch (e) { console.warn('trocar-plano: erro ao limpar classificacoes:', e.message); }
-    }
-
     await empresaRef.update({ plano_id: novo_plano_id, plano_nome: novoPlanoData.nome || '', trocado_em: new Date(), trocado_por: req.user.email });
+    let sincronizacaoSessao = { sincronizada: false, totalAfetados: 0 };
+    try {
+      sincronizacaoSessao = await sincronizarPlanoSessaoEmpresa(
+        cnpjLimpo,
+        novo_plano_id,
+        novoPlanoData.nome || novo_plano_id,
+        req.user,
+        { descartarClassificacoes: !!descartar_classificacoes }
+      );
+    } catch (e) {
+      console.warn('trocar-plano: erro ao sincronizar sessao:', e.message);
+    }
+    const totalAfetados = sincronizacaoSessao.totalAfetados || 0;
 
     await db.collection('empresas').doc(cnpjLimpo).collection('historico_planos').add({
       plano_anterior_id: empresaData.plano_id || null,
@@ -1123,7 +1178,13 @@ app.post('/api/admin/trocar-plano-empresa', adminRequired, async (req, res) => {
       por_uid: req.user.uid
     });
 
-    res.json({ ok: true, plano_novo_nome: novoPlanoData.nome, total_afetados: totalAfetados });
+    res.json({
+      ok: true,
+      plano_novo_nome: novoPlanoData.nome,
+      plano_novo_id: novo_plano_id,
+      total_afetados: totalAfetados,
+      sessao_sincronizada: sincronizacaoSessao.sincronizada === true
+    });
   } catch (e) { console.error('trocar-plano-empresa:', e); res.status(500).json({ erro: e.message }); }
 });
 
@@ -1202,6 +1263,7 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     if (!plano_id) return res.status(400).json({ erro: 'plano_id obrigatorio' });
     const planoDoc = await db.collection('planos').doc(plano_id).get();
     if (!planoDoc.exists) return res.status(404).json({ erro: 'Plano nao encontrado' });
+    const planoData = planoDoc.data() || {};
     const empresaRef = db.collection('empresas').doc(cnpjLimpo);
     const empresaDoc = await empresaRef.get();
     const empresaAtual = empresaDoc.exists ? (empresaDoc.data() || {}) : null;
@@ -1220,11 +1282,39 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
       }
     }
 
-    const dados = { plano_id, ativo: true, updated_at: new Date(), vinculado_por_uid: req.user.uid, vinculado_por_email: req.user.email, vinculado_em: new Date() };
+    const dados = {
+      plano_id,
+      plano_nome: planoData.nome || planoData.name || plano_id,
+      ativo: true,
+      updated_at: new Date(),
+      vinculado_por_uid: req.user.uid,
+      vinculado_por_email: req.user.email,
+      vinculado_em: new Date(),
+      acesso_uids: FieldValue.arrayUnion(req.user.uid),
+      acesso_emails: FieldValue.arrayUnion(req.user.email)
+    };
     if (razao_social) dados.razao_social = razao_social;
     if (!empresaDoc.exists) { dados.created_at = new Date(); dados.created_by = req.user.uid; dados.created_by_email = req.user.email; dados.owner_uid = req.user.uid; }
     await empresaRef.set(dados, { merge: true });
-    res.json({ ok: true, cnpj: cnpjLimpo, plano_id });
+    let sincronizacaoSessao = { sincronizada: false };
+    try {
+      sincronizacaoSessao = await sincronizarPlanoSessaoEmpresa(
+        cnpjLimpo,
+        plano_id,
+        dados.plano_nome,
+        req.user,
+        { descartarClassificacoes: false }
+      );
+    } catch (e) {
+      console.warn('vincular-empresa-plano: erro ao sincronizar sessao:', e.message);
+    }
+    res.json({
+      ok: true,
+      cnpj: cnpjLimpo,
+      plano_id,
+      plano_nome: dados.plano_nome,
+      sessao_sincronizada: sincronizacaoSessao.sincronizada === true
+    });
   } catch (e) { console.error('vincular-empresa-plano erro:', e); res.status(500).json({ erro: e.message }); }
 }
 
@@ -1241,7 +1331,7 @@ async function checarAcessoEmpresa(cnpj, user) {
   const doc = await db.collection('empresas').doc(cnpj).get();
   if (!doc.exists) return { ok: false, status: 404, erro: 'Empresa nao encontrada' };
   const emp = doc.data();
-  if (!user.is_admin && emp.owner_uid !== user.uid) return { ok: false, status: 403, erro: 'Sem permissao para esta empresa' };
+  if (!usuarioPodeAcessarEmpresa(emp, user)) return { ok: false, status: 403, erro: 'Sem permissao para esta empresa' };
   return { ok: true, empresa: emp };
 }
 
