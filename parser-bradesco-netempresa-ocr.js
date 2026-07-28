@@ -41,6 +41,34 @@
     }, { credito: 0, debito: 0 });
   }
 
+  function totaisImpressosPagina(pagina) {
+    const secoes = Array.isArray(pagina && pagina.section_totals)
+      ? pagina.section_totals.filter(function(secao) {
+          return secao
+            && Number.isFinite(Number(secao.credit))
+            && Number.isFinite(Number(secao.debit));
+        })
+      : [];
+    if (secoes.length > 1) {
+      return {
+        credito: arredondar(secoes.reduce(function(total, secao) {
+          return total + Math.abs(Number(secao.credit || 0));
+        }, 0)),
+        debito: arredondar(secoes.reduce(function(total, secao) {
+          return total + Math.abs(Number(secao.debit || 0));
+        }, 0))
+      };
+    }
+    return {
+      credito: pagina && pagina.total_credit !== null && pagina.total_credit !== undefined && Number.isFinite(Number(pagina.total_credit))
+        ? Math.abs(Number(pagina.total_credit))
+        : null,
+      debito: pagina && pagina.total_debit !== null && pagina.total_debit !== undefined && Number.isFinite(Number(pagina.total_debit))
+        ? Math.abs(Number(pagina.total_debit))
+        : null
+    };
+  }
+
   function erroValidacao(mensagem, pagina) {
     const erro = new Error(mensagem);
     erro.pagina = pagina || 0;
@@ -158,12 +186,13 @@
         });
       });
 
-      if (pagina.total_credit !== null && pagina.total_credit !== undefined && Number.isFinite(Number(pagina.total_credit))) {
-        grupo.totalCreditoOficial = Math.abs(Number(pagina.total_credit));
+      const totaisPagina = totaisImpressosPagina(pagina);
+      if (totaisPagina.credito !== null) {
+        grupo.totalCreditoOficial = totaisPagina.credito;
         grupo.encerramentoConfirmado = true;
       }
-      if (pagina.total_debit !== null && pagina.total_debit !== undefined && Number.isFinite(Number(pagina.total_debit))) {
-        grupo.totalDebitoOficial = Math.abs(Number(pagina.total_debit));
+      if (totaisPagina.debito !== null) {
+        grupo.totalDebitoOficial = totaisPagina.debito;
         grupo.encerramentoConfirmado = true;
       }
     });
@@ -225,6 +254,18 @@
       opening_balance: { type: 'NUMBER', nullable: true },
       total_credit: { type: 'NUMBER', nullable: true },
       total_debit: { type: 'NUMBER', nullable: true },
+      section_totals: {
+        type: 'ARRAY',
+        items: {
+          type: 'OBJECT',
+          properties: {
+            credit: { type: 'NUMBER' },
+            debit: { type: 'NUMBER' },
+            ending_balance: { type: 'NUMBER' }
+          },
+          required: ['credit', 'debit', 'ending_balance']
+        }
+      },
       transactions: {
         type: 'ARRAY',
         items: {
@@ -241,7 +282,7 @@
         }
       }
     },
-    required: ['is_statement', 'page_number', 'agency', 'account', 'transactions']
+    required: ['is_statement', 'page_number', 'agency', 'account', 'section_totals', 'transactions']
   };
 
   function promptPagina(numero, total) {
@@ -255,7 +296,11 @@
       'credit e debit sao sempre positivos e apenas um deles pode ser maior que zero. balance conserva o sinal impresso.',
       'Repita a ultima data visivel quando as linhas seguintes estiverem sem data. Use YYYY-MM-DD.',
       'opening_balance deve ser preenchido somente se a pagina mostrar SALDO ANTERIOR.',
+      'Se houver uma secao Ultimos Lancamentos depois de uma linha Total, continue a leitura e inclua tambem todos os movimentos dessa segunda tabela.',
+      'O SALDO ANTERIOR dentro de Ultimos Lancamentos e apenas transporte da secao anterior e nao deve substituir opening_balance da conta.',
       'total_credit e total_debit devem ser preenchidos somente quando a pagina mostrar a linha Total da conta; use valores absolutos.',
+      'Quando houver mais de uma tabela com sua propria linha Total na mesma pagina, preencha section_totals com cada subtotal na ordem impressa e use em total_credit e total_debit a soma desses subtotais.',
+      'Quando houver uma unica linha Total, retorne section_totals=[].',
       'agency e account devem vir do cabecalho quando visiveis; caso contrario retorne string vazia.',
       'Nao estime, nao resuma, nao omita e nao duplique linhas.'
     ].join('\n');
@@ -351,6 +396,7 @@
         limparConta: limparConta,
         dataISO: dataISO,
         somarMovimentos: somarMovimentos,
+        totaisImpressosPagina: totaisImpressosPagina,
         promptPagina: promptPagina,
         responseSchema: RESPONSE_SCHEMA
       }

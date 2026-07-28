@@ -1,7 +1,10 @@
 {
-  "version": "3.4.64",
-  "build_date": "2026-07-28T16:24:44.000Z",
+  "version": "3.4.65",
+  "build_date": "2026-07-28T17:42:06.000Z",
   "release_notes": [
+    "Bradesco Net Empresa escaneado agora reconhece a secao adicional Ultimos Lancamentos depois do primeiro total.",
+    "Quando uma pagina possui duas tabelas com subtotais, creditos e debitos sao somados antes da conferencia do saldo final.",
+    "O arquivo real da Ferrante foi validado com 46 movimentos, R$ 42.891,45 em creditos, R$ 44.427,08 em debitos e saldo final de R$ 198,54.",
     "Razao de Saldos da CLUDE volta a abrir diretamente o relatorio de contas a pagar, com notas pagas no mes e notas em aberto.",
     "O resultado especial do Razao agora e preservado antes da tentativa de leitura generica do Extrato Conciliado.",
     "O arquivo real de abril de 2026 foi validado com 354 linhas, 149 notas e periodo de 01/04/2026 a 30/04/2026.",

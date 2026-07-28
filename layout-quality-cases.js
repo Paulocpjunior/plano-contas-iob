@@ -228,6 +228,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'PDF digitalizado com 14 paginas: 238 movimentos na conta 25287-5 e 88 na conta 14609-9. Paginas de investimentos sao ignoradas e cada conta fecha pelos totais impressos e pela sequencia de saldos.'
   },
   {
+    id: 'bradesco-netempresa-ocr-ferrante-2026-06',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco Net Empresa - Escaneado por Pagina',
+    parser: 'parsearPDF_Bradesco_NetEmpresaOCR',
+    arquivo: 'BRADESCO FERRANTE (1).pdf',
+    empresa: 'CADEIRAS GENNARO FERRANTE LTDA',
+    periodo_inicio: '2026-06-02',
+    periodo_fim: '2026-06-30',
+    esperado: {
+      total_lancamentos: 46,
+      total_credito: 42891.45,
+      total_debito: 44427.08
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-28T14:42:06-03:00',
+    observacao: 'PDF imagem de 2 paginas com uma segunda tabela Ultimos Lancamentos depois do primeiro Total. A regressao soma os dois subtotais e fecha o saldo final em R$ 198,54.'
+  },
+  {
     id: 'bradesco-simples-conferencia-2045-2025-03',
     banco: '237',
     nomeBanco: 'Bradesco',

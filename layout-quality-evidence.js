@@ -75,6 +75,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Extrato escaneado real conferido pagina por pagina: 326 movimentos, credito R$ 59.630,96 e debito R$ 56.040,78 em duas contas. O arquivo BRADESCO.pdf valida isoladamente a segunda conta pelos totais impressos.'
   },
   {
+    id: 'bradesco-netempresa-ocr-ferrante-2026-06',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco Net Empresa - Escaneado por Pagina',
+    parser: 'parsearPDF_Bradesco_NetEmpresaOCR',
+    arquivo: 'BRADESCO FERRANTE (1).pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/BRADESCO FERRANTE (1).pdf',
+    empresa: 'CADEIRAS GENNARO FERRANTE LTDA',
+    periodo_inicio: '2026-06-02',
+    periodo_fim: '2026-06-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Extrato real de 2 paginas sem camada textual. A segunda pagina possui Total e depois Ultimos Lancamentos; os 46 movimentos fecham credito R$ 42.891,45, debito R$ 44.427,08 e saldo R$ 198,54.'
+  },
+  {
     id: 'bradesco-simples-conferencia-2045-2025-03',
     banco: '237',
     nomeBanco: 'Bradesco',
