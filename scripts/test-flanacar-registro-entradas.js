@@ -1,7 +1,11 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { parsearCSV_FlanacarRegistroEntradas, detectarCSV_FlanacarRegistroEntradas } = require('../parser-flanacar-registro-entradas');
+const {
+  parsearCSV_FlanacarRegistroEntradas,
+  detectarCSV_FlanacarRegistroEntradas,
+  detectarCSV_FlanacarRegistroSaidas
+} = require('../parser-flanacar-registro-entradas');
 
 const arquivo = process.env.FLANACAR_REGISTRO_ENTRADAS_CSV
   || '/Users/paulocesarpereirajunior/Downloads/1237_RelatorioNotas_20260401_20260430.Csv';
@@ -10,6 +14,7 @@ assert(fs.existsSync(arquivo), 'Fixture FLANACAR Registro de Entradas nao encont
 
 const texto = fs.readFileSync(path.resolve(arquivo)).toString('latin1');
 assert.strictEqual(detectarCSV_FlanacarRegistroEntradas(texto), true, 'CSV FLANACAR deve ser detectado');
+assert.strictEqual(detectarCSV_FlanacarRegistroSaidas(texto), false, 'fixture homologada de entradas nao pode ser detectada como livro exclusivo de saidas');
 
 const resultado = parsearCSV_FlanacarRegistroEntradas(texto);
 const totalDebito = resultado.lancamentos.reduce((acc, l) => acc + Math.abs(Number(l.valor) || 0), 0);

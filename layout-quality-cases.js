@@ -440,6 +440,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'CSV fiscal ISO-8859-1 com cabecalho na segunda linha. Agrega 136 linhas complementares de CFOP/imposto nas notas anteriores e preserva fornecedor, CNPJ, NF, CFOP e tributos para classificacao por fornecedor.'
   },
   {
+    id: 'flanacar-registro-saidas-csv-2026-06',
+    banco: '1237',
+    nomeBanco: 'FLANACAR COMERCIO DE AUTOPECAS',
+    layout: 'FLANACAR - Registro de Saidas Fiscal CSV',
+    parser: 'parsearCSV_FlanacarRegistroSaidas',
+    arquivo: '1237_RelatorioNotas_20260601_20260630.Csv',
+    empresa: 'FLANACAR COMERCIO DE AUTOPECAS',
+    periodo_inicio: '2026-06-01',
+    periodo_fim: '2026-06-30',
+    esperado: {
+      total_lancamentos: 2787,
+      total_credito: 11042833.74,
+      total_debito: 0
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-28T09:00:00-03:00',
+    observacao: 'Livro de saidas CSV ISO-8859-1 com cabecalho na segunda linha. Agrega 119 complementos em 2787 NFs; as vendas somam R$ 11.042.833,74 em credito e 10261 lancamentos opcionais de tributos somam R$ 1.918.121,42 em debito.'
+  },
+  {
     id: 'daxx-analise-creditos-pis-cofins-2026-04',
     banco: '1183',
     nomeBanco: 'DAXX MIDIA LTDA',

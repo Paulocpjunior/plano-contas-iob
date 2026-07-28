@@ -1,13 +1,48 @@
-// Parser fiscal - FLANACAR Registro de Entradas CSV (Office Fiscal / IOB SAGE)
+// Parser fiscal - FLANACAR Registros de Entradas e Saidas CSV (Office Fiscal / IOB SAGE)
 (function(root) {
   'use strict';
 
-  const LAYOUT = {
-    banco: '1237',
-    empresa: 'FLANACAR COMERCIO DE AUTOPECAS',
-    nome: 'FLANACAR - Registro de Entradas Fiscal CSV',
-    parser: 'parsearCSV_FlanacarRegistroEntradas',
-    conta: 'Fiscal 1237 - Registro de Entradas'
+  const LAYOUTS = {
+    entrada: {
+      direcao: 'entrada',
+      es: 'E',
+      banco: '1237',
+      empresa: 'FLANACAR COMERCIO DE AUTOPECAS',
+      nome: 'FLANACAR - Registro de Entradas Fiscal CSV',
+      parser: 'parsearCSV_FlanacarRegistroEntradas',
+      conta: 'Fiscal 1237 - Registro de Entradas',
+      contaDetectada: 'REGISTRO_ENTRADAS_FISCAL',
+      tipoDocumento: 'REGISTRO_ENTRADA_FISCAL',
+      tipoDocumentoImposto: 'REGISTRO_ENTRADA_FISCAL_IMPOSTO',
+      natureza: 'entrada_fiscal_compra',
+      naturezaImposto: 'entrada_fiscal_imposto_destacado',
+      origem: 'registro-entradas-flanacar',
+      origemImposto: 'registro-entradas-flanacar-imposto',
+      rotulo: 'Entrada fiscal',
+      contraparte: 'Fornecedor',
+      sinalPrincipal: -1,
+      aceitaArquivoMisto: true
+    },
+    saida: {
+      direcao: 'saida',
+      es: 'S',
+      banco: '1237',
+      empresa: 'FLANACAR COMERCIO DE AUTOPECAS',
+      nome: 'FLANACAR - Registro de Saidas Fiscal CSV',
+      parser: 'parsearCSV_FlanacarRegistroSaidas',
+      conta: 'Fiscal 1237 - Registro de Saidas',
+      contaDetectada: 'REGISTRO_SAIDAS_FISCAL',
+      tipoDocumento: 'REGISTRO_SAIDA_FISCAL',
+      tipoDocumentoImposto: 'REGISTRO_SAIDA_FISCAL_IMPOSTO',
+      natureza: 'saida_fiscal_venda',
+      naturezaImposto: 'saida_fiscal_imposto_destacado',
+      origem: 'registro-saidas-flanacar',
+      origemImposto: 'registro-saidas-flanacar-imposto',
+      rotulo: 'Saida fiscal',
+      contraparte: 'Cliente',
+      sinalPrincipal: 1,
+      aceitaArquivoMisto: false
+    }
   };
 
   const COLUMN_ALIASES = {
@@ -59,8 +94,9 @@
   const COLUMN_GROUPS = {
     es: 'Identificacao', situacaoDocumento: 'Identificacao', dataEmissao: 'Identificacao',
     dataEntrada: 'Identificacao', numeroNf: 'Identificacao', especie: 'Identificacao',
-    serie: 'Identificacao', subserie: 'Identificacao', cnpj: 'Fornecedor',
-    inscricaoEstadual: 'Fornecedor', razaoSocial: 'Fornecedor', cidade: 'Fornecedor', uf: 'Fornecedor',
+    serie: 'Identificacao', subserie: 'Identificacao', cnpj: 'Remetente/Destinatario',
+    inscricaoEstadual: 'Remetente/Destinatario', razaoSocial: 'Remetente/Destinatario',
+    cidade: 'Remetente/Destinatario', uf: 'Remetente/Destinatario',
     chaveNfe: 'Documento fiscal', chaveCteSubstituido: 'Documento fiscal', cfop: 'Documento fiscal', ci: 'Documento fiscal',
     valorContabil: 'Valores da nota', valorFrete: 'Valores da nota',
     baseIcms: 'ICMS', aliquotaIcms: 'ICMS', valorIcms: 'ICMS', isentasIcms: 'ICMS', outrasIcms: 'ICMS',
@@ -250,14 +286,14 @@
     return parseMoneyBR(valorColuna(row, mapa, key));
   }
 
-  function categoriaPorCfop(cfop, fornecedor) {
+  function categoriaPorCfop(cfop, contraparte, layout) {
     const c = somenteDigitos(cfop).slice(0, 4);
-    const f = removerAcentos(fornecedor).toUpperCase();
+    const f = removerAcentos(contraparte).toUpperCase();
     if (/^(1353|2353|5353|6353)$/.test(c) || /\b(TRANSPORT|FRETE|LOGIST)\b/.test(f)) return 'Fretes e transportes';
     if (/^(1202|2202|1411|2411|5202|6202|5411|6411)$/.test(c)) return 'Devolucao/retorno de mercadorias';
     if (/^(1556|2556|5556|6556)$/.test(c)) return 'Uso e consumo';
     if (/^(1407|2407|5407|6407)$/.test(c)) return 'Mercadorias com ST';
-    return 'Entradas fiscais - mercadorias';
+    return layout.direcao === 'saida' ? 'Saidas fiscais - mercadorias' : 'Entradas fiscais - mercadorias';
   }
 
   function atualizarCfop(draft, cfop, valor) {
@@ -335,16 +371,16 @@
     atualizarCfop(draft, valorColuna(row, mapa, 'cfop'), valor);
   }
 
-  function novoId(prefixo) {
+  function novoId(prefixo, layout) {
     if (root.crypto && typeof root.crypto.randomUUID === 'function') return root.crypto.randomUUID();
-    return 'flanacar_' + prefixo + '_' + Math.random().toString(36).slice(2);
+    return 'flanacar_' + layout.direcao + '_' + prefixo + '_' + Math.random().toString(36).slice(2);
   }
 
-  function montarDescricao(draft) {
+  function montarDescricao(draft, layout) {
     const cfops = Object.keys(draft.cfopValores).sort().join('/');
     return [
-      'Entrada fiscal',
-      draft.fornecedor || 'Fornecedor nao informado',
+      layout.rotulo,
+      draft.fornecedor || (layout.contraparte + ' nao informado'),
       draft.numeroNf ? 'NF ' + draft.numeroNf : '',
       cfops ? 'CFOP ' + cfops : '',
       draft.cnpjFornecedor ? 'CNPJ ' + draft.cnpjFornecedor : '',
@@ -353,28 +389,28 @@
     ].filter(Boolean).join(' - ').replace(/\s+/g, ' ').trim();
   }
 
-  function finalizarLancamento(draft, periodo) {
+  function finalizarLancamento(draft, periodo, layout) {
     const cfops = Object.keys(draft.cfopValores).sort();
     const cfopPrincipal = cfops
       .slice()
       .sort(function(a, b) { return (draft.cfopValores[b] || 0) - (draft.cfopValores[a] || 0); })[0] || '';
-    const fornecedor = draft.fornecedor || 'Fornecedor nao informado';
+    const contraparte = draft.fornecedor || (layout.contraparte + ' nao informado');
     const valorNota = Math.abs(Number(draft.valorContabil || 0));
-    const categoria = categoriaPorCfop(cfopPrincipal, fornecedor);
+    const categoria = categoriaPorCfop(cfopPrincipal, contraparte, layout);
 
-    return {
-      id: novoId(draft.linhaOrigem || draft.numeroNf || 'nf'),
+    const lancamento = {
+      id: novoId(draft.linhaOrigem || draft.numeroNf || 'nf', layout),
       data: draft.data,
-      descricao: montarDescricao(draft),
-      descricao_memoria: fornecedor,
+      descricao: montarDescricao(draft, layout),
+      descricao_memoria: contraparte,
       memoriaDescricoes: [
-        fornecedor,
+        contraparte,
         draft.cnpjFornecedor,
         draft.numeroNf ? 'NF ' + draft.numeroNf : '',
         cfopPrincipal ? 'CFOP ' + cfopPrincipal : '',
-        'Entrada fiscal - ' + fornecedor
+        layout.rotulo + ' - ' + contraparte
       ].filter(Boolean),
-      valor: -valorNota,
+      valor: layout.sinalPrincipal * valorNota,
       valorNota,
       valorContabil: valorNota,
       valorFrete: draft.valorFrete,
@@ -394,11 +430,9 @@
       valorCofins: draft.valorCofins,
       categoria,
       categoriaFiscal: categoria,
-      tipoDocumentoFiscal: 'REGISTRO_ENTRADA_FISCAL',
-      naturezaLancamento: 'entrada_fiscal_compra',
-      direcaoFiscal: 'entrada',
-      fornecedor,
-      cnpj_fornecedor: draft.cnpjFornecedor,
+      tipoDocumentoFiscal: layout.tipoDocumento,
+      naturezaLancamento: layout.natureza,
+      direcaoFiscal: layout.direcao,
       documento: draft.numeroNf,
       numero_nf: draft.numeroNf,
       cfop: cfopPrincipal,
@@ -424,35 +458,43 @@
       contaDebito: '',
       contaCredito: '',
       incomum: false,
-      origem: 'registro-entradas-flanacar',
-      layoutNome: LAYOUT.nome,
-      layoutParser: LAYOUT.parser,
-      layoutBanco: LAYOUT.banco,
-      bancoLayout: LAYOUT.banco,
-      bancoId: LAYOUT.banco,
-      bancoNome: LAYOUT.empresa,
-      conta: LAYOUT.conta,
-      nome_conta: LAYOUT.conta,
-      empresaCodigoFiscal: LAYOUT.banco,
-      empresaNomeFiscal: LAYOUT.empresa,
+      origem: layout.origem,
+      layoutNome: layout.nome,
+      layoutParser: layout.parser,
+      layoutBanco: layout.banco,
+      bancoLayout: layout.banco,
+      bancoId: layout.banco,
+      bancoNome: layout.empresa,
+      conta: layout.conta,
+      nome_conta: layout.conta,
+      empresaCodigoFiscal: layout.banco,
+      empresaNomeFiscal: layout.empresa,
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim
     };
+    if (layout.direcao === 'saida') {
+      lancamento.cliente = contraparte;
+      lancamento.cnpj_cliente = draft.cnpjFornecedor;
+    } else {
+      lancamento.fornecedor = contraparte;
+      lancamento.cnpj_fornecedor = draft.cnpjFornecedor;
+    }
+    return lancamento;
   }
 
   const IMPOSTOS_DESTACADOS = [
-    { campo: 'valorIcms', base: 'baseIcms', tipo: 'ICMS', categoria: 'ICMS destacado sobre entradas' },
-    { campo: 'valorIcmsSt', base: 'baseIcmsSt', tipo: 'ICMS ST', categoria: 'ICMS ST destacado sobre entradas' },
-    { campo: 'valorIpi', base: 'baseIpi', tipo: 'IPI', categoria: 'IPI destacado sobre entradas' },
-    { campo: 'valorPis', base: '', tipo: 'PIS', categoria: 'PIS destacado sobre entradas' },
-    { campo: 'valorCofins', base: '', tipo: 'COFINS', categoria: 'COFINS destacado sobre entradas' }
+    { campo: 'valorIcms', base: 'baseIcms', tipo: 'ICMS' },
+    { campo: 'valorIcmsSt', base: 'baseIcmsSt', tipo: 'ICMS ST' },
+    { campo: 'valorIpi', base: 'baseIpi', tipo: 'IPI' },
+    { campo: 'valorPis', base: '', tipo: 'PIS' },
+    { campo: 'valorCofins', base: '', tipo: 'COFINS' }
   ];
 
-  function montarDescricaoImposto(draft, principal, cfg, valor) {
+  function montarDescricaoImposto(draft, principal, cfg, valor, layout) {
     return [
       'Imposto destacado fiscal',
       cfg.tipo,
-      draft.fornecedor || 'Fornecedor nao informado',
+      draft.fornecedor || (layout.contraparte + ' nao informado'),
       draft.numeroNf ? 'NF ' + draft.numeroNf : '',
       principal.cfop ? 'CFOP ' + principal.cfop : '',
       draft.cnpjFornecedor ? 'CNPJ ' + draft.cnpjFornecedor : '',
@@ -460,19 +502,19 @@
     ].filter(Boolean).join(' - ').replace(/\s+/g, ' ').trim();
   }
 
-  function criarLancamentoImposto(draft, principal, cfg) {
+  function criarLancamentoImposto(draft, principal, cfg, layout) {
     const valor = Math.round(Math.abs(Number(draft[cfg.campo] || 0)) * 100) / 100;
     if (!valor) return null;
     const base = cfg.base ? Math.round(Math.abs(Number(draft[cfg.base] || 0)) * 100) / 100 : 0;
     return {
       ...principal,
-      id: novoId((draft.linhaOrigem || draft.numeroNf || 'nf') + '_' + cfg.tipo.replace(/\s+/g, '').toLowerCase()),
-      descricao: montarDescricaoImposto(draft, principal, cfg, valor),
+      id: novoId((draft.linhaOrigem || draft.numeroNf || 'nf') + '_' + cfg.tipo.replace(/\s+/g, '').toLowerCase(), layout),
+      descricao: montarDescricaoImposto(draft, principal, cfg, valor, layout),
       memoriaDescricoes: [
         cfg.tipo,
         'Imposto destacado fiscal',
-        principal.fornecedor,
-        principal.cnpj_fornecedor,
+        principal.fornecedor || principal.cliente,
+        principal.cnpj_fornecedor || principal.cnpj_cliente,
         principal.numero_nf ? 'NF ' + principal.numero_nf : '',
         principal.cfop ? 'CFOP ' + principal.cfop : ''
       ].filter(Boolean),
@@ -482,31 +524,39 @@
       valorImpostoFiscal: valor,
       baseImpostoFiscal: base,
       impostoFiscalTipo: cfg.tipo,
-      categoria: cfg.categoria,
-      categoriaFiscal: cfg.categoria,
-      tipoDocumentoFiscal: 'REGISTRO_ENTRADA_FISCAL_IMPOSTO',
-      naturezaLancamento: 'entrada_fiscal_imposto_destacado',
+      categoria: cfg.tipo + ' destacado sobre ' + (layout.direcao === 'saida' ? 'saidas' : 'entradas'),
+      categoriaFiscal: cfg.tipo + ' destacado sobre ' + (layout.direcao === 'saida' ? 'saidas' : 'entradas'),
+      tipoDocumentoFiscal: layout.tipoDocumentoImposto,
+      naturezaLancamento: layout.naturezaImposto,
       codigoHistorico: '',
       historico: '',
       contaDebito: '',
       contaCredito: '',
-      origem: 'registro-entradas-flanacar-imposto'
+      origem: layout.origemImposto
     };
   }
 
-  function finalizarLancamentos(draft, periodo) {
-    const principal = finalizarLancamento(draft, periodo);
+  function finalizarLancamentos(draft, periodo, layout) {
+    const principal = finalizarLancamento(draft, periodo, layout);
     const impostos = IMPOSTOS_DESTACADOS
-      .map(function(cfg) { return criarLancamentoImposto(draft, principal, cfg); })
+      .map(function(cfg) { return criarLancamentoImposto(draft, principal, cfg, layout); })
       .filter(Boolean);
     return [principal].concat(impostos);
   }
 
-  function parsearTexto_FlanacarRegistroEntradas(textoCompleto, opts) {
+  function parsearTextoFiscalFlanacar(textoCompleto, opts, layout) {
     opts = opts || {};
     const matriz = linhasParaMatriz(textoCompleto);
     const cab = encontrarCabecalho(matriz.rows);
     if (!cab) return { detectado: false, lancamentos: [], motivo: 'cabecalho_nao_reconhecido' };
+    const direcoes = new Set(matriz.rows.slice(cab.index + 1).map(function(row) {
+      return valorColuna(row || [], cab.mapa, 'es').toUpperCase();
+    }).filter(Boolean));
+    const direcaoPresente = direcoes.has(layout.es);
+    const saidaMisturadaComEntrada = layout.direcao === 'saida' && direcoes.has(LAYOUTS.entrada.es);
+    if (!direcaoPresente || saidaMisturadaComEntrada) {
+      return { detectado: false, lancamentos: [], motivo: 'direcao_fiscal_nao_reconhecida' };
+    }
 
     const selecionadas = normalizarSelecaoColunas(opts.colunasSelecionadas);
     const colunasDisponiveis = descreverColunas(
@@ -523,9 +573,13 @@
     for (let i = cab.index + 1; i < matriz.rows.length; i++) {
       const row = matriz.rows[i] || [];
       if (!row.some(function(c) { return limparCampo(c); })) continue;
-      const es = valorColuna(row, mapaAtivo, 'es');
+      const es = valorColuna(row, mapaAtivo, 'es').toUpperCase();
       const temNovaNota = !!es || !!valorColuna(row, mapaAtivo, 'dataEntrada') || !!valorColuna(row, mapaAtivo, 'numeroNf') || !!valorColuna(row, mapaAtivo, 'razaoSocial');
       if (temNovaNota && es) {
+        if (!layout.aceitaArquivoMisto && es !== layout.es) {
+          atual = null;
+          continue;
+        }
         atual = criarDraft(row, mapaAtivo, i + 1);
         if (atual) drafts.push(atual);
       } else if (atual && valorColuna(row, mapaAtivo, 'cfop') && moedaCampo(row, mapaAtivo, 'valorContabil')) {
@@ -538,26 +592,32 @@
     const periodo = { inicio: datas[0] || '', fim: datas[datas.length - 1] || '' };
     const lancamentos = drafts
       .filter(function(d) { return d.data && d.numeroNf && Math.abs(Number(d.valorContabil || 0)) > 0; })
-      .reduce(function(acc, d) { return acc.concat(finalizarLancamentos(d, periodo)); }, []);
-    const totalDebito = Math.round(lancamentos.reduce(function(acc, l) { return acc + Math.abs(Number(l.valor || 0)); }, 0) * 100) / 100;
+      .reduce(function(acc, d) { return acc.concat(finalizarLancamentos(d, periodo, layout)); }, []);
+    const totalCredito = Math.round(lancamentos.reduce(function(acc, l) {
+      return acc + (Number(l.valor || 0) > 0 ? Number(l.valor || 0) : 0);
+    }, 0) * 100) / 100;
+    const totalDebito = Math.round(lancamentos.reduce(function(acc, l) {
+      return acc + (Number(l.valor || 0) < 0 ? Math.abs(Number(l.valor || 0)) : 0);
+    }, 0) * 100) / 100;
 
     lancamentos.forEach(function(l) {
       l.totalDebitoOficial = totalDebito;
-      l.totalCreditoOficial = 0;
+      l.totalCreditoOficial = totalCredito;
       l.linhasComplementaresAgregadas = complementares;
     });
 
     return {
       detectado: lancamentos.length > 0,
-      banco_detectado: LAYOUT.banco,
-      nome_banco_detectado: LAYOUT.empresa,
-      conta_detectada: 'REGISTRO_ENTRADAS_FISCAL',
-      nome_conta_detectado: LAYOUT.nome,
+      banco_detectado: layout.banco,
+      nome_banco_detectado: layout.empresa,
+      conta_detectada: layout.contaDetectada,
+      nome_conta_detectado: layout.nome,
+      direcao_fiscal: layout.direcao,
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim,
-      total_credito: 0,
+      total_credito: totalCredito,
       total_debito: totalDebito,
-      total_oficial: totalDebito,
+      total_oficial: Math.round((totalCredito + totalDebito) * 100) / 100,
       total_lancamentos: lancamentos.length,
       linhas_complementares_agregadas: complementares,
       colunas_disponiveis: colunasDisponiveis,
@@ -566,16 +626,38 @@
     };
   }
 
-  function detectarCSV_FlanacarRegistroEntradas(textoCompleto) {
+  function detectarCSVFiscalFlanacar(textoCompleto, layout) {
     try {
       const matriz = linhasParaMatriz(textoCompleto);
       const cab = encontrarCabecalho(matriz.rows);
       if (!cab) return false;
       const texto = removerAcentos(String(textoCompleto || '')).toUpperCase();
-      return /VALOR\s+CONTABIL/.test(texto) && /CHAVE\s+NF-?E/.test(texto) && /CNPJ\s+REMETENTE/.test(texto);
+      if (!/VALOR\s+CONTABIL/.test(texto) || !/CHAVE\s+NF-?E/.test(texto) || !/CNPJ\s+REMETENTE/.test(texto)) return false;
+      const direcoes = new Set(matriz.rows.slice(cab.index + 1).map(function(row) {
+        return valorColuna(row || [], cab.mapa, 'es').toUpperCase();
+      }).filter(Boolean));
+      if (!direcoes.has(layout.es)) return false;
+      if (layout.direcao === 'saida' && direcoes.has(LAYOUTS.entrada.es)) return false;
+      return true;
     } catch (e) {
       return false;
     }
+  }
+
+  function parsearTexto_FlanacarRegistroEntradas(textoCompleto, opts) {
+    return parsearTextoFiscalFlanacar(textoCompleto, opts || {}, LAYOUTS.entrada);
+  }
+
+  function parsearTexto_FlanacarRegistroSaidas(textoCompleto, opts) {
+    return parsearTextoFiscalFlanacar(textoCompleto, opts || {}, LAYOUTS.saida);
+  }
+
+  function detectarCSV_FlanacarRegistroEntradas(textoCompleto) {
+    return detectarCSVFiscalFlanacar(textoCompleto, LAYOUTS.entrada);
+  }
+
+  function detectarCSV_FlanacarRegistroSaidas(textoCompleto) {
+    return detectarCSVFiscalFlanacar(textoCompleto, LAYOUTS.saida);
   }
 
   function parsearCSV_FlanacarRegistroEntradas(textoCompleto, opts) {
@@ -583,15 +665,26 @@
     return resultado;
   }
 
+  function parsearCSV_FlanacarRegistroSaidas(textoCompleto, opts) {
+    const resultado = parsearTexto_FlanacarRegistroSaidas(textoCompleto, opts || {});
+    return resultado;
+  }
+
   root.detectarCSV_FlanacarRegistroEntradas = detectarCSV_FlanacarRegistroEntradas;
+  root.detectarCSV_FlanacarRegistroSaidas = detectarCSV_FlanacarRegistroSaidas;
   root.parsearCSV_FlanacarRegistroEntradas = parsearCSV_FlanacarRegistroEntradas;
+  root.parsearCSV_FlanacarRegistroSaidas = parsearCSV_FlanacarRegistroSaidas;
   root.parsearTexto_FlanacarRegistroEntradas = parsearTexto_FlanacarRegistroEntradas;
+  root.parsearTexto_FlanacarRegistroSaidas = parsearTexto_FlanacarRegistroSaidas;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       detectarCSV_FlanacarRegistroEntradas,
+      detectarCSV_FlanacarRegistroSaidas,
       parsearCSV_FlanacarRegistroEntradas,
+      parsearCSV_FlanacarRegistroSaidas,
       parsearTexto_FlanacarRegistroEntradas,
+      parsearTexto_FlanacarRegistroSaidas,
       _internals: {
         parseMoneyBR,
         parseDateBR,

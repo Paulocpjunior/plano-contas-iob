@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.60';</script>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.60"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.60"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.60"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.61';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.61"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.61"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.61"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -20,33 +20,33 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.60"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.60"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.60"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.61"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.61"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.61"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.60"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.60"></script>
-    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.60"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.60"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.60"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.60"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.60"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.60"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.60"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.60"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.60"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.60"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.60"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.60"></script>
-    <script src="/parser-extrato-conciliado.js?v=3.4.60"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.60"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.60"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.60"></script>
+    <script src="/parser-ofx.js?v=3.4.61"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.61"></script>
+    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.61"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.61"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.61"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.61"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.61"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.61"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.61"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.61"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.61"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.61"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.61"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.61"></script>
+    <script src="/parser-extrato-conciliado.js?v=3.4.61"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.61"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.61"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.61"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1981,7 +1981,7 @@
                                     Para razão de saldos, Banco e Título não são obrigatórios. Clique em Processar arquivo para gerar o relatório de notas pagas e abertas.
                                 </div>
                                 <div id="uploadFlanacarColumnsHint" style="display:none;grid-column:1/-1;background:#ecfdf5;color:#166534;border:1px solid #86efac;border-radius:8px;padding:10px 12px;font-size:12px;font-weight:700">
-                                    FLANACAR Entrada Fiscal validado. Ao processar, você poderá escolher as colunas deste arquivo antes da importação.
+                                    FLANACAR Fiscal validado. Ao processar, você poderá escolher as colunas deste arquivo antes da importação.
                                 </div>
                             </div>
                         </div>
@@ -3171,8 +3171,8 @@
         <div class="confirm-import-card flanacar-columns-card">
             <div class="confirm-import-head">
                 <div>
-                    <h3>Selecionar colunas da entrada fiscal</h3>
-                    <p>Layout FLANACAR validado. Escolha os campos que devem seguir para a importação.</p>
+                    <h3 id="flanacarColumnsTitle">Selecionar colunas do livro fiscal</h3>
+                    <p id="flanacarColumnsDescription">Layout FLANACAR validado. Escolha os campos que devem seguir para a importação.</p>
                 </div>
                 <button class="btn-remove" type="button" onclick="responderSelecaoColunasFlanacar(false)" aria-label="Fechar">✕</button>
             </div>
@@ -4175,7 +4175,7 @@
             { code: '246', name: 'BANCO ABC BRASIL S.A.' },
             { code: 'CLU', name: 'CLUDE - CLUB DE BENEFICIOS' },
             { code: '1183', name: 'DAXX MIDIA LTDA' },
-            { code: '1237', name: 'FLANACAR - REGISTRO DE ENTRADAS FISCAL CSV' }
+            { code: '1237', name: 'FLANACAR - REGISTROS FISCAIS CSV (ENTRADAS/SAÍDAS)' }
         ];
         const BANCOS_BACEN_CACHE_KEY = 'bancos_bacen_v2';
         const BANCOS_BACEN_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -5185,7 +5185,7 @@
                 '_fingerprint_imp','_acao_dup','status_origem','valorNota',
                 'baseCalculoPisCofins','baseCalculoPisCofinsOrigem','categoriaFiscal',
                 'tipoDocumentoFiscal','naturezaLancamento','direcaoFiscal','descricao_memoria',
-                'memoriaDescricoes','fornecedor','cnpj_fornecedor','documento','numero_nf',
+                'memoriaDescricoes','fornecedor','cnpj_fornecedor','cliente','cnpj_cliente','documento','numero_nf',
                 'cfop','cfops','cfopValores','chave_nfe','chave_cte_substituido',
                 'inscricao_estadual','cidade','uf','situacaoDocumento','emissao',
                 'entradaSaida','especie','serie','subserie','observacao','ufDestino',
@@ -7216,7 +7216,32 @@
             return result;
         }
 
-                async function parsearArquivoTexto(file, hint, opts) {
+        function obterParserFiscalFlanacar(texto, opts) {
+            const candidatos = [
+                {
+                    direcao: 'saida',
+                    parsear: typeof window !== 'undefined' ? window.parsearCSV_FlanacarRegistroSaidas : null,
+                    titulo: 'FLANACAR - Registro de Saídas Fiscal',
+                    tipoArquivo: 'CSV - FLANACAR Registro de Saídas Fiscal'
+                },
+                {
+                    direcao: 'entrada',
+                    parsear: typeof window !== 'undefined' ? window.parsearCSV_FlanacarRegistroEntradas : null,
+                    titulo: 'FLANACAR - Registro de Entradas Fiscal',
+                    tipoArquivo: 'CSV - FLANACAR Registro de Entradas Fiscal'
+                }
+            ];
+            for (const candidato of candidatos) {
+                if (typeof candidato.parsear !== 'function') continue;
+                const resultado = candidato.parsear(texto, opts || {});
+                if (resultado && resultado.detectado && resultado.lancamentos && resultado.lancamentos.length) {
+                    return Object.assign({}, candidato, { resultado });
+                }
+            }
+            return null;
+        }
+
+        async function parsearArquivoTexto(file, hint, opts) {
             const texto = await lerArquivoTexto(file);
             const linhas = texto.split(/\r?\n/).filter(l => l.trim().length > 0);
             if (linhas.length < 2) throw new Error('Arquivo vazio');
@@ -7224,13 +7249,11 @@
             const textoNorm = texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             const mesAno = textoNorm.match(/\b(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(\d{4})\b/);
             if (mesAno && !opts.anoPadrao) opts.anoPadrao = mesAno[2];
-            if (typeof window !== 'undefined' && typeof window.parsearCSV_FlanacarRegistroEntradas === 'function') {
-                const fiscalFlanacar = window.parsearCSV_FlanacarRegistroEntradas(texto, opts);
-                if (fiscalFlanacar && fiscalFlanacar.detectado && fiscalFlanacar.lancamentos && fiscalFlanacar.lancamentos.length) {
-                    window.__ultimoLayoutTextoDetectado = fiscalFlanacar;
-                    console.log('[CSV-DEBUG] layout FLANACAR Registro Entradas detectado antes do CSV generico:', fiscalFlanacar.lancamentos.length);
-                    return fiscalFlanacar.lancamentos;
-                }
+            const fiscalFlanacar = obterParserFiscalFlanacar(texto, opts);
+            if (fiscalFlanacar) {
+                window.__ultimoLayoutTextoDetectado = fiscalFlanacar.resultado;
+                console.log('[CSV-DEBUG] layout FLANACAR Registro Fiscal detectado antes do CSV generico:', fiscalFlanacar.direcao, fiscalFlanacar.resultado.lancamentos.length);
+                return fiscalFlanacar.resultado.lancamentos;
             }
             if (typeof window !== 'undefined' && typeof window.parsearCSV_ExtratoConciliado === 'function') {
                 const extratoConciliado = window.parsearCSV_ExtratoConciliado(texto);
@@ -11643,16 +11666,15 @@
             preview.classList.add('show');
             try { atualizarLayoutsUpload(); } catch(e) { console.warn('[layouts upload] atualizar arquivo:', e); }
             detectarBancoFiscalFlanacarNoPreview(f, ext).catch(function(e) {
-                console.warn('[FLANACAR Registro Entradas] pre-deteccao no preview falhou:', e);
+                console.warn('[FLANACAR Registro Fiscal] pre-deteccao no preview falhou:', e);
             });
         }
 
         async function detectarBancoFiscalFlanacarNoPreview(file, ext) {
             if (!(ext === 'csv' || ext === 'txt')) return;
-            if (typeof window.parsearCSV_FlanacarRegistroEntradas !== 'function') return;
             const textoProbe = await lerArquivoTexto(file);
-            const fiscalProbe = window.parsearCSV_FlanacarRegistroEntradas(textoProbe, {});
-            const detectado = !!(fiscalProbe && fiscalProbe.detectado && fiscalProbe.lancamentos && fiscalProbe.lancamentos.length);
+            const fiscalMeta = obterParserFiscalFlanacar(textoProbe, {});
+            const detectado = !!fiscalMeta;
             if (!detectado) {
                 if (typeof window.parsearCSV_ExtratoConciliado === 'function') {
                     const conciliadoProbe = window.parsearCSV_ExtratoConciliado(textoProbe);
@@ -11673,17 +11695,23 @@
             if (uploadBanco) uploadBanco.dispatchEvent(new Event('change', { bubbles: true }));
 
             const titulo = document.getElementById('uploadTitulo');
-            if (titulo && !titulo.value) titulo.value = 'FLANACAR - Registro de Entradas Fiscal';
+            if (titulo && !titulo.value) titulo.value = fiscalMeta.titulo;
 
             const type = document.getElementById('fileType');
-            if (type) type.textContent = 'CSV - FLANACAR Registro de Entradas Fiscal';
-            atualizarIndicadorFlanacar(true);
+            if (type) type.textContent = fiscalMeta.tipoArquivo;
+            atualizarIndicadorFlanacar(true, fiscalMeta.direcao);
             try { atualizarLayoutsUpload(); } catch(e) { console.warn('[layouts upload] atualizar flanacar preview:', e); }
         }
 
-        function atualizarIndicadorFlanacar(validado) {
+        function atualizarIndicadorFlanacar(validado, direcao) {
             const hint = document.getElementById('uploadFlanacarColumnsHint');
-            if (hint) hint.style.display = validado ? 'block' : 'none';
+            if (hint) {
+                hint.style.display = validado ? 'block' : 'none';
+                if (validado) {
+                    const livro = direcao === 'saida' ? 'Saídas' : 'Entradas';
+                    hint.textContent = 'FLANACAR Livro de ' + livro + ' validado. Ao processar, você poderá escolher as colunas deste arquivo antes da importação.';
+                }
+            }
             const botao = document.querySelector('#filePreview .btn-process');
             if (botao) botao.innerHTML = validado
                 ? '<span>☑</span> Selecionar colunas e processar'
@@ -11741,19 +11769,23 @@
             let csvFiscalFlanacarDetectado = false;
             let resultadoCsvFiscalFlanacar = null;
             let textoCsvFiscalFlanacar = '';
-            if ((ext === 'csv' || ext === 'txt') && typeof window.parsearCSV_FlanacarRegistroEntradas === 'function') {
+            let parserCsvFiscalFlanacar = null;
+            let direcaoCsvFiscalFlanacar = '';
+            if (ext === 'csv' || ext === 'txt') {
                 try {
                     const textoProbe = await lerArquivoTexto(selectedFile);
                     textoCsvFiscalFlanacar = textoProbe;
-                    const fiscalProbe = window.parsearCSV_FlanacarRegistroEntradas(textoProbe, {});
-                    csvFiscalFlanacarDetectado = !!(fiscalProbe && fiscalProbe.detectado && fiscalProbe.lancamentos && fiscalProbe.lancamentos.length);
-                    if (csvFiscalFlanacarDetectado) {
-                        resultadoCsvFiscalFlanacar = fiscalProbe;
+                    const fiscalMeta = obterParserFiscalFlanacar(textoProbe, {});
+                    csvFiscalFlanacarDetectado = !!fiscalMeta;
+                    if (fiscalMeta) {
+                        resultadoCsvFiscalFlanacar = fiscalMeta.resultado;
+                        parserCsvFiscalFlanacar = fiscalMeta.parsear;
+                        direcaoCsvFiscalFlanacar = fiscalMeta.direcao;
                         bancoCode = '1237';
-                        if (!titulo) titulo = 'FLANACAR - Registro de Entradas Fiscal';
+                        if (!titulo) titulo = fiscalMeta.titulo;
                     }
                 } catch (eProbe) {
-                    console.warn('[FLANACAR Registro Entradas] pre-deteccao falhou:', eProbe);
+                    console.warn('[FLANACAR Registro Fiscal] pre-deteccao falhou:', eProbe);
                 }
             }
             if (ext !== 'xlsx' && ext !== 'xls') {
@@ -11779,7 +11811,7 @@
                     showToast('Importacao FLANACAR cancelada. Nenhum lancamento foi gravado.', 'error');
                     return;
                 }
-                resultadoCsvFiscalFlanacar = window.parsearCSV_FlanacarRegistroEntradas(textoCsvFiscalFlanacar, {
+                resultadoCsvFiscalFlanacar = parserCsvFiscalFlanacar(textoCsvFiscalFlanacar, {
                     colunasSelecionadas
                 });
             }
@@ -11812,24 +11844,25 @@
                 } else if (resultadoCsvFiscalFlanacar && resultadoCsvFiscalFlanacar.lancamentos && resultadoCsvFiscalFlanacar.lancamentos.length) {
                     window.__ultimoLayoutTextoDetectado = resultadoCsvFiscalFlanacar;
                     entries = resultadoCsvFiscalFlanacar.lancamentos;
-                    console.log('[processFile] CSV FLANACAR usado diretamente da pre-deteccao:', entries.length);
+                    console.log('[processFile] CSV FLANACAR usado diretamente da pre-deteccao:', direcaoCsvFiscalFlanacar, entries.length);
                 } else {
                     try {
-                        if ((ext === 'csv' || ext === 'txt') && bancoCode === '1237' && typeof window.parsearCSV_FlanacarRegistroEntradas === 'function') {
+                        if ((ext === 'csv' || ext === 'txt') && bancoCode === '1237') {
                             const textoFiscal = await lerArquivoTexto(selectedFile);
-                            let fiscalDireto = window.parsearCSV_FlanacarRegistroEntradas(textoFiscal, {});
-                            if (fiscalDireto && fiscalDireto.detectado && fiscalDireto.lancamentos && fiscalDireto.lancamentos.length) {
+                            const fiscalMetaDireto = obterParserFiscalFlanacar(textoFiscal, {});
+                            let fiscalDireto = fiscalMetaDireto && fiscalMetaDireto.resultado;
+                            if (fiscalMetaDireto && fiscalDireto) {
                                 hideProcessing();
                                 const colunasSelecionadas = await abrirSelecaoColunasFlanacar(fiscalDireto);
                                 if (!colunasSelecionadas) {
                                     showToast('Importacao FLANACAR cancelada. Nenhum lancamento foi gravado.', 'error');
                                     return;
                                 }
-                                fiscalDireto = window.parsearCSV_FlanacarRegistroEntradas(textoFiscal, { colunasSelecionadas });
+                                fiscalDireto = fiscalMetaDireto.parsear(textoFiscal, { colunasSelecionadas });
                                 showProcessing();
                                 window.__ultimoLayoutTextoDetectado = fiscalDireto;
                                 entries = fiscalDireto.lancamentos;
-                                console.log('[processFile] CSV FLANACAR detectado por banco 1237:', entries.length);
+                                console.log('[processFile] CSV FLANACAR detectado por banco 1237:', fiscalMetaDireto.direcao, entries.length);
                             }
                         }
                         if (!entries.length) {
@@ -11837,7 +11870,7 @@
                         }
                     } catch (eCsv) {
                         if ((ext === 'csv' || ext === 'txt') && bancoCode === '1237') {
-                            throw new Error('CSV FLANACAR nao reconhecido. Confirme se o arquivo e o RelatorioNotas fiscal original em CSV e tente novamente.');
+                            throw new Error('CSV FLANACAR nao reconhecido. Confirme se o arquivo e o livro fiscal original de entradas ou saidas em CSV e tente novamente.');
                         }
                         throw eCsv;
                     }
@@ -12116,6 +12149,11 @@
             const body = document.getElementById('flanacarColumnsBody');
             const colunas = Array.isArray(resultado && resultado.colunas_disponiveis) ? resultado.colunas_disponiveis : [];
             if (!overlay || !body || !colunas.length) return Promise.resolve(null);
+            const direcao = resultado && resultado.direcao_fiscal === 'saida' ? 'saídas' : 'entradas';
+            const titulo = document.getElementById('flanacarColumnsTitle');
+            const descricao = document.getElementById('flanacarColumnsDescription');
+            if (titulo) titulo.textContent = 'Selecionar colunas do livro de ' + direcao;
+            if (descricao) descricao.textContent = 'Layout FLANACAR de ' + direcao + ' validado. Escolha os campos que devem seguir para a importação.';
             body.innerHTML = colunas.map(function(coluna) {
                 const protegida = coluna.obrigatoria ? '<div class="flanacar-column-required">Obrigatória</div>' : '';
                 return '<tr>' +
@@ -14091,7 +14129,13 @@
         function ehRegistroEntradaFiscal(lanc) {
             const tipo = String(lanc && lanc.tipoDocumentoFiscal || '').toUpperCase();
             const layout = String((lanc && (lanc.layoutParser || lanc.layoutNome)) || '').toUpperCase();
-            return tipo === 'REGISTRO_ENTRADA_FISCAL' || /FLANACAR|REGISTRO_ENTRADAS|REGISTRO DE ENTRADAS/.test(layout);
+            return tipo.indexOf('REGISTRO_ENTRADA_FISCAL') === 0 || /REGISTRO_ENTRADAS|REGISTRO DE ENTRADAS/.test(layout);
+        }
+
+        function ehRegistroSaidaFiscal(lanc) {
+            const tipo = String(lanc && lanc.tipoDocumentoFiscal || '').toUpperCase();
+            const layout = String((lanc && (lanc.layoutParser || lanc.layoutNome)) || '').toUpperCase();
+            return tipo.indexOf('REGISTRO_SAIDA_FISCAL') === 0 || /REGISTRO_SAIDAS|REGISTRO DE SAIDAS/.test(layout);
         }
 
         function contextoIALancamento(lanc) {
@@ -14101,10 +14145,11 @@
                 if (v) partes.push(label + '=' + v);
             };
             add('descricao', lanc && lanc.descricao);
-            if (ehRegistroEntradaFiscal(lanc)) {
-                add('tipoDocumentoFiscal', 'REGISTRO_ENTRADA_FISCAL');
-                add('fornecedor', lanc.fornecedor || lanc.descricao_memoria);
-                add('cnpjFornecedor', lanc.cnpj_fornecedor);
+            if (ehRegistroEntradaFiscal(lanc) || ehRegistroSaidaFiscal(lanc)) {
+                const saidaFiscal = ehRegistroSaidaFiscal(lanc);
+                add('tipoDocumentoFiscal', saidaFiscal ? 'REGISTRO_SAIDA_FISCAL' : 'REGISTRO_ENTRADA_FISCAL');
+                add(saidaFiscal ? 'cliente' : 'fornecedor', (saidaFiscal ? lanc.cliente : lanc.fornecedor) || lanc.descricao_memoria);
+                add(saidaFiscal ? 'cnpjCliente' : 'cnpjFornecedor', saidaFiscal ? lanc.cnpj_cliente : lanc.cnpj_fornecedor);
                 add('nf', lanc.numero_nf || lanc.documento);
                 add('cfop', lanc.cfops || lanc.cfop);
                 add('chaveNFe', lanc.chave_nfe);
@@ -15498,7 +15543,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.60';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.61';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';

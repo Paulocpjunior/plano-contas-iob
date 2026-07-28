@@ -1,7 +1,13 @@
 {
-  "version": "3.4.60",
-  "build_date": "2026-07-23T17:09:27.000Z",
+  "version": "3.4.61",
+  "build_date": "2026-07-28T11:40:14.000Z",
   "release_notes": [
+    "FLANACAR agora possui um layout exclusivo para o Livro de Saidas em CSV do Office Fiscal/IOB SAGE.",
+    "O novo layout preserva cliente, CNPJ, NF-e, CFOP e todos os campos fiscais selecionados pelo usuario.",
+    "As notas de venda entram como creditos; ICMS, ICMS ST, IPI, PIS e COFINS destacados entram separadamente como debitos para classificacao contabil.",
+    "O arquivo real de junho de 2026 foi validado com 2.787 notas, 119 linhas complementares e R$ 11.042.833,74 em vendas.",
+    "Os 10.261 lancamentos opcionais de tributos totalizam R$ 1.918.121,42 e podem ser removidos pela selecao de colunas.",
+    "Os livros de entradas e saidas sao detectados separadamente para impedir que o arquivo de saidas seja importado pelo layout anterior.",
     "AuditAI agora possui relatório específico de Receita Operacional Líquida por empresa e CNPJ.",
     "A R.O.L. preserva os valores oficiais impressos na DRE e reconcilia Receita Operacional Bruta menos Deduções da Receita.",
     "Devoluções, vendas canceladas, descontos, abatimentos e impostos incidentes sobre vendas são exibidos separadamente na memória de cálculo.",

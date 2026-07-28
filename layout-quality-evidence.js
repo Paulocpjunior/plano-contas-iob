@@ -406,6 +406,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js com 2268 notas, total debito R$ 11.141.217,12 e 136 linhas complementares agregadas.'
   },
   {
+    id: 'flanacar-registro-saidas-csv-2026-06',
+    banco: '1237',
+    nomeBanco: 'FLANACAR COMERCIO DE AUTOPECAS',
+    layout: 'FLANACAR - Registro de Saidas Fiscal CSV',
+    parser: 'parsearCSV_FlanacarRegistroSaidas',
+    arquivo: '1237_RelatorioNotas_20260601_20260630.Csv',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/1237_RelatorioNotas_20260601_20260630.Csv',
+    empresa: 'FLANACAR COMERCIO DE AUTOPECAS',
+    periodo_inicio: '2026-06-01',
+    periodo_fim: '2026-06-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Arquivo real do livro de saidas validado com 2787 notas, 119 linhas complementares, R$ 11.042.833,74 em vendas e R$ 1.918.121,42 em tributos opcionais separados.'
+  },
+  {
     id: 'daxx-analise-creditos-pis-cofins-2026-04',
     banco: '1183',
     nomeBanco: 'DAXX MIDIA LTDA',
