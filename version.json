@@ -1,7 +1,10 @@
 {
-  "version": "3.4.63",
-  "build_date": "2026-07-28T15:33:46.000Z",
+  "version": "3.4.64",
+  "build_date": "2026-07-28T16:24:44.000Z",
   "release_notes": [
+    "Razao de Saldos da CLUDE volta a abrir diretamente o relatorio de contas a pagar, com notas pagas no mes e notas em aberto.",
+    "O resultado especial do Razao agora e preservado antes da tentativa de leitura generica do Extrato Conciliado.",
+    "O arquivo real de abril de 2026 foi validado com 354 linhas, 149 notas e periodo de 01/04/2026 a 30/04/2026.",
     "A troca ou o vinculo de plano agora atualiza o cadastro oficial e a sessao de trabalho ativa ao mesmo tempo.",
     "O plano oficial da empresa prevalece sobre referencias antigas mantidas em sessoes anteriores.",
     "Colaboradores que vinculam o plano passam a ter acesso a empresa e ao extrator sem substituir o proprietario original.",
