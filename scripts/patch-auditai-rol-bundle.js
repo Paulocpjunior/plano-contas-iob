@@ -148,6 +148,28 @@ replaceIfPresent(
   'auditaiRolCompanies=e.rolByCompany||[],auditaiRolGroupValidation=e.rolValidation||window.AuditAIRol.validateGroup(auditaiRolCompanies.map(p=>({name:p.name,cnpj:p.cnpj,headerData:{companyName:p.name,cnpj:p.cnpj},result:{summary:{document_type:p.documentType,period:p.period}}}))),auditaiRolGroupAvailable=auditaiRolGroupValidation.valid&&auditaiRolCompanies.length>=2&&auditaiRolCompanies.every(p=>p.rol&&p.rol.netRevenue!=null),auditaiRolGrossTotal=auditaiRolCompanies.reduce((p,g)=>p+(Number(g.rol&&g.rol.grossRevenue)||0),0),auditaiRolDeductionsTotal=auditaiRolCompanies.reduce((p,g)=>p+Math.abs(Number(g.rol&&g.rol.deductions)||0),0),auditaiRolNetTotal=auditaiRolCompanies.reduce((p,g)=>p+(Number(g.rol&&g.rol.netRevenue)||0),0),auditaiRolRate=auditaiRolGrossTotal?auditaiRolDeductionsTotal/auditaiRolGrossTotal:null,',
 );
 
+replaceIfPresent(
+  'ação do relatório executivo BIG4 individual',
+  'auditaiRolPdf=()=>window.AuditAIRolReports.exportIndividualPdf({analysis:e,headerData:t}),auditaiRolXlsx=()=>',
+  'auditaiRolPdf=()=>window.AuditAIRolReports.exportIndividualPdf({analysis:e,headerData:t}),auditaiRolBig4Pdf=()=>window.AuditAIRolReports.exportIndividualExecutiveBig4Pdf({analysis:e,headerData:t}),auditaiRolXlsx=()=>',
+);
+
+const individualRolPdfButton = 'H.jsx("button",{onClick:auditaiRolPdf,className:"px-4 py-2 bg-white text-blue-700 rounded-lg font-bold text-xs hover:bg-blue-50",children:"Exportar PDF R.O.L."})';
+const individualRolBig4Button = 'H.jsx("button",{onClick:auditaiRolBig4Pdf,className:"px-4 py-2 bg-slate-950 text-white border border-blue-300 rounded-lg font-bold text-xs hover:bg-slate-800",children:"PDF Executivo BIG4"})';
+if (!source.includes(individualRolBig4Button)) {
+  replaceIfPresent(
+    'botão do relatório executivo BIG4 individual',
+    individualRolPdfButton,
+    `${individualRolPdfButton},${individualRolBig4Button}`,
+  );
+}
+
+replaceIfPresent(
+  'ação do relatório executivo BIG4 do grupo',
+  'auditaiRolGroupPdf=()=>window.AuditAIRolReports.exportGroupPdf({data:e}),auditaiRolGroupXlsx=()=>',
+  'auditaiRolGroupPdf=()=>window.AuditAIRolReports.exportGroupPdf({data:e}),auditaiRolGroupBig4Pdf=()=>window.AuditAIRolReports.exportGroupExecutiveBig4Pdf({data:e}),auditaiRolGroupXlsx=()=>',
+);
+
 while (source.includes('auditaiRolGroupAvailable&&auditaiRolGroupAvailable&&')) {
   source = source.replace(
     'auditaiRolGroupAvailable&&auditaiRolGroupAvailable&&',
@@ -161,6 +183,15 @@ if (!source.includes(`auditaiRolGroupAvailable&&${groupRolPdfButton}`)) {
     'PDF R.O.L. opcional no grupo',
     groupRolPdfButton,
     `auditaiRolGroupAvailable&&${groupRolPdfButton}`,
+  );
+}
+
+const groupRolBig4Button = 'H.jsx("button",{onClick:auditaiRolGroupBig4Pdf,className:"px-4 py-2 bg-slate-950 text-white border border-blue-400 rounded-lg font-bold text-xs hover:bg-slate-800",children:"PDF Executivo BIG4"})';
+if (!source.includes(`auditaiRolGroupAvailable&&${groupRolBig4Button}`)) {
+  replaceIfPresent(
+    'relatório executivo BIG4 opcional no grupo',
+    `auditaiRolGroupAvailable&&${groupRolPdfButton}`,
+    `auditaiRolGroupAvailable&&${groupRolPdfButton},auditaiRolGroupAvailable&&${groupRolBig4Button}`,
   );
 }
 

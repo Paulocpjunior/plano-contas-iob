@@ -218,6 +218,9 @@ assertContains('auditai/rol-reports.js', 'exportGroupPdf', 'AuditAI exporta ROL 
 assertContains('auditai/rol-reports.js', 'exportGroupXlsx', 'AuditAI exporta ROL agregada em Excel');
 assertContains('auditai/rol-reports.js', 'groupHasCompleteRol', 'AuditAI nao exporta grupo com ROL indisponivel');
 assertContains('auditai/rol-reports.js', 'A análise individual ou consolidada permanece disponível normalmente', 'validacao da ROL informa que nao bloqueia as analises');
+assertContains('auditai/rol-reports.js', 'exportIndividualExecutiveBig4Pdf', 'AuditAI oferece relatorio executivo BIG4 individual separado');
+assertContains('auditai/rol-reports.js', 'exportGroupExecutiveBig4Pdf', 'AuditAI oferece relatorio executivo BIG4 do grupo separado');
+assertContains('auditai/rol-reports.js', 'Não constitui auditoria independente, asseguração, laudo ou parecer contábil', 'relatorio BIG4 declara natureza gerencial');
 assertContains('auditai/assets/index-DREfix3266.js', 'i>1||s===3?t=t.replace(/\\./g,"")', 'parser numerico AuditAI trata pontos de milhar brasileiros');
 assertContains('auditai/assets/index-DREfix3266.js', 'OFFICIAL_TOTAL_ATIVO', 'AuditAI solicita e preserva total oficial do ativo');
 assertContains('auditai/assets/index-DREfix3266.js', 'OFFICIAL_RESULTADO_EXERCICIO', 'AuditAI solicita e preserva resultado oficial do exercicio');
@@ -234,6 +237,7 @@ assertContains('auditai/assets/index-DREfix3266.js', 'n?"0:"+auditaiGroupPathSor
 assertContains('auditai/assets/index-DREfix3266.js', 'if(Math.abs(t)+Math.abs(r)+Math.abs(n)>0)return t-Math.abs(r)-Math.abs(n)', 'AuditAI Grupo calcula resultado do trimestre por receitas custos e despesas antes do resultado oficial do balanco');
 assertContains('auditai/assets/index-DREfix3266.js', 'AuditAIRolReports.exportIndividualPdf', 'AuditAI integra relatorio ROL individual em PDF');
 assertContains('auditai/assets/index-DREfix3266.js', 'AuditAIRolReports.exportGroupPdf', 'AuditAI integra relatorio ROL agregado em PDF');
+assertContains('auditai/assets/index-DREfix3266.js', 'PDF Executivo BIG4', 'AuditAI integra opcao executiva BIG4 sem substituir as demais');
 assertContains('auditai/assets/index-DREfix3266.js', 'Receita Operacional Líquida', 'AuditAI preserva o relatorio opcional de ROL');
 assertContains('auditai/assets/index-DREfix3266.js', 'rolByCompany:t.map', 'AuditAI preserva memoria ROL individual de cada CNPJ no grupo');
 assertContains('auditai/assets/index-DREfix3266.js', 'auditaiRolGroupAvailable', 'AuditAI disponibiliza ROL apenas como relatorio opcional');

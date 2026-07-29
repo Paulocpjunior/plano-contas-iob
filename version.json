@@ -1,11 +1,11 @@
 {
-  "version": "3.4.68",
-  "build_date": "2026-07-29T14:48:27Z",
+  "version": "3.4.69",
+  "build_date": "2026-07-29T15:31:10Z",
   "release_notes": [
-    "A R.O.L. passa a funcionar exclusivamente como relatorio opcional e nao bloqueia mais a analise individual ou de grupo.",
-    "Balancos e balancetes podem ser analisados e consolidados mesmo quando nao possuem periodo compativel com uma DRE.",
-    "A consolidacao pelo Historico tambem permanece independente das validacoes de CNPJ e periodo exigidas pela R.O.L.",
-    "CNPJ valido, documento DRE e periodo uniforme agora sao verificados somente para disponibilizar ou exportar o relatorio de R.O.L.",
-    "As linhas da R.O.L. nao sao mais inseridas na tabela contábil consolidada do grupo."
+    "O AuditAI agora oferece a opcao separada PDF Executivo BIG4 para a R.O.L. individual e do grupo.",
+    "Os relatorios PDF R.O.L., Excel R.O.L., PDF padrao e Relatorio executivo existentes permanecem inalterados.",
+    "O novo documento inclui sumario executivo, escopo, achados, recomendacoes, metodologia, governanca, memoria de calculo e limitacoes.",
+    "O relatorio do grupo apresenta indicadores por CNPJ, concentracao, participacao e anexos individuais.",
+    "A referencia BIG4 descreve a estrutura executiva e declara expressamente que o documento nao constitui auditoria independente ou parecer."
   ]
 }

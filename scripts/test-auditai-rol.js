@@ -183,6 +183,10 @@ const bundle = fs.readFileSync(
   path.join(__dirname, '../auditai/assets/index-DREfix3266.js'),
   'utf8',
 );
+const reports = fs.readFileSync(
+  path.join(__dirname, '../auditai/rol-reports.js'),
+  'utf8',
+);
 assert.ok(bundle.includes('auditaiRolGroupAvailable'), 'bundle deve isolar a exibicao da ROL');
 assert.ok(!bundle.includes('auditaiRolHistoryValidation'), 'historico nao pode ser bloqueado pela ROL');
 assert.ok(
@@ -192,6 +196,30 @@ assert.ok(
 assert.ok(
   !bundle.includes('&&auditaiValidCnpj(P.cnpj))&&n.trim()'),
   'CNPJ exigido pelo relatorio ROL nao pode bloquear analise de grupo',
+);
+assert.ok(
+  reports.includes('exportIndividualExecutiveBig4Pdf'),
+  'relatorio executivo BIG4 individual deve ser uma exportacao separada',
+);
+assert.ok(
+  reports.includes('exportGroupExecutiveBig4Pdf'),
+  'relatorio executivo BIG4 do grupo deve ser uma exportacao separada',
+);
+assert.ok(
+  reports.includes('Não constitui auditoria independente, asseguração, laudo ou parecer contábil'),
+  'relatorio BIG4 deve declarar sua natureza gerencial',
+);
+assert.ok(
+  bundle.includes('PDF Executivo BIG4'),
+  'interface deve exibir a opcao BIG4',
+);
+assert.ok(
+  bundle.includes('Exportar PDF R.O.L.') && bundle.includes('Excel R.O.L.'),
+  'opcao BIG4 nao pode substituir as exportacoes ROL existentes',
+);
+assert.ok(
+  bundle.includes('onClick:u,className:"flex items-center gap-2 px-4 py-2 bg-purple-600'),
+  'opcao BIG4 nao pode substituir o relatorio executivo geral',
 );
 
 assert.strictEqual(rol.validCnpj('04.252.011/0001-10'), true);
