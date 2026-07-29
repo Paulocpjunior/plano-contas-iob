@@ -1,4 +1,6 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const rol = require('../auditai/rol-core.js');
 
 const account = (code, name, value, type = 'Debit', synthetic = false) => ({
@@ -163,6 +165,34 @@ const missingPeriod = rol.validateGroup([
   },
 ]);
 assert.ok(missingPeriod.warnings.some((warning) => warning.includes('Período de apuração não identificado')));
+
+const balanceteGroup = rol.validateGroup([
+  {
+    headerData: { companyName: 'Empresa A', cnpj: '04.252.011/0001-10' },
+    result: { summary: { document_type: 'Balancete', period: 'Abril a Junho de 2026' }, accounts: [] },
+  },
+  {
+    headerData: { companyName: 'Empresa B', cnpj: '11.222.333/0001-81' },
+    result: { summary: { document_type: 'Balancete', period: 'Abril a Junho de 2026' }, accounts: [] },
+  },
+]);
+assert.strictEqual(balanceteGroup.valid, false, 'balancete nao deve habilitar o relatorio ROL');
+assert.ok(balanceteGroup.warnings.every((warning) => warning.includes('não é uma DRE')));
+
+const bundle = fs.readFileSync(
+  path.join(__dirname, '../auditai/assets/index-DREfix3266.js'),
+  'utf8',
+);
+assert.ok(bundle.includes('auditaiRolGroupAvailable'), 'bundle deve isolar a exibicao da ROL');
+assert.ok(!bundle.includes('auditaiRolHistoryValidation'), 'historico nao pode ser bloqueado pela ROL');
+assert.ok(
+  !bundle.includes('Não foi possível confirmar um período único para todas as DREs'),
+  'analise de grupo nao pode ser bloqueada pelo periodo da ROL',
+);
+assert.ok(
+  !bundle.includes('&&auditaiValidCnpj(P.cnpj))&&n.trim()'),
+  'CNPJ exigido pelo relatorio ROL nao pode bloquear analise de grupo',
+);
 
 assert.strictEqual(rol.validCnpj('04.252.011/0001-10'), true);
 assert.strictEqual(rol.validCnpj('00.000.000/0000-00'), false);

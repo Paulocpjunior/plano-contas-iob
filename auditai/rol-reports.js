@@ -100,8 +100,21 @@ function hasValidIndividualCnpj(headerData) {
   return false;
 }
 
+function hasDreAnalysis(analysis) {
+  if (core.isDreAnalysis(analysis)) return true;
+  window.alert(
+    'O relatório de R.O.L. está disponível somente para documentos identificados como DRE. '
+    + 'A análise contábil individual permanece disponível normalmente.',
+  );
+  return false;
+}
+
+function hasValidIndividualContext(analysis, headerData) {
+  return hasDreAnalysis(analysis) && hasValidIndividualCnpj(headerData);
+}
+
 function exportIndividualPdf({ analysis, headerData = {} }) {
-  if (!hasValidIndividualCnpj(headerData)) return;
+  if (!hasValidIndividualContext(analysis, headerData)) return;
   const rol = core.calculateAnalysis(analysis);
   const doc = new jsPDF('p', 'pt', 'a4');
   const company = headerData.companyName || 'Empresa não identificada';
@@ -201,7 +214,7 @@ function individualWorkbookRows(analysis, headerData, rol) {
 }
 
 function exportIndividualXlsx({ analysis, headerData = {} }) {
-  if (!hasValidIndividualCnpj(headerData)) return;
+  if (!hasValidIndividualContext(analysis, headerData)) return;
   const rol = core.calculateAnalysis(analysis);
   const workbook = XLSX.utils.book_new();
   const summary = XLSX.utils.aoa_to_sheet(individualWorkbookRows(analysis, headerData, rol));
@@ -226,35 +239,49 @@ function exportIndividualXlsx({ analysis, headerData = {} }) {
   XLSX.writeFile(workbook, `ROL_${safeFilePart(headerData.companyName)}_${safeFilePart(headerData.cnpj)}.xlsx`);
 }
 
-function findGroupRow(data, names) {
-  const normalized = names.map(core.normalize);
-  return (data.rows || []).find((row) => normalized.includes(core.normalize(row.name))) || null;
-}
-
 function groupReportData(data) {
-  const gross = findGroupRow(data, ['Receita Operacional Bruta']);
-  const deductions = findGroupRow(data, ['Deduções da Receita']);
-  const net = findGroupRow(data, ['Receita Operacional Líquida']);
   const companies = (data.companies || []).map((company) => {
     const details = (data.rolByCompany || []).find((item) => item.id === company.id);
+    const rol = details && details.rol || null;
     return {
       ...company,
-      rol: details && details.rol || null,
-      grossRevenue: gross && gross.values ? Number(gross.values[company.id]) || 0 : 0,
-      deductions: deductions && deductions.values ? Math.abs(Number(deductions.values[company.id]) || 0) : 0,
-      netRevenue: net && net.values ? Number(net.values[company.id]) || 0 : 0,
+      rol,
+      documentType: details && details.documentType || '',
+      period: details && details.period || '',
+      grossRevenue: rol ? Number(rol.grossRevenue) || 0 : 0,
+      deductions: rol ? Math.abs(Number(rol.deductions) || 0) : 0,
+      netRevenue: rol && rol.netRevenue != null ? Number(rol.netRevenue) || 0 : null,
     };
   });
   const totals = companies.reduce((result, company) => {
     result.grossRevenue += company.grossRevenue;
     result.deductions += company.deductions;
-    result.netRevenue += company.netRevenue;
+    result.netRevenue += company.netRevenue == null ? 0 : company.netRevenue;
     return result;
   }, { grossRevenue: 0, deductions: 0, netRevenue: 0 });
   return { companies, totals };
 }
 
-function groupHasCompleteRol(report) {
+function groupHasCompleteRol(data, report) {
+  const validation = core.validateGroup((data.rolByCompany || []).map((company) => ({
+    name: company.name,
+    cnpj: company.cnpj,
+    headerData: { companyName: company.name, cnpj: company.cnpj },
+    result: {
+      summary: {
+        document_type: company.documentType,
+        period: company.period,
+      },
+    },
+  })));
+  if (!validation.valid) {
+    window.alert(
+      'O relatório de R.O.L. não pode ser gerado com estes documentos. '
+      + 'A análise individual ou consolidada permanece disponível normalmente.\n\n'
+      + validation.warnings.join('\n'),
+    );
+    return false;
+  }
   const unavailable = report.companies
     .filter((company) => !company.rol || company.rol.netRevenue == null)
     .map((company) => company.name);
@@ -268,7 +295,7 @@ function groupHasCompleteRol(report) {
 
 function exportGroupPdf({ data }) {
   const report = groupReportData(data);
-  if (!groupHasCompleteRol(report)) return;
+  if (!groupHasCompleteRol(data, report)) return;
   const doc = new jsPDF('l', 'pt', 'a4');
   addHeader(
     doc,
@@ -363,7 +390,7 @@ function exportGroupPdf({ data }) {
 
 function exportGroupXlsx({ data }) {
   const report = groupReportData(data);
-  if (!groupHasCompleteRol(report)) return;
+  if (!groupHasCompleteRol(data, report)) return;
   const workbook = XLSX.utils.book_new();
   const rows = report.companies.map((company) => ({
     Empresa: company.name,

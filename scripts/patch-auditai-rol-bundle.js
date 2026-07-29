@@ -16,6 +16,10 @@ function replaceOnce(label, search, replacement) {
   source = source.slice(0, first) + replacement + source.slice(first + search.length);
 }
 
+function replaceIfPresent(label, search, replacement) {
+  if (source.includes(search)) replaceOnce(label, search, replacement);
+}
+
 if (!source.includes('AuditAIRolReports.exportIndividualPdf')) {
 replaceOnce(
   'cálculo R.O.L. individual',
@@ -113,6 +117,100 @@ if (!source.includes('auditaiRolHistoryValidation')) {
     'B=R=>{const z=R.map(re=>({item:re,result:q(re)})).filter(re=>re.result!==null);if(z.length<2){alert("Erro: Não foi possível carregar os dados completos de todos os itens selecionados.");return}const auditaiRolHistoryIsDre=z.every(re=>window.AuditAIRol.normalize(re.result&&re.result.summary&&re.result.summary.document_type)==="DRE");if(auditaiRolHistoryIsDre){const auditaiRolHistoryValidation=window.AuditAIRol.validateGroup(z);if(!auditaiRolHistoryValidation.valid){alert("Para consolidar a R.O.L., confirme CNPJs válidos e um único período de apuração em todas as DREs.\\n\\n"+auditaiRolHistoryValidation.warnings.join("\\n"));return}}try{',
   );
 }
+
+replaceIfPresent(
+  'R.O.L. identifica DRE sem afetar a análise individual',
+  'auditaiRol=window.AuditAIRol.calculateAnalysis(e),auditaiRolPdf=()=>',
+  'auditaiRol=window.AuditAIRol.calculateAnalysis(e),auditaiRolIsDre=window.AuditAIRol.isDreAnalysis(e),auditaiRolPdf=()=>',
+);
+
+replaceIfPresent(
+  'aba R.O.L. exclusiva para DRE',
+  '{id:"rol",label:"💰 R.O.L.",desc:"Receita Líquida"},{id:"dre",label:"📉 D.R.E.",desc:"Resultado (4 Colunas)"},',
+  '...(auditaiRolIsDre?[{id:"rol",label:"💰 R.O.L.",desc:"Receita Líquida"}]:[]),{id:"dre",label:"📉 D.R.E.",desc:"Resultado (4 Colunas)"},',
+);
+
+replaceIfPresent(
+  'R.O.L. não altera linhas da consolidação contábil',
+  'u("__auditai_rol_receita_bruta","Receita Operacional Bruta",o=>window.AuditAIRol.calculateAnalysis(o).grossRevenue||0),u("__auditai_rol_deducoes","Deduções da Receita",o=>-Math.abs(window.AuditAIRol.calculateAnalysis(o).deductions||0)),u("__auditai_rol_liquida","Receita Operacional Líquida",o=>window.AuditAIRol.calculateAnalysis(o).netRevenue||0),',
+  '',
+);
+
+replaceIfPresent(
+  'memória R.O.L. separada do relatório consolidado',
+  'rolByCompany:t.map((o,c)=>({id:o.id,name:o.name,cnpj:o.cnpj,rol:window.AuditAIRol.calculateAnalysis(e[c]&&e[c].result)})),generatedAt:',
+  'rolByCompany:t.map((o,c)=>({id:o.id,name:o.name,cnpj:o.cnpj,documentType:e[c]&&e[c].result&&e[c].result.summary&&e[c].result.summary.document_type||"",period:e[c]&&e[c].result&&e[c].result.summary&&e[c].result.summary.period||"",rol:window.AuditAIRol.calculateAnalysis(e[c]&&e[c].result)})),rolValidation:window.AuditAIRol.validateGroup(e),generatedAt:',
+);
+
+replaceIfPresent(
+  'totais R.O.L. calculados fora das linhas contábeis',
+  'auditaiRolFind=p=>e.rows.find(g=>window.AuditAIRol.normalize(g.name)===window.AuditAIRol.normalize(p)),auditaiRolGross=auditaiRolFind("Receita Operacional Bruta"),auditaiRolDeductions=auditaiRolFind("Deduções da Receita"),auditaiRolNet=auditaiRolFind("Receita Operacional Líquida"),auditaiRolGrossTotal=auditaiRolGross?auditaiRolGross.total||0:0,auditaiRolDeductionsTotal=auditaiRolDeductions?Math.abs(auditaiRolDeductions.total||0):0,auditaiRolNetTotal=auditaiRolNet?auditaiRolNet.total||0:0,auditaiRolRate=auditaiRolGrossTotal?auditaiRolDeductionsTotal/auditaiRolGrossTotal:null,',
+  'auditaiRolCompanies=e.rolByCompany||[],auditaiRolGroupValidation=e.rolValidation||window.AuditAIRol.validateGroup(auditaiRolCompanies.map(p=>({name:p.name,cnpj:p.cnpj,headerData:{companyName:p.name,cnpj:p.cnpj},result:{summary:{document_type:p.documentType,period:p.period}}}))),auditaiRolGroupAvailable=auditaiRolGroupValidation.valid&&auditaiRolCompanies.length>=2&&auditaiRolCompanies.every(p=>p.rol&&p.rol.netRevenue!=null),auditaiRolGrossTotal=auditaiRolCompanies.reduce((p,g)=>p+(Number(g.rol&&g.rol.grossRevenue)||0),0),auditaiRolDeductionsTotal=auditaiRolCompanies.reduce((p,g)=>p+Math.abs(Number(g.rol&&g.rol.deductions)||0),0),auditaiRolNetTotal=auditaiRolCompanies.reduce((p,g)=>p+(Number(g.rol&&g.rol.netRevenue)||0),0),auditaiRolRate=auditaiRolGrossTotal?auditaiRolDeductionsTotal/auditaiRolGrossTotal:null,',
+);
+
+while (source.includes('auditaiRolGroupAvailable&&auditaiRolGroupAvailable&&')) {
+  source = source.replace(
+    'auditaiRolGroupAvailable&&auditaiRolGroupAvailable&&',
+    'auditaiRolGroupAvailable&&',
+  );
+}
+
+const groupRolPdfButton = 'H.jsx("button",{onClick:auditaiRolGroupPdf,className:"px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs hover:bg-blue-700",children:"PDF R.O.L."})';
+if (!source.includes(`auditaiRolGroupAvailable&&${groupRolPdfButton}`)) {
+  replaceIfPresent(
+    'PDF R.O.L. opcional no grupo',
+    groupRolPdfButton,
+    `auditaiRolGroupAvailable&&${groupRolPdfButton}`,
+  );
+}
+
+const groupRolXlsxButton = 'H.jsx("button",{onClick:auditaiRolGroupXlsx,className:"px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-xs hover:bg-emerald-700",children:"Excel R.O.L."})';
+if (!source.includes(`auditaiRolGroupAvailable&&${groupRolXlsxButton}`)) {
+  replaceIfPresent(
+    'Excel R.O.L. opcional no grupo',
+    groupRolXlsxButton,
+    `auditaiRolGroupAvailable&&${groupRolXlsxButton}`,
+  );
+}
+
+replaceIfPresent(
+  'resumo R.O.L. opcional no grupo',
+  'children:"Excel R.O.L."})]})]}),H.jsxs("div",{className:"grid grid-cols-1 md:grid-cols-4 gap-4"',
+  'children:"Excel R.O.L."})]})]}),auditaiRolGroupAvailable&&H.jsxs("div",{className:"grid grid-cols-1 md:grid-cols-4 gap-4"',
+);
+
+const groupRolNotice = 'H.jsx("div",{className:"p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-800 dark:text-amber-200",children:"Agregado gerencial por CNPJ, sem eliminações de receitas e operações entre empresas do próprio grupo. Uma consolidação societária exige eliminações intragrupo documentadas."})';
+if (!source.includes(`auditaiRolGroupAvailable&&${groupRolNotice}`)) {
+  replaceIfPresent(
+    'aviso R.O.L. opcional no grupo',
+    groupRolNotice,
+    `auditaiRolGroupAvailable&&${groupRolNotice}`,
+  );
+}
+
+replaceIfPresent(
+  'CNPJ da R.O.L. não bloqueia análise de grupo',
+  'S=i.length>=2&&i.every(P=>P.name.trim()&&P.file&&P.base64&&auditaiValidCnpj(P.cnpj))&&n.trim()',
+  'S=i.length>=2&&i.every(P=>P.name.trim()&&P.file&&P.base64)&&n.trim()',
+);
+
+replaceIfPresent(
+  'mensagem geral do grupo independente da R.O.L.',
+  'if(!S){d("Preencha nome do grupo, nome, CNPJ válido e arquivo de todas as empresas.");',
+  'if(!S){d("Preencha nome do grupo, nome e arquivo de todas as empresas.");',
+);
+
+replaceIfPresent(
+  'período da R.O.L. não bloqueia análise de grupo',
+  'const auditaiRolValidation=window.AuditAIRol.validateGroup(k.map(M=>({name:M.name,cnpj:M.cnpj,result:M.result,headerData:{companyName:M.name,cnpj:M.cnpj}})));if(auditaiRolValidation.warnings.some(M=>M.includes("períodos de apuração diferentes")||M.includes("Período de apuração não identificado"))){d("Não foi possível confirmar um período único para todas as DREs. Envie documentos do mesmo período para consolidar a R.O.L.");return}',
+  '',
+);
+
+replaceIfPresent(
+  'R.O.L. não bloqueia consolidação do histórico',
+  'const auditaiRolHistoryIsDre=z.every(re=>window.AuditAIRol.normalize(re.result&&re.result.summary&&re.result.summary.document_type)==="DRE");if(auditaiRolHistoryIsDre){const auditaiRolHistoryValidation=window.AuditAIRol.validateGroup(z);if(!auditaiRolHistoryValidation.valid){alert("Para consolidar a R.O.L., confirme CNPJs válidos e um único período de apuração em todas as DREs.\\n\\n"+auditaiRolHistoryValidation.warnings.join("\\n"));return}}',
+  '',
+);
 
 fs.writeFileSync(bundlePath, source);
 console.log('OK - integração R.O.L. aplicada ao bundle AuditAI.');

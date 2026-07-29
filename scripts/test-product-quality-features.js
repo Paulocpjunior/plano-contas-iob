@@ -11,6 +11,13 @@ const assertContains = (file, pattern, label) => {
     throw new Error(`${label} ausente em ${file}`);
   }
 };
+const assertNotContains = (file, pattern, label) => {
+  const source = read(file);
+  const found = pattern instanceof RegExp ? pattern.test(source) : source.includes(pattern);
+  if (found) {
+    throw new Error(`${label} ainda presente em ${file}`);
+  }
+};
 
 assertContains('server.js', "app.post('/api/layout-rejections'", 'registro da fila de rejeicoes');
 assertContains('server.js', "app.get('/api/layout-rejections'", 'consulta da fila de rejeicoes');
@@ -210,6 +217,7 @@ assertContains('auditai/rol-reports.js', 'hasValidIndividualCnpj', 'AuditAI exig
 assertContains('auditai/rol-reports.js', 'exportGroupPdf', 'AuditAI exporta ROL agregada em PDF');
 assertContains('auditai/rol-reports.js', 'exportGroupXlsx', 'AuditAI exporta ROL agregada em Excel');
 assertContains('auditai/rol-reports.js', 'groupHasCompleteRol', 'AuditAI nao exporta grupo com ROL indisponivel');
+assertContains('auditai/rol-reports.js', 'A análise individual ou consolidada permanece disponível normalmente', 'validacao da ROL informa que nao bloqueia as analises');
 assertContains('auditai/assets/index-DREfix3266.js', 'i>1||s===3?t=t.replace(/\\./g,"")', 'parser numerico AuditAI trata pontos de milhar brasileiros');
 assertContains('auditai/assets/index-DREfix3266.js', 'OFFICIAL_TOTAL_ATIVO', 'AuditAI solicita e preserva total oficial do ativo');
 assertContains('auditai/assets/index-DREfix3266.js', 'OFFICIAL_RESULTADO_EXERCICIO', 'AuditAI solicita e preserva resultado oficial do exercicio');
@@ -226,11 +234,14 @@ assertContains('auditai/assets/index-DREfix3266.js', 'n?"0:"+auditaiGroupPathSor
 assertContains('auditai/assets/index-DREfix3266.js', 'if(Math.abs(t)+Math.abs(r)+Math.abs(n)>0)return t-Math.abs(r)-Math.abs(n)', 'AuditAI Grupo calcula resultado do trimestre por receitas custos e despesas antes do resultado oficial do balanco');
 assertContains('auditai/assets/index-DREfix3266.js', 'AuditAIRolReports.exportIndividualPdf', 'AuditAI integra relatorio ROL individual em PDF');
 assertContains('auditai/assets/index-DREfix3266.js', 'AuditAIRolReports.exportGroupPdf', 'AuditAI integra relatorio ROL agregado em PDF');
-assertContains('auditai/assets/index-DREfix3266.js', 'Receita Operacional Líquida', 'AuditAI Grupo possui linha canonica de ROL');
+assertContains('auditai/assets/index-DREfix3266.js', 'Receita Operacional Líquida', 'AuditAI preserva o relatorio opcional de ROL');
 assertContains('auditai/assets/index-DREfix3266.js', 'rolByCompany:t.map', 'AuditAI preserva memoria ROL individual de cada CNPJ no grupo');
-assertContains('auditai/assets/index-DREfix3266.js', 'auditaiRolHistoryValidation', 'AuditAI valida CNPJ e periodo ao consolidar DREs do historico');
+assertContains('auditai/assets/index-DREfix3266.js', 'auditaiRolGroupAvailable', 'AuditAI disponibiliza ROL apenas como relatorio opcional');
 assertContains('auditai/assets/index-DREfix3266.js', 'sem eliminações de receitas e operações entre empresas', 'AuditAI identifica agregado gerencial sem eliminacoes intragrupo');
-assertContains('auditai/assets/index-DREfix3266.js', 'Não foi possível confirmar um período único para todas as DREs', 'AuditAI bloqueia ROL agregada com periodo ausente ou divergente');
+assertNotContains('auditai/assets/index-DREfix3266.js', '__auditai_rol_receita_bruta', 'ROL nao pode inserir linhas na consolidacao contabil geral');
+assertNotContains('auditai/assets/index-DREfix3266.js', 'auditaiRolHistoryValidation', 'validacao ROL nao pode bloquear consolidacao pelo historico');
+assertNotContains('auditai/assets/index-DREfix3266.js', 'Não foi possível confirmar um período único para todas as DREs', 'validacao ROL nao pode bloquear analise de grupo');
+assertNotContains('auditai/assets/index-DREfix3266.js', '&&auditaiValidCnpj(P.cnpj))&&n.trim()', 'CNPJ da ROL nao pode impedir processamento do grupo');
 assertContains('auditai/assets/index-DREfix3266.js', 'ae.ac=xe.ativoCirculante||0,ae.anc=xe.ativoNaoCirculante||0', 'Dashboard AuditAI usa abertura oficial de ativo e passivo');
 assertContains('auditai/assets/index-DREfix3266.js', 'JxAuditShouldSkipSpellcheckAlert', 'AuditAI filtra falsos positivos de grafia em contas contabeis oficiais');
 assertContains('auditai/assets/index-DREfix3266.js', 'OBRIGACOES FINANCEIRAS', 'AuditAI nao trata grupo contabil normal como conta suspeita');

@@ -100,6 +100,10 @@
     return normalized;
   }
 
+  function isDreAnalysis(analysis) {
+    return normalize(analysis && analysis.summary && analysis.summary.document_type) === 'DRE';
+  }
+
   function number(value) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -370,6 +374,7 @@
       const cnpj = digits(header.cnpj || item.cnpj);
       const periodLabel = analysis.summary && analysis.summary.period || '';
       const period = periodKey(periodLabel);
+      if (!isDreAnalysis(analysis)) warnings.push(`${company}: o documento analisado não é uma DRE.`);
       if (!validCnpj(cnpj)) warnings.push(`${company}: CNPJ ausente ou inválido.`);
       if (validCnpj(cnpj) && validCnpjs.has(cnpj)) warnings.push(`${company}: CNPJ duplicado no grupo.`);
       if (validCnpj(cnpj)) validCnpjs.set(cnpj, company);
@@ -424,6 +429,7 @@
     validCnpj,
     formatCnpj,
     periodKey,
+    isDreAnalysis,
     calculateAnalysis,
     calculateGroup,
     validateGroup,

@@ -1,12 +1,11 @@
 {
-  "version": "3.4.67",
-  "build_date": "2026-07-29T09:54:54Z",
+  "version": "3.4.68",
+  "build_date": "2026-07-29T14:48:27Z",
   "release_notes": [
-    "Razao de fornecedores da CLUDE agora reconhece pagamentos liquidos somados a IRRF, PIS, COFINS e CSLL retidos.",
-    "Fragmentos numericos no inicio do fornecedor nao sao mais confundidos com numero de nota fiscal.",
-    "O vinculo exige coerencia entre fornecedor, valor bruto e identificadores explicitos, impedindo pagamentos de outra empresa de quitar a nota.",
-    "Pagamentos duplicados sao usados uma unica vez e notas identicas seguem ordem deterministica.",
-    "O arquivo real de maio de 2026 foi validado com 342 linhas, 145 notas, 131 pagas e 14 abertas.",
-    "A regressao de abril de 2026 preserva 128 notas pagas e 21 abertas, removendo o falso vinculo BL Corretora com AVIDA."
+    "A R.O.L. passa a funcionar exclusivamente como relatorio opcional e nao bloqueia mais a analise individual ou de grupo.",
+    "Balancos e balancetes podem ser analisados e consolidados mesmo quando nao possuem periodo compativel com uma DRE.",
+    "A consolidacao pelo Historico tambem permanece independente das validacoes de CNPJ e periodo exigidas pela R.O.L.",
+    "CNPJ valido, documento DRE e periodo uniforme agora sao verificados somente para disponibilizar ou exportar o relatorio de R.O.L.",
+    "As linhas da R.O.L. nao sao mais inseridas na tabela contábil consolidada do grupo."
   ]
 }
