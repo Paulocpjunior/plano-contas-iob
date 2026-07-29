@@ -197,6 +197,138 @@ function rolEvidenceCount(rol) {
   ].length;
 }
 
+function finiteNumberOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function firstFiniteNumber(...values) {
+  for (const value of values) {
+    const parsed = finiteNumberOrNull(value);
+    if (parsed !== null) return parsed;
+  }
+  return null;
+}
+
+function accountValue(accounts, names, codes = []) {
+  const normalizedNames = names.map(core.normalize);
+  const normalizedCodes = codes.map((code) => String(code));
+  const scored = (accounts || []).map((account) => {
+    const name = core.normalize(account.account_name);
+    const code = String(account.account_code || '').trim();
+    let score = 0;
+    if (normalizedCodes.includes(code)) score = 4;
+    else if (normalizedNames.includes(name)) score = 3;
+    else if (normalizedNames.some((target) => name.includes(target))) score = 1;
+    if (score && account.is_synthetic) score += 0.5;
+    return { account, score };
+  }).filter(({ score }) => score > 0);
+  scored.sort((left, right) => right.score - left.score);
+  const preferred = scored[0] && scored[0].account;
+  return preferred ? finiteNumberOrNull(preferred.final_balance) : null;
+}
+
+function executiveAnalysisData(analysis) {
+  const source = analysis || {};
+  const summary = source.summary || {};
+  const official = summary.officialTotals || {};
+  const accounts = Array.isArray(source.accounts) ? source.accounts : [];
+  const totalAtivo = firstFiniteNumber(
+    official.totalAtivo,
+    accountValue(accounts, ['Total do Ativo', 'Ativo'], ['1']),
+  );
+  const ativoCirculante = firstFiniteNumber(
+    official.ativoCirculante,
+    accountValue(accounts, ['Ativo Circulante'], ['1.1']),
+  );
+  const ativoNaoCirculante = firstFiniteNumber(
+    official.ativoNaoCirculante,
+    accountValue(accounts, ['Ativo Não Circulante'], ['1.2']),
+  );
+  const totalPassivo = firstFiniteNumber(
+    official.totalPassivo,
+    accountValue(accounts, ['Total do Passivo', 'Passivo'], ['2']),
+  );
+  const passivoCirculante = firstFiniteNumber(
+    official.passivoCirculante,
+    accountValue(accounts, ['Passivo Circulante'], ['2.1']),
+  );
+  const passivoNaoCirculante = firstFiniteNumber(
+    official.passivoNaoCirculante,
+    accountValue(accounts, ['Passivo Não Circulante'], ['2.2']),
+  );
+  const patrimonioLiquido = firstFiniteNumber(
+    official.patrimonioLiquido,
+    accountValue(accounts, ['Patrimônio Líquido', 'Total do Patrimônio Líquido'], ['2.3']),
+  );
+  const totalReceitas = firstFiniteNumber(
+    official.totalReceitas,
+    accountValue(accounts, ['Total de Receitas', 'Receitas'], ['3']),
+  );
+  const totalCustos = firstFiniteNumber(
+    official.totalCustos,
+    accountValue(accounts, ['Total de Custos', 'Custos'], ['4']),
+  );
+  const totalDespesas = firstFiniteNumber(
+    official.totalDespesas,
+    accountValue(accounts, ['Total de Despesas', 'Despesas'], ['5']),
+  );
+  const resultado = firstFiniteNumber(
+    summary.specific_result_value,
+    official.resultadoExercicio,
+    accountValue(accounts, [
+      'Resultado do Exercício',
+      'Resultado do Período',
+      'Resultado do Trimestre',
+      'Lucro Líquido',
+      'Prejuízo Líquido',
+    ]),
+  );
+  const totals = [
+    ['Total do Ativo', totalAtivo],
+    ['Ativo Circulante', ativoCirculante],
+    ['Ativo Não Circulante', ativoNaoCirculante],
+    ['Total do Passivo', totalPassivo],
+    ['Passivo Circulante', passivoCirculante],
+    ['Passivo Não Circulante', passivoNaoCirculante],
+    ['Patrimônio Líquido', patrimonioLiquido],
+    ['Total de Receitas', totalReceitas],
+    ['Total de Custos', totalCustos],
+    ['Total de Despesas', totalDespesas],
+    ['Resultado do Período', resultado],
+  ];
+  const identifiedTotals = totals.filter(([, value]) => value !== null).length;
+  const leadingAccounts = accounts
+    .filter((account) => finiteNumberOrNull(account.final_balance) !== null)
+    .slice()
+    .sort((left, right) => {
+      if (!!left.is_synthetic !== !!right.is_synthetic) return left.is_synthetic ? -1 : 1;
+      return Math.abs(Number(right.final_balance) || 0) - Math.abs(Number(left.final_balance) || 0);
+    })
+    .slice(0, 16);
+  const observations = Array.isArray(summary.observations)
+    ? summary.observations
+    : summary.observations
+      ? [String(summary.observations)]
+      : [];
+  const spelling = Array.isArray(source.spell_check) ? source.spell_check : [];
+  return {
+    summary,
+    accounts,
+    totals,
+    identifiedTotals,
+    leadingAccounts,
+    observations,
+    spelling,
+    totalAtivo,
+    totalPassivo,
+    totalReceitas,
+    patrimonioLiquido,
+    resultado,
+  };
+}
+
 function compositionRows(rol) {
   return [
     ['Receita Operacional Bruta', currency(rol.grossRevenue)],
@@ -472,6 +604,183 @@ function exportIndividualExecutiveBig4Pdf({ analysis, headerData = {} }) {
   downloadPdf(
     doc,
     `ROL_Executivo_BIG4_${safeFilePart(headerData.companyName)}_${safeFilePart(headerData.cnpj)}.pdf`,
+  );
+}
+
+function buildAnalysisExecutiveBig4Pdf({ analysis, headerData = {} }) {
+  const data = executiveAnalysisData(analysis);
+  const doc = new jsPDF('p', 'pt', 'a4');
+  const company = headerData.companyName || 'Empresa não identificada';
+  const cnpj = headerData.cnpj || 'CNPJ não informado';
+  const documentType = data.summary.document_type || 'Documento contábil';
+  const period = data.summary.period || 'Período não identificado';
+  const discrepancy = finiteNumberOrNull(data.summary.discrepancy_amount);
+  const balanceStatus = data.summary.is_balanced === true
+    ? 'Equilíbrio informado no documento'
+    : data.summary.is_balanced === false
+      ? discrepancy === null
+        ? 'Diferença informada sem valor identificado'
+        : `Diferença informada: ${currency(discrepancy)}`
+      : 'Teste de equilíbrio não informado';
+  const resultReading = data.resultado === null
+    ? 'Resultado do período não identificado na base analisada.'
+    : `Resultado do período identificado em ${currency(data.resultado)}.`;
+
+  addExecutiveHeader(
+    doc,
+    'Relatório Executivo Contábil',
+    `Empresa: ${company}`,
+    `CNPJ: ${cnpj}  |  Documento: ${documentType}  |  Período: ${period}`,
+  );
+
+  const metricValue = (value) => value === null ? 'Não identificado' : currency(value);
+  let y = addMetricCards(doc, [
+    { label: 'Total do ativo', value: metricValue(data.totalAtivo), color: executiveColors.blue },
+    { label: 'Total do passivo', value: metricValue(data.totalPassivo), color: executiveColors.red },
+    { label: 'Receitas', value: metricValue(data.totalReceitas), color: executiveColors.cyan },
+    { label: 'Resultado', value: metricValue(data.resultado), color: data.resultado !== null && data.resultado < 0 ? executiveColors.red : executiveColors.emerald },
+  ], 108);
+
+  y = addExecutiveSection(doc, '1. Sumário executivo', y);
+  y = addExecutiveParagraphs(doc, [
+    `A análise executiva considera ${data.accounts.length} conta(s) extraída(s) do documento classificado como ${documentType}, referente a ${period}.`,
+    `${data.identifiedTotals} de ${data.totals.length} total(is) contábil(is) de controle foram identificados sem criação de valores substitutos.`,
+    `${resultReading} ${balanceStatus}.`,
+  ], y, 523);
+
+  y = addExecutiveSection(doc, '2. Principais achados', y + 3);
+  autoTable(doc, {
+    startY: y,
+    head: [['Tema', 'Leitura executiva', 'Encaminhamento']],
+    body: [
+      ['Classificação', `${documentType} | ${period}`, 'Confirmar classificação e competência do documento-fonte.'],
+      ['Integridade', balanceStatus, data.summary.is_balanced === false ? 'Reconciliar a diferença antes do uso externo.' : 'Manter a evidência da revisão.'],
+      ['Resultado', resultReading, 'Validar lançamentos de encerramento e contas não recorrentes.'],
+      ['Qualidade', `${data.observations.length} observação(ões) e ${data.spelling.length} alerta(s) textual(is).`, 'Revisar alertas relevantes e documentar a conclusão.'],
+    ],
+    theme: 'grid',
+    margin: { left: 36, right: 36 },
+    styles: { fontSize: 7.5, cellPadding: 5, textColor: executiveColors.slate },
+    headStyles: { fillColor: executiveColors.navy, textColor: executiveColors.white },
+    columnStyles: { 0: { cellWidth: 76, fontStyle: 'bold' }, 1: { cellWidth: 208 } },
+  });
+
+  y = (doc.lastAutoTable && doc.lastAutoTable.finalY || y) + 22;
+  y = addExecutiveSection(doc, '3. Escopo e objetivo', y);
+  y = addExecutiveParagraphs(doc, [
+    'Objetivo: transformar os saldos extraídos em uma leitura executiva rastreável, sem substituir a escrituração, as demonstrações oficiais ou o julgamento profissional.',
+    'Escopo: documento carregado no AuditAI, totais oficiais quando disponíveis, contas extraídas, consistência aritmética informada e pontos de revisão.',
+  ], y, 523);
+
+  y = addExecutiveSection(doc, '4. Recomendações prioritárias', y + 2);
+  autoTable(doc, {
+    startY: y,
+    body: [
+      ['01', 'Reconciliar os totais apresentados com a demonstração contábil aprovada.'],
+      ['02', 'Revisar classificações, saldos não recorrentes e lançamentos de encerramento.'],
+      ['03', 'Documentar responsável, data, evidências e conclusão da revisão.'],
+      ['04', 'Comparar com períodos anteriores quando houver base homogênea disponível.'],
+    ],
+    theme: 'plain',
+    margin: { left: 36, right: 36 },
+    styles: { fontSize: 8, cellPadding: 4, textColor: executiveColors.slate },
+    columnStyles: { 0: { cellWidth: 28, fontStyle: 'bold', textColor: executiveColors.blue } },
+  });
+
+  doc.addPage();
+  addExecutiveHeader(
+    doc,
+    'Base contábil e trilha de revisão',
+    `Empresa: ${company}`,
+    `CNPJ: ${cnpj}  |  Documento: ${documentType}  |  Período: ${period}`,
+  );
+  y = addExecutiveSection(doc, '5. Totais contábeis identificados', 116);
+  autoTable(doc, {
+    startY: y,
+    head: [['Indicador', 'Valor preservado']],
+    body: data.totals.map(([label, value]) => [
+      label,
+      value === null ? 'Não identificado' : currency(value),
+    ]),
+    theme: 'grid',
+    margin: { left: 36, right: 36 },
+    styles: { fontSize: 8, cellPadding: 5 },
+    headStyles: { fillColor: executiveColors.blue, textColor: executiveColors.white },
+    columnStyles: { 1: { halign: 'right', fontStyle: 'bold', cellWidth: 170 } },
+  });
+
+  y = (doc.lastAutoTable && doc.lastAutoTable.finalY || y) + 22;
+  y = addExecutiveSection(doc, '6. Contas de maior valor absoluto', y);
+  autoTable(doc, {
+    startY: y,
+    head: [['Código', 'Conta', 'Tipo', 'Saldo']],
+    body: data.leadingAccounts.slice(0, 8).map((account) => [
+      account.account_code || '',
+      account.account_name || 'Conta sem descrição',
+      account.is_synthetic ? 'Sintética' : 'Analítica',
+      currency(account.final_balance),
+    ]),
+    theme: 'striped',
+    margin: { left: 36, right: 36, bottom: 52 },
+    styles: { fontSize: 7, cellPadding: 4 },
+    headStyles: { fillColor: executiveColors.navy, textColor: executiveColors.white },
+    columnStyles: {
+      0: { cellWidth: 75 },
+      2: { cellWidth: 70 },
+      3: { cellWidth: 105, halign: 'right', fontStyle: 'bold' },
+    },
+  });
+
+  doc.addPage();
+  addExecutiveHeader(
+    doc,
+    'Metodologia, governança e limitações',
+    `Empresa: ${company}`,
+    `CNPJ: ${cnpj}  |  Documento: ${documentType}  |  Emissão: ${today()}`,
+  );
+  y = addExecutiveSection(doc, '7. Procedimentos aplicados', 116);
+  y = addExecutiveParagraphs(doc, [
+    '- Identificação do tipo de documento, empresa, CNPJ e período informado.',
+    '- Preservação dos totais oficiais existentes no arquivo, sem recalcular ou inventar valores.',
+    '- Leitura das contas sintéticas e analíticas, com destaque para os maiores saldos absolutos.',
+    '- Verificação do equilíbrio e da diferença informada pelo motor de análise.',
+    '- Registro de observações e alertas que exigem revisão técnica.',
+  ], y, 523);
+
+  y = addExecutiveSection(doc, '8. Governança recomendada', y + 4);
+  autoTable(doc, {
+    startY: y,
+    head: [['Responsável', 'Procedimento', 'Evidência esperada']],
+    body: [
+      ['Contabilidade', 'Confirmar saldos, classificação e encerramento.', 'Demonstração aprovada, razão e conciliações.'],
+      ['Fiscal', 'Validar impactos tributários quando aplicáveis.', 'Apurações e documentos de suporte.'],
+      ['Controladoria', 'Revisar variações, recorrência e indicadores.', 'Análise gerencial e comparação histórica.'],
+      ['Administração', 'Aprovar a leitura e suas limitações.', 'Registro formal da revisão.'],
+    ],
+    theme: 'grid',
+    margin: { left: 36, right: 36 },
+    styles: { fontSize: 7.5, cellPadding: 5, textColor: executiveColors.slate },
+    headStyles: { fillColor: executiveColors.navy, textColor: executiveColors.white },
+    columnStyles: { 0: { cellWidth: 90, fontStyle: 'bold' }, 1: { cellWidth: 215 } },
+  });
+
+  y = (doc.lastAutoTable && doc.lastAutoTable.finalY || y) + 22;
+  y = addExecutiveSection(doc, '9. Limitações e responsabilidade', y);
+  addExecutiveParagraphs(doc, [
+    'A análise depende da integridade e da classificação do documento enviado. Não foram executados testes de auditoria, circularizações, inspeção documental ou validação de controles internos.',
+    'A referência BIG4 descreve somente a organização executiva do conteúdo. Não existe vínculo, revisão ou endosso por firma de auditoria independente.',
+  ], y, 523);
+
+  addExecutiveFooter(doc);
+  return doc;
+}
+
+function exportAnalysisExecutiveBig4Pdf({ analysis, headerData = {} }) {
+  const doc = buildAnalysisExecutiveBig4Pdf({ analysis, headerData });
+  const documentType = analysis && analysis.summary && analysis.summary.document_type || 'Documento';
+  downloadPdf(
+    doc,
+    `Relatorio_Executivo_BIG4_${safeFilePart(headerData.companyName)}_${safeFilePart(documentType)}.pdf`,
   );
 }
 
@@ -1004,8 +1313,10 @@ function exportGroupXlsx({ data }) {
 }
 
 window.AuditAIRolReports = {
+  buildAnalysisExecutiveBig4Pdf,
   buildIndividualExecutiveBig4Pdf,
   buildGroupExecutiveBig4Pdf,
+  exportAnalysisExecutiveBig4Pdf,
   exportIndividualPdf,
   exportIndividualExecutiveBig4Pdf,
   exportIndividualXlsx,

@@ -1,11 +1,11 @@
 {
-  "version": "3.4.69",
-  "build_date": "2026-07-29T15:31:10Z",
+  "version": "3.4.70",
+  "build_date": "2026-07-29T15:52:25Z",
   "release_notes": [
-    "O AuditAI agora oferece a opcao separada PDF Executivo BIG4 para a R.O.L. individual e do grupo.",
-    "Os relatorios PDF R.O.L., Excel R.O.L., PDF padrao e Relatorio executivo existentes permanecem inalterados.",
-    "O novo documento inclui sumario executivo, escopo, achados, recomendacoes, metodologia, governanca, memoria de calculo e limitacoes.",
-    "O relatorio do grupo apresenta indicadores por CNPJ, concentracao, participacao e anexos individuais.",
-    "A referencia BIG4 descreve a estrutura executiva e declara expressamente que o documento nao constitui auditoria independente ou parecer."
+    "A opcao PDF Executivo BIG4 agora aparece diretamente no cabecalho da analise individual do AuditAI.",
+    "O relatorio executivo funciona com Balanco Patrimonial, Balancete e DRE, sem depender da apuracao de R.O.L.",
+    "Imprimir, Compartilhar, Exportar PDF e os relatorios especificos da R.O.L. permanecem disponiveis sem alteracao.",
+    "O documento executivo apresenta sumario, achados, totais preservados, contas relevantes, recomendacoes, metodologia e governanca em tres paginas.",
+    "A referencia BIG4 descreve somente a organizacao executiva do conteudo e nao constitui auditoria independente ou parecer."
   ]
 }

@@ -202,6 +202,11 @@ assert.ok(
   'relatorio executivo BIG4 individual deve ser uma exportacao separada',
 );
 assert.ok(
+  reports.includes('buildAnalysisExecutiveBig4Pdf')
+    && reports.includes('exportAnalysisExecutiveBig4Pdf'),
+  'relatorio executivo BIG4 geral deve funcionar fora da ROL',
+);
+assert.ok(
   reports.includes('exportGroupExecutiveBig4Pdf'),
   'relatorio executivo BIG4 do grupo deve ser uma exportacao separada',
 );
@@ -210,12 +215,22 @@ assert.ok(
   'relatorio BIG4 deve declarar sua natureza gerencial',
 );
 assert.ok(
-  bundle.includes('PDF Executivo BIG4'),
-  'interface deve exibir a opcao BIG4',
+  bundle.includes('auditaiExecutiveBig4Pdf=()=>window.AuditAIRolReports.exportAnalysisExecutiveBig4Pdf({analysis:e,headerData:t})'),
+  'analise individual deve acionar o relatorio BIG4 geral',
+);
+assert.ok(
+  bundle.includes('onClick:auditaiExecutiveBig4Pdf')
+    && (bundle.match(/PDF Executivo BIG4/g) || []).length === 3,
+  'interface deve exibir BIG4 no cabecalho geral e preservar as opcoes ROL',
 );
 assert.ok(
   bundle.includes('Exportar PDF R.O.L.') && bundle.includes('Excel R.O.L.'),
   'opcao BIG4 nao pode substituir as exportacoes ROL existentes',
+);
+assert.ok(
+  bundle.includes('onClick:k,className:"flex items-center gap-2 px-4 py-2 bg-blue-600')
+    && bundle.includes('"Exportar PDF"]})'),
+  'opcao BIG4 nao pode substituir o PDF individual existente',
 );
 assert.ok(
   bundle.includes('onClick:u,className:"flex items-center gap-2 px-4 py-2 bg-purple-600'),

@@ -154,6 +154,12 @@ replaceIfPresent(
   'auditaiRolPdf=()=>window.AuditAIRolReports.exportIndividualPdf({analysis:e,headerData:t}),auditaiRolBig4Pdf=()=>window.AuditAIRolReports.exportIndividualExecutiveBig4Pdf({analysis:e,headerData:t}),auditaiRolXlsx=()=>',
 );
 
+replaceIfPresent(
+  'ação do relatório executivo BIG4 na análise individual geral',
+  'auditaiRolXlsx=()=>window.AuditAIRolReports.exportIndividualXlsx({analysis:e,headerData:t}),O=()=>window.print()',
+  'auditaiRolXlsx=()=>window.AuditAIRolReports.exportIndividualXlsx({analysis:e,headerData:t}),auditaiExecutiveBig4Pdf=()=>window.AuditAIRolReports.exportAnalysisExecutiveBig4Pdf({analysis:e,headerData:t}),O=()=>window.print()',
+);
+
 const individualRolPdfButton = 'H.jsx("button",{onClick:auditaiRolPdf,className:"px-4 py-2 bg-white text-blue-700 rounded-lg font-bold text-xs hover:bg-blue-50",children:"Exportar PDF R.O.L."})';
 const individualRolBig4Button = 'H.jsx("button",{onClick:auditaiRolBig4Pdf,className:"px-4 py-2 bg-slate-950 text-white border border-blue-300 rounded-lg font-bold text-xs hover:bg-slate-800",children:"PDF Executivo BIG4"})';
 if (!source.includes(individualRolBig4Button)) {
@@ -161,6 +167,15 @@ if (!source.includes(individualRolBig4Button)) {
     'botão do relatório executivo BIG4 individual',
     individualRolPdfButton,
     `${individualRolPdfButton},${individualRolBig4Button}`,
+  );
+}
+
+const individualGeneralBig4Button = 'H.jsx("button",{onClick:auditaiExecutiveBig4Pdf,className:"px-4 py-2 bg-slate-950 text-white border border-blue-400 rounded-lg font-bold text-xs hover:bg-slate-800",children:"PDF Executivo BIG4"})';
+if (!source.includes(individualGeneralBig4Button)) {
+  replaceIfPresent(
+    'botão do relatório executivo BIG4 na análise individual geral',
+    '}),\"Compartilhar\"]}),H.jsxs(\"button\",{onClick:k,className:\"flex items-center gap-2 px-4 py-2 bg-blue-600',
+    `}),"Compartilhar"]}),${individualGeneralBig4Button},H.jsxs("button",{onClick:k,className:"flex items-center gap-2 px-4 py-2 bg-blue-600`,
   );
 }
 
