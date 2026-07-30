@@ -1,11 +1,11 @@
 {
-  "version": "3.4.70",
-  "build_date": "2026-07-29T15:52:25Z",
+  "version": "3.4.71",
+  "build_date": "2026-07-30T11:58:48Z",
   "release_notes": [
-    "A opcao PDF Executivo BIG4 agora aparece diretamente no cabecalho da analise individual do AuditAI.",
-    "O relatorio executivo funciona com Balanco Patrimonial, Balancete e DRE, sem depender da apuracao de R.O.L.",
-    "Imprimir, Compartilhar, Exportar PDF e os relatorios especificos da R.O.L. permanecem disponiveis sem alteracao.",
-    "O documento executivo apresenta sumario, achados, totais preservados, contas relevantes, recomendacoes, metodologia e governanca em tres paginas.",
-    "A referencia BIG4 descreve somente a organizacao executiva do conteudo e nao constitui auditoria independente ou parecer."
+    "A consolidacao ECD/ECF preserva os saldos e movimentos oficiais do I155/J100 informados nos TXT de origem, sem recalcular o saldo final pelo I250.",
+    "A ECD anterior continua sendo usada exclusivamente para alinhar a abertura do J100, J150 e I155 ao encerramento recuperado.",
+    "Quando o TXT validado possui diferencas informativas entre I155 e I250, a ferramenta apresenta a ocorrencia para revisao sem reescrever os valores declarados.",
+    "Cada arquivo atual e recuperado utiliza somente o ultimo bloco J005/J100/J150, evitando somar demonstracoes intermediarias.",
+    "Regressao validada com 12 ECDs do CNPJ 05.297.631: consolidado final equilibrado em R$ 3.933.019,60 de Ativo e Passivo."
   ]
 }

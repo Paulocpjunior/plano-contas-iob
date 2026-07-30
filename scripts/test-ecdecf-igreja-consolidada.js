@@ -228,7 +228,11 @@ const filiais = atuais.filter((a) => a !== matriz);
 const anterior = parseFile(arquivoAnterior);
 const ajustes = ajustesDaEcdAnterior(anterior, atuais);
 const resultado = E.consolidar(matriz, filiais, ajustes, { ecdAnteriorLines: anterior.lines });
-const validacao = E.validar(resultado.lines, { cnpjEsperado: '31563533000105', ecdAnteriorLines: anterior.lines });
+const validacao = E.validar(resultado.lines, {
+  cnpjEsperado: '31563533000105',
+  ecdAnteriorLines: anterior.lines,
+  movimentosI155OrigemPreservados: resultado.preservouI155Origem === true,
+});
 
 const grupos = {};
 resultado.lines.forEach((line) => {
@@ -263,10 +267,11 @@ assert(raizAnterior.ativo === raizAbertura.ativo, `Abertura do ativo ${fmt(raizA
 assert(raizAnterior.passivo === raizAbertura.passivo, `Abertura do passivo ${fmt(raizAbertura.passivo)} difere do encerramento anterior ${fmt(raizAnterior.passivo)}`);
 assert(validacao.checks.some((check) => check.nome === 'Abertura J100 = encerramento da ECD anterior' && check.ok), 'Validador deve comparar abertura J100 com encerramento da ECD anterior');
 assert(validacao.checks.some((check) => check.nome === 'Abertura I155 = encerramento da ECD anterior' && check.ok), 'Validador deve comparar abertura I155 com encerramento da ECD anterior');
-assert(validacao.checks.some((check) => check.nome === 'Movimentos I155 = I250 por periodo/conta' && check.ok), 'Validador deve comparar debitos/creditos I155 com I250 por periodo');
+assert(validacao.checks.some((check) => check.nome === 'Movimentos I155 = I250 por periodo/conta' && check.ok && /informativa/.test(check.detalhe)),
+  'Validador deve informar a comparacao I155 x I250 sem reescrever os valores declarados');
 assert(validacao.checks.some((check) => check.nome === 'Abertura J150 = encerramento da DRE anterior'), 'Validador deve comparar abertura J150 com encerramento da ECD anterior quando houver recuperacao');
 const divergenciasMovimento = divergenciasI155I250(resultado.lines);
-assert(!divergenciasMovimento.length, `I155 diverge de I250: ${divergenciasMovimento.slice(0, 5).join('; ')}`);
+assert(divergenciasMovimento.length, 'Fixture real deve manter as diferencas I155 x I250 declaradas na origem para revisao');
 
 const linhasTecnicasI250 = resultado.lines
   .map(fields)
@@ -324,6 +329,7 @@ if (arquivosSaoJose.concat(anteriorSaoJose).every(fs.existsSync)) {
   const validacaoSaoJose = E.validar(consolidadoSaoJose.lines, {
     cnpjEsperado: '07043084000190',
     ecdAnteriorLines: recuperadaSaoJose.lines,
+    movimentosI155OrigemPreservados: consolidadoSaoJose.preservouI155Origem === true,
   });
   const raizRecuperadaSaoJose = resumoJ100Raiz(recuperadaSaoJose.lines, false);
   const raizAberturaSaoJose = resumoJ100Raiz(consolidadoSaoJose.lines, true);
@@ -372,6 +378,7 @@ if (fs.existsSync(zipJoaoPessoa)) {
   const validacaoJoaoPessoa = E.validar(consolidadoJoaoPessoa.lines, {
     cnpjEsperado: '35501634000102',
     ecdAnteriorLines: anteriorJoaoPessoa.lines,
+    movimentosI155OrigemPreservados: consolidadoJoaoPessoa.preservouI155Origem === true,
   });
   const raizAnteriorJoaoPessoa = resumoJ100Raiz(anteriorJoaoPessoa.lines, false);
   const raizAberturaJoaoPessoa = resumoJ100Raiz(consolidadoJoaoPessoa.lines, true);
@@ -446,6 +453,7 @@ if (fs.existsSync(zipEcd229)) {
   const validacao229 = E.validar(consolidado229.lines, {
     cnpjEsperado: '11238262000105',
     ecdAnteriorLines: anteriorSintetica,
+    movimentosI155OrigemPreservados: consolidado229.preservouI155Origem === true,
   });
   const raizAnterior229 = resumoJ100Raiz(anteriorSintetica, false);
   const raizAbertura229 = resumoJ100Raiz(consolidado229.lines, true);
@@ -459,4 +467,71 @@ if (fs.existsSync(zipEcd229)) {
   fs.rmSync(pastaZip, { recursive: true, force: true });
 }
 
-console.log(`OK: ECD igreja consolidada herda a abertura da ECD recuperada, inclusive para contas novas no ano atual.`);
+const rarEcd235 = '/Users/paulocesarpereirajunior/Downloads/235.rar';
+const anteriorEcd235 = '/Users/paulocesarpereirajunior/Downloads/05297631000138-05297631000138-20240101-20241231-G-8290A49AD96A962D76CE040DD4E0D0DA54C88E78-7-SPED-ECD.txt';
+if (fs.existsSync(rarEcd235) && fs.existsSync(anteriorEcd235)) {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const pastaRar = fs.mkdtempSync(path.join(os.tmpdir(), 'ecdecf-235-'));
+  try {
+    execFileSync('bsdtar', ['-xf', rarEcd235, '-C', pastaRar]);
+    const entradas235 = [];
+    function listarTxt235(dir) {
+      fs.readdirSync(dir, { withFileTypes: true }).forEach((entrada) => {
+        const completo = path.join(dir, entrada.name);
+        if (entrada.isDirectory()) listarTxt235(completo);
+        else if (/\.TXT$/i.test(entrada.name)) entradas235.push(completo);
+      });
+    }
+    listarTxt235(pastaRar);
+    assert(entradas235.length === 12, `ECD 235 deve conter 12 arquivos atuais, encontrados ${entradas235.length}`);
+
+    const atuais235 = entradas235.sort().map(parseFile);
+    const matriz235 = atuais235.find((arquivo) => arquivo.isMatriz);
+    const filiais235 = atuais235.filter((arquivo) => arquivo !== matriz235);
+    const recuperada235 = parseFile(anteriorEcd235);
+    assert(matriz235 && matriz235.cnpj === '05297631000138', 'ECD 235 deve identificar a matriz 05.297.631/0001-38');
+    atuais235.forEach((arquivo) => {
+      const raiz = resumoJ100Raiz(arquivo.lines, false);
+      assert(raiz.ativo === raiz.passivo, `${arquivo.nomeArquivo} deve estar balanceado na origem`);
+    });
+    const totaisOrigem235 = atuais235.reduce((totais, arquivo) => {
+      const raiz = resumoJ100Raiz(arquivo.lines, false);
+      totais.ativo += raiz.ativo;
+      totais.passivo += raiz.passivo;
+      return totais;
+    }, { ativo: 0, passivo: 0 });
+    assert(totaisOrigem235.ativo === 401169797, 'ECD 235 deve somar Ativo de origem em R$ 4.011.697,97');
+    assert(totaisOrigem235.passivo === 401169797, 'ECD 235 deve somar Passivo de origem em R$ 4.011.697,97');
+
+    const ajustes235 = ajustesDaEcdAnterior(recuperada235, atuais235);
+    const consolidado235 = E.consolidar(matriz235, filiais235, ajustes235, {
+      ecdAnteriorLines: recuperada235.lines,
+    });
+    const validacao235 = E.validar(consolidado235.lines, {
+      cnpjEsperado: matriz235.cnpj,
+      ecdAnteriorLines: recuperada235.lines,
+      movimentosI155OrigemPreservados: consolidado235.preservouI155Origem === true,
+    });
+    const abertura235 = resumoJ100Raiz(consolidado235.lines, true);
+    const fechamento235 = resumoJ100Raiz(consolidado235.lines, false);
+    assert(abertura235.ativo === 312357439 && abertura235.passivo === 312357439,
+      'ECD 235 deve usar R$ 3.123.574,39 da ECD anterior como abertura J100');
+    assert(fechamento235.ativo === 393301960 && fechamento235.passivo === 393301960,
+      'ECD 235 deve fechar Ativo e Passivo em R$ 3.933.019,60 sem recalcular I155 por I250');
+    assert(consolidado235.preservouI155Origem === true, 'ECD 235 deve declarar a preservacao dos valores I155 de origem');
+    assert(!consolidado235.avisos.some((aviso) => /Divergencias contabeis bloqueantes/.test(aviso)),
+      'ECD 235 nao pode criar divergencia contabil depois da consolidacao');
+    const checkBalanco235 = validacao235.checks.find((check) => check.nome === 'Balanco patrimonial: ATIVO = PASSIVO');
+    const checkMovimentos235 = validacao235.checks.find((check) => check.nome === 'Movimentos I155 = I250 por periodo/conta');
+    assert(checkBalanco235 && checkBalanco235.ok, `ECD 235 deve ficar balanceada: ${checkBalanco235 && checkBalanco235.detalhe}`);
+    assert(checkMovimentos235 && checkMovimentos235.ok && /informativa/.test(checkMovimentos235.detalhe),
+      'ECD 235 deve preservar movimentos I155 declarados e tratar a comparacao com I250 como informativa');
+    assert(validacao235.falhas === 0,
+      `ECD 235 deve ficar apta: ${validacao235.checks.filter((check) => !check.ok).map((check) => `${check.nome}: ${check.detalhe}`).join('; ')}`);
+  } finally {
+    fs.rmSync(pastaRar, { recursive: true, force: true });
+  }
+}
+
+console.log(`OK: ECD igreja consolidada preserva I155/J100 de origem e herda a abertura da ECD recuperada.`);

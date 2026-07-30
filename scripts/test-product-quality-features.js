@@ -153,6 +153,10 @@ assertContains('index.html', 'Numeracao J150 unica (sem repeticao)', 'validador 
 assertContains('index.html', 'criarGrupoPlanoRecuperado', 'consolidador ECD cria I050 recuperado para conta usada no I155');
 assertContains('index.html', 'Abertura J100 = encerramento da ECD anterior', 'validador ECD compara abertura J100 contra encerramento anterior');
 assertContains('index.html', 'ultimoBlocoDemonstracao', 'validador ECD usa somente o ultimo J005/J100 recuperado');
+assertContains('index.html', 'var sf = e[3] + d', 'ECD/ECF preserva o saldo final I155 declarado nos TXT de origem');
+assertContains('index.html', 'preservouI155Origem: true', 'ECD/ECF identifica a preservacao do I155 para validacao informativa contra I250');
+assertContains('index.html', 'ultimoBlocoDemonstracao(a.lines, tipo)', 'ECD/ECF consolida somente o ultimo J100/J150 de cada arquivo atual');
+assertNotContains('index.html', 'var sf = si + e[1] - e[2]', 'ECD/ECF nao pode recalcular o saldo final I155 a partir de I250');
 assertContains('index.html', 'Abertura I155 = encerramento da ECD anterior', 'validador ECD compara abertura I155 contra encerramento anterior');
 assertContains('index.html', 'Arquivo NÃO exportado', 'ECD/ECF nao baixa TXT quando a validacao final reprova');
 assertContains('index.html', 'Quantidade de campos por registro SPED', 'validador ECD bloqueia quantidade de campos invalida no layout SPED');

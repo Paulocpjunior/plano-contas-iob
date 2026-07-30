@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.70';</script>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.70"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.70"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.70"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.71';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.71"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.71"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.71"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -20,34 +20,34 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.70"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.70"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.70"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.71"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.71"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.71"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.70"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.70"></script>
-    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.70"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.70"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.70"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.70"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.70"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.70"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.70"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.70"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.70"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.70"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.70"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.70"></script>
-    <script src="/parser-inter-extrato.js?v=3.4.70"></script>
-    <script src="/parser-extrato-conciliado.js?v=3.4.70"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.70"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.70"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.70"></script>
+    <script src="/parser-ofx.js?v=3.4.71"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.71"></script>
+    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.71"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.71"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.71"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.71"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.71"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.71"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.71"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.71"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.71"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.71"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.71"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.71"></script>
+    <script src="/parser-inter-extrato.js?v=3.4.71"></script>
+    <script src="/parser-extrato-conciliado.js?v=3.4.71"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.71"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.71"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.71"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -15747,7 +15747,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.70';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.71';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
@@ -16174,25 +16174,6 @@ window.confirmarTrocarPlano = async function() {
             var f0000Consolidacao = fields((matriz.groups['0000'] || [''])[0] || '');
             var gerarI157 = String(f0000Consolidacao[22] || '').trim() === '1';
 
-            var lctosOrigem = [];
-            todos.forEach(function(a){ splitLancamentos(a.lines).forEach(function(x){ lctosOrigem.push(x); }); });
-            var movimentosPorPeriodo = [];
-            for (var mp = 0; mp < nper; mp++) {
-                var f150Mov = fields(pers[0][mp].i150);
-                var mov = {};
-                lctosOrigem.forEach(function(lcto){
-                    var f200 = fields(lcto.i200);
-                    if (!dataDentroPeriodoSped(f200[3], f150Mov[2], f150Mov[3])) return;
-                    lcto.i250.forEach(function(l){
-                        var f = fields(l), k = chaveContaCentro(f[2], f[3]);
-                        if (!mov[k]) mov[k] = [0, 0];
-                        if (f[5] === 'D') mov[k][0] += num(f[4]);
-                        else mov[k][1] += num(f[4]);
-                    });
-                });
-                movimentosPorPeriodo[mp] = mov;
-            }
-
             var i15x = [];
             for (var p = 0; p < nper; p++){
                 var f150 = fields(pers[0][p].i150);
@@ -16217,24 +16198,18 @@ window.confirmarTrocarPlano = async function() {
                     var k = chaveContaCentro(conta, centro);
                     if (!acc[k]){ acc[k] = [0, 0, 0, 0]; keys.push(k); }
                 });
-                Object.keys(movimentosPorPeriodo[p] || {}).forEach(function(k){
-                    if (!acc[k]){ acc[k] = [0, 0, 0, 0]; keys.push(k); }
-                    acc[k][1] = movimentosPorPeriodo[p][k][0];
-                    acc[k][2] = movimentosPorPeriodo[p][k][1];
-                });
                 keys.sort();
                 keys.forEach(function(k){
                     var kk = separarChaveContaCentro(k), e = acc[k];
-                    var movPeriodo = (movimentosPorPeriodo[p] || {})[k] || [0, 0];
-                    e[1] = movPeriodo[0];
-                    e[2] = movPeriodo[1];
                     var metaAjusteConta = ajMeta[kk.conta] || {};
                     var centroAjusteConta = metaAjusteConta.centro || metaAjusteConta.centroAnterior || '';
                     // O delta e por conta consolidada. Aplica-lo em cada centro de custo
                     // multiplicaria a abertura; por isso somente a linha-alvo recebe o ajuste.
                     var d = chaveContaCentro(kk.conta, centroAjusteConta) === k ? (ajMap[kk.conta] || 0) : 0;
                     var si = e[0] + d;
-                    var sf = si + e[1] - e[2];
+                    // I155 e J100 dos TXT validados sao a fonte oficial. O I250 nao pode
+                    // reescrever o movimento ou o saldo final declarado na origem.
+                    var sf = e[3] + d;
                     i15x.push('|I155|' + kk.conta + '|' + kk.centro + '|' + fmt(si) + '|' + dcOf(si) + '|' + fmt(e[1]) + '|' + fmt(e[2]) + '|' + fmt(sf) + '|' + dcOf(sf) + '|');
                     if (gerarI157 && p === 0 && d) {
                         var meta = ajMeta[kk.conta] || {};
@@ -16304,13 +16279,13 @@ window.confirmarTrocarPlano = async function() {
             function mergeJ(tipo, codi, vi, di, vf, df){
                 var fmap = {}, out = [];
                 filiais.forEach(function(a){
-                    (a.groups[tipo] || []).forEach(function(l){
+                    ultimoBlocoDemonstracao(a.lines, tipo).forEach(function(l){
                         var f = fields(l);
                         (fmap[f[codi]] = fmap[f[codi]] || []).push(f);
                     });
                 });
                 var usados = {};
-                (matriz.groups[tipo] || []).forEach(function(l){
+                ultimoBlocoDemonstracao(matriz.lines, tipo).forEach(function(l){
                     var f = fields(l), cod = f[codi];
                     var si = sgn(num(f[vi]), f[di]), sf = sgn(num(f[vf]), f[df]);
                     (fmap[cod] || []).forEach(function(g){
@@ -16341,7 +16316,7 @@ window.confirmarTrocarPlano = async function() {
             function sincronizarJ150ComEcdAnterior(){
                 if (!opts.ecdAnteriorLines || !opts.ecdAnteriorLines.length) return;
                 var ant = {};
-                opts.ecdAnteriorLines.forEach(function(l){
+                ultimoBlocoDemonstracao(opts.ecdAnteriorLines, 'J150').forEach(function(l){
                     var f = fields(l);
                     if (f[1] !== 'J150' || !f[3]) return;
                     ant[f[3]] = { valor: sgn(num(f[10]), f[11]), dc: f[11] || 'D', linha: l };
@@ -16630,6 +16605,7 @@ window.confirmarTrocarPlano = async function() {
             });
             return {
                 lines: out, avisos: avisos,
+                preservouI155Origem: true,
                 stats: { linhas: out.length, lancamentos: n, ativo: ativo, passivo: passivo, arquivos: todos.length }
             };
         }
@@ -16749,8 +16725,14 @@ window.confirmarTrocarPlano = async function() {
                     }
                 });
             });
-            add('Movimentos I155 = I250 por periodo/conta', divergenciasI155I250.length === 0,
-                divergenciasI155I250.length ? divergenciasI155I250.slice(0, 5).join('; ') : 'debitos e creditos periodicos conferem com os lancamentos');
+            var movimentosI155Preservados = opts.movimentosI155OrigemPreservados === true;
+            add('Movimentos I155 = I250 por periodo/conta',
+                divergenciasI155I250.length === 0 || movimentosI155Preservados,
+                divergenciasI155I250.length
+                    ? (movimentosI155Preservados
+                        ? divergenciasI155I250.length + ' diferenca(s) informativa(s) da origem; os valores declarados no I155 foram preservados sem reescrita automatica'
+                        : divergenciasI155I250.slice(0, 5).join('; '))
+                    : 'debitos e creditos periodicos conferem com os lancamentos');
 
             // J100: ativo = passivo, hierarquia T = soma dos filhos
             var j100 = lines.filter(function(l){ return fields(l)[1] === 'J100'; }).map(fields);
@@ -17165,7 +17147,11 @@ window.confirmarTrocarPlano = async function() {
             btn.disabled = true; btn.textContent = '⟳ Consolidando...';
             try {
                 var r = E.consolidar(matriz, filiais, ajustes, { ecdAnteriorLines: st.ecdAnterior ? st.ecdAnterior.lines : null });
-                st.validacao = E.validar(r.lines, { cnpjEsperado: st.cnpj, ecdAnteriorLines: st.ecdAnterior ? st.ecdAnterior.lines : null });
+                st.validacao = E.validar(r.lines, {
+                    cnpjEsperado: st.cnpj,
+                    ecdAnteriorLines: st.ecdAnterior ? st.ecdAnterior.lines : null,
+                    movimentosI155OrigemPreservados: r.preservouI155Origem === true
+                });
                 st.ultimoResultado = r;
                 function ecdecfAdicionarFalhaCritica(nome, detalhe){
                     st.validacao.checks.push({ nome: nome, ok: false, detalhe: detalhe });
