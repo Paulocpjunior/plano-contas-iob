@@ -157,6 +157,8 @@ assertContains('index.html', 'var sf = e[3] + d', 'ECD/ECF preserva o saldo fina
 assertContains('index.html', 'preservouI155Origem: true', 'ECD/ECF identifica a preservacao do I155 para validacao informativa contra I250');
 assertContains('index.html', 'ultimoBlocoDemonstracao(a.lines, tipo)', 'ECD/ECF consolida somente o ultimo J100/J150 de cada arquivo atual');
 assertNotContains('index.html', 'var sf = si + e[1] - e[2]', 'ECD/ECF nao pode recalcular o saldo final I155 a partir de I250');
+assertContains('index.html', 'async function ecdecfConfirmarVersaoAtual()', 'ECD/ECF confirma a versao ativa antes de processar arquivos');
+assertContains('index.html', 'if (!(await ecdecfConfirmarVersaoAtual())) return;', 'ECD/ECF bloqueia upload e consolidacao em aba desatualizada');
 assertContains('index.html', 'Abertura I155 = encerramento da ECD anterior', 'validador ECD compara abertura I155 contra encerramento anterior');
 assertContains('index.html', 'Arquivo NÃO exportado', 'ECD/ECF nao baixa TXT quando a validacao final reprova');
 assertContains('index.html', 'Quantidade de campos por registro SPED', 'validador ECD bloqueia quantidade de campos invalida no layout SPED');
