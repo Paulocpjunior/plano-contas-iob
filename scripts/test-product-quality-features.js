@@ -154,7 +154,10 @@ assertContains('index.html', 'criarGrupoPlanoRecuperado', 'consolidador ECD cria
 assertContains('index.html', 'Abertura J100 = encerramento da ECD anterior', 'validador ECD compara abertura J100 contra encerramento anterior');
 assertContains('index.html', 'ultimoBlocoDemonstracao', 'validador ECD usa somente o ultimo J005/J100 recuperado');
 assertContains('index.html', 'var sf = e[3] + d', 'ECD/ECF preserva o saldo final I155 declarado nos TXT de origem');
-assertContains('index.html', 'preservouI155Origem: true', 'ECD/ECF identifica a preservacao do I155 para validacao informativa contra I250');
+assertContains('index.html', 'divergenciasMovimentosI155I250', 'ECD/ECF identifica por arquivo as divergencias I155 contra I250');
+assertContains('index.html', 'Arquivos de origem: movimentos I155 = lançamentos I250', 'ECD/ECF bloqueia a consolidacao quando a origem diverge do PVA');
+assertContains('index.html', 'Exatamente uma MATRIZ deve ser informada', 'ECD/ECF bloqueia duas versoes da matriz no mesmo lote');
+assertNotContains('index.html', 'movimentosI155OrigemPreservados', 'ECD/ECF nao pode tornar divergencias obrigatorias do PVA apenas informativas');
 assertContains('index.html', 'ultimoBlocoDemonstracao(a.lines, tipo)', 'ECD/ECF consolida somente o ultimo J100/J150 de cada arquivo atual');
 assertNotContains('index.html', 'var sf = si + e[1] - e[2]', 'ECD/ECF nao pode recalcular o saldo final I155 a partir de I250');
 assertContains('index.html', 'async function ecdecfConfirmarVersaoAtual()', 'ECD/ECF confirma a versao ativa antes de processar arquivos');
