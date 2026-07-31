@@ -23,6 +23,9 @@ assertContains('server.js', "app.post('/api/layout-rejections'", 'registro da fi
 assertContains('server.js', "app.get('/api/layout-rejections'", 'consulta da fila de rejeicoes');
 assertContains('server.js', "app.patch('/api/layout-rejections/:id'", 'atualizacao de status da fila de rejeicoes');
 assertContains('server.js', "app.patch('/api/layouts-bancarios/:id/homologacao'", 'homologacao de layout bancario');
+assertContains('server.js', "app.post('/api/layouts-bancarios/rascunhos', adminRequired", 'criacao administrativa de rascunho de layout');
+assertContains('server.js', "app.get('/api/layouts-bancarios/rascunhos', adminRequired", 'consulta administrativa de rascunhos de layout');
+assertContains('server.js', 'arquivo_bruto_armazenado: false', 'rascunho nao armazena o arquivo bancario bruto');
 assertContains('server.js', "app.get('/api/layout-quality/ops'", 'metricas operacionais de qualidade');
 assertContains('server.js', "app.get('/api/fiscal/certificado-status'", 'status do certificado fiscal sem expor segredo');
 assertContains('server.js', "app.get('/api/fiscal/serpro-status'", 'status da ponte SERPRO sem expor segredo');
@@ -55,6 +58,12 @@ assertContains('server.js', 'layouts_aprovados_operacao', 'status operacional do
 assertContains('server.js', 'confiabilidade_bancos', 'relatorio de confiabilidade por banco');
 
 assertContains('admin.html', 'testarLayoutAdmin', 'teste manual de layout no admin');
+assertContains('admin.html', 'Novo layout bancário', 'entrada de novo layout bancario no admin');
+assertContains('admin.html', 'analisarNovoLayoutBancario', 'analise local do arquivo-modelo no admin');
+assertContains('admin.html', 'salvarRascunhoLayoutBancario', 'salvamento controlado do rascunho no admin');
+assertContains('admin.html', 'Privacidade: o PDF não é gravado', 'aviso de privacidade do arquivo-modelo');
+assertContains('admin.html', 'class="table-scroll"', 'tabela de layouts com rolagem responsiva');
+assertContains('admin.html', 'parser-stone-extrato.js', 'admin carrega o parser Stone');
 assertContains('admin.html', 'qualityTestFile', 'upload de teste de layout no admin');
 assertContains('admin.html', 'accept=".pdf,.csv,.txt,.xlsx,.xls"', 'upload de qualidade aceita CSV e planilhas alem de PDF');
 assertContains('admin.html', 'parser-flanacar-registro-entradas.js', 'admin carrega parser CSV FLANACAR para teste de qualidade');
@@ -82,6 +91,7 @@ assertContains('admin.html', 'Diagnóstico', 'diagnostico de rejeicao por banco 
 assertContains('admin.html', 'Tentados:', 'layouts tentados no relatorio de rejeicao');
 
 assertContains('index.html', 'abrirConferenciaImportacao', 'modo conferencia antes de gravar');
+assertContains('index.html', `parser-stone-extrato.js?v=${version}`, 'extrator carrega o parser Stone com cache-buster atual');
 assertContains('index.html', 'modalMemoriaEmpresa', 'modal de memoria da empresa');
 assertContains('index.html', 'salvarMemoriaEmpresa', 'edicao de memoria no app');
 assertContains('index.html', 'registrarArquivoRejeitado', 'registro de arquivo rejeitado pelo extrator');

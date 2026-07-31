@@ -9,22 +9,23 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="/api-adapter.js"></script>
-<script src="/parser-ofx.js?v=3.4.73"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.73"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.73"></script>
-<script src="/parser-safra-extrato.js?v=3.4.73"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.73"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.73"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.73"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.73"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.73"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.73"></script>
-<script src="/parser-btg-pactual.js?v=3.4.73"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.73"></script>
-<script src="/parser-abc-extrato.js?v=3.4.73"></script>
-<script src="/parser-inter-extrato.js?v=3.4.73"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.73"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.73"></script>
+<script src="/parser-ofx.js?v=3.4.74"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.74"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.74"></script>
+<script src="/parser-safra-extrato.js?v=3.4.74"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.74"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.74"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.74"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.74"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.74"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.74"></script>
+<script src="/parser-btg-pactual.js?v=3.4.74"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.74"></script>
+<script src="/parser-abc-extrato.js?v=3.4.74"></script>
+<script src="/parser-inter-extrato.js?v=3.4.74"></script>
+<script src="/parser-stone-extrato.js?v=3.4.74"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.74"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.74"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -67,6 +68,11 @@
   .summary-card .label { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
   .summary-card .value { font-size: 32px; font-weight: 700; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; overflow: hidden; }
+  .table-scroll { width:100%; max-width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:10px; -webkit-overflow-scrolling:touch; }
+  .table-scroll table { min-width:1120px; overflow:visible; }
+  .table-scroll table th:first-child, .table-scroll table td:first-child { position:sticky; left:0; z-index:1; background:#fff; box-shadow:1px 0 0 var(--border); }
+  .table-scroll table th:first-child { z-index:3; background:#f8fafc; }
+  .table-scroll table tr:hover td:first-child { background:#f8fafc; }
   th { text-align: left; padding: 12px; background: #f8fafc; color: #475569; font-weight: 800; border-bottom: 1px solid var(--border); position: sticky; top: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
   td { padding: 13px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
   tr:hover { background: #f8fafc; }
@@ -109,6 +115,18 @@
   .quality-result { margin-bottom:18px; padding:14px; border-radius:10px; border:1px solid #bfdbfe; background:#eff6ff; color:#1e3a8a; font-size:13px; line-height:1.5; display:none; }
   .quality-result.error { display:block; border-color:#fecaca; background:#fef2f2; color:#991b1b; }
   .quality-result.ok { display:block; border-color:#bbf7d0; background:#f0fdf4; color:#166534; }
+  .layout-intake { margin-bottom:22px; padding:20px; border:1px solid #bfdbfe; border-radius:12px; background:linear-gradient(135deg,#eff6ff 0%,#f8fafc 100%); }
+  .layout-intake h3 { font-size:17px; margin-bottom:5px; }
+  .layout-intake > p { color:var(--muted); font-size:12px; line-height:1.55; margin-bottom:16px; }
+  .layout-intake-grid { display:grid; grid-template-columns:120px minmax(180px,1fr) minmax(220px,1.3fr) 170px; gap:12px; }
+  .layout-intake-grid .wide { grid-column:span 2; }
+  .layout-intake label { display:block; font-size:11px; font-weight:800; text-transform:uppercase; color:var(--muted); margin-bottom:5px; letter-spacing:.4px; }
+  .layout-intake input, .layout-intake select, .layout-intake textarea { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; font:inherit; font-size:13px; }
+  .layout-intake textarea { resize:vertical; min-height:42px; }
+  .layout-intake-actions { display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-top:13px; }
+  .layout-intake-note { font-size:11px; color:#475569; line-height:1.5; }
+  .layout-drafts { margin-top:20px; }
+  .layout-drafts h3 { font-size:15px; margin-bottom:8px; }
   .danger-card { border-color:#fecaca; box-shadow:0 12px 32px rgba(185,28,28,.08); }
   .danger-alert { padding:14px 16px; border:1px solid #fecaca; background:#fef2f2; color:#991b1b; border-radius:10px; font-size:13px; line-height:1.55; margin-bottom:18px; }
   .exclusao-form { display:grid; grid-template-columns:minmax(280px,2fr) minmax(150px,1fr) minmax(150px,1fr) auto; gap:12px; align-items:end; }
@@ -131,6 +149,8 @@
     .tabs { border-radius: 10px; }
     input[type="search"] { min-width: 100%; }
     .quality-tool { grid-template-columns: 1fr; }
+    .layout-intake-grid { grid-template-columns:1fr; }
+    .layout-intake-grid .wide { grid-column:span 1; }
     .exclusao-form { grid-template-columns:1fr; }
   }
 </style>
@@ -217,7 +237,53 @@
         </div>
         <button class="btn" onclick="renderLayouts()">🔄 Atualizar</button>
       </div>
+      <div class="layout-intake">
+        <h3>➕ Novo layout bancário</h3>
+        <p>Envie um arquivo-modelo para analisar o formato e abrir um rascunho controlado. O layout só entra no extrator depois de possuir parser, regressão aprovada e homologação administrativa.</p>
+        <div class="layout-intake-grid">
+          <div>
+            <label for="newLayoutBanco">Código do banco</label>
+            <input id="newLayoutBanco" inputmode="numeric" maxlength="6" placeholder="197" oninput="limparAnaliseNovoLayout()">
+          </div>
+          <div>
+            <label for="newLayoutNomeBanco">Nome do banco</label>
+            <input id="newLayoutNomeBanco" maxlength="120" placeholder="Stone Instituição de Pagamento" oninput="limparAnaliseNovoLayout()">
+          </div>
+          <div>
+            <label for="newLayoutNome">Nome do layout</label>
+            <input id="newLayoutNome" maxlength="160" placeholder="Extrato de conta corrente" oninput="limparAnaliseNovoLayout()">
+          </div>
+          <div>
+            <label for="newLayoutFormato">Formato</label>
+            <select id="newLayoutFormato" onchange="limparAnaliseNovoLayout()">
+              <option value="PDF textual">PDF textual</option>
+              <option value="PDF imagem / OCR">PDF imagem / OCR</option>
+              <option value="OFX">OFX</option>
+              <option value="CSV">CSV</option>
+              <option value="XLSX">XLSX</option>
+            </select>
+          </div>
+          <div class="wide">
+            <label for="newLayoutFile">Arquivo-modelo</label>
+            <input type="file" id="newLayoutFile" accept=".pdf,.ofx,.ofc,.csv,.txt,.xlsx,.xls" onchange="limparAnaliseNovoLayout()">
+          </div>
+          <div class="wide">
+            <label for="newLayoutObservacao">Observação</label>
+            <textarea id="newLayoutObservacao" maxlength="600" placeholder="Empresa, período e particularidades do extrato" oninput="limparAnaliseNovoLayout()"></textarea>
+          </div>
+        </div>
+        <div class="layout-intake-actions">
+          <button class="btn" type="button" onclick="analisarNovoLayoutBancario()">Analisar arquivo</button>
+          <button class="btn" type="button" id="saveLayoutDraftBtn" style="background:#059669" onclick="salvarRascunhoLayoutBancario()" disabled>Salvar rascunho em teste</button>
+          <span class="layout-intake-note">Privacidade: o PDF não é gravado; ficam apenas nome, tamanho, páginas, hash SHA-256 e resultado técnico.</span>
+        </div>
+        <div id="newLayoutAnalysis" class="quality-result"></div>
+      </div>
       <div id="layoutsContent" class="loading">Carregando…</div>
+      <div class="layout-drafts">
+        <h3>Rascunhos recebidos</h3>
+        <div id="layoutDraftsContent" class="loading">Carregando…</div>
+      </div>
     </div>
   </div>
 
@@ -334,6 +400,8 @@ if (typeof pdfjsLib !== 'undefined') {
 let currentUsers = [];
 let currentLogs = [];
 let currentLayoutsBancarios = null;
+let currentLayoutDrafts = [];
+let novoLayoutAnaliseAtual = null;
 let currentLayoutQuality = null;
 let currentExclusaoPreview = null;
 let exclusaoEmpresasCarregadas = false;
@@ -452,11 +520,197 @@ async function carregarLayoutsBancariosAdmin() {
   popularQualityBancos();
 }
 
+function normalizarCodigoBancoInput(valor) {
+  const raw = String(valor || '').trim().toUpperCase();
+  if (!raw) return '';
+  if (/^\d+$/.test(raw)) return raw.padStart(3, '0');
+  return raw.replace(/[^A-Z0-9]/g, '').slice(0, 6);
+}
+
+function limparAnaliseNovoLayout() {
+  novoLayoutAnaliseAtual = null;
+  const resultado = document.getElementById('newLayoutAnalysis');
+  const salvar = document.getElementById('saveLayoutDraftBtn');
+  if (resultado) { resultado.className = 'quality-result'; resultado.innerHTML = ''; }
+  if (salvar) salvar.disabled = true;
+}
+
+function setNovoLayoutResult(tipo, html) {
+  const el = document.getElementById('newLayoutAnalysis');
+  if (!el) return;
+  el.className = 'quality-result ' + (tipo || '');
+  el.innerHTML = html || '';
+}
+
+async function sha256Arquivo(buffer) {
+  const hash = await crypto.subtle.digest('SHA-256', buffer.slice(0));
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function inspecionarPdfNovoLayout(buffer) {
+  if (typeof pdfjsLib === 'undefined') return { paginas: 0, caracteres_texto: 0, textual: false };
+  const pdf = await pdfjsLib.getDocument({ data: buffer.slice(0) }).promise;
+  let caracteresTexto = 0;
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const pagina = await pdf.getPage(p);
+    const conteudo = await pagina.getTextContent();
+    caracteresTexto += conteudo.items.reduce((total, item) => total + String(item.str || '').trim().length, 0);
+  }
+  return { paginas: pdf.numPages, caracteres_texto: caracteresTexto, textual: caracteresTexto >= 40 };
+}
+
+async function analisarNovoLayoutBancario() {
+  const banco = normalizarCodigoBancoInput((document.getElementById('newLayoutBanco') || {}).value);
+  const nomeBanco = String((document.getElementById('newLayoutNomeBanco') || {}).value || '').trim();
+  const nome = String((document.getElementById('newLayoutNome') || {}).value || '').trim();
+  const formato = String((document.getElementById('newLayoutFormato') || {}).value || '').trim();
+  const file = (document.getElementById('newLayoutFile') || {}).files?.[0];
+  if (!banco || !nomeBanco || !nome || !file) {
+    setNovoLayoutResult('error', 'Preencha código, banco, nome do layout e selecione o arquivo-modelo.');
+    return;
+  }
+  if (file.size > 25 * 1024 * 1024) {
+    setNovoLayoutResult('error', 'O arquivo-modelo deve ter no máximo 25 MB.');
+    return;
+  }
+  document.getElementById('newLayoutBanco').value = banco;
+  setNovoLayoutResult('ok', 'Analisando estrutura, impressão digital e parsers disponíveis…');
+  try {
+    const buffer = await file.arrayBuffer();
+    const hash = await sha256Arquivo(buffer);
+    let inspecao = { paginas: 0, caracteres_texto: 0, textual: false };
+    if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
+      inspecao = await inspecionarPdfNovoLayout(buffer);
+    }
+    const layoutsBanco = (currentLayoutsBancarios || []).filter(l => l.banco === banco);
+    let reconhecido = null;
+    for (const layout of layoutsBanco) {
+      const fn = window[layout.parser];
+      if (typeof fn !== 'function') continue;
+      try {
+        const entrada = /\.(csv|txt)$/i.test(file.name)
+          ? await qualityPayloadArquivo(file)
+          : buffer.slice(0);
+        const resultado = await fn(entrada);
+        if (resultado && resultado.detectado && Array.isArray(resultado.lancamentos) && resultado.lancamentos.length) {
+          reconhecido = {
+            parser: layout.parser,
+            layout: layout.layout,
+            lancamentos: resultado.lancamentos.length,
+            total_credito: resultado.lancamentos.filter(l => Number(l.valor) > 0).reduce((a, l) => a + Number(l.valor || 0), 0),
+            total_debito: resultado.lancamentos.filter(l => Number(l.valor) < 0).reduce((a, l) => a + Math.abs(Number(l.valor || 0)), 0),
+            periodo_inicio: resultado.periodo_inicio || '',
+            periodo_fim: resultado.periodo_fim || ''
+          };
+          break;
+        }
+      } catch (erroParser) {
+        console.warn('[novo layout] parser rejeitou o modelo:', layout.parser, erroParser);
+      }
+    }
+    novoLayoutAnaliseAtual = {
+      banco,
+      nomeBanco,
+      nome,
+      formato,
+      observacao: String((document.getElementById('newLayoutObservacao') || {}).value || '').trim(),
+      arquivo: file.name,
+      mime_type: file.type || '',
+      tamanho: file.size,
+      sha256: hash,
+      paginas: inspecao.paginas,
+      caracteres_texto: inspecao.caracteres_texto,
+      pdf_textual: inspecao.textual,
+      parser_detectado: reconhecido ? reconhecido.parser : '',
+      layout_detectado: reconhecido ? reconhecido.layout : '',
+      resultado_teste: reconhecido || null
+    };
+    const detalhePdf = inspecao.paginas
+      ? `<br><strong>PDF:</strong> ${inspecao.paginas} página(s), ${inspecao.textual ? 'texto extraível' : 'possível imagem/OCR'}`
+      : '';
+    const detalheParser = reconhecido
+      ? `<br><strong>Layout reconhecido:</strong> ${escapeHtml(reconhecido.layout)} (${escapeHtml(reconhecido.parser)})` +
+        `<br><strong>Teste:</strong> ${reconhecido.lancamentos} lançamento(s), ${formatMoney(reconhecido.total_credito)} de crédito e ${formatMoney(reconhecido.total_debito)} de débito`
+      : '<br><strong>Parser:</strong> nenhum parser do banco reconheceu o modelo; o rascunho ficará aguardando parametrização.';
+    setNovoLayoutResult('ok',
+      `<strong>Arquivo analisado:</strong> ${escapeHtml(file.name)} (${(file.size / 1024).toFixed(1)} KB)` +
+      detalhePdf + detalheParser +
+      `<br><strong>SHA-256:</strong> <span class="text-mono">${escapeHtml(hash.slice(0, 20))}…</span>`
+    );
+    document.getElementById('saveLayoutDraftBtn').disabled = false;
+  } catch (e) {
+    novoLayoutAnaliseAtual = null;
+    document.getElementById('saveLayoutDraftBtn').disabled = true;
+    setNovoLayoutResult('error', 'Não foi possível analisar o arquivo: ' + escapeHtml(e.message || e));
+  }
+}
+
+async function salvarRascunhoLayoutBancario() {
+  if (!novoLayoutAnaliseAtual) {
+    setNovoLayoutResult('error', 'Analise o arquivo antes de salvar o rascunho.');
+    return;
+  }
+  const btn = document.getElementById('saveLayoutDraftBtn');
+  btn.disabled = true;
+  setNovoLayoutResult('ok', 'Salvando rascunho controlado…');
+  try {
+    const r = await window.API.apiFetch('/api/layouts-bancarios/rascunhos', {
+      method: 'POST',
+      body: JSON.stringify(novoLayoutAnaliseAtual)
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.erro || ('HTTP ' + r.status));
+    setNovoLayoutResult('ok',
+      `<strong>Rascunho ${escapeHtml(data.id)} criado.</strong> Status: ${escapeHtml(data.status || 'em_teste')}. ` +
+      'O arquivo bruto não foi armazenado e o layout continuará fora do extrator até a homologação técnica.'
+    );
+    await carregarRascunhosLayoutsAdmin();
+    renderRascunhosLayoutsAdmin();
+    novoLayoutAnaliseAtual = null;
+  } catch (e) {
+    btn.disabled = false;
+    setNovoLayoutResult('error', 'Erro ao salvar rascunho: ' + escapeHtml(e.message || e));
+  }
+}
+
+async function carregarRascunhosLayoutsAdmin() {
+  try {
+    const r = await window.API.apiFetch('/api/layouts-bancarios/rascunhos?limit=100');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    currentLayoutDrafts = data.rascunhos || [];
+  } catch (e) {
+    console.warn('[admin layouts] falha ao carregar rascunhos:', e);
+    currentLayoutDrafts = [];
+  }
+}
+
+function renderRascunhosLayoutsAdmin() {
+  const el = document.getElementById('layoutDraftsContent');
+  if (!el) return;
+  if (!currentLayoutDrafts.length) {
+    el.innerHTML = '<div class="empty" style="padding:22px">Nenhum rascunho enviado.</div>';
+    return;
+  }
+  let html = '<div class="table-scroll"><table><thead><tr><th>Banco</th><th>Layout solicitado</th><th>Arquivo-modelo</th><th>Análise</th><th>Status</th><th>Criado por</th></tr></thead><tbody>';
+  currentLayoutDrafts.forEach(item => {
+    html += `<tr>
+      <td><strong>${escapeHtml(item.banco)}</strong><br>${escapeHtml(item.nomeBanco || '')}</td>
+      <td>${escapeHtml(item.nome || '')}<br><span style="font-size:11px;color:#64748b">${escapeHtml(item.formato || '')}</span></td>
+      <td>${escapeHtml(item.arquivo || '')}<br><span class="text-mono" style="font-size:10px;color:#64748b">${escapeHtml(String(item.sha256 || '').slice(0, 16))}…</span></td>
+      <td>${item.parser_detectado ? '<span class="badge badge-ok">Parser reconhecido</span><br>' + escapeHtml(item.parser_detectado) : '<span class="badge badge-warn">Parametrização pendente</span>'}<br><span style="font-size:11px;color:#64748b">${escapeHtml(item.paginas || 0)} pág. · ${escapeHtml(item.tamanho || 0)} bytes</span></td>
+      <td><span class="badge badge-info">${escapeHtml(item.status || 'rascunho')}</span></td>
+      <td>${escapeHtml(item.criado_por_email || '')}<br><span style="font-size:11px;color:#64748b">${escapeHtml(fmtDate(item.criado_em))}</span></td>
+    </tr>`;
+  });
+  el.innerHTML = html + '</tbody></table></div>';
+}
+
 async function renderLayouts() {
   const el = document.getElementById('layoutsContent');
   if (!el) return;
   el.innerHTML = '<div class="loading">Carregando layouts do banco de dados…</div>';
-  await carregarLayoutsBancariosAdmin();
+  await Promise.all([carregarLayoutsBancariosAdmin(), carregarRascunhosLayoutsAdmin()]);
   const layouts = currentLayoutsBancarios || [];
   if (!layouts.length) {
     el.innerHTML = '<div class="error">Não foi possível carregar os layouts bancários da fonte oficial. Tente atualizar a página ou verifique a API.</div>';
@@ -512,7 +766,8 @@ async function renderLayouts() {
   });
   table += '</tbody></table>';
 
-  el.innerHTML = cards + table + '<p style="font-size:12px;color:#6b7280;margin-top:14px">OFX, CSV e XLSX continuam aceitos fora dos layouts PDF específicos. Para PDFs sem layout cadastrado, o extrator bloqueia e solicita parametrização.</p>';
+  el.innerHTML = cards + '<div class="table-scroll">' + table + '</div>' + '<p style="font-size:12px;color:#6b7280;margin-top:14px">OFX, CSV e XLSX continuam aceitos fora dos layouts PDF específicos. Para PDFs sem layout cadastrado, o extrator bloqueia e solicita parametrização.</p>';
+  renderRascunhosLayoutsAdmin();
 }
 
 function labelHomologacao(status) {

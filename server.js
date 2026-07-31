@@ -2412,6 +2412,109 @@ app.get('/api/layouts-bancarios', async (req, res) => {
   }
 });
 
+app.get('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => {
+  try {
+    const limite = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 200);
+    const snap = await db.collection('layouts_bancarios_rascunhos')
+      .orderBy('criado_em', 'desc')
+      .limit(limite)
+      .get();
+    const rascunhos = snap.docs.map(doc => ({ id: doc.id, ...(doc.data() || {}) }));
+    res.set('Cache-Control', 'no-store');
+    res.json({ rascunhos });
+  } catch (err) {
+    console.error('layouts-bancarios rascunhos GET erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.post('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const banco = normalizarBancoLayout(body.banco);
+    const nomeBanco = String(body.nomeBanco || '').trim().slice(0, 120);
+    const nome = String(body.nome || '').trim().slice(0, 160);
+    const arquivo = path.basename(String(body.arquivo || '').trim()).slice(0, 220);
+    const sha256 = String(body.sha256 || '').trim().toLowerCase();
+    const formatosPermitidos = new Set(['PDF textual', 'PDF imagem / OCR', 'OFX', 'CSV', 'XLSX']);
+    const formato = formatosPermitidos.has(body.formato) ? body.formato : 'PDF textual';
+    const tamanho = Math.max(0, Math.min(Number(body.tamanho || 0), 25 * 1024 * 1024));
+    const paginas = Math.max(0, Math.min(parseInt(body.paginas, 10) || 0, 5000));
+    const caracteresTexto = Math.max(0, Math.min(parseInt(body.caracteres_texto, 10) || 0, 100000000));
+    if (!banco || !nomeBanco || !nome || !arquivo) {
+      return res.status(400).json({ erro: 'banco, nomeBanco, nome e arquivo sao obrigatorios' });
+    }
+    if (!/^[a-f0-9]{64}$/.test(sha256)) {
+      return res.status(400).json({ erro: 'sha256 do arquivo-modelo invalido' });
+    }
+    if (!tamanho) return res.status(400).json({ erro: 'tamanho do arquivo-modelo invalido' });
+
+    const duplicado = await db.collection('layouts_bancarios_rascunhos').where('sha256', '==', sha256).limit(1).get();
+    if (!duplicado.empty) {
+      const existente = duplicado.docs[0];
+      return res.json({ ok: true, id: existente.id, status: (existente.data() || {}).status || 'rascunho', duplicado: true });
+    }
+
+    const parserSolicitado = String(body.parser_detectado || '').trim().slice(0, 120);
+    const layoutOficial = LAYOUTS_BANCARIOS_PADRAO.find(layout => {
+      return normalizarBancoLayout(layout.banco) === banco && layout.parser === parserSolicitado;
+    });
+    const parserDetectado = layoutOficial ? parserSolicitado : '';
+    const resultadoRaw = body.resultado_teste && typeof body.resultado_teste === 'object' ? body.resultado_teste : {};
+    const resultadoTeste = parserDetectado ? {
+      lancamentos: Math.max(0, Math.min(parseInt(resultadoRaw.lancamentos, 10) || 0, 1000000)),
+      total_credito: Number(Number(resultadoRaw.total_credito || 0).toFixed(2)),
+      total_debito: Number(Number(resultadoRaw.total_debito || 0).toFixed(2)),
+      periodo_inicio: String(resultadoRaw.periodo_inicio || '').slice(0, 10),
+      periodo_fim: String(resultadoRaw.periodo_fim || '').slice(0, 10)
+    } : null;
+    const status = parserDetectado ? 'em_teste' : 'rascunho';
+    const documento = {
+      banco,
+      nomeBanco,
+      nome,
+      formato,
+      observacao: String(body.observacao || '').trim().slice(0, 600),
+      arquivo,
+      mime_type: String(body.mime_type || '').trim().slice(0, 120),
+      tamanho,
+      sha256,
+      paginas,
+      caracteres_texto: caracteresTexto,
+      pdf_textual: body.pdf_textual === true,
+      parser_detectado: parserDetectado,
+      layout_detectado: layoutOficial ? layoutOficial.nome : '',
+      resultado_teste: resultadoTeste,
+      arquivo_bruto_armazenado: false,
+      status,
+      origem: 'admin_novo_layout',
+      criado_em: new Date(),
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email,
+      atualizado_em: new Date()
+    };
+    const ref = await db.collection('layouts_bancarios_rascunhos').add(documento);
+    await db.collection('layout_events').add({
+      tipo: 'rascunho_criado',
+      rascunho_id: ref.id,
+      banco,
+      nomeBanco,
+      layout: nome,
+      parser: parserDetectado,
+      arquivo,
+      sha256,
+      status,
+      criado_em: new Date(),
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email
+    });
+    res.status(201).json({ ok: true, id: ref.id, status, arquivo_bruto_armazenado: false });
+  } catch (err) {
+    console.error('layouts-bancarios rascunhos POST erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 app.patch('/api/layouts-bancarios/:id/homologacao', adminRequired, async (req, res) => {
   try {
     const id = String(req.params.id || '').trim();

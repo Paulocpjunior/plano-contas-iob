@@ -570,6 +570,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     status: 'Regressao aprovada',
     observacao: 'PDF real de 4 paginas com camada textual. Validado com 112 movimentos, credito de R$ 168.500,00, debito de R$ 166.333,65, 15 saldos diarios conciliados e saldo final de R$ 2.338,35.'
   },
+  {
+    id: 'stone-studio-orale-2026-01',
+    banco: '197',
+    nomeBanco: 'Stone Instituicao de Pagamento',
+    layout: 'Stone - Extrato de Conta Corrente',
+    parser: 'parsearPDF_Stone_Extrato',
+    arquivo: 'Comprovante de Extrato - Stone 01.2026.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Comprovante de Extrato - Stone 01.2026.pdf',
+    empresa: 'STUDIO ORALE ODONTOLOGIA EIRELI',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF textual real de 1 pagina. Validado com 6 movimentos, credito de R$ 1.519,42, debito de R$ 1.904,10, saldo anterior reconstruido de R$ 1.212,90 e saldo final de R$ 828,22.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_EVIDENCE };

@@ -648,6 +648,25 @@ const LAYOUT_QUALITY_CASES = [
     validado_em: '2026-07-28T18:30:00-03:00',
     observacao: 'Extrato textual Banco Inter validado pelo texto extraido e pelo PDF.js do navegador. Os 112 movimentos fecham desde o saldo anterior calculado de R$ 172,00 ate R$ 2.338,35 e conferem os 15 saldos diarios impressos.'
   },
+  {
+    id: 'stone-studio-orale-2026-01',
+    banco: '197',
+    nomeBanco: 'Stone Instituicao de Pagamento',
+    layout: 'Stone - Extrato de Conta Corrente',
+    parser: 'parsearPDF_Stone_Extrato',
+    arquivo: 'Comprovante de Extrato - Stone 01.2026.pdf',
+    empresa: 'STUDIO ORALE ODONTOLOGIA EIRELI',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    esperado: {
+      total_lancamentos: 6,
+      total_credito: 1519.42,
+      total_debito: 1904.10
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-31T12:00:00-03:00',
+    observacao: 'Extrato Stone textual validado pelo texto extraido e pelo PDF.js do navegador. A regressao reconcilia quatro fechamentos diarios, inclusive o saldo repetido pelo banco em movimentos do mesmo dia.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_CASES };
