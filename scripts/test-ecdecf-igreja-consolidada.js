@@ -32,7 +32,7 @@ const arquivoAnterior = '/Users/paulocesarpereirajunior/Downloads/31563533000105
 
 const faltantes = arquivosAtuais.concat(arquivoAnterior).filter((file) => !fs.existsSync(file));
 if (faltantes.length) {
-  console.log('SKIP: fixtures ECD/ECF igreja nao encontrados:', faltantes.map(path.basename).join(', '));
+  console.log('SKIP: fixtures ECD/ECF igreja nao encontrados:', faltantes.map((arquivo) => path.basename(arquivo)).join(', '));
   process.exit(0);
 }
 
