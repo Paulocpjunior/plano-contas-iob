@@ -1,7 +1,9 @@
 {
-  "version": "3.4.76",
-  "build_date": "2026-08-06T17:30:11Z",
+  "version": "3.4.77",
+  "build_date": "2026-08-06T18:54:48Z",
   "release_notes": [
+    "A Chave NF-e agora e uma coluna obrigatoria protegida no Movimento Fiscal e nao pode ser removida ao limpar campos opcionais.",
+    "A segunda validacao preserva as 106 chaves e o CNPJ emitente da FASTWELD antes de abrir a conferencia final.",
     "A tela inicial agora oferece Movimento Bancario e Movimento Fiscal como opcoes visiveis antes da confirmacao da empresa.",
     "No fluxo fiscal, Banco deixa de ser obrigatorio e o modal do livro homologado abre automaticamente apos confirmar a empresa.",
     "Novo modal Importacoes - Movimento Fiscal, separado do extrator bancario e com catalogo de layouts homologados por cliente.",

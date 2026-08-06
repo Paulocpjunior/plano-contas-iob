@@ -107,7 +107,9 @@
     ufRemetente: ['uf do remetente']
   };
 
-  const REQUIRED = ['es', 'dataEntrada', 'numeroNf', 'cnpj', 'razaoSocial', 'cfop', 'valorContabil'];
+  // Chave NF-e integra a identidade fiscal do arquivo e nao pode ser removida
+  // na selecao de colunas: a segunda validacao extrai dela o CNPJ emitente.
+  const REQUIRED = ['es', 'dataEntrada', 'numeroNf', 'cnpj', 'razaoSocial', 'chaveNfe', 'cfop', 'valorContabil'];
   const MONEY_FIELDS = [
     'valorContabil', 'valorFrete', 'baseIcms', 'valorIcms', 'isentasIcms', 'outrasIcms',
     'baseIcmsSt', 'valorIcmsSt', 'baseIpi', 'valorIpi', 'isentasIpi', 'outrasIpi',

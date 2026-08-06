@@ -95,5 +95,19 @@ const apenasEstruturais = parsearCSV_FastweldRegistroSaidas(texto, { colunasSele
 assert.strictEqual(apenasEstruturais.lancamentos.length, 106);
 assert.strictEqual(apenasEstruturais.total_debito, 0);
 assert.strictEqual(Math.round(apenasEstruturais.total_credito * 100), 175752252);
+assert.strictEqual(apenasEstruturais.chaves_nfe_validas, 106, 'limpar opcionais deve preservar as chaves NF-e de seguranca');
+assert.strictEqual(apenasEstruturais.chaves_nfe_invalidas, 0);
+assert.deepStrictEqual(apenasEstruturais.cnpjs_empresa_detectados, ['02942184000134']);
+assert.strictEqual(
+  apenasEstruturais.colunas_disponiveis.find(coluna => coluna.chave === 'chaveNfe').obrigatoria,
+  true,
+  'Chave NF-e deve aparecer protegida na selecao de colunas'
+);
+assert.strictEqual(validarVinculoCnpjFiscal(apenasEstruturais, {
+  cnpjEmpresaAtiva: layout.cnpj,
+  cnpjLayout: layout.cnpj,
+  codigoEmpresa: layout.codigoEmpresa,
+  arquivoNome: path.basename(arquivo)
+}).valido, true, 'segunda validacao deve permanecer valida apos limpar opcionais');
 
 console.log('OK: FASTWELD 0109 validada com 106 NF-e, CNPJ emitente uniforme e travas de empresa/layout/arquivo.');
