@@ -1,7 +1,10 @@
 {
-  "version": "3.4.77",
-  "build_date": "2026-08-06T18:54:48Z",
+  "version": "3.4.78",
+  "build_date": "2026-08-06T20:12:57Z",
   "release_notes": [
+    "O menu EFD-Reinf agora separa Retencoes Previdenciarias (series R-2000 e R-3000) de Rendimentos Pagos/Creditados (serie R-4000).",
+    "Cada familia apresenta seus eventos e informa claramente quais fluxos estao homologados, integrados ao lote ou ainda aguardam homologacao.",
+    "As acoes de gerar R-4010 e transmitir lote ficam disponiveis somente na serie R-4000, evitando operacao no contexto previdenciario incorreto.",
     "A Chave NF-e agora e uma coluna obrigatoria protegida no Movimento Fiscal e nao pode ser removida ao limpar campos opcionais.",
     "A segunda validacao preserva as 106 chaves e o CNPJ emitente da FASTWELD antes de abrir a conferencia final.",
     "A tela inicial agora oferece Movimento Bancario e Movimento Fiscal como opcoes visiveis antes da confirmacao da empresa.",
