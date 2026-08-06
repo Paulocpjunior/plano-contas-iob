@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.74';</script>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.74"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.74"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.74"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.75';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.75"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.75"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.75"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -20,35 +20,36 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.74"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.74"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.74"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.75"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.75"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.75"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.74"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.74"></script>
-    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.74"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.74"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.74"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.74"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.74"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.74"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.74"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.74"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.74"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.74"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.74"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.74"></script>
-    <script src="/parser-inter-extrato.js?v=3.4.74"></script>
-    <script src="/parser-stone-extrato.js?v=3.4.74"></script>
-    <script src="/parser-extrato-conciliado.js?v=3.4.74"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.74"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.74"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.74"></script>
+    <script src="/parser-ofx.js?v=3.4.75"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.75"></script>
+    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.75"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.75"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.75"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.75"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.75"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.75"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.75"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.75"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.75"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.75"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.75"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.75"></script>
+    <script src="/parser-inter-extrato.js?v=3.4.75"></script>
+    <script src="/parser-stone-extrato.js?v=3.4.75"></script>
+    <script src="/parser-extrato-conciliado.js?v=3.4.75"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.75"></script>
+    <script src="/layouts-fiscais-padrao.js?v=3.4.75"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.75"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.75"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1585,6 +1586,31 @@
         .flanacar-columns-table input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); }
         .flanacar-column-required { color: var(--primary); font-size: 11px; font-weight: 700; }
         .flanacar-column-sample { color: var(--text-muted); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .movimento-fiscal-card { width: min(860px, 100%); }
+        .movimento-fiscal-lock {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin: 14px 0;
+        }
+        .movimento-fiscal-lock > div {
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .movimento-fiscal-lock span { display: block; color: #64748b; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+        .movimento-fiscal-lock strong { display: block; color: #1e3a8a; font-size: 13px; margin-top: 4px; word-break: break-word; }
+        .movimento-fiscal-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .movimento-fiscal-form label { display: block; color: var(--text-muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+        .movimento-fiscal-form select,
+        .movimento-fiscal-form input { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font: inherit; font-size: 13px; }
+        .movimento-fiscal-status { display: none; margin-top: 14px; padding: 12px 14px; border-radius: 9px; font-size: 13px; line-height: 1.5; }
+        .movimento-fiscal-status.ok { display: block; color: #166534; background: #ecfdf5; border: 1px solid #86efac; }
+        .movimento-fiscal-status.error { display: block; color: #991b1b; background: #fef2f2; border: 1px solid #fca5a5; }
+        .movimento-fiscal-status.info { display: block; color: #1e40af; background: #eff6ff; border: 1px solid #bfdbfe; }
+        .movimento-fiscal-validation { display: none; margin-top: 14px; }
+        .movimento-fiscal-validation.show { display: block; }
         @media (max-width: 768px) {
             .confirm-import-grid { grid-template-columns: 1fr; }
             .confirm-import-actions { flex-direction: column-reverse; }
@@ -1593,6 +1619,8 @@
             .flanacar-columns-table td:nth-child(3),
             .flanacar-columns-table th:nth-child(5),
             .flanacar-columns-table td:nth-child(5) { display: none; }
+            .movimento-fiscal-lock,
+            .movimento-fiscal-form { grid-template-columns: 1fr; }
         }
         @keyframes slideIn {
             from { transform: translateX(120%); }
@@ -1698,6 +1726,7 @@
             <button class="active" onclick="showPage('inicio')"><span>🏠</span> Início</button>
             <button onclick="showPage('empresas')"><span>🏢</span> Empresas</button>
             <button onclick="showPage('extrator')"><span>📤</span> Extrator</button>
+            <button onclick="abrirModalMovimentoFiscal()"><span>🧾</span> Importações Fiscais</button>
             <button onclick="showPage('lancamentos')"><span>📋</span> Lançamentos</button>
             <button onclick="showPage('plano')"><span>📚</span> Plano de Contas / Histórico</button>
             <button onclick="showPage('mapeamento')"><span>🔗</span> Mapeamento</button>
@@ -1898,6 +1927,9 @@
                             <button class="btn-action btn-action-primary" onclick="showPage('extrator')">
                                 📤 Importar Novo Extrato
                             </button>
+                            <button class="btn-action btn-action-primary" onclick="abrirModalMovimentoFiscal()" style="background:#0f766e">
+                                🧾 Importar Movimento Fiscal
+                            </button>
                             <button class="btn-action btn-action-primary" onclick="importarLancamentoClick()" style="background:#7c3aed">
                                 📋 Importar Novo Lançamento
                             </button>
@@ -1925,6 +1957,9 @@
                         <h3>Envie extrato bancário ou planilha de lançamentos</h3>
                         <p>Inteligência Artificial extrai automaticamente todas as transações — suporta PDF, OFX/OFC, CSV, XLSX (multi-abas)</p>
                         <div style="display:flex;justify-content:center;margin:14px 0 18px 0">
+                            <button class="btn-action btn-action-secondary" type="button" onclick="abrirModalMovimentoFiscal()" style="background:#ecfdf5;color:#0f766e;border:1px solid #99f6e4;margin-right:10px">
+                                🧾 Importações — Movimento Fiscal
+                            </button>
                             <button class="btn-action btn-action-secondary" type="button" onclick="abrirModalMercadoPago()" style="background:#eef2ff;color:#1d4ed8;border:1px solid #c7d2fe">
                                 🟦 Mercado Pago API / Relatório
                             </button>
@@ -1983,7 +2018,7 @@
                                     Para razão de saldos, Banco e Título não são obrigatórios. Clique em Processar arquivo para gerar o relatório de notas pagas e abertas.
                                 </div>
                                 <div id="uploadFlanacarColumnsHint" style="display:none;grid-column:1/-1;background:#ecfdf5;color:#166534;border:1px solid #86efac;border-radius:8px;padding:10px 12px;font-size:12px;font-weight:700">
-                                    FLANACAR Fiscal validado. Ao processar, você poderá escolher as colunas deste arquivo antes da importação.
+                                    Movimento fiscal detectado. Use o modal fiscal para validar empresa, layout e CNPJ antes da importação.
                                 </div>
                             </div>
                         </div>
@@ -3168,6 +3203,59 @@
     <!-- Toast -->
     <div id="toast" class="toast hidden"></div>
 
+    <!-- Importacoes - Movimento Fiscal -->
+    <div class="confirm-import-overlay" id="movimentoFiscalOverlay">
+        <div class="confirm-import-card movimento-fiscal-card">
+            <div class="confirm-import-head">
+                <div>
+                    <h3>🧾 Importações — Movimento Fiscal</h3>
+                    <p>Selecione o modelo homologado, valide a identidade fiscal do arquivo e só então importe os lançamentos.</p>
+                </div>
+                <button class="btn-remove" type="button" onclick="fecharModalMovimentoFiscal()" aria-label="Fechar">✕</button>
+            </div>
+
+            <div class="movimento-fiscal-lock">
+                <div><span>Empresa ativa</span><strong id="movFiscalEmpresaAtiva">-</strong></div>
+                <div><span>CNPJ do cadastro</span><strong id="movFiscalCnpjAtivo">-</strong></div>
+                <div><span>Regra de liberação</span><strong>Cadastro = layout = chave NF-e</strong></div>
+            </div>
+
+            <div class="movimento-fiscal-form">
+                <div>
+                    <label for="movFiscalLayout">Modelo do livro fiscal</label>
+                    <select id="movFiscalLayout" onchange="invalidarValidacaoMovimentoFiscal()">
+                        <option value="">Carregando layouts homologados...</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="movFiscalArquivo">Arquivo do movimento fiscal</label>
+                    <input id="movFiscalArquivo" type="file" accept=".csv,.txt" onchange="invalidarValidacaoMovimentoFiscal()">
+                </div>
+            </div>
+
+            <div id="movFiscalStatus" class="movimento-fiscal-status info">
+                Nenhum arquivo validado. A importação permanece bloqueada.
+            </div>
+
+            <div id="movFiscalValidation" class="movimento-fiscal-validation">
+                <div class="confirm-import-grid">
+                    <div class="confirm-import-metric"><span class="label">Código do arquivo</span><span class="value" id="movFiscalCodigoArquivo">-</span></div>
+                    <div class="confirm-import-metric"><span class="label">CNPJ extraído</span><span class="value" id="movFiscalCnpjArquivo">-</span></div>
+                    <div class="confirm-import-metric"><span class="label">Cobertura NF-e</span><span class="value" id="movFiscalCoberturaNfe">-</span></div>
+                    <div class="confirm-import-metric"><span class="label">Período</span><span class="value" id="movFiscalPeriodo">-</span></div>
+                    <div class="confirm-import-metric"><span class="label">Notas fiscais</span><span class="value" id="movFiscalNotas">0</span></div>
+                    <div class="confirm-import-metric credit"><span class="label">Vendas</span><span class="value" id="movFiscalVendas">R$ 0,00</span></div>
+                </div>
+            </div>
+
+            <div class="confirm-import-actions">
+                <button class="btn btn-secondary" type="button" onclick="fecharModalMovimentoFiscal()">Cancelar</button>
+                <button class="btn btn-secondary" type="button" id="movFiscalValidarBtn" onclick="validarArquivoMovimentoFiscal()">Validar arquivo</button>
+                <button class="btn btn-primary" type="button" id="movFiscalImportarBtn" onclick="processarMovimentoFiscalValidado()" disabled>Continuar para importação</button>
+            </div>
+        </div>
+    </div>
+
     <!-- FLANACAR Fiscal Column Selection -->
     <div class="confirm-import-overlay" id="flanacarColumnsOverlay">
         <div class="confirm-import-card flanacar-columns-card">
@@ -3214,7 +3302,7 @@
                     <span class="value" id="confImpArquivo">-</span>
                 </div>
                 <div class="confirm-import-metric">
-                    <span class="label">Banco</span>
+                    <span class="label" id="confImpOrigemLabel">Banco</span>
                     <span class="value" id="confImpBanco">-</span>
                 </div>
                 <div class="confirm-import-metric">
@@ -3252,6 +3340,10 @@
                 <div class="confirm-import-metric">
                     <span class="label">Status</span>
                     <span class="value" id="confImpStatus">Pronto</span>
+                </div>
+                <div class="confirm-import-metric">
+                    <span class="label">Vínculo CNPJ</span>
+                    <span class="value" id="confImpVinculoCnpj">Não aplicável</span>
                 </div>
             </div>
             <div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px">
@@ -3354,6 +3446,8 @@
         const lancamentosSelecionados = new Set();
         
         let selectedFile = null;
+        let movimentoFiscalValidacaoAtual = null;
+        let layoutsFiscaisCache = [];
         let ultimaAnaliseRazaoNotas = null;
         let chartCategorias = null;
         let chartFluxo = null;
@@ -11882,17 +11976,9 @@
             }
             if (selectedFile !== file) return;
 
-            _comboboxSelecionar('uploadBanco', '1237');
-            const uploadBanco = document.getElementById('uploadBanco');
-            if (uploadBanco) uploadBanco.dispatchEvent(new Event('change', { bubbles: true }));
-
-            const titulo = document.getElementById('uploadTitulo');
-            if (titulo && !titulo.value) titulo.value = fiscalMeta.titulo;
-
             const type = document.getElementById('fileType');
-            if (type) type.textContent = fiscalMeta.tipoArquivo;
+            if (type) type.textContent = 'CSV - Movimento Fiscal detectado';
             atualizarIndicadorFlanacar(true, fiscalMeta.direcao);
-            try { atualizarLayoutsUpload(); } catch(e) { console.warn('[layouts upload] atualizar flanacar preview:', e); }
         }
 
         function atualizarIndicadorFlanacar(validado, direcao) {
@@ -11901,12 +11987,12 @@
                 hint.style.display = validado ? 'block' : 'none';
                 if (validado) {
                     const livro = direcao === 'saida' ? 'Saídas' : 'Entradas';
-                    hint.textContent = 'FLANACAR Livro de ' + livro + ' validado. Ao processar, você poderá escolher as colunas deste arquivo antes da importação.';
+                    hint.textContent = 'Movimento Fiscal — Livro de ' + livro + ' detectado. Use o modal fiscal para validar empresa, layout e CNPJ antes da importação.';
                 }
             }
             const botao = document.querySelector('#filePreview .btn-process');
             if (botao) botao.innerHTML = validado
-                ? '<span>☑</span> Selecionar colunas e processar'
+                ? '<span>🧾</span> Abrir importações fiscais'
                 : '<span>⚡</span> Processar arquivo';
         }
         
@@ -11979,6 +12065,19 @@
                 } catch (eProbe) {
                     console.warn('[FLANACAR Registro Fiscal] pre-deteccao falhou:', eProbe);
                 }
+            }
+            if (csvFiscalFlanacarDetectado) {
+                showToast('Movimento fiscal detectado. A importação deve ser feita pelo modal fiscal com trava de CNPJ.', 'warn');
+                await abrirModalMovimentoFiscal();
+                try {
+                    const transferencia = new DataTransfer();
+                    transferencia.items.add(selectedFile);
+                    document.getElementById('movFiscalArquivo').files = transferencia.files;
+                    invalidarValidacaoMovimentoFiscal();
+                } catch (eTransferencia) {
+                    console.warn('[movimento fiscal] selecione novamente o arquivo no modal:', eTransferencia);
+                }
+                return;
             }
             if (ext !== 'xlsx' && ext !== 'xls') {
                 if (!csvFiscalFlanacarDetectado && !bancoCode) { showToast('Selecione o banco do extrato.', 'error'); return; }
@@ -12218,7 +12317,9 @@
                 qtdResgatesAutomaticos: resgatesAutomaticos.length,
                 totalCredito,
                 totalDebito,
-                status: status.join(' • ')
+                status: status.join(' • '),
+                tipoImportacao: meta.tipoImportacao || 'bancaria',
+                vinculoCnpj: meta.vinculoCnpj || 'Não aplicável'
             };
         }
 
@@ -12306,6 +12407,263 @@
             };
         }
 
+        function formatarCnpjMovimentoFiscal(valor) {
+            const digits = String(valor || '').replace(/\D/g, '');
+            if (digits.length !== 14) return valor || '-';
+            return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+        }
+
+        function movimentoFiscalStatus(tipo, html) {
+            const el = document.getElementById('movFiscalStatus');
+            if (!el) return;
+            el.className = 'movimento-fiscal-status ' + (tipo || 'info');
+            el.innerHTML = html || '';
+        }
+
+        function layoutFiscalSelecionado() {
+            const id = String((document.getElementById('movFiscalLayout') || {}).value || '');
+            return (layoutsFiscaisCache || []).find(function(layout) { return layout.id === id; }) || null;
+        }
+
+        async function carregarLayoutsFiscaisModal() {
+            let layouts = [];
+            try {
+                if (window.API && typeof window.API.apiFetch === 'function') {
+                    const resp = await window.API.apiFetch('/api/layouts-fiscais');
+                    if (!resp.ok) throw new Error('Falha ao carregar layouts fiscais');
+                    const data = await resp.json();
+                    layouts = Array.isArray(data.layouts) ? data.layouts : [];
+                }
+            } catch (e) {
+                console.warn('[movimento fiscal] catalogo remoto indisponivel:', e.message || e);
+            }
+            if (!layouts.length && Array.isArray(window.LAYOUTS_FISCAIS_PADRAO)) {
+                layouts = window.LAYOUTS_FISCAIS_PADRAO.slice();
+            }
+            layoutsFiscaisCache = layouts.filter(function(layout) {
+                return layout.status !== 'Inativo' && layout.homologacao_status === 'aprovado';
+            });
+            const select = document.getElementById('movFiscalLayout');
+            if (!select) return;
+            select.innerHTML = '<option value="">Selecione o cliente e o modelo do livro</option>' + layoutsFiscaisCache.map(function(layout) {
+                const movimento = layout.movimento === 'saida' ? 'NF-e de saída (vendas)' : 'NF-e de entrada (compras)';
+                return '<option value="' + escaparHtmlImportacao(layout.id) + '">' +
+                    escaparHtmlImportacao(layout.codigoEmpresa + ' — ' + layout.empresa + ' — ' + movimento) +
+                    '</option>';
+            }).join('');
+        }
+
+        async function abrirModalMovimentoFiscal() {
+            if (!state.infoConfirmed || !state.info) {
+                showToast('Selecione e confirme a empresa antes de importar o movimento fiscal.', 'error');
+                showPage('inicio');
+                return;
+            }
+            const cnpj = String(state.info.cnpj || '').replace(/\D/g, '');
+            if (cnpj.length !== 14) {
+                showToast('A empresa ativa nao possui CNPJ valido. Corrija o cadastro antes da importacao fiscal.', 'error');
+                return;
+            }
+            document.getElementById('movFiscalEmpresaAtiva').textContent = state.info.empresa || '-';
+            document.getElementById('movFiscalCnpjAtivo').textContent = formatarCnpjMovimentoFiscal(cnpj);
+            document.getElementById('movimentoFiscalOverlay').classList.add('show');
+            movimentoFiscalStatus('info', 'Selecione o modelo homologado e o arquivo. Nenhum lançamento será gravado durante a validação.');
+            await carregarLayoutsFiscaisModal();
+        }
+
+        function fecharModalMovimentoFiscal() {
+            const overlay = document.getElementById('movimentoFiscalOverlay');
+            if (overlay) overlay.classList.remove('show');
+            movimentoFiscalValidacaoAtual = null;
+            const file = document.getElementById('movFiscalArquivo');
+            if (file) file.value = '';
+            const validation = document.getElementById('movFiscalValidation');
+            if (validation) validation.classList.remove('show');
+            const importar = document.getElementById('movFiscalImportarBtn');
+            if (importar) importar.disabled = true;
+        }
+
+        function invalidarValidacaoMovimentoFiscal() {
+            movimentoFiscalValidacaoAtual = null;
+            const validation = document.getElementById('movFiscalValidation');
+            if (validation) validation.classList.remove('show');
+            const importar = document.getElementById('movFiscalImportarBtn');
+            if (importar) importar.disabled = true;
+            movimentoFiscalStatus('info', 'Arquivo ainda não validado. A importação permanece bloqueada.');
+        }
+
+        async function validarArquivoMovimentoFiscal() {
+            const layout = layoutFiscalSelecionado();
+            const file = (document.getElementById('movFiscalArquivo') || {}).files?.[0];
+            const importar = document.getElementById('movFiscalImportarBtn');
+            if (importar) importar.disabled = true;
+            movimentoFiscalValidacaoAtual = null;
+            if (!layout) {
+                movimentoFiscalStatus('error', 'Selecione o modelo homologado do livro fiscal.');
+                return;
+            }
+            if (!file) {
+                movimentoFiscalStatus('error', 'Selecione o arquivo do movimento fiscal.');
+                return;
+            }
+            const ext = String(file.name.split('.').pop() || '').toLowerCase();
+            if (!(layout.extensoes || []).includes(ext)) {
+                movimentoFiscalStatus('error', 'Formato incompatível com o layout. Use ' + escaparHtmlImportacao((layout.extensoes || []).join(', ').toUpperCase()) + '.');
+                return;
+            }
+            const parser = window[layout.parser];
+            if (typeof parser !== 'function' || typeof window.validarVinculoCnpjFiscal !== 'function') {
+                movimentoFiscalStatus('error', 'Parser ou trava de CNPJ não carregado. Atualize a aplicação antes de importar.');
+                return;
+            }
+            movimentoFiscalStatus('info', 'Validando estrutura, direção fiscal, chaves NF-e e vínculo de CNPJ…');
+            try {
+                const texto = await lerArquivoTexto(file);
+                const resultado = parser(texto, { arquivoNome: file.name });
+                const cnpjAtivo = String(state.info && state.info.cnpj || '').replace(/\D/g, '');
+                const vinculo = window.validarVinculoCnpjFiscal(resultado, {
+                    cnpjEmpresaAtiva: cnpjAtivo,
+                    cnpjLayout: layout.cnpj,
+                    codigoEmpresa: layout.codigoEmpresa,
+                    arquivoNome: file.name,
+                    exigirCodigoArquivo: layout.exigirCodigoArquivo !== false,
+                    exigirChaveNfeTodasNotas: layout.exigirChaveNfeTodasNotas !== false
+                });
+                movimentoFiscalValidacaoAtual = { layout, file, texto, resultado, vinculo, cnpjAtivo };
+                document.getElementById('movFiscalCodigoArquivo').textContent = vinculo.codigoArquivo;
+                document.getElementById('movFiscalCnpjArquivo').textContent = formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo);
+                document.getElementById('movFiscalCoberturaNfe').textContent = vinculo.chavesValidas + ' de ' + vinculo.totalNotas;
+                document.getElementById('movFiscalPeriodo').textContent = formatarDataBR(resultado.periodo_inicio) + ' a ' + formatarDataBR(resultado.periodo_fim);
+                document.getElementById('movFiscalNotas').textContent = String(resultado.total_notas_fiscais || 0);
+                document.getElementById('movFiscalVendas').textContent = formatarMoedaBR(resultado.total_credito || 0);
+                document.getElementById('movFiscalValidation').classList.add('show');
+                movimentoFiscalStatus(
+                    'ok',
+                    '<strong>Arquivo validado e amarrado.</strong> Empresa ativa, layout ' + escaparHtmlImportacao(layout.codigoEmpresa) +
+                    ' e emitente das chaves NF-e apontam para ' + escaparHtmlImportacao(formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo)) + '.<br>' +
+                    'A próxima etapa permite selecionar as colunas e revisar os lançamentos antes da gravação.'
+                );
+                if (importar) importar.disabled = false;
+            } catch (e) {
+                console.error('[movimento fiscal] validacao bloqueada:', e);
+                movimentoFiscalStatus('error', '<strong>Importação bloqueada.</strong> ' + escaparHtmlImportacao(e.message || e));
+            }
+        }
+
+        async function processarMovimentoFiscalValidado() {
+            const validacao = movimentoFiscalValidacaoAtual;
+            if (!validacao) {
+                movimentoFiscalStatus('error', 'Valide o arquivo antes de continuar.');
+                return;
+            }
+            if (typeof window.__verificarVersaoAntesDeImportar === 'function') {
+                const versaoAtual = await window.__verificarVersaoAntesDeImportar();
+                if (!versaoAtual) return;
+            }
+            const cnpjAtivoAgora = String(state.info && state.info.cnpj || '').replace(/\D/g, '');
+            const layoutAgora = layoutFiscalSelecionado();
+            const arquivoAgora = (document.getElementById('movFiscalArquivo') || {}).files?.[0];
+            if (!layoutAgora || layoutAgora.id !== validacao.layout.id || arquivoAgora !== validacao.file || cnpjAtivoAgora !== validacao.cnpjAtivo) {
+                invalidarValidacaoMovimentoFiscal();
+                movimentoFiscalStatus('error', 'Empresa, layout ou arquivo mudou após a validação. Valide novamente.');
+                return;
+            }
+
+            try {
+                const colunasSelecionadas = await abrirSelecaoColunasFlanacar(validacao.resultado);
+                if (!colunasSelecionadas) {
+                    movimentoFiscalStatus('info', 'Seleção de colunas cancelada. Nenhum lançamento foi gravado.');
+                    return;
+                }
+                const resultado = window[validacao.layout.parser](validacao.texto, { colunasSelecionadas, arquivoNome: validacao.file.name });
+                const vinculo = window.validarVinculoCnpjFiscal(resultado, {
+                    cnpjEmpresaAtiva: cnpjAtivoAgora,
+                    cnpjLayout: validacao.layout.cnpj,
+                    codigoEmpresa: validacao.layout.codigoEmpresa,
+                    arquivoNome: validacao.file.name,
+                    exigirCodigoArquivo: validacao.layout.exigirCodigoArquivo !== false,
+                    exigirChaveNfeTodasNotas: validacao.layout.exigirChaveNfeTodasNotas !== false
+                });
+                const importacaoId = crypto.randomUUID ? crypto.randomUUID() : ('fiscal_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+                const competencia = String(resultado.periodo_inicio || '').slice(0, 7);
+                const titulo = validacao.layout.nome + (competencia ? ' — ' + competencia : '');
+
+                showProcessing();
+                let entries = (resultado.lancamentos || []).slice();
+                if (!entries.length) throw new Error('Nenhum lançamento fiscal foi encontrado após a seleção de colunas.');
+                validarLayoutCompativelComBanco(entries, validacao.layout.codigoEmpresa);
+                garantirIntegridadeLancamentos(entries);
+                entries = entries.map(applyMapping);
+                entries = detectUnusual(entries);
+                entries = entries.map(function(entry) {
+                    return {
+                        ...entry,
+                        id: entry.id || novoIdLancamento(),
+                        bancoId: validacao.layout.codigoEmpresa,
+                        bancoNome: validacao.layout.empresa,
+                        importacaoId,
+                        importacaoTitulo: titulo,
+                        origemImportacao: 'movimento_fiscal',
+                        cnpjEmpresaFiscalValidado: vinculo.cnpjArquivo
+                    };
+                });
+
+                try {
+                    const memoria = await aplicarMemoriaEmLancamentos(entries, cnpjAtivoAgora);
+                    if (memoria.aplicados > 0) console.log('[movimento fiscal] memoria aplicada:', memoria.aplicados, '/', memoria.total);
+                } catch (eMem) { console.warn('[movimento fiscal] memoria:', eMem); }
+                try { aplicarHistoricosFallback(entries); } catch (eHist) { console.warn('[movimento fiscal] historico fallback:', eHist); }
+                try { normalizarHistoricosClassificados(entries); } catch (eHistNorm) { console.warn('[movimento fiscal] historico padrao:', eHistNorm); }
+
+                hideProcessing();
+                const confirmado = await abrirConferenciaImportacao(entries, {
+                    arquivo: validacao.file.name,
+                    bancoCode: validacao.layout.codigoEmpresa,
+                    bancoNome: validacao.layout.empresa,
+                    titulo,
+                    formato: 'MOVIMENTO FISCAL',
+                    tipoImportacao: 'fiscal',
+                    vinculoCnpj: formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo) + ' — validado'
+                });
+                if (!confirmado) {
+                    movimentoFiscalStatus('info', 'Conferência cancelada. Nenhum lançamento foi gravado.');
+                    return;
+                }
+
+                registrarUsoLayoutArquivo(entries, validacao.layout.codigoEmpresa, validacao.file.name, 'CSV fiscal');
+                state.entries = state.entries.concat(entries);
+                state.lastFile = validacao.file.name;
+                saveState();
+                fecharModalMovimentoFiscal();
+                updateDashboard();
+                updateCharts();
+                popularFiltroImportacoes();
+                const filtroImp = document.getElementById('filterImportacao');
+                if (filtroImp) filtroImp.value = importacaoId;
+                renderLancamentos();
+                showPage('lancamentos');
+                showToast(entries.length + ' lançamentos fiscais importados com CNPJ validado.', 'success');
+            } catch (e) {
+                console.error('[movimento fiscal] importacao bloqueada:', e);
+                hideProcessing();
+                registrarArquivoRejeitado({
+                    banco: validacao.layout.codigoEmpresa,
+                    nomeBanco: validacao.layout.empresa,
+                    layout: validacao.layout.nome,
+                    parser: validacao.layout.parser,
+                    arquivo: validacao.file.name,
+                    tamanho: validacao.file.size,
+                    formato: 'CSV FISCAL',
+                    empresa: state.info && state.info.empresa,
+                    cnpj: state.info && state.info.cnpj,
+                    periodo_inicio: validacao.resultado.periodo_inicio,
+                    periodo_fim: validacao.resultado.periodo_fim,
+                    motivo: e.message || String(e)
+                });
+                movimentoFiscalStatus('error', '<strong>Importação bloqueada.</strong> ' + escaparHtmlImportacao(e.message || e));
+            }
+        }
+
         let resolverConferenciaImportacao = null;
 
         let resolverSelecaoColunasFlanacar = null;
@@ -12342,10 +12700,11 @@
             const colunas = Array.isArray(resultado && resultado.colunas_disponiveis) ? resultado.colunas_disponiveis : [];
             if (!overlay || !body || !colunas.length) return Promise.resolve(null);
             const direcao = resultado && resultado.direcao_fiscal === 'saida' ? 'saídas' : 'entradas';
+            const empresaLayout = String(resultado && resultado.nome_banco_detectado || 'FLANACAR');
             const titulo = document.getElementById('flanacarColumnsTitle');
             const descricao = document.getElementById('flanacarColumnsDescription');
             if (titulo) titulo.textContent = 'Selecionar colunas do livro de ' + direcao;
-            if (descricao) descricao.textContent = 'Layout FLANACAR de ' + direcao + ' validado. Escolha os campos que devem seguir para a importação.';
+            if (descricao) descricao.textContent = 'Layout fiscal de ' + direcao + ' validado para ' + empresaLayout + '. Escolha os campos que devem seguir para a importação.';
             body.innerHTML = colunas.map(function(coluna) {
                 const protegida = coluna.obrigatoria ? '<div class="flanacar-column-required">Obrigatória</div>' : '';
                 return '<tr>' +
@@ -12375,6 +12734,8 @@
             const overlay = document.getElementById('confirmImportOverlay');
             if (!overlay) return Promise.resolve(true);
             const resumo = resumirImportacao(entries, meta);
+            const origemLabel = document.getElementById('confImpOrigemLabel');
+            if (origemLabel) origemLabel.textContent = resumo.tipoImportacao === 'fiscal' ? 'Empresa / origem fiscal' : 'Banco';
             document.getElementById('confImpArquivo').textContent = resumo.arquivo || '-';
             document.getElementById('confImpBanco').textContent = resumo.banco || '-';
             document.getElementById('confImpLayout').textContent = resumo.layout || '-';
@@ -12386,6 +12747,7 @@
             document.getElementById('confImpCredito').textContent = formatarMoedaBR(resumo.totalCredito);
             document.getElementById('confImpDebito').textContent = formatarMoedaBR(resumo.totalDebito);
             document.getElementById('confImpStatus').textContent = resumo.status || '-';
+            document.getElementById('confImpVinculoCnpj').textContent = resumo.vinculoCnpj || 'Não aplicável';
             const preview = entries.slice(0, 8).map(function(e) {
                 const cor = Number(e.valor || 0) >= 0 ? '#059669' : '#dc2626';
                 return '<tr>' +
@@ -15748,7 +16110,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.74';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.75';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';

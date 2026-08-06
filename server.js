@@ -5,6 +5,7 @@ const { aplicarPlanoNaSessao, usuarioPodeAcessarEmpresa } = require('./empresa-p
 const admin = require('firebase-admin');
 const path = require('path');
 const { LAYOUTS_BANCARIOS_PADRAO, normalizarBancoLayout, layoutBancoId } = require('./layouts-bancarios-padrao');
+const { LAYOUTS_FISCAIS_PADRAO } = require('./layouts-fiscais-padrao');
 const { LAYOUT_QUALITY_CASES } = require('./layout-quality-cases');
 const { LAYOUT_QUALITY_EVIDENCE } = require('./layout-quality-evidence');
 const { registrarRotasMercadoPago, registrarRotasPublicasMercadoPago } = require('./mercadopago-integration');
@@ -2412,6 +2413,14 @@ app.get('/api/layouts-bancarios', async (req, res) => {
   }
 });
 
+app.get('/api/layouts-fiscais', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const layouts = (LAYOUTS_FISCAIS_PADRAO || [])
+    .filter(layout => layout.status !== 'Inativo')
+    .map(layout => ({ ...layout }));
+  res.json({ layouts });
+});
+
 app.get('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => {
   try {
     const limite = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 200);
@@ -3125,7 +3134,7 @@ app.get('/auditai*', (req, res) => {
 });
 
 function headersAppPrincipal(res, filePath) {
-  if (!/(?:^|\/)(?:index\.html|parser-flanacar-registro-entradas\.js)$/i.test(filePath || '')) return;
+  if (!/(?:^|\/)(?:index\.html|parser-flanacar-registro-entradas\.js|layouts-fiscais-padrao\.js)$/i.test(filePath || '')) return;
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');

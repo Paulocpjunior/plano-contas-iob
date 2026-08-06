@@ -436,6 +436,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Arquivo real do livro de saidas validado com 2787 notas, 119 linhas complementares, R$ 11.042.833,74 em vendas e R$ 1.918.121,42 em tributos opcionais separados.'
   },
   {
+    id: 'fastweld-registro-saidas-csv-2026-04',
+    banco: '0109',
+    nomeBanco: 'FASTWELD INDUSTRIA E COMERCIO LTDA',
+    layout: 'FASTWELD - NF-e de Saida (Vendas)',
+    parser: 'parsearCSV_FastweldRegistroSaidas',
+    arquivo: '0109_RelatorioNotasSaidas_20260401_20260430.Csv',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/0109_RelatorioNotasSaidas_20260401_20260430.Csv',
+    empresa: 'FASTWELD INDUSTRIA E COMERCIO LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Arquivo real validado com 106 notas, 451 lancamentos incluindo tributos, 16 complementos, R$ 1.757.522,52 em vendas, R$ 232.222,53 em tributos e CNPJ emitente uniforme em 100% das chaves NF-e.'
+  },
+  {
     id: 'daxx-analise-creditos-pis-cofins-2026-04',
     banco: '1183',
     nomeBanco: 'DAXX MIDIA LTDA',

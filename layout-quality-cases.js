@@ -478,6 +478,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Livro de saidas CSV ISO-8859-1 com cabecalho na segunda linha. Agrega 119 complementos em 2787 NFs; as vendas somam R$ 11.042.833,74 em credito e 10261 lancamentos opcionais de tributos somam R$ 1.918.121,42 em debito.'
   },
   {
+    id: 'fastweld-registro-saidas-csv-2026-04',
+    banco: '0109',
+    nomeBanco: 'FASTWELD INDUSTRIA E COMERCIO LTDA',
+    layout: 'FASTWELD - NF-e de Saida (Vendas)',
+    parser: 'parsearCSV_FastweldRegistroSaidas',
+    arquivo: '0109_RelatorioNotasSaidas_20260401_20260430.Csv',
+    empresa: 'FASTWELD INDUSTRIA E COMERCIO LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 106,
+      total_credito: 1757522.52,
+      total_debito: 0
+    },
+    status: 'Aprovado',
+    validado_em: '2026-08-06T00:00:00-03:00',
+    observacao: 'Livro real de saidas CSV ISO-8859-1. As 106 notas possuem chaves NF-e validas com o mesmo emitente 02.942.184/0001-34; 16 linhas complementares foram agregadas. Tributos opcionais totalizam R$ 232.222,53.'
+  },
+  {
     id: 'daxx-analise-creditos-pis-cofins-2026-04',
     banco: '1183',
     nomeBanco: 'DAXX MIDIA LTDA',

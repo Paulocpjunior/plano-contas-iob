@@ -42,8 +42,31 @@
       contraparte: 'Cliente',
       sinalPrincipal: 1,
       aceitaArquivoMisto: false
+    },
+    fastweldSaida: {
+      direcao: 'saida',
+      es: 'S',
+      banco: '0109',
+      cnpj: '02942184000134',
+      empresa: 'FASTWELD INDUSTRIA E COMERCIO LTDA',
+      nome: 'FASTWELD - NF-e de Saida (Vendas)',
+      parser: 'parsearCSV_FastweldRegistroSaidas',
+      conta: 'Fiscal 0109 - NF-e de Saida (Vendas)',
+      contaDetectada: 'NFS_SAIDA_VENDAS_FASTWELD',
+      tipoDocumento: 'REGISTRO_SAIDA_FISCAL',
+      tipoDocumentoImposto: 'REGISTRO_SAIDA_FISCAL_IMPOSTO',
+      natureza: 'saida_fiscal_venda',
+      naturezaImposto: 'saida_fiscal_imposto_destacado',
+      origem: 'movimento-fiscal-fastweld-saidas',
+      origemImposto: 'movimento-fiscal-fastweld-saidas-imposto',
+      rotulo: 'Saida fiscal',
+      contraparte: 'Cliente',
+      sinalPrincipal: 1,
+      aceitaArquivoMisto: false
     }
   };
+
+  LAYOUTS.saida.cnpj = '96312889000111';
 
   const COLUMN_ALIASES = {
     es: ['e/s', 'es'],
@@ -131,6 +154,107 @@
 
   function somenteDigitos(valor) {
     return String(valor || '').replace(/\D/g, '');
+  }
+
+  function cnpjValido(valor) {
+    const cnpj = somenteDigitos(valor);
+    if (cnpj.length !== 14 || /^(\d)\1{13}$/.test(cnpj)) return false;
+    function digito(tamanho) {
+      let soma = 0;
+      let peso = tamanho - 7;
+      for (let i = 0; i < tamanho; i++) {
+        soma += Number(cnpj[i]) * peso--;
+        if (peso < 2) peso = 9;
+      }
+      const resto = soma % 11;
+      return resto < 2 ? 0 : 11 - resto;
+    }
+    return Number(cnpj[12]) === digito(12) && Number(cnpj[13]) === digito(13);
+  }
+
+  function chaveNfeValida(valor) {
+    const chave = somenteDigitos(valor);
+    if (chave.length !== 44) return false;
+    let soma = 0;
+    let peso = 2;
+    for (let i = 42; i >= 0; i--) {
+      soma += Number(chave[i]) * peso;
+      peso = peso === 9 ? 2 : peso + 1;
+    }
+    const calculado = 11 - (soma % 11);
+    return Number(chave[43]) === (calculado >= 10 ? 0 : calculado);
+  }
+
+  function codigoEmpresaDoArquivo(nomeArquivo) {
+    const nome = String(nomeArquivo || '').split(/[\\/]/).pop();
+    const match = nome.match(/^(\d{3,6})_/);
+    return match ? match[1].padStart(4, '0') : '';
+  }
+
+  function criarErroVinculo(codigo, mensagem) {
+    const erro = new Error(mensagem);
+    erro.codigo = codigo;
+    return erro;
+  }
+
+  function validarVinculoCnpjFiscal(resultado, opts) {
+    opts = opts || {};
+    const cnpjAtivo = somenteDigitos(opts.cnpjEmpresaAtiva || opts.cnpjEsperado);
+    const cnpjLayout = somenteDigitos(opts.cnpjLayout || (resultado && resultado.cnpj_layout_homologado));
+    const cnpjsArquivo = Array.isArray(resultado && resultado.cnpjs_empresa_detectados)
+      ? resultado.cnpjs_empresa_detectados.map(somenteDigitos).filter(Boolean)
+      : [];
+    const codigoLayout = String(opts.codigoEmpresa || (resultado && resultado.codigo_empresa_layout) || '').replace(/\D/g, '').padStart(4, '0');
+    const codigoArquivo = codigoEmpresaDoArquivo(opts.arquivoNome || '');
+    const totalNotas = Number(resultado && resultado.total_notas_fiscais || 0);
+    const chavesValidas = Number(resultado && resultado.chaves_nfe_validas || 0);
+    const chavesInvalidas = Number(resultado && resultado.chaves_nfe_invalidas || 0);
+
+    if (!resultado || !resultado.detectado || resultado.direcao_fiscal !== 'saida') {
+      throw criarErroVinculo('layout_fiscal_invalido', 'O arquivo nao foi reconhecido como livro fiscal de saidas do modelo selecionado.');
+    }
+    if (!cnpjValido(cnpjAtivo)) {
+      throw criarErroVinculo('cnpj_empresa_ativa_invalido', 'A empresa ativa nao possui um CNPJ valido para liberar a importacao fiscal.');
+    }
+    if (!cnpjValido(cnpjLayout)) {
+      throw criarErroVinculo('cnpj_layout_invalido', 'O layout fiscal selecionado nao possui CNPJ homologado. A importacao permanece bloqueada.');
+    }
+    if (cnpjsArquivo.length !== 1 || !cnpjValido(cnpjsArquivo[0])) {
+      throw criarErroVinculo('cnpj_arquivo_ambiguo', 'Nao foi possivel identificar um unico CNPJ emitente valido nas chaves NF-e do arquivo.');
+    }
+    if (opts.exigirChaveNfeTodasNotas !== false && (chavesInvalidas > 0 || !totalNotas || chavesValidas !== totalNotas)) {
+      throw criarErroVinculo(
+        'cobertura_chave_nfe_incompleta',
+        'A importacao exige uma chave NF-e valida em todas as notas. Validas: ' + chavesValidas + ' de ' + totalNotas + '; invalidas/ausentes: ' + chavesInvalidas + '.'
+      );
+    }
+    if (cnpjsArquivo[0] !== cnpjLayout) {
+      throw criarErroVinculo('cnpj_arquivo_layout_divergente', 'O CNPJ emitente do arquivo nao pertence ao layout fiscal selecionado.');
+    }
+    if (cnpjsArquivo[0] !== cnpjAtivo) {
+      throw criarErroVinculo('cnpj_empresa_arquivo_divergente', 'O CNPJ emitente do arquivo difere do CNPJ da empresa ativa. Selecione a empresa correta antes de importar.');
+    }
+    if (opts.exigirCodigoArquivo !== false) {
+      if (!codigoArquivo) {
+        throw criarErroVinculo('codigo_empresa_arquivo_ausente', 'O nome do arquivo nao contem o codigo da empresa no padrao NNNN_. Exporte novamente pelo modelo homologado.');
+      }
+      if (!codigoLayout || codigoArquivo !== codigoLayout) {
+        throw criarErroVinculo('codigo_empresa_arquivo_divergente', 'O codigo ' + codigoArquivo + ' do arquivo difere do codigo ' + (codigoLayout || '-') + ' do layout selecionado.');
+      }
+    }
+
+    return {
+      valido: true,
+      cnpjEmpresaAtiva: cnpjAtivo,
+      cnpjLayout,
+      cnpjArquivo: cnpjsArquivo[0],
+      codigoLayout,
+      codigoArquivo,
+      totalNotas,
+      chavesValidas,
+      chavesInvalidas,
+      origemCnpj: 'chave_nfe_emitente'
+    };
   }
 
   function parseMoneyBR(valor) {
@@ -469,6 +593,7 @@
       nome_conta: layout.conta,
       empresaCodigoFiscal: layout.banco,
       empresaNomeFiscal: layout.empresa,
+      cnpjEmpresaFiscal: layout.cnpj || '',
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim
     };
@@ -593,6 +718,20 @@
     const lancamentos = drafts
       .filter(function(d) { return d.data && d.numeroNf && Math.abs(Number(d.valorContabil || 0)) > 0; })
       .reduce(function(acc, d) { return acc.concat(finalizarLancamentos(d, periodo, layout)); }, []);
+    const notasFiscais = lancamentos.filter(function(l) { return l.tipoDocumentoFiscal === layout.tipoDocumento; });
+    let chavesNfeValidas = 0;
+    let chavesNfeInvalidas = 0;
+    const cnpjsEmpresaDetectados = new Set();
+    notasFiscais.forEach(function(nota) {
+      const chave = somenteDigitos(nota.chave_nfe);
+      if (!chaveNfeValida(chave)) {
+        chavesNfeInvalidas++;
+        return;
+      }
+      chavesNfeValidas++;
+      if (layout.direcao === 'saida') cnpjsEmpresaDetectados.add(chave.slice(6, 20));
+    });
+    const cnpjsArquivo = Array.from(cnpjsEmpresaDetectados).sort();
     const totalCredito = Math.round(lancamentos.reduce(function(acc, l) {
       return acc + (Number(l.valor || 0) > 0 ? Number(l.valor || 0) : 0);
     }, 0) * 100) / 100;
@@ -604,6 +743,7 @@
       l.totalDebitoOficial = totalDebito;
       l.totalCreditoOficial = totalCredito;
       l.linhasComplementaresAgregadas = complementares;
+      l.cnpjEmpresaFiscalDetectado = cnpjsArquivo.length === 1 ? cnpjsArquivo[0] : '';
     });
 
     return {
@@ -612,6 +752,14 @@
       nome_banco_detectado: layout.empresa,
       conta_detectada: layout.contaDetectada,
       nome_conta_detectado: layout.nome,
+      codigo_empresa_layout: layout.banco,
+      cnpj_layout_homologado: layout.cnpj || '',
+      cnpj_empresa_detectado: cnpjsArquivo.length === 1 ? cnpjsArquivo[0] : '',
+      cnpjs_empresa_detectados: cnpjsArquivo,
+      origem_cnpj_empresa: layout.direcao === 'saida' ? 'chave_nfe_emitente' : '',
+      total_notas_fiscais: notasFiscais.length,
+      chaves_nfe_validas: chavesNfeValidas,
+      chaves_nfe_invalidas: chavesNfeInvalidas,
       direcao_fiscal: layout.direcao,
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim,
@@ -670,12 +818,23 @@
     return resultado;
   }
 
+  function detectarCSV_FastweldRegistroSaidas(textoCompleto) {
+    return detectarCSVFiscalFlanacar(textoCompleto, LAYOUTS.fastweldSaida);
+  }
+
+  function parsearCSV_FastweldRegistroSaidas(textoCompleto, opts) {
+    return parsearTextoFiscalFlanacar(textoCompleto, opts || {}, LAYOUTS.fastweldSaida);
+  }
+
   root.detectarCSV_FlanacarRegistroEntradas = detectarCSV_FlanacarRegistroEntradas;
   root.detectarCSV_FlanacarRegistroSaidas = detectarCSV_FlanacarRegistroSaidas;
   root.parsearCSV_FlanacarRegistroEntradas = parsearCSV_FlanacarRegistroEntradas;
   root.parsearCSV_FlanacarRegistroSaidas = parsearCSV_FlanacarRegistroSaidas;
   root.parsearTexto_FlanacarRegistroEntradas = parsearTexto_FlanacarRegistroEntradas;
   root.parsearTexto_FlanacarRegistroSaidas = parsearTexto_FlanacarRegistroSaidas;
+  root.detectarCSV_FastweldRegistroSaidas = detectarCSV_FastweldRegistroSaidas;
+  root.parsearCSV_FastweldRegistroSaidas = parsearCSV_FastweldRegistroSaidas;
+  root.validarVinculoCnpjFiscal = validarVinculoCnpjFiscal;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -685,12 +844,18 @@
       parsearCSV_FlanacarRegistroSaidas,
       parsearTexto_FlanacarRegistroEntradas,
       parsearTexto_FlanacarRegistroSaidas,
+      detectarCSV_FastweldRegistroSaidas,
+      parsearCSV_FastweldRegistroSaidas,
+      validarVinculoCnpjFiscal,
       _internals: {
         parseMoneyBR,
         parseDateBR,
         splitCsvLine,
         criarMapaColunas,
-        linhasParaMatriz
+        linhasParaMatriz,
+        cnpjValido,
+        chaveNfeValida,
+        codigoEmpresaDoArquivo
       }
     };
   }

@@ -1,11 +1,11 @@
 {
-  "version": "3.4.74",
-  "build_date": "2026-07-31T15:08:20Z",
+  "version": "3.4.75",
+  "build_date": "2026-08-06T17:16:56Z",
   "release_notes": [
-    "Novo layout Stone Extrato de Conta Corrente para o codigo 197, com leitura de data, tipo, descricao, valor, saldo e contraparte.",
-    "O parser Stone reconstrói a ordem dos movimentos do mesmo dia e bloqueia a importacao se os fechamentos diarios impressos nao conciliarem.",
-    "A Central de Layouts ganhou a opcao Novo layout bancario, com analise local do arquivo-modelo, hash SHA-256 e rascunho em teste sem armazenar o PDF bruto.",
-    "A lista administrativa de layouts agora possui rolagem horizontal responsiva e primeira coluna fixa, evitando a pagina desconfigurada em telas menores.",
-    "O arquivo Stone de janeiro de 2026 foi validado com 6 movimentos, credito de R$ 1.519,42, debito de R$ 1.904,10 e saldo final de R$ 828,22."
+    "Novo modal Importacoes - Movimento Fiscal, separado do extrator bancario e com catalogo de layouts homologados por cliente.",
+    "Layout FASTWELD 0109 para NF-e de saida validado com o CSV real de abril de 2026.",
+    "Trava tripla compara o CNPJ da empresa ativa, o CNPJ homologado do layout e o emitente extraido de todas as chaves NF-e.",
+    "A importacao tambem confere o codigo da empresa no nome do arquivo, exige chave NF-e valida em todas as notas e bloqueia qualquer divergencia antes da gravacao.",
+    "O fluxo fiscal reutiliza selecao de colunas, memoria de classificacao, conferencia de totais e gravacao auditavel dos extratos bancarios."
   ]
 }
