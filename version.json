@@ -1,7 +1,9 @@
 {
-  "version": "3.4.75",
-  "build_date": "2026-08-06T17:16:56Z",
+  "version": "3.4.76",
+  "build_date": "2026-08-06T17:30:11Z",
   "release_notes": [
+    "A tela inicial agora oferece Movimento Bancario e Movimento Fiscal como opcoes visiveis antes da confirmacao da empresa.",
+    "No fluxo fiscal, Banco deixa de ser obrigatorio e o modal do livro homologado abre automaticamente apos confirmar a empresa.",
     "Novo modal Importacoes - Movimento Fiscal, separado do extrator bancario e com catalogo de layouts homologados por cliente.",
     "Layout FASTWELD 0109 para NF-e de saida validado com o CSV real de abril de 2026.",
     "Trava tripla compara o CNPJ da empresa ativa, o CNPJ homologado do layout e o emitente extraido de todas as chaves NF-e.",

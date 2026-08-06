@@ -10,6 +10,11 @@ const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 const catalogo = fs.readFileSync(path.join(root, 'layouts-fiscais-padrao.js'), 'utf8');
 
 assert(index.includes('Importações — Movimento Fiscal'), 'novo modal fiscal deve estar visivel no app');
+assert(index.includes('id="infoTipoBancaria"'), 'tela inicial deve oferecer movimento bancario');
+assert(index.includes('id="infoTipoFiscal"'), 'tela inicial deve oferecer movimento fiscal');
+assert(index.includes("selecionarTipoImportacao('fiscal')"), 'opcao fiscal inicial deve ser selecionavel');
+assert(index.includes("tipoImportacao === 'bancaria' ? valorComboboxBanco('infoBanco') : ''"), 'banco deve ser obrigatorio apenas no fluxo bancario');
+assert(index.includes("setTimeout(function() { abrirModalMovimentoFiscal(); }, 0);"), 'confirmacao fiscal inicial deve abrir o modal do livro');
 assert(index.includes('abrirModalMovimentoFiscal()'), 'app deve expor acao para abrir o modal fiscal');
 assert(index.includes('validarArquivoMovimentoFiscal()'), 'modal deve separar validacao da importacao');
 assert(index.includes('processarMovimentoFiscalValidado()'), 'modal deve exigir etapa validada antes de importar');
