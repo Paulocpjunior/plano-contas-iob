@@ -1,7 +1,12 @@
 {
-  "version": "3.4.78",
-  "build_date": "2026-08-06T20:12:57Z",
+  "version": "3.4.79",
+  "build_date": "2026-08-07T12:23:16Z",
   "release_notes": [
+    "As abas EFD-Reinf agora exibem a opcao de importar arquivos imediatamente abaixo da familia selecionada.",
+    "A serie R-4000 reaproveita o importador homologado de beneficiarios CSV, TXT, XLS e XLSX para o R-4010.",
+    "As series R-2000 e R-3000 aceitam lotes de XML para conferencia, identificando evento, competencia, ID e CNPJ declarante.",
+    "A importacao previdenciaria bloqueia atomicamente XML malformado, namespace incorreto, evento de outra familia, duplicidade ou CNPJ divergente da empresa ativa.",
+    "A trava de CNPJ contempla o formato numerico atual e o CNPJ alfanumerico previsto nos novos esquemas da EFD-Reinf.",
     "O menu EFD-Reinf agora separa Retencoes Previdenciarias (series R-2000 e R-3000) de Rendimentos Pagos/Creditados (serie R-4000).",
     "Cada familia apresenta seus eventos e informa claramente quais fluxos estao homologados, integrados ao lote ou ainda aguardam homologacao.",
     "As acoes de gerar R-4010 e transmitir lote ficam disponiveis somente na serie R-4000, evitando operacao no contexto previdenciario incorreto.",

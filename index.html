@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.78';</script>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.78"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.78"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.78"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.79';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.79"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.79"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.79"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -20,36 +20,37 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.78"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.78"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.78"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.79"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.79"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.79"></script>
+    <script src="/reinf/reinf-import-xml-utils.js?v=3.4.79"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.78"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.78"></script>
-    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.78"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.78"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.78"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.78"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.78"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.78"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.78"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.78"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.78"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.78"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.78"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.78"></script>
-    <script src="/parser-inter-extrato.js?v=3.4.78"></script>
-    <script src="/parser-stone-extrato.js?v=3.4.78"></script>
-    <script src="/parser-extrato-conciliado.js?v=3.4.78"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.78"></script>
-    <script src="/layouts-fiscais-padrao.js?v=3.4.78"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.78"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.78"></script>
+    <script src="/parser-ofx.js?v=3.4.79"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.79"></script>
+    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.79"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.79"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.79"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.79"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.79"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.79"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.79"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.79"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.79"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.79"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.79"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.79"></script>
+    <script src="/parser-inter-extrato.js?v=3.4.79"></script>
+    <script src="/parser-stone-extrato.js?v=3.4.79"></script>
+    <script src="/parser-extrato-conciliado.js?v=3.4.79"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.79"></script>
+    <script src="/layouts-fiscais-padrao.js?v=3.4.79"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.79"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.79"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -830,8 +831,56 @@
         }
         .reinf-event-card strong { display: block; color: #0f172a; margin-bottom: 5px; }
         .reinf-event-card p { margin: 0 0 9px; color: #64748b; font-size: 12px; line-height: 1.4; }
+        .reinf-import-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-top: 14px;
+            padding: 15px;
+            border: 1px dashed #60a5fa;
+            border-radius: 10px;
+            background: #fff;
+        }
+        .reinf-import-box strong { display: block; color: #0f172a; margin-bottom: 4px; }
+        .reinf-import-box p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.45; }
+        .reinf-import-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+        }
+        .reinf-import-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 190px;
+            min-height: 42px;
+            padding: 9px 15px;
+            border-radius: 8px;
+            background: #2563eb;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .reinf-import-button:hover { background: #1d4ed8; }
+        .reinf-import-status {
+            margin-top: 12px;
+            padding: 11px 12px;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            background: #fff;
+            color: #1e40af;
+            font-size: 12px;
+            line-height: 1.45;
+        }
         @media (max-width: 900px) {
             .reinf-series-nav, .reinf-events-grid { grid-template-columns: 1fr; }
+            .reinf-import-box { align-items: stretch; flex-direction: column; }
+            .reinf-import-button { width: 100%; }
         }
 
         .razao-notas-panel {
@@ -2785,7 +2834,19 @@
                         <div class="reinf-series-summary">
                             <strong>Retenções Previdenciárias — R-2000 e R-3000</strong>
                             <div style="margin-top:6px;font-size:13px;line-height:1.5">Os eventos abaixo agora estão identificados no menu. A geração e a transmissão permanecem bloqueadas até cada leiaute, regra fiscal e XSD serem homologados; esta versão não envia eventos previdenciários como se estivessem prontos.</div>
+                            <div class="reinf-import-box">
+                                <div>
+                                    <strong>Importar XMLs para conferência</strong>
+                                    <p>Selecione um ou vários XMLs R-2000/R-3000. A empresa ativa, o evento, a competência e as duplicidades serão validados antes da entrada.</p>
+                                </div>
+                                <div>
+                                    <input class="reinf-import-input" type="file" id="reinfArquivoPrevidenciario" accept=".xml,application/xml,text/xml" multiple onchange="importarArquivosPrevidenciariosReinf(event)">
+                                    <label class="reinf-import-button" for="reinfArquivoPrevidenciario">⬆️ Selecionar XMLs</label>
+                                </div>
+                            </div>
+                            <div id="reinfPrevidenciarioStatus" class="reinf-import-status">Nenhum XML selecionado. Os arquivos importados nesta etapa ficam somente para conferência e não são transmitidos.</div>
                         </div>
+                        <div id="reinfPrevidenciarioTabela" class="table-container" style="display:none;margin-bottom:18px"></div>
                         <div class="reinf-events-grid">
                             <div class="reinf-event-card"><strong>R-2010</strong><p>Retenção de contribuição previdenciária — serviços tomados.</p><span class="badge badge-yellow">A homologar</span></div>
                             <div class="reinf-event-card"><strong>R-2020</strong><p>Retenção de contribuição previdenciária — serviços prestados.</p><span class="badge badge-yellow">A homologar</span></div>
@@ -2802,6 +2863,16 @@
                     <div id="reinfSerie4000Panel" role="tabpanel" aria-labelledby="reinfTab4000">
                     <div class="reinf-series-summary">
                         <strong>Rendimentos Pagos/Creditados — R-4000</strong>
+                        <div class="reinf-import-box">
+                            <div>
+                                <strong>Importar beneficiários para R-4010</strong>
+                                <p>Use arquivos CSV, TXT, XLS ou XLSX. O importador identifica beneficiários PF, CNPJ fonte, competência, valores e IRRF para revisão.</p>
+                            </div>
+                            <div>
+                                <input class="reinf-import-input" type="file" id="reinfArquivo" accept=".csv,.txt,.xlsx,.xls" onchange="importarArquivoReinf(event)">
+                                <label class="reinf-import-button" for="reinfArquivo">⬆️ Importar arquivo R-4000</label>
+                            </div>
+                        </div>
                         <div class="reinf-events-grid">
                             <div class="reinf-event-card"><strong>R-4010</strong><p>Pagamentos ou créditos a beneficiário pessoa física.</p><span class="badge badge-green">Homologado</span></div>
                             <div class="reinf-event-card"><strong>R-4020</strong><p>Pagamentos ou créditos a beneficiário pessoa jurídica.</p><span class="badge badge-yellow">A homologar</span></div>
@@ -2924,8 +2995,8 @@
                         </div>
                         <div class="filters-grid">
                             <div class="filter-group">
-                                <label>Importar beneficiários CSV/XLSX</label>
-                                <input type="file" id="reinfArquivo" accept=".csv,.txt,.xlsx,.xls" onchange="importarArquivoReinf(event)">
+                                <label>Arquivo de beneficiários</label>
+                                <div style="padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;background:#f8fafc;color:#64748b;font-size:12px">Importe CSV/TXT/XLS/XLSX pelo botão destacado no início da série R-4000.</div>
                             </div>
                             <div class="filter-group">
                                 <label>CPF beneficiário manual</label>
@@ -8329,6 +8400,7 @@
             ultimoPayload: null,
             ultimoPayloadOriginal: null,
             ultimoDividendos: null,
+            previdenciarios: [],
             aplicacoes: {
                 analise: null,
                 arquivo: null,
@@ -8423,6 +8495,98 @@
             box.style.borderColor = s[1];
             box.style.color = s[2];
             box.innerHTML = msg;
+        }
+
+        function reinfPrevidenciarioSetStatus(msg, tipo = 'info') {
+            const box = document.getElementById('reinfPrevidenciarioStatus');
+            if (!box) return;
+            const styles = {
+                info: ['#fff', '#bfdbfe', '#1e40af'],
+                success: ['#ecfdf5', '#86efac', '#166534'],
+                warn: ['#fffbeb', '#fcd34d', '#92400e'],
+                error: ['#fef2f2', '#fca5a5', '#991b1b']
+            };
+            const s = styles[tipo] || styles.info;
+            box.style.background = s[0];
+            box.style.borderColor = s[1];
+            box.style.color = s[2];
+            box.innerHTML = msg;
+        }
+
+        function renderizarImportacoesPrevidenciariasReinf() {
+            const container = document.getElementById('reinfPrevidenciarioTabela');
+            if (!container) return;
+            const itens = Array.isArray(reinfState.previdenciarios) ? reinfState.previdenciarios : [];
+            if (!itens.length) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+            const linhas = itens.map(item => '<tr>' +
+                '<td><strong>' + reinfEscape(item.evento) + '</strong></td>' +
+                '<td>' + reinfEscape(item.arquivo) + '</td>' +
+                '<td>' + reinfEscape(item.competencia) + '</td>' +
+                '<td>' + reinfEscape(item.cnpjDeclarante) + '</td>' +
+                '<td style="font-family:monospace;font-size:11px">' + reinfEscape(item.idEvento) + '</td>' +
+                '<td><span class="badge badge-green">Validado</span></td>' +
+                '</tr>').join('');
+            container.innerHTML = '<div class="table-info"><div class="table-info-left"><strong>' + itens.length + ' XML(s) importado(s) para conferência</strong></div>' +
+                '<button type="button" class="btn-action btn-action-secondary" onclick="limparImportacoesPrevidenciariasReinf()">Limpar XMLs</button></div>' +
+                '<table><thead><tr><th>Evento</th><th>Arquivo</th><th>Apuração</th><th>CNPJ declarante</th><th>ID do evento</th><th>Situação</th></tr></thead><tbody>' + linhas + '</tbody></table>';
+            container.style.display = 'block';
+        }
+
+        function limparImportacoesPrevidenciariasReinf() {
+            reinfState.previdenciarios = [];
+            renderizarImportacoesPrevidenciariasReinf();
+            reinfPrevidenciarioSetStatus('Nenhum XML selecionado. Os arquivos importados nesta etapa ficam somente para conferência e não são transmitidos.', 'info');
+        }
+
+        async function importarArquivosPrevidenciariosReinf(evt) {
+            const input = evt && evt.target;
+            const arquivos = input && input.files ? Array.from(input.files) : [];
+            if (!arquivos.length) return;
+            try {
+                if (!window.ReinfImportXmlUtils || !window.ReinfImportXmlUtils.analisarXmlPrevidenciario) {
+                    throw new Error('Validador de XML EFD-Reinf indisponível nesta versão.');
+                }
+                if (arquivos.length > 20) throw new Error('Selecione no máximo 20 XMLs por lote.');
+                const totalBytes = arquivos.reduce((total, file) => total + Number(file.size || 0), 0);
+                if (totalBytes > 25 * 1024 * 1024) throw new Error('O lote de XMLs não pode ultrapassar 25 MB.');
+                const cnpjAtivo = window.ReinfImportXmlUtils.normalizarCnpj(state && state.info && (state.info.cnpj || state.info.cnpjEmpresa));
+                if (cnpjAtivo.length !== 14) throw new Error('Selecione uma empresa com CNPJ válido antes da importação.');
+
+                reinfPrevidenciarioSetStatus('Validando ' + arquivos.length + ' XML(s), eventos, competência e CNPJ declarante...', 'info');
+                const analisados = [];
+                for (const file of arquivos) {
+                    if (!/\.xml$/i.test(String(file.name || ''))) throw new Error('Arquivo não permitido: ' + file.name + '. Selecione somente XML.');
+                    if (Number(file.size || 0) > 5 * 1024 * 1024) throw new Error('XML acima de 5 MB: ' + file.name + '.');
+                    const conteudo = await file.text();
+                    const analise = window.ReinfImportXmlUtils.analisarXmlPrevidenciario(conteudo, {
+                        DOMParserCtor: window.DOMParser,
+                        cnpjAtivo
+                    });
+                    analisados.push(Object.assign({}, analise, {
+                        arquivo: file.name,
+                        tamanho: file.size,
+                        conteudo
+                    }));
+                }
+                window.ReinfImportXmlUtils.validarDuplicidades(
+                    analisados,
+                    reinfState.previdenciarios.map(item => item.idEvento)
+                );
+                reinfState.previdenciarios = reinfState.previdenciarios.concat(analisados);
+                renderizarImportacoesPrevidenciariasReinf();
+                const eventos = [...new Set(analisados.map(item => item.evento))].join(', ');
+                reinfPrevidenciarioSetStatus('<strong>Importação validada.</strong> ' + analisados.length + ' XML(s) da empresa ativa adicionados para conferência: ' + reinfEscape(eventos) + '. A transmissão previdenciária continua bloqueada até homologação.', 'success');
+                showToast('XMLs EFD-Reinf importados para conferência.', 'success');
+            } catch (e) {
+                reinfPrevidenciarioSetStatus('<strong>Importação bloqueada.</strong> ' + reinfEscape(e.message || e) + ' Nenhum arquivo deste lote foi adicionado.', 'error');
+                showToast('Erro ao importar XMLs Reinf: ' + (e.message || e), 'error');
+            } finally {
+                if (input) input.value = '';
+            }
         }
 
         function reinfMesAtual() {
@@ -16345,7 +16509,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.78';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.79';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
