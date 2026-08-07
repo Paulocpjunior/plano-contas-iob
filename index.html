@@ -2874,6 +2874,24 @@
                                 <label class="reinf-import-button" for="reinfArquivo">⬆️ Importar arquivo R-4000</label>
                             </div>
                         </div>
+
+                        <!-- R-4020: as notas tomadas com retenção vêm do CFI já apuradas por
+                             beneficiário. É o passo que hoje é feito à mão no E-Fiscal
+                             ("informamos o campo de retenção e a NATUREZA DE RENDIMENTO"). -->
+                        <div class="reinf-import-box" id="reinfRetPjBox" style="margin-top:14px">
+                            <div>
+                                <strong>Retenções de PJ para o R-4020</strong>
+                                <p>As notas de serviço TOMADAS com retenção vêm do Consultor Fiscal já apuradas por beneficiário — sem planilha e sem redigitar. Informe a natureza do rendimento de cada um.</p>
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                <input id="reinfRetPjCnpj" type="text" placeholder="CNPJ do tomador" style="padding:8px 10px;border:1px solid #cbd5f5;border-radius:8px;font-size:13px;width:170px">
+                                <input id="reinfRetPjComp" type="month" style="padding:8px 10px;border:1px solid #cbd5f5;border-radius:8px;font-size:13px">
+                                <button type="button" class="reinf-import-button" onclick="buscarRetencoesPJReinf()">🔎 Buscar no Consultor Fiscal</button>
+                            </div>
+                        </div>
+                        <div id="reinfRetPjStatus" class="reinf-import-status">Escolha o CNPJ do tomador e a competência. As notas já capturadas no Consultor Fiscal chegam aqui apuradas por beneficiário.</div>
+                        <div id="reinfRetPjTabela" class="table-container" style="display:none;margin-bottom:18px"></div>
+
                         <div class="reinf-events-grid">
                             <div class="reinf-event-card"><strong>R-4010</strong><p>Pagamentos ou créditos a beneficiário pessoa física.</p><span class="badge badge-green">Homologado</span></div>
                             <div class="reinf-event-card"><strong>R-4020</strong><p>Pagamentos ou créditos a beneficiário pessoa jurídica.</p><span class="badge badge-yellow">A homologar</span></div>
@@ -8482,6 +8500,128 @@
 
         function reinfToday() {
             return new Date().toISOString().slice(0, 10);
+        }
+
+        // ── R-4020: retenções de PJ vindas do Consultor Fiscal ──────────────
+        // A natureza informada aqui NÃO decide sozinha: ela volta ao servidor,
+        // que confere contra a Tabela 01. Código digitado que ninguém confere é
+        // código inventado, e o pior caso não é ser recusado — é ser ACEITO
+        // errado.
+        const reinfRetPjState = { naturezas: {}, ultimo: null };
+
+        function reinfRetPjStatus(msg, tipo) {
+            const box = document.getElementById('reinfRetPjStatus');
+            if (!box) return;
+            const cores = {
+                info: ['#f8fafc', '#475569'],
+                success: ['#ecfdf5', '#166534'],
+                warn: ['#fffbeb', '#92400e'],
+                error: ['#fef2f2', '#991b1b']
+            };
+            const c = cores[tipo] || cores.info;
+            box.style.background = c[0];
+            box.style.color = c[1];
+            box.innerHTML = msg;
+        }
+
+        function definirNaturezaRetPj(cnpj, valor) {
+            const cod = String(valor || '').replace(/\D/g, '');
+            if (cod) reinfRetPjState.naturezas[cnpj] = cod;
+            else delete reinfRetPjState.naturezas[cnpj];
+        }
+
+        async function buscarRetencoesPJReinf() {
+            const cnpj = reinfDigits((document.getElementById('reinfRetPjCnpj') || {}).value);
+            const comp = String((document.getElementById('reinfRetPjComp') || {}).value || '').trim();
+            if (cnpj.length !== 14) return reinfRetPjStatus('Informe o CNPJ do tomador com 14 dígitos — é ele quem declara o R-4020.', 'warn');
+            if (!/^\d{4}-\d{2}$/.test(comp)) return reinfRetPjStatus('Escolha a competência.', 'warn');
+            if (!window.API || !window.API.reinfRetencoesPJ) return reinfRetPjStatus('API indisponível. Recarregue a página.', 'error');
+
+            reinfRetPjStatus('Buscando as notas tomadas no Consultor Fiscal…', 'info');
+            try {
+                const pares = Object.keys(reinfRetPjState.naturezas)
+                    .map(function (c) { return c + ':' + reinfRetPjState.naturezas[c]; }).join(',');
+                const resp = await window.API.reinfRetencoesPJ(cnpj, comp, pares);
+                if (!resp || resp.ok === false) throw new Error((resp && resp.erro) || 'Falha ao consultar.');
+                reinfRetPjState.ultimo = resp;
+                renderizarRetencoesPJReinf(resp);
+            } catch (e) {
+                // Erro do outro lado NUNCA vira tabela vazia: vazio seria lido
+                // como "não teve retenção no mês".
+                document.getElementById('reinfRetPjTabela').style.display = 'none';
+                reinfRetPjStatus('Não foi possível apurar: ' + reinfEscape(e.message || e), 'error');
+            }
+        }
+
+        function renderizarRetencoesPJReinf(resp) {
+            const alvo = document.getElementById('reinfRetPjTabela');
+            const bs = Array.isArray(resp.beneficiarios) ? resp.beneficiarios : [];
+            const r = resp.resumo || {};
+
+            if (!bs.length) {
+                alvo.style.display = 'none';
+                // Zero NÃO é sucesso: pode ser mês sem retenção OU captura faltando.
+                reinfRetPjStatus('Nenhum beneficiário PJ com retenção nesta competência. '
+                    + 'Se este cliente contrata serviços com retenção, o problema é de CAPTURA no Consultor Fiscal '
+                    + '— não é ausência de obrigação.', 'warn');
+                return;
+            }
+
+            const linhas = bs.map(function (b) {
+                const cnpj = reinfDigits(b.prestadorCnpj);
+                const selo = b.pronto
+                    ? '<span class="badge badge-green">pronto</span>'
+                    : '<span class="badge badge-yellow">pendente</span>';
+                const origem = b.origemNatureza === 'informada' ? ' <span class="badge badge-green">informada</span>'
+                    : (b.origemNatureza ? ' <span class="badge badge-green">da nota</span>' : '');
+                const csll = reinfMoney(b.csll) + (b.csllDerivada
+                    ? ' <span class="badge badge-yellow" title="O export do portal de SP não traz a CSLL individual; ela foi derivada por subtração e só foi aceita porque as três alíquotas fecharam.">derivada</span>' : '');
+                const pend = (b.pendencias || []).map(function (p) {
+                    return '<div style="color:#92400e;font-size:11px;line-height:1.4;margin-top:3px">⚠ ' + reinfEscape(p) + '</div>';
+                }).join('');
+                return '<tr>'
+                    + '<td>' + reinfEscape(b.prestadorNome || '—') + '<div style="color:#64748b;font-size:11px">' + reinfFormatCpfCnpj(cnpj) + '</div>' + pend + '</td>'
+                    + '<td style="text-align:center">' + (b.notas || 0) + '</td>'
+                    + '<td style="text-align:right">' + reinfMoney(b.bruto) + '</td>'
+                    + '<td style="text-align:right">' + reinfMoney(b.ir) + '</td>'
+                    + '<td style="text-align:right">' + reinfMoney(b.pis) + '</td>'
+                    + '<td style="text-align:right">' + reinfMoney(b.cofins) + '</td>'
+                    + '<td style="text-align:right">' + csll + '</td>'
+                    + '<td>' + (b.natureza ? reinfEscape(b.natureza) + origem
+                        : '<input type="text" maxlength="5" placeholder="00000" value="' + reinfEscape(reinfRetPjState.naturezas[cnpj] || '') + '"'
+                          + ' onchange="definirNaturezaRetPj(\'' + cnpj + '\', this.value)"'
+                          + ' style="width:70px;padding:5px 7px;border:1px solid #cbd5f5;border-radius:6px;font-size:12px">') + '</td>'
+                    + '<td style="text-align:center">' + selo + '</td>'
+                    + '</tr>';
+            }).join('');
+
+            const avisos = (resp.avisos || []).concat(resp.ressalvasDaFonte || []).map(function (a) {
+                return '<li style="margin-bottom:4px">' + reinfEscape(a) + '</li>';
+            }).join('');
+
+            alvo.innerHTML =
+                '<table class="data-table"><thead><tr>'
+                + '<th>Beneficiário PJ</th><th>Notas</th><th>Bruto</th><th>IRRF</th><th>PIS</th><th>COFINS</th><th>CSLL</th>'
+                + '<th>Natureza</th><th>Situação</th>'
+                + '</tr></thead><tbody>' + linhas + '</tbody></table>'
+                + (avisos ? '<ul style="margin:12px 0 0 18px;padding:0;color:#475569;font-size:12px;line-height:1.5">' + avisos + '</ul>' : '')
+                // O XML do R-4020 continua BLOQUEADO: o único evento de
+                // referência tem retenção zerada, então onde entram IR/CSLL/PIS/
+                // COFINS não está provado. Dizer isso na tela é o que impede
+                // alguém de esperar um botão que não existe.
+                + '<div style="margin-top:14px;padding:10px 12px;background:#fffbeb;border:1px solid #fed7aa;border-radius:8px;color:#92400e;font-size:12px;line-height:1.5">'
+                + '<strong>Por que ainda não há botão de gerar o XML:</strong> o único R-4020 de referência aceito pela Receita '
+                + 'veio com valor zerado e sem bloco de retenção, então a posição dos campos de IR/CSLL/PIS/COFINS não está provada. '
+                + 'Gerar por analogia produziria um evento recusado — ou, pior, aceito declarando retenção ZERO. '
+                + 'Destrava com um R-4020 exportado de uma competência que TEVE retenção.'
+                + '</div>';
+            alvo.style.display = 'block';
+
+            const tom = r.pendentes ? 'warn' : 'success';
+            reinfRetPjStatus('<strong>' + (r.beneficiarios || 0) + '</strong> beneficiário(s) PJ · '
+                + '<strong>' + (r.prontos || 0) + '</strong> pronto(s) · <strong>' + (r.pendentes || 0) + '</strong> pendente(s)'
+                + ' · IRRF ' + reinfMoney(r.totalIr) + ' · CSLL ' + reinfMoney(r.totalCsll)
+                + (r.pendentes ? '<br>Informe a natureza do rendimento dos pendentes e clique em Buscar de novo — o código é conferido contra a Tabela 01 no servidor.' : ''), tom);
         }
 
         function reinfSetStatus(msg, tipo = 'info') {

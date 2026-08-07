@@ -172,6 +172,24 @@ sub-rogado na aba 🌾, com vigência de alíquota (LC 224/2025) e conferência
 contra o infAdic da nota. Farol honesto do resumo: `geramHoje: 0` —
 identificar o evento no menu não é declarar.
 
+**A TELA DO R-4020 EXISTE** (07/08). Era ELA que faltava, não o dado: a aba
+R-4000 só tinha entrada pro R-4010 (PF, e nascida pra aluguel — a mensagem de
+erro dela diz "Para aluguel, a EFD-Reinf importa pagamentos PJ→PF") e a aba
+R-2000 só importa XML pra CONFERÊNCIA. Sem porta pro R-4020, a colaboradora
+caía no E-Fiscal por falta de tela, não por falta de dado. Agora: CNPJ do
+tomador + competência → busca no CFI → beneficiários apurados, com IRRF/PIS/
+COFINS/CSLL e a natureza do rendimento.
+**A NATUREZA INFORMADA VOLTA AO SERVIDOR** (`?naturezas=CNPJ:codigo,...`, mesmo
+desenho do `?iva=` do DIFAL no CFI) porque a Tabela 01 não existe no navegador
+— código digitado que ninguém confere é código inventado. Informada vence a da
+nota, que vence a sugestão; sugestão nunca decide.
+**A TELA DIZ POR QUE NÃO TEM BOTÃO DE GERAR XML** — sem isso a pessoa procura
+um botão que não existe e conclui que a tela está quebrada. CSLL derivada sai
+com selo na linha. Zero beneficiário aponta CAPTURA faltando, nunca "não teve
+retenção". ARMADILHA EVITADA: a query da natureza é montada no adaptador; colar
+na competência faria o `encodeURIComponent` virar `%3F` e a query sumir em
+silêncio.
+
 **Fluxo real da colaboradora** (a referência do que o módulo tem que cobrir):
 importa as notas → informa retenção e natureza do rendimento → gera o módulo
 REINF → transmite → **faz o encerramento no e-CAC**. O encerramento é humano e
