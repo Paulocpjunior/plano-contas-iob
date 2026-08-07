@@ -35,17 +35,34 @@ ver "Ligação com o CFI".
 
 - **Nunca commitar direto na main.** Trabalho vai em branch → PR →
   squash-merge. `deploy-app.yml` publica sozinho no merge.
-- 🚨 **O DEPLOY DESTE REPO NUNCA RODOU — falta o secret `GCP_SA_KEY`**
-  (descoberto 07/08): as runs 2, 3 e 4 do `deploy-app.yml` falharam TODAS no
-  mesmo ponto, e por isso **nada que foi mesclado aqui está no ar**. Merge
-  verde neste repo não significa app atualizado — é a lição do "deploy verde ≠
-  nota capturada", na versão em que nem o deploy é verde. **SÓ O PAULO
-  RESOLVE**: Settings → Secrets and variables → Actions → New repository
-  secret, nome `GCP_SA_KEY`, valor = JSON da service account de deploy (roles
-  `run.admin`, `iam.serviceAccountUser`, `cloudbuild.builds.editor`,
-  `artifactregistry.writer`) — a mesma que o CFI já usa serve. Antes de dizer
-  que uma feature daqui "está no ar", CONFERIR a run: o workflow falha rápido
-  e com as instruções, mas falha.
+- 🚨 **O REPO TINHA DUAS LINHAS, e a `main` NÃO era a que estava no ar**
+  (descoberto 07/08, e unificado no mesmo dia). O produto real vivia em
+  `codex/import-quality-v3241` — 27 commits à frente, versão **3.4.81**,
+  publicada À MÃO (a branch nem tinha `.github/`) — enquanto a `main` tinha
+  só a limpeza de CI e o trabalho do REINF, com o `index.html` **parado no
+  824a39b**. Sintoma que denunciou: o Paulo mandou print de uma tela (abas
+  "Retenções Previdenciárias R-2000/R-3000" e "Rendimentos Pagos R-4000",
+  selos "A homologar") que **não existia em lugar nenhum do repositório**.
+  A ARMADILHA QUE ISSO CRIOU, e que quase disparou: bastava o `GCP_SA_KEY`
+  ser cadastrado pra que o primeiro deploy da `main` publicasse o app VELHO
+  por cima do que a equipe usa — regressão de 27 commits, sem ninguém ter
+  pedido nada. **REGRA QUE FICA**: antes de mexer neste repo, conferir se a
+  `main` é mesmo o que está no ar (`version.json` × o rodapé do app). Repo
+  que não é a fonte do que roda não é repo, é backup desatualizado.
+- 🚨 **FALTA o secret `GCP_SA_KEY`** — as runs 2, 3 e 4 do `deploy-app.yml`
+  falharam TODAS em "Falta o secret". **SÓ O PAULO RESOLVE**: Settings →
+  Secrets and variables → Actions → New repository secret, nome `GCP_SA_KEY`,
+  valor = JSON da service account de deploy (roles `run.admin`,
+  `iam.serviceAccountUser`, `cloudbuild.builds.editor`,
+  `artifactregistry.writer`) — a mesma que o CFI já usa serve. Merge verde
+  aqui NÃO é app atualizado: antes de dizer que uma feature "está no ar",
+  CONFERIR a run.
+- **Trabalho novo sai da `main`, não de branch paralela.** Foi a branch
+  paralela de longa vida que produziu as duas linhas: as duas ficaram certas
+  cada uma do seu lado e erradas juntas. O `check-ci` só descobriu na
+  unificação que três testes do outro lado nem eram reconhecidos como
+  "pulado por falta de evidência" — ninguém tinha rodado o gate de um lado
+  no código do outro.
 - **O deploy só roteia tráfego depois do health da CANDIDATA.** Sobe com
   `--no-traffic --tag candidate`, confere `GET /api/health` (que toca o
   Firestore de propósito — pega revisão que sobe mas não fala com o banco) e só

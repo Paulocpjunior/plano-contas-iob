@@ -9,21 +9,23 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="/api-adapter.js"></script>
-<script src="/parser-ofx.js?v=3.4.17"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.17"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.17"></script>
-<script src="/parser-safra-extrato.js?v=3.4.17"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.17"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.17"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.17"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.17"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.17"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.17"></script>
-<script src="/parser-btg-pactual.js?v=3.4.17"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.17"></script>
-<script src="/parser-abc-extrato.js?v=3.4.17"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.17"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.17"></script>
+<script src="/parser-ofx.js?v=3.4.81"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.81"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.81"></script>
+<script src="/parser-safra-extrato.js?v=3.4.81"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.81"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.81"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.81"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.81"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.81"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.81"></script>
+<script src="/parser-btg-pactual.js?v=3.4.81"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.81"></script>
+<script src="/parser-abc-extrato.js?v=3.4.81"></script>
+<script src="/parser-inter-extrato.js?v=3.4.81"></script>
+<script src="/parser-stone-extrato.js?v=3.4.81"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.81"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.81"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -66,6 +68,11 @@
   .summary-card .label { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
   .summary-card .value { font-size: 32px; font-weight: 700; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; overflow: hidden; }
+  .table-scroll { width:100%; max-width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:10px; -webkit-overflow-scrolling:touch; }
+  .table-scroll table { min-width:1120px; overflow:visible; }
+  .table-scroll table th:first-child, .table-scroll table td:first-child { position:sticky; left:0; z-index:1; background:#fff; box-shadow:1px 0 0 var(--border); }
+  .table-scroll table th:first-child { z-index:3; background:#f8fafc; }
+  .table-scroll table tr:hover td:first-child { background:#f8fafc; }
   th { text-align: left; padding: 12px; background: #f8fafc; color: #475569; font-weight: 800; border-bottom: 1px solid var(--border); position: sticky; top: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
   td { padding: 13px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
   tr:hover { background: #f8fafc; }
@@ -108,6 +115,33 @@
   .quality-result { margin-bottom:18px; padding:14px; border-radius:10px; border:1px solid #bfdbfe; background:#eff6ff; color:#1e3a8a; font-size:13px; line-height:1.5; display:none; }
   .quality-result.error { display:block; border-color:#fecaca; background:#fef2f2; color:#991b1b; }
   .quality-result.ok { display:block; border-color:#bbf7d0; background:#f0fdf4; color:#166534; }
+  .layout-intake { margin-bottom:22px; padding:20px; border:1px solid #bfdbfe; border-radius:12px; background:linear-gradient(135deg,#eff6ff 0%,#f8fafc 100%); }
+  .layout-intake h3 { font-size:17px; margin-bottom:5px; }
+  .layout-intake > p { color:var(--muted); font-size:12px; line-height:1.55; margin-bottom:16px; }
+  .layout-intake-grid { display:grid; grid-template-columns:120px minmax(180px,1fr) minmax(220px,1.3fr) 170px; gap:12px; }
+  .layout-intake-grid .wide { grid-column:span 2; }
+  .layout-intake label { display:block; font-size:11px; font-weight:800; text-transform:uppercase; color:var(--muted); margin-bottom:5px; letter-spacing:.4px; }
+  .layout-intake input, .layout-intake select, .layout-intake textarea { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; font:inherit; font-size:13px; }
+  .layout-intake textarea { resize:vertical; min-height:42px; }
+  .layout-intake-actions { display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-top:13px; }
+  .layout-intake-note { font-size:11px; color:#475569; line-height:1.5; }
+  .layout-drafts { margin-top:20px; }
+  .layout-drafts h3 { font-size:15px; margin-bottom:8px; }
+  .danger-card { border-color:#fecaca; box-shadow:0 12px 32px rgba(185,28,28,.08); }
+  .danger-alert { padding:14px 16px; border:1px solid #fecaca; background:#fef2f2; color:#991b1b; border-radius:10px; font-size:13px; line-height:1.55; margin-bottom:18px; }
+  .exclusao-form { display:grid; grid-template-columns:minmax(280px,2fr) minmax(150px,1fr) minmax(150px,1fr) auto; gap:12px; align-items:end; }
+  .exclusao-form label, .confirmacao-exclusao label { display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-weight:800; }
+  .exclusao-form input, .exclusao-form select, .confirmacao-exclusao input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:#fff; font-family:inherit; }
+  .btn-danger { background:linear-gradient(135deg,#dc2626,#991b1b); }
+  .btn:disabled { opacity:.45; cursor:not-allowed; transform:none; filter:none; }
+  .exclusao-status { display:none; margin-top:16px; padding:13px 15px; border-radius:9px; font-size:13px; line-height:1.5; }
+  .exclusao-status.info { display:block; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; }
+  .exclusao-status.error { display:block; background:#fef2f2; border:1px solid #fecaca; color:#991b1b; }
+  .exclusao-status.ok { display:block; background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; }
+  .exclusao-preview { margin-top:18px; }
+  .exclusao-preview table input[type="checkbox"] { width:17px; height:17px; accent-color:#dc2626; }
+  .confirmacao-exclusao { display:none; margin-top:18px; padding:18px; border:1px solid #fca5a5; border-radius:10px; background:#fff7f7; }
+  .confirmacao-exclusao.active { display:block; }
   @media (max-width: 768px) {
     .container { padding: 18px 12px 30px; }
     .header { align-items: flex-start; flex-direction: column; }
@@ -115,6 +149,9 @@
     .tabs { border-radius: 10px; }
     input[type="search"] { min-width: 100%; }
     .quality-tool { grid-template-columns: 1fr; }
+    .layout-intake-grid { grid-template-columns:1fr; }
+    .layout-intake-grid .wide { grid-column:span 1; }
+    .exclusao-form { grid-template-columns:1fr; }
   }
 </style>
 </head>
@@ -148,6 +185,7 @@
     <button class="active" onclick="showTab('resumo')">📊 Resumo</button>
     <button onclick="showTab('layouts')">🏦 Layouts Bancários</button>
     <button onclick="showTab('qualidade')">✅ Qualidade de Layouts</button>
+    <button onclick="showTab('exclusao', this)">🗑️ Exclusão de Lançamentos</button>
     <button onclick="showTab('usuarios')">👥 Usuários</button>
     <button onclick="showTab('logs')">📜 Log de Acesso</button>
   </div>
@@ -199,7 +237,91 @@
         </div>
         <button class="btn" onclick="renderLayouts()">🔄 Atualizar</button>
       </div>
+      <div class="layout-intake">
+        <h3>➕ Novo layout bancário</h3>
+        <p>Envie um arquivo-modelo para analisar o formato e abrir um rascunho controlado. O layout só entra no extrator depois de possuir parser, regressão aprovada e homologação administrativa.</p>
+        <div class="layout-intake-grid">
+          <div>
+            <label for="newLayoutBanco">Código do banco</label>
+            <input id="newLayoutBanco" inputmode="numeric" maxlength="6" placeholder="197" oninput="limparAnaliseNovoLayout()">
+          </div>
+          <div>
+            <label for="newLayoutNomeBanco">Nome do banco</label>
+            <input id="newLayoutNomeBanco" maxlength="120" placeholder="Stone Instituição de Pagamento" oninput="limparAnaliseNovoLayout()">
+          </div>
+          <div>
+            <label for="newLayoutNome">Nome do layout</label>
+            <input id="newLayoutNome" maxlength="160" placeholder="Extrato de conta corrente" oninput="limparAnaliseNovoLayout()">
+          </div>
+          <div>
+            <label for="newLayoutFormato">Formato</label>
+            <select id="newLayoutFormato" onchange="limparAnaliseNovoLayout()">
+              <option value="PDF textual">PDF textual</option>
+              <option value="PDF imagem / OCR">PDF imagem / OCR</option>
+              <option value="OFX">OFX</option>
+              <option value="CSV">CSV</option>
+              <option value="XLSX">XLSX</option>
+            </select>
+          </div>
+          <div class="wide">
+            <label for="newLayoutFile">Arquivo-modelo</label>
+            <input type="file" id="newLayoutFile" accept=".pdf,.ofx,.ofc,.csv,.txt,.xlsx,.xls" onchange="limparAnaliseNovoLayout()">
+          </div>
+          <div class="wide">
+            <label for="newLayoutObservacao">Observação</label>
+            <textarea id="newLayoutObservacao" maxlength="600" placeholder="Empresa, período e particularidades do extrato" oninput="limparAnaliseNovoLayout()"></textarea>
+          </div>
+        </div>
+        <div class="layout-intake-actions">
+          <button class="btn" type="button" onclick="analisarNovoLayoutBancario()">Analisar arquivo</button>
+          <button class="btn" type="button" id="saveLayoutDraftBtn" style="background:#059669" onclick="salvarRascunhoLayoutBancario()" disabled>Salvar rascunho em teste</button>
+          <span class="layout-intake-note">Privacidade: o PDF não é gravado; ficam apenas nome, tamanho, páginas, hash SHA-256 e resultado técnico.</span>
+        </div>
+        <div id="newLayoutAnalysis" class="quality-result"></div>
+      </div>
       <div id="layoutsContent" class="loading">Carregando…</div>
+      <div class="layout-drafts">
+        <h3>Rascunhos recebidos</h3>
+        <div id="layoutDraftsContent" class="loading">Carregando…</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-exclusao" class="tab-content">
+    <div class="card danger-card">
+      <div style="margin-bottom:16px">
+        <h2 style="font-size:20px;margin-bottom:5px;color:#991b1b">🗑️ Exclusão administrativa de lançamentos</h2>
+        <p style="font-size:13px;color:#64748b">Selecione a empresa e o intervalo de datas. A prévia separa os lançamentos por importação para você escolher exatamente o que será removido.</p>
+      </div>
+      <div class="danger-alert">
+        <strong>Área restrita a administradores.</strong> A exclusão atinge somente os lançamentos da sessão atual que estejam simultaneamente no período e nas importações marcadas. Cadastros, plano de contas, relatórios fechados e lançamentos fora do filtro são preservados. Antes da alteração, o sistema grava uma cópia integral recuperável e registra o administrador responsável.
+      </div>
+      <div class="exclusao-form">
+        <div>
+          <label for="exclusaoEmpresa">Empresa</label>
+          <select id="exclusaoEmpresa" onchange="invalidarPreviaExclusao()"><option value="">Carregando empresas…</option></select>
+        </div>
+        <div>
+          <label for="exclusaoDataInicial">Data inicial</label>
+          <input id="exclusaoDataInicial" type="date" onchange="invalidarPreviaExclusao()">
+        </div>
+        <div>
+          <label for="exclusaoDataFinal">Data final</label>
+          <input id="exclusaoDataFinal" type="date" onchange="invalidarPreviaExclusao()">
+        </div>
+        <button id="btnPreviaExclusao" class="btn" onclick="previsualizarExclusaoAdmin()">Gerar prévia</button>
+      </div>
+      <div id="exclusaoStatus" class="exclusao-status"></div>
+      <div id="exclusaoPreview" class="exclusao-preview"></div>
+      <div id="exclusaoConfirmacao" class="confirmacao-exclusao">
+        <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap">
+          <div style="flex:1;min-width:260px">
+            <label for="exclusaoTextoConfirmacao">Para confirmar, digite <strong>EXCLUIR</strong></label>
+            <input id="exclusaoTextoConfirmacao" autocomplete="off" placeholder="EXCLUIR" oninput="atualizarBotaoExclusao()">
+          </div>
+          <button id="btnExecutarExclusao" class="btn btn-danger" disabled onclick="executarExclusaoAdmin()">Excluir lançamentos selecionados</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -278,7 +400,11 @@ if (typeof pdfjsLib !== 'undefined') {
 let currentUsers = [];
 let currentLogs = [];
 let currentLayoutsBancarios = null;
+let currentLayoutDrafts = [];
+let novoLayoutAnaliseAtual = null;
 let currentLayoutQuality = null;
+let currentExclusaoPreview = null;
+let exclusaoEmpresasCarregadas = false;
 
 function fmtDate(ts) {
   if (!ts) return '-';
@@ -338,6 +464,7 @@ auth.onAuthStateChanged(async u => {
   loadLayoutQuality();
   loadUsers();
   loadLogs();
+  loadExclusaoEmpresas();
 });
 
 function showTab(tab, sourceButton) {
@@ -348,6 +475,7 @@ function showTab(tab, sourceButton) {
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'layouts') renderLayouts();
   if (tab === 'qualidade') loadLayoutQuality();
+  if (tab === 'exclusao') loadExclusaoEmpresas();
 }
 
 function escapeHtml(v) {
@@ -392,11 +520,197 @@ async function carregarLayoutsBancariosAdmin() {
   popularQualityBancos();
 }
 
+function normalizarCodigoBancoInput(valor) {
+  const raw = String(valor || '').trim().toUpperCase();
+  if (!raw) return '';
+  if (/^\d+$/.test(raw)) return raw.padStart(3, '0');
+  return raw.replace(/[^A-Z0-9]/g, '').slice(0, 6);
+}
+
+function limparAnaliseNovoLayout() {
+  novoLayoutAnaliseAtual = null;
+  const resultado = document.getElementById('newLayoutAnalysis');
+  const salvar = document.getElementById('saveLayoutDraftBtn');
+  if (resultado) { resultado.className = 'quality-result'; resultado.innerHTML = ''; }
+  if (salvar) salvar.disabled = true;
+}
+
+function setNovoLayoutResult(tipo, html) {
+  const el = document.getElementById('newLayoutAnalysis');
+  if (!el) return;
+  el.className = 'quality-result ' + (tipo || '');
+  el.innerHTML = html || '';
+}
+
+async function sha256Arquivo(buffer) {
+  const hash = await crypto.subtle.digest('SHA-256', buffer.slice(0));
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function inspecionarPdfNovoLayout(buffer) {
+  if (typeof pdfjsLib === 'undefined') return { paginas: 0, caracteres_texto: 0, textual: false };
+  const pdf = await pdfjsLib.getDocument({ data: buffer.slice(0) }).promise;
+  let caracteresTexto = 0;
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const pagina = await pdf.getPage(p);
+    const conteudo = await pagina.getTextContent();
+    caracteresTexto += conteudo.items.reduce((total, item) => total + String(item.str || '').trim().length, 0);
+  }
+  return { paginas: pdf.numPages, caracteres_texto: caracteresTexto, textual: caracteresTexto >= 40 };
+}
+
+async function analisarNovoLayoutBancario() {
+  const banco = normalizarCodigoBancoInput((document.getElementById('newLayoutBanco') || {}).value);
+  const nomeBanco = String((document.getElementById('newLayoutNomeBanco') || {}).value || '').trim();
+  const nome = String((document.getElementById('newLayoutNome') || {}).value || '').trim();
+  const formato = String((document.getElementById('newLayoutFormato') || {}).value || '').trim();
+  const file = (document.getElementById('newLayoutFile') || {}).files?.[0];
+  if (!banco || !nomeBanco || !nome || !file) {
+    setNovoLayoutResult('error', 'Preencha código, banco, nome do layout e selecione o arquivo-modelo.');
+    return;
+  }
+  if (file.size > 25 * 1024 * 1024) {
+    setNovoLayoutResult('error', 'O arquivo-modelo deve ter no máximo 25 MB.');
+    return;
+  }
+  document.getElementById('newLayoutBanco').value = banco;
+  setNovoLayoutResult('ok', 'Analisando estrutura, impressão digital e parsers disponíveis…');
+  try {
+    const buffer = await file.arrayBuffer();
+    const hash = await sha256Arquivo(buffer);
+    let inspecao = { paginas: 0, caracteres_texto: 0, textual: false };
+    if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
+      inspecao = await inspecionarPdfNovoLayout(buffer);
+    }
+    const layoutsBanco = (currentLayoutsBancarios || []).filter(l => l.banco === banco);
+    let reconhecido = null;
+    for (const layout of layoutsBanco) {
+      const fn = window[layout.parser];
+      if (typeof fn !== 'function') continue;
+      try {
+        const entrada = /\.(csv|txt)$/i.test(file.name)
+          ? await qualityPayloadArquivo(file)
+          : buffer.slice(0);
+        const resultado = await fn(entrada);
+        if (resultado && resultado.detectado && Array.isArray(resultado.lancamentos) && resultado.lancamentos.length) {
+          reconhecido = {
+            parser: layout.parser,
+            layout: layout.layout,
+            lancamentos: resultado.lancamentos.length,
+            total_credito: resultado.lancamentos.filter(l => Number(l.valor) > 0).reduce((a, l) => a + Number(l.valor || 0), 0),
+            total_debito: resultado.lancamentos.filter(l => Number(l.valor) < 0).reduce((a, l) => a + Math.abs(Number(l.valor || 0)), 0),
+            periodo_inicio: resultado.periodo_inicio || '',
+            periodo_fim: resultado.periodo_fim || ''
+          };
+          break;
+        }
+      } catch (erroParser) {
+        console.warn('[novo layout] parser rejeitou o modelo:', layout.parser, erroParser);
+      }
+    }
+    novoLayoutAnaliseAtual = {
+      banco,
+      nomeBanco,
+      nome,
+      formato,
+      observacao: String((document.getElementById('newLayoutObservacao') || {}).value || '').trim(),
+      arquivo: file.name,
+      mime_type: file.type || '',
+      tamanho: file.size,
+      sha256: hash,
+      paginas: inspecao.paginas,
+      caracteres_texto: inspecao.caracteres_texto,
+      pdf_textual: inspecao.textual,
+      parser_detectado: reconhecido ? reconhecido.parser : '',
+      layout_detectado: reconhecido ? reconhecido.layout : '',
+      resultado_teste: reconhecido || null
+    };
+    const detalhePdf = inspecao.paginas
+      ? `<br><strong>PDF:</strong> ${inspecao.paginas} página(s), ${inspecao.textual ? 'texto extraível' : 'possível imagem/OCR'}`
+      : '';
+    const detalheParser = reconhecido
+      ? `<br><strong>Layout reconhecido:</strong> ${escapeHtml(reconhecido.layout)} (${escapeHtml(reconhecido.parser)})` +
+        `<br><strong>Teste:</strong> ${reconhecido.lancamentos} lançamento(s), ${formatMoney(reconhecido.total_credito)} de crédito e ${formatMoney(reconhecido.total_debito)} de débito`
+      : '<br><strong>Parser:</strong> nenhum parser do banco reconheceu o modelo; o rascunho ficará aguardando parametrização.';
+    setNovoLayoutResult('ok',
+      `<strong>Arquivo analisado:</strong> ${escapeHtml(file.name)} (${(file.size / 1024).toFixed(1)} KB)` +
+      detalhePdf + detalheParser +
+      `<br><strong>SHA-256:</strong> <span class="text-mono">${escapeHtml(hash.slice(0, 20))}…</span>`
+    );
+    document.getElementById('saveLayoutDraftBtn').disabled = false;
+  } catch (e) {
+    novoLayoutAnaliseAtual = null;
+    document.getElementById('saveLayoutDraftBtn').disabled = true;
+    setNovoLayoutResult('error', 'Não foi possível analisar o arquivo: ' + escapeHtml(e.message || e));
+  }
+}
+
+async function salvarRascunhoLayoutBancario() {
+  if (!novoLayoutAnaliseAtual) {
+    setNovoLayoutResult('error', 'Analise o arquivo antes de salvar o rascunho.');
+    return;
+  }
+  const btn = document.getElementById('saveLayoutDraftBtn');
+  btn.disabled = true;
+  setNovoLayoutResult('ok', 'Salvando rascunho controlado…');
+  try {
+    const r = await window.API.apiFetch('/api/layouts-bancarios/rascunhos', {
+      method: 'POST',
+      body: JSON.stringify(novoLayoutAnaliseAtual)
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.erro || ('HTTP ' + r.status));
+    setNovoLayoutResult('ok',
+      `<strong>Rascunho ${escapeHtml(data.id)} criado.</strong> Status: ${escapeHtml(data.status || 'em_teste')}. ` +
+      'O arquivo bruto não foi armazenado e o layout continuará fora do extrator até a homologação técnica.'
+    );
+    await carregarRascunhosLayoutsAdmin();
+    renderRascunhosLayoutsAdmin();
+    novoLayoutAnaliseAtual = null;
+  } catch (e) {
+    btn.disabled = false;
+    setNovoLayoutResult('error', 'Erro ao salvar rascunho: ' + escapeHtml(e.message || e));
+  }
+}
+
+async function carregarRascunhosLayoutsAdmin() {
+  try {
+    const r = await window.API.apiFetch('/api/layouts-bancarios/rascunhos?limit=100');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    currentLayoutDrafts = data.rascunhos || [];
+  } catch (e) {
+    console.warn('[admin layouts] falha ao carregar rascunhos:', e);
+    currentLayoutDrafts = [];
+  }
+}
+
+function renderRascunhosLayoutsAdmin() {
+  const el = document.getElementById('layoutDraftsContent');
+  if (!el) return;
+  if (!currentLayoutDrafts.length) {
+    el.innerHTML = '<div class="empty" style="padding:22px">Nenhum rascunho enviado.</div>';
+    return;
+  }
+  let html = '<div class="table-scroll"><table><thead><tr><th>Banco</th><th>Layout solicitado</th><th>Arquivo-modelo</th><th>Análise</th><th>Status</th><th>Criado por</th></tr></thead><tbody>';
+  currentLayoutDrafts.forEach(item => {
+    html += `<tr>
+      <td><strong>${escapeHtml(item.banco)}</strong><br>${escapeHtml(item.nomeBanco || '')}</td>
+      <td>${escapeHtml(item.nome || '')}<br><span style="font-size:11px;color:#64748b">${escapeHtml(item.formato || '')}</span></td>
+      <td>${escapeHtml(item.arquivo || '')}<br><span class="text-mono" style="font-size:10px;color:#64748b">${escapeHtml(String(item.sha256 || '').slice(0, 16))}…</span></td>
+      <td>${item.parser_detectado ? '<span class="badge badge-ok">Parser reconhecido</span><br>' + escapeHtml(item.parser_detectado) : '<span class="badge badge-warn">Parametrização pendente</span>'}<br><span style="font-size:11px;color:#64748b">${escapeHtml(item.paginas || 0)} pág. · ${escapeHtml(item.tamanho || 0)} bytes</span></td>
+      <td><span class="badge badge-info">${escapeHtml(item.status || 'rascunho')}</span></td>
+      <td>${escapeHtml(item.criado_por_email || '')}<br><span style="font-size:11px;color:#64748b">${escapeHtml(fmtDate(item.criado_em))}</span></td>
+    </tr>`;
+  });
+  el.innerHTML = html + '</tbody></table></div>';
+}
+
 async function renderLayouts() {
   const el = document.getElementById('layoutsContent');
   if (!el) return;
   el.innerHTML = '<div class="loading">Carregando layouts do banco de dados…</div>';
-  await carregarLayoutsBancariosAdmin();
+  await Promise.all([carregarLayoutsBancariosAdmin(), carregarRascunhosLayoutsAdmin()]);
   const layouts = currentLayoutsBancarios || [];
   if (!layouts.length) {
     el.innerHTML = '<div class="error">Não foi possível carregar os layouts bancários da fonte oficial. Tente atualizar a página ou verifique a API.</div>';
@@ -452,7 +766,8 @@ async function renderLayouts() {
   });
   table += '</tbody></table>';
 
-  el.innerHTML = cards + table + '<p style="font-size:12px;color:#6b7280;margin-top:14px">OFX, CSV e XLSX continuam aceitos fora dos layouts PDF específicos. Para PDFs sem layout cadastrado, o extrator bloqueia e solicita parametrização.</p>';
+  el.innerHTML = cards + '<div class="table-scroll">' + table + '</div>' + '<p style="font-size:12px;color:#6b7280;margin-top:14px">OFX, CSV e XLSX continuam aceitos fora dos layouts PDF específicos. Para PDFs sem layout cadastrado, o extrator bloqueia e solicita parametrização.</p>';
+  renderRascunhosLayoutsAdmin();
 }
 
 function labelHomologacao(status) {
@@ -486,6 +801,181 @@ async function atualizarHomologacaoLayout(id, status) {
 function formatMoney(v) {
   const n = Number(v || 0);
   return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function dataLocalIso(data) {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
+function setExclusaoStatus(tipo, mensagem) {
+  const el = document.getElementById('exclusaoStatus');
+  if (!el) return;
+  el.className = 'exclusao-status' + (tipo ? ' ' + tipo : '');
+  el.innerHTML = mensagem || '';
+}
+
+async function loadExclusaoEmpresas() {
+  const select = document.getElementById('exclusaoEmpresa');
+  if (!select || exclusaoEmpresasCarregadas) return;
+  try {
+    const empresas = await window.API.listarMinhasEmpresas();
+    if (!Array.isArray(empresas)) throw new Error((empresas && empresas.erro) || 'Resposta inválida ao listar empresas');
+    empresas.sort((a, b) => String(a.razao_social || a.nome || a.cnpj).localeCompare(String(b.razao_social || b.nome || b.cnpj), 'pt-BR'));
+    select.innerHTML = '<option value="">Selecione a empresa</option>' + empresas.map(empresa => {
+      const nome = empresa.razao_social || empresa.nome || 'Empresa sem razão social';
+      return `<option value="${escapeHtml(empresa.cnpj)}">${escapeHtml(nome)} — ${escapeHtml(empresa.cnpj)}</option>`;
+    }).join('');
+    exclusaoEmpresasCarregadas = true;
+    const hoje = new Date();
+    const inicio = document.getElementById('exclusaoDataInicial');
+    const fim = document.getElementById('exclusaoDataFinal');
+    if (inicio && !inicio.value) inicio.value = dataLocalIso(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+    if (fim && !fim.value) fim.value = dataLocalIso(new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0));
+  } catch (e) {
+    select.innerHTML = '<option value="">Falha ao carregar empresas</option>';
+    setExclusaoStatus('error', 'Erro ao carregar empresas: ' + escapeHtml(e.message || e));
+  }
+}
+
+function invalidarPreviaExclusao() {
+  currentExclusaoPreview = null;
+  const preview = document.getElementById('exclusaoPreview');
+  const confirmacao = document.getElementById('exclusaoConfirmacao');
+  const texto = document.getElementById('exclusaoTextoConfirmacao');
+  if (preview) preview.innerHTML = '';
+  if (confirmacao) confirmacao.classList.remove('active');
+  if (texto) texto.value = '';
+  atualizarBotaoExclusao();
+}
+
+async function previsualizarExclusaoAdmin() {
+  const cnpj = (document.getElementById('exclusaoEmpresa') || {}).value || '';
+  const dataInicial = (document.getElementById('exclusaoDataInicial') || {}).value || '';
+  const dataFinal = (document.getElementById('exclusaoDataFinal') || {}).value || '';
+  if (!cnpj || !dataInicial || !dataFinal) {
+    setExclusaoStatus('error', 'Selecione a empresa, a data inicial e a data final.');
+    return;
+  }
+  invalidarPreviaExclusao();
+  const botao = document.getElementById('btnPreviaExclusao');
+  botao.disabled = true;
+  setExclusaoStatus('info', 'Consultando a sessão salva e calculando a prévia, sem alterar dados…');
+  try {
+    const resultado = await window.API.adminPrevisualizarExclusaoLancamentos({ cnpj, dataInicial, dataFinal });
+    currentExclusaoPreview = resultado;
+    renderExclusaoPreview();
+    if (resultado.previa.totalPeriodo > 0) {
+      setExclusaoStatus('info', 'Prévia gerada. Marque uma ou mais importações e confira a quantidade antes de confirmar.');
+    } else {
+      setExclusaoStatus('ok', 'Nenhum lançamento com data válida foi encontrado no período informado. Nada pode ser excluído.');
+    }
+  } catch (e) {
+    currentExclusaoPreview = null;
+    setExclusaoStatus('error', escapeHtml(e.message || e));
+  } finally {
+    botao.disabled = false;
+  }
+}
+
+function renderExclusaoPreview() {
+  const el = document.getElementById('exclusaoPreview');
+  const confirmacao = document.getElementById('exclusaoConfirmacao');
+  const resultado = currentExclusaoPreview;
+  if (!el || !resultado || !resultado.previa) return;
+  const previa = resultado.previa;
+  let html = `
+    <div class="summary-grid" style="margin-bottom:16px">
+      <div class="layout-card"><div class="bank">Lançamentos na sessão</div><div class="count">${previa.totalSessao}</div></div>
+      <div class="layout-card"><div class="bank">No período informado</div><div class="count">${previa.totalPeriodo}</div><div class="caption">${escapeHtml(previa.dataInicial)} a ${escapeHtml(previa.dataFinal)}</div></div>
+      <div class="layout-card"><div class="bank">Datas inválidas preservadas</div><div class="count">${previa.datasInvalidas}</div><div class="caption">Nunca entram na exclusão por período</div></div>
+    </div>`;
+  if (!previa.importacoes.length) {
+    el.innerHTML = html;
+    if (confirmacao) confirmacao.classList.remove('active');
+    return;
+  }
+  html += `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <strong>Importações encontradas no período</strong>
+      <div><button class="btn-sm" onclick="selecionarImportacoesExclusao(true)">Marcar todas</button> <button class="btn-sm" onclick="selecionarImportacoesExclusao(false)">Desmarcar todas</button></div>
+    </div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Selecionar</th><th>Importação</th><th>Banco</th><th>Período encontrado</th><th>No período</th><th>Total da importação</th><th>Créditos</th><th>Débitos</th></tr></thead><tbody>`;
+  previa.importacoes.forEach(grupo => {
+    html += `<tr>
+      <td><input class="exclusao-importacao-check" type="checkbox" value="${escapeHtml(grupo.chave)}" onchange="atualizarBotaoExclusao()" aria-label="Selecionar ${escapeHtml(grupo.titulo)}"></td>
+      <td><strong>${escapeHtml(grupo.titulo)}</strong><br><span class="text-mono" style="color:#94a3b8">${escapeHtml(grupo.importacaoId || 'sem importação')}</span></td>
+      <td>${escapeHtml(grupo.banco || '-')}</td>
+      <td>${escapeHtml(grupo.dataInicial)}<br>${escapeHtml(grupo.dataFinal)}</td>
+      <td><strong>${grupo.quantidadePeriodo}</strong></td>
+      <td>${grupo.quantidadeTotalImportacao}</td>
+      <td style="color:#047857">${formatMoney(grupo.creditos)}</td>
+      <td style="color:#b91c1c">${formatMoney(grupo.debitos)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div><div id="exclusaoSelecionadoResumo" style="margin-top:12px;font-size:13px;font-weight:800;color:#991b1b"></div>';
+  el.innerHTML = html;
+  if (confirmacao) confirmacao.classList.add('active');
+  atualizarBotaoExclusao();
+}
+
+function selecionarImportacoesExclusao(marcar) {
+  document.querySelectorAll('.exclusao-importacao-check').forEach(check => { check.checked = !!marcar; });
+  atualizarBotaoExclusao();
+}
+
+function selecaoAtualExclusao() {
+  const chaves = [...document.querySelectorAll('.exclusao-importacao-check:checked')].map(check => check.value);
+  const grupos = currentExclusaoPreview && currentExclusaoPreview.previa ? currentExclusaoPreview.previa.importacoes : [];
+  const selecionadas = new Set(chaves);
+  const quantidade = grupos.filter(grupo => selecionadas.has(grupo.chave)).reduce((soma, grupo) => soma + Number(grupo.quantidadePeriodo || 0), 0);
+  return { chaves, quantidade };
+}
+
+function atualizarBotaoExclusao() {
+  const selecao = selecaoAtualExclusao();
+  const confirmacao = (document.getElementById('exclusaoTextoConfirmacao') || {}).value || '';
+  const botao = document.getElementById('btnExecutarExclusao');
+  const resumo = document.getElementById('exclusaoSelecionadoResumo');
+  if (resumo) resumo.textContent = selecao.quantidade ? `${selecao.quantidade} lançamento(s) selecionado(s) para exclusão` : 'Nenhum lançamento selecionado';
+  if (botao) botao.disabled = !currentExclusaoPreview || !selecao.quantidade || confirmacao !== 'EXCLUIR';
+}
+
+async function executarExclusaoAdmin() {
+  if (!currentExclusaoPreview) return;
+  const selecao = selecaoAtualExclusao();
+  if (!selecao.quantidade) {
+    setExclusaoStatus('error', 'Selecione ao menos uma importação.');
+    return;
+  }
+  const empresa = currentExclusaoPreview.empresa || {};
+  const previa = currentExclusaoPreview.previa;
+  const mensagem = `Excluir ${selecao.quantidade} lançamento(s) de ${empresa.razao_social || empresa.cnpj}, no período de ${previa.dataInicial} a ${previa.dataFinal}?\n\nUm backup integral será criado antes da alteração.`;
+  if (!confirm(mensagem)) return;
+  const botao = document.getElementById('btnExecutarExclusao');
+  botao.disabled = true;
+  setExclusaoStatus('info', 'Criando o backup recuperável e aplicando a exclusão… Não feche esta página.');
+  try {
+    const resultado = await window.API.adminExecutarExclusaoLancamentos({
+      cnpj: empresa.cnpj,
+      dataInicial: previa.dataInicial,
+      dataFinal: previa.dataFinal,
+      chavesSelecionadas: selecao.chaves,
+      previewToken: currentExclusaoPreview.previewToken,
+      quantidadeEsperada: selecao.quantidade,
+      confirmacao: (document.getElementById('exclusaoTextoConfirmacao') || {}).value || '',
+    });
+    const resumo = resultado.resumo || {};
+    invalidarPreviaExclusao();
+    const avisos = Array.isArray(resultado.avisos) && resultado.avisos.length ? '<br><strong>Aviso:</strong> ' + escapeHtml(resultado.avisos.join(' ')) : '';
+    setExclusaoStatus('ok', `<strong>Exclusão concluída.</strong> ${resumo.quantidadeRemovida || 0} lançamento(s) removido(s), ${resumo.quantidadeDepois || 0} preservado(s), ${resultado.importacoesLiberadas || 0} marcador(es) de importação liberado(s). Backup recuperável: <span class="text-mono">${escapeHtml(resultado.backupId || '-')}</span>.${avisos}`);
+  } catch (e) {
+    setExclusaoStatus('error', escapeHtml(e.message || e) + ((e && e.status === 409) ? ' Gere uma nova prévia antes de tentar novamente.' : ''));
+    if (e && e.status === 409) invalidarPreviaExclusao();
+    else atualizarBotaoExclusao();
+  }
 }
 
 async function loadLayoutQuality() {

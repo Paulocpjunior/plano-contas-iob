@@ -228,6 +228,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'PDF digitalizado com 14 paginas: 238 movimentos na conta 25287-5 e 88 na conta 14609-9. Paginas de investimentos sao ignoradas e cada conta fecha pelos totais impressos e pela sequencia de saldos.'
   },
   {
+    id: 'bradesco-netempresa-ocr-ferrante-2026-06',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco Net Empresa - Escaneado por Pagina',
+    parser: 'parsearPDF_Bradesco_NetEmpresaOCR',
+    arquivo: 'BRADESCO FERRANTE (1).pdf',
+    empresa: 'CADEIRAS GENNARO FERRANTE LTDA',
+    periodo_inicio: '2026-06-02',
+    periodo_fim: '2026-06-30',
+    esperado: {
+      total_lancamentos: 46,
+      total_credito: 42891.45,
+      total_debito: 44427.08
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-28T14:42:06-03:00',
+    observacao: 'PDF imagem de 2 paginas com uma segunda tabela Ultimos Lancamentos depois do primeiro Total. A regressao soma os dois subtotais e fecha o saldo final em R$ 198,54.'
+  },
+  {
     id: 'bradesco-simples-conferencia-2045-2025-03',
     banco: '237',
     nomeBanco: 'Bradesco',
@@ -440,6 +459,44 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'CSV fiscal ISO-8859-1 com cabecalho na segunda linha. Agrega 136 linhas complementares de CFOP/imposto nas notas anteriores e preserva fornecedor, CNPJ, NF, CFOP e tributos para classificacao por fornecedor.'
   },
   {
+    id: 'flanacar-registro-saidas-csv-2026-06',
+    banco: '1237',
+    nomeBanco: 'FLANACAR COMERCIO DE AUTOPECAS',
+    layout: 'FLANACAR - Registro de Saidas Fiscal CSV',
+    parser: 'parsearCSV_FlanacarRegistroSaidas',
+    arquivo: '1237_RelatorioNotas_20260601_20260630.Csv',
+    empresa: 'FLANACAR COMERCIO DE AUTOPECAS',
+    periodo_inicio: '2026-06-01',
+    periodo_fim: '2026-06-30',
+    esperado: {
+      total_lancamentos: 2787,
+      total_credito: 11042833.74,
+      total_debito: 0
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-28T09:00:00-03:00',
+    observacao: 'Livro de saidas CSV ISO-8859-1 com cabecalho na segunda linha. Agrega 119 complementos em 2787 NFs; as vendas somam R$ 11.042.833,74 em credito e 10261 lancamentos opcionais de tributos somam R$ 1.918.121,42 em debito.'
+  },
+  {
+    id: 'fastweld-registro-saidas-csv-2026-04',
+    banco: '0109',
+    nomeBanco: 'FASTWELD INDUSTRIA E COMERCIO LTDA',
+    layout: 'FASTWELD - NF-e de Saida (Vendas)',
+    parser: 'parsearCSV_FastweldRegistroSaidas',
+    arquivo: '0109_RelatorioNotasSaidas_20260401_20260430.Csv',
+    empresa: 'FASTWELD INDUSTRIA E COMERCIO LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 106,
+      total_credito: 1757522.52,
+      total_debito: 0
+    },
+    status: 'Aprovado',
+    validado_em: '2026-08-06T00:00:00-03:00',
+    observacao: 'Livro real de saidas CSV ISO-8859-1. As 106 notas possuem chaves NF-e validas com o mesmo emitente 02.942.184/0001-34; 16 linhas complementares foram agregadas. Tributos opcionais totalizam R$ 232.222,53.'
+  },
+  {
     id: 'daxx-analise-creditos-pis-cofins-2026-04',
     banco: '1183',
     nomeBanco: 'DAXX MIDIA LTDA',
@@ -590,6 +647,44 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-07-02T13:30:00-03:00',
     observacao: 'Extrato C6 OCR agrupado por mes com colunas Entrada/Saida e sinal do valor; ignora Saldo do dia, Cheque Especial e totais mensais. Regressao coberta por scripts/test-c6-bank-extrato.js (npm run test:c6).'
+  },
+  {
+    id: 'inter-auss-2026-01',
+    banco: '077',
+    nomeBanco: 'Banco Inter',
+    layout: 'Banco Inter - Extrato da Conta',
+    parser: 'parsearPDF_Inter_Extrato',
+    arquivo: 'Extrato Janeiro - Inter Auss (1).pdf',
+    empresa: 'Auss Eventos E Gastronomia Ltda',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    esperado: {
+      total_lancamentos: 112,
+      total_credito: 168500.00,
+      total_debito: 166333.65
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-28T18:30:00-03:00',
+    observacao: 'Extrato textual Banco Inter validado pelo texto extraido e pelo PDF.js do navegador. Os 112 movimentos fecham desde o saldo anterior calculado de R$ 172,00 ate R$ 2.338,35 e conferem os 15 saldos diarios impressos.'
+  },
+  {
+    id: 'stone-studio-orale-2026-01',
+    banco: '197',
+    nomeBanco: 'Stone Instituicao de Pagamento',
+    layout: 'Stone - Extrato de Conta Corrente',
+    parser: 'parsearPDF_Stone_Extrato',
+    arquivo: 'Comprovante de Extrato - Stone 01.2026.pdf',
+    empresa: 'STUDIO ORALE ODONTOLOGIA EIRELI',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    esperado: {
+      total_lancamentos: 6,
+      total_credito: 1519.42,
+      total_debito: 1904.10
+    },
+    status: 'Aprovado',
+    validado_em: '2026-07-31T12:00:00-03:00',
+    observacao: 'Extrato Stone textual validado pelo texto extraido e pelo PDF.js do navegador. A regressao reconcilia quatro fechamentos diarios, inclusive o saldo repetido pelo banco em movimentos do mesmo dia.'
   },
 ];
 

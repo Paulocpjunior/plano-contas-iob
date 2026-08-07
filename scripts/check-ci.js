@@ -33,9 +33,19 @@ const PADRAO_SEM_EVIDENCIA = /(arquivo de (evid[eê]ncia|regress[aã]o)|fixtures
  * DENTRO do repo é defeito de verdade e continua derrubando o gate.
  */
 function faltouEvidenciaExterna(saida) {
-    if (!/ENOENT/.test(saida)) return false;
-    const caminhos = [...saida.matchAll(/'([^']*\/[^']*)'/g)].map((m) => m[1]);
-    return caminhos.some((c) => c.startsWith('/') && !c.startsWith(RAIZ));
+    const entreAspas = [...saida.matchAll(/'([^']*\/[^']*)'/g)].map((m) => m[1]);
+    if (/ENOENT/.test(saida) && entreAspas.some((c) => c.startsWith('/') && !c.startsWith(RAIZ))) return true;
+
+    // Alguns testes CONFEREM a existência antes de abrir e estouram um assert
+    // com mensagem própria ("Arquivo real ... nao encontrado: /Users/..."):
+    // sem ENOENT e sem aspas no caminho. Vale a MESMA regra, e a garantia
+    // continua sendo o caminho ABSOLUTO FORA do repositório — evidência na
+    // máquina de quem gravou. Arquivo faltando DENTRO do repo segue derrubando
+    // o gate, que é o ponto: isto não é um jeito de silenciar teste vermelho.
+    if (!/n[aã]o encontrad/i.test(saida)) return false;
+    return [...saida.matchAll(/\/[^\s'"]+(?:[ \t][^\s'"]+)*?\.(?:pdf|xlsx|xls|csv|txt|ofx)/gi)]
+        .map((m) => m[0])
+        .some((c) => !c.startsWith(RAIZ));
 }
 
 function listarScriptsDeTeste() {

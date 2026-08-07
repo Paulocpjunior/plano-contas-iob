@@ -75,6 +75,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Extrato escaneado real conferido pagina por pagina: 326 movimentos, credito R$ 59.630,96 e debito R$ 56.040,78 em duas contas. O arquivo BRADESCO.pdf valida isoladamente a segunda conta pelos totais impressos.'
   },
   {
+    id: 'bradesco-netempresa-ocr-ferrante-2026-06',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco Net Empresa - Escaneado por Pagina',
+    parser: 'parsearPDF_Bradesco_NetEmpresaOCR',
+    arquivo: 'BRADESCO FERRANTE (1).pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/BRADESCO FERRANTE (1).pdf',
+    empresa: 'CADEIRAS GENNARO FERRANTE LTDA',
+    periodo_inicio: '2026-06-02',
+    periodo_fim: '2026-06-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Extrato real de 2 paginas sem camada textual. A segunda pagina possui Total e depois Ultimos Lancamentos; os 46 movimentos fecham credito R$ 42.891,45, debito R$ 44.427,08 e saldo R$ 198,54.'
+  },
+  {
     id: 'bradesco-simples-conferencia-2045-2025-03',
     banco: '237',
     nomeBanco: 'Bradesco',
@@ -200,8 +215,8 @@ const LAYOUT_QUALITY_EVIDENCE = [
     nomeBanco: 'Itau Unibanco',
     layout: 'Itau 1 - Extrato Mensal',
     parser: 'parsearPDF_Itau_ExtratoMensal',
-    arquivo: 'Extrato Mensal_Janeiro2026 1.pdf',
-    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Extrato Mensal_Janeiro2026 1.pdf',
+    arquivo: 'Extrato Mensal_Janeiro2026 (1).pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Extrato Mensal_Janeiro2026 (1).pdf',
     empresa: 'Itau / Janeiro 2026',
     periodo_inicio: '2026-01-01',
     periodo_fim: '2026-01-31',
@@ -406,6 +421,36 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js com 2268 notas, total debito R$ 11.141.217,12 e 136 linhas complementares agregadas.'
   },
   {
+    id: 'flanacar-registro-saidas-csv-2026-06',
+    banco: '1237',
+    nomeBanco: 'FLANACAR COMERCIO DE AUTOPECAS',
+    layout: 'FLANACAR - Registro de Saidas Fiscal CSV',
+    parser: 'parsearCSV_FlanacarRegistroSaidas',
+    arquivo: '1237_RelatorioNotas_20260601_20260630.Csv',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/1237_RelatorioNotas_20260601_20260630.Csv',
+    empresa: 'FLANACAR COMERCIO DE AUTOPECAS',
+    periodo_inicio: '2026-06-01',
+    periodo_fim: '2026-06-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Arquivo real do livro de saidas validado com 2787 notas, 119 linhas complementares, R$ 11.042.833,74 em vendas e R$ 1.918.121,42 em tributos opcionais separados.'
+  },
+  {
+    id: 'fastweld-registro-saidas-csv-2026-04',
+    banco: '0109',
+    nomeBanco: 'FASTWELD INDUSTRIA E COMERCIO LTDA',
+    layout: 'FASTWELD - NF-e de Saida (Vendas)',
+    parser: 'parsearCSV_FastweldRegistroSaidas',
+    arquivo: '0109_RelatorioNotasSaidas_20260401_20260430.Csv',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/0109_RelatorioNotasSaidas_20260401_20260430.Csv',
+    empresa: 'FASTWELD INDUSTRIA E COMERCIO LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Arquivo real validado com 106 notas, 451 lancamentos incluindo tributos, 16 complementos, R$ 1.757.522,52 em vendas, R$ 232.222,53 em tributos e CNPJ emitente uniforme em 100% das chaves NF-e.'
+  },
+  {
     id: 'daxx-analise-creditos-pis-cofins-2026-04',
     banco: '1183',
     nomeBanco: 'DAXX MIDIA LTDA',
@@ -524,6 +569,36 @@ const LAYOUT_QUALITY_EVIDENCE = [
     etapa: 'parser_ajustado',
     status: 'Evidencia recebida',
     observacao: 'PDF OCR do C6 usado na criacao do layout; movimentos classificados por Entrada/Saida com exclusao de saldo do dia, cheque especial e totais mensais.'
+  },
+  {
+    id: 'inter-auss-2026-01',
+    banco: '077',
+    nomeBanco: 'Banco Inter',
+    layout: 'Banco Inter - Extrato da Conta',
+    parser: 'parsearPDF_Inter_Extrato',
+    arquivo: 'Extrato Janeiro - Inter Auss (1).pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Extrato Janeiro - Inter Auss (1).pdf',
+    empresa: 'Auss Eventos E Gastronomia Ltda',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF real de 4 paginas com camada textual. Validado com 112 movimentos, credito de R$ 168.500,00, debito de R$ 166.333,65, 15 saldos diarios conciliados e saldo final de R$ 2.338,35.'
+  },
+  {
+    id: 'stone-studio-orale-2026-01',
+    banco: '197',
+    nomeBanco: 'Stone Instituicao de Pagamento',
+    layout: 'Stone - Extrato de Conta Corrente',
+    parser: 'parsearPDF_Stone_Extrato',
+    arquivo: 'Comprovante de Extrato - Stone 01.2026.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Comprovante de Extrato - Stone 01.2026.pdf',
+    empresa: 'STUDIO ORALE ODONTOLOGIA EIRELI',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF textual real de 1 pagina. Validado com 6 movimentos, credito de R$ 1.519,42, debito de R$ 1.904,10, saldo anterior reconstruido de R$ 1.212,90 e saldo final de R$ 828,22.'
   },
 ];
 

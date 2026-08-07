@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   const API_BASE = window.location.origin;
+  const sessaoRevisoes = new Map();
 
   async function getToken() {
     try {
@@ -157,11 +158,23 @@
 
   async function salvarSessaoEmpresa(cnpj, state_json, resumo) {
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
-    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao', { method: 'POST', body: JSON.stringify({ state_json, resumo: resumo || null }) });
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao', {
+      method: 'POST',
+      body: JSON.stringify({
+        state_json,
+        resumo: resumo || null,
+        session_revision: sessaoRevisoes.get(cnpjLimpo) || null,
+        client_version: window.__PLANO_CONTAS_IOB_BUILD__ || null
+      })
+    });
     const data = await r.json().catch(() => ({}));
     if (!r.ok || data.erro) {
-      throw new Error(data.erro || ('Erro HTTP ' + r.status + ' ao salvar sessão'));
+      const erro = new Error(data.erro || ('Erro HTTP ' + r.status + ' ao salvar sessão'));
+      erro.status = r.status;
+      erro.code = data.codigo || '';
+      throw erro;
     }
+    if (data.session_revision) sessaoRevisoes.set(cnpjLimpo, data.session_revision);
     return data;
   }
 
@@ -169,7 +182,47 @@
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
     const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao');
     if (r.status === 403 || r.status === 404) return { encontrada: false };
-    return await r.json();
+    const data = await r.json();
+    if (data && data.encontrada && data.session_revision) sessaoRevisoes.set(cnpjLimpo, data.session_revision);
+    else if (data && !data.encontrada) sessaoRevisoes.delete(cnpjLimpo);
+    return data;
+  }
+
+  function getSessaoRevision(cnpj) {
+    return sessaoRevisoes.get(String(cnpj || '').replace(/\D/g, '')) || null;
+  }
+
+  async function adminPrevisualizarExclusaoLancamentos(dados) {
+    const r = await apiFetch(API_BASE + '/api/admin/exclusao-lancamentos/preview', {
+      method: 'POST',
+      body: JSON.stringify(dados || {})
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || data.erro) {
+      const erro = new Error(data.erro || ('Erro HTTP ' + r.status + ' ao gerar prévia'));
+      erro.status = r.status;
+      erro.code = data.codigo || '';
+      throw erro;
+    }
+    return data;
+  }
+
+  async function adminExecutarExclusaoLancamentos(dados) {
+    const r = await apiFetch(API_BASE + '/api/admin/exclusao-lancamentos/executar', {
+      method: 'POST',
+      body: JSON.stringify(dados || {})
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || data.erro) {
+      const erro = new Error(data.erro || ('Erro HTTP ' + r.status + ' ao excluir lançamentos'));
+      erro.status = r.status;
+      erro.code = data.codigo || '';
+      throw erro;
+    }
+    if (data.session_revision && dados && dados.cnpj) {
+      sessaoRevisoes.set(String(dados.cnpj).replace(/\D/g, ''), data.session_revision);
+    }
+    return data;
   }
 
   async function listarMinhasEmpresas() {
@@ -314,6 +367,31 @@
     return await r.json();
   }
 
+  async function reinfAplicacoesCadastro(cnpj) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/reinf/aplicacoes/empresa/' + cnpjLimpo);
+    return await r.json();
+  }
+
+  async function reinfAplicacoesSalvarCadastro(cnpj, dados) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/reinf/aplicacoes/empresa/' + cnpjLimpo, {
+      method: 'PUT',
+      body: JSON.stringify(dados || {})
+    });
+    return await r.json();
+  }
+
+  async function reinfAplicacoesRegistrar(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/aplicacoes/registrar', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
+  async function reinfAplicacoesSolicitar(dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/aplicacoes/solicitar', { method: 'POST', body: JSON.stringify(dados || {}) });
+    return await r.json();
+  }
+
   async function reinfDividendosStatusMicrosoft365() {
     const r = await apiFetch(API_BASE + '/api/reinf/dividendos/microsoft365/status');
     return await r.json();
@@ -349,7 +427,7 @@
     return await r.json();
   }
 
-  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfCertificado, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfConsultarLote, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
+  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfCertificado, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
   console.log('[API Adapter v3] carregado');
 })();
 
