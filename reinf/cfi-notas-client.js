@@ -64,6 +64,28 @@ function montarUrlCfi({ cnpj, competencia, recurso = 'retencoes-pj' }, env = pro
 }
 
 /**
+ * URL do TÚNEL DO CADASTRO — outra família de rota, sem competência.
+ *
+ * O túnel responde a pergunta que vem depois de "este CNPJ existe?": *"e quem
+ * eu procuro?"*. Sem ela, a colaboradora que topa numa ressalva que não sabe
+ * resolver pergunta no WhatsApp, de memória — e o app irmão que precisa avisar
+ * alguém só tem a caixa institucional, que é o problema que o escritório
+ * mandou corrigir em 05/08.
+ */
+function montarUrlCadastroCfi({ cnpj, recurso = 'responsaveis' }, env = process.env) {
+  const base = baseCfi(env);
+  if (!base) {
+    throw new Error(
+      'A URL do Consultor Fiscal não está configurada neste serviço. '
+      + 'Defina CFI_URL (ou FISCAL_GATEWAY_URL) apontando para o Cloud Run do CFI.',
+    );
+  }
+  const limpo = String(cnpj || '').replace(/\D/g, '');
+  if (limpo.length !== 14) throw new Error('Informe o CNPJ com 14 dígitos.');
+  return `${base}/api/admin/cadastro/${recurso}/${limpo}`;
+}
+
+/**
  * Traduz a resposta do CFI em notas + ressalvas, ou num erro que diz o que
  * fazer. Pura: recebe {status, corpo} já lidos.
  *
@@ -143,6 +165,29 @@ async function buscarNoCfi({ cnpj, competencia, token, recurso }, deps = {}) {
   return interpretarRespostaCfi({ status: resp.status, corpo, url });
 }
 
+/**
+ * Quem responde por este cliente no escritório (fase 2 do túnel do cadastro).
+ *
+ * NÃO é a mesma chamada das notas: aqui não há competência, e a rota é outra.
+ * O corpo vem cru de propósito — quem decide o que fazer com conflito e com
+ * ausência é o `responsavel-escritorio.js`, puro e testado.
+ */
+async function buscarResponsavelNoCfi({ cnpj, token }, deps = {}) {
+  const doFetch = deps.fetch || globalThis.fetch;
+  const url = montarUrlCadastroCfi({ cnpj }, deps.env || process.env);
+  if (!token) throw new Error('Sessão sem token. Faça login novamente.');
+
+  let resp;
+  try {
+    resp = await doFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (e) {
+    throw new Error(`Não consegui falar com o Consultor Fiscal (${e.message}). Tente de novo em instantes.`);
+  }
+  let corpo = {};
+  try { corpo = await resp.json(); } catch { corpo = {}; }
+  return interpretarRespostaCfi({ status: resp.status, corpo, url });
+}
+
 /** R-4020: as NFS-e tomadas com retenção. */
 const buscarNotasTomadasNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'retencoes-pj' }, deps);
 
@@ -157,6 +202,6 @@ const buscarNotasTomadasNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'reten
 const buscarAquisicoesRuraisNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'aquisicao-rural' }, deps);
 
 module.exports = {
-  montarUrlCfi, interpretarRespostaCfi, buscarNoCfi,
-  buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi,
+  montarUrlCfi, montarUrlCadastroCfi, interpretarRespostaCfi, buscarNoCfi,
+  buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarResponsavelNoCfi,
 };

@@ -16,7 +16,8 @@ const { assinarEventoReinf } = require('./reinf/assinador');
 const { loadCertificado, salvarCertificadoUpload } = require('./reinf/cert-loader');
 const { enviarLote, consultarLote } = require('./reinf/transmissor');
 const { apurarRetencoesPJ } = require('./reinf/retencao-pj-apuracao');
-const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi } = require('./reinf/cfi-notas-client');
+const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarResponsavelNoCfi } = require('./reinf/cfi-notas-client');
+const { resumirResponsavel, avisosDoResponsavel } = require('./reinf/responsavel-escritorio');
 const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
 const {
   calcularDividendos,
@@ -1349,6 +1350,36 @@ function registrarRotasReinf(app, { db } = {}) {
         // não deve ser refeito e que o indAquis vai nulo de propósito.
         ressalvasDaFonte: doCfi.ressalvas,
         resumoDaFonte: doCfi.resumo,
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // GET /api/reinf/responsavel/:cnpj
+  //
+  // "E QUEM EU PROCURO?" — a pergunta que vem depois de "este CNPJ existe?".
+  //
+  // As ressalvas do R-4020 e do R-2055 quase sempre terminam em "alguém do
+  // escritório precisa olhar este cliente". Quem é esse alguém saía por
+  // WhatsApp, de memória. O túnel do cadastro do CFI responde, e este lado só
+  // vira frase — sem escolher nada por conta própria.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.get('/responsavel/:cnpj', async (req, res) => {
+    try {
+      const cnpj = limparCnpj(req.params.cnpj);
+      const auth = String(req.headers.authorization || '');
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+
+      const linha = await buscarResponsavelNoCfi({ cnpj, token });
+      res.json({
+        ok: true,
+        origem: 'cfi',
+        cnpj: linha.cnpj || cnpj,
+        empresa: linha.nome || null,
+        ...resumirResponsavel(linha),
+        avisos: avisosDoResponsavel(linha),
       });
     } catch (err) {
       respostaErro(res, 400, err);
