@@ -15,6 +15,14 @@ name: Deploy Consultor Contábil
 on:
   push:
     branches: [main]
+    # Commit que só mexe em texto NÃO republica o app. Publicar por causa de
+    # documentação gasta build, cria revisão nova sem mudança de código e
+    # embaralha o histórico de deploys — daqui a um mês, ninguém sabe qual
+    # revisão trouxe o quê. Mesmo filtro que o CFI já usa.
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/workflows/audit-deps.yml'
   workflow_dispatch:
 
 env:

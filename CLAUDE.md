@@ -109,14 +109,24 @@ ver "Ligação com o CFI".
   < ~/gcp-deploy.json`. **CHAVE NUNCA VAI PELO CHAT** — o `sefaz-cron-secret`
   já vazou 2× assim; chave de service account é a mesma coisa, com poder de
   deploy junto.
-- 🚨 **FALTA o secret `GCP_SA_KEY`** — as runs 2, 3 e 4 do `deploy-app.yml`
-  falharam TODAS em "Falta o secret". **SÓ O PAULO RESOLVE**: Settings →
-  Secrets and variables → Actions → New repository secret, nome `GCP_SA_KEY`,
-  valor = JSON da service account de deploy (roles `run.admin`,
-  `iam.serviceAccountUser`, `cloudbuild.builds.editor`,
-  `artifactregistry.writer`) — a mesma que o CFI já usa serve. Merge verde
-  aqui NÃO é app atualizado: antes de dizer que uma feature "está no ar",
-  CONFERIR a run.
+- ✅ **O DEPLOY AUTOMÁTICO FUNCIONA desde 07/08** (run #19 verde, "Deploy
+  publicado"). Levou 19 runs, e o que destravou não foi nenhum dos remendos:
+  foi a conta de serviço passar a morar NO PROJETO DO CLOUD RUN
+  (`github-deploy@gen-lang-client-0569062468`). Antes dela existir, o app subia
+  pelo LOGIN PESSOAL do Paulo — por isso nada disso estava configurado e cada
+  passo da automação descobria uma permissão que um dono de projeto nunca
+  precisa pedir. Setup atual: secret `GCP_SA_KEY` (JSON, nunca P12), cinco
+  papéis no projeto do Cloud Run, e as APIs `iam`/`cloudbuild`/
+  `artifactregistry`/`run` habilitadas lá.
+  ⚠️ **MERGE VERDE CONTINUA NÃO SENDO PROVA**: o run publica, mas quem prova é
+  o RESULTADO — `curl $APP/api/version` bate com o `version.json`, e o HTML
+  servido contém a tela que o PR diz ter criado. É a lição da NFS-e SP, que
+  ficou semanas verde com zero notas capturadas.
+  🧹 **LIXO A REMOVER** (criado no caminho, tudo com poder de deploy): a conta
+  antiga `github-deploy@projetos-app-sp`, os papéis cruzados que ela ganhou no
+  `gen-lang-client`, e a chave P12. Dívida técnica anotada: estreitar os papéis
+  (foram dados largos pra não descobrir um por rodada) e trocar a chave de
+  longa duração por Workload Identity Federation.
 - **Trabalho novo sai da `main`, não de branch paralela.** Foi a branch
   paralela de longa vida que produziu as duas linhas: as duas ficaram certas
   cada uma do seu lado e erradas juntas. O `check-ci` só descobriu na
