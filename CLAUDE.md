@@ -28,8 +28,19 @@ ver "Ligação com o CFI".
 - Node + Express monolítico, **CommonJS** (`require`, `module.exports`).
 - **Sem build de frontend**: o Express serve `index.html` (~920 KB, SPA em JS
   inline) direto. Não existe React/Vite aqui.
-- Cloud Run `plano-contas-iob`, região `us-west1`, projeto `projetos-app-sp`.
-  URL: https://plano-contas-iob-q4woqnee3a-uw.a.run.app
+- 🚨 **SÃO DOIS PROJETOS GCP, e confundi-los custou 13 deploys vermelhos**
+  (07/08):
+    · **Cloud Run** → `gen-lang-client-0569062468` — é aqui que o app RODA.
+      Serviço `plano-contas-iob`, região `us-west1`,
+      URL https://plano-contas-iob-q4woqnee3a-uw.a.run.app
+    · **Firestore** → `projetos-app-sp` — fixado no `server.js`.
+  A FONTE DA VERDADE é `scripts/deploy-production.sh`, que publica de verdade
+  (tem até `EXPECTED_URL` e recusa publicar se o serviço resolver noutra URL).
+  O `deploy-app.yml` do CODEX chutou `projetos-app-sp` no default e o gcloud
+  respondia *"Cloud Run Admin API has not been used in project ... or it is
+  disabled"* — mensagem que manda HABILITAR A API no lugar errado, em vez de
+  dizer que o projeto é outro. Se um dia ela reaparecer, **desconfie do
+  projeto antes de habilitar API nenhuma**.
 
 ## Regras permanentes de operação
 
