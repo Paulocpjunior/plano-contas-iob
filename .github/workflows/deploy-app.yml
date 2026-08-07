@@ -1,0 +1,208 @@
+# Deploy do CONSULTOR CONTÁBIL (plano-contas-iob) no Cloud Run.
+#
+# POR QUE EXISTE (03/08/2026): este repositório não tinha workflow nenhum. O
+# deploy dependia de alguém lembrar de rodar `gcloud run deploy` na mão — e o
+# efeito prático foi o app ficar 13 dias sem atualização enquanto o CFI
+# entregava todo dia. Mesmo desenho do deploy do CFI, adaptado: sem build de
+# frontend (aqui o Express serve o HTML direto) e usando `--source`, que é como
+# o serviço já era publicado (o .gcloudignore existe justamente pra isso).
+#
+# A revisão nova sobe SEM TRÁFEGO, passa por health check e só então recebe
+# 100% — se subir quebrada, a revisão antiga continua servindo e ninguém vê
+# erro.
+name: Deploy Consultor Contábil
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  # Descobertos no próprio repositório (seed-historicos.sh e server.js). Dá pra
+  # sobrescrever por Variables do repositório sem mexer no workflow.
+  SERVICE_NAME: ${{ vars.CLOUD_RUN_SERVICE || 'plano-contas-iob' }}
+  REGION: ${{ vars.CLOUD_RUN_REGION || 'us-west1' }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'projetos-app-sp' }}
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Conferir configuração antes de começar
+        # Falha CEDO e explicando, em vez de estourar lá no meio do deploy com
+        # erro de credencial.
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "::error::Falta o secret GCP_SA_KEY neste repositório."
+            cat >&2 <<'ACAO'
+
+          COMO CONFIGURAR (uma vez):
+            Settings → Secrets and variables → Actions → New repository secret
+              Nome:  GCP_SA_KEY
+              Valor: JSON da service account com permissão de deploy
+                     (roles: run.admin, iam.serviceAccountUser,
+                      cloudbuild.builds.editor, artifactregistry.writer)
+
+          Opcional, se algum dia mudar de serviço/região/projeto —
+          Settings → Variables:
+            CLOUD_RUN_SERVICE, CLOUD_RUN_REGION, GCP_PROJECT_ID
+          ACAO
+            exit 1
+          fi
+          echo "Serviço: $SERVICE_NAME · Região: $REGION · Projeto: $PROJECT_ID"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Auditoria de dependências (bloqueia em high/critical de PRODUÇÃO)
+        # Só o que VAI NA IMAGEM bloqueia (--omit=dev). Advisory de dependência
+        # de desenvolvimento vai pro resumo e é resolvido pelo robô diário
+        # (audit-deps.yml), sem segurar entrega.
+        # Escape hatch pra hotfix: `[skip-audit]` no ASSUNTO do commit.
+        run: |
+          SUBJECT=$(git log -1 --pretty=%s)
+          if printf '%s' "$SUBJECT" | grep -qF '[skip-audit]'; then
+            echo "→ [skip-audit] no assunto do commit — auditoria pulada (hotfix)."
+            exit 0
+          fi
+
+          if ! npm audit --omit=dev --audit-level=high; then
+            echo "::error::Advisory high/critical em dependência de PRODUÇÃO."
+            cat >&2 <<'ACAO'
+
+          COMO RESOLVER (nesta ordem):
+            1. npm audit fix
+            2. se um "overrides" do package.json segurar a versão velha, suba o
+               PISO da faixa (ex.: "^1.2.3" -> "^1.2.4") — nunca versão exata,
+               que cria teto e trava o audit fix
+            3. sem correção upstream (caso do xlsx/SheetJS): trocar pelo mirror
+               publicado no npm, como já foi feito com @e965/xlsx
+          ACAO
+            exit 1
+          fi
+
+          if ! npm audit --audit-level=high > /tmp/audit-dev.txt 2>&1; then
+            echo "::warning::Advisory high/critical em dependência de DESENVOLVIMENTO — não bloqueia o deploy."
+            {
+              echo "### ⚠️ Auditoria — dependência de desenvolvimento"
+              echo '```'
+              cat /tmp/audit-dev.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Porta de qualidade (sintaxe + rotas + testes portáteis)
+        # `npm run check` é a porta COMPLETA, mas boa parte dos testes abre
+        # arquivos de evidência que só existem na máquina de quem os gravou.
+        # O check:ci roda tudo que é portátil e DECLARA quantos pulou — nunca
+        # apresenta cobertura parcial como se fosse total.
+        run: npm run check:ci
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Deploy no Cloud Run (sem tráfego, revisão candidata)
+        # --no-traffic + --tag candidate: a revisão nova sobe isolada. Só recebe
+        # tráfego depois de passar no health check. Retry porque o Cloud Run
+        # devolve ABORTED quando outra operação toca o serviço no meio.
+        run: |
+          for attempt in 1 2 3; do
+            if gcloud run deploy "$SERVICE_NAME" \
+              --source . \
+              --platform managed \
+              --region "$REGION" \
+              --project "$PROJECT_ID" \
+              --no-traffic --tag candidate \
+              --quiet; then
+              exit 0
+            fi
+            echo "Deploy falhou (tentativa ${attempt}/3) — aguardando antes de repetir…"
+            sleep $((attempt * 15))
+          done
+          echo "Deploy falhou após 3 tentativas."
+          exit 1
+
+      - name: Health check da candidata (antes de rotear)
+        # /api/health é público E toca o Firestore (lê a coleção planos) — pega
+        # revisão que sobe mas não fala com o banco. Se falhar, o tráfego NÃO é
+        # roteado e a revisão antiga segue servindo.
+        run: |
+          CANDIDATE_URL=$(gcloud run services describe "$SERVICE_NAME" \
+            --platform managed --region "$REGION" --project "$PROJECT_ID" \
+            --format=json | jq -r '.status.traffic[] | select(.tag=="candidate") | .url' | head -n1)
+          if [ -z "$CANDIDATE_URL" ]; then
+            echo "::error::Não achei a URL da revisão candidata (tag=candidate)."; exit 1
+          fi
+          echo "Revisão candidata: $CANDIDATE_URL"
+          for attempt in 1 2 3 4 5; do
+            if curl -sSf "$CANDIDATE_URL/api/health" > /tmp/health.json; then
+              echo "✓ /api/health OK na candidata (processo + Firestore)"
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "health ainda não respondeu OK (tentativa ${attempt}/5)…"
+            sleep $((attempt * 5))
+          done
+          echo "::error::Candidata NÃO passou no health — tráfego não roteado (revisão antiga segue ativa)."
+          exit 1
+
+      - name: Rotear tráfego para a candidata (health OK)
+        # Roteia pelo NOME da revisão validada (não --to-latest): um deploy
+        # concorrente que criasse revisão mais nova entre o health e este passo
+        # não sequestra o tráfego. O --remove-tags limpa a tag na mesma chamada.
+        run: |
+          REV=$(gcloud run services describe "$SERVICE_NAME" \
+            --platform managed --region "$REGION" --project "$PROJECT_ID" \
+            --format=json | jq -r '.status.traffic[] | select(.tag=="candidate") | .revisionName' | head -n1)
+          if [ -z "$REV" ]; then
+            echo "::error::Não achei a revisão candidata para rotear."; exit 1
+          fi
+          echo "Roteando 100% para a revisão validada: $REV"
+          for attempt in 1 2 3; do
+            if gcloud run services update-traffic "$SERVICE_NAME" \
+              --to-revisions "${REV}=100" \
+              --remove-tags candidate \
+              --platform managed --region "$REGION" --project "$PROJECT_ID" --quiet; then
+              exit 0
+            fi
+            echo "update-traffic falhou (tentativa ${attempt}/3) — aguardando…"
+            sleep $((attempt * 15))
+          done
+          echo "::error::update-traffic falhou após 3 tentativas (revisão antiga segue ativa)."
+          exit 1
+
+      - name: Health check final (produção)
+        run: |
+          sleep 5
+          URL=$(gcloud run services describe "$SERVICE_NAME" \
+            --platform managed --region "$REGION" --project "$PROJECT_ID" \
+            --format='value(status.url)')
+          echo "── /api/health ──"
+          curl -sSf "$URL/api/health" || { echo "::error::Health final falhou."; exit 1; }
+          echo ""
+          echo "── /api/version ──"
+          curl -sS "$URL/api/version" || true
+          {
+            echo "### ✅ Deploy publicado"
+            echo "- Serviço: \`$SERVICE_NAME\` ($REGION)"
+            echo "- URL: $URL"
+          } >> "$GITHUB_STEP_SUMMARY"
