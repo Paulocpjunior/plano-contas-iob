@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.80';</script>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.80"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.80"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.80"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.81';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.81"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.81"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.81"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -20,37 +20,38 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.80"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.80"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.80"></script>
-    <script src="/reinf/reinf-import-xml-utils.js?v=3.4.80"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.81"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.81"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.81"></script>
+    <script src="/reinf/reinf-import-xml-utils.js?v=3.4.81"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/api-adapter.js"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
-    <script src="/parser-ofx.js?v=3.4.80"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.80"></script>
-    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.80"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.80"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.80"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.80"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.80"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.80"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.80"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.80"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.80"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.80"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.80"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.80"></script>
-    <script src="/parser-inter-extrato.js?v=3.4.80"></script>
-    <script src="/parser-stone-extrato.js?v=3.4.80"></script>
-    <script src="/parser-extrato-conciliado.js?v=3.4.80"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.80"></script>
-    <script src="/layouts-fiscais-padrao.js?v=3.4.80"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.80"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.80"></script>
+    <script src="/parser-ofx.js?v=3.4.81"></script>
+    <script src="/iob-sentido-bancario.js?v=3.4.81"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.81"></script>
+    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.81"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.81"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.81"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.81"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.81"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.81"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.81"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.81"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.81"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.81"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.81"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.81"></script>
+    <script src="/parser-inter-extrato.js?v=3.4.81"></script>
+    <script src="/parser-stone-extrato.js?v=3.4.81"></script>
+    <script src="/parser-extrato-conciliado.js?v=3.4.81"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.81"></script>
+    <script src="/layouts-fiscais-padrao.js?v=3.4.81"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.81"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.81"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -15210,7 +15211,7 @@
                 contasPlano.filter(function(c){
                     const cod = String(c.codigo || '').replace(/^5G/, '');
                     const desc = String(c.descricao || '').toUpperCase();
-                    return cod.indexOf('1.1.1') === 0 || /\b(BANC|CAIXA|DISPON|CONTA CORRENTE|C\/C)\b/.test(desc);
+                    return cod.indexOf('1.1.1') === 0 || /\b(BANCOS?|CAIXA|DISPONIBILIDADES?|CONTA CORRENTE|C\/C)\b/.test(desc);
                 }).map(function(c){ return c.reduzido; })
             );
             console.log('[IA v2] contas de disponivel (banco/caixa) detectadas:', bancoReduzidos.size);
@@ -15267,10 +15268,12 @@
 
             try {
                 const rMem = await aplicarMemoriaEmLancamentos(state.entries, cnpj);
+                const sentidoMemoria = corrigirSentidoBancarioIOB(state.entries);
+                if (sentidoMemoria.corrigidos > 0) state.entries = sentidoMemoria.lancamentos;
                 if (rMem.aplicados > 0) {
                     saveState();
                     renderLancamentos();
-                    showToast('🧠 ' + rMem.aplicados + ' lançamento(s) reaproveitado(s) da memória da empresa.', 'success');
+                    showToast('🧠 ' + rMem.aplicados + ' lançamento(s) reaproveitado(s) da memória da empresa.' + (sentidoMemoria.corrigidos ? ' ' + sentidoMemoria.corrigidos + ' sentido(s) bancario(s) corrigido(s).' : ''), 'success');
                 }
                 const padroesCludeItau = aplicarPadroesLayoutCludeItau(state.entries);
                 if (padroesCludeItau > 0) {
@@ -15456,6 +15459,8 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 }
 
                 await aplicarMemoriaEmLancamentos(state.entries, cnpj);
+                const sentidoFinal = corrigirSentidoBancarioIOB(state.entries);
+                if (sentidoFinal.corrigidos > 0) state.entries = sentidoFinal.lancamentos;
                 try {
                     const padroesCludeItau = aplicarPadroesLayoutCludeItau(state.entries);
                     if (padroesCludeItau > 0) console.log('[CLUDE Itau] recebimentos NF classificados apos IA:', padroesCludeItau);
@@ -15515,6 +15520,17 @@ Responda APENAS JSON valido, sem texto antes/depois:
             return String(digits || fallback || '0001').padStart(4, '0').slice(-4);
         }
 
+        function planoEmpresaAtivaIOB() {
+            const cnpj = String((state.info && state.info.cnpj) || '').replace(/\D/g, '');
+            const vinculo = cnpj && typeof verificarPlanoPorCNPJ === 'function' ? verificarPlanoPorCNPJ(cnpj) : null;
+            return vinculo && vinculo.plano ? vinculo.plano : null;
+        }
+
+        function corrigirSentidoBancarioIOB(lancamentos) {
+            if (!window.SP_IOBSentidoBancario) return { lancamentos: lancamentos || [], corrigidos: 0, correcoes: [] };
+            return window.SP_IOBSentidoBancario.corrigirSentido(lancamentos || [], planoEmpresaAtivaIOB());
+        }
+
         function exportIOB() {
             // ============================================================
             // IOB SAGE FOLHAMATIC - Layout FI v1.1 (16/04/2026)
@@ -15523,7 +15539,7 @@ Responda APENAS JSON valido, sem texto antes/depois:
             // ============================================================
             // v3.1.8: respeita filtros visiveis (export WYSIWYG)
             const baseList = obterEntriesFiltrados();
-            const valid = baseList.filter(function(e){ return e.contaDebito && e.contaCredito; });
+            let valid = baseList.filter(function(e){ return e.contaDebito && e.contaCredito; });
             if (!valid.length) {
                 const semFiltro = !existeFiltroAtivo();
                 showToast(semFiltro
@@ -15531,6 +15547,20 @@ Responda APENAS JSON valido, sem texto antes/depois:
                     : 'Nenhum lancamento classificado dentro dos filtros aplicados. Limpe os filtros ou ajuste para exportar.',
                     'error');
                 return;
+            }
+            const sentido = corrigirSentidoBancarioIOB(valid);
+            if (sentido.corrigidos > 0) {
+                sentido.correcoes.forEach(function(correcao) {
+                    const original = valid[correcao.idx];
+                    if (!original) return;
+                    original.contaDebito = correcao.contaDebitoDepois;
+                    original.contaCredito = correcao.contaCreditoDepois;
+                    original._sentidoBancarioCorrigido = true;
+                });
+                valid = sentido.lancamentos;
+                saveState();
+                renderLancamentos();
+                showToast('✅ Sentido bancario corrigido em ' + sentido.corrigidos + ' lancamento(s) antes da exportacao.', 'success');
             }
             const resumoExportacao = function(lista) {
                 return lista.reduce(function(acc, e) {
@@ -16536,7 +16566,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.80';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.81';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';

@@ -1,11 +1,10 @@
 {
-  "version": "3.4.80",
-  "build_date": "2026-08-07T13:36:05Z",
+  "version": "3.4.81",
+  "build_date": "2026-08-07T15:11:05Z",
   "release_notes": [
-    "O livro fiscal FASTWELD agora gera um lancamento separado para cada CFOP existente na mesma NF-e.",
-    "Os CFOPs 5102, 6102 e 5401 das linhas complementares passam a ser exibidos sem duplicar a contagem fisica de notas nem alterar os totais.",
-    "Administradores agora podem localizar, editar e excluir memorizações pela tela de Lancamentos.",
-    "Colaboradores continuam autorizados a criar novas regras, mas somente administradores podem sobrescrever regras existentes.",
-    "Todas as alteracoes da memoria permanecem registradas na trilha de auditoria com usuario e valores anterior e posterior."
+    "A exportacao FI agora valida o sentido contabil pela conta bancaria e pelo sinal original do extrato.",
+    "Entradas mantem o banco no debito e saidas mantem o banco no credito, mesmo quando a memoria ou a classificacao anterior estiver invertida.",
+    "O extrato Bradesco real de janeiro foi validado com 244 lancamentos, R$ 37.917,99 em creditos e R$ 23.331,42 em debitos.",
+    "A regressao corrige as oito inversoes encontradas no arquivo FI sem alterar datas, valores, historicos ou a quantidade de registros."
   ]
 }
