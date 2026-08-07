@@ -22,7 +22,14 @@ env:
   # sobrescrever por Variables do repositório sem mexer no workflow.
   SERVICE_NAME: ${{ vars.CLOUD_RUN_SERVICE || 'plano-contas-iob' }}
   REGION: ${{ vars.CLOUD_RUN_REGION || 'us-west1' }}
-  PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'projetos-app-sp' }}
+  # DOIS PROJETOS, e confundi-los custou 13 runs vermelhos (07/08):
+  #   · Cloud Run  → gen-lang-client-0569062468  (é aqui que o app RODA)
+  #   · Firestore  → projetos-app-sp             (fixado no server.js)
+  # O default anterior apontava pro projeto do Firestore, e o gcloud respondia
+  # "Cloud Run Admin API não está habilitada" — mensagem que manda habilitar a
+  # API no lugar errado, em vez de dizer que o projeto é outro.
+  # A verdade está em scripts/deploy-production.sh, que publica de verdade.
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'gen-lang-client-0569062468' }}
 
 jobs:
   deploy:
@@ -53,9 +60,11 @@ jobs:
               Nome:  GCP_SA_KEY
               Valor: JSON da service account com permissão de deploy
 
-          PAPÉIS NECESSÁRIOS — o deploy é `gcloud run deploy --source .`, que
-          passa por Cloud Build, Cloud Storage (bucket de origem) e Artifact
-          Registry. Faltar UM derruba só na hora do build:
+          PAPÉIS NECESSÁRIOS — concedidos NO PROJETO DO CLOUD RUN
+          (gen-lang-client-0569062468), que NÃO é o projeto do Firestore.
+          O deploy é `gcloud run deploy --source .`, que passa por Cloud Build,
+          Cloud Storage (bucket de origem) e Artifact Registry. Faltar UM
+          derruba só na hora do build:
             roles/run.admin
             roles/iam.serviceAccountUser
             roles/cloudbuild.builds.editor
