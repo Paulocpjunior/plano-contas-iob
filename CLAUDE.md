@@ -10,7 +10,20 @@ que não fique mais confuso?"*).
 
 Contábil: conciliação bancária, plano de contas, ECD/ECF, e o módulo
 **EFD-Reinf**. É irmão do **CFI** (`consultor-fiscal-inteligente`), que é o
-fiscal — os DOIS compartilham o mesmo Firebase Auth/Firestore do escritório.
+fiscal.
+
+**IRMÃOS, MAS NÃO GÊMEOS: os dois NÃO compartilham banco nem login.** Este
+arquivo dizia que sim quando nasceu (herdado do mapa do CODEX) — está errado:
+
+```
+aqui:  admin.initializeApp({ projectId: 'projetos-app-sp' })   ← fixo
+CFI:   applicationDefault()                 →  consultorfiscalapp
+```
+
+São dois projetos GCP, com dois Firebase Auth e dois Firestore. Usuário e role
+daqui NÃO valem lá (isso vale pro app da **Legalização**, que é outro caso).
+Integração entre eles é por ROTA, com o token de um sendo aceito pelo outro —
+ver "Ligação com o CFI".
 
 - Node + Express monolítico, **CommonJS** (`require`, `module.exports`).
 - **Sem build de frontend**: o Express serve `index.html` (~920 KB, SPA em JS
@@ -22,6 +35,17 @@ fiscal — os DOIS compartilham o mesmo Firebase Auth/Firestore do escritório.
 
 - **Nunca commitar direto na main.** Trabalho vai em branch → PR →
   squash-merge. `deploy-app.yml` publica sozinho no merge.
+- 🚨 **O DEPLOY DESTE REPO NUNCA RODOU — falta o secret `GCP_SA_KEY`**
+  (descoberto 07/08): as runs 2, 3 e 4 do `deploy-app.yml` falharam TODAS no
+  mesmo ponto, e por isso **nada que foi mesclado aqui está no ar**. Merge
+  verde neste repo não significa app atualizado — é a lição do "deploy verde ≠
+  nota capturada", na versão em que nem o deploy é verde. **SÓ O PAULO
+  RESOLVE**: Settings → Secrets and variables → Actions → New repository
+  secret, nome `GCP_SA_KEY`, valor = JSON da service account de deploy (roles
+  `run.admin`, `iam.serviceAccountUser`, `cloudbuild.builds.editor`,
+  `artifactregistry.writer`) — a mesma que o CFI já usa serve. Antes de dizer
+  que uma feature daqui "está no ar", CONFERIR a run: o workflow falha rápido
+  e com as instruções, mas falha.
 - **O deploy só roteia tráfego depois do health da CANDIDATA.** Sobe com
   `--no-traffic --tag candidate`, confere `GET /api/health` (que toca o
   Firestore de propósito — pega revisão que sobe mas não fala com o banco) e só
