@@ -37,8 +37,14 @@ jobs:
       - name: Conferir configuração antes de começar
         # Falha CEDO e explicando, em vez de estourar lá no meio do deploy com
         # erro de credencial.
+        #
+        # O secret entra por `env`, NUNCA interpolado direto no shell: valor de
+        # secret dentro do script vira histórico de comando e pode escapar do
+        # mascaramento.
+        env:
+          SA_KEY: ${{ secrets.GCP_SA_KEY }}
         run: |
-          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+          if [ -z "$SA_KEY" ]; then
             echo "::error::Falta o secret GCP_SA_KEY neste repositório."
             cat >&2 <<'ACAO'
 
@@ -55,7 +61,44 @@ jobs:
           ACAO
             exit 1
           fi
+
+          # O SECRET EXISTE, MAS É O ARQUIVO CERTO?
+          #
+          # Aconteceu em 07/08: a chave foi criada em **P12** (a opção fica ao
+          # lado de JSON no mesmo diálogo do Google Cloud) e o secret ficou com
+          # conteúdo BINÁRIO. O deploy rodava npm ci, auditoria e os 40 testes
+          # — quase um minuto — pra só então morrer no passo de autenticação
+          # com "unexpected token '\uFFFD' ... is not valid JSON", que é
+          # mensagem de biblioteca e não diz a ninguém o que fazer.
+          #
+          # Conferir aqui custa milissegundos e nomeia o erro. NADA do conteúdo
+          # é impresso: só o veredito.
+          printf '%s' "$SA_KEY" > "$RUNNER_TEMP/sa-key-check.json"
+          TIPO=$(jq -r 'try .type catch ""' "$RUNNER_TEMP/sa-key-check.json" 2>/dev/null || true)
+          rm -f "$RUNNER_TEMP/sa-key-check.json"
+          if [ "$TIPO" != "service_account" ]; then
+            echo "::error::O secret GCP_SA_KEY existe, mas não é um JSON de service account."
+            cat >&2 <<'ACAO'
+
+          O QUE PROVAVELMENTE ACONTECEU:
+            A chave foi criada no formato P12 (binário), não JSON. As duas
+            opções ficam lado a lado no mesmo diálogo do Google Cloud.
+
+          COMO CORRIGIR, sem copiar e colar (é o copiar/colar que estraga):
+            gcloud iam service-accounts list --project=projetos-app-sp
+            gcloud iam service-accounts keys create ~/gcp-deploy.json \
+              --iam-account=<EMAIL_DA_CONTA> --project=projetos-app-sp
+            gh secret set GCP_SA_KEY --repo <owner>/<repo> < ~/gcp-deploy.json
+            rm ~/gcp-deploy.json
+
+          O arquivo certo começa com { e tem "type": "service_account" na
+          primeira linha. Apague a chave P12 no console depois — chave de
+          service account sem uso é risco parado.
+          ACAO
+            exit 1
+          fi
           echo "Serviço: $SERVICE_NAME · Região: $REGION · Projeto: $PROJECT_ID"
+          echo "Credencial: JSON de service account, formato conferido."
 
       - name: Setup Node
         uses: actions/setup-node@v4

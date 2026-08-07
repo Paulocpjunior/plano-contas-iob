@@ -49,6 +49,20 @@ ver "Ligação com o CFI".
   pedido nada. **REGRA QUE FICA**: antes de mexer neste repo, conferir se a
   `main` é mesmo o que está no ar (`version.json` × o rodapé do app). Repo
   que não é a fonte do que roda não é repo, é backup desatualizado.
+- **O SECRET `GCP_SA_KEY` PRECISA SER O JSON, NUNCA O P12** (07/08): as duas
+  opções ficam LADO A LADO no mesmo diálogo do Google Cloud, e o P12 é binário.
+  Com o P12 colado, o deploy rodava `npm ci`, auditoria e os 40 testes — quase
+  um minuto — pra só então morrer no passo de autenticação com
+  `unexpected token '\uFFFD' ... is not valid JSON`, que é mensagem de
+  biblioteca e não diz a ninguém o que fazer. O passo "Conferir configuração"
+  passou a validar o FORMATO (`jq .type == "service_account"`, sem imprimir
+  nada do conteúdo) e a nomear o erro. **O CAMINHO QUE NÃO ERRA** não passa por
+  copiar e colar — é o copiar/colar que estraga:
+  `gcloud iam service-accounts keys create ~/gcp-deploy.json --iam-account=<SA>
+  --project=projetos-app-sp` e `gh secret set GCP_SA_KEY --repo <owner>/<repo>
+  < ~/gcp-deploy.json`. **CHAVE NUNCA VAI PELO CHAT** — o `sefaz-cron-secret`
+  já vazou 2× assim; chave de service account é a mesma coisa, com poder de
+  deploy junto.
 - 🚨 **FALTA o secret `GCP_SA_KEY`** — as runs 2, 3 e 4 do `deploy-app.yml`
   falharam TODAS em "Falta o secret". **SÓ O PAULO RESOLVE**: Settings →
   Secrets and variables → Actions → New repository secret, nome `GCP_SA_KEY`,
