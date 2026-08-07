@@ -52,10 +52,15 @@ assertContains('server.js', 'layouts_aprovaveis', 'contador de layouts aptos a a
 assertContains('server.js', 'qualidade_apto_aprovacao', 'metadados de qualidade em layouts bancarios');
 assertContains('server.js', "db.collection('layout_events').add", 'registro de sucesso operacional por layout');
 assertContains('server.js', "app.put('/api/empresas/:cnpj/aprendizado/:hash'", 'edicao da memoria por empresa');
+assertContains('server.js', "app.put('/api/empresas/:cnpj/aprendizado/:hash', adminRequired", 'edicao da memoria restrita a administrador');
+assertContains('server.js', "app.delete('/api/empresas/:cnpj/aprendizado/:hash', adminRequired", 'exclusao da memoria restrita a administrador');
+assertContains('server.js', 'Somente administradores podem alterar uma memorizacao existente.', 'sobrescrita de memoria restrita a administrador');
 assertContains('server.js', 'normalizarDiagnosticoLayout', 'diagnostico estruturado de rejeicao de layout');
 assertContains('server.js', "db.collection('aprendizado_events').add", 'trilha auditavel da memoria por empresa');
 assertContains('server.js', 'layouts_aprovados_operacao', 'status operacional dos layouts na central de qualidade');
 assertContains('server.js', 'confiabilidade_bancos', 'relatorio de confiabilidade por banco');
+assertContains('index.html', 'btnMemoriaEmpresaAdmin', 'atalho administrativo para gerenciar memoria da empresa');
+assertContains('index.html', 'atualizarMemoriaLancamento', 'atalho administrativo para corrigir regra memorizada');
 
 assertContains('admin.html', 'testarLayoutAdmin', 'teste manual de layout no admin');
 assertContains('admin.html', 'Novo layout bancário', 'entrada de novo layout bancario no admin');

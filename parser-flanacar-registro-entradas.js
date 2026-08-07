@@ -62,7 +62,8 @@
       rotulo: 'Saida fiscal',
       contraparte: 'Cliente',
       sinalPrincipal: 1,
-      aceitaArquivoMisto: false
+      aceitaArquivoMisto: false,
+      separarLancamentosPorCfop: true
     }
   };
 
@@ -473,7 +474,8 @@
       valorCofins: 0,
       aliquotasIcms: [],
       aliquotasIpi: [],
-      cfopValores: {}
+      cfopValores: {},
+      cfopDetalhes: {}
     };
 
     agregarLinhaFiscal(draft, row, mapa);
@@ -482,6 +484,7 @@
 
   function agregarLinhaFiscal(draft, row, mapa) {
     const valor = moedaCampo(row, mapa, 'valorContabil');
+    const cfop = somenteDigitos(valorColuna(row, mapa, 'cfop')).slice(0, 4);
     MONEY_FIELDS.forEach(function(key) {
       if (key === 'valorContabil') return;
       const campo = key;
@@ -494,7 +497,19 @@
     const aliquotaIpi = valorColuna(row, mapa, 'aliquotaIpi');
     if (aliquotaIcms && !draft.aliquotasIcms.includes(aliquotaIcms)) draft.aliquotasIcms.push(aliquotaIcms);
     if (aliquotaIpi && !draft.aliquotasIpi.includes(aliquotaIpi)) draft.aliquotasIpi.push(aliquotaIpi);
-    atualizarCfop(draft, valorColuna(row, mapa, 'cfop'), valor);
+    atualizarCfop(draft, cfop, valor);
+    if (cfop) {
+      if (!draft.cfopDetalhes[cfop]) {
+        draft.cfopDetalhes[cfop] = { aliquotasIcms: [], aliquotasIpi: [] };
+        MONEY_FIELDS.forEach(function(key) { draft.cfopDetalhes[cfop][key] = 0; });
+      }
+      const detalhe = draft.cfopDetalhes[cfop];
+      MONEY_FIELDS.forEach(function(key) {
+        detalhe[key] = Math.round((Number(detalhe[key] || 0) + moedaCampo(row, mapa, key)) * 100) / 100;
+      });
+      if (aliquotaIcms && !detalhe.aliquotasIcms.includes(aliquotaIcms)) detalhe.aliquotasIcms.push(aliquotaIcms);
+      if (aliquotaIpi && !detalhe.aliquotasIpi.includes(aliquotaIpi)) detalhe.aliquotasIpi.push(aliquotaIpi);
+    }
   }
 
   function novoId(prefixo, layout) {
@@ -502,8 +517,8 @@
     return 'flanacar_' + layout.direcao + '_' + prefixo + '_' + Math.random().toString(36).slice(2);
   }
 
-  function montarDescricao(draft, layout) {
-    const cfops = Object.keys(draft.cfopValores).sort().join('/');
+  function montarDescricao(draft, layout, cfopSelecionado) {
+    const cfops = cfopSelecionado || Object.keys(draft.cfopValores).sort().join('/');
     return [
       layout.rotulo,
       draft.fornecedor || (layout.contraparte + ' nao informado'),
@@ -515,45 +530,51 @@
     ].filter(Boolean).join(' - ').replace(/\s+/g, ' ').trim();
   }
 
-  function finalizarLancamento(draft, periodo, layout) {
+  function finalizarLancamento(draft, periodo, layout, cfopSelecionado) {
     const cfops = Object.keys(draft.cfopValores).sort();
     const cfopPrincipal = cfops
       .slice()
       .sort(function(a, b) { return (draft.cfopValores[b] || 0) - (draft.cfopValores[a] || 0); })[0] || '';
+    const cfopAtual = cfopSelecionado || cfopPrincipal;
+    const detalheCfop = cfopSelecionado ? draft.cfopDetalhes[cfopAtual] : null;
     const contraparte = draft.fornecedor || (layout.contraparte + ' nao informado');
     const valorNota = Math.abs(Number(draft.valorContabil || 0));
-    const categoria = categoriaPorCfop(cfopPrincipal, contraparte, layout);
+    const valorLancamento = detalheCfop
+      ? Math.abs(Number(detalheCfop.valorContabil || draft.cfopValores[cfopAtual] || 0))
+      : valorNota;
+    const fiscal = detalheCfop || draft;
+    const categoria = categoriaPorCfop(cfopAtual, contraparte, layout);
 
     const lancamento = {
-      id: novoId(draft.linhaOrigem || draft.numeroNf || 'nf', layout),
+      id: novoId((draft.linhaOrigem || draft.numeroNf || 'nf') + (cfopSelecionado ? '_' + cfopAtual : ''), layout),
       data: draft.data,
-      descricao: montarDescricao(draft, layout),
+      descricao: montarDescricao(draft, layout, cfopSelecionado ? cfopAtual : ''),
       descricao_memoria: contraparte,
       memoriaDescricoes: [
         contraparte,
         draft.cnpjFornecedor,
         draft.numeroNf ? 'NF ' + draft.numeroNf : '',
-        cfopPrincipal ? 'CFOP ' + cfopPrincipal : '',
+        cfopAtual ? 'CFOP ' + cfopAtual : '',
         layout.rotulo + ' - ' + contraparte
       ].filter(Boolean),
-      valor: layout.sinalPrincipal * valorNota,
+      valor: layout.sinalPrincipal * valorLancamento,
       valorNota,
-      valorContabil: valorNota,
-      valorFrete: draft.valorFrete,
-      baseIcms: draft.baseIcms,
-      aliquotaIcms: draft.aliquotasIcms.join('/'),
-      valorIcms: draft.valorIcms,
-      isentasIcms: draft.isentasIcms,
-      outrasIcms: draft.outrasIcms,
-      baseIcmsSt: draft.baseIcmsSt,
-      valorIcmsSt: draft.valorIcmsSt,
-      baseIpi: draft.baseIpi,
-      aliquotaIpi: draft.aliquotasIpi.join('/'),
-      valorIpi: draft.valorIpi,
-      isentasIpi: draft.isentasIpi,
-      outrasIpi: draft.outrasIpi,
-      valorPis: draft.valorPis,
-      valorCofins: draft.valorCofins,
+      valorContabil: valorLancamento,
+      valorFrete: fiscal.valorFrete,
+      baseIcms: fiscal.baseIcms,
+      aliquotaIcms: fiscal.aliquotasIcms.join('/'),
+      valorIcms: fiscal.valorIcms,
+      isentasIcms: fiscal.isentasIcms,
+      outrasIcms: fiscal.outrasIcms,
+      baseIcmsSt: fiscal.baseIcmsSt,
+      valorIcmsSt: fiscal.valorIcmsSt,
+      baseIpi: fiscal.baseIpi,
+      aliquotaIpi: fiscal.aliquotasIpi.join('/'),
+      valorIpi: fiscal.valorIpi,
+      isentasIpi: fiscal.isentasIpi,
+      outrasIpi: fiscal.outrasIpi,
+      valorPis: fiscal.valorPis,
+      valorCofins: fiscal.valorCofins,
       categoria,
       categoriaFiscal: categoria,
       tipoDocumentoFiscal: layout.tipoDocumento,
@@ -561,9 +582,11 @@
       direcaoFiscal: layout.direcao,
       documento: draft.numeroNf,
       numero_nf: draft.numeroNf,
-      cfop: cfopPrincipal,
+      cfop: cfopAtual,
       ci: draft.ci,
-      cfops,
+      cfops: cfopSelecionado ? [cfopAtual] : cfops,
+      cfopsNota: cfops,
+      cfopPrincipalNota: cfopPrincipal,
       cfopValores: draft.cfopValores,
       chave_nfe: draft.chaveNfe,
       chave_cte_substituido: draft.chaveCteSubstituido,
@@ -664,11 +687,17 @@
   }
 
   function finalizarLancamentos(draft, periodo, layout) {
-    const principal = finalizarLancamento(draft, periodo, layout);
+    const cfops = Object.keys(draft.cfopValores).sort();
+    const principais = layout.separarLancamentosPorCfop && cfops.length
+      ? cfops.map(function(cfop) { return finalizarLancamento(draft, periodo, layout, cfop); })
+      : [finalizarLancamento(draft, periodo, layout)];
+    const principal = principais
+      .slice()
+      .sort(function(a, b) { return Math.abs(Number(b.valor || 0)) - Math.abs(Number(a.valor || 0)); })[0];
     const impostos = IMPOSTOS_DESTACADOS
       .map(function(cfg) { return criarLancamentoImposto(draft, principal, cfg, layout); })
       .filter(Boolean);
-    return [principal].concat(impostos);
+    return principais.concat(impostos);
   }
 
   function parsearTextoFiscalFlanacar(textoCompleto, opts, layout) {
@@ -721,10 +750,17 @@
       .filter(function(d) { return d.data && d.numeroNf && Math.abs(Number(d.valorContabil || 0)) > 0; })
       .reduce(function(acc, d) { return acc.concat(finalizarLancamentos(d, periodo, layout)); }, []);
     const notasFiscais = lancamentos.filter(function(l) { return l.tipoDocumentoFiscal === layout.tipoDocumento; });
+    const notasFisicasMap = new Map();
+    notasFiscais.forEach(function(nota) {
+      const identidade = somenteDigitos(nota.chave_nfe)
+        || [nota.data, nota.serie, nota.numero_nf, nota.cnpj_cliente || nota.cnpj_fornecedor].join('|');
+      if (!notasFisicasMap.has(identidade)) notasFisicasMap.set(identidade, nota);
+    });
+    const notasFisicas = Array.from(notasFisicasMap.values());
     let chavesNfeValidas = 0;
     let chavesNfeInvalidas = 0;
     const cnpjsEmpresaDetectados = new Set();
-    notasFiscais.forEach(function(nota) {
+    notasFisicas.forEach(function(nota) {
       const chave = somenteDigitos(nota.chave_nfe);
       if (!chaveNfeValida(chave)) {
         chavesNfeInvalidas++;
@@ -759,7 +795,8 @@
       cnpj_empresa_detectado: cnpjsArquivo.length === 1 ? cnpjsArquivo[0] : '',
       cnpjs_empresa_detectados: cnpjsArquivo,
       origem_cnpj_empresa: layout.direcao === 'saida' ? 'chave_nfe_emitente' : '',
-      total_notas_fiscais: notasFiscais.length,
+      total_notas_fiscais: notasFisicas.length,
+      total_lancamentos_cfop: notasFiscais.length,
       chaves_nfe_validas: chavesNfeValidas,
       chaves_nfe_invalidas: chavesNfeInvalidas,
       direcao_fiscal: layout.direcao,

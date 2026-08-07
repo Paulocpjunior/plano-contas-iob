@@ -622,6 +622,9 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
     const docId = cnpj + '_' + hash;
     const ref = db.collection('aprendizado').doc(docId);
     const existing = await ref.get();
+    if (existing.exists && !req.user.is_admin) {
+      return res.status(403).json({ erro: 'Somente administradores podem alterar uma memorizacao existente.' });
+    }
     const now = new Date();
     
     const dados = {
@@ -660,7 +663,7 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
   }
 });
 
-app.put('/api/empresas/:cnpj/aprendizado/:hash', async (req, res) => {
+app.put('/api/empresas/:cnpj/aprendizado/:hash', adminRequired, async (req, res) => {
   try {
     const cnpj = (req.params.cnpj || '').replace(/\D/g, '');
     const hash = req.params.hash;
@@ -697,7 +700,7 @@ app.put('/api/empresas/:cnpj/aprendizado/:hash', async (req, res) => {
 });
 
 // Remove um padrao aprendido
-app.delete('/api/empresas/:cnpj/aprendizado/:hash', async (req, res) => {
+app.delete('/api/empresas/:cnpj/aprendizado/:hash', adminRequired, async (req, res) => {
   try {
     const cnpj = (req.params.cnpj || '').replace(/\D/g, '');
     const hash = req.params.hash;

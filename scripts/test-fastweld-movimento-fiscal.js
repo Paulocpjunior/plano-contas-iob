@@ -33,9 +33,14 @@ assert.strictEqual(resultado.origem_cnpj_empresa, 'chave_nfe_emitente');
 assert.strictEqual(resultado.total_notas_fiscais, 106);
 assert.strictEqual(resultado.chaves_nfe_validas, 106);
 assert.strictEqual(resultado.chaves_nfe_invalidas, 0);
-assert.strictEqual(resultado.lancamentos.length, 451);
-assert.strictEqual(notas.length, 106);
+assert.strictEqual(resultado.lancamentos.length, 464);
+assert.strictEqual(notas.length, 119);
 assert.strictEqual(impostos.length, 345);
+assert.strictEqual(resultado.total_lancamentos_cfop, 119);
+assert.strictEqual(notas.filter(item => item.cfop === '5102').length, 8, 'todas as linhas CFOP 5102 devem gerar lancamento');
+assert.strictEqual(notas.filter(item => item.cfop === '6102').length, 2, 'todas as linhas CFOP 6102 devem gerar lancamento');
+assert.strictEqual(notas.filter(item => item.cfop === '5401').length, 5, 'todas as linhas CFOP 5401 devem gerar lancamento');
+assert.strictEqual(new Set(notas.map(item => item.chave_nfe)).size, 106, 'desdobrar por CFOP nao pode duplicar a contagem fisica de NF-e');
 assert.strictEqual(resultado.linhas_complementares_agregadas, 16);
 assert.strictEqual(resultado.periodo_inicio, '2026-04-01');
 assert.strictEqual(resultado.periodo_fim, '2026-04-30');
@@ -92,7 +97,7 @@ assert.throws(
 );
 
 const apenasEstruturais = parsearCSV_FastweldRegistroSaidas(texto, { colunasSelecionadas: [] });
-assert.strictEqual(apenasEstruturais.lancamentos.length, 106);
+assert.strictEqual(apenasEstruturais.lancamentos.length, 119);
 assert.strictEqual(apenasEstruturais.total_debito, 0);
 assert.strictEqual(Math.round(apenasEstruturais.total_credito * 100), 175752252);
 assert.strictEqual(apenasEstruturais.chaves_nfe_validas, 106, 'limpar opcionais deve preservar as chaves NF-e de seguranca');
@@ -110,4 +115,4 @@ assert.strictEqual(validarVinculoCnpjFiscal(apenasEstruturais, {
   arquivoNome: path.basename(arquivo)
 }).valido, true, 'segunda validacao deve permanecer valida apos limpar opcionais');
 
-console.log('OK: FASTWELD 0109 validada com 106 NF-e, CNPJ emitente uniforme e travas de empresa/layout/arquivo.');
+console.log('OK: FASTWELD 0109 validada com 106 NF-e, 119 lancamentos por CFOP e travas de empresa/layout/arquivo.');

@@ -1,23 +1,11 @@
 {
-  "version": "3.4.79",
-  "build_date": "2026-08-07T12:23:16Z",
+  "version": "3.4.80",
+  "build_date": "2026-08-07T13:36:05Z",
   "release_notes": [
-    "As abas EFD-Reinf agora exibem a opcao de importar arquivos imediatamente abaixo da familia selecionada.",
-    "A serie R-4000 reaproveita o importador homologado de beneficiarios CSV, TXT, XLS e XLSX para o R-4010.",
-    "As series R-2000 e R-3000 aceitam lotes de XML para conferencia, identificando evento, competencia, ID e CNPJ declarante.",
-    "A importacao previdenciaria bloqueia atomicamente XML malformado, namespace incorreto, evento de outra familia, duplicidade ou CNPJ divergente da empresa ativa.",
-    "A trava de CNPJ contempla o formato numerico atual e o CNPJ alfanumerico previsto nos novos esquemas da EFD-Reinf.",
-    "O menu EFD-Reinf agora separa Retencoes Previdenciarias (series R-2000 e R-3000) de Rendimentos Pagos/Creditados (serie R-4000).",
-    "Cada familia apresenta seus eventos e informa claramente quais fluxos estao homologados, integrados ao lote ou ainda aguardam homologacao.",
-    "As acoes de gerar R-4010 e transmitir lote ficam disponiveis somente na serie R-4000, evitando operacao no contexto previdenciario incorreto.",
-    "A Chave NF-e agora e uma coluna obrigatoria protegida no Movimento Fiscal e nao pode ser removida ao limpar campos opcionais.",
-    "A segunda validacao preserva as 106 chaves e o CNPJ emitente da FASTWELD antes de abrir a conferencia final.",
-    "A tela inicial agora oferece Movimento Bancario e Movimento Fiscal como opcoes visiveis antes da confirmacao da empresa.",
-    "No fluxo fiscal, Banco deixa de ser obrigatorio e o modal do livro homologado abre automaticamente apos confirmar a empresa.",
-    "Novo modal Importacoes - Movimento Fiscal, separado do extrator bancario e com catalogo de layouts homologados por cliente.",
-    "Layout FASTWELD 0109 para NF-e de saida validado com o CSV real de abril de 2026.",
-    "Trava tripla compara o CNPJ da empresa ativa, o CNPJ homologado do layout e o emitente extraido de todas as chaves NF-e.",
-    "A importacao tambem confere o codigo da empresa no nome do arquivo, exige chave NF-e valida em todas as notas e bloqueia qualquer divergencia antes da gravacao.",
-    "O fluxo fiscal reutiliza selecao de colunas, memoria de classificacao, conferencia de totais e gravacao auditavel dos extratos bancarios."
+    "O livro fiscal FASTWELD agora gera um lancamento separado para cada CFOP existente na mesma NF-e.",
+    "Os CFOPs 5102, 6102 e 5401 das linhas complementares passam a ser exibidos sem duplicar a contagem fisica de notas nem alterar os totais.",
+    "Administradores agora podem localizar, editar e excluir memorizações pela tela de Lancamentos.",
+    "Colaboradores continuam autorizados a criar novas regras, mas somente administradores podem sobrescrever regras existentes.",
+    "Todas as alteracoes da memoria permanecem registradas na trilha de auditoria com usuario e valores anterior e posterior."
   ]
 }
