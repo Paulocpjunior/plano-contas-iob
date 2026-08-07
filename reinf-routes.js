@@ -540,6 +540,24 @@ async function registrarLog(db, req, acao, detalhes) {
   }
 }
 
+/**
+ * `?naturezas=CNPJ:codigo,CNPJ:codigo` → Map(cnpj → codigo).
+ *
+ * Só o FORMATO é conferido aqui; se o código existe na Tabela 01 quem decide é
+ * `buscarNatureza` na apuração — código fora da tabela é RECUSADO lá, e o
+ * beneficiário continua pendente em vez de entrar no evento com número torto.
+ */
+function mapaNaturezasInformadas(valor) {
+  const out = new Map();
+  String(valor || '').split(',').forEach((par) => {
+    const [cnpj, codigo] = String(par || '').split(':');
+    const c = limparCnpj(cnpj);
+    const cod = String(codigo || '').trim();
+    if (c.length === 14 && /^[0-9]{5}$/.test(cod)) out.set(c, cod);
+  });
+  return out;
+}
+
 function registrarRotasReinf(app, { db } = {}) {
   const router = express.Router();
 
@@ -1246,7 +1264,18 @@ function registrarRotasReinf(app, { db } = {}) {
       const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
 
       const doCfi = await buscarNotasTomadasNoCfi({ cnpj, competencia, token });
-      const apuracao = apurarRetencoesPJ({ competencia, notas: doCfi.notas });
+
+      // A natureza que a pessoa informou na tela volta por aqui pra ser
+      // VALIDADA contra a Tabela 01 no servidor — a tabela não existe no
+      // navegador, e código digitado que ninguém confere é código inventado.
+      // Formato: `?naturezas=CNPJ:codigo,CNPJ:codigo` (mesmo desenho do `?iva=`
+      // do DIFAL no CFI).
+      const informadas = mapaNaturezasInformadas(req.query.naturezas);
+      const notas = doCfi.notas.map((n) => {
+        const cod = informadas.get(limparCnpj(n.prestadorCnpj));
+        return cod ? { ...n, naturezaInformada: cod } : n;
+      });
+      const apuracao = apurarRetencoesPJ({ competencia, notas });
 
       res.json({
         ok: true,
