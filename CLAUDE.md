@@ -127,6 +127,24 @@ ver "Ligação com o CFI".
   `gen-lang-client`, e a chave P12. Dívida técnica anotada: estreitar os papéis
   (foram dados largos pra não descobrir um por rodada) e trocar a chave de
   longa duração por Workload Identity Federation.
+- **VARIÁVEIS DE AMBIENTE DO SERVIÇO** (conferidas 07/08, projeto do Cloud Run
+  `gen-lang-client-0569062468`, região `us-west1`):
+    · `CFI_URL` e `FISCAL_GATEWAY_URL` → ambas apontam pro CFI, hoje
+      `https://consultor-fiscal-inteligente-zricstsjqa-uw.a.run.app`
+  🚩 **A ARMADILHA**: o `FISCAL_GATEWAY_URL` estava em
+  `...-631239634290.us-central1.run.app` — **região que não existe** pra esse
+  serviço (o CFI é us-west1). Endereço morto, e o app usava ele como reserva
+  quando `CFI_URL` não existia: a resposta vinha 404 SEM CORPO e a tela dizia
+  "CNPJ não cadastrado". Ou seja, erro de CONFIGURAÇÃO se disfarçando de erro
+  de CADASTRO. O `interpretarRespostaCfi` passou a separar os dois (404 mudo
+  acusa a URL e mostra qual foi tentada), mas a lição é anterior: **nunca
+  digitar URL de Cloud Run** — derivar com
+  `gcloud run services describe <svc> --region <r> --project <p>
+  --format='value(status.url)'`. O Cloud Run publica DUAS URLs válidas pro
+  mesmo serviço (numérica e com hash), e escolher a mão é onde a região erra.
+  ⚠️ Mudança de env NÃO garante revisão nova visível: os dois `update` de 07/08
+  reportaram a MESMA revisão. Conferir sempre com o `describe`, nunca com a
+  mensagem "Done" do deploy.
 - **Trabalho novo sai da `main`, não de branch paralela.** Foi a branch
   paralela de longa vida que produziu as duas linhas: as duas ficaram certas
   cada uma do seu lado e erradas juntas. O `check-ci` só descobriu na
