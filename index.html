@@ -2848,6 +2848,25 @@
                             <div id="reinfPrevidenciarioStatus" class="reinf-import-status">Nenhum XML selecionado. Os arquivos importados nesta etapa ficam somente para conferência e não são transmitidos.</div>
                         </div>
                         <div id="reinfPrevidenciarioTabela" class="table-container" style="display:none;margin-bottom:18px"></div>
+
+                        <!-- R-2055: o único evento da série com o cálculo PRONTO. O FUNRURAL
+                             sub-rogado já é apurado na aba 🌾 do Consultor Fiscal, com vigência
+                             de alíquota (LC 224/2025) e conferência contra o infAdic da nota.
+                             Aqui não se recalcula nada. -->
+                        <div class="reinf-import-box" id="reinfAqRuralBox">
+                            <div>
+                                <strong>R-2055 · Aquisição de produção rural</strong>
+                                <p>O FUNRURAL que o cliente recolhe por sub-rogação, já apurado pelo Consultor Fiscal. Informe o indicador da natureza da aquisição de cada produtor.</p>
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                <input id="reinfAqRuralCnpj" type="text" placeholder="CNPJ do adquirente" style="padding:8px 10px;border:1px solid #cbd5f5;border-radius:8px;font-size:13px;width:170px">
+                                <input id="reinfAqRuralComp" type="month" style="padding:8px 10px;border:1px solid #cbd5f5;border-radius:8px;font-size:13px">
+                                <button type="button" class="reinf-import-button" onclick="buscarAquisicaoRuralReinf()">🌾 Buscar no Consultor Fiscal</button>
+                            </div>
+                        </div>
+                        <div id="reinfAqRuralStatus" class="reinf-import-status">Escolha o CNPJ do adquirente e a competência. O FUNRURAL vem apurado — esta tela não recalcula.</div>
+                        <div id="reinfAqRuralTabela" class="table-container" style="display:none;margin-bottom:18px"></div>
+
                         <div class="reinf-events-grid">
                             <div class="reinf-event-card"><strong>R-2010</strong><p>Retenção de contribuição previdenciária — serviços tomados.</p><span class="badge badge-yellow">A homologar</span></div>
                             <div class="reinf-event-card"><strong>R-2020</strong><p>Retenção de contribuição previdenciária — serviços prestados.</p><span class="badge badge-yellow">A homologar</span></div>
@@ -8500,6 +8519,110 @@
 
         function reinfToday() {
             return new Date().toISOString().slice(0, 10);
+        }
+
+        // ── R-2055: aquisição de produção rural (FUNRURAL sub-rogado) ───────
+        // O cálculo vem PRONTO do Consultor Fiscal. Esta tela não multiplica
+        // alíquota por base — se aparecer conta aqui, é bug.
+        const reinfAqRuralState = { indAquis: {} };
+
+        function reinfAqRuralStatus(msg, tipo) {
+            const box = document.getElementById('reinfAqRuralStatus');
+            if (!box) return;
+            const cores = { info: ['#f8fafc', '#475569'], success: ['#ecfdf5', '#166534'], warn: ['#fffbeb', '#92400e'], error: ['#fef2f2', '#991b1b'] };
+            const c = cores[tipo] || cores.info;
+            box.style.background = c[0];
+            box.style.color = c[1];
+            box.innerHTML = msg;
+        }
+
+        function definirIndAquisReinf(cpf, valor) {
+            const cod = String(valor || '').replace(/\D/g, '');
+            if (cod) reinfAqRuralState.indAquis[cpf] = cod;
+            else delete reinfAqRuralState.indAquis[cpf];
+        }
+
+        async function buscarAquisicaoRuralReinf() {
+            const cnpj = reinfDigits((document.getElementById('reinfAqRuralCnpj') || {}).value);
+            const comp = String((document.getElementById('reinfAqRuralComp') || {}).value || '').trim();
+            if (cnpj.length !== 14) return reinfAqRuralStatus('Informe o CNPJ do adquirente com 14 dígitos — é ele quem declara o R-2055.', 'warn');
+            if (!/^\d{4}-\d{2}$/.test(comp)) return reinfAqRuralStatus('Escolha a competência.', 'warn');
+            if (!window.API || !window.API.reinfAquisicaoRural) return reinfAqRuralStatus('API indisponível. Recarregue a página.', 'error');
+
+            reinfAqRuralStatus('Buscando as aquisições no Consultor Fiscal…', 'info');
+            try {
+                const pares = Object.keys(reinfAqRuralState.indAquis)
+                    .map(function (c) { return c + ':' + reinfAqRuralState.indAquis[c]; }).join(',');
+                const resp = await window.API.reinfAquisicaoRural(cnpj, comp, pares);
+                if (!resp || resp.ok === false) throw new Error((resp && resp.erro) || 'Falha ao consultar.');
+                renderizarAquisicaoRuralReinf(resp);
+            } catch (e) {
+                document.getElementById('reinfAqRuralTabela').style.display = 'none';
+                reinfAqRuralStatus('Não foi possível apurar: ' + reinfEscape(e.message || e), 'error');
+            }
+        }
+
+        function renderizarAquisicaoRuralReinf(resp) {
+            const alvo = document.getElementById('reinfAqRuralTabela');
+            const ps = Array.isArray(resp.produtores) ? resp.produtores : [];
+            const r = resp.resumo || {};
+            const avisos = (resp.avisos || []).concat(resp.ressalvasDaFonte || []);
+
+            if (!ps.length) {
+                alvo.style.display = 'none';
+                // Zero nunca é sucesso — e o aviso já vem agravado pelo cadastro
+                // quando o cliente está marcado como comprador de produtor.
+                reinfAqRuralStatus(avisos.map(function (a) { return reinfEscape(a); }).join('<br>')
+                    || 'Nenhuma aquisição nesta competência.', 'warn');
+                return;
+            }
+
+            const linhas = ps.map(function (p) {
+                const cpf = reinfDigits(p.cpfProdutor);
+                const selo = p.pronto ? '<span class="badge badge-green">pronto</span>' : '<span class="badge badge-yellow">pendente</span>';
+                const especial = p.seguradoEspecial ? ' <span class="badge badge-green" title="Cadastrado como segurado especial no Consultor Fiscal — é isso que decide o indicador da aquisição.">segurado especial</span>' : '';
+                const pend = (p.pendencias || []).map(function (x) {
+                    return '<div style="color:#92400e;font-size:11px;line-height:1.4;margin-top:3px">⚠ ' + reinfEscape(x) + '</div>';
+                }).join('');
+                return '<tr>'
+                    + '<td>' + reinfEscape(p.nome || '—') + especial
+                    + '<div style="color:#64748b;font-size:11px">' + reinfFormatCpfCnpj(cpf) + (p.uf ? ' · ' + reinfEscape(p.uf) : '') + '</div>' + pend + '</td>'
+                    + '<td style="text-align:center">' + ((p.aquisicoes || []).length) + '</td>'
+                    + '<td style="text-align:right">' + reinfMoney(p.base) + '</td>'
+                    + '<td style="text-align:right">' + reinfMoney(p.inss) + '</td>'
+                    + '<td style="text-align:right">' + reinfMoney(p.gilrat) + '</td>'
+                    + '<td style="text-align:right">' + reinfMoney(p.senar) + '</td>'
+                    + '<td style="text-align:right"><strong>' + reinfMoney(p.total) + '</strong></td>'
+                    + '<td>' + (p.indAquis
+                        ? reinfEscape(p.indAquis) + ' <span class="badge badge-green">informado</span>'
+                        : '<input type="text" maxlength="2" placeholder="--" value="' + reinfEscape(reinfAqRuralState.indAquis[cpf] || '') + '"'
+                          + ' onchange="definirIndAquisReinf(\'' + cpf + '\', this.value)"'
+                          + ' style="width:56px;padding:5px 7px;border:1px solid #cbd5f5;border-radius:6px;font-size:12px">') + '</td>'
+                    + '<td style="text-align:center">' + selo + '</td>'
+                    + '</tr>';
+            }).join('');
+
+            alvo.innerHTML =
+                '<table class="data-table"><thead><tr>'
+                + '<th>Produtor rural (PF)</th><th>Aquisições</th><th>Base</th><th>INSS</th><th>GILRAT</th><th>SENAR</th><th>Total</th>'
+                + '<th>indAquis</th><th>Situação</th>'
+                + '</tr></thead><tbody>' + linhas + '</tbody></table>'
+                + (avisos.length ? '<ul style="margin:12px 0 0 18px;padding:0;color:#475569;font-size:12px;line-height:1.5">'
+                    + avisos.map(function (a) { return '<li style="margin-bottom:4px">' + reinfEscape(a) + '</li>'; }).join('') + '</ul>' : '')
+                + '<div style="margin-top:14px;padding:10px 12px;background:#fffbeb;border:1px solid #fed7aa;border-radius:8px;color:#92400e;font-size:12px;line-height:1.5">'
+                + '<strong>Por que ainda não há botão de gerar o XML:</strong> o leiaute do R-2055 não foi conferido contra o XSD '
+                + 'nem contra um arquivo aceito pela Receita. Gerar por analogia produz evento recusado — ou aceito errado. '
+                + 'Destrava com um R-2055 que já tenha sido transmitido.'
+                + '</div>';
+            alvo.style.display = 'block';
+
+            // O total do que VAI DECLARAR é diferente do total apurado. Mostrar
+            // só o cheio faria alguém conferir contra o número errado.
+            reinfAqRuralStatus('<strong>' + (r.produtores || 0) + '</strong> produtor(es) · '
+                + '<strong>' + (r.prontos || 0) + '</strong> pronto(s) · <strong>' + (r.pendentes || 0) + '</strong> pendente(s)'
+                + '<br>Apurado ' + reinfMoney(r.total) + ' · <strong>pode declarar agora: ' + reinfMoney(r.totalPronto) + '</strong>'
+                + (r.pendentes ? '<br>Informe o indicador da aquisição dos pendentes e busque de novo.' : ''),
+                r.pendentes ? 'warn' : 'success');
         }
 
         // ── R-4020: retenções de PJ vindas do Consultor Fiscal ──────────────

@@ -16,7 +16,8 @@ const { assinarEventoReinf } = require('./reinf/assinador');
 const { loadCertificado, salvarCertificadoUpload } = require('./reinf/cert-loader');
 const { enviarLote, consultarLote } = require('./reinf/transmissor');
 const { apurarRetencoesPJ } = require('./reinf/retencao-pj-apuracao');
-const { buscarNotasTomadasNoCfi } = require('./reinf/cfi-notas-client');
+const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi } = require('./reinf/cfi-notas-client');
+const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
 const {
   calcularDividendos,
   locadoresDividendosParaR4010,
@@ -547,6 +548,24 @@ async function registrarLog(db, req, acao, detalhes) {
  * `buscarNatureza` na apuração — código fora da tabela é RECUSADO lá, e o
  * beneficiário continua pendente em vez de entrar no evento com número torto.
  */
+/**
+ * `?indAquis=CPF:codigo,CPF:codigo` → objeto { cpf: codigo }.
+ *
+ * Só o FORMATO é conferido. Se o código existe na tabela oficial da EFD-Reinf,
+ * NINGUÉM aqui pode afirmar — a tabela não está em nenhum dos dois apps. Por
+ * isso o valor sai carimbado como "informado", nunca como "conferido".
+ */
+function mapaIndAquisInformados(valor) {
+  const out = {};
+  String(valor || '').split(',').forEach((par) => {
+    const [cpf, codigo] = String(par || '').split(':');
+    const c = limparCnpj(cpf);
+    const cod = String(codigo || '').trim();
+    if (c.length === 11 && /^[0-9]{1,2}$/.test(cod)) out[c] = cod;
+  });
+  return out;
+}
+
 function mapaNaturezasInformadas(valor) {
   const out = new Map();
   String(valor || '').split(',').forEach((par) => {
@@ -1287,6 +1306,47 @@ function registrarRotasReinf(app, { db } = {}) {
         // ser o total e que o código de serviço é MUNICIPAL, não LC 116. Quem
         // some com a ressalva no meio do caminho faz o número parecer mais
         // certo do que é.
+        ressalvasDaFonte: doCfi.ressalvas,
+        resumoDaFonte: doCfi.resumo,
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // GET /api/reinf/aquisicao-rural/:cnpj/:competencia
+  //
+  // R-2055 — aquisição de produção rural de produtor PF, com o FUNRURAL que o
+  // ADQUIRENTE recolhe por sub-rogação.
+  //
+  // O CÁLCULO NÃO É REFEITO AQUI: vem pronto do CFI, onde já tem vigência de
+  // alíquota (LC 224/2025), tabela de segurado especial e conferência contra o
+  // infAdic da própria nota. Este lado só decide quem PODE entrar no evento.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.get('/aquisicao-rural/:cnpj/:competencia', async (req, res) => {
+    try {
+      const cnpj = limparCnpj(req.params.cnpj);
+      const competencia = String(req.params.competencia || '').trim();
+      const auth = String(req.headers.authorization || '');
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+
+      const doCfi = await buscarAquisicoesRuraisNoCfi({ cnpj, competencia, token });
+      const apuracao = apurarAquisicaoRural({
+        competencia,
+        produtores: doCfi.produtores,
+        indicadores: mapaIndAquisInformados(req.query.indAquis),
+        marcadoComoComprador: doCfi.marcadoComoComprador === true,
+      });
+
+      res.json({
+        ok: true,
+        origem: 'cfi',
+        empresa: doCfi.empresa,
+        competencia,
+        ...apuracao,
+        // As ressalvas do CFI viajam junto — são elas que dizem que o cálculo
+        // não deve ser refeito e que o indAquis vai nulo de propósito.
         ressalvasDaFonte: doCfi.ressalvas,
         resumoDaFonte: doCfi.resumo,
       });

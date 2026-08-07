@@ -47,7 +47,7 @@ function baseCfi(env = process.env) {
  * @throws quando a base não está configurada: sem URL a chamada falharia com
  *   "fetch failed", que não diz a NINGUÉM que falta variável de ambiente.
  */
-function montarUrlCfi({ cnpj, competencia }, env = process.env) {
+function montarUrlCfi({ cnpj, competencia, recurso = 'retencoes-pj' }, env = process.env) {
   const base = baseCfi(env);
   if (!base) {
     throw new Error(
@@ -60,7 +60,7 @@ function montarUrlCfi({ cnpj, competencia }, env = process.env) {
   if (!/^\d{4}-\d{2}$/.test(String(competencia || ''))) {
     throw new Error('Informe a competência no formato AAAA-MM.');
   }
-  return `${base}/api/admin/reinf/retencoes-pj?cnpj=${limpo}&competencia=${competencia}`;
+  return `${base}/api/admin/reinf/${recurso}?cnpj=${limpo}&competencia=${competencia}`;
 }
 
 /**
@@ -84,9 +84,15 @@ function interpretarRespostaCfi({ status, corpo }) {
   if (status !== 200 || body.ok !== true) {
     throw new Error(`Consultor Fiscal respondeu ${status}: ${body.error || 'sem detalhe'}`);
   }
+  // O corpo INTEIRO passa: cada recurso do CFI tem a sua carga (notas para o
+  // R-4020, produtores para o R-2055) e recortar aqui faria a casca precisar
+  // saber de cada um. As chaves comuns ganham default pra quem consome não ter
+  // que testar undefined.
   return {
+    ...body,
     empresa: body.empresa || null,
     notas: Array.isArray(body.notas) ? body.notas : [],
+    produtores: Array.isArray(body.produtores) ? body.produtores : [],
     resumo: body.resumo || null,
     ressalvas: Array.isArray(body.ressalvas) ? body.ressalvas : [],
     documentosLidos: Number(body.documentosLidos || 0),
@@ -102,9 +108,9 @@ function interpretarRespostaCfi({ status, corpo }) {
  * @param {string} p.token        o Bearer do usuário logado AQUI — o CFI aceita
  *                                token deste projeto por `crossProjectAuth`
  */
-async function buscarNotasTomadasNoCfi({ cnpj, competencia, token }, deps = {}) {
+async function buscarNoCfi({ cnpj, competencia, token, recurso }, deps = {}) {
   const doFetch = deps.fetch || globalThis.fetch;
-  const url = montarUrlCfi({ cnpj, competencia }, deps.env || process.env);
+  const url = montarUrlCfi({ cnpj, competencia, recurso }, deps.env || process.env);
   if (!token) throw new Error('Sessão sem token. Faça login novamente.');
 
   let resp;
@@ -120,4 +126,20 @@ async function buscarNotasTomadasNoCfi({ cnpj, competencia, token }, deps = {}) 
   return interpretarRespostaCfi({ status: resp.status, corpo });
 }
 
-module.exports = { montarUrlCfi, interpretarRespostaCfi, buscarNotasTomadasNoCfi };
+/** R-4020: as NFS-e tomadas com retenção. */
+const buscarNotasTomadasNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'retencoes-pj' }, deps);
+
+/**
+ * R-2055: as aquisições de produção rural (FUNRURAL sub-rogado).
+ *
+ * O CÁLCULO vem pronto do CFI — vigência de alíquota da LC 224/2025, tabela de
+ * segurado especial, centavo desprezado pela IN RFB 971 e conferência contra o
+ * infAdic da própria nota. Refazer a conta deste lado criaria dois números pro
+ * mesmo fato, e ninguém veria qual está certo.
+ */
+const buscarAquisicoesRuraisNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'aquisicao-rural' }, deps);
+
+module.exports = {
+  montarUrlCfi, interpretarRespostaCfi, buscarNoCfi,
+  buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi,
+};
