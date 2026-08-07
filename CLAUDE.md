@@ -60,21 +60,27 @@ ver "Ligação com o CFI".
   pedido nada. **REGRA QUE FICA**: antes de mexer neste repo, conferir se a
   `main` é mesmo o que está no ar (`version.json` × o rodapé do app). Repo
   que não é a fonte do que roda não é repo, é backup desatualizado.
-- 🚨 **O gcloud tem DOIS projetos, e eles se separam sem avisar** (07/08 — o
-  erro que custou mais tempo): o **do RECURSO** (resolvido por `--project` em
-  cada comando) e o **da QUOTA** (o projeto PADRÃO, que "paga" a chamada e onde
-  a API precisa estar habilitada). A action `google-github-actions/auth`
-  exporta o projeto DONO DA CHAVE como padrão (`CLOUDSDK_CORE_PROJECT` etc.), e
-  essa variável de ambiente VENCE o `gcloud config set project` do
-  setup-gcloud. Resultado: os comandos acertavam o recurso em
-  `gen-lang-client-0569062468` e a chamada era cobrada em `projetos-app-sp` — e
-  o erro dizia *"IAM API has not been used in project 641538949234"*, que é o
-  NÚMERO do projeto ERRADO. **A prova que desfaz o engano é comparar os
-  números**: `gcloud projects describe <projeto> --format='value(projectNumber)'`
-  — `gen-lang-client-0569062468` é **292090471177**, não 641538949234.
-  Habilitar a API no projeto do Cloud Run não resolvia, porque não era lá que a
-  chamada estava sendo cobrada. O `deploy-app.yml` passou a FIXAR as cinco
-  variáveis de projeto logo depois do setup-gcloud.
+- 🚨 **A CONTA DE SERVIÇO TEM QUE MORAR NO PROJETO DO CLOUD RUN** (07/08 — 18
+  runs vermelhos até fechar essa conta). O gcloud tem TRÊS projetos em jogo e
+  eles se separam sem avisar:
+    · **recurso** → resolvido por `--project` em cada comando
+    · **credencial** → o projeto DONO da conta de serviço
+    · **quota** → quem "paga" a chamada de API e onde a API precisa estar
+      habilitada — e ele vem do projeto da CREDENCIAL, não do padrão do gcloud
+  Com a conta em `projetos-app-sp` e o deploy em `gen-lang-client-0569062468`,
+  isso produziu TRÊS sintomas de uma causa só: permissão negada (papéis
+  concedidos no projeto errado), "Cloud Run Admin API não habilitada" (projeto
+  errado no workflow) e "IAM API não habilitada no projeto 641538949234" (a
+  quota caindo no projeto da chave). A cura é a conta viver no MESMO projeto do
+  Cloud Run — credencial, recurso e quota no mesmo lugar.
+  ⚠️ **HIPÓTESE MINHA QUE O LOG DESMENTIU**: fixar `CLOUDSDK_CORE_PROJECT` NÃO
+  muda o projeto da quota. O run #16 provou — as cinco variáveis mudaram para o
+  projeto certo e o `consumer` continuou o mesmo. O passo que faz isso ficou no
+  workflow, mas pelo motivo certo (coerência do projeto padrão), não como cura.
+  **A PROVA que decide nesses casos é NÚMERO contra NÚMERO**:
+  `gcloud projects describe <projeto> --format='value(projectNumber)'` contra o
+  número que a mensagem cita. Seguir o link da mensagem de erro levou ao lugar
+  errado DUAS vezes; comparar número acertou nas duas.
 - **NÃO EXISTIA conta de deploy no `projetos-app-sp`** (07/08): o
   `gcloud iam service-accounts list` devolveu SÓ a `firebase-adminsdk`. O app
   estava no ar porque o CODEX publicava com o LOGIN DO PAULO, não com service
