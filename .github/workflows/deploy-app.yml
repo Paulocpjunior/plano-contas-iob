@@ -180,21 +180,24 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
 
       # ─────────────────────────────────────────────────────────────────────
-      # O gcloud tem DOIS "projetos" e eles se separam sem avisar:
-      #   · o do RECURSO   → resolvido por `--project` em cada comando
-      #   · o da QUOTA     → o projeto PADRÃO, que é quem "paga" a chamada de
-      #                      API e onde a API precisa estar habilitada
+      # O gcloud tem DOIS "projetos", e eles se separam sem avisar:
+      #   · o do RECURSO → resolvido por `--project` em cada comando
+      #   · o da QUOTA   → quem "paga" a chamada de API e onde a API precisa
+      #                    estar habilitada
       #
-      # A action de autenticação exporta o projeto DONO DA CHAVE como padrão
-      # (CLOUDSDK_CORE_PROJECT etc.), e essa variável de ambiente vence o
-      # `gcloud config set project` do setup-gcloud. Resultado em 07/08: os
-      # comandos acertavam o recurso em gen-lang-client-0569062468 e a chamada
-      # era cobrada em projetos-app-sp — e o erro dizia "IAM API não habilitada
-      # no projeto 641538949234", que é o NÚMERO do projeto errado. Habilitar
-      # a API no projeto do Cloud Run (292090471177) não resolvia nada, porque
-      # não era lá que a chamada estava sendo cobrada.
+      # ⚠️ CORREÇÃO DE UMA EXPLICAÇÃO ERRADA que ficou aqui em 07/08: eu havia
+      # escrito que fixar CLOUDSDK_CORE_PROJECT resolvia a quota. NÃO RESOLVE —
+      # o log do run #16 provou: as variáveis mudaram para o projeto certo e o
+      # erro continuou citando `consumer: projects/641538949234`. O projeto da
+      # quota vem do **dono da credencial**, não do projeto padrão do gcloud, e
+      # nenhuma variável de ambiente muda isso.
       #
-      # Fixar aqui, uma vez, vale para todos os passos seguintes.
+      # A CURA é a conta de serviço morar NO MESMO PROJETO do Cloud Run —
+      # credencial, recurso e quota no mesmo lugar. Foi o que se fez.
+      #
+      # Este passo FICA mesmo assim, com o motivo certo: mantém o projeto
+      # padrão coerente com o do deploy, então um `gcloud` que alguém adicione
+      # sem `--project` acerta o alvo em vez de mirar no projeto da chave.
       # ─────────────────────────────────────────────────────────────────────
       - name: Fixar o projeto do gcloud (recurso E quota no mesmo lugar)
         run: |
