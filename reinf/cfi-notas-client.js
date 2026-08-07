@@ -70,8 +70,25 @@ function montarUrlCfi({ cnpj, competencia, recurso = 'retencoes-pj' }, env = pro
  * REGRA: erro do outro app não vira lista vazia. Lista vazia seria lida como
  * "não teve retenção no mês" — e aí a obrigação some sem ninguém decidir.
  */
-function interpretarRespostaCfi({ status, corpo }) {
+function interpretarRespostaCfi({ status, corpo, url }) {
   const body = corpo || {};
+
+  // ─── 404 SEM CORPO É OUTRA COISA ────────────────────────────────────────
+  // A rota do CFI SEMPRE responde JSON com `error`. Um 404 sem corpo não veio
+  // dela: veio de outra camada, e quase sempre significa que a URL aponta pro
+  // lugar errado (região trocada, serviço antigo, caminho inexistente).
+  //
+  // Sem esta distinção os dois casos ficam idênticos na tela — e a pessoa vai
+  // procurar cadastro faltando quando o problema é configuração. Foi o que
+  // aconteceu em 07/08: a mensagem mandou caçar cadastro por causa da URL.
+  if (status === 404 && !body.error) {
+    throw new Error(
+      'O Consultor Fiscal respondeu 404 sem detalhe — isso não é "CNPJ sem cadastro", é a URL '
+      + 'apontando pro lugar errado. Confira a variável CFI_URL deste serviço'
+      + (url ? ` (tentou: ${url})` : '')
+      + '. A rota do CFI sempre responde com uma explicação; 404 mudo vem de outra camada.',
+    );
+  }
   if (status === 401 || status === 403) {
     throw new Error(
       'O Consultor Fiscal recusou o acesso. Confira se o seu e-mail do escritório está '
@@ -123,7 +140,7 @@ async function buscarNoCfi({ cnpj, competencia, token, recurso }, deps = {}) {
   }
   let corpo = {};
   try { corpo = await resp.json(); } catch { corpo = {}; }
-  return interpretarRespostaCfi({ status: resp.status, corpo });
+  return interpretarRespostaCfi({ status: resp.status, corpo, url });
 }
 
 /** R-4020: as NFS-e tomadas com retenção. */
