@@ -60,6 +60,21 @@ ver "Ligação com o CFI".
   pedido nada. **REGRA QUE FICA**: antes de mexer neste repo, conferir se a
   `main` é mesmo o que está no ar (`version.json` × o rodapé do app). Repo
   que não é a fonte do que roda não é repo, é backup desatualizado.
+- 🚨 **O gcloud tem DOIS projetos, e eles se separam sem avisar** (07/08 — o
+  erro que custou mais tempo): o **do RECURSO** (resolvido por `--project` em
+  cada comando) e o **da QUOTA** (o projeto PADRÃO, que "paga" a chamada e onde
+  a API precisa estar habilitada). A action `google-github-actions/auth`
+  exporta o projeto DONO DA CHAVE como padrão (`CLOUDSDK_CORE_PROJECT` etc.), e
+  essa variável de ambiente VENCE o `gcloud config set project` do
+  setup-gcloud. Resultado: os comandos acertavam o recurso em
+  `gen-lang-client-0569062468` e a chamada era cobrada em `projetos-app-sp` — e
+  o erro dizia *"IAM API has not been used in project 641538949234"*, que é o
+  NÚMERO do projeto ERRADO. **A prova que desfaz o engano é comparar os
+  números**: `gcloud projects describe <projeto> --format='value(projectNumber)'`
+  — `gen-lang-client-0569062468` é **292090471177**, não 641538949234.
+  Habilitar a API no projeto do Cloud Run não resolvia, porque não era lá que a
+  chamada estava sendo cobrada. O `deploy-app.yml` passou a FIXAR as cinco
+  variáveis de projeto logo depois do setup-gcloud.
 - **NÃO EXISTIA conta de deploy no `projetos-app-sp`** (07/08): o
   `gcloud iam service-accounts list` devolveu SÓ a `firebase-adminsdk`. O app
   estava no ar porque o CODEX publicava com o LOGIN DO PAULO, não com service

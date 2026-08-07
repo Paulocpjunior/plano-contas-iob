@@ -179,6 +179,30 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
+      # ─────────────────────────────────────────────────────────────────────
+      # O gcloud tem DOIS "projetos" e eles se separam sem avisar:
+      #   · o do RECURSO   → resolvido por `--project` em cada comando
+      #   · o da QUOTA     → o projeto PADRÃO, que é quem "paga" a chamada de
+      #                      API e onde a API precisa estar habilitada
+      #
+      # A action de autenticação exporta o projeto DONO DA CHAVE como padrão
+      # (CLOUDSDK_CORE_PROJECT etc.), e essa variável de ambiente vence o
+      # `gcloud config set project` do setup-gcloud. Resultado em 07/08: os
+      # comandos acertavam o recurso em gen-lang-client-0569062468 e a chamada
+      # era cobrada em projetos-app-sp — e o erro dizia "IAM API não habilitada
+      # no projeto 641538949234", que é o NÚMERO do projeto errado. Habilitar
+      # a API no projeto do Cloud Run (292090471177) não resolvia nada, porque
+      # não era lá que a chamada estava sendo cobrada.
+      #
+      # Fixar aqui, uma vez, vale para todos os passos seguintes.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Fixar o projeto do gcloud (recurso E quota no mesmo lugar)
+        run: |
+          for V in CLOUDSDK_CORE_PROJECT CLOUDSDK_PROJECT GCLOUD_PROJECT GCP_PROJECT GOOGLE_CLOUD_PROJECT; do
+            echo "$V=$PROJECT_ID" >> "$GITHUB_ENV"
+          done
+          echo "Projeto do gcloud fixado em $PROJECT_ID (recurso e quota)."
+
       - name: Deploy no Cloud Run (sem tráfego, revisão candidata)
         # --no-traffic + --tag candidate: a revisão nova sobe isolada. Só recebe
         # tráfego depois de passar no health check. Retry porque o Cloud Run
