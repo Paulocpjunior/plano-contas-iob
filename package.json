@@ -34,6 +34,7 @@
     "test:reinf-aluguel": "node scripts/test-reinf-aluguel-caixa.js",
     "test:reinf-retencao-pj": "node scripts/test-reinf-retencao-pj.js",
     "test:reinf-natureza": "node scripts/test-reinf-natureza-rendimento.js",
+    "test:reinf-cfi": "node scripts/test-reinf-cfi-notas.js",
     "test:reinf-dividendos": "node scripts/test-reinf-dividendos.js",
     "test:reinf-assinatura": "node scripts/test-reinf-assinatura-lote.js",
     "test:validador-obrigacoes": "node scripts/test-validador-obrigacoes-ecd.js",
