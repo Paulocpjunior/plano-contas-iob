@@ -133,14 +133,44 @@ o código na discriminação da nota (ELEVADORES ORION: "15044 - REMUNERAÇÃO D
 SERVIÇOS DE CONSERVAÇÃO"). Ler é recuperação — mas só vale se o código existir
 na Tabela 01, e dois códigos no texto é AMBÍGUO, não "pega o primeiro".
 
+**O XML DO R-4020 DESTRAVOU** (07/08 — Paulo mandou um evento REAL que o IOB
+transmitiu: `ID1546611450000002023110311392200004`, perApur 2023-10, tpAmb 1 =
+PRODUÇÃO). `reinf/gerar-r4020.js` reproduz aquele arquivo caractere a caractere.
+**O que o arquivo provou e a analogia com o R-4010 teria errado**: o evento é
+`evtRetPJ` no namespace `evt4020PagtoBeneficiarioPJ`; o beneficiário é
+`cnpjBenef`; o valor é **`vlrBruto`** (o PF usa `vlrRendBruto` — copiar o nome
+passa em qualquer teste nosso e é RECUSADO na transmissão); `observ` fica em
+`idePgto`, entre `natRend` e `infoPgto`; `indJud` fecha o `infoPgto`; e a
+natureza do rendimento **não é só a faixa 15xxx** — o arquivo traz **17099**.
+Confirmou o que o app já acertava: vírgula decimal, `ideContri/nrInsc` com a
+RAIZ de 8 dígitos, e o `id` = ID+tpInsc+raiz(14)+AAAAMMDDHHMMSS+seq(5).
+**O QUE CONTINUA BLOQUEADO, e por quê**: aquele evento tem bruto ZERADO e
+NENHUM bloco de retenção — então onde entram IR/CSLL/PIS/COFINS não está
+provado. Com retenção informada o gerador **recusa**
+(`MOTIVO_RETENCAO_BLOQUEADA`), porque um R-4020 sem a retenção não é
+incompleto: ele DECLARA que não houve retenção. **DESTRAVA COM**: um R-4020
+exportado do IOB de competência que TEVE retenção (mesmo caminho de exportação)
+ou o XSD v2_01_02.
+
 **FALTA, na ordem:**
-1. **XML do R-4020** — BLOQUEADO de propósito: o leiaute não foi conferido
-   contra o XSD (a doc oficial é bloqueada pela rede do ambiente). Destrava com
-   o XSD v2.1.2 do portal do SPED **ou** com um XML de R-4020 que o IOB já
-   tenha gerado — este vale mais, é arquivo que a Receita aceitou. Com ele, o
-   gerador é casca fina sobre o payload já validado.
 2. R-2010/R-2020 (INSS de serviços) · R-2055 (FUNRURAL sub-rogado — o CFI já
    calcula na aba 🌾) · R-2050 · R-1070 · R-4040/R-4080 (raros).
+
+**A TABELA DA SÉRIE R-2000/R-3000** (`reinf/serie-2000.js`) é a contraparte da
+`natureza-rendimento.js`: os 9 eventos com o que cada um declara, quem entrega,
+e — o campo que faz a tabela valer — **o que falta pra gerar cada um**. Nasceu
+porque a série estava escrita em TRÊS lugares que não se conheciam (cards do
+index.html, `EVENTOS_PREVIDENCIARIOS` do importador, asserts do teste de menu):
+três cópias divergem sem ninguém ver, que é exatamente como o repo acabou com
+duas linhas de produção. A cópia do importador CONTINUA (o módulo é UMD e roda
+no navegador, sem `require`) mas agora é guardada por teste cruzado.
+**O CÓDIGO DE TIPO DE SERVIÇO DO R-2010/R-2020 NÃO ESTÁ AQUI** e não se
+inventa — um teste proíbe qualquer código de 9 dígitos entrar na tabela, porque
+o pior caso não é ser recusado, é ser ACEITO no código errado. **R-2055 é o
+próximo da série**: é o único com GANCHO — o CFI já apura o FUNRURAL
+sub-rogado na aba 🌾, com vigência de alíquota (LC 224/2025) e conferência
+contra o infAdic da nota. Farol honesto do resumo: `geramHoje: 0` —
+identificar o evento no menu não é declarar.
 
 **Fluxo real da colaboradora** (a referência do que o módulo tem que cobrir):
 importa as notas → informa retenção e natureza do rendimento → gera o módulo

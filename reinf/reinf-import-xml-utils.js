@@ -5,6 +5,14 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
+  // ATENÇÃO: esta lista é uma CÓPIA da tabela da série, que mora em
+  // `reinf/serie-2000.js` (lá ficam também o que cada evento declara, quem
+  // entrega, e o que falta pra gerar cada um). A cópia existe porque este
+  // módulo é UMD e roda TAMBÉM no navegador, onde não há `require`.
+  //
+  // A divergência entre as duas é impedida por TESTE CRUZADO:
+  // `scripts/test-reinf-serie-2000.js` compara este mapa com `EVENTOS_POR_TAG`
+  // e falha se saírem do lugar. Evento novo entra nos DOIS, no mesmo PR.
   const EVENTOS_PREVIDENCIARIOS = Object.freeze({
     evtServTom: 'R-2010',
     evtServPrest: 'R-2020',

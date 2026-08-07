@@ -552,4 +552,4 @@ function gerarTrioReinf(p) {
   return { r1000, r4010, r4099, eventos };
 }
 
-module.exports = { LEIAUTE_REINF, REVISAO_XSD_R4010, NS_R4010, VER_PROC, NAT_REND, fmtValorReinf, gerarIdEvento, gerarR4010, validarEntradaR4010, gerarEventosR4010DaPlanilha, NS_R1000, NS_R4099, gerarR1000, gerarR4099, gerarTrioReinf };
+module.exports = { LEIAUTE_REINF, REVISAO_XSD_R4010, NS_R4010, VER_PROC, NAT_REND, fmtValorReinf, gerarIdEvento, nrInscContribuinteReinf, gerarR4010, validarEntradaR4010, gerarEventosR4010DaPlanilha, NS_R1000, NS_R4099, gerarR1000, gerarR4099, gerarTrioReinf };
