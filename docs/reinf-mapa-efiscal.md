@@ -25,6 +25,28 @@
 | R-1070 (processos adm./judiciais) | tabela auxiliar, sob demanda | manual |
 | R-4040 (beneficiário não identificado) · R-4080 (autorretenção) | casos raros | manual |
 
+## Natureza do rendimento (Tabela 01 do Anexo I) — PRONTA 07/08
+
+`reinf/natureza-rendimento.js`: as **51 naturezas da série 15xxx** (serviços de
+PJ → R-4020), com o código de receita do DARF por tributo (IR → 1708 e outros;
+AGREGADO → **5952**, a CSRF com CSLL+PIS+Cofins juntos) e a correlação com os
+itens da lista de serviços da LC 116/2003.
+
+Origem: tabela de correlação da IOB (arquivo de 07/08/2026, entregue pelo
+Paulo), carimbada em `ORIGEM_TABELA`. Antes disso o módulo tinha 4 constantes
+soltas, **todas de pessoa física** — nenhum código de PJ existia no app.
+
+**A tabela SUGERE, NUNCA DECIDE.** A ressalva é do próprio documento de origem:
+não existe correlação OFICIAL entre a LC 116 e a natureza do rendimento, a
+correlação é referência de enquadramento e tem caráter interpretativo. Por
+isso `sugerirPorLc116` devolve candidatos (0, 1 ou vários), marca `ambigua`
+quando há mais de um, carrega o aviso e NÃO escolhe. Código fora da tabela é
+recusado — não repassado para o validador do governo reclamar.
+
+Casos reais que a tabela fecha: serviço 4030 (medicina) → **15026**, que é o
+código do print do IOB; serviço 7498 (manutenção) → **15044**, que a ELEVADORES
+ORION escreve na própria discriminação da nota.
+
 ## Ganchos de integração com o CFI
 
 Os DOIS apps compartilham o mesmo Firebase/Firestore do escritório. As
