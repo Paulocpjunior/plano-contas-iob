@@ -49,6 +49,20 @@ ver "Ligação com o CFI".
   pedido nada. **REGRA QUE FICA**: antes de mexer neste repo, conferir se a
   `main` é mesmo o que está no ar (`version.json` × o rodapé do app). Repo
   que não é a fonte do que roda não é repo, é backup desatualizado.
+- **NÃO EXISTIA conta de deploy no `projetos-app-sp`** (07/08): o
+  `gcloud iam service-accounts list` devolveu SÓ a `firebase-adminsdk`. O app
+  estava no ar porque o CODEX publicava com o LOGIN DO PAULO, não com service
+  account — por isso não havia chave nenhuma de onde tirar o secret. A conta
+  `github-deploy@projetos-app-sp` foi criada pra isso.
+  **PAPÉIS: são CINCO, não quatro.** O deploy é `gcloud run deploy --source .`,
+  que passa por Cloud Build, Cloud Storage (bucket de origem) e Artifact
+  Registry: `run.admin`, `iam.serviceAccountUser`, `cloudbuild.builds.editor`,
+  `artifactregistry.admin` (writer NÃO cria o repositório) e **`storage.admin`**
+  — este último é o que a mensagem antiga do workflow omitia e é justamente o
+  que o `--source` exige.
+  ⚠️ **NUNCA escrever `--iam-account=<EMAIL>` numa instrução**: o `<` é
+  redirecionamento no shell e o zsh tenta abrir um arquivo. Passar o valor por
+  variável (`SA_EMAIL=...`) é o formato que não quebra.
 - **O SECRET `GCP_SA_KEY` PRECISA SER O JSON, NUNCA O P12** (07/08): as duas
   opções ficam LADO A LADO no mesmo diálogo do Google Cloud, e o P12 é binário.
   Com o P12 colado, o deploy rodava `npm ci`, auditoria e os 40 testes — quase

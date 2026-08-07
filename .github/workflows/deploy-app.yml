@@ -52,8 +52,15 @@ jobs:
             Settings → Secrets and variables → Actions → New repository secret
               Nome:  GCP_SA_KEY
               Valor: JSON da service account com permissão de deploy
-                     (roles: run.admin, iam.serviceAccountUser,
-                      cloudbuild.builds.editor, artifactregistry.writer)
+
+          PAPÉIS NECESSÁRIOS — o deploy é `gcloud run deploy --source .`, que
+          passa por Cloud Build, Cloud Storage (bucket de origem) e Artifact
+          Registry. Faltar UM derruba só na hora do build:
+            roles/run.admin
+            roles/iam.serviceAccountUser
+            roles/cloudbuild.builds.editor
+            roles/artifactregistry.admin   (writer não cria o repositório)
+            roles/storage.admin            (bucket de origem do --source)
 
           Opcional, se algum dia mudar de serviço/região/projeto —
           Settings → Variables:
