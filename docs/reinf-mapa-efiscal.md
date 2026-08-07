@@ -47,6 +47,31 @@ Casos reais que a tabela fecha: serviço 4030 (medicina) → **15026**, que é o
 código do print do IOB; serviço 7498 (manutenção) → **15044**, que a ELEVADORES
 ORION escreve na própria discriminação da nota.
 
+## Retenções de PJ — conteúdo do R-4020 PRONTO 07/08 (falta só o XML)
+
+`reinf/retencao-pj-apuracao.js`: agrupa as notas TOMADAS por beneficiário e
+competência e monta o conteúdo do evento — bruto, IR, PIS, COFINS, CSLL,
+natureza. É o passo que a colaboradora faz à mão no E-Fiscal.
+
+**A CSLL não estava perdida.** O export do portal de SP não traz a CSLL
+individual: o campo rotulado "CSLL" é o TOTAL das três contribuições (CLINIPAR:
+27,44 = 3,84 + 17,70 + 5,90). Como PIS e COFINS vêm corretos, a CSLL sai por
+SUBTRAÇÃO — recuperação, não chute. A trava: só deriva quando PIS bate 0,65%,
+COFINS bate 3,00% **e** o resultado bate 1,00% da base. Falhou um dos três, não
+deriva: vira pendência apontando o XML da nota. Valor derivado sai carimbado.
+
+**A natureza vem da FONTE quando a fonte a traz**: alguns prestadores escrevem
+o código na discriminação (a ELEVADORES ORION escreve "15044 - REMUNERAÇÃO DE
+SERVIÇOS DE CONSERVAÇÃO"). Ler isso é recuperação — mas só vale se o código
+existir na Tabela 01, e dois códigos no texto = ambíguo, não "pega o primeiro".
+
+Beneficiário sem natureza ou com retenção que não fecha **não entra no evento**.
+
+FALTA: o XML. O leiaute do R-4020 ainda não foi conferido contra o XSD — e
+leiaute chutado é a classe de erro que passa no teste e é recusada na
+transmissão. Com o XSD (ou com um XML que o IOB já tenha gerado), o gerador é
+uma casca fina sobre este payload já validado.
+
 ## Ganchos de integração com o CFI
 
 Os DOIS apps compartilham o mesmo Firebase/Firestore do escritório. As
