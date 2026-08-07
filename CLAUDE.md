@@ -342,5 +342,34 @@ e-mail do domínio do escritório e **verificado**.
 O **R-2055** (FUNRURAL sub-rogado) segue o mesmo desenho quando entrar: a fonte
 é a aba 🌾 do CFI, que já calcula com vigência de alíquota. **Nunca redigitar.**
 
+### "E quem eu procuro?" — o responsável do escritório na tela (07/08)
+
+As ressalvas do R-4020 e do R-2055 quase sempre terminam em *"alguém do
+escritório precisa olhar este cliente"*: nota com PIS/COFINS que são o tributo
+da operação, prestador PF que é outro evento, competência com ZERO nota (que
+pode ser mês sem retenção **ou** buraco de captura). Quem é esse alguém saía por
+WhatsApp, de memória.
+
+O CFI abriu a **fase 2 do túnel do cadastro** e este app consome:
+
+| rota do CFI | `GET /api/admin/cadastro/responsaveis/:cnpj` |
+|---|---|
+| cliente | `buscarResponsavelNoCfi` (mesma auth das notas) |
+| régua | `reinf/responsavel-escritorio.js` (puro) |
+| rota daqui | `GET /api/reinf/responsavel/:cnpj` |
+| tela | bloco abaixo da tabela nas DUAS telas, no sucesso **e no erro** |
+
+**Aqui não se escolhe responsável.** O túnel devolve `principal: null` quando há
+mais de um marcado como principal — e a tentação seria "pega o primeiro". Isso
+faria a colaboradora falar com quem não cuida do cliente e nunca desconfiar; o
+conflito vira TEXTO, com os dois nomes e onde arrumar.
+
+**Sem responsável ≠ sem cadastro.** É `pendenteDeAtribuicao`, e a frase manda
+atribuir na Carteira do CFI. Confundir os dois manda procurar problema num
+cadastro que está certo — o erro de 07/08 pela manhã.
+
+**Nunca derruba a apuração**: é informação de apoio, chamada DEPOIS do
+resultado. Túnel fora do ar ⇒ o bloco some, a tabela continua.
+
 DIRF está EXTINTA (substituída pela série R-4000) — resíduo de fluxo DIRF no
 escritório morre quando o R-4020 entrar.

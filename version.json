@@ -1,10 +1,10 @@
 {
-  "version": "3.4.81",
-  "build_date": "2026-08-07T15:11:05Z",
+  "version": "3.4.82",
+  "build_date": "2026-08-07T20:30:00Z",
   "release_notes": [
-    "A exportacao FI agora valida o sentido contabil pela conta bancaria e pelo sinal original do extrato.",
-    "Entradas mantem o banco no debito e saidas mantem o banco no credito, mesmo quando a memoria ou a classificacao anterior estiver invertida.",
-    "O extrato Bradesco real de janeiro foi validado com 244 lancamentos, R$ 37.917,99 em creditos e R$ 23.331,42 em debitos.",
-    "A regressao corrige as oito inversoes encontradas no arquivo FI sem alterar datas, valores, historicos ou a quantidade de registros."
+    "A tela do R-4020 e a do R-2055 passam a dizer QUEM responde por cada cliente no escritorio.",
+    "A informacao vem do cadastro do Consultor Fiscal, nao de memoria nem de WhatsApp.",
+    "Cliente com mais de um responsavel principal mostra os dois e nao escolhe por conta propria.",
+    "Cliente sem colaborador atribuido aparece como pendencia de atribuicao, nao como falta de cadastro."
   ]
 }
