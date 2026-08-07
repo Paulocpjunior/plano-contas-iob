@@ -40,6 +40,25 @@ assert.throws(
   /não está cadastrado/,
   'CNPJ sem cadastro repassa o motivo do CFI',
 );
+
+// 404 MUDO É OUTRA COISA — e confundir os dois mandou a colaboradora caçar
+// cadastro quando o problema era a URL (07/08). A rota do CFI SEMPRE responde
+// com `error`; 404 sem corpo veio de outra camada.
+assert.throws(
+  () => interpretarRespostaCfi({ status: 404, corpo: {}, url: 'https://errado.run.app/api/admin/reinf/retencoes-pj' }),
+  /URL apontando pro lugar errado/,
+  '404 sem corpo acusa configuração, não cadastro',
+);
+assert.throws(
+  () => interpretarRespostaCfi({ status: 404, corpo: {}, url: 'https://errado.run.app/x' }),
+  /tentou: https:\/\/errado\.run\.app\/x/,
+  'e mostra QUAL URL foi tentada — sem isso ninguém confere a configuração',
+);
+assert.throws(
+  () => interpretarRespostaCfi({ status: 404, corpo: {} }),
+  /CFI_URL/,
+  'e nomeia a variável a conferir',
+);
 assert.throws(
   () => interpretarRespostaCfi({ status: 500, corpo: {} }),
   /respondeu 500/,
