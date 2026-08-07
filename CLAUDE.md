@@ -98,10 +98,7 @@ na Tabela 01, e dois códigos no texto é AMBÍGUO, não "pega o primeiro".
    o XSD v2.1.2 do portal do SPED **ou** com um XML de R-4020 que o IOB já
    tenha gerado — este vale mais, é arquivo que a Receita aceitou. Com ele, o
    gerador é casca fina sobre o payload já validado.
-2. **Ligação com o CFI** — hoje o R-4010 come PLANILHA por upload; as notas já
-   estão capturadas no CFI. O roadmap já decidiu: ler a mesma fonte, **nunca
-   redigitar**.
-3. R-2010/R-2020 (INSS de serviços) · R-2055 (FUNRURAL sub-rogado — o CFI já
+2. R-2010/R-2020 (INSS de serviços) · R-2055 (FUNRURAL sub-rogado — o CFI já
    calcula na aba 🌾) · R-2050 · R-1070 · R-4040/R-4080 (raros).
 
 **Fluxo real da colaboradora** (a referência do que o módulo tem que cobrir):
@@ -109,12 +106,42 @@ importa as notas → informa retenção e natureza do rendimento → gera o mód
 REINF → transmite → **faz o encerramento no e-CAC**. O encerramento é humano e
 continua sendo — como o PVA no SPED.
 
-## Ganchos com o CFI
+## Ligação com o CFI — as notas do R-4020 já chegam prontas (07/08)
 
-Mesmo Firestore. O que alimenta o R-4020 e o R-2055 **já existe no CFI**:
-NFS-e tomadas com `valores.ir/inss/csll/pis/cofins`, relatório de Retenções,
-e a aba 🌾 DIPAM/Produtor rural (FUNRURAL com vigência de alíquota).
-Integração = ler a mesma fonte ou expor rota no CFI. **Nunca redigitar.**
+**OS DOIS APPS NÃO COMPARTILHAM FIRESTORE.** O mapa deste repo dizia que sim, e
+isso estava errado — são dois projetos GCP: aqui `projetos-app-sp` (fixo no
+`server.js`), lá `consultorfiscalapp` (`applicationDefault()`). Quem escrevesse
+código acreditando no compartilhamento descobriria na primeira leitura de
+coleção. A integração é por **rota**.
+
+| ponta | onde |
+| --- | --- |
+| expõe | CFI · `GET /api/admin/reinf/retencoes-pj?cnpj=&competencia=` |
+| consome | `reinf/cfi-notas-client.js` → `apurarRetencoesPJ` |
+| rota daqui | `GET /api/reinf/retencoes-pj/:cnpj/:competencia` |
+
+**A normalização mora LÁ, de propósito**: a NFS-e do portal de SP é gravada
+ACHATADA (`valorIss`, `pisRetido`) e a do XML em OBJETO (`valores.*`) — reler
+isso daqui seria manter duas leituras da mesma coisa, que divergem sem ninguém
+perceber (já mordeu seis vezes no CFI). O contrato casa campo a campo com o que
+`apurarRetencoesPJ` espera, inclusive o `csllOuTotal`: nome feio de propósito,
+é ele que impede o total da CSRF de ser declarado como CSLL.
+
+**Erro do outro lado NUNCA vira lista vazia** — vazio seria lido como "não teve
+retenção no mês", e a obrigação sumiria sem ninguém decidir. 403 diz que falta
+e-mail verificado; 404 diz que o CNPJ não tem cadastro no CFI; rede fora estoura
+com a causa. As ressalvas do CFI viajam junto em `ressalvasDaFonte`.
+
+**Env obrigatória**: `CFI_URL` (ou `FISCAL_GATEWAY_URL`) com a URL do Cloud Run
+do CFI. Sem ela a mensagem diz QUAL variável falta, não "fetch failed".
+
+**Auth**: o Bearer do usuário logado aqui abre a porta lá (`crossProjectAuth`,
+lista de projetos EXPLÍCITA por rota no CFI — pôr projeto na lista global
+abriria de lambuja o `/api/dp-integration/*`, que entrega dado SERPRO). Exige
+e-mail do domínio do escritório e **verificado**.
+
+O **R-2055** (FUNRURAL sub-rogado) segue o mesmo desenho quando entrar: a fonte
+é a aba 🌾 do CFI, que já calcula com vigência de alíquota. **Nunca redigitar.**
 
 DIRF está EXTINTA (substituída pela série R-4000) — resíduo de fluxo DIRF no
 escritório morre quando o R-4020 entrar.

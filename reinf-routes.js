@@ -15,6 +15,8 @@ const {
 const { assinarEventoReinf } = require('./reinf/assinador');
 const { loadCertificado, salvarCertificadoUpload } = require('./reinf/cert-loader');
 const { enviarLote, consultarLote } = require('./reinf/transmissor');
+const { apurarRetencoesPJ } = require('./reinf/retencao-pj-apuracao');
+const { buscarNotasTomadasNoCfi } = require('./reinf/cfi-notas-client');
 const {
   calcularDividendos,
   locadoresDividendosParaR4010,
@@ -992,6 +994,44 @@ function registrarRotasReinf(app, { db } = {}) {
         recibosGravados: persistencia.recibosGravados,
         duplicidades: persistencia.duplicidades,
         xml: infoRetorno.xml,
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // GET /api/reinf/retencoes-pj/:cnpj/:competencia
+  //
+  // As notas tomadas com retenção, vindas do CFI, já apuradas por beneficiário
+  // — é o passo que a colaboradora faz à mão hoje ("informamos o campo de
+  // retenção e a NATUREZA DE RENDIMENTO, feito isso geração módulo REINF").
+  //
+  // O token do usuário logado AQUI é o que abre a porta lá: os dois apps não
+  // compartilham banco, e o CFI aceita este projeto por crossProjectAuth.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.get('/retencoes-pj/:cnpj/:competencia', async (req, res) => {
+    try {
+      const cnpj = limparCnpj(req.params.cnpj);
+      const competencia = String(req.params.competencia || '').trim();
+      const auth = String(req.headers.authorization || '');
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+
+      const doCfi = await buscarNotasTomadasNoCfi({ cnpj, competencia, token });
+      const apuracao = apurarRetencoesPJ({ competencia, notas: doCfi.notas });
+
+      res.json({
+        ok: true,
+        origem: 'cfi',
+        empresa: doCfi.empresa,
+        competencia,
+        ...apuracao,
+        // As ressalvas do CFI viajam junto: elas dizem que `csllOuTotal` pode
+        // ser o total e que o código de serviço é MUNICIPAL, não LC 116. Quem
+        // some com a ressalva no meio do caminho faz o número parecer mais
+        // certo do que é.
+        ressalvasDaFonte: doCfi.ressalvas,
+        resumoDaFonte: doCfi.resumo,
       });
     } catch (err) {
       respostaErro(res, 400, err);

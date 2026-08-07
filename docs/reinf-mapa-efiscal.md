@@ -72,11 +72,42 @@ leiaute chutado é a classe de erro que passa no teste e é recusada na
 transmissão. Com o XSD (ou com um XML que o IOB já tenha gerado), o gerador é
 uma casca fina sobre este payload já validado.
 
-## Ganchos de integração com o CFI
+## Integração com o CFI — FEITA para o R-4020
 
-Os DOIS apps compartilham o mesmo Firebase/Firestore do escritório. As
-contas que alimentam R-4020 e R-2055 JÁ EXISTEM no CFI — a integração é
-ler a mesma fonte (ou expor rota no CFI), nunca redigitar.
+**CORREÇÃO (07/08):** este mapa dizia que os dois apps "compartilham o mesmo
+Firebase/Firestore do escritório". **Não compartilham** — são dois projetos GCP
+diferentes:
+
+```
+plano-contas-iob/server.js:  admin.initializeApp({ projectId: 'projetos-app-sp' })
+CFI/server.js:               applicationDefault()   →  consultorfiscalapp
+```
+
+Quem tivesse escrito o código acreditando no compartilhamento teria descoberto
+na primeira leitura de coleção. A integração é por **rota**:
+
+| ponta | onde |
+| --- | --- |
+| expõe as notas tomadas | CFI · `GET /api/admin/reinf/retencoes-pj?cnpj=&competencia=` |
+| consome e apura | aqui · `reinf/cfi-notas-client.js` → `apurarRetencoesPJ` |
+| rota do app | `GET /api/reinf/retencoes-pj/:cnpj/:competencia` |
+
+**A normalização mora no CFI, de propósito.** A NFS-e do portal de SP é gravada
+ACHATADA (`valorIss`, `pisRetido`) e a do XML em OBJETO (`valores.*`). Reler
+isso daqui manteria DUAS leituras da mesma coisa, que divergem sem ninguém
+perceber. O contrato de saída casa campo a campo com o que `apurarRetencoesPJ`
+espera — inclusive o `csllOuTotal`, cujo nome feio é o que impede o total da
+CSRF de ser declarado como CSLL.
+
+**Autenticação:** o Bearer do usuário logado aqui abre a porta lá
+(`crossProjectAuth` no CFI, com a lista de projetos explícita por rota). Exige
+e-mail do domínio do escritório e **verificado**.
+
+**Env:** `CFI_URL` (ou `FISCAL_GATEWAY_URL`) apontando para o Cloud Run do CFI.
+Sem ela a chamada falha dizendo QUAL variável falta, não "fetch failed".
+
+O R-2055 (FUNRURAL sub-rogado) segue o mesmo desenho quando entrar: a fonte é
+a aba 🌾 do CFI, que já calcula, e não a redigitação.
 
 ## Fora do jogo
 
