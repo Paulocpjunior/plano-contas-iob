@@ -332,6 +332,14 @@
     return await r.json();
   }
 
+  // R-2055 — aquisições de produção rural (FUNRURAL sub-rogado), vindas do CFI.
+  async function reinfAquisicaoRural(cnpj, competencia, indAquis) {
+    const c = String(cnpj || '').replace(/\D/g, '');
+    const q = indAquis ? '?indAquis=' + encodeURIComponent(indAquis) : '';
+    const r = await apiFetch(API_BASE + '/api/reinf/aquisicao-rural/' + c + '/' + encodeURIComponent(competencia || '') + q);
+    return await r.json();
+  }
+
   async function reinfCertificado() {
     const r = await apiFetch(API_BASE + '/api/reinf/certificado');
     return await r.json();
@@ -438,7 +446,7 @@
     return await r.json();
   }
 
-  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfCertificado, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
+  window.API = { me, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAquisicaoRural, reinfCertificado, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
   console.log('[API Adapter v3] carregado');
 })();
 

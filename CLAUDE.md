@@ -156,6 +156,28 @@ ou o XSD v2_01_02.
 2. R-2010/R-2020 (INSS de serviços) · R-2055 (FUNRURAL sub-rogado — o CFI já
    calcula na aba 🌾) · R-2050 · R-1070 · R-4040/R-4080 (raros).
 
+**R-2055 LIGADO PONTA A PONTA** (07/08) — é o primeiro evento previdenciário
+com conteúdo real. Rota do CFI `/api/admin/reinf/aquisicao-rural` →
+`reinf/cfi-notas-client.js` (o cliente virou GENÉRICO: `buscarNoCfi(recurso)`,
+com os dois wrappers finos; o tratamento de erro é a parte que vale e duplicá-lo
+é como duas leituras divergem) → `reinf/aquisicao-rural-apuracao.js` (13
+asserts) → tela na aba **R-2000**, que é onde o evento pertence.
+**AQUI NÃO SE CALCULA FUNRURAL**: o valor vem pronto do CFI, com vigência de
+alíquota (LC 224/2025), tabela de segurado especial, centavo desprezado (IN RFB
+971) e conferência contra o infAdic da própria nota. Um teste passa valores
+propositalmente fora da alíquota pra provar que a casca NÃO os "corrige", e
+outro proíbe qualquer alíquota aparecer no bloco da tela. Refazer a conta criaria
+dois números pro mesmo fato — e o problema não é divergir, é ninguém ver qual
+está certo.
+**O `indAquis` É PENDÊNCIA DE PRIMEIRA CLASSE**: vem de tabela oficial que não
+está em NENHUM dos dois apps, então o produtor sem ele fica PENDENTE (não
+"quase pronto") e a pendência já diz o que decide o indicador — se o produtor é
+SEGURADO ESPECIAL, que o CFI sabe. Informado na tela sai carimbado como
+`origemIndAquis: 'informado'`, NUNCA "conferido". Divergência entre o FUNRURAL
+apurado e o declarado na nota BLOQUEIA (o valor errado iria pra declaração E
+pro recolhimento). O resumo separa `total` de **`totalPronto`** — mostrar só o
+cheio faria alguém conferir contra o número errado.
+
 **A TABELA DA SÉRIE R-2000/R-3000** (`reinf/serie-2000.js`) é a contraparte da
 `natureza-rendimento.js`: os 9 eventos com o que cada um declara, quem entrega,
 e — o campo que faz a tabela valer — **o que falta pra gerar cada um**. Nasceu
