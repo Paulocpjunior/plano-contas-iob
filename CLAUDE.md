@@ -406,5 +406,27 @@ momento nenhum, a assinatura sai do A1 do escritório por procuração. "Cliente
 sem certificado" ao lado de uma transmissão que não depende dele é o aviso que
 ensina a equipe a ignorar aviso.
 
+### 🚪 GATE DE DEPARTAMENTO — o SaaS chega neste módulo (08/08)
+
+Desenho do Paulo: usuário unificado no CFI com DEPARTAMENTO obrigatório;
+vinculado, abre o módulo. Este app PERGUNTA no login (`GET
+/api/departamento/gate` → túnel `GET /api/admin/cadastro/usuarios/:email
+?modulo=contabil`) e **não define vínculo nenhum** — quem grava é admin, no
+Gerenciar Usuários do CFI.
+
+**NASCEU EM MODO AVISO, e a razão é uma data**: no dia em que subiu ninguém
+tinha departamento preenchido (as caixas nasceram no mesmo dia no CFI).
+Bloquear já trancaria a equipe inteira na segunda de manhã. Quem está sem
+vínculo vê a faixa âmbar com a ação e segue trabalhando; a virada é
+**`DEPARTAMENTO_GATE_MODO=bloqueio`** (env do Cloud Run), sem deploy de
+código. Só virar depois que o Paulo terminar de vincular a equipe.
+
+**Túnel fora do ar LIBERA, nos dois modos** — contraste deliberado com a
+emissão de guia (lá indeterminado PARA, porque reenviar duplica cobrança;
+aqui trancar o escritório porque um serviço piscou é o dano maior). E CFI
+piscando NÃO vira faixa amarela pra equipe inteira: indeterminado é log, não
+banner. Núcleo puro `departamento-gate.js` (decidirGate) + faixa/tela-cheia
+em `index.html` (mostrarGateDepartamento).
+
 DIRF está EXTINTA (substituída pela série R-4000) — resíduo de fluxo DIRF no
 escritório morre quando o R-4020 entrar.

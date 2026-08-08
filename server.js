@@ -79,6 +79,11 @@ function adminRequired(req, res, next) {
 }
 
 app.use('/api', authRequired);
+// Gate de departamento do SaaS (08/08): pergunta ao cadastro central do CFI
+// se o usuário está vinculado ao módulo Contábil. Nasce em MODO AVISO — vira
+// bloqueio pela env DEPARTAMENTO_GATE_MODO=bloqueio quando os vínculos
+// estiverem preenchidos no Gerenciar Usuários do CFI.
+require('./departamento-gate').registrarGateDepartamento(app);
 registrarRotasReinf(app, { db });
 registrarRotasMercadoPago(app, { db, adminRequired });
 
