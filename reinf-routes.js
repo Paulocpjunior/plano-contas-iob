@@ -1478,6 +1478,55 @@ function registrarRotasReinf(app, { db } = {}) {
   // WhatsApp, de memória. O túnel do cadastro do CFI responde, e este lado só
   // vira frase — sem escolher nada por conta própria.
   // ──────────────────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────────────────
+  // PREFERÊNCIAS DE RETENÇÃO — o "salvar" que faltava (colaboradora, 08/08).
+  //
+  // A natureza de rendimento digitada por prestador (R-4020) e o indAquis por
+  // produtor (R-2055) viviam só na memória da tela: recarregou, perdeu — e a
+  // pessoa redigitava tudo a cada apuração. São dados ESTÁVEIS (a natureza é
+  // do tipo de serviço do prestador), então persistem por CNPJ/CPF, não por
+  // competência.
+  //
+  // A validação de código continua onde sempre esteve (Tabela 01 no servidor,
+  // na hora de apurar) — aqui só se guarda o que a pessoa escolheu.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.get('/preferencias-retencao', async (_req, res) => {
+    try {
+      const snap = await db.collection('reinf_preferencias').doc('retencoes').get();
+      const d = snap.exists ? snap.data() : {};
+      res.json({ ok: true, naturezas: d.naturezas || {}, indAquis: d.indAquis || {} });
+    } catch (err) {
+      respostaErro(res, 500, err);
+    }
+  });
+
+  router.post('/preferencias-retencao', async (req, res) => {
+    try {
+      const naturezas = req.body && req.body.naturezas;
+      const indAquis = req.body && req.body.indAquis;
+      const limpo = (obj, chaveDig, valDig) => {
+        const out = {};
+        for (const [k, v] of Object.entries(obj || {})) {
+          const ck = String(k).replace(/\D/g, '');
+          const cv = String(v || '').replace(/\D/g, '');
+          if (ck.length >= chaveDig && cv.length >= 1 && cv.length <= valDig) out[ck] = cv;
+        }
+        return out;
+      };
+      const patch = { atualizadoEm: new Date().toISOString(), atualizadoPor: (req.user && req.user.email) || null };
+      if (naturezas) patch.naturezas = limpo(naturezas, 11, 5);
+      if (indAquis) patch.indAquis = limpo(indAquis, 11, 2);
+      await db.collection('reinf_preferencias').doc('retencoes').set(patch, { merge: true });
+      await registrarLog(db, req, 'preferencias_retencao', {
+        naturezas: patch.naturezas ? Object.keys(patch.naturezas).length : undefined,
+        indAquis: patch.indAquis ? Object.keys(patch.indAquis).length : undefined,
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      respostaErro(res, 500, err);
+    }
+  });
+
   router.get('/responsavel/:cnpj', async (req, res) => {
     try {
       const cnpj = limparCnpj(req.params.cnpj);

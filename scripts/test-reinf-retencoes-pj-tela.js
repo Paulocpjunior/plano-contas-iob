@@ -77,3 +77,22 @@ assert.ok(/competência que TEVE retenção/.test(index), 'e o que destrava');
 assert.ok(!/gerarR4020Reinf\(/.test(index), 'nenhum botão de gerar R-4020 pode existir ainda');
 
 console.log('✅ tela do R-4020: busca no CFI, natureza conferida no servidor, e o bloqueio do XML explicado');
+
+
+// ─── O "SALVAR" QUE FALTAVA (08/08) ─────────────────────────────────────────
+// Naturezas por prestador e indAquis por produtor persistem no servidor.
+{
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert.ok(html.includes('salvarPreferenciasRetencao(\'naturezas\')'), 'botão 💾 Salvar naturezas existe');
+  assert.ok(html.includes('salvarPreferenciasRetencao(\'indAquis\')'), 'botão 💾 Salvar indicadores existe');
+  assert.ok(/buscarRetencoesPJReinf\(\) \{\n\s+await carregarPreferenciasRetencao\(\);/.test(html),
+    'as preferências carregam ANTES da busca do R-4020');
+  assert.ok(/buscarAquisicaoRuralReinf\(\) \{\n\s+await carregarPreferenciasRetencao\(\);/.test(html),
+    'e antes da busca do R-2055');
+  assert.ok(html.includes('...(p.naturezas || {}), ...reinfRetPjState.naturezas'),
+    'o digitado na sessão VENCE o salvo — salvar não pode sobrescrever o que a pessoa acabou de corrigir');
+  const rotas = fs.readFileSync(path.join(__dirname, '..', 'reinf-routes.js'), 'utf8');
+  assert.ok(rotas.includes("router.get('/preferencias-retencao'"), 'rota de leitura existe');
+  assert.ok(rotas.includes("router.post('/preferencias-retencao'"), 'rota de gravação existe');
+  console.log('OK: preferências de retenção persistem — digitado > salvo > nota.');
+}
