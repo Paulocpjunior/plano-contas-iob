@@ -428,5 +428,26 @@ piscando NÃO vira faixa amarela pra equipe inteira: indeterminado é log, não
 banner. Núcleo puro `departamento-gate.js` (decidirGate) + faixa/tela-cheia
 em `index.html` (mostrarGateDepartamento).
 
+### 🚇 FASE 4: transmissão via GATEWAY do CFI — plugada, DESLIGADA (08/08)
+
+O CFI agora assina E transmite lotes EFD-Reinf
+(`POST /api/admin/reinf/gateway/transmitir` — o assinador de lá é PORTE do
+daqui, generalizado pra série toda). Este app ganhou o segundo caminho:
+`reinf/gateway-client.js` + a virada `assinarEEnviarLote`/
+`consultarLoteOndeFoi` em reinf-routes.
+
+**A CHAVE É `REINF_TRANSMISSOR=gateway` (env), E O DEFAULT É `local`** — o
+caminho atual fica INTOCADO até o gateway provar em produção restrita.
+Em modo gateway: o evento sai SEM assinatura (quem assina e abre o mTLS é o
+CFI), o A1 local **nem é carregado** no /transmitir, e o contrato de retorno
+é IDÊNTICO ao do transmissor local — o parse/lote pendente/logs não mudam.
+
+RITO DE PROVA antes de apagar o `reinf-cert-a1`: (1) env pra `gateway`;
+(2) transmitir R-1000 + movimento em produção restrita (tpAmb=2) e conferir
+protocolo/recibos iguais ao caminho local; (3) rodar semanas em produção;
+(4) só então apagar secret + o upload de certificado daqui. Falha de REDE na
+transmissão via gateway avisa que o lote PODE ter sido enviado — reenviar
+duplica; conferir lotes pendentes primeiro.
+
 DIRF está EXTINTA (substituída pela série R-4000) — resíduo de fluxo DIRF no
 escritório morre quando o R-4020 entrar.

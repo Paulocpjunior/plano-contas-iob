@@ -1,10 +1,10 @@
 {
-  "version": "3.4.84",
-  "build_date": "2026-08-08T12:05:00Z",
+  "version": "3.4.85",
+  "build_date": "2026-08-08T13:05:00Z",
   "release_notes": [
-    "O app passa a perguntar ao cadastro central do CFI se o usuario esta vinculado ao departamento Contabil.",
-    "Por enquanto em MODO AVISO: quem esta sem vinculo ve a faixa com a acao e continua trabalhando.",
-    "A virada para bloqueio e por configuracao (DEPARTAMENTO_GATE_MODO=bloqueio), sem novo deploy.",
-    "Cadastro central fora do ar nunca tranca ninguem: acesso segue e o app registra a indeterminacao."
+    "A transmissao do EFD-Reinf ganhou um segundo caminho: o gateway do Consultor Fiscal assina e transmite, e a chave privada nao e tocada neste app.",
+    "O caminho atual continua sendo o padrao: a virada e por configuracao (REINF_TRANSMISSOR=gateway), depois de provar em producao restrita.",
+    "Em modo gateway o certificado local nem e carregado - e o que permitira apagar a segunda copia do A1 deste projeto.",
+    "Falha de rede na transmissao avisa que o lote pode ter sido enviado: reenviar duplica."
   ]
 }
