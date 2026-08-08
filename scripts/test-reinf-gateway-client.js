@@ -100,5 +100,16 @@ assert.strictEqual(transmissorAtivo({ REINF_TRANSMISSOR: 'sim' }), 'local', 'val
   assert.ok(rotas.includes("transmissorAtivo() === 'gateway' ? null : await loadCertificado()"),
     'em modo gateway o A1 local NEM É CARREGADO — é o que permite apagar o reinf-cert-a1 depois');
 
-  console.log('OK: gateway por env com default local — contrato idêntico, rede não mente, cert local fora do caminho.');
+  // ─── a prova a um clique ──────────────────────────────────────────────────
+  assert.ok(rotas.includes("router.post('/gateway-teste'"), 'a rota de prova existe');
+  assert.ok(/gerarR1000\(\{\n\s+contribuinte: p\.contribuinte,\n\s+tpAmb: 2,/.test(rotas),
+    'o teste FORÇA produção restrita — provar gateway nunca toca produção');
+  assert.ok(rotas.includes("enviarLoteViaGateway({\n        eventosXml: [r1000.xml]"),
+    'o teste vai SEMPRE pelo gateway, independente do REINF_TRANSMISSOR');
+  const html2 = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert.ok(html2.includes('provarGatewayReinf()'), 'o botão 🧪 existe e chama a prova');
+  const adapter2 = fs.readFileSync(path.join(__dirname, '..', 'api-adapter.js'), 'utf8');
+  assert.ok(/reinfGatewayTeste,/.test(adapter2), 'exportada no window.API');
+
+  console.log('OK: gateway por env com default local — contrato idêntico, rede não mente, cert local fora do caminho, prova a um clique.');
 })().catch((e) => { console.error(e); process.exit(1); });

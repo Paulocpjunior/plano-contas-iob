@@ -1267,6 +1267,84 @@ function registrarRotasReinf(app, { db } = {}) {
     }
   });
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // POST /api/reinf/gateway-teste — A PROVA DA FASE 4, a um clique.
+  //
+  // Transmite APENAS o R-1000 em PRODUÇÃO RESTRITA (tpAmb=2 forçado) pelo
+  // gateway do CFI, independente do REINF_TRANSMISSOR — a chave principal
+  // continua em 'local' e o caminho de produção não é tocado. Se voltar
+  // protocolo e o processamento aceitar (ou responder MS1005 "já vigente",
+  // que também prova o círculo), o gateway está provado e o reinf-cert-a1
+  // pode ser aposentado.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.post('/gateway-teste', async (req, res) => {
+    try {
+      const p = req.body || {};
+      const loteContrib = normalizarContribuinteLote(p.loteContribuinte || p.contribuinte);
+      const token = tokenDaRequisicao(req);
+
+      const r1000 = gerarR1000({
+        contribuinte: p.contribuinte,
+        tpAmb: 2,
+        iniValid: p.iniValid || p.perApur,
+        fimValid: p.fimValid,
+        classTrib: p.classTrib,
+        indEscrituracao: p.indEscrituracao,
+        indDesoneracao: p.indDesoneracao,
+        indAcordoIsenMulta: p.indAcordoIsenMulta,
+        indSitPJ: p.indSitPJ,
+        contato: p.contato || p.respInfo,
+        seq: 1,
+      });
+
+      const envio = await enviarLoteViaGateway({
+        eventosXml: [r1000.xml], contribuinte: loteContrib, tpAmb: 2, token,
+      });
+      const infoEnvio = parseRetornoReinf(envio);
+
+      let consulta = null;
+      if (infoEnvio.protocolo) {
+        for (let i = 0; i < 10; i++) {
+          const retorno = await consultarLoteViaGateway({ protocolo: infoEnvio.protocolo, tpAmb: 2, token });
+          consulta = { httpStatus: retorno.status, ...parseRetornoReinf(retorno) };
+          if (!retornoReinfPendente(consulta)) break;
+          if (i < 9) await esperar(3000);
+        }
+      }
+
+      await registrarLog(db, req, 'gateway_teste', {
+        contribuinte: limparCnpj(loteContrib && loteContrib.nrInsc),
+        tpAmb: 2,
+        protocolo: infoEnvio.protocolo || null,
+        httpStatus: envio.status,
+        cdResposta: (consulta && consulta.cdResposta) || null,
+      });
+
+      res.json({
+        ok: true,
+        viaGateway: true,
+        tpAmb: 2,
+        httpStatus: envio.status,
+        protocolo: infoEnvio.protocolo || null,
+        envio: infoEnvio,
+        consulta,
+        veredito: !infoEnvio.protocolo
+          ? 'SEM PROTOCOLO: o gateway falou com a Receita mas o lote não foi recebido — veja o XML de envio.'
+          : (consulta && retornoR1000JaVigente(consulta))
+            ? 'PROVADO: R-1000 já vigente na Receita (MS1005) — o gateway assinou, transmitiu e a Receita reconheceu o contribuinte.'
+            : (consulta && !retornoReinfComErro(consulta))
+              ? 'PROVADO: lote aceito em produção restrita via gateway.'
+              : (consulta && retornoReinfPendente(consulta))
+                ? 'PROTOCOLO RECEBIDO, processamento ainda pendente — consulte o protocolo em instantes.'
+                : 'Protocolo recebido mas o processamento apontou ocorrências — veja o XML da consulta.',
+        xmlEnvio: envio.xml,
+        xmlConsulta: consulta && consulta.xml,
+      });
+    } catch (err) {
+      respostaErro(res, err.statusCode || 400, err);
+    }
+  });
+
   router.get('/lote/:protocolo', async (req, res) => {
     try {
       const tpAmb = Number(req.query.tpAmb || 2);
