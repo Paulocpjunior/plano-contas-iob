@@ -16,8 +16,9 @@ const { assinarEventoReinf } = require('./reinf/assinador');
 const { loadCertificado, salvarCertificadoUpload } = require('./reinf/cert-loader');
 const { enviarLote, consultarLote } = require('./reinf/transmissor');
 const { apurarRetencoesPJ } = require('./reinf/retencao-pj-apuracao');
-const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarResponsavelNoCfi } = require('./reinf/cfi-notas-client');
+const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarResponsavelNoCfi, buscarCertificadoNoCfi } = require('./reinf/cfi-notas-client');
 const { resumirResponsavel, avisosDoResponsavel } = require('./reinf/responsavel-escritorio');
+const { conferirCertificado } = require('./reinf/certificado-conferencia');
 const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
 const {
   calcularDividendos,
@@ -1383,6 +1384,45 @@ function registrarRotasReinf(app, { db } = {}) {
       });
     } catch (err) {
       respostaErro(res, 400, err);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // GET /api/reinf/certificado/conferencia
+  //
+  // O ESCRITÓRIO TEM O A1 EM DOIS COFRES — aqui e no CFI — e nada nunca
+  // comparou os dois. Renovação feita num só passa despercebida até o dia em
+  // que o antigo vence, e aí TODA transmissão para de uma vez.
+  //
+  // A prova é o fingerprint (SHA-256 do DER, mesmo cálculo nos dois lados).
+  //
+  // Note que NÃO se confere o certificado do CLIENTE: aqui se assina por
+  // procuração, com o A1 do escritório. Pendurar a aptidão do cliente numa
+  // transmissão que não depende dela seria alarme que a equipe aprende a
+  // ignorar.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.get('/certificado/conferencia', async (req, res) => {
+    try {
+      const auth = String(req.headers.authorization || '');
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      const daqui = await loadCertificado();
+
+      let doCfi = null;
+      let erroCfi = null;
+      if (daqui?.cnpj) {
+        // O túnel fora do ar NÃO derruba a conferência: ela devolve
+        // 'nao-conferido', que é a verdade, em vez de afirmar que está tudo
+        // certo (ou que está errado).
+        try {
+          doCfi = await buscarCertificadoNoCfi({ cnpj: daqui.cnpj, token });
+        } catch (e) { erroCfi = e; }
+      } else {
+        erroCfi = new Error('O certificado carregado não traz CNPJ no titular — sem ele não dá pra perguntar ao CFI.');
+      }
+
+      res.json({ ok: true, ...conferirCertificado({ daqui, doCfi, erroCfi }) });
+    } catch (err) {
+      respostaErro(res, 502, err);
     }
   });
 

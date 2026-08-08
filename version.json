@@ -1,10 +1,10 @@
 {
-  "version": "3.4.82",
-  "build_date": "2026-08-07T20:30:00Z",
+  "version": "3.4.83",
+  "build_date": "2026-08-08T11:20:00Z",
   "release_notes": [
-    "A tela do R-4020 e a do R-2055 passam a dizer QUEM responde por cada cliente no escritorio.",
-    "A informacao vem do cadastro do Consultor Fiscal, nao de memoria nem de WhatsApp.",
-    "Cliente com mais de um responsavel principal mostra os dois e nao escolhe por conta propria.",
-    "Cliente sem colaborador atribuido aparece como pendencia de atribuicao, nao como falta de cadastro."
+    "O A1 do escritorio vive em dois cofres: neste app e no Consultor Fiscal.",
+    "A tela do certificado agora compara os dois pelo fingerprint e acusa quando sao diferentes.",
+    "Renovacao feita em um cofre so passava despercebida ate o antigo vencer e parar toda transmissao.",
+    "A conferencia nao olha o certificado do cliente: aqui se assina por procuracao, com o A1 do escritorio."
   ]
 }
