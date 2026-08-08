@@ -1,10 +1,10 @@
 {
-  "version": "3.4.85",
-  "build_date": "2026-08-08T13:05:00Z",
+  "version": "3.4.86",
+  "build_date": "2026-08-08T13:40:00Z",
   "release_notes": [
-    "A transmissao do EFD-Reinf ganhou um segundo caminho: o gateway do Consultor Fiscal assina e transmite, e a chave privada nao e tocada neste app.",
-    "O caminho atual continua sendo o padrao: a virada e por configuracao (REINF_TRANSMISSOR=gateway), depois de provar em producao restrita.",
-    "Em modo gateway o certificado local nem e carregado - e o que permitira apagar a segunda copia do A1 deste projeto.",
-    "Falha de rede na transmissao avisa que o lote pode ter sido enviado: reenviar duplica."
+    "Botao 'Provar gateway' na aba REINF: transmite so o R-1000 em producao restrita pelo gateway do Consultor Fiscal.",
+    "A prova nao toca producao nem o caminho atual de transmissao - a chave principal continua em local.",
+    "Se o veredito vier PROVADO, a segunda copia do certificado A1 deste projeto pode ser aposentada.",
+    "O gate de departamento passou de aviso para bloqueio: sem vinculo, a tela diz onde se arruma."
   ]
 }

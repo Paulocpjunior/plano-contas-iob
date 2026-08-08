@@ -442,6 +442,13 @@ Em modo gateway: o evento sai SEM assinatura (quem assina e abre o mTLS é o
 CFI), o A1 local **nem é carregado** no /transmitir, e o contrato de retorno
 é IDÊNTICO ao do transmissor local — o parse/lote pendente/logs não mudam.
 
+**A PROVA VIROU UM BOTÃO (08/08)**: 🧪 *Provar gateway* na aba REINF →
+`POST /api/reinf/gateway-teste` transmite SÓ o R-1000 em produção restrita
+(tpAmb=2 FORÇADO) pelo gateway, independente do `REINF_TRANSMISSOR` — a
+chave principal e produção não são tocadas. Veredito na tela: PROVADO
+(aceito ou MS1005 "já vigente", que também fecha o círculo) ou a ocorrência
+com o XML. Clicar exige os dados de contribuinte preenchidos na própria aba.
+
 RITO DE PROVA antes de apagar o `reinf-cert-a1`: (1) env pra `gateway`;
 (2) transmitir R-1000 + movimento em produção restrita (tpAmb=2) e conferir
 protocolo/recibos iguais ao caminho local; (3) rodar semanas em produção;
