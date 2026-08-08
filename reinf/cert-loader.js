@@ -88,9 +88,23 @@ function extrairPem(pfxBuffer, password) {
 function metadados(pemCert) {
   const cert = forge.pki.certificateFromPem(pemCert);
   const cn = cert.subject.getField('CN');
+  const titular = cn ? cn.value : null;
+
+  // FINGERPRINT — SHA-256 do DER, exatamente como o CFI calcula
+  // (`cert-storage.js`). O algoritmo tem que ser o MESMO nos dois lados, senão
+  // a comparação não significa nada: dois hashes diferentes do mesmo arquivo
+  // acusariam certificados distintos que na verdade são o mesmo.
+  const md = forge.md.sha256.create();
+  md.update(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes());
+
   return {
-    titular: cn ? cn.value : null,
+    titular,
     notAfter: cert.validity.notAfter.toISOString(),
+    fingerprint: md.digest().toHex(),
+    // O CNPJ sai do próprio certificado (CN=NOME:CNPJ) — é dele que se
+    // pergunta ao CFI, não de constante: perguntar por CNPJ chutado
+    // conferiria o certificado errado.
+    cnpj: (String(titular || '').match(/:(\d{14})$/) || [])[1] || null,
   };
 }
 
@@ -120,6 +134,8 @@ async function loadCertificado(force = false) {
     pemKey, pemCert,
     titular: meta.titular,
     notAfter: meta.notAfter,
+    fingerprint: meta.fingerprint,
+    cnpj: meta.cnpj,
     version: certResp.name.split('/').pop(),
     loadedAt: Date.now(),
   };
@@ -163,4 +179,4 @@ async function salvarCertificadoUpload({ pfxBuffer, password }) {
   };
 }
 
-module.exports = { loadCertificado, invalidarCache, salvarCertificadoUpload };
+module.exports = { loadCertificado, invalidarCache, salvarCertificadoUpload, metadados };

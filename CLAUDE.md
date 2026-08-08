@@ -371,5 +371,40 @@ cadastro que está certo — o erro de 07/08 pela manhã.
 **Nunca derruba a apuração**: é informação de apoio, chamada DEPOIS do
 resultado. Túnel fora do ar ⇒ o bloco some, a tabela continua.
 
+### 🔑 O A1 DO ESCRITÓRIO VIVE EM DOIS COFRES (08/08)
+
+Este app assina TODOS os eventos e faz o mTLS com o A1 da SP como
+**procuradora** (`cert-loader`), guardado no Secret Manager DESTE projeto
+(`reinf-cert-a1`). O CFI guarda A1 no dele. **Nada nunca comparou os dois.**
+
+Quando o certificado é renovado, alguém sobe o arquivo novo em UM dos cofres.
+O outro segue com o antigo e nada acusa — o app transmite normalmente até o dia
+em que o antigo vence, e aí **TODA transmissão para de uma vez, para todos os
+clientes**.
+
+A prova é o **FINGERPRINT** (SHA-256 do DER). O `metadados()` do cert-loader
+passou a calculá-lo com o **mesmo código do CFI** (`sefaz-backend/cert-storage.js`)
+— e um teste replica o cálculo do outro lado para provar que batem. Se os
+algoritmos divergissem, a comparação viraria ruído: hashes diferentes do MESMO
+arquivo acusariam certificados distintos.
+
+`reinf/certificado-conferencia.js` (puro) + `GET /api/reinf/certificado/conferencia`,
+mostrado no card **Certificado A1**. Situações: `mesmo-certificado` (verde — e a
+frase LEMBRA que renovar exige os dois cofres, porque "igual" não é "uma cópia
+só"), `mesmo-certificado-vencendo`, **`certificados-diferentes`** (vermelho; se o
+do CFI vence depois, a leitura é "renovaram lá e não aqui, e esta cópia para
+antes"), `vencido-aqui`, `cfi-nao-tem` e `nao-conferido` (túnel fora do ar NÃO
+vira "está tudo certo").
+
+**O CNPJ vem do PRÓPRIO certificado** (`CN=NOME:CNPJ`), nunca de constante —
+perguntar ao CFI por CNPJ chutado conferiria o certificado errado.
+
+⚠️ **NÃO se confere o certificado do CLIENTE, e isso foi decisão** (08/08): a
+tentação era pendurar a aptidão do cliente (fase 3 do túnel) na tela de
+transmissão. Seria alarme falso — aqui o certificado do cliente não é usado em
+momento nenhum, a assinatura sai do A1 do escritório por procuração. "Cliente
+sem certificado" ao lado de uma transmissão que não depende dele é o aviso que
+ensina a equipe a ignorar aviso.
+
 DIRF está EXTINTA (substituída pela série R-4000) — resíduo de fluxo DIRF no
 escritório morre quando o R-4020 entrar.

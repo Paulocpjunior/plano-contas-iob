@@ -188,6 +188,29 @@ async function buscarResponsavelNoCfi({ cnpj, token }, deps = {}) {
   return interpretarRespostaCfi({ status: resp.status, corpo, url });
 }
 
+/**
+ * Metadado do certificado do CNPJ no CFI (fase 3 do túnel).
+ *
+ * NÃO traz a chave — nem poderia: o CFI não a expõe. Vem titular, validade,
+ * raiz e o FINGERPRINT, que é o que permite dizer se o A1 daqui é o MESMO
+ * arquivo que o de lá.
+ */
+async function buscarCertificadoNoCfi({ cnpj, token }, deps = {}) {
+  const doFetch = deps.fetch || globalThis.fetch;
+  const url = montarUrlCadastroCfi({ cnpj, recurso: 'certificados' }, deps.env || process.env);
+  if (!token) throw new Error('Sessão sem token. Faça login novamente.');
+
+  let resp;
+  try {
+    resp = await doFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (e) {
+    throw new Error(`Não consegui falar com o Consultor Fiscal (${e.message}). Tente de novo em instantes.`);
+  }
+  let corpo = {};
+  try { corpo = await resp.json(); } catch { corpo = {}; }
+  return interpretarRespostaCfi({ status: resp.status, corpo, url });
+}
+
 /** R-4020: as NFS-e tomadas com retenção. */
 const buscarNotasTomadasNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'retencoes-pj' }, deps);
 
@@ -204,4 +227,5 @@ const buscarAquisicoesRuraisNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'a
 module.exports = {
   montarUrlCfi, montarUrlCadastroCfi, interpretarRespostaCfi, buscarNoCfi,
   buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarResponsavelNoCfi,
+  buscarCertificadoNoCfi,
 };
