@@ -15,6 +15,7 @@ const {
 const { assinarEventoReinf } = require('./reinf/assinador');
 const { loadCertificado, salvarCertificadoUpload } = require('./reinf/cert-loader');
 const { enviarLote, consultarLote } = require('./reinf/transmissor');
+const { transmissorAtivo, enviarLoteViaGateway, consultarLoteViaGateway } = require('./reinf/gateway-client');
 const { apurarRetencoesPJ } = require('./reinf/retencao-pj-apuracao');
 const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarResponsavelNoCfi, buscarCertificadoNoCfi } = require('./reinf/cfi-notas-client');
 const { resumirResponsavel, avisosDoResponsavel } = require('./reinf/responsavel-escritorio');
@@ -235,10 +236,40 @@ function esperar(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function consultarLoteAteProcessar(protocolo, tpAmb, { tentativas = 10, intervaloMs = 3000 } = {}) {
+// ── FASE 4 DO TÚNEL: transmissão via gateway do CFI ─────────────────────────
+// REINF_TRANSMISSOR=gateway vira a chave; o default é 'local' e o caminho
+// atual fica INTOCADO até o gateway provar em produção restrita. As duas
+// funções abaixo têm o MESMO contrato dos pares locais — o resto do fluxo
+// (parse, lote pendente, logs) não muda uma linha.
+function tokenDaRequisicao(req) {
+  const auth = String((req && req.headers && req.headers.authorization) || '');
+  return auth.startsWith('Bearer ') ? auth.slice(7) : '';
+}
+
+async function assinarEEnviarLote(eventosXml, cert, loteContrib, tpAmb, req) {
+  if (transmissorAtivo() === 'gateway') {
+    // O evento vai SEM assinatura: quem assina (e abre o mTLS) é o CFI. A
+    // confirmação de produção viaja quando tpAmb=1 — a trava de lá exige.
+    return enviarLoteViaGateway({
+      eventosXml, contribuinte: loteContrib, tpAmb,
+      confirmoProducao: Number(tpAmb) === 1,
+      token: tokenDaRequisicao(req),
+    });
+  }
+  return enviarLote(eventosXml.map((xml) => assinarEventoReinf(xml, cert)), loteContrib, tpAmb);
+}
+
+async function consultarLoteOndeFoi(protocolo, tpAmb, req) {
+  if (transmissorAtivo() === 'gateway') {
+    return consultarLoteViaGateway({ protocolo, tpAmb, token: tokenDaRequisicao(req) });
+  }
+  return consultarLote(protocolo, tpAmb);
+}
+
+async function consultarLoteAteProcessar(protocolo, tpAmb, { tentativas = 10, intervaloMs = 3000, req = null } = {}) {
   let ultimo = null;
   for (let i = 0; i < tentativas; i++) {
-    const retorno = await consultarLote(protocolo, tpAmb);
+    const retorno = await consultarLoteOndeFoi(protocolo, tpAmb, req);
     ultimo = {
       httpStatus: retorno.status,
       ...parseRetornoReinf(retorno),
@@ -1117,7 +1148,10 @@ function registrarRotasReinf(app, { db } = {}) {
     try {
       const p = req.body || {};
       const tpAmb = Number(p.tpAmb || 2);
-      const cert = await loadCertificado();
+      // Em modo gateway o A1 local NEM É CARREGADO: é o que permite apagar o
+      // reinf-cert-a1 deste projeto quando o gateway estiver provado — se a
+      // transmissão ainda dependesse do load, apagar o secret a quebraria.
+      const cert = transmissorAtivo() === 'gateway' ? null : await loadCertificado();
       const loteContrib = normalizarContribuinteLote(p.loteContribuinte || p.contribuinte);
 
       let retornoR1000 = null;
@@ -1136,11 +1170,11 @@ function registrarRotasReinf(app, { db } = {}) {
           contato: p.contato || p.respInfo,
           seq: 1,
         });
-        const envioR1000 = await enviarLote([assinarEventoReinf(r1000.xml, cert)], loteContrib, tpAmb);
+        const envioR1000 = await assinarEEnviarLote([r1000.xml], cert, loteContrib, tpAmb, req);
         const infoEnvioR1000 = parseRetornoReinf(envioR1000);
         protocoloR1000 = infoEnvioR1000.protocolo;
         retornoR1000 = protocoloR1000
-          ? await consultarLoteAteProcessar(protocoloR1000, tpAmb)
+          ? await consultarLoteAteProcessar(protocoloR1000, tpAmb, { req })
           : { httpStatus: envioR1000.status, ...infoEnvioR1000 };
 
         await registrarLog(db, req, 'transmitir_r1000_previo', {
@@ -1194,8 +1228,7 @@ function registrarRotasReinf(app, { db } = {}) {
         seq,
       });
       const eventosMovimento = [...r4010, r4099];
-      const assinados = eventosMovimento.map((e) => assinarEventoReinf(e.xml, cert));
-      const retorno = await enviarLote(assinados, loteContrib, tpAmb);
+      const retorno = await assinarEEnviarLote(eventosMovimento.map((e) => e.xml), cert, loteContrib, tpAmb, req);
       const infoRetorno = parseRetornoReinf(retorno);
       if (infoRetorno.protocolo) {
         await registrarLoteReinfPendente(db, req, infoRetorno.protocolo, eventosMovimento, {
@@ -1237,7 +1270,7 @@ function registrarRotasReinf(app, { db } = {}) {
   router.get('/lote/:protocolo', async (req, res) => {
     try {
       const tpAmb = Number(req.query.tpAmb || 2);
-      const retorno = await consultarLote(req.params.protocolo, tpAmb);
+      const retorno = await consultarLoteOndeFoi(req.params.protocolo, tpAmb, req);
       const infoRetorno = parseRetornoReinf(retorno);
       const persistencia = await registrarRetornoLoteReinf(db, req.params.protocolo, tpAmb, infoRetorno.xml);
       await registrarLog(db, req, 'consultar_lote', {
