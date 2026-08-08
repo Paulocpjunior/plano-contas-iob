@@ -211,6 +211,37 @@ async function buscarCertificadoNoCfi({ cnpj, token }, deps = {}) {
   return interpretarRespostaCfi({ status: resp.status, corpo, url });
 }
 
+/**
+ * "Este e-mail abre o módulo Contábil?" — o gate do SaaS (08/08).
+ *
+ * O vínculo de DEPARTAMENTO mora no cadastro central (users.departamentos do
+ * CFI, gravado só por admin lá). Este app PERGUNTA no login; não define.
+ */
+async function buscarAcessoModuloNoCfi({ email, modulo, token }, deps = {}) {
+  const doFetch = deps.fetch || globalThis.fetch;
+  const base = baseCfi(deps.env || process.env);
+  if (!base) {
+    throw new Error(
+      'A URL do Consultor Fiscal não está configurada neste serviço. '
+      + 'Defina CFI_URL (ou FISCAL_GATEWAY_URL) apontando para o Cloud Run do CFI.',
+    );
+  }
+  const e = String(email || '').trim().toLowerCase();
+  if (!e.includes('@')) throw new Error('Informe o e-mail do usuário.');
+  if (!token) throw new Error('Sessão sem token. Faça login novamente.');
+  const url = `${base}/api/admin/cadastro/usuarios/${encodeURIComponent(e)}?modulo=${encodeURIComponent(modulo || 'contabil')}`;
+
+  let resp;
+  try {
+    resp = await doFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (err) {
+    throw new Error(`Não consegui falar com o Consultor Fiscal (${err.message}). Tente de novo em instantes.`);
+  }
+  let corpo = {};
+  try { corpo = await resp.json(); } catch { corpo = {}; }
+  return interpretarRespostaCfi({ status: resp.status, corpo, url });
+}
+
 /** R-4020: as NFS-e tomadas com retenção. */
 const buscarNotasTomadasNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'retencoes-pj' }, deps);
 
@@ -227,5 +258,5 @@ const buscarAquisicoesRuraisNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'a
 module.exports = {
   montarUrlCfi, montarUrlCadastroCfi, interpretarRespostaCfi, buscarNoCfi,
   buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarResponsavelNoCfi,
-  buscarCertificadoNoCfi,
+  buscarCertificadoNoCfi, buscarAcessoModuloNoCfi,
 };
