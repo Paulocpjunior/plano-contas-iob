@@ -428,6 +428,18 @@ piscando NÃO vira faixa amarela pra equipe inteira: indeterminado é log, não
 banner. Núcleo puro `departamento-gate.js` (decidirGate) + faixa/tela-cheia
 em `index.html` (mostrarGateDepartamento).
 
+### 💾 PREFERÊNCIAS DE RETENÇÃO — o "salvar" que faltava (08/08)
+
+A colaboradora apontou: as naturezas digitadas por prestador (R-4020) e o
+indAquis por produtor (R-2055) viviam SÓ na memória da tela — recarregou,
+perdeu, redigitava a cada apuração. Agora persistem no doc
+`reinf_preferencias/retencoes` (`GET/POST /api/reinf/preferencias-retencao`),
+por CNPJ/CPF (são dados ESTÁVEIS do prestador/produtor, não da competência).
+Botões 💾 nas duas telas; a carga é automática ANTES da busca e a precedência
+é **digitado > salvo > nota** — salvar nunca sobrescreve o que a pessoa
+acabou de corrigir na sessão. A validação do código continua na Tabela 01 do
+servidor, na hora de apurar.
+
 ### 🚇 FASE 4: transmissão via GATEWAY do CFI — plugada, DESLIGADA (08/08)
 
 O CFI agora assina E transmite lotes EFD-Reinf
