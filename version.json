@@ -1,8 +1,7 @@
 {
-  "version": "3.4.89",
-  "build_date": "2026-08-09T12:40:00Z",
+  "version": "3.4.90",
+  "build_date": "2026-08-09T13:10:00Z",
   "release_notes": [
-    "Banner pos-login quando o e-mail nao esta verificado: o gateway do Reinf e o cadastro central do CFI exigem verificacao, e agora o botao envia o e-mail na hora.",
-    "Depois de clicar no link recebido, saia e entre de novo para o acesso valer."
+    "A faixa de e-mail nao verificado entra ABAIXO do cabecalho, como aviso do app - nao mais por cima da marca."
   ]
 }
