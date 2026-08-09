@@ -440,7 +440,26 @@ Botões 💾 nas duas telas; a carga é automática ANTES da busca e a precedên
 acabou de corrigir na sessão. A validação do código continua na Tabela 01 do
 servidor, na hora de apurar.
 
-### 🚇 FASE 4: transmissão via GATEWAY do CFI — plugada, DESLIGADA (08/08)
+### 🚇 FASE 4: transmissão via GATEWAY do CFI — 🧪 PROVADA e LIGADA (09/08)
+
+**PROVADO em 09/08 pelo Paulo**: 🧪 devolveu *"PROVADO: lote aceito em
+produção restrita via gateway"*, protocolo **2.202608.33245995** — o CFI
+assinou com o A1 do cofre e a Receita aceitou. A chave
+`REINF_TRANSMISSOR=gateway` foi LIGADA no deploy-app.yml no mesmo dia:
+transmissões deste app agora saem pelo CFI e o A1 local nem é carregado.
+Voltar pra local = tirar a env do workflow (um commit).
+O QUE AINDA SEGURA O `reinf-cert-a1`: uma transmissão REAL (R-1000 +
+movimento de competência) via gateway com recibo conferido — o 🧪 prova o
+trilho, não o volume. Só depois de rodar de verdade: apagar o secret e o
+upload de certificado daqui.
+CUSTO DO CAMINHO ATÉ O PROVADO (09/08, lições): o 🧪 v1 validava o payload
+COMPLETO do R-4020 e barrava em "Inclua ao menos um beneficiário" (a prova
+usa só o R-1000); o 401 "Email não verificado" era a trava CERTA do túnel do
+CFI sem CAMINHO na tela (banner de verificação + botão veio em v3.4.89-91); e
+o 401 persistia DEPOIS de verificar porque `getIdToken()` cacheia o token por
+1h — o getToken agora se autocura lendo o claim (v3.4.92).
+
+#### O desenho original (08/08), que continua valendo:
 
 O CFI agora assina E transmite lotes EFD-Reinf
 (`POST /api/admin/reinf/gateway/transmitir` — o assinador de lá é PORTE do

@@ -225,7 +225,7 @@ jobs:
               --platform managed \
               --region "$REGION" \
               --project "$PROJECT_ID" \
-              --update-env-vars=DEPARTAMENTO_GATE_MODO=bloqueio \
+              --update-env-vars=DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway \
               --no-traffic --tag candidate \
               --quiet; then
               exit 0
