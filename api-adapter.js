@@ -8,7 +8,20 @@
       if (typeof firebase === 'undefined' || !firebase.auth) return null;
       const user = firebase.auth().currentUser;
       if (!user) return null;
-      return await user.getIdToken();
+      let token = await user.getIdToken();
+      // getIdToken() devolve o token em CACHE por até 1h. Se ele ainda diz
+      // e-mail não verificado, o CFI recusa o túnel mesmo DEPOIS da pessoa
+      // verificar (09/08: 401 persistiu com o e-mail já verificado). Só
+      // nesse caso: recarrega o perfil e força um token novo — caro, mas
+      // raro, e se cura sozinho sem sair/entrar.
+      try {
+        const claims = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (claims.email_verified !== true) {
+          await user.reload();
+          if (user.emailVerified) token = await user.getIdToken(true);
+        }
+      } catch (e) { /* claim ilegível não derruba a chamada */ }
+      return token;
     } catch (err) { return null; }
   }
 
