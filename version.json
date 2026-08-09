@@ -1,9 +1,8 @@
 {
-  "version": "3.4.88",
-  "build_date": "2026-08-09T12:00:00Z",
+  "version": "3.4.89",
+  "build_date": "2026-08-09T12:40:00Z",
   "release_notes": [
-    "O botao Provar gateway do Reinf nao exige mais beneficiario: a prova transmite so o R-1000, e valida apenas os campos que ele usa.",
-    "Novo botao Salvar formulario no R-4020: CNPJs, natureza, contato e classificacao persistem e voltam preenchidos no proximo login.",
-    "O que voce digitou continua vencendo o salvo; limpar um campo e salvar apaga o preenchimento automatico."
+    "Banner pos-login quando o e-mail nao esta verificado: o gateway do Reinf e o cadastro central do CFI exigem verificacao, e agora o botao envia o e-mail na hora.",
+    "Depois de clicar no link recebido, saia e entre de novo para o acesso valer."
   ]
 }
