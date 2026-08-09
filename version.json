@@ -1,7 +1,7 @@
 {
-  "version": "3.4.90",
-  "build_date": "2026-08-09T13:10:00Z",
+  "version": "3.4.91",
+  "build_date": "2026-08-09T13:40:00Z",
   "release_notes": [
-    "A faixa de e-mail nao verificado entra ABAIXO do cabecalho, como aviso do app - nao mais por cima da marca."
+    "Botao \"Ja cliquei no link\" na faixa de verificacao: renova o token na hora - sem ele, o 401 continuava por ate 1h mesmo com o e-mail verificado."
   ]
 }
