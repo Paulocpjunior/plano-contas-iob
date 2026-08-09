@@ -111,5 +111,29 @@ assert.strictEqual(transmissorAtivo({ REINF_TRANSMISSOR: 'sim' }), 'local', 'val
   const adapter2 = fs.readFileSync(path.join(__dirname, '..', 'api-adapter.js'), 'utf8');
   assert.ok(/reinfGatewayTeste,/.test(adapter2), 'exportada no window.API');
 
+  // ─── a prova NÃO exige o R-4020 preenchido (Paulo, 09/08) ─────────────────
+  // O 🧪 barrava em "Inclua ao menos um beneficiário" — validação do payload
+  // COMPLETO, que o R-1000 nem usa. A prova monta payload mínimo próprio.
+  const fnProva = html2.slice(html2.indexOf('async function provarGatewayReinf'), html2.indexOf('async function transmitirReinf'));
+  assert.ok(!fnProva.includes('montarPayloadReinf'),
+    'a prova monta payload mínimo — montarPayloadReinf exige beneficiário, que o R-1000 não usa');
+  assert.ok(fnProva.includes("contribuinte: { tpInsc: 1, nrInsc: cnpjFonte }"), 'o mínimo tem o contribuinte');
+  assert.ok(!fnProva.includes('beneficiario') && !fnProva.includes('Beneficiario'),
+    'nenhuma menção a beneficiário no caminho da prova');
+
+  // ─── 💾 Salvar formulário: o cabeçalho persiste (Paulo, 09/08) ────────────
+  assert.ok(html2.includes("salvarPreferenciasRetencao('formulario')"), 'o botão 💾 Salvar formulário existe');
+  assert.ok(html2.includes("cnpjFonte: reinfDigits(document.getElementById('reinfCnpjFonte')"),
+    'o salvar coleta o cabeçalho do formulário');
+  assert.ok(/const f = p\.formulario \|\| \{\};/.test(html2), 'o carregar preenche a partir do salvo');
+  assert.ok(html2.includes("if (el && !String(el.value || '').trim()"),
+    'salvo só preenche campo VAZIO — digitado > salvo');
+  const rotas2 = fs.readFileSync(path.join(__dirname, '..', 'reinf-routes.js'), 'utf8');
+  assert.ok(rotas2.includes('formulario: d.formulario || {}'), 'o GET devolve o formulário salvo');
+  assert.ok(rotas2.includes('Campo desconhecido no formulário'),
+    'campo fora da whitelist é RECUSADO com o nome, nunca descartado em silêncio (lição #382)');
+  assert.ok(rotas2.includes("await ref.update({ formulario: formularioNovo })"),
+    'o formulário SUBSTITUI o mapa — merge profundo manteria campo que a pessoa limpou');
+
   console.log('OK: gateway por env com default local — contrato idêntico, rede não mente, cert local fora do caminho, prova a um clique.');
 })().catch((e) => { console.error(e); process.exit(1); });
