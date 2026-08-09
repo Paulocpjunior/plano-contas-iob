@@ -1,9 +1,9 @@
 {
-  "version": "3.4.87",
-  "build_date": "2026-08-08T14:00:00Z",
+  "version": "3.4.88",
+  "build_date": "2026-08-09T12:00:00Z",
   "release_notes": [
-    "As telas do R-4020 e do R-2055 ganharam o botao Salvar: a natureza por prestador e o indAquis por produtor persistem no servidor.",
-    "As preferencias salvas carregam sozinhas antes da busca; o que voce digitou na sessao vence o salvo.",
-    "Sao dados estaveis do prestador/produtor - salvos por CNPJ/CPF, valem para todas as competencias."
+    "O botao Provar gateway do Reinf nao exige mais beneficiario: a prova transmite so o R-1000, e valida apenas os campos que ele usa.",
+    "Novo botao Salvar formulario no R-4020: CNPJs, natureza, contato e classificacao persistem e voltam preenchidos no proximo login.",
+    "O que voce digitou continua vencendo o salvo; limpar um campo e salvar apaga o preenchimento automatico."
   ]
 }

@@ -1494,7 +1494,7 @@ function registrarRotasReinf(app, { db } = {}) {
     try {
       const snap = await db.collection('reinf_preferencias').doc('retencoes').get();
       const d = snap.exists ? snap.data() : {};
-      res.json({ ok: true, naturezas: d.naturezas || {}, indAquis: d.indAquis || {} });
+      res.json({ ok: true, naturezas: d.naturezas || {}, indAquis: d.indAquis || {}, formulario: d.formulario || {} });
     } catch (err) {
       respostaErro(res, 500, err);
     }
@@ -1504,6 +1504,7 @@ function registrarRotasReinf(app, { db } = {}) {
     try {
       const naturezas = req.body && req.body.naturezas;
       const indAquis = req.body && req.body.indAquis;
+      const formulario = req.body && req.body.formulario;
       const limpo = (obj, chaveDig, valDig) => {
         const out = {};
         for (const [k, v] of Object.entries(obj || {})) {
@@ -1516,10 +1517,38 @@ function registrarRotasReinf(app, { db } = {}) {
       const patch = { atualizadoEm: new Date().toISOString(), atualizadoPor: (req.user && req.user.email) || null };
       if (naturezas) patch.naturezas = limpo(naturezas, 11, 5);
       if (indAquis) patch.indAquis = limpo(indAquis, 11, 2);
-      await db.collection('reinf_preferencias').doc('retencoes').set(patch, { merge: true });
+      if (formulario) {
+        // Whitelist explícita (lição #382 do CFI): campo desconhecido é
+        // RECUSADO com o nome — descartar em silêncio faria o botão dizer
+        // "salvo" com o dado perdido. Campo vazio APAGA (limpar e salvar
+        // remove o preenchimento automático).
+        const FORM_CAMPOS = {
+          cnpjFonte: /^\d{14}$/, cnpjEstab: /^\d{14}$/, natRend: /^\d{5}$/,
+          contatoNome: /^.{0,80}$/, contatoCpf: /^\d{11}$/, contatoTelefone: /^\d{10,13}$/,
+          classTrib: /^\d{2}$/, indSitPJ: /^[0-4]$/,
+        };
+        const salvo = {};
+        for (const [k, v] of Object.entries(formulario)) {
+          if (!FORM_CAMPOS[k]) return respostaErro(res, 400, new Error(`Campo desconhecido no formulário: ${k}`));
+          const valor = String(v == null ? '' : v).trim();
+          if (valor === '') continue;
+          if (!FORM_CAMPOS[k].test(valor)) return respostaErro(res, 400, new Error(`Valor inválido em ${k}: "${valor}"`));
+          salvo[k] = valor;
+        }
+        patch._formularioNovo = salvo;
+      }
+      const formularioNovo = patch._formularioNovo;
+      delete patch._formularioNovo;
+      const ref = db.collection('reinf_preferencias').doc('retencoes');
+      await ref.set(patch, { merge: true });
+      // O formulário SUBSTITUI o mapa inteiro (update troca o campo por
+      // completo): merge profundo manteria valor velho em campo que a pessoa
+      // limpou — e "limpei e salvei" tem que apagar (regra do CCM-SP #311).
+      if (formularioNovo) await ref.update({ formulario: formularioNovo });
       await registrarLog(db, req, 'preferencias_retencao', {
         naturezas: patch.naturezas ? Object.keys(patch.naturezas).length : undefined,
         indAquis: patch.indAquis ? Object.keys(patch.indAquis).length : undefined,
+        formulario: formularioNovo ? Object.keys(formularioNovo).length : undefined,
       });
       res.json({ ok: true });
     } catch (err) {
