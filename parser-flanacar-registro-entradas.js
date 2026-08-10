@@ -652,10 +652,16 @@
     ].filter(Boolean).join(' - ').replace(/\s+/g, ' ').trim();
   }
 
-  function criarLancamentoImposto(draft, principal, cfg, layout) {
-    const valor = Math.round(Math.abs(Number(draft[cfg.campo] || 0)) * 100) / 100;
+  // fonteFiscal = de onde o valor do imposto é lido. Default = draft (TOTAL da
+  // nota). Quando os lançamentos separam por CFOP (Paulo, 10/08 — NF 27737 com
+  // 5101 e 5401 subindo com o imposto aglutinado), passa-se draft.cfopDetalhes
+  // [cfop] pra que ICMS/ICMS-ST/IPI saiam POR CFOP, iguais à receita — o dado
+  // já é somado por CFOP no parser, não se inventa nada.
+  function criarLancamentoImposto(draft, principal, cfg, layout, fonteFiscal) {
+    const fonte = fonteFiscal || draft;
+    const valor = Math.round(Math.abs(Number(fonte[cfg.campo] || 0)) * 100) / 100;
     if (!valor) return null;
-    const base = cfg.base ? Math.round(Math.abs(Number(draft[cfg.base] || 0)) * 100) / 100 : 0;
+    const base = cfg.base ? Math.round(Math.abs(Number(fonte[cfg.base] || 0)) * 100) / 100 : 0;
     return {
       ...principal,
       id: novoId((draft.linhaOrigem || draft.numeroNf || 'nf') + '_' + cfg.tipo.replace(/\s+/g, '').toLowerCase(), layout),
@@ -688,15 +694,32 @@
 
   function finalizarLancamentos(draft, periodo, layout) {
     const cfops = Object.keys(draft.cfopValores).sort();
-    const principais = layout.separarLancamentosPorCfop && cfops.length
+    const separaPorCfop = layout.separarLancamentosPorCfop && cfops.length;
+    const principais = separaPorCfop
       ? cfops.map(function(cfop) { return finalizarLancamento(draft, periodo, layout, cfop); })
       : [finalizarLancamento(draft, periodo, layout)];
-    const principal = principais
-      .slice()
-      .sort(function(a, b) { return Math.abs(Number(b.valor || 0)) - Math.abs(Number(a.valor || 0)); })[0];
-    const impostos = IMPOSTOS_DESTACADOS
-      .map(function(cfg) { return criarLancamentoImposto(draft, principal, cfg, layout); })
-      .filter(Boolean);
+    let impostos;
+    if (separaPorCfop) {
+      // Imposto POR CFOP: cada CFOP gera seu próprio conjunto de impostos,
+      // lendo o valor de draft.cfopDetalhes[cfop] e herdando o principal
+      // daquele mesmo CFOP. Antes, os impostos saíam somados (total da nota)
+      // pendurados no principal de maior valor — a aglutinação do caso 27737.
+      impostos = principais.reduce(function(acc, principal) {
+        const fonteCfop = draft.cfopDetalhes[principal.cfop] || draft;
+        IMPOSTOS_DESTACADOS.forEach(function(cfg) {
+          const l = criarLancamentoImposto(draft, principal, cfg, layout, fonteCfop);
+          if (l) acc.push(l);
+        });
+        return acc;
+      }, []);
+    } else {
+      const principal = principais
+        .slice()
+        .sort(function(a, b) { return Math.abs(Number(b.valor || 0)) - Math.abs(Number(a.valor || 0)); })[0];
+      impostos = IMPOSTOS_DESTACADOS
+        .map(function(cfg) { return criarLancamentoImposto(draft, principal, cfg, layout); })
+        .filter(Boolean);
+    }
     return principais.concat(impostos);
   }
 
