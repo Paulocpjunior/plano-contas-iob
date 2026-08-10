@@ -35,8 +35,34 @@ function modoAtual(env = process.env) {
 }
 
 /**
+ * A trava de HORÁRIO (Paulo, 10/08) chega no MESMO corpo do túnel, no campo
+ * `horario`, JÁ decidida pelo CFI: ele só devolve `permitido:false` quando a
+ * chave-mestra dele (HORARIO_ACESSO_ATIVO=bloqueio) está armada — por isso o
+ * arme é ÚNICO e central ("os 5 módulos de uma vez"), e cabear este app agora
+ * é inócuo até o Paulo virar a env lá. Admin já vem liberado de lá.
+ *
+ * Ela é INDEPENDENTE do DEPARTAMENTO_GATE_MODO: o horário pode barrar mesmo com
+ * o gate de departamento em aviso, porque quem arma o horário é o CFI, não este
+ * env. Túnel fora do ar ⇒ sem `horario` ⇒ não barra (mesma regra do resto).
+ * @returns {{ bloqueia: boolean, mensagem: string|null }}
+ */
+function avaliarHorario(acesso) {
+  const h = acesso && acesso.horario;
+  if (!h || h.permitido !== false) return { bloqueia: false, mensagem: null };
+  return {
+    bloqueia: true,
+    mensagem: h.mensagem
+      || `Acesso fora do horário permitido${h.janela ? ` — seu acesso é ${h.janela}` : ''}. `
+        + 'Se precisar de exceção, fale com um administrador.',
+  };
+}
+
+/**
  * A decisão, pura: resposta do túnel (ou erro) + modo → o que a tela faz.
- * @returns {{permitido, modo, aviso: string|null, motivo: string|null}}
+ * Dobra as DUAS travas (departamento + horário) na mesma forma que o front já
+ * consome; `titulo` diz qual delas fechou a porta, senão o cadeado mentiria
+ * "sem vínculo" para quem só está fora do horário.
+ * @returns {{permitido, modo, aviso: string|null, motivo: string|null, titulo?: string, bloqueio?: string}}
  */
 function decidirGate({ acesso, erro, modo }) {
   if (erro || !acesso) {
@@ -47,11 +73,26 @@ function decidirGate({ acesso, erro, modo }) {
       motivo: erro ? String(erro.message || erro) : 'sem resposta do cadastro central',
     };
   }
+  // Horário barra ANTES: é trava armada no CFI e vale mesmo com departamento OK.
+  const horario = avaliarHorario(acesso);
+  if (horario.bloqueia) {
+    return {
+      permitido: false, modo, indeterminado: false,
+      bloqueio: 'horario',
+      titulo: 'Fora do horário de acesso',
+      aviso: null, motivo: horario.mensagem,
+    };
+  }
   if (acesso.temAcesso) {
     return { permitido: true, modo, indeterminado: false, aviso: null, motivo: acesso.motivo || null };
   }
   if (modo === 'bloqueio') {
-    return { permitido: false, modo, indeterminado: false, aviso: null, motivo: acesso.motivo || 'Sem vínculo com este módulo.' };
+    return {
+      permitido: false, modo, indeterminado: false,
+      bloqueio: 'departamento',
+      titulo: 'Sem vínculo com o módulo Contábil',
+      aviso: null, motivo: acesso.motivo || 'Sem vínculo com este módulo.',
+    };
   }
   return {
     permitido: true, modo, indeterminado: false,
@@ -84,4 +125,4 @@ function registrarGateDepartamento(app) {
   });
 }
 
-module.exports = { decidirGate, registrarGateDepartamento, modoAtual, MODULO_DESTE_APP };
+module.exports = { decidirGate, avaliarHorario, registrarGateDepartamento, modoAtual, MODULO_DESTE_APP };

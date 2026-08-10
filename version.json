@@ -1,7 +1,7 @@
 {
-  "version": "3.4.94",
-  "build_date": "2026-08-10T20:00:00Z",
+  "version": "3.4.95",
+  "build_date": "2026-08-10T22:45:00Z",
   "release_notes": [
-    "Correcao: nota fiscal com varios CFOPs tinha os impostos (ICMS/ICMS-ST/IPI) aglutinados numa linha so; agora cada CFOP tem seus impostos separados, iguais a receita."
+    "Trava de horario de acesso (fase 4): o modulo Contabil passa a ler o veredito de horario do tunel do CFI no login, alem do vinculo de departamento. Fica INERTE ate o CFI armar a chave (HORARIO_ACESSO_ATIVO=bloqueio) — enquanto desarmada, nada muda. Fora do horario, a tela de bloqueio diz que foi horario (nao 'sem vinculo') e mostra a janela permitida."
   ]
 }
