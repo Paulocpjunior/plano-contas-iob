@@ -15,7 +15,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { decidirGate, modoAtual, MODULO_DESTE_APP } = require('../departamento-gate');
+const { decidirGate, avaliarHorario, modoAtual, MODULO_DESTE_APP } = require('../departamento-gate');
 const { buscarAcessoModuloNoCfi } = require('./../reinf/cfi-notas-client');
 
 assert.strictEqual(MODULO_DESTE_APP, 'contabil');
@@ -57,6 +57,33 @@ for (const modo of ['aviso', 'bloqueio']) {
   assert.strictEqual(d.indeterminado, true);
   assert.strictEqual(d.aviso, null, 'CFI piscando não vira faixa amarela pra equipe inteira');
 }
+
+// ─── TRAVA DE HORÁRIO (10/08): chega no mesmo corpo, JÁ decidida pelo CFI ────
+// Ausente ou permitido:true não barra (túnel sem a chave armada = campo some).
+assert.deepStrictEqual(avaliarHorario({ temAcesso: true }), { bloqueia: false, mensagem: null });
+assert.deepStrictEqual(avaliarHorario({ horario: { permitido: true } }), { bloqueia: false, mensagem: null });
+// permitido:false barra e leva a mensagem do CFI.
+const hb = avaliarHorario({ horario: { permitido: false, mensagem: 'Acesso fora do horário permitido — o expediente já encerrou (fechou às 20:00). Seu acesso é segunda a sexta, das 07:00 às 20:00.' } });
+assert.strictEqual(hb.bloqueia, true);
+assert.match(hb.mensagem, /fora do horário/);
+
+// Horário barra MESMO com departamento OK e MESMO em modo aviso — a chave é do
+// CFI, não deste env. E o título diz que foi horário (cadeado não mente).
+for (const modo of ['aviso', 'bloqueio']) {
+  const d = decidirGate({
+    acesso: { temAcesso: true, motivo: 'Vinculado.', horario: { permitido: false, mensagem: 'Acesso fora do horário permitido.' } },
+    modo,
+  });
+  assert.strictEqual(d.permitido, false, 'horário barra independentemente do modo de departamento');
+  assert.strictEqual(d.bloqueio, 'horario');
+  assert.match(d.titulo, /horário/i);
+  assert.match(d.motivo, /fora do horário/i);
+}
+// Dentro do horário: a decisão segue a régua de departamento normalmente.
+const dentro = decidirGate({ acesso: { temAcesso: true, motivo: 'ok', horario: { permitido: true } }, modo: 'bloqueio' });
+assert.strictEqual(dentro.permitido, true);
+// Túnel fora do ar não tem `horario` — não barra por horário (indeterminado LIBERA).
+assert.strictEqual(decidirGate({ erro: new Error('x'), modo: 'bloqueio' }).permitido, true);
 
 // ─── o cliente do túnel monta a URL certa e não engole falta de config ──────
 (async () => {
