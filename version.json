@@ -1,7 +1,7 @@
 {
-  "version": "3.4.92",
-  "build_date": "2026-08-09T14:00:00Z",
+  "version": "3.4.93",
+  "build_date": "2026-08-10T15:00:00Z",
   "release_notes": [
-    "getToken se autocura: token em cache dizendo e-mail nao verificado recarrega o perfil e forca um token novo - o 401 do tunel some sem precisar sair e entrar."
+    "Correcao urgente: a transmissao do movimento Reinf morria em \"assinados is not defined\" (sobra do porte da fase 4). Primeira transmissao real destravada."
   ]
 }

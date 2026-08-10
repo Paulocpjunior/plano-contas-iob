@@ -135,5 +135,12 @@ assert.strictEqual(transmissorAtivo({ REINF_TRANSMISSOR: 'sim' }), 'local', 'val
   assert.ok(rotas2.includes("await ref.update({ formulario: formularioNovo })"),
     'o formulário SUBSTITUI o mapa — merge profundo manteria campo que a pessoa limpou');
 
+  // ─── regressão 10/08: a 1ª transmissão REAL morreu em 'assinados is not
+  // defined' — sobra do porte da fase 4 (o fluxo antigo tinha a lista
+  // 'assinados'; o novo delega ao assinarEEnviarLote). A rota não pode
+  // referenciar a variável que não existe mais.
+  assert.ok(!/\bassinados\b/.test(rotas2),
+    "reinf-routes não referencia 'assinados' — a contagem do lote é eventosMovimento.length");
+
   console.log('OK: gateway por env com default local — contrato idêntico, rede não mente, cert local fora do caminho, prova a um clique.');
 })().catch((e) => { console.error(e); process.exit(1); });
