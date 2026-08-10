@@ -1242,7 +1242,7 @@ function registrarRotasReinf(app, { db } = {}) {
         protocolo: infoRetorno.protocolo || null,
         httpStatus: retorno.status,
         cdResposta: infoRetorno.cdResposta || null,
-        qtdEventos: assinados.length,
+        qtdEventos: eventosMovimento.length,
         retificacoesR4010: recibosR4010.size,
         protocoloR1000: protocoloR1000 || null,
       });
@@ -1257,7 +1257,7 @@ function registrarRotasReinf(app, { db } = {}) {
         descResposta: infoRetorno.descResposta,
         dhRecepcao: infoRetorno.dhRecepcao,
         versaoAplicativoRecepcao: infoRetorno.versaoAplicativoRecepcao,
-        qtdEventos: assinados.length,
+        qtdEventos: eventosMovimento.length,
         retificacoesR4010: recibosR4010.size,
         ids: eventosMovimento.map((e) => e.id),
         xmlRetorno: infoRetorno.xml,
