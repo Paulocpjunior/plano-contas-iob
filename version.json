@@ -1,7 +1,7 @@
 {
-  "version": "3.4.93",
-  "build_date": "2026-08-10T15:00:00Z",
+  "version": "3.4.94",
+  "build_date": "2026-08-10T20:00:00Z",
   "release_notes": [
-    "Correcao urgente: a transmissao do movimento Reinf morria em \"assinados is not defined\" (sobra do porte da fase 4). Primeira transmissao real destravada."
+    "Correcao: nota fiscal com varios CFOPs tinha os impostos (ICMS/ICMS-ST/IPI) aglutinados numa linha so; agora cada CFOP tem seus impostos separados, iguais a receita."
   ]
 }
