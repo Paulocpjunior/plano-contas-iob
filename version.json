@@ -1,7 +1,7 @@
 {
-  "version": "3.4.96",
-  "build_date": "2026-08-11T14:30:00Z",
+  "version": "3.4.97",
+  "build_date": "2026-08-11T18:20:06Z",
   "release_notes": [
-    "Correcao: lancamento FISCAL (livro de entradas/saidas, imposto destacado) nao passa mais pelo 'corrigir sentido bancario' — a regra de banco invertia debito/credito de um lancamento fiscal que ja vinha certo (relatado: ICMS 552/331 saia invertido na exportacao pro Contabil SAGE, so nos livros fiscais). Extrato bancario continua sendo corrigido normalmente."
+    "Novo filtro fiscal estruturado por CFOP, com combinacao opcional por movimento da nota, ICMS, ICMS ST, IPI, PIS ou COFINS. Exemplo: CFOP 5101 + somente IPI para parametrizar apenas os lancamentos desejados."
   ]
 }
