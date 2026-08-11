@@ -1,7 +1,7 @@
 {
-  "version": "3.4.99",
-  "build_date": "2026-08-11T18:48:03Z",
+  "version": "3.4.100",
+  "build_date": "2026-08-11T20:09:40Z",
   "release_notes": [
-    "O botao de memoria em lote agora permite ao administrador atualizar de uma vez as memorizacoes existentes dos lancamentos selecionados pelo filtro fiscal, com uma unica confirmacao."
+    "Memorizacao mais rapida para colaboradores: variantes sao gravadas em paralelo, regras identicas deixam de gerar 403 e conflitos reais informam que a correcao depende do administrador. O autosave sem acesso para de repetir e explica o vinculo ausente."
   ]
 }

@@ -1,6 +1,7 @@
 const express = require('express');
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { validarVersaoParaNovaImportacao } = require('./session-import-version-guard');
+const { mesmaClassificacaoAprendida } = require('./aprendizado-utils');
 const { aplicarPlanoNaSessao, usuarioPodeAcessarEmpresa } = require('./empresa-plano-vinculo');
 const admin = require('firebase-admin');
 const path = require('path');
@@ -628,7 +629,19 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
     const ref = db.collection('aprendizado').doc(docId);
     const existing = await ref.get();
     if (existing.exists && !req.user.is_admin) {
-      return res.status(403).json({ erro: 'Somente administradores podem alterar uma memorizacao existente.' });
+      if (mesmaClassificacaoAprendida(existing.data(), req.body || {})) {
+        return res.json({
+          ok: true,
+          docId,
+          vezes_usado: existing.data().vezes_usado || 1,
+          ja_existente: true,
+          idempotente: true
+        });
+      }
+      return res.status(409).json({
+        erro: 'Esta descricao ja possui uma memorizacao diferente. Solicite a um administrador a correcao da regra existente.',
+        codigo: 'MEMORIA_EXISTENTE_DIVERGENTE'
+      });
     }
     const now = new Date();
     
