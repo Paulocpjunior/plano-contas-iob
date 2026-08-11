@@ -21,6 +21,7 @@ const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarResponsavelN
 const { resumirResponsavel, avisosDoResponsavel } = require('./reinf/responsavel-escritorio');
 const { conferirCertificado } = require('./reinf/certificado-conferencia');
 const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
+const { gerarR2055 } = require('./reinf/gerar-r2055');
 const {
   calcularDividendos,
   locadoresDividendosParaR4010,
@@ -1462,6 +1463,96 @@ function registrarRotasReinf(app, { db } = {}) {
         // não deve ser refeito e que o indAquis vai nulo de propósito.
         ressalvasDaFonte: doCfi.ressalvas,
         resumoDaFonte: doCfi.resumo,
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // POST /api/reinf/aquisicao-rural/gerar-xml
+  //
+  // Monta o R-2055 (evtAqProd) a partir da apuração do CFI e DEVOLVE o XML para
+  // o colaborador IMPORTAR NO IOB — que continua sendo o transmissor (decisão
+  // do Paulo, 11/08: padronizar o Reinf no IOB). O app NÃO transmite: assim não
+  // há risco de dupla transmissão (dois sistemas mandando o mesmo evento). O que
+  // ele resolve é a REDIGITAÇÃO — os valores saem prontos do Consultor Fiscal.
+  //
+  // NÃO recalcula: os valores vêm prontos do CFI. Só entra no evento o produtor
+  // PRONTO (indAquis informado, base > 0, sem divergência); o pendente fica FORA,
+  // nomeado. tpAmb=1 (produção) porque é o evento REAL que vai ser importado e
+  // transmitido pelo IOB — quem confirma produção é o IOB, no envio.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.post('/aquisicao-rural/gerar-xml', async (req, res) => {
+    try {
+      const p = req.body || {};
+      const cnpj = limparCnpj(p.cnpj);
+      const competencia = String(p.competencia || '').trim();
+      const tpAmb = Number(p.tpAmb || 1);
+      const token = tokenDaRequisicao(req);
+
+      if (cnpj.length !== 14) throw new Error('Informe o CNPJ do adquirente com 14 dígitos — é ele quem declara o R-2055.');
+      if (!/^\d{4}-\d{2}$/.test(competencia)) throw new Error('Competência deve ser AAAA-MM.');
+
+      // Mesma fonte da tela — o cálculo é do CFI, aqui não se refaz.
+      const doCfi = await buscarAquisicoesRuraisNoCfi({ cnpj, competencia, token });
+      const apuracao = apurarAquisicaoRural({
+        competencia,
+        produtores: doCfi.produtores,
+        indicadores: mapaIndAquisInformados(p.indAquis),
+        marcadoComoComprador: doCfi.marcadoComoComprador === true,
+      });
+
+      const prontos = apuracao.produtores.filter((l) => l.pronto);
+      const pendentes = apuracao.produtores.filter((l) => !l.pronto);
+      if (!prontos.length) {
+        return res.json({
+          ok: false,
+          etapa: 'apuracao',
+          motivo: 'Nenhum produtor PRONTO para o XML nesta competência. Resolva as pendências (indicador da aquisição, base de cálculo ou divergência) antes de gerar.',
+          naoDeclarados: pendentes.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, pendencias: l.pendencias })),
+        });
+      }
+
+      const evento = gerarR2055({
+        contribuinte: { tpInsc: 1, nrInsc: cnpj },
+        estabAdquirente: { tpInscAdq: 1, nrInscAdq: cnpj },
+        perApur: competencia,
+        tpAmb,
+        seq: 1,
+        produtores: prontos.map((l) => ({
+          cpf: l.cpfProdutor,
+          aquisicoes: [{
+            indAquis: l.indAquis,
+            vlrBruto: l.base,
+            vlrCPDescPR: l.inss,     // CP/INSS  → CRAquis 165601
+            vlrRatDescPR: l.gilrat,  // RAT      → CRAquis 164603
+            vlrSenarDesc: l.senar,   // SENAR    → CRAquis 121306
+          }],
+        })),
+      });
+
+      await registrarLog(db, req, 'gerar_r2055_xml', {
+        contribuinte: cnpj,
+        competencia,
+        tpAmb,
+        eventoId: evento.id,
+        produtoresDeclarados: prontos.length,
+        produtoresPendentes: pendentes.length,
+      });
+
+      res.json({
+        ok: true,
+        etapa: 'r2055-xml',
+        id: evento.id,
+        tpAmb,
+        // O XML vai SEM assinatura de propósito: quem assina é o IOB, com o
+        // certificado dele, na hora de transmitir. Importar assinado por outro
+        // sistema seria recusado.
+        xml: evento.xml,
+        nomeArquivo: `R-2055_${cnpj}_${competencia.replace('-', '')}.xml`,
+        declarados: prontos.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, base: l.base, total: l.total, indAquis: l.indAquis })),
+        naoDeclarados: pendentes.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, pendencias: l.pendencias })),
       });
     } catch (err) {
       respostaErro(res, 400, err);

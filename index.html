@@ -26,7 +26,7 @@
     <script src="/reinf/reinf-import-xml-utils.js?v=3.4.99"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="/api-adapter.js"></script>
+    <script src="/api-adapter.js?v=3.4.98"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js"></script>
@@ -8773,11 +8773,16 @@
                 + '</tr></thead><tbody>' + linhas + '</tbody></table>'
                 + (avisos.length ? '<ul style="margin:12px 0 0 18px;padding:0;color:#475569;font-size:12px;line-height:1.5">'
                     + avisos.map(function (a) { return '<li style="margin-bottom:4px">' + reinfEscape(a) + '</li>'; }).join('') + '</ul>' : '')
-                + '<div style="margin-top:14px;padding:10px 12px;background:#fffbeb;border:1px solid #fed7aa;border-radius:8px;color:#92400e;font-size:12px;line-height:1.5">'
-                + '<strong>Por que ainda não há botão de gerar o XML:</strong> o leiaute do R-2055 não foi conferido contra o XSD '
-                + 'nem contra um arquivo aceito pela Receita. Gerar por analogia produz evento recusado — ou aceito errado. '
-                + 'Destrava com um R-2055 que já tenha sido transmitido.'
-                + '</div>';
+                + (r.prontos > 0
+                    ? '<div style="margin-top:14px;padding:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px">'
+                        + '<div style="font-size:12px;color:#075985;margin-bottom:8px">Gera o XML de <strong>' + (r.prontos || 0) + ' pronto(s)</strong> (' + reinfMoney(r.totalPronto) + ') pra <strong>importar no IOB</strong>, que transmite. '
+                        + 'Os valores vão como o Consultor Fiscal apurou — o app não recalcula nem transmite. Os pendentes ficam de fora, nomeados acima.</div>'
+                        + '<button class="btn-action btn-action-success" onclick="gerarXmlAquisicaoRuralReinf()">📄 Gerar XML do R-2055</button>'
+                        + '<div id="reinfAqRuralEnvio" style="margin-top:10px;font-size:12px;line-height:1.5"></div>'
+                        + '</div>'
+                    : '<div style="margin-top:14px;padding:10px 12px;background:#fffbeb;border:1px solid #fed7aa;border-radius:8px;color:#92400e;font-size:12px;line-height:1.5">'
+                        + 'Nenhum produtor pronto para o XML — informe o indicador da aquisição (indAquis) dos pendentes e busque de novo.'
+                        + '</div>');
             alvo.style.display = 'block';
 
             // O total do que VAI DECLARAR é diferente do total apurado. Mostrar
@@ -8787,6 +8792,42 @@
                 + '<br>Apurado ' + reinfMoney(r.total) + ' · <strong>pode declarar agora: ' + reinfMoney(r.totalPronto) + '</strong>'
                 + (r.pendentes ? '<br>Informe o indicador da aquisição dos pendentes e busque de novo.' : ''),
                 r.pendentes ? 'warn' : 'success');
+        }
+
+        // Monta o R-2055 (evtAqProd) a partir da apuração do CFI e BAIXA o XML pra
+        // importar no IOB (que transmite). O app NÃO transmite — padrão IOB, sem
+        // risco de dupla transmissão. Só os PRONTOS entram no XML.
+        async function gerarXmlAquisicaoRuralReinf() {
+            const cnpj = reinfDigits((document.getElementById('reinfAqRuralCnpj') || {}).value);
+            const comp = String((document.getElementById('reinfAqRuralComp') || {}).value || '').trim();
+            const envio = document.getElementById('reinfAqRuralEnvio');
+            if (!window.API || !window.API.reinfGerarXmlAquisicaoRural) { if (envio) envio.innerHTML = 'API indisponível. Recarregue a página.'; return; }
+            const pares = Object.keys(reinfAqRuralState.indAquis)
+                .map(function (c) { return c + ':' + reinfAqRuralState.indAquis[c]; }).join(',');
+            if (envio) envio.innerHTML = 'Gerando o XML do R-2055…';
+            try {
+                const resp = await window.API.reinfGerarXmlAquisicaoRural({ cnpj: cnpj, competencia: comp, indAquis: pares });
+                if (!resp) throw new Error('Sem resposta.');
+                if (resp.ok === false) {
+                    if (envio) envio.innerHTML = '<div style="color:#92400e">⚠ ' + reinfEscape(resp.motivo || resp.erro || 'Não foi possível gerar.') + '</div>';
+                    return;
+                }
+                // Baixa o arquivo (o IOB importa este XML e transmite).
+                const blob = new Blob([resp.xml], { type: 'application/xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = resp.nomeArquivo || ('R-2055_' + cnpj + '_' + comp + '.xml');
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+                const linhas = (resp.declarados || []).map(function (d) {
+                    return '• ' + reinfEscape(d.nome || d.cpf) + ' — ' + reinfMoney(d.total);
+                }).join('<br>');
+                if (envio) envio.innerHTML = '<div style="color:#166534"><strong>✓ XML gerado</strong> (' + reinfEscape(resp.nomeArquivo || '') + ') — <strong>importe no IOB</strong> e transmita por lá.'
+                    + (linhas ? '<br>' + linhas : '')
+                    + '<br><span style="color:#64748b">O XML vai sem assinatura de propósito: quem assina é o IOB, com o certificado dele.</span></div>';
+            } catch (e) {
+                if (envio) envio.innerHTML = '<div style="color:#991b1b">Erro ao gerar o XML: ' + reinfEscape(e.message || e) + '</div>';
+            }
         }
 
         // ── R-4020: retenções de PJ vindas do Consultor Fiscal ──────────────
