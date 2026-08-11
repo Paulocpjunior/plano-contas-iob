@@ -40,6 +40,22 @@ gcloud run deploy "$SERVICE" \
   --platform managed \
   --quiet
 
+deployed_revision="$(gcloud run services describe "$SERVICE" \
+  --project "$PROJECT_ID" \
+  --region "$REGION" \
+  --format='value(status.latestCreatedRevisionName)')"
+
+if [[ -z "$deployed_revision" ]]; then
+  echo "ERRO: o Cloud Run não informou a revisão recém-criada."
+  exit 1
+fi
+
+gcloud run services update-traffic "$SERVICE" \
+  --project "$PROJECT_ID" \
+  --region "$REGION" \
+  --to-revisions "${deployed_revision}=100" \
+  --quiet
+
 expected_version="$(node -p "require('./version.json').version")"
 published_version=""
 for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do

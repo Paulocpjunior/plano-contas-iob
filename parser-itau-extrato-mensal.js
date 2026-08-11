@@ -27,7 +27,7 @@
       .replace(/[Aa]/g, '4')
       .replace(/[nN]/g, '7')
       .replace(/[·•*]/g, '-')
-      .replace(/[−–—]/g, '-')
+      .replace(/[−–—“”]/g, '-')
       .replace(/"/g, '')
       .replace(/\s+/g, ' ');
     const negative = /-$/.test(raw) || /^-/.test(raw);
@@ -54,7 +54,7 @@
   function extrairValoresOCRToken(s) {
     const raw = String(s || '').trim();
     if (!raw) return [];
-    const matches = raw.match(/["]?[A-Za-z0-9.]+[,\.][A-Za-z0-9]{2}[·•*−–—-]?/g) || [];
+    const matches = raw.match(/["“”]?[A-Za-z0-9.]+[,\.][A-Za-z0-9]{2}[·•*−–—-]?/g) || [];
     return matches.map(function(m) {
       const valor = parseValorOCR(m);
       if (!valor || !Number.isFinite(valor)) return null;
@@ -64,6 +64,15 @@
 
   function cleanLineText(items) {
     return items.map(function(i){ return i.s; }).join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function textoPdfPareceCorrompido(texto) {
+    const bruto = String(texto || '');
+    const amostra = bruto.replace(/\s/g, '');
+    if (amostra.length < 120) return false;
+    const controles = (bruto.match(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g) || []).length;
+    const substituicoes = (bruto.match(/\uFFFD/g) || []).length;
+    return ((controles + substituicoes) / amostra.length) >= 0.01;
   }
 
   function anoMesDoCabecalho(texto) {
@@ -744,6 +753,7 @@
       if (ocrScan && ocrScan.detectado && ocrScan.lancamentos && ocrScan.lancamentos.length) return ocrScan;
 
       const precisaOCR = textoCompleto.trim().length < 120
+        || textoPdfPareceCorrompido(textoCompleto)
         || (/Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto) && !(periodo && periodo.detectado));
       if (precisaOCR) {
         try {
@@ -864,6 +874,9 @@
     parsearPDF_Itau_ExtratoMensal: parsearPDF_Itau_ExtratoMensal,
     __test__: {
       parseValorBR: parseValorBR,
+      normalizarValorOCR: normalizarValorOCR,
+      extrairValoresOCRToken: extrairValoresOCRToken,
+      textoPdfPareceCorrompido: textoPdfPareceCorrompido,
       moneyToken: moneyToken,
       periodoLancamentosItau: periodoLancamentosItau,
       parseItauLancamentosPeriodo: parseItauLancamentosPeriodo,

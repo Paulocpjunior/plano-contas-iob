@@ -2467,15 +2467,11 @@ app.post('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => 
     if (!tamanho) return res.status(400).json({ erro: 'tamanho do arquivo-modelo invalido' });
 
     const duplicado = await db.collection('layouts_bancarios_rascunhos').where('sha256', '==', sha256).limit(1).get();
-    if (!duplicado.empty) {
-      const existente = duplicado.docs[0];
-      return res.json({ ok: true, id: existente.id, status: (existente.data() || {}).status || 'rascunho', duplicado: true });
-    }
 
     const parserSolicitado = String(body.parser_detectado || '').trim().slice(0, 120);
     const layoutOficial = LAYOUTS_BANCARIOS_PADRAO.find(layout => {
       return normalizarBancoLayout(layout.banco) === banco && layout.parser === parserSolicitado;
-    });
+    }) || LAYOUTS_BANCARIOS_PADRAO.find(layout => layout.parser === parserSolicitado);
     const parserDetectado = layoutOficial ? parserSolicitado : '';
     const resultadoRaw = body.resultado_teste && typeof body.resultado_teste === 'object' ? body.resultado_teste : {};
     const resultadoTeste = parserDetectado ? {
@@ -2501,6 +2497,8 @@ app.post('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => 
       pdf_textual: body.pdf_textual === true,
       parser_detectado: parserDetectado,
       layout_detectado: layoutOficial ? layoutOficial.nome : '',
+      banco_parser_base: layoutOficial ? normalizarBancoLayout(layoutOficial.banco) : '',
+      nome_banco_parser_base: layoutOficial ? layoutOficial.nomeBanco : '',
       resultado_teste: resultadoTeste,
       arquivo_bruto_armazenado: false,
       status,
@@ -2510,6 +2508,41 @@ app.post('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => 
       criado_por_email: req.user.email,
       atualizado_em: new Date()
     };
+    if (!duplicado.empty) {
+      const existente = duplicado.docs[0];
+      const anterior = existente.data() || {};
+      const jaAtivado = anterior.status === 'ativado_em_teste' && anterior.layout_id;
+      const atualizado = {
+        ...documento,
+        status: jaAtivado ? 'ativado_em_teste' : status,
+        criado_em: anterior.criado_em || documento.criado_em,
+        criado_por_uid: anterior.criado_por_uid || documento.criado_por_uid,
+        criado_por_email: anterior.criado_por_email || documento.criado_por_email
+      };
+      await existente.ref.set(atualizado, { merge: true });
+      await db.collection('layout_events').add({
+        tipo: 'rascunho_reanalisado',
+        rascunho_id: existente.id,
+        banco,
+        nomeBanco,
+        layout: nome,
+        parser: parserDetectado,
+        arquivo,
+        sha256,
+        status: atualizado.status,
+        criado_em: new Date(),
+        criado_por_uid: req.user.uid,
+        criado_por_email: req.user.email
+      });
+      return res.json({
+        ok: true,
+        id: existente.id,
+        status: atualizado.status,
+        arquivo_bruto_armazenado: false,
+        duplicado: true,
+        reanalisado: true
+      });
+    }
     const ref = await db.collection('layouts_bancarios_rascunhos').add(documento);
     await db.collection('layout_events').add({
       tipo: 'rascunho_criado',
@@ -2528,6 +2561,103 @@ app.post('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => 
     res.status(201).json({ ok: true, id: ref.id, status, arquivo_bruto_armazenado: false });
   } catch (err) {
     console.error('layouts-bancarios rascunhos POST erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.post('/api/layouts-bancarios/rascunhos/:id/ativar', adminRequired, async (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ erro: 'id obrigatorio' });
+    const rascunhoRef = db.collection('layouts_bancarios_rascunhos').doc(id);
+    const rascunhoDoc = await rascunhoRef.get();
+    if (!rascunhoDoc.exists) return res.status(404).json({ erro: 'rascunho nao encontrado' });
+    const rascunho = rascunhoDoc.data() || {};
+    if (rascunho.status === 'ativado_em_teste' && rascunho.layout_id) {
+      return res.json({
+        ok: true,
+        id,
+        layout_id: rascunho.layout_id,
+        banco: rascunho.banco || '',
+        parser: rascunho.parser_detectado || '',
+        status: 'ativado_em_teste',
+        homologacao_status: 'em_teste',
+        idempotente: true
+      });
+    }
+    const banco = normalizarBancoLayout(rascunho.banco);
+    const parser = String(rascunho.parser_detectado || '').trim();
+    const base = LAYOUTS_BANCARIOS_PADRAO.find(layout => layout.parser === parser);
+    const resultado = rascunho.resultado_teste && typeof rascunho.resultado_teste === 'object'
+      ? rascunho.resultado_teste
+      : null;
+    if (!banco || !parser || !base || !resultado || !(Number(resultado.lancamentos) > 0)) {
+      return res.status(409).json({
+        erro: 'O rascunho ainda nao possui um motor existente testado com lancamentos. Ele nao pode entrar no extrator.'
+      });
+    }
+
+    const layoutId = layoutBancoId({ banco, parser });
+    const layoutRef = db.collection('layouts_bancarios').doc(layoutId);
+    const eventoRef = db.collection('layout_events').doc();
+    const agora = new Date();
+    const layoutAtivo = {
+      banco,
+      nomeBanco: String(rascunho.nomeBanco || '').trim().slice(0, 120),
+      nome: String(rascunho.nome || base.nome || parser).trim().slice(0, 160),
+      parser,
+      formato: String(rascunho.formato || base.formato || 'PDF').slice(0, 80),
+      confiabilidade: 'Media',
+      status: 'Ativo',
+      ativo: true,
+      ultimoTeste: String(rascunho.arquivo || '').slice(0, 220),
+      observacao: String(rascunho.observacao || 'Layout disponibilizado pelo Admin com motor existente testado.').slice(0, 600),
+      homologacao_status: 'em_teste',
+      homologacao_observacao: 'Autosservico Admin: motor existente reconheceu o arquivo-modelo; primeiro uso exige conferencia.',
+      origem: 'admin_autosservico',
+      rascunho_id: id,
+      parser_base_banco: normalizarBancoLayout(base.banco),
+      parser_base_layout: base.nome || '',
+      criado_em: agora,
+      atualizado_em: agora,
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email
+    };
+    const batch = db.batch();
+    batch.set(layoutRef, layoutAtivo, { merge: true });
+    batch.set(rascunhoRef, {
+      status: 'ativado_em_teste',
+      layout_id: layoutId,
+      ativado_em: agora,
+      ativado_por_uid: req.user.uid,
+      ativado_por_email: req.user.email,
+      atualizado_em: agora
+    }, { merge: true });
+    batch.set(eventoRef, {
+      tipo: 'rascunho_ativado_em_teste',
+      rascunho_id: id,
+      layout_id: layoutId,
+      banco,
+      nomeBanco: layoutAtivo.nomeBanco,
+      layout: layoutAtivo.nome,
+      parser,
+      parser_base_banco: layoutAtivo.parser_base_banco,
+      criado_em: agora,
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email
+    });
+    await batch.commit();
+    res.status(201).json({
+      ok: true,
+      id,
+      layout_id: layoutId,
+      banco,
+      parser,
+      status: 'ativado_em_teste',
+      homologacao_status: 'em_teste'
+    });
+  } catch (err) {
+    console.error('layouts-bancarios ativar rascunho erro:', err);
     res.status(500).json({ erro: err.message });
   }
 });

@@ -46,8 +46,39 @@ function testarOCRPosicionalPeriodo() {
   assert.ok(resultado.lancamentos.some((l) => l.valor === -25.5 && /BOLETO PAGO FORNECEDOR/i.test(l.descricao)));
 }
 
+async function testarDeteccaoTextoPdfCorrompido() {
+  assert.strictEqual(
+    itau.__test__.normalizarValorOCR('“14.360,00'),
+    '-14.360,00',
+    'OCR deve preservar o sinal negativo quando o traco for reconhecido como aspas tipograficas'
+  );
+  assert.deepStrictEqual(
+    itau.__test__.extrairValoresOCRToken('“14.360,00 8.250,00'),
+    [
+      { raw: '“14.360,00', valor: -14360 },
+      { raw: '8.250,00', valor: 8250 }
+    ],
+    'tokenizador OCR deve preservar a aspas tipografica que representa o sinal negativo'
+  );
+  const arquivoCorrompido = '/Users/paulocesarpereirajunior/Downloads/MAIO 2026.pdf';
+  assert.ok(fs.existsSync(arquivoCorrompido), `Arquivo Itaú com fonte interna corrompida não encontrado: ${arquivoCorrompido}`);
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(fs.readFileSync(arquivoCorrompido)) }).promise;
+  let texto = '';
+  for (let pagina = 1; pagina <= pdf.numPages; pagina++) {
+    const page = await pdf.getPage(pagina);
+    const content = await page.getTextContent();
+    texto += content.items.map((item) => String(item.str || '')).join(' ') + '\n';
+  }
+  assert.strictEqual(
+    itau.__test__.textoPdfPareceCorrompido(texto),
+    true,
+    'camada textual ilegivel deve acionar OCR mesmo quando o PDF possui muitos caracteres'
+  );
+}
+
 async function main() {
   testarOCRPosicionalPeriodo();
+  await testarDeteccaoTextoPdfCorrompido();
 
   const arquivo = '/Users/paulocesarpereirajunior/Downloads/itau abril 26 3.pdf';
   assert.ok(fs.existsSync(arquivo), `Arquivo de regressao nao encontrado: ${arquivo}`);

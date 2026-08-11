@@ -1,7 +1,7 @@
 {
-  "version": "3.4.97",
-  "build_date": "2026-08-11T18:20:06Z",
+  "version": "3.4.98",
+  "build_date": "2026-08-11T18:37:51Z",
   "release_notes": [
-    "Novo filtro fiscal estruturado por CFOP, com combinacao opcional por movimento da nota, ICMS, ICMS ST, IPI, PIS ou COFINS. Exemplo: CFOP 5101 + somente IPI para parametrizar apenas os lancamentos desejados."
+    "Novo autosservico de layouts bancarios: o Admin reaproveita motores oficiais entre codigos, identifica PDFs com camada textual corrompida, usa OCR e disponibiliza o modelo em teste no extrator com auditoria e conferencia obrigatoria no primeiro uso."
   ]
 }
