@@ -1,7 +1,7 @@
 {
-  "version": "3.4.98",
-  "build_date": "2026-08-11T19:50:00Z",
+  "version": "3.4.99",
+  "build_date": "2026-08-11T21:47:23Z",
   "release_notes": [
-    "R-2055 padronizado no IOB (decisao do Paulo): o botao passou de 'Transmitir' para '📄 Gerar XML do R-2055'. O app monta o evtAqProd provado (valores prontos do Consultor Fiscal, sem recalcular) e BAIXA o XML pra importar no IOB, que transmite. O app nao transmite mais o R-2055 — assim nao ha risco de dupla transmissao, e a redigitacao acaba do mesmo jeito. O XML vai sem assinatura de proposito (quem assina e o IOB, com o certificado dele)."
+    "R-2055 volta a TRANSMITIR pelo app (gateway do CFI). O 'padronizar no IOB' de 11/08 era o nome da URL deste app, nao o e-Fiscal — gerar XML pra importar la criaria dependencia operacional do sistema que esta sendo aposentado. Reverte a v3.4.98: botoes 🧪/🚀 Transmitir de volta, rota /aquisicao-rural/transmitir de volta. O e-Fiscal nao transmite R-2055."
   ]
 }

@@ -1470,29 +1470,32 @@ function registrarRotasReinf(app, { db } = {}) {
   });
 
   // ──────────────────────────────────────────────────────────────────────────
-  // POST /api/reinf/aquisicao-rural/gerar-xml
+  // POST /api/reinf/aquisicao-rural/transmitir
   //
-  // Monta o R-2055 (evtAqProd) a partir da apuração do CFI e DEVOLVE o XML para
-  // o colaborador IMPORTAR NO IOB — que continua sendo o transmissor (decisão
-  // do Paulo, 11/08: padronizar o Reinf no IOB). O app NÃO transmite: assim não
-  // há risco de dupla transmissão (dois sistemas mandando o mesmo evento). O que
-  // ele resolve é a REDIGITAÇÃO — os valores saem prontos do Consultor Fiscal.
+  // Monta o R-2055 (evtAqProd) a partir da apuração do CFI e TRANSMITE pelo
+  // mesmo trilho dos demais eventos (gateway quando REINF_TRANSMISSOR=gateway,
+  // senão assina local). NÃO recalcula: os valores vêm prontos do CFI. Só entra
+  // no evento o produtor PRONTO (indAquis informado, base > 0, sem divergência);
+  // o pendente fica FORA, nomeado — declarar um evento a menos é melhor que
+  // declarar valor que a própria apuração desmente.
   //
-  // NÃO recalcula: os valores vêm prontos do CFI. Só entra no evento o produtor
-  // PRONTO (indAquis informado, base > 0, sem divergência); o pendente fica FORA,
-  // nomeado. tpAmb=1 (produção) porque é o evento REAL que vai ser importado e
-  // transmitido pelo IOB — quem confirma produção é o IOB, no envio.
+  // tpAmb=2 (produção restrita) é o PADRÃO; produção (tpAmb=1) exige
+  // confirmoProducao=true — a mesma trava do gateway. Entrega ao Reinf não se
+  // desfaz, então o botão da tela pergunta antes.
   // ──────────────────────────────────────────────────────────────────────────
-  router.post('/aquisicao-rural/gerar-xml', async (req, res) => {
+  router.post('/aquisicao-rural/transmitir', async (req, res) => {
     try {
       const p = req.body || {};
       const cnpj = limparCnpj(p.cnpj);
       const competencia = String(p.competencia || '').trim();
-      const tpAmb = Number(p.tpAmb || 1);
+      const tpAmb = Number(p.tpAmb || 2);
       const token = tokenDaRequisicao(req);
 
       if (cnpj.length !== 14) throw new Error('Informe o CNPJ do adquirente com 14 dígitos — é ele quem declara o R-2055.');
       if (!/^\d{4}-\d{2}$/.test(competencia)) throw new Error('Competência deve ser AAAA-MM.');
+      if (Number(tpAmb) === 1 && p.confirmoProducao !== true) {
+        throw new Error('Transmissão em PRODUÇÃO exige confirmação explícita (confirmoProducao=true). Sem ela, use produção restrita (tpAmb=2).');
+      }
 
       // Mesma fonte da tela — o cálculo é do CFI, aqui não se refaz.
       const doCfi = await buscarAquisicoesRuraisNoCfi({ cnpj, competencia, token });
@@ -1509,7 +1512,7 @@ function registrarRotasReinf(app, { db } = {}) {
         return res.json({
           ok: false,
           etapa: 'apuracao',
-          motivo: 'Nenhum produtor PRONTO para o XML nesta competência. Resolva as pendências (indicador da aquisição, base de cálculo ou divergência) antes de gerar.',
+          motivo: 'Nenhum produtor PRONTO para declarar nesta competência. Resolva as pendências (indicador da aquisição, base de cálculo ou divergência) antes de transmitir.',
           naoDeclarados: pendentes.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, pendencias: l.pendencias })),
         });
       }
@@ -1532,25 +1535,36 @@ function registrarRotasReinf(app, { db } = {}) {
         })),
       });
 
-      await registrarLog(db, req, 'gerar_r2055_xml', {
+      const cert = transmissorAtivo() === 'gateway' ? null : await loadCertificado();
+      const loteContrib = normalizarContribuinteLote({ tpInsc: 1, nrInsc: cnpj });
+      const envio = await assinarEEnviarLote([evento.xml], cert, loteContrib, tpAmb, req);
+      const info = parseRetornoReinf(envio);
+      const recibo = info.protocolo
+        ? await consultarLoteAteProcessar(info.protocolo, tpAmb, { req })
+        : { httpStatus: envio.status, ...info };
+
+      await registrarLog(db, req, 'transmitir_r2055', {
         contribuinte: cnpj,
-        competencia,
         tpAmb,
-        eventoId: evento.id,
+        competencia,
+        protocolo: info.protocolo || null,
+        httpStatus: envio.status,
+        cdResposta: (recibo && recibo.cdResposta) || info.cdResposta || null,
         produtoresDeclarados: prontos.length,
         produtoresPendentes: pendentes.length,
       });
 
       res.json({
-        ok: true,
-        etapa: 'r2055-xml',
+        ok: envio.status === 201,
+        etapa: 'r2055',
         id: evento.id,
         tpAmb,
-        // O XML vai SEM assinatura de propósito: quem assina é o IOB, com o
-        // certificado dele, na hora de transmitir. Importar assinado por outro
-        // sistema seria recusado.
-        xml: evento.xml,
-        nomeArquivo: `R-2055_${cnpj}_${competencia.replace('-', '')}.xml`,
+        httpStatus: envio.status,
+        protocolo: info.protocolo,
+        cdResposta: (recibo && recibo.cdResposta) || info.cdResposta,
+        descResposta: (recibo && recibo.descResposta) || info.descResposta,
+        dhRecepcao: recibo && recibo.dhRecepcao,
+        xmlRetorno: recibo && recibo.xml,
         declarados: prontos.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, base: l.base, total: l.total, indAquis: l.indAquis })),
         naoDeclarados: pendentes.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, pendencias: l.pendencias })),
       });

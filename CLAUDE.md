@@ -489,3 +489,27 @@ duplica; conferir lotes pendentes primeiro.
 
 DIRF está EXTINTA (substituída pela série R-4000) — resíduo de fluxo DIRF no
 escritório morre quando o R-4020 entrar.
+
+### 🌾 R-2055 TRANSMITE PELO APP — e "IOB" no vocabulário do Paulo é ESTE app (11/08)
+
+Um dia, três viradas, e a lição é de VOCABULÁRIO: #41 destravou o
+gerar+transmitir do R-2055 (gateway, produção restrita como padrão). Aí o
+Paulo disse *"vamos padronizar e deixar no IOB"* e a sessão leu "IOB" como o
+**e-Fiscal IOB SAGE** — #42 (v3.4.98) transformou o Transmitir em "📄 Gerar
+XML pra importar no IOB". O Paulo corrigiu no mesmo dia: *"padronizar no IOB
+que eu quis dizer foi me referindo ao NOME DA URL"* — ou seja, **o
+plano-contas-iob, este app**. E cortou o desenho do #42: *"não faz sentido
+retroagir e deixar um rabo solto no e-Fiscal onde só vai gerar confusão no
+colaborador"*. A v3.4.99 REVERTE o #42: botões 🧪/🚀 Transmitir de volta,
+rota `/aquisicao-rural/transmitir` de volta, e o e-Fiscal NÃO recebe
+importação de R-2055 — a estratégia de 05/08 (e-Fiscal vira CONSULTA, a
+operação migra) vale também pro Reinf.
+
+REGRAS QUE FICAM: (1) **"IOB" dito pelo Paulo = este app** (a URL
+plano-contas-iob), NUNCA o e-Fiscal SAGE — na dúvida sobre qual sistema uma
+ordem menciona, perguntar ANTES de virar produção; (2) evento com dois
+transmissores possíveis tem UM dono: o R-2055 sai daqui pelo gateway, e
+colocar o e-Fiscal no circuito seria criar dependência operacional nova do
+sistema que está sendo aposentado; (3) o argumento de dupla transmissão do
+#42 continua verdadeiro — resolve-se escolhendo o dono, não gerando XML pra
+outro sistema.
