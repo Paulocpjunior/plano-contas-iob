@@ -21,6 +21,7 @@ const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarResponsavelN
 const { resumirResponsavel, avisosDoResponsavel } = require('./reinf/responsavel-escritorio');
 const { conferirCertificado } = require('./reinf/certificado-conferencia');
 const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
+const { gerarR2055 } = require('./reinf/gerar-r2055');
 const {
   calcularDividendos,
   locadoresDividendosParaR4010,
@@ -1462,6 +1463,110 @@ function registrarRotasReinf(app, { db } = {}) {
         // não deve ser refeito e que o indAquis vai nulo de propósito.
         ressalvasDaFonte: doCfi.ressalvas,
         resumoDaFonte: doCfi.resumo,
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // POST /api/reinf/aquisicao-rural/transmitir
+  //
+  // Monta o R-2055 (evtAqProd) a partir da apuração do CFI e TRANSMITE pelo
+  // mesmo trilho dos demais eventos (gateway quando REINF_TRANSMISSOR=gateway,
+  // senão assina local). NÃO recalcula: os valores vêm prontos do CFI. Só entra
+  // no evento o produtor PRONTO (indAquis informado, base > 0, sem divergência);
+  // o pendente fica FORA, nomeado — declarar um evento a menos é melhor que
+  // declarar valor que a própria apuração desmente.
+  //
+  // tpAmb=2 (produção restrita) é o PADRÃO; produção (tpAmb=1) exige
+  // confirmoProducao=true — a mesma trava do gateway. Entrega ao Reinf não se
+  // desfaz, então o botão da tela pergunta antes.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.post('/aquisicao-rural/transmitir', async (req, res) => {
+    try {
+      const p = req.body || {};
+      const cnpj = limparCnpj(p.cnpj);
+      const competencia = String(p.competencia || '').trim();
+      const tpAmb = Number(p.tpAmb || 2);
+      const token = tokenDaRequisicao(req);
+
+      if (cnpj.length !== 14) throw new Error('Informe o CNPJ do adquirente com 14 dígitos — é ele quem declara o R-2055.');
+      if (!/^\d{4}-\d{2}$/.test(competencia)) throw new Error('Competência deve ser AAAA-MM.');
+      if (Number(tpAmb) === 1 && p.confirmoProducao !== true) {
+        throw new Error('Transmissão em PRODUÇÃO exige confirmação explícita (confirmoProducao=true). Sem ela, use produção restrita (tpAmb=2).');
+      }
+
+      // Mesma fonte da tela — o cálculo é do CFI, aqui não se refaz.
+      const doCfi = await buscarAquisicoesRuraisNoCfi({ cnpj, competencia, token });
+      const apuracao = apurarAquisicaoRural({
+        competencia,
+        produtores: doCfi.produtores,
+        indicadores: mapaIndAquisInformados(p.indAquis),
+        marcadoComoComprador: doCfi.marcadoComoComprador === true,
+      });
+
+      const prontos = apuracao.produtores.filter((l) => l.pronto);
+      const pendentes = apuracao.produtores.filter((l) => !l.pronto);
+      if (!prontos.length) {
+        return res.json({
+          ok: false,
+          etapa: 'apuracao',
+          motivo: 'Nenhum produtor PRONTO para declarar nesta competência. Resolva as pendências (indicador da aquisição, base de cálculo ou divergência) antes de transmitir.',
+          naoDeclarados: pendentes.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, pendencias: l.pendencias })),
+        });
+      }
+
+      const evento = gerarR2055({
+        contribuinte: { tpInsc: 1, nrInsc: cnpj },
+        estabAdquirente: { tpInscAdq: 1, nrInscAdq: cnpj },
+        perApur: competencia,
+        tpAmb,
+        seq: 1,
+        produtores: prontos.map((l) => ({
+          cpf: l.cpfProdutor,
+          aquisicoes: [{
+            indAquis: l.indAquis,
+            vlrBruto: l.base,
+            vlrCPDescPR: l.inss,     // CP/INSS  → CRAquis 165601
+            vlrRatDescPR: l.gilrat,  // RAT      → CRAquis 164603
+            vlrSenarDesc: l.senar,   // SENAR    → CRAquis 121306
+          }],
+        })),
+      });
+
+      const cert = transmissorAtivo() === 'gateway' ? null : await loadCertificado();
+      const loteContrib = normalizarContribuinteLote({ tpInsc: 1, nrInsc: cnpj });
+      const envio = await assinarEEnviarLote([evento.xml], cert, loteContrib, tpAmb, req);
+      const info = parseRetornoReinf(envio);
+      const recibo = info.protocolo
+        ? await consultarLoteAteProcessar(info.protocolo, tpAmb, { req })
+        : { httpStatus: envio.status, ...info };
+
+      await registrarLog(db, req, 'transmitir_r2055', {
+        contribuinte: cnpj,
+        tpAmb,
+        competencia,
+        protocolo: info.protocolo || null,
+        httpStatus: envio.status,
+        cdResposta: (recibo && recibo.cdResposta) || info.cdResposta || null,
+        produtoresDeclarados: prontos.length,
+        produtoresPendentes: pendentes.length,
+      });
+
+      res.json({
+        ok: envio.status === 201,
+        etapa: 'r2055',
+        id: evento.id,
+        tpAmb,
+        httpStatus: envio.status,
+        protocolo: info.protocolo,
+        cdResposta: (recibo && recibo.cdResposta) || info.cdResposta,
+        descResposta: (recibo && recibo.descResposta) || info.descResposta,
+        dhRecepcao: recibo && recibo.dhRecepcao,
+        xmlRetorno: recibo && recibo.xml,
+        declarados: prontos.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, base: l.base, total: l.total, indAquis: l.indAquis })),
+        naoDeclarados: pendentes.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, pendencias: l.pendencias })),
       });
     } catch (err) {
       respostaErro(res, 400, err);
