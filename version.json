@@ -1,7 +1,7 @@
 {
-  "version": "3.4.98",
-  "build_date": "2026-08-11T18:37:51Z",
+  "version": "3.4.99",
+  "build_date": "2026-08-11T18:48:03Z",
   "release_notes": [
-    "Novo autosservico de layouts bancarios: o Admin reaproveita motores oficiais entre codigos, identifica PDFs com camada textual corrompida, usa OCR e disponibiliza o modelo em teste no extrator com auditoria e conferencia obrigatoria no primeiro uso."
+    "O botao de memoria em lote agora permite ao administrador atualizar de uma vez as memorizacoes existentes dos lancamentos selecionados pelo filtro fiscal, com uma unica confirmacao."
   ]
 }

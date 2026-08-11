@@ -39,5 +39,9 @@ assert(index.includes('id="filtroFiscalTipo"'), 'modal deve declarar o tipo CFOP
 assert(index.includes('id="filtroFiscalLancamento"'), 'modal deve permitir combinar CFOP e imposto');
 assert(index.includes("window.FiltroFiscal.atende(e, filtroFiscalSelecionado)"), 'render e exportacao devem usar o predicado estruturado central');
 assert(index.includes("'impostoFiscalTipo','valorImpostoFiscal','baseImpostoFiscal'"), 'tipo e valores do imposto devem sobreviver a persistencia da sessao');
+assert(index.includes('function lancamentoElegivelMemoriaEmLote(e)'), 'selecao filtrada deve centralizar a elegibilidade da memoria em lote');
+assert(index.includes("return !!(window.CURRENT_USER && window.CURRENT_USER.is_admin)"), 'administrador deve poder atualizar memoria ja existente em lote');
+assert(index.includes("'✏️🧠 Atualizar selecionados (' + atualizacoes + ')'"), 'botao deve informar quando atualizara memorias existentes');
+assert(index.includes("const atualizacoes = elegiveis.filter(function(item) { return item.e._memorizado; }).length"), 'operacao em lote deve contar e confirmar atualizacoes existentes');
 
 console.log('OK: modal filtra CFOP exato e combina movimento/ICMS/ICMS-ST/IPI/PIS/COFINS com dados estruturados.');
