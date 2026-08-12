@@ -649,13 +649,16 @@ async function registrarLog(db, req, acao, detalhes) {
  * NINGUÉM aqui pode afirmar — a tabela não está em nenhum dos dois apps. Por
  * isso o valor sai carimbado como "informado", nunca como "conferido".
  */
+// Chave é o DOCUMENTO do produtor — CPF **ou** CNPJ. Produtor rural PF com
+// CNPJ existe (Com. CAT 45/2008) e aceitar só 11 dígitos fazia o indicador
+// informado na tela sumir justo de quem mais precisa de conferência.
 function mapaIndAquisInformados(valor) {
   const out = {};
   String(valor || '').split(',').forEach((par) => {
-    const [cpf, codigo] = String(par || '').split(':');
-    const c = limparCnpj(cpf);
+    const [doc, codigo] = String(par || '').split(':');
+    const d = limparCnpj(doc);
     const cod = String(codigo || '').trim();
-    if (c.length === 11 && /^[0-9]{1,2}$/.test(cod)) out[c] = cod;
+    if ((d.length === 11 || d.length === 14) && /^[0-9]{1,2}$/.test(cod)) out[d] = cod;
   });
   return out;
 }
@@ -1590,7 +1593,7 @@ function registrarRotasReinf(app, { db } = {}) {
           ok: false,
           etapa: 'apuracao',
           motivo: 'Nenhum produtor PRONTO para declarar nesta competência. Resolva as pendências (indicador da aquisição, base de cálculo ou divergência) antes de transmitir.',
-          naoDeclarados: pendentes.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, pendencias: l.pendencias })),
+          naoDeclarados: pendentes.map((l) => ({ doc: l.docProdutor, tipoInscricao: l.tipoInscricao, nome: l.nome, pendencias: l.pendencias })),
         });
       }
 
@@ -1671,8 +1674,8 @@ function registrarRotasReinf(app, { db } = {}) {
         // ocorrência, é ele que carrega a resposta da Receita até o print.
         xmlRetorno: retornoCruReinf((recibo && recibo.xml) || info.xml),
         sondaLeiaute: maxProdutores ? { produtoresEnviados: prontos.length, deUmTotalDe: todosProntos.length } : null,
-        declarados: prontos.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, base: l.base, total: l.total, indAquis: l.indAquis })),
-        naoDeclarados: pendentes.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, pendencias: l.pendencias })),
+        declarados: prontos.map((l) => ({ doc: l.docProdutor, nome: l.nome, base: l.base, total: l.total, indAquis: l.indAquis })),
+        naoDeclarados: pendentes.map((l) => ({ doc: l.docProdutor, tipoInscricao: l.tipoInscricao, nome: l.nome, pendencias: l.pendencias })),
       });
     } catch (err) {
       respostaErro(res, 400, err);

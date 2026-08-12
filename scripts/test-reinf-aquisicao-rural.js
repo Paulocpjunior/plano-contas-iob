@@ -99,6 +99,57 @@ const vazioSemMarca = apurarAquisicaoRural({ competencia: '2026-07', produtores:
 assert.ok(/marque a condição rural/.test(vazioSemMarca.avisos.join(' ')),
   'sem a marcação, o aviso ensina a ligá-la — é ela que faz o mês vazio levantar suspeita');
 
+// ─── PRODUTOR RURAL PF COM CNPJ (caso VINCENZO GUERRA 07/2026) ─────────────
+// Paulo, 12/08: "ta puxando aqui os valores de FUNRURAL certinho, mas quando
+// vou CCI ele, fala que não tem". O CFI apurava R$ 308,07 de ANTONIO DIAS DA
+// SILVA (08.507.490/0001-29) e esta tela dizia "nenhuma aquisição" — lá o
+// produtor era descartado por contar dígitos. CNPJ não descaracteriza produtor
+// rural PF (Comunicado CAT 45/2008).
+const comCnpj = apurarAquisicaoRural({
+  competencia: '2026-07',
+  produtores: [produtor({
+    docProdutor: '08507490000129', cpfProdutor: null, tipoInscricao: 'cnpj',
+    nome: 'ANTONIO DIAS DA SILVA',
+    provaDeProdutorPF: { confianca: 'confirmada', motivo: 'Confirmado no cadastro como Produtor Rural (Pessoa Física).' },
+  })],
+  indicadores: { '08507490000129': '1' },
+});
+const linhaCnpj = comCnpj.produtores[0];
+assert.strictEqual(comCnpj.produtores.length, 1, 'ele APARECE — sumir era o defeito');
+assert.strictEqual(linhaCnpj.docProdutor, '08507490000129');
+assert.strictEqual(linhaCnpj.tipoInscricao, 'cnpj');
+assert.strictEqual(linhaCnpj.cpfProdutor, null,
+  'CNPJ nunca sai num campo chamado "cpf" — é a mentira do csllOuTotal');
+assert.strictEqual(linhaCnpj.indAquis, '1',
+  'o indicador informado na tela chaveia pelo DOCUMENTO, não só por CPF');
+assert.strictEqual(linhaCnpj.pronto, false, 'segue pendente: tpInscProd não se deduz');
+const pendCnpj = linhaCnpj.pendencias.join(' ');
+assert.ok(/JÁ FOI APURADO/.test(pendCnpj), 'a pendência diz que o FUNRURAL existe');
+assert.ok(/45\/2008/.test(pendCnpj), 'e cita a base legal');
+assert.ok(/CADESP/.test(pendCnpj), 'com a ação: confirmar a natureza');
+assert.ok(/NÃO descarte/.test(pendCnpj), 'e proíbe descartar');
+assert.ok(!/CPF do produtor inválido ou ausente/.test(pendCnpj),
+  'nunca "CPF ausente": mandaria procurar buraco de captura que não existe');
+assert.strictEqual(comCnpj.resumo.comCnpj, 1);
+assert.ok(/ESTÁ na guia do cliente/.test(comCnpj.avisos.join(' ')),
+  'o aviso do topo diz que o valor existe — senão a leitura natural é "isso não conta"');
+
+// Doc ilegível continua sendo pendência, mas com o nome certo do campo.
+const semDoc = apurarAquisicaoRural({
+  competencia: '2026-07',
+  produtores: [produtor({ cpfProdutor: '123', docProdutor: '123' })],
+});
+assert.ok(/CPF\/CNPJ do produtor inválido ou ausente/.test(semDoc.produtores[0].pendencias.join(' ')));
+
+// Payload ANTIGO (só cpfProdutor) continua funcionando — o campo novo é
+// reserva, não substituição abrupta.
+const legado = apurarAquisicaoRural({
+  competencia: '2026-07', produtores: [produtor()], indicadores: { '11122233344': '1' },
+});
+assert.strictEqual(legado.produtores[0].docProdutor, '11122233344');
+assert.strictEqual(legado.produtores[0].cpfProdutor, '11122233344');
+assert.strictEqual(legado.produtores[0].pronto, true);
+
 // ─── A URL do recurso novo sai do mesmo montador ────────────────────────────
 const env = { CFI_URL: 'https://cfi.exemplo.app' };
 assert.strictEqual(
