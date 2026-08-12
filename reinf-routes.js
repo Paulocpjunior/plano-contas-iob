@@ -21,7 +21,7 @@ const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarResponsavelN
 const { resumirResponsavel, avisosDoResponsavel } = require('./reinf/responsavel-escritorio');
 const { conferirCertificado } = require('./reinf/certificado-conferencia');
 const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
-const { gerarR2055 } = require('./reinf/gerar-r2055');
+const { gerarEventosR2055 } = require('./reinf/gerar-r2055');
 const {
   calcularDividendos,
   locadoresDividendosParaR4010,
@@ -1594,7 +1594,11 @@ function registrarRotasReinf(app, { db } = {}) {
         });
       }
 
-      const evento = gerarR2055({
+      // UM EVENTO POR PRODUTOR no MESMO lote — provado por eliminação em
+      // 12/08 (o XSD recusa tanto ideProdutor repetido quanto ideEstabAdquir
+      // repetido). O lote já aceitava vários eventos; o gerador é que
+      // empilhava.
+      const eventos = gerarEventosR2055({
         contribuinte: { tpInsc: 1, nrInsc: cnpj },
         estabAdquirente: { tpInscAdq: 1, nrInscAdq: cnpj },
         perApur: competencia,
@@ -1614,7 +1618,7 @@ function registrarRotasReinf(app, { db } = {}) {
 
       const cert = transmissorAtivo() === 'gateway' ? null : await loadCertificado();
       const loteContrib = normalizarContribuinteLote({ tpInsc: 1, nrInsc: cnpj });
-      const envio = await assinarEEnviarLote([evento.xml], cert, loteContrib, tpAmb, req);
+      const envio = await assinarEEnviarLote(eventos.map((e) => e.xml), cert, loteContrib, tpAmb, req);
       const info = parseRetornoReinf(envio);
       const recibo = info.protocolo
         ? await consultarLoteAteProcessar(info.protocolo, tpAmb, { req })
@@ -1629,6 +1633,7 @@ function registrarRotasReinf(app, { db } = {}) {
         httpStatus: envio.status,
         cdResposta: (recibo && recibo.cdResposta) || info.cdResposta || null,
         produtoresDeclarados: prontos.length,
+        eventosEnviados: eventos.length,
         produtoresPendentes: pendentes.length,
         sondaLeiaute: maxProdutores || null,
         // A recusa entra na auditoria. Sem isso, "transmitiu" e "foi recusado"
@@ -1654,7 +1659,8 @@ function registrarRotasReinf(app, { db } = {}) {
         // As ocorrências SOBEM: sem elas a pessoa vê valores e nenhuma causa.
         ocorrencias,
         etapa: 'r2055',
-        id: evento.id,
+        id: eventos[0] && eventos[0].id,
+        eventosEnviados: eventos.length,
         tpAmb,
         httpStatus: envio.status,
         protocolo: info.protocolo,

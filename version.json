@@ -1,9 +1,9 @@
 {
-  "version": "3.4.103",
-  "build_date": "2026-08-12T18:10:00Z",
+  "version": "3.4.104",
+  "build_date": "2026-08-12T19:20:00Z",
   "release_notes": [
-    "R-2055 CORRIGIDO na causa: o XSD nao aceita `ideProdutor` repetido dentro do mesmo `ideEstabAdquir`. Agora sai UM ideEstabAdquir por produtor (o mesmo adquirente se repete). Nao foi deducao — a sonda provou: 1 produtor chega no MS1009 (regra de cadastro, ou seja o XSD passou) e 2 produtores voltam MS0030 apontando ideProdutor.",
-    "Com UM produtor a saida continua identica ao evtAqProd aceito, byte a byte — a correcao nao reescreve a forma provada.",
-    "Confirmacao de PRODUCAO com varios produtores lembra de rodar a sonda antes (aviso, nao bloqueio: recusa nao declara nada e travar seguraria obrigacao vencendo)."
+    "R-2055: UM PRODUTOR POR EVENTO. Provado por eliminacao com duas sondas: 1 produtor passa no XSD; 2 produtores empilhados num ideEstabAdquir dao MS0030 em ideProdutor; 2 produtores em dois ideEstabAdquir dao MS0030 em ideEstabAdquir. Logo infoAquisProd aceita UM ideEstabAdquir, que aceita UM ideProdutor.",
+    "Varios produtores viram varios EVENTOS no MESMO lote (o lote sempre aceitou; o gerador e que empilhava). Cada evento com seu proprio seq — id repetido e recusa do lote inteiro.",
+    "Empilhar produtor no mesmo evento agora e RECUSADO pelo gerador, apontando gerarEventosR2055. O teste que exigia 'um ideProdutor por produtor' descrevia o leiaute REPROVADO e foi trocado pela forma provada."
   ]
 }
