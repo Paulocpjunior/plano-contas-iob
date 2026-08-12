@@ -1,9 +1,16 @@
 {
-  "version": "3.4.104",
-  "build_date": "2026-08-12T19:20:00Z",
+  "version": "3.4.105",
+  "build_date": "2026-08-12T20:24:08Z",
   "release_notes": [
-    "R-2055: UM PRODUTOR POR EVENTO. Provado por eliminacao com duas sondas: 1 produtor passa no XSD; 2 produtores empilhados num ideEstabAdquir dao MS0030 em ideProdutor; 2 produtores em dois ideEstabAdquir dao MS0030 em ideEstabAdquir. Logo infoAquisProd aceita UM ideEstabAdquir, que aceita UM ideProdutor.",
-    "Varios produtores viram varios EVENTOS no MESMO lote (o lote sempre aceitou; o gerador e que empilhava). Cada evento com seu proprio seq — id repetido e recusa do lote inteiro.",
-    "Empilhar produtor no mesmo evento agora e RECUSADO pelo gerador, apontando gerarEventosR2055. O teste que exigia 'um ideProdutor por produtor' descrevia o leiaute REPROVADO e foi trocado pela forma provada."
+    "R-2055: UM PRODUTOR POR EVENTO — provado por eliminação (v3.4.104) (#48)",
+    "R-2055: um <ideEstabAdquir> POR produtor — a sonda provou a causa (v3.4.103) (#47)",
+    "R-2055: a sonda respondeu — e agora ela responde EM PORTUGUÊS (v3.4.102) (#46)",
+    "R-2055: a resposta da Receita chega inteira ao print + sonda de leiaute (v3.4.101) (#45)",
+    "R-2055: \"lote processado com sucesso\" com eventos RECUSADOS não é mais verde (v3.4.100) (#44)",
+    "R-2055 volta a TRANSMITIR pelo app — \"IOB\" era o nome desta URL (v3.4.99) (#43)",
+    "R-2055 padronizado no IOB: botão \"Transmitir\" vira \"Gerar XML\" para importar (#42)",
+    "R-2055 (aquisição de produção rural): destrava o botão de gerar+transmitir (#41)",
+    "Fiscal não passa pelo \"corrigir sentido bancário\" — fim da inversão do ICMS (v3.4.96) (#40)",
+    "Trava de horário fase 4: módulo Contábil lê o veredito de horário do túnel (v3.4.95) (#39)"
   ]
 }

@@ -210,10 +210,18 @@ function validarEntradaR2055(ev) {
   } else {
     produtores.forEach((p, i) => {
       const cpf = soDigitos(p && p.cpf);
-      // Só produtor PF entra. PJ (14 díg.) é comercialização — R-2050, outro evento.
+      // O gerador só emite `tpInscProd=2` (CPF) — é a única forma PROVADA
+      // contra evento aceito. Documento de 14 dígitos NÃO é automaticamente
+      // "produtor PJ / R-2050": produtor rural PF com CNPJ existe (Comunicado
+      // CAT 45/2008), e foi por confundir as duas coisas que o VINCENZO
+      // 07/2026 apareceu com "nenhuma aquisição" tendo FUNRURAL apurado.
+      // A recusa aqui é sobre o tpInscProd, que não se deduz.
       if (cpf.length !== 11) {
         e.push(cpf.length === 14
-          ? `produtores[${i}].cpf tem 14 dígitos (PJ): aquisição de produtor PJ é R-2050, não R-2055`
+          ? `produtores[${i}].cpf tem 14 dígitos: o gerador só emite tpInscProd=2 (CPF), que é a forma `
+            + 'provada contra evento aceito. Confirme a natureza no CADESP — se for produtor rural PF '
+            + 'com CNPJ (Com. CAT 45/2008), falta a especificação do tpInscProd; se for produtor PJ, '
+            + 'a comercialização dele é R-2050, outro evento.'
           : `produtores[${i}].cpf deve ter 11 dígitos (CPF do produtor rural PF)`);
       }
       const aquis = p && p.aquisicoes;
