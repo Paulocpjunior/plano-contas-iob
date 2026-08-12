@@ -255,8 +255,19 @@ const buscarNotasTomadasNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'reten
  */
 const buscarAquisicoesRuraisNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'aquisicao-rural' }, deps);
 
+/**
+ * R-2010: as NFS-e tomadas com RETENÇÃO PREVIDENCIÁRIA (11%, art. 31 da Lei
+ * 8.212/91).
+ *
+ * O CFI decide a BASE pela assinatura de alíquota — e se recusa a afirmá-la
+ * quando houve dedução de material/insumo, porque no evento aceito de
+ * referência o bruto é 5.755,54 e a base é 4.604,43. Base derivada chega
+ * MARCADA e não entra em declaração.
+ */
+const buscarServicosTomadosNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'servicos-tomados' }, deps);
+
 module.exports = {
   montarUrlCfi, montarUrlCadastroCfi, interpretarRespostaCfi, buscarNoCfi,
-  buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarResponsavelNoCfi,
-  buscarCertificadoNoCfi, buscarAcessoModuloNoCfi,
+  buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarServicosTomadosNoCfi,
+  buscarResponsavelNoCfi, buscarCertificadoNoCfi, buscarAcessoModuloNoCfi,
 };
