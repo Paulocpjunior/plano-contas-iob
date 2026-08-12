@@ -1,7 +1,8 @@
 {
-  "version": "3.4.107",
-  "build_date": "2026-08-12T20:59:53Z",
+  "version": "3.4.108",
+  "build_date": "2026-08-12T23:31:06Z",
   "release_notes": [
+    "Bump de versão passa a propagar sozinho — dois deploys caíram por isso (v3.4.107) (#51)",
     "R-2010: gerador do evtServTom, reproduzindo um evento ACEITO (v3.4.106) (#50)",
     "R-2055: produtor rural PF com CNPJ deixou de sumir da tela (v3.4.105) (#49)",
     "R-2055: UM PRODUTOR POR EVENTO — provado por eliminação (v3.4.104) (#48)",
@@ -10,7 +11,6 @@
     "R-2055: a resposta da Receita chega inteira ao print + sonda de leiaute (v3.4.101) (#45)",
     "R-2055: \"lote processado com sucesso\" com eventos RECUSADOS não é mais verde (v3.4.100) (#44)",
     "R-2055 volta a TRANSMITIR pelo app — \"IOB\" era o nome desta URL (v3.4.99) (#43)",
-    "R-2055 padronizado no IOB: botão \"Transmitir\" vira \"Gerar XML\" para importar (#42)",
-    "R-2055 (aquisição de produção rural): destrava o botão de gerar+transmitir (#41)"
+    "R-2055 padronizado no IOB: botão \"Transmitir\" vira \"Gerar XML\" para importar (#42)"
   ]
 }
