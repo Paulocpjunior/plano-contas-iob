@@ -8,6 +8,7 @@ const root = path.join(__dirname, '..');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 const catalogo = fs.readFileSync(path.join(root, 'layouts-fiscais-padrao.js'), 'utf8');
+const parserServicos = fs.readFileSync(path.join(root, 'parser-clude-servicos-tomados.js'), 'utf8');
 
 assert(index.includes('Importações — Movimento Fiscal'), 'novo modal fiscal deve estar visivel no app');
 assert(index.includes('id="infoTipoBancaria"'), 'tela inicial deve oferecer movimento bancario');
@@ -45,6 +46,10 @@ assert(catalogo.includes("validacaoCnpj: 'cadastro_layout_codigo_arquivo'"), 'en
 assert(index.includes('direcaoEsperada: layout.movimento'), 'validacao fiscal deve respeitar entrada ou saida selecionada');
 assert(index.includes("extensaoValidada === 'pdf'"), 'continuacao fiscal deve tratar PDF separadamente');
 assert(index.includes('await validacao.file.arrayBuffer()'), 'continuacao fiscal deve reler o PDF em vez de reutilizar buffer desanexado');
+assert(index.includes('cacheServicosCompativel'), 'resultado OCR detectado deve ser reutilizado na validacao do mesmo arquivo');
+assert(index.includes('if (!validacao.relatorioServicos)'), 'relatorio de servicos validado nao deve executar OCR novamente ao continuar');
+assert(parserServicos.includes('extrairTextoServicosTomadosComOCR'), 'servicos tomados devem ter fallback OCR para PDF sem mapa Unicode');
+assert(parserServicos.includes('tessedit_pageseg_mode'), 'OCR fiscal deve preservar a estrutura tabular do relatorio');
 assert(index.includes('O arquivo foi identificado como Livro de '), 'erro deve informar quando o colaborador escolhe a direcao errada');
 assert(index.includes("escaparHtmlImportacao(layoutCompativel.nome) + ' foi pré-selecionado"), 'CSV fiscal detectado deve pre-selecionar o modelo compativel');
 assert(catalogo.includes("id: 'generico_servicos_tomados_efiscal_pdf'"), 'catalogo deve oferecer servicos tomados para qualquer empresa');

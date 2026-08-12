@@ -205,6 +205,32 @@ Serviço Número Série CNPJ/CPF Razão Social Valor da NF Base de Cálculo Alí
 6394 0002830 002 07.858.953/0001-34 MIDIA PARTNERS PROMOCAO DE 40.000,00 40.000,00 5,00 2.000,00 0,00 01/04/2026
 Total 66.460,00 66.460,00 3.323,00 0,00
 `;
+
+  const textoCludeTomadosOCR = `
+Sistema E-Fiscal
+Empresa: 0733 - CLUDE CARTAO DE SAUDE 360 LTDA Data: 16/07/2026
+C.N.P.J.: 32.922.514/0001-90 Período: 01/06/2026 á 30/06/2026 Página: 1
+Relação de NFs de Serviços Tomados
+Emissão Número Série C.I CNPJ/CPF Razão Social Valor da NF Base de Cálculo Alíquota Valor do ISS Iss Retido
+03/06/2026 0000000001 70000 35.377.276/0001-78 P.M. DE CARVALHO 360,00 0,00 0,00 0,00
+17/06/2026 0000000001 70000 67.049.368/0001-15 GIOVANNI DE BAR 3.500,00 0,00 0,00 0,00
+Total 3.860,00 0,00 0,00 0,00
+`;
+  const resultadoCludeTomadosOCR = parsearTexto_IOBSageServicosTomados(textoCludeTomadosOCR);
+  assert.strictEqual(resultadoCludeTomadosOCR.detectado, true, 'texto OCR de servicos tomados CLUDE deve ser reconhecido');
+  assert.strictEqual(resultadoCludeTomadosOCR.banco_detectado, '0733');
+  assert.strictEqual(resultadoCludeTomadosOCR.cnpj_detectado, '32.922.514/0001-90');
+  assert.strictEqual(resultadoCludeTomadosOCR.lancamentos.length, 2);
+  assert.strictEqual(money(resultadoCludeTomadosOCR.total_debito), 3860);
+  assert.strictEqual(money(resultadoCludeTomadosOCR.total_oficial), 3860);
+  assert.strictEqual(resultadoCludeTomadosOCR.total_divergente, false);
+  assert.doesNotThrow(function() {
+    validarVinculoCnpjRelatorioFiscal(resultadoCludeTomadosOCR, {
+      cnpjEmpresaAtiva: '32.922.514/0001-90',
+      movimento: 'servicos_tomados'
+    });
+  });
+
   const resultadoDaxxVisual = parsearTexto_IOBSageServicosPrestados(textoDaxxVisualPdfjs);
   assert.strictEqual(resultadoDaxxVisual.detectado, true, 'layout DAXX deve reconhecer texto visual do PDF.js no navegador');
   assert.strictEqual(resultadoDaxxVisual.banco_detectado, '1183');

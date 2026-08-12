@@ -858,6 +858,53 @@
     return linhas.map(function(linha) { return linha.parts.join(' ').replace(/\s+/g, ' ').trim(); });
   }
 
+  async function extrairTextoServicosTomadosComOCR(pdf) {
+    const tesseract = root.Tesseract || (typeof Tesseract !== 'undefined' ? Tesseract : null);
+    if (!tesseract || typeof document === 'undefined') {
+      throw new Error('Este PDF exige OCR, mas o leitor visual nao esta disponivel. Atualize a aplicacao e tente novamente.');
+    }
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+    let worker = null;
+    const paginas = [];
+    try {
+      if (typeof tesseract.createWorker === 'function') {
+        worker = await tesseract.createWorker('por', (tesseract.OEM && tesseract.OEM.LSTM_ONLY) || 1, {
+          logger: function(m) { console.log('[servicos-tomados-ocr]', m.status, m.progress); }
+        });
+        if (worker.setParameters) {
+          await worker.setParameters({
+            tessedit_pageseg_mode: (tesseract.PSM && tesseract.PSM.SINGLE_COLUMN) || '4',
+            preserve_interword_spaces: '1'
+          });
+        }
+      }
+
+      for (let numero = 1; numero <= pdf.numPages; numero++) {
+        if (typeof root.showToast === 'function') {
+          root.showToast('OCR Servicos Tomados: pagina ' + numero + '/' + pdf.numPages + '...', 'success');
+        }
+        const page = await pdf.getPage(numero);
+        const viewport = page.getViewport({ scale: 4 });
+        canvas.width = Math.max(1, Math.ceil(viewport.width));
+        canvas.height = Math.max(1, Math.ceil(viewport.height));
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+        const resposta = worker
+          ? await worker.recognize(canvas)
+          : await tesseract.recognize(canvas, 'por', { logger: function(m) { console.log('[servicos-tomados-ocr]', m.status, m.progress); } });
+        paginas.push(String(resposta && resposta.data && resposta.data.text || ''));
+      }
+    } finally {
+      if (worker && worker.terminate) await worker.terminate();
+      canvas.width = 1;
+      canvas.height = 1;
+    }
+    return paginas.join('\n');
+  }
+
   async function parsearPDF_Clude_ServicosTomados(arrayBuffer) {
     const pdfjs = root.pdfjsLib || (typeof pdfjsLib !== 'undefined' ? pdfjsLib : null);
     if (!pdfjs || !pdfjs.getDocument) {
@@ -930,11 +977,21 @@
     const raw = sequencia.join('\n');
     const combinado = agrupado + '\n' + raw;
     const totalOficial = extrairTotalOficial(raw) || extrairTotalOficial(agrupado) || extrairTotalOficial(combinado);
-    return escolherResultadoPorTotalOficial([
+    const resultadoNativo = escolherResultadoPorTotalOficial([
       parsearTexto_IOBSageServicosTomados(raw),
       parsearTexto_IOBSageServicosTomados(agrupado),
       parsearTexto_IOBSageServicosTomados(combinado)
     ], totalOficial, 'debito');
+    if (resultadoNativo.detectado && resultadoNativo.lancamentos && resultadoNativo.lancamentos.length) return resultadoNativo;
+
+    const textoOCR = await extrairTextoServicosTomadosComOCR(pdf);
+    const resultadoOCR = parsearTexto_IOBSageServicosTomados(textoOCR);
+    if (!resultadoOCR.detectado || !resultadoOCR.lancamentos || !resultadoOCR.lancamentos.length) {
+      return resultadoNativo;
+    }
+    resultadoOCR.origem_ocr = true;
+    resultadoOCR.observacao_importacao = 'Camada textual do PDF sem mapa Unicode; leitura visual OCR conferida pelo total oficial.';
+    return resultadoOCR;
   }
 
   function validarVinculoCnpjRelatorioFiscal(resultado, opts) {
