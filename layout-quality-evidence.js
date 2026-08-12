@@ -481,6 +481,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Caso tambem cadastrado em layout-quality-cases.js para relatorio fixo IOB SAGE de NFs de Servicos Prestados.'
   },
   {
+    id: 'daxx-servicos-tomados-iob-sage-2026-06',
+    banco: '1183',
+    nomeBanco: 'DAXX MIDIA LTDA',
+    layout: 'DAXX - Servicos Tomados Fiscal',
+    parser: 'parsearPDF_IOB_Sage_ServicosTomados',
+    arquivo: 'Servicos tomados 06.2026 (2).pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Serviços tomados 06.2026 (2).pdf',
+    empresa: 'DAXX MIDIA LTDA',
+    periodo_inicio: '2026-06-01',
+    periodo_fim: '2026-06-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF real validado com 56 notas, R$ 398.242,87 em debitos e conferencia exata do total oficial do E-Fiscal.'
+  },
+  {
     id: 'caixa-monaco-2025-01',
     banco: '104',
     nomeBanco: 'Caixa Economica Federal',

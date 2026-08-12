@@ -1,7 +1,7 @@
 {
-  "version": "3.4.100",
-  "build_date": "2026-08-11T20:09:40Z",
+  "version": "3.4.101",
+  "build_date": "2026-08-12T09:42:45Z",
   "release_notes": [
-    "Memorizacao mais rapida para colaboradores: variantes sao gravadas em paralelo, regras identicas deixam de gerar 403 e conflitos reais informam que a correcao depende do administrador. O autosave sem acesso para de repetir e explica o vinculo ausente."
+    "Novo layout DAXX - Servicos Tomados Fiscal: reconhece o relatorio E-Fiscal, importa as notas como debito, preserva fornecedor, CNPJ, numero e periodo e bloqueia divergencias contra o total oficial do PDF."
   ]
 }

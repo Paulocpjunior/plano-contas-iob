@@ -3,7 +3,9 @@ const fs = require('fs');
 const pdf = require('pdf-parse');
 const {
   parsearTexto_CludeServicosTomados,
+  parsearTexto_IOBSageServicosTomados,
   parsearTexto_IOBSageServicosPrestados,
+  parsearPDF_IOB_Sage_ServicosTomados,
   __test__
 } = require('../parser-clude-servicos-tomados');
 
@@ -11,6 +13,7 @@ const arquivo = '/Users/paulocesarpereirajunior/Downloads/733 serviços tomados
 const arquivoAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/733  CLUDE SERV. TOMADOS ABRIL.pdf';
 const arquivoDaxxAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/1183 - SERVIÇOS TOMADOS 042026.pdf';
 const arquivoDaxxServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/1183 - SERV.  PRESTADOS 04.2026 FISCAL 1.pdf';
+const arquivoDaxxServicosTomados = '/Users/paulocesarpereirajunior/Downloads/Serviços tomados 06.2026 (2).pdf';
 
 function money(n) {
   return Math.round(Number(n || 0) * 100) / 100;
@@ -98,6 +101,42 @@ function money(n) {
     assert.ok(resultadoPrestados.lancamentos.some(l => /MIDIA PARTNERS/.test(l.descricao)), 'tomador deve ser preservado na descricao');
     assert.ok(resultadoPrestados.lancamentos.some(l => l.codigo_servico === '2496'), 'codigo de servico deve ser preservado');
     assert.ok(resultadoPrestados.lancamentos.every(l => l.historico === 'SERVICOS PRESTADOS'), 'historico padrao deve vir preenchido para parametrizacao');
+  }
+
+  if (fs.existsSync(arquivoDaxxServicosTomados)) {
+    const bufferDaxxTomados = fs.readFileSync(arquivoDaxxServicosTomados);
+    const parsedDaxxTomados = await pdf(bufferDaxxTomados);
+    const resultadoTomados = parsearTexto_IOBSageServicosTomados(parsedDaxxTomados.text);
+
+    assert.strictEqual(resultadoTomados.detectado, true);
+    assert.strictEqual(resultadoTomados.banco_detectado, '1183');
+    assert.strictEqual(resultadoTomados.nome_conta_detectado, 'DAXX - Servicos Tomados Fiscal');
+    assert.strictEqual(resultadoTomados.cnpj_detectado, '11.775.820/0001-71');
+    assert.strictEqual(resultadoTomados.periodo_inicio, '2026-06-01');
+    assert.strictEqual(resultadoTomados.periodo_fim, '2026-06-30');
+    assert.strictEqual(resultadoTomados.lancamentos.length, 56);
+    assert.strictEqual(money(resultadoTomados.total_credito), 0);
+    assert.strictEqual(money(resultadoTomados.total_debito), 398242.87);
+    assert.strictEqual(money(resultadoTomados.total_oficial), 398242.87);
+    assert.strictEqual(resultadoTomados.total_divergente, false);
+    assert.strictEqual(money(resultadoTomados.lancamentos.reduce((a, l) => a + Math.abs(l.valor), 0)), 398242.87);
+    assert.ok(resultadoTomados.lancamentos.every(l => l.valor < 0), 'servicos tomados DAXX devem entrar como debito');
+    assert.ok(resultadoTomados.lancamentos.every(l => l.tipoDocumentoFiscal === 'SERVICO_TOMADO'), 'tipo fiscal tomado deve ser preservado');
+    assert.ok(resultadoTomados.lancamentos.every(l => l.layoutParser === 'parsearPDF_IOB_Sage_ServicosTomados'), 'layout separado da DAXX deve ser preservado');
+    assert.ok(resultadoTomados.lancamentos.every(l => l.empresaCodigoFiscal === '1183'), 'codigo fiscal da DAXX deve ser preservado');
+    assert.ok(resultadoTomados.lancamentos.some(l => l.cnpj_fornecedor === '15.754.475/0001-40' && l.documento === '3455619' && /HOSTGATOR BRASIL/.test(l.descricao)), 'fornecedor, CNPJ e NF devem ser preservados');
+    assert.ok(resultadoTomados.lancamentos.every(l => !/0,00\d/.test(l.descricao_memoria)), 'colunas fiscais concatenadas nao podem contaminar o fornecedor');
+
+    global.pdfjsLib = require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js');
+    const arrayBuffer = bufferDaxxTomados.buffer.slice(
+      bufferDaxxTomados.byteOffset,
+      bufferDaxxTomados.byteOffset + bufferDaxxTomados.byteLength
+    );
+    const resultadoPdfjs = await parsearPDF_IOB_Sage_ServicosTomados(arrayBuffer);
+    assert.strictEqual(resultadoPdfjs.lancamentos.length, 56, 'caminho PDF.js usado no navegador deve preservar todas as notas');
+    assert.strictEqual(money(resultadoPdfjs.total_debito), 398242.87);
+    assert.strictEqual(resultadoPdfjs.total_divergente, false, 'total oficial deve conferir antes de liberar a importacao');
+    assert.ok(resultadoPdfjs.lancamentos.every(l => !/0,00\d/.test(l.descricao_memoria)), 'leitura visual do PDF nao deve contaminar fornecedor com colunas fiscais');
   }
 
   const textoDaxxVisualPdfjs = `

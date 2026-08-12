@@ -535,6 +535,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Relatorio fixo Office Fiscal/IOB SAGE de NFs de Servicos Prestados. Usa Valor da NF como credito e preserva tomador, NF e codigo de servico para parametrizacao.'
   },
   {
+    id: 'daxx-servicos-tomados-iob-sage-2026-06',
+    banco: '1183',
+    nomeBanco: 'DAXX MIDIA LTDA',
+    layout: 'DAXX - Servicos Tomados Fiscal',
+    parser: 'parsearPDF_IOB_Sage_ServicosTomados',
+    arquivo: 'Servicos tomados 06.2026 (2).pdf',
+    empresa: 'DAXX MIDIA LTDA',
+    periodo_inicio: '2026-06-01',
+    periodo_fim: '2026-06-30',
+    esperado: {
+      total_lancamentos: 56,
+      total_credito: 0,
+      total_debito: 398242.87
+    },
+    status: 'Aprovado',
+    validado_em: '2026-08-12T00:00:00-03:00',
+    observacao: 'Relacao E-Fiscal de NFs de Servicos Tomados da DAXX. Confere o total oficial e preserva fornecedor, CNPJ, numero da nota e periodo como lancamentos de debito.'
+  },
+  {
     id: 'caixa-monaco-2025-01',
     banco: '104',
     nomeBanco: 'Caixa Economica Federal',
