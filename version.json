@@ -1,7 +1,7 @@
 {
-  "version": "3.4.101",
-  "build_date": "2026-08-12T09:42:45Z",
+  "version": "3.4.102",
+  "build_date": "2026-08-12T09:51:38Z",
   "release_notes": [
-    "Novo layout DAXX - Servicos Tomados Fiscal: reconhece o relatorio E-Fiscal, importa as notas como debito, preserva fornecedor, CNPJ, numero e periodo e bloqueia divergencias contra o total oficial do PDF."
+    "Servicos Tomados e Servicos Prestados passam a ser modelos gerais do Movimento Fiscal para todas as empresas. O colaborador escolhe o tipo, e o sistema confere CNPJ do cabecalho, periodo e total oficial antes da gravacao."
   ]
 }

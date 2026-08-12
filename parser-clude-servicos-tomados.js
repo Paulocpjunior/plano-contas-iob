@@ -34,6 +34,19 @@
     return !!da && !!db && da === db;
   }
 
+  function cnpjValido(valor) {
+    const digits = somenteDigitos(valor);
+    if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) return false;
+    function digito(base, pesos) {
+      const soma = base.split('').reduce(function(total, n, idx) { return total + Number(n) * pesos[idx]; }, 0);
+      const resto = soma % 11;
+      return resto < 2 ? 0 : 11 - resto;
+    }
+    const d1 = digito(digits.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+    const d2 = digito(digits.slice(0, 12) + d1, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+    return digits.endsWith(String(d1) + String(d2));
+  }
+
   function ehTrechoCabecalhoServicoPrestado(valor) {
     const t = normalizarTexto(valor).toUpperCase();
     return /SERVICO\s+NUMERO\s+SERIE/.test(t)
@@ -202,6 +215,7 @@
 
   function nomeLayoutServicosTomados(metaEmpresa) {
     const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim();
+    if (!metaEmpresa) return 'CLUDE - Servicos Tomados Fiscal';
     if (codigoEmpresa === '1183') return 'DAXX - Servicos Tomados Fiscal';
     if (codigoEmpresa === '733' || normalizarTexto(metaEmpresa && metaEmpresa.nome).toUpperCase().indexOf('CLUDE') >= 0) {
       return 'CLUDE - Servicos Tomados Fiscal';
@@ -216,7 +230,7 @@
     const valorNota = Math.abs(valor);
     const categoriaFiscal = categoriaFiscalClude(fornecedorLimpo);
     const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim();
-    const bancoEmpresa = codigoEmpresa || bancoFiscalPorEmpresa(metaEmpresa);
+    const bancoEmpresa = metaEmpresa ? (codigoEmpresa || bancoFiscalPorEmpresa(metaEmpresa)) : 'CLU';
     const layoutNome = nomeLayoutServicosTomados(metaEmpresa);
     const contaFiscal = bancoEmpresa === 'CLU'
       ? 'Fiscal CLUDE - Servicos Tomados'
@@ -430,7 +444,7 @@
     let antesData = String(bloco || '').slice(String(bloco || '').indexOf(cnpj) + cnpj.length, dataMatch.index)
       .replace(/\s+/g, ' ')
       .trim();
-    if (String((metaEmpresa && metaEmpresa.codigo) || '') === '1183') {
+    if (metaEmpresa && metaEmpresa.codigo) {
       antesData = antesData
         .replace(/0,00[\d.,]*$/g, '')
         .replace(new RegExp('^' + cnpj.slice(0, 10).replace(/\./g, '\\.') + '\\s+'), '')
@@ -717,7 +731,7 @@
     }
 
     const metaEmpresa = extrairEmpresaIOBSage(texto);
-    if (String(metaEmpresa.codigo || '') !== '1183' || somenteDigitos(metaEmpresa.cnpj) !== '11775820000171') {
+    if (!metaEmpresa.codigo || !cnpjValido(metaEmpresa.cnpj)) {
       return { detectado: false, lancamentos: [] };
     }
 
@@ -745,6 +759,8 @@
       periodo_fim: periodo.fim,
       total_credito: 0,
       total_debito: totalDebito,
+      total_notas_fiscais: registros.length,
+      direcao_fiscal: 'servicos_tomados',
       total_oficial: totalOficial || totalDebito,
       total_oficial_detectado: !!totalOficial,
       total_divergente: !!totalOficial && !totalConfere,
@@ -762,6 +778,9 @@
 
     const periodo = extrairPeriodo(texto);
     const metaEmpresa = extrairEmpresaIOBSage(texto);
+    if (!metaEmpresa.codigo || !cnpjValido(metaEmpresa.cnpj)) {
+      return { detectado: false, lancamentos: [] };
+    }
     const totalOficial = extrairTotalOficial(texto);
     const registros = unirRegistros(
       parsearRegistrosServicosPrestadosIOB(texto, periodo, metaEmpresa)
@@ -786,6 +805,8 @@
       periodo_fim: periodo.fim,
       total_credito: totalCredito,
       total_debito: 0,
+      total_notas_fiscais: registros.length,
+      direcao_fiscal: 'servicos_prestados',
       total_oficial: totalOficial || totalCredito,
       total_oficial_detectado: !!totalOficial,
       total_divergente: !!totalOficial && !totalConfere,
@@ -897,6 +918,41 @@
     ], totalOficial, 'debito');
   }
 
+  function validarVinculoCnpjRelatorioFiscal(resultado, opts) {
+    opts = opts || {};
+    const cnpjAtivo = somenteDigitos(opts.cnpjEmpresaAtiva || '');
+    const cnpjArquivo = somenteDigitos(resultado && resultado.cnpj_detectado);
+    const movimentoEsperado = String(opts.movimento || '');
+    const movimentoDetectado = String((resultado && resultado.direcao_fiscal) || '');
+    if (!resultado || !resultado.detectado || !Array.isArray(resultado.lancamentos) || !resultado.lancamentos.length) {
+      throw new Error('O PDF nao foi reconhecido como relatorio E-Fiscal de servicos do modelo selecionado.');
+    }
+    if (movimentoEsperado && movimentoDetectado !== movimentoEsperado) {
+      throw new Error('O PDF e de ' + movimentoDetectado.replace(/_/g, ' ') + ', mas o modelo selecionado e de ' + movimentoEsperado.replace(/_/g, ' ') + '.');
+    }
+    if (!cnpjValido(cnpjAtivo)) {
+      throw new Error('A empresa ativa nao possui um CNPJ valido para liberar a importacao fiscal.');
+    }
+    if (!cnpjValido(cnpjArquivo)) {
+      throw new Error('Nao foi possivel extrair um CNPJ valido do cabecalho do relatorio E-Fiscal.');
+    }
+    if (cnpjArquivo !== cnpjAtivo) {
+      throw new Error('O CNPJ do relatorio (' + (resultado.cnpj_detectado || '-') + ') difere do CNPJ da empresa ativa. Selecione a empresa correta antes de importar.');
+    }
+    if (resultado.total_divergente === true) {
+      throw new Error('O total dos lancamentos diverge do total oficial impresso no PDF. A importacao permanece bloqueada.');
+    }
+    return {
+      valido: true,
+      cnpjEmpresaAtiva: cnpjAtivo,
+      cnpjArquivo,
+      codigoArquivo: resultado.empresa_codigo_detectado || '-',
+      chavesValidas: Number(resultado.total_notas_fiscais || resultado.lancamentos.length),
+      totalNotas: Number(resultado.total_notas_fiscais || resultado.lancamentos.length),
+      origem: 'cabecalho_relatorio_efiscal'
+    };
+  }
+
   async function parsearPDF_Clude_AnaliseCreditos(arrayBuffer) {
     return parsearPDF_Clude_ServicosTomados(arrayBuffer);
   }
@@ -913,6 +969,7 @@
   root.parsearPDF_Fiscal_AnaliseCreditosPISCOFINS = parsearPDF_Fiscal_AnaliseCreditosPISCOFINS;
   root.parsearPDF_IOB_Sage_ServicosPrestados = parsearPDF_IOB_Sage_ServicosPrestados;
   root.parsearPDF_IOB_Sage_ServicosTomados = parsearPDF_IOB_Sage_ServicosTomados;
+  root.validarVinculoCnpjRelatorioFiscal = validarVinculoCnpjRelatorioFiscal;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -924,6 +981,7 @@
       parsearPDF_Fiscal_AnaliseCreditosPISCOFINS,
       parsearPDF_IOB_Sage_ServicosPrestados,
       parsearPDF_IOB_Sage_ServicosTomados,
+      validarVinculoCnpjRelatorioFiscal,
       __test__: {
         parsearTexto_CludeServicosTomados,
         parsearTexto_IOBSageServicosTomados,

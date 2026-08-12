@@ -6,6 +6,7 @@ const {
   parsearTexto_IOBSageServicosTomados,
   parsearTexto_IOBSageServicosPrestados,
   parsearPDF_IOB_Sage_ServicosTomados,
+  validarVinculoCnpjRelatorioFiscal,
   __test__
 } = require('../parser-clude-servicos-tomados');
 
@@ -137,6 +138,27 @@ function money(n) {
     assert.strictEqual(money(resultadoPdfjs.total_debito), 398242.87);
     assert.strictEqual(resultadoPdfjs.total_divergente, false, 'total oficial deve conferir antes de liberar a importacao');
     assert.ok(resultadoPdfjs.lancamentos.every(l => !/0,00\d/.test(l.descricao_memoria)), 'leitura visual do PDF nao deve contaminar fornecedor com colunas fiscais');
+
+    const textoOutraEmpresa = parsedDaxxTomados.text
+      .replace(/Empresa:\s*1183\s*-\s*DAXX MIDIA LTDA/, 'Empresa: 0109 - FASTWELD INDUSTRIA E COMERCIO LTDA')
+      .replace('11.775.820/0001-71', '02.942.184/0001-34');
+    const resultadoOutraEmpresa = parsearTexto_IOBSageServicosTomados(textoOutraEmpresa);
+    assert.strictEqual(resultadoOutraEmpresa.detectado, true, 'modelo de servicos tomados deve atender outras empresas');
+    assert.strictEqual(resultadoOutraEmpresa.banco_detectado, '0109');
+    assert.strictEqual(resultadoOutraEmpresa.cnpj_detectado, '02.942.184/0001-34');
+    assert.strictEqual(resultadoOutraEmpresa.lancamentos.length, 56);
+    assert.doesNotThrow(function() {
+      validarVinculoCnpjRelatorioFiscal(resultadoOutraEmpresa, {
+        cnpjEmpresaAtiva: '02.942.184/0001-34',
+        movimento: 'servicos_tomados'
+      });
+    }, 'CNPJ do cabecalho igual ao cadastro deve liberar o modelo geral');
+    assert.throws(function() {
+      validarVinculoCnpjRelatorioFiscal(resultadoOutraEmpresa, {
+        cnpjEmpresaAtiva: '11.775.820/0001-71',
+        movimento: 'servicos_tomados'
+      });
+    }, /difere do CNPJ da empresa ativa/, 'CNPJ diferente deve bloquear antes da gravacao');
   }
 
   const textoDaxxVisualPdfjs = `
@@ -160,6 +182,19 @@ Total 66.460,00 66.460,00 3.323,00 0,00
   assert.strictEqual(money(resultadoDaxxVisual.lancamentos.reduce((a, l) => a + Number(l.valor || 0), 0)), 66460);
   assert.ok(resultadoDaxxVisual.lancamentos.every(l => l.codigo_servico === '6394'), 'texto visual deve preservar codigo de servico, sem confundir com ano da data');
   assert.ok(resultadoDaxxVisual.lancamentos.every(l => l.historico === 'SERVICOS PRESTADOS'), 'texto visual tambem deve preencher historico');
+
+  const textoPrestadosOutraEmpresa = textoDaxxVisualPdfjs
+    .replace('Empresa: 1183 - DAXX MIDIA LTDA', 'Empresa: 2045 - EMPRESA MODELO SERVICOS LTDA')
+    .replace('11.775.820/0001-71', '20.069.635/0001-52');
+  const resultadoPrestadosOutraEmpresa = parsearTexto_IOBSageServicosPrestados(textoPrestadosOutraEmpresa);
+  assert.strictEqual(resultadoPrestadosOutraEmpresa.detectado, true, 'modelo de servicos prestados deve atender outras empresas');
+  assert.strictEqual(resultadoPrestadosOutraEmpresa.banco_detectado, '2045');
+  assert.doesNotThrow(function() {
+    validarVinculoCnpjRelatorioFiscal(resultadoPrestadosOutraEmpresa, {
+      cnpjEmpresaAtiva: '20.069.635/0001-52',
+      movimento: 'servicos_prestados'
+    });
+  });
 
   const textoDaxxVisualComNotaZerada = textoDaxxVisualPdfjs.replace(
     'Total 66.460,00 66.460,00 3.323,00 0,00',
