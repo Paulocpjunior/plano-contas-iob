@@ -63,4 +63,21 @@ assert.ok(index.includes('reinfRetPjState') && index.includes('reinfAqRuralState
   'cada tela tem o seu estado');
 assert.notStrictEqual(index.indexOf('reinfAqRuralTabela'), index.indexOf('reinfRetPjTabela'));
 
+// ─── A RESPOSTA DA RECEITA CHEGA INTEIRA AO PRINT ──────────────────────────
+// O MS0030 de 12/08 veio com o elemento que a Receita reprovou, mas a
+// localização não subiu — o app procurava UMA tag só. Enquanto não se souber o
+// nome dela, o retorno cru vai junto: print com a resposta da Receita vale mais
+// que ocorrência que o app não soube nomear.
+assert.ok(/Ver a resposta da Receita \(XML\)/.test(index),
+  'o retorno cru da Receita fica disponível na recusa');
+assert.ok(index.includes('resp.xmlRetorno'), 'e vem do campo que o backend devolve');
+
+// ─── SONDA DE LEIAUTE: só com mais de um produtor, e só em restrita ─────────
+assert.ok(/transmitirAquisicaoRuralReinf\(2, 1\)/.test(index),
+  'a sonda manda 1 produtor em produção restrita (tpAmb=2)');
+assert.ok(!/transmitirAquisicaoRuralReinf\(1, *[0-9]/.test(index),
+  'sonda em PRODUÇÃO não pode existir: declarar parte dos produtores é entrega incompleta');
+assert.ok(/nada foi declarado/i.test(index),
+  'o resultado da sonda diz que nada foi declarado — senão ela vira falso alívio');
+
 console.log('✅ tela do R-2055: na aba previdenciária, sem recalcular FUNRURAL e com o indAquis carimbado como informado');

@@ -77,7 +77,11 @@ function extrairOcorrenciasReinf(xml) {
   const codigos = extrairTagsXml(xml, 'codResp');
   const descricoes = extrairTagsXml(xml, 'dscResp');
   const tipos = extrairTagsXml(xml, 'tipo');
-  const locais = extrairTagsXml(xml, 'localizacaoErroAviso');
+  // O nome da tag do "onde" varia com o leiaute do retorno. Tentar UM nome só
+  // foi o que deixou o MS0030 de 12/08 sem localização na tela.
+  const locais = ['localizacaoErroAviso', 'localizacao', 'localizacaoErro', 'elemento']
+    .map((t) => extrairTagsXml(xml, t))
+    .find((l) => l.length) || [];
   const total = Math.max(codigos.length, descricoes.length);
   const out = [];
   for (let i = 0; i < total; i++) {
@@ -92,6 +96,27 @@ function extrairOcorrenciasReinf(xml) {
     });
   }
   return out;
+}
+
+/**
+ * RETORNO CRU, sem a assinatura.
+ *
+ * Ocorrência que o parser não soube nomear vira ocorrência SEM CAUSA na tela — e
+ * foi o que aconteceu com o MS0030 (a Receita disse QUAL elemento estava fora do
+ * lugar; o app leu só codResp/dscResp e a localização, que existe no retorno com
+ * outro nome, se perdeu). Em vez de adivinhar mais nomes de tag, o retorno inteiro
+ * sobe pra tela num bloco recolhido: quem lê o print vê o que a Receita mandou,
+ * não o que o app conseguiu interpretar.
+ *
+ * O <Signature> sai porque é 4 KB de base64 que empurra a informação pra fora da
+ * tela — e o que importa aqui é a resposta, não a prova criptográfica dela.
+ */
+function retornoCruReinf(xml) {
+  const texto = String(xml || '').trim();
+  if (!texto) return null;
+  return texto
+    .replace(/<(?:\w+:)?Signature\b[\s\S]*?<\/(?:\w+:)?Signature>/gi, '<!-- Signature omitida -->')
+    .slice(0, 20000);
 }
 
 function reinfReciboDocId({ tpAmb, perApur, cnpjEstab, cpf, ideEvtAdic }) {
@@ -1536,8 +1561,25 @@ function registrarRotasReinf(app, { db } = {}) {
         marcadoComoComprador: doCfi.marcadoComoComprador === true,
       });
 
-      const prontos = apuracao.produtores.filter((l) => l.pronto);
+      const todosProntos = apuracao.produtores.filter((l) => l.pronto);
       const pendentes = apuracao.produtores.filter((l) => !l.pronto);
+
+      // ── SONDA DE LEIAUTE (só produção restrita) ──────────────────────────
+      // O MS0030 de 12/08 (EDUARDO GUERRA) disse que `ideProdutor` é filho
+      // inválido de `ideEstabAdquir` — e o único evento ACEITO que temos de
+      // referência tinha UM produtor, enquanto esse lote tinha oito. Ou o
+      // grupo que repete é outro, ou o problema é outro; ADIVINHAR o leiaute é
+      // justamente o que não se faz aqui. Transmitir 1 produtor em produção
+      // restrita responde por PROVA: passou ⇒ é a multiplicidade; repetiu o
+      // MS0030 ⇒ a causa é outra e o retorno cru mostra qual.
+      //
+      // Em PRODUÇÃO isso não existe: declarar um pedaço dos produtores seria
+      // entrega incompleta, e entrega não se desfaz.
+      const maxProdutores = Number(p.maxProdutores) > 0 ? Math.floor(Number(p.maxProdutores)) : null;
+      if (maxProdutores && Number(tpAmb) === 1) {
+        throw new Error('maxProdutores é sonda de leiaute e só vale em produção restrita (tpAmb=2) — em produção, declarar parte dos produtores seria entrega incompleta.');
+      }
+      const prontos = maxProdutores ? todosProntos.slice(0, maxProdutores) : todosProntos;
       if (!prontos.length) {
         return res.json({
           ok: false,
@@ -1573,6 +1615,7 @@ function registrarRotasReinf(app, { db } = {}) {
         ? await consultarLoteAteProcessar(info.protocolo, tpAmb, { req })
         : { httpStatus: envio.status, ...info };
 
+      const ocorrenciasLog = extrairOcorrenciasReinf((recibo && recibo.xml) || info.xml);
       await registrarLog(db, req, 'transmitir_r2055', {
         contribuinte: cnpj,
         tpAmb,
@@ -1582,6 +1625,10 @@ function registrarRotasReinf(app, { db } = {}) {
         cdResposta: (recibo && recibo.cdResposta) || info.cdResposta || null,
         produtoresDeclarados: prontos.length,
         produtoresPendentes: pendentes.length,
+        sondaLeiaute: maxProdutores || null,
+        // A recusa entra na auditoria. Sem isso, "transmitiu" e "foi recusado"
+        // ficam iguais no log — e a próxima sessão reconstrói do print.
+        ocorrencias: ocorrenciasLog.map((o) => ({ codigo: o.codigo, descricao: o.descricao })),
       });
 
       // ✗ O `ok` NÃO pode ser só o HTTP do envelope. 201 significa "o lote
@@ -1591,7 +1638,7 @@ function registrarRotasReinf(app, { db } = {}) {
       // ocorrências de erro", e a tela pintou ✓ verde. `retornoReinfComErro`
       // já existia e era usado no R-1000; aqui não estava.
       const retornoFinal = recibo && recibo.cdResposta ? recibo : info;
-      const ocorrencias = extrairOcorrenciasReinf((recibo && recibo.xml) || info.xml);
+      const ocorrencias = ocorrenciasLog;
       const comErro = retornoReinfComErro(retornoFinal) || ocorrencias.length > 0;
       const pendente = retornoReinfPendente(retornoFinal);
 
@@ -1609,7 +1656,10 @@ function registrarRotasReinf(app, { db } = {}) {
         cdResposta: (recibo && recibo.cdResposta) || info.cdResposta,
         descResposta: (recibo && recibo.descResposta) || info.descResposta,
         dhRecepcao: recibo && recibo.dhRecepcao,
-        xmlRetorno: recibo && recibo.xml,
+        // Retorno CRU (sem a assinatura): quando o parser não sabe nomear a
+        // ocorrência, é ele que carrega a resposta da Receita até o print.
+        xmlRetorno: retornoCruReinf((recibo && recibo.xml) || info.xml),
+        sondaLeiaute: maxProdutores ? { produtoresEnviados: prontos.length, deUmTotalDe: todosProntos.length } : null,
         declarados: prontos.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, base: l.base, total: l.total, indAquis: l.indAquis })),
         naoDeclarados: pendentes.map((l) => ({ cpf: l.cpfProdutor, nome: l.nome, pendencias: l.pendencias })),
       });

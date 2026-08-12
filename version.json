@@ -1,7 +1,9 @@
 {
-  "version": "3.4.100",
-  "build_date": "2026-08-12T12:46:46Z",
+  "version": "3.4.101",
+  "build_date": "2026-08-12T16:20:00Z",
   "release_notes": [
-    "R-2055: 'Lote processado com sucesso - Possui eventos com ocorrencias de erro' NAO e mais pintado como sucesso. O HTTP 201 diz que o LOTE chegou; os EVENTOS podem ter sido recusados dentro dele — foi o caso do EDUARDO GUERRA em 12/08, onde a tela mostrou um check verde e 8 valores sem nenhuma explicacao. Agora a tela diz 'NADA FOI DECLARADO — os eventos foram recusados' e lista as ocorrencias da Receita (codigo, descricao e onde), que antes nem subiam do backend."
+    "R-2055: a resposta da Receita chega INTEIRA ao print. O MS0030 de 12/08 (EDUARDO GUERRA) disse qual elemento reprovou, mas a localizacao nao subia — o app procurava uma tag so. Agora tenta os nomes conhecidos E leva o retorno cru (sem a assinatura) num bloco recolhido na tela.",
+    "R-2055: botao 'Testar leiaute (1 produtor)' — manda UM produtor em producao restrita para descobrir por PROVA se a recusa vem de varios produtores no mesmo evento. Em PRODUCAO a sonda e recusada: declarar parte dos produtores seria entrega incompleta.",
+    "R-2055: a recusa entra na auditoria (codigo e descricao da ocorrencia) — antes 'transmitiu' e 'foi recusado' ficavam iguais no log."
   ]
 }
