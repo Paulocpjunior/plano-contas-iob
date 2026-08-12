@@ -72,6 +72,40 @@ pkg.version = '${NEW_VERSION}';
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 "
 
+# ─── PROPAGA A VERSAO PARA TODO ARQUIVO QUE A CARREGA ───────────────────────
+#
+# MATA-BURRO (12/08/2026): o bump escrevia so version.json/package.json, e o
+# gate de qualidade (scripts/test-product-quality-features.js) exige que os
+# cache-busters ?v=<versao> de index.html, auditai/index.html e
+# auditai/conciliacao.html batam com a versao ATUAL. Resultado: TODO bump
+# quebrava o deploy, e cada um lembrava de um subconjunto dos arquivos a mao
+# (dois deploys caidos seguidos, v3.4.105 e v3.4.106).
+#
+# Nao e caso de "lembrar melhor": o script que muda a versao e quem tem que
+# propaga-la. Arquivo novo com cache-buster entra NESTA lista.
+ARQUIVOS_COM_VERSAO=(
+  "index.html"
+  "auditai/index.html"
+  "auditai/conciliacao.html"
+  "auditai/conciliacao-arquivos.js"
+)
+for arq in "${ARQUIVOS_COM_VERSAO[@]}"; do
+  if [ ! -f "$arq" ]; then
+    echo "[bump] AVISO: $arq nao existe — cache-buster nao propagado" >&2
+    continue
+  fi
+  # SO os dois padroes que carregam a versao. Trocar qualquer x.y.z do arquivo
+  # atingiria versao de biblioteca, data e o que mais parecesse versao — o
+  # index.html tem milhares de linhas.
+  sed -i.bak -E \
+    -e "s/\?v=[0-9]+\.[0-9]+\.[0-9]+/?v=${NEW_VERSION}/g" \
+    -e "s/(__PLANO_CONTAS_IOB_BUILD__ = ')[0-9]+\.[0-9]+\.[0-9]+/\1${NEW_VERSION}/g" \
+    -e "s/(AUDITAI_MOTOR_VERSION = ')[0-9]+\.[0-9]+\.[0-9]+/\1${NEW_VERSION}/g" \
+    -e "s/(Motor conciliacao v)[0-9]+\.[0-9]+\.[0-9]+/\1${NEW_VERSION}/g" \
+    "$arq" && rm -f "$arq.bak"
+  echo "[bump] cache-buster de $arq -> ${NEW_VERSION}"
+done
+
 echo ""
 echo "============================================"
 echo "  Versao bumpada: ${CURRENT} -> ${NEW_VERSION}"
@@ -79,7 +113,7 @@ echo "  Build date: ${BUILD_DATE}"
 echo "============================================"
 echo ""
 echo "Proximo passo:"
-echo "  git add version.json package.json"
+echo "  git add version.json package.json index.html auditai/"
 echo "  git commit -m 'chore(version): bump ${CURRENT} -> ${NEW_VERSION}'"
 echo "  git tag v${NEW_VERSION}"
 echo "  gcloud run deploy ..."
