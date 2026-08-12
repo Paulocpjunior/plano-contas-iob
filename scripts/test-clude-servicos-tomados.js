@@ -5,6 +5,7 @@ const {
   parsearTexto_CludeServicosTomados,
   parsearTexto_IOBSageServicosTomados,
   parsearTexto_IOBSageServicosPrestados,
+  parsearPDF_IOB_Sage_ServicosPrestados,
   parsearPDF_IOB_Sage_ServicosTomados,
   validarVinculoCnpjRelatorioFiscal,
   __test__
@@ -15,6 +16,7 @@ const arquivoAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/733  CL
 const arquivoDaxxAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/1183 - SERVIÇOS TOMADOS 042026.pdf';
 const arquivoDaxxServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/1183 - SERV.  PRESTADOS 04.2026 FISCAL 1.pdf';
 const arquivoDaxxServicosTomados = '/Users/paulocesarpereirajunior/Downloads/Serviços tomados 06.2026 (2).pdf';
+const arquivoCludeServicosPrestadosRotacionado = '/Users/paulocesarpereirajunior/Downloads/TESTE - SERV. PRESTADOS CLUDE.pdf';
 
 function money(n) {
   return Math.round(Number(n || 0) * 100) / 100;
@@ -159,6 +161,34 @@ function money(n) {
         movimento: 'servicos_tomados'
       });
     }, /difere do CNPJ da empresa ativa/, 'CNPJ diferente deve bloquear antes da gravacao');
+  }
+
+  if (fs.existsSync(arquivoCludeServicosPrestadosRotacionado)) {
+    const bufferCludePrestados = fs.readFileSync(arquivoCludeServicosPrestadosRotacionado);
+    global.pdfjsLib = require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js');
+    const arrayBufferCludePrestados = bufferCludePrestados.buffer.slice(
+      bufferCludePrestados.byteOffset,
+      bufferCludePrestados.byteOffset + bufferCludePrestados.byteLength
+    );
+    const resultadoCludePrestadosRotacionado = await parsearPDF_IOB_Sage_ServicosPrestados(arrayBufferCludePrestados);
+
+    assert.strictEqual(resultadoCludePrestadosRotacionado.detectado, true, 'PDF rotacionado da CLUDE deve ser reconhecido');
+    assert.strictEqual(resultadoCludePrestadosRotacionado.banco_detectado, '0733');
+    assert.strictEqual(resultadoCludePrestadosRotacionado.cnpj_detectado, '32.922.514/0001-90');
+    assert.strictEqual(resultadoCludePrestadosRotacionado.periodo_inicio, '2026-06-01');
+    assert.strictEqual(resultadoCludePrestadosRotacionado.periodo_fim, '2026-06-30');
+    assert.strictEqual(resultadoCludePrestadosRotacionado.lancamentos.length, 961);
+    assert.strictEqual(money(resultadoCludePrestadosRotacionado.total_credito), 961282.04);
+    assert.strictEqual(money(resultadoCludePrestadosRotacionado.total_oficial), 961282.04);
+    assert.strictEqual(resultadoCludePrestadosRotacionado.total_divergente, false);
+    assert.ok(resultadoCludePrestadosRotacionado.lancamentos.some(l => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(l.cnpj_tomador)), 'tomadores pessoa fisica devem ser preservados');
+    assert.ok(resultadoCludePrestadosRotacionado.lancamentos.every(l => l.valor > 0 && l.tipoDocumentoFiscal === 'SERVICO_PRESTADO'));
+    assert.doesNotThrow(function() {
+      validarVinculoCnpjRelatorioFiscal(resultadoCludePrestadosRotacionado, {
+        cnpjEmpresaAtiva: '32.922.514/0001-90',
+        movimento: 'servicos_prestados'
+      });
+    }, 'CNPJ da CLUDE e total oficial conferido devem liberar o PDF rotacionado');
   }
 
   const textoDaxxVisualPdfjs = `

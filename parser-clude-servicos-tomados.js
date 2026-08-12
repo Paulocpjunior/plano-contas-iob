@@ -90,7 +90,7 @@
 
   function extrairPeriodo(texto) {
     const m = String(texto || '').match(/Periodo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aá]\s*(\d{2}\/\d{2}\/\d{4})/i)
-      || String(texto || '').match(/Per[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aá]\s*(\d{2}\/\d{2}\/\d{4})/i);
+      || String(texto || '').match(/Pe\s*r[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aá]\s*(\d{2}\/\d{2}\/\d{4})/i);
     return {
       inicio: m ? parseDateBR(m[1]) : '',
       fim: m ? parseDateBR(m[2]) : ''
@@ -171,7 +171,9 @@
     }
     return {
       codigo: String(m[1] || '').trim(),
-      nome: normalizarTexto(m[2] || '').toUpperCase(),
+      nome: normalizarTexto(m[2] || '')
+        .replace(/\s+Data:\s*\d{2}\/\d{2}\/\d{4}.*$/i, '')
+        .toUpperCase(),
       cnpj: String(m[3] || '').trim()
     };
   }
@@ -602,7 +604,7 @@
   function parsearRegistrosServicosPrestadosVisual(texto, periodo, metaEmpresa) {
     const registros = [];
     const linhas = String(texto || '').split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
-    const cpfCnpj = /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/;
+    const cpfCnpj = /(?:\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/;
     const money = /(?<![\d.,])([0-9]{1,3}(?:\.\d{3})*,\d{2}|[0-9]+,\d{2})(?![\d.,])/g;
 
     for (let i = 0; i < linhas.length; i++) {
@@ -661,10 +663,11 @@
       if (!documento) continue;
       const antesCnpj = bloco.slice(0, cnpjMatch.index || 0);
       const depoisCnpj = bloco.slice((cnpjMatch.index || 0) + cnpjMatch[0].length);
+      const servicoDecimal = (antesCnpj.match(/\b(\d{1,2}\.\d{2})\b/) || [])[1] || '';
       const servicosAntes = [...antesCnpj.matchAll(/\b(\d{4})\b/g)].map(m => m[1]);
       const depoisSemDatas = depoisCnpj.replace(/\d{2}\/\d{2}\/\d{4}/g, ' ');
       const servicosDepois = [...depoisSemDatas.matchAll(/\b(\d{4})\b/g)].map(m => m[1]);
-      const servico = servicosAntes.concat(servicosDepois).find(s => s !== '0000' && s !== '2026') || '';
+      const servico = servicoDecimal || servicosAntes.concat(servicosDepois).find(s => s !== '0000' && s !== '2026') || '';
 
       const lanc = criarLancamentoServicoPrestado({
         cnpj: cnpjMatch[0],
@@ -815,7 +818,9 @@
     };
   }
 
-  function agruparItensPdfEmLinhas(items) {
+  function agruparItensPdfEmLinhas(items, rotacao) {
+    const giro = ((Number(rotacao || 0) % 360) + 360) % 360;
+    const usaEixoX = giro === 90 || giro === 270;
     const itens = (items || [])
       .map(function(item) {
         const t = item.transform || [1, 0, 0, 1, 0, 0];
@@ -823,6 +828,11 @@
       })
       .filter(function(item) { return item.str; })
       .sort(function(a, b) {
+        if (usaEixoX) {
+          const ordemLinha = giro === 90 ? a.x - b.x : b.x - a.x;
+          if (Math.abs(ordemLinha) > 2) return ordemLinha;
+          return giro === 90 ? a.y - b.y : b.y - a.y;
+        }
         if (Math.abs(b.y - a.y) > 2) return b.y - a.y;
         return a.x - b.x;
       });
@@ -830,8 +840,9 @@
     const linhas = [];
     for (const item of itens) {
       const ultima = linhas[linhas.length - 1];
-      if (!ultima || Math.abs(ultima.y - item.y) > 2) {
-        linhas.push({ y: item.y, parts: [item.str] });
+      const coordenada = usaEixoX ? item.x : item.y;
+      if (!ultima || Math.abs(ultima.coordenada - coordenada) > 2) {
+        linhas.push({ coordenada: coordenada, parts: [item.str] });
       } else {
         ultima.parts.push(item.str);
       }
@@ -852,7 +863,7 @@
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
-      paginas.push(agruparItensPdfEmLinhas(content.items).join('\n'));
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
     }
     const agrupado = paginas.join('\n');
     const raw = sequencia.join('\n');
@@ -879,7 +890,7 @@
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
-      paginas.push(agruparItensPdfEmLinhas(content.items).join('\n'));
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
     }
     const agrupado = paginas.join('\n');
     const raw = sequencia.join('\n');
@@ -905,7 +916,7 @@
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
-      paginas.push(agruparItensPdfEmLinhas(content.items).join('\n'));
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
     }
     const agrupado = paginas.join('\n');
     const raw = sequencia.join('\n');

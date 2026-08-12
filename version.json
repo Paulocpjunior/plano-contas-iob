@@ -1,7 +1,7 @@
 {
-  "version": "3.4.106",
-  "build_date": "2026-08-12T17:35:47Z",
+  "version": "3.4.107",
+  "build_date": "2026-08-12T19:37:04Z",
   "release_notes": [
-    "FASTWELD agora possui modelos separados para NF-e de Entrada e NF-e de Saida. O CSV fiscal identifica o sentido e pre-seleciona o modelo compativel; a importacao permanece bloqueada se empresa, layout, codigo do arquivo, chaves ou sentido divergirem."
+    "Relatorios E-Fiscal de Servicos Prestados com rotacao interna agora sao lidos por linhas no navegador. O modelo geral preserva notas de tomadores com CPF ou CNPJ e somente libera a importacao quando CNPJ da empresa, periodo e total oficial conferem."
   ]
 }
