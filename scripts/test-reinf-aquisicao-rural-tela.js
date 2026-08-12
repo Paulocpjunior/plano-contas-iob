@@ -80,4 +80,15 @@ assert.ok(!/transmitirAquisicaoRuralReinf\(1, *[0-9]/.test(index),
 assert.ok(/nada foi declarado/i.test(index),
   'o resultado da sonda diz que nada foi declarado — senão ela vira falso alívio');
 
+// ─── A SONDA VIRA CONCLUSÃO, NÃO CÓDIGO SOLTO ──────────────────────────────
+// O XSD é conferido ANTES das regras de negócio: MS0030 = estrutura reprovada
+// com aquele número de produtores; qualquer outro código = estrutura aceita.
+// Sem essa leitura a pessoa recebe "MS1009" e nenhuma conclusão.
+assert.ok(/Leiaute REPROVADO com/.test(index) && /Leiaute PASSOU com/.test(index),
+  'a sonda diz se o leiaute passou ou foi reprovado');
+assert.ok(/MS0030/.test(index) && /MS1009/.test(index),
+  'e distingue o erro de ESTRUTURA do erro de CADASTRO');
+assert.ok(/transmitirAquisicaoRuralReinf\(2, 2\)/.test(index),
+  'existe a sonda de 2 produtores — é ela que prova a multiplicidade');
+
 console.log('✅ tela do R-2055: na aba previdenciária, sem recalcular FUNRURAL e com o indAquis carimbado como informado');
