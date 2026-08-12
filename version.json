@@ -1,7 +1,7 @@
 {
-  "version": "3.4.107",
-  "build_date": "2026-08-12T19:37:04Z",
+  "version": "3.4.108",
+  "build_date": "2026-08-12T19:58:24Z",
   "release_notes": [
-    "Relatorios E-Fiscal de Servicos Prestados com rotacao interna agora sao lidos por linhas no navegador. O modelo geral preserva notas de tomadores com CPF ou CNPJ e somente libera a importacao quando CNPJ da empresa, periodo e total oficial conferem."
+    "A continuacao da importacao de Servicos Prestados agora rele o PDF com um buffer seguro. A validacao e a revisao podem ocorrer em sequencia sem o erro de ArrayBuffer desanexado, mantendo CNPJ, periodo, notas e total oficial conferidos."
   ]
 }

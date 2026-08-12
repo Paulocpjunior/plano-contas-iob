@@ -43,6 +43,8 @@ assert(catalogo.includes("cnpj: '02942184000134'"), 'layout FASTWELD deve ter CN
 assert(catalogo.includes("validacaoCnpj: 'chave_nfe_emitente'"), 'layout deve declarar a fonte da amarracao de CNPJ');
 assert(catalogo.includes("validacaoCnpj: 'cadastro_layout_codigo_arquivo'"), 'entrada deve amarrar empresa, layout e codigo do arquivo');
 assert(index.includes('direcaoEsperada: layout.movimento'), 'validacao fiscal deve respeitar entrada ou saida selecionada');
+assert(index.includes("extensaoValidada === 'pdf'"), 'continuacao fiscal deve tratar PDF separadamente');
+assert(index.includes('await validacao.file.arrayBuffer()'), 'continuacao fiscal deve reler o PDF em vez de reutilizar buffer desanexado');
 assert(index.includes('O arquivo foi identificado como Livro de '), 'erro deve informar quando o colaborador escolhe a direcao errada');
 assert(index.includes("escaparHtmlImportacao(layoutCompativel.nome) + ' foi pré-selecionado"), 'CSV fiscal detectado deve pre-selecionar o modelo compativel');
 assert(catalogo.includes("id: 'generico_servicos_tomados_efiscal_pdf'"), 'catalogo deve oferecer servicos tomados para qualquer empresa');

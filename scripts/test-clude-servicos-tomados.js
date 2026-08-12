@@ -172,6 +172,8 @@ function money(n) {
     );
     const resultadoCludePrestadosRotacionado = await parsearPDF_IOB_Sage_ServicosPrestados(arrayBufferCludePrestados);
 
+    assert.strictEqual(arrayBufferCludePrestados.byteLength, bufferCludePrestados.byteLength, 'parser nao pode desanexar o ArrayBuffer recebido');
+    assert.doesNotThrow(function() { arrayBufferCludePrestados.slice(0); }, 'buffer validado deve continuar reutilizavel');
     assert.strictEqual(resultadoCludePrestadosRotacionado.detectado, true, 'PDF rotacionado da CLUDE deve ser reconhecido');
     assert.strictEqual(resultadoCludePrestadosRotacionado.banco_detectado, '0733');
     assert.strictEqual(resultadoCludePrestadosRotacionado.cnpj_detectado, '32.922.514/0001-90');

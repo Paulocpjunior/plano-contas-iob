@@ -47,6 +47,14 @@
     return digits.endsWith(String(d1) + String(d2));
   }
 
+  function copiarDadosPdf(dados) {
+    if (dados instanceof ArrayBuffer) return dados.slice(0);
+    if (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView && ArrayBuffer.isView(dados)) {
+      return dados.buffer.slice(dados.byteOffset, dados.byteOffset + dados.byteLength);
+    }
+    return dados;
+  }
+
   function ehTrechoCabecalhoServicoPrestado(valor) {
     const t = normalizarTexto(valor).toUpperCase();
     return /SERVICO\s+NUMERO\s+SERIE/.test(t)
@@ -856,7 +864,7 @@
       throw new Error('PDF.js nao carregado para ler servicos tomados CLUDE.');
     }
 
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
     const paginas = [];
     const sequencia = [];
     for (let p = 1; p <= pdf.numPages; p++) {
@@ -883,7 +891,7 @@
       throw new Error('PDF.js nao carregado para ler servicos prestados IOB SAGE.');
     }
 
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
     const paginas = [];
     const sequencia = [];
     for (let p = 1; p <= pdf.numPages; p++) {
@@ -909,7 +917,7 @@
       throw new Error('PDF.js nao carregado para ler servicos tomados IOB SAGE.');
     }
 
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
     const paginas = [];
     const sequencia = [];
     for (let p = 1; p <= pdf.numPages; p++) {
