@@ -87,9 +87,25 @@ function gerarR2055(ev) {
     ...(data ? { data } : {}),
   });
 
-  // Um <ideProdutor> por produtor; dentro, um <detAquis> por aquisição. A ordem
-  // dos campos do detAquis é a do arquivo aceito e NÃO pode variar.
-  const produtoresXml = produtores.map((p) => {
+  // ═══ UM PRODUTOR POR EVENTO — provado por eliminação ══════════════════════
+  //
+  // Duas sondas em produção restrita (12/08/2026, EDUARDO GUERRA 07/2026,
+  // contribuinte 00005430) fecharam a questão sem precisar do XSD:
+  //
+  //   1 produtor                              → MS1009 (regra de CADASTRO ⇒ passou no XSD)
+  //   2 produtores em 1 <ideEstabAdquir>      → MS0030 "'ideEstabAdquir' has invalid child 'ideProdutor'"
+  //   2 produtores em 2 <ideEstabAdquir>      → MS0030 "'infoAquisProd' has invalid child 'ideEstabAdquir'"
+  //
+  // Ou seja: `infoAquisProd` aceita UM `ideEstabAdquir`, que aceita UM
+  // `ideProdutor`. O único arranjo que passa é UM PRODUTOR POR EVENTO — e é
+  // exatamente a forma do evtAqProd que a Receita ACEITOU (DAMIÃO, 1 produtor).
+  //
+  // Corrobora o R-4010 do mesmo repo: "um beneficiário por evento — o XSD
+  // define ideBenef com maxOccurs=1; para vários locadores, chame uma vez por
+  // locador". A série R-2000/R-4000 repete o padrão.
+  //
+  // Vários produtores ⇒ vários EVENTOS no mesmo lote: use `gerarEventosR2055`.
+  const ideProdutorXml = (p) => {
     const detAquisXml = p.aquisicoes.map((a) => (
       '          <detAquis>\n'
       + `            <indAquis>${escXml(a.indAquis)}</indAquis>\n`
@@ -106,7 +122,14 @@ function gerarR2055(ev) {
       + detAquisXml + '\n'
       + '        </ideProdutor>'
     );
-  }).join('\n');
+  };
+
+  const estabelecimentoXml =
+    '      <ideEstabAdquir>\n'
+    + `        <tpInscAdq>${estabAdquirente.tpInscAdq}</tpInscAdq>\n`
+    + `        <nrInscAdq>${soDigitos(estabAdquirente.nrInscAdq)}</nrInscAdq>\n`
+    + ideProdutorXml(produtores[0]) + '\n'
+    + '      </ideEstabAdquir>';
 
   const ideEventoLinhas = [`      <indRetif>${indRetif}</indRetif>`];
   if (indRetif === 2 && nrRecibo) ideEventoLinhas.push(`      <nrRecibo>${escXml(nrRecibo)}</nrRecibo>`);
@@ -129,11 +152,7 @@ ${ideEventoLinhas.join('\n')}
       <nrInsc>${nrInscContribuinteReinf(contribuinte)}</nrInsc>
     </ideContri>
     <infoAquisProd>
-      <ideEstabAdquir>
-        <tpInscAdq>${estabAdquirente.tpInscAdq}</tpInscAdq>
-        <nrInscAdq>${soDigitos(estabAdquirente.nrInscAdq)}</nrInscAdq>
-${produtoresXml}
-      </ideEstabAdquir>
+${estabelecimentoXml}
     </infoAquisProd>
   </evtAqProd>
   <!-- ASSINATURA: o <Signature> (XMLDSig, certificado A1) entra na etapa de
@@ -141,6 +160,24 @@ ${produtoresXml}
 </Reinf>`;
 
   return { id, cnpjAdquirente: soDigitos(estabAdquirente.nrInscAdq), xml };
+}
+
+/**
+ * Um EVENTO por produtor, todos para o MESMO lote.
+ *
+ * O `seq` entra no id, então cada evento precisa do seu — id repetido é RECUSA
+ * de lote inteiro (lição MS0017 do assinador).
+ *
+ * @returns {Array<{ id:string, cpf:string, cnpjAdquirente:string, xml:string }>}
+ */
+function gerarEventosR2055(ev) {
+  const produtores = Array.isArray(ev && ev.produtores) ? ev.produtores : [];
+  if (!produtores.length) throw new Error('R-2055 inválido:\n - produtores deve ter ao menos 1 item');
+  const seqBase = Number(ev.seq) > 0 ? Number(ev.seq) : 1;
+  return produtores.map((p, i) => {
+    const evento = gerarR2055({ ...ev, seq: seqBase + i, produtores: [p] });
+    return { ...evento, cpf: soDigitos(p && p.cpf) };
+  });
 }
 
 /** Pré-condições. Devolve lista de erros (vazia = ok). */
@@ -164,6 +201,12 @@ function validarEntradaR2055(ev) {
 
   if (!Array.isArray(produtores) || !produtores.length) {
     e.push('produtores deve ter ao menos 1 item');
+  } else if (produtores.length > 1) {
+    // MATA-BURRO: empilhar produtor no mesmo evento é o que a Receita recusou
+    // duas vezes (MS0030). Não é aviso — é recusa, com o caminho ao lado.
+    e.push(`produtores tem ${produtores.length} itens: o XSD aceita UM produtor por evtAqProd `
+      + '(provado por sonda em 12/08/2026). Para vários produtores, use gerarEventosR2055, '
+      + 'que devolve um evento por produtor para o MESMO lote.');
   } else {
     produtores.forEach((p, i) => {
       const cpf = soDigitos(p && p.cpf);
@@ -195,4 +238,4 @@ function validarEntradaR2055(ev) {
   return e;
 }
 
-module.exports = { gerarR2055, validarEntradaR2055, NS_R2055 };
+module.exports = { gerarR2055, gerarEventosR2055, validarEntradaR2055, NS_R2055 };

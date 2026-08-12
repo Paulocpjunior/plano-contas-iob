@@ -63,4 +63,32 @@ assert.ok(index.includes('reinfRetPjState') && index.includes('reinfAqRuralState
   'cada tela tem o seu estado');
 assert.notStrictEqual(index.indexOf('reinfAqRuralTabela'), index.indexOf('reinfRetPjTabela'));
 
+// ─── A RESPOSTA DA RECEITA CHEGA INTEIRA AO PRINT ──────────────────────────
+// O MS0030 de 12/08 veio com o elemento que a Receita reprovou, mas a
+// localização não subiu — o app procurava UMA tag só. Enquanto não se souber o
+// nome dela, o retorno cru vai junto: print com a resposta da Receita vale mais
+// que ocorrência que o app não soube nomear.
+assert.ok(/Ver a resposta da Receita \(XML\)/.test(index),
+  'o retorno cru da Receita fica disponível na recusa');
+assert.ok(index.includes('resp.xmlRetorno'), 'e vem do campo que o backend devolve');
+
+// ─── SONDA DE LEIAUTE: só com mais de um produtor, e só em restrita ─────────
+assert.ok(/transmitirAquisicaoRuralReinf\(2, 1\)/.test(index),
+  'a sonda manda 1 produtor em produção restrita (tpAmb=2)');
+assert.ok(!/transmitirAquisicaoRuralReinf\(1, *[0-9]/.test(index),
+  'sonda em PRODUÇÃO não pode existir: declarar parte dos produtores é entrega incompleta');
+assert.ok(/nada foi declarado/i.test(index),
+  'o resultado da sonda diz que nada foi declarado — senão ela vira falso alívio');
+
+// ─── A SONDA VIRA CONCLUSÃO, NÃO CÓDIGO SOLTO ──────────────────────────────
+// O XSD é conferido ANTES das regras de negócio: MS0030 = estrutura reprovada
+// com aquele número de produtores; qualquer outro código = estrutura aceita.
+// Sem essa leitura a pessoa recebe "MS1009" e nenhuma conclusão.
+assert.ok(/Leiaute REPROVADO com/.test(index) && /Leiaute PASSOU com/.test(index),
+  'a sonda diz se o leiaute passou ou foi reprovado');
+assert.ok(/MS0030/.test(index) && /MS1009/.test(index),
+  'e distingue o erro de ESTRUTURA do erro de CADASTRO');
+assert.ok(/transmitirAquisicaoRuralReinf\(2, 2\)/.test(index),
+  'existe a sonda de 2 produtores — é ela que prova a multiplicidade');
+
 console.log('✅ tela do R-2055: na aba previdenciária, sem recalcular FUNRURAL e com o indAquis carimbado como informado');
