@@ -1,7 +1,7 @@
 {
-  "version": "3.4.105",
-  "build_date": "2026-08-12T17:26:17Z",
+  "version": "3.4.106",
+  "build_date": "2026-08-12T17:35:47Z",
   "release_notes": [
-    "PDFs E-Fiscal de Servicos Tomados ou Prestados agora sao reconhecidos no upload comum e encaminhados ao Movimento Fiscal com o modelo geral pre-selecionado. Banco e layout bancario deixam de confundir o colaborador; a CLUDE e qualquer outra empresa usam os mesmos modelos com trava de CNPJ."
+    "FASTWELD agora possui modelos separados para NF-e de Entrada e NF-e de Saida. O CSV fiscal identifica o sentido e pre-seleciona o modelo compativel; a importacao permanece bloqueada se empresa, layout, codigo do arquivo, chaves ou sentido divergirem."
   ]
 }

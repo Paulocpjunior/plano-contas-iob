@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { LAYOUTS_FISCAIS_PADRAO } = require('../layouts-fiscais-padrao');
 const {
+  parsearCSV_FastweldRegistroEntradas,
   parsearCSV_FastweldRegistroSaidas,
   validarVinculoCnpjFiscal
 } = require('../parser-flanacar-registro-entradas');
@@ -13,10 +14,16 @@ const arquivo = process.env.FASTWELD_REGISTRO_SAIDAS_CSV
   || '/Users/paulocesarpereirajunior/Downloads/0109_RelatorioNotasSaidas_20260401_20260430.Csv';
 
 assert(fs.existsSync(arquivo), 'Fixture FASTWELD Registro de Saidas nao encontrada: ' + arquivo);
-const layout = LAYOUTS_FISCAIS_PADRAO.find(item => item.codigoEmpresa === '0109');
+const arquivoEntradas = process.env.FASTWELD_REGISTRO_ENTRADAS_CSV
+  || '/Users/paulocesarpereirajunior/Downloads/0109_RelatorioNotas_20260401_20260430.Csv';
+const layout = LAYOUTS_FISCAIS_PADRAO.find(item => item.codigoEmpresa === '0109' && item.movimento === 'saida');
+const layoutEntradas = LAYOUTS_FISCAIS_PADRAO.find(item => item.codigoEmpresa === '0109' && item.movimento === 'entrada');
 assert(layout, 'Layout fiscal FASTWELD 0109 deve existir no catalogo');
+assert(layoutEntradas, 'Layout fiscal de entradas FASTWELD 0109 deve existir no catalogo');
 assert.strictEqual(layout.cnpj, '02942184000134');
 assert.strictEqual(layout.homologacao_status, 'aprovado');
+assert.strictEqual(layoutEntradas.cnpj, '02942184000134');
+assert.strictEqual(layoutEntradas.homologacao_status, 'aprovado');
 
 const texto = fs.readFileSync(path.resolve(arquivo)).toString('latin1');
 const resultado = parsearCSV_FastweldRegistroSaidas(texto, { arquivoNome: path.basename(arquivo) });
@@ -64,6 +71,51 @@ const vinculo = validarVinculoCnpjFiscal(resultado, {
 assert.strictEqual(vinculo.valido, true);
 assert.strictEqual(vinculo.codigoArquivo, '0109');
 assert.strictEqual(vinculo.chavesValidas, 106);
+
+assert(fs.existsSync(arquivoEntradas), 'Fixture FASTWELD Registro de Entradas nao encontrada: ' + arquivoEntradas);
+const textoEntradas = fs.readFileSync(path.resolve(arquivoEntradas)).toString('latin1');
+const resultadoEntradas = parsearCSV_FastweldRegistroEntradas(textoEntradas, { arquivoNome: path.basename(arquivoEntradas) });
+assert.strictEqual(resultadoEntradas.detectado, true);
+assert.strictEqual(resultadoEntradas.direcao_fiscal, 'entrada');
+assert.strictEqual(resultadoEntradas.codigo_empresa_layout, '0109');
+assert.strictEqual(resultadoEntradas.total_notas_fiscais, 55);
+assert.strictEqual(resultadoEntradas.total_lancamentos_cfop, 63);
+assert.strictEqual(resultadoEntradas.chaves_nfe_validas, 55);
+assert.strictEqual(resultadoEntradas.chaves_nfe_invalidas, 0);
+assert.strictEqual(resultadoEntradas.lancamentos.length, 179);
+assert.strictEqual(Math.round(resultadoEntradas.total_debito * 100), 90211696);
+assert.strictEqual(resultadoEntradas.total_credito, 0);
+assert.strictEqual(resultadoEntradas.periodo_inicio, '2026-04-01');
+assert.strictEqual(resultadoEntradas.periodo_fim, '2026-04-30');
+assert.ok(resultadoEntradas.lancamentos.every(item => item.valor < 0), 'entradas FASTWELD devem ser debitos fiscais');
+assert.ok(resultadoEntradas.lancamentos.some(item => item.fornecedor && item.cnpj_fornecedor), 'fornecedor e CNPJ devem ser preservados');
+assert.ok(resultadoEntradas.lancamentos.every(item => item.layoutParser === 'parsearCSV_FastweldRegistroEntradas'));
+
+const vinculoEntradas = validarVinculoCnpjFiscal(resultadoEntradas, {
+  cnpjEmpresaAtiva: '02.942.184/0001-34',
+  cnpjLayout: layoutEntradas.cnpj,
+  codigoEmpresa: layoutEntradas.codigoEmpresa,
+  direcaoEsperada: 'entrada',
+  arquivoNome: path.basename(arquivoEntradas),
+  exigirCodigoArquivo: true,
+  exigirChaveNfeTodasNotas: true
+});
+assert.strictEqual(vinculoEntradas.valido, true);
+assert.strictEqual(vinculoEntradas.codigoArquivo, '0109');
+assert.strictEqual(vinculoEntradas.origemCnpj, 'cadastro_layout_codigo_arquivo');
+assert.strictEqual(vinculoEntradas.chavesValidas, 55);
+
+assert.throws(
+  () => validarVinculoCnpjFiscal(resultadoEntradas, {
+    cnpjEmpresaAtiva: '11.775.820/0001-71',
+    cnpjLayout: layoutEntradas.cnpj,
+    codigoEmpresa: layoutEntradas.codigoEmpresa,
+    direcaoEsperada: 'entrada',
+    arquivoNome: path.basename(arquivoEntradas)
+  }),
+  erro => erro && erro.codigo === 'cnpj_empresa_layout_divergente',
+  'empresa ativa divergente deve bloquear o livro de entradas'
+);
 
 assert.throws(
   () => validarVinculoCnpjFiscal(resultado, {
@@ -117,4 +169,4 @@ assert.strictEqual(validarVinculoCnpjFiscal(apenasEstruturais, {
   arquivoNome: path.basename(arquivo)
 }).valido, true, 'segunda validacao deve permanecer valida apos limpar opcionais');
 
-console.log('OK: FASTWELD 0109 validada com 106 NF-e, 119 lancamentos por CFOP e travas de empresa/layout/arquivo.');
+console.log('OK: FASTWELD 0109 validada nos livros de saidas (106 NF-e) e entradas (55 NF-e), com travas de empresa/layout/arquivo.');
