@@ -1,7 +1,7 @@
 {
-  "version": "3.4.99",
-  "build_date": "2026-08-11T21:47:23Z",
+  "version": "3.4.100",
+  "build_date": "2026-08-12T12:46:46Z",
   "release_notes": [
-    "R-2055 volta a TRANSMITIR pelo app (gateway do CFI). O 'padronizar no IOB' de 11/08 era o nome da URL deste app, nao o e-Fiscal — gerar XML pra importar la criaria dependencia operacional do sistema que esta sendo aposentado. Reverte a v3.4.98: botoes 🧪/🚀 Transmitir de volta, rota /aquisicao-rural/transmitir de volta. O e-Fiscal nao transmite R-2055."
+    "R-2055: 'Lote processado com sucesso - Possui eventos com ocorrencias de erro' NAO e mais pintado como sucesso. O HTTP 201 diz que o LOTE chegou; os EVENTOS podem ter sido recusados dentro dele — foi o caso do EDUARDO GUERRA em 12/08, onde a tela mostrou um check verde e 8 valores sem nenhuma explicacao. Agora a tela diz 'NADA FOI DECLARADO — os eventos foram recusados' e lista as ocorrencias da Receita (codigo, descricao e onde), que antes nem subiam do backend."
   ]
 }

@@ -64,6 +64,36 @@ function extrairTagsXml(xml, tag) {
   return Array.from(texto.matchAll(re)).map((m) => String(m[1] || '').trim());
 }
 
+/**
+ * OCORRÊNCIAS POR EVENTO no retorno da Receita.
+ *
+ * "Lote processado com sucesso – Possui um ou mais eventos com ocorrências de
+ * erro" NÃO é sucesso: o lote chegou, os eventos foram RECUSADOS. Quem diz o
+ * quê são os pares codResp/dscResp de cada evento — e eles nunca subiam pra
+ * tela, então a colaboradora via 8 valores, um ✓ verde e nenhuma explicação
+ * (caso EDUARDO GUERRA, 12/08/2026).
+ */
+function extrairOcorrenciasReinf(xml) {
+  const codigos = extrairTagsXml(xml, 'codResp');
+  const descricoes = extrairTagsXml(xml, 'dscResp');
+  const tipos = extrairTagsXml(xml, 'tipo');
+  const locais = extrairTagsXml(xml, 'localizacaoErroAviso');
+  const total = Math.max(codigos.length, descricoes.length);
+  const out = [];
+  for (let i = 0; i < total; i++) {
+    const codigo = codigos[i] || null;
+    const descricao = descricoes[i] || null;
+    if (!codigo && !descricao) continue;
+    out.push({
+      codigo,
+      descricao,
+      tipo: tipos[i] || null,
+      localizacao: locais[i] || null,
+    });
+  }
+  return out;
+}
+
 function reinfReciboDocId({ tpAmb, perApur, cnpjEstab, cpf, ideEvtAdic }) {
   return [
     String(tpAmb || ''),
@@ -1554,8 +1584,23 @@ function registrarRotasReinf(app, { db } = {}) {
         produtoresPendentes: pendentes.length,
       });
 
+      // ✗ O `ok` NÃO pode ser só o HTTP do envelope. 201 significa "o lote
+      // chegou" — os EVENTOS podem ter sido recusados dentro dele, e foi
+      // exatamente o que aconteceu em 12/08 (EDUARDO GUERRA): HTTP 201,
+      // "Lote processado com sucesso – Possui um ou mais eventos com
+      // ocorrências de erro", e a tela pintou ✓ verde. `retornoReinfComErro`
+      // já existia e era usado no R-1000; aqui não estava.
+      const retornoFinal = recibo && recibo.cdResposta ? recibo : info;
+      const ocorrencias = extrairOcorrenciasReinf((recibo && recibo.xml) || info.xml);
+      const comErro = retornoReinfComErro(retornoFinal) || ocorrencias.length > 0;
+      const pendente = retornoReinfPendente(retornoFinal);
+
       res.json({
-        ok: envio.status === 201,
+        ok: envio.status === 201 && !comErro && !pendente,
+        eventosRecusados: comErro,
+        aguardandoProcessamento: pendente,
+        // As ocorrências SOBEM: sem elas a pessoa vê valores e nenhuma causa.
+        ocorrencias,
         etapa: 'r2055',
         id: evento.id,
         tpAmb,
