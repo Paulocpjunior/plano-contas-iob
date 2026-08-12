@@ -76,10 +76,15 @@ function extrairTagsXml(xml, tag) {
 function extrairOcorrenciasReinf(xml) {
   const codigos = extrairTagsXml(xml, 'codResp');
   const descricoes = extrairTagsXml(xml, 'dscResp');
-  const tipos = extrairTagsXml(xml, 'tipo');
-  // O nome da tag do "onde" varia com o leiaute do retorno. Tentar UM nome só
-  // foi o que deixou o MS0030 de 12/08 sem localização na tela.
-  const locais = ['localizacaoErroAviso', 'localizacao', 'localizacaoErro', 'elemento']
+  const tipos = ['tpOcorr', 'tipo']
+    .map((t) => extrairTagsXml(xml, t))
+    .find((l) => l.length) || [];
+  // RESPONDIDO PELO RETORNO REAL (12/08): a tag é `localErroAviso`, e ela traz
+  // o campo E o XPath — "- Campo: perApur - XPATH: /Reinf/evtAqProd/ideEvento/
+  // perApur". Era ela que faltava; o app procurava `localizacaoErroAviso` e
+  // mostrava a ocorrência sem o "onde". Os outros nomes ficam na lista porque
+  // custam nada e o leiaute do retorno já mudou antes.
+  const locais = ['localErroAviso', 'localizacaoErroAviso', 'localizacao', 'localizacaoErro', 'elemento']
     .map((t) => extrairTagsXml(xml, t))
     .find((l) => l.length) || [];
   const total = Math.max(codigos.length, descricoes.length);

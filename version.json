@@ -1,9 +1,9 @@
 {
-  "version": "3.4.101",
-  "build_date": "2026-08-12T16:20:00Z",
+  "version": "3.4.102",
+  "build_date": "2026-08-12T17:20:00Z",
   "release_notes": [
-    "R-2055: a resposta da Receita chega INTEIRA ao print. O MS0030 de 12/08 (EDUARDO GUERRA) disse qual elemento reprovou, mas a localizacao nao subia — o app procurava uma tag so. Agora tenta os nomes conhecidos E leva o retorno cru (sem a assinatura) num bloco recolhido na tela.",
-    "R-2055: botao 'Testar leiaute (1 produtor)' — manda UM produtor em producao restrita para descobrir por PROVA se a recusa vem de varios produtores no mesmo evento. Em PRODUCAO a sonda e recusada: declarar parte dos produtores seria entrega incompleta.",
-    "R-2055: a recusa entra na auditoria (codigo e descricao da ocorrencia) — antes 'transmitiu' e 'foi recusado' ficavam iguais no log."
+    "R-2055: a localizacao da ocorrencia volta a aparecer — a tag do retorno e `localErroAviso` (traz o campo e o XPath), e o app procurava outro nome.",
+    "R-2055: sonda de 2 produtores. A de 1 produtor PASSOU no XSD (voltou MS1009, que e regra de cadastro; erro de estrutura pararia antes, no MS0030). Se 2 produtores voltarem MS0030, a multiplicidade esta provada como causa.",
+    "R-2055: a sonda vira CONCLUSAO na tela — 'leiaute passou' x 'leiaute reprovado' — e explica que MS1009 em producao restrita e esperado (ambiente proprio; o R-1000 do contribuinte vive na producao)."
   ]
 }
