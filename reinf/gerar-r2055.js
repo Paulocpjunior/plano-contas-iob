@@ -87,9 +87,29 @@ function gerarR2055(ev) {
     ...(data ? { data } : {}),
   });
 
-  // Um <ideProdutor> por produtor; dentro, um <detAquis> por aquisição. A ordem
-  // dos campos do detAquis é a do arquivo aceito e NÃO pode variar.
-  const produtoresXml = produtores.map((p) => {
+  // ═══ UM <ideEstabAdquir> POR PRODUTOR — provado pela Receita ═══════════════
+  //
+  // O XSD NÃO aceita `ideProdutor` repetido dentro do mesmo `ideEstabAdquir`.
+  // Isso não é dedução: é resultado de sonda em produção restrita (12/08/2026,
+  // EDUARDO GUERRA 07/2026, contribuinte 00005430).
+  //
+  //   1 produtor  → MS1009 (regra de CADASTRO: R-1000 não existe na restrita)
+  //   2 produtores → MS0030 "The element 'ideEstabAdquir' ... has invalid child
+  //                  element 'ideProdutor'"
+  //
+  // O XSD é conferido ANTES das regras de negócio, então chegar no MS1009 com um
+  // produtor prova que a ESTRUTURA passou; o MS0030 com dois prova que o que
+  // reprova é a REPETIÇÃO. Por isso o grupo que repete é o do ESTABELECIMENTO —
+  // o mesmo adquirente aparece uma vez por produtor.
+  //
+  // ⚠️ Com UM produtor a saída é IDÊNTICA à de antes (byte a byte), e é por isso
+  // que o teste contra o evtAqProd ACEITO continua valendo — a correção não
+  // reescreve a forma provada, só deixa de empilhar produtores onde não cabe.
+  //
+  // Ainda PENDENTE de prova: o XSD pode preferir um EVENTO por produtor em vez
+  // de um estabelecimento repetido. A sonda de 2 produtores responde — se ela
+  // passar, esta é a forma certa.
+  const ideProdutorXml = (p) => {
     const detAquisXml = p.aquisicoes.map((a) => (
       '          <detAquis>\n'
       + `            <indAquis>${escXml(a.indAquis)}</indAquis>\n`
@@ -106,7 +126,15 @@ function gerarR2055(ev) {
       + detAquisXml + '\n'
       + '        </ideProdutor>'
     );
-  }).join('\n');
+  };
+
+  const estabelecimentosXml = produtores.map((p) => (
+    '      <ideEstabAdquir>\n'
+    + `        <tpInscAdq>${estabAdquirente.tpInscAdq}</tpInscAdq>\n`
+    + `        <nrInscAdq>${soDigitos(estabAdquirente.nrInscAdq)}</nrInscAdq>\n`
+    + ideProdutorXml(p) + '\n'
+    + '      </ideEstabAdquir>'
+  )).join('\n');
 
   const ideEventoLinhas = [`      <indRetif>${indRetif}</indRetif>`];
   if (indRetif === 2 && nrRecibo) ideEventoLinhas.push(`      <nrRecibo>${escXml(nrRecibo)}</nrRecibo>`);
@@ -129,11 +157,7 @@ ${ideEventoLinhas.join('\n')}
       <nrInsc>${nrInscContribuinteReinf(contribuinte)}</nrInsc>
     </ideContri>
     <infoAquisProd>
-      <ideEstabAdquir>
-        <tpInscAdq>${estabAdquirente.tpInscAdq}</tpInscAdq>
-        <nrInscAdq>${soDigitos(estabAdquirente.nrInscAdq)}</nrInscAdq>
-${produtoresXml}
-      </ideEstabAdquir>
+${estabelecimentosXml}
     </infoAquisProd>
   </evtAqProd>
   <!-- ASSINATURA: o <Signature> (XMLDSig, certificado A1) entra na etapa de

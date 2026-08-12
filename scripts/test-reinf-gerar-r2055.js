@@ -63,6 +63,36 @@ assert.ok(xml.includes(detEsperado), 'detAquis com a ORDEM e os VALORES (vírgul
 assert.ok(xml.includes('<vlrRatDescPR>217,46</vlrRatDescPR>'), 'RAT serializado verbatim (o centavo do apurado, não recalculado)');
 assert.ok(!xml.includes('217,47'), 'não pode recalcular sobre a base e virar 217,47');
 
+// ─── VÁRIOS PRODUTORES: um <ideEstabAdquir> POR produtor ────────────────────
+// Provado por sonda em produção restrita (12/08/2026, EDUARDO GUERRA 07/2026):
+// 1 produtor chega no MS1009 (regra de cadastro ⇒ o XSD passou) e 2 produtores
+// voltam MS0030 apontando `ideProdutor` como filho inválido de
+// `ideEstabAdquir`. Ou seja: o grupo que repete é o do ESTABELECIMENTO.
+const doisProdutores = JSON.parse(JSON.stringify(evBase));
+doisProdutores.data = evBase.data;   // JSON.stringify vira string e o id precisa de Date
+doisProdutores.produtores.push({
+  cpf: '11144477735',
+  aquisicoes: [{ indAquis: 1, vlrBruto: 8400, vlrCPDescPR: 110.88, vlrRatDescPR: 9.24, vlrSenarDesc: 16.80 }],
+});
+const xml2 = gerarR2055(doisProdutores).xml;
+const conta = (str, alvo) => str.split(alvo).length - 1;
+assert.strictEqual(conta(xml2, '<ideEstabAdquir>'), 2, 'dois produtores ⇒ dois <ideEstabAdquir>');
+assert.strictEqual(conta(xml2, '<ideProdutor>'), 2, 'um <ideProdutor> por estabelecimento');
+// O que o XSD reprovou: dois <ideProdutor> DENTRO do mesmo <ideEstabAdquir>.
+const blocos = xml2.split('<ideEstabAdquir>').slice(1);
+blocos.forEach((b, i) => {
+  const dentro = b.split('</ideEstabAdquir>')[0];
+  assert.strictEqual(conta(dentro, '<ideProdutor>'), 1,
+    `ideEstabAdquir[${i}] não pode empilhar ideProdutor — é exatamente o MS0030`);
+});
+assert.strictEqual(conta(xml2, '<nrInscAdq>00005430000104</nrInscAdq>'), 2,
+  'o mesmo adquirente se repete — é o estabelecimento que repete, não o produtor');
+
+// ─── UM produtor: a saída continua IDÊNTICA à do arquivo aceito ─────────────
+// Sem isso a correção poderia ter reescrito a forma que a Receita já aceitou.
+assert.ok(xml.includes('    <infoAquisProd>\n      <ideEstabAdquir>\n        <tpInscAdq>1</tpInscAdq>'),
+  'com um produtor, a forma provada não muda');
+
 // ─── indAquis AUSENTE bloqueia (não se chuta) ───────────────────────────────
 const semInd = JSON.parse(JSON.stringify(evBase));
 delete semInd.produtores[0].aquisicoes[0].indAquis;
