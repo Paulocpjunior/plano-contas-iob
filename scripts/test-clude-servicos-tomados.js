@@ -196,6 +196,20 @@ Total 66.460,00 66.460,00 3.323,00 0,00
     });
   });
 
+  const textoCludePrestados = textoDaxxVisualPdfjs
+    .replace('Empresa: 1183 - DAXX MIDIA LTDA', 'Empresa: 0733 - CLUDE CARTAO DE SAUDE 360 LTDA')
+    .replace('11.775.820/0001-71', '32.922.514/0001-90');
+  const resultadoCludePrestados = parsearTexto_IOBSageServicosPrestados(textoCludePrestados);
+  assert.strictEqual(resultadoCludePrestados.detectado, true, 'modelo geral de servicos prestados deve reconhecer a CLUDE');
+  assert.strictEqual(resultadoCludePrestados.banco_detectado, '0733');
+  assert.strictEqual(resultadoCludePrestados.cnpj_detectado, '32.922.514/0001-90');
+  assert.doesNotThrow(function() {
+    validarVinculoCnpjRelatorioFiscal(resultadoCludePrestados, {
+      cnpjEmpresaAtiva: '32.922.514/0001-90',
+      movimento: 'servicos_prestados'
+    });
+  }, 'servicos prestados da CLUDE devem ser liberados pelo modelo geral');
+
   const textoDaxxVisualComNotaZerada = textoDaxxVisualPdfjs.replace(
     'Total 66.460,00 66.460,00 3.323,00 0,00',
     '6394 0002843 002 10.436.363/0001-28 GASPARII III COMERCIO DE CALC 0,00 0,00 5,00 0,00 0,00 08/04/2026\nTotal 66.460,00 66.460,00 3.323,00 0,00'

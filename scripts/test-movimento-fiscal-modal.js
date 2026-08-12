@@ -23,6 +23,11 @@ assert(index.includes('window.validarVinculoCnpjFiscal(resultado'), 'frontend de
 assert(index.includes('window.validarVinculoCnpjRelatorioFiscal'), 'servicos devem conferir o CNPJ do cabecalho antes da gravacao');
 assert(index.includes('accept=".csv,.txt,.pdf"'), 'modal fiscal deve aceitar livros CSV/TXT e relatorios de servicos PDF');
 assert(index.includes("validacao.layout.codigoEmpresa !== 'GEN'"), 'modelo geral de servicos nao pode ser limitado ao codigo de uma empresa');
+assert(index.includes('detectarRelatorioServicosNoPreview(f, ext)'), 'upload comum deve reconhecer PDF de servicos e orientar o fluxo fiscal');
+assert(index.includes("layoutId: 'generico_servicos_tomados_efiscal_pdf'"), 'servicos tomados detectados devem pre-selecionar o modelo geral');
+assert(index.includes("layoutId: 'generico_servicos_prestados_efiscal_pdf'"), 'servicos prestados detectados devem pre-selecionar o modelo geral');
+assert(index.includes("botao.innerHTML = '<span>🧾</span> Abrir importações fiscais'"), 'PDF fiscal detectado deve trocar a acao do upload');
+assert(index.includes('O modelo geral foi pré-selecionado'), 'modal deve explicar ao colaborador onde o modelo foi localizado');
 assert(index.includes("origemImportacao: 'movimento_fiscal'"), 'lancamentos fiscais devem manter origem propria');
 assert(index.includes("if (csvFiscalFlanacarDetectado) {"), 'extrator generico deve reconhecer movimento fiscal');
 assert(index.includes('A importação deve ser feita pelo modal fiscal com trava de CNPJ'), 'extrator generico deve redirecionar o movimento fiscal');

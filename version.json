@@ -1,7 +1,7 @@
 {
-  "version": "3.4.102",
-  "build_date": "2026-08-12T09:51:38Z",
+  "version": "3.4.105",
+  "build_date": "2026-08-12T17:26:17Z",
   "release_notes": [
-    "Servicos Tomados e Servicos Prestados passam a ser modelos gerais do Movimento Fiscal para todas as empresas. O colaborador escolhe o tipo, e o sistema confere CNPJ do cabecalho, periodo e total oficial antes da gravacao."
+    "PDFs E-Fiscal de Servicos Tomados ou Prestados agora sao reconhecidos no upload comum e encaminhados ao Movimento Fiscal com o modelo geral pre-selecionado. Banco e layout bancario deixam de confundir o colaborador; a CLUDE e qualquer outra empresa usam os mesmos modelos com trava de CNPJ."
   ]
 }
