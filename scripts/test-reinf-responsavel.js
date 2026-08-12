@@ -130,14 +130,24 @@ assert.deepStrictEqual(avisosDoResponsavel(null), []);
 
   // ─── A TELA ───────────────────────────────────────────────────────────────
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  assert.ok(html.includes('id="reinfRetPjTabelaResp"'), 'o R-4020 tem onde mostrar o responsável');
-  assert.ok(html.includes('id="reinfAqRuralTabelaResp"'), 'o R-2055 também');
-  assert.ok(/mostrarResponsavelEscritorio\(cnpj, 'reinfRetPjTabelaResp'\)/.test(html));
-  assert.ok(/mostrarResponsavelEscritorio\(cnpj, 'reinfAqRuralTabelaResp'\)/.test(html));
-  // No ERRO é quando a pessoa mais precisa saber a quem recorrer: as duas
-  // telas chamam nos DOIS caminhos.
-  assert.strictEqual((html.match(/mostrarResponsavelEscritorio\(cnpj, '/g) || []).length, 4,
-    'sucesso E erro, nas duas telas');
+  // TODA tela que apura por CNPJ mostra a quem recorrer — e chama nos DOIS
+  // caminhos, porque é no ERRO que a pessoa mais precisa saber com quem falar.
+  //
+  // A lista é explícita e o teste conta POR TELA. Antes ele fixava o total em
+  // 4, e a terceira tela (R-2010, 13/08) o quebrou sem ter nada de errado —
+  // número mágico transforma feature nova em falso alarme, e falso alarme é o
+  // que faz alguém "consertar" o teste em vez de ler.
+  const TELAS_COM_RESPONSAVEL = [
+    { evento: 'R-4020', alvo: 'reinfRetPjTabelaResp' },
+    { evento: 'R-2055', alvo: 'reinfAqRuralTabelaResp' },
+    { evento: 'R-2010', alvo: 'reinfServTomTabelaResp' },
+  ];
+  for (const t of TELAS_COM_RESPONSAVEL) {
+    assert.ok(html.includes('id="' + t.alvo + '"'), t.evento + ' tem onde mostrar o responsável');
+    const chamadas = (html.match(new RegExp("mostrarResponsavelEscritorio\\(cnpj, '" + t.alvo + "'\\)", 'g')) || []).length;
+    assert.strictEqual(chamadas, 2,
+      t.evento + ': deve chamar no SUCESSO e no ERRO (achei ' + chamadas + ')');
+  }
 
   const adapter = fs.readFileSync(path.join(__dirname, '..', 'api-adapter.js'), 'utf8');
   assert.ok(/reinfResponsavel,/.test(adapter), 'a função está exportada no window.API');
