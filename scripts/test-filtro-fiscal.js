@@ -7,6 +7,7 @@ const FiltroFiscal = require('../filtro-fiscal');
 
 const root = path.join(__dirname, '..');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const catalogo = require('../layouts-fiscais-padrao').LAYOUTS_FISCAIS_PADRAO;
 
 const receita5101 = { cfop: '5101', cfops: ['5101'], tipoDocumentoFiscal: 'REGISTRO_SAIDA_FISCAL' };
 const ipi5101 = {
@@ -43,5 +44,7 @@ assert(index.includes('function lancamentoElegivelMemoriaEmLote(e)'), 'selecao f
 assert(index.includes("return !!(window.CURRENT_USER && window.CURRENT_USER.is_admin)"), 'administrador deve poder atualizar memoria ja existente em lote');
 assert(index.includes("'✏️🧠 Atualizar selecionados (' + atualizacoes + ')'"), 'botao deve informar quando atualizara memorias existentes');
 assert(index.includes("const atualizacoes = elegiveis.filter(function(item) { return item.e._memorizado; }).length"), 'operacao em lote deve contar e confirmar atualizacoes existentes');
+assert(catalogo.some((layout) => layout.id === '0109_fastweld_registro_entradas_iob_sage'), 'filtro CFOP deve permanecer acessivel apos importar o livro de entradas FASTWELD');
+assert(catalogo.some((layout) => layout.id === '0109_fastweld_registro_saidas_iob_sage'), 'filtro CFOP deve permanecer acessivel apos importar o livro de saidas FASTWELD');
 
 console.log('OK: modal filtra CFOP exato e combina movimento/ICMS/ICMS-ST/IPI/PIS/COFINS com dados estruturados.');

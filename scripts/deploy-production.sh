@@ -33,20 +33,24 @@ npm ci --no-audit --no-fund
 
 npm run check
 
+revision_suffix="r$(date -u +%Y%m%d%H%M%S)-$(git rev-parse --short=7 HEAD)"
+deployed_revision="${SERVICE}-${revision_suffix}"
+
 gcloud run deploy "$SERVICE" \
   --source . \
   --project "$PROJECT_ID" \
   --region "$REGION" \
   --platform managed \
+  --revision-suffix "$revision_suffix" \
   --quiet
 
-deployed_revision="$(gcloud run services describe "$SERVICE" \
+revision_ready="$(gcloud run revisions describe "$deployed_revision" \
   --project "$PROJECT_ID" \
   --region "$REGION" \
-  --format='value(status.latestCreatedRevisionName)')"
+  --format='value(status.conditions[0].status)')"
 
-if [[ -z "$deployed_revision" ]]; then
-  echo "ERRO: o Cloud Run não informou a revisão recém-criada."
+if [[ "$revision_ready" != "True" ]]; then
+  echo "ERRO: a revisão esperada não ficou pronta: $deployed_revision ($revision_ready)"
   exit 1
 fi
 
@@ -75,9 +79,37 @@ if [[ "$health_status" != "ok|$expected_version|connected" ]]; then
   exit 1
 fi
 
-revision="$(gcloud run services describe "$SERVICE" \
+published_contract="$(curl -fsS --max-time 20 "$EXPECTED_URL/layouts-fiscais-padrao.js?version=$expected_version")"
+for required_marker in \
+  "0109_fastweld_registro_entradas_iob_sage" \
+  "0109_fastweld_registro_saidas_iob_sage" \
+  "generico_servicos_tomados_efiscal_pdf" \
+  "generico_servicos_prestados_efiscal_pdf"; do
+  if [[ "$published_contract" != *"$required_marker"* ]]; then
+    echo "ERRO: contrato fiscal publicado sem marcador obrigatório: $required_marker"
+    exit 1
+  fi
+done
+
+published_index="$(curl -fsS --max-time 20 "$EXPECTED_URL/index.html?version=$expected_version")"
+published_filter="$(curl -fsS --max-time 20 "$EXPECTED_URL/filtro-fiscal.js?version=$expected_version")"
+if [[ "$published_index" != *'id="filtroFiscalOverlay"'* || "$published_index" != *'window.LAYOUTS_FISCAIS_PADRAO.forEach'* ]]; then
+  echo "ERRO: modal/fallback fiscal não foi publicado no index."
+  exit 1
+fi
+if [[ "$published_filter" != *"function cfopsDoLancamento"* || "$published_filter" != *"tipo === 'CFOP'"* ]]; then
+  echo "ERRO: filtro estruturado de CFOP não foi publicado."
+  exit 1
+fi
+
+traffic_revision="$(gcloud run services describe "$SERVICE" \
   --project "$PROJECT_ID" \
   --region "$REGION" \
-  --format='value(status.latestReadyRevisionName)')"
+  --format=json | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const j=JSON.parse(d);const t=(j.status.traffic||[]).find(x=>x.percent===100);process.stdout.write(t&&t.revisionName||'')})")"
 
-echo "Deploy validado: $SERVICE $revision | versão $published_version | $EXPECTED_URL"
+if [[ "$traffic_revision" != "$deployed_revision" ]]; then
+  echo "ERRO: o tráfego não permaneceu na revisão publicada: esperado $deployed_revision, atual $traffic_revision"
+  exit 1
+fi
+
+echo "Deploy validado: $SERVICE $deployed_revision | versão $published_version | contrato fiscal e CFOP conferidos | $EXPECTED_URL"

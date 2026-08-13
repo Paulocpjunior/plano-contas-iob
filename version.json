@@ -1,7 +1,7 @@
 {
-  "version": "3.4.109",
-  "build_date": "2026-08-12T20:05:38Z",
+  "version": "3.4.110",
+  "build_date": "2026-08-13T12:33:59Z",
   "release_notes": [
-    "Servicos Tomados agora usa OCR tabular quando o PDF E-Fiscal possui fonte sem mapa Unicode. O resultado visual e reutilizado nas etapas seguintes e a importacao so e liberada quando CNPJ, periodo e total oficial conferem."
+    "Restaura e protege os modelos FASTWELD de entradas e saidas junto com o filtro de CFOP. O deploy agora valida a revisao exata e bloqueia publicacao sem os contratos fiscais homologados."
   ]
 }

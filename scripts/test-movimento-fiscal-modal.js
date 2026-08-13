@@ -55,5 +55,14 @@ assert(index.includes("escaparHtmlImportacao(layoutCompativel.nome) + ' foi pré
 assert(catalogo.includes("id: 'generico_servicos_tomados_efiscal_pdf'"), 'catalogo deve oferecer servicos tomados para qualquer empresa');
 assert(catalogo.includes("id: 'generico_servicos_prestados_efiscal_pdf'"), 'catalogo deve oferecer servicos prestados para qualquer empresa');
 assert(catalogo.includes("validacaoCnpj: 'cabecalho_relatorio'"), 'modelos de servicos devem declarar a conferencia pelo cabecalho do PDF');
+assert(index.includes('const layoutsPorId = new Map()'), 'catalogo embarcado deve complementar resposta remota incompleta');
+assert(index.includes('window.LAYOUTS_FISCAIS_PADRAO.forEach'), 'operacoes homologadas nao podem desaparecer por regressao da API');
+
+const layouts = require('../layouts-fiscais-padrao').LAYOUTS_FISCAIS_PADRAO;
+const operacoesFastweld = layouts
+  .filter((layout) => layout.codigoEmpresa === '0109' && layout.status === 'Ativo' && layout.homologacao_status === 'aprovado')
+  .map((layout) => layout.movimento)
+  .sort();
+assert.deepStrictEqual(operacoesFastweld, ['entrada', 'saida'], 'FASTWELD deve manter entradas e saidas homologadas simultaneamente');
 
 console.log('OK: modal Movimento Fiscal separado, catalogado e bloqueado por CNPJ antes da conferencia/gravação.');
