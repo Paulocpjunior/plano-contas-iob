@@ -30,6 +30,28 @@ assert(index.includes('id="ativacaoEmpresaInicio"'));
 assert(index.includes('function abrirAtivacaoEmpresa()'));
 assert(index.includes('Escolher não basta'));
 assert(index.includes('WhatsApp API'));
+assert(index.includes("modo: 'ativacao'"));
+assert(index.includes('function prepararGateAtivacaoEmpresa()'));
+assert(index.includes('window.__empresaAtivadaExplicitamente = false'));
+assert(index.includes("botao.disabled = !ativo && botao.id !== 'btnAtivarEmpresaNav'"));
+assert(index.includes("if (p !== 'empresas' && !empresaAtivadaExplicitamente())"));
+
+const authInicio = index.indexOf('} else auth.onAuthStateChanged(async u => {');
+const authFim = index.indexOf('// ============ AUTO-SAVE REMOTO', authInicio);
+const authFluxo = index.slice(authInicio, authFim);
+assert(authFluxo.includes('prepararGateAtivacaoEmpresa();'));
+assert.strictEqual(authFluxo.includes('loadState();'), false, 'Login nao pode restaurar empresa anterior antes da ativacao.');
+assert.strictEqual(authFluxo.includes('initApp();'), false, 'Login nao pode iniciar varredura operacional antes da ativacao.');
+
+const ramoLeve = server.indexOf("if (modo === 'ativacao')");
+const enriquecimento = server.indexOf('// Carregar nomes dos planos para enriquecer', ramoLeve);
+assert(ramoLeve > 0 && enriquecimento > ramoLeve, 'Ramo leve deve responder antes de planos, sessoes e relatorios.');
+assert(server.includes("modo: 'ativacao'"));
+assert(server.includes("if (!usuarioPodeAcessarEmpresa(doc.data(), req.user)) return res.status(403)"));
+assert(server.includes("app.get('/api/empresas/:cnpj/plano-contexto'"));
+assert(index.includes('loadPlanosCadastrados(state.info && state.info.cnpj)'));
+assert(index.includes('window.API.loadPlanoEmpresa(cnpjLimpo)'));
+assert(fs.readFileSync(path.join(raiz, 'api-adapter.js'), 'utf8').includes("'/plano-contexto'"));
 
 assert.strictEqual(whatsapp.baseCfi({ CFI_URL: 'https://cfi.example/' }), 'https://cfi.example');
 assert.strictEqual(

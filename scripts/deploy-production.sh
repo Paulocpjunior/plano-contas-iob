@@ -93,6 +93,7 @@ done
 
 published_index="$(curl -fsS --max-time 20 "$EXPECTED_URL/index.html?version=$expected_version")"
 published_filter="$(curl -fsS --max-time 20 "$EXPECTED_URL/filtro-fiscal.js?version=$expected_version")"
+published_api="$(curl -fsS --max-time 20 "$EXPECTED_URL/api-adapter.js?version=$expected_version")"
 published_cadastro="$(curl -fsS --max-time 20 "$EXPECTED_URL/empresa-cadastro.js?version=$expected_version")"
 published_whatsapp="$(curl -fsS --max-time 20 "$EXPECTED_URL/whatsapp-cfi-client.js?version=$expected_version")"
 if [[ "$published_index" != *'id="filtroFiscalOverlay"'* || "$published_index" != *'window.LAYOUTS_FISCAIS_PADRAO.forEach'* ]]; then
@@ -103,11 +104,11 @@ if [[ "$published_filter" != *"function cfopsDoLancamento"* || "$published_filte
   echo "ERRO: filtro estruturado de CFOP não foi publicado."
   exit 1
 fi
-if [[ "$published_index" != *'placeholder="Número, nome ou CNPJ..."'* || "$published_index" != *'⚡ Ativar empresa'* ]]; then
+if [[ "$published_index" != *'placeholder="Número, nome ou CNPJ..."'* || "$published_index" != *'⚡ Ativar empresa'* || "$published_index" != *'function prepararGateAtivacaoEmpresa'* || "$published_index" != *"modo: 'ativacao'"* ]]; then
   echo "ERRO: busca/ativação de empresa não foi publicada."
   exit 1
 fi
-if [[ "$published_cadastro" != *'function empresaBateBusca'* || "$published_whatsapp" != *'function enviarWhatsappCfi'* ]]; then
+if [[ "$published_cadastro" != *'function empresaBateBusca'* || "$published_whatsapp" != *'function enviarWhatsappCfi'* || "$published_api" != *'function loadPlanoEmpresa'* ]]; then
   echo "ERRO: contratos de cadastro/WhatsApp não foram publicados."
   exit 1
 fi
