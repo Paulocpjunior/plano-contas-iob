@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.113';</script>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.113"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.113"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.113"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.114';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.114"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.114"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.114"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -20,13 +20,13 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.113"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.113"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.113"></script>
-    <script src="/reinf/reinf-import-xml-utils.js?v=3.4.113"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.114"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.114"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.114"></script>
+    <script src="/reinf/reinf-import-xml-utils.js?v=3.4.114"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="/api-adapter.js?v=3.4.113"></script>
+    <script src="/api-adapter.js?v=3.4.114"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js?v=3.4.113"></script>
@@ -375,6 +375,11 @@
         .nav button.active {
             color: var(--accent);
             border-bottom-color: var(--accent);
+        }
+        .nav button:disabled {
+            opacity: 0.28;
+            cursor: not-allowed;
+            filter: grayscale(1);
         }
         
         /* Content */
@@ -1882,7 +1887,7 @@
                 <button class="btn-edit-info" onclick="editarInfo()" id="btnEditInfo" style="display:none">
                     ✏️ Editar Empresa
                 </button>
-                    <button onclick="novaEmpresa()" style="background:#f59e0b;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;margin-left:8px">🏢 Nova Empresa</button>
+                    <button id="btnNovaEmpresaTopo" onclick="novaEmpresa()" style="background:#f59e0b;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;margin-left:8px">🏢 Nova Empresa</button>
                 <button class="btn-logout" onclick="doLogout()">Sair</button>
             </div>
         </div>
@@ -1936,16 +1941,16 @@
                     </div>
 
                     <!-- Filtros -->
-                    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;margin-bottom:14px;align-items:end">
+                    <div style="display:grid;grid-template-columns:minmax(240px,1fr) auto;gap:10px;margin-bottom:14px;align-items:end">
                         <div>
                             <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px">Buscar</label>
                             <input type="search" id="empBusca" placeholder="Número, nome ou CNPJ..." style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px" oninput="empDebouncedFilter()">
                         </div>
-                        <div>
+                        <div id="empFiltroBancoWrap" style="display:none">
                             <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px">Banco</label>
                             <select id="empBanco" onchange="loadEmpresasPage()" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px"><option value="">Todos</option></select>
                         </div>
-                        <div>
+                        <div id="empFiltroStatusWrap" style="display:none">
                             <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px">Status</label>
                             <select id="empStatus" onchange="loadEmpresasPage()" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
                                 <option value="todas">Todas</option>
@@ -1955,7 +1960,7 @@
                                 <option value="nunca_processado">Nunca processado</option>
                             </select>
                         </div>
-                        <div>
+                        <div id="empFiltroSortWrap" style="display:none">
                             <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px">Ordenar</label>
                             <select id="empSort" onchange="loadEmpresasPage()" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
                                 <option value="last_session_at">Último acesso</option>
@@ -3800,7 +3805,21 @@
         let planosCadastrados = {};
         
         // Carregar planos cadastrados - Fase 3.1: localStorage + API Firestore
-        function loadPlanosCadastrados() {
+        function loadPlanosCadastrados(cnpjAtivo) {
+            const cnpjLimpo = String(cnpjAtivo || '').replace(/\D/g, '');
+            if (cnpjLimpo.length === 14 && window.USE_API && window.API && typeof window.API.loadPlanoEmpresa === 'function') {
+                planosCadastrados = {};
+                return window.API.loadPlanoEmpresa(cnpjLimpo).then(function(planosAPI) {
+                    planosCadastrados = planosAPI;
+                    console.log('[API] plano da empresa ativa carregado');
+                    return planosAPI;
+                }).catch(function(err) {
+                    planosCadastrados = {};
+                    console.warn('[API] Falha ao carregar o plano da empresa ativa:', err);
+                    try { showToast('Não foi possível carregar o plano da empresa ativa.', 'warn'); } catch(e) {}
+                    return planosCadastrados;
+                });
+            }
             // 1. Carga sincrona do localStorage (fallback instantaneo)
             const saved = localStorage.getItem('planosCadastrados_sp');
             if (saved) {
@@ -5441,9 +5460,6 @@
                 try {
                     if (window.API && window.API.me) {
                         window.CURRENT_USER = await window.API.me();
-                        // Formulário do Reinf volta preenchido já no login —
-                        // não só quando a 1ª busca dispara.
-                        carregarPreferenciasRetencao().catch(function () {});
                         // E-mail NÃO verificado bloqueia o túnel com o CFI
                         // (gateway do Reinf, cadastro central) — a exigência é
                         // de lá e é segurança de verdade: sem ela, bastaria
@@ -5481,10 +5497,10 @@
                     // e hoje ele está em modo aviso.
                     mostrarGateDepartamento();
                 } catch(e) { console.warn('[v4] Falha /api/me:', e); }
-                loadState();
-                initApp();
+                prepararGateAtivacaoEmpresa();
             } else {
                 window.CURRENT_USER = null;
+                window.__empresaAtivadaExplicitamente = false;
                 document.getElementById('loginContainer').style.display = 'flex';
                 document.getElementById('appContainer').style.display = 'none';
             }
@@ -5885,7 +5901,7 @@
             if (!state.infoConfirmed || !state.info || !state.info.cnpj) return;
             const cnpj = String(state.info.cnpj).replace(/\D/g, '');
             try {
-                const cadastroOficial = await consultarEmpresaNoBancoInterno(cnpj);
+                const cadastroOficial = window.__empresaCadastroInternoAtual || await consultarEmpresaNoBancoInterno(cnpj);
                 if (cadastroOficial) {
                     window.__empresaCadastroInternoAtual = cadastroOficial;
                     state.info.plano_id = cadastroOficial.plano_id || cadastroOficial.planoId || state.info.plano_id || '';
@@ -5909,6 +5925,12 @@
 
         // Init
         function initApp() {
+            // Nenhuma varredura operacional acontece antes do clique explicito em Ativar empresa.
+            if (!empresaAtivadaExplicitamente()) {
+                prepararGateAtivacaoEmpresa();
+                return;
+            }
+            aplicarGateAtivacaoEmpresa(true);
             // [TRAVA DE SESSAO] Novo acesso NAO carrega a ultima empresa automaticamente:
             // o usuario e' obrigado a selecionar a empresa, evitando importacoes na empresa errada.
             try {
@@ -5931,11 +5953,11 @@
                     setTimeout(abrirModalSelecaoEmpresa, 300);
                 }
             } catch (e) { console.warn('[trava-sessao]', e); }
-            const carregamentoPlanos = loadPlanosCadastrados(); // Carregar planos cadastrados
+            const carregamentoPlanos = loadPlanosCadastrados(state.info && state.info.cnpj); // Somente o plano da empresa ativa
             populateCategorias();
             selecionarTipoImportacao((state.info && state.info.tipoImportacao) || 'bancaria');
-            // Sync com Firestore em paralelo (nao bloqueia)
-            sincronizarSessaoRemoto();
+            // Preferencias e dados operacionais somente depois da empresa ativa.
+            carregarPreferenciasRetencao().catch(function () {});
             if (state.infoConfirmed && state.info) {
                 // Exibe o estado confirmado sem depender de uma resposta de rede imediata.
                 exibirEmpresaConfirmada();
@@ -8090,7 +8112,7 @@
         }
 
         function atualizarPainelAtivacaoEmpresa() {
-            const ativa = state && state.infoConfirmed && state.info ? state.info : null;
+            const ativa = empresaAtivadaExplicitamente() ? state.info : null;
             const nome = ativa && ativa.empresa ? ativa.empresa : '';
             const cnpj = ativa && ativa.cnpj ? empFmtCNPJ(ativa.cnpj) : '';
             const titulo = document.getElementById('ativacaoEmpresaInicioTitulo');
@@ -8101,6 +8123,43 @@
                 ? ((cnpj ? cnpj + ' · ' : '') + 'Todos os módulos usarão esta empresa até você ativar outra.')
                 : 'A ativação amarra cadastro, plano, importações, lançamentos e relatórios à empresa correta.';
             if (label) label.textContent = nome ? (nome + (cnpj ? ' · ' + cnpj : '')) : 'nenhuma';
+        }
+
+        function empresaAtivadaExplicitamente() {
+            return window.__empresaAtivadaExplicitamente === true && !!(state && state.info && state.info.cnpj);
+        }
+
+        function aplicarGateAtivacaoEmpresa(liberado) {
+            const ativo = liberado === true;
+            document.querySelectorAll('.nav button').forEach(function(botao) {
+                botao.disabled = !ativo && botao.id !== 'btnAtivarEmpresaNav';
+            });
+            const nova = document.getElementById('btnNovaEmpresaTopo');
+            if (nova) nova.style.display = ativo ? '' : 'none';
+            const editar = document.getElementById('btnEditInfo');
+            if (editar && !ativo) editar.style.display = 'none';
+            const barra = document.getElementById('companyBar');
+            if (barra && !ativo) barra.classList.remove('show');
+            const admin = document.getElementById('btnAdminNav');
+            const audit = document.getElementById('btnAuditAiNav');
+            if (!ativo) {
+                if (admin) admin.style.display = 'none';
+                if (audit) audit.style.display = 'none';
+            } else if (window.CURRENT_USER && window.CURRENT_USER.is_admin) {
+                if (admin) admin.style.display = 'flex';
+                if (audit) audit.style.display = 'flex';
+            }
+        }
+
+        function prepararGateAtivacaoEmpresa() {
+            window.__empresaAtivadaExplicitamente = false;
+            state.entries = [];
+            state.info = null;
+            state.infoConfirmed = false;
+            state.lastFile = null;
+            aplicarGateAtivacaoEmpresa(false);
+            atualizarPainelAtivacaoEmpresa();
+            showPage('empresas');
         }
 
         function abrirAtivacaoEmpresa() {
@@ -8160,6 +8219,7 @@
             cardsEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#9ca3af">Carregando...</div>';
             try {
                 const params = {
+                    modo: 'ativacao',
                     q: document.getElementById('empBusca').value.trim(),
                     banco: document.getElementById('empBanco').value,
                     status: document.getElementById('empStatus').value,
@@ -8185,13 +8245,13 @@
                 if (admWrap) admWrap.style.display = data.is_admin ? 'block' : 'none';
 
                 if (!data.empresas || !data.empresas.length) {
-                    cardsEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#9ca3af"><div style="font-size:48px;margin-bottom:12px">📭</div><div style="font-size:15px">Nenhuma empresa encontrada</div><div style="font-size:13px;margin-top:6px">Cadastre uma empresa na tela Início</div></div>';
+                    cardsEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#9ca3af"><div style="font-size:48px;margin-bottom:12px">📭</div><div style="font-size:15px">Nenhuma empresa encontrada</div><div style="font-size:13px;margin-top:6px">Refine a busca ou solicite o vínculo ao administrador.</div></div>';
                     infoEl.textContent = '';
                     document.getElementById('empPaginacao').innerHTML = '';
                     return;
                 }
 
-                cardsEl.innerHTML = data.empresas.map(e => empRenderCard(e, data.is_admin)).join('');
+                cardsEl.innerHTML = data.empresas.map(e => empRenderCard(e, data.is_admin, data.modo)).join('');
                 infoEl.textContent = 'Mostrando ' + (_empOffset + 1) + '–' + (_empOffset + data.empresas.length) + ' de ' + data.total + ' empresa(s)';
 
                 // Paginacao
@@ -8217,13 +8277,16 @@
             document.getElementById('pageEmpresas').scrollIntoView({ behavior: 'smooth' });
         }
 
-        function empRenderCard(e, isAdmin) {
+        function empRenderCard(e, isAdmin, modo) {
             const razao = empEscape(e.razao_social || '(sem razão social)');
             const cnpjFmt = empFmtCNPJ(e.cnpj);
             const banco = e.banco ? empEscape(e.banco) : 'Sem banco';
             const codigo = e.codigo_empresa ? '<span style="font-family:monospace;font-weight:800;color:#1d4ed8">' + empEscape(e.codigo_empresa) + '</span> · ' : '';
             const whatsapp = e.whatsapp ? '<div style="font-size:12px;color:#047857">💬 +' + empEscape(e.whatsapp) + '</div>' : '<div style="font-size:12px;color:#9ca3af">💬 WhatsApp não cadastrado</div>';
-            const badge = empStatusBadge(e.status, e.total_lancamentos);
+            const modoAtivacao = modo === 'ativacao';
+            const badge = modoAtivacao
+                ? '<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:#dbeafe;color:#1e40af">Pronta para ativar</span>'
+                : empStatusBadge(e.status, e.total_lancamentos);
             const quando = empFmtDate(e.last_session_at || e.updated_at);
             const ownerBadge = isAdmin && e.owner_email ? '<div style="font-size:10px;color:#9ca3af;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + e.owner_email + '">👤 ' + e.owner_email + '</div>' : '';
             const periodo = e.periodo_atual ? '<div style="font-size:11px;color:#6b7280;margin-top:2px">Período: ' + e.periodo_atual + '</div>' : '';
@@ -8231,9 +8294,8 @@
                 '<div style="font-weight:700;color:#111827;font-size:14px;line-height:1.3;min-height:36px">' + codigo + razao + '</div>' +
                 '<div style="font-size:12px;color:#6b7280;font-family:monospace">' + cnpjFmt + '</div>' +
                 whatsapp +
-                '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' + badge + '<span style="font-size:11px;color:#9ca3af">' + quando + '</span></div>' +
-                '<div style="font-size:12px;color:#374151">🏦 ' + banco + ' · 📋 ' + e.total_lancamentos + ' lanç.</div>' +
-                periodo +
+                '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' + badge + (modoAtivacao ? '' : '<span style="font-size:11px;color:#9ca3af">' + quando + '</span>') + '</div>' +
+                (modoAtivacao ? '' : '<div style="font-size:12px;color:#374151">🏦 ' + banco + ' · 📋 ' + e.total_lancamentos + ' lanç.</div>' + periodo) +
                 ownerBadge +
                 '<div style="display:flex;gap:8px;margin-top:8px"><button onclick="empAbrir(\'' + e.cnpj + '\')" style="flex:1;padding:8px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">⚡ Ativar empresa</button>' +
                 '<button onclick="empAbrirCadastro(\'' + e.cnpj + '\')" style="padding:8px 12px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">✏️ Cadastro</button></div>' +
@@ -8358,6 +8420,8 @@
                     }),
                     window.API.carregarSessaoEmpresa(cnpjLimpo)
                 ]);
+                if (!cadastroOficial) throw new Error('Empresa não encontrada ou sem acesso para este colaborador.');
+                window.__empresaCadastroInternoAtual = cadastroOficial;
 
                 if (sess && sess.encontrada && sess.state_json) {
                     const d = JSON.parse(sess.state_json);
@@ -8367,6 +8431,8 @@
                     state.mappings = sessaoCompativel && Array.isArray(d.mappings) ? d.mappings : state.mappings;
                     state.info = empMontarInfoAtiva(cnpjLimpo, cadastroOficial, d.info || {});
                     state.infoConfirmed = true;
+                    window.__empresaAtivadaExplicitamente = true;
+                    aplicarGateAtivacaoEmpresa(true);
                     state.lastFile = sessaoCompativel ? (d.lastFile || null) : null;
                     const remotoTs = sess.updated_at && sess.updated_at._seconds ? sess.updated_at._seconds * 1000 : Date.now();
                     localStorage.setItem('consultorContabil_v2_ts', String(remotoTs));
@@ -8384,6 +8450,8 @@
                     // Empresa sem sessao ainda - puxa dados basicos e deixa usuario configurar
                     state.info = empMontarInfoAtiva(cnpjLimpo, cadastroOficial, {});
                     state.infoConfirmed = !!(state.info && state.info.cnpj && state.info.empresa && infoInicialTemOrigemValida(state.info));
+                    window.__empresaAtivadaExplicitamente = true;
+                    aplicarGateAtivacaoEmpresa(true);
                     state.entries = [];
                     state.lastFile = null;
                     saveState();
@@ -11082,6 +11150,10 @@
         }
 
         function showPage(p, evt) {
+            if (p !== 'empresas' && !empresaAtivadaExplicitamente()) {
+                p = 'empresas';
+                try { showToast('⚡ Ative uma empresa antes de acessar os demais módulos.', 'warn'); } catch(e) {}
+            }
             document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
             const ev = evt || (typeof event !== 'undefined' ? event : null);
             const btn = ev && ev.target ? ev.target.closest('button') : null;
@@ -17764,7 +17836,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.113';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.114';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';

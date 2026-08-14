@@ -782,12 +782,46 @@ app.get('/api/empresas', async (req, res) => {
 // ==================== LISTAR EMPRESAS COM AGREGACOES (Gestao) ====================
 app.get('/api/empresas/listar', async (req, res) => {
   try {
-    const { q, banco, status, periodo_de, periodo_ate, sort, order, limit, offset, admin_ver_tudo } = req.query || {};
+    const { q, banco, status, periodo_de, periodo_ate, sort, order, limit, offset, admin_ver_tudo, modo } = req.query || {};
     const verTudo = req.user.is_admin && admin_ver_tudo === '1';
     const docs = verTudo
       ? (await db.collection('empresas').get()).docs
       : await listarEmpresasAcessiveis(req.user, { somenteVinculadas: true });
     let empresas = docs.map(d => ({ cnpj: d.id, ...d.data() }));
+
+    // O primeiro passo do CCI usa somente o cadastro-base. Nao consulta planos,
+    // sessoes, relatorios ou lancamentos de cada empresa antes da ativacao.
+    if (modo === 'ativacao') {
+      let leves = empresas.map(function (emp) {
+        return {
+          cnpj: emp.cnpj,
+          razao_social: emp.razao_social || '',
+          codigo_empresa: codigoEmpresaDe(emp),
+          whatsapp: emp.whatsapp || emp.whatsapp_cliente || '',
+          ativo: emp.ativo !== false,
+          owner_email: emp.created_by_email || null
+        };
+      });
+      if (q) leves = leves.filter(function (empresa) { return empresaBateBusca(q, empresa); });
+      leves.sort(function (a, b) {
+        const ca = String(a.codigo_empresa || '9999');
+        const cb = String(b.codigo_empresa || '9999');
+        return ca.localeCompare(cb) || String(a.razao_social).localeCompare(String(b.razao_social), 'pt-BR');
+      });
+      const totalLeve = leves.length;
+      const offLeve = parseInt(offset, 10) || 0;
+      const limLeve = Math.min(parseInt(limit, 10) || 24, 100);
+      return res.json({
+        total: totalLeve,
+        offset: offLeve,
+        limit: limLeve,
+        empresas: leves.slice(offLeve, offLeve + limLeve),
+        bancos: [],
+        modo: 'ativacao',
+        is_admin: !!req.user.is_admin,
+        admin_ver_tudo: verTudo
+      });
+    }
 
     // Carregar nomes dos planos para enriquecer (uma passada so)
     const planoIds = Array.from(new Set(empresas.map(e => e.plano_id).filter(Boolean)));
@@ -889,11 +923,50 @@ app.get('/api/empresas/listar', async (req, res) => {
   }
 });
 
+app.get('/api/empresas/:cnpj/plano-contexto', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    const empresaDoc = await db.collection('empresas').doc(cnpjLimpo).get();
+    if (!empresaDoc.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
+    const empresa = empresaDoc.data() || {};
+    if (!usuarioPodeAcessarEmpresa(empresa, req.user)) return res.status(403).json({ erro: 'Sem permissao para esta empresa' });
+    if (!empresa.plano_id) return res.json({ planos: {} });
+    const planoRef = db.collection('planos').doc(empresa.plano_id);
+    const [planoDoc, contasSnap] = await Promise.all([
+      planoRef.get(),
+      planoRef.collection('contas').orderBy('cod').get()
+    ]);
+    if (!planoDoc.exists) return res.status(409).json({ erro: 'Plano vinculado nao encontrado' });
+    const plano = planoDoc.data() || {};
+    const contas = contasSnap.docs.map(function (doc) {
+      const conta = doc.data() || {};
+      const reduzido = conta.ref_rfb || conta.reduzido || conta.ref || conta.codigo_reduzido || '';
+      return { codigo: conta.cod || conta.codigo || '', descricao: conta.desc || conta.descricao || '', reduzido: String(reduzido).trim() };
+    });
+    const chave = (plano.nome || plano.name || empresa.plano_id) + ' - ' + (empresa.razao_social || cnpjLimpo);
+    res.json({
+      planos: {
+        [chave]: {
+          cnpj: cnpjLimpo,
+          codigo: plano.codigo || '',
+          plano_id: empresa.plano_id,
+          empresa: empresa.razao_social || '',
+          tipo: plano.tipo || '',
+          global: plano.global === true,
+          owner_uid: empresa.owner_uid || null,
+          contas
+        }
+      }
+    });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
 app.get('/api/empresas/:cnpj', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
     const doc = await db.collection('empresas').doc(cnpjLimpo).get();
     if (!doc.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
+    if (!usuarioPodeAcessarEmpresa(doc.data(), req.user)) return res.status(403).json({ erro: 'Sem permissao para esta empresa' });
     res.json({ cnpj: doc.id, ...doc.data() });
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
