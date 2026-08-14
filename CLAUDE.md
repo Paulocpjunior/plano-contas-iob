@@ -241,8 +241,56 @@ exportado do IOB de competência que TEVE retenção (mesmo caminho de exportaç
 ou o XSD v2_01_02.
 
 **FALTA, na ordem:**
-2. R-2010/R-2020 (INSS de serviços) · R-2055 (FUNRURAL sub-rogado — o CFI já
-   calcula na aba 🌾) · R-2050 · R-1070 · R-4040/R-4080 (raros).
+2. ~~R-2010~~ (FEITO 13-14/08, ver abaixo) · R-2020 · ~~R-2055~~ (ponta a ponta
+   desde 07/08) · R-2050 · R-1070 · R-4040/R-4080 (raros).
+
+**R-2010 LIGADO PONTA A PONTA** (13/08 o gerador e a tela; 14/08 o que faltava
+para ele funcionar de verdade). Rota do CFI `/api/admin/reinf/servicos-tomados`
+→ `reinf/servicos-tomados-apuracao.js` → tela na aba **R-2000** →
+`reinf/gerar-r2010.js` → gateway. **AQUI NÃO SE LÊ DOCUMENTO**: a NFS-e vem
+ACHATADA do portal de SP e em OBJETO do XML, e quem conhece as duas formas é o
+CFI — reler deste lado seria a nona mordida da mesma armadilha.
+**A PENDÊNCIA QUE MANDA É A BASE**: no `evtServTom` aceito de referência o bruto
+é 5.755,54 e a base retida é **4.604,43**, e a `obs` da própria nota diz por quê
+— **INSUMOS** (IN RFB 971, arts. 121-124). A NFS-e não separa a dedução, então a
+base só entra na declaração quando a alíquota PROVA que não houve nenhuma (11%
+cheios); base derivada serve para conferir e o gerador a RECUSA. `tpServico`
+(tabela 06, 9 dígitos) e `indObra` não estão na nota: são cadastrados por
+PRESTADOR (`reinf_servicos_tomados_prestadores`) e valem para todos os meses.
+
+🚨 **DOIS DEFEITOS DA MESMA FAMÍLIA, achados ao fechar o R-2010 (14/08): "O
+PRIMEIRO DECIDE PELOS OUTROS".** Nenhum dos dois derruba nada — os dois produzem
+evento **ACEITO pela Receita declarando outra coisa**, que é o pior desfecho
+possível, porque não volta recusa nenhuma para avisar.
+· **`indObra` do primeiro prestador ia em TODOS os eventos.** A rota montava um
+  `estab` só (com `prontos[0].indObra`) e `gerarEventosR2010` repetia esse mesmo
+  `estab` evento a evento. Prestador de limpeza mensal (indObra 0) e prestador
+  de empreitada total (indObra 2) na mesma competência ⇒ o segundo saía
+  declarado com a natureza do primeiro. `indObra` é do PRESTADOR (é do contrato
+  dele) e agora viaja com ele; ausência continua BLOQUEANDO, nunca herdando.
+· **`indCPRB` saía de `notas[0]`.** O indicador é UM por evento e o evento reúne
+  TODAS as notas do prestador no mês: bastava a primeira estar em 11% para o mês
+  inteiro ser declarado `indCPRB=0`. Agora só vale com CONSENSO — divergência é
+  PERGUNTA nomeada na tela, não empate desfeito por ordem de chegada.
+**REGRA QUE FICA**: quando um campo é ÚNICO por evento mas os dados vêm de uma
+LISTA, ler `[0]` é escolher em silêncio. Ou todos concordam, ou o campo é do
+ITEM, ou é pendência — nunca o primeiro respondendo pelos demais.
+
+🚨 **E A ASSINATURA LOCAL NÃO CONHECIA NENHUM EVENTO NOVO** (mesma varredura).
+`reinf/assinador.js` e `reinf/transmissor.js` achavam o elemento por **LISTA DE
+NOMES** — `evtInfoContri|evtRetPF|evtFech`, os três que existiam quando eles
+nasceram. `evtServTom` (R-2010), `evtAqProd` (R-2055) e `evtRetPJ` (R-4020)
+vieram depois e nenhum estava ali: a assinatura local deles morria com *"id do
+evento nao encontrado no XML"* — mensagem que **culpa o XML** por um defeito da
+lista. Passou batido porque a produção transmite pelo gateway do CFI
+(`REINF_TRANSMISSOR=gateway`), que já tinha feito essa mesma generalização; o
+caminho local ficou de armadilha para o dia em que alguém desligar a chave.
+Agora o elemento se acha pelo **id** (`<evt...` com `id="ID"+34 dígitos`, que só
+evento tem) e a `Reference` aponta para ele — evento novo assina sozinho, e a
+regra mora num lugar só (o transmissor importa do assinador; eram duas listas
+envelhecendo juntas). É o mata-burro de 13/08 outra vez: **trava que vale "para
+todo evento" se escreve VARRENDO o que o evento É, nunca listando os que eu
+lembrei** — por isso o teste percorre a série em vez de enumerar arquivos.
 
 **R-2055 LIGADO PONTA A PONTA** (07/08) — é o primeiro evento previdenciário
 com conteúdo real. Rota do CFI `/api/admin/reinf/aquisicao-rural` →

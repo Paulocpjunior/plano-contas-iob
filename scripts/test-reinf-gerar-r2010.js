@@ -149,5 +149,58 @@ assert.ok(/<indRetif>2<\/indRetif>\s*<nrRecibo>6258005-01-2010-2606-6258005<\/nr
   'nrRecibo entra logo após indRetif, e só na retificadora');
 assert.ok(!ev.xml.includes('<nrRecibo>'), 'original não leva nrRecibo');
 
+// ── 13. `indObra` É DO PRESTADOR — o primeiro não decide pelos outros ───────
+//
+// O defeito real (14/08): o caminho de transmissão montava UM `estab` com o
+// `indObra` do primeiro prestador pronto, e `gerarEventosR2010` repetia esse
+// mesmo `estab` em todos os eventos. Prestador de limpeza mensal (indObra 0) e
+// prestador de empreitada total (indObra 2) no mesmo mês ⇒ o segundo era
+// declarado com a natureza do primeiro. E indObra errado é ACEITO pela Receita:
+// não volta recusa nenhuma para avisar que o evento diz outra coisa.
+const misto = gerarEventosR2010({
+  ...base(),
+  prestador: undefined,
+  estab: { tpInscEstab: 1, nrInscEstab: '24196949000177' },
+  prestadores: [
+    { ...base().prestador, indObra: 0 },
+    { ...base().prestador, cnpjPrestador: '11222333000181', indObra: 2 },
+  ],
+});
+assert.ok(misto[0].xml.includes('<indObra>0</indObra>'), 'o primeiro declara o indObra dele');
+assert.ok(misto[1].xml.includes('<indObra>2</indObra>'),
+  'o segundo declara o indObra DELE — herdar o do primeiro declara outra natureza, e é aceito');
+
+// A FORMA EXATA DO DEFEITO: a rota montava `estab.indObra` com o valor do
+// PRIMEIRO prestador pronto. Mesmo assim, o segundo tem de declarar o seu.
+const comoARotaFazia = gerarEventosR2010({
+  ...base(),
+  prestador: undefined,
+  estab: { tpInscEstab: 1, nrInscEstab: '24196949000177', indObra: 0 },
+  prestadores: [
+    { ...base().prestador, indObra: 0 },
+    { ...base().prestador, cnpjPrestador: '11222333000181', indObra: 2 },
+  ],
+});
+assert.ok(comoARotaFazia[1].xml.includes('<indObra>2</indObra>'),
+  'o indObra do prestador vence o do lote — era aqui que o do primeiro vazava para todos');
+
+// Sem ninguém informar, `indObra` continua BLOQUEANDO: ausência não vira
+// herança silenciosa do valor de outro prestador.
+assert.throws(() => gerarEventosR2010({
+  ...base(),
+  prestador: undefined,
+  estab: { tpInscEstab: 1, nrInscEstab: '24196949000177' },
+  prestadores: [{ ...base().prestador, indObra: null }],
+}), /indObra não informado/, 'campo de declaração sem resposta bloqueia — não herda');
+
+// O padrão do lote continua valendo para quem não traz o seu.
+const herdado = gerarEventosR2010({
+  ...base(),
+  prestador: undefined,
+  prestadores: [{ ...base().prestador, indObra: undefined }],
+});
+assert.ok(herdado[0].xml.includes('<indObra>0</indObra>'),
+  'prestador sem indObra próprio usa o do lote — o CNPJ do tomador é o mesmo para todos');
+
 console.log('✅ R-2010: reproduz o evtServTom ACEITO (forma+ordem+valores), soma os totais das notas, '
   + 'e bloqueia tpServico/indObra/indCPRB/base ausentes — base NUNCA derivada do bruto.');

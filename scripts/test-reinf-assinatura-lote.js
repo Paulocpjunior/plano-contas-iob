@@ -1,7 +1,7 @@
 const assert = require('assert');
 const forge = require('node-forge');
 const { gerarTrioReinf, gerarEventosR4010DaPlanilha } = require('../reinf/reinf-utils');
-const { assinarEventoReinf, verificarAssinaturaReinf, normalizarXmlEvento } = require('../reinf/assinador');
+const { assinarEventoReinf, extrairIdEvento, verificarAssinaturaReinf, normalizarXmlEvento } = require('../reinf/assinador');
 const { montarLote } = require('../reinf/transmissor');
 
 function criarCertificadoTeste() {
@@ -87,4 +87,59 @@ const consolidadoMesmoCpf = gerarEventosR4010DaPlanilha({
 assert.strictEqual(consolidadoMesmoCpf.length, 1, 'R-4010 deve consolidar linhas do mesmo CPF/estabelecimento em um unico evento');
 assert.strictEqual((consolidadoMesmoCpf[0].xml.match(/<infoPgto>/g) || []).length, 2, 'R-4010 consolidado deve preservar os pagamentos dentro do mesmo evento');
 assert.strictEqual(consolidadoMesmoCpf[0].qtdPagamentos, 2, 'metadado do evento deve informar quantidade de pagamentos consolidados');
+// ══ O ELEMENTO SE ACHA PELO id, NUNCA POR LISTA DE NOMES ═══════════════════
+//
+// Ate 14/08 o assinador e o transmissor procuravam
+// `evtInfoContri|evtRetPF|evtFech` — os tres eventos que existiam quando eles
+// nasceram. A lista envelheceu EM SILENCIO: R-2010 (evtServTom), R-2055
+// (evtAqProd) e R-4020 (evtRetPJ) vieram depois e nenhum estava ali, entao a
+// assinatura LOCAL deles morria com "id do evento nao encontrado" — mensagem
+// que culpa o XML por um defeito da lista. Passou batido porque a producao
+// transmite pelo gateway do CFI, que ja tinha feito esta generalizacao.
+//
+// Trava por VARREDURA, nao por lista: o teste percorre a serie inteira, e
+// evento novo entra aqui sem ninguem precisar lembrar do assinador.
+const { gerarR2010 } = require('../reinf/gerar-r2010');
+const { gerarR2055 } = require('../reinf/gerar-r2055');
+
+const eventosDaSerie = [
+  ['evtServTom (R-2010)', gerarR2010({
+    contribuinte: { tpInsc: 1, nrInsc: '24196949000177' },
+    estab: { tpInscEstab: 1, nrInscEstab: '24196949000177', indObra: 0 },
+    perApur: '2026-06', tpAmb: 2, seq: 1,
+    prestador: {
+      cnpjPrestador: '03222111000130', indCPRB: 0,
+      notas: [{
+        serie: '0', numDocto: '30349', dtEmissaoNF: '2026-06-24', vlrBruto: 5755.54,
+        servicos: [{ tpServico: '100000001', vlrBaseRet: 4604.43, vlrRetencao: 506.49 }],
+      }],
+    },
+  }).xml],
+  ['evtAqProd (R-2055)', gerarR2055({
+    contribuinte: { tpInsc: 1, nrInsc: '24196949000177' },
+    estabAdquirente: { tpInscAdq: 1, nrInscAdq: '24196949000177' },
+    perApur: '2026-06', tpAmb: 2, seq: 1,
+    produtores: [{
+      cpf: '15487750610',
+      aquisicoes: [{ indAquis: 1, vlrBruto: 100, vlrCPDescPR: 1.32, vlrRatDescPR: 0.11, vlrSenarDesc: 0.20 }],
+    }],
+  }).xml],
+];
+
+eventosDaSerie.forEach(([nome, xmlEvento]) => {
+  const id = extrairIdEvento(xmlEvento);
+  assert.ok(/^ID\d{34}$/.test(id), `${nome}: o id deve sair pelo formato, nao pelo nome do elemento`);
+  const assinado = assinarEventoReinf(xmlEvento, cert);
+  assert.ok(assinado.includes(`<Reference URI="#${id}">`),
+    `${nome}: a assinatura deve referenciar o id DAQUELE evento`);
+  assert.deepStrictEqual(verificarAssinaturaReinf(assinado, cert), { ok: true },
+    `${nome}: assinatura local precisa se autovalidar`);
+  const loteSerie = montarLote([assinado], { tpInsc: 1, nrInsc: '24196949000177' });
+  assert.ok(loteSerie.includes(id), `${nome}: o transmissor tambem acha o id sem lista de nomes`);
+});
+
+// XML sem elemento de evento continua RECUSADO — generalizar nao e afrouxar.
+assert.throws(() => extrairIdEvento('<Reinf><naoEhEvento id="ID' + '1'.repeat(34) + '"/></Reinf>'),
+  /id do evento nao encontrado/, 'so <evt...> conta como evento');
+
 console.log('OK: lote Reinf usa XMLDSig minificado, ids unicos e assinatura local valida.');

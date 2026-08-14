@@ -213,13 +213,50 @@ ${idePrestServXml}
  * O `seq` entra no id, então cada evento precisa do seu — id repetido é RECUSA
  * do lote inteiro (lição MS0017 do assinador).
  *
+ * ⚠️ **`indObra` É DO PRESTADOR, não do lote.** Ele é cadastrado prestador a
+ * prestador (é do contrato dele: limpeza mensal não é obra, empreitada total
+ * é), e até 14/08 o caminho de transmissão mandava o `indObra` do PRIMEIRO
+ * prestador pronto dentro de TODOS os eventos — porque `{...ev}` repetia um
+ * `estab` só. Com dois prestadores de naturezas diferentes, o segundo era
+ * declarado com a natureza do primeiro: ACEITO pela Receita, e errado — que é
+ * o pior desfecho, porque não volta recusa nenhuma para avisar.
+ * "O primeiro decide pelos outros" é a forma silenciosa desse defeito; por isso
+ * cada prestador resolve o SEU estabelecimento aqui.
+ *
  * @returns {Array<{ id, cnpjTomador, cnpjPrestador, xml }>}
  */
 function gerarEventosR2010(ev) {
   const prestadores = Array.isArray(ev && ev.prestadores) ? ev.prestadores : [];
   if (!prestadores.length) throw new Error('R-2010 inválido:\n - prestadores deve ter ao menos 1 item');
   const seqBase = Number(ev.seq) > 0 ? Number(ev.seq) : 1;
-  return prestadores.map((p, i) => gerarR2010({ ...ev, seq: seqBase + i, prestador: p, prestadores: undefined }));
+  return prestadores.map((p, i) => gerarR2010({
+    ...ev,
+    estab: estabDoPrestador(ev.estab, p),
+    seq: seqBase + i,
+    prestador: p,
+    prestadores: undefined,
+  }));
+}
+
+/**
+ * O estabelecimento tomador DAQUELE prestador.
+ *
+ * O que o prestador traz vence o padrão do lote; o que ele não traz continua
+ * vindo de lá (o CNPJ do tomador é o mesmo para todos). Ausência NÃO vira
+ * herança silenciosa do valor de OUTRO prestador: quando ninguém informou,
+ * `indObra` fica ausente e a validação BLOQUEIA — que é o comportamento certo
+ * para campo de declaração sem resposta.
+ */
+function estabDoPrestador(estabDoLote, prestador) {
+  const base = { ...(estabDoLote || {}) };
+  const p = prestador || {};
+  if (p.indObra !== null && p.indObra !== undefined && String(p.indObra).trim() !== ''
+      && [0, 1, 2].includes(Number(p.indObra))) {
+    base.indObra = Number(p.indObra);
+  }
+  if (String(p.nrInscEstab || '').trim()) base.nrInscEstab = p.nrInscEstab;
+  if ([1, 4].includes(Number(p.tpInscEstab))) base.tpInscEstab = Number(p.tpInscEstab);
+  return base;
 }
 
 /** Pré-condições. Devolve lista de erros (vazia = ok). */
@@ -315,4 +352,4 @@ function validarEntradaR2010(ev) {
   return e;
 }
 
-module.exports = { gerarR2010, gerarEventosR2010, validarEntradaR2010, NS_R2010 };
+module.exports = { gerarR2010, gerarEventosR2010, estabDoPrestador, validarEntradaR2010, NS_R2010 };
