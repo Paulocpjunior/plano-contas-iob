@@ -314,6 +314,32 @@ apurado e o declarado na nota BLOQUEIA (o valor errado iria pra declaração E
 pro recolhimento). O resumo separa `total` de **`totalPronto`** — mostrar só o
 cheio faria alguém conferir contra o número errado.
 
+**R-2099 (FECHAMENTO da série R-2000) — o esqueleto está PROVADO, o `infoFech`
+NÃO** (14/08, v3.4.110). É ele que manda a Receita apurar: sem o fechamento os
+R-2010/R-2055 do mês ficam recebidos e **não viram totalizador nem DARF** — o
+VINCENZO 07/2026 fechou no e-CAC, à mão, porque nenhum dos dois apps o gerava.
+O que veio do R-4099 homologado e vale: `ideEvento` (perApur → tpAmb → procEmi →
+verProc), `ideContri` com a RAIZ de 8 dígitos, `ideRespInf` opcional e o id de
+34. O que é **HIPÓTESE**: os nomes das tags dos grupos dentro de `infoFech` —
+`LEIAUTE_INFOFECH` existe para a SONDA carregar a suposição por escrito, do
+jeito que os 6 candidatos do "sem movimento" carregaram a deles. Nenhum nome ali
+foi lido de arquivo aceito.
+🚨 **POR ISSO PRODUÇÃO É RECUSADA e restrita é livre**: fechamento com indicador
+errado é o pior caso desta família — pode ser **ACEITO** e mandar a Receita
+consolidar o grupo errado, com o totalizador saindo a menor e a guia paga a
+menor, sem recusa nenhuma avisando. Produção restrita responde de graça, e
+`provaDoLeiaute` nomeia o aceite como PROVA. **DESTRAVA MAIS RÁPIDO COM** o XML
+do R-2099 já aceito do VINCENZO no e-CAC — arquivo aceito > leiaute deduzido
+pela quarta vez (R-4020, E510, R-2010, agora este).
+**OS GRUPOS SAEM DO LOG DAS TRANSMISSÕES ACEITAS, nunca de um formulário**
+(`fechamento-2000-grupos.js`): lista digitada ESQUECE evento, e evento esquecido
+faz a Receita não consolidar aquele bloco. `httpStatus 201` sozinho não conta —
+só protocolo, e lote com evento recusado não gera grupo (foi assim que o R-2055
+pintou ✓ verde com MS0030). O que fica de fora vem NOMEADO, e o aviso diz o
+custo de fechar cedo: depois do fechamento, evento novo da competência só entra
+com **reabertura (R-2098)**. Log ilegível NÃO vira "sem movimento" — a diferença
+entre "não houve evento" e "não achei o log" não está no zero.
+
 **A TABELA DA SÉRIE R-2000/R-3000** (`reinf/serie-2000.js`) é a contraparte da
 `natureza-rendimento.js`: os 9 eventos com o que cada um declara, quem entrega,
 e — o campo que faz a tabela valer — **o que falta pra gerar cada um**. Nasceu
