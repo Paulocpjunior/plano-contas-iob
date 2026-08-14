@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.114",
+  "version": "3.4.115",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -30,7 +30,7 @@
     "test:filtro-fiscal": "node scripts/test-filtro-fiscal.js",
     "test:movimento-fiscal-modal": "node scripts/test-movimento-fiscal-modal.js",
     "test:flanacar-bank": "node scripts/test-flanacar-bank-combobox.js",
-    "test:empresa-plano": "node scripts/test-empresa-plano-vinculo.js",
+    "test:empresa-plano": "node scripts/test-empresa-plano-vinculo.js && node scripts/test-carteira-contabil.js",
     "test:empresa-cadastro-whatsapp": "node scripts/test-empresa-cadastro-whatsapp.js",
     "test:clude-itau": "node scripts/test-clude-itau-historicos.js",
     "test:clude-layouts": "node scripts/test-clude-layout-quality.js",

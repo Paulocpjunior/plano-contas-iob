@@ -104,11 +104,11 @@ if [[ "$published_filter" != *"function cfopsDoLancamento"* || "$published_filte
   echo "ERRO: filtro estruturado de CFOP não foi publicado."
   exit 1
 fi
-if [[ "$published_index" != *'placeholder="Número, nome ou CNPJ..."'* || "$published_index" != *'⚡ Ativar empresa'* || "$published_index" != *'function prepararGateAtivacaoEmpresa'* || "$published_index" != *"modo: 'ativacao'"* ]]; then
+if [[ "$published_index" != *'placeholder="Número, nome ou CNPJ..."'* || "$published_index" != *'⚡ Ativar empresa'* || "$published_index" != *'function prepararGateAtivacaoEmpresa'* || "$published_index" != *"modo: 'ativacao'"* || "$published_index" != *'function abrirCarteiraResponsaveis'* ]]; then
   echo "ERRO: busca/ativação de empresa não foi publicada."
   exit 1
 fi
-if [[ "$published_cadastro" != *'function empresaBateBusca'* || "$published_whatsapp" != *'function enviarWhatsappCfi'* || "$published_api" != *'function loadPlanoEmpresa'* ]]; then
+if [[ "$published_cadastro" != *'function empresaBateBusca'* || "$published_whatsapp" != *'function enviarWhatsappCfi'* || "$published_api" != *'function loadPlanoEmpresa'* || "$published_api" != *'function atribuirResponsavelEmpresa'* ]]; then
   echo "ERRO: contratos de cadastro/WhatsApp não foram publicados."
   exit 1
 fi
