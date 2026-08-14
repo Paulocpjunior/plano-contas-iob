@@ -4,7 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const cadastro = require('../empresa-cadastro');
-const whatsapp = require('../whatsapp-cloud');
+const whatsapp = require('../whatsapp-cfi-client');
 
 assert.deepStrictEqual(cadastro.normalizarCodigoEmpresa('587'), { ok: true, valor: '0587' });
 assert.strictEqual(cadastro.normalizarCodigoEmpresa('0000').ok, false);
@@ -27,41 +27,73 @@ assert(index.includes('placeholder="Número, nome ou CNPJ..."'));
 assert(index.includes('⚡ Ativar empresa'));
 assert(index.includes('WhatsApp API'));
 
-assert.deepStrictEqual(whatsapp.faltasDaConfig({ token: '', phoneNumberId: '', template: '' }), [
-  'WHATSAPP_CLOUD_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'WHATSAPP_TEMPLATE_CCI'
-]);
-const payload = whatsapp.montarMensagemTemplate({ para: '5511912345678', template: 'cci_aviso', idioma: 'pt_BR', variaveis: ['Empresa', 'Mensagem'] });
-assert.strictEqual(payload.to, '5511912345678');
-assert.strictEqual(payload.template.components[0].parameters.length, 2);
-assert.deepStrictEqual(whatsapp.interpretarResposta(200, { messages: [{ id: 'wamid.1' }] }), { ok: true, messageId: 'wamid.1' });
+assert.strictEqual(whatsapp.baseCfi({ CFI_URL: 'https://cfi.example/' }), 'https://cfi.example');
+assert.strictEqual(
+  whatsapp.urlWhatsappCfi('status', { CFI_URL: 'https://cfi.example/' }),
+  'https://cfi.example/api/admin/whatsapp/status'
+);
 
 (async function () {
-  let chamada = null;
-  const resultado = await whatsapp.enviarTemplateWhatsapp(
-    { para: '5511912345678', variaveis: ['Empresa'] },
+  const chamadasStatus = [];
+  const status = await whatsapp.statusWhatsappCfi('firebase-token', {
+    env: { CFI_URL: 'https://cfi.example/' },
+    fetchImpl: async function (url, opcoes) {
+      chamadasStatus.push({ url, opcoes });
+      const corpo = url.endsWith('/status')
+        ? { ok: true, pronto: true }
+        : { ok: true, templates: [{ nome: 'cci_aviso', departamento: 'contabil', ativo: true, temDocumento: false, variaveis: [{ chave: 'cliente' }] }] };
+      return { ok: true, status: 200, json: async function () { return corpo; } };
+    }
+  });
+  assert.strictEqual(status.pronto, true);
+  assert.strictEqual(status.templates[0].nome, 'cci_aviso');
+  assert.strictEqual(chamadasStatus.length, 2);
+  assert(chamadasStatus.every(function (chamada) {
+    return chamada.opcoes.headers.Authorization === 'Bearer firebase-token';
+  }));
+
+  const semTemplate = await whatsapp.statusWhatsappCfi('firebase-token', {
+    env: { CFI_URL: 'https://cfi.example' },
+    fetchImpl: async function (url) {
+      const corpo = url.endsWith('/status') ? { ok: true, pronto: true } : { ok: true, templates: [] };
+      return { ok: true, status: 200, json: async function () { return corpo; } };
+    }
+  });
+  assert.strictEqual(semTemplate.pronto, false);
+  assert(semTemplate.faltas.some(function (falta) { return falta.includes('template ativo'); }));
+
+  let chamadaEnvio = null;
+  const resultado = await whatsapp.enviarWhatsappCfi(
+    { token: 'firebase-token', para: '5511912345678', template: 'cci_aviso', variaveis: { cliente: 'Empresa' }, referencia: { cnpj: '12345678000190' } },
     {
-      config: { token: 'segredo', phoneNumberId: '123', template: 'cci_aviso', idioma: 'pt_BR' },
+      env: { CFI_URL: 'https://cfi.example' },
       fetchImpl: async function (url, opcoes) {
-        chamada = { url, opcoes };
-        return { status: 200, json: async function () { return { messages: [{ id: 'wamid.2' }] }; } };
+        chamadaEnvio = { url, opcoes };
+        return { ok: true, status: 200, json: async function () { return { ok: true, messageId: 'wamid.2' }; } };
       }
     }
   );
   assert.deepStrictEqual(resultado, { ok: true, messageId: 'wamid.2' });
-  assert.strictEqual(chamada.opcoes.headers.Authorization, 'Bearer segredo');
-  assert.strictEqual(JSON.parse(chamada.opcoes.body).template.name, 'cci_aviso');
-  assert.strictEqual(chamada.opcoes.body.includes('segredo'), false);
+  assert.strictEqual(chamadaEnvio.url, 'https://cfi.example/api/admin/whatsapp/enviar');
+  assert.strictEqual(chamadaEnvio.opcoes.headers.Authorization, 'Bearer firebase-token');
+  const corpoEnvio = JSON.parse(chamadaEnvio.opcoes.body);
+  assert.strictEqual(corpoEnvio.departamento, 'contabil');
+  assert.strictEqual(corpoEnvio.template, 'cci_aviso');
+  assert.deepStrictEqual(corpoEnvio.variaveis, { cliente: 'Empresa' });
+  assert.strictEqual(chamadaEnvio.opcoes.body.includes('firebase-token'), false);
 
-  const indeterminado = await whatsapp.enviarTemplateWhatsapp(
-    { para: '5511912345678', variaveis: [] },
-    {
-      config: { token: 'segredo', phoneNumberId: '123', template: 'cci_aviso', idioma: 'pt_BR' },
-      fetchImpl: async function () { throw new Error('rede'); }
-    }
-  );
-  assert.strictEqual(indeterminado.ok, false);
-  assert.strictEqual(indeterminado.indeterminado, true);
-  console.log('OK empresa cadastro, busca e WhatsApp Cloud API');
+  let erroRede = null;
+  try {
+    await whatsapp.enviarWhatsappCfi(
+      { token: 'firebase-token', para: '5511912345678', template: 'cci_aviso', variaveis: {} },
+      { env: { CFI_URL: 'https://cfi.example' }, fetchImpl: async function () { throw new Error('rede'); } }
+    );
+  } catch (erro) {
+    erroRede = erro;
+  }
+  assert(erroRede);
+  assert.strictEqual(erroRede.indeterminado, true);
+  console.log('OK empresa cadastro, busca e gateway central WhatsApp do CFI');
 })().catch(function (erro) {
   console.error(erro);
   process.exitCode = 1;

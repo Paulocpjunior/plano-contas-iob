@@ -1,16 +1,17 @@
 # WhatsApp Cloud API no CCI
 
-O canal usa a API oficial da Meta e mantém o token exclusivamente no servidor.
+O CCI usa o gateway compartilhado do Consultor Fiscal Inteligente. O token da
+Meta permanece exclusivamente no CFI e nunca é copiado para este projeto.
 
-Variáveis de ambiente obrigatórias:
+Configuração necessária no CCI:
 
-- `WHATSAPP_CLOUD_TOKEN`: token do usuário de sistema da Meta.
-- `WHATSAPP_PHONE_NUMBER_ID`: identificador do número oficial.
-- `WHATSAPP_TEMPLATE_CCI`: nome exato do template aprovado para o CCI.
-- `WHATSAPP_TEMPLATE_IDIOMA`: idioma aprovado; o padrão é `pt_BR`.
+- `CFI_URL`: URL do Cloud Run do CFI; já é usada pelos túneis de cadastro e Reinf.
+- O usuário precisa estar autenticado com e-mail verificado do escritório.
+- O CFI precisa ter um template ativo no departamento `contabil`, cadastrado em
+  `Config Admin > Templates do WhatsApp` depois da aprovação pela Meta.
 
 O cadastro da empresa guarda o WhatsApp normalizado em E.164 sem o sinal `+`.
-O envio só aceita template aprovado. A tela solicita as variáveis na mesma ordem
-do template e exibe o identificador devolvido pela Meta como comprovante de aceite.
+O CCI consulta no CFI os templates e suas variáveis nomeadas antes do envio. A
+tela exibe o identificador devolvido pela Meta como comprovante de aceite.
 Quando a rede cai durante o POST, o resultado é indeterminado e a orientação é
 conferir o número oficial antes de reenviar, evitando mensagem duplicada.

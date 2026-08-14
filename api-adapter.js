@@ -276,10 +276,10 @@
     return body;
   }
 
-  async function enviarWhatsappEmpresa(cnpj, variaveis) {
+  async function enviarWhatsappEmpresa(cnpj, template, variaveis) {
     const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
     const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/whatsapp/enviar', {
-      method: 'POST', body: JSON.stringify({ variaveis: Array.isArray(variaveis) ? variaveis : [] })
+      method: 'POST', body: JSON.stringify({ template: template || undefined, variaveis: variaveis && typeof variaveis === 'object' ? variaveis : {} })
     });
     const body = await r.json().catch(() => ({}));
     if (!r.ok) {

@@ -94,7 +94,7 @@ done
 published_index="$(curl -fsS --max-time 20 "$EXPECTED_URL/index.html?version=$expected_version")"
 published_filter="$(curl -fsS --max-time 20 "$EXPECTED_URL/filtro-fiscal.js?version=$expected_version")"
 published_cadastro="$(curl -fsS --max-time 20 "$EXPECTED_URL/empresa-cadastro.js?version=$expected_version")"
-published_whatsapp="$(curl -fsS --max-time 20 "$EXPECTED_URL/whatsapp-cloud.js?version=$expected_version")"
+published_whatsapp="$(curl -fsS --max-time 20 "$EXPECTED_URL/whatsapp-cfi-client.js?version=$expected_version")"
 if [[ "$published_index" != *'id="filtroFiscalOverlay"'* || "$published_index" != *'window.LAYOUTS_FISCAIS_PADRAO.forEach'* ]]; then
   echo "ERRO: modal/fallback fiscal não foi publicado no index."
   exit 1
@@ -107,7 +107,7 @@ if [[ "$published_index" != *'placeholder="Número, nome ou CNPJ..."'* || "$publ
   echo "ERRO: busca/ativação de empresa não foi publicada."
   exit 1
 fi
-if [[ "$published_cadastro" != *'function empresaBateBusca'* || "$published_whatsapp" != *'function enviarTemplateWhatsapp'* ]]; then
+if [[ "$published_cadastro" != *'function empresaBateBusca'* || "$published_whatsapp" != *'function enviarWhatsappCfi'* ]]; then
   echo "ERRO: contratos de cadastro/WhatsApp não foram publicados."
   exit 1
 fi

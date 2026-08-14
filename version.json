@@ -1,7 +1,8 @@
 {
-  "version": "3.4.111",
-  "build_date": "2026-08-14T11:05:32Z",
+  "version": "3.4.112",
+  "build_date": "2026-08-14T11:17:24Z",
   "release_notes": [
-    "Cadastro de empresas com numero e WhatsApp oficial, busca unificada por numero, nome ou CNPJ e ativacao explicita da empresa escolhida."
+    "Cadastro de empresas com numero e WhatsApp oficial, busca unificada por numero, nome ou CNPJ e ativacao explicita da empresa escolhida.",
+    "WhatsApp do CCI integrado ao gateway central do CFI, sem duplicar o token da Meta e restrito aos templates do departamento contabil."
   ]
 }
