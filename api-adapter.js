@@ -145,8 +145,8 @@
     return await r.json();
   }
 
-  async function vincularEmpresaPlano(cnpj, razao_social, plano_id) {
-    const r = await apiFetch(API_BASE + '/api/vincular-empresa-plano', { method: 'POST', body: JSON.stringify({ cnpj, razao_social, plano_id }) });
+  async function vincularEmpresaPlano(cnpj, razao_social, plano_id, cadastro) {
+    const r = await apiFetch(API_BASE + '/api/vincular-empresa-plano', { method: 'POST', body: JSON.stringify(Object.assign({ cnpj, razao_social, plano_id }, cadastro || {})) });
     const body = await r.json().catch(() => ({}));
     if (r.status === 403) return { erro: body.erro || 'Sem permissao para vincular este plano' };
     if (!r.ok) return { erro: body.erro || ('Erro ' + r.status) };
@@ -259,6 +259,34 @@
     const qs = new URLSearchParams(params || {}).toString();
     const r = await apiFetch(API_BASE + '/api/empresas/listar' + (qs ? '?' + qs : ''));
     return await r.json();
+  }
+
+  async function atualizarCadastroEmpresa(cnpj, dados) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/cadastro', { method: 'PATCH', body: JSON.stringify(dados || {}) });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
+  async function statusWhatsapp() {
+    const r = await apiFetch(API_BASE + '/api/whatsapp/status');
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
+  async function enviarWhatsappEmpresa(cnpj, variaveis) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/whatsapp/enviar', {
+      method: 'POST', body: JSON.stringify({ variaveis: Array.isArray(variaveis) ? variaveis : [] })
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const mensagem = [body.erro, body.acao, body.faltas && body.faltas.join(', ')].filter(Boolean).join(' ');
+      throw new Error(mensagem || ('Erro ' + r.status));
+    }
+    return body;
   }
 
   async function fiscalCertificadoStatus() {
@@ -514,7 +542,7 @@
     return await r.json();
   }
 
-  window.API = { me, gateDepartamento, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAquisicaoRural, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
+  window.API = { me, gateDepartamento, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAquisicaoRural, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
   console.log('[API Adapter v3] carregado');
 })();
 

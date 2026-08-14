@@ -93,12 +93,22 @@ done
 
 published_index="$(curl -fsS --max-time 20 "$EXPECTED_URL/index.html?version=$expected_version")"
 published_filter="$(curl -fsS --max-time 20 "$EXPECTED_URL/filtro-fiscal.js?version=$expected_version")"
+published_cadastro="$(curl -fsS --max-time 20 "$EXPECTED_URL/empresa-cadastro.js?version=$expected_version")"
+published_whatsapp="$(curl -fsS --max-time 20 "$EXPECTED_URL/whatsapp-cloud.js?version=$expected_version")"
 if [[ "$published_index" != *'id="filtroFiscalOverlay"'* || "$published_index" != *'window.LAYOUTS_FISCAIS_PADRAO.forEach'* ]]; then
   echo "ERRO: modal/fallback fiscal não foi publicado no index."
   exit 1
 fi
 if [[ "$published_filter" != *"function cfopsDoLancamento"* || "$published_filter" != *"tipo === 'CFOP'"* ]]; then
   echo "ERRO: filtro estruturado de CFOP não foi publicado."
+  exit 1
+fi
+if [[ "$published_index" != *'placeholder="Número, nome ou CNPJ..."'* || "$published_index" != *'⚡ Ativar empresa'* ]]; then
+  echo "ERRO: busca/ativação de empresa não foi publicada."
+  exit 1
+fi
+if [[ "$published_cadastro" != *'function empresaBateBusca'* || "$published_whatsapp" != *'function enviarTemplateWhatsapp'* ]]; then
+  echo "ERRO: contratos de cadastro/WhatsApp não foram publicados."
   exit 1
 fi
 
@@ -112,4 +122,4 @@ if [[ "$traffic_revision" != "$deployed_revision" ]]; then
   exit 1
 fi
 
-echo "Deploy validado: $SERVICE $deployed_revision | versão $published_version | contrato fiscal e CFOP conferidos | $EXPECTED_URL"
+echo "Deploy validado: $SERVICE $deployed_revision | versão $published_version | cadastro, busca, WhatsApp, contrato fiscal e CFOP conferidos | $EXPECTED_URL"
