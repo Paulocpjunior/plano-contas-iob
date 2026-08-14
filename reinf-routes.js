@@ -1846,14 +1846,20 @@ function registrarRotasReinf(app, { db } = {}) {
         });
       }
 
+      // `indObra` NÃO entra no estabelecimento do lote: ele é cadastrado por
+      // PRESTADOR e viaja com ele. Repetir aqui o do primeiro pronto declarava
+      // a natureza do primeiro contrato dentro do evento de todos os outros —
+      // e evento com indObra errado é ACEITO, então nada volta avisando.
       const eventos = gerarEventosR2010({
         contribuinte: { tpInsc: 1, nrInsc: cnpj },
-        estab: { tpInscEstab: 1, nrInscEstab: cnpj, indObra: prontos[0].indObra },
+        estab: { tpInscEstab: 1, nrInscEstab: cnpj },
         perApur: competencia,
         tpAmb,
         seq: 1,
         prestadores: prontos.map((l) => ({
           cnpjPrestador: l.cnpjPrestador,
+          indObra: l.indObra,
+          nrInscEstab: l.nrInscEstab || cnpj,
           indCPRB: l.indCPRB,
           notas: l.notas.map((n) => ({
             serie: n.serie || '0',

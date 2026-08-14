@@ -12,6 +12,10 @@
 // ============================================================================
 const https = require('https');
 const { loadCertificado } = require('./cert-loader');
+// A regra de "onde esta o id do evento" mora no assinador — reescreve-la aqui
+// seria a segunda copia, e foi assim que as duas listas de nomes envelheceram
+// juntas sem ninguem ver.
+const { extrairIdEvento } = require('./assinador');
 
 const NS_LOTE = 'http://www.reinf.esocial.gov.br/schemas/envioLoteEventosAssincrono/v1_00_00';
 const MAX_EVENTOS = 50;
@@ -64,9 +68,10 @@ function montarLote(eventosAssinadosXml, contribuinte) {
 
   const eventos = eventosAssinadosXml.map((xml, idx) => {
     const limpo = String(xml).replace(/^\s*<\?xml[^?]*\?>\s*/i, '').trim();
-    const m = limpo.match(/<(?:evtInfoContri|evtRetPF|evtFech)\s+id="(ID\d{34})"/);
-    if (!m) throw new Error('transmissor: nao foi possivel extrair o id de um evento');
-    const id = m[1];
+    // O id se acha pelo que o evento E (`<evt...` com id de 34 digitos), nunca
+    // por lista de nomes: a lista antiga so conhecia evtInfoContri/evtRetPF/
+    // evtFech e envelheceu em silencio quando o R-2010/R-2055/R-4020 nasceram.
+    const id = extrairIdEvento(limpo);
     if (vistos.has(id)) {
       throw new Error(
         `transmissor: id de evento duplicado no lote (${id}). ` +

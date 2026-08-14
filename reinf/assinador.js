@@ -1,9 +1,26 @@
 // ============================================================================
-// Assinatura digital XMLDSig dos eventos EFD-Reinf (R-1000/R-4010/R-4099).
+// Assinatura digital XMLDSig dos eventos EFD-Reinf (TODA a serie).
 //
 // A Receita rejeita com MS0017 quando o evento e assinado ainda com quebras e
 // espacos de indentacao. O evento deve ser normalizado/minificado ANTES da
 // assinatura e enviado ao lote exatamente nessa forma assinada.
+//
+// ═══ O ELEMENTO SE ACHA PELO id, NUNCA POR LISTA DE NOMES ═══════════════════
+//
+// Ate 14/08 este arquivo procurava `evtInfoContri|evtRetPF|evtFech` — os tres
+// eventos que existiam quando ele nasceu. A lista envelheceu EM SILENCIO: o
+// R-2010 (`evtServTom`), o R-2055 (`evtAqProd`) e o R-4020 (`evtRetPJ`) foram
+// construidos depois e nenhum deles esta ali, entao a assinatura LOCAL deles
+// morre com "atributo id do evento nao encontrado" — mensagem que fala do XML
+// quando o defeito e desta lista. Passou batido porque a producao transmite
+// pelo gateway do CFI (`REINF_TRANSMISSOR=gateway`), que ja tinha feito esta
+// mesma generalizacao; o caminho local ficou como armadilha para o dia em que
+// alguem desligar a chave.
+//
+// E a regra da casa (13/08): trava que vale "para todo evento" se escreve
+// VARRENDO o que o evento E, nunca listando os que eu lembrei. Todo evento do
+// Reinf carrega `id="ID" + 34 digitos` no proprio elemento — e so ele carrega.
+// Por isso a busca e pelo id, e a referencia da assinatura aponta para esse id.
 // ============================================================================
 const { SignedXml } = require('xml-crypto');
 
@@ -12,11 +29,32 @@ const DIGEST_ALG = 'http://www.w3.org/2001/04/xmlenc#sha256';
 const C14N = 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315';
 const ENVELOPED = 'http://www.w3.org/2000/09/xmldsig#enveloped-signature';
 
-/** Extrai o id (ID + 34 digitos) do elemento de evento. */
+/**
+ * Extrai o id (ID + 34 digitos) do elemento de evento, seja ele qual for.
+ *
+ * `<evt...` cobre a serie inteira (evtInfoContri, evtRetPF, evtRetPJ, evtFech,
+ * evtServTom, evtAqProd, evtFechaEvPer...) sem que este arquivo precise
+ * conhecer cada uma. Evento novo passa a assinar sozinho.
+ */
 function extrairIdEvento(xml) {
-  const m = String(xml || '').match(/<(?:evtInfoContri|evtRetPF|evtFech)\s+id="(ID\d{34})"/);
-  if (!m) throw new Error('assinador: atributo id do evento nao encontrado no XML');
+  const m = String(xml || '').match(/<evt[A-Za-z0-9]*\s[^>]*\bid="(ID\d{34})"/);
+  if (!m) {
+    throw new Error('assinador: atributo id do evento nao encontrado no XML '
+      + '(esperado um elemento <evt...> com id="ID" + 34 digitos)');
+  }
   return m[1];
+}
+
+/**
+ * XPath do elemento assinado. Aponta para o id JA EXTRAIDO — o mesmo elemento,
+ * por definicao, sem depender do nome dele. O id vem validado por
+ * /^ID\d{34}$/, entao nao ha texto livre entrando na expressao.
+ */
+function xpathDoEvento(idEvento) {
+  if (!/^ID\d{34}$/.test(String(idEvento || ''))) {
+    throw new Error('assinador: id de evento invalido para montar o XPath');
+  }
+  return `//*[@id='${idEvento}']`;
 }
 
 function normalizarXmlEvento(xmlEvento) {
@@ -79,7 +117,7 @@ function assinarEventoReinf(xmlEvento, cert) {
   const xml = normalizarXmlEvento(xmlEvento);
   const idEvento = extrairIdEvento(xml);
   const sig = criarAssinador(cert);
-  const eventoXpath = `//*[local-name(.)='evtInfoContri' or local-name(.)='evtRetPF' or local-name(.)='evtFech']`;
+  const eventoXpath = xpathDoEvento(idEvento);
 
   sig.addReference({
     xpath: eventoXpath,
@@ -101,4 +139,7 @@ function assinarEventoReinf(xmlEvento, cert) {
   return assinado;
 }
 
-module.exports = { assinarEventoReinf, extrairIdEvento, verificarAssinaturaReinf, normalizarXmlEvento };
+module.exports = {
+  assinarEventoReinf, extrairIdEvento, xpathDoEvento,
+  verificarAssinaturaReinf, normalizarXmlEvento,
+};

@@ -63,6 +63,23 @@ function mapaCadastroPrestadores(informados) {
 }
 
 /**
+ * O `indCPRB` das notas do prestador, SÓ quando todas concordam.
+ *
+ * Devolve 0 ou 1 quando há consenso, `'divergente'` quando as notas discordam
+ * entre si (e aí a causa precisa aparecer para a pessoa, não sumir num
+ * desempate), e `null` quando nenhuma nota resolveu o indicador.
+ */
+function consensoIndCPRB(notas) {
+  const vistos = new Set();
+  (notas || []).forEach((n) => {
+    const v = n && n.indCPRB;
+    if (v === 0 || v === 1) vistos.add(v);
+  });
+  if (vistos.size === 1) return [...vistos][0];
+  return vistos.size > 1 ? 'divergente' : null;
+}
+
+/**
  * Apura o conteúdo do R-2010 a partir do payload do CFI.
  *
  * @param {object} p
@@ -100,15 +117,23 @@ function apurarServicosTomados({ competencia, prestadores, cadastro = {} } = {})
 
     // indCPRB: o CFI já resolve quando a alíquota prova (11% ⇒ 0). Fica
     // pendente só quando ele veio nulo E ninguém informou.
-    const indCPRBdoCfi = p && p.notas && p.notas.length ? p.notas[0].indCPRB : null;
+    //
+    // ⚠️ **A PRIMEIRA NOTA NÃO RESPONDE PELAS OUTRAS.** O `indCPRB` é UM por
+    // evento e o evento reúne TODAS as notas do prestador no mês; ler
+    // `notas[0]` fazia a alíquota de uma nota carimbar o mês inteiro. Só vale
+    // quando todas concordam — divergência é PERGUNTA, não empate a ser
+    // desfeito por ordem de chegada.
+    const indCPRBdoCfi = consensoIndCPRB((p && p.notas) || []);
     const indCPRB = cad.indCPRB !== null ? cad.indCPRB
       : (indCPRBdoCfi === 0 || indCPRBdoCfi === 1 ? indCPRBdoCfi : null);
     if (indCPRB === null) {
-      pendencias.push(
-        'Desoneração da folha (indCPRB) não resolvida: a retenção ficou em ~3,5% do bruto, e esse '
-        + 'número tem DUAS leituras — prestador na CPRB, ou 11% sobre uma base muito deduzida. '
-        + 'O app não escolhe: confirme com a nota ou o contrato e informe na tela.',
-      );
+      pendencias.push(indCPRBdoCfi === 'divergente'
+        ? 'Desoneração da folha (indCPRB) DIVERGE entre as notas deste prestador: umas com retenção '
+          + 'de 11% e outras de ~3,5%. O evento declara UM indCPRB para o mês inteiro, e o app não '
+          + 'escolhe pela primeira nota — confirme o regime do prestador e informe na tela.'
+        : 'Desoneração da folha (indCPRB) não resolvida: a retenção ficou em ~3,5% do bruto, e esse '
+          + 'número tem DUAS leituras — prestador na CPRB, ou 11% sobre uma base muito deduzida. '
+          + 'O app não escolhe: confirme com a nota ou o contrato e informe na tela.');
     }
 
     // A BASE: só entra o que o CFI PROVOU. Base derivada é para conferir, não
@@ -209,4 +234,4 @@ function avisosDaApuracao(linhas) {
   return avisos;
 }
 
-module.exports = { apurarServicosTomados, mapaCadastroPrestadores };
+module.exports = { apurarServicosTomados, mapaCadastroPrestadores, consensoIndCPRB };

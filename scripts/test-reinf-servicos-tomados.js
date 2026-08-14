@@ -10,7 +10,7 @@
 // e a base é 4.604,43 — a `obs` da nota diz "INSUMOS".
 // ============================================================================
 const assert = require('assert');
-const { apurarServicosTomados, mapaCadastroPrestadores } = require('../reinf/servicos-tomados-apuracao');
+const { apurarServicosTomados, mapaCadastroPrestadores, consensoIndCPRB } = require('../reinf/servicos-tomados-apuracao');
 
 /** Prestador como o CFI entrega, com a base PROVADA pela alíquota (11%). */
 const prestador = (over = {}) => ({
@@ -178,6 +178,52 @@ assert.ok(/NÃO se desfaz/.test(html), 'e o texto do confirm diz isso');
 
 // 201 não pode pintar verde com evento recusado (lição MS0030).
 assert.ok(/if \(resp\.eventosRecusados\)/.test(html), 'evento recusado NÃO vira sucesso');
+
+// ═══ A PRIMEIRA NOTA NÃO RESPONDE PELAS OUTRAS ═════════════════════════════
+//
+// O `indCPRB` é UM por evento, e o evento reúne TODAS as notas do prestador na
+// competência. A leitura antiga era `notas[0].indCPRB`: bastava a primeira nota
+// do mês estar em 11% para o prestador inteiro ser declarado como indCPRB=0,
+// mesmo com outra nota dizendo o contrário. É a mesma forma silenciosa do
+// `indObra` do primeiro prestador vazando para os demais — e nas duas o evento
+// é ACEITO, então nada volta avisando.
+assert.strictEqual(consensoIndCPRB([{ indCPRB: 0 }, { indCPRB: 0 }]), 0, 'todas concordando ⇒ vale');
+assert.strictEqual(consensoIndCPRB([{ indCPRB: 0 }, { indCPRB: 1 }]), 'divergente', 'discordando ⇒ pergunta');
+assert.strictEqual(consensoIndCPRB([{ indCPRB: null }]), null, 'nenhuma resolveu ⇒ pendente');
+assert.strictEqual(consensoIndCPRB([]), null, 'sem nota, sem indicador');
+
+const cprbDivergente = apurarServicosTomados({
+  competencia: '2026-06',
+  prestadores: [prestador({
+    notas: [
+      { numero: '1', vlrBruto: 1000, baseRetencao: 1000, baseOrigem: 'bruto-sem-deducao', indCPRB: 0 },
+      { numero: '2', vlrBruto: 500, baseRetencao: 500, baseOrigem: 'bruto-sem-deducao', indCPRB: 1 },
+    ],
+  })],
+  cadastro: CADASTRO_OK,
+});
+assert.strictEqual(cprbDivergente.prestadores[0].indCPRB, null,
+  'divergência entre notas NÃO se desfaz pela ordem de chegada');
+assert.strictEqual(cprbDivergente.prestadores[0].pronto, false, 'e o prestador não vai ao evento');
+assert.ok(cprbDivergente.prestadores[0].pendencias.some((x) => /DIVERGE entre as notas/.test(x)),
+  'a pendência nomeia a CAUSA — divergência não é o mesmo problema que "3,5% ambíguo"');
+
+// O que a pessoa informa continua vencendo: divergência é pergunta, e ela tem
+// resposta (o regime do prestador, que está no contrato, não na nota).
+const cprbResolvido = apurarServicosTomados({
+  competencia: '2026-06',
+  prestadores: [prestador({
+    notas: [
+      { numero: '1', vlrBruto: 1000, baseRetencao: 1000, baseOrigem: 'bruto-sem-deducao', indCPRB: 0 },
+      { numero: '2', vlrBruto: 500, baseRetencao: 500, baseOrigem: 'bruto-sem-deducao', indCPRB: 1 },
+    ],
+  })],
+  cadastro: { '03222111000130': { tpServico: '100000001', indObra: '0', indCPRB: '1' } },
+});
+assert.strictEqual(cprbResolvido.prestadores[0].indCPRB, 1, 'informado vence');
+assert.strictEqual(cprbResolvido.prestadores[0].origemIndCPRB, 'informado',
+  'e sai carimbado como informado, nunca "conferido"');
+assert.strictEqual(cprbResolvido.prestadores[0].pronto, true);
 
 console.log('✅ tela do R-2010: painel na série R-2000, cadastro por prestador persistido, '
   + 'base não provada sem número, e evento recusado não vira ✓ verde.');
