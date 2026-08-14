@@ -314,8 +314,21 @@ apurado e o declarado na nota BLOQUEIA (o valor errado iria pra declaração E
 pro recolhimento). O resumo separa `total` de **`totalPronto`** — mostrar só o
 cheio faria alguém conferir contra o número errado.
 
-**R-2099 (FECHAMENTO da série R-2000) — o esqueleto está PROVADO, o `infoFech`
-NÃO** (14/08, v3.4.110). É ele que manda a Receita apurar: sem o fechamento os
+✅ **R-2099 CALIBRADO CONTRA ARQUIVO ACEITO no mesmo dia (v3.4.112)** — evento do
+VINCENZO GUERRA, PA 07/2026, `tpAmb=1`, recibo `11774083-10-2099-2607-11774083`,
+`cdRetorno 0 SUCESSO`. A trava de produção **pagou o que prometia**: o arquivo
+derrubou DUAS deduções que teriam ido para a Receita. (1) **O namespace é
+`evtFechamento`**, não o nome do elemento — o elemento é `evtFechaEvPer` e os
+dois NÃO batem, ao contrário do R-2055, onde `evtAqProd` aparece nos dois
+lugares; repetir o nome do elemento era a dedução natural e estava errada.
+(2) **`evtAquis` é o ÚLTIMO** dos sete grupos, depois do `evtCPRB` — eu tinha
+posto antes. `infoFech` é `sequence` do XSD: trocar dois irmãos de lugar derruba
+o evento. ⚠️ `procEmi` sai **1** (software do contribuinte); o arquivo traz 2
+porque foi digitado no REINF.Web, e copiar seria declarar que o evento saiu do
+portal. A recusa de produção CONTINUA de pé para leiaute novo — `LEIAUTE_PROVADO`
+é um fato datado com recibo, não uma chave de conveniência.
+
+**R-2099 (FECHAMENTO da série R-2000) — como ele nasceu** (14/08, v3.4.110). É ele que manda a Receita apurar: sem o fechamento os
 R-2010/R-2055 do mês ficam recebidos e **não viram totalizador nem DARF** — o
 VINCENZO 07/2026 fechou no e-CAC, à mão, porque nenhum dos dois apps o gerava.
 O que veio do R-4099 homologado e vale: `ideEvento` (perApur → tpAmb → procEmi →

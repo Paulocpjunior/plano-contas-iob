@@ -8,45 +8,45 @@
 // VINCENZO 07/2026 — o fechamento saiu no e-CAC, à mão, porque nenhum dos dois
 // apps o gera.
 //
-// ═══ O QUE ESTÁ PROVADO E O QUE É HIPÓTESE — leia antes de mexer ════════════
+// ═══ CALIBRADO CONTRA UM ARQUIVO ACEITO ═════════════════════════════════════
 //
-// **PROVADO** (vem do R-4099 homologado e do id que toda a série usa):
-//   · `ideEvento` = perApur → tpAmb → procEmi → verProc
-//   · `ideContri` = tpInsc + nrInsc com a RAIZ de 8 dígitos
-//   · `ideRespInf` opcional, com nmResp/cpfResp/telefone/email nessa ordem
-//   · `id` = ID + tpInsc + raiz(14) + AAAAMMDDHHMMSS + seq(5)
-//   · vírgula decimal, assinatura XMLDSig entrando antes do lote
+// Este módulo nasceu em 14/08 com o `infoFech` como HIPÓTESE, e com PRODUÇÃO
+// bloqueada por causa disso. Horas depois o Paulo mandou o evento REAL do
+// VINCENZO GUERRA (PA 07/2026, tpAmb=1, recibo
+// `11774083-10-2099-2607-11774083`, `cdRetorno 0 SUCESSO`) — e ele derrubou
+// DUAS deduções:
 //
-// **HIPÓTESE, e por isso BLOQUEADA em produção**: o conteúdo de `infoFech`.
-// O R-4099 fecha com um `<fechRet>` só; o R-2099 fecha declarando QUAIS grupos
-// de evento existem na competência, e os nomes dessas tags **não estão provados
-// em nenhum arquivo aceito que este projeto tenha**. `LEIAUTE_INFOFECH` abaixo
-// é a forma que vamos PERGUNTAR à Receita, não a que vamos afirmar.
+//   1. **o namespace é `evtFechamento`**, não o nome do elemento. O elemento é
+//      `evtFechaEvPer`, e os dois NÃO batem — ao contrário do R-2055, onde
+//      `evtAqProd` aparece nos dois lugares. Repetir o nome do elemento era a
+//      dedução natural, e estava errada.
+//   2. **`evtAquis` é o ÚLTIMO** dos sete grupos, depois do `evtCPRB` — eu
+//      tinha posto antes. `infoFech` é uma `sequence` do XSD: trocar dois
+//      irmãos de lugar derruba o evento na validação.
 //
-// ═══ POR QUE ISSO NÃO PODE SER CHUTADO ══════════════════════════════════════
+// Fechamento com indicador errado é o pior caso desta família: pode ser ACEITO
+// e mandar a Receita consolidar o grupo errado — totalizador a menor, guia paga
+// a menor, sem recusa avisando. **A trava de produção pagou o que prometia.**
 //
-// Fechamento com indicador errado é o pior caso desta família: ele pode ser
-// ACEITO e mesmo assim mandar a Receita consolidar o grupo errado — o
-// totalizador sai a menor e a guia é paga a menor, sem nenhuma recusa avisando.
-// É exatamente o desfecho que derrubou o R-2010 hoje (`indObra` do primeiro
-// prestador) e que o R-2055 levou cinco versões para evitar.
+// O que já estava certo (do R-4099 homologado): `ideEvento` = perApur → tpAmb →
+// procEmi → verProc; `ideContri` com a RAIZ de 8 dígitos; `ideRespInf` na ordem
+// nmResp → cpfResp → telefone → email; `id` = ID + 34.
 //
-// A saída é a MESMA que resolveu o R-2055: **perguntar é prova, deduzir não**.
-// Produção restrita responde de graça — `sondarR2099` manda os candidatos e a
-// Receita diz qual o XSD aceita. Enquanto nenhuma sonda voltar aceita, a
-// transmissão em PRODUÇÃO é RECUSADA por este módulo, com o caminho escrito.
-//
-// ⚡ DESTRAVA MAIS RÁPIDO COM: o XML do R-2099 já ACEITO do VINCENZO 07/2026 —
-// ele foi transmitido pelo e-CAC, que mostra o evento. Arquivo aceito vale mais
-// que leiaute deduzido, e foi assim que o R-4020, o E510 e o R-2010 nasceram.
+// ⚠️ `procEmi` sai **1** (software do contribuinte). O arquivo de referência traz
+// 2 porque foi digitado no REINF.Web — copiar o 2 seria declarar que este evento
+// saiu do portal da Receita.
 // ============================================================================
 
 const {
   LEIAUTE_REINF, VER_PROC, gerarIdEvento, nrInscContribuinteReinf,
 } = require('./reinf-utils');
 
+// ⚠️ O namespace é **evtFechamento**, o ELEMENTO é `evtFechaEvPer`. Os dois não
+// batem, e a hipótese natural (repetir o nome do elemento, como faz o R-2055 com
+// evtAqProd) estava ERRADA — provado contra o evento aceito do VINCENZO
+// (recibo 11774083-10-2099-2607, 13/08/2026).
 const NS_R2099 =
-  `http://www.reinf.esocial.gov.br/schemas/evtFechaEvPer/${LEIAUTE_REINF}`;
+  `http://www.reinf.esocial.gov.br/schemas/evtFechamento/${LEIAUTE_REINF}`;
 
 const soDigitos = (v) => String(v == null ? '' : v).replace(/\D/g, '');
 const escXml = (v) => String(v == null ? '' : v)
@@ -54,15 +54,19 @@ const escXml = (v) => String(v == null ? '' : v)
   .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
 /**
- * Os grupos que o fechamento declara, e a tag de cada um.
+ * Os grupos que o fechamento declara, na ORDEM do XSD.
  *
- * ⚠️ **ESTA TABELA É HIPÓTESE.** Ela existe para a SONDA carregar a suposição
- * por escrito — do jeito que os 6 candidatos do "sem movimento" carregaram a
- * deles. Nenhum nome aqui foi lido de arquivo aceito.
+ * ✅ **PROVADO CONTRA ARQUIVO ACEITO** — evento do VINCENZO GUERRA, PA 07/2026,
+ * `tpAmb=1`, recibo `11774083-10-2099-2607-11774083`, `cdRetorno 0 SUCESSO`.
+ * Antes disto a tabela era hipótese, e o arquivo real derrubou DUAS coisas: o
+ * namespace (é `evtFechamento`, não o nome do elemento) e a POSIÇÃO do
+ * `evtAquis`, que eu tinha colocado antes do `evtCPRB`.
  *
- * `evento` é o que a Receita e a pessoa chamam de R-20xx; `tag` é o palpite do
- * nome dentro de `infoFech`. Quando um arquivo real chegar, o que muda é ESTA
- * tabela — e só ela.
+ * ⚠️ **A ORDEM NÃO É COSMÉTICA**: `infoFech` é uma `sequence` do XSD, então
+ * trocar dois irmãos de lugar derruba o evento na validação. O R-2055 já tinha
+ * ensinado isso com a ordem dos totais do produtor.
+ *
+ * `evento` é como a Receita e a pessoa chamam; `tag` é o nome no XML.
  */
 const LEIAUTE_INFOFECH = [
   { evento: 'R-2010', tag: 'evtServTm', descricao: 'serviços TOMADOS com retenção previdenciária' },
@@ -70,17 +74,39 @@ const LEIAUTE_INFOFECH = [
   { evento: 'R-2030', tag: 'evtAssDespRec', descricao: 'recursos RECEBIDOS por associação desportiva' },
   { evento: 'R-2040', tag: 'evtAssDespRep', descricao: 'recursos REPASSADOS a associação desportiva' },
   { evento: 'R-2050', tag: 'evtComProd', descricao: 'comercialização da produção por produtor PJ' },
-  { evento: 'R-2055', tag: 'evtAquis', descricao: 'aquisição de produção rural (FUNRURAL sub-rogado)' },
   { evento: 'R-2060', tag: 'evtCPRB', descricao: 'CPRB — contribuição sobre a receita bruta' },
+  { evento: 'R-2055', tag: 'evtAquis', descricao: 'aquisição de produção rural (FUNRURAL sub-rogado)' },
 ];
 
-/** Motivo padronizado da recusa em produção — a rota devolve isto ao usuário. */
+/**
+ * ✅ O leiaute do `infoFech` está PROVADO contra o evento aceito do VINCENZO
+ * (07/2026, tpAmb=1, recibo 11774083-10-2099-2607-11774083). A trava de
+ * produção existia enquanto ele era hipótese — e ela pagou o que prometia: o
+ * arquivo real derrubou o namespace e a ordem do evtAquis.
+ *
+ * A constante fica, e a recusa também: leiaute NOVO que apareça (versão do
+ * XSD, grupo novo) volta a passar por aqui.
+ */
 const MOTIVO_LEIAUTE_NAO_PROVADO =
-  'O conteúdo do <infoFech> do R-2099 ainda NÃO foi provado contra um arquivo aceito. '
+  'O conteúdo do <infoFech> do R-2099 não foi provado contra um arquivo aceito nesta versão de leiaute. '
   + 'Fechamento com indicador errado pode ser ACEITO e mandar a Receita consolidar o grupo errado — '
   + 'o totalizador sai a menor e a guia é paga a menor, sem recusa nenhuma avisando. '
   + 'Prove primeiro: transmita em PRODUÇÃO RESTRITA (a sonda responde de graça) ou traga o XML do '
   + 'R-2099 já aceito no e-CAC. Enquanto isso, feche a competência pelo e-CAC.';
+
+/**
+ * O leiaute vigente já foi visto ser ACEITO — por isso produção está liberada.
+ *
+ * É um FATO datado, não uma chave de conveniência: se o leiaute mudar, este
+ * valor volta a false e a trava reaparece sozinha.
+ */
+const LEIAUTE_PROVADO = {
+  provado: true,
+  em: '2026-08-13',
+  contribuinte: '63027940',
+  perApur: '2026-07',
+  recibo: '11774083-10-2099-2607-11774083',
+};
 
 /**
  * Gera o R-2099 (evtFechaEvPer).
@@ -170,7 +196,7 @@ ${linhasGrupos}
  */
 function podeTransmitirR2099({ tpAmb, leiauteProvado } = {}) {
   if (Number(tpAmb) === 2) return { ok: true };
-  if (leiauteProvado) return { ok: true };
+  if (leiauteProvado || LEIAUTE_PROVADO.provado) return { ok: true };
   return { ok: false, motivo: MOTIVO_LEIAUTE_NAO_PROVADO };
 }
 
@@ -216,5 +242,5 @@ function validarEntradaR2099(p) {
 
 module.exports = {
   gerarR2099, validarEntradaR2099, podeTransmitirR2099,
-  LEIAUTE_INFOFECH, MOTIVO_LEIAUTE_NAO_PROVADO, NS_R2099,
+  LEIAUTE_INFOFECH, MOTIVO_LEIAUTE_NAO_PROVADO, LEIAUTE_PROVADO, NS_R2099,
 };
