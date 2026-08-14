@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.114';</script>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.114"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.114"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.114"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.115';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.115"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.115"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.115"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -20,13 +20,13 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.114"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.114"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.114"></script>
-    <script src="/reinf/reinf-import-xml-utils.js?v=3.4.114"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.115"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.115"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.115"></script>
+    <script src="/reinf/reinf-import-xml-utils.js?v=3.4.115"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="/api-adapter.js?v=3.4.114"></script>
+    <script src="/api-adapter.js?v=3.4.115"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
     <script src="/vincular-empresa.js?v=3.4.113"></script>
@@ -1934,9 +1934,10 @@
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
                         <h2 style="margin:0;font-size:22px;color:#111827">🏢 Minhas Empresas</h2>
                         <div id="empAdminToggle" style="display:none">
-                            <label style="font-size:13px;color:#6b7280;cursor:pointer">
+                            <label style="font-size:13px;color:#6b7280;cursor:pointer;margin-right:10px">
                                 <input type="checkbox" id="empVerTudo" onchange="loadEmpresasPage()"> Ver todas as empresas (admin)
                             </label>
+                            <button type="button" onclick="abrirCarteiraResponsaveis()" style="padding:9px 14px;background:#1d4ed8;color:#fff;border:0;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer">👥 Carteira de responsáveis</button>
                         </div>
                     </div>
 
@@ -8289,6 +8290,14 @@
                 : empStatusBadge(e.status, e.total_lancamentos);
             const quando = empFmtDate(e.last_session_at || e.updated_at);
             const ownerBadge = isAdmin && e.owner_email ? '<div style="font-size:10px;color:#9ca3af;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + e.owner_email + '">👤 ' + e.owner_email + '</div>' : '';
+            const responsaveis = Array.isArray(e.responsaveis) ? e.responsaveis : [];
+            const carteiraBadge = responsaveis.length
+                ? '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:3px">' + responsaveis.map(function(r) {
+                    const cor = r.papel === 'principal' ? '#1d4ed8' : '#475569';
+                    const fundo = r.papel === 'principal' ? '#dbeafe' : '#f1f5f9';
+                    return '<span title="' + empEscape(r.email || '') + '" style="padding:3px 7px;border-radius:999px;background:' + fundo + ';color:' + cor + ';font-size:10px;font-weight:700">' + (r.papel === 'principal' ? '★ ' : '＋ ') + empEscape(r.nome || r.email || 'Colaborador') + '</span>';
+                }).join('') + '</div>'
+                : (isAdmin ? '<div style="font-size:10px;color:#d97706">⚠ Sem responsável definido</div>' : '');
             const periodo = e.periodo_atual ? '<div style="font-size:11px;color:#6b7280;margin-top:2px">Período: ' + e.periodo_atual + '</div>' : '';
             return '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px;transition:box-shadow .15s" onmouseover="this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.08)\'" onmouseout="this.style.boxShadow=\'none\'">' +
                 '<div style="font-weight:700;color:#111827;font-size:14px;line-height:1.3;min-height:36px">' + codigo + razao + '</div>' +
@@ -8296,10 +8305,95 @@
                 whatsapp +
                 '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' + badge + (modoAtivacao ? '' : '<span style="font-size:11px;color:#9ca3af">' + quando + '</span>') + '</div>' +
                 (modoAtivacao ? '' : '<div style="font-size:12px;color:#374151">🏦 ' + banco + ' · 📋 ' + e.total_lancamentos + ' lanç.</div>' + periodo) +
+                carteiraBadge +
                 ownerBadge +
                 '<div style="display:flex;gap:8px;margin-top:8px"><button onclick="empAbrir(\'' + e.cnpj + '\')" style="flex:1;padding:8px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">⚡ Ativar empresa</button>' +
                 '<button onclick="empAbrirCadastro(\'' + e.cnpj + '\')" style="padding:8px 12px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">✏️ Cadastro</button></div>' +
                 '</div>';
+        }
+
+        let _carteiraResponsaveisData = null;
+
+        async function abrirCarteiraResponsaveis() {
+            if (!window.CURRENT_USER || !window.CURRENT_USER.is_admin) {
+                showToast('A carteira de responsáveis é restrita aos administradores.', 'error');
+                return;
+            }
+            const anterior = document.getElementById('modalCarteiraResponsaveisCCI');
+            if (anterior) anterior.remove();
+            const modal = document.createElement('div');
+            modal.id = 'modalCarteiraResponsaveisCCI';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.76);z-index:100002;display:flex;align-items:stretch;justify-content:center;padding:22px';
+            modal.innerHTML = '<div style="background:#f8fafc;border-radius:16px;max-width:1080px;width:100%;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.4);display:flex;flex-direction:column;min-height:0">' +
+                '<div style="display:flex;justify-content:space-between;gap:16px;align-items:start"><div><div style="font-size:11px;color:#2563eb;font-weight:900;text-transform:uppercase;letter-spacing:.1em">Administração contábil</div><h2 style="margin:3px 0;color:#0f172a">👥 Carteira de responsáveis</h2><p style="margin:0 0 16px;color:#64748b;font-size:13px">Defina quem é o responsável principal e quais colaboradores podem apoiar e atuar em cada empresa.</p></div><button type="button" onclick="document.getElementById(\'modalCarteiraResponsaveisCCI\').remove()" style="border:0;background:#e2e8f0;border-radius:9px;width:36px;height:36px;cursor:pointer">✕</button></div>' +
+                '<input id="carteiraRespBusca" type="search" placeholder="Buscar por número, empresa ou CNPJ..." oninput="renderCarteiraResponsaveis()" style="width:100%;padding:11px 13px;border:1px solid #cbd5e1;border-radius:9px;font-size:14px;margin-bottom:12px">' +
+                '<div id="carteiraRespResumo" style="font-size:12px;color:#64748b;margin-bottom:9px"></div>' +
+                '<div id="carteiraRespLista" style="overflow:auto;min-height:0;flex:1"><div style="padding:50px;text-align:center;color:#64748b">Carregando carteira...</div></div></div>';
+            modal.addEventListener('click', function(ev) { if (ev.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
+            try {
+                _carteiraResponsaveisData = await window.API.carteiraResponsaveis();
+                renderCarteiraResponsaveis();
+            } catch (e) {
+                document.getElementById('carteiraRespLista').innerHTML = '<div style="padding:40px;text-align:center;color:#b91c1c">' + empEscape(e.message || e) + '</div>';
+            }
+        }
+
+        function renderCarteiraResponsaveis() {
+            const listaEl = document.getElementById('carteiraRespLista');
+            if (!listaEl || !_carteiraResponsaveisData) return;
+            const q = String((document.getElementById('carteiraRespBusca') || {}).value || '').trim().toLowerCase();
+            const qDigitos = q.replace(/\D/g, '');
+            const empresas = (_carteiraResponsaveisData.empresas || []).filter(function(emp) {
+                if (!q) return true;
+                return String(emp.razao_social || '').toLowerCase().includes(q)
+                    || String(emp.codigo_empresa || '').toLowerCase().includes(q)
+                    || (qDigitos && String(emp.cnpj || '').includes(qDigitos));
+            });
+            const usuarios = _carteiraResponsaveisData.usuarios || [];
+            const resumo = document.getElementById('carteiraRespResumo');
+            if (resumo) resumo.textContent = empresas.length + ' empresa(s) · ' + empresas.filter(function(e) { return !(e.responsaveis || []).length; }).length + ' sem responsável';
+            if (!empresas.length) {
+                listaEl.innerHTML = '<div style="padding:50px;text-align:center;color:#64748b">Nenhuma empresa encontrada.</div>';
+                return;
+            }
+            const opcoes = usuarios.map(function(u) {
+                return '<option value="' + empEscape(u.uid) + '">' + empEscape(u.nome || u.email) + ' · ' + empEscape(u.email) + (u.is_admin ? ' (admin)' : '') + '</option>';
+            }).join('');
+            listaEl.innerHTML = empresas.map(function(emp) {
+                const responsaveis = Array.isArray(emp.responsaveis) ? emp.responsaveis : [];
+                const chips = responsaveis.length ? responsaveis.map(function(r) {
+                    return '<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:' + (r.papel === 'principal' ? '#dbeafe' : '#e2e8f0') + ';color:' + (r.papel === 'principal' ? '#1e40af' : '#334155') + ';font-size:11px;font-weight:700">' + (r.papel === 'principal' ? '★ Principal · ' : '＋ Apoio · ') + empEscape(r.nome || r.email) + '<button type="button" title="Remover acesso" onclick="carteiraRemoverResponsavel(\'' + empEscape(emp.cnpj) + '\',\'' + empEscape(r.uid) + '\')" style="border:0;background:transparent;color:#dc2626;font-weight:900;cursor:pointer">×</button></span>';
+                }).join('') : '<span style="font-size:11px;color:#d97706;font-weight:700">Sem responsável</span>';
+                return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:9px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div style="font-weight:800;color:#0f172a">' + (emp.codigo_empresa ? '<span style="color:#2563eb;font-family:monospace">' + empEscape(emp.codigo_empresa) + '</span> · ' : '') + empEscape(emp.razao_social || '(sem razão social)') + '</div><div style="font-size:11px;color:#64748b;margin-top:2px">' + empEscape(empFmtCNPJ(emp.cnpj)) + (emp.owner_email ? ' · Cadastrada por ' + empEscape(emp.owner_email) : '') + '</div></div><div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">' + chips + '</div></div>' +
+                    '<div style="display:grid;grid-template-columns:minmax(220px,1fr) 140px auto;gap:8px;margin-top:12px"><select id="carteiraUser_' + empEscape(emp.cnpj) + '" style="padding:8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px"><option value="">Selecione um colaborador...</option>' + opcoes + '</select><select id="carteiraPapel_' + empEscape(emp.cnpj) + '" style="padding:8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px"><option value="apoio">Apoio</option><option value="principal">Principal</option></select><button type="button" onclick="carteiraAtribuirResponsavel(\'' + empEscape(emp.cnpj) + '\')" style="padding:8px 12px;background:#059669;color:#fff;border:0;border-radius:7px;font-size:12px;font-weight:800;cursor:pointer">Atribuir</button></div></div>';
+            }).join('');
+        }
+
+        async function carteiraAtribuirResponsavel(cnpj) {
+            const uid = document.getElementById('carteiraUser_' + cnpj).value;
+            const papel = document.getElementById('carteiraPapel_' + cnpj).value;
+            if (!uid) return showToast('Selecione um colaborador.', 'warn');
+            try {
+                const resposta = await window.API.atribuirResponsavelEmpresa(cnpj, uid, papel);
+                const empresa = (_carteiraResponsaveisData.empresas || []).find(function(e) { return e.cnpj === cnpj; });
+                if (empresa) empresa.responsaveis = resposta.responsaveis || [];
+                renderCarteiraResponsaveis();
+                await loadEmpresasPage();
+                showToast(papel === 'principal' ? 'Responsável principal definido.' : 'Colaborador de apoio autorizado.', 'success');
+            } catch (e) { showToast(e.message || String(e), 'error'); }
+        }
+
+        async function carteiraRemoverResponsavel(cnpj, uid) {
+            if (!window.confirm('Remover este colaborador da carteira da empresa?')) return;
+            try {
+                const resposta = await window.API.removerResponsavelEmpresa(cnpj, uid);
+                const empresa = (_carteiraResponsaveisData.empresas || []).find(function(e) { return e.cnpj === cnpj; });
+                if (empresa) empresa.responsaveis = resposta.responsaveis || [];
+                renderCarteiraResponsaveis();
+                await loadEmpresasPage();
+                showToast('Colaborador removido da carteira.', 'success');
+            } catch (e) { showToast(e.message || String(e), 'error'); }
         }
 
         async function empAbrirCadastro(cnpj) {
@@ -17836,7 +17930,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.114';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.115';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';

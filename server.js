@@ -14,6 +14,7 @@ const cryptoAdmin = require('crypto');
 const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados } = require('./admin-exclusao-lancamentos');
 const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
+const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 
 const app = express();
 app.set('trust proxy', true);
@@ -70,7 +71,7 @@ async function authRequired(req, res, next) {
     const decoded = await adminAuth.verifyIdToken(token);
     if (!decoded.email || !decoded.email.endsWith(DOMAIN)) return res.status(403).json({ erro: 'Dominio nao autorizado' });
     const userDoc = await db.collection('users').doc(decoded.uid).get();
-    req.user = { uid: decoded.uid, email: decoded.email, is_admin: userDoc.exists && userDoc.data().is_admin === true };
+    req.user = { uid: decoded.uid, email: decoded.email, name: decoded.name || decoded.email, is_admin: userDoc.exists && userDoc.data().is_admin === true };
     next();
   } catch (err) { return res.status(401).json({ erro: 'Token invalido', detalhe: err.message }); }
 }
@@ -749,7 +750,8 @@ async function listarEmpresasAcessiveis(user, opcoes) {
   const consultas = [
     db.collection('empresas').where('owner_uid', '==', uid).get(),
     db.collection('empresas').where('vinculado_por_uid', '==', uid).get(),
-    db.collection('empresas').where('acesso_uids', 'array-contains', uid).get()
+    db.collection('empresas').where('acesso_uids', 'array-contains', uid).get(),
+    db.collection('empresas').where('carteira_uids', 'array-contains', uid).get()
   ];
   const resultados = await Promise.all(consultas);
   const unicos = new Map();
@@ -799,7 +801,8 @@ app.get('/api/empresas/listar', async (req, res) => {
           codigo_empresa: codigoEmpresaDe(emp),
           whatsapp: emp.whatsapp || emp.whatsapp_cliente || '',
           ativo: emp.ativo !== false,
-          owner_email: emp.created_by_email || null
+          owner_email: emp.created_by_email || null,
+          responsaveis: normalizarResponsaveis(emp.responsaveis)
         };
       });
       if (q) leves = leves.filter(function (empresa) { return empresaBateBusca(q, empresa); });
@@ -1202,6 +1205,99 @@ app.get('/api/logs', async (req, res) => {
 app.get('/api/users', adminRequired, async (req, res) => {
   try { const snap = await db.collection('users').get(); res.json(snap.docs.map(d => ({ uid: d.id, ...d.data() }))); }
   catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+// ==================== CARTEIRA CONTABIL (ADMIN) ====================
+// Uma empresa pode ter um responsavel principal e varios colaboradores de apoio.
+// O criador e os acessos legados continuam validos; a carteira concede acesso adicional.
+app.get('/api/admin/carteira-responsaveis', adminRequired, async (req, res) => {
+  try {
+    const [empresasSnap, usuariosSnap] = await Promise.all([
+      db.collection('empresas').get(),
+      db.collection('users').get()
+    ]);
+    const empresas = empresasSnap.docs.map(function(doc) {
+      const dados = doc.data() || {};
+      return {
+        cnpj: doc.id,
+        razao_social: dados.razao_social || '',
+        codigo_empresa: codigoEmpresaDe(dados),
+        owner_email: dados.created_by_email || '',
+        responsaveis: normalizarResponsaveis(dados.responsaveis)
+      };
+    }).sort(function(a, b) {
+      return String(a.codigo_empresa || '9999').localeCompare(String(b.codigo_empresa || '9999'))
+        || a.razao_social.localeCompare(b.razao_social, 'pt-BR');
+    });
+    const usuarios = usuariosSnap.docs.map(function(doc) {
+      const dados = doc.data() || {};
+      const email = String(dados.last_email || dados.email || '').trim().toLowerCase();
+      return {
+        uid: doc.id,
+        nome: String(dados.last_name || dados.name || email || doc.id),
+        email,
+        is_admin: dados.is_admin === true
+      };
+    }).filter(function(usuario) { return !!usuario.email; }).sort(function(a, b) {
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+    res.json({ empresas, usuarios });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.post('/api/admin/empresas/:cnpj/responsaveis', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const colaboradorUid = String((req.body && req.body.colaborador_uid) || '').trim();
+    const papel = req.body && req.body.papel === 'principal' ? 'principal' : 'apoio';
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    if (!colaboradorUid) return res.status(400).json({ erro: 'Colaborador obrigatorio' });
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    const usuarioRef = db.collection('users').doc(colaboradorUid);
+    const resultado = await db.runTransaction(async function(transacao) {
+      const [empresaDoc, usuarioDoc] = await transacao.getAll(empresaRef, usuarioRef);
+      if (!empresaDoc.exists) { const e = new Error('Empresa nao encontrada'); e.status = 404; throw e; }
+      if (!usuarioDoc.exists) { const e = new Error('Colaborador nao encontrado'); e.status = 404; throw e; }
+      const usuarioDados = usuarioDoc.data() || {};
+      const email = String(usuarioDados.last_email || usuarioDados.email || '').trim().toLowerCase();
+      if (!email) { const e = new Error('Colaborador ainda nao possui e-mail registrado no CCI'); e.status = 409; throw e; }
+      const responsaveis = atribuirResponsavel(empresaDoc.data().responsaveis, {
+        uid: colaboradorUid,
+        nome: usuarioDados.last_name || usuarioDados.name || email,
+        email
+      }, papel, { uid: req.user.uid, email: req.user.email, quando: new Date() });
+      transacao.set(empresaRef, {
+        ...camposCarteira(responsaveis),
+        carteira_atualizada_em: new Date(),
+        carteira_atualizada_por_uid: req.user.uid,
+        carteira_atualizada_por_email: req.user.email
+      }, { merge: true });
+      return responsaveis;
+    });
+    res.json({ ok: true, cnpj: cnpjLimpo, responsaveis: resultado });
+  } catch (err) { res.status(err.status || 500).json({ erro: err.message }); }
+});
+
+app.delete('/api/admin/empresas/:cnpj/responsaveis/:uid', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const colaboradorUid = String(req.params.uid || '').trim();
+    if (cnpjLimpo.length !== 14 || !colaboradorUid) return res.status(400).json({ erro: 'Empresa e colaborador obrigatorios' });
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    const resultado = await db.runTransaction(async function(transacao) {
+      const empresaDoc = await transacao.get(empresaRef);
+      if (!empresaDoc.exists) { const e = new Error('Empresa nao encontrada'); e.status = 404; throw e; }
+      const responsaveis = removerResponsavel(empresaDoc.data().responsaveis, colaboradorUid);
+      transacao.set(empresaRef, {
+        ...camposCarteira(responsaveis),
+        carteira_atualizada_em: new Date(),
+        carteira_atualizada_por_uid: req.user.uid,
+        carteira_atualizada_por_email: req.user.email
+      }, { merge: true });
+      return responsaveis;
+    });
+    res.json({ ok: true, cnpj: cnpjLimpo, responsaveis: resultado });
+  } catch (err) { res.status(err.status || 500).json({ erro: err.message }); }
 });
 
 app.post('/api/users/:uid/promote', adminRequired, async (req, res) => {
@@ -2514,6 +2610,7 @@ app.post('/api/auth/log', async (req, res) => {
     const updates = {
       last_login_at: new Date(),
       last_email: req.user.email,
+      last_name: req.user.name || req.user.email,
       login_count: admin.firestore.FieldValue.increment(evento === 'login' ? 1 : 0)
     };
     if (!userDoc.exists || !userDoc.data().created_at) {
