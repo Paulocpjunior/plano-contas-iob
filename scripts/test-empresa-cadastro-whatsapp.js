@@ -33,7 +33,10 @@ assert(index.includes('WhatsApp API'));
 assert(index.includes("modo: 'ativacao'"));
 assert(index.includes('function prepararGateAtivacaoEmpresa()'));
 assert(index.includes('window.__empresaAtivadaExplicitamente = false'));
-assert(index.includes("botao.disabled = !ativo && botao.id !== 'btnAtivarEmpresaNav'"));
+assert(index.includes("botao.id === 'btnAtivarEmpresaNav' || botao.id === 'btnCadastroEmpresaNav'"));
+assert(index.includes('id="btnCadastroEmpresaNav"'));
+assert(index.includes('function abrirCadastroEmpresa()'));
+assert(index.includes('A empresa não será ativada automaticamente.'));
 assert(index.includes("if (p !== 'empresas' && !empresaAtivadaExplicitamente())"));
 
 const authInicio = index.indexOf('} else auth.onAuthStateChanged(async u => {');
