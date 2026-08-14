@@ -237,7 +237,7 @@ jobs:
               --platform managed \
               --region "$REGION" \
               --project "$PROJECT_ID" \
-              --update-env-vars=DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway \
+              --update-env-vars=DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_MODEL=gemini-3.7-flash,GEMINI_FLASH_MODEL=gemini-3.7-flash,GEMINI_CHAT_MODEL=gemini-3.7-flash,GEMINI_ALLOW_CLIENT_MODEL=false \
               --no-traffic --tag candidate \
               --quiet; then
               exit 0
@@ -274,6 +274,12 @@ jobs:
           done
           if [ "$HEALTH_OK" != "1" ]; then
             echo "::error::Candidata NÃO passou no health — tráfego não roteado (revisão antiga segue ativa)."
+            exit 1
+          fi
+
+          HEALTH_MODEL=$(jq -r '.gemini_model // empty' /tmp/health.json)
+          if [ "$HEALTH_MODEL" != "gemini-3.7-flash" ]; then
+            echo "::error::Candidata iniciou com motor $HEALTH_MODEL; esperado gemini-3.7-flash."
             exit 1
           fi
 
@@ -327,7 +333,12 @@ jobs:
             --platform managed --region "$REGION" --project "$PROJECT_ID" \
             --format='value(status.url)')
           echo "── /api/health ──"
-          curl -sSf "$URL/api/health" || { echo "::error::Health final falhou."; exit 1; }
+          curl -sSf "$URL/api/health" > /tmp/production-health.json || { echo "::error::Health final falhou."; exit 1; }
+          cat /tmp/production-health.json
+          HEALTH_MODEL=$(jq -r '.gemini_model // empty' /tmp/production-health.json)
+          if [ "$HEALTH_MODEL" != "gemini-3.7-flash" ]; then
+            echo "::error::Produção iniciou com motor $HEALTH_MODEL; esperado gemini-3.7-flash."; exit 1
+          fi
           echo ""
           echo "── /api/version ──"
           API_VERSION=$(curl -sSf "$URL/api/version" | jq -r '.version // empty')

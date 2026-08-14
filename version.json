@@ -1,7 +1,8 @@
 {
-  "version": "3.4.116",
-  "build_date": "2026-08-14T19:33:21Z",
+  "version": "3.4.117",
+  "build_date": "2026-08-14T19:40:59Z",
   "release_notes": [
+    "Motor de IA atualizado para Google Gemini 3.7 Flash",
     "feat: adicionar carteira de responsaveis no CCI",
     "feat: exigir ativacao antes da carga do CCI",
     "fix: destacar ativacao de empresa no CCI",
@@ -10,7 +11,6 @@
     "R-2099 calibrado contra o arquivo ACEITO — a trava pagou o que prometia (v3.4.113) (#56)",
     "R-2099: o fechamento que faltava — esqueleto provado, infoFech como HIPÓTESE (v3.4.111) (#55)",
     "R-2010: fecha o ciclo — o primeiro deixa de decidir pelos outros (v3.4.109) (#54)",
-    "Deploy que falha vira issue — o furo que passou batido duas vezes ontem (#53)",
-    "R-2010: a tela que faltava — serviços tomados com retenção previdenciária (v3.4.108) (#52)"
+    "Deploy que falha vira issue — o furo que passou batido duas vezes ontem (#53)"
   ]
 }

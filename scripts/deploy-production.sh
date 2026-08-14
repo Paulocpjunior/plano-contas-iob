@@ -5,6 +5,7 @@ readonly PROJECT_ID="gen-lang-client-0569062468"
 readonly REGION="us-west1"
 readonly SERVICE="plano-contas-iob"
 readonly EXPECTED_URL="https://plano-contas-iob-q4woqnee3a-uw.a.run.app"
+readonly EXPECTED_GEMINI_MODEL="gemini-3.7-flash"
 
 export CLOUDSDK_CORE_PROJECT="$PROJECT_ID"
 export CLOUDSDK_RUN_REGION="$REGION"
@@ -63,8 +64,8 @@ if [[ "$published_html" != *"id=\"btnAtivarEmpresaNav\""* || "$published_html" !
   exit 1
 fi
 
-health_status="$(curl -fsS --max-time 20 "$EXPECTED_URL/api/health" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);process.stdout.write((j.status||'')+'|'+(j.versao||'')+'|'+(j.firestore||''))}catch(e){}})")"
-if [[ "$health_status" != "ok|$expected_version|connected" ]]; then
+health_status="$(curl -fsS --max-time 20 "$EXPECTED_URL/api/health" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);process.stdout.write((j.status||'')+'|'+(j.versao||'')+'|'+(j.firestore||'')+'|'+(j.gemini_model||''))}catch(e){}})")"
+if [[ "$health_status" != "ok|$expected_version|connected|$EXPECTED_GEMINI_MODEL" ]]; then
   echo "ERRO: health check inesperado: $health_status"
   exit 1
 fi

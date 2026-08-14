@@ -20,6 +20,9 @@ const app = express();
 app.set('trust proxy', true);
 app.set('etag', false);
 const PORT = process.env.PORT || 8080;
+const GEMINI_DEFAULT_MODEL = process.env.GEMINI_MODEL || process.env.GEMINI_FLASH_MODEL || 'gemini-3.7-flash';
+const GEMINI_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || process.env.GEMINI_PRO_MODEL || GEMINI_DEFAULT_MODEL;
+const GEMINI_ALLOW_CLIENT_MODEL = String(process.env.GEMINI_ALLOW_CLIENT_MODEL || '').toLowerCase() === 'true';
 const db = new Firestore();
 const firestorePorProjeto = new Map();
 admin.initializeApp({ projectId: 'projetos-app-sp' });
@@ -57,7 +60,7 @@ app.get('/api/version', (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     const test = await db.collection('planos').limit(1).get();
-    res.json({ status: 'ok', versao: lerVersao().version || 'dev', firestore: 'connected', planos_existem: test.size > 0 });
+    res.json({ status: 'ok', versao: lerVersao().version || 'dev', firestore: 'connected', planos_existem: test.size > 0, gemini_model: GEMINI_DEFAULT_MODEL });
   } catch (err) { res.status(500).json({ status: 'erro', erro: err.message }); }
 });
 
@@ -1314,10 +1317,6 @@ app.post('/api/users/:uid/demote', adminRequired, async (req, res) => {
 });
 
 // ==================== PROXY GEMINI (protege API key) ====================
-const GEMINI_DEFAULT_MODEL = process.env.GEMINI_MODEL || process.env.GEMINI_FLASH_MODEL || 'gemini-3.5-flash';
-const GEMINI_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || process.env.GEMINI_PRO_MODEL || GEMINI_DEFAULT_MODEL;
-const GEMINI_ALLOW_CLIENT_MODEL = String(process.env.GEMINI_ALLOW_CLIENT_MODEL || '').toLowerCase() === 'true';
-
 function resolverModeloGemini(modeloSolicitado, modeloFallback) {
   if (GEMINI_ALLOW_CLIENT_MODEL && modeloSolicitado) return modeloSolicitado;
   return modeloFallback;
