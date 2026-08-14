@@ -25,6 +25,10 @@ assert(server.includes("app.post('/api/empresas/:cnpj/whatsapp/enviar'"));
 assert(server.includes('validarCodigoEmpresaUnico'));
 assert(index.includes('placeholder="Número, nome ou CNPJ..."'));
 assert(index.includes('⚡ Ativar empresa'));
+assert(index.includes('id="btnAtivarEmpresaTopo"'));
+assert(index.includes('id="ativacaoEmpresaInicio"'));
+assert(index.includes('function abrirAtivacaoEmpresa()'));
+assert(index.includes('Escolher não basta'));
 assert(index.includes('WhatsApp API'));
 
 assert.strictEqual(whatsapp.baseCfi({ CFI_URL: 'https://cfi.example/' }), 'https://cfi.example');
