@@ -1,7 +1,8 @@
 {
-  "version": "3.4.109",
-  "build_date": "2026-08-14T11:43:50Z",
+  "version": "3.4.110",
+  "build_date": "2026-08-14T15:58:16Z",
   "release_notes": [
+    "R-2010: fecha o ciclo — o primeiro deixa de decidir pelos outros (v3.4.109)",
     "Deploy que falha vira issue — o furo que passou batido duas vezes ontem",
     "R-2010: a tela que faltava — serviços tomados com retenção previdenciária (v3.4.108) (#52)",
     "Bump de versão passa a propagar sozinho — dois deploys caíram por isso (v3.4.107) (#51)",
@@ -10,7 +11,6 @@
     "R-2055: UM PRODUTOR POR EVENTO — provado por eliminação (v3.4.104) (#48)",
     "R-2055: um <ideEstabAdquir> POR produtor — a sonda provou a causa (v3.4.103) (#47)",
     "R-2055: a sonda respondeu — e agora ela responde EM PORTUGUÊS (v3.4.102) (#46)",
-    "R-2055: a resposta da Receita chega inteira ao print + sonda de leiaute (v3.4.101) (#45)",
-    "R-2055: \"lote processado com sucesso\" com eventos RECUSADOS não é mais verde (v3.4.100) (#44)"
+    "R-2055: a resposta da Receita chega inteira ao print + sonda de leiaute (v3.4.101) (#45)"
   ]
 }

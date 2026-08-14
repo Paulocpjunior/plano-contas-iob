@@ -24,6 +24,8 @@ const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
 const { apurarServicosTomados } = require('./reinf/servicos-tomados-apuracao');
 const { gerarEventosR2055 } = require('./reinf/gerar-r2055');
 const { gerarEventosR2010 } = require('./reinf/gerar-r2010');
+const { gerarR2099, podeTransmitirR2099 } = require('./reinf/gerar-r2099');
+const { derivarGruposDoLog, resumoDoFechamento } = require('./reinf/fechamento-2000-grupos');
 const {
   calcularDividendos,
   locadoresDividendosParaR4010,
@@ -2015,6 +2017,165 @@ function registrarRotasReinf(app, { db } = {}) {
       res.json({ ok: true });
     } catch (err) {
       respostaErro(res, 500, err);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // R-2099 — FECHAMENTO da série R-2000.
+  //
+  // É ele que manda a Receita apurar: sem o fechamento, os R-2010/R-2055 do mês
+  // ficam recebidos e NÃO viram totalizador nem DARF. O VINCENZO 07/2026 fechou
+  // no e-CAC, à mão, porque nenhum dos dois apps o gerava.
+  //
+  // Os grupos declarados saem do LOG das transmissões ACEITAS — nunca de um
+  // formulário. Lista digitada esquece evento, e evento esquecido faz a Receita
+  // consolidar a MENOR, sem recusa nenhuma avisando.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /** Transmissões da série R-2000 daquele contribuinte (para derivar os grupos). */
+  async function lerLogsSerie2000(banco, cnpj) {
+    try {
+      const snap = await banco.collection('reinf_logs')
+        .where('detalhes.contribuinte', '==', cnpj)
+        .limit(500)
+        .get();
+      return snap.docs.map((d) => d.data() || {});
+    } catch (err) {
+      // Banco fora NÃO pode virar "sem movimento": a diferença entre "não houve
+      // evento" e "não consegui ler" não está no zero, e fechar no escuro deixa
+      // o mês a menor.
+      console.warn('[reinf/r2099] log de transmissões indisponível:', err.message);
+      return null;
+    }
+  }
+
+  // GET /api/reinf/fechamento-2000/:cnpj/:competencia — o que SERÁ declarado.
+  router.get('/fechamento-2000/:cnpj/:competencia', async (req, res) => {
+    try {
+      const cnpj = limparCnpj(req.params.cnpj);
+      const competencia = String(req.params.competencia || '').trim();
+      if (cnpj.length !== 14) throw new Error('Informe o CNPJ do contribuinte com 14 dígitos.');
+      if (!/^\d{4}-\d{2}$/.test(competencia)) throw new Error('Competência deve ser AAAA-MM.');
+
+      const logs = await lerLogsSerie2000(db, cnpj);
+      if (logs === null) {
+        return res.json({
+          ok: false,
+          etapa: 'log',
+          motivo: 'Não foi possível ler o histórico de transmissões. Sem ele, os grupos do fechamento '
+            + 'seriam adivinhados — e grupo esquecido faz a Receita consolidar a menor. Tente de novo.',
+        });
+      }
+      const derivado = derivarGruposDoLog(logs, competencia);
+      const resumo = resumoDoFechamento(derivado, competencia);
+      const bloqueio = podeTransmitirR2099({ tpAmb: 1 });
+
+      res.json({
+        ok: true,
+        cnpj,
+        competencia,
+        ...resumo,
+        // A tela precisa saber, ANTES do clique, que produção está fechada.
+        producaoLiberada: bloqueio.ok,
+        motivoProducao: bloqueio.motivo || null,
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // POST /api/reinf/fechamento-2000/transmitir
+  //
+  // Produção RESTRITA é livre: é lá que se PERGUNTA se o leiaute do infoFech
+  // está certo. PRODUÇÃO é recusada enquanto ninguém tiver visto este leiaute
+  // ser aceito — fechamento com indicador errado é ACEITO e manda consolidar o
+  // grupo errado, sem recusa avisando.
+  router.post('/fechamento-2000/transmitir', async (req, res) => {
+    try {
+      const p = req.body || {};
+      const cnpj = limparCnpj(p.cnpj);
+      const competencia = String(p.competencia || '').trim();
+      const tpAmb = Number(p.tpAmb || 2);
+      if (cnpj.length !== 14) throw new Error('Informe o CNPJ do contribuinte com 14 dígitos.');
+      if (!/^\d{4}-\d{2}$/.test(competencia)) throw new Error('Competência deve ser AAAA-MM.');
+
+      const bloqueio = podeTransmitirR2099({ tpAmb, leiauteProvado: p.leiauteProvado === true });
+      if (!bloqueio.ok) return res.json({ ok: false, etapa: 'leiaute', motivo: bloqueio.motivo });
+      if (Number(tpAmb) === 1 && p.confirmoProducao !== true) {
+        throw new Error('Transmissão em PRODUÇÃO exige confirmação explícita (confirmoProducao=true).');
+      }
+
+      const logs = await lerLogsSerie2000(db, cnpj);
+      if (logs === null) throw new Error('Histórico de transmissões indisponível — sem ele os grupos seriam adivinhados.');
+      const derivado = derivarGruposDoLog(logs, competencia);
+      const resumo = resumoDoFechamento(derivado, competencia);
+
+      // Fechar com evento pendurado é o erro caro: depois do fechamento, evento
+      // novo da competência só entra com reabertura (R-2098).
+      if (!derivado.temEvento && p.confirmoSemMovimento !== true) {
+        return res.json({
+          ok: false,
+          etapa: 'sem-movimento',
+          motivo: `Nenhum evento da série R-2000 consta como ACEITO em ${competencia}. Fechar assim `
+            + 'DECLARA a competência sem movimento. Se é isso mesmo, confirme (confirmoSemMovimento=true).',
+          avisos: resumo.avisos,
+        });
+      }
+
+      const evento = gerarR2099({
+        contribuinte: { tpInsc: 1, nrInsc: cnpj },
+        perApur: competencia,
+        tpAmb,
+        grupos: derivado.temEvento ? derivado.grupos : { semMovimento: true },
+        seq: 1,
+      });
+
+      const cert = transmissorAtivo() === 'gateway' ? null : await loadCertificado();
+      const loteContrib = normalizarContribuinteLote({ tpInsc: 1, nrInsc: cnpj });
+      const envio = await assinarEEnviarLote([evento.xml], cert, loteContrib, tpAmb, req);
+      const info = parseRetornoReinf(envio);
+      const recibo = info.protocolo
+        ? await consultarLoteAteProcessar(info.protocolo, tpAmb, { req })
+        : { httpStatus: envio.status, ...info };
+
+      const ocorrencias = extrairOcorrenciasReinf((recibo && recibo.xml) || info.xml);
+      await registrarLog(db, req, 'transmitir_r2099', {
+        contribuinte: cnpj,
+        tpAmb,
+        competencia,
+        protocolo: info.protocolo || null,
+        httpStatus: envio.status,
+        cdResposta: (recibo && recibo.cdResposta) || info.cdResposta || null,
+        gruposDeclarados: evento.gruposDeclarados,
+        ocorrencias: ocorrencias.map((o) => ({ codigo: o.codigo, descricao: o.descricao })),
+      });
+
+      const retornoFinal = recibo && recibo.cdResposta ? recibo : info;
+      const comErro = retornoReinfComErro(retornoFinal) || ocorrencias.length > 0;
+      const pendente = retornoReinfPendente(retornoFinal);
+
+      res.json({
+        ok: envio.status === 201 && !comErro && !pendente,
+        eventosRecusados: comErro,
+        aguardandoProcessamento: pendente,
+        ocorrencias,
+        etapa: 'r2099',
+        id: evento.id,
+        gruposDeclarados: evento.gruposDeclarados,
+        evidencias: resumo.evidencias,
+        avisos: resumo.avisos,
+        tpAmb,
+        httpStatus: envio.status,
+        protocolo: info.protocolo,
+        cdResposta: (recibo && recibo.cdResposta) || info.cdResposta,
+        descResposta: (recibo && recibo.descResposta) || info.descResposta,
+        xmlRetorno: retornoCruReinf((recibo && recibo.xml) || info.xml),
+        // ACEITO em RESTRITA é o que PROVA o leiaute do infoFech. A tela diz
+        // isso — é a diferença entre perguntar e afirmar.
+        provaDoLeiaute: Number(tpAmb) === 2 && envio.status === 201 && !comErro && !pendente,
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
     }
   });
 
