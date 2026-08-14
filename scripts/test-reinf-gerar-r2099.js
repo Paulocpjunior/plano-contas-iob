@@ -19,7 +19,7 @@
 const assert = require('assert');
 const {
   gerarR2099, validarEntradaR2099, podeTransmitirR2099,
-  LEIAUTE_INFOFECH, MOTIVO_LEIAUTE_NAO_PROVADO, NS_R2099,
+  LEIAUTE_INFOFECH, MOTIVO_LEIAUTE_NAO_PROVADO, LEIAUTE_PROVADO, NS_R2099,
 } = require('../reinf/gerar-r2099');
 
 const base = () => ({
@@ -84,21 +84,24 @@ assert.throws(() => gerarR2099({ ...base(), grupos: { 'R-2010': true, 'R-9999': 
 
 // ─── 5. A TRAVA: produção restrita PERGUNTA, produção AFIRMA ────────────────
 //
-// Esta é a razão de existir deste bloco. O leiaute do infoFech é HIPÓTESE
-// enquanto não houver arquivo aceito; e fechamento com indicador errado é
-// aceito sem recusa, com o totalizador saindo a menor.
+// O leiaute do infoFech ERA hipótese, e produção ficava fechada por isso. O
+// arquivo aceito do VINCENZO destravou — e a trava pagou o que prometia: o
+// arquivo derrubou o namespace e a posição do evtAquis, que teriam ido para a
+// Receita se produção estivesse aberta.
 assert.deepStrictEqual(podeTransmitirR2099({ tpAmb: 2 }), { ok: true },
   'produção RESTRITA é livre — é lá que se prova');
 
-const bloqueio = podeTransmitirR2099({ tpAmb: 1 });
-assert.strictEqual(bloqueio.ok, false, 'PRODUÇÃO é recusada enquanto o leiaute não for provado');
-assert.strictEqual(bloqueio.motivo, MOTIVO_LEIAUTE_NAO_PROVADO);
-assert.ok(/e-CAC/.test(bloqueio.motivo),
-  'a recusa oferece a SAÍDA (fechar no e-CAC) — trava sem caminho é trava que a equipe contorna');
-assert.ok(/RESTRITA/i.test(bloqueio.motivo), 'e diz como provar');
-
-assert.deepStrictEqual(podeTransmitirR2099({ tpAmb: 1, leiauteProvado: true }), { ok: true },
+assert.strictEqual(LEIAUTE_PROVADO.provado, true, 'o leiaute vigente já foi visto ser ACEITO');
+assert.strictEqual(LEIAUTE_PROVADO.recibo, '11774083-10-2099-2607-11774083',
+  'a prova é um FATO datado, com recibo — não uma chave de conveniência');
+assert.deepStrictEqual(podeTransmitirR2099({ tpAmb: 1 }), { ok: true },
   'com o leiaute provado, produção libera');
+
+// A RECUSA CONTINUA DE PÉ para leiaute novo (versão de XSD, grupo novo): o dia
+// em que `LEIAUTE_PROVADO.provado` voltar a false, a trava reaparece sozinha.
+assert.ok(/e-CAC/.test(MOTIVO_LEIAUTE_NAO_PROVADO),
+  'a recusa oferece a SAÍDA (fechar no e-CAC) — trava sem caminho é trava que a equipe contorna');
+assert.ok(/RESTRITA/i.test(MOTIVO_LEIAUTE_NAO_PROVADO), 'e diz como provar');
 
 // ─── 6. Validação pura e exportada ──────────────────────────────────────────
 assert.deepStrictEqual(validarEntradaR2099(base()), [], 'entrada válida = sem erros');
@@ -106,13 +109,60 @@ assert.ok(validarEntradaR2099({ ...base(), perApur: '07/2026' }).some((x) => /AA
 assert.ok(validarEntradaR2099({ ...base(), tpAmb: 3 }).some((x) => /tpAmb/.test(x)));
 assert.ok(validarEntradaR2099({ ...base(), contribuinte: { tpInsc: 9, nrInsc: '1' } }).some((x) => /tpInsc/.test(x)));
 
-// ─── 7. A TABELA É HIPÓTESE, e o código DIZ isso ────────────────────────────
+// ─── 7. O ARQUIVO ACEITO, CAMPO A CAMPO ────────────────────────────────────
+//
+// Evento do VINCENZO GUERRA, PA 07/2026, tpAmb=1, recibo
+// 11774083-10-2099-2607-11774083, cdRetorno 0 SUCESSO. Ele derrubou DUAS
+// deduções — o namespace e a posição do evtAquis — e por isso vira teste.
+const real = gerarR2099({
+  contribuinte: { tpInsc: 1, nrInsc: '63027940' },
+  perApur: '2026-07',
+  tpAmb: 1,
+  grupos: { 'R-2055': true },
+  respInfo: {
+    nome: 'PAULO CESAR PEREIRA', cpf: '70646236849',
+    telefone: '1131551554', email: 'alexandre@spassessoriacontabil.com.br',
+  },
+});
+const compacto = real.xml.replace(/\n\s*/g, '');
+
+assert.ok(compacto.includes('<Reinf xmlns="http://www.reinf.esocial.gov.br/schemas/evtFechamento/v2_01_02">'),
+  'namespace do arquivo aceito: evtFechamento — NAO o nome do elemento');
+assert.ok(compacto.includes('<evtFechaEvPer id='),
+  'o ELEMENTO e evtFechaEvPer: namespace e elemento nao batem neste evento');
+assert.ok(compacto.includes('<tpInsc>1</tpInsc><nrInsc>63027940</nrInsc>'),
+  'ideContri com a RAIZ de 8 digitos, como no aceito');
+assert.ok(compacto.includes('<nmResp>PAULO CESAR PEREIRA</nmResp><cpfResp>70646236849</cpfResp>'
+  + '<telefone>1131551554</telefone><email>alexandre@spassessoriacontabil.com.br</email>'),
+  'ideRespInf na ordem do aceito');
+
+// A ORDEM do infoFech, verbatim do arquivo aceito. `sequence` do XSD: trocar
+// dois irmaos de lugar derruba o evento.
+assert.ok(compacto.includes(
+  '<infoFech><evtServTm>N</evtServTm><evtServPr>N</evtServPr><evtAssDespRec>N</evtAssDespRec>'
+  + '<evtAssDespRep>N</evtAssDespRep><evtComProd>N</evtComProd><evtCPRB>N</evtCPRB>'
+  + '<evtAquis>S</evtAquis></infoFech>'),
+  'infoFech reproduz o arquivo aceito campo a campo E na ordem — evtAquis e o ULTIMO');
+
+// procEmi: o aceito traz 2 porque foi digitado no REINF.Web. Copiar seria
+// declarar que este evento saiu do portal da Receita.
+assert.ok(compacto.includes('<procEmi>1</procEmi>'),
+  'procEmi=1 (software do contribuinte) — nao se copia o 2 do REINF.Web');
+
+// Com o leiaute PROVADO, producao libera sozinha.
+assert.deepStrictEqual(podeTransmitirR2099({ tpAmb: 1 }), { ok: true },
+  'leiaute provado contra arquivo aceito ⇒ producao liberada');
+
+console.log('✅ R-2099: reproduz o evtFechaEvPer ACEITO do VINCENZO (namespace evtFechamento, '
+  + 'evtAquis por ULTIMO) — as duas deducoes que a trava de producao segurou.');
+
+// ─── 8. A TABELA E PROVADA, e o codigo DIZ isso ─────────────────────────────
 //
 // Sem este aviso escrito, daqui a três meses alguém lê `LEIAUTE_INFOFECH` como
 // fato consumado — foi assim que o "espelho simplificado" do CFOP divergiu do
 // arquivo por meses sem ninguém ver.
 const fonte = require('fs').readFileSync(require('path').join(__dirname, '..', 'reinf/gerar-r2099.js'), 'utf8');
-assert.ok(/HIPÓTESE/.test(fonte), 'o módulo declara por escrito o que ainda não é prova');
+assert.ok(/ARQUIVO ACEITO/i.test(fonte), 'o módulo declara contra QUE arquivo ele foi calibrado');
 assert.ok(/arquivo aceito/i.test(fonte), 'e aponta o que destrava');
 assert.strictEqual(LEIAUTE_INFOFECH.length, 7, 'sete grupos da série R-2000 na tabela');
 LEIAUTE_INFOFECH.forEach((g) => {
@@ -120,8 +170,8 @@ LEIAUTE_INFOFECH.forEach((g) => {
   assert.ok(g.tag && g.descricao, `${g.evento} leva tag e descrição — a sonda carrega a hipótese por escrito`);
 });
 
-console.log('✅ R-2099: esqueleto provado do R-4099, grupos S/N sem default, fechar vazio é declaração '
-  + 'explícita, e PRODUÇÃO recusada enquanto o infoFech for hipótese (restrita livre para provar).');
+console.log('✅ R-2099: grupos S/N sem default, fechar vazio é declaração explícita, e a trava de '
+  + 'produção continua de pé para leiaute NOVO.');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // OS GRUPOS SAEM DO QUE FOI TRANSMITIDO — nunca de um formulário.

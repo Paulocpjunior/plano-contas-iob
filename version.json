@@ -1,6 +1,6 @@
 {
-  "version": "3.4.111",
-  "build_date": "2026-08-14T16:00:41Z",
+  "version": "3.4.112",
+  "build_date": "2026-08-14T17:46:28Z",
   "release_notes": [
     "R-2099: o fechamento que faltava — esqueleto provado, infoFech como HIPOTESE (v3.4.110)",
     "R-2010: fecha o ciclo — o primeiro deixa de decidir pelos outros (v3.4.109) (#54)",
