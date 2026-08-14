@@ -253,6 +253,7 @@ jobs:
         # revisão que sobe mas não fala com o banco. Se falhar, o tráfego NÃO é
         # roteado e a revisão antiga segue servindo.
         run: |
+          EXPECTED_VERSION=$(node -p "require('./version.json').version")
           CANDIDATE_URL=$(gcloud run services describe "$SERVICE_NAME" \
             --platform managed --region "$REGION" --project "$PROJECT_ID" \
             --format=json | jq -r '.status.traffic[] | select(.tag=="candidate") | .url' | head -n1)
@@ -260,17 +261,38 @@ jobs:
             echo "::error::Não achei a URL da revisão candidata (tag=candidate)."; exit 1
           fi
           echo "Revisão candidata: $CANDIDATE_URL"
+          HEALTH_OK=0
           for attempt in 1 2 3 4 5; do
             if curl -sSf "$CANDIDATE_URL/api/health" > /tmp/health.json; then
               echo "✓ /api/health OK na candidata (processo + Firestore)"
               cat /tmp/health.json
-              exit 0
+              HEALTH_OK=1
+              break
             fi
             echo "health ainda não respondeu OK (tentativa ${attempt}/5)…"
             sleep $((attempt * 5))
           done
-          echo "::error::Candidata NÃO passou no health — tráfego não roteado (revisão antiga segue ativa)."
-          exit 1
+          if [ "$HEALTH_OK" != "1" ]; then
+            echo "::error::Candidata NÃO passou no health — tráfego não roteado (revisão antiga segue ativa)."
+            exit 1
+          fi
+
+          API_VERSION=$(curl -sSf "$CANDIDATE_URL/api/version" | jq -r '.version // empty')
+          curl -sSf "$CANDIDATE_URL/?build=$EXPECTED_VERSION" > /tmp/candidate-index.html
+          if [ "$API_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "::error::API da candidata está em $API_VERSION; esperado $EXPECTED_VERSION."
+            exit 1
+          fi
+          grep -Fq "window.__PLANO_CONTAS_IOB_BUILD__ = '$EXPECTED_VERSION'" /tmp/candidate-index.html || {
+            echo "::error::HTML da candidata não está na versão $EXPECTED_VERSION."; exit 1;
+          }
+          grep -Fq 'id="btnAtivarEmpresaNav"' /tmp/candidate-index.html || {
+            echo "::error::HTML da candidata não contém a ativação obrigatória."; exit 1;
+          }
+          grep -Fq 'function abrirCarteiraResponsaveis()' /tmp/candidate-index.html || {
+            echo "::error::HTML da candidata não contém a carteira contábil esperada."; exit 1;
+          }
+          echo "✓ API, HTML, ativação e carteira conferidos na candidata $EXPECTED_VERSION"
 
       - name: Rotear tráfego para a candidata (health OK)
         # Roteia pelo NOME da revisão validada (não --to-latest): um deploy
@@ -300,6 +322,7 @@ jobs:
       - name: Health check final (produção)
         run: |
           sleep 5
+          EXPECTED_VERSION=$(node -p "require('./version.json').version")
           URL=$(gcloud run services describe "$SERVICE_NAME" \
             --platform managed --region "$REGION" --project "$PROJECT_ID" \
             --format='value(status.url)')
@@ -307,11 +330,27 @@ jobs:
           curl -sSf "$URL/api/health" || { echo "::error::Health final falhou."; exit 1; }
           echo ""
           echo "── /api/version ──"
-          curl -sS "$URL/api/version" || true
+          API_VERSION=$(curl -sSf "$URL/api/version" | jq -r '.version // empty')
+          echo "$API_VERSION"
+          curl -sSf "$URL/?build=$EXPECTED_VERSION" > /tmp/production-index.html
+          if [ "$API_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "::error::API pública está em $API_VERSION; esperado $EXPECTED_VERSION."; exit 1
+          fi
+          grep -Fq "window.__PLANO_CONTAS_IOB_BUILD__ = '$EXPECTED_VERSION'" /tmp/production-index.html || {
+            echo "::error::HTML público não está na versão $EXPECTED_VERSION."; exit 1;
+          }
+          grep -Fq 'id="btnAtivarEmpresaNav"' /tmp/production-index.html || {
+            echo "::error::HTML público não contém a ativação obrigatória."; exit 1;
+          }
+          grep -Fq 'function abrirCarteiraResponsaveis()' /tmp/production-index.html || {
+            echo "::error::HTML público não contém a carteira contábil esperada."; exit 1;
+          }
+          echo "✓ API e HTML públicos validados na versão $EXPECTED_VERSION"
           {
             echo "### ✅ Deploy publicado"
             echo "- Serviço: \`$SERVICE_NAME\` ($REGION)"
             echo "- URL: $URL"
+            echo "- Versão validada na API e no HTML: $EXPECTED_VERSION"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # ── A trava ───────────────────────────────────────────────────────────
