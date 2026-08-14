@@ -250,6 +250,7 @@
             display: flex;
             align-items: center;
             gap: 16px;
+            flex-wrap: wrap;
         }
         .header-right span {
             font-size: 13px;
@@ -283,6 +284,20 @@
             align-items: center;
             gap: 6px;
         }
+        .btn-ativar-empresa-topo {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #fff;
+            padding: 10px 16px;
+            border: 1px solid rgba(255,255,255,0.28);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 800;
+            font-family: inherit;
+            box-shadow: 0 8px 20px rgba(245,158,11,.28);
+            white-space: nowrap;
+        }
+        .btn-ativar-empresa-topo:hover { filter: brightness(1.08); transform: translateY(-1px); }
         
         /* Company Info Bar */
         .company-bar {
@@ -1861,6 +1876,9 @@
             </div>
             <div class="header-right">
                 <span id="userEmail"></span>
+                <button id="btnAtivarEmpresaTopo" class="btn-ativar-empresa-topo" onclick="abrirAtivacaoEmpresa()">
+                    ⚡ Ativar empresa
+                </button>
                 <button class="btn-edit-info" onclick="editarInfo()" id="btnEditInfo" style="display:none">
                     ✏️ Editar Empresa
                 </button>
@@ -1884,7 +1902,7 @@
         <!-- Navigation -->
         <div class="nav">
             <button class="active" onclick="showPage('inicio')"><span>🏠</span> Início</button>
-            <button onclick="showPage('empresas')"><span>🏢</span> Empresas</button>
+            <button id="btnAtivarEmpresaNav" data-page="empresas" onclick="abrirAtivacaoEmpresa()" style="color:#b45309;font-weight:800"><span>⚡</span> Ativar empresa</button>
             <button onclick="showPage('extrator')"><span>📤</span> Extrator</button>
             <button onclick="abrirModalMovimentoFiscal()"><span>🧾</span> Importações Fiscais</button>
             <button onclick="showPage('lancamentos')"><span>📋</span> Lançamentos</button>
@@ -1903,6 +1921,10 @@
         <div class="content">
             <!-- Page: Empresas -->
             <div id="pageEmpresas" class="hidden">
+                <div id="empAtivacaoOrientacao" style="margin-bottom:18px;padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;box-shadow:0 12px 28px rgba(30,58,138,.20);display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap">
+                    <div><div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#bfdbfe;font-weight:800">Início obrigatório do trabalho</div><h2 style="margin:3px 0 4px;font-size:21px;color:#fff">1. Localize e ative a empresa</h2><p style="margin:0;color:#dbeafe;font-size:13px">Busque pelo número, nome ou CNPJ. Escolher não basta: clique em <strong>⚡ Ativar empresa</strong> no cartão para carregar somente os dados dela.</p></div>
+                    <div style="padding:9px 13px;border:1px solid rgba(255,255,255,.25);border-radius:9px;background:rgba(255,255,255,.10);font-size:12px;font-weight:700">Empresa ativa: <span id="empEmpresaAtivaLabel">nenhuma</span></div>
+                </div>
                 <div class="card" style="padding:24px">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
                         <h2 style="margin:0;font-size:22px;color:#111827">🏢 Minhas Empresas</h2>
@@ -1959,6 +1981,10 @@
 
             <!-- Page: Início -->
             <div id="pageInicio">
+                <div id="ativacaoEmpresaInicio" style="margin-bottom:22px;padding:20px 22px;border-radius:16px;background:linear-gradient(135deg,#0f172a 0%,#1d4ed8 100%);color:#fff;box-shadow:0 14px 30px rgba(29,78,216,.22);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
+                    <div><div style="font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#bfdbfe;font-weight:800">Empresa de trabalho</div><h2 id="ativacaoEmpresaInicioTitulo" style="margin:4px 0;color:#fff;font-size:21px">Ative uma empresa para começar</h2><p id="ativacaoEmpresaInicioTexto" style="margin:0;color:#dbeafe;font-size:13px">A ativação amarra cadastro, plano, importações, lançamentos e relatórios à empresa correta.</p></div>
+                    <button type="button" onclick="abrirAtivacaoEmpresa()" style="padding:12px 19px;border:0;border-radius:10px;background:#f59e0b;color:#fff;font-size:14px;font-weight:900;cursor:pointer;box-shadow:0 8px 20px rgba(245,158,11,.32);white-space:nowrap">⚡ Ativar empresa</button>
+                </div>
                 <!-- Form Card (inicial) -->
                 <div class="form-card" id="formCard">
                     <h2>📋 Informações do Relatório</h2>
@@ -8063,6 +8089,32 @@
             _empDebounce = setTimeout(() => { _empOffset = 0; loadEmpresasPage(); }, 350);
         }
 
+        function atualizarPainelAtivacaoEmpresa() {
+            const ativa = state && state.infoConfirmed && state.info ? state.info : null;
+            const nome = ativa && ativa.empresa ? ativa.empresa : '';
+            const cnpj = ativa && ativa.cnpj ? empFmtCNPJ(ativa.cnpj) : '';
+            const titulo = document.getElementById('ativacaoEmpresaInicioTitulo');
+            const texto = document.getElementById('ativacaoEmpresaInicioTexto');
+            const label = document.getElementById('empEmpresaAtivaLabel');
+            if (titulo) titulo.textContent = nome ? ('Empresa ativa: ' + nome) : 'Ative uma empresa para começar';
+            if (texto) texto.textContent = nome
+                ? ((cnpj ? cnpj + ' · ' : '') + 'Todos os módulos usarão esta empresa até você ativar outra.')
+                : 'A ativação amarra cadastro, plano, importações, lançamentos e relatórios à empresa correta.';
+            if (label) label.textContent = nome ? (nome + (cnpj ? ' · ' + cnpj : '')) : 'nenhuma';
+        }
+
+        function abrirAtivacaoEmpresa() {
+            showPage('empresas');
+            atualizarPainelAtivacaoEmpresa();
+            setTimeout(function() {
+                const busca = document.getElementById('empBusca');
+                if (busca) {
+                    busca.focus();
+                    busca.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 180);
+        }
+
         function empFmtDate(ts) {
             if (!ts) return '—';
             const d = ts._seconds ? new Date(ts._seconds * 1000) : (ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts));
@@ -8319,6 +8371,7 @@
                     const remotoTs = sess.updated_at && sess.updated_at._seconds ? sess.updated_at._seconds * 1000 : Date.now();
                     localStorage.setItem('consultorContabil_v2_ts', String(remotoTs));
                     saveState();
+                    atualizarPainelAtivacaoEmpresa();
                     // Navegar pro Inicio e re-renderizar sem reload
                     const btnInicio = document.querySelector('.nav button[onclick*=\"showPage(\'inicio\')\"]');
                     if (btnInicio) btnInicio.click();
@@ -8334,6 +8387,7 @@
                     state.entries = [];
                     state.lastFile = null;
                     saveState();
+                    atualizarPainelAtivacaoEmpresa();
                     showPage('inicio');
                     if (state.infoConfirmed) {
                         try { if (typeof initApp === 'function') initApp(); } catch(e) {}
@@ -11051,6 +11105,9 @@
             // Refresh charts when showing inicio
             if (p === 'inicio' && state.infoConfirmed) {
                 setTimeout(() => updateCharts(), 100);
+            }
+            if (p === 'inicio' || p === 'empresas') {
+                try { atualizarPainelAtivacaoEmpresa(); } catch(e) {}
             }
             
             // Renderizar lista de planos cadastrados quando aba Plano for exibida
@@ -17707,7 +17764,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.106';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.113';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
