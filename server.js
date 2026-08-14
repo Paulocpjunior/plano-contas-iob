@@ -13,7 +13,7 @@ const registrarRotasReinf = require('./reinf-routes');
 const cryptoAdmin = require('crypto');
 const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados } = require('./admin-exclusao-lancamentos');
 const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
-const { configWhatsapp, faltasDaConfig, enviarTemplateWhatsapp } = require('./whatsapp-cloud');
+const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
 
 const app = express();
 app.set('trust proxy', true);
@@ -953,10 +953,15 @@ app.patch('/api/empresas/:cnpj/cadastro', async (req, res) => {
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-app.get('/api/whatsapp/status', (req, res) => {
-  const config = configWhatsapp();
-  const faltas = faltasDaConfig(config);
-  res.json({ pronto: faltas.length === 0, faltas, template: config.template || null, idioma: config.idioma });
+app.get('/api/whatsapp/status', async (req, res) => {
+  try {
+    const auth = String(req.headers.authorization || '');
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    const status = await statusWhatsappCfi(token);
+    res.json(status);
+  } catch (err) {
+    res.status(err.status || 502).json({ erro: err.message, acao: err.acao || null, faltas: err.faltas || null });
+  }
 });
 
 app.post('/api/empresas/:cnpj/whatsapp/enviar', async (req, res) => {
@@ -967,32 +972,22 @@ app.post('/api/empresas/:cnpj/whatsapp/enviar', async (req, res) => {
     const empresa = chk.empresa || {};
     const para = empresa.whatsapp || empresa.whatsapp_cliente || '';
     if (!para) return res.status(409).json({ erro: 'WhatsApp nao cadastrado para esta empresa.' });
-    const variaveis = Array.isArray(req.body && req.body.variaveis) ? req.body.variaveis : [];
-    if (variaveis.length > 10) return res.status(400).json({ erro: 'O template aceita no maximo 10 variaveis por este canal.' });
-    const resultado = await enviarTemplateWhatsapp({ para, variaveis });
-    let auditoriaOk = true;
-    try {
-      await db.collection('whatsapp_envios').add({
-        cnpj: cnpjLimpo,
-        empresa: empresa.razao_social || '',
-        para,
-        template: configWhatsapp().template || null,
-        message_id: resultado.messageId || null,
-        ok: resultado.ok === true,
-        indeterminado: resultado.indeterminado === true,
-        erro: resultado.ok ? null : (resultado.erro || null),
-        enviado_por_uid: req.user.uid,
-        enviado_por_email: req.user.email,
-        criado_em: new Date()
-      });
-    } catch (auditErr) {
-      auditoriaOk = false;
-      console.error('[whatsapp] envio concluido, mas auditoria falhou:', auditErr.message);
-    }
-    const resposta = { ...resultado, auditoriaOk };
-    if (!resultado.ok) return res.status(resultado.configuracaoIncompleta ? 503 : 502).json(resposta);
-    res.json(resposta);
-  } catch (err) { res.status(500).json({ erro: err.message }); }
+    const variaveis = req.body && req.body.variaveis && typeof req.body.variaveis === 'object' && !Array.isArray(req.body.variaveis)
+      ? req.body.variaveis : {};
+    const auth = String(req.headers.authorization || '');
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    const resultado = await enviarWhatsappCfi({
+      token,
+      para,
+      template: req.body && req.body.template,
+      variaveis,
+      referencia: 'cci:empresa:' + cnpjLimpo
+    });
+    res.json(resultado);
+  } catch (err) {
+    const status = err.status || (err.indeterminado ? 502 : 500);
+    res.status(status).json({ erro: err.message, acao: err.acao || null, faltas: err.faltas || null, opcoes: err.opcoes || null, indeterminado: err.indeterminado === true });
+  }
 });
 
 // ==================== LAYOUTS PARSER (memorizacao por CNPJ) ====================

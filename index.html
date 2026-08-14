@@ -8237,14 +8237,30 @@
                 if (!cadastroSalvo) return;
                 const status = await window.API.statusWhatsapp();
                 if (!status.pronto) throw new Error('Canal não configurado: ' + (status.faltas || []).join(', '));
-                const entrada = window.prompt('Template "' + status.template + '". Informe as variáveis na ordem aprovada, uma por linha. Deixe vazio se o template não possui variáveis.', document.getElementById('empCadRazao').value);
-                if (entrada === null) return;
-                const variaveis = entrada ? entrada.split(/\r?\n/).map(function(v) { return v.trim(); }) : [];
+                const templates = (status.templates || []).filter(function(t) { return t.ativo !== false && t.temDocumento !== true; });
+                if (!templates.length) throw new Error('Não há template contábil sem anexo cadastrado no CFI. Cadastre-o em Config Admin depois da aprovação pela Meta.');
+                let template = templates[0];
+                if (templates.length > 1) {
+                    const escolhido = window.prompt('Escolha o template contábil:\n' + templates.map(function(t) { return '• ' + t.nome; }).join('\n'), template.nome);
+                    if (escolhido === null) return;
+                    template = templates.find(function(t) { return t.nome === escolhido.trim(); });
+                    if (!template) throw new Error('Template não encontrado. Escolha exatamente um dos nomes exibidos.');
+                }
+                const variaveis = {};
+                for (const def of (template.variaveis || [])) {
+                    const chave = String(def.chave || '');
+                    const chaveNorm = chave.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                    const padrao = /cliente|empresa/.test(chaveNorm) ? document.getElementById('empCadRazao').value : (/cnpj/.test(chaveNorm) ? empFmtCNPJ(cnpj) : '');
+                    const valor = window.prompt((def.rotulo || chave) + ' ({{' + (Object.keys(variaveis).length + 1) + '}})', padrao);
+                    if (valor === null) return;
+                    if (!valor.trim()) throw new Error('A variável "' + chave + '" é obrigatória no template.');
+                    variaveis[chave] = valor.trim();
+                }
                 msg.style.color = '#64748b';
-                msg.textContent = 'Enviando pelo WhatsApp oficial...';
-                const resultado = await window.API.enviarWhatsappEmpresa(cnpj, variaveis);
-                msg.style.color = resultado.auditoriaOk === false ? '#92400e' : '#047857';
-                msg.textContent = '✅ Aceito pela Meta. Comprovante: ' + (resultado.messageId || '—') + (resultado.auditoriaOk === false ? ' · ⚠️ a auditoria local precisa ser conferida.' : '');
+                msg.textContent = 'Enviando pelo gateway central do CFI...';
+                const resultado = await window.API.enviarWhatsappEmpresa(cnpj, template.nome, variaveis);
+                msg.style.color = '#047857';
+                msg.textContent = '✅ Aceito pela Meta. Comprovante: ' + (resultado.messageId || '—');
             } catch (e) {
                 msg.style.color = '#b91c1c';
                 msg.textContent = e.message || String(e);
