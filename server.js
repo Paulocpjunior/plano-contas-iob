@@ -12,6 +12,8 @@ const { registrarRotasMercadoPago, registrarRotasPublicasMercadoPago } = require
 const registrarRotasReinf = require('./reinf-routes');
 const cryptoAdmin = require('crypto');
 const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados } = require('./admin-exclusao-lancamentos');
+const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
+const { configWhatsapp, faltasDaConfig, enviarTemplateWhatsapp } = require('./whatsapp-cloud');
 
 const app = express();
 app.set('trust proxy', true);
@@ -757,6 +759,18 @@ async function listarEmpresasAcessiveis(user, opcoes) {
   return Array.from(unicos.values());
 }
 
+async function validarCodigoEmpresaUnico(codigo, cnpjIgnorado) {
+  if (!codigo) return { ok: true };
+  const snap = await db.collection('empresas').where('codigo_empresa', '==', codigo).limit(2).get();
+  const conflito = snap.docs.find(function (doc) { return doc.id !== cnpjIgnorado; });
+  if (!conflito) return { ok: true };
+  const dados = conflito.data() || {};
+  return {
+    ok: false,
+    erro: 'Numero da empresa ' + codigo + ' ja pertence a ' + (dados.razao_social || conflito.id) + '.'
+  };
+}
+
 // EMPRESAS - COLABORATIVO
 app.get('/api/empresas', async (req, res) => {
   try {
@@ -808,6 +822,8 @@ app.get('/api/empresas/listar', async (req, res) => {
       return {
         cnpj: emp.cnpj,
         razao_social: emp.razao_social || '',
+        codigo_empresa: codigoEmpresaDe(emp),
+        whatsapp: emp.whatsapp || emp.whatsapp_cliente || '',
         banco: emp.banco || null,
         plano_id: emp.plano_id || null,
         plano_nome: emp.plano_id ? (planoNomes[emp.plano_id] || emp.plano_id) : null,
@@ -828,8 +844,7 @@ app.get('/api/empresas/listar', async (req, res) => {
     // Aplicar filtros em memoria
     let filtered = enriched;
     if (q) {
-      const ql = String(q).toLowerCase();
-      filtered = filtered.filter(e => (e.razao_social || '').toLowerCase().includes(ql) || e.cnpj.includes(ql.replace(/\D/g, '')));
+      filtered = filtered.filter(function (empresa) { return empresaBateBusca(q, empresa); });
     }
     if (banco) filtered = filtered.filter(e => e.banco === banco);
     if (status && status !== 'todas') filtered = filtered.filter(e => e.status === status);
@@ -890,10 +905,14 @@ app.post('/api/empresas', async (req, res) => {
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ deve ter 14 digitos' });
     if (!razao_social || !plano_id) return res.status(400).json({ erro: 'razao_social e plano_id obrigatorios' });
+    const cadastro = camposCadastroEmpresa(req.body);
+    if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
+    const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
+    if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const planoDoc = await db.collection('planos').doc(plano_id).get();
     if (!planoDoc.exists) return res.status(400).json({ erro: 'Plano ' + plano_id + ' nao existe' });
-    await db.collection('empresas').doc(cnpjLimpo).set({ razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
-    res.status(201).json({ cnpj: cnpjLimpo, razao_social, plano_id });
+    await db.collection('empresas').doc(cnpjLimpo).set({ ...cadastro.campos, razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
+    res.status(201).json({ cnpj: cnpjLimpo, razao_social, plano_id, ...cadastro.campos });
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
@@ -903,8 +922,76 @@ app.post('/api/empresas/:cnpj/ativar', async (req, res) => {
     const ref = db.collection('empresas').doc(cnpjLimpo);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
+    if (!usuarioPodeAcessarEmpresa(doc.data(), req.user)) return res.status(403).json({ erro: 'Sem permissao para esta empresa' });
     await ref.update({ ativo: true, updated_at: new Date(), reactivated_by: req.user.uid, reactivated_by_email: req.user.email, reactivated_at: new Date() });
     res.json({ cnpj: cnpjLimpo, ativo: true });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.patch('/api/empresas/:cnpj/cadastro', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const cadastro = camposCadastroEmpresa(req.body);
+    if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
+    if (!Object.keys(cadastro.campos).length) return res.status(400).json({ erro: 'Nenhum campo de cadastro informado' });
+    if (cadastro.campos.razao_social !== undefined && !cadastro.campos.razao_social) {
+      return res.status(400).json({ erro: 'Razao social nao pode ficar vazia' });
+    }
+    const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
+    if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
+    await db.collection('empresas').doc(cnpjLimpo).set({
+      ...cadastro.campos,
+      updated_at: new Date(),
+      cadastro_atualizado_por_uid: req.user.uid,
+      cadastro_atualizado_por_email: req.user.email
+    }, { merge: true });
+    const atualizado = await db.collection('empresas').doc(cnpjLimpo).get();
+    res.json({ ok: true, cnpj: cnpjLimpo, ...atualizado.data() });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.get('/api/whatsapp/status', (req, res) => {
+  const config = configWhatsapp();
+  const faltas = faltasDaConfig(config);
+  res.json({ pronto: faltas.length === 0, faltas, template: config.template || null, idioma: config.idioma });
+});
+
+app.post('/api/empresas/:cnpj/whatsapp/enviar', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresa = chk.empresa || {};
+    const para = empresa.whatsapp || empresa.whatsapp_cliente || '';
+    if (!para) return res.status(409).json({ erro: 'WhatsApp nao cadastrado para esta empresa.' });
+    const variaveis = Array.isArray(req.body && req.body.variaveis) ? req.body.variaveis : [];
+    if (variaveis.length > 10) return res.status(400).json({ erro: 'O template aceita no maximo 10 variaveis por este canal.' });
+    const resultado = await enviarTemplateWhatsapp({ para, variaveis });
+    let auditoriaOk = true;
+    try {
+      await db.collection('whatsapp_envios').add({
+        cnpj: cnpjLimpo,
+        empresa: empresa.razao_social || '',
+        para,
+        template: configWhatsapp().template || null,
+        message_id: resultado.messageId || null,
+        ok: resultado.ok === true,
+        indeterminado: resultado.indeterminado === true,
+        erro: resultado.ok ? null : (resultado.erro || null),
+        enviado_por_uid: req.user.uid,
+        enviado_por_email: req.user.email,
+        criado_em: new Date()
+      });
+    } catch (auditErr) {
+      auditoriaOk = false;
+      console.error('[whatsapp] envio concluido, mas auditoria falhou:', auditErr.message);
+    }
+    const resposta = { ...resultado, auditoriaOk };
+    if (!resultado.ok) return res.status(resultado.configuracaoIncompleta ? 503 : 502).json(resposta);
+    res.json(resposta);
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
@@ -1276,6 +1363,10 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     const empresaRef = db.collection('empresas').doc(cnpjLimpo);
     const empresaDoc = await empresaRef.get();
     const empresaAtual = empresaDoc.exists ? (empresaDoc.data() || {}) : null;
+    const cadastro = camposCadastroEmpresa(req.body);
+    if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
+    const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
+    if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const isAdmin = !!(req.user && req.user.is_admin);
     const adminOverride = opts.adminOverride === true;
 
@@ -1292,6 +1383,7 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     }
 
     const dados = {
+      ...cadastro.campos,
       plano_id,
       plano_nome: planoData.nome || planoData.name || plano_id,
       ativo: true,
@@ -1322,6 +1414,8 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
       cnpj: cnpjLimpo,
       plano_id,
       plano_nome: dados.plano_nome,
+      codigo_empresa: dados.codigo_empresa !== undefined ? dados.codigo_empresa : codigoEmpresaDe(empresaAtual),
+      whatsapp: dados.whatsapp !== undefined ? dados.whatsapp : ((empresaAtual && empresaAtual.whatsapp) || ''),
       sessao_sincronizada: sincronizacaoSessao.sincronizada === true
     });
   } catch (e) { console.error('vincular-empresa-plano erro:', e); res.status(500).json({ erro: e.message }); }

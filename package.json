@@ -28,6 +28,7 @@
     "test:movimento-fiscal-modal": "node scripts/test-movimento-fiscal-modal.js",
     "test:flanacar-bank": "node scripts/test-flanacar-bank-combobox.js",
     "test:empresa-plano": "node scripts/test-empresa-plano-vinculo.js",
+    "test:empresa-cadastro-whatsapp": "node scripts/test-empresa-cadastro-whatsapp.js",
     "test:clude-itau": "node scripts/test-clude-itau-historicos.js",
     "test:clude-layouts": "node scripts/test-clude-layout-quality.js",
     "test:clude-servicos": "node scripts/test-clude-servicos-tomados.js",

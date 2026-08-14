@@ -50,6 +50,10 @@
       '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151">Razão Social <span style="color:#ef4444">*</span></label>',
       '<input type="text" id="vincEmpRazao" placeholder="(preenchido automaticamente)" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px" disabled>',
       '</div>',
+      '<div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-bottom:16px">',
+      '<div><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151">Nº da empresa</label><input type="text" id="vincEmpCodigo" inputmode="numeric" maxlength="4" placeholder="0001" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px"><p style="margin:4px 0 0;font-size:11px;color:#9ca3af">Código de 0001 a 9999.</p></div>',
+      '<div><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151">WhatsApp API</label><input type="tel" id="vincEmpWhatsapp" placeholder="(11) 91234-5678" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px"><p style="margin:4px 0 0;font-size:11px;color:#9ca3af">Número que receberá mensagens oficiais do CCI.</p></div>',
+      '</div>',
       '<div id="vincEmpAviso" style="display:none;padding:10px;border-radius:6px;font-size:12px;margin-bottom:16px"></div>',
       '<div style="display:flex;justify-content:flex-end;gap:8px">',
       '<button id="vincEmpCancelar" type="button" style="padding:9px 16px;background:#f3f4f6;color:#374151;border:none;border-radius:6px;font-weight:600;cursor:pointer">Cancelar</button>',
@@ -62,6 +66,8 @@
     var inpCNPJ = document.getElementById('vincEmpCNPJ');
     var inpRazao = document.getElementById('vincEmpRazao');
     var btnConf = document.getElementById('vincEmpConfirmar');
+    var inpCodigo = document.getElementById('vincEmpCodigo');
+    var inpWhatsapp = document.getElementById('vincEmpWhatsapp');
     var statusEl = document.getElementById('vincEmpCNPJStatus');
     var avisoEl = document.getElementById('vincEmpAviso');
     var cnpjOk = false;
@@ -111,6 +117,8 @@
             } catch (e) { }
           }
           inpRazao.value = razaoExistente || '';
+          inpCodigo.value = emp.codigo_empresa || emp.codigo_cliente || '';
+          inpWhatsapp.value = emp.whatsapp || emp.whatsapp_cliente || '';
           inpRazao.disabled = false;
           cnpjOk = true;
           statusEl.textContent = '!';
@@ -169,11 +177,13 @@
     btnConf.addEventListener('click', async function () {
       var cnpj = inpCNPJ.value.replace(/\D/g, '');
       var razão = inpRazao.value.trim();
+      var codigo = inpCodigo.value.trim();
+      var whatsapp = inpWhatsapp.value.trim();
       if (cnpj.length !== 14 || razão.length < 3) return;
       btnConf.disabled = true;
       btnConf.textContent = 'Vinculando...';
       try {
-        var resp = await window.API.vincularEmpresaPlano(cnpj, razão, planoId);
+        var resp = await window.API.vincularEmpresaPlano(cnpj, razão, planoId, { codigo_empresa: codigo, whatsapp: whatsapp });
         if (resp && resp.erro) throw new Error(resp.erro);
         toast(empresaExistente ? 'Vínculo da empresa atualizado com sucesso' : 'Empresa vinculada com sucesso', 'success');
         closeModal();
