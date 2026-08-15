@@ -26,6 +26,11 @@ const theme = read('saas-brand-theme.js');
 
 assert(index.includes('data-theme-toggle'), 'O CCI deve oferecer a opcao Claro/Escuro.');
 assert(index.includes('html[data-theme="dark"] .form-group label { color: #cbd5e1; }'), 'Os rotulos do login precisam manter contraste no escuro.');
+assert(index.includes('class="manual-entry-close"'), 'O modal manual deve identificar semanticamente o botao de fechar.');
+assert(index.includes('class="manual-entry-cancel"'), 'O modal manual deve identificar semanticamente o botao de cancelar.');
+assert(index.includes('#modalLancamentoManual .manual-entry-close'), 'O botao de fechar precisa de contraste dedicado no escuro.');
+assert(index.includes('#modalLancamentoManual .manual-entry-cancel'), 'O botao de cancelar precisa de contraste dedicado no escuro.');
+assert(index.includes('background: #1e293b !important;'), 'Controles secundarios claros precisam ganhar superficie escura.');
 assert(admin.includes('login-theme-toggle'), 'O login administrativo deve oferecer Claro/Escuro.');
 assert(audit.includes('.sp-audit-theme-toggle::after'), 'O AuditAI deve exibir o nome do tema, alem do icone.');
 assert(conciliacao.includes('data-theme-toggle'), 'A conciliacao deve oferecer Claro/Escuro.');

@@ -1,7 +1,9 @@
 {
-  "version": "3.4.119",
-  "build_date": "2026-08-15T10:51:39Z",
+  "version": "3.4.120",
+  "build_date": "2026-08-15T11:06:01Z",
   "release_notes": [
+    "Contraste corrigido nos botões Fechar e Cancelar do lançamento manual no modo escuro",
+    "Controles secundários claros padronizados para superfícies legíveis no tema escuro",
     "Identidade visual oficial da SP Assessoria padronizada no CCI, Admin, AuditAI e Conciliação",
     "Visualização Claro/Escuro compartilhada entre todos os módulos, com contraste revisado",
     "Cadastro de Empresas restaurado como ação explícita antes ou depois da ativação",
