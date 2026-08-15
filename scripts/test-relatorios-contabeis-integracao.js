@@ -22,6 +22,8 @@ assert(index.includes('id="btnCadastroEmpresaNav"'), 'cadastro de empresas foi r
   assert(ui.includes(texto), 'recurso de relatório ausente: ' + texto);
 });
 assert(ui.includes('html[data-theme="dark"]'), 'tema escuro não tratado no módulo');
+assert(ui.includes('.rc-field input::placeholder'), 'placeholder do tema escuro sem contraste explícito');
+assert(ui.includes('html[data-theme="dark"] .rc-alert'), 'avisos do tema escuro sem contraste explícito');
 assert(ui.includes('<option value="6">6 colunas</option>'), 'balancete de 6 colunas ausente');
 assert(ui.includes('<option value="4">4 colunas</option>'), 'balancete de 4 colunas ausente');
 assert(ui.includes('<option value="2">2 colunas</option>'), 'balancete de 2 colunas ausente');

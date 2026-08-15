@@ -1,7 +1,8 @@
 {
-  "version": "3.4.122",
-  "build_date": "2026-08-15T11:55:20Z",
+  "version": "3.4.123",
+  "build_date": "2026-08-15T12:02:27Z",
   "release_notes": [
+    "Contraste reforçado nos campos e avisos dos Relatórios Contábeis no modo escuro",
     "Núcleo Contábil v1 com Balancete, Razão Analítico e Livro Diário",
     "Relatórios em PDF e Excel com filtros, pesquisa e formatos de 2, 4 ou 6 colunas",
     "Saldos iniciais por competência e encerramento mensal com fotografia e hash de auditoria",
