@@ -22,6 +22,30 @@
     return (seguro < 0 ? '-R$ ' : 'R$ ') + moeda(Math.abs(seguro));
   }
 
+  function saldoComNatureza(valor) {
+    const numero = Number(valor || 0);
+    const seguro = Number.isFinite(numero) ? numero : 0;
+    if (Math.abs(seguro) < 0.005) return moeda(0);
+    return moeda(Math.abs(seguro)) + (seguro < 0 ? ' C' : ' D');
+  }
+
+  function saldoPDFComNatureza(valor) {
+    const numero = Number(valor || 0);
+    const seguro = Number.isFinite(numero) ? numero : 0;
+    if (Math.abs(seguro) < 0.005) return 'R$ ' + moeda(0);
+    return 'R$ ' + moeda(Math.abs(seguro)) + (seguro < 0 ? ' C' : ' D');
+  }
+
+  function periodoCompleto(periodo) {
+    const partes = String(periodo || '').split('-');
+    if (partes.length !== 2) return String(periodo || '');
+    const ano = Number(partes[0]);
+    const mes = Number(partes[1]);
+    if (!ano || mes < 1 || mes > 12) return String(periodo || '');
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    return '01/' + String(mes).padStart(2, '0') + '/' + ano + ' a ' + String(ultimoDia).padStart(2, '0') + '/' + String(mes).padStart(2, '0') + '/' + ano;
+  }
+
   function dataBR(iso) {
     const p = String(iso || '').split('-');
     return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(iso || '');
@@ -83,7 +107,7 @@
         <section class="card" style="padding:20px">
           <div class="rc-controls">
             <div class="rc-field"><label>Competência</label><input type="month" id="rcPeriodo" value="${esc(periodo)}"></div>
-            <div class="rc-field"><label>Formato do Balancete</label><select id="rcFormato"><option value="6">6 colunas</option><option value="4">4 colunas</option><option value="2">2 colunas</option></select></div>
+            <div class="rc-field"><label>Formato do Balancete</label><select id="rcFormato"><option value="6">Modelo SAGE — 6 colunas</option><option value="4">4 colunas</option><option value="2">2 colunas</option></select></div>
             <div class="rc-field"><label>Conta no Razão</label><input id="rcConta" placeholder="Reduzido ou descrição"></div>
             <div class="rc-field"><label>Pesquisar</label><input id="rcBusca" placeholder="Conta, histórico ou documento"></div>
           </div>
@@ -166,21 +190,21 @@
   }
 
   function renderBalancete(dados, formato) {
-    document.getElementById('rcTituloTabela').textContent = 'Balancete de Verificação — ' + dados.periodo;
+    document.getElementById('rcTituloTabela').textContent = 'Balancete Analítico — ' + dados.periodo;
     const colunas = formato === '2'
-      ? ['Conta', 'Descrição', 'Saldo atual']
+      ? ['Conta', 'Descrição', 'Sdo. atual']
       : formato === '4'
-        ? ['Conta', 'Descrição', 'Débitos', 'Créditos', 'Saldo atual']
-        : ['Conta', 'Descrição', 'Saldo anterior', 'Débitos', 'Créditos', 'Saldo devedor', 'Saldo credor'];
+        ? ['Conta', 'Descrição', 'Débito', 'Crédito', 'Sdo. atual']
+        : ['Conta', 'Descrição', 'Sdo. anterior', 'Débito', 'Crédito', 'Sdo. atual'];
     document.getElementById('rcHead').innerHTML = '<tr>' + colunas.map(function (c, i) { return '<th class="' + (i > 1 ? 'num' : '') + '">' + c + '</th>'; }).join('') + '</tr>';
     const linhas = dados.balancete.filter(function (l) { return buscaAceita([l.conta, l.descricao]); });
     document.getElementById('rcBody').innerHTML = linhas.map(function (l) {
-      let nums;
-      if (formato === '2') nums = [l.saldoAtual];
-      else if (formato === '4') nums = [l.debitos, l.creditos, l.saldoAtual];
-      else nums = [l.saldoAnterior, l.debitos, l.creditos, l.saldoDevedor, l.saldoCredor];
-      return '<tr><td><strong>' + esc(l.conta) + '</strong></td><td>' + esc(l.descricao || 'Conta sem descrição no plano') + '</td>' + nums.map(function (n) { return '<td class="num">' + moeda(n) + '</td>'; }).join('') + '</tr>';
-    }).join('') || '<tr><td colspan="8">Nenhuma conta encontrada.</td></tr>';
+      let valores;
+      if (formato === '2') valores = [saldoComNatureza(l.saldoAtual)];
+      else if (formato === '4') valores = [moeda(l.debitos), moeda(l.creditos), saldoComNatureza(l.saldoAtual)];
+      else valores = [saldoComNatureza(l.saldoAnterior), moeda(l.debitos), moeda(l.creditos), saldoComNatureza(l.saldoAtual)];
+      return '<tr><td><strong>' + esc(l.conta) + '</strong></td><td>' + esc(l.descricao || 'Conta sem descrição no plano') + '</td>' + valores.map(function (valor) { return '<td class="num">' + valor + '</td>'; }).join('') + '</tr>';
+    }).join('') || '<tr><td colspan="' + colunas.length + '">Nenhuma conta encontrada.</td></tr>';
   }
 
   function renderRazao(dados) {
@@ -274,7 +298,7 @@
   }
 
   function linhasExportacao(dados) {
-    if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [l.conta, l.descricao, l.saldoAnterior, l.debitos, l.creditos, l.saldoDevedor, l.saldoCredor]; });
+    if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [l.conta, l.descricao, l.saldoAnterior, l.debitos, l.creditos, l.saldoAtual]; });
     if (tipoAtual === 'diario') return dados.diario.map(function (l) { return [l.numero, dataBR(l.data), l.debito, l.credito, l.historico, l.documento, l.valor]; });
     const linhas = [];
     dados.razao.forEach(function (g) { g.movimentos.forEach(function (m) { linhas.push([g.conta, g.descricao, dataBR(m.data), m.documento, m.descricao, m.contrapartida, m.debito, m.credito, m.saldo]); }); });
@@ -282,7 +306,7 @@
   }
 
   function linhasExportacaoPDF(dados) {
-    if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [l.conta, l.descricao, moedaPDF(l.saldoAnterior), moedaPDF(l.debitos), moedaPDF(l.creditos), moedaPDF(l.saldoDevedor), moedaPDF(l.saldoCredor)]; });
+    if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [l.conta, l.descricao, saldoPDFComNatureza(l.saldoAnterior), moedaPDF(l.debitos), moedaPDF(l.creditos), saldoPDFComNatureza(l.saldoAtual)]; });
     if (tipoAtual === 'diario') return dados.diario.map(function (l) { return [l.numero, dataBR(l.data), l.debito, l.credito, l.historico, l.documento, moedaPDF(l.valor)]; });
     const linhas = [];
     dados.razao.forEach(function (g) { g.movimentos.forEach(function (m) { linhas.push([g.conta, g.descricao, dataBR(m.data), m.documento, m.descricao, m.contrapartida, moedaPDF(m.debito), moedaPDF(m.credito), moedaPDF(m.saldo)]); }); });
@@ -290,7 +314,7 @@
   }
 
   function cabecalhoExportacao() {
-    if (tipoAtual === 'balancete') return ['Conta', 'Descrição', 'Saldo anterior', 'Débitos', 'Créditos', 'Saldo devedor', 'Saldo credor'];
+    if (tipoAtual === 'balancete') return ['Conta', 'Descrição', 'Sdo. anterior', 'Débito', 'Crédito', 'Sdo. atual'];
     if (tipoAtual === 'diario') return ['Nº', 'Data', 'Débito', 'Crédito', 'Histórico', 'Documento', 'Valor'];
     return ['Conta', 'Descrição da conta', 'Data', 'Documento', 'Histórico', 'Contrapartida', 'Débito', 'Crédito', 'Saldo'];
   }
@@ -341,11 +365,28 @@
   async function criarDocumentoPDF() {
     const jsPDF = await garantirBibliotecasPDF();
     const dados = dadosAtuais();
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const paisagem = tipoAtual !== 'balancete';
+    const doc = new jsPDF({ orientation: paisagem ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFontSize(15); doc.text('SP ASSESSORIA CONTÁBIL', 14, 14);
-    doc.setFontSize(11); doc.text((tipoAtual === 'balancete' ? 'Balancete de Verificação' : tipoAtual === 'razao' ? 'Razão Analítico' : 'Livro Diário') + ' — ' + dados.periodo, 14, 21);
+    doc.setFontSize(11); doc.text(nomeTipoRelatorio() + ' — ' + dados.periodo, 14, 21);
     doc.setFontSize(8); doc.text(String(dados.ctx.empresa.razao_social || dados.ctx.empresa.empresa || '') + ' | CNPJ ' + String(dados.ctx.empresa.cnpj || ''), 14, 27);
-    doc.autoTable({ startY: 32, head: [cabecalhoExportacao()], body: linhasExportacaoPDF(dados), styles: { fontSize: 6.5, cellPadding: 1.5 }, headStyles: { fillColor: [30, 64, 175] }, didDrawPage: function () { doc.setFontSize(7); doc.text('Desenvolvido by SP Assessoria Contábil. Todos os direitos reservados.', 14, 204); } });
+    doc.text('Período: ' + periodoCompleto(dados.periodo), 14, 32);
+    doc.autoTable({
+      startY: 37,
+      head: [cabecalhoExportacao()],
+      body: linhasExportacaoPDF(dados),
+      styles: { fontSize: 6.5, cellPadding: 1.5 },
+      headStyles: { fillColor: [30, 64, 175] },
+      margin: { bottom: 14 },
+      didDrawPage: function () {
+        doc.setFontSize(7);
+        doc.text('Desenvolvido by SP Assessoria Contábil. Todos os direitos reservados.', 14, pageHeight - 8);
+        const pagina = doc.internal.getCurrentPageInfo ? doc.internal.getCurrentPageInfo().pageNumber : doc.internal.getNumberOfPages();
+        doc.text('Página ' + pagina, pageWidth - 28, pageHeight - 8);
+      }
+    });
     return { doc, dados, arquivo: nomeArquivo(dados, 'pdf') };
   }
 
@@ -357,7 +398,7 @@
   }
 
   function nomeTipoRelatorio() {
-    return tipoAtual === 'balancete' ? 'Balancete de Verificação' : tipoAtual === 'razao' ? 'Razão Analítico' : 'Livro Diário';
+    return tipoAtual === 'balancete' ? 'Balancete Analítico' : tipoAtual === 'razao' ? 'Razão Analítico' : 'Livro Diário';
   }
 
   function abrirModalEmail() {

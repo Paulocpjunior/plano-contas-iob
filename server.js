@@ -790,8 +790,8 @@ app.get('/api/empresas', async (req, res) => {
 // ==================== LISTAR EMPRESAS COM AGREGACOES (Gestao) ====================
 app.get('/api/empresas/listar', async (req, res) => {
   try {
-    const { q, banco, status, periodo_de, periodo_ate, sort, order, limit, offset, admin_ver_tudo, modo } = req.query || {};
-    const verTudo = req.user.is_admin && admin_ver_tudo === '1';
+    const { q, banco, status, periodo_de, periodo_ate, sort, order, limit, offset, modo } = req.query || {};
+    const verTudo = !!req.user.is_admin;
     const docs = verTudo
       ? (await db.collection('empresas').get()).docs
       : await listarEmpresasAcessiveis(req.user, { somenteVinculadas: true });
