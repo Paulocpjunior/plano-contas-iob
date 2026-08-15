@@ -80,8 +80,8 @@
       const resultado = {};
       for (const plano of planos) {
         const contasMapped = (contasPorPlano[plano.id] || []).map(c => {
-          const reduzido = c.ref_rfb || c.reduzido || c.ref || c.codigo_reduzido || '';
-          return { codigo: c.cod || c.codigo || '', descricao: c.desc || c.descricao || '', reduzido: String(reduzido || '').trim() };
+          const reduzido = c.ref_rfb || c.refRfb || c.reduzido || c.ref || c.codigo_reduzido || c.codigoReduzido || '';
+          return { id: c.id || '', codigo: c.cod || c.codigo || '', descricao: c.desc || c.descricao || '', reduzido: String(reduzido || '').trim() };
         });
         const empresasDoPlano = empresas.filter(e => e.plano_id === plano.id);
         if (empresasDoPlano.length === 0) {

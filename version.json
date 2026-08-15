@@ -1,29 +1,9 @@
 {
-  "version": "3.4.123",
-  "build_date": "2026-08-15T12:02:27Z",
+  "version": "3.4.124",
+  "build_date": "2026-08-15T12:19:48Z",
   "release_notes": [
-    "Contraste reforçado nos campos e avisos dos Relatórios Contábeis no modo escuro",
-    "Núcleo Contábil v1 com Balancete, Razão Analítico e Livro Diário",
-    "Relatórios em PDF e Excel com filtros, pesquisa e formatos de 2, 4 ou 6 colunas",
-    "Saldos iniciais por competência e encerramento mensal com fotografia e hash de auditoria",
-    "Períodos encerrados protegidos contra alterações e reabertura exclusiva do administrador com motivo",
-    "Atualizador reforçado para Safari com URL única e limpeza segura do cache HTTP",
-    "Versão revalidada ao retornar para a aba, sem adiamento permanente de atualizações",
-    "Contraste corrigido nos botões Fechar e Cancelar do lançamento manual no modo escuro",
-    "Controles secundários claros padronizados para superfícies legíveis no tema escuro",
-    "Identidade visual oficial da SP Assessoria padronizada no CCI, Admin, AuditAI e Conciliação",
-    "Visualização Claro/Escuro compartilhada entre todos os módulos, com contraste revisado",
-    "Cadastro de Empresas restaurado como ação explícita antes ou depois da ativação",
-    "Proteção de classificações: editar uma linha não replica contas para outras linhas selecionadas",
-    "Motor de IA atualizado para Google Gemini 3.7 Flash",
-    "feat: adicionar carteira de responsaveis no CCI",
-    "feat: exigir ativacao antes da carga do CCI",
-    "fix: destacar ativacao de empresa no CCI",
-    "fix: usar gateway central do CFI no WhatsApp do CCI",
-    "feat: alinhar cadastro e WhatsApp do CCI ao CFI",
-    "R-2099 calibrado contra o arquivo ACEITO — a trava pagou o que prometia (v3.4.113) (#56)",
-    "R-2099: o fechamento que faltava — esqueleto provado, infoFech como HIPÓTESE (v3.4.111) (#55)",
-    "R-2010: fecha o ciclo — o primeiro deixa de decidir pelos outros (v3.4.109) (#54)",
-    "Deploy que falha vira issue — o furo que passou batido duas vezes ontem (#53)"
+    "AuditAI volta a carregar sem dependência externa bloqueante na inicialização.",
+    "Relatórios contábeis reconhecem identificadores legados e códigos reduzidos do plano ativo.",
+    "Avisos de validação repetidos passam a ser agrupados sem alterar lançamentos."
   ]
 }

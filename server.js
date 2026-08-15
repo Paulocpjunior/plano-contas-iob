@@ -948,8 +948,13 @@ app.get('/api/empresas/:cnpj/plano-contexto', async (req, res) => {
     const plano = planoDoc.data() || {};
     const contas = contasSnap.docs.map(function (doc) {
       const conta = doc.data() || {};
-      const reduzido = conta.ref_rfb || conta.reduzido || conta.ref || conta.codigo_reduzido || '';
-      return { codigo: conta.cod || conta.codigo || '', descricao: conta.desc || conta.descricao || '', reduzido: String(reduzido).trim() };
+      const reduzido = conta.ref_rfb || conta.refRfb || conta.reduzido || conta.ref || conta.codigo_reduzido || conta.codigoReduzido || '';
+      return {
+        id: doc.id,
+        codigo: conta.cod || conta.codigo || '',
+        descricao: conta.desc || conta.descricao || '',
+        reduzido: String(reduzido).trim()
+      };
     });
     const chave = (plano.nome || plano.name || empresa.plano_id) + ' - ' + (empresa.razao_social || cnpjLimpo);
     res.json({
@@ -1624,9 +1629,10 @@ async function carregarContasContabeisEmpresa(empresa) {
   return snap.docs.map(function (doc) {
     const conta = doc.data() || {};
     return {
+      id: doc.id,
       codigo: conta.cod || conta.codigo || doc.id,
       descricao: conta.desc || conta.descricao || '',
-      reduzido: conta.ref_rfb || conta.reduzido || conta.ref || conta.codigo_reduzido || '',
+      reduzido: conta.ref_rfb || conta.refRfb || conta.reduzido || conta.ref || conta.codigo_reduzido || conta.codigoReduzido || '',
       analitica: conta.analitica !== false
     };
   });

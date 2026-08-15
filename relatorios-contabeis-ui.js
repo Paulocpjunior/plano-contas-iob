@@ -134,8 +134,8 @@
       <div class="rc-kpi"><small>Total de débitos</small><strong>R$ ${moeda(dados.validacao.debitos)}</strong></div>
       <div class="rc-kpi"><small>Total de créditos</small><strong>R$ ${moeda(dados.validacao.creditos)}</strong></div>
       <div class="rc-kpi"><small>Validação</small><strong class="${dados.validacao.ok ? 'rc-ok' : 'rc-error'}">${dados.validacao.ok ? 'Aprovada' : dados.validacao.erros.length + ' erro(s)'}</strong></div>`;
-    const mensagens = dados.validacao.erros.concat(dados.validacao.avisos).slice(0, 12);
-    document.getElementById('rcAvisos').innerHTML = mensagens.length ? '<div class="rc-alert">' + mensagens.map(function (m) { return '• ' + esc(m.mensagem); }).join('<br>') + '</div>' : '';
+    const mensagens = Core.resumirMensagens(dados.validacao.erros.concat(dados.validacao.avisos), 12);
+    document.getElementById('rcAvisos').innerHTML = mensagens.length ? '<div class="rc-alert">' + mensagens.map(function (m) { return '• ' + esc(m.mensagem) + (m.quantidade > 1 ? ' <strong>(' + m.quantidade + ' ocorrências)</strong>' : ''); }).join('<br>') + '</div>' : '';
     if (tipoAtual === 'balancete') renderBalancete(dados, formato);
     else if (tipoAtual === 'razao') renderRazao(dados);
     else renderDiario(dados);

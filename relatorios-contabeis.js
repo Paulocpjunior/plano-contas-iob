@@ -61,13 +61,28 @@
     const mapa = new Map();
     (contas || []).forEach(function (conta) {
       const codigo = normalizarConta(conta.codigo || conta.cod);
-      const reduzido = normalizarConta(conta.reduzido || conta.ref_rfb || conta.ref || conta.codigo_reduzido);
+      const reduzido = normalizarConta(conta.reduzido || conta.ref_rfb || conta.refRfb || conta.ref || conta.codigo_reduzido || conta.codigoReduzido);
+      const idLegado = normalizarConta(conta.id || conta.conta_id || conta.contaId);
       const descricao = texto(conta.descricao || conta.desc || conta.nome);
       const registro = { codigo, reduzido, descricao, analitica: conta.analitica !== false };
       if (codigo) mapa.set(codigo, registro);
       if (reduzido) mapa.set(reduzido, registro);
+      if (/^\d{1,14}$/.test(idLegado)) mapa.set(idLegado, registro);
     });
     return mapa;
+  }
+
+  function resumirMensagens(itens, limite) {
+    const grupos = new Map();
+    (itens || []).forEach(function (item) {
+      const mensagem = texto(item && item.mensagem);
+      if (!mensagem) return;
+      const chave = texto(item.codigo) + '|' + mensagem.replace(/Lançamento\s+[^\s]+/i, 'Lançamento');
+      const atual = grupos.get(chave) || { codigo: item.codigo || '', mensagem, quantidade: 0 };
+      atual.quantidade += 1;
+      grupos.set(chave, atual);
+    });
+    return Array.from(grupos.values()).slice(0, Math.max(1, Number(limite) || 12));
   }
 
   function lancamentosDoPeriodo(lancamentos, periodo) {
@@ -250,7 +265,7 @@
   }
 
   return {
-    dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, mapaContas, lancamentosDoPeriodo,
+    dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, mapaContas, resumirMensagens, lancamentosDoPeriodo,
     validar, balancete, razao, diario, snapshot, assinaturaPeriodo, hashTexto
   };
 });

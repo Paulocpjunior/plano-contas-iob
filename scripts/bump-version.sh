@@ -85,6 +85,7 @@ fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 # propaga-la. Arquivo novo com cache-buster entra NESTA lista.
 ARQUIVOS_COM_VERSAO=(
   "index.html"
+  "admin.html"
   "auditai/index.html"
   "auditai/conciliacao.html"
   "auditai/conciliacao-arquivos.js"
