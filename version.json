@@ -1,9 +1,16 @@
 {
-  "version": "3.4.127",
-  "build_date": "2026-08-15T13:18:40Z",
+  "version": "3.4.128",
+  "build_date": "2026-08-15T13:43:55Z",
   "release_notes": [
-    "Correção da exportação PDF com bibliotecas locais",
-    "Envio de relatórios em PDF pelo WhatsApp",
-    "AuditAI com estilos locais compatíveis com Safari"
+    "fix: estabilizar PDF WhatsApp e AuditAI",
+    "fix: corrigir AuditAI e contas reduzidas nos relatórios",
+    "fix: estabilizar montagem do AuditAI",
+    "fix: restaurar AuditAI e compatibilidade dos relatórios",
+    "fix: reforcar contraste dos relatorios no escuro",
+    "feat: adicionar nucleo de relatorios contabeis",
+    "fix: reforcar atualizacao do app no Safari",
+    "fix: corrigir contraste de controles no tema escuro",
+    "feat: padronizar identidade e tema do SaaS",
+    "fix: restaurar cadastro e proteger classificacoes"
   ]
 }

@@ -16,6 +16,12 @@
     return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(valor || 0));
   }
 
+  function moedaPDF(valor) {
+    const numero = Number(valor || 0);
+    const seguro = Number.isFinite(numero) ? numero : 0;
+    return (seguro < 0 ? '-R$ ' : 'R$ ') + moeda(Math.abs(seguro));
+  }
+
   function dataBR(iso) {
     const p = String(iso || '').split('-');
     return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(iso || '');
@@ -260,6 +266,14 @@
     return linhas;
   }
 
+  function linhasExportacaoPDF(dados) {
+    if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [l.conta, l.descricao, moedaPDF(l.saldoAnterior), moedaPDF(l.debitos), moedaPDF(l.creditos), moedaPDF(l.saldoDevedor), moedaPDF(l.saldoCredor)]; });
+    if (tipoAtual === 'diario') return dados.diario.map(function (l) { return [l.numero, dataBR(l.data), l.debito, l.credito, l.historico, l.documento, moedaPDF(l.valor)]; });
+    const linhas = [];
+    dados.razao.forEach(function (g) { g.movimentos.forEach(function (m) { linhas.push([g.conta, g.descricao, dataBR(m.data), m.documento, m.descricao, m.contrapartida, moedaPDF(m.debito), moedaPDF(m.credito), moedaPDF(m.saldo)]); }); });
+    return linhas;
+  }
+
   function cabecalhoExportacao() {
     if (tipoAtual === 'balancete') return ['Conta', 'Descrição', 'Saldo anterior', 'Débitos', 'Créditos', 'Saldo devedor', 'Saldo credor'];
     if (tipoAtual === 'diario') return ['Nº', 'Data', 'Débito', 'Crédito', 'Histórico', 'Documento', 'Valor'];
@@ -316,7 +330,7 @@
     doc.setFontSize(15); doc.text('SP ASSESSORIA CONTÁBIL', 14, 14);
     doc.setFontSize(11); doc.text((tipoAtual === 'balancete' ? 'Balancete de Verificação' : tipoAtual === 'razao' ? 'Razão Analítico' : 'Livro Diário') + ' — ' + dados.periodo, 14, 21);
     doc.setFontSize(8); doc.text(String(dados.ctx.empresa.razao_social || dados.ctx.empresa.empresa || '') + ' | CNPJ ' + String(dados.ctx.empresa.cnpj || ''), 14, 27);
-    doc.autoTable({ startY: 32, head: [cabecalhoExportacao()], body: linhasExportacao(dados), styles: { fontSize: 6.5, cellPadding: 1.5 }, headStyles: { fillColor: [30, 64, 175] }, didDrawPage: function () { doc.setFontSize(7); doc.text('Gerado pelo Consultor Contábil Inteligente', 14, 204); } });
+    doc.autoTable({ startY: 32, head: [cabecalhoExportacao()], body: linhasExportacaoPDF(dados), styles: { fontSize: 6.5, cellPadding: 1.5 }, headStyles: { fillColor: [30, 64, 175] }, didDrawPage: function () { doc.setFontSize(7); doc.text('Gerado pelo Consultor Contábil Inteligente', 14, 204); } });
     return { doc, dados, arquivo: nomeArquivo(dados, 'pdf') };
   }
 

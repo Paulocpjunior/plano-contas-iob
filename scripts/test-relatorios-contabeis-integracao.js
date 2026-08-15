@@ -29,6 +29,10 @@ assert(ui.includes('<option value="4">4 colunas</option>'), 'balancete de 4 colu
 assert(ui.includes('<option value="2">2 colunas</option>'), 'balancete de 2 colunas ausente');
 assert(ui.includes("'/vendor/jspdf/jspdf.umd.min.js'"), 'jsPDF não é carregado do servidor local');
 assert(ui.includes("'/vendor/jspdf-autotable/jspdf.plugin.autotable.min.js'"), 'AutoTable não é carregado do servidor local');
+assert(ui.includes('function moedaPDF(valor)'), 'formatador monetário brasileiro do PDF ausente');
+assert(ui.includes("return (seguro < 0 ? '-R$ ' : 'R$ ') + moeda(Math.abs(seguro));"), 'PDF não fixa símbolo, sinal e duas casas decimais em pt-BR');
+assert(ui.includes('body: linhasExportacaoPDF(dados)'), 'PDF não usa as linhas com moeda brasileira');
+assert(ui.includes('aoa_to_sheet([cabecalhoExportacao()].concat(linhasExportacao(dados)))'), 'Excel deve preservar valores numéricos para cálculos');
 assert(ui.includes('navigator.share'), 'compartilhamento nativo do PDF ausente');
 assert(ui.includes("'https://wa.me/'"), 'fallback para conversa do WhatsApp ausente');
 assert(server.includes("app.use('/vendor/jspdf'"), 'rota local do jsPDF ausente');
