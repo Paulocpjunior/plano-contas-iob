@@ -1,7 +1,10 @@
 {
-  "version": "3.4.130",
-  "build_date": "2026-08-15T16:48:48Z",
+  "version": "3.4.131",
+  "build_date": "2026-08-15T17:30:00Z",
   "release_notes": [
+    "feat: tornar os agrupamentos responsivos do menu funcionais",
+    "feat: alinhar balancete analitico ao modelo SAGE",
+    "fix: liberar automaticamente todas as empresas para administradores",
     "feat: envio por email de relatorios contabeis",
     "feat: responsividade e plano de migração SAGE",
     "fix: formatar moeda brasileira nos PDFs contabeis",
