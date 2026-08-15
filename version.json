@@ -1,10 +1,9 @@
 {
-  "version": "3.4.126",
-  "build_date": "2026-08-15T12:59:47Z",
+  "version": "3.4.127",
+  "build_date": "2026-08-15T13:18:40Z",
   "release_notes": [
-    "AuditAI corrigido para abrir com o layout completo, sem ampliar o símbolo sobre a tela.",
-    "Relatórios passam a reconhecer como equivalentes contas numéricas com ou sem zeros à esquerda.",
-    "Balancete, razão e diário consolidam a conta reduzida em uma única linha, sem alterar lançamentos ou o plano de contas.",
-    "Demais módulos e ajustes anteriores preservados."
+    "Correção da exportação PDF com bibliotecas locais",
+    "Envio de relatórios em PDF pelo WhatsApp",
+    "AuditAI com estilos locais compatíveis com Safari"
   ]
 }

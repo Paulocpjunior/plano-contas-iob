@@ -284,7 +284,8 @@ assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_vers
 assertContains('auditai/conciliacao-arquivos.js', `Motor conciliacao v${version}`, 'versao visivel do motor de conciliacao');
 assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_motor_cache', 'chave de autocorrecao de cache do motor AuditAI');
 assertNotContains('auditai/assets/index-DREfix3266.js', 'https://www.gstatic.com/firebasejs/', 'AuditAI inicializa sem dependencia externa bloqueante do Firebase');
-assertContains('auditai/index.html', '<script async src="https://cdn.tailwindcss.com"></script>', 'Tailwind remoto nao bloqueia a montagem do AuditAI');
+assertNotContains('auditai/index.html', 'cdn.tailwindcss.com', 'AuditAI nao depende do Tailwind remoto para montar');
+assertContains('auditai/index.html', '/auditai/auditai-tailwind.css', 'AuditAI carrega estilos Tailwind locais');
 assertContains('auditai/conciliacao-arquivos.js', 'auditaiFresh', 'URL fresca para impedir aba antiga do AuditAI');
 assertContains('auditai/conciliacao-arquivos.js', 'reconciliationMetrics', 'metricas de conciliacao sem inflar aderencia por lote 1:N');
 assertContains('auditai/conciliacao-arquivos.js', 'cobertura A', 'detalhe de cobertura por arquivo na conciliacao');

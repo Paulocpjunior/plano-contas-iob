@@ -3566,6 +3566,22 @@ app.use('/vendor/xlsx', express.static(path.join(__dirname, 'node_modules', 'xls
   }
 }));
 
+app.use('/vendor/jspdf', express.static(path.join(__dirname, 'node_modules', 'jspdf', 'dist'), {
+  etag: false,
+  maxAge: '1h',
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+  }
+}));
+
+app.use('/vendor/jspdf-autotable', express.static(path.join(__dirname, 'node_modules', 'jspdf-autotable', 'dist'), {
+  etag: false,
+  maxAge: '1h',
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+  }
+}));
+
 // AuditAI — app React buildado
 // HTML e scripts soltos precisam sempre chegar frescos; a conciliacao usa
 // cache-buster de versao, mas Safari/Cloud Run podem manter copia antiga.

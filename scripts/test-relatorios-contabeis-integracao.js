@@ -18,7 +18,7 @@ assert(index.includes('relatoriosContabeis: { saldosIniciais: {} }'), 'configura
 assert(index.includes("p !== 'empresas' && !empresaAtivadaExplicitamente()"), 'gate de ativação da empresa foi removido');
 assert(index.includes('id="btnCadastroEmpresaNav"'), 'cadastro de empresas foi removido');
 
-['Balancete', 'Razão Analítico', 'Livro Diário', 'Exportar PDF', 'Exportar Excel', 'Encerrar período', 'Reabrir período'].forEach(function (texto) {
+['Balancete', 'Razão Analítico', 'Livro Diário', 'Exportar PDF', 'Exportar Excel', 'Enviar PDF no WhatsApp', 'Encerrar período', 'Reabrir período'].forEach(function (texto) {
   assert(ui.includes(texto), 'recurso de relatório ausente: ' + texto);
 });
 assert(ui.includes('html[data-theme="dark"]'), 'tema escuro não tratado no módulo');
@@ -27,6 +27,12 @@ assert(ui.includes('html[data-theme="dark"] .rc-alert'), 'avisos do tema escuro 
 assert(ui.includes('<option value="6">6 colunas</option>'), 'balancete de 6 colunas ausente');
 assert(ui.includes('<option value="4">4 colunas</option>'), 'balancete de 4 colunas ausente');
 assert(ui.includes('<option value="2">2 colunas</option>'), 'balancete de 2 colunas ausente');
+assert(ui.includes("'/vendor/jspdf/jspdf.umd.min.js'"), 'jsPDF não é carregado do servidor local');
+assert(ui.includes("'/vendor/jspdf-autotable/jspdf.plugin.autotable.min.js'"), 'AutoTable não é carregado do servidor local');
+assert(ui.includes('navigator.share'), 'compartilhamento nativo do PDF ausente');
+assert(ui.includes("'https://wa.me/'"), 'fallback para conversa do WhatsApp ausente');
+assert(server.includes("app.use('/vendor/jspdf'"), 'rota local do jsPDF ausente');
+assert(server.includes("app.use('/vendor/jspdf-autotable'"), 'rota local do AutoTable ausente');
 
 assert(server.includes("app.get('/api/empresas/:cnpj/contabilidade/periodos'"), 'rota de períodos ausente');
 assert(server.includes("app.post('/api/empresas/:cnpj/contabilidade/fechar'"), 'rota de fechamento ausente');

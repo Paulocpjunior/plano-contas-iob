@@ -4,6 +4,7 @@
   let tipoAtual = 'balancete';
   let statusAtual = null;
   let inicializado = false;
+  const bibliotecasPDF = {};
 
   function esc(valor) {
     return String(valor == null ? '' : valor).replace(/[&<>"']/g, function (c) {
@@ -55,7 +56,7 @@
       .rc-hero h2{margin:4px 0;font-size:24px}.rc-hero p{margin:0;color:#dbeafe}.rc-status{padding:9px 13px;border:1px solid rgba(255,255,255,.3);border-radius:10px;background:rgba(255,255,255,.1);font-weight:800;font-size:12px}
       .rc-controls{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px;align-items:end}.rc-field label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px}.rc-field input,.rc-field select,.rc-field textarea{width:100%;padding:10px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a}.rc-field textarea{min-height:104px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
       .rc-tabs{display:flex;gap:8px;flex-wrap:wrap}.rc-tab{padding:9px 14px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:800;cursor:pointer}.rc-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}.rc-tab[disabled]{opacity:.48;cursor:not-allowed}
-      .rc-actions{display:flex;gap:9px;flex-wrap:wrap}.rc-btn{padding:10px 14px;border:0;border-radius:9px;font-weight:800;cursor:pointer}.rc-btn.primary{background:#2563eb;color:#fff}.rc-btn.success{background:#059669;color:#fff}.rc-btn.warn{background:#f59e0b;color:#fff}.rc-btn.danger{background:#dc2626;color:#fff}.rc-btn.light{background:#e2e8f0;color:#0f172a}.rc-btn:disabled{opacity:.5;cursor:not-allowed}
+      .rc-actions{display:flex;gap:9px;flex-wrap:wrap}.rc-btn{padding:10px 14px;border:0;border-radius:9px;font-weight:800;cursor:pointer}.rc-btn.primary{background:#2563eb;color:#fff}.rc-btn.success{background:#059669;color:#fff}.rc-btn.whatsapp{background:#16a34a;color:#fff}.rc-btn.warn{background:#f59e0b;color:#fff}.rc-btn.danger{background:#dc2626;color:#fff}.rc-btn.light{background:#e2e8f0;color:#0f172a}.rc-btn:disabled{opacity:.5;cursor:not-allowed}
       .rc-summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.rc-kpi{padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}.rc-kpi small{display:block;color:#64748b;font-weight:800;text-transform:uppercase}.rc-kpi strong{display:block;font-size:20px;margin-top:5px;color:#0f172a}.rc-ok{color:#047857}.rc-error{color:#b91c1c}.rc-alert{padding:12px 14px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px}.rc-table-wrap{overflow:auto;max-height:62vh;border:1px solid #e2e8f0;border-radius:12px}.rc-table{width:100%;border-collapse:collapse;font-size:12px}.rc-table th{position:sticky;top:0;z-index:1;background:#f1f5f9;color:#475569;text-transform:uppercase;font-size:10px;letter-spacing:.05em}.rc-table th,.rc-table td{padding:9px 10px;border-bottom:1px solid #e2e8f0;text-align:left;white-space:nowrap}.rc-table td.num,.rc-table th.num{text-align:right;font-variant-numeric:tabular-nums}.rc-account-row td{background:#eff6ff;font-weight:900;color:#1e3a8a}.rc-settings{border:1px dashed #94a3b8;border-radius:12px;padding:14px}.rc-settings summary{cursor:pointer;font-weight:800;color:#334155}.rc-history{font-size:12px;color:#64748b}
       html[data-theme="dark"] .rc-field label,html[data-theme="dark"] .rc-history{color:#cbd5e1}html[data-theme="dark"] .rc-tab,html[data-theme="dark"] .rc-field input,html[data-theme="dark"] .rc-field select,html[data-theme="dark"] .rc-field textarea{background:#0b1220;color:#f8fafc;border-color:#475569;color-scheme:dark}html[data-theme="dark"] .rc-field input::placeholder,html[data-theme="dark"] .rc-field textarea::placeholder{color:#a8b5c8;opacity:1}html[data-theme="dark"] .rc-tab.active{background:#2563eb;border-color:#60a5fa}html[data-theme="dark"] .rc-kpi{background:#0b1220;border-color:#334155}html[data-theme="dark"] .rc-kpi small{color:#94a3b8}html[data-theme="dark"] .rc-kpi strong{color:#f8fafc}html[data-theme="dark"] .rc-table-wrap{border-color:#334155}html[data-theme="dark"] .rc-table th{background:#020617!important;color:#cbd5e1!important}html[data-theme="dark"] .rc-table td{border-color:#334155;color:#e2e8f0}html[data-theme="dark"] .rc-account-row td{background:#172554!important;color:#bfdbfe}html[data-theme="dark"] .rc-alert{background:#431407;border-color:#9a3412;color:#fed7aa}html[data-theme="dark"] .rc-settings{border-color:#475569}html[data-theme="dark"] .rc-settings summary{color:#e2e8f0}html[data-theme="dark"] .rc-btn.light{background:#334155;color:#f8fafc}
       @media(max-width:900px){.rc-controls,.rc-summary{grid-template-columns:1fr 1fr}}@media(max-width:560px){.rc-controls,.rc-summary{grid-template-columns:1fr}}
@@ -80,7 +81,7 @@
             <div class="rc-field"><label>Pesquisar</label><input id="rcBusca" placeholder="Conta, histórico ou documento"></div>
           </div>
           <div class="rc-tabs" style="margin-top:16px"><button class="rc-tab active" data-rc-tipo="balancete">Balancete</button><button class="rc-tab" data-rc-tipo="razao">Razão Analítico</button><button class="rc-tab" data-rc-tipo="diario">Livro Diário</button><button class="rc-tab" disabled title="Próxima etapa">DRE — próxima etapa</button><button class="rc-tab" disabled title="Próxima etapa">Balanço — próxima etapa</button></div>
-          <div class="rc-actions" style="margin-top:16px"><button class="rc-btn primary" id="rcAtualizar">Atualizar prévia</button><button class="rc-btn light" id="rcPdf">Exportar PDF</button><button class="rc-btn success" id="rcExcel">Exportar Excel</button><button class="rc-btn warn" id="rcFechar">Encerrar período</button><button class="rc-btn danger" id="rcReabrir" style="display:none">Reabrir período</button></div>
+          <div class="rc-actions" style="margin-top:16px"><button class="rc-btn primary" id="rcAtualizar">Atualizar prévia</button><button class="rc-btn light" id="rcPdf">Exportar PDF</button><button class="rc-btn success" id="rcExcel">Exportar Excel</button><button class="rc-btn whatsapp" id="rcWhatsapp">💬 Enviar PDF no WhatsApp</button><button class="rc-btn warn" id="rcFechar">Encerrar período</button><button class="rc-btn danger" id="rcReabrir" style="display:none">Reabrir período</button></div>
         </section>
         <section class="card" style="padding:20px"><div class="rc-summary" id="rcResumo"></div><div id="rcAvisos" style="margin-top:12px"></div></section>
         <section class="card" style="padding:20px"><div id="rcTituloTabela" style="font-size:17px;font-weight:900;margin-bottom:12px"></div><div class="rc-table-wrap"><table class="rc-table"><thead id="rcHead"></thead><tbody id="rcBody"></tbody></table></div></section>
@@ -91,6 +92,7 @@
     document.getElementById('rcAtualizar').addEventListener('click', atualizarTudo);
     document.getElementById('rcPdf').addEventListener('click', exportarPDF);
     document.getElementById('rcExcel').addEventListener('click', exportarExcel);
+    document.getElementById('rcWhatsapp').addEventListener('click', compartilharPDFWhatsapp);
     document.getElementById('rcSalvarSaldos').addEventListener('click', salvarSaldos);
     document.getElementById('rcFechar').addEventListener('click', fecharPeriodo);
     document.getElementById('rcReabrir').addEventListener('click', reabrirPeriodo);
@@ -279,19 +281,89 @@
     } catch (e) { window.showToast(e.message || String(e), 'error'); }
   }
 
+  function carregarScriptPDF(src) {
+    if (bibliotecasPDF[src]) return bibliotecasPDF[src];
+    bibliotecasPDF[src] = new Promise(function (resolve, reject) {
+      const existente = document.querySelector('script[data-cci-pdf="' + src + '"]');
+      if (existente && existente.dataset.carregado === 'true') return resolve();
+      const script = existente || document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.dataset.cciPdf = src;
+      script.onload = function () { script.dataset.carregado = 'true'; resolve(); };
+      script.onerror = function () { delete bibliotecasPDF[src]; reject(new Error('Não foi possível carregar a biblioteca PDF local.')); };
+      if (!existente) document.head.appendChild(script);
+    });
+    return bibliotecasPDF[src];
+  }
+
+  async function garantirBibliotecasPDF() {
+    if (!(window.jspdf && window.jspdf.jsPDF)) {
+      await carregarScriptPDF('/vendor/jspdf/jspdf.umd.min.js');
+    }
+    if (!(window.jspdf && window.jspdf.jsPDF)) throw new Error('Biblioteca PDF local indisponível.');
+    if (typeof window.jspdf.jsPDF.API.autoTable !== 'function') {
+      await carregarScriptPDF('/vendor/jspdf-autotable/jspdf.plugin.autotable.min.js');
+    }
+    if (typeof window.jspdf.jsPDF.API.autoTable !== 'function') throw new Error('Componente de tabelas do PDF indisponível.');
+    return window.jspdf.jsPDF;
+  }
+
+  async function criarDocumentoPDF() {
+    const jsPDF = await garantirBibliotecasPDF();
+    const dados = dadosAtuais();
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFontSize(15); doc.text('SP ASSESSORIA CONTÁBIL', 14, 14);
+    doc.setFontSize(11); doc.text((tipoAtual === 'balancete' ? 'Balancete de Verificação' : tipoAtual === 'razao' ? 'Razão Analítico' : 'Livro Diário') + ' — ' + dados.periodo, 14, 21);
+    doc.setFontSize(8); doc.text(String(dados.ctx.empresa.razao_social || dados.ctx.empresa.empresa || '') + ' | CNPJ ' + String(dados.ctx.empresa.cnpj || ''), 14, 27);
+    doc.autoTable({ startY: 32, head: [cabecalhoExportacao()], body: linhasExportacao(dados), styles: { fontSize: 6.5, cellPadding: 1.5 }, headStyles: { fillColor: [30, 64, 175] }, didDrawPage: function () { doc.setFontSize(7); doc.text('Gerado pelo Consultor Contábil Inteligente', 14, 204); } });
+    return { doc, dados, arquivo: nomeArquivo(dados, 'pdf') };
+  }
+
   async function exportarPDF() {
     try {
-      if (typeof window.garantirBibliotecasRelatorioRazao === 'function') await window.garantirBibliotecasRelatorioRazao();
-      const jsPDF = window.jspdf && window.jspdf.jsPDF;
-      if (!jsPDF) throw new Error('Biblioteca PDF indisponível. Recarregue a página.');
-      const dados = dadosAtuais();
-      const doc = new jsPDF({ orientation: tipoAtual === 'diario' ? 'landscape' : 'landscape', unit: 'mm', format: 'a4' });
-      doc.setFontSize(15); doc.text('SP ASSESSORIA CONTÁBIL', 14, 14);
-      doc.setFontSize(11); doc.text((tipoAtual === 'balancete' ? 'Balancete de Verificação' : tipoAtual === 'razao' ? 'Razão Analítico' : 'Livro Diário') + ' — ' + dados.periodo, 14, 21);
-      doc.setFontSize(8); doc.text(String(dados.ctx.empresa.razao_social || dados.ctx.empresa.empresa || '') + ' | CNPJ ' + String(dados.ctx.empresa.cnpj || ''), 14, 27);
-      doc.autoTable({ startY: 32, head: [cabecalhoExportacao()], body: linhasExportacao(dados), styles: { fontSize: 6.5, cellPadding: 1.5 }, headStyles: { fillColor: [30, 64, 175] }, didDrawPage: function () { doc.setFontSize(7); doc.text('Gerado pelo Consultor Contábil Inteligente', 14, 204); } });
-      doc.save(nomeArquivo(dados, 'pdf'));
+      const resultado = await criarDocumentoPDF();
+      resultado.doc.save(resultado.arquivo);
     } catch (e) { window.showToast(e.message || String(e), 'error'); }
+  }
+
+  function numeroWhatsappEmpresa(empresa) {
+    let numero = String((empresa || {}).whatsapp || (empresa || {}).whatsapp_cliente || '').replace(/\D/g, '');
+    if (numero.length === 10 || numero.length === 11) numero = '55' + numero;
+    return numero;
+  }
+
+  async function compartilharPDFWhatsapp() {
+    const botao = document.getElementById('rcWhatsapp');
+    try {
+      if (botao) { botao.disabled = true; botao.textContent = 'Preparando PDF...'; }
+      const resultado = await criarDocumentoPDF();
+      const blob = resultado.doc.output('blob');
+      const arquivo = typeof File === 'function'
+        ? new File([blob], resultado.arquivo, { type: 'application/pdf' })
+        : null;
+      const empresa = resultado.dados.ctx.empresa || {};
+      const nomeEmpresa = empresa.razao_social || empresa.empresa || 'empresa';
+      const mensagem = 'Segue o ' + (tipoAtual === 'balancete' ? 'Balancete de Verificação' : tipoAtual === 'razao' ? 'Razão Analítico' : 'Livro Diário') + ' de ' + resultado.dados.periodo + ' — ' + nomeEmpresa + '.';
+
+      if (arquivo && navigator.share && (!navigator.canShare || navigator.canShare({ files: [arquivo] }))) {
+        await navigator.share({ title: resultado.arquivo, text: mensagem, files: [arquivo] });
+        window.showToast('Relatório encaminhado para compartilhamento.', 'success');
+        return;
+      }
+
+      resultado.doc.save(resultado.arquivo);
+      const numero = numeroWhatsappEmpresa(empresa);
+      if (numero) {
+        window.open('https://wa.me/' + numero + '?text=' + encodeURIComponent(mensagem + '\n\nO PDF foi baixado; anexe o arquivo nesta conversa.'), '_blank', 'noopener');
+      }
+      window.showToast(numero ? 'PDF baixado e conversa do cliente aberta no WhatsApp.' : 'PDF baixado. Cadastre o WhatsApp da empresa para abrir a conversa do cliente.', numero ? 'success' : 'warning');
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+      window.showToast(e.message || String(e), 'error');
+    } finally {
+      if (botao) { botao.disabled = false; botao.textContent = '💬 Enviar PDF no WhatsApp'; }
+    }
   }
 
   function renderHistorico(periodoStatus) {
