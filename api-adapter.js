@@ -290,6 +290,44 @@
     return await r.json();
   }
 
+  async function listarPeriodosContabeis(cnpj) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/contabilidade/periodos');
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
+  async function fecharPeriodoContabil(cnpj, periodo) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/contabilidade/fechar', {
+      method: 'POST',
+      body: JSON.stringify({ periodo: periodo })
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const erro = new Error(body.erro || ('Erro ' + r.status));
+      erro.code = body.codigo || '';
+      throw erro;
+    }
+    return body;
+  }
+
+  async function reabrirPeriodoContabil(cnpj, periodo, motivo) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/contabilidade/reabrir', {
+      method: 'POST',
+      body: JSON.stringify({ periodo: periodo, motivo: motivo })
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const erro = new Error(body.erro || ('Erro ' + r.status));
+      erro.code = body.codigo || '';
+      throw erro;
+    }
+    return body;
+  }
+
   async function listarEmpresasFiltrado(params) {
     const qs = new URLSearchParams(params || {}).toString();
     const r = await apiFetch(API_BASE + '/api/empresas/listar' + (qs ? '?' + qs : ''));
@@ -622,7 +660,7 @@
     return await r.json();
   }
 
-  window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAquisicaoRural,
+  window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarPeriodosContabeis, fecharPeriodoContabil, reabrirPeriodoContabil, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAquisicaoRural,
     reinfServicosTomados,
     reinfServicoTomadoPrestador,
     reinfServicosTomadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };

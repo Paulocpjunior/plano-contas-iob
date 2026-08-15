@@ -1,7 +1,11 @@
 {
-  "version": "3.4.121",
-  "build_date": "2026-08-15T11:11:54Z",
+  "version": "3.4.122",
+  "build_date": "2026-08-15T11:55:20Z",
   "release_notes": [
+    "Núcleo Contábil v1 com Balancete, Razão Analítico e Livro Diário",
+    "Relatórios em PDF e Excel com filtros, pesquisa e formatos de 2, 4 ou 6 colunas",
+    "Saldos iniciais por competência e encerramento mensal com fotografia e hash de auditoria",
+    "Períodos encerrados protegidos contra alterações e reabertura exclusiva do administrador com motivo",
     "Atualizador reforçado para Safari com URL única e limpeza segura do cache HTTP",
     "Versão revalidada ao retornar para a aba, sem adiamento permanente de atualizações",
     "Contraste corrigido nos botões Fechar e Cancelar do lançamento manual no modo escuro",

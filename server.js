@@ -15,6 +15,7 @@ const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados }
 const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
 const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
+const RelatoriosContabeis = require('./relatorios-contabeis');
 
 const app = express();
 app.set('trust proxy', true);
@@ -1602,6 +1603,62 @@ async function checarAcessoEmpresa(cnpj, user) {
   return { ok: true, empresa: emp };
 }
 
+function lerEstadoContabil(stateJson) {
+  try {
+    const estado = JSON.parse(String(stateJson || '{}'));
+    return {
+      entries: Array.isArray(estado.entries) ? estado.entries : [],
+      relatoriosContabeis: estado.relatoriosContabeis && typeof estado.relatoriosContabeis === 'object'
+        ? estado.relatoriosContabeis
+        : {}
+    };
+  } catch (e) {
+    throw erroSessao('A sessão contábil está ilegível. Nenhuma alteração foi realizada.', 409, 'SESSAO_CONTABIL_INVALIDA');
+  }
+}
+
+async function carregarContasContabeisEmpresa(empresa) {
+  const planoId = String(empresa && empresa.plano_id || '').trim();
+  if (!planoId) return [];
+  const snap = await db.collection('planos').doc(planoId).collection('contas').get();
+  return snap.docs.map(function (doc) {
+    const conta = doc.data() || {};
+    return {
+      codigo: conta.cod || conta.codigo || doc.id,
+      descricao: conta.desc || conta.descricao || '',
+      reduzido: conta.ref_rfb || conta.reduzido || conta.ref || conta.codigo_reduzido || '',
+      analitica: conta.analitica !== false
+    };
+  });
+}
+
+function assinaturaEstadoPeriodo(estado, periodo) {
+  const saldosOriginais = estado && estado.relatoriosContabeis && estado.relatoriosContabeis.saldosIniciais
+    ? estado.relatoriosContabeis.saldosIniciais[periodo] || {}
+    : {};
+  const saldos = {};
+  Object.keys(saldosOriginais).sort().forEach(function (conta) { saldos[conta] = saldosOriginais[conta]; });
+  return hashSessao(RelatoriosContabeis.assinaturaPeriodo((estado && estado.entries) || [], periodo) + '|' + JSON.stringify(saldos));
+}
+
+async function impedirAlteracaoPeriodosFechados(cnpj, stateJsonAtual, stateJsonNovo) {
+  const periodos = await db.collection('empresas').doc(cnpj).collection('periodos_contabeis').get();
+  const fechados = periodos.docs.filter(function (doc) { return String((doc.data() || {}).status) === 'fechado'; });
+  if (!fechados.length) return;
+  const atual = lerEstadoContabil(stateJsonAtual);
+  const novo = lerEstadoContabil(stateJsonNovo);
+  const alterados = fechados.map(function (doc) { return doc.id; }).filter(function (periodo) {
+    return assinaturaEstadoPeriodo(atual, periodo) !== assinaturaEstadoPeriodo(novo, periodo);
+  });
+  if (alterados.length) {
+    throw erroSessao(
+      'O período ' + alterados.join(', ') + ' está encerrado. Reabra a competência antes de alterar seus lançamentos.',
+      409,
+      'PERIODO_CONTABIL_FECHADO'
+    );
+  }
+}
+
 function serializarFiscal(data) {
   const out = { ...(data || {}) };
   Object.keys(out).forEach(k => {
@@ -2363,6 +2420,7 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     if (exigirRevisao && (!session_revision || session_revision !== atual.dados.session_revision)) {
       throw erroSessao('Esta sessão foi alterada por um administrador. Recarregue a empresa antes de salvar novamente.', 409, 'SESSAO_DESATUALIZADA');
     }
+    await impedirAlteracaoPeriodosFechados(cnpjLimpo, atual.stateJson, state_json);
     const versaoServidor = lerVersao().version || '';
     const validacaoVersao = validarVersaoParaNovaImportacao({
       stateJsonNovo: state_json,
@@ -2592,6 +2650,136 @@ app.get('/api/empresas/:cnpj/relatorios', async (req, res) => {
     const snap = await db.collection('empresas').doc(cnpjLimpo).collection('relatorios').orderBy('fechado_em', 'desc').limit(100).get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+// ==================== NUCLEO CONTABIL / FECHAMENTOS ====================
+app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const snap = await db.collection('empresas').doc(cnpjLimpo).collection('periodos_contabeis').get();
+    const periodos = snap.docs.map(function (doc) {
+      const dados = doc.data() || {};
+      return {
+        periodo: doc.id,
+        status: dados.status || 'aberto',
+        fechamento_id: dados.fechamento_id || null,
+        hash: dados.hash || null,
+        resumo: dados.resumo || null,
+        fechado_em: serializarDataSegura(dados.fechado_em),
+        fechado_por_email: dados.fechado_por_email || null,
+        reaberto_em: serializarDataSegura(dados.reaberto_em),
+        reaberto_por_email: dados.reaberto_por_email || null,
+        motivo_reabertura: dados.motivo_reabertura || null
+      };
+    }).sort(function (a, b) { return b.periodo.localeCompare(a.periodo); });
+    res.json({ periodos, is_admin: !!req.user.is_admin });
+  } catch (e) {
+    console.error('listar periodos contabeis erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_LISTAR_PERIODOS' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competencia invalida. Use AAAA-MM.' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    const periodoRef = empresaRef.collection('periodos_contabeis').doc(periodo);
+    const periodoAtual = await periodoRef.get();
+    if (periodoAtual.exists && String((periodoAtual.data() || {}).status) === 'fechado') {
+      return res.status(409).json({ erro: 'Esta competência já está encerrada.', codigo: 'PERIODO_CONTABIL_FECHADO' });
+    }
+    sessaoRef = empresaRef.collection('sessoes').doc('current');
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'fechamento_contabil');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Nenhuma sessão contábil encontrada para a empresa.', 409, 'SESSAO_NAO_ENCONTRADA');
+    const estado = lerEstadoContabil(sessao.stateJson);
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const saldosIniciais = (estado.relatoriosContabeis.saldosIniciais || {})[periodo] || {};
+    const validacao = RelatoriosContabeis.validar(estado.entries, periodo, contas);
+    if (!validacao.quantidade) throw erroSessao('Não há lançamentos contábeis nesta competência.', 409, 'SEM_MOVIMENTO_CONTABIL');
+    if (!validacao.ok) throw erroSessao('O período possui inconsistências e não pode ser encerrado.', 409, 'VALIDACAO_CONTABIL_FALHOU');
+    const fotografia = RelatoriosContabeis.snapshot({
+      periodo,
+      lancamentos: estado.entries,
+      contas,
+      saldosIniciais,
+      empresa: { cnpj: cnpjLimpo, razao_social: chk.empresa.razao_social || '', codigo_empresa: codigoEmpresaDe(chk.empresa), plano_id: chk.empresa.plano_id || null }
+    });
+    const fotografiaSemHash = { ...fotografia };
+    delete fotografiaSemHash.hash;
+    fotografia.hash = hashSessao(JSON.stringify(fotografiaSemHash));
+    const fechamentoRef = empresaRef.collection('fechamentos_contabeis').doc();
+    await gravarDocumentoJson(fechamentoRef, JSON.stringify(fotografia), {
+      periodo,
+      hash: fotografia.hash,
+      schema: fotografia.schema,
+      resumo: validacao,
+      session_revision: sessao.dados && sessao.dados.session_revision || null,
+      fechado_em: new Date(),
+      fechado_por_uid: req.user.uid,
+      fechado_por_email: req.user.email
+    });
+    await periodoRef.set({
+      status: 'fechado',
+      fechamento_id: fechamentoRef.id,
+      hash: fotografia.hash,
+      resumo: validacao,
+      fechado_em: new Date(),
+      fechado_por_uid: req.user.uid,
+      fechado_por_email: req.user.email,
+      reaberto_em: FieldValue.delete(),
+      reaberto_por_uid: FieldValue.delete(),
+      reaberto_por_email: FieldValue.delete(),
+      motivo_reabertura: FieldValue.delete()
+    }, { merge: true });
+    await liberarTravaSessao(sessaoRef, tokenTrava);
+    tokenTrava = null;
+    res.status(201).json({ ok: true, periodo, status: 'fechado', fechamento_id: fechamentoRef.id, hash: fotografia.hash, resumo: validacao });
+  } catch (e) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    console.error('fechar periodo contabil erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_FECHAR_PERIODO' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/contabilidade/reabrir', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    const motivo = String(req.body && req.body.motivo || '').trim();
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competencia invalida. Use AAAA-MM.' });
+    if (motivo.length < 10) return res.status(400).json({ erro: 'Informe o motivo da reabertura com pelo menos 10 caracteres.' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const periodoRef = db.collection('empresas').doc(cnpjLimpo).collection('periodos_contabeis').doc(periodo);
+    const atual = await periodoRef.get();
+    if (!atual.exists || String((atual.data() || {}).status) !== 'fechado') {
+      return res.status(409).json({ erro: 'A competência não está encerrada.', codigo: 'PERIODO_NAO_FECHADO' });
+    }
+    await periodoRef.set({
+      status: 'reaberto',
+      reaberto_em: new Date(),
+      reaberto_por_uid: req.user.uid,
+      reaberto_por_email: req.user.email,
+      motivo_reabertura: motivo
+    }, { merge: true });
+    await periodoRef.collection('eventos').add({ tipo: 'reabertura', motivo, timestamp: new Date(), uid: req.user.uid, email: req.user.email });
+    res.json({ ok: true, periodo, status: 'reaberto' });
+  } catch (e) {
+    console.error('reabrir periodo contabil erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_REABRIR_PERIODO' });
+  }
 });
 
 // ==================== ACCESS LOGS ====================
