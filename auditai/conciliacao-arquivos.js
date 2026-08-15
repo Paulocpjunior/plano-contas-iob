@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.4.118';
+  const AUDITAI_MOTOR_VERSION = '3.4.119';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.118';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.119';
 
   const STATE = {
     files: { a: null, b: null },
@@ -1660,7 +1660,7 @@
     const root = document.getElementById('root');
     if (!root) return;
     root.innerHTML = '<div class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">' +
-      '<header class="bg-slate-900 border-b border-slate-800 py-4"><div class="max-w-7xl mx-auto px-6 flex justify-between items-center"><div><h1 class="text-lg font-black text-white tracking-wider">SP ASSESSORIA CONTÁBIL</h1><p class="text-[10px] text-blue-400 font-bold uppercase tracking-[0.2em]">Conciliação e Inteligência de Arquivos</p></div><button id="sp-voltar-auditai" class="text-xs font-bold text-slate-300 hover:text-white">Voltar para AuditAI</button></div></header>' +
+      '<header class="bg-slate-900 border-b border-slate-800 py-4"><div class="max-w-7xl mx-auto px-6 flex justify-between items-center"><div class="flex items-center gap-3"><div data-sp-official-logo="conciliacao" class="sp-official-logo-runtime"><img src="/sp-logo.png" alt="SP Assessoria Contábil"></div><div><h1 class="text-lg font-black text-white tracking-wider">SP ASSESSORIA CONTÁBIL</h1><p class="text-[10px] text-blue-400 font-bold uppercase tracking-[0.2em]">Conciliação e Inteligência de Arquivos</p></div></div><div class="flex items-center gap-3"><button data-theme-toggle onclick="window.SPSaaSTheme.toggle()" class="px-3 py-2 rounded-lg border border-slate-700 text-xs font-bold text-slate-300 hover:text-white"><span data-theme-icon>🌙</span> <span data-theme-label>Escuro</span></button><button id="sp-voltar-auditai" class="text-xs font-bold text-slate-300 hover:text-white">Voltar para AuditAI</button></div></div></header>' +
       '<main class="max-w-7xl mx-auto px-6 py-8 space-y-6">' +
       '<section class="bg-gradient-to-br from-slate-900 to-blue-900 rounded-3xl p-8 text-white"><p class="text-xs uppercase tracking-widest text-blue-200 font-bold mb-2">Novo módulo</p><h2 class="text-3xl font-black mb-3">Comparar arquivos financeiros e bancários</h2><p class="text-slate-300 max-w-3xl">Cruze XLSX, CSV, TXT e PDF enviados pelo cliente contra extratos bancários ou relatórios financeiros. O sistema identifica conciliados, pendências e possíveis divergências por valor, data e descrição.</p></section>' +
       '<section class="grid grid-cols-1 lg:grid-cols-2 gap-4">' +

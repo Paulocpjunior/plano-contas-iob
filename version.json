@@ -1,7 +1,9 @@
 {
-  "version": "3.4.118",
-  "build_date": "2026-08-14T23:27:19Z",
+  "version": "3.4.119",
+  "build_date": "2026-08-15T10:51:39Z",
   "release_notes": [
+    "Identidade visual oficial da SP Assessoria padronizada no CCI, Admin, AuditAI e Conciliação",
+    "Visualização Claro/Escuro compartilhada entre todos os módulos, com contraste revisado",
     "Cadastro de Empresas restaurado como ação explícita antes ou depois da ativação",
     "Proteção de classificações: editar uma linha não replica contas para outras linhas selecionadas",
     "Motor de IA atualizado para Google Gemini 3.7 Flash",

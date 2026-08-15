@@ -4,28 +4,31 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Admin — Plano de Contas IOB</title>
+<link rel="icon" type="image/png" href="/sp-logo.png">
+<script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
+<script src="/saas-brand-theme.js?v=3.4.119"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.104"></script>
-<script src="/parser-ofx.js?v=3.4.104"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.104"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.104"></script>
-<script src="/parser-safra-extrato.js?v=3.4.104"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.104"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.104"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.104"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.104"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.104"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.104"></script>
-<script src="/parser-btg-pactual.js?v=3.4.104"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.104"></script>
-<script src="/parser-abc-extrato.js?v=3.4.104"></script>
-<script src="/parser-inter-extrato.js?v=3.4.104"></script>
-<script src="/parser-stone-extrato.js?v=3.4.104"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.104"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.104"></script>
+<script src="/api-adapter.js?v=3.4.119"></script>
+<script src="/parser-ofx.js?v=3.4.119"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.119"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.119"></script>
+<script src="/parser-safra-extrato.js?v=3.4.119"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.119"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.119"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.119"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.119"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.119"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.119"></script>
+<script src="/parser-btg-pactual.js?v=3.4.119"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.119"></script>
+<script src="/parser-abc-extrato.js?v=3.4.119"></script>
+<script src="/parser-inter-extrato.js?v=3.4.119"></script>
+<script src="/parser-stone-extrato.js?v=3.4.119"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.119"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.119"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -47,11 +50,15 @@
   body::before { content: ""; display: block; height: 132px; background: linear-gradient(135deg, var(--primary) 0%, #172554 55%, #1d4ed8 100%); position: fixed; top: 0; left: 0; right: 0; z-index: -1; }
   .container { max-width: 1280px; margin: 0 auto; padding: 28px 24px 42px; }
   .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 18px 20px; background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; box-shadow: 0 18px 48px rgba(15,23,42,.22); color: #fff; gap: 18px; }
+  .brand-lockup { display:flex; align-items:center; gap:12px; }
+  .brand-logo { width:48px; height:48px; padding:5px; object-fit:contain; background:rgba(255,255,255,.96); border-radius:13px; box-shadow:0 8px 20px rgba(0,0,0,.22); }
+  .brand-copy small { display:block; color:#93c5fd; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; margin-top:2px; }
   .header h1 { font-size: 21px; color: #fff; font-weight: 800; letter-spacing: -0.01em; }
   .header .user-info { font-size: 13px; color: #cbd5e1; }
   .header .user-info strong { color: #93c5fd; }
   .header button { background: rgba(239,68,68,.95); color: #fff; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
   .header button:hover { filter: brightness(1.05); transform: translateY(-1px); }
+  .theme-toggle { display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:92px;background:rgba(255,255,255,.10)!important;color:#fff!important;border:1px solid rgba(255,255,255,.24)!important;padding:9px 12px!important;border-radius:9px!important;margin-left:10px;font:inherit;font-size:12px!important;font-weight:800!important; }
   .header a { color: #dbeafe; text-decoration: none; margin-right: 16px; font-size: 13px; font-weight: 700; }
   .tabs { display: flex; gap: 6px; margin-bottom: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 6px; box-shadow: var(--shadow); overflow-x: auto; }
   .tabs button { background: transparent; border: none; padding: 11px 16px; cursor: pointer; font-size: 13px; color: var(--muted); border-radius: 8px; font-weight: 800; white-space: nowrap; }
@@ -95,10 +102,11 @@
   .btn-demote { background: #ef4444; color: #fff; }
   .loading { text-align: center; padding: 40px; color: var(--muted); }
   .error { background: #fef2f2; color: #991b1b; padding: 16px; border: 1px solid #fecaca; border-radius: 10px; margin-bottom: 16px; }
-  .login-box { max-width: 420px; margin: 70px auto; background: #fff; padding: 34px; border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+  .login-box { position:relative; max-width: 420px; margin: 70px auto; background: #fff; padding: 34px; border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
   .login-box h2 { margin-bottom: 16px; color: var(--primary); font-weight: 800; }
   .login-box input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; font-size: 14px; font-family: inherit; }
   .login-box button { width: 100%; padding: 12px; background: linear-gradient(135deg, var(--accent), #1d4ed8); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 800; cursor: pointer; }
+  .login-box .login-theme-toggle { position:absolute;top:16px;right:16px;width:auto;min-width:92px;margin:0;background:#0f172a!important;padding:8px 11px!important;font-size:11px!important; }
   .login-box .err { color: #dc2626; font-size: 13px; margin-top: 8px; }
   .hidden { display: none !important; }
   .empty { text-align: center; padding: 40px; color: #9ca3af; }
@@ -142,6 +150,45 @@
   .exclusao-preview table input[type="checkbox"] { width:17px; height:17px; accent-color:#dc2626; }
   .confirmacao-exclusao { display:none; margin-top:18px; padding:18px; border:1px solid #fca5a5; border-radius:10px; background:#fff7f7; }
   .confirmacao-exclusao.active { display:block; }
+  html[data-theme="dark"] {
+    --primary:#e2e8f0;
+    --primary-light:#cbd5e1;
+    --accent:#60a5fa;
+    --bg:#070d1b;
+    --surface:#111827;
+    --text:#f8fafc;
+    --muted:#cbd5e1;
+    --border:#334155;
+    --shadow:0 12px 32px rgba(0,0,0,.32);
+  }
+  html[data-theme="dark"] body { background:var(--bg);color:var(--text); }
+  html[data-theme="dark"] body::before { background:linear-gradient(135deg,#020617,#0f172a 58%,#172554); }
+  html[data-theme="dark"] .card,
+  html[data-theme="dark"] .tabs,
+  html[data-theme="dark"] .login-box,
+  html[data-theme="dark"] .layout-card,
+  html[data-theme="dark"] .quality-tool,
+  html[data-theme="dark"] .layout-intake,
+  html[data-theme="dark"] .confirmacao-exclusao { background:#111827!important;color:#f8fafc!important;border-color:#334155!important; }
+  html[data-theme="dark"] input,
+  html[data-theme="dark"] select,
+  html[data-theme="dark"] textarea { background:#0b1220!important;color:#f8fafc!important;border-color:#475569!important; }
+  html[data-theme="dark"] input::placeholder, html[data-theme="dark"] textarea::placeholder { color:#94a3b8!important;opacity:1; }
+  html[data-theme="dark"] option { background:#0b1220;color:#f8fafc; }
+  html[data-theme="dark"] table, html[data-theme="dark"] tbody, html[data-theme="dark"] tr, html[data-theme="dark"] td { color:#e2e8f0;border-color:#334155!important; }
+  html[data-theme="dark"] th,
+  html[data-theme="dark"] .table-scroll table th:first-child { background:#0b1220!important;color:#cbd5e1!important;border-color:#334155!important; }
+  html[data-theme="dark"] .table-scroll table td:first-child { background:#111827!important; }
+  html[data-theme="dark"] tr:hover { background:rgba(51,65,85,.42)!important; }
+  html[data-theme="dark"] .tabs button:hover:not(.active) { background:#1e293b;color:#93c5fd; }
+  html[data-theme="dark"] [style*="color:#111827"], html[data-theme="dark"] [style*="color: #111827"],
+  html[data-theme="dark"] [style*="color:#334155"], html[data-theme="dark"] [style*="color: #334155"],
+  html[data-theme="dark"] [style*="color:#374151"], html[data-theme="dark"] [style*="color: #374151"] { color:#f8fafc!important; }
+  html[data-theme="dark"] [style*="color:#475569"], html[data-theme="dark"] [style*="color: #475569"],
+  html[data-theme="dark"] [style*="color:#64748b"], html[data-theme="dark"] [style*="color: #64748b"],
+  html[data-theme="dark"] [style*="color:#6b7280"], html[data-theme="dark"] [style*="color: #6b7280"],
+  html[data-theme="dark"] [style*="color:#9ca3af"], html[data-theme="dark"] [style*="color: #9ca3af"] { color:#cbd5e1!important; }
+  html[data-theme="dark"] .login-box h2, html[data-theme="dark"] .layout-card .count { color:#f8fafc; }
   @media (max-width: 768px) {
     .container { padding: 18px 12px 30px; }
     .header { align-items: flex-start; flex-direction: column; }
@@ -158,6 +205,8 @@
 <body>
 
 <div id="loginView" class="login-box hidden">
+  <button class="theme-toggle login-theme-toggle" type="button" data-theme-toggle onclick="window.SPSaaSTheme.toggle()"><span data-theme-icon>🌙</span><span data-theme-label>Escuro</span></button>
+  <div style="display:flex;justify-content:center;margin-bottom:14px"><img src="/sp-logo.png" alt="SP Assessoria Contábil" class="brand-logo" style="width:72px;height:72px"></div>
   <h2>Área Administrativa</h2>
   <input type="email" id="loginEmail" placeholder="Email @spassessoriacontabil.com.br">
   <input type="password" id="loginPass" placeholder="Senha">
@@ -173,10 +222,11 @@
 
 <div id="adminView" class="container hidden">
   <div class="header">
-    <h1>👑 Painel Admin — Plano de Contas IOB</h1>
+    <div class="brand-lockup"><img src="/sp-logo.png" alt="SP Assessoria Contábil" class="brand-logo"><div class="brand-copy"><h1>Painel Admin — Consultor Contábil</h1><small>SP Assessoria Contábil</small></div></div>
     <div>
       <a href="/">← Voltar ao App</a>
       <span class="user-info">Logado como <strong id="currentEmail"></strong></span>
+      <button class="theme-toggle" type="button" data-theme-toggle onclick="window.SPSaaSTheme.toggle()"><span data-theme-icon>🌙</span><span data-theme-label>Escuro</span></button>
       <button onclick="firebase.auth().signOut().then(()=>location.reload())" style="margin-left:12px">Sair</button>
     </div>
   </div>

@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Conciliação de Arquivos - AuditAI</title>
+    <link rel="icon" type="image/png" href="/sp-logo.png">
+    <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
+    <script src="/saas-brand-theme.js?v=3.4.119"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -19,7 +22,15 @@
         }
       };
     </script>
-    <script defer src="/auditai/conciliacao-arquivos.js?v=3.4.118"></script>
+    <style>
+      .sp-official-logo-runtime{width:42px;height:42px;padding:4px;border-radius:11px;background:rgba(255,255,255,.96);box-shadow:0 8px 20px rgba(0,0,0,.25);flex:none}
+      .sp-official-logo-runtime img{width:100%;height:100%;object-fit:contain;display:block}
+      .sp-audit-theme-toggle{width:auto!important;min-width:92px!important;gap:7px!important;padding-left:12px!important;padding-right:12px!important}
+      .sp-audit-theme-toggle::after{content:'Escuro';margin-left:6px;font-size:12px;font-weight:800}
+      html.dark .sp-audit-theme-toggle::after{content:'Claro'}
+      html.dark .text-slate-500,html.dark .text-slate-600{color:#cbd5e1!important}
+    </style>
+    <script defer src="/auditai/conciliacao-arquivos.js?v=3.4.119"></script>
   </head>
   <body class="bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
     <div id="root"></div>
