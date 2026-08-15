@@ -110,7 +110,7 @@
       validacao: Core.validar(ctx.entries, periodo, ctx.contas),
       balancete: Core.balancete(ctx.entries, periodo, ctx.contas, saldos),
       razao: Core.razao(ctx.entries, periodo, ctx.contas, saldos, (document.getElementById('rcConta') || {}).value || ''),
-      diario: Core.diario(ctx.entries, periodo)
+      diario: Core.diario(ctx.entries, periodo, ctx.contas)
     };
   }
 

@@ -52,22 +52,53 @@
     return texto(valor).replace(/\s+/g, ' ');
   }
 
+  function aliasNumericoConta(valor) {
+    const conta = normalizarConta(valor);
+    return /^\d+$/.test(conta) ? conta.replace(/^0+(?=\d)/, '') : '';
+  }
+
+  function resolverConta(conta, mapa) {
+    const normalizada = normalizarConta(conta);
+    if (!normalizada) return null;
+    const exata = mapa.get(normalizada);
+    if (exata) return exata;
+    const alias = aliasNumericoConta(normalizada);
+    return alias ? (mapa.get(alias) || null) : null;
+  }
+
+  function contaCanonica(conta, mapa) {
+    const normalizada = normalizarConta(conta);
+    const registro = resolverConta(normalizada, mapa);
+    if (!registro) return normalizada;
+    const preferida = registro.reduzido || registro.codigo || normalizada;
+    return aliasNumericoConta(preferida) || preferida;
+  }
+
   function nomeConta(conta, mapa) {
-    const item = mapa.get(normalizarConta(conta));
+    const item = resolverConta(conta, mapa);
     return item ? item.descricao : '';
   }
 
   function mapaContas(contas) {
     const mapa = new Map();
+    function registrar(chave, registro) {
+      if (!chave) return;
+      if (!mapa.has(chave) || mapa.get(chave) === registro) mapa.set(chave, registro);
+      else mapa.set(chave, null);
+      const alias = aliasNumericoConta(chave);
+      if (!alias || alias === chave) return;
+      if (!mapa.has(alias) || mapa.get(alias) === registro) mapa.set(alias, registro);
+      else mapa.set(alias, null);
+    }
     (contas || []).forEach(function (conta) {
       const codigo = normalizarConta(conta.codigo || conta.cod);
       const reduzido = normalizarConta(conta.reduzido || conta.ref_rfb || conta.refRfb || conta.ref || conta.codigo_reduzido || conta.codigoReduzido);
       const idLegado = normalizarConta(conta.id || conta.conta_id || conta.contaId);
       const descricao = texto(conta.descricao || conta.desc || conta.nome);
       const registro = { codigo, reduzido, descricao, analitica: conta.analitica !== false };
-      if (codigo) mapa.set(codigo, registro);
-      if (reduzido) mapa.set(reduzido, registro);
-      if (/^\d{1,14}$/.test(idLegado)) mapa.set(idLegado, registro);
+      registrar(codigo, registro);
+      registrar(reduzido, registro);
+      if (/^\d{1,14}$/.test(idLegado)) registrar(idLegado, registro);
     });
     return mapa;
   }
@@ -114,9 +145,9 @@
       if (!valor) erros.push({ codigo: 'VALOR_ZERO', id, mensagem: 'Lançamento ' + id + ' possui valor zero.' });
       if (!debito) erros.push({ codigo: 'DEBITO_AUSENTE', id, mensagem: 'Lançamento ' + id + ' sem conta de débito.' });
       if (!credito) erros.push({ codigo: 'CREDITO_AUSENTE', id, mensagem: 'Lançamento ' + id + ' sem conta de crédito.' });
-      if (debito && credito && debito === credito) erros.push({ codigo: 'MESMA_CONTA', id, mensagem: 'Lançamento ' + id + ' usa a mesma conta no débito e no crédito.' });
-      if (mapa.size && debito && !mapa.has(debito)) erros.push({ codigo: 'DEBITO_FORA_PLANO', id, mensagem: 'Conta de débito ' + debito + ' não existe no plano ativo.' });
-      if (mapa.size && credito && !mapa.has(credito)) erros.push({ codigo: 'CREDITO_FORA_PLANO', id, mensagem: 'Conta de crédito ' + credito + ' não existe no plano ativo.' });
+      if (debito && credito && contaCanonica(debito, mapa) === contaCanonica(credito, mapa)) erros.push({ codigo: 'MESMA_CONTA', id, mensagem: 'Lançamento ' + id + ' usa a mesma conta no débito e no crédito.' });
+      if (mapa.size && debito && !resolverConta(debito, mapa)) erros.push({ codigo: 'DEBITO_FORA_PLANO', id, mensagem: 'Conta de débito ' + debito + ' não existe no plano ativo.' });
+      if (mapa.size && credito && !resolverConta(credito, mapa)) erros.push({ codigo: 'CREDITO_FORA_PLANO', id, mensagem: 'Conta de crédito ' + credito + ' não existe no plano ativo.' });
       debitos += valor;
       creditos += valor;
     });
@@ -138,14 +169,15 @@
     const linhas = new Map();
     const saldos = saldosIniciais || {};
     Object.keys(saldos).forEach(function (codigo) {
-      const conta = normalizarConta(codigo);
+      const conta = contaCanonica(codigo, mapa);
       if (!conta) return;
-      linhas.set(conta, { conta, descricao: nomeConta(conta, mapa), saldoAnteriorCentavos: centavos(saldos[codigo]), debitosCentavos: 0, creditosCentavos: 0 });
+      if (!linhas.has(conta)) linhas.set(conta, { conta, descricao: nomeConta(codigo, mapa), saldoAnteriorCentavos: 0, debitosCentavos: 0, creditosCentavos: 0 });
+      linhas.get(conta).saldoAnteriorCentavos += centavos(saldos[codigo]);
     });
     lancamentosDoPeriodo(lancamentos, periodo).forEach(function (lancamento) {
       const valor = Math.abs(centavos(lancamento.valor));
-      const debito = normalizarConta(lancamento.contaDebito);
-      const credito = normalizarConta(lancamento.contaCredito);
+      const debito = contaCanonica(lancamento.contaDebito, mapa);
+      const credito = contaCanonica(lancamento.contaCredito, mapa);
       if (debito) {
         if (!linhas.has(debito)) linhas.set(debito, { conta: debito, descricao: nomeConta(debito, mapa), saldoAnteriorCentavos: 0, debitosCentavos: 0, creditosCentavos: 0 });
         linhas.get(debito).debitosCentavos += valor;
@@ -176,17 +208,24 @@
     const saldos = saldosIniciais || {};
     const grupos = new Map();
     function grupo(conta) {
-      if (!grupos.has(conta)) grupos.set(conta, { conta, descricao: nomeConta(conta, mapa), saldoAnteriorCentavos: centavos(saldos[conta]), saldoCentavos: centavos(saldos[conta]), movimentos: [] });
+      if (!grupos.has(conta)) grupos.set(conta, { conta, descricao: nomeConta(conta, mapa), saldoAnteriorCentavos: 0, saldoCentavos: 0, movimentos: [] });
       return grupos.get(conta);
     }
-    Object.keys(saldos).forEach(function (conta) { if (normalizarConta(conta)) grupo(normalizarConta(conta)); });
+    Object.keys(saldos).forEach(function (conta) {
+      const canonica = contaCanonica(conta, mapa);
+      if (!canonica) return;
+      const g = grupo(canonica);
+      const valor = centavos(saldos[conta]);
+      g.saldoAnteriorCentavos += valor;
+      g.saldoCentavos += valor;
+    });
     const ordenados = lancamentosDoPeriodo(lancamentos, periodo).slice().sort(function (a, b) {
       return dataISO(a.data).localeCompare(dataISO(b.data)) || texto(a.id).localeCompare(texto(b.id), 'pt-BR', { numeric: true });
     });
     ordenados.forEach(function (lancamento) {
       const valor = Math.abs(centavos(lancamento.valor));
-      const debito = normalizarConta(lancamento.contaDebito);
-      const credito = normalizarConta(lancamento.contaCredito);
+      const debito = contaCanonica(lancamento.contaDebito, mapa);
+      const credito = contaCanonica(lancamento.contaCredito, mapa);
       [[debito, valor, 0, credito], [credito, 0, valor, debito]].forEach(function (parte) {
         if (!parte[0]) return;
         const g = grupo(parte[0]);
@@ -199,14 +238,16 @@
         });
       });
     });
-    const filtro = normalizarConta(contaFiltro);
+    const filtroNormalizado = normalizarConta(contaFiltro);
+    const filtro = filtroNormalizado ? contaCanonica(filtroNormalizado, mapa) : '';
     return Array.from(grupos.values())
       .filter(function (g) { return !filtro || g.conta === filtro || g.descricao.toLocaleLowerCase('pt-BR').includes(filtro.toLocaleLowerCase('pt-BR')); })
       .map(function (g) { return { conta: g.conta, descricao: g.descricao, saldoAnterior: deCentavos(g.saldoAnteriorCentavos), saldoFinal: deCentavos(g.saldoCentavos), movimentos: g.movimentos }; })
       .sort(function (a, b) { return a.conta.localeCompare(b.conta, 'pt-BR', { numeric: true }); });
   }
 
-  function diario(lancamentos, periodo) {
+  function diario(lancamentos, periodo, contas) {
+    const mapa = mapaContas(contas);
     return lancamentosDoPeriodo(lancamentos, periodo).slice().sort(function (a, b) {
       return dataISO(a.data).localeCompare(dataISO(b.data)) || texto(a.id).localeCompare(texto(b.id), 'pt-BR', { numeric: true });
     }).map(function (lancamento, indice) {
@@ -214,8 +255,8 @@
         numero: indice + 1,
         id: texto(lancamento.id),
         data: dataISO(lancamento.data),
-        debito: normalizarConta(lancamento.contaDebito),
-        credito: normalizarConta(lancamento.contaCredito),
+        debito: contaCanonica(lancamento.contaDebito, mapa),
+        credito: contaCanonica(lancamento.contaCredito, mapa),
         valor: Math.abs(dinheiroNumero(lancamento.valor)),
         historico: texto(lancamento.historico || lancamento.descricao),
         documento: texto(lancamento.documento || lancamento.numero_nf),
@@ -250,7 +291,7 @@
       lancamentos,
       saldosIniciais: dados && dados.saldosIniciais || {},
       balancete: balancete(lancamentos, periodo, dados && dados.contas, dados && dados.saldosIniciais),
-      diario: diario(lancamentos, periodo),
+      diario: diario(lancamentos, periodo, dados && dados.contas),
       validacao: validar(lancamentos, periodo, dados && dados.contas)
     };
     base.hash = hashTexto(JSON.stringify(base));

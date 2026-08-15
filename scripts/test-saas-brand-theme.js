@@ -39,6 +39,8 @@ assert(theme.includes("document.documentElement.classList.toggle('dark'"), 'O te
 assert(theme.includes('syncCharts(next)'), 'Graficos precisam acompanhar o tema selecionado.');
 assert(!theme.includes('possibleIcon.replaceWith('), 'O tema nao pode substituir nos controlados pelo React do AuditAI.');
 assert(!theme.includes('brandRow.insertBefore('), 'O tema nao pode inserir filhos dentro do cabecalho controlado pelo React.');
+assert(!theme.includes('possibleIcon.classList.add'), 'O tema nao pode aplicar o logo a um ancestral indeterminado do AuditAI.');
+assert(!audit.includes('.sp-official-logo-runtime svg'), 'O AuditAI nao pode ocultar ou redimensionar o SVG controlado pelo React.');
 assert(theme.includes("mutation.type === 'childList'"), 'O aprimoramento visual do AuditAI deve ser agendado apenas para mudancas estruturais.');
 assert(!index.includes('<div class="header-logo">📊'), 'O cabecalho nao deve voltar ao emoji antigo.');
 

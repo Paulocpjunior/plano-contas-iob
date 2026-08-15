@@ -1,9 +1,10 @@
 {
-  "version": "3.4.125",
-  "build_date": "2026-08-15T12:42:39Z",
+  "version": "3.4.126",
+  "build_date": "2026-08-15T12:59:47Z",
   "release_notes": [
-    "AuditAI volta a abrir normalmente após eliminar conflito entre a identidade visual compartilhada e a montagem React.",
-    "Inicialização do AuditAI estabilizada no Safari e demais navegadores, sem alterar dados ou análises.",
-    "Relatórios contábeis e demais ajustes da versão anterior preservados."
+    "AuditAI corrigido para abrir com o layout completo, sem ampliar o símbolo sobre a tela.",
+    "Relatórios passam a reconhecer como equivalentes contas numéricas com ou sem zeros à esquerda.",
+    "Balancete, razão e diário consolidam a conta reduzida em uma única linha, sem alterar lançamentos ou o plano de contas.",
+    "Demais módulos e ajustes anteriores preservados."
   ]
 }

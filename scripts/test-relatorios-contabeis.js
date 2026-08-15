@@ -17,6 +17,7 @@ assert.strictEqual(core.periodoDaData('2026-01-20'), '2026-01');
 assert.strictEqual(core.dinheiroNumero('R$ 1.234,56'), 1234.56);
 assert(core.mapaContas([{ id: '401', codigo: '2.1.01', descricao: 'Fornecedores' }]).has('401'), 'aceita reduzido legado salvo como id do documento');
 assert(core.mapaContas([{ codigo: '1.1.01', refRfb: '111', descricao: 'Banco' }]).has('111'), 'aceita reduzido legado em camelCase');
+assert(core.mapaContas([{ codigo: '0000000300', descricao: 'Fornecedores' }]).has('300'), 'aceita conta numerica com zeros a esquerda pelo reduzido usado nos lancamentos');
 
 const validacao = core.validar(lancamentos, '2026-01', contas);
 assert.strictEqual(validacao.ok, true);
@@ -40,6 +41,20 @@ assert.strictEqual(razao[0].saldoFinal, 850);
 const diario = core.diario(lancamentos, '2026-01');
 assert.strictEqual(diario.length, 2);
 assert.strictEqual(diario[0].data, '2026-01-15');
+
+const contasComZeros = [{ codigo: '0000000300', descricao: 'Fornecedores' }, { codigo: '0000000111', descricao: 'Banco' }];
+const lancamentosComZeros = [
+  { id: 'z1', data: '01/01/2026', valor: 100, contaDebito: '300', contaCredito: '0000000111' },
+  { id: 'z2', data: '02/01/2026', valor: 50, contaDebito: '0000000300', contaCredito: '111' }
+];
+assert.strictEqual(core.validar(lancamentosComZeros, '2026-01', contasComZeros).ok, true, 'zeros a esquerda nao podem gerar falso erro fora do plano');
+const balanceteComZeros = core.balancete(lancamentosComZeros, '2026-01', contasComZeros, {});
+assert.strictEqual(balanceteComZeros.filter(l => l.conta === '300').length, 1, 'formas curta e preenchida devem formar uma unica linha');
+assert.deepStrictEqual(balanceteComZeros.find(l => l.conta === '300'), {
+  conta: '300', descricao: 'Fornecedores', saldoAnterior: 0, debitos: 150, creditos: 0,
+  saldoAtual: 150, saldoDevedor: 150, saldoCredor: 0
+});
+assert.strictEqual(core.diario(lancamentosComZeros, '2026-01', contasComZeros)[0].credito, '111');
 
 const invalido = core.validar([{ id: 'x', data: '01/01/2026', valor: 1, contaDebito: '999', contaCredito: '999' }], '2026-01', contas);
 assert.strictEqual(invalido.ok, false);

@@ -69,28 +69,6 @@
     return apply(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
   }
 
-  function enhanceAuditAIBrand() {
-    document.querySelectorAll('header h1').forEach(function (title) {
-      if (!/SP ASSESSORIA CONT[ÁA]BIL/i.test(title.textContent || '')) return;
-      const titleWrap = title.parentElement;
-      const brandRow = titleWrap && titleWrap.parentElement;
-      if (!brandRow || brandRow.querySelector('[data-sp-official-logo]')) return;
-      const possibleIcon = brandRow.firstElementChild;
-      if (possibleIcon && possibleIcon !== titleWrap && possibleIcon.querySelector('svg')) {
-        // O cabecalho pertence ao React. Substituir ou inserir nos filhos dele
-        // durante a montagem faz o reconciliador perder a referencia do no e
-        // pode deixar o AuditAI em branco. A identidade visual e aplicada sem
-        // alterar a arvore controlada pelo React.
-        possibleIcon.setAttribute('data-sp-official-logo', 'runtime');
-        possibleIcon.classList.add('sp-official-logo-runtime');
-        possibleIcon.style.backgroundImage = 'url("/sp-logo.png")';
-        possibleIcon.style.backgroundPosition = 'center';
-        possibleIcon.style.backgroundRepeat = 'no-repeat';
-        possibleIcon.style.backgroundSize = '34px 34px';
-      }
-    });
-  }
-
   function enhanceAuditAIThemeToggle() {
     document.querySelectorAll('header button').forEach(function (button) {
       const text = (button.textContent || '').trim();
@@ -105,7 +83,6 @@
 
   function enhance() {
     syncButtons(document.documentElement.dataset.theme || storedTheme());
-    enhanceAuditAIBrand();
     enhanceAuditAIThemeToggle();
     syncCharts(document.documentElement.dataset.theme || storedTheme());
   }
@@ -122,7 +99,6 @@
     enhanceScheduled = true;
     root.requestAnimationFrame(function () {
       enhanceScheduled = false;
-      enhanceAuditAIBrand();
       enhanceAuditAIThemeToggle();
     });
   }
