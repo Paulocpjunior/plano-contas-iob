@@ -1,7 +1,9 @@
 {
-  "version": "3.4.129",
-  "build_date": "2026-08-15T16:12:28Z",
+  "version": "3.4.130",
+  "build_date": "2026-08-15T16:48:48Z",
   "release_notes": [
+    "feat: envio por email de relatorios contabeis",
+    "feat: responsividade e plano de migração SAGE",
     "fix: formatar moeda brasileira nos PDFs contabeis",
     "fix: estabilizar PDF WhatsApp e AuditAI",
     "fix: corrigir AuditAI e contas reduzidas nos relatórios",
@@ -9,8 +11,6 @@
     "fix: restaurar AuditAI e compatibilidade dos relatórios",
     "fix: reforcar contraste dos relatorios no escuro",
     "feat: adicionar nucleo de relatorios contabeis",
-    "fix: reforcar atualizacao do app no Safari",
-    "fix: corrigir contraste de controles no tema escuro",
-    "feat: padronizar identidade e tema do SaaS"
+    "fix: reforcar atualizacao do app no Safari"
   ]
 }

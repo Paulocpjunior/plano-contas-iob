@@ -62,9 +62,10 @@
       .rc-hero h2{margin:4px 0;font-size:24px}.rc-hero p{margin:0;color:#dbeafe}.rc-status{padding:9px 13px;border:1px solid rgba(255,255,255,.3);border-radius:10px;background:rgba(255,255,255,.1);font-weight:800;font-size:12px}
       .rc-controls{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px;align-items:end}.rc-field label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px}.rc-field input,.rc-field select,.rc-field textarea{width:100%;padding:10px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a}.rc-field textarea{min-height:104px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
       .rc-tabs{display:flex;gap:8px;flex-wrap:wrap}.rc-tab{padding:9px 14px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:800;cursor:pointer}.rc-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}.rc-tab[disabled]{opacity:.48;cursor:not-allowed}
-      .rc-actions{display:flex;gap:9px;flex-wrap:wrap}.rc-btn{padding:10px 14px;border:0;border-radius:9px;font-weight:800;cursor:pointer}.rc-btn.primary{background:#2563eb;color:#fff}.rc-btn.success{background:#059669;color:#fff}.rc-btn.whatsapp{background:#16a34a;color:#fff}.rc-btn.warn{background:#f59e0b;color:#fff}.rc-btn.danger{background:#dc2626;color:#fff}.rc-btn.light{background:#e2e8f0;color:#0f172a}.rc-btn:disabled{opacity:.5;cursor:not-allowed}
+      .rc-actions{display:flex;gap:9px;flex-wrap:wrap}.rc-btn{padding:10px 14px;border:0;border-radius:9px;font-weight:800;cursor:pointer}.rc-btn.primary{background:#2563eb;color:#fff}.rc-btn.success{background:#059669;color:#fff}.rc-btn.email{background:#1d4ed8;color:#fff}.rc-btn.whatsapp{background:#16a34a;color:#fff}.rc-btn.warn{background:#f59e0b;color:#fff}.rc-btn.danger{background:#dc2626;color:#fff}.rc-btn.light{background:#e2e8f0;color:#0f172a}.rc-btn:disabled{opacity:.5;cursor:not-allowed}
       .rc-summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.rc-kpi{padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}.rc-kpi small{display:block;color:#64748b;font-weight:800;text-transform:uppercase}.rc-kpi strong{display:block;font-size:20px;margin-top:5px;color:#0f172a}.rc-ok{color:#047857}.rc-error{color:#b91c1c}.rc-alert{padding:12px 14px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px}.rc-table-wrap{overflow:auto;max-height:62vh;border:1px solid #e2e8f0;border-radius:12px}.rc-table{width:100%;border-collapse:collapse;font-size:12px}.rc-table th{position:sticky;top:0;z-index:1;background:#f1f5f9;color:#475569;text-transform:uppercase;font-size:10px;letter-spacing:.05em}.rc-table th,.rc-table td{padding:9px 10px;border-bottom:1px solid #e2e8f0;text-align:left;white-space:nowrap}.rc-table td.num,.rc-table th.num{text-align:right;font-variant-numeric:tabular-nums}.rc-account-row td{background:#eff6ff;font-weight:900;color:#1e3a8a}.rc-settings{border:1px dashed #94a3b8;border-radius:12px;padding:14px}.rc-settings summary{cursor:pointer;font-weight:800;color:#334155}.rc-history{font-size:12px;color:#64748b}
-      html[data-theme="dark"] .rc-field label,html[data-theme="dark"] .rc-history{color:#cbd5e1}html[data-theme="dark"] .rc-tab,html[data-theme="dark"] .rc-field input,html[data-theme="dark"] .rc-field select,html[data-theme="dark"] .rc-field textarea{background:#0b1220;color:#f8fafc;border-color:#475569;color-scheme:dark}html[data-theme="dark"] .rc-field input::placeholder,html[data-theme="dark"] .rc-field textarea::placeholder{color:#a8b5c8;opacity:1}html[data-theme="dark"] .rc-tab.active{background:#2563eb;border-color:#60a5fa}html[data-theme="dark"] .rc-kpi{background:#0b1220;border-color:#334155}html[data-theme="dark"] .rc-kpi small{color:#94a3b8}html[data-theme="dark"] .rc-kpi strong{color:#f8fafc}html[data-theme="dark"] .rc-table-wrap{border-color:#334155}html[data-theme="dark"] .rc-table th{background:#020617!important;color:#cbd5e1!important}html[data-theme="dark"] .rc-table td{border-color:#334155;color:#e2e8f0}html[data-theme="dark"] .rc-account-row td{background:#172554!important;color:#bfdbfe}html[data-theme="dark"] .rc-alert{background:#431407;border-color:#9a3412;color:#fed7aa}html[data-theme="dark"] .rc-settings{border-color:#475569}html[data-theme="dark"] .rc-settings summary{color:#e2e8f0}html[data-theme="dark"] .rc-btn.light{background:#334155;color:#f8fafc}
+      .rc-modal{position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.72);display:grid;place-items:center;padding:18px}.rc-modal[hidden]{display:none}.rc-modal-panel{width:min(640px,100%);max-height:calc(100vh - 36px);overflow:auto;background:#fff;color:#0f172a;border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(2,6,23,.4)}.rc-modal-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}.rc-modal-head h3{margin:0;font-size:20px}.rc-modal-head p{margin:5px 0 0;color:#64748b;font-size:13px}.rc-modal-close{border:0;background:transparent;color:inherit;font-size:24px;cursor:pointer}.rc-modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px;flex-wrap:wrap}
+      html[data-theme="dark"] .rc-field label,html[data-theme="dark"] .rc-history{color:#cbd5e1}html[data-theme="dark"] .rc-tab,html[data-theme="dark"] .rc-field input,html[data-theme="dark"] .rc-field select,html[data-theme="dark"] .rc-field textarea{background:#0b1220;color:#f8fafc;border-color:#475569;color-scheme:dark}html[data-theme="dark"] .rc-field input::placeholder,html[data-theme="dark"] .rc-field textarea::placeholder{color:#a8b5c8;opacity:1}html[data-theme="dark"] .rc-tab.active{background:#2563eb;border-color:#60a5fa}html[data-theme="dark"] .rc-kpi{background:#0b1220;border-color:#334155}html[data-theme="dark"] .rc-kpi small{color:#94a3b8}html[data-theme="dark"] .rc-kpi strong{color:#f8fafc}html[data-theme="dark"] .rc-table-wrap{border-color:#334155}html[data-theme="dark"] .rc-table th{background:#020617!important;color:#cbd5e1!important}html[data-theme="dark"] .rc-table td{border-color:#334155;color:#e2e8f0}html[data-theme="dark"] .rc-account-row td{background:#172554!important;color:#bfdbfe}html[data-theme="dark"] .rc-alert{background:#431407;border-color:#9a3412;color:#fed7aa}html[data-theme="dark"] .rc-settings{border-color:#475569}html[data-theme="dark"] .rc-settings summary{color:#e2e8f0}html[data-theme="dark"] .rc-btn.light{background:#334155;color:#f8fafc}html[data-theme="dark"] .rc-modal-panel{background:#111827;color:#f8fafc;border:1px solid #334155}html[data-theme="dark"] .rc-modal-head p{color:#cbd5e1}
       @media(max-width:900px){.rc-controls,.rc-summary{grid-template-columns:1fr 1fr}}@media(max-width:560px){.rc-controls,.rc-summary{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
@@ -87,18 +88,32 @@
             <div class="rc-field"><label>Pesquisar</label><input id="rcBusca" placeholder="Conta, histórico ou documento"></div>
           </div>
           <div class="rc-tabs" style="margin-top:16px"><button class="rc-tab active" data-rc-tipo="balancete">Balancete</button><button class="rc-tab" data-rc-tipo="razao">Razão Analítico</button><button class="rc-tab" data-rc-tipo="diario">Livro Diário</button><button class="rc-tab" disabled title="Próxima etapa">DRE — próxima etapa</button><button class="rc-tab" disabled title="Próxima etapa">Balanço — próxima etapa</button></div>
-          <div class="rc-actions" style="margin-top:16px"><button class="rc-btn primary" id="rcAtualizar">Atualizar prévia</button><button class="rc-btn light" id="rcPdf">Exportar PDF</button><button class="rc-btn success" id="rcExcel">Exportar Excel</button><button class="rc-btn whatsapp" id="rcWhatsapp">💬 Enviar PDF no WhatsApp</button><button class="rc-btn warn" id="rcFechar">Encerrar período</button><button class="rc-btn danger" id="rcReabrir" style="display:none">Reabrir período</button></div>
+          <div class="rc-actions" style="margin-top:16px"><button class="rc-btn primary" id="rcAtualizar">Atualizar prévia</button><button class="rc-btn light" id="rcPdf">Exportar PDF</button><button class="rc-btn success" id="rcExcel">Exportar Excel</button><button class="rc-btn email" id="rcEmail">✉️ Enviar PDF por e-mail</button><button class="rc-btn whatsapp" id="rcWhatsapp">💬 Enviar PDF no WhatsApp</button><button class="rc-btn warn" id="rcFechar">Encerrar período</button><button class="rc-btn danger" id="rcReabrir" style="display:none">Reabrir período</button></div>
         </section>
         <section class="card" style="padding:20px"><div class="rc-summary" id="rcResumo"></div><div id="rcAvisos" style="margin-top:12px"></div></section>
         <section class="card" style="padding:20px"><div id="rcTituloTabela" style="font-size:17px;font-weight:900;margin-bottom:12px"></div><div class="rc-table-wrap"><table class="rc-table"><thead id="rcHead"></thead><tbody id="rcBody"></tbody></table></div></section>
         <section class="card" style="padding:20px"><details class="rc-settings"><summary>Saldos iniciais da competência</summary><p class="rc-history">Informe uma conta por linha no formato <strong>conta;valor</strong>. Saldo devedor positivo; saldo credor negativo. Exemplo: <code>111;1500,00</code>.</p><div class="rc-field"><textarea id="rcSaldos"></textarea></div><button class="rc-btn primary" id="rcSalvarSaldos" style="margin-top:10px">Salvar saldos iniciais</button></details><div id="rcHistorico" class="rc-history" style="margin-top:14px"></div></section>
+      </div>
+      <div class="rc-modal" id="rcEmailModal" hidden role="dialog" aria-modal="true" aria-labelledby="rcEmailTitulo">
+        <div class="rc-modal-panel">
+          <div class="rc-modal-head"><div><h3 id="rcEmailTitulo">Envio por e-mail — Departamento Contábil</h3><p>O relatório será enviado em PDF usando o layout contábil atual.</p></div><button class="rc-modal-close" id="rcEmailFechar" type="button" aria-label="Fechar">×</button></div>
+          <div class="rc-field"><label>E-mail do destinatário</label><input type="email" id="rcEmailDestinatario" autocomplete="email" placeholder="cliente@empresa.com.br"></div>
+          <div class="rc-field" style="margin-top:12px"><label>Assunto</label><input id="rcEmailAssunto"></div>
+          <div class="rc-field" style="margin-top:12px"><label>Mensagem</label><textarea id="rcEmailMensagem" style="font-family:inherit"></textarea></div>
+          <div class="rc-modal-actions"><button class="rc-btn light" id="rcEmailCancelar" type="button">Cancelar</button><button class="rc-btn email" id="rcEmailEnviar" type="button">Enviar relatório</button></div>
+        </div>
       </div>`;
     document.getElementById('rcPeriodo').addEventListener('change', function () { preencherSaldos(); atualizarTudo(); });
     ['rcFormato', 'rcConta', 'rcBusca'].forEach(function (id) { document.getElementById(id).addEventListener(id === 'rcFormato' ? 'change' : 'input', render); });
     document.getElementById('rcAtualizar').addEventListener('click', atualizarTudo);
     document.getElementById('rcPdf').addEventListener('click', exportarPDF);
     document.getElementById('rcExcel').addEventListener('click', exportarExcel);
+    document.getElementById('rcEmail').addEventListener('click', abrirModalEmail);
     document.getElementById('rcWhatsapp').addEventListener('click', compartilharPDFWhatsapp);
+    document.getElementById('rcEmailFechar').addEventListener('click', fecharModalEmail);
+    document.getElementById('rcEmailCancelar').addEventListener('click', fecharModalEmail);
+    document.getElementById('rcEmailEnviar').addEventListener('click', enviarPDFEmail);
+    document.getElementById('rcEmailModal').addEventListener('click', function (evento) { if (evento.target === evento.currentTarget) fecharModalEmail(); });
     document.getElementById('rcSalvarSaldos').addEventListener('click', salvarSaldos);
     document.getElementById('rcFechar').addEventListener('click', fecharPeriodo);
     document.getElementById('rcReabrir').addEventListener('click', reabrirPeriodo);
@@ -330,7 +345,7 @@
     doc.setFontSize(15); doc.text('SP ASSESSORIA CONTÁBIL', 14, 14);
     doc.setFontSize(11); doc.text((tipoAtual === 'balancete' ? 'Balancete de Verificação' : tipoAtual === 'razao' ? 'Razão Analítico' : 'Livro Diário') + ' — ' + dados.periodo, 14, 21);
     doc.setFontSize(8); doc.text(String(dados.ctx.empresa.razao_social || dados.ctx.empresa.empresa || '') + ' | CNPJ ' + String(dados.ctx.empresa.cnpj || ''), 14, 27);
-    doc.autoTable({ startY: 32, head: [cabecalhoExportacao()], body: linhasExportacaoPDF(dados), styles: { fontSize: 6.5, cellPadding: 1.5 }, headStyles: { fillColor: [30, 64, 175] }, didDrawPage: function () { doc.setFontSize(7); doc.text('Gerado pelo Consultor Contábil Inteligente', 14, 204); } });
+    doc.autoTable({ startY: 32, head: [cabecalhoExportacao()], body: linhasExportacaoPDF(dados), styles: { fontSize: 6.5, cellPadding: 1.5 }, headStyles: { fillColor: [30, 64, 175] }, didDrawPage: function () { doc.setFontSize(7); doc.text('Desenvolvido by SP Assessoria Contábil. Todos os direitos reservados.', 14, 204); } });
     return { doc, dados, arquivo: nomeArquivo(dados, 'pdf') };
   }
 
@@ -339,6 +354,59 @@
       const resultado = await criarDocumentoPDF();
       resultado.doc.save(resultado.arquivo);
     } catch (e) { window.showToast(e.message || String(e), 'error'); }
+  }
+
+  function nomeTipoRelatorio() {
+    return tipoAtual === 'balancete' ? 'Balancete de Verificação' : tipoAtual === 'razao' ? 'Razão Analítico' : 'Livro Diário';
+  }
+
+  function abrirModalEmail() {
+    const dados = dadosAtuais();
+    const empresa = dados.ctx.empresa || {};
+    const nomeEmpresa = empresa.razao_social || empresa.empresa || 'Empresa';
+    document.getElementById('rcEmailDestinatario').value = empresa.email_contato || empresa.email_cliente || empresa.email || '';
+    document.getElementById('rcEmailAssunto').value = nomeTipoRelatorio() + ' — ' + nomeEmpresa + ' — ' + dados.periodo;
+    document.getElementById('rcEmailMensagem').value = 'Olá,\n\nSegue em anexo o ' + nomeTipoRelatorio() + ' da competência ' + dados.periodo + ', referente à empresa ' + nomeEmpresa + '.\n\nAtenciosamente,\nDepartamento Contábil — SP Assessoria Contábil';
+    document.getElementById('rcEmailModal').hidden = false;
+    window.setTimeout(function () { document.getElementById('rcEmailDestinatario').focus(); }, 0);
+  }
+
+  function fecharModalEmail() {
+    const modal = document.getElementById('rcEmailModal');
+    if (modal) modal.hidden = true;
+  }
+
+  async function enviarPDFEmail() {
+    const email = String(document.getElementById('rcEmailDestinatario').value || '').trim();
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      window.showToast('Informe um e-mail válido para o destinatário.', 'warning');
+      return;
+    }
+    const botao = document.getElementById('rcEmailEnviar');
+    try {
+      if (!window.API || typeof window.API.enviarRelatorioContabilEmail !== 'function') throw new Error('Serviço de envio por e-mail indisponível. Recarregue a página.');
+      botao.disabled = true;
+      botao.textContent = 'Enviando...';
+      const resultado = await criarDocumentoPDF();
+      const dataUri = resultado.doc.output('datauristring');
+      const pdfBase64 = String(dataUri || '').split(',')[1] || '';
+      await window.API.enviarRelatorioContabilEmail(resultado.dados.ctx.empresa.cnpj, {
+        email: email,
+        assunto: String(document.getElementById('rcEmailAssunto').value || '').trim(),
+        mensagem: String(document.getElementById('rcEmailMensagem').value || '').trim(),
+        tipo: tipoAtual,
+        periodo: resultado.dados.periodo,
+        pdf_base64: pdfBase64,
+        nome_arquivo: resultado.arquivo
+      });
+      fecharModalEmail();
+      window.showToast('Relatório enviado por e-mail com sucesso.', 'success');
+    } catch (e) {
+      window.showToast(e.message || String(e), 'error');
+    } finally {
+      botao.disabled = false;
+      botao.textContent = 'Enviar relatório';
+    }
   }
 
   function numeroWhatsappEmpresa(empresa) {

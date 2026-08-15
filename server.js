@@ -16,6 +16,7 @@ const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
 const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
+const GraphEmail = require('./graph-email-provider');
 
 const app = express();
 app.set('trust proxy', true);
@@ -2685,6 +2686,90 @@ app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
   } catch (e) {
     console.error('listar periodos contabeis erro:', e);
     res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_LISTAR_PERIODOS' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/contabilidade/relatorios/enviar-email', async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+
+    const entrada = req.body || {};
+    const destinatario = String(entrada.email || '').trim().toLowerCase();
+    const periodo = String(entrada.periodo || '').trim();
+    const tipo = String(entrada.tipo || '').trim().toLowerCase();
+    const tiposPermitidos = { balancete: 'Balancete', razao: 'Razão Analítico', diario: 'Livro Diário' };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinatario)) return res.status(400).json({ erro: 'E-mail do destinatário inválido.' });
+    if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competência inválida. Use AAAA-MM.' });
+    if (!tiposPermitidos[tipo]) return res.status(400).json({ erro: 'Tipo de relatório inválido.' });
+
+    const base64Limpo = String(entrada.pdf_base64 || '')
+      .replace(/^data:application\/pdf;base64,/i, '')
+      .replace(/\s/g, '');
+    if (!base64Limpo || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64Limpo)) return res.status(400).json({ erro: 'PDF inválido ou ausente.' });
+    const pdfBuffer = Buffer.from(base64Limpo, 'base64');
+    if (!pdfBuffer.length || pdfBuffer.length > 4 * 1024 * 1024) return res.status(413).json({ erro: 'O PDF deve ter no máximo 4 MB.' });
+    if (pdfBuffer.subarray(0, 5).toString('ascii') !== '%PDF-') return res.status(400).json({ erro: 'O arquivo enviado não é um PDF válido.' });
+
+    const nomeEmpresa = String(chk.empresa.razao_social || chk.empresa.empresa || chk.empresa.nome || 'Empresa').trim();
+    const assunto = String(entrada.assunto || `${tiposPermitidos[tipo]} — ${nomeEmpresa} — ${periodo}`).trim().slice(0, 180);
+    const mensagem = String(entrada.mensagem || 'Segue, em anexo, o relatório contábil solicitado.').trim().slice(0, 3000);
+    const escapar = (valor) => String(valor || '').replace(/[&<>"']/g, (caractere) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[caractere]);
+    const html = `
+      <div style="margin:0;padding:24px;background:#f3f6fb;font-family:Arial,sans-serif;color:#14213d">
+        <div style="max-width:680px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #dbe4f0">
+          <div style="padding:24px 28px;background:linear-gradient(135deg,#07152f,#2454d7);color:#fff">
+            <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#bcd3ff">Departamento Contábil</div>
+            <h1 style="margin:8px 0 0;font-size:24px">${escapar(tiposPermitidos[tipo])}</h1>
+          </div>
+          <div style="padding:28px">
+            <p style="margin:0 0 16px;line-height:1.6">${escapar(mensagem).replace(/\n/g, '<br>')}</p>
+            <table style="width:100%;border-collapse:collapse;background:#f7f9fc;border-radius:8px">
+              <tr><td style="padding:10px 12px;color:#667085">Empresa</td><td style="padding:10px 12px;font-weight:700">${escapar(nomeEmpresa)}</td></tr>
+              <tr><td style="padding:10px 12px;color:#667085">CNPJ</td><td style="padding:10px 12px;font-weight:700">${escapar(cnpjLimpo)}</td></tr>
+              <tr><td style="padding:10px 12px;color:#667085">Competência</td><td style="padding:10px 12px;font-weight:700">${escapar(periodo)}</td></tr>
+            </table>
+            <p style="margin:20px 0 0;color:#667085;font-size:13px">O relatório contábil está anexado em formato PDF.</p>
+          </div>
+          <div style="padding:16px 28px;background:#07152f;color:#bcd3ff;font-size:12px;text-align:center">Desenvolvido by SP Assessoria Contábil. Todos os direitos reservados.</div>
+        </div>
+      </div>`;
+
+    const remetente = process.env.GRAPH_REMETENTE || process.env.NOTIF_REMETENTE_EMAIL;
+    if (!GraphEmail.configurado() || !remetente) return res.status(503).json({ erro: 'Envio de e-mail temporariamente indisponível.' });
+    const nomeArquivo = String(entrada.nome_arquivo || `CCI_${tipo}_${periodo}_${cnpjLimpo}.pdf`).replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 150);
+    const envio = await GraphEmail.enviarEmail({
+      remetente,
+      para: destinatario,
+      assunto,
+      html,
+      anexos: [{ name: nomeArquivo, contentType: 'application/pdf', contentBytes: base64Limpo }]
+    });
+    if (!envio.ok) return res.status(502).json({ erro: envio.error || 'Não foi possível enviar o e-mail.' });
+
+    try {
+      await db.collection('empresas').doc(cnpjLimpo).collection('relatorios_contabeis_envios').add({
+        canal: 'email',
+        departamento: 'contabil',
+        destinatario,
+        assunto,
+        tipo,
+        periodo,
+        nome_arquivo: nomeArquivo,
+        tamanho_bytes: pdfBuffer.length,
+        enviado_em: new Date(),
+        enviado_por_uid: req.user.uid,
+        enviado_por_email: req.user.email
+      });
+    } catch (erroAuditoria) {
+      console.error('auditoria do envio de relatorio contabil falhou:', erroAuditoria);
+    }
+    res.json({ ok: true, destinatario, tipo, periodo });
+  } catch (e) {
+    console.error('enviar relatorio contabil por email erro:', e);
+    res.status(500).json({ erro: e.message || 'Falha ao enviar relatório por e-mail.' });
   }
 });
 
