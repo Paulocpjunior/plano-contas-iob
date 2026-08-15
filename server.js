@@ -53,6 +53,7 @@ function lerVersao() {
 
 app.get('/api/version', (req, res) => {
     res.set('Cache-Control', 'no-store');
+    res.set('Clear-Site-Data', '"cache"');
     res.json(lerVersao());
 });
 
@@ -3405,6 +3406,7 @@ function headersAppPrincipal(res, filePath) {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.setHeader('Surrogate-Control', 'no-store');
+  if (/(?:^|\/)index\.html$/i.test(filePath || '')) res.setHeader('Clear-Site-Data', '"cache"');
 }
 
 app.use(express.static(__dirname, { index: 'index.html', setHeaders: headersAppPrincipal }));
