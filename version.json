@@ -1,7 +1,8 @@
 {
-  "version": "3.4.132",
-  "build_date": "2026-08-15T17:30:00Z",
+  "version": "3.4.133",
+  "build_date": "2026-08-16T17:24:01Z",
   "release_notes": [
+    "feat: adicionar pré-validação local da migração SAGE para o CCI",
     "feat: adicionar pre-visualizacao de impressao e responsaveis nos relatorios",
     "feat: tornar os agrupamentos responsivos do menu funcionais",
     "feat: alinhar balancete analitico ao modelo SAGE",
