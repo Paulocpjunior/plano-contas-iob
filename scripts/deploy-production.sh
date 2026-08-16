@@ -39,6 +39,12 @@ gcloud run deploy "$SERVICE" \
   --project "$PROJECT_ID" \
   --region "$REGION" \
   --platform managed \
+  --quiet
+
+gcloud run services update-traffic "$SERVICE" \
+  --project "$PROJECT_ID" \
+  --region "$REGION" \
+  --platform managed \
   --to-latest \
   --quiet
 
