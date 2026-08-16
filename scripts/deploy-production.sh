@@ -39,6 +39,7 @@ gcloud run deploy "$SERVICE" \
   --project "$PROJECT_ID" \
   --region "$REGION" \
   --platform managed \
+  --to-latest \
   --quiet
 
 expected_version="$(node -p "require('./version.json').version")"
