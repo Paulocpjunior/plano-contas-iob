@@ -4,6 +4,8 @@
   let tipoAtual = 'balancete';
   let statusAtual = null;
   let inicializado = false;
+  let urlPreviaImpressao = '';
+  let documentoPreviaImpressao = null;
   const bibliotecasPDF = {};
 
   function esc(valor) {
@@ -51,9 +53,36 @@
     return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(iso || '');
   }
 
-  function contexto() {
+function contexto() {
     return typeof window.CCIContabilContext === 'function' ? window.CCIContabilContext() : null;
+}
+
+function primeiroValor(fontes, campos) {
+  for (const fonte of fontes || []) {
+    for (const campo of campos || []) {
+      const valor = String((fonte || {})[campo] || '').trim();
+      if (valor) return valor;
+    }
   }
+  return '';
+}
+
+function preferenciasImpressao(ctx, sobrescritas) {
+  const salvo = (((ctx || {}).config || {}).preferenciasImpressao) || {};
+  const cadastro = (ctx || {}).cadastro || {};
+  const empresa = (ctx || {}).empresa || {};
+  const fontes = [sobrescritas || {}, salvo, cadastro, empresa];
+  const padrao = tipoAtual === 'balancete' ? 'portrait' : 'landscape';
+  let orientacao = primeiroValor(fontes, ['orientacao']) || padrao;
+  if (!['portrait', 'landscape'].includes(orientacao)) orientacao = padrao;
+  return {
+    orientacao,
+    responsavelEmpresa: primeiroValor(fontes, ['responsavelEmpresa', 'responsavel_empresa', 'responsavel_nome', 'nome_responsavel', 'responsavel', 'responsavel_legal']),
+    documentoResponsavel: primeiroValor(fontes, ['documentoResponsavel', 'documento_responsavel', 'cpf_responsavel', 'responsavel_cpf', 'documento_responsavel_empresa']),
+    contadorResponsavel: primeiroValor(fontes, ['contadorResponsavel', 'contador_responsavel', 'nome_contador', 'contador', 'responsavel_contabil']),
+    crcContador: primeiroValor(fontes, ['crcContador', 'crc_contador', 'contador_crc', 'crc', 'registro_contador'])
+  };
+}
 
   function competenciaPadrao(entries) {
     const periodos = (entries || []).map(function (e) { return Core.periodoDaData(e.data); }).filter(Boolean).sort();
@@ -88,9 +117,9 @@
       .rc-tabs{display:flex;gap:8px;flex-wrap:wrap}.rc-tab{padding:9px 14px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:800;cursor:pointer}.rc-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}.rc-tab[disabled]{opacity:.48;cursor:not-allowed}
       .rc-actions{display:flex;gap:9px;flex-wrap:wrap}.rc-btn{padding:10px 14px;border:0;border-radius:9px;font-weight:800;cursor:pointer}.rc-btn.primary{background:#2563eb;color:#fff}.rc-btn.success{background:#059669;color:#fff}.rc-btn.email{background:#1d4ed8;color:#fff}.rc-btn.whatsapp{background:#16a34a;color:#fff}.rc-btn.warn{background:#f59e0b;color:#fff}.rc-btn.danger{background:#dc2626;color:#fff}.rc-btn.light{background:#e2e8f0;color:#0f172a}.rc-btn:disabled{opacity:.5;cursor:not-allowed}
       .rc-summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.rc-kpi{padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}.rc-kpi small{display:block;color:#64748b;font-weight:800;text-transform:uppercase}.rc-kpi strong{display:block;font-size:20px;margin-top:5px;color:#0f172a}.rc-ok{color:#047857}.rc-error{color:#b91c1c}.rc-alert{padding:12px 14px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px}.rc-table-wrap{overflow:auto;max-height:62vh;border:1px solid #e2e8f0;border-radius:12px}.rc-table{width:100%;border-collapse:collapse;font-size:12px}.rc-table th{position:sticky;top:0;z-index:1;background:#f1f5f9;color:#475569;text-transform:uppercase;font-size:10px;letter-spacing:.05em}.rc-table th,.rc-table td{padding:9px 10px;border-bottom:1px solid #e2e8f0;text-align:left;white-space:nowrap}.rc-table td.num,.rc-table th.num{text-align:right;font-variant-numeric:tabular-nums}.rc-account-row td{background:#eff6ff;font-weight:900;color:#1e3a8a}.rc-settings{border:1px dashed #94a3b8;border-radius:12px;padding:14px}.rc-settings summary{cursor:pointer;font-weight:800;color:#334155}.rc-history{font-size:12px;color:#64748b}
-      .rc-modal{position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.72);display:grid;place-items:center;padding:18px}.rc-modal[hidden]{display:none}.rc-modal-panel{width:min(640px,100%);max-height:calc(100vh - 36px);overflow:auto;background:#fff;color:#0f172a;border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(2,6,23,.4)}.rc-modal-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}.rc-modal-head h3{margin:0;font-size:20px}.rc-modal-head p{margin:5px 0 0;color:#64748b;font-size:13px}.rc-modal-close{border:0;background:transparent;color:inherit;font-size:24px;cursor:pointer}.rc-modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px;flex-wrap:wrap}
-      html[data-theme="dark"] .rc-field label,html[data-theme="dark"] .rc-history{color:#cbd5e1}html[data-theme="dark"] .rc-tab,html[data-theme="dark"] .rc-field input,html[data-theme="dark"] .rc-field select,html[data-theme="dark"] .rc-field textarea{background:#0b1220;color:#f8fafc;border-color:#475569;color-scheme:dark}html[data-theme="dark"] .rc-field input::placeholder,html[data-theme="dark"] .rc-field textarea::placeholder{color:#a8b5c8;opacity:1}html[data-theme="dark"] .rc-tab.active{background:#2563eb;border-color:#60a5fa}html[data-theme="dark"] .rc-kpi{background:#0b1220;border-color:#334155}html[data-theme="dark"] .rc-kpi small{color:#94a3b8}html[data-theme="dark"] .rc-kpi strong{color:#f8fafc}html[data-theme="dark"] .rc-table-wrap{border-color:#334155}html[data-theme="dark"] .rc-table th{background:#020617!important;color:#cbd5e1!important}html[data-theme="dark"] .rc-table td{border-color:#334155;color:#e2e8f0}html[data-theme="dark"] .rc-account-row td{background:#172554!important;color:#bfdbfe}html[data-theme="dark"] .rc-alert{background:#431407;border-color:#9a3412;color:#fed7aa}html[data-theme="dark"] .rc-settings{border-color:#475569}html[data-theme="dark"] .rc-settings summary{color:#e2e8f0}html[data-theme="dark"] .rc-btn.light{background:#334155;color:#f8fafc}html[data-theme="dark"] .rc-modal-panel{background:#111827;color:#f8fafc;border:1px solid #334155}html[data-theme="dark"] .rc-modal-head p{color:#cbd5e1}
-      @media(max-width:900px){.rc-controls,.rc-summary{grid-template-columns:1fr 1fr}}@media(max-width:560px){.rc-controls,.rc-summary{grid-template-columns:1fr}}
+      .rc-modal{position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.72);display:grid;place-items:center;padding:18px}.rc-modal[hidden]{display:none}.rc-modal-panel{width:min(640px,100%);max-height:calc(100vh - 36px);overflow:auto;background:#fff;color:#0f172a;border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(2,6,23,.4)}.rc-modal-panel.wide{width:min(1180px,100%)}.rc-modal-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}.rc-modal-head h3{margin:0;font-size:20px}.rc-modal-head p{margin:5px 0 0;color:#64748b;font-size:13px}.rc-modal-close{border:0;background:transparent;color:inherit;font-size:24px;cursor:pointer}.rc-modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px;flex-wrap:wrap}.rc-print-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.rc-print-preview{margin-top:16px;height:min(64vh,720px);border:1px solid #cbd5e1;border-radius:12px;overflow:hidden;background:#fff}.rc-print-preview iframe{width:100%;height:100%;border:0;background:#fff}
+      html[data-theme="dark"] .rc-field label,html[data-theme="dark"] .rc-history{color:#cbd5e1}html[data-theme="dark"] .rc-tab,html[data-theme="dark"] .rc-field input,html[data-theme="dark"] .rc-field select,html[data-theme="dark"] .rc-field textarea{background:#0b1220;color:#f8fafc;border-color:#475569;color-scheme:dark}html[data-theme="dark"] .rc-field input::placeholder,html[data-theme="dark"] .rc-field textarea::placeholder{color:#a8b5c8;opacity:1}html[data-theme="dark"] .rc-tab.active{background:#2563eb;border-color:#60a5fa}html[data-theme="dark"] .rc-kpi{background:#0b1220;border-color:#334155}html[data-theme="dark"] .rc-kpi small{color:#94a3b8}html[data-theme="dark"] .rc-kpi strong{color:#f8fafc}html[data-theme="dark"] .rc-table-wrap{border-color:#334155}html[data-theme="dark"] .rc-table th{background:#020617!important;color:#cbd5e1!important}html[data-theme="dark"] .rc-table td{border-color:#334155;color:#e2e8f0}html[data-theme="dark"] .rc-account-row td{background:#172554!important;color:#bfdbfe}html[data-theme="dark"] .rc-alert{background:#431407;border-color:#9a3412;color:#fed7aa}html[data-theme="dark"] .rc-settings{border-color:#475569}html[data-theme="dark"] .rc-settings summary{color:#e2e8f0}html[data-theme="dark"] .rc-btn.light{background:#334155;color:#f8fafc}html[data-theme="dark"] .rc-modal-panel{background:#111827;color:#f8fafc;border:1px solid #334155}html[data-theme="dark"] .rc-modal-head p{color:#cbd5e1}html[data-theme="dark"] .rc-print-preview{border-color:#334155}
+      @media(max-width:900px){.rc-controls,.rc-summary,.rc-print-grid{grid-template-columns:1fr 1fr}}@media(max-width:560px){.rc-controls,.rc-summary,.rc-print-grid{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
   }
@@ -112,7 +141,7 @@
             <div class="rc-field"><label>Pesquisar</label><input id="rcBusca" placeholder="Conta, histórico ou documento"></div>
           </div>
           <div class="rc-tabs" style="margin-top:16px"><button class="rc-tab active" data-rc-tipo="balancete">Balancete</button><button class="rc-tab" data-rc-tipo="razao">Razão Analítico</button><button class="rc-tab" data-rc-tipo="diario">Livro Diário</button><button class="rc-tab" disabled title="Próxima etapa">DRE — próxima etapa</button><button class="rc-tab" disabled title="Próxima etapa">Balanço — próxima etapa</button></div>
-          <div class="rc-actions" style="margin-top:16px"><button class="rc-btn primary" id="rcAtualizar">Atualizar prévia</button><button class="rc-btn light" id="rcPdf">Exportar PDF</button><button class="rc-btn success" id="rcExcel">Exportar Excel</button><button class="rc-btn email" id="rcEmail">✉️ Enviar PDF por e-mail</button><button class="rc-btn whatsapp" id="rcWhatsapp">💬 Enviar PDF no WhatsApp</button><button class="rc-btn warn" id="rcFechar">Encerrar período</button><button class="rc-btn danger" id="rcReabrir" style="display:none">Reabrir período</button></div>
+        <div class="rc-actions" style="margin-top:16px"><button class="rc-btn primary" id="rcAtualizar">Atualizar prévia</button><button class="rc-btn light" id="rcImprimir">Visualizar impressão</button><button class="rc-btn light" id="rcPdf">Exportar PDF</button><button class="rc-btn success" id="rcExcel">Exportar Excel</button><button class="rc-btn email" id="rcEmail">✉️ Enviar PDF por e-mail</button><button class="rc-btn whatsapp" id="rcWhatsapp">💬 Enviar PDF no WhatsApp</button><button class="rc-btn warn" id="rcFechar">Encerrar período</button><button class="rc-btn danger" id="rcReabrir" style="display:none">Reabrir período</button></div>
         </section>
         <section class="card" style="padding:20px"><div class="rc-summary" id="rcResumo"></div><div id="rcAvisos" style="margin-top:12px"></div></section>
         <section class="card" style="padding:20px"><div id="rcTituloTabela" style="font-size:17px;font-weight:900;margin-bottom:12px"></div><div class="rc-table-wrap"><table class="rc-table"><thead id="rcHead"></thead><tbody id="rcBody"></tbody></table></div></section>
@@ -126,10 +155,25 @@
           <div class="rc-field" style="margin-top:12px"><label>Mensagem</label><textarea id="rcEmailMensagem" style="font-family:inherit"></textarea></div>
           <div class="rc-modal-actions"><button class="rc-btn light" id="rcEmailCancelar" type="button">Cancelar</button><button class="rc-btn email" id="rcEmailEnviar" type="button">Enviar relatório</button></div>
         </div>
+      </div>
+      <div class="rc-modal" id="rcImpressaoModal" hidden role="dialog" aria-modal="true" aria-labelledby="rcImpressaoTitulo">
+        <div class="rc-modal-panel wide">
+          <div class="rc-modal-head"><div><h3 id="rcImpressaoTitulo">Visualização de impressão</h3><p>Confira o documento exatamente como será gerado para impressão ou PDF.</p></div><button class="rc-modal-close" id="rcImpressaoFechar" type="button" aria-label="Fechar">×</button></div>
+          <div class="rc-print-grid">
+            <div class="rc-field"><label>Orientação</label><select id="rcOrientacaoImpressao"><option value="portrait">Vertical</option><option value="landscape">Horizontal</option></select></div>
+            <div class="rc-field"><label>Responsável pela empresa</label><input id="rcResponsavelEmpresa"></div>
+            <div class="rc-field"><label>CPF/CNPJ do responsável</label><input id="rcDocumentoResponsavel"></div>
+            <div class="rc-field"><label>Contador responsável</label><input id="rcContadorResponsavel"></div>
+            <div class="rc-field"><label>CRC do contador</label><input id="rcCRCContador"></div>
+          </div>
+          <div class="rc-print-preview"><iframe id="rcQuadroPreviaImpressao" title="Prévia do relatório para impressão"></iframe></div>
+          <div class="rc-modal-actions"><button class="rc-btn light" id="rcImpressaoCancelar" type="button">Cancelar</button><button class="rc-btn primary" id="rcImpressaoAtualizar" type="button">Atualizar prévia</button><button class="rc-btn success" id="rcImpressaoExportar" type="button">Exportar PDF</button></div>
+        </div>
       </div>`;
     document.getElementById('rcPeriodo').addEventListener('change', function () { preencherSaldos(); atualizarTudo(); });
     ['rcFormato', 'rcConta', 'rcBusca'].forEach(function (id) { document.getElementById(id).addEventListener(id === 'rcFormato' ? 'change' : 'input', render); });
     document.getElementById('rcAtualizar').addEventListener('click', atualizarTudo);
+    document.getElementById('rcImprimir').addEventListener('click', abrirModalImpressao);
     document.getElementById('rcPdf').addEventListener('click', exportarPDF);
     document.getElementById('rcExcel').addEventListener('click', exportarExcel);
     document.getElementById('rcEmail').addEventListener('click', abrirModalEmail);
@@ -138,6 +182,11 @@
     document.getElementById('rcEmailCancelar').addEventListener('click', fecharModalEmail);
     document.getElementById('rcEmailEnviar').addEventListener('click', enviarPDFEmail);
     document.getElementById('rcEmailModal').addEventListener('click', function (evento) { if (evento.target === evento.currentTarget) fecharModalEmail(); });
+    document.getElementById('rcImpressaoFechar').addEventListener('click', fecharModalImpressao);
+    document.getElementById('rcImpressaoCancelar').addEventListener('click', fecharModalImpressao);
+    document.getElementById('rcImpressaoAtualizar').addEventListener('click', atualizarPreviaImpressao);
+    document.getElementById('rcImpressaoExportar').addEventListener('click', exportarPreviaImpressao);
+    document.getElementById('rcImpressaoModal').addEventListener('click', function (evento) { if (evento.target === evento.currentTarget) fecharModalImpressao(); });
     document.getElementById('rcSalvarSaldos').addEventListener('click', salvarSaldos);
     document.getElementById('rcFechar').addEventListener('click', fecharPeriodo);
     document.getElementById('rcReabrir').addEventListener('click', reabrirPeriodo);
@@ -362,13 +411,11 @@
     return window.jspdf.jsPDF;
   }
 
-  async function criarDocumentoPDF() {
+  async function criarDocumentoPDF(opcoes) {
     const jsPDF = await garantirBibliotecasPDF();
     const dados = dadosAtuais();
-    const paisagem = tipoAtual !== 'balancete';
-    const doc = new jsPDF({ orientation: paisagem ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const pageWidth = doc.internal.pageSize.getWidth();
+    const preferencias = preferenciasImpressao(dados.ctx, opcoes);
+    const doc = new jsPDF({ orientation: preferencias.orientacao, unit: 'mm', format: 'a4' });
     doc.setFontSize(15); doc.text('SP ASSESSORIA CONTÁBIL', 14, 14);
     doc.setFontSize(11); doc.text(nomeTipoRelatorio() + ' — ' + dados.periodo, 14, 21);
     doc.setFontSize(8); doc.text(String(dados.ctx.empresa.razao_social || dados.ctx.empresa.empresa || '') + ' | CNPJ ' + String(dados.ctx.empresa.cnpj || ''), 14, 27);
@@ -379,15 +426,35 @@
       body: linhasExportacaoPDF(dados),
       styles: { fontSize: 6.5, cellPadding: 1.5 },
       headStyles: { fillColor: [30, 64, 175] },
-      margin: { bottom: 14 },
-      didDrawPage: function () {
-        doc.setFontSize(7);
-        doc.text('Desenvolvido by SP Assessoria Contábil. Todos os direitos reservados.', 14, pageHeight - 8);
-        const pagina = doc.internal.getCurrentPageInfo ? doc.internal.getCurrentPageInfo().pageNumber : doc.internal.getNumberOfPages();
-        doc.text('Página ' + pagina, pageWidth - 28, pageHeight - 8);
-      }
+      margin: { bottom: 42 }
     });
-    return { doc, dados, arquivo: nomeArquivo(dados, 'pdf') };
+    const larguraPagina = doc.internal.pageSize.getWidth();
+    const alturaPagina = doc.internal.pageSize.getHeight();
+    const larguraAssinatura = Math.min(76, (larguraPagina - 42) / 2);
+    const finalTabela = doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY : 52;
+    let inicioY = finalTabela + 24;
+    if (inicioY > alturaPagina - 44) { doc.addPage(); inicioY = 34; }
+    const centroEmpresa = 14 + larguraAssinatura / 2;
+    const inicioContador = larguraPagina / 2 + 7;
+    const centroContador = inicioContador + larguraAssinatura / 2;
+    doc.setDrawColor(100);
+    doc.line(14, inicioY, 14 + larguraAssinatura, inicioY);
+    doc.line(inicioContador, inicioY, inicioContador + larguraAssinatura, inicioY);
+    doc.setFontSize(8);
+    doc.text(preferencias.responsavelEmpresa || 'Responsável pela empresa', centroEmpresa, inicioY + 5, { align: 'center' });
+    doc.text(preferencias.documentoResponsavel ? 'Documento: ' + preferencias.documentoResponsavel : 'Documento: —', centroEmpresa, inicioY + 10, { align: 'center' });
+    doc.text(preferencias.contadorResponsavel || 'Contador responsável', centroContador, inicioY + 5, { align: 'center' });
+    doc.text(preferencias.crcContador ? 'CRC: ' + preferencias.crcContador : 'CRC: —', centroContador, inicioY + 10, { align: 'center' });
+    const paginas = doc.internal.getNumberOfPages();
+    for (let pagina = 1; pagina <= paginas; pagina += 1) {
+      doc.setPage(pagina);
+      const altura = doc.internal.pageSize.getHeight();
+      const largura = doc.internal.pageSize.getWidth();
+      doc.setFontSize(7);
+      doc.text('Desenvolvido by SP Assessoria Contábil. Todos os direitos reservados.', 14, altura - 8);
+      doc.text('Página ' + pagina + ' de ' + paginas, largura - 34, altura - 8);
+    }
+    return { doc, dados, arquivo: nomeArquivo(dados, 'pdf'), preferencias };
   }
 
   async function exportarPDF() {
@@ -415,6 +482,69 @@
   function fecharModalEmail() {
     const modal = document.getElementById('rcEmailModal');
     if (modal) modal.hidden = true;
+  }
+
+  function valoresFormularioImpressao() {
+    return {
+      orientacao: document.getElementById('rcOrientacaoImpressao').value,
+      responsavelEmpresa: document.getElementById('rcResponsavelEmpresa').value,
+      documentoResponsavel: document.getElementById('rcDocumentoResponsavel').value,
+      contadorResponsavel: document.getElementById('rcContadorResponsavel').value,
+      crcContador: document.getElementById('rcCRCContador').value
+    };
+  }
+
+  function salvarPreferenciasImpressao(preferencias) {
+    const ctx = contexto();
+    if (ctx && typeof ctx.salvarPreferenciasImpressao === 'function') ctx.salvarPreferenciasImpressao(preferencias);
+  }
+
+  function preencherFormularioImpressao() {
+    const preferencias = preferenciasImpressao(contexto());
+    document.getElementById('rcOrientacaoImpressao').value = preferencias.orientacao;
+    document.getElementById('rcResponsavelEmpresa').value = preferencias.responsavelEmpresa;
+    document.getElementById('rcDocumentoResponsavel').value = preferencias.documentoResponsavel;
+    document.getElementById('rcContadorResponsavel').value = preferencias.contadorResponsavel;
+    document.getElementById('rcCRCContador').value = preferencias.crcContador;
+  }
+
+  async function atualizarPreviaImpressao() {
+    try {
+      const preferencias = valoresFormularioImpressao();
+      salvarPreferenciasImpressao(preferencias);
+      const resultado = await criarDocumentoPDF(preferencias);
+      documentoPreviaImpressao = resultado;
+      if (urlPreviaImpressao) URL.revokeObjectURL(urlPreviaImpressao);
+      urlPreviaImpressao = URL.createObjectURL(resultado.doc.output('blob'));
+      document.getElementById('rcQuadroPreviaImpressao').src = urlPreviaImpressao;
+    } catch (e) { window.showToast(e.message || String(e), 'error'); }
+  }
+
+  async function abrirModalImpressao() {
+    preencherFormularioImpressao();
+    document.getElementById('rcImpressaoModal').hidden = false;
+    await atualizarPreviaImpressao();
+  }
+
+  function fecharModalImpressao() {
+    const modal = document.getElementById('rcImpressaoModal');
+    if (modal) modal.hidden = true;
+    if (urlPreviaImpressao) URL.revokeObjectURL(urlPreviaImpressao);
+    urlPreviaImpressao = '';
+    const quadro = document.getElementById('rcQuadroPreviaImpressao');
+    if (quadro) quadro.removeAttribute('src');
+    documentoPreviaImpressao = null;
+  }
+
+  async function exportarPreviaImpressao() {
+    try {
+      const preferencias = valoresFormularioImpressao();
+      salvarPreferenciasImpressao(preferencias);
+      const resultado = documentoPreviaImpressao && JSON.stringify(documentoPreviaImpressao.preferencias) === JSON.stringify(preferencias)
+        ? documentoPreviaImpressao
+        : await criarDocumentoPDF(preferencias);
+      resultado.doc.save(resultado.arquivo);
+    } catch (e) { window.showToast(e.message || String(e), 'error'); }
   }
 
   async function enviarPDFEmail() {

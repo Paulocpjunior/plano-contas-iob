@@ -35,8 +35,16 @@ assert(ui.includes('function saldoComNatureza(valor)'), 'natureza devedora/credo
 assert(ui.includes('function saldoPDFComNatureza(valor)'), 'natureza devedora/credora não aparece no PDF');
 assert(ui.includes('function periodoCompleto(periodo)'), 'período completo do relatório ausente');
 assert(ui.includes("return ['Conta', 'Descrição', 'Sdo. anterior', 'Débito', 'Crédito', 'Sdo. atual'];"), 'cabeçalho analítico do SAGE não foi reproduzido');
-assert(ui.includes("const paisagem = tipoAtual !== 'balancete';"), 'balancete não usa orientação retrato');
-assert(ui.includes("orientation: paisagem ? 'landscape' : 'portrait'"), 'orientação do PDF não varia por relatório');
+assert(ui.includes('id="rcImprimir"'), 'ação de visualização para impressão ausente');
+assert(ui.includes('id="rcImpressaoModal"'), 'modal de visualização para impressão ausente');
+assert(ui.includes('id="rcOrientacaoImpressao"'), 'seletor vertical/horizontal ausente');
+['rcResponsavelEmpresa', 'rcDocumentoResponsavel', 'rcContadorResponsavel', 'rcCRCContador'].forEach(function (id) {
+  assert(ui.includes('id="' + id + '"'), 'campo obrigatório do relatório ausente: ' + id);
+});
+assert(ui.includes('function abrirModalImpressao()'), 'motor de prévia real não foi ligado');
+assert(ui.includes('orientation: preferencias.orientacao'), 'orientação escolhida não chega ao PDF');
+assert(index.includes('cadastro: window.__empresaCadastroInternoAtual || info'), 'cadastro ativo não alimenta responsáveis do relatório');
+assert(index.includes('state.relatoriosContabeis.preferenciasImpressao = preferencias || {}'), 'preferências de impressão não são salvas');
 assert(ui.includes('Balancete Analítico'), 'título analítico do balancete ausente');
 assert(ui.includes("return (seguro < 0 ? '-R$ ' : 'R$ ') + moeda(Math.abs(seguro));"), 'PDF não fixa símbolo, sinal e duas casas decimais em pt-BR');
 assert(ui.includes('body: linhasExportacaoPDF(dados)'), 'PDF não usa as linhas com moeda brasileira');
