@@ -1,7 +1,8 @@
 {
-  "version": "3.4.134",
-  "build_date": "2026-08-17T11:06:08Z",
+  "version": "3.4.135",
+  "build_date": "2026-08-17T14:01:33Z",
   "release_notes": [
+    "fix: corrigir contraste dos cartões de empresas no tema escuro",
     "fix: atualizar trafego apos deploy no Cloud Run",
     "fix: direcionar deploy para a revisao mais recente",
     "test: alinhar FASTWELD aos impostos por CFOP",
