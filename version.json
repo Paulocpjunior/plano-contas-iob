@@ -1,9 +1,16 @@
 {
-  "version": "3.4.124",
-  "build_date": "2026-08-15T12:19:48Z",
+  "version": "3.4.125",
+  "build_date": "2026-08-17T19:03:02Z",
   "release_notes": [
-    "AuditAI volta a carregar sem dependência externa bloqueante na inicialização.",
-    "Relatórios contábeis reconhecem identificadores legados e códigos reduzidos do plano ativo.",
-    "Avisos de validação repetidos passam a ser agrupados sem alterar lançamentos."
+    "R-2010: a base do prestador tem onde ser informada — o INSS destravou",
+    "R-2099 calibrado contra o arquivo ACEITO — a trava pagou o que prometia (v3.4.112)",
+    "R-2099: o fechamento que faltava — esqueleto provado, infoFech como HIPÓTESE (v3.4.111) (#55)",
+    "R-2099: o fechamento que faltava — esqueleto provado, infoFech como HIPOTESE (v3.4.110)",
+    "R-2010: fecha o ciclo — o primeiro deixa de decidir pelos outros (v3.4.109) (#54)",
+    "R-2010: fecha o ciclo — o primeiro deixa de decidir pelos outros (v3.4.109)",
+    "Deploy que falha vira issue — o furo que passou batido duas vezes ontem (#53)",
+    "Deploy que falha vira issue — o furo que passou batido duas vezes ontem",
+    "R-2010: a tela que faltava — serviços tomados com retenção previdenciária (v3.4.108) (#52)",
+    "Bump de versão passa a propagar sozinho — dois deploys caíram por isso (v3.4.107) (#51)"
   ]
 }
