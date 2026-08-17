@@ -1,8 +1,9 @@
 {
-  "version": "3.4.140",
-  "build_date": "2026-08-17T19:55:54Z",
+  "version": "3.4.141",
+  "build_date": "2026-08-17T23:30:11Z",
   "release_notes": [
-    "feat: adiciona layout Bradesco Extrato Unificado Pessoa Jurídica",
+    "feat: iniciar escrituracao exclusiva no CCI",
+    "feat: adiciona extrato unificado Bradesco",
     "feat: libera DRE e balanco patrimonial",
     "fix: estrutura balancete pelo plano de contas",
     "fix: preserva cobranca e exige novo login",
@@ -10,8 +11,6 @@
     "fix: ajustar cartões de empresas no tema escuro",
     "feat: concluir navegacao responsiva e atalhos contabeis",
     "fix: atualizar trafego apos deploy no Cloud Run",
-    "fix: direcionar deploy para a revisao mais recente",
-    "test: alinhar FASTWELD aos impostos por CFOP",
-    "feat: adicionar pre-validacao da migracao SAGE"
+    "fix: direcionar deploy para a revisao mais recente"
   ]
 }
