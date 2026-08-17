@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.135",
+  "version": "3.4.136",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -76,7 +76,8 @@
     "test:xlsx-bank-isolation": "node scripts/test-xlsx-bank-layout-isolation.js",
     "test:extrato-conciliado": "node scripts/test-extrato-conciliado-xlsx.js",
     "test:admin-exclusao": "node scripts/test-admin-exclusao-lancamentos.js && node scripts/test-admin-exclusao-routes.js",
-    "test:relatorios-contabeis": "node scripts/test-relatorios-contabeis.js && node scripts/test-relatorios-contabeis-integracao.js && node scripts/test-auditai-estilos-locais.js",
+    "test:relatorios-contabeis": "node scripts/test-relatorios-contabeis.js && node scripts/test-relatorios-contabeis-integracao.js && node scripts/test-relatorios-analise-periodo.js && node scripts/test-auditai-estilos-locais.js",
+    "test:ativo-imobilizado": "node scripts/test-ativo-imobilizado.js && node scripts/test-ativo-imobilizado-integracao.js",
     "test:migracao-sage": "node scripts/test-migracao-sage-cci.js && node scripts/test-migracao-sage-ui.js"
   },
   "dependencies": {

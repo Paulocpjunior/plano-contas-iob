@@ -72,7 +72,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
   const cadastro = (ctx || {}).cadastro || {};
   const empresa = (ctx || {}).empresa || {};
   const fontes = [sobrescritas || {}, salvo, cadastro, empresa];
-  const padrao = tipoAtual === 'balancete' ? 'portrait' : 'landscape';
+  const padrao = tipoAtual === 'razao' || tipoAtual === 'diario' ? 'landscape' : 'portrait';
   let orientacao = primeiroValor(fontes, ['orientacao']) || padrao;
   if (!['portrait', 'landscape'].includes(orientacao)) orientacao = padrao;
   return {
@@ -96,8 +96,44 @@ function preferenciasImpressao(ctx, sobrescritas) {
     return el ? el.value : '';
   }
 
+  function filtroSelecionado() {
+    const usarIntervalo = !!((document.getElementById('rcUsarIntervalo') || {}).checked);
+    if (!usarIntervalo) return periodoSelecionado();
+    return {
+      inicio: String((document.getElementById('rcDataInicio') || {}).value || ''),
+      fim: String((document.getElementById('rcDataFim') || {}).value || '')
+    };
+  }
+
+  function rotuloPeriodo(filtro) {
+    if (typeof filtro === 'string') return periodoCompleto(filtro);
+    return filtro && filtro.inicio && filtro.fim ? dataBR(filtro.inicio) + ' a ' + dataBR(filtro.fim) : 'Intervalo inválido';
+  }
+
+  function chaveSaldoInicial(filtro) {
+    return typeof filtro === 'string' ? filtro : String((filtro || {}).inicio || '').slice(0, 7);
+  }
+
+  function usuarioGerador() {
+    const usuario = window.CURRENT_USER || {};
+    return usuario.nome || usuario.name || usuario.displayName || usuario.email || 'Usuário autenticado';
+  }
+
   function saldosDoPeriodo(ctx, periodo) {
     return (((ctx || {}).config || {}).saldosIniciais || {})[periodo] || {};
+  }
+
+  function saldosDoFiltro(ctx, filtro) {
+    const base = saldosDoPeriodo(ctx, chaveSaldoInicial(filtro));
+    if (typeof filtro === 'string' || !filtro.inicio || filtro.inicio.slice(8, 10) === '01') return base;
+    const partes = filtro.inicio.split('-').map(Number);
+    const anterior = new Date(partes[0], partes[1] - 1, partes[2] - 1);
+    const fimAnterior = anterior.getFullYear() + '-' + String(anterior.getMonth() + 1).padStart(2, '0') + '-' + String(anterior.getDate()).padStart(2, '0');
+    const inicioMes = filtro.inicio.slice(0, 7) + '-01';
+    const acumulado = Core.balancete(ctx.entries, { inicio: inicioMes, fim: fimAnterior }, ctx.contas, base);
+    const saldos = {};
+    acumulado.forEach(function (linha) { saldos[linha.conta] = linha.saldoAtual; });
+    return saldos;
   }
 
   function statusDoPeriodo(periodo) {
@@ -113,13 +149,14 @@ function preferenciasImpressao(ctx, sobrescritas) {
     style.textContent = `
       .rc-shell{display:grid;gap:18px}.rc-hero{padding:22px;border-radius:16px;background:linear-gradient(135deg,#0f172a,#1d4ed8);color:#fff;display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap;box-shadow:0 14px 32px rgba(30,64,175,.18)}
       .rc-hero h2{margin:4px 0;font-size:24px}.rc-hero p{margin:0;color:#dbeafe}.rc-status{padding:9px 13px;border:1px solid rgba(255,255,255,.3);border-radius:10px;background:rgba(255,255,255,.1);font-weight:800;font-size:12px}
-      .rc-controls{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px;align-items:end}.rc-field label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px}.rc-field input,.rc-field select,.rc-field textarea{width:100%;padding:10px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a}.rc-field textarea{min-height:104px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+      .rc-controls{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px;align-items:end}.rc-field label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px}.rc-field input,.rc-field select,.rc-field textarea{width:100%;padding:10px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a}.rc-field textarea{min-height:104px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}.rc-check{display:flex;align-items:center;gap:8px;min-height:40px;font-size:12px;font-weight:800;color:#334155}.rc-check input{width:auto}.rc-intervalo{display:none;grid-template-columns:1fr 1fr;gap:12px;grid-column:span 2}.rc-intervalo.active{display:grid}.rc-analysis-grid{display:grid;grid-template-columns:repeat(3,minmax(240px,1fr));gap:14px}.rc-analysis-card{padding:14px;border:1px solid #dbe4f0;border-radius:12px;background:#f8fafc}.rc-analysis-card h4{margin:0 0 6px;color:#1e3a8a}.rc-analysis-value{font-size:20px;font-weight:900;color:#0f172a}.rc-analysis-card small{display:block;margin-top:6px;color:#64748b;line-height:1.4}
       .rc-tabs{display:flex;gap:8px;flex-wrap:wrap}.rc-tab{padding:9px 14px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:800;cursor:pointer}.rc-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}.rc-tab[disabled]{opacity:.48;cursor:not-allowed}
       .rc-actions{display:flex;gap:9px;flex-wrap:wrap}.rc-btn{padding:10px 14px;border:0;border-radius:9px;font-weight:800;cursor:pointer}.rc-btn.primary{background:#2563eb;color:#fff}.rc-btn.success{background:#059669;color:#fff}.rc-btn.email{background:#1d4ed8;color:#fff}.rc-btn.whatsapp{background:#16a34a;color:#fff}.rc-btn.warn{background:#f59e0b;color:#fff}.rc-btn.danger{background:#dc2626;color:#fff}.rc-btn.light{background:#e2e8f0;color:#0f172a}.rc-btn:disabled{opacity:.5;cursor:not-allowed}
       .rc-summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.rc-kpi{padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}.rc-kpi small{display:block;color:#64748b;font-weight:800;text-transform:uppercase}.rc-kpi strong{display:block;font-size:20px;margin-top:5px;color:#0f172a}.rc-ok{color:#047857}.rc-error{color:#b91c1c}.rc-alert{padding:12px 14px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px}.rc-table-wrap{overflow:auto;max-height:62vh;border:1px solid #e2e8f0;border-radius:12px}.rc-table{width:100%;border-collapse:collapse;font-size:12px}.rc-table th{position:sticky;top:0;z-index:1;background:#f1f5f9;color:#475569;text-transform:uppercase;font-size:10px;letter-spacing:.05em}.rc-table th,.rc-table td{padding:9px 10px;border-bottom:1px solid #e2e8f0;text-align:left;white-space:nowrap}.rc-table td.num,.rc-table th.num{text-align:right;font-variant-numeric:tabular-nums}.rc-account-row td{background:#eff6ff;font-weight:900;color:#1e3a8a}.rc-settings{border:1px dashed #94a3b8;border-radius:12px;padding:14px}.rc-settings summary{cursor:pointer;font-weight:800;color:#334155}.rc-history{font-size:12px;color:#64748b}
       .rc-modal{position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.72);display:grid;place-items:center;padding:18px}.rc-modal[hidden]{display:none}.rc-modal-panel{width:min(640px,100%);max-height:calc(100vh - 36px);overflow:auto;background:#fff;color:#0f172a;border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(2,6,23,.4)}.rc-modal-panel.wide{width:min(1180px,100%)}.rc-modal-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}.rc-modal-head h3{margin:0;font-size:20px}.rc-modal-head p{margin:5px 0 0;color:#64748b;font-size:13px}.rc-modal-close{border:0;background:transparent;color:inherit;font-size:24px;cursor:pointer}.rc-modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px;flex-wrap:wrap}.rc-print-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.rc-print-preview{margin-top:16px;height:min(64vh,720px);border:1px solid #cbd5e1;border-radius:12px;overflow:hidden;background:#fff}.rc-print-preview iframe{width:100%;height:100%;border:0;background:#fff}
       html[data-theme="dark"] .rc-field label,html[data-theme="dark"] .rc-history{color:#cbd5e1}html[data-theme="dark"] .rc-tab,html[data-theme="dark"] .rc-field input,html[data-theme="dark"] .rc-field select,html[data-theme="dark"] .rc-field textarea{background:#0b1220;color:#f8fafc;border-color:#475569;color-scheme:dark}html[data-theme="dark"] .rc-field input::placeholder,html[data-theme="dark"] .rc-field textarea::placeholder{color:#a8b5c8;opacity:1}html[data-theme="dark"] .rc-tab.active{background:#2563eb;border-color:#60a5fa}html[data-theme="dark"] .rc-kpi{background:#0b1220;border-color:#334155}html[data-theme="dark"] .rc-kpi small{color:#94a3b8}html[data-theme="dark"] .rc-kpi strong{color:#f8fafc}html[data-theme="dark"] .rc-table-wrap{border-color:#334155}html[data-theme="dark"] .rc-table th{background:#020617!important;color:#cbd5e1!important}html[data-theme="dark"] .rc-table td{border-color:#334155;color:#e2e8f0}html[data-theme="dark"] .rc-account-row td{background:#172554!important;color:#bfdbfe}html[data-theme="dark"] .rc-alert{background:#431407;border-color:#9a3412;color:#fed7aa}html[data-theme="dark"] .rc-settings{border-color:#475569}html[data-theme="dark"] .rc-settings summary{color:#e2e8f0}html[data-theme="dark"] .rc-btn.light{background:#334155;color:#f8fafc}html[data-theme="dark"] .rc-modal-panel{background:#111827;color:#f8fafc;border:1px solid #334155}html[data-theme="dark"] .rc-modal-head p{color:#cbd5e1}html[data-theme="dark"] .rc-print-preview{border-color:#334155}
-      @media(max-width:900px){.rc-controls,.rc-summary,.rc-print-grid{grid-template-columns:1fr 1fr}}@media(max-width:560px){.rc-controls,.rc-summary,.rc-print-grid{grid-template-columns:1fr}}
+      html[data-theme="dark"] .rc-analysis-card{background:#0b1220;border-color:#334155}html[data-theme="dark"] .rc-analysis-card h4{color:#bfdbfe}html[data-theme="dark"] .rc-analysis-value{color:#f8fafc}html[data-theme="dark"] .rc-analysis-card small,html[data-theme="dark"] .rc-check{color:#cbd5e1}
+      @media(max-width:900px){.rc-controls,.rc-summary,.rc-print-grid,.rc-analysis-grid{grid-template-columns:1fr 1fr}}@media(max-width:560px){.rc-controls,.rc-summary,.rc-print-grid,.rc-analysis-grid{grid-template-columns:1fr}.rc-intervalo{grid-column:auto;grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
   }
@@ -136,11 +173,13 @@ function preferenciasImpressao(ctx, sobrescritas) {
         <section class="card" style="padding:20px">
           <div class="rc-controls">
             <div class="rc-field"><label>Competência</label><input type="month" id="rcPeriodo" value="${esc(periodo)}"></div>
+            <label class="rc-check"><input type="checkbox" id="rcUsarIntervalo"> Selecionar intervalo de datas</label>
+            <div class="rc-intervalo" id="rcIntervalo"><div class="rc-field"><label>Data inicial</label><input type="date" id="rcDataInicio" value="${esc(periodo + '-01')}"></div><div class="rc-field"><label>Data final</label><input type="date" id="rcDataFim" value="${esc(periodo + '-' + String(new Date(Number(periodo.slice(0,4)), Number(periodo.slice(5,7)), 0).getDate()).padStart(2,'0'))}"></div></div>
             <div class="rc-field"><label>Formato do Balancete</label><select id="rcFormato"><option value="6">Modelo SAGE — 6 colunas</option><option value="4">4 colunas</option><option value="2">2 colunas</option></select></div>
             <div class="rc-field"><label>Conta no Razão</label><input id="rcConta" placeholder="Reduzido ou descrição"></div>
             <div class="rc-field"><label>Pesquisar</label><input id="rcBusca" placeholder="Conta, histórico ou documento"></div>
           </div>
-          <div class="rc-tabs" style="margin-top:16px"><button class="rc-tab active" data-rc-tipo="balancete">Balancete</button><button class="rc-tab" data-rc-tipo="razao">Razão Analítico</button><button class="rc-tab" data-rc-tipo="diario">Livro Diário</button><button class="rc-tab" disabled title="Próxima etapa">DRE — próxima etapa</button><button class="rc-tab" disabled title="Próxima etapa">Balanço — próxima etapa</button></div>
+          <div class="rc-tabs" style="margin-top:16px"><button class="rc-tab active" data-rc-tipo="balancete">Balancete</button><button class="rc-tab" data-rc-tipo="razao">Razão Analítico</button><button class="rc-tab" data-rc-tipo="diario">Livro Diário</button><button class="rc-tab" data-rc-tipo="analise">Análise Econômico-Financeira</button><button class="rc-tab" disabled title="Próxima etapa">DRE — próxima etapa</button><button class="rc-tab" disabled title="Próxima etapa">Balanço — próxima etapa</button></div>
         <div class="rc-actions" style="margin-top:16px"><button class="rc-btn primary" id="rcAtualizar">Atualizar prévia</button><button class="rc-btn light" id="rcImprimir">Visualizar impressão</button><button class="rc-btn light" id="rcPdf">Exportar PDF</button><button class="rc-btn success" id="rcExcel">Exportar Excel</button><button class="rc-btn email" id="rcEmail">✉️ Enviar PDF por e-mail</button><button class="rc-btn whatsapp" id="rcWhatsapp">💬 Enviar PDF no WhatsApp</button><button class="rc-btn warn" id="rcFechar">Encerrar período</button><button class="rc-btn danger" id="rcReabrir" style="display:none">Reabrir período</button></div>
         </section>
         <section class="card" style="padding:20px"><div class="rc-summary" id="rcResumo"></div><div id="rcAvisos" style="margin-top:12px"></div></section>
@@ -171,6 +210,8 @@ function preferenciasImpressao(ctx, sobrescritas) {
         </div>
       </div>`;
     document.getElementById('rcPeriodo').addEventListener('change', function () { preencherSaldos(); atualizarTudo(); });
+    document.getElementById('rcUsarIntervalo').addEventListener('change', function () { atualizarModoPeriodo(); preencherSaldos(); atualizarTudo(); });
+    ['rcDataInicio', 'rcDataFim'].forEach(function (id) { document.getElementById(id).addEventListener('change', function () { preencherSaldos(); atualizarTudo(); }); });
     ['rcFormato', 'rcConta', 'rcBusca'].forEach(function (id) { document.getElementById(id).addEventListener(id === 'rcFormato' ? 'change' : 'input', render); });
     document.getElementById('rcAtualizar').addEventListener('click', atualizarTudo);
     document.getElementById('rcImprimir').addEventListener('click', abrirModalImpressao);
@@ -192,22 +233,35 @@ function preferenciasImpressao(ctx, sobrescritas) {
     document.getElementById('rcReabrir').addEventListener('click', reabrirPeriodo);
     root.querySelectorAll('[data-rc-tipo]').forEach(function (btn) { btn.addEventListener('click', function () { tipoAtual = btn.dataset.rcTipo; root.querySelectorAll('[data-rc-tipo]').forEach(function (b) { b.classList.toggle('active', b === btn); }); render(); }); });
     preencherSaldos();
+    atualizarModoPeriodo();
     inicializado = true;
   }
 
   function dadosAtuais() {
     const ctx = contexto();
-    const periodo = periodoSelecionado();
-    const saldos = saldosDoPeriodo(ctx, periodo);
+    const filtro = filtroSelecionado();
+    const periodo = Core.rotuloFiltro(filtro);
+    const saldos = saldosDoFiltro(ctx, filtro);
+    const balancete = Core.balancete(ctx.entries, filtro, ctx.contas, saldos);
     return {
       ctx,
       periodo,
+      filtro,
+      periodoLegivel: rotuloPeriodo(filtro),
       saldos,
-      validacao: Core.validar(ctx.entries, periodo, ctx.contas),
-      balancete: Core.balancete(ctx.entries, periodo, ctx.contas, saldos),
-      razao: Core.razao(ctx.entries, periodo, ctx.contas, saldos, (document.getElementById('rcConta') || {}).value || ''),
-      diario: Core.diario(ctx.entries, periodo, ctx.contas)
+      validacao: Core.validar(ctx.entries, filtro, ctx.contas),
+      balancete,
+      razao: Core.razao(ctx.entries, filtro, ctx.contas, saldos, (document.getElementById('rcConta') || {}).value || ''),
+      diario: Core.diario(ctx.entries, filtro, ctx.contas),
+      analise: Core.analiseEconomica(balancete, ctx.contas, (((ctx || {}).config || {}).mapeamentoAnaliseEconomica || {}))
     };
+  }
+
+  function atualizarModoPeriodo() {
+    const intervalo = !!document.getElementById('rcUsarIntervalo').checked;
+    document.getElementById('rcIntervalo').classList.toggle('active', intervalo);
+    document.getElementById('rcPeriodo').disabled = intervalo;
+    document.querySelector('details.rc-settings').style.display = intervalo ? 'none' : '';
   }
 
   function buscaAceita(valores) {
@@ -219,10 +273,11 @@ function preferenciasImpressao(ctx, sobrescritas) {
     if (!inicializado) return;
     const dados = dadosAtuais();
     const formato = String((document.getElementById('rcFormato') || {}).value || '6');
-    const periodoStatus = statusDoPeriodo(dados.periodo);
+    const emIntervalo = typeof dados.filtro !== 'string';
+    const periodoStatus = emIntervalo ? null : statusDoPeriodo(dados.periodo);
     const fechado = periodoStatus && periodoStatus.status === 'fechado';
-    document.getElementById('rcStatusPeriodo').textContent = fechado ? '🔒 Período encerrado' : (periodoStatus && periodoStatus.status === 'reaberto' ? '🔓 Período reaberto' : '🟢 Período aberto');
-    document.getElementById('rcFechar').style.display = fechado ? 'none' : '';
+    document.getElementById('rcStatusPeriodo').textContent = emIntervalo ? '📅 Intervalo personalizado' : (fechado ? '🔒 Período encerrado' : (periodoStatus && periodoStatus.status === 'reaberto' ? '🔓 Período reaberto' : '🟢 Período aberto'));
+    document.getElementById('rcFechar').style.display = emIntervalo || fechado ? 'none' : '';
     const podeReabrir = fechado && statusAtual && statusAtual.is_admin;
     document.getElementById('rcReabrir').style.display = podeReabrir ? '' : 'none';
     document.getElementById('rcResumo').innerHTML = `
@@ -234,12 +289,13 @@ function preferenciasImpressao(ctx, sobrescritas) {
     document.getElementById('rcAvisos').innerHTML = mensagens.length ? '<div class="rc-alert">' + mensagens.map(function (m) { return '• ' + esc(m.mensagem) + (m.quantidade > 1 ? ' <strong>(' + m.quantidade + ' ocorrências)</strong>' : ''); }).join('<br>') + '</div>' : '';
     if (tipoAtual === 'balancete') renderBalancete(dados, formato);
     else if (tipoAtual === 'razao') renderRazao(dados);
-    else renderDiario(dados);
+    else if (tipoAtual === 'diario') renderDiario(dados);
+    else renderAnalise(dados);
     renderHistorico(periodoStatus);
   }
 
   function renderBalancete(dados, formato) {
-    document.getElementById('rcTituloTabela').textContent = 'Balancete Analítico — ' + dados.periodo;
+    document.getElementById('rcTituloTabela').textContent = 'Balancete Analítico — ' + dados.periodoLegivel;
     const colunas = formato === '2'
       ? ['Conta', 'Descrição', 'Sdo. atual']
       : formato === '4'
@@ -252,33 +308,51 @@ function preferenciasImpressao(ctx, sobrescritas) {
       if (formato === '2') valores = [saldoComNatureza(l.saldoAtual)];
       else if (formato === '4') valores = [moeda(l.debitos), moeda(l.creditos), saldoComNatureza(l.saldoAtual)];
       else valores = [saldoComNatureza(l.saldoAnterior), moeda(l.debitos), moeda(l.creditos), saldoComNatureza(l.saldoAtual)];
-      return '<tr><td><strong>' + esc(l.conta) + '</strong></td><td>' + esc(l.descricao || 'Conta sem descrição no plano') + '</td>' + valores.map(function (valor) { return '<td class="num">' + valor + '</td>'; }).join('') + '</tr>';
+      const conta = [l.codigoCompleto, l.reduzido].filter(Boolean).join(' / ') || l.conta;
+      return '<tr><td><strong>' + esc(conta) + '</strong></td><td>' + esc(l.descricao || 'Conta sem descrição no plano') + '</td>' + valores.map(function (valor) { return '<td class="num">' + valor + '</td>'; }).join('') + '</tr>';
     }).join('') || '<tr><td colspan="' + colunas.length + '">Nenhuma conta encontrada.</td></tr>';
   }
 
   function renderRazao(dados) {
-    document.getElementById('rcTituloTabela').textContent = 'Razão Analítico — ' + dados.periodo;
+    document.getElementById('rcTituloTabela').textContent = 'Razão Analítico — ' + dados.periodoLegivel + ' | Gerado em ' + new Date().toLocaleString('pt-BR') + ' por ' + usuarioGerador();
     document.getElementById('rcHead').innerHTML = '<tr><th>Data</th><th>Documento</th><th>Histórico</th><th>Contrapartida</th><th class="num">Débito</th><th class="num">Crédito</th><th class="num">Saldo</th></tr>';
     let html = '';
     dados.razao.forEach(function (g) {
       const movimentos = g.movimentos.filter(function (m) { return buscaAceita([g.conta, g.descricao, m.documento, m.descricao, m.contrapartida, m.origem]); });
       if (!movimentos.length && !buscaAceita([g.conta, g.descricao])) return;
-      html += '<tr class="rc-account-row"><td colspan="7">' + esc(g.conta + ' — ' + (g.descricao || 'Conta sem descrição')) + ' | Saldo anterior: ' + moeda(g.saldoAnterior) + '</td></tr>';
+      const identificacao = [g.codigoCompleto, g.reduzido, g.descricao || 'Conta sem descrição'].filter(Boolean).join(' - ');
+      html += '<tr class="rc-account-row"><td colspan="7">Conta analisada: ' + esc(identificacao) + ' | Saldo anterior: ' + saldoComNatureza(g.saldoAnterior) + '</td></tr>';
       movimentos.forEach(function (m) { html += '<tr><td>' + dataBR(m.data) + '</td><td>' + esc(m.documento) + '</td><td>' + esc(m.descricao) + '</td><td>' + esc(m.contrapartida) + '</td><td class="num">' + (m.debito ? moeda(m.debito) : '') + '</td><td class="num">' + (m.credito ? moeda(m.credito) : '') + '</td><td class="num">' + moeda(m.saldo) + '</td></tr>'; });
     });
     document.getElementById('rcBody').innerHTML = html || '<tr><td colspan="7">Nenhum movimento encontrado.</td></tr>';
   }
 
   function renderDiario(dados) {
-    document.getElementById('rcTituloTabela').textContent = 'Livro Diário — ' + dados.periodo;
+    document.getElementById('rcTituloTabela').textContent = 'Livro Diário — ' + dados.periodoLegivel;
     document.getElementById('rcHead').innerHTML = '<tr><th>Nº</th><th>Data</th><th>Débito</th><th>Crédito</th><th>Histórico</th><th>Documento</th><th class="num">Valor</th></tr>';
     const linhas = dados.diario.filter(function (l) { return buscaAceita([l.numero, l.data, l.debito, l.credito, l.historico, l.documento, l.origem]); });
     document.getElementById('rcBody').innerHTML = linhas.map(function (l) { return '<tr><td>' + l.numero + '</td><td>' + dataBR(l.data) + '</td><td>' + esc(l.debito) + '</td><td>' + esc(l.credito) + '</td><td>' + esc(l.historico) + '</td><td>' + esc(l.documento) + '</td><td class="num">' + moeda(l.valor) + '</td></tr>'; }).join('') || '<tr><td colspan="7">Nenhum lançamento encontrado.</td></tr>';
   }
 
+  function renderAnalise(dados) {
+    document.getElementById('rcTituloTabela').textContent = 'Análise Econômico-Financeira — ' + dados.periodoLegivel;
+    document.getElementById('rcHead').innerHTML = '';
+    const grupos = { 1: 'Estrutura e Endividamento', 7: 'Liquidez', 12: 'Rentabilidade' };
+    let html = '<tr><td style="padding:0;border:0"><div class="rc-analysis-grid">';
+    dados.analise.indicadores.forEach(function (i) {
+      const grupo = grupos[i.id] ? '<small style="color:#2563eb;font-weight:900;text-transform:uppercase">' + grupos[i.id] + '</small>' : '';
+      const valor = !i.calculavel ? 'N.D.' : (i.monetario ? moedaPDF(i.valor) : moeda(i.valor) + (i.percentual ? '%' : ''));
+      html += '<article class="rc-analysis-card">' + grupo + '<h4>' + i.id + '. ' + esc(i.titulo) + '</h4><div class="rc-analysis-value">' + valor + '</div><small>' + esc(i.interpretacao) + '</small></article>';
+    });
+    html += '</div></td></tr>';
+    document.getElementById('rcBody').innerHTML = html;
+    const pendencias = dados.analise.pendencias;
+    if (pendencias.length) document.getElementById('rcAvisos').innerHTML += '<div class="rc-alert" style="margin-top:8px"><strong>Mapeamento pendente:</strong> ' + esc(pendencias.join(', ')) + '. Indicadores sem denominador/base comprovada permanecem N.D.</div>';
+  }
+
   function preencherSaldos() {
     const ctx = contexto();
-    const saldos = saldosDoPeriodo(ctx, periodoSelecionado());
+    const saldos = saldosDoPeriodo(ctx, chaveSaldoInicial(filtroSelecionado()));
     const el = document.getElementById('rcSaldos');
     if (el) el.value = Object.keys(saldos).sort().map(function (conta) { return conta + ';' + moeda(saldos[conta]); }).join('\n');
   }
@@ -323,6 +397,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   async function fecharPeriodo() {
     const dados = dadosAtuais();
+    if (typeof dados.filtro !== 'string') return window.showToast('O encerramento é feito por competência, não por intervalo.', 'warn');
     if (!dados.validacao.ok) return window.showToast('Corrija os erros contábeis antes de encerrar o período.', 'error');
     if (!dados.validacao.quantidade) return window.showToast('Não há lançamentos para encerrar nesta competência.', 'warn');
     if (!confirm('Encerrar ' + dados.periodo + '? Os lançamentos ficarão bloqueados até uma reabertura administrativa.')) return;
@@ -347,25 +422,28 @@ function preferenciasImpressao(ctx, sobrescritas) {
   }
 
   function linhasExportacao(dados) {
+    if (tipoAtual === 'analise') return dados.analise.indicadores.map(function (i) { return [i.id, i.titulo, i.calculavel ? i.valor : 'N.D.', i.percentual ? '%' : (i.monetario ? 'R$' : 'índice'), i.interpretacao]; });
     if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [l.conta, l.descricao, l.saldoAnterior, l.debitos, l.creditos, l.saldoAtual]; });
     if (tipoAtual === 'diario') return dados.diario.map(function (l) { return [l.numero, dataBR(l.data), l.debito, l.credito, l.historico, l.documento, l.valor]; });
     const linhas = [];
-    dados.razao.forEach(function (g) { g.movimentos.forEach(function (m) { linhas.push([g.conta, g.descricao, dataBR(m.data), m.documento, m.descricao, m.contrapartida, m.debito, m.credito, m.saldo]); }); });
+    dados.razao.forEach(function (g) { g.movimentos.forEach(function (m) { linhas.push([g.codigoCompleto, g.reduzido, g.descricao, dataBR(m.data), m.documento, m.descricao, m.contrapartida, m.debito, m.credito, m.saldo]); }); });
     return linhas;
   }
 
   function linhasExportacaoPDF(dados) {
+    if (tipoAtual === 'analise') return dados.analise.indicadores.map(function (i) { return [i.id, i.titulo, i.calculavel ? (i.monetario ? moedaPDF(i.valor) : moeda(i.valor) + (i.percentual ? '%' : '')) : 'N.D.', i.interpretacao]; });
     if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [l.conta, l.descricao, saldoPDFComNatureza(l.saldoAnterior), moedaPDF(l.debitos), moedaPDF(l.creditos), saldoPDFComNatureza(l.saldoAtual)]; });
     if (tipoAtual === 'diario') return dados.diario.map(function (l) { return [l.numero, dataBR(l.data), l.debito, l.credito, l.historico, l.documento, moedaPDF(l.valor)]; });
     const linhas = [];
-    dados.razao.forEach(function (g) { g.movimentos.forEach(function (m) { linhas.push([g.conta, g.descricao, dataBR(m.data), m.documento, m.descricao, m.contrapartida, moedaPDF(m.debito), moedaPDF(m.credito), moedaPDF(m.saldo)]); }); });
+    dados.razao.forEach(function (g) { g.movimentos.forEach(function (m) { linhas.push([g.codigoCompleto, g.reduzido, g.descricao, dataBR(m.data), m.documento, m.descricao, m.contrapartida, moedaPDF(m.debito), moedaPDF(m.credito), saldoPDFComNatureza(m.saldo)]); }); });
     return linhas;
   }
 
   function cabecalhoExportacao() {
+    if (tipoAtual === 'analise') return ['Nº', 'Indicador', 'Resultado', 'Unidade', 'Interpretação'];
     if (tipoAtual === 'balancete') return ['Conta', 'Descrição', 'Sdo. anterior', 'Débito', 'Crédito', 'Sdo. atual'];
     if (tipoAtual === 'diario') return ['Nº', 'Data', 'Débito', 'Crédito', 'Histórico', 'Documento', 'Valor'];
-    return ['Conta', 'Descrição da conta', 'Data', 'Documento', 'Histórico', 'Contrapartida', 'Débito', 'Crédito', 'Saldo'];
+    return ['Conta completa', 'Reduzido', 'Descrição da conta', 'Data', 'Documento', 'Histórico', 'Contrapartida', 'Débito', 'Crédito', 'Saldo'];
   }
 
   function nomeArquivo(dados, ext) {
@@ -417,12 +495,13 @@ function preferenciasImpressao(ctx, sobrescritas) {
     const preferencias = preferenciasImpressao(dados.ctx, opcoes);
     const doc = new jsPDF({ orientation: preferencias.orientacao, unit: 'mm', format: 'a4' });
     doc.setFontSize(15); doc.text('SP ASSESSORIA CONTÁBIL', 14, 14);
-    doc.setFontSize(11); doc.text(nomeTipoRelatorio() + ' — ' + dados.periodo, 14, 21);
+    doc.setFontSize(11); doc.text(nomeTipoRelatorio() + ' — ' + dados.periodoLegivel, 14, 21);
     doc.setFontSize(8); doc.text(String(dados.ctx.empresa.razao_social || dados.ctx.empresa.empresa || '') + ' | CNPJ ' + String(dados.ctx.empresa.cnpj || ''), 14, 27);
-    doc.text('Período: ' + periodoCompleto(dados.periodo), 14, 32);
+    doc.text('Período: ' + dados.periodoLegivel, 14, 32);
+    doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR') + ' | Usuário: ' + usuarioGerador(), 14, 36);
     doc.autoTable({
-      startY: 37,
-      head: [cabecalhoExportacao()],
+      startY: 41,
+      head: [tipoAtual === 'analise' ? ['Nº', 'Indicador', 'Resultado', 'Interpretação'] : cabecalhoExportacao()],
       body: linhasExportacaoPDF(dados),
       styles: { fontSize: 6.5, cellPadding: 1.5 },
       headStyles: { fillColor: [30, 64, 175] },
@@ -465,7 +544,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
   }
 
   function nomeTipoRelatorio() {
-    return tipoAtual === 'balancete' ? 'Balancete Analítico' : tipoAtual === 'razao' ? 'Razão Analítico' : 'Livro Diário';
+    return tipoAtual === 'balancete' ? 'Balancete Analítico' : tipoAtual === 'razao' ? 'Razão Analítico' : tipoAtual === 'analise' ? 'Análise Econômico-Financeira' : 'Livro Diário';
   }
 
   function abrirModalEmail() {
@@ -473,8 +552,8 @@ function preferenciasImpressao(ctx, sobrescritas) {
     const empresa = dados.ctx.empresa || {};
     const nomeEmpresa = empresa.razao_social || empresa.empresa || 'Empresa';
     document.getElementById('rcEmailDestinatario').value = empresa.email_contato || empresa.email_cliente || empresa.email || '';
-    document.getElementById('rcEmailAssunto').value = nomeTipoRelatorio() + ' — ' + nomeEmpresa + ' — ' + dados.periodo;
-    document.getElementById('rcEmailMensagem').value = 'Olá,\n\nSegue em anexo o ' + nomeTipoRelatorio() + ' da competência ' + dados.periodo + ', referente à empresa ' + nomeEmpresa + '.\n\nAtenciosamente,\nDepartamento Contábil — SP Assessoria Contábil';
+    document.getElementById('rcEmailAssunto').value = nomeTipoRelatorio() + ' — ' + nomeEmpresa + ' — ' + dados.periodoLegivel;
+    document.getElementById('rcEmailMensagem').value = 'Olá,\n\nSegue em anexo o ' + nomeTipoRelatorio() + ' do período ' + dados.periodoLegivel + ', referente à empresa ' + nomeEmpresa + '.\n\nAtenciosamente,\nDepartamento Contábil — SP Assessoria Contábil';
     document.getElementById('rcEmailModal').hidden = false;
     window.setTimeout(function () { document.getElementById('rcEmailDestinatario').focus(); }, 0);
   }
@@ -597,7 +676,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
         : null;
       const empresa = resultado.dados.ctx.empresa || {};
       const nomeEmpresa = empresa.razao_social || empresa.empresa || 'empresa';
-      const mensagem = 'Segue o ' + (tipoAtual === 'balancete' ? 'Balancete de Verificação' : tipoAtual === 'razao' ? 'Razão Analítico' : 'Livro Diário') + ' de ' + resultado.dados.periodo + ' — ' + nomeEmpresa + '.';
+      const mensagem = 'Segue o ' + nomeTipoRelatorio() + ' de ' + resultado.dados.periodoLegivel + ' — ' + nomeEmpresa + '.';
 
       if (arquivo && navigator.share && (!navigator.canShare || navigator.canShare({ files: [arquivo] }))) {
         await navigator.share({ title: resultado.arquivo, text: mensagem, files: [arquivo] });

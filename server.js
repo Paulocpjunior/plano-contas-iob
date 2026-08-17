@@ -16,6 +16,7 @@ const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
 const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
+const AtivoImobilizado = require('./ativo-imobilizado');
 const GraphEmail = require('./graph-email-provider');
 
 const app = express();
@@ -2630,6 +2631,102 @@ app.post('/api/admin/exclusao-lancamentos/executar', adminRequired, async (req, 
     console.error('executar exclusao lancamentos erro:', e);
     res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_EXECUTAR_EXCLUSAO' });
   }
+});
+
+function normalizarBemAtivo(body) {
+  const b = body || {};
+  const statusPermitidos = new Set(['ativo', 'em_construcao', 'mantido_venda', 'baixado']);
+  const classe = AtivoImobilizado.classeFiscal(String(b.classe_fiscal || 'customizado'));
+  return {
+    descricao: String(b.descricao || '').trim().slice(0, 180),
+    patrimonio: String(b.patrimonio || '').trim().slice(0, 60),
+    classe_fiscal: classe.id,
+    data_aquisicao: AtivoImobilizado.dataISO(b.data_aquisicao),
+    data_disponivel_uso: AtivoImobilizado.dataISO(b.data_disponivel_uso),
+    data_mantido_venda: AtivoImobilizado.dataISO(b.data_mantido_venda),
+    custo: AtivoImobilizado.numero(b.custo),
+    valor_residual: AtivoImobilizado.numero(b.valor_residual),
+    vida_util_meses: Math.round(AtivoImobilizado.numero(b.vida_util_meses)),
+    taxa_fiscal_anual: AtivoImobilizado.numero(b.taxa_fiscal_anual === '' || b.taxa_fiscal_anual == null ? classe.taxaAnual : b.taxa_fiscal_anual),
+    metodo: 'linear',
+    condicao: String(b.condicao || 'novo') === 'usado' ? 'usado' : 'novo',
+    data_primeiro_uso: AtivoImobilizado.dataISO(b.data_primeiro_uso),
+    conta_ativo: String(b.conta_ativo || '').trim().slice(0, 40),
+    conta_depreciacao_acumulada: String(b.conta_depreciacao_acumulada || '').trim().slice(0, 40),
+    conta_despesa_depreciacao: String(b.conta_despesa_depreciacao || '').trim().slice(0, 40),
+    centro_custo: String(b.centro_custo || '').trim().slice(0, 80),
+    localizacao: String(b.localizacao || '').trim().slice(0, 120),
+    fornecedor: String(b.fornecedor || '').trim().slice(0, 160),
+    documento: String(b.documento || '').trim().slice(0, 80),
+    fundamento_taxa: String(b.fundamento_taxa || '').trim().slice(0, 800),
+    observacoes: String(b.observacoes || '').trim().slice(0, 1200),
+    status: statusPermitidos.has(String(b.status || 'ativo')) ? String(b.status || 'ativo') : 'ativo'
+  };
+}
+
+app.get('/api/empresas/:cnpj/ativos-imobilizados', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const snap = await db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').orderBy('descricao').limit(1000).get();
+    const itens = snap.docs.map(function (doc) {
+      const dados = doc.data() || {};
+      return { id: doc.id, ...dados, criado_em: serializarDataSegura(dados.criado_em), atualizado_em: serializarDataSegura(dados.atualizado_em), baixa_em: serializarDataSegura(dados.baixa_em) };
+    });
+    res.json({ itens, referencias_fiscais: AtivoImobilizado.CLASSES_FISCAIS });
+  } catch (e) { console.error('listar ativos imobilizados erro:', e); res.status(500).json({ erro: e.message }); }
+});
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const dados = normalizarBemAtivo(req.body);
+    const validacao = AtivoImobilizado.validar(dados);
+    if (!validacao.ok) return res.status(400).json({ erro: validacao.erros.join(' '), validacao });
+    const ref = db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').doc();
+    await ref.set({ ...dados, criado_em: new Date(), criado_por_uid: req.user.uid, criado_por_email: req.user.email, atualizado_em: new Date(), atualizado_por_uid: req.user.uid, atualizado_por_email: req.user.email, versao_regra: 'CPC27-IN1700-2026', lancamento_automatico: false });
+    res.status(201).json({ id: ref.id, ...dados, validacao });
+  } catch (e) { console.error('cadastrar ativo imobilizado erro:', e); res.status(500).json({ erro: e.message }); }
+});
+
+app.put('/api/empresas/:cnpj/ativos-imobilizados/:id', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const ref = db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').doc(String(req.params.id || ''));
+    const atual = await ref.get();
+    if (!atual.exists) return res.status(404).json({ erro: 'Bem não encontrado.' });
+    if (String((atual.data() || {}).status) === 'baixado') return res.status(409).json({ erro: 'Bem baixado não pode ser editado; a trilha histórica foi preservada.' });
+    const dados = normalizarBemAtivo({ ...(atual.data() || {}), ...(req.body || {}) });
+    const validacao = AtivoImobilizado.validar(dados);
+    if (!validacao.ok) return res.status(400).json({ erro: validacao.erros.join(' '), validacao });
+    await ref.set({ ...dados, atualizado_em: new Date(), atualizado_por_uid: req.user.uid, atualizado_por_email: req.user.email }, { merge: true });
+    res.json({ id: ref.id, ...dados, validacao });
+  } catch (e) { console.error('atualizar ativo imobilizado erro:', e); res.status(500).json({ erro: e.message }); }
+});
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/baixa', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const dataBaixa = AtivoImobilizado.dataISO(req.body && req.body.data_baixa);
+    const motivo = String(req.body && req.body.motivo || '').trim();
+    if (!dataBaixa || motivo.length < 5) return res.status(400).json({ erro: 'Informe data e motivo da baixa.' });
+    const ref = db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').doc(String(req.params.id || ''));
+    const atual = await ref.get();
+    if (!atual.exists) return res.status(404).json({ erro: 'Bem não encontrado.' });
+    const bemAtual = atual.data() || {};
+    if (bemAtual.status === 'baixado') return res.status(409).json({ erro: 'A baixa deste bem já foi registrada.' });
+    const inicioUso = AtivoImobilizado.dataISO(bemAtual.data_disponivel_uso || bemAtual.data_aquisicao);
+    if (inicioUso && dataBaixa < inicioUso) return res.status(400).json({ erro: 'A data da baixa não pode ser anterior à aquisição/disponibilidade do bem.' });
+    await ref.set({ status: 'baixado', data_baixa: dataBaixa, motivo_baixa: motivo.slice(0, 500), valor_baixa: AtivoImobilizado.numero(req.body && req.body.valor_baixa), baixa_em: new Date(), baixa_por_uid: req.user.uid, baixa_por_email: req.user.email, atualizado_em: new Date(), atualizado_por_uid: req.user.uid, atualizado_por_email: req.user.email }, { merge: true });
+    res.json({ ok: true, id: ref.id, status: 'baixado', data_baixa: dataBaixa });
+  } catch (e) { console.error('baixar ativo imobilizado erro:', e); res.status(500).json({ erro: e.message }); }
 });
 
 app.post('/api/empresas/:cnpj/relatorio', async (req, res) => {

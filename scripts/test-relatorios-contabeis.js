@@ -27,7 +27,7 @@ assert.strictEqual(validacao.creditos, 1250);
 
 const balancete = core.balancete(lancamentos, '2026-01', contas, { 111: 100 });
 assert.deepStrictEqual(balancete.find(l => l.conta === '111'), {
-  conta: '111', descricao: 'Banco', saldoAnterior: 100, debitos: 1000, creditos: 250,
+  conta: '111', codigoCompleto: '1.1.1', reduzido: '0111', descricao: 'Banco', saldoAnterior: 100, debitos: 1000, creditos: 250,
   saldoAtual: 850, saldoDevedor: 850, saldoCredor: 0
 });
 assert.strictEqual(balancete.reduce((s, l) => s + l.debitos, 0), 1250);
@@ -51,7 +51,7 @@ assert.strictEqual(core.validar(lancamentosComZeros, '2026-01', contasComZeros).
 const balanceteComZeros = core.balancete(lancamentosComZeros, '2026-01', contasComZeros, {});
 assert.strictEqual(balanceteComZeros.filter(l => l.conta === '300').length, 1, 'formas curta e preenchida devem formar uma unica linha');
 assert.deepStrictEqual(balanceteComZeros.find(l => l.conta === '300'), {
-  conta: '300', descricao: 'Fornecedores', saldoAnterior: 0, debitos: 150, creditos: 0,
+  conta: '300', codigoCompleto: '0000000300', reduzido: '0300', descricao: 'Fornecedores', saldoAnterior: 0, debitos: 150, creditos: 0,
   saldoAtual: 150, saldoDevedor: 150, saldoCredor: 0
 });
 assert.strictEqual(core.diario(lancamentosComZeros, '2026-01', contasComZeros)[0].credito, '111');

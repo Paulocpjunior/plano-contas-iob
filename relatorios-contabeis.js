@@ -123,17 +123,51 @@
     });
   }
 
+  function intervaloValido(filtro) {
+    if (!filtro || typeof filtro !== 'object') return false;
+    const inicio = dataISO(filtro.inicio);
+    const fim = dataISO(filtro.fim);
+    return !!inicio && !!fim && inicio <= fim;
+  }
+
+  function lancamentosDoFiltro(lancamentos, filtro) {
+    if (typeof filtro === 'string') return lancamentosDoPeriodo(lancamentos, filtro);
+    if (!intervaloValido(filtro)) return [];
+    const inicio = dataISO(filtro.inicio);
+    const fim = dataISO(filtro.fim);
+    return (lancamentos || []).filter(function (lancamento) {
+      const data = dataISO(lancamento && lancamento.data);
+      return data && data >= inicio && data <= fim;
+    });
+  }
+
+  function rotuloFiltro(filtro) {
+    if (typeof filtro === 'string') return filtro;
+    return intervaloValido(filtro) ? dataISO(filtro.inicio) + '_a_' + dataISO(filtro.fim) : '';
+  }
+
+  function metadadosConta(conta, mapa) {
+    const item = resolverConta(conta, mapa);
+    if (!item) return { codigo: '', reduzido: normalizarConta(conta), descricao: '' };
+    return { codigo: item.codigo || '', reduzido: item.reduzido || normalizarConta(conta), descricao: item.descricao || '' };
+  }
+
+  function reduzidoExibicao(valor) {
+    const s = normalizarConta(valor);
+    return /^\d{1,4}$/.test(s) ? s.padStart(4, '0') : s;
+  }
+
   function validar(lancamentos, periodo, contas) {
     const mapa = mapaContas(contas);
     const todos = Array.isArray(lancamentos) ? lancamentos : [];
-    const selecionados = lancamentosDoPeriodo(todos, periodo);
+    const selecionados = lancamentosDoFiltro(todos, periodo);
     const erros = [];
     const avisos = [];
     const ids = new Set();
     let debitos = 0;
     let creditos = 0;
 
-    if (!periodoValido(periodo)) erros.push({ codigo: 'PERIODO_INVALIDO', mensagem: 'Informe uma competência válida.' });
+    if (!(typeof periodo === 'string' ? periodoValido(periodo) : intervaloValido(periodo))) erros.push({ codigo: 'PERIODO_INVALIDO', mensagem: 'Informe uma competência ou intervalo de datas válido.' });
     selecionados.forEach(function (lancamento, indice) {
       const id = texto(lancamento.id) || 'linha-' + (indice + 1);
       const valor = Math.abs(centavos(lancamento.valor));
@@ -151,11 +185,11 @@
       debitos += valor;
       creditos += valor;
     });
-    if (!selecionados.length && periodoValido(periodo)) avisos.push({ codigo: 'SEM_MOVIMENTO', mensagem: 'Nenhum lançamento encontrado na competência.' });
+    if (!selecionados.length && (typeof periodo === 'string' ? periodoValido(periodo) : intervaloValido(periodo))) avisos.push({ codigo: 'SEM_MOVIMENTO', mensagem: 'Nenhum lançamento encontrado no período selecionado.' });
     if (debitos !== creditos) erros.push({ codigo: 'PARTIDAS_DIVERGENTES', mensagem: 'Total de débitos diferente do total de créditos.' });
     return {
       ok: erros.length === 0,
-      periodo,
+      periodo: rotuloFiltro(periodo),
       quantidade: selecionados.length,
       debitos: deCentavos(debitos),
       creditos: deCentavos(creditos),
@@ -174,7 +208,7 @@
       if (!linhas.has(conta)) linhas.set(conta, { conta, descricao: nomeConta(codigo, mapa), saldoAnteriorCentavos: 0, debitosCentavos: 0, creditosCentavos: 0 });
       linhas.get(conta).saldoAnteriorCentavos += centavos(saldos[codigo]);
     });
-    lancamentosDoPeriodo(lancamentos, periodo).forEach(function (lancamento) {
+    lancamentosDoFiltro(lancamentos, periodo).forEach(function (lancamento) {
       const valor = Math.abs(centavos(lancamento.valor));
       const debito = contaCanonica(lancamento.contaDebito, mapa);
       const credito = contaCanonica(lancamento.contaCredito, mapa);
@@ -189,9 +223,12 @@
     });
     const resultado = Array.from(linhas.values()).map(function (linha) {
       const saldoAtual = linha.saldoAnteriorCentavos + linha.debitosCentavos - linha.creditosCentavos;
+      const meta = metadadosConta(linha.conta, mapa);
       return {
         conta: linha.conta,
-        descricao: linha.descricao,
+        codigoCompleto: meta.codigo,
+        reduzido: reduzidoExibicao(meta.reduzido || linha.conta),
+        descricao: linha.descricao || meta.descricao,
         saldoAnterior: deCentavos(linha.saldoAnteriorCentavos),
         debitos: deCentavos(linha.debitosCentavos),
         creditos: deCentavos(linha.creditosCentavos),
@@ -219,7 +256,7 @@
       g.saldoAnteriorCentavos += valor;
       g.saldoCentavos += valor;
     });
-    const ordenados = lancamentosDoPeriodo(lancamentos, periodo).slice().sort(function (a, b) {
+    const ordenados = lancamentosDoFiltro(lancamentos, periodo).slice().sort(function (a, b) {
       return dataISO(a.data).localeCompare(dataISO(b.data)) || texto(a.id).localeCompare(texto(b.id), 'pt-BR', { numeric: true });
     });
     ordenados.forEach(function (lancamento) {
@@ -242,13 +279,16 @@
     const filtro = filtroNormalizado ? contaCanonica(filtroNormalizado, mapa) : '';
     return Array.from(grupos.values())
       .filter(function (g) { return !filtro || g.conta === filtro || g.descricao.toLocaleLowerCase('pt-BR').includes(filtro.toLocaleLowerCase('pt-BR')); })
-      .map(function (g) { return { conta: g.conta, descricao: g.descricao, saldoAnterior: deCentavos(g.saldoAnteriorCentavos), saldoFinal: deCentavos(g.saldoCentavos), movimentos: g.movimentos }; })
+      .map(function (g) {
+        const meta = metadadosConta(g.conta, mapa);
+        return { conta: g.conta, codigoCompleto: meta.codigo, reduzido: reduzidoExibicao(meta.reduzido || g.conta), descricao: g.descricao || meta.descricao, saldoAnterior: deCentavos(g.saldoAnteriorCentavos), saldoFinal: deCentavos(g.saldoCentavos), movimentos: g.movimentos };
+      })
       .sort(function (a, b) { return a.conta.localeCompare(b.conta, 'pt-BR', { numeric: true }); });
   }
 
   function diario(lancamentos, periodo, contas) {
     const mapa = mapaContas(contas);
-    return lancamentosDoPeriodo(lancamentos, periodo).slice().sort(function (a, b) {
+    return lancamentosDoFiltro(lancamentos, periodo).slice().sort(function (a, b) {
       return dataISO(a.data).localeCompare(dataISO(b.data)) || texto(a.id).localeCompare(texto(b.id), 'pt-BR', { numeric: true });
     }).map(function (lancamento, indice) {
       return {
@@ -263,6 +303,86 @@
         origem: texto(lancamento.importacaoTitulo || lancamento.layoutNome || lancamento.bancoNome || lancamento.status_origem)
       };
     });
+  }
+
+  function semAcentos(valor) {
+    return texto(valor).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  }
+
+  function analiseEconomica(linhas, contas, mapeamento) {
+    const configuracao = mapeamento && typeof mapeamento === 'object' ? mapeamento : {};
+    const bases = {};
+    const fontes = {};
+    const mapa = mapaContas(contas);
+    const chaves = ['ativoCirculante', 'realizavelLongoPrazo', 'ativoNaoCirculante', 'ativoTotal', 'disponibilidades', 'estoques', 'passivoCirculante', 'exigivelLongoPrazo', 'patrimonioLiquido', 'emprestimos', 'receitaLiquida', 'lucroOperacional', 'lucroLiquido'];
+    chaves.forEach(function (chave) { bases[chave] = 0; fontes[chave] = []; });
+
+    function somar(chave, linha) {
+      const naturezaCredora = ['passivoCirculante', 'exigivelLongoPrazo', 'patrimonioLiquido', 'emprestimos', 'receitaLiquida', 'lucroOperacional', 'lucroLiquido'].includes(chave);
+      const valor = Number(linha.saldoAtual || 0);
+      bases[chave] += naturezaCredora ? Math.abs(valor) : Math.max(0, valor);
+      fontes[chave].push(linha.reduzido || linha.conta);
+    }
+
+    (linhas || []).forEach(function (linha) {
+      const meta = metadadosConta(linha.conta, mapa);
+      const codigo = normalizarConta(linha.codigoCompleto || meta.codigo).replace(/\s/g, '');
+      const segmentos = codigo.split(/[.\-]/).filter(Boolean).map(function (parte) { return Number(parte); });
+      const descricao = semAcentos(linha.descricao);
+      let atribuida = false;
+      chaves.forEach(function (chave) {
+        const selecionadas = Array.isArray(configuracao[chave]) ? configuracao[chave].map(normalizarConta) : [];
+        if (selecionadas.includes(normalizarConta(linha.conta)) || selecionadas.includes(normalizarConta(meta.codigo))) {
+          somar(chave, linha);
+          atribuida = true;
+        }
+      });
+      if (atribuida) return;
+      if (segmentos[0] === 1 && segmentos[1] === 1) somar('ativoCirculante', linha);
+      else if (segmentos[0] === 1 && segmentos[1] === 2 && segmentos[2] === 1) { somar('realizavelLongoPrazo', linha); somar('ativoNaoCirculante', linha); }
+      else if (segmentos[0] === 1 && segmentos[1] === 2) somar('ativoNaoCirculante', linha);
+      if (/^1([.\-]|$)/.test(codigo)) somar('ativoTotal', linha);
+      if (/^2[.\-]?1([.\-]|$)/.test(codigo)) somar('passivoCirculante', linha);
+      else if (/^2[.\-]?2([.\-]|$)/.test(codigo)) somar('exigivelLongoPrazo', linha);
+      else if (/^2[.\-]?3([.\-]|$)/.test(codigo)) somar('patrimonioLiquido', linha);
+      if (/CAIXA|BANCO(S)? CONTA|DISPONIBIL|APLICA(C|Ç)AO.*LIQUID/.test(descricao)) somar('disponibilidades', linha);
+      if (/ESTOQUE/.test(descricao)) somar('estoques', linha);
+      if (/EMPREST|FINANCIAMENT/.test(descricao)) somar('emprestimos', linha);
+      if (/RECEITA LIQUIDA/.test(descricao)) somar('receitaLiquida', linha);
+      if (/LUCRO OPERACIONAL|RESULTADO OPERACIONAL/.test(descricao)) somar('lucroOperacional', linha);
+      if (/LUCRO LIQUIDO|RESULTADO DO EXERCICIO/.test(descricao)) somar('lucroLiquido', linha);
+    });
+
+    if (!bases.ativoTotal && fontes.ativoCirculante.length && fontes.ativoNaoCirculante.length) {
+      bases.ativoTotal = bases.ativoCirculante + bases.ativoNaoCirculante;
+      fontes.ativoTotal = fontes.ativoCirculante.concat(fontes.ativoNaoCirculante);
+    }
+    const capitalTerceiros = bases.passivoCirculante + bases.exigivelLongoPrazo;
+    const imobilizadoInvestimento = Math.max(0, bases.ativoNaoCirculante - bases.realizavelLongoPrazo);
+    function indice(id, titulo, numerador, denominador, percentual, interpretacao, dependencias) {
+      const basesComprovadas = (dependencias || []).every(function (chave) { return fontes[chave] && fontes[chave].length; });
+      const calculavel = basesComprovadas && Math.abs(denominador) > 0.000001;
+      const valor = calculavel ? (numerador / denominador) * (percentual ? 100 : 1) : null;
+      return { id, titulo, numerador, denominador, percentual: !!percentual, valor, calculavel, interpretacao };
+    }
+    const indicadores = [
+      indice(1, 'Grau de endividamento geral', capitalTerceiros, bases.patrimonioLiquido, true, 'Capital de terceiros sobre o capital próprio.', ['passivoCirculante','exigivelLongoPrazo','patrimonioLiquido']),
+      indice(2, 'Participação do capital de terceiros sobre o ativo', capitalTerceiros, bases.ativoTotal, true, 'Capital de terceiros sobre o ativo total.', ['passivoCirculante','exigivelLongoPrazo','ativoTotal']),
+      indice(3, 'Endividamento financeiro', bases.emprestimos, bases.patrimonioLiquido, true, 'Empréstimos e financiamentos sobre o patrimônio líquido.', ['emprestimos','patrimonioLiquido']),
+      indice(4, 'Composição do endividamento', bases.passivoCirculante, capitalTerceiros, true, 'Obrigações de curto prazo sobre as obrigações totais.', ['passivoCirculante','exigivelLongoPrazo']),
+      indice(5, 'Imobilização do investimento total', imobilizadoInvestimento, bases.ativoTotal, true, 'Ativo permanente sobre o investimento total.', ['ativoNaoCirculante','realizavelLongoPrazo','ativoTotal']),
+      indice(6, 'Imobilização do capital próprio', imobilizadoInvestimento, bases.patrimonioLiquido, true, 'Ativo permanente sobre o capital próprio.', ['ativoNaoCirculante','realizavelLongoPrazo','patrimonioLiquido']),
+      indice(7, 'Liquidez corrente', bases.ativoCirculante, bases.passivoCirculante, false, 'Recursos de curto prazo para cada R$ 1,00 de dívida de curto prazo.', ['ativoCirculante','passivoCirculante']),
+      indice(8, 'Liquidez seca', bases.ativoCirculante - bases.estoques, bases.passivoCirculante, false, 'Liquidez corrente sem estoques.', ['ativoCirculante','estoques','passivoCirculante']),
+      indice(9, 'Liquidez imediata', bases.disponibilidades, bases.passivoCirculante, false, 'Disponibilidades para cada R$ 1,00 de dívida de curto prazo.', ['disponibilidades','passivoCirculante']),
+      indice(10, 'Liquidez geral', bases.ativoCirculante + bases.realizavelLongoPrazo, capitalTerceiros, false, 'Recursos realizáveis sobre obrigações totais.', ['ativoCirculante','realizavelLongoPrazo','passivoCirculante','exigivelLongoPrazo']),
+      indice(11, 'Solvência geral', bases.ativoTotal, capitalTerceiros, false, 'Ativo total para cada R$ 1,00 de obrigação.', ['ativoTotal','passivoCirculante','exigivelLongoPrazo']),
+      indice(12, 'Margem operacional', bases.lucroOperacional, bases.receitaLiquida, true, 'Lucro operacional sobre a receita líquida.', ['lucroOperacional','receitaLiquida']),
+      indice(13, 'Rentabilidade do investimento total', bases.lucroLiquido, bases.ativoTotal, true, 'Lucro líquido sobre o ativo total.', ['lucroLiquido','ativoTotal']),
+      indice(14, 'Rentabilidade do capital próprio', bases.lucroLiquido, bases.patrimonioLiquido, true, 'Lucro líquido sobre o patrimônio líquido.', ['lucroLiquido','patrimonioLiquido']),
+      { id: 15, titulo: 'Capital de giro próprio', valor: bases.ativoCirculante + bases.realizavelLongoPrazo - capitalTerceiros, calculavel: ['ativoCirculante','realizavelLongoPrazo','passivoCirculante','exigivelLongoPrazo'].every(function (chave) { return fontes[chave].length; }), monetario: true, interpretacao: 'Ativo circulante e realizável a longo prazo menos obrigações totais.' }
+    ];
+    return { bases, fontes, indicadores, pendencias: chaves.filter(function (chave) { return !fontes[chave].length; }) };
   }
 
   function hashTexto(valor) {
@@ -306,7 +426,7 @@
   }
 
   return {
-    dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, mapaContas, resumirMensagens, lancamentosDoPeriodo,
-    validar, balancete, razao, diario, snapshot, assinaturaPeriodo, hashTexto
+    dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao,
+    validar, balancete, razao, diario, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
   };
 });
