@@ -228,6 +228,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'PDF digitalizado com 14 paginas: 238 movimentos na conta 25287-5 e 88 na conta 14609-9. Paginas de investimentos sao ignoradas e cada conta fecha pelos totais impressos e pela sequencia de saldos.'
   },
   {
+    id: 'bradesco-extrato-unificado-hs-projetos-2026-01',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco - Extrato Unificado Pessoa Juridica',
+    parser: 'parsearPDF_Bradesco_ExtratoUnificado',
+    arquivo: 'Extrato Unificado Mensal-Janeiro_2026.pdf',
+    empresa: 'HS PROJETOS E AGRIMENSURA S/S LTDA',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    esperado: {
+      total_lancamentos: 48,
+      total_credito: 22430.15,
+      total_debito: 47278.41
+    },
+    status: 'Aprovado',
+    validado_em: '2026-08-17T16:46:00-03:00',
+    observacao: 'PDF textual Extrato Unificado Pessoa Juridica. Le as colunas por coordenadas, preserva complementos entre paginas e encerra no Total da conta-corrente antes das secoes de investimentos.'
+  },
+  {
     id: 'bradesco-netempresa-ocr-ferrante-2026-06',
     banco: '237',
     nomeBanco: 'Bradesco',

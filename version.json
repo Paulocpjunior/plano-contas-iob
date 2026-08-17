@@ -1,8 +1,9 @@
 {
-  "version": "3.4.139",
-  "build_date": "2026-08-17T17:53:03Z",
+  "version": "3.4.140",
+  "build_date": "2026-08-17T19:55:54Z",
   "release_notes": [
-    "feat: libera DRE e Balanço Patrimonial conciliados",
+    "feat: adiciona layout Bradesco Extrato Unificado Pessoa Jurídica",
+    "feat: libera DRE e balanco patrimonial",
     "fix: estrutura balancete pelo plano de contas",
     "fix: preserva cobranca e exige novo login",
     "feat: adiciona ativo e aprimora relatorios contabeis",
@@ -11,7 +12,6 @@
     "fix: atualizar trafego apos deploy no Cloud Run",
     "fix: direcionar deploy para a revisao mais recente",
     "test: alinhar FASTWELD aos impostos por CFOP",
-    "feat: adicionar pre-validacao da migracao SAGE",
-    "feat: concluir relatorios contabeis e corrigir AuditAI"
+    "feat: adicionar pre-validacao da migracao SAGE"
   ]
 }

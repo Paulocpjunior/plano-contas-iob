@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.139",
+  "version": "3.4.140",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -36,7 +36,7 @@
     "test:clude-servicos": "node scripts/test-clude-servicos-tomados.js",
     "test:clude-razao": "node scripts/test-clude-razao-saldos.js",
     "test:santander": "node scripts/test-santander-layouts.js",
-    "test:bradesco": "node scripts/test-bradesco-netempresa.js",
+    "test:bradesco": "node scripts/test-bradesco-netempresa.js && node scripts/test-bradesco-extrato-unificado.js",
     "test:iob-sentido": "node scripts/test-iob-sentido-bancario.js",
     "test:bradesco-ocr": "node scripts/test-bradesco-netempresa-ocr.js && node scripts/test-bradesco-ferrante-ocr.js",
     "test:bradesco-simples": "node scripts/test-bradesco-simples-conferencia.js",

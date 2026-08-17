@@ -75,6 +75,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'Extrato escaneado real conferido pagina por pagina: 326 movimentos, credito R$ 59.630,96 e debito R$ 56.040,78 em duas contas. O arquivo BRADESCO.pdf valida isoladamente a segunda conta pelos totais impressos.'
   },
   {
+    id: 'bradesco-extrato-unificado-hs-projetos-2026-01',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco - Extrato Unificado Pessoa Juridica',
+    parser: 'parsearPDF_Bradesco_ExtratoUnificado',
+    arquivo: 'Extrato Unificado Mensal-Janeiro_2026.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Extrato Unificado Mensal-Janeiro_2026.pdf',
+    empresa: 'HS PROJETOS E AGRIMENSURA S/S LTDA',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Caso cadastrado em layout-quality-cases.js: 48 movimentos, credito R$ 22.430,15, debito R$ 47.278,41, saldo anterior R$ 57.160,88 e saldo final R$ 32.312,62.'
+  },
+  {
     id: 'bradesco-netempresa-ocr-ferrante-2026-06',
     banco: '237',
     nomeBanco: 'Bradesco',
