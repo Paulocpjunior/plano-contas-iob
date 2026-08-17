@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.136",
+  "version": "3.4.137",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -15,7 +15,7 @@
     "test:bb-cash": "node scripts/test-bb-cash-ocr.js",
     "test:itau": "node scripts/test-itau-extrato-mensal.js",
     "test:itau-fatura": "node scripts/test-itau-fatura-cartao.js",
-    "test:safra": "node scripts/test-safra-extrato.js",
+    "test:safra": "node scripts/test-safra-extrato.js && node scripts/test-memoria-cobranca-login.js",
     "test:caixa": "node scripts/test-caixa-extrato.js",
     "test:c6": "node scripts/test-c6-bank-extrato.js",
     "test:abc": "node scripts/test-abc-extrato.js",
@@ -78,6 +78,7 @@
     "test:admin-exclusao": "node scripts/test-admin-exclusao-lancamentos.js && node scripts/test-admin-exclusao-routes.js",
     "test:relatorios-contabeis": "node scripts/test-relatorios-contabeis.js && node scripts/test-relatorios-contabeis-integracao.js && node scripts/test-relatorios-analise-periodo.js && node scripts/test-auditai-estilos-locais.js",
     "test:ativo-imobilizado": "node scripts/test-ativo-imobilizado.js && node scripts/test-ativo-imobilizado-integracao.js",
+    "test:memoria-cobranca-login": "node scripts/test-memoria-cobranca-login.js",
     "test:migracao-sage": "node scripts/test-migracao-sage-cci.js && node scripts/test-migracao-sage-ui.js"
   },
   "dependencies": {

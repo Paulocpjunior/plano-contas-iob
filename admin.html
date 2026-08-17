@@ -443,6 +443,8 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+const authPersistenceReady = auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+window.__adminLoginDigitadoNestaCarga = false;
 if (typeof pdfjsLib !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
@@ -483,13 +485,20 @@ async function doLogin() {
   const pass = document.getElementById('loginPass').value;
   document.getElementById('loginErr').textContent = '';
   try {
+    await authPersistenceReady;
+    window.__adminLoginDigitadoNestaCarga = true;
     await auth.signInWithEmailAndPassword(email, pass);
   } catch (e) {
+    window.__adminLoginDigitadoNestaCarga = false;
     document.getElementById('loginErr').textContent = e.message;
   }
 }
 
 auth.onAuthStateChanged(async u => {
+  if (u && !window.__adminLoginDigitadoNestaCarga) {
+    await auth.signOut();
+    return;
+  }
   if (!u) {
     document.getElementById('loginView').classList.remove('hidden');
     document.getElementById('adminView').classList.add('hidden');

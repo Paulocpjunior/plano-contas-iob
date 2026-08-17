@@ -586,7 +586,8 @@ function snapshotAprendizadoAudit(dados) {
     contaCredito: dados.contaCredito || '',
     codigoHistorico: dados.codigoHistorico || '',
     historico: dados.historico || '',
-    historicoPadraoDescricao: dados.historicoPadraoDescricao || ''
+    historicoPadraoDescricao: dados.historicoPadraoDescricao || '',
+    direcao: dados.direcao || ''
   };
 }
 
@@ -627,8 +628,16 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
   try {
     const cnpj = (req.params.cnpj || '').replace(/\D/g, '');
     if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
-    const { hash, descricao_normalizada, descricao_exemplo, contaDebito, contaCredito, codigoHistorico, historico, historicoPadraoDescricao, bancoCodigo, bancoNome, layoutParser, layoutNome, escopo } = req.body;
+    const { hash, descricao_normalizada, descricao_exemplo, contaDebito, contaCredito, codigoHistorico, historico, historicoPadraoDescricao, bancoCodigo, bancoNome, layoutParser, layoutNome, escopo, direcao } = req.body;
     if (!hash || !descricao_normalizada) return res.status(400).json({ erro: 'hash e descricao_normalizada obrigatorios' });
+    const descricaoNormalizada = String(descricao_normalizada || '').trim().toLowerCase();
+    const tokensDescricao = descricaoNormalizada.split(/\s+/).filter(token => token.length >= 3);
+    const cobrancaEscopada = descricaoNormalizada === 'cobranca'
+      && !!String(bancoCodigo || '').trim()
+      && ['credito', 'debito'].includes(String(direcao || '').toLowerCase());
+    if (tokensDescricao.length < 2 && !cobrancaEscopada) {
+      return res.status(400).json({ erro: 'Padrao generico exige identificacao adicional; cobranca so pode ser memorizada com banco e direcao.' });
+    }
     
     // Validar codigoHistorico (4 digitos)
     const codHist = codigoHistorico ? String(codigoHistorico).replace(/\D/g, '').padStart(4, '0').slice(-4) : null;
@@ -645,7 +654,7 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
     const dados = {
       cnpj: cnpj,
       hash: hash,
-      descricao_normalizada: String(descricao_normalizada).substring(0, 200),
+      descricao_normalizada: descricaoNormalizada.substring(0, 200),
       descricao_exemplo: String(descricao_exemplo || '').substring(0, 200),
       contaDebito: contaDebito || '',
       contaCredito: contaCredito || '',
@@ -657,6 +666,7 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
       layoutParser: String(layoutParser || '').substring(0, 120),
       layoutNome: String(layoutNome || '').substring(0, 160),
       escopo: String(escopo || '').substring(0, 40),
+      direcao: ['credito', 'debito'].includes(String(direcao || '').toLowerCase()) ? String(direcao).toLowerCase() : '',
       vezes_usado: existing.exists ? (existing.data().vezes_usado || 0) + 1 : 1,
       criado_em: existing.exists ? existing.data().criado_em : now,
       ultima_vez: now,
@@ -699,6 +709,7 @@ app.put('/api/empresas/:cnpj/aprendizado/:hash', adminRequired, async (req, res)
       ...(body.layoutParser !== undefined ? { layoutParser: String(body.layoutParser || '').substring(0, 120) } : {}),
       ...(body.layoutNome !== undefined ? { layoutNome: String(body.layoutNome || '').substring(0, 160) } : {}),
       ...(body.escopo !== undefined ? { escopo: String(body.escopo || '').substring(0, 40) } : {}),
+      ...(body.direcao !== undefined ? { direcao: ['credito', 'debito'].includes(String(body.direcao || '').toLowerCase()) ? String(body.direcao).toLowerCase() : '' } : {}),
       atualizado_em: new Date(),
       atualizado_por_uid: req.user.uid,
       atualizado_por_email: req.user.email,
