@@ -637,6 +637,13 @@ function preferenciasImpressao(ctx, sobrescritas) {
       if (ctx && periodo && !periodo.value) periodo.value = competenciaPadrao(ctx.entries);
       await atualizarTudo();
     },
+    abrirConfiguracaoImpressao: async function () {
+      if (!inicializado) montarTela();
+      const ctx = contexto();
+      const periodo = document.getElementById('rcPeriodo');
+      if (ctx && periodo && !periodo.value) periodo.value = competenciaPadrao(ctx.entries);
+      await abrirModalImpressao();
+    },
     render: render
   };
 })();

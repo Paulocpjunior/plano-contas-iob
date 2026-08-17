@@ -1,21 +1,16 @@
 {
-  "version": "3.4.133",
-  "build_date": "2026-08-16T17:24:01Z",
+  "version": "3.4.134",
+  "build_date": "2026-08-17T11:06:08Z",
   "release_notes": [
-    "feat: adicionar pré-validação local da migração SAGE para o CCI",
-    "feat: adicionar pre-visualizacao de impressao e responsaveis nos relatorios",
-    "feat: tornar os agrupamentos responsivos do menu funcionais",
-    "feat: alinhar balancete analitico ao modelo SAGE",
-    "fix: liberar automaticamente todas as empresas para administradores",
+    "fix: atualizar trafego apos deploy no Cloud Run",
+    "fix: direcionar deploy para a revisao mais recente",
+    "test: alinhar FASTWELD aos impostos por CFOP",
+    "feat: adicionar pre-validacao da migracao SAGE",
+    "feat: concluir relatorios contabeis e corrigir AuditAI",
+    "feat: alinhar balancete e acesso administrativo",
     "feat: envio por email de relatorios contabeis",
     "feat: responsividade e plano de migração SAGE",
     "fix: formatar moeda brasileira nos PDFs contabeis",
-    "fix: estabilizar PDF WhatsApp e AuditAI",
-    "fix: corrigir AuditAI e contas reduzidas nos relatórios",
-    "fix: estabilizar montagem do AuditAI",
-    "fix: restaurar AuditAI e compatibilidade dos relatórios",
-    "fix: reforcar contraste dos relatorios no escuro",
-    "feat: adicionar nucleo de relatorios contabeis",
-    "fix: reforcar atualizacao do app no Safari"
+    "fix: estabilizar PDF WhatsApp e AuditAI"
   ]
 }
