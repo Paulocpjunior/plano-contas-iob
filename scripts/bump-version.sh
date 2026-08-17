@@ -85,6 +85,7 @@ fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 # propaga-la. Arquivo novo com cache-buster entra NESTA lista.
 ARQUIVOS_COM_VERSAO=(
   "index.html"
+  "admin.html"
   "auditai/index.html"
   "auditai/conciliacao.html"
   "auditai/conciliacao-arquivos.js"
@@ -100,6 +101,7 @@ for arq in "${ARQUIVOS_COM_VERSAO[@]}"; do
   sed -i.bak -E \
     -e "s/\?v=[0-9]+\.[0-9]+\.[0-9]+/?v=${NEW_VERSION}/g" \
     -e "s/(__PLANO_CONTAS_IOB_BUILD__ = ')[0-9]+\.[0-9]+\.[0-9]+/\1${NEW_VERSION}/g" \
+    -e "s/(window\.__PLANO_CONTAS_IOB_BUILD__ \|\| ')[0-9]+\.[0-9]+\.[0-9]+/\1${NEW_VERSION}/g" \
     -e "s/(AUDITAI_MOTOR_VERSION = ')[0-9]+\.[0-9]+\.[0-9]+/\1${NEW_VERSION}/g" \
     -e "s/(Motor conciliacao v)[0-9]+\.[0-9]+\.[0-9]+/\1${NEW_VERSION}/g" \
     "$arq" && rm -f "$arq.bak"

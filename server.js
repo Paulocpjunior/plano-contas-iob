@@ -12,11 +12,18 @@ const { registrarRotasMercadoPago, registrarRotasPublicasMercadoPago } = require
 const registrarRotasReinf = require('./reinf-routes');
 const cryptoAdmin = require('crypto');
 const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados } = require('./admin-exclusao-lancamentos');
+const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
+const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
+const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
+const RelatoriosContabeis = require('./relatorios-contabeis');
 
 const app = express();
 app.set('trust proxy', true);
 app.set('etag', false);
 const PORT = process.env.PORT || 8080;
+const GEMINI_DEFAULT_MODEL = process.env.GEMINI_MODEL || process.env.GEMINI_FLASH_MODEL || 'gemini-3.7-flash';
+const GEMINI_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || process.env.GEMINI_PRO_MODEL || GEMINI_DEFAULT_MODEL;
+const GEMINI_ALLOW_CLIENT_MODEL = String(process.env.GEMINI_ALLOW_CLIENT_MODEL || '').toLowerCase() === 'true';
 const db = new Firestore();
 const firestorePorProjeto = new Map();
 admin.initializeApp({ projectId: 'projetos-app-sp' });
@@ -47,6 +54,7 @@ function lerVersao() {
 
 app.get('/api/version', (req, res) => {
     res.set('Cache-Control', 'no-store');
+    res.set('Clear-Site-Data', '"cache"');
     res.json(lerVersao());
 });
 
@@ -54,7 +62,7 @@ app.get('/api/version', (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     const test = await db.collection('planos').limit(1).get();
-    res.json({ status: 'ok', versao: lerVersao().version || 'dev', firestore: 'connected', planos_existem: test.size > 0 });
+    res.json({ status: 'ok', versao: lerVersao().version || 'dev', firestore: 'connected', planos_existem: test.size > 0, gemini_model: GEMINI_DEFAULT_MODEL });
   } catch (err) { res.status(500).json({ status: 'erro', erro: err.message }); }
 });
 
@@ -68,7 +76,7 @@ async function authRequired(req, res, next) {
     const decoded = await adminAuth.verifyIdToken(token);
     if (!decoded.email || !decoded.email.endsWith(DOMAIN)) return res.status(403).json({ erro: 'Dominio nao autorizado' });
     const userDoc = await db.collection('users').doc(decoded.uid).get();
-    req.user = { uid: decoded.uid, email: decoded.email, is_admin: userDoc.exists && userDoc.data().is_admin === true };
+    req.user = { uid: decoded.uid, email: decoded.email, name: decoded.name || decoded.email, is_admin: userDoc.exists && userDoc.data().is_admin === true };
     next();
   } catch (err) { return res.status(401).json({ erro: 'Token invalido', detalhe: err.message }); }
 }
@@ -747,7 +755,8 @@ async function listarEmpresasAcessiveis(user, opcoes) {
   const consultas = [
     db.collection('empresas').where('owner_uid', '==', uid).get(),
     db.collection('empresas').where('vinculado_por_uid', '==', uid).get(),
-    db.collection('empresas').where('acesso_uids', 'array-contains', uid).get()
+    db.collection('empresas').where('acesso_uids', 'array-contains', uid).get(),
+    db.collection('empresas').where('carteira_uids', 'array-contains', uid).get()
   ];
   const resultados = await Promise.all(consultas);
   const unicos = new Map();
@@ -755,6 +764,18 @@ async function listarEmpresasAcessiveis(user, opcoes) {
     snap.docs.forEach(function(doc) { unicos.set(doc.id, doc); });
   });
   return Array.from(unicos.values());
+}
+
+async function validarCodigoEmpresaUnico(codigo, cnpjIgnorado) {
+  if (!codigo) return { ok: true };
+  const snap = await db.collection('empresas').where('codigo_empresa', '==', codigo).limit(2).get();
+  const conflito = snap.docs.find(function (doc) { return doc.id !== cnpjIgnorado; });
+  if (!conflito) return { ok: true };
+  const dados = conflito.data() || {};
+  return {
+    ok: false,
+    erro: 'Numero da empresa ' + codigo + ' ja pertence a ' + (dados.razao_social || conflito.id) + '.'
+  };
 }
 
 // EMPRESAS - COLABORATIVO
@@ -768,12 +789,47 @@ app.get('/api/empresas', async (req, res) => {
 // ==================== LISTAR EMPRESAS COM AGREGACOES (Gestao) ====================
 app.get('/api/empresas/listar', async (req, res) => {
   try {
-    const { q, banco, status, periodo_de, periodo_ate, sort, order, limit, offset, admin_ver_tudo } = req.query || {};
+    const { q, banco, status, periodo_de, periodo_ate, sort, order, limit, offset, admin_ver_tudo, modo } = req.query || {};
     const verTudo = req.user.is_admin && admin_ver_tudo === '1';
     const docs = verTudo
       ? (await db.collection('empresas').get()).docs
       : await listarEmpresasAcessiveis(req.user, { somenteVinculadas: true });
     let empresas = docs.map(d => ({ cnpj: d.id, ...d.data() }));
+
+    // O primeiro passo do CCI usa somente o cadastro-base. Nao consulta planos,
+    // sessoes, relatorios ou lancamentos de cada empresa antes da ativacao.
+    if (modo === 'ativacao') {
+      let leves = empresas.map(function (emp) {
+        return {
+          cnpj: emp.cnpj,
+          razao_social: emp.razao_social || '',
+          codigo_empresa: codigoEmpresaDe(emp),
+          whatsapp: emp.whatsapp || emp.whatsapp_cliente || '',
+          ativo: emp.ativo !== false,
+          owner_email: emp.created_by_email || null,
+          responsaveis: normalizarResponsaveis(emp.responsaveis)
+        };
+      });
+      if (q) leves = leves.filter(function (empresa) { return empresaBateBusca(q, empresa); });
+      leves.sort(function (a, b) {
+        const ca = String(a.codigo_empresa || '9999');
+        const cb = String(b.codigo_empresa || '9999');
+        return ca.localeCompare(cb) || String(a.razao_social).localeCompare(String(b.razao_social), 'pt-BR');
+      });
+      const totalLeve = leves.length;
+      const offLeve = parseInt(offset, 10) || 0;
+      const limLeve = Math.min(parseInt(limit, 10) || 24, 100);
+      return res.json({
+        total: totalLeve,
+        offset: offLeve,
+        limit: limLeve,
+        empresas: leves.slice(offLeve, offLeve + limLeve),
+        bancos: [],
+        modo: 'ativacao',
+        is_admin: !!req.user.is_admin,
+        admin_ver_tudo: verTudo
+      });
+    }
 
     // Carregar nomes dos planos para enriquecer (uma passada so)
     const planoIds = Array.from(new Set(empresas.map(e => e.plano_id).filter(Boolean)));
@@ -808,6 +864,8 @@ app.get('/api/empresas/listar', async (req, res) => {
       return {
         cnpj: emp.cnpj,
         razao_social: emp.razao_social || '',
+        codigo_empresa: codigoEmpresaDe(emp),
+        whatsapp: emp.whatsapp || emp.whatsapp_cliente || '',
         banco: emp.banco || null,
         plano_id: emp.plano_id || null,
         plano_nome: emp.plano_id ? (planoNomes[emp.plano_id] || emp.plano_id) : null,
@@ -828,8 +886,7 @@ app.get('/api/empresas/listar', async (req, res) => {
     // Aplicar filtros em memoria
     let filtered = enriched;
     if (q) {
-      const ql = String(q).toLowerCase();
-      filtered = filtered.filter(e => (e.razao_social || '').toLowerCase().includes(ql) || e.cnpj.includes(ql.replace(/\D/g, '')));
+      filtered = filtered.filter(function (empresa) { return empresaBateBusca(q, empresa); });
     }
     if (banco) filtered = filtered.filter(e => e.banco === banco);
     if (status && status !== 'todas') filtered = filtered.filter(e => e.status === status);
@@ -874,11 +931,55 @@ app.get('/api/empresas/listar', async (req, res) => {
   }
 });
 
+app.get('/api/empresas/:cnpj/plano-contexto', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    const empresaDoc = await db.collection('empresas').doc(cnpjLimpo).get();
+    if (!empresaDoc.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
+    const empresa = empresaDoc.data() || {};
+    if (!usuarioPodeAcessarEmpresa(empresa, req.user)) return res.status(403).json({ erro: 'Sem permissao para esta empresa' });
+    if (!empresa.plano_id) return res.json({ planos: {} });
+    const planoRef = db.collection('planos').doc(empresa.plano_id);
+    const [planoDoc, contasSnap] = await Promise.all([
+      planoRef.get(),
+      planoRef.collection('contas').orderBy('cod').get()
+    ]);
+    if (!planoDoc.exists) return res.status(409).json({ erro: 'Plano vinculado nao encontrado' });
+    const plano = planoDoc.data() || {};
+    const contas = contasSnap.docs.map(function (doc) {
+      const conta = doc.data() || {};
+      const reduzido = conta.ref_rfb || conta.refRfb || conta.reduzido || conta.ref || conta.codigo_reduzido || conta.codigoReduzido || '';
+      return {
+        id: doc.id,
+        codigo: conta.cod || conta.codigo || '',
+        descricao: conta.desc || conta.descricao || '',
+        reduzido: String(reduzido).trim()
+      };
+    });
+    const chave = (plano.nome || plano.name || empresa.plano_id) + ' - ' + (empresa.razao_social || cnpjLimpo);
+    res.json({
+      planos: {
+        [chave]: {
+          cnpj: cnpjLimpo,
+          codigo: plano.codigo || '',
+          plano_id: empresa.plano_id,
+          empresa: empresa.razao_social || '',
+          tipo: plano.tipo || '',
+          global: plano.global === true,
+          owner_uid: empresa.owner_uid || null,
+          contas
+        }
+      }
+    });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
 app.get('/api/empresas/:cnpj', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
     const doc = await db.collection('empresas').doc(cnpjLimpo).get();
     if (!doc.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
+    if (!usuarioPodeAcessarEmpresa(doc.data(), req.user)) return res.status(403).json({ erro: 'Sem permissao para esta empresa' });
     res.json({ cnpj: doc.id, ...doc.data() });
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
@@ -890,10 +991,14 @@ app.post('/api/empresas', async (req, res) => {
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ deve ter 14 digitos' });
     if (!razao_social || !plano_id) return res.status(400).json({ erro: 'razao_social e plano_id obrigatorios' });
+    const cadastro = camposCadastroEmpresa(req.body);
+    if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
+    const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
+    if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const planoDoc = await db.collection('planos').doc(plano_id).get();
     if (!planoDoc.exists) return res.status(400).json({ erro: 'Plano ' + plano_id + ' nao existe' });
-    await db.collection('empresas').doc(cnpjLimpo).set({ razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
-    res.status(201).json({ cnpj: cnpjLimpo, razao_social, plano_id });
+    await db.collection('empresas').doc(cnpjLimpo).set({ ...cadastro.campos, razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
+    res.status(201).json({ cnpj: cnpjLimpo, razao_social, plano_id, ...cadastro.campos });
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
@@ -903,9 +1008,72 @@ app.post('/api/empresas/:cnpj/ativar', async (req, res) => {
     const ref = db.collection('empresas').doc(cnpjLimpo);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
+    if (!usuarioPodeAcessarEmpresa(doc.data(), req.user)) return res.status(403).json({ erro: 'Sem permissao para esta empresa' });
     await ref.update({ ativo: true, updated_at: new Date(), reactivated_by: req.user.uid, reactivated_by_email: req.user.email, reactivated_at: new Date() });
     res.json({ cnpj: cnpjLimpo, ativo: true });
   } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.patch('/api/empresas/:cnpj/cadastro', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const cadastro = camposCadastroEmpresa(req.body);
+    if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
+    if (!Object.keys(cadastro.campos).length) return res.status(400).json({ erro: 'Nenhum campo de cadastro informado' });
+    if (cadastro.campos.razao_social !== undefined && !cadastro.campos.razao_social) {
+      return res.status(400).json({ erro: 'Razao social nao pode ficar vazia' });
+    }
+    const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
+    if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
+    await db.collection('empresas').doc(cnpjLimpo).set({
+      ...cadastro.campos,
+      updated_at: new Date(),
+      cadastro_atualizado_por_uid: req.user.uid,
+      cadastro_atualizado_por_email: req.user.email
+    }, { merge: true });
+    const atualizado = await db.collection('empresas').doc(cnpjLimpo).get();
+    res.json({ ok: true, cnpj: cnpjLimpo, ...atualizado.data() });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.get('/api/whatsapp/status', async (req, res) => {
+  try {
+    const auth = String(req.headers.authorization || '');
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    const status = await statusWhatsappCfi(token);
+    res.json(status);
+  } catch (err) {
+    res.status(err.status || 502).json({ erro: err.message, acao: err.acao || null, faltas: err.faltas || null });
+  }
+});
+
+app.post('/api/empresas/:cnpj/whatsapp/enviar', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresa = chk.empresa || {};
+    const para = empresa.whatsapp || empresa.whatsapp_cliente || '';
+    if (!para) return res.status(409).json({ erro: 'WhatsApp nao cadastrado para esta empresa.' });
+    const variaveis = req.body && req.body.variaveis && typeof req.body.variaveis === 'object' && !Array.isArray(req.body.variaveis)
+      ? req.body.variaveis : {};
+    const auth = String(req.headers.authorization || '');
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    const resultado = await enviarWhatsappCfi({
+      token,
+      para,
+      template: req.body && req.body.template,
+      variaveis,
+      referencia: 'cci:empresa:' + cnpjLimpo
+    });
+    res.json(resultado);
+  } catch (err) {
+    const status = err.status || (err.indeterminado ? 502 : 500);
+    res.status(status).json({ erro: err.message, acao: err.acao || null, faltas: err.faltas || null, opcoes: err.opcoes || null, indeterminado: err.indeterminado === true });
+  }
 });
 
 // ==================== LAYOUTS PARSER (memorizacao por CNPJ) ====================
@@ -1049,6 +1217,99 @@ app.get('/api/users', adminRequired, async (req, res) => {
   catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
+// ==================== CARTEIRA CONTABIL (ADMIN) ====================
+// Uma empresa pode ter um responsavel principal e varios colaboradores de apoio.
+// O criador e os acessos legados continuam validos; a carteira concede acesso adicional.
+app.get('/api/admin/carteira-responsaveis', adminRequired, async (req, res) => {
+  try {
+    const [empresasSnap, usuariosSnap] = await Promise.all([
+      db.collection('empresas').get(),
+      db.collection('users').get()
+    ]);
+    const empresas = empresasSnap.docs.map(function(doc) {
+      const dados = doc.data() || {};
+      return {
+        cnpj: doc.id,
+        razao_social: dados.razao_social || '',
+        codigo_empresa: codigoEmpresaDe(dados),
+        owner_email: dados.created_by_email || '',
+        responsaveis: normalizarResponsaveis(dados.responsaveis)
+      };
+    }).sort(function(a, b) {
+      return String(a.codigo_empresa || '9999').localeCompare(String(b.codigo_empresa || '9999'))
+        || a.razao_social.localeCompare(b.razao_social, 'pt-BR');
+    });
+    const usuarios = usuariosSnap.docs.map(function(doc) {
+      const dados = doc.data() || {};
+      const email = String(dados.last_email || dados.email || '').trim().toLowerCase();
+      return {
+        uid: doc.id,
+        nome: String(dados.last_name || dados.name || email || doc.id),
+        email,
+        is_admin: dados.is_admin === true
+      };
+    }).filter(function(usuario) { return !!usuario.email; }).sort(function(a, b) {
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+    res.json({ empresas, usuarios });
+  } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.post('/api/admin/empresas/:cnpj/responsaveis', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const colaboradorUid = String((req.body && req.body.colaborador_uid) || '').trim();
+    const papel = req.body && req.body.papel === 'principal' ? 'principal' : 'apoio';
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    if (!colaboradorUid) return res.status(400).json({ erro: 'Colaborador obrigatorio' });
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    const usuarioRef = db.collection('users').doc(colaboradorUid);
+    const resultado = await db.runTransaction(async function(transacao) {
+      const [empresaDoc, usuarioDoc] = await transacao.getAll(empresaRef, usuarioRef);
+      if (!empresaDoc.exists) { const e = new Error('Empresa nao encontrada'); e.status = 404; throw e; }
+      if (!usuarioDoc.exists) { const e = new Error('Colaborador nao encontrado'); e.status = 404; throw e; }
+      const usuarioDados = usuarioDoc.data() || {};
+      const email = String(usuarioDados.last_email || usuarioDados.email || '').trim().toLowerCase();
+      if (!email) { const e = new Error('Colaborador ainda nao possui e-mail registrado no CCI'); e.status = 409; throw e; }
+      const responsaveis = atribuirResponsavel(empresaDoc.data().responsaveis, {
+        uid: colaboradorUid,
+        nome: usuarioDados.last_name || usuarioDados.name || email,
+        email
+      }, papel, { uid: req.user.uid, email: req.user.email, quando: new Date() });
+      transacao.set(empresaRef, {
+        ...camposCarteira(responsaveis),
+        carteira_atualizada_em: new Date(),
+        carteira_atualizada_por_uid: req.user.uid,
+        carteira_atualizada_por_email: req.user.email
+      }, { merge: true });
+      return responsaveis;
+    });
+    res.json({ ok: true, cnpj: cnpjLimpo, responsaveis: resultado });
+  } catch (err) { res.status(err.status || 500).json({ erro: err.message }); }
+});
+
+app.delete('/api/admin/empresas/:cnpj/responsaveis/:uid', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const colaboradorUid = String(req.params.uid || '').trim();
+    if (cnpjLimpo.length !== 14 || !colaboradorUid) return res.status(400).json({ erro: 'Empresa e colaborador obrigatorios' });
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    const resultado = await db.runTransaction(async function(transacao) {
+      const empresaDoc = await transacao.get(empresaRef);
+      if (!empresaDoc.exists) { const e = new Error('Empresa nao encontrada'); e.status = 404; throw e; }
+      const responsaveis = removerResponsavel(empresaDoc.data().responsaveis, colaboradorUid);
+      transacao.set(empresaRef, {
+        ...camposCarteira(responsaveis),
+        carteira_atualizada_em: new Date(),
+        carteira_atualizada_por_uid: req.user.uid,
+        carteira_atualizada_por_email: req.user.email
+      }, { merge: true });
+      return responsaveis;
+    });
+    res.json({ ok: true, cnpj: cnpjLimpo, responsaveis: resultado });
+  } catch (err) { res.status(err.status || 500).json({ erro: err.message }); }
+});
+
 app.post('/api/users/:uid/promote', adminRequired, async (req, res) => {
   try { await db.collection('users').doc(req.params.uid).set({ is_admin: true, updated_at: new Date(), updated_by: req.user.uid }, { merge: true }); res.json({ uid: req.params.uid, is_admin: true }); }
   catch (err) { res.status(500).json({ erro: err.message }); }
@@ -1063,10 +1324,6 @@ app.post('/api/users/:uid/demote', adminRequired, async (req, res) => {
 });
 
 // ==================== PROXY GEMINI (protege API key) ====================
-const GEMINI_DEFAULT_MODEL = process.env.GEMINI_MODEL || process.env.GEMINI_FLASH_MODEL || 'gemini-3.5-flash';
-const GEMINI_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || process.env.GEMINI_PRO_MODEL || GEMINI_DEFAULT_MODEL;
-const GEMINI_ALLOW_CLIENT_MODEL = String(process.env.GEMINI_ALLOW_CLIENT_MODEL || '').toLowerCase() === 'true';
-
 function resolverModeloGemini(modeloSolicitado, modeloFallback) {
   if (GEMINI_ALLOW_CLIENT_MODEL && modeloSolicitado) return modeloSolicitado;
   return modeloFallback;
@@ -1276,6 +1533,10 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     const empresaRef = db.collection('empresas').doc(cnpjLimpo);
     const empresaDoc = await empresaRef.get();
     const empresaAtual = empresaDoc.exists ? (empresaDoc.data() || {}) : null;
+    const cadastro = camposCadastroEmpresa(req.body);
+    if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
+    const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
+    if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const isAdmin = !!(req.user && req.user.is_admin);
     const adminOverride = opts.adminOverride === true;
 
@@ -1292,6 +1553,7 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     }
 
     const dados = {
+      ...cadastro.campos,
       plano_id,
       plano_nome: planoData.nome || planoData.name || plano_id,
       ativo: true,
@@ -1322,6 +1584,8 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
       cnpj: cnpjLimpo,
       plano_id,
       plano_nome: dados.plano_nome,
+      codigo_empresa: dados.codigo_empresa !== undefined ? dados.codigo_empresa : codigoEmpresaDe(empresaAtual),
+      whatsapp: dados.whatsapp !== undefined ? dados.whatsapp : ((empresaAtual && empresaAtual.whatsapp) || ''),
       sessao_sincronizada: sincronizacaoSessao.sincronizada === true
     });
   } catch (e) { console.error('vincular-empresa-plano erro:', e); res.status(500).json({ erro: e.message }); }
@@ -1342,6 +1606,63 @@ async function checarAcessoEmpresa(cnpj, user) {
   const emp = doc.data();
   if (!usuarioPodeAcessarEmpresa(emp, user)) return { ok: false, status: 403, erro: 'Sem permissao para esta empresa' };
   return { ok: true, empresa: emp };
+}
+
+function lerEstadoContabil(stateJson) {
+  try {
+    const estado = JSON.parse(String(stateJson || '{}'));
+    return {
+      entries: Array.isArray(estado.entries) ? estado.entries : [],
+      relatoriosContabeis: estado.relatoriosContabeis && typeof estado.relatoriosContabeis === 'object'
+        ? estado.relatoriosContabeis
+        : {}
+    };
+  } catch (e) {
+    throw erroSessao('A sessão contábil está ilegível. Nenhuma alteração foi realizada.', 409, 'SESSAO_CONTABIL_INVALIDA');
+  }
+}
+
+async function carregarContasContabeisEmpresa(empresa) {
+  const planoId = String(empresa && empresa.plano_id || '').trim();
+  if (!planoId) return [];
+  const snap = await db.collection('planos').doc(planoId).collection('contas').get();
+  return snap.docs.map(function (doc) {
+    const conta = doc.data() || {};
+    return {
+      id: doc.id,
+      codigo: conta.cod || conta.codigo || doc.id,
+      descricao: conta.desc || conta.descricao || '',
+      reduzido: conta.ref_rfb || conta.refRfb || conta.reduzido || conta.ref || conta.codigo_reduzido || conta.codigoReduzido || '',
+      analitica: conta.analitica !== false
+    };
+  });
+}
+
+function assinaturaEstadoPeriodo(estado, periodo) {
+  const saldosOriginais = estado && estado.relatoriosContabeis && estado.relatoriosContabeis.saldosIniciais
+    ? estado.relatoriosContabeis.saldosIniciais[periodo] || {}
+    : {};
+  const saldos = {};
+  Object.keys(saldosOriginais).sort().forEach(function (conta) { saldos[conta] = saldosOriginais[conta]; });
+  return hashSessao(RelatoriosContabeis.assinaturaPeriodo((estado && estado.entries) || [], periodo) + '|' + JSON.stringify(saldos));
+}
+
+async function impedirAlteracaoPeriodosFechados(cnpj, stateJsonAtual, stateJsonNovo) {
+  const periodos = await db.collection('empresas').doc(cnpj).collection('periodos_contabeis').get();
+  const fechados = periodos.docs.filter(function (doc) { return String((doc.data() || {}).status) === 'fechado'; });
+  if (!fechados.length) return;
+  const atual = lerEstadoContabil(stateJsonAtual);
+  const novo = lerEstadoContabil(stateJsonNovo);
+  const alterados = fechados.map(function (doc) { return doc.id; }).filter(function (periodo) {
+    return assinaturaEstadoPeriodo(atual, periodo) !== assinaturaEstadoPeriodo(novo, periodo);
+  });
+  if (alterados.length) {
+    throw erroSessao(
+      'O período ' + alterados.join(', ') + ' está encerrado. Reabra a competência antes de alterar seus lançamentos.',
+      409,
+      'PERIODO_CONTABIL_FECHADO'
+    );
+  }
 }
 
 function serializarFiscal(data) {
@@ -2105,6 +2426,7 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     if (exigirRevisao && (!session_revision || session_revision !== atual.dados.session_revision)) {
       throw erroSessao('Esta sessão foi alterada por um administrador. Recarregue a empresa antes de salvar novamente.', 409, 'SESSAO_DESATUALIZADA');
     }
+    await impedirAlteracaoPeriodosFechados(cnpjLimpo, atual.stateJson, state_json);
     const versaoServidor = lerVersao().version || '';
     const validacaoVersao = validarVersaoParaNovaImportacao({
       stateJsonNovo: state_json,
@@ -2336,6 +2658,136 @@ app.get('/api/empresas/:cnpj/relatorios', async (req, res) => {
   } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
+// ==================== NUCLEO CONTABIL / FECHAMENTOS ====================
+app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const snap = await db.collection('empresas').doc(cnpjLimpo).collection('periodos_contabeis').get();
+    const periodos = snap.docs.map(function (doc) {
+      const dados = doc.data() || {};
+      return {
+        periodo: doc.id,
+        status: dados.status || 'aberto',
+        fechamento_id: dados.fechamento_id || null,
+        hash: dados.hash || null,
+        resumo: dados.resumo || null,
+        fechado_em: serializarDataSegura(dados.fechado_em),
+        fechado_por_email: dados.fechado_por_email || null,
+        reaberto_em: serializarDataSegura(dados.reaberto_em),
+        reaberto_por_email: dados.reaberto_por_email || null,
+        motivo_reabertura: dados.motivo_reabertura || null
+      };
+    }).sort(function (a, b) { return b.periodo.localeCompare(a.periodo); });
+    res.json({ periodos, is_admin: !!req.user.is_admin });
+  } catch (e) {
+    console.error('listar periodos contabeis erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_LISTAR_PERIODOS' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competencia invalida. Use AAAA-MM.' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    const periodoRef = empresaRef.collection('periodos_contabeis').doc(periodo);
+    const periodoAtual = await periodoRef.get();
+    if (periodoAtual.exists && String((periodoAtual.data() || {}).status) === 'fechado') {
+      return res.status(409).json({ erro: 'Esta competência já está encerrada.', codigo: 'PERIODO_CONTABIL_FECHADO' });
+    }
+    sessaoRef = empresaRef.collection('sessoes').doc('current');
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'fechamento_contabil');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Nenhuma sessão contábil encontrada para a empresa.', 409, 'SESSAO_NAO_ENCONTRADA');
+    const estado = lerEstadoContabil(sessao.stateJson);
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const saldosIniciais = (estado.relatoriosContabeis.saldosIniciais || {})[periodo] || {};
+    const validacao = RelatoriosContabeis.validar(estado.entries, periodo, contas);
+    if (!validacao.quantidade) throw erroSessao('Não há lançamentos contábeis nesta competência.', 409, 'SEM_MOVIMENTO_CONTABIL');
+    if (!validacao.ok) throw erroSessao('O período possui inconsistências e não pode ser encerrado.', 409, 'VALIDACAO_CONTABIL_FALHOU');
+    const fotografia = RelatoriosContabeis.snapshot({
+      periodo,
+      lancamentos: estado.entries,
+      contas,
+      saldosIniciais,
+      empresa: { cnpj: cnpjLimpo, razao_social: chk.empresa.razao_social || '', codigo_empresa: codigoEmpresaDe(chk.empresa), plano_id: chk.empresa.plano_id || null }
+    });
+    const fotografiaSemHash = { ...fotografia };
+    delete fotografiaSemHash.hash;
+    fotografia.hash = hashSessao(JSON.stringify(fotografiaSemHash));
+    const fechamentoRef = empresaRef.collection('fechamentos_contabeis').doc();
+    await gravarDocumentoJson(fechamentoRef, JSON.stringify(fotografia), {
+      periodo,
+      hash: fotografia.hash,
+      schema: fotografia.schema,
+      resumo: validacao,
+      session_revision: sessao.dados && sessao.dados.session_revision || null,
+      fechado_em: new Date(),
+      fechado_por_uid: req.user.uid,
+      fechado_por_email: req.user.email
+    });
+    await periodoRef.set({
+      status: 'fechado',
+      fechamento_id: fechamentoRef.id,
+      hash: fotografia.hash,
+      resumo: validacao,
+      fechado_em: new Date(),
+      fechado_por_uid: req.user.uid,
+      fechado_por_email: req.user.email,
+      reaberto_em: FieldValue.delete(),
+      reaberto_por_uid: FieldValue.delete(),
+      reaberto_por_email: FieldValue.delete(),
+      motivo_reabertura: FieldValue.delete()
+    }, { merge: true });
+    await liberarTravaSessao(sessaoRef, tokenTrava);
+    tokenTrava = null;
+    res.status(201).json({ ok: true, periodo, status: 'fechado', fechamento_id: fechamentoRef.id, hash: fotografia.hash, resumo: validacao });
+  } catch (e) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    console.error('fechar periodo contabil erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_FECHAR_PERIODO' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/contabilidade/reabrir', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    const motivo = String(req.body && req.body.motivo || '').trim();
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competencia invalida. Use AAAA-MM.' });
+    if (motivo.length < 10) return res.status(400).json({ erro: 'Informe o motivo da reabertura com pelo menos 10 caracteres.' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const periodoRef = db.collection('empresas').doc(cnpjLimpo).collection('periodos_contabeis').doc(periodo);
+    const atual = await periodoRef.get();
+    if (!atual.exists || String((atual.data() || {}).status) !== 'fechado') {
+      return res.status(409).json({ erro: 'A competência não está encerrada.', codigo: 'PERIODO_NAO_FECHADO' });
+    }
+    await periodoRef.set({
+      status: 'reaberto',
+      reaberto_em: new Date(),
+      reaberto_por_uid: req.user.uid,
+      reaberto_por_email: req.user.email,
+      motivo_reabertura: motivo
+    }, { merge: true });
+    await periodoRef.collection('eventos').add({ tipo: 'reabertura', motivo, timestamp: new Date(), uid: req.user.uid, email: req.user.email });
+    res.json({ ok: true, periodo, status: 'reaberto' });
+  } catch (e) {
+    console.error('reabrir periodo contabil erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_REABRIR_PERIODO' });
+  }
+});
+
 // ==================== ACCESS LOGS ====================
 app.post('/api/auth/log', async (req, res) => {
   try {
@@ -2352,6 +2804,7 @@ app.post('/api/auth/log', async (req, res) => {
     const updates = {
       last_login_at: new Date(),
       last_email: req.user.email,
+      last_name: req.user.name || req.user.email,
       login_count: admin.firestore.FieldValue.increment(evento === 'login' ? 1 : 0)
     };
     if (!userDoc.exists || !userDoc.data().created_at) {
@@ -3147,6 +3600,7 @@ function headersAppPrincipal(res, filePath) {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.setHeader('Surrogate-Control', 'no-store');
+  if (/(?:^|\/)index\.html$/i.test(filePath || '')) res.setHeader('Clear-Site-Data', '"cache"');
 }
 
 app.use(express.static(__dirname, { index: 'index.html', setHeaders: headersAppPrincipal }));

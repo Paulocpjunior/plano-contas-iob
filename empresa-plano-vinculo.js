@@ -1,5 +1,7 @@
 'use strict';
 
+const { usuarioEstaNaCarteira } = require('./carteira-contabil');
+
 function normalizarLista(valor) {
   return Array.isArray(valor) ? valor.map(String).filter(Boolean) : [];
 }
@@ -10,7 +12,8 @@ function usuarioPodeAcessarEmpresa(empresa, usuario) {
   const uid = String(usuario.uid);
   return String(empresa.owner_uid || '') === uid
     || String(empresa.vinculado_por_uid || '') === uid
-    || normalizarLista(empresa.acesso_uids).includes(uid);
+    || normalizarLista(empresa.acesso_uids).includes(uid)
+    || usuarioEstaNaCarteira(empresa, usuario);
 }
 
 function aplicarPlanoNaSessao(stateJson, planoId, planoNome, opcoes) {

@@ -1,6 +1,6 @@
 {
-  "version": "3.4.114",
-  "build_date": "2026-08-17T19:02:06Z",
+  "version": "3.4.125",
+  "build_date": "2026-08-17T19:03:02Z",
   "release_notes": [
     "R-2010: a base do prestador tem onde ser informada — o INSS destravou",
     "R-2099 calibrado contra o arquivo ACEITO — a trava pagou o que prometia (v3.4.112)",

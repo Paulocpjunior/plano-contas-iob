@@ -80,8 +80,8 @@
       const resultado = {};
       for (const plano of planos) {
         const contasMapped = (contasPorPlano[plano.id] || []).map(c => {
-          const reduzido = c.ref_rfb || c.reduzido || c.ref || c.codigo_reduzido || '';
-          return { codigo: c.cod || c.codigo || '', descricao: c.desc || c.descricao || '', reduzido: String(reduzido || '').trim() };
+          const reduzido = c.ref_rfb || c.refRfb || c.reduzido || c.ref || c.codigo_reduzido || c.codigoReduzido || '';
+          return { id: c.id || '', codigo: c.cod || c.codigo || '', descricao: c.desc || c.descricao || '', reduzido: String(reduzido || '').trim() };
         });
         const empresasDoPlano = empresas.filter(e => e.plano_id === plano.id);
         if (empresasDoPlano.length === 0) {
@@ -97,6 +97,15 @@
       console.log('[API] Planos carregados:', Object.keys(resultado).length);
       return resultado;
     } catch (err) { console.error('[API] Erro loadPlanos:', err); throw err; }
+  }
+
+  async function loadPlanoEmpresa(cnpj) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) throw new Error('CNPJ invalido para carregar o plano da empresa ativa.');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/plano-contexto');
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body.planos || {};
   }
 
   async function verificarCNPJ(cnpj) {
@@ -125,6 +134,32 @@
   async function promoverAdmin(uid) { const r = await apiFetch(API_BASE + '/api/users/' + uid + '/promote', { method: 'POST' }); return await r.json(); }
   async function despromoverAdmin(uid) { const r = await apiFetch(API_BASE + '/api/users/' + uid + '/demote', { method: 'POST' }); return await r.json(); }
 
+  async function carteiraResponsaveis() {
+    const r = await apiFetch(API_BASE + '/api/admin/carteira-responsaveis');
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
+  async function atribuirResponsavelEmpresa(cnpj, colaboradorUid, papel) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/admin/empresas/' + cnpjLimpo + '/responsaveis', {
+      method: 'POST',
+      body: JSON.stringify({ colaborador_uid: colaboradorUid, papel: papel })
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
+  async function removerResponsavelEmpresa(cnpj, colaboradorUid) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/admin/empresas/' + cnpjLimpo + '/responsaveis/' + encodeURIComponent(colaboradorUid), { method: 'DELETE' });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
   async function registrarAcesso(event) {
     try {
       const r = await apiFetch(API_BASE + '/api/auth/log', { method: 'POST', body: JSON.stringify({ event: event || 'login' }) });
@@ -145,8 +180,8 @@
     return await r.json();
   }
 
-  async function vincularEmpresaPlano(cnpj, razao_social, plano_id) {
-    const r = await apiFetch(API_BASE + '/api/vincular-empresa-plano', { method: 'POST', body: JSON.stringify({ cnpj, razao_social, plano_id }) });
+  async function vincularEmpresaPlano(cnpj, razao_social, plano_id, cadastro) {
+    const r = await apiFetch(API_BASE + '/api/vincular-empresa-plano', { method: 'POST', body: JSON.stringify(Object.assign({ cnpj, razao_social, plano_id }, cadastro || {})) });
     const body = await r.json().catch(() => ({}));
     if (r.status === 403) return { erro: body.erro || 'Sem permissao para vincular este plano' };
     if (!r.ok) return { erro: body.erro || ('Erro ' + r.status) };
@@ -255,10 +290,76 @@
     return await r.json();
   }
 
+  async function listarPeriodosContabeis(cnpj) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/contabilidade/periodos');
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
+  async function fecharPeriodoContabil(cnpj, periodo) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/contabilidade/fechar', {
+      method: 'POST',
+      body: JSON.stringify({ periodo: periodo })
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const erro = new Error(body.erro || ('Erro ' + r.status));
+      erro.code = body.codigo || '';
+      throw erro;
+    }
+    return body;
+  }
+
+  async function reabrirPeriodoContabil(cnpj, periodo, motivo) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/contabilidade/reabrir', {
+      method: 'POST',
+      body: JSON.stringify({ periodo: periodo, motivo: motivo })
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const erro = new Error(body.erro || ('Erro ' + r.status));
+      erro.code = body.codigo || '';
+      throw erro;
+    }
+    return body;
+  }
+
   async function listarEmpresasFiltrado(params) {
     const qs = new URLSearchParams(params || {}).toString();
     const r = await apiFetch(API_BASE + '/api/empresas/listar' + (qs ? '?' + qs : ''));
     return await r.json();
+  }
+
+  async function atualizarCadastroEmpresa(cnpj, dados) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/cadastro', { method: 'PATCH', body: JSON.stringify(dados || {}) });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
+  async function statusWhatsapp() {
+    const r = await apiFetch(API_BASE + '/api/whatsapp/status');
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
+  async function enviarWhatsappEmpresa(cnpj, template, variaveis) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/whatsapp/enviar', {
+      method: 'POST', body: JSON.stringify({ template: template || undefined, variaveis: variaveis && typeof variaveis === 'object' ? variaveis : {} })
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const mensagem = [body.erro, body.acao, body.faltas && body.faltas.join(', ')].filter(Boolean).join(' ');
+      throw new Error(mensagem || ('Erro ' + r.status));
+    }
+    return body;
   }
 
   async function fiscalCertificadoStatus() {
@@ -559,7 +660,7 @@
     return await r.json();
   }
 
-  window.API = { me, gateDepartamento, loadPlanos, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAquisicaoRural,
+  window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarPeriodosContabeis, fecharPeriodoContabil, reabrirPeriodoContabil, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAquisicaoRural,
     reinfServicosTomados,
     reinfServicoTomadoPrestador,
     reinfServicosTomadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };

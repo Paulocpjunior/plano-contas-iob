@@ -5,6 +5,7 @@ readonly PROJECT_ID="gen-lang-client-0569062468"
 readonly REGION="us-west1"
 readonly SERVICE="plano-contas-iob"
 readonly EXPECTED_URL="https://plano-contas-iob-q4woqnee3a-uw.a.run.app"
+readonly EXPECTED_GEMINI_MODEL="gemini-3.7-flash"
 
 export CLOUDSDK_CORE_PROJECT="$PROJECT_ID"
 export CLOUDSDK_RUN_REGION="$REGION"
@@ -53,8 +54,18 @@ if [[ "$published_version" != "$expected_version" ]]; then
   exit 1
 fi
 
-health_status="$(curl -fsS --max-time 20 "$EXPECTED_URL/api/health" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);process.stdout.write((j.status||'')+'|'+(j.versao||'')+'|'+(j.firestore||''))}catch(e){}})")"
-if [[ "$health_status" != "ok|$expected_version|connected" ]]; then
+published_html="$(curl -fsS --max-time 20 "$EXPECTED_URL/?build=$expected_version")"
+if [[ "$published_html" != *"window.__PLANO_CONTAS_IOB_BUILD__ = '$expected_version'"* ]]; then
+  echo "ERRO: o HTML público não contém o marcador da versão '$expected_version'."
+  exit 1
+fi
+if [[ "$published_html" != *"id=\"btnAtivarEmpresaNav\""* || "$published_html" != *"function abrirCarteiraResponsaveis()"* ]]; then
+  echo "ERRO: o HTML público não contém a ativação obrigatória e a carteira contábil esperadas."
+  exit 1
+fi
+
+health_status="$(curl -fsS --max-time 20 "$EXPECTED_URL/api/health" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);process.stdout.write((j.status||'')+'|'+(j.versao||'')+'|'+(j.firestore||'')+'|'+(j.gemini_model||''))}catch(e){}})")"
+if [[ "$health_status" != "ok|$expected_version|connected|$EXPECTED_GEMINI_MODEL" ]]; then
   echo "ERRO: health check inesperado: $health_status"
   exit 1
 fi
@@ -62,6 +73,6 @@ fi
 revision="$(gcloud run services describe "$SERVICE" \
   --project "$PROJECT_ID" \
   --region "$REGION" \
-  --format='value(status.latestReadyRevisionName)')"
+  --format='value(status.traffic[0].revisionName)')"
 
-echo "Deploy validado: $SERVICE $revision | versão $published_version | $EXPECTED_URL"
+echo "Deploy validado: $SERVICE $revision | API e HTML na versão $published_version | $EXPECTED_URL"
