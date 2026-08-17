@@ -10,6 +10,8 @@ const server = fs.readFileSync(path.join(raiz, 'server.js'), 'utf8');
 const adapter = fs.readFileSync(path.join(raiz, 'api-adapter.js'), 'utf8');
 const ui = fs.readFileSync(path.join(raiz, 'relatorios-contabeis-ui.js'), 'utf8');
 const graphEmail = fs.readFileSync(path.join(raiz, 'graph-email-provider.js'), 'utf8');
+const migracaoEstrutura = fs.readFileSync(path.join(raiz, 'scripts/migrate-fastweld-balancete-structure.js'), 'utf8');
+const estruturaFastweld = require('./fixtures/fastweld-balancete-estrutura-2026-02.json');
 
 assert(index.includes('/relatorios-contabeis.js'), 'motor não carregado no CCI');
 assert(index.includes('/relatorios-contabeis-ui.js'), 'UI não carregada no CCI');
@@ -46,6 +48,8 @@ assert(ui.includes('orientation: preferencias.orientacao'), 'orientação escolh
 assert(index.includes('cadastro: window.__empresaCadastroInternoAtual || info'), 'cadastro ativo não alimenta responsáveis do relatório');
 assert(index.includes('state.relatoriosContabeis.preferenciasImpressao = preferencias || {}'), 'preferências de impressão não são salvas');
 assert(ui.includes('Balancete Analítico'), 'título analítico do balancete ausente');
+assert(ui.includes('rc-synthetic-row'), 'hierarquia visual das contas sintéticas ausente');
+assert(ui.includes('function identificacaoBalancete(linha)'), 'identificação hierárquica do balancete ausente');
 assert(ui.includes("return (seguro < 0 ? '-R$ ' : 'R$ ') + moeda(Math.abs(seguro));"), 'PDF não fixa símbolo, sinal e duas casas decimais em pt-BR');
 assert(ui.includes('body: linhasExportacaoPDF(dados)'), 'PDF não usa as linhas com moeda brasileira');
 assert(ui.includes('aoa_to_sheet([cabecalhoExportacao()].concat(linhasExportacao(dados)))'), 'Excel deve preservar valores numéricos para cálculos');
@@ -68,6 +72,15 @@ assert(server.includes('fotografia.hash = hashSessao'), 'fotografia não usa has
 assert(server.includes('PERIODO_CONTABIL_FECHADO'), 'bloqueio de edição do período fechado ausente');
 assert(server.includes('assinaturaEstadoPeriodo(atual, periodo) !== assinaturaEstadoPeriodo(novo, periodo)'), 'saldos e lançamentos fechados não são protegidos juntos');
 assert(server.includes('SEM_MOVIMENTO_CONTABIL'), 'fechamento sem movimento não está bloqueado');
+assert(server.includes('analitica: conta.analitica !== false'), 'API não entrega a natureza sintética/analítica da conta');
+assert(adapter.includes('analitica: c.analitica !== false'), 'adaptador não preserva a natureza sintética/analítica da conta');
+assert(index.includes('Contas sinteticas formam a arvore usada no Balancete, Balanco e DRE.'), 'importação não preserva contas sintéticas do plano completo');
+assert(index.includes('analitica: c.analitica !== false'), 'cadastro do plano ainda força todas as contas como analíticas');
+assert(index.includes('body: JSON.stringify({ contas: contas })'), 'sobrescrita do plano não usa o conjunto recebido');
+assert.strictEqual(estruturaFastweld.length, 77, 'estrutura sintética extraída do balancete de referência está incompleta');
+assert.strictEqual(new Set(estruturaFastweld.map(item => item[0])).size, 77, 'estrutura sintética possui códigos duplicados');
+assert(migracaoEstrutura.includes("const aplicar = process.argv.includes('--apply')"), 'migração da FASTWELD deve iniciar em modo dry-run');
+assert(migracaoEstrutura.includes('batch.create('), 'migração não está protegida contra sobrescrita de conta existente');
 
 ['listarPeriodosContabeis', 'enviarRelatorioContabilEmail', 'fecharPeriodoContabil', 'reabrirPeriodoContabil'].forEach(function (nome) {
   assert(adapter.includes(nome), 'API do navegador ausente: ' + nome);

@@ -966,7 +966,8 @@ app.get('/api/empresas/:cnpj/plano-contexto', async (req, res) => {
         id: doc.id,
         codigo: conta.cod || conta.codigo || '',
         descricao: conta.desc || conta.descricao || '',
-        reduzido: String(reduzido).trim()
+        reduzido: String(reduzido).trim(),
+        analitica: conta.analitica !== false
       };
     });
     const chave = (plano.nome || plano.name || empresa.plano_id) + ' - ' + (empresa.razao_social || cnpjLimpo);

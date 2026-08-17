@@ -157,6 +157,37 @@
     return /^\d{1,4}$/.test(s) ? s.padStart(4, '0') : s;
   }
 
+  function registrosPlano(contas) {
+    return (contas || []).map(function (conta) {
+      return {
+        codigo: normalizarConta(conta.codigo || conta.cod),
+        reduzido: normalizarConta(conta.reduzido || conta.ref_rfb || conta.refRfb || conta.ref || conta.codigo_reduzido || conta.codigoReduzido),
+        descricao: texto(conta.descricao || conta.desc || conta.nome),
+        analitica: conta.analitica !== false
+      };
+    }).filter(function (conta) { return !!conta.codigo; });
+  }
+
+  function nivelConta(codigo) {
+    return normalizarConta(codigo).split('.').filter(Boolean).length;
+  }
+
+  function compararCodigosContabeis(a, b) {
+    const aa = normalizarConta(a).split('.');
+    const bb = normalizarConta(b).split('.');
+    const limite = Math.max(aa.length, bb.length);
+    for (let i = 0; i < limite; i += 1) {
+      if (i >= aa.length) return -1;
+      if (i >= bb.length) return 1;
+      const na = Number(aa[i]);
+      const nb = Number(bb[i]);
+      if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+      const cmp = aa[i].localeCompare(bb[i], 'pt-BR', { numeric: true });
+      if (cmp) return cmp;
+    }
+    return 0;
+  }
+
   function validar(lancamentos, periodo, contas) {
     const mapa = mapaContas(contas);
     const todos = Array.isArray(lancamentos) ? lancamentos : [];
@@ -221,7 +252,7 @@
         linhas.get(credito).creditosCentavos += valor;
       }
     });
-    const resultado = Array.from(linhas.values()).map(function (linha) {
+    const analiticas = Array.from(linhas.values()).map(function (linha) {
       const saldoAtual = linha.saldoAnteriorCentavos + linha.debitosCentavos - linha.creditosCentavos;
       const meta = metadadosConta(linha.conta, mapa);
       return {
@@ -234,10 +265,43 @@
         creditos: deCentavos(linha.creditosCentavos),
         saldoAtual: deCentavos(saldoAtual),
         saldoDevedor: saldoAtual > 0 ? deCentavos(saldoAtual) : 0,
-        saldoCredor: saldoAtual < 0 ? deCentavos(Math.abs(saldoAtual)) : 0
+        saldoCredor: saldoAtual < 0 ? deCentavos(Math.abs(saldoAtual)) : 0,
+        analitica: true,
+        nivel: nivelConta(meta.codigo)
       };
-    }).sort(function (a, b) { return a.conta.localeCompare(b.conta, 'pt-BR', { numeric: true }); });
-    return resultado;
+    });
+
+    const sinteticas = registrosPlano(contas).filter(function (conta) { return conta.analitica === false; });
+    const consolidadas = new Map();
+    sinteticas.forEach(function (sintetica) {
+      const descendentes = analiticas.filter(function (linha) {
+        return linha.codigoCompleto && linha.codigoCompleto.indexOf(sintetica.codigo + '.') === 0;
+      });
+      if (!descendentes.length) return;
+      const soma = function (campo) { return descendentes.reduce(function (total, linha) { return total + centavos(linha[campo]); }, 0); };
+      const saldoAnteriorCentavos = soma('saldoAnterior');
+      const debitosCentavos = soma('debitos');
+      const creditosCentavos = soma('creditos');
+      const saldoAtualCentavos = saldoAnteriorCentavos + debitosCentavos - creditosCentavos;
+      consolidadas.set(sintetica.codigo, {
+        conta: sintetica.codigo,
+        codigoCompleto: sintetica.codigo,
+        reduzido: '',
+        descricao: sintetica.descricao,
+        saldoAnterior: deCentavos(saldoAnteriorCentavos),
+        debitos: deCentavos(debitosCentavos),
+        creditos: deCentavos(creditosCentavos),
+        saldoAtual: deCentavos(saldoAtualCentavos),
+        saldoDevedor: saldoAtualCentavos > 0 ? deCentavos(saldoAtualCentavos) : 0,
+        saldoCredor: saldoAtualCentavos < 0 ? deCentavos(Math.abs(saldoAtualCentavos)) : 0,
+        analitica: false,
+        nivel: nivelConta(sintetica.codigo)
+      });
+    });
+
+    return Array.from(consolidadas.values()).concat(analiticas).sort(function (a, b) {
+      return compararCodigosContabeis(a.codigoCompleto || a.conta, b.codigoCompleto || b.conta);
+    });
   }
 
   function razao(lancamentos, periodo, contas, saldosIniciais, contaFiltro) {
@@ -324,7 +388,7 @@
       fontes[chave].push(linha.reduzido || linha.conta);
     }
 
-    (linhas || []).forEach(function (linha) {
+    (linhas || []).filter(function (linha) { return linha.analitica !== false; }).forEach(function (linha) {
       const meta = metadadosConta(linha.conta, mapa);
       const codigo = normalizarConta(linha.codigoCompleto || meta.codigo).replace(/\s/g, '');
       const segmentos = codigo.split(/[.\-]/).filter(Boolean).map(function (parte) { return Number(parte); });

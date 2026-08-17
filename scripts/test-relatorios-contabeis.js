@@ -28,7 +28,7 @@ assert.strictEqual(validacao.creditos, 1250);
 const balancete = core.balancete(lancamentos, '2026-01', contas, { 111: 100 });
 assert.deepStrictEqual(balancete.find(l => l.conta === '111'), {
   conta: '111', codigoCompleto: '1.1.1', reduzido: '0111', descricao: 'Banco', saldoAnterior: 100, debitos: 1000, creditos: 250,
-  saldoAtual: 850, saldoDevedor: 850, saldoCredor: 0
+  saldoAtual: 850, saldoDevedor: 850, saldoCredor: 0, analitica: true, nivel: 3
 });
 assert.strictEqual(balancete.reduce((s, l) => s + l.debitos, 0), 1250);
 assert.strictEqual(balancete.reduce((s, l) => s + l.creditos, 0), 1250);
@@ -52,9 +52,35 @@ const balanceteComZeros = core.balancete(lancamentosComZeros, '2026-01', contasC
 assert.strictEqual(balanceteComZeros.filter(l => l.conta === '300').length, 1, 'formas curta e preenchida devem formar uma unica linha');
 assert.deepStrictEqual(balanceteComZeros.find(l => l.conta === '300'), {
   conta: '300', codigoCompleto: '0000000300', reduzido: '0300', descricao: 'Fornecedores', saldoAnterior: 0, debitos: 150, creditos: 0,
-  saldoAtual: 150, saldoDevedor: 150, saldoCredor: 0
+  saldoAtual: 150, saldoDevedor: 150, saldoCredor: 0, analitica: true, nivel: 1
 });
 assert.strictEqual(core.diario(lancamentosComZeros, '2026-01', contasComZeros)[0].credito, '111');
+
+const planoHierarquico = [
+  { codigo: '1', descricao: 'ATIVO', analitica: false },
+  { codigo: '1.1', descricao: 'ATIVO CIRCULANTE', analitica: false },
+  { codigo: '1.1.1', descricao: 'DISPONÍVEL', analitica: false },
+  { codigo: '1.1.1.02', descricao: 'BANCOS C/ MOVIMENTO', analitica: false },
+  { codigo: '1.1.1.02.0001', reduzido: '10', descricao: 'BANCO BRADESCO', analitica: true },
+  { codigo: '1.1.1.02.0005', reduzido: '14', descricao: 'BANCO DO BRASIL', analitica: true },
+  { codigo: '2', descricao: 'PASSIVO', analitica: false },
+  { codigo: '2.1', descricao: 'PASSIVO CIRCULANTE', analitica: false },
+  { codigo: '2.1.1', descricao: 'OBRIGAÇÕES A CURTO PRAZO', analitica: false },
+  { codigo: '2.1.1.01', descricao: 'FORNECEDORES', analitica: false },
+  { codigo: '2.1.1.01.0001', reduzido: '300', descricao: 'FORNECEDORES', analitica: true }
+];
+const movimentoHierarquico = [
+  { id: 'h1', data: '05/01/2026', valor: 1000, contaDebito: '10', contaCredito: '300' },
+  { id: 'h2', data: '06/01/2026', valor: 250, contaDebito: '14', contaCredito: '300' }
+];
+const arvore = core.balancete(movimentoHierarquico, '2026-01', planoHierarquico, {});
+assert.deepStrictEqual(arvore.map(l => l.codigoCompleto), ['1', '1.1', '1.1.1', '1.1.1.02', '1.1.1.02.0001', '1.1.1.02.0005', '2', '2.1', '2.1.1', '2.1.1.01', '2.1.1.01.0001']);
+assert.deepStrictEqual(arvore.find(l => l.codigoCompleto === '1.1.1.02'), {
+  conta: '1.1.1.02', codigoCompleto: '1.1.1.02', reduzido: '', descricao: 'BANCOS C/ MOVIMENTO', saldoAnterior: 0,
+  debitos: 1250, creditos: 0, saldoAtual: 1250, saldoDevedor: 1250, saldoCredor: 0, analitica: false, nivel: 4
+});
+assert.strictEqual(arvore.find(l => l.codigoCompleto === '2').saldoAtual, -1250, 'passivo sintetico deve preservar natureza credora');
+assert.strictEqual(arvore.filter(l => l.analitica !== false).reduce((s, l) => s + l.debitos, 0), 1250, 'totais nao podem somar sinteticas e analiticas em duplicidade');
 
 const invalido = core.validar([{ id: 'x', data: '01/01/2026', valor: 1, contaDebito: '999', contaCredito: '999' }], '2026-01', contas);
 assert.strictEqual(invalido.ok, false);

@@ -1,18 +1,17 @@
 {
-  "version": "3.4.137",
-  "build_date": "2026-08-17T17:19:23Z",
+  "version": "3.4.138",
+  "build_date": "2026-08-17T17:30:08Z",
   "release_notes": [
-    "fix: preservar identificador de cobranca, memorizar por banco e direcao e exigir novo login a cada acesso",
-    "fix: corrigir contraste dos cartões de empresas no tema escuro",
+    "fix: estruturar balancete com contas sinteticas e analiticas do plano",
+    "fix: preserva cobranca e exige novo login",
+    "feat: adiciona ativo e aprimora relatorios contabeis",
+    "fix: ajustar cartões de empresas no tema escuro",
+    "feat: concluir navegacao responsiva e atalhos contabeis",
     "fix: atualizar trafego apos deploy no Cloud Run",
     "fix: direcionar deploy para a revisao mais recente",
     "test: alinhar FASTWELD aos impostos por CFOP",
     "feat: adicionar pre-validacao da migracao SAGE",
     "feat: concluir relatorios contabeis e corrigir AuditAI",
-    "feat: alinhar balancete e acesso administrativo",
-    "feat: envio por email de relatorios contabeis",
-    "feat: responsividade e plano de migração SAGE",
-    "fix: formatar moeda brasileira nos PDFs contabeis",
-    "fix: estabilizar PDF WhatsApp e AuditAI"
+    "feat: alinhar balancete e acesso administrativo"
   ]
 }
