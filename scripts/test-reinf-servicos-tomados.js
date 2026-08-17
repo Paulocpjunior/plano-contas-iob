@@ -72,7 +72,11 @@ assert.strictEqual(semBase.prestadores[0].pronto, false, 'base derivada NÃO dec
 const pBase = semBase.prestadores[0].pendencias.join(' ');
 assert.ok(/nº 30349/.test(pBase), 'a pendência diz QUAL nota');
 assert.ok(/971/.test(pBase), 'e cita a norma da dedução');
-assert.ok(/estima só para conferência/.test(pBase), 'e deixa claro que a estimativa não declara');
+assert.ok(/não para declarar/.test(pBase), 'e deixa claro que a estimativa não declara');
+// 🚨 E DIZ ONDE INFORMAR — a pendência antiga mandava "peça a base ao prestador"
+// e não havia campo nenhum na tela (Paulo, 17/08: *"preciso subir esse INSS"*).
+// Alerta sem caminho não é trava, é parada.
+assert.ok(/INFORME na coluna/.test(pBase), 'a pendência diz ONDE informar a base');
 assert.ok(/5\.755,54 e a base é 4\.604,43/.test(semBase.avisos.join(' ')),
   'o aviso do topo traz os números do arquivo aceito — é o que ancora a regra');
 assert.strictEqual(semBase.prestadores[0].vlrTotalBaseRet, null, 'total de base incompleto sai NULO');
@@ -227,3 +231,79 @@ assert.strictEqual(cprbResolvido.prestadores[0].pronto, true);
 
 console.log('✅ tela do R-2010: painel na série R-2000, cadastro por prestador persistido, '
   + 'base não provada sem número, e evento recusado não vira ✓ verde.');
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🚨 A BASE INFORMADA PELO PRESTADOR — o campo que faltava.
+//
+// Paulo, 17/08, com o R-2010 da A7 SERVICOS E FACILITIES parado: bruto
+// R$ 4.366,32, retenção R$ 384,24 (8,80% — houve dedução de material/insumo),
+// base "a provar". O app mandava pedir a base e não tinha onde escrever a
+// resposta: o prestador ficava pendente para sempre.
+//
+// Base DERIVADA continua não declarando. Base INFORMADA declara — ela não é
+// dedução do app, é o número do documento, digitado por alguém, com nome e
+// data. Mesma régua do `cpfTitular` do R-2055 e do calendário municipal.
+// ═══════════════════════════════════════════════════════════════════════════
+const A7 = {
+  cnpjPrestador: '03222111000130', nome: 'A7 SERVICOS E FACILITIES LTDA',
+  vlrTotalBruto: 4366.32, vlrTotalBaseRet: null, vlrTotalRetPrinc: 384.24,
+  notas: [{ numero: '30405', vlrBruto: 4366.32, vlrRetPrinc: 384.24, baseOrigem: 'derivada', indCPRB: 0 }],
+};
+const cadA7 = (over) => ({ '03222111000130': Object.assign({ tpServico: '100000001', indObra: '0', indCPRB: '0' }, over) });
+
+const semInformar = apurarServicosTomados({ competencia: '2026-07', prestadores: [A7], cadastro: cadA7() });
+assert.strictEqual(semInformar.prestadores[0].pronto, false, 'sem a base, continua pendente');
+assert.strictEqual(semInformar.prestadores[0].vlrTotalBaseRet, null, 'e o total da base sai NULO');
+assert.strictEqual(semInformar.resumo.retencaoPronta, 0, 'nada entra no evento');
+
+const comBase = apurarServicosTomados({
+  competencia: '2026-07', prestadores: [A7],
+  cadastro: cadA7({ basesPorNota: { '30405': 3493.09 } }),
+});
+const l = comBase.prestadores[0];
+assert.strictEqual(l.pronto, true, 'com a base informada, o prestador fica PRONTO');
+assert.strictEqual(l.vlrTotalBaseRet, 3493.09, 'e o total da base é o informado');
+assert.strictEqual(comBase.resumo.retencaoPronta, 384.24, 'a retenção passa a poder ser declarada');
+assert.strictEqual(l.basesDasNotas[0].origem, 'informada pelo prestador',
+  'a ORIGEM da base viaja — quem confere precisa saber que não foi o app que deduziu');
+
+// A base informada é POR NOTA: informar uma não libera a outra.
+const duasNotas = Object.assign({}, A7, {
+  vlrTotalBruto: 8732.64, vlrTotalRetPrinc: 768.48,
+  notas: [
+    { numero: '30405', vlrBruto: 4366.32, vlrRetPrinc: 384.24, baseOrigem: 'derivada', indCPRB: 0 },
+    { numero: '30406', vlrBruto: 4366.32, vlrRetPrinc: 384.24, baseOrigem: 'derivada', indCPRB: 0 },
+  ],
+});
+const meia = apurarServicosTomados({
+  competencia: '2026-07', prestadores: [duasNotas],
+  cadastro: cadA7({ basesPorNota: { '30405': 3493.09 } }),
+});
+assert.strictEqual(meia.prestadores[0].pronto, false, 'uma nota informada não libera a outra');
+assert.ok(/nº 30406/.test(meia.prestadores[0].pendencias.join(' ')), 'e a pendência diz QUAL falta');
+assert.strictEqual(meia.prestadores[0].vlrTotalBaseRet, null,
+  'total PARCIAL de base sai NULO — parcial num campo de base seria lido como a base inteira');
+
+// Nota cuja alíquota PROVA (11%) não precisa de nada informado.
+const provada = apurarServicosTomados({
+  competencia: '2026-07',
+  prestadores: [Object.assign({}, A7, {
+    vlrTotalRetPrinc: 480.30,
+    notas: [{ numero: '99', vlrBruto: 4366.32, vlrRetPrinc: 480.30, vlrBaseRet: 4366.32, baseOrigem: 'bruto-sem-deducao', indCPRB: 0 }],
+  })],
+  cadastro: cadA7(),
+});
+assert.strictEqual(provada.prestadores[0].pronto, true, '11% prova a base sozinho');
+assert.strictEqual(provada.prestadores[0].basesDasNotas[0].origem, 'alíquota de 11% prova',
+  'e a origem diz que foi a alíquota, não alguém digitando');
+
+// Base zero / negativa NÃO vira base: a normalização descarta.
+const zerada = apurarServicosTomados({
+  competencia: '2026-07', prestadores: [A7],
+  cadastro: cadA7({ basesPorNota: { '30405': 0 } }),
+});
+assert.strictEqual(zerada.prestadores[0].pronto, false,
+  'base zero é descartada — zero seria "declarei que não há base", outra afirmação');
+
+console.log('✓ base informada pelo prestador: pendência tem caminho, e por NOTA');

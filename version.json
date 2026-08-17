@@ -1,7 +1,8 @@
 {
-  "version": "3.4.113",
-  "build_date": "2026-08-14T17:47:46Z",
+  "version": "3.4.114",
+  "build_date": "2026-08-17T19:02:06Z",
   "release_notes": [
+    "R-2010: a base do prestador tem onde ser informada — o INSS destravou",
     "R-2099 calibrado contra o arquivo ACEITO — a trava pagou o que prometia (v3.4.112)",
     "R-2099: o fechamento que faltava — esqueleto provado, infoFech como HIPÓTESE (v3.4.111) (#55)",
     "R-2099: o fechamento que faltava — esqueleto provado, infoFech como HIPOTESE (v3.4.110)",
@@ -10,7 +11,6 @@
     "Deploy que falha vira issue — o furo que passou batido duas vezes ontem (#53)",
     "Deploy que falha vira issue — o furo que passou batido duas vezes ontem",
     "R-2010: a tela que faltava — serviços tomados com retenção previdenciária (v3.4.108) (#52)",
-    "Bump de versão passa a propagar sozinho — dois deploys caíram por isso (v3.4.107) (#51)",
-    "R-2010: gerador do evtServTom, reproduzindo um evento ACEITO (v3.4.106) (#50)"
+    "Bump de versão passa a propagar sozinho — dois deploys caíram por isso (v3.4.107) (#51)"
   ]
 }

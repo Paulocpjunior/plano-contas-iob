@@ -57,7 +57,40 @@ function mapaCadastroPrestadores(informados) {
       tpServico: /^\d{9}$/.test(tpServico) ? tpServico : null,
       indObra: /^[012]$/.test(indObra) ? Number(indObra) : null,
       indCPRB: /^[01]$/.test(indCPRB) ? Number(indCPRB) : null,
+      // 🚨 A BASE INFORMADA PELO PRESTADOR — por NOTA, nunca por prestador.
+      //
+      // Paulo, 17/08, precisando subir o INSS: o app mandava *"peça a base ao
+      // prestador"* e NÃO tinha onde escrever a resposta. O prestador ficava
+      // pendente para sempre e o R-2010 não saía — alerta sem caminho, que é a
+      // trava que a equipe contorna (ou, aqui, que simplesmente PARA o mês).
+      //
+      // É por NOTA porque a dedução de material/insumo (IN RFB 971 arts.
+      // 121-124) é de CADA documento: um prestador pode ter nota com dedução e
+      // nota sem. Guardar por prestador carimbaria a base de uma na outra.
+      //
+      // ⚠️ E NÃO se propaga para os meses seguintes, ao contrário do tpServico:
+      // tipo de serviço é do prestador e não muda; base é do documento daquele
+      // mês. Herdar base seria declarar o mês novo com o número do mês velho.
+      basesPorNota: baseInformadaPorNota(c.basesPorNota),
     });
+  });
+  return out;
+}
+
+/**
+ * As bases informadas à mão, por número de nota.
+ *
+ * Valor não numérico ou <= 0 é DESCARTADO, não vira zero: base zero num campo
+ * de declaração seria "declarei que não há base", que é outra afirmação.
+ */
+function baseInformadaPorNota(bruto) {
+  const out = {};
+  if (!bruto || typeof bruto !== 'object') return out;
+  Object.keys(bruto).forEach((numero) => {
+    const chave = String(numero || '').trim();
+    if (!chave) return;
+    const v = Number(String(bruto[numero]).replace(',', '.'));
+    if (Number.isFinite(v) && v > 0) out[chave] = Math.round(v * 100) / 100;
   });
   return out;
 }
@@ -136,16 +169,38 @@ function apurarServicosTomados({ competencia, prestadores, cadastro = {} } = {})
           + 'O app não escolhe: confirme com a nota ou o contrato e informe na tela.');
     }
 
-    // A BASE: só entra o que o CFI PROVOU. Base derivada é para conferir, não
-    // para declarar — declarar sobre estimativa é declarar número inventado.
-    const semBaseProvada = (p && p.notas ? p.notas : [])
-      .filter((n) => n && n.baseOrigem !== 'bruto-sem-deducao');
+    // A BASE: só entra o que o CFI PROVOU **ou o que alguém INFORMOU**.
+    //
+    // Base derivada continua não valendo para declarar — mas a base que o
+    // PRESTADOR informou não é derivada: é o número do documento, digitado por
+    // alguém, com nome e data. É a mesma régua do `cpfTitular` do R-2055 e do
+    // calendário municipal: o app não deduz, alguém digita e fica gravado.
+    const notasDoPrestador = (p && p.notas ? p.notas : []);
+    const basesInformadas = cad.basesPorNota || {};
+    const notasComBase = [];
+    const semBaseProvada = [];
+    notasDoPrestador.forEach((n) => {
+      if (!n) return;
+      const numero = String(n.numero == null ? '' : n.numero).trim();
+      const informada = numero ? basesInformadas[numero] : null;
+      if (n.baseOrigem === 'bruto-sem-deducao') {
+        notasComBase.push({ ...n, baseFinal: n.vlrBaseRet, origemBase: 'alíquota de 11% prova' });
+        return;
+      }
+      if (informada != null) {
+        notasComBase.push({ ...n, baseFinal: informada, origemBase: 'informada pelo prestador' });
+        return;
+      }
+      semBaseProvada.push(n);
+    });
+
     if (semBaseProvada.length) {
       pendencias.push(
-        `${semBaseProvada.length} nota(s) sem a BASE de retenção provada (nº `
+        `${semBaseProvada.length} nota(s) sem a BASE de retenção (nº `
         + `${semBaseProvada.map((n) => n.numero || '—').join(', ')}). A base não é o valor bruto `
         + 'quando há dedução de material/insumo (IN RFB 971, arts. 121-124), e a NFS-e não traz a '
-        + 'base separada. Peça a base ao prestador — o app estima só para conferência.',
+        + 'base separada. Peça a base ao prestador e INFORME na coluna "base retida" — o valor que '
+        + 'o app mostra ao lado é estimativa, serve para conferir, não para declarar.',
       );
     }
 
@@ -166,7 +221,16 @@ function apurarServicosTomados({ competencia, prestadores, cadastro = {} } = {})
       vlrTotalBruto: r2(p && p.vlrTotalBruto),
       // Nulo quando incompleto — é assim que o CFI entrega, e um total parcial
       // num campo chamado "base" seria lido como a base inteira.
-      vlrTotalBaseRet: p && p.vlrTotalBaseRet != null ? r2(p.vlrTotalBaseRet) : null,
+      // Total da base: soma o PROVADO + o INFORMADO, e só quando TODAS as notas
+      // têm base. Parcial num campo chamado "base" seria lido como a base
+      // inteira — a mesma razão pela qual o CFI já entrega nulo quando falta.
+      vlrTotalBaseRet: semBaseProvada.length === 0 && notasComBase.length
+        ? r2(notasComBase.reduce((t, n) => t + (Number(n.baseFinal) || 0), 0))
+        : null,
+      /** Como cada nota chegou à base — quem confere precisa ver a origem. */
+      basesDasNotas: notasComBase.map((n) => ({
+        numero: n.numero || null, base: r2(n.baseFinal), origem: n.origemBase,
+      })),
       vlrTotalRetPrinc: r2(p && p.vlrTotalRetPrinc),
       pendencias,
       pronto: pendencias.length === 0,
