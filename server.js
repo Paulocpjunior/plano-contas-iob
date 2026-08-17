@@ -14,6 +14,8 @@ const cryptoAdmin = require('crypto');
 const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados } = require('./admin-exclusao-lancamentos');
 const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
+const { buscarRegimeNoCfi } = require('./cfi-regime-client');
+const { exigeSaldoAbertura, periodoInicialEmpresa, validarSaldosAbertura } = require('./implantacao-contabil');
 const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
 const AtivoImobilizado = require('./ativo-imobilizado');
@@ -791,6 +793,49 @@ async function validarCodigoEmpresaUnico(codigo, cnpjIgnorado) {
   };
 }
 
+function tokenBearerRequisicao(req) {
+  const auth = String(req && req.headers && req.headers.authorization || '');
+  return auth.startsWith('Bearer ') ? auth.slice(7) : '';
+}
+
+function validarConfiguracaoContabilEmpresa(empresa) {
+  if (!empresa || empresa.modo_contabil !== 'cci_exclusivo') return { ok: true };
+  if (!periodoInicialEmpresa(empresa)) {
+    return { ok: false, erro: 'Informe a data de inicio da escrituracao no CCI para usar o modo CCI exclusivo.' };
+  }
+  return { ok: true };
+}
+
+async function sincronizarRegimeTributarioCfi(cnpj, req) {
+  const cadastro = await buscarRegimeNoCfi({ cnpj, token: tokenBearerRequisicao(req) });
+  const regime = cadastro.regime || {};
+  if (!regime.codigo || !regime.nome) throw new Error('O cadastro fiscal do CFI nao informou um regime tributario valido.');
+  const campos = {
+    regime_tributario_codigo: String(regime.codigo),
+    regime_tributario_nome: String(regime.nome),
+    regime_tributario_origem: 'CFI',
+    regime_tributario_cfi_id: cadastro.id || '',
+    regime_tributario_cfi_fonte: cadastro.fonte || '',
+    regime_tributario_sincronizado_em: new Date(),
+    regime_tributario_sincronizado_por_uid: req.user.uid,
+    regime_tributario_sincronizado_por_email: req.user.email,
+  };
+  await db.collection('empresas').doc(cnpj).set(campos, { merge: true });
+  return { cadastro, campos };
+}
+
+function saldosOrdenados(saldos) {
+  const ordenados = {};
+  Object.keys(saldos || {}).sort().forEach(function (conta) {
+    ordenados[conta] = Number(saldos[conta]);
+  });
+  return ordenados;
+}
+
+function hashSaldosAbertura(saldos) {
+  return cryptoAdmin.createHash('sha256').update(JSON.stringify(saldosOrdenados(saldos))).digest('hex');
+}
+
 // EMPRESAS - COLABORATIVO
 app.get('/api/empresas', async (req, res) => {
   try {
@@ -1007,12 +1052,19 @@ app.post('/api/empresas', async (req, res) => {
     if (!razao_social || !plano_id) return res.status(400).json({ erro: 'razao_social e plano_id obrigatorios' });
     const cadastro = camposCadastroEmpresa(req.body);
     if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
+    if (!cadastro.campos.modo_contabil) cadastro.campos.modo_contabil = 'ponte_sage';
+    const configuracao = validarConfiguracaoContabilEmpresa(cadastro.campos);
+    if (!configuracao.ok) return res.status(400).json({ erro: configuracao.erro });
     const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
     if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const planoDoc = await db.collection('planos').doc(plano_id).get();
     if (!planoDoc.exists) return res.status(400).json({ erro: 'Plano ' + plano_id + ' nao existe' });
     await db.collection('empresas').doc(cnpjLimpo).set({ ...cadastro.campos, razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
-    res.status(201).json({ cnpj: cnpjLimpo, razao_social, plano_id, ...cadastro.campos });
+    let regimeCfi = null;
+    let regimeAviso = null;
+    try { regimeCfi = await sincronizarRegimeTributarioCfi(cnpjLimpo, req); }
+    catch (e) { regimeAviso = e.message; console.warn('[empresa] regime CFI pendente:', e.message); }
+    res.status(201).json({ cnpj: cnpjLimpo, razao_social, plano_id, ...cadastro.campos, regime_cfi: regimeCfi && regimeCfi.cadastro || null, regime_aviso: regimeAviso });
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
@@ -1042,8 +1094,26 @@ app.patch('/api/empresas/:cnpj/cadastro', async (req, res) => {
     }
     const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
     if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
+    const futuro = { ...chk.empresa, ...cadastro.campos };
+    const configuracao = validarConfiguracaoContabilEmpresa(futuro);
+    if (!configuracao.ok) return res.status(400).json({ erro: configuracao.erro });
+    const alterouImplantacao = (
+      cadastro.campos.modo_contabil !== undefined
+      && cadastro.campos.modo_contabil !== chk.empresa.modo_contabil
+    ) || (
+      cadastro.campos.inicio_escrituracao_cci !== undefined
+      && cadastro.campos.inicio_escrituracao_cci !== chk.empresa.inicio_escrituracao_cci
+    );
     await db.collection('empresas').doc(cnpjLimpo).set({
       ...cadastro.campos,
+      ...(alterouImplantacao ? {
+        saldo_abertura_status: futuro.modo_contabil === 'cci_exclusivo' ? 'pendente' : FieldValue.delete(),
+        saldo_abertura_hash: FieldValue.delete(),
+        saldo_abertura_periodo: FieldValue.delete(),
+        saldo_abertura_aprovado_em: FieldValue.delete(),
+        saldo_abertura_aprovado_por_uid: FieldValue.delete(),
+        saldo_abertura_aprovado_por_email: FieldValue.delete(),
+      } : {}),
       updated_at: new Date(),
       cadastro_atualizado_por_uid: req.user.uid,
       cadastro_atualizado_por_email: req.user.email
@@ -1051,6 +1121,19 @@ app.patch('/api/empresas/:cnpj/cadastro', async (req, res) => {
     const atualizado = await db.collection('empresas').doc(cnpjLimpo).get();
     res.json({ ok: true, cnpj: cnpjLimpo, ...atualizado.data() });
   } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.post('/api/empresas/:cnpj/regime-cfi/sincronizar', async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const sincronizado = await sincronizarRegimeTributarioCfi(cnpjLimpo, req);
+    res.json({ ok: true, cnpj: cnpjLimpo, cadastro: sincronizado.cadastro, regime: sincronizado.campos });
+  } catch (e) {
+    res.status(e.status || 502).json({ erro: e.message, codigo: e.codigo || 'ERRO_SINCRONIZAR_REGIME_CFI' });
+  }
 });
 
 app.get('/api/whatsapp/status', async (req, res) => {
@@ -1549,6 +1632,9 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     const empresaAtual = empresaDoc.exists ? (empresaDoc.data() || {}) : null;
     const cadastro = camposCadastroEmpresa(req.body);
     if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
+    if (!empresaAtual && !cadastro.campos.modo_contabil) cadastro.campos.modo_contabil = 'ponte_sage';
+    const configuracao = validarConfiguracaoContabilEmpresa({ ...(empresaAtual || {}), ...cadastro.campos });
+    if (!configuracao.ok) return res.status(400).json({ erro: configuracao.erro });
     const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
     if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const isAdmin = !!(req.user && req.user.is_admin);
@@ -1593,6 +1679,10 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     } catch (e) {
       console.warn('vincular-empresa-plano: erro ao sincronizar sessao:', e.message);
     }
+    let regimeCfi = null;
+    let regimeAviso = null;
+    try { regimeCfi = await sincronizarRegimeTributarioCfi(cnpjLimpo, req); }
+    catch (e) { regimeAviso = e.message; console.warn('[vincular] regime CFI pendente:', e.message); }
     res.json({
       ok: true,
       cnpj: cnpjLimpo,
@@ -1600,7 +1690,11 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
       plano_nome: dados.plano_nome,
       codigo_empresa: dados.codigo_empresa !== undefined ? dados.codigo_empresa : codigoEmpresaDe(empresaAtual),
       whatsapp: dados.whatsapp !== undefined ? dados.whatsapp : ((empresaAtual && empresaAtual.whatsapp) || ''),
-      sessao_sincronizada: sincronizacaoSessao.sincronizada === true
+      modo_contabil: dados.modo_contabil !== undefined ? dados.modo_contabil : ((empresaAtual && empresaAtual.modo_contabil) || 'ponte_sage'),
+      inicio_escrituracao_cci: dados.inicio_escrituracao_cci !== undefined ? dados.inicio_escrituracao_cci : ((empresaAtual && empresaAtual.inicio_escrituracao_cci) || ''),
+      sessao_sincronizada: sincronizacaoSessao.sincronizada === true,
+      regime_cfi: regimeCfi && regimeCfi.cadastro || null,
+      regime_aviso: regimeAviso
     });
   } catch (e) { console.error('vincular-empresa-plano erro:', e); res.status(500).json({ erro: e.message }); }
 }
@@ -2476,7 +2570,22 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
 
     const resultado = await gravarSessaoBloqueada(sessaoRef, state_json, resumo, req.user, { exigirRevisao });
     tokenTrava = null;
-    await db.collection('empresas').doc(cnpjLimpo).set({ last_session_at: new Date(), last_session_by_email: req.user.email }, { merge: true });
+    const atualizacaoEmpresa = { last_session_at: new Date(), last_session_by_email: req.user.email };
+    if (chk.empresa.modo_contabil === 'cci_exclusivo' && chk.empresa.saldo_abertura_status === 'aprovado') {
+      const periodoInicial = periodoInicialEmpresa(chk.empresa);
+      const estadoNovo = lerEstadoContabil(state_json);
+      const saldosNovos = periodoInicial && estadoNovo.relatoriosContabeis && estadoNovo.relatoriosContabeis.saldosIniciais
+        ? estadoNovo.relatoriosContabeis.saldosIniciais[periodoInicial] || {}
+        : {};
+      if (!periodoInicial || hashSaldosAbertura(saldosNovos) !== String(chk.empresa.saldo_abertura_hash || '')) {
+        atualizacaoEmpresa.saldo_abertura_status = 'pendente_reaprovacao';
+        atualizacaoEmpresa.saldo_abertura_hash = FieldValue.delete();
+        atualizacaoEmpresa.saldo_abertura_invalidado_em = new Date();
+        atualizacaoEmpresa.saldo_abertura_invalidado_por_uid = req.user.uid;
+        atualizacaoEmpresa.saldo_abertura_invalidado_por_email = req.user.email;
+      }
+    }
+    await db.collection('empresas').doc(cnpjLimpo).set(atualizacaoEmpresa, { merge: true });
     res.json({ ok: true, chunked: resultado.chunked, chunks: resultado.chunks, session_revision: resultado.revisao });
   } catch (e) {
     if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
@@ -2791,10 +2900,77 @@ app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
         motivo_reabertura: dados.motivo_reabertura || null
       };
     }).sort(function (a, b) { return b.periodo.localeCompare(a.periodo); });
-    res.json({ periodos, is_admin: !!req.user.is_admin });
+    res.json({
+      periodos,
+      is_admin: !!req.user.is_admin,
+      implantacao: {
+        modo_contabil: chk.empresa.modo_contabil || 'ponte_sage',
+        inicio_escrituracao_cci: chk.empresa.inicio_escrituracao_cci || '',
+        regime_tributario_codigo: chk.empresa.regime_tributario_codigo || '',
+        regime_tributario_nome: chk.empresa.regime_tributario_nome || '',
+        regime_tributario_origem: chk.empresa.regime_tributario_origem || '',
+        saldo_abertura_status: chk.empresa.saldo_abertura_status || '',
+        saldo_abertura_periodo: chk.empresa.saldo_abertura_periodo || '',
+        saldo_abertura_aprovado_em: serializarDataSegura(chk.empresa.saldo_abertura_aprovado_em),
+        saldo_abertura_aprovado_por_email: chk.empresa.saldo_abertura_aprovado_por_email || null,
+      }
+    });
   } catch (e) {
     console.error('listar periodos contabeis erro:', e);
     res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_LISTAR_PERIODOS' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/contabilidade/saldos-abertura/aprovar', async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competencia invalida. Use AAAA-MM.' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    if (chk.empresa.modo_contabil !== 'cci_exclusivo') {
+      return res.status(409).json({ erro: 'A aprovacao da abertura e obrigatoria somente para empresas no modo CCI exclusivo.', codigo: 'MODO_CONTABIL_NAO_EXCLUSIVO' });
+    }
+    const periodoInicial = periodoInicialEmpresa(chk.empresa);
+    if (!periodoInicial) return res.status(409).json({ erro: 'Configure a data de inicio da escrituracao no CCI.', codigo: 'INICIO_ESCRITURACAO_AUSENTE' });
+    if (periodo !== periodoInicial) {
+      return res.status(409).json({ erro: 'A abertura deve ser aprovada na competencia inicial ' + periodoInicial + '.', codigo: 'PERIODO_ABERTURA_INCORRETO' });
+    }
+    const sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) return res.status(409).json({ erro: 'Salve os saldos iniciais antes de solicitar a aprovacao.', codigo: 'SESSAO_NAO_ENCONTRADA' });
+    const estado = lerEstadoContabil(sessao.stateJson);
+    const saldos = (estado.relatoriosContabeis.saldosIniciais || {})[periodo] || {};
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const validacao = validarSaldosAbertura(saldos, contas);
+    if (!validacao.ok) {
+      return res.status(409).json({ erro: validacao.erros.map(function (item) { return item.mensagem; }).join(' '), codigo: 'SALDOS_ABERTURA_INVALIDOS', validacao });
+    }
+    const hash = hashSaldosAbertura(saldos);
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    await empresaRef.set({
+      saldo_abertura_status: 'aprovado',
+      saldo_abertura_periodo: periodo,
+      saldo_abertura_hash: hash,
+      saldo_abertura_resumo: validacao,
+      saldo_abertura_aprovado_em: new Date(),
+      saldo_abertura_aprovado_por_uid: req.user.uid,
+      saldo_abertura_aprovado_por_email: req.user.email,
+    }, { merge: true });
+    await empresaRef.collection('auditoria_contabil').add({
+      tipo: 'SALDOS_ABERTURA_APROVADOS',
+      periodo,
+      hash,
+      resumo: validacao,
+      quando: new Date(),
+      por_uid: req.user.uid,
+      por_email: req.user.email,
+    });
+    res.json({ ok: true, periodo, hash, validacao });
+  } catch (e) {
+    console.error('aprovar saldos abertura erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_APROVAR_SALDOS_ABERTURA' });
   }
 });
 
@@ -2892,6 +3068,15 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
     if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competencia invalida. Use AAAA-MM.' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    if (exigeSaldoAbertura(chk.empresa, periodo)) {
+      const inicial = periodoInicialEmpresa(chk.empresa);
+      if (chk.empresa.saldo_abertura_status !== 'aprovado' || chk.empresa.saldo_abertura_periodo !== inicial) {
+        return res.status(409).json({
+          erro: 'Cadastre e aprove os saldos de abertura de ' + (inicial || 'competencia inicial') + ' antes de encerrar o periodo.',
+          codigo: 'SALDOS_ABERTURA_PENDENTES'
+        });
+      }
+    }
     const empresaRef = db.collection('empresas').doc(cnpjLimpo);
     const periodoRef = empresaRef.collection('periodos_contabeis').doc(periodo);
     const periodoAtual = await periodoRef.get();

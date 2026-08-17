@@ -1,5 +1,7 @@
 'use strict';
 
+const { normalizarModoContabil, normalizarInicioEscrituracao } = require('./implantacao-contabil');
+
 function normalizarCodigoEmpresa(bruto) {
   if (bruto === undefined) return { ok: true, ausente: true };
   if (bruto === null || String(bruto).trim() === '') return { ok: true, valor: '' };
@@ -62,10 +64,16 @@ function camposCadastroEmpresa(payload) {
   if (!codigo.ok) return codigo;
   const whatsapp = normalizarWhatsappBr(whatsappBruto);
   if (!whatsapp.ok) return whatsapp;
+  const modo = normalizarModoContabil(dados.modo_contabil);
+  if (!modo.ok) return modo;
+  const inicio = normalizarInicioEscrituracao(dados.inicio_escrituracao_cci);
+  if (!inicio.ok) return inicio;
   const campos = {};
   if (!codigo.ausente) campos.codigo_empresa = codigo.valor;
   if (!whatsapp.ausente) campos.whatsapp = whatsapp.valor;
   if (dados.razao_social !== undefined) campos.razao_social = String(dados.razao_social || '').trim();
+  if (!modo.ausente) campos.modo_contabil = modo.valor;
+  if (!inicio.ausente) campos.inicio_escrituracao_cci = inicio.valor;
   return { ok: true, campos };
 }
 

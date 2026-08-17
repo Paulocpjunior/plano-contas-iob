@@ -8922,11 +8922,14 @@
                 const modal = document.createElement('div');
                 modal.id = 'modalCadastroEmpresaCCI';
                 modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:100001;display:flex;align-items:center;justify-content:center;padding:20px';
-                modal.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:620px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.35)">' +
+                modal.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:620px;width:100%;max-height:90vh;overflow:auto;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.35)">' +
                     '<div style="display:flex;justify-content:space-between;gap:16px;align-items:start"><div><h3 style="margin:0;color:#111827">Cadastro da empresa</h3><p style="margin:5px 0 18px;color:#64748b;font-size:13px">' + empEscape(empFmtCNPJ(empresa.cnpj)) + '</p></div><button type="button" onclick="document.getElementById(\'modalCadastroEmpresaCCI\').remove()" style="border:0;background:#f1f5f9;border-radius:8px;width:34px;height:34px;cursor:pointer">✕</button></div>' +
                     '<label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Razão social</label><input id="empCadRazao" value="' + empEscape(empresa.razao_social || '') + '" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;margin-bottom:13px">' +
                     '<div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px"><div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Nº da empresa</label><input id="empCadCodigo" inputmode="numeric" maxlength="4" value="' + empEscape(empresa.codigo_empresa || '') + '" placeholder="0001" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"><small style="color:#94a3b8">Busca pelo código, preservando zeros.</small></div>' +
                     '<div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">WhatsApp API</label><input id="empCadWhatsapp" type="tel" value="' + empEscape(empresa.whatsapp || '') + '" placeholder="(11) 91234-5678" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"><small style="color:#94a3b8">Destino do canal oficial da Meta.</small></div></div>' +
+                    '<div style="margin-top:14px;padding:12px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:8px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><div><strong style="font-size:12px;color:#1e3a8a">Regime tributário — cadastro do CFI</strong><div id="empCadRegime" style="margin-top:4px;color:#334155">' + empEscape(empresa.regime_tributario_nome || empNomeRegime(empresa.regime_tributario_codigo)) + '</div></div><button type="button" onclick="empSincronizarRegimeCfi(\'' + empresa.cnpj + '\')" style="padding:8px 10px;border:1px solid #93c5fd;background:#fff;color:#1d4ed8;border-radius:7px;font-weight:700;cursor:pointer">Sincronizar CFI</button></div></div>' +
+                    '<div style="display:grid;grid-template-columns:1.25fr 1fr;gap:12px;margin-top:14px"><div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Modo contábil</label><select id="empCadModo" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"><option value="ponte_sage"' + (empresa.modo_contabil === 'cci_exclusivo' ? '' : ' selected') + '>Ponte para SAGE</option><option value="cci_exclusivo"' + (empresa.modo_contabil === 'cci_exclusivo' ? ' selected' : '') + '>CCI como sistema único</option></select></div><div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Início da escrituração no CCI</label><input id="empCadInicio" type="date" value="' + empEscape(empresa.inicio_escrituracao_cci || '') + '" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"></div></div>' +
+                    '<div style="margin-top:8px;font-size:12px;color:#64748b">Plano de contas e históricos atuais serão preservados. No modo exclusivo, a exportação SAGE é bloqueada e os saldos de abertura exigem aprovação.</div>' +
                     '<div id="empCadMsg" style="min-height:20px;margin-top:12px;font-size:13px;color:#64748b"></div>' +
                     '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px"><button type="button" onclick="empWhatsappDialog(\'' + empresa.cnpj + '\')" style="padding:10px 14px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:7px;font-weight:700;cursor:pointer">💬 WhatsApp API</button><button type="button" onclick="empSalvarCadastro(\'' + empresa.cnpj + '\')" style="padding:10px 18px;background:#2563eb;color:white;border:0;border-radius:7px;font-weight:700;cursor:pointer">Salvar cadastro</button></div>' +
                     '</div>';
@@ -8942,7 +8945,9 @@
                 await window.API.atualizarCadastroEmpresa(cnpj, {
                     razao_social: document.getElementById('empCadRazao').value,
                     codigo_empresa: document.getElementById('empCadCodigo').value,
-                    whatsapp: document.getElementById('empCadWhatsapp').value
+                    whatsapp: document.getElementById('empCadWhatsapp').value,
+                    modo_contabil: document.getElementById('empCadModo').value,
+                    inicio_escrituracao_cci: document.getElementById('empCadInicio').value
                 });
                 msg.style.color = '#047857';
                 msg.textContent = '✅ Cadastro salvo.';
@@ -8952,6 +8957,28 @@
                 msg.style.color = '#b91c1c';
                 msg.textContent = e.message || String(e);
                 return false;
+            }
+        }
+
+        function empNomeRegime(regime) {
+            return ({ SIMPLES_NACIONAL: 'Simples Nacional', LUCRO_PRESUMIDO: 'Lucro Presumido', LUCRO_REAL: 'Lucro Real' })[regime] || 'Ainda não sincronizado';
+        }
+
+        async function empSincronizarRegimeCfi(cnpj) {
+            const msg = document.getElementById('empCadMsg');
+            try {
+                msg.style.color = '#64748b';
+                msg.textContent = 'Consultando o cadastro oficial no CFI...';
+                const resultado = await window.API.sincronizarRegimeCfi(cnpj);
+                const campos = resultado.regime || {};
+                const cadastro = resultado.cadastro || {};
+                document.getElementById('empCadRegime').textContent = campos.regime_tributario_nome || ((cadastro.regime || {}).nome) || empNomeRegime(campos.regime_tributario_codigo || ((cadastro.regime || {}).codigo));
+                msg.style.color = '#047857';
+                msg.textContent = '✅ Regime tributário atualizado pelo CFI.';
+                await loadEmpresasPage();
+            } catch (e) {
+                msg.style.color = '#b91c1c';
+                msg.textContent = e.message || String(e);
             }
         }
 
@@ -17543,6 +17570,11 @@ Responda APENAS JSON valido, sem texto antes/depois:
             // Modelo oficial Office Contabil: 328 chars/registro, ASCII, CRLF, CP1252
             // Spec: PADRAO DE IMPORTACAO IOB - Tipo Movimento "8" Financeiro
             // ============================================================
+            const cadastroEmpresa = window.__empresaCadastroInternoAtual || {};
+            if (cadastroEmpresa.modo_contabil === 'cci_exclusivo') {
+                showToast('Esta empresa está configurada para escrituração exclusiva no CCI. A exportação para a SAGE está bloqueada.', 'warning');
+                return;
+            }
             // v3.1.8: respeita filtros visiveis (export WYSIWYG)
             const baseList = obterEntriesFiltrados();
             let valid = baseList.filter(function(e){ return e.contaDebito && e.contaCredito; });
@@ -18004,12 +18036,13 @@ Responda APENAS JSON valido, sem texto antes/depois:
 
 <!-- Modal Vincular Plano Existente -->
 <div id="vincularPlanoModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:8px;padding:24px;max-width:520px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,0.2)">
+  <div style="background:#fff;border-radius:8px;padding:24px;max-width:520px;width:90%;max-height:90vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,0.2)">
     <h3 id="vincularPlanoTitulo" style="margin:0 0 8px 0;font-size:18px;color:#111827">🔗 Vincular Plano Existente</h3>
     <p id="vincularPlanoDescricao" style="margin:0 0 16px;color:#64748b;font-size:13px">Vincule o cadastro a um plano de contas existente.</p>
     <div style="margin-bottom:14px"><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px">CNPJ</label><input id="vinpCNPJ" type="text" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px" placeholder="00.000.000/0000-00"></div>
     <div style="margin-bottom:14px"><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px">Razão Social</label><input id="vinpRazao" type="text" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px" placeholder="Nome da empresa"></div>
     <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-bottom:14px"><div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px">Nº da empresa</label><input id="vinpCodigoEmpresa" inputmode="numeric" maxlength="4" type="text" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px" placeholder="0001"></div><div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px">WhatsApp API</label><input id="vinpWhatsapp" type="tel" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px" placeholder="(11) 91234-5678"></div></div>
+    <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:12px;margin-bottom:14px"><div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px">Modo contábil</label><select id="vinpModoContabil" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px"><option value="ponte_sage">Ponte para SAGE</option><option value="cci_exclusivo">CCI como sistema único</option></select></div><div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px">Início no CCI</label><input id="vinpInicioCCI" type="date" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px"></div></div>
     <div style="margin-bottom:14px"><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px">Plano de Contas</label><select id="vinpPlano" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px"><option value="">Carregando...</option></select></div>
     <div id="vinpMsg" style="font-size:13px;margin-bottom:12px;color:#dc2626"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -18030,6 +18063,8 @@ async function abrirVincularPlanoModalComGenericos(opcoes) {
   document.getElementById('vinpRazao').value = razaoAtual;
   document.getElementById('vinpCodigoEmpresa').value = cadastroAtual.codigo_empresa || '';
   document.getElementById('vinpWhatsapp').value = cadastroAtual.whatsapp || '';
+  document.getElementById('vinpModoContabil').value = novoCadastro ? 'cci_exclusivo' : (cadastroAtual.modo_contabil || 'ponte_sage');
+  document.getElementById('vinpInicioCCI').value = novoCadastro ? '2026-01-01' : (cadastroAtual.inicio_escrituracao_cci || '');
   document.getElementById('vincularPlanoTitulo').textContent = novoCadastro ? '🏢 Cadastro de Empresa' : '🔗 Vincular Plano Existente';
   document.getElementById('vincularPlanoDescricao').textContent = novoCadastro
     ? 'Cadastre a empresa sem carregar lançamentos. Depois, use Ativar empresa para iniciar o trabalho.'
@@ -18100,6 +18135,8 @@ async function abrirVincularPlanoModal() {
   document.getElementById('vinpRazao').value = razaoAtual;
   document.getElementById('vinpCodigoEmpresa').value = (window.__empresaCadastroInternoAtual || {}).codigo_empresa || '';
   document.getElementById('vinpWhatsapp').value = (window.__empresaCadastroInternoAtual || {}).whatsapp || '';
+  document.getElementById('vinpModoContabil').value = (window.__empresaCadastroInternoAtual || {}).modo_contabil || 'ponte_sage';
+  document.getElementById('vinpInicioCCI').value = (window.__empresaCadastroInternoAtual || {}).inicio_escrituracao_cci || '';
   document.getElementById('vinpMsg').textContent = '';
   const sel = document.getElementById('vinpPlano');
   sel.innerHTML = '<option value="">Carregando...</option>';
@@ -18153,16 +18190,19 @@ async function confirmarVincularPlano() {
   const plano_id = document.getElementById('vinpPlano').value;
   const codigo_empresa = document.getElementById('vinpCodigoEmpresa').value.trim();
   const whatsapp = document.getElementById('vinpWhatsapp').value.trim();
+  const modo_contabil = document.getElementById('vinpModoContabil').value;
+  const inicio_escrituracao_cci = document.getElementById('vinpInicioCCI').value;
   const cadastroSomente = window.__cadastroEmpresaSomente === true;
   const msg = document.getElementById('vinpMsg');
   msg.style.color = '#dc2626';
   if (!cnpj || cnpj.replace(/\D/g,'').length !== 14) { msg.textContent = 'CNPJ invalido'; return; }
   if (cadastroSomente && !razao) { msg.textContent = 'Informe a Razão Social'; return; }
   if (!plano_id) { msg.textContent = 'Selecione um plano'; return; }
+  if (modo_contabil === 'cci_exclusivo' && !inicio_escrituracao_cci) { msg.textContent = 'Informe a data de início da escrituração no CCI'; return; }
   msg.style.color = '#6b7280';
   msg.textContent = 'Vinculando...';
   try {
-    const r = await window.API.vincularEmpresaPlano(cnpj, razao, plano_id, { codigo_empresa, whatsapp });
+    const r = await window.API.vincularEmpresaPlano(cnpj, razao, plano_id, { codigo_empresa, whatsapp, modo_contabil, inicio_escrituracao_cci });
     if (r.erro) { msg.style.color='#dc2626'; msg.textContent = 'Erro: ' + r.erro; return; }
     msg.style.color = '#059669';
     msg.textContent = '✅ Plano vinculado com sucesso!';
@@ -18176,7 +18216,10 @@ async function confirmarVincularPlano() {
       plano_id,
       plano_nome: planoNome,
       codigo_empresa: r.codigo_empresa || codigo_empresa,
-      whatsapp: r.whatsapp || whatsapp
+      whatsapp: r.whatsapp || whatsapp,
+      modo_contabil: r.modo_contabil || modo_contabil,
+      inicio_escrituracao_cci: r.inicio_escrituracao_cci || inicio_escrituracao_cci,
+      regime_tributario: ((r.regime_cfi || {}).regime || r.regime_tributario || '')
     };
 
     // Atualiza o cache antes de continuar e elimina a corrida fixa de 300 ms.
