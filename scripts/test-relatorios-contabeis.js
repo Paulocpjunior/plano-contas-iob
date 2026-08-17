@@ -82,6 +82,32 @@ assert.deepStrictEqual(arvore.find(l => l.codigoCompleto === '1.1.1.02'), {
 assert.strictEqual(arvore.find(l => l.codigoCompleto === '2').saldoAtual, -1250, 'passivo sintetico deve preservar natureza credora');
 assert.strictEqual(arvore.filter(l => l.analitica !== false).reduce((s, l) => s + l.debitos, 0), 1250, 'totais nao podem somar sinteticas e analiticas em duplicidade');
 
+const planoDemonstracoes = [
+  { codigo: '1', descricao: 'ATIVO', analitica: false },
+  { codigo: '1.1.1.02.0001', reduzido: '10', descricao: 'BANCO', analitica: true },
+  { codigo: '3', descricao: 'RECEITAS', analitica: false },
+  { codigo: '3.1.1.01.0001', reduzido: '500', descricao: 'RECEITA DE VENDAS', analitica: true },
+  { codigo: '4', descricao: 'CUSTOS', analitica: false },
+  { codigo: '4.1.1.01.0001', reduzido: '600', descricao: 'CUSTO DAS VENDAS', analitica: true },
+  { codigo: '5', descricao: 'DESPESAS', analitica: false },
+  { codigo: '5.1.1.01.0001', reduzido: '800', descricao: 'DESPESAS ADMINISTRATIVAS', analitica: true }
+];
+const movimentosDemonstracoes = [
+  { id: 'd1', data: '10/01/2026', valor: 1000, contaDebito: '10', contaCredito: '500' },
+  { id: 'd2', data: '11/01/2026', valor: 300, contaDebito: '600', contaCredito: '10' },
+  { id: 'd3', data: '12/01/2026', valor: 100, contaDebito: '800', contaCredito: '10' }
+];
+const balanceteDemonstracoes = core.balancete(movimentosDemonstracoes, '2026-01', planoDemonstracoes, {});
+const dre = core.dre(balanceteDemonstracoes);
+assert.deepStrictEqual({ receitas: dre.receitas, custos: dre.custos, despesas: dre.despesas, resultado: dre.resultado, natureza: dre.natureza }, { receitas: 1000, custos: 300, despesas: 100, resultado: 600, natureza: 'lucro' });
+assert.deepStrictEqual(dre.linhas.map(l => l.codigoCompleto), ['3', '3.1.1.01.0001', '4', '4.1.1.01.0001', '5', '5.1.1.01.0001']);
+const balanco = core.balanco(balanceteDemonstracoes);
+assert.strictEqual(balanco.totalAtivo, 600);
+assert.strictEqual(balanco.resultadoAcumulado, 600);
+assert.strictEqual(balanco.totalPassivoPatrimonio, 600);
+assert.strictEqual(balanco.diferenca, 0);
+assert.strictEqual(balanco.equilibrado, true);
+
 const invalido = core.validar([{ id: 'x', data: '01/01/2026', valor: 1, contaDebito: '999', contaCredito: '999' }], '2026-01', contas);
 assert.strictEqual(invalido.ok, false);
 assert(invalido.erros.some(e => e.codigo === 'MESMA_CONTA'));

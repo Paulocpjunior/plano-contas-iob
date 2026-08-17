@@ -369,6 +369,63 @@
     });
   }
 
+  function codigoLinha(linha) {
+    return normalizarConta(linha && (linha.codigoCompleto || linha.conta));
+  }
+
+  function pertenceGrupo(linha, grupos) {
+    const codigo = codigoLinha(linha);
+    return (grupos || []).some(function (grupo) { return codigo === grupo || codigo.indexOf(grupo + '.') === 0; });
+  }
+
+  function dre(linhasBalancete) {
+    const linhas = (linhasBalancete || []).filter(function (linha) { return pertenceGrupo(linha, ['3', '4', '5']); }).map(function (linha) {
+      return Object.assign({}, linha, { valorDemonstracao: deCentavos(centavos(linha.creditos) - centavos(linha.debitos)) });
+    });
+    const analiticas = linhas.filter(function (linha) { return linha.analitica !== false; });
+    const contribuicao = function (grupo) {
+      return analiticas.filter(function (linha) { return pertenceGrupo(linha, [grupo]); }).reduce(function (total, linha) {
+        return total + centavos(linha.creditos) - centavos(linha.debitos);
+      }, 0);
+    };
+    const receitasCentavos = contribuicao('3');
+    const custosCentavos = -contribuicao('4');
+    const despesasCentavos = -contribuicao('5');
+    const resultadoCentavos = receitasCentavos - custosCentavos - despesasCentavos;
+    return {
+      linhas,
+      receitas: deCentavos(receitasCentavos),
+      custos: deCentavos(custosCentavos),
+      despesas: deCentavos(despesasCentavos),
+      resultado: deCentavos(resultadoCentavos),
+      natureza: resultadoCentavos > 0 ? 'lucro' : resultadoCentavos < 0 ? 'prejuizo' : 'equilibrio'
+    };
+  }
+
+  function balanco(linhasBalancete) {
+    const linhas = (linhasBalancete || []).filter(function (linha) { return pertenceGrupo(linha, ['1', '2']); });
+    const analiticas = (linhasBalancete || []).filter(function (linha) { return linha.analitica !== false; });
+    const somarSaldo = function (grupos) {
+      return analiticas.filter(function (linha) { return pertenceGrupo(linha, grupos); }).reduce(function (total, linha) {
+        return total + centavos(linha.saldoAtual);
+      }, 0);
+    };
+    const ativoCentavos = somarSaldo(['1']);
+    const passivoPatrimonioSemResultadoCentavos = -somarSaldo(['2']);
+    const resultadoAcumuladoCentavos = -somarSaldo(['3', '4', '5']);
+    const passivoPatrimonioCentavos = passivoPatrimonioSemResultadoCentavos + resultadoAcumuladoCentavos;
+    const diferencaCentavos = ativoCentavos - passivoPatrimonioCentavos;
+    return {
+      linhas,
+      totalAtivo: deCentavos(ativoCentavos),
+      totalPassivoPatrimonioSemResultado: deCentavos(passivoPatrimonioSemResultadoCentavos),
+      resultadoAcumulado: deCentavos(resultadoAcumuladoCentavos),
+      totalPassivoPatrimonio: deCentavos(passivoPatrimonioCentavos),
+      diferenca: deCentavos(diferencaCentavos),
+      equilibrado: Math.abs(diferencaCentavos) <= 1
+    };
+  }
+
   function semAcentos(valor) {
     return texto(valor).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
   }
@@ -491,6 +548,6 @@
 
   return {
     dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao,
-    validar, balancete, razao, diario, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
+    validar, balancete, razao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
   };
 });

@@ -2809,7 +2809,7 @@ app.post('/api/empresas/:cnpj/contabilidade/relatorios/enviar-email', async (req
     const destinatario = String(entrada.email || '').trim().toLowerCase();
     const periodo = String(entrada.periodo || '').trim();
     const tipo = String(entrada.tipo || '').trim().toLowerCase();
-    const tiposPermitidos = { balancete: 'Balancete', razao: 'Razão Analítico', diario: 'Livro Diário' };
+    const tiposPermitidos = { balancete: 'Balancete', razao: 'Razão Analítico', diario: 'Livro Diário', dre: 'Demonstração do Resultado do Exercício', balanco: 'Balanço Patrimonial', analise: 'Análise Econômico-Financeira' };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinatario)) return res.status(400).json({ erro: 'E-mail do destinatário inválido.' });
     if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competência inválida. Use AAAA-MM.' });
     if (!tiposPermitidos[tipo]) return res.status(400).json({ erro: 'Tipo de relatório inválido.' });

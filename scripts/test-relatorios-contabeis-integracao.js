@@ -21,7 +21,7 @@ assert(index.includes('relatoriosContabeis: { saldosIniciais: {} }'), 'configura
 assert(index.includes("p !== 'empresas' && !empresaAtivadaExplicitamente()"), 'gate de ativação da empresa foi removido');
 assert(index.includes('id="btnCadastroEmpresaNav"'), 'cadastro de empresas foi removido');
 
-['Balancete', 'Razão Analítico', 'Livro Diário', 'Exportar PDF', 'Exportar Excel', 'Enviar PDF por e-mail', 'Enviar PDF no WhatsApp', 'Encerrar período', 'Reabrir período'].forEach(function (texto) {
+['Balancete', 'Razão Analítico', 'Livro Diário', 'DRE', 'Balanço Patrimonial', 'Exportar PDF', 'Exportar Excel', 'Enviar PDF por e-mail', 'Enviar PDF no WhatsApp', 'Encerrar período', 'Reabrir período'].forEach(function (texto) {
   assert(ui.includes(texto), 'recurso de relatório ausente: ' + texto);
 });
 assert(ui.includes('html[data-theme="dark"]'), 'tema escuro não tratado no módulo');
@@ -48,6 +48,10 @@ assert(ui.includes('orientation: preferencias.orientacao'), 'orientação escolh
 assert(index.includes('cadastro: window.__empresaCadastroInternoAtual || info'), 'cadastro ativo não alimenta responsáveis do relatório');
 assert(index.includes('state.relatoriosContabeis.preferenciasImpressao = preferencias || {}'), 'preferências de impressão não são salvas');
 assert(ui.includes('Balancete Analítico'), 'título analítico do balancete ausente');
+assert(ui.includes('function renderDRE(dados)'), 'tela da DRE não foi liberada');
+assert(ui.includes('function renderBalanco(dados)'), 'tela do Balanço Patrimonial não foi liberada');
+assert(!ui.includes('DRE — próxima etapa'), 'DRE continua marcada como próxima etapa');
+assert(!ui.includes('Balanço — próxima etapa'), 'Balanço continua marcado como próxima etapa');
 assert(ui.includes('rc-synthetic-row'), 'hierarquia visual das contas sintéticas ausente');
 assert(ui.includes('function identificacaoBalancete(linha)'), 'identificação hierárquica do balancete ausente');
 assert(ui.includes("return (seguro < 0 ? '-R$ ' : 'R$ ') + moeda(Math.abs(seguro));"), 'PDF não fixa símbolo, sinal e duas casas decimais em pt-BR');
@@ -72,6 +76,8 @@ assert(server.includes('fotografia.hash = hashSessao'), 'fotografia não usa has
 assert(server.includes('PERIODO_CONTABIL_FECHADO'), 'bloqueio de edição do período fechado ausente');
 assert(server.includes('assinaturaEstadoPeriodo(atual, periodo) !== assinaturaEstadoPeriodo(novo, periodo)'), 'saldos e lançamentos fechados não são protegidos juntos');
 assert(server.includes('SEM_MOVIMENTO_CONTABIL'), 'fechamento sem movimento não está bloqueado');
+assert(server.includes("dre: 'Demonstração do Resultado do Exercício'"), 'envio por e-mail da DRE não foi liberado');
+assert(server.includes("balanco: 'Balanço Patrimonial'"), 'envio por e-mail do Balanço não foi liberado');
 assert(server.includes('analitica: conta.analitica !== false'), 'API não entrega a natureza sintética/analítica da conta');
 assert(adapter.includes('analitica: c.analitica !== false'), 'adaptador não preserva a natureza sintética/analítica da conta');
 assert(index.includes('Contas sinteticas formam a arvore usada no Balancete, Balanco e DRE.'), 'importação não preserva contas sintéticas do plano completo');
