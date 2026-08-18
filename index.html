@@ -6289,6 +6289,10 @@
                 'baseCalculoPisCofins','baseCalculoPisCofinsOrigem','categoriaFiscal',
                 'tipoDocumentoFiscal','naturezaLancamento','direcaoFiscal','descricao_memoria',
                 'memoriaDescricoes','fornecedor','cnpj_fornecedor','cliente','cnpj_cliente','documento','numero_nf',
+                'valorLiquidoAposRetencoes','baseCalculoRetencao','pisRetido','cofinsRetida',
+                'csllRetida','irrfRetido','inssRetido','totalRetencoes','dataCompensacao',
+                'modeloNotaFiscal','serieSubserie','cnpj_cpf_tomador','componenteFiscal',
+                'tributoRetido','valorTributoRetido',
                 'cfop','cfops','cfopValores','chave_nfe','chave_cte_substituido',
                 'inscricao_estadual','cidade','uf','situacaoDocumento','emissao',
                 'entradaSaida','especie','serie','subserie','observacao','ufDestino',
@@ -15058,7 +15062,11 @@
                         (vinculo.origemCnpj === 'cadastro_layout_codigo_arquivo' ? ' • empresa pelo código do arquivo' : ''));
                 document.getElementById('movFiscalPeriodo').textContent = formatarDataBR(resultado.periodo_inicio) + ' a ' + formatarDataBR(resultado.periodo_fim);
                 document.getElementById('movFiscalNotas').textContent = String(resultado.total_notas_fiscais || (resultado.lancamentos || []).length || 0);
-                document.getElementById('movFiscalVendas').textContent = formatarMoedaBR((resultado.total_credito || 0) + (resultado.total_debito || 0));
+                document.getElementById('movFiscalVendas').textContent = formatarMoedaBR(
+                    layout.movimento === 'impostos_retidos_servicos'
+                        ? (resultado.total_credito || 0)
+                        : ((resultado.total_credito || 0) + (resultado.total_debito || 0))
+                );
                 document.getElementById('movFiscalValidation').classList.add('show');
                 movimentoFiscalStatus(
                     'ok',

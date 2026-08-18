@@ -873,15 +873,15 @@
 
     const documentoTomador = m[4];
     const tipoTomador = somenteDigitos(documentoTomador).length === 14 ? 'CNPJ' : 'CPF';
-    const descricao = ['Servicos prestados com retencao', 'NF ' + numero, tipoTomador + ' tomador ' + documentoTomador]
+    const descricao = ['Valor bruto do servico', 'NF ' + numero, tipoTomador + ' tomador ' + documentoTomador]
       .join(' - ');
     const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim() || 'FISCAL';
 
     return {
       data: parseDateBR(m[2]),
       descricao,
-      descricao_memoria: 'Servicos prestados com retencao - ' + documentoTomador,
-      memoriaDescricoes: ['Servicos prestados com retencao', documentoTomador, 'NF ' + numero],
+      descricao_memoria: 'Valor bruto do servico com retencoes - ' + documentoTomador,
+      memoriaDescricoes: ['Valor bruto do servico com retencoes', documentoTomador, 'NF ' + numero],
       valor: Math.abs(valorNota),
       valorNota: Math.abs(valorNota),
       valorLiquidoAposRetencoes: Math.round((Math.abs(valorNota) - totalRetencoes) * 100) / 100,
@@ -897,6 +897,9 @@
       serieSubserie: serie,
       documento: numero,
       cnpj_cpf_tomador: documentoTomador,
+      componenteFiscal: 'VALOR_BRUTO_SERVICO',
+      tributoRetido: '',
+      valorTributoRetido: 0,
       tipoDocumentoFiscal: 'SERVICO_PRESTADO_IMPOSTOS_RETIDOS',
       naturezaLancamento: 'servico_prestado_com_retencoes',
       categoriaFiscal: 'RECEITA_SERVICOS',
@@ -915,6 +918,51 @@
     };
   }
 
+  function criarLancamentosDemonstrativoRetidos(nota) {
+    if (!nota) return [];
+    const modeloSerie = [nota.modeloNotaFiscal ? 'modelo ' + nota.modeloNotaFiscal : '', nota.serieSubserie ? 'serie ' + nota.serieSubserie : '']
+      .filter(Boolean).join(', ');
+    const contexto = [
+      'NF ' + nota.documento,
+      modeloSerie,
+      'tomador ' + nota.cnpj_cpf_tomador,
+      'base ' + Number(nota.baseCalculoRetencao || 0).toFixed(2),
+      nota.dataCompensacao ? 'compensacao ' + nota.dataCompensacao : ''
+    ].filter(Boolean).join(' - ');
+    const bruto = Object.assign({}, nota, {
+      descricao: 'VALOR BRUTO DO SERVICO - ' + contexto,
+      historico: 'VALOR BRUTO SERVICO NF ' + nota.documento,
+      componenteFiscal: 'VALOR_BRUTO_SERVICO',
+      tributoRetido: '',
+      valorTributoRetido: 0
+    });
+    const tributos = [
+      { campo: 'pisRetido', codigo: 'PIS', nome: 'PIS RETIDO' },
+      { campo: 'cofinsRetida', codigo: 'COFINS', nome: 'COFINS RETIDA' },
+      { campo: 'csllRetida', codigo: 'CSLL', nome: 'CSLL RETIDA' },
+      { campo: 'irrfRetido', codigo: 'IRRF', nome: 'IRRF RETIDO' },
+      { campo: 'inssRetido', codigo: 'INSS', nome: 'INSS RETIDO' }
+    ];
+    const retencoes = tributos.map(function(tributo) {
+      const valor = Math.abs(Number(nota[tributo.campo] || 0));
+      if (centavos(valor) === 0) return null;
+      return Object.assign({}, nota, {
+        descricao: tributo.nome + ' - ' + contexto,
+        descricao_memoria: tributo.nome + ' EM SERVICO PRESTADO - ' + nota.cnpj_cpf_tomador,
+        memoriaDescricoes: [tributo.nome + ' em servico prestado', nota.cnpj_cpf_tomador, 'NF ' + nota.documento],
+        valor: -valor,
+        categoriaFiscal: 'RETENCAO_SERVICO_PRESTADO',
+        categoria: 'Impostos Retidos',
+        historico: tributo.nome + ' NF ' + nota.documento,
+        componenteFiscal: 'IMPOSTO_RETIDO',
+        tributoRetido: tributo.codigo,
+        valorTributoRetido: valor,
+        naturezaLancamento: 'imposto_retido_servico_prestado'
+      });
+    }).filter(Boolean);
+    return [bruto].concat(retencoes);
+  }
+
   function parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos(textoCompleto) {
     const texto = String(textoCompleto || '');
     const detector = normalizarTexto(texto).toUpperCase();
@@ -929,11 +977,11 @@
     const periodo = extrairPeriodo(texto);
     if (!periodo.inicio || !periodo.fim) return { detectado: false, lancamentos: [] };
 
-    const lancamentos = texto.split(/\r?\n/)
+    const notasFiscais = texto.split(/\r?\n/)
       .map(function(linha) { return parsearLinhaDemonstrativoRetidos(linha, periodo, metaEmpresa); })
       .filter(Boolean);
     const totaisOficiais = extrairTotaisDemonstrativoRetidos(texto);
-    const somas = lancamentos.reduce(function(acc, l) {
+    const somas = notasFiscais.reduce(function(acc, l) {
       acc.valorNotas += Number(l.valorNota || 0);
       acc.baseRetencao += Number(l.baseCalculoRetencao || 0);
       acc.pis += Number(l.pisRetido || 0);
@@ -947,9 +995,13 @@
     const divergencias = totaisOficiais ? camposTotal.filter(function(campo) {
       return Math.abs(centavos(somas[campo]) - centavos(totaisOficiais[campo])) > 1;
     }) : [];
+    const lancamentos = notasFiscais.reduce(function(todos, nota) {
+      return todos.concat(criarLancamentosDemonstrativoRetidos(nota));
+    }, []);
+    const totalRetencoes = somas.pis + somas.cofins + somas.csll + somas.irrf + somas.inss;
 
     return {
-      detectado: lancamentos.length > 0,
+      detectado: notasFiscais.length > 0,
       banco_detectado: metaEmpresa.codigo,
       nome_banco_detectado: metaEmpresa.nome || 'Demonstrativo de Impostos Retidos em Servicos',
       conta_detectada: 'IMPOSTOS_RETIDOS_SERVICOS',
@@ -959,8 +1011,10 @@
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim,
       total_credito: somas.valorNotas,
-      total_debito: 0,
-      total_notas_fiscais: lancamentos.length,
+      total_debito: totalRetencoes,
+      total_liquido: Math.round((somas.valorNotas - totalRetencoes) * 100) / 100,
+      total_notas_fiscais: notasFiscais.length,
+      total_lancamentos_fiscais: lancamentos.length,
       direcao_fiscal: 'impostos_retidos_servicos',
       total_oficial: totaisOficiais ? totaisOficiais.valorNotas : somas.valorNotas,
       total_oficial_detectado: !!totaisOficiais,

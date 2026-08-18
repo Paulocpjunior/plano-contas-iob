@@ -31,8 +31,12 @@ function money(valor) {
   assert.strictEqual(resultado.periodo_inicio, '2026-04-01');
   assert.strictEqual(resultado.periodo_fim, '2026-04-30');
   assert.strictEqual(resultado.direcao_fiscal, 'impostos_retidos_servicos');
-  assert.strictEqual(resultado.lancamentos.length, 1);
+  assert.strictEqual(resultado.lancamentos.length, 5);
+  assert.strictEqual(resultado.total_notas_fiscais, 1);
+  assert.strictEqual(resultado.total_lancamentos_fiscais, 5);
   assert.strictEqual(money(resultado.total_credito), money(44118));
+  assert.strictEqual(money(resultado.total_debito), money(2713.26));
+  assert.strictEqual(money(resultado.total_liquido), money(41404.74));
   assert.strictEqual(resultado.total_divergente, false);
 
   const nota = resultado.lancamentos[0];
@@ -50,6 +54,21 @@ function money(valor) {
   assert.strictEqual(money(nota.inssRetido), 0);
   assert.strictEqual(money(nota.totalRetencoes), money(2713.26));
   assert.strictEqual(money(nota.valorLiquidoAposRetencoes), money(41404.74));
+  assert.strictEqual(nota.componenteFiscal, 'VALOR_BRUTO_SERVICO');
+
+  const impostos = Object.fromEntries(resultado.lancamentos.slice(1).map(l => [l.tributoRetido, l]));
+  assert.deepStrictEqual(Object.keys(impostos), ['PIS', 'COFINS', 'CSLL', 'IRRF']);
+  assert.strictEqual(money(impostos.PIS.valor), money(-286.77));
+  assert.strictEqual(money(impostos.COFINS.valor), money(-1323.54));
+  assert.strictEqual(money(impostos.CSLL.valor), money(-441.18));
+  assert.strictEqual(money(impostos.IRRF.valor), money(-661.77));
+  assert.ok(!impostos.INSS, 'INSS zerado deve permanecer nos dados de origem, sem criar lancamento contabil artificial');
+  Object.values(impostos).forEach(imposto => {
+    assert.strictEqual(imposto.documento, '273');
+    assert.strictEqual(imposto.cnpj_cpf_tomador, '24.808.018/0001-82');
+    assert.strictEqual(money(imposto.baseCalculoRetencao), money(44118));
+    assert.strictEqual(imposto.dataCompensacao, '2026-04-02');
+  });
 
   assert.doesNotThrow(() => validarVinculoCnpjRelatorioFiscal(resultado, {
     cnpjEmpresaAtiva: '05.842.361/0001-07',
@@ -87,7 +106,7 @@ Total 44.118,00 44.118,00 286,77 1.323,54 441,18 661,77 0,00
   assert.strictEqual(layout.validacaoCnpj, 'cabecalho_relatorio');
   assert.strictEqual(layout.parser, 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos');
 
-  console.log('OK: Demonstrativo SAGE de impostos retidos em servicos homologado como layout generico, com CNPJ e todos os totais conferidos.');
+  console.log('OK: Demonstrativo SAGE preserva nota, dados de origem e gera linhas explicitas para cada imposto retido nao zerado.');
 })().catch((err) => {
   console.error(err);
   process.exit(1);

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.4",
+  "manual_version": "2.5",
   "updated_at": "2026-08-18",
-  "app_reference": "3.4.152",
+  "app_reference": "3.4.153",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -47,7 +47,8 @@
           "Novidades e Ajuda CCI, com dúvidas não resolvidas enviadas à curadoria.",
           "Manual Operacional dentro do CCI, com pesquisa e downloads Word/PDF gerados da mesma fonte oficial.",
           "Balancete Anual Analítico, com hierarquia do plano de contas, saldos de janeiro a dezembro, resumo e exportações em PDF e Excel.",
-          "Alteração explícita de classificações em lote, com seleção dos campos, confirmação, travas por natureza e auditoria do usuário."
+          "Alteração explícita de classificações em lote, com seleção dos campos, confirmação, travas por natureza e auditoria do usuário.",
+          "Demonstrativo SAGE de impostos retidos com linha bruta e linhas separadas de PIS, COFINS, CSLL, IRRF e INSS quando houver valor."
         ]}
       ]
     },
@@ -110,11 +111,14 @@
           "Ativar a empresa correta e conferir o CNPJ antes de selecionar o arquivo.",
           "Abrir Importações - Movimento Fiscal e escolher o modelo correspondente ao relatório.",
           "Para o Demonstrativo de Impostos Retidos da SAGE, usar o modelo geral Impostos retidos em notas de serviços.",
-          "Conferir período, quantidade de notas, valor total, base de retenção, PIS, COFINS, CSLL, IRRF e INSS.",
+          "Conferir período, quantidade de notas, valor bruto, base de retenção, PIS, COFINS, CSLL, IRRF, INSS, total retido e valor líquido.",
+          "Na prévia, cada nota gera uma linha de valor bruto e uma linha para cada imposto retido com valor diferente de zero. Impostos zerados permanecem nos dados de origem, sem criar lançamento contábil artificial.",
+          "Número e modelo da NF, série, tomador, base de retenção e data de compensação acompanham as linhas geradas.",
           "Não continuar se o CNPJ do cabeçalho divergir da empresa ativa ou se qualquer total oficial não fechar.",
           "Revisar a prévia antes de confirmar a gravação dos lançamentos."
         ]},
-        {"type": "callout", "tone": "info", "label": "Modelo geral", "text": "O código e o nome da empresa impressos no relatório são informativos. A liberação depende do CNPJ do cabeçalho ser idêntico ao cadastro da empresa ativa e de todos os totais oficiais estarem conciliados."}
+        {"type": "callout", "tone": "info", "label": "Modelo geral", "text": "O código e o nome da empresa impressos no relatório são informativos. A liberação depende do CNPJ do cabeçalho ser idêntico ao cadastro da empresa ativa e de todos os totais oficiais estarem conciliados."},
+        {"type": "callout", "tone": "warning", "label": "Classificação contábil", "text": "O CCI não inventa contas para os impostos. Débito, crédito e histórico devem vir do plano e das regras aprovadas para a empresa; somente depois a classificação pode ser memorizada."}
       ]
     },
     {
