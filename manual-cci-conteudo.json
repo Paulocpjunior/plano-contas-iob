@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.6",
+  "manual_version": "2.7",
   "updated_at": "2026-08-18",
-  "app_reference": "3.4.154",
+  "app_reference": "3.4.155",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -49,7 +49,8 @@
           "Balancete Anual Analítico, com hierarquia do plano de contas, saldos de janeiro a dezembro, resumo e exportações em PDF e Excel.",
           "Alteração explícita de classificações em lote, com seleção dos campos, confirmação, travas por natureza e auditoria do usuário.",
           "Demonstrativo SAGE de impostos retidos em serviços prestados com linha bruta e linhas separadas de PIS, COFINS, CSLL, IRRF e INSS quando houver valor.",
-          "Novo modal Retenções de Serviços Tomados, disponível para todas as empresas, com leitura do relatório SAGE de notas de entradas de serviços."
+          "Novo modal Retenções de Serviços Tomados, disponível para todas as empresas, com leitura do relatório SAGE de notas de entradas de serviços.",
+          "Nova área Dados e Matriz/Filial, com cadastro completo da empresa, vínculo direto da filial à matriz principal e relação das unidades vinculadas."
         ]}
       ]
     },
@@ -63,6 +64,8 @@
           {"term": "Memória de classificação", "definition": "Regra aprovada para sugerir débito, crédito e histórico quando uma descrição semelhante aparecer novamente. Não substitui o lançamento nem cria valor financeiro isoladamente."},
           {"term": "Registro de importação", "definition": "Identifica arquivo, período e características para controlar duplicidade. A confirmação do usuário continua obrigatória."},
           {"term": "Fechamento contábil", "definition": "Fotografia validada da competência. Depois de fechado, o período fica protegido e só deve ser reaberto por usuário autorizado, com justificativa."}
+          ,{"term": "Cadastro oficial da empresa", "definition": "Registro único do CCI para razão social, nome fantasia, endereço, inscrições, CNAE, datas, contatos e estrutura empresarial. Alterações ficam vinculadas ao usuário e à data da atualização."}
+          ,{"term": "Matriz e filial", "definition": "Uma filial deve apontar diretamente para a matriz principal já cadastrada no CCI. O sistema bloqueia auto vínculo, ciclos, uso de outra filial como matriz e conversão de matriz que ainda possua filiais vinculadas."}
         ]}
       ]
     },

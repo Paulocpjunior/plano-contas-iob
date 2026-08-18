@@ -2328,6 +2328,7 @@
                 <button class="nav-module-button active" onclick="showPage('inicio')"><span>🏠</span> Início</button>
                 <button class="nav-module-button" id="btnAtivarEmpresaNav" data-page="empresas" onclick="abrirAtivacaoEmpresa()" style="color:#b45309;font-weight:800"><span>⚡</span> Ativar empresa</button>
                 <button class="nav-module-button" id="btnCadastroEmpresaNav" data-page="empresas" onclick="abrirCadastroEmpresa()" style="color:#1d4ed8;font-weight:800"><span>🏢</span> Cadastro de Empresas</button>
+                <button class="nav-module-button" id="btnDadosEmpresaNav" data-page="empresas" onclick="abrirDadosCadastraisEmpresa()" style="color:#0f766e;font-weight:800"><span>🏛️</span> Dados e Matriz/Filial</button>
             </div>
             <div class="nav-cluster" data-label="Operação">
                 <button class="nav-cluster-toggle" type="button" onclick="toggleNavCluster(this, event)" aria-expanded="false" aria-haspopup="menu" aria-controls="navClusterOperacaoMenu" title="Importação e tratamento dos lançamentos">⚙️ Operação <span>▾</span></button>
@@ -18446,6 +18447,200 @@ Responda APENAS JSON valido, sem texto antes/depois:
         // Console log
         console.log('%cCONSULTOR CONTÁBIL INTELIGENTE', 'color:#3b82f6;font-weight:bold;font-size:16px');
     </script>
+
+<!-- Modal Dados Cadastrais e Matriz/Filial -->
+<div id="dadosCadastraisEmpresaModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.68);z-index:10020;align-items:center;justify-content:center;padding:18px">
+  <div style="background:#fff;border-radius:16px;width:min(1120px,97vw);max-height:94vh;overflow:auto;box-shadow:0 28px 80px rgba(15,23,42,.38)">
+    <div style="padding:20px 24px 14px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:16px;align-items:flex-start;position:sticky;top:0;background:#fff;z-index:2">
+      <div><h3 style="margin:0;color:#0f172a;font-size:21px">🏛️ Dados da Empresa</h3><p id="cadEmpCabecalho" style="margin:5px 0 0;color:#64748b;font-size:13px">Cadastro oficial do CCI e estrutura matriz/filial.</p></div>
+      <button type="button" onclick="fecharDadosCadastraisEmpresa()" style="border:0;background:#f1f5f9;border-radius:9px;width:38px;height:38px;font-size:20px;cursor:pointer;color:#475569">×</button>
+    </div>
+    <div style="padding:18px 24px 24px">
+      <div style="display:flex;gap:8px;border-bottom:1px solid #e2e8f0;margin-bottom:18px">
+        <button id="cadEmpAbaDadosBtn" type="button" onclick="selecionarAbaCadastroEmpresa('dados')" style="padding:11px 16px;border:0;border-bottom:3px solid #2563eb;background:#eff6ff;color:#1d4ed8;font-weight:800;cursor:pointer">Informações cadastrais</button>
+        <button id="cadEmpAbaEstruturaBtn" type="button" onclick="selecionarAbaCadastroEmpresa('estrutura')" style="padding:11px 16px;border:0;border-bottom:3px solid transparent;background:#fff;color:#64748b;font-weight:800;cursor:pointer">Matriz e filiais</button>
+      </div>
+      <div id="cadEmpAbaDados">
+        <div style="display:grid;grid-template-columns:140px 1fr 1fr;gap:12px;margin-bottom:12px">
+          <div><label class="cad-empresa-label">Código</label><input id="cadEmpCodigo" class="cad-empresa-input" maxlength="4" inputmode="numeric"></div>
+          <div><label class="cad-empresa-label">CNPJ</label><input id="cadEmpCnpj" class="cad-empresa-input" readonly style="background:#f8fafc"></div>
+          <div><label class="cad-empresa-label">Razão social completa</label><input id="cadEmpRazao" class="cad-empresa-input" maxlength="180"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 180px 180px;gap:12px;margin-bottom:12px">
+          <div><label class="cad-empresa-label">Nome fantasia</label><input id="cadEmpFantasia" class="cad-empresa-input" maxlength="160"></div>
+          <div><label class="cad-empresa-label">Data de abertura</label><input id="cadEmpDataAbertura" class="cad-empresa-input" type="date"></div>
+          <div><label class="cad-empresa-label">Início das atividades</label><input id="cadEmpInicioAtividades" class="cad-empresa-input" type="date"></div>
+        </div>
+        <div style="font-size:13px;font-weight:900;color:#334155;margin:18px 0 8px">Endereço</div>
+        <div style="display:grid;grid-template-columns:150px 1fr 100px 180px;gap:12px;margin-bottom:12px">
+          <div><label class="cad-empresa-label">Tipo logradouro</label><input id="cadEmpTipoLogradouro" class="cad-empresa-input" placeholder="Rua, Avenida..."></div>
+          <div><label class="cad-empresa-label">Logradouro</label><input id="cadEmpLogradouro" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Número</label><input id="cadEmpNumero" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Complemento</label><input id="cadEmpComplemento" class="cad-empresa-input"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 80px 130px;gap:12px;margin-bottom:12px">
+          <div><label class="cad-empresa-label">Bairro</label><input id="cadEmpBairro" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Distrito</label><input id="cadEmpDistrito" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Município</label><input id="cadEmpMunicipio" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">UF</label><input id="cadEmpUf" class="cad-empresa-input" maxlength="2" style="text-transform:uppercase"></div>
+          <div><label class="cad-empresa-label">CEP</label><input id="cadEmpCep" class="cad-empresa-input" maxlength="9"></div>
+        </div>
+        <div style="font-size:13px;font-weight:900;color:#334155;margin:18px 0 8px">Registros fiscais e societários</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px">
+          <div><label class="cad-empresa-label">Inscrição estadual</label><input id="cadEmpIe" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Inscrição municipal</label><input id="cadEmpIm" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Inscrição SUFRAMA</label><input id="cadEmpSuframa" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Natureza jurídica</label><input id="cadEmpNatureza" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">CNAE principal</label><input id="cadEmpCnaePrincipal" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">CNAE secundário</label><input id="cadEmpCnaeSecundario" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Órgão de registro</label><select id="cadEmpRegistroOrgao" class="cad-empresa-input"><option value="">Não informado</option><option value="JUNTA_COMERCIAL">Junta Comercial</option><option value="CARTORIO">Cartório</option><option value="OAB">OAB</option><option value="OUTRO">Outro</option></select></div>
+          <div><label class="cad-empresa-label">Número do registro</label><input id="cadEmpRegistroNumero" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Data do registro</label><input id="cadEmpDataRegistro" class="cad-empresa-input" type="date"></div>
+        </div>
+        <div style="font-size:13px;font-weight:900;color:#334155;margin:18px 0 8px">Contato</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px">
+          <div><label class="cad-empresa-label">Telefone</label><input id="cadEmpTelefone" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Celular</label><input id="cadEmpCelular" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Fax</label><input id="cadEmpFax" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">E-mail</label><input id="cadEmpEmail" class="cad-empresa-input" type="email"></div>
+          <div><label class="cad-empresa-label">Contato</label><input id="cadEmpContato" class="cad-empresa-input"></div>
+          <div><label class="cad-empresa-label">Site</label><input id="cadEmpSite" class="cad-empresa-input"></div>
+        </div>
+      </div>
+      <div id="cadEmpAbaEstrutura" style="display:none">
+        <div style="padding:14px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;color:#1e3a8a;font-size:13px;margin-bottom:16px">O vínculo é cadastral e único: uma filial aponta diretamente para sua matriz principal. O CCI bloqueia auto vínculo, ciclos e matriz que já esteja cadastrada como filial.</div>
+        <div style="display:grid;grid-template-columns:240px 1fr;gap:14px;align-items:end;margin-bottom:18px">
+          <div><label class="cad-empresa-label">Tipo de estabelecimento</label><select id="cadEmpTipoEstabelecimento" class="cad-empresa-input" onchange="atualizarCamposMatrizFilial()"><option value="MATRIZ">Matriz</option><option value="FILIAL">Filial</option></select></div>
+          <div id="cadEmpMatrizBox"><label class="cad-empresa-label">Matriz principal</label><select id="cadEmpMatrizCnpj" class="cad-empresa-input"><option value="">Selecione a matriz</option></select></div>
+        </div>
+        <div id="cadEmpEstruturaResumo" style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;color:#334155"></div>
+      </div>
+      <div id="cadEmpMensagem" style="min-height:20px;margin-top:14px;font-size:13px;font-weight:700"></div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:12px;padding-top:14px;border-top:1px solid #e2e8f0">
+        <button type="button" onclick="fecharDadosCadastraisEmpresa()" style="padding:10px 17px;border:0;border-radius:8px;background:#e2e8f0;color:#334155;font-weight:800;cursor:pointer">Cancelar</button>
+        <button id="cadEmpSalvarBtn" type="button" onclick="salvarDadosCadastraisEmpresa()" style="padding:10px 17px;border:0;border-radius:8px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer">Salvar cadastro</button>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+  .cad-empresa-label{display:block;font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px}
+  .cad-empresa-input{box-sizing:border-box;width:100%;padding:10px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a;font-size:13px}
+  .cad-empresa-input:focus{outline:2px solid #bfdbfe;border-color:#2563eb}
+</style>
+<script>
+const CAMPOS_CADASTRO_EMPRESA_UI = {
+  cadEmpCodigo:'codigo_empresa', cadEmpRazao:'razao_social', cadEmpFantasia:'nome_fantasia', cadEmpDataAbertura:'data_abertura', cadEmpInicioAtividades:'inicio_atividades',
+  cadEmpTipoLogradouro:'tipo_logradouro', cadEmpLogradouro:'logradouro', cadEmpNumero:'numero', cadEmpComplemento:'complemento', cadEmpBairro:'bairro', cadEmpDistrito:'distrito', cadEmpMunicipio:'municipio', cadEmpUf:'uf', cadEmpCep:'cep',
+  cadEmpIe:'inscricao_estadual', cadEmpIm:'inscricao_municipal', cadEmpSuframa:'inscricao_suframa', cadEmpNatureza:'natureza_juridica', cadEmpCnaePrincipal:'cnae_principal', cadEmpCnaeSecundario:'cnae_secundario',
+  cadEmpRegistroOrgao:'registro_orgao', cadEmpRegistroNumero:'registro_numero', cadEmpDataRegistro:'data_registro', cadEmpTelefone:'telefone', cadEmpCelular:'celular', cadEmpFax:'fax', cadEmpEmail:'email', cadEmpContato:'contato', cadEmpSite:'site'
+};
+let estruturaCadastroEmpresaAtual = null;
+function formatarCnpjCadastro(valor) {
+  return String(valor || '').replace(/\D/g,'').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+}
+function selecionarAbaCadastroEmpresa(aba) {
+  const estrutura = aba === 'estrutura';
+  document.getElementById('cadEmpAbaDados').style.display = estrutura ? 'none' : 'block';
+  document.getElementById('cadEmpAbaEstrutura').style.display = estrutura ? 'block' : 'none';
+  ['Dados','Estrutura'].forEach(function(nome) {
+    const ativo = (nome === 'Estrutura') === estrutura;
+    const btn = document.getElementById('cadEmpAba' + nome + 'Btn');
+    btn.style.borderBottomColor = ativo ? '#2563eb' : 'transparent';
+    btn.style.background = ativo ? '#eff6ff' : '#fff';
+    btn.style.color = ativo ? '#1d4ed8' : '#64748b';
+  });
+}
+function atualizarCamposMatrizFilial() {
+  const filial = document.getElementById('cadEmpTipoEstabelecimento').value === 'FILIAL';
+  document.getElementById('cadEmpMatrizBox').style.display = filial ? 'block' : 'none';
+}
+function renderResumoEstruturaEmpresa() {
+  const box = document.getElementById('cadEmpEstruturaResumo');
+  const estrutura = estruturaCadastroEmpresaAtual || {};
+  const filiais = estrutura.filiais || [];
+  let html = '<div style="font-weight:900;color:#0f172a;margin-bottom:8px">Estrutura cadastrada</div>';
+  if (estrutura.tipo_estabelecimento === 'FILIAL' && estrutura.matriz) {
+    html += '<div style="margin-bottom:10px"><strong>Matriz:</strong> ' + (estrutura.matriz.codigo_empresa ? estrutura.matriz.codigo_empresa + ' — ' : '') + (estrutura.matriz.razao_social || '') + ' · ' + formatarCnpjCadastro(estrutura.matriz.cnpj) + '</div>';
+  }
+  if (filiais.length) {
+    html += '<div style="font-size:12px;font-weight:900;color:#64748b;text-transform:uppercase;margin-bottom:6px">Filiais vinculadas (' + filiais.length + ')</div>' + filiais.map(function(f) {
+      return '<div style="padding:8px 0;border-top:1px solid #e2e8f0">' + (f.codigo_empresa ? '<strong>' + f.codigo_empresa + '</strong> — ' : '') + (f.razao_social || 'Empresa') + ' · ' + formatarCnpjCadastro(f.cnpj) + '</div>';
+    }).join('');
+  } else if (estrutura.tipo_estabelecimento !== 'FILIAL') {
+    html += '<div style="color:#64748b">Nenhuma filial vinculada a esta matriz.</div>';
+  }
+  box.innerHTML = html;
+}
+async function abrirDadosCadastraisEmpresa() {
+  const cnpj = String((state.info && state.info.cnpj) || ((window.__empresaCadastroInternoAtual || {}).cnpj) || '').replace(/\D/g,'');
+  if (cnpj.length !== 14 || !empresaAtivadaExplicitamente()) {
+    showToast('Ative a empresa antes de abrir os dados cadastrais e a estrutura matriz/filial.', 'warning');
+    if (typeof abrirAtivacaoEmpresa === 'function') abrirAtivacaoEmpresa();
+    return;
+  }
+  const msg = document.getElementById('cadEmpMensagem');
+  msg.style.color = '#64748b'; msg.textContent = 'Carregando cadastro...';
+  document.getElementById('dadosCadastraisEmpresaModal').style.display = 'flex';
+  selecionarAbaCadastroEmpresa('dados');
+  try {
+    const cadastro = await consultarEmpresaNoBancoInterno(cnpj);
+    window.__empresaCadastroInternoAtual = cadastro;
+    document.getElementById('cadEmpCnpj').value = formatarCnpjCadastro(cnpj);
+    Object.entries(CAMPOS_CADASTRO_EMPRESA_UI).forEach(function(par) {
+      const el = document.getElementById(par[0]);
+      if (el) el.value = cadastro[par[1]] || '';
+    });
+    document.getElementById('cadEmpCabecalho').textContent = (cadastro.codigo_empresa ? cadastro.codigo_empresa + ' — ' : '') + (cadastro.razao_social || 'Empresa ativa') + ' · ' + formatarCnpjCadastro(cnpj);
+    estruturaCadastroEmpresaAtual = await window.API.consultarEstruturaMatrizFilial(cnpj);
+    const tipo = estruturaCadastroEmpresaAtual.tipo_estabelecimento || cadastro.tipo_estabelecimento || 'MATRIZ';
+    document.getElementById('cadEmpTipoEstabelecimento').value = tipo;
+    const select = document.getElementById('cadEmpMatrizCnpj');
+    select.innerHTML = '<option value="">Selecione a matriz</option>';
+    (estruturaCadastroEmpresaAtual.matrizes_disponiveis || []).forEach(function(matriz) {
+      const opt = document.createElement('option');
+      opt.value = matriz.cnpj;
+      opt.textContent = (matriz.codigo_empresa ? matriz.codigo_empresa + ' — ' : '') + (matriz.razao_social || 'Empresa') + ' · ' + formatarCnpjCadastro(matriz.cnpj);
+      select.appendChild(opt);
+    });
+    select.value = estruturaCadastroEmpresaAtual.matriz_cnpj || cadastro.matriz_cnpj || '';
+    atualizarCamposMatrizFilial();
+    renderResumoEstruturaEmpresa();
+    msg.textContent = '';
+  } catch (e) {
+    msg.style.color = '#dc2626'; msg.textContent = e.message || 'Falha ao carregar o cadastro.';
+  }
+}
+function fecharDadosCadastraisEmpresa() {
+  document.getElementById('dadosCadastraisEmpresaModal').style.display = 'none';
+}
+async function salvarDadosCadastraisEmpresa() {
+  const cnpj = String((state.info && state.info.cnpj) || '').replace(/\D/g,'');
+  const msg = document.getElementById('cadEmpMensagem');
+  const btn = document.getElementById('cadEmpSalvarBtn');
+  const dados = {};
+  Object.entries(CAMPOS_CADASTRO_EMPRESA_UI).forEach(function(par) {
+    const el = document.getElementById(par[0]);
+    dados[par[1]] = el ? String(el.value || '').trim() : '';
+  });
+  dados.tipo_estabelecimento = document.getElementById('cadEmpTipoEstabelecimento').value;
+  dados.matriz_cnpj = dados.tipo_estabelecimento === 'FILIAL' ? document.getElementById('cadEmpMatrizCnpj').value : '';
+  if (!dados.razao_social) { msg.style.color='#dc2626'; msg.textContent='Razão social é obrigatória.'; selecionarAbaCadastroEmpresa('dados'); return; }
+  if (dados.tipo_estabelecimento === 'FILIAL' && !dados.matriz_cnpj) { msg.style.color='#dc2626'; msg.textContent='Selecione a matriz principal desta filial.'; selecionarAbaCadastroEmpresa('estrutura'); return; }
+  btn.disabled = true; msg.style.color='#64748b'; msg.textContent='Salvando cadastro e validando a estrutura...';
+  try {
+    const atualizado = await window.API.atualizarCadastroEmpresa(cnpj, dados);
+    window.__empresaCadastroInternoAtual = { ...(window.__empresaCadastroInternoAtual || {}), ...atualizado };
+    estruturaCadastroEmpresaAtual = await window.API.consultarEstruturaMatrizFilial(cnpj);
+    renderResumoEstruturaEmpresa();
+    msg.style.color='#059669'; msg.textContent='✅ Cadastro e estrutura empresarial salvos com rastreabilidade.';
+    if (state.info) state.info.empresa = atualizado.razao_social || state.info.empresa;
+    saveState();
+  } catch (e) {
+    msg.style.color='#dc2626'; msg.textContent='Erro: ' + (e.message || 'não foi possível salvar');
+  } finally { btn.disabled = false; }
+}
+</script>
 
 <!-- Modal Vincular Plano Existente -->
 <div id="vincularPlanoModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center">

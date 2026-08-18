@@ -1074,8 +1074,11 @@ app.post('/api/empresas', async (req, res) => {
     const cadastro = camposCadastroEmpresa(req.body);
     if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
     if (!cadastro.campos.modo_contabil) cadastro.campos.modo_contabil = 'ponte_sage';
+    if (!cadastro.campos.tipo_estabelecimento) cadastro.campos.tipo_estabelecimento = 'MATRIZ';
     const configuracao = validarConfiguracaoContabilEmpresa(cadastro.campos);
     if (!configuracao.ok) return res.status(400).json({ erro: configuracao.erro });
+    const estrutura = await validarEstruturaMatrizFilial(cnpjLimpo, cadastro.campos, req.user, null);
+    if (!estrutura.ok) return res.status(estrutura.status || 400).json({ erro: estrutura.erro, codigo: estrutura.codigo });
     const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
     if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const planoDoc = await db.collection('planos').doc(plano_id).get();
@@ -1118,6 +1121,8 @@ app.patch('/api/empresas/:cnpj/cadastro', async (req, res) => {
     const futuro = { ...chk.empresa, ...cadastro.campos };
     const configuracao = validarConfiguracaoContabilEmpresa(futuro);
     if (!configuracao.ok) return res.status(400).json({ erro: configuracao.erro });
+    const estrutura = await validarEstruturaMatrizFilial(cnpjLimpo, cadastro.campos, req.user, chk.empresa);
+    if (!estrutura.ok) return res.status(estrutura.status || 400).json({ erro: estrutura.erro, codigo: estrutura.codigo });
     const alterouImplantacao = (
       cadastro.campos.modo_contabil !== undefined
       && cadastro.campos.modo_contabil !== chk.empresa.modo_contabil
@@ -1703,8 +1708,11 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     const cadastro = camposCadastroEmpresa(req.body);
     if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
     if (!empresaAtual && !cadastro.campos.modo_contabil) cadastro.campos.modo_contabil = 'ponte_sage';
+    if (!empresaAtual && !cadastro.campos.tipo_estabelecimento) cadastro.campos.tipo_estabelecimento = 'MATRIZ';
     const configuracao = validarConfiguracaoContabilEmpresa({ ...(empresaAtual || {}), ...cadastro.campos });
     if (!configuracao.ok) return res.status(400).json({ erro: configuracao.erro });
+    const estrutura = await validarEstruturaMatrizFilial(cnpjLimpo, cadastro.campos, req.user, empresaAtual);
+    if (!estrutura.ok) return res.status(estrutura.status || 400).json({ erro: estrutura.erro, codigo: estrutura.codigo });
     const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
     if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const isAdmin = !!(req.user && req.user.is_admin);
@@ -1785,6 +1793,65 @@ async function checarAcessoEmpresa(cnpj, user) {
   if (!usuarioPodeAcessarEmpresa(emp, user)) return { ok: false, status: 403, erro: 'Sem permissao para esta empresa' };
   return { ok: true, empresa: emp };
 }
+
+async function validarEstruturaMatrizFilial(cnpj, campos, user, empresaAtual) {
+  const atual = empresaAtual || {};
+  const tipo = String(campos.tipo_estabelecimento !== undefined ? campos.tipo_estabelecimento : (atual.tipo_estabelecimento || 'MATRIZ')).toUpperCase();
+  const matrizCnpj = String(campos.matriz_cnpj !== undefined ? campos.matriz_cnpj : (atual.matriz_cnpj || '')).replace(/\D/g, '');
+  if (tipo === 'FILIAL') {
+    if (!matrizCnpj) return { ok: false, status: 400, codigo: 'MATRIZ_OBRIGATORIA', erro: 'Selecione a matriz desta filial.' };
+    if (matrizCnpj === cnpj) return { ok: false, status: 409, codigo: 'AUTO_VINCULO_MATRIZ', erro: 'Uma empresa nao pode ser matriz e filial de si mesma.' };
+    const matrizDoc = await db.collection('empresas').doc(matrizCnpj).get();
+    if (!matrizDoc.exists) return { ok: false, status: 404, codigo: 'MATRIZ_NAO_ENCONTRADA', erro: 'A matriz selecionada nao esta cadastrada no CCI.' };
+    const matriz = matrizDoc.data() || {};
+    if (!usuarioPodeAcessarEmpresa(matriz, user)) return { ok: false, status: 403, codigo: 'SEM_ACESSO_MATRIZ', erro: 'Sem permissao para vincular esta matriz.' };
+    if (String(matriz.tipo_estabelecimento || 'MATRIZ').toUpperCase() === 'FILIAL') {
+      return { ok: false, status: 409, codigo: 'MATRIZ_EH_FILIAL', erro: 'A empresa escolhida ja e filial. Selecione a matriz principal do grupo.' };
+    }
+  }
+  if (tipo === 'FILIAL' && String(atual.tipo_estabelecimento || 'MATRIZ').toUpperCase() !== 'FILIAL') {
+    const filhos = await db.collection('empresas').where('matriz_cnpj', '==', cnpj).limit(1).get();
+    if (!filhos.empty) {
+      return { ok: false, status: 409, codigo: 'MATRIZ_COM_FILIAIS', erro: 'Esta empresa possui filiais vinculadas e nao pode ser transformada em filial.' };
+    }
+  }
+  return { ok: true, tipo_estabelecimento: tipo, matriz_cnpj: tipo === 'FILIAL' ? matrizCnpj : '' };
+}
+
+app.get('/api/empresas/:cnpj/estrutura-matriz-filial', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const [todasSnap, filiaisSnap] = await Promise.all([
+      db.collection('empresas').get(),
+      db.collection('empresas').where('matriz_cnpj', '==', cnpj).get()
+    ]);
+    const visiveis = todasSnap.docs
+      .filter(function (doc) { return usuarioPodeAcessarEmpresa(doc.data() || {}, req.user); })
+      .map(function (doc) { return { cnpj: doc.id, ...(doc.data() || {}) }; });
+    const matrizes = visiveis
+      .filter(function (empresa) { return empresa.cnpj !== cnpj && String(empresa.tipo_estabelecimento || 'MATRIZ').toUpperCase() !== 'FILIAL'; })
+      .map(function (empresa) { return { cnpj: empresa.cnpj, razao_social: empresa.razao_social || '', codigo_empresa: empresa.codigo_empresa || '' }; });
+    const filiais = filiaisSnap.docs
+      .filter(function (doc) { return usuarioPodeAcessarEmpresa(doc.data() || {}, req.user); })
+      .map(function (doc) { const empresa = doc.data() || {}; return { cnpj: doc.id, razao_social: empresa.razao_social || '', codigo_empresa: empresa.codigo_empresa || '' }; });
+    let matriz = null;
+    const matrizCnpj = String(chk.empresa.matriz_cnpj || '').replace(/\D/g, '');
+    if (matrizCnpj) {
+      const encontrada = visiveis.find(function (empresa) { return empresa.cnpj === matrizCnpj; });
+      if (encontrada) matriz = { cnpj: encontrada.cnpj, razao_social: encontrada.razao_social || '', codigo_empresa: encontrada.codigo_empresa || '' };
+    }
+    res.json({
+      cnpj,
+      tipo_estabelecimento: String(chk.empresa.tipo_estabelecimento || 'MATRIZ').toUpperCase(),
+      matriz_cnpj: matrizCnpj,
+      matriz,
+      matrizes_disponiveis: matrizes,
+      filiais
+    });
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
 
 function lerEstadoContabil(stateJson) {
   try {
