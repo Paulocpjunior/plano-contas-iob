@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "manual_version": "2.0",
+  "updated_at": "2026-08-18",
+  "app_reference": "3.4.144",
+  "title": "Manual Operacional do CCI",
+  "subtitle": "Operação contábil, transição da SAGE e próximos passos",
+  "audience": "Colaboradores e administradores da SP Assessoria Contábil",
+  "classification": "Uso interno",
+  "status": {
+    "label": "CCI em implantação controlada como sistema contábil principal",
+    "summary": "A operação cotidiana já cobre importações, classificação, relatórios, fechamento e ECD/ECF. A retirada definitiva da SAGE depende dos fechamentos-piloto, conciliação formal, automação patrimonial e validações operacionais finais.",
+    "readiness_reference": "A versão 1.0 registrou aproximadamente 78% de prontidão. As entregas de 18/08/2026 fortaleceram governança e parametrização, mas o percentual somente será recalculado após nova homologação com empresas-piloto."
+  },
+  "chapters": [
+    {
+      "id": "onde-estamos",
+      "title": "1. Onde estamos",
+      "keywords": ["status", "prontidão", "sage", "cci", "pendências"],
+      "blocks": [
+        {"type": "paragraph", "text": "O CCI deixou de ser somente uma ponte para a SAGE. Hoje ele mantém os lançamentos da empresa, utiliza o plano de contas, reaproveita memórias de classificação, produz relatórios contábeis, controla períodos e possui ECD/ECF em uso operacional."},
+        {"type": "callout", "tone": "info", "label": "Regra de comunicação", "text": "A importação não zera valores. O CCI importa, grava, classifica e acumula movimentos. O que deve chegar a zero são as pendências de classificação e as diferenças de conciliação."},
+        {"type": "table", "headers": ["Área", "Situação atual", "Leitura operacional"], "rows": [
+          ["Importações bancárias e fiscais", "Operacional", "Recebe arquivos, valida dados e acrescenta os movimentos confirmados."],
+          ["Plano, históricos e classificação", "Operacional", "Usa contas e históricos existentes e reaproveita padrões aprovados."],
+          ["Relatórios contábeis", "Operacional", "Balancete, Razão, Diário, DRE, Balanço e análise econômico-financeira."],
+          ["Fechamento mensal", "Operacional com travas", "Controla competência e bloqueia fechamento exclusivo quando faltam parâmetros obrigatórios."],
+          ["ECD/ECF", "Operacional em uso", "Módulo existente e utilizado no último fechamento."],
+          ["Ativo e depreciação", "Em evolução", "Cadastro e cálculo existem; lançamentos automáticos ainda dependem de implementação e aprovação."],
+          ["Conciliação formal e escala", "Em evolução", "Ainda requer homologação por saldo bancário, concorrência, recuperação e volume."]
+        ]},
+        {"type": "callout", "tone": "warning", "label": "Prontidão", "text": "A referência de 78% pertence à avaliação de 17/08/2026. Não elevar o percentual apenas por novas telas; recalcular somente após evidência dos fechamentos-piloto."}
+      ]
+    },
+    {
+      "id": "novidades-18-08",
+      "title": "2. Entregas concluídas em 18/08/2026",
+      "keywords": ["novidades", "regime", "prontidão", "manual", "ajuda"],
+      "blocks": [
+        {"type": "bullets", "items": [
+          "Modo contábil exclusivo no CCI, com data de início e saldos anteriores obrigatórios.",
+          "Bloqueio de exportação para a SAGE quando a empresa estiver marcada como exclusiva no CCI.",
+          "Painel de prontidão com pendências e próxima ação por empresa.",
+          "Regime tributário sincronizado do cadastro oficial do CFI, sem inferência por porte ou CNAE.",
+          "Parametrizações específicas para Simples Nacional, Lucro Presumido e Lucro Real, confirmadas por administrador.",
+          "Fechamento bloqueado para empresa exclusiva enquanto a parametrização tributária estiver incompleta ou incompatível.",
+          "Novidades e Ajuda CCI, com dúvidas não resolvidas enviadas à curadoria.",
+          "Manual Operacional dentro do CCI, com pesquisa e downloads Word/PDF gerados da mesma fonte oficial."
+        ]}
+      ]
+    },
+    {
+      "id": "conceitos",
+      "title": "3. Conceitos que não devem ser confundidos",
+      "keywords": ["sessão", "memória", "importação", "fechamento"],
+      "blocks": [
+        {"type": "definitions", "items": [
+          {"term": "Sessão contábil", "definition": "Conjunto corrente de lançamentos da empresa. Após a confirmação da importação, os registros são acrescentados à sessão e salvos no banco de dados."},
+          {"term": "Memória de classificação", "definition": "Regra aprovada para sugerir débito, crédito e histórico quando uma descrição semelhante aparecer novamente. Não substitui o lançamento nem cria valor financeiro isoladamente."},
+          {"term": "Registro de importação", "definition": "Identifica arquivo, período e características para controlar duplicidade. A confirmação do usuário continua obrigatória."},
+          {"term": "Fechamento contábil", "definition": "Fotografia validada da competência. Depois de fechado, o período fica protegido e só deve ser reaberto por usuário autorizado, com justificativa."}
+        ]}
+      ]
+    },
+    {
+      "id": "fluxo-mensal",
+      "title": "4. Fluxo mensal recomendado",
+      "keywords": ["rotina", "fluxo", "mês", "competência"],
+      "blocks": [
+        {"type": "steps", "items": [
+          "Selecionar e ativar a empresa correta, conferindo CNPJ, plano, regime e competência.",
+          "Para empresa exclusiva, concluir implantação, saldos anteriores e parametrização tributária.",
+          "Importar extratos bancários, livros fiscais e demais fontes, uma por vez.",
+          "Conferir a prévia: banco, conta, período, quantidade e valores.",
+          "Classificar os lançamentos com débito, crédito e histórico adequados.",
+          "Memorizar somente padrões específicos e confiáveis.",
+          "Conciliar saldos e investigar duplicidades, ausências e divergências.",
+          "Emitir Balancete, Razão, Diário, DRE, Balanço e análises para revisão.",
+          "Corrigir pendências enquanto o período estiver aberto.",
+          "Fechar a competência somente após aprovação contábil e executar as obrigações aplicáveis."
+        ]}
+      ]
+    },
+    {
+      "id": "importacao-bancaria",
+      "title": "5. Importação de extrato bancário",
+      "keywords": ["extrato", "banco", "ofx", "pdf", "duplicidade"],
+      "blocks": [
+        {"type": "checklist", "items": [
+          "Confirmar que a empresa ativa e o CNPJ correspondem ao titular do extrato.",
+          "Selecionar banco e leiaute apropriados.",
+          "Conferir período, conta bancária, quantidade de movimentos e totais.",
+          "Verificar se o mesmo arquivo já foi importado; nunca confirmar novamente sem análise.",
+          "Confirmar somente quando a prévia estiver correta.",
+          "Verificar os lançamentos gravados e classificar antes do fechamento."
+        ]},
+        {"type": "callout", "tone": "info", "label": "Resultado esperado", "text": "Os movimentos confirmados permanecem na base da empresa, podem ser consultados e alimentam os relatórios. Exportar para a SAGE não consome nem apaga esses lançamentos."}
+      ]
+    },
+    {
+      "id": "classificacao-memoria",
+      "title": "6. Classificação e memorização",
+      "keywords": ["classificar", "memorizar", "cobrança", "histórico", "fornecedor"],
+      "blocks": [
+        {"type": "bullets", "items": [
+          "Utilizar contas existentes e ativas no plano da empresa.",
+          "Não usar a mesma conta no débito e no crédito.",
+          "Revisar sentido bancário e natureza da operação antes de memorizar.",
+          "Descrições como Cobrança, Pagamento ou Transferência são genéricas; conservar fornecedor, cliente, documento ou identificador.",
+          "Memorizar somente quando a regra se repete e não depende de exceção.",
+          "Se o padrão estiver incorreto, interromper o uso em massa e solicitar revisão administrativa."
+        ]}
+      ]
+    },
+    {
+      "id": "relatorios-fechamento",
+      "title": "7. Conciliação, relatórios e fechamento",
+      "keywords": ["conciliação", "balancete", "razão", "diário", "dre", "balanço", "fechar"],
+      "blocks": [
+        {"type": "paragraph", "text": "Débitos e créditos iguais não provam que a contabilidade está correta. Ainda podem existir conta incorreta, duplicidade, ausência de movimento ou diferença bancária."},
+        {"type": "checklist", "items": [
+          "Saldo inicial do CCI igual ao saldo inicial do extrato.",
+          "Movimentos completos e sem duplicidade.",
+          "Entradas e saídas nas contrapartidas corretas.",
+          "Saldo final calculado igual ao saldo final do banco.",
+          "Diferenças identificadas, justificadas e corrigidas antes do fechamento.",
+          "Balancete, Razão, Diário, DRE e Balanço revisados.",
+          "Competência correta e parametrização obrigatória concluída."
+        ]},
+        {"type": "table", "headers": ["Relatório", "Finalidade"], "rows": [
+          ["Balancete", "Conferir saldos anteriores, débitos, créditos e saldos atuais pela estrutura de contas."],
+          ["Razão Analítico", "Examinar movimentação e composição do saldo de cada conta."],
+          ["Livro Diário", "Visualizar lançamentos em ordem cronológica."],
+          ["DRE", "Apurar e analisar o resultado do período."],
+          ["Balanço Patrimonial", "Conferir a posição patrimonial e a igualdade contábil."],
+          ["Análise Econômico-Financeira", "Avaliar indicadores extraídos dos demonstrativos."]
+        ]},
+        {"type": "callout", "tone": "info", "label": "Período aberto", "text": "Os relatórios podem ser visualizados antes do fechamento. O fechamento preserva a versão aprovada; não é necessário esperar para revisar."}
+      ]
+    },
+    {
+      "id": "regime-tributario",
+      "title": "8. Regime tributário e parametrizações",
+      "keywords": ["simples nacional", "lucro presumido", "lucro real", "cfi", "parametrização"],
+      "blocks": [
+        {"type": "paragraph", "text": "O regime tributário vem do cadastro oficial do CFI. O CCI não deve inferir enquadramento por porte, CNAE ou movimentação. Divergências devem ser corrigidas no CFI e sincronizadas novamente."},
+        {"type": "table", "headers": ["Regime", "Confirmações obrigatórias"], "rows": [
+          ["Simples Nacional", "Critério de receita, anexos aplicáveis e revisão das segregações."],
+          ["Lucro Presumido", "Periodicidade de IRPJ/CSLL, tratamento de PIS/COFINS e revisão de atividades e receitas adicionais."],
+          ["Lucro Real", "Forma de apuração, tratamento de PIS/COFINS, e-Lalur/e-Lacs e critérios de créditos."]
+        ]},
+        {"type": "callout", "tone": "warning", "label": "Acesso administrativo", "text": "Somente administrador confirma a parametrização. O CCI registra pendências e bloqueia o fechamento exclusivo, mas não inventa anexos, percentuais, créditos ou exceções fiscais."}
+      ]
+    },
+    {
+      "id": "ecd-ecf-ativo",
+      "title": "9. ECD/ECF, ativo e depreciação",
+      "keywords": ["ecd", "ecf", "ativo", "depreciação", "baixa"],
+      "blocks": [
+        {"type": "paragraph", "text": "A ECD/ECF faz parte da operação atual. Conferir matriz, filiais, CNPJ, período, registros estruturais, validações internas e PVA; preservar arquivo transmitido, recibo e relatório de validação."},
+        {"type": "paragraph", "text": "O módulo patrimonial cadastra bens, vida útil, valor residual e contas, acompanhando depreciação acumulada, valor contábil e baixa. Nesta etapa, cadastro e cálculo não substituem os lançamentos contábeis mensais."},
+        {"type": "callout", "tone": "warning", "label": "Até a automação", "text": "O colaborador deve calcular, revisar e lançar a depreciação na escrituração, vinculando despesa e depreciação acumulada. O cadastro do bem, isoladamente, não atualiza os relatórios."}
+      ]
+    },
+    {
+      "id": "permissoes",
+      "title": "10. Permissões e segurança",
+      "keywords": ["admin", "administrador", "permissão", "login", "senha", "reabrir", "excluir"],
+      "blocks": [
+        {"type": "paragraph", "text": "O usuário deve autenticar novamente a cada novo acesso. Nunca compartilhar senha, token, arquivo bancário ou dado pessoal na Ajuda CCI."},
+        {"type": "bullets", "items": [
+          "Ações comuns seguem as permissões da empresa e do módulo.",
+          "Gerenciar usuários e responsáveis, excluir empresa/plano, excluir em massa, trocar plano, homologar leiaute e reabrir período são ações administrativas.",
+          "Ao receber aviso de acesso restrito, procurar um administrador e informar empresa, tela e ação desejada.",
+          "Reabertura deve ser excepcional, justificada e seguida de nova emissão dos relatórios."
+        ]}
+      ]
+    },
+    {
+      "id": "pendencias",
+      "title": "11. Pendências para substituir definitivamente a SAGE",
+      "keywords": ["pendências", "substituir sage", "próximos passos", "piloto"],
+      "blocks": [
+        {"type": "table", "headers": ["Prioridade", "Pendência", "Critério de conclusão"], "rows": [
+          ["1", "Empresas-piloto exclusivas no CCI", "Dados de abertura, regime, plano, históricos e competência aprovados."],
+          ["2", "Conciliação bancária formal", "Saldo inicial + movimentos = saldo final por conta, sem diferença não justificada."],
+          ["3", "Transporte de saldos e livro permanente", "Passagem entre competências/exercícios com autoria, versão e trilha auditável."],
+          ["4", "Ativo integrado à escrituração", "Aquisição, depreciação, transferência e baixa geradas com prévia e aprovação."],
+          ["5", "Homologação operacional", "Backup/restauração, múltiplos usuários, permissões, falhas e volume testados."],
+          ["6", "Virada", "Dois ou três fechamentos consecutivos aprovados e sem pendência crítica."]
+        ]},
+        {"type": "callout", "tone": "warning", "label": "Decisão de virada", "text": "A SAGE permanece como referência paralela durante a homologação. Depois dos critérios de saída, o CCI passa a ser a fonte principal e a SAGE fica somente para consulta histórica."}
+      ]
+    },
+    {
+      "id": "duas-frentes",
+      "title": "12. Próxima frente: divisão do trabalho",
+      "keywords": ["paulo", "equipe", "codex", "desenvolvimento", "tarefas"],
+      "blocks": [
+        {"type": "table", "headers": ["Frente do Paulo e equipe", "Frente de desenvolvimento"], "rows": [
+          ["Escolher 2 ou 3 empresas-piloto e a competência inicial.", "Preparar roteiro reproduzível e painel de pendências do piloto."],
+          ["Cadastrar/aprovar saldos anteriores, regime, plano e históricos.", "Validar travas, rastreabilidade e consistência desses cadastros."],
+          ["Fornecer extratos, livros e relatórios finais da SAGE para comparação.", "Implementar conciliação formal e testes com os arquivos aprovados."],
+          ["Definir contas críticas e política do ativo/depreciação.", "Integrar o ativo à prévia de lançamentos, sem decisão contábil automática."],
+          ["Aprovar relatórios e registrar exceções de cada fechamento.", "Corrigir, testar, versionar, publicar e verificar cada etapa em produção."]
+        ]},
+        {"type": "callout", "tone": "info", "label": "Próxima ação conjunta", "text": "Selecionar a primeira empresa de 2026 que ainda não iniciou na SAGE, marcá-la como exclusiva no CCI e concluir seu cadastro de abertura antes da primeira importação."}
+      ]
+    }
+  ]
+}

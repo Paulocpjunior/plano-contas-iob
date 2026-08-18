@@ -20,12 +20,13 @@ assert(server.includes('notificarSugestaoAjudaCci'), 'Dúvidas não resolvidas d
 
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 assert(index.includes('onclick="abrirAjudaCCI()"'), 'O menu deve expor o botão Ajuda CCI.');
+assert(index.includes('onclick="abrirManualCCI()"'), 'O menu deve expor o Manual Operacional.');
 assert(index.includes('id="novidadesCciBadge"'), 'O menu deve expor o indicador de novidades não lidas.');
 assert(index.includes('/ajuda-cci.js?v='), 'O frontend da Ajuda CCI deve ser carregado no aplicativo.');
 
 const frontend = fs.readFileSync(path.join(root, 'ajuda-cci.js'), 'utf8');
 const novidades = fs.readFileSync(path.join(root, 'novidades-cci.html'), 'utf8');
-assert(frontend.includes("const NOVIDADES_VERSAO = '2026-08-18.2'"), 'A versão visual das novidades deve ser explícita.');
+assert(frontend.includes("const NOVIDADES_VERSAO = '2026-08-18.3'"), 'A versão visual das novidades deve ser explícita.');
 assert(novidades.includes('Atualizado em 18/08/2026'), 'A página deve declarar a mesma data da versão visual.');
 assert(frontend.includes("'/api/ajuda-cci/perguntar'"), 'O modal deve usar a rota dedicada, não o Gemini geral.');
 assert(frontend.includes('Não informe senhas, tokens, dados bancários ou dados pessoais.'), 'O modal deve alertar contra dados sensíveis.');

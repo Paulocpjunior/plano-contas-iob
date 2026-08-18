@@ -1,5 +1,7 @@
 'use strict';
 
+const { textoManualCCI } = require('./manual-cci-base');
+
 const BASE_AJUDA_CCI = [
   {
     modulo: 'Começar o trabalho',
@@ -75,7 +77,8 @@ const ACOES_ADMIN_CCI = [
 ];
 
 function textoBaseAjuda() {
-  return BASE_AJUDA_CCI.map((item) => `${item.modulo}: ${item.orientacao}`).join('\n');
+  const baseRapida = BASE_AJUDA_CCI.map((item) => `${item.modulo}: ${item.orientacao}`).join('\n');
+  return `${baseRapida}\n\nMANUAL OPERACIONAL OFICIAL:\n${textoManualCCI()}`;
 }
 
 function parecePerguntaAdministrativa(pergunta) {

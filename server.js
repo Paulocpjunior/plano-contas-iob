@@ -23,6 +23,7 @@ const RelatoriosContabeis = require('./relatorios-contabeis');
 const AtivoImobilizado = require('./ativo-imobilizado');
 const GraphEmail = require('./graph-email-provider');
 const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa } = require('./ajuda-cci-base');
+const { conteudo: MANUAL_CCI } = require('./manual-cci-base');
 
 const app = express();
 app.set('trust proxy', true);
@@ -4048,6 +4049,22 @@ Retorne somente JSON válido neste formato: {"resposta":"texto curto e acionáve
   });
 });
 
+app.get('/api/manual-cci', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(MANUAL_CCI);
+});
+
+app.get('/api/manual-cci/download/:formato', (req, res) => {
+  const formato = String(req.params.formato || '').toLowerCase();
+  if (!['docx', 'pdf'].includes(formato)) return res.status(400).json({ erro: 'Formato inválido. Use docx ou pdf.' });
+  const nome = `Manual_Operacional_CCI.${formato}`;
+  const arquivo = path.join(__dirname, 'downloads', nome);
+  res.set('Cache-Control', 'no-store');
+  res.download(arquivo, nome, (erro) => {
+    if (erro && !res.headersSent) res.status(404).json({ erro: 'O download do manual ainda não foi gerado para esta versão.' });
+  });
+});
+
 app.get('/api/admin/ajuda-cci/sugestoes', adminRequired, async (req, res) => {
   try {
     const limite = Math.max(1, Math.min(100, Number(req.query.limit || 50)));
@@ -4163,6 +4180,12 @@ app.post('/api/ecdecf/matrizes', async (req, res) => {
 
 app.use('/api', (req, res) => {
   res.status(404).json({ erro: `Rota API nao encontrada: ${req.originalUrl}` });
+});
+
+// Os arquivos do manual ficam no pacote para download autenticado pela API,
+// mas não podem ser expostos diretamente pelo express.static.
+app.use('/downloads', (req, res) => {
+  res.status(404).send('Arquivo não encontrado. Acesse o Manual Operacional após fazer login no CCI.');
 });
 
 app.use('/vendor/xlsx', express.static(path.join(__dirname, 'node_modules', 'xlsx', 'dist'), {
