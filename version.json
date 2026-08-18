@@ -1,7 +1,8 @@
 {
-  "version": "3.4.153",
-  "build_date": "2026-08-18T19:09:53Z",
+  "version": "3.4.154",
+  "build_date": "2026-08-18T20:12:53Z",
   "release_notes": [
+    "feat: adicionar retencoes de servicos tomados",
     "fix: incluir impostos retidos do demonstrativo SAGE",
     "fix: processar extrato BB escaneado sem Gemini",
     "feat: importar demonstrativo SAGE de impostos retidos",
@@ -10,7 +11,6 @@
     "fix: restaurar PDFs de servicos no movimento fiscal",
     "feat: adiciona alteracao segura em lote",
     "feat: adiciona balancete anual analitico",
-    "feat: publicar manual operacional no CCI",
-    "feat: parametrizar regras por regime tributario"
+    "feat: publicar manual operacional no CCI"
   ]
 }
