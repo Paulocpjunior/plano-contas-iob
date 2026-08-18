@@ -1,7 +1,8 @@
 {
-  "version": "3.4.154",
-  "build_date": "2026-08-18T20:12:53Z",
+  "version": "3.4.155",
+  "build_date": "2026-08-18T20:51:52Z",
   "release_notes": [
+    "feat: adicionar cadastro matriz e filial",
     "feat: adicionar retencoes de servicos tomados",
     "fix: incluir impostos retidos do demonstrativo SAGE",
     "fix: processar extrato BB escaneado sem Gemini",
@@ -10,7 +11,6 @@
     "fix: restaurar livro fiscal de entradas",
     "fix: restaurar PDFs de servicos no movimento fiscal",
     "feat: adiciona alteracao segura em lote",
-    "feat: adiciona balancete anual analitico",
-    "feat: publicar manual operacional no CCI"
+    "feat: adiciona balancete anual analitico"
   ]
 }
