@@ -4034,19 +4034,19 @@
             <div class="movimento-fiscal-lock">
                 <div><span>Empresa ativa</span><strong id="movFiscalEmpresaAtiva">-</strong></div>
                 <div><span>CNPJ do cadastro</span><strong id="movFiscalCnpjAtivo">-</strong></div>
-                <div><span>Regra de liberação</span><strong>Cadastro = layout = chave NF-e</strong></div>
+                <div><span>Regra de liberação</span><strong>Cadastro = CNPJ do arquivo</strong></div>
             </div>
 
             <div class="movimento-fiscal-form">
                 <div>
-                    <label for="movFiscalLayout">Modelo do livro fiscal</label>
+                    <label for="movFiscalLayout">Modelo do movimento fiscal</label>
                     <select id="movFiscalLayout" onchange="invalidarValidacaoMovimentoFiscal()">
                         <option value="">Carregando layouts homologados...</option>
                     </select>
                 </div>
                 <div>
                     <label for="movFiscalArquivo">Arquivo do movimento fiscal</label>
-                    <input id="movFiscalArquivo" type="file" accept=".csv,.txt" onchange="invalidarValidacaoMovimentoFiscal()">
+                    <input id="movFiscalArquivo" type="file" accept=".csv,.txt,.pdf" onchange="invalidarValidacaoMovimentoFiscal()">
                 </div>
             </div>
 
@@ -4056,12 +4056,12 @@
 
             <div id="movFiscalValidation" class="movimento-fiscal-validation">
                 <div class="confirm-import-grid">
-                    <div class="confirm-import-metric"><span class="label">Código do arquivo</span><span class="value" id="movFiscalCodigoArquivo">-</span></div>
+                    <div class="confirm-import-metric"><span class="label">Código no relatório</span><span class="value" id="movFiscalCodigoArquivo">-</span></div>
                     <div class="confirm-import-metric"><span class="label">CNPJ extraído</span><span class="value" id="movFiscalCnpjArquivo">-</span></div>
-                    <div class="confirm-import-metric"><span class="label">Cobertura NF-e</span><span class="value" id="movFiscalCoberturaNfe">-</span></div>
+                    <div class="confirm-import-metric"><span class="label">Identificação fiscal</span><span class="value" id="movFiscalCoberturaNfe">-</span></div>
                     <div class="confirm-import-metric"><span class="label">Período</span><span class="value" id="movFiscalPeriodo">-</span></div>
                     <div class="confirm-import-metric"><span class="label">Notas fiscais</span><span class="value" id="movFiscalNotas">0</span></div>
-                    <div class="confirm-import-metric credit"><span class="label">Vendas</span><span class="value" id="movFiscalVendas">R$ 0,00</span></div>
+                    <div class="confirm-import-metric credit"><span class="label">Total do movimento</span><span class="value" id="movFiscalVendas">R$ 0,00</span></div>
                 </div>
             </div>
 
@@ -14939,10 +14939,19 @@
             });
             const select = document.getElementById('movFiscalLayout');
             if (!select) return;
-            select.innerHTML = '<option value="">Selecione o cliente e o modelo do livro</option>' + layoutsFiscaisCache.map(function(layout) {
-                const movimento = layout.movimento === 'saida' ? 'NF-e de saída (vendas)' : 'NF-e de entrada (compras)';
+            select.innerHTML = '<option value="">Selecione o modelo do movimento fiscal</option>' + layoutsFiscaisCache.map(function(layout) {
+                const movimentos = {
+                    saida: 'NF-e de saída (vendas)',
+                    entrada: 'NF-e de entrada (compras)',
+                    servicos_tomados: 'Serviços tomados',
+                    servicos_prestados: 'Serviços prestados'
+                };
+                const movimento = movimentos[layout.movimento] || layout.movimento || 'Movimento fiscal';
+                const prefixo = layout.codigoEmpresa === 'GEN'
+                    ? 'Modelo geral — '
+                    : (layout.codigoEmpresa + ' — ' + layout.empresa + ' — ');
                 return '<option value="' + escaparHtmlImportacao(layout.id) + '">' +
-                    escaparHtmlImportacao(layout.codigoEmpresa + ' — ' + layout.empresa + ' — ' + movimento) +
+                    escaparHtmlImportacao(prefixo + movimento) +
                     '</option>';
             }).join('');
         }
@@ -14961,7 +14970,7 @@
             document.getElementById('movFiscalEmpresaAtiva').textContent = state.info.empresa || '-';
             document.getElementById('movFiscalCnpjAtivo').textContent = formatarCnpjMovimentoFiscal(cnpj);
             document.getElementById('movimentoFiscalOverlay').classList.add('show');
-            movimentoFiscalStatus('info', 'Selecione o modelo homologado e o arquivo. Nenhum lançamento será gravado durante a validação.');
+            movimentoFiscalStatus('info', 'Selecione o modelo homologado e o arquivo. Para serviços, o mesmo modelo atende todas as empresas e o CNPJ do relatório será comparado com a empresa ativa.');
             await carregarLayoutsFiscaisModal();
         }
 
@@ -14993,7 +15002,7 @@
             if (importar) importar.disabled = true;
             movimentoFiscalValidacaoAtual = null;
             if (!layout) {
-                movimentoFiscalStatus('error', 'Selecione o modelo homologado do livro fiscal.');
+                movimentoFiscalStatus('error', 'Selecione o modelo homologado do movimento fiscal.');
                 return;
             }
             if (!file) {
@@ -15010,32 +15019,53 @@
                 movimentoFiscalStatus('error', 'Parser ou trava de CNPJ não carregado. Atualize a aplicação antes de importar.');
                 return;
             }
-            movimentoFiscalStatus('info', 'Validando estrutura, direção fiscal, chaves NF-e e vínculo de CNPJ…');
+            movimentoFiscalStatus('info', 'Validando estrutura, direção fiscal, total oficial e vínculo de CNPJ…');
             try {
-                const texto = await lerArquivoTexto(file);
-                const resultado = parser(texto, { arquivoNome: file.name });
+                const entrada = ext === 'pdf' ? await file.arrayBuffer() : await lerArquivoTexto(file);
+                const resultado = await parser(entrada, { arquivoNome: file.name });
+                if (ext !== 'pdf' && (!resultado || !resultado.detectado)) {
+                    const fiscalDetectado = obterParserFiscalFlanacar(entrada, {});
+                    if (fiscalDetectado && fiscalDetectado.direcao !== layout.movimento) {
+                        const detectadoLabel = fiscalDetectado.direcao === 'saida' ? 'Saídas' : 'Entradas';
+                        const esperadoLabel = layout.movimento === 'saida' ? 'Saídas' : 'Entradas';
+                        throw new Error('O arquivo foi identificado como Livro de ' + detectadoLabel +
+                            ', mas o modelo selecionado é de ' + esperadoLabel + '. Selecione o modelo correto.');
+                    }
+                }
                 const cnpjAtivo = String(state.info && state.info.cnpj || '').replace(/\D/g, '');
-                const vinculo = window.validarVinculoCnpjFiscal(resultado, {
+                const relatorioServicos = layout.validacaoCnpj === 'cabecalho_relatorio';
+                const validador = relatorioServicos ? window.validarVinculoCnpjRelatorioFiscal : window.validarVinculoCnpjFiscal;
+                if (typeof validador !== 'function') throw new Error('Trava de CNPJ do modelo fiscal nao carregada. Atualize a aplicacao.');
+                const vinculo = validador(resultado, relatorioServicos ? {
+                    cnpjEmpresaAtiva: cnpjAtivo,
+                    movimento: layout.movimento
+                } : {
                     cnpjEmpresaAtiva: cnpjAtivo,
                     cnpjLayout: layout.cnpj,
                     codigoEmpresa: layout.codigoEmpresa,
+                    direcaoEsperada: layout.movimento,
                     arquivoNome: file.name,
                     exigirCodigoArquivo: layout.exigirCodigoArquivo !== false,
                     exigirChaveNfeTodasNotas: layout.exigirChaveNfeTodasNotas !== false
                 });
-                movimentoFiscalValidacaoAtual = { layout, file, texto, resultado, vinculo, cnpjAtivo };
+                movimentoFiscalValidacaoAtual = { layout, file, entrada, resultado, vinculo, cnpjAtivo, relatorioServicos };
                 document.getElementById('movFiscalCodigoArquivo').textContent = vinculo.codigoArquivo;
                 document.getElementById('movFiscalCnpjArquivo').textContent = formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo);
-                document.getElementById('movFiscalCoberturaNfe').textContent = vinculo.chavesValidas + ' de ' + vinculo.totalNotas;
+                document.getElementById('movFiscalCoberturaNfe').textContent = relatorioServicos
+                    ? 'CNPJ do cabeçalho conferido'
+                    : (vinculo.chavesValidas + ' de ' + vinculo.totalNotas + ' chaves NF-e' +
+                        (vinculo.origemCnpj === 'cadastro_layout_codigo_arquivo' ? ' • empresa pelo código do arquivo' : ''));
                 document.getElementById('movFiscalPeriodo').textContent = formatarDataBR(resultado.periodo_inicio) + ' a ' + formatarDataBR(resultado.periodo_fim);
-                document.getElementById('movFiscalNotas').textContent = String(resultado.total_notas_fiscais || 0);
-                document.getElementById('movFiscalVendas').textContent = formatarMoedaBR(resultado.total_credito || 0);
+                document.getElementById('movFiscalNotas').textContent = String(resultado.total_notas_fiscais || (resultado.lancamentos || []).length || 0);
+                document.getElementById('movFiscalVendas').textContent = formatarMoedaBR((resultado.total_credito || 0) + (resultado.total_debito || 0));
                 document.getElementById('movFiscalValidation').classList.add('show');
                 movimentoFiscalStatus(
                     'ok',
-                    '<strong>Arquivo validado e amarrado.</strong> Empresa ativa, layout ' + escaparHtmlImportacao(layout.codigoEmpresa) +
-                    ' e emitente das chaves NF-e apontam para ' + escaparHtmlImportacao(formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo)) + '.<br>' +
-                    'A próxima etapa permite selecionar as colunas e revisar os lançamentos antes da gravação.'
+                    '<strong>Arquivo validado e amarrado.</strong> O modelo ' + escaparHtmlImportacao(layout.nome) +
+                    ' e a empresa ativa apontam para ' + escaparHtmlImportacao(formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo)) + '.<br>' +
+                    (relatorioServicos
+                        ? 'Tipo do serviço, período e total oficial conferidos. A próxima etapa permite revisar os lançamentos antes da gravação.'
+                        : 'A próxima etapa permite selecionar as colunas e revisar os lançamentos antes da gravação.')
                 );
                 if (importar) importar.disabled = false;
             } catch (e) {
@@ -15064,20 +15094,33 @@
             }
 
             try {
-                const colunasSelecionadas = await abrirSelecaoColunasFlanacar(validacao.resultado);
-                if (!colunasSelecionadas) {
-                    movimentoFiscalStatus('info', 'Seleção de colunas cancelada. Nenhum lançamento foi gravado.');
-                    return;
+                let colunasSelecionadas = null;
+                if (Array.isArray(validacao.resultado.colunas_disponiveis) && validacao.resultado.colunas_disponiveis.length) {
+                    colunasSelecionadas = await abrirSelecaoColunasFlanacar(validacao.resultado);
+                    if (!colunasSelecionadas) {
+                        movimentoFiscalStatus('info', 'Seleção de colunas cancelada. Nenhum lançamento foi gravado.');
+                        return;
+                    }
                 }
-                const resultado = window[validacao.layout.parser](validacao.texto, { colunasSelecionadas, arquivoNome: validacao.file.name });
-                const vinculo = window.validarVinculoCnpjFiscal(resultado, {
-                    cnpjEmpresaAtiva: cnpjAtivoAgora,
-                    cnpjLayout: validacao.layout.cnpj,
-                    codigoEmpresa: validacao.layout.codigoEmpresa,
-                    arquivoNome: validacao.file.name,
-                    exigirCodigoArquivo: validacao.layout.exigirCodigoArquivo !== false,
-                    exigirChaveNfeTodasNotas: validacao.layout.exigirChaveNfeTodasNotas !== false
-                });
+                const extensaoValidada = String(validacao.file.name.split('.').pop() || '').toLowerCase();
+                const entradaReprocessamento = extensaoValidada === 'pdf'
+                    ? await validacao.file.arrayBuffer()
+                    : (validacao.entrada instanceof ArrayBuffer ? validacao.entrada.slice(0) : validacao.entrada);
+                const resultado = await window[validacao.layout.parser](entradaReprocessamento, { colunasSelecionadas, arquivoNome: validacao.file.name });
+                const vinculo = validacao.relatorioServicos
+                    ? window.validarVinculoCnpjRelatorioFiscal(resultado, {
+                        cnpjEmpresaAtiva: cnpjAtivoAgora,
+                        movimento: validacao.layout.movimento
+                    })
+                    : window.validarVinculoCnpjFiscal(resultado, {
+                        cnpjEmpresaAtiva: cnpjAtivoAgora,
+                        cnpjLayout: validacao.layout.cnpj,
+                        codigoEmpresa: validacao.layout.codigoEmpresa,
+                        direcaoEsperada: validacao.layout.movimento,
+                        arquivoNome: validacao.file.name,
+                        exigirCodigoArquivo: validacao.layout.exigirCodigoArquivo !== false,
+                        exigirChaveNfeTodasNotas: validacao.layout.exigirChaveNfeTodasNotas !== false
+                    });
                 const importacaoId = crypto.randomUUID ? crypto.randomUUID() : ('fiscal_' + Date.now() + '_' + Math.random().toString(36).slice(2));
                 const competencia = String(resultado.periodo_inicio || '').slice(0, 7);
                 const titulo = validacao.layout.nome + (competencia ? ' — ' + competencia : '');
@@ -15085,16 +15128,19 @@
                 showProcessing();
                 let entries = (resultado.lancamentos || []).slice();
                 if (!entries.length) throw new Error('Nenhum lançamento fiscal foi encontrado após a seleção de colunas.');
-                validarLayoutCompativelComBanco(entries, validacao.layout.codigoEmpresa);
+                if (validacao.layout.codigoEmpresa !== 'GEN') validarLayoutCompativelComBanco(entries, validacao.layout.codigoEmpresa);
                 garantirIntegridadeLancamentos(entries);
                 entries = entries.map(applyMapping);
                 entries = detectUnusual(entries);
+                const codigoRelatorio = resultado.empresa_codigo_detectado || validacao.layout.codigoEmpresa || 'FISCAL';
                 entries = entries.map(function(entry) {
                     return {
                         ...entry,
+                        layoutNome: validacao.layout.nome,
+                        layoutParser: validacao.layout.parser,
                         id: entry.id || novoIdLancamento(),
-                        bancoId: validacao.layout.codigoEmpresa,
-                        bancoNome: validacao.layout.empresa,
+                        bancoId: codigoRelatorio,
+                        bancoNome: state.info.empresa || resultado.nome_banco_detectado || validacao.layout.empresa,
                         importacaoId,
                         importacaoTitulo: titulo,
                         origemImportacao: 'movimento_fiscal',
@@ -15112,10 +15158,10 @@
                 hideProcessing();
                 const confirmado = await abrirConferenciaImportacao(entries, {
                     arquivo: validacao.file.name,
-                    bancoCode: validacao.layout.codigoEmpresa,
-                    bancoNome: validacao.layout.empresa,
+                    bancoCode: codigoRelatorio,
+                    bancoNome: state.info.empresa || resultado.nome_banco_detectado || validacao.layout.empresa,
                     titulo,
-                    formato: 'MOVIMENTO FISCAL',
+                    formato: validacao.file.name.split('.').pop().toUpperCase() + ' FISCAL',
                     tipoImportacao: 'fiscal',
                     vinculoCnpj: formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo) + ' — validado'
                 });
@@ -15124,7 +15170,7 @@
                     return;
                 }
 
-                registrarUsoLayoutArquivo(entries, validacao.layout.codigoEmpresa, validacao.file.name, 'CSV fiscal');
+                registrarUsoLayoutArquivo(entries, codigoRelatorio, validacao.file.name, validacao.file.name.split('.').pop().toUpperCase() + ' fiscal');
                 state.entries = state.entries.concat(entries);
                 state.lastFile = validacao.file.name;
                 saveState();
@@ -15147,7 +15193,7 @@
                     parser: validacao.layout.parser,
                     arquivo: validacao.file.name,
                     tamanho: validacao.file.size,
-                    formato: 'CSV FISCAL',
+                    formato: validacao.file.name.split('.').pop().toUpperCase() + ' FISCAL',
                     empresa: state.info && state.info.empresa,
                     cnpj: state.info && state.info.cnpj,
                     periodo_inicio: validacao.resultado.periodo_inicio,

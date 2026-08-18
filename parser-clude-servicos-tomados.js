@@ -34,6 +34,27 @@
     return !!da && !!db && da === db;
   }
 
+  function cnpjValido(valor) {
+    const digits = somenteDigitos(valor);
+    if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) return false;
+    function digito(base, pesos) {
+      const soma = base.split('').reduce(function(total, n, idx) { return total + Number(n) * pesos[idx]; }, 0);
+      const resto = soma % 11;
+      return resto < 2 ? 0 : 11 - resto;
+    }
+    const d1 = digito(digits.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+    const d2 = digito(digits.slice(0, 12) + d1, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+    return digits.endsWith(String(d1) + String(d2));
+  }
+
+  function copiarDadosPdf(dados) {
+    if (dados instanceof ArrayBuffer) return dados.slice(0);
+    if (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView && ArrayBuffer.isView(dados)) {
+      return dados.buffer.slice(dados.byteOffset, dados.byteOffset + dados.byteLength);
+    }
+    return dados;
+  }
+
   function ehTrechoCabecalhoServicoPrestado(valor) {
     const t = normalizarTexto(valor).toUpperCase();
     return /SERVICO\s+NUMERO\s+SERIE/.test(t)
@@ -77,7 +98,7 @@
 
   function extrairPeriodo(texto) {
     const m = String(texto || '').match(/Periodo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aá]\s*(\d{2}\/\d{2}\/\d{4})/i)
-      || String(texto || '').match(/Per[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aá]\s*(\d{2}\/\d{2}\/\d{4})/i);
+      || String(texto || '').match(/Pe\s*r[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aá]\s*(\d{2}\/\d{2}\/\d{4})/i);
     return {
       inicio: m ? parseDateBR(m[1]) : '',
       fim: m ? parseDateBR(m[2]) : ''
@@ -85,7 +106,7 @@
   }
 
   function extrairTotalOficial(texto) {
-    const m = String(texto || '').match(/Total\s+([0-9.]+,\d{2})([0-9.]+,\d{2})/i);
+    const m = String(texto || '').match(/Total\s+([0-9.]+,\d{2})\s*([0-9.]+,\d{2})/i);
     return m ? parseMoneyBR(m[1]) : 0;
   }
 
@@ -158,7 +179,9 @@
     }
     return {
       codigo: String(m[1] || '').trim(),
-      nome: normalizarTexto(m[2] || '').toUpperCase(),
+      nome: normalizarTexto(m[2] || '')
+        .replace(/\s+Data:\s*\d{2}\/\d{2}\/\d{4}.*$/i, '')
+        .toUpperCase(),
       cnpj: String(m[3] || '').trim()
     };
   }
@@ -200,12 +223,28 @@
     };
   }
 
-  function criarLancamentoFiscal({ cnpj, fornecedor, valor, documento, data, periodo }) {
+  function nomeLayoutServicosTomados(metaEmpresa) {
+    const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim();
+    if (!metaEmpresa) return 'CLUDE - Servicos Tomados Fiscal';
+    if (codigoEmpresa === '1183') return 'DAXX - Servicos Tomados Fiscal';
+    if (codigoEmpresa === '733' || normalizarTexto(metaEmpresa && metaEmpresa.nome).toUpperCase().indexOf('CLUDE') >= 0) {
+      return 'CLUDE - Servicos Tomados Fiscal';
+    }
+    return (codigoEmpresa || 'FISCAL') + ' - Servicos Tomados Fiscal';
+  }
+
+  function criarLancamentoFiscal({ cnpj, fornecedor, valor, documento, data, periodo, metaEmpresa, layoutParser }) {
     const fornecedorLimpo = normalizarFornecedor(fornecedor);
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
     if (!fornecedorLimpo || !valor || !data) return null;
     const valorNota = Math.abs(valor);
     const categoriaFiscal = categoriaFiscalClude(fornecedorLimpo);
+    const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim();
+    const bancoEmpresa = metaEmpresa ? (codigoEmpresa || bancoFiscalPorEmpresa(metaEmpresa)) : 'CLU';
+    const layoutNome = nomeLayoutServicosTomados(metaEmpresa);
+    const contaFiscal = bancoEmpresa === 'CLU'
+      ? 'Fiscal CLUDE - Servicos Tomados'
+      : 'Fiscal ' + bancoEmpresa + ' - Servicos Tomados';
 
     const descricao = ['Servicos tomados', fornecedorLimpo, documentoLimpo ? ('NF ' + documentoLimpo) : '', 'CNPJ ' + cnpj]
       .filter(Boolean)
@@ -235,10 +274,13 @@
       cnpj_fornecedor: cnpj,
       codigoHistorico: '1207',
       historico: 'PAGTO SERVICOS TOMADOS',
-      layoutNome: 'CLUDE - Servicos Tomados Fiscal',
-      layoutParser: 'parsearPDF_Clude_ServicosTomados',
-      conta: 'Fiscal CLUDE - Servicos Tomados',
-      nome_conta: 'Fiscal CLUDE - Servicos Tomados',
+      layoutNome,
+      layoutParser: layoutParser || 'parsearPDF_Clude_ServicosTomados',
+      conta: contaFiscal,
+      nome_conta: contaFiscal,
+      empresaCodigoFiscal: codigoEmpresa,
+      empresaCnpjFiscal: (metaEmpresa && metaEmpresa.cnpj) || '',
+      empresaNomeFiscal: (metaEmpresa && metaEmpresa.nome) || '',
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim
     };
@@ -402,16 +444,22 @@
     };
   }
 
-  function parsearBlocoRegistro(bloco, periodo) {
+  function parsearBlocoRegistro(bloco, periodo, metaEmpresa, layoutParser) {
     const cnpj = (String(bloco || '').match(/^\s*(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/) || [])[1];
     if (!cnpj) return null;
 
     const dataMatch = String(bloco || '').match(/(\d{2}\/\d{2}\/\d{4})/);
     if (!dataMatch) return null;
 
-    const antesData = String(bloco || '').slice(String(bloco || '').indexOf(cnpj) + cnpj.length, dataMatch.index)
+    let antesData = String(bloco || '').slice(String(bloco || '').indexOf(cnpj) + cnpj.length, dataMatch.index)
       .replace(/\s+/g, ' ')
       .trim();
+    if (metaEmpresa && metaEmpresa.codigo) {
+      antesData = antesData
+        .replace(/0,00[\d.,]*$/g, '')
+        .replace(new RegExp('^' + cnpj.slice(0, 10).replace(/\./g, '\\.') + '\\s+'), '')
+        .trim();
+    }
     const depoisData = String(bloco || '').slice(dataMatch.index + dataMatch[0].length)
       .replace(/\s+/g, ' ')
       .trim();
@@ -424,11 +472,13 @@
       valor: parseMoneyBR(valorDocMatch[1]),
       documento: valorDocMatch[2],
       data: parseDateBR(dataMatch[1]),
-      periodo
+      periodo,
+      metaEmpresa,
+      layoutParser
     });
   }
 
-  function parsearRegistrosPorLinha(texto, periodo) {
+  function parsearRegistrosPorLinha(texto, periodo, metaEmpresa, layoutParser) {
     const linhas = String(texto || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const registros = [];
 
@@ -450,13 +500,13 @@
         j++;
       }
 
-      const lanc = parsearBlocoRegistro(bloco, periodo);
+      const lanc = parsearBlocoRegistro(bloco, periodo, metaEmpresa, layoutParser);
       if (lanc) registros.push(lanc);
     }
     return registros;
   }
 
-  function parsearRegistrosPorCnpj(texto, periodo) {
+  function parsearRegistrosPorCnpj(texto, periodo, metaEmpresa, layoutParser) {
     const registros = [];
     const flat = String(texto || '')
       .replace(/\r?\n/g, ' ')
@@ -465,7 +515,48 @@
     const re = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})([\s\S]*?)(?=\s+\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b|\s+Total\s+|$)/g;
     let m;
     while ((m = re.exec(flat))) {
-      const lanc = parsearBlocoRegistro((m[1] + ' ' + m[2]).trim(), periodo);
+      const lanc = parsearBlocoRegistro((m[1] + ' ' + m[2]).trim(), periodo, metaEmpresa, layoutParser);
+      if (lanc) registros.push(lanc);
+    }
+    return registros;
+  }
+
+  function parsearRegistrosServicosTomadosVisual(texto, periodo, metaEmpresa, layoutParser) {
+    const registros = [];
+    const linhas = String(texto || '').split(/\r?\n/).map(function(linha) {
+      return linha.replace(/\s+/g, ' ').trim();
+    }).filter(Boolean);
+    const cnpjRegex = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/;
+    const moneyRegex = /(?<![\d.,])([0-9]{1,3}(?:\.\d{3})*,\d{2}|[0-9]+,\d{2})(?![\d.,])/g;
+
+    for (const linha of linhas) {
+      const dataMatch = linha.match(/^(\d{2}\/\d{2}\/\d{4})\s+/);
+      const cnpjMatch = linha.match(cnpjRegex);
+      if (!dataMatch || !cnpjMatch || !cnpjMatch.index) continue;
+
+      const antesCnpj = linha.slice(dataMatch[0].length, cnpjMatch.index).trim();
+      const documento = ((antesCnpj.match(/^(\d{6,})\b/) || [])[1] || '').replace(/^0+(?=\d)/, '');
+      if (!documento) continue;
+
+      const depoisCnpj = linha.slice(cnpjMatch.index + cnpjMatch[0].length).trim();
+      const valores = [...depoisCnpj.matchAll(moneyRegex)];
+      if (!valores.length) continue;
+      const primeiroValor = valores[0];
+      let fornecedor = depoisCnpj.slice(0, primeiroValor.index || 0).trim();
+      fornecedor = fornecedor
+        .replace(new RegExp('^' + cnpjMatch[1].slice(0, 10).replace(/\./g, '\\.') + '\\s+'), '')
+        .trim();
+
+      const lanc = criarLancamentoFiscal({
+        cnpj: cnpjMatch[1],
+        fornecedor,
+        valor: parseMoneyBR(primeiroValor[1]),
+        documento,
+        data: parseDateBR(dataMatch[1]),
+        periodo,
+        metaEmpresa,
+        layoutParser
+      });
       if (lanc) registros.push(lanc);
     }
     return registros;
@@ -521,7 +612,7 @@
   function parsearRegistrosServicosPrestadosVisual(texto, periodo, metaEmpresa) {
     const registros = [];
     const linhas = String(texto || '').split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
-    const cpfCnpj = /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/;
+    const cpfCnpj = /(?:\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/;
     const money = /(?<![\d.,])([0-9]{1,3}(?:\.\d{3})*,\d{2}|[0-9]+,\d{2})(?![\d.,])/g;
 
     for (let i = 0; i < linhas.length; i++) {
@@ -580,10 +671,11 @@
       if (!documento) continue;
       const antesCnpj = bloco.slice(0, cnpjMatch.index || 0);
       const depoisCnpj = bloco.slice((cnpjMatch.index || 0) + cnpjMatch[0].length);
+      const servicoDecimal = (antesCnpj.match(/\b(\d{1,2}\.\d{2})\b/) || [])[1] || '';
       const servicosAntes = [...antesCnpj.matchAll(/\b(\d{4})\b/g)].map(m => m[1]);
       const depoisSemDatas = depoisCnpj.replace(/\d{2}\/\d{2}\/\d{4}/g, ' ');
       const servicosDepois = [...depoisSemDatas.matchAll(/\b(\d{4})\b/g)].map(m => m[1]);
-      const servico = servicosAntes.concat(servicosDepois).find(s => s !== '0000' && s !== '2026') || '';
+      const servico = servicoDecimal || servicosAntes.concat(servicosDepois).find(s => s !== '0000' && s !== '2026') || '';
 
       const lanc = criarLancamentoServicoPrestado({
         cnpj: cnpjMatch[0],
@@ -642,6 +734,52 @@
     };
   }
 
+  function parsearTexto_IOBSageServicosTomados(textoCompleto) {
+    const texto = String(textoCompleto || '');
+    const detector = normalizarTexto(texto).toUpperCase();
+    if (!/RELACAO DE NFS DE SERVICOS TOMADOS/.test(detector)) {
+      return { detectado: false, lancamentos: [] };
+    }
+
+    const metaEmpresa = extrairEmpresaIOBSage(texto);
+    if (!metaEmpresa.codigo || !cnpjValido(metaEmpresa.cnpj)) {
+      return { detectado: false, lancamentos: [] };
+    }
+
+    const periodo = extrairPeriodo(texto);
+    const totalOficial = extrairTotalOficial(texto);
+    const layoutParser = 'parsearPDF_IOB_Sage_ServicosTomados';
+    const registros = unirRegistros(
+      parsearRegistrosServicosTomadosVisual(texto, periodo, metaEmpresa, layoutParser)
+        .concat(parsearRegistrosPorLinha(texto, periodo, metaEmpresa, layoutParser))
+        .concat(parsearRegistrosPorCnpj(texto, periodo, metaEmpresa, layoutParser))
+    );
+    const totalDebito = somaAbsolutaLancamentos(registros);
+    const totalConfere = totalOficial ? Math.abs(centavos(totalDebito) - centavos(totalOficial)) <= 1 : true;
+    const nomeLayout = nomeLayoutServicosTomados(metaEmpresa);
+
+    return {
+      detectado: registros.length > 0,
+      banco_detectado: metaEmpresa.codigo,
+      nome_banco_detectado: metaEmpresa.nome || nomeLayout,
+      conta_detectada: 'SERVICOS_TOMADOS',
+      nome_conta_detectado: nomeLayout,
+      cnpj_detectado: metaEmpresa.cnpj,
+      empresa_codigo_detectado: metaEmpresa.codigo,
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim,
+      total_credito: 0,
+      total_debito: totalDebito,
+      total_notas_fiscais: registros.length,
+      direcao_fiscal: 'servicos_tomados',
+      total_oficial: totalOficial || totalDebito,
+      total_oficial_detectado: !!totalOficial,
+      total_divergente: !!totalOficial && !totalConfere,
+      diferenca_total_oficial: totalOficial && !totalConfere ? Math.round((totalDebito - totalOficial) * 100) / 100 : 0,
+      lancamentos: registros
+    };
+  }
+
   function parsearTexto_IOBSageServicosPrestados(textoCompleto) {
     const texto = String(textoCompleto || '');
     const detector = normalizarTexto(texto).toUpperCase();
@@ -651,6 +789,9 @@
 
     const periodo = extrairPeriodo(texto);
     const metaEmpresa = extrairEmpresaIOBSage(texto);
+    if (!metaEmpresa.codigo || !cnpjValido(metaEmpresa.cnpj)) {
+      return { detectado: false, lancamentos: [] };
+    }
     const totalOficial = extrairTotalOficial(texto);
     const registros = unirRegistros(
       parsearRegistrosServicosPrestadosIOB(texto, periodo, metaEmpresa)
@@ -675,6 +816,8 @@
       periodo_fim: periodo.fim,
       total_credito: totalCredito,
       total_debito: 0,
+      total_notas_fiscais: registros.length,
+      direcao_fiscal: 'servicos_prestados',
       total_oficial: totalOficial || totalCredito,
       total_oficial_detectado: !!totalOficial,
       total_divergente: !!totalOficial && !totalConfere,
@@ -683,7 +826,9 @@
     };
   }
 
-  function agruparItensPdfEmLinhas(items) {
+  function agruparItensPdfEmLinhas(items, rotacao) {
+    const giro = ((Number(rotacao || 0) % 360) + 360) % 360;
+    const usaEixoX = giro === 90 || giro === 270;
     const itens = (items || [])
       .map(function(item) {
         const t = item.transform || [1, 0, 0, 1, 0, 0];
@@ -691,6 +836,11 @@
       })
       .filter(function(item) { return item.str; })
       .sort(function(a, b) {
+        if (usaEixoX) {
+          const ordemLinha = giro === 90 ? a.x - b.x : b.x - a.x;
+          if (Math.abs(ordemLinha) > 2) return ordemLinha;
+          return giro === 90 ? a.y - b.y : b.y - a.y;
+        }
         if (Math.abs(b.y - a.y) > 2) return b.y - a.y;
         return a.x - b.x;
       });
@@ -698,8 +848,9 @@
     const linhas = [];
     for (const item of itens) {
       const ultima = linhas[linhas.length - 1];
-      if (!ultima || Math.abs(ultima.y - item.y) > 2) {
-        linhas.push({ y: item.y, parts: [item.str] });
+      const coordenada = usaEixoX ? item.x : item.y;
+      if (!ultima || Math.abs(ultima.coordenada - coordenada) > 2) {
+        linhas.push({ coordenada: coordenada, parts: [item.str] });
       } else {
         ultima.parts.push(item.str);
       }
@@ -713,14 +864,14 @@
       throw new Error('PDF.js nao carregado para ler servicos tomados CLUDE.');
     }
 
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
     const paginas = [];
     const sequencia = [];
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
-      paginas.push(agruparItensPdfEmLinhas(content.items).join('\n'));
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
     }
     const agrupado = paginas.join('\n');
     const raw = sequencia.join('\n');
@@ -740,14 +891,14 @@
       throw new Error('PDF.js nao carregado para ler servicos prestados IOB SAGE.');
     }
 
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
     const paginas = [];
     const sequencia = [];
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
-      paginas.push(agruparItensPdfEmLinhas(content.items).join('\n'));
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
     }
     const agrupado = paginas.join('\n');
     const raw = sequencia.join('\n');
@@ -760,6 +911,67 @@
     ], totalOficial, 'credito');
   }
 
+  async function parsearPDF_IOB_Sage_ServicosTomados(arrayBuffer) {
+    const pdfjs = root.pdfjsLib || (typeof pdfjsLib !== 'undefined' ? pdfjsLib : null);
+    if (!pdfjs || !pdfjs.getDocument) {
+      throw new Error('PDF.js nao carregado para ler servicos tomados IOB SAGE.');
+    }
+
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
+    const paginas = [];
+    const sequencia = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
+    }
+    const agrupado = paginas.join('\n');
+    const raw = sequencia.join('\n');
+    const combinado = agrupado + '\n' + raw;
+    const totalOficial = extrairTotalOficial(raw) || extrairTotalOficial(agrupado) || extrairTotalOficial(combinado);
+    return escolherResultadoPorTotalOficial([
+      parsearTexto_IOBSageServicosTomados(raw),
+      parsearTexto_IOBSageServicosTomados(agrupado),
+      parsearTexto_IOBSageServicosTomados(combinado)
+    ], totalOficial, 'debito');
+  }
+
+  function validarVinculoCnpjRelatorioFiscal(resultado, opts) {
+    opts = opts || {};
+    const cnpjAtivo = somenteDigitos(opts.cnpjEmpresaAtiva || '');
+    const cnpjArquivo = somenteDigitos(resultado && resultado.cnpj_detectado);
+    const movimentoEsperado = String(opts.movimento || '');
+    const movimentoDetectado = String((resultado && resultado.direcao_fiscal) || '');
+    if (!resultado || !resultado.detectado || !Array.isArray(resultado.lancamentos) || !resultado.lancamentos.length) {
+      throw new Error('O PDF nao foi reconhecido como relatorio E-Fiscal de servicos do modelo selecionado.');
+    }
+    if (movimentoEsperado && movimentoDetectado !== movimentoEsperado) {
+      throw new Error('O PDF e de ' + movimentoDetectado.replace(/_/g, ' ') + ', mas o modelo selecionado e de ' + movimentoEsperado.replace(/_/g, ' ') + '.');
+    }
+    if (!cnpjValido(cnpjAtivo)) {
+      throw new Error('A empresa ativa nao possui um CNPJ valido para liberar a importacao fiscal.');
+    }
+    if (!cnpjValido(cnpjArquivo)) {
+      throw new Error('Nao foi possivel extrair um CNPJ valido do cabecalho do relatorio E-Fiscal.');
+    }
+    if (cnpjArquivo !== cnpjAtivo) {
+      throw new Error('O CNPJ do relatorio (' + (resultado.cnpj_detectado || '-') + ') difere do CNPJ da empresa ativa. Selecione a empresa correta antes de importar.');
+    }
+    if (resultado.total_divergente === true) {
+      throw new Error('O total dos lancamentos diverge do total oficial impresso no PDF. A importacao permanece bloqueada.');
+    }
+    return {
+      valido: true,
+      cnpjEmpresaAtiva: cnpjAtivo,
+      cnpjArquivo,
+      codigoArquivo: resultado.empresa_codigo_detectado || '-',
+      chavesValidas: Number(resultado.total_notas_fiscais || resultado.lancamentos.length),
+      totalNotas: Number(resultado.total_notas_fiscais || resultado.lancamentos.length),
+      origem: 'cabecalho_relatorio_efiscal'
+    };
+  }
+
   async function parsearPDF_Clude_AnaliseCreditos(arrayBuffer) {
     return parsearPDF_Clude_ServicosTomados(arrayBuffer);
   }
@@ -769,22 +981,29 @@
   }
 
   root.parsearTexto_CludeServicosTomados = parsearTexto_CludeServicosTomados;
+  root.parsearTexto_IOBSageServicosTomados = parsearTexto_IOBSageServicosTomados;
   root.parsearTexto_IOBSageServicosPrestados = parsearTexto_IOBSageServicosPrestados;
   root.parsearPDF_Clude_ServicosTomados = parsearPDF_Clude_ServicosTomados;
   root.parsearPDF_Clude_AnaliseCreditos = parsearPDF_Clude_AnaliseCreditos;
   root.parsearPDF_Fiscal_AnaliseCreditosPISCOFINS = parsearPDF_Fiscal_AnaliseCreditosPISCOFINS;
   root.parsearPDF_IOB_Sage_ServicosPrestados = parsearPDF_IOB_Sage_ServicosPrestados;
+  root.parsearPDF_IOB_Sage_ServicosTomados = parsearPDF_IOB_Sage_ServicosTomados;
+  root.validarVinculoCnpjRelatorioFiscal = validarVinculoCnpjRelatorioFiscal;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       parsearTexto_CludeServicosTomados,
+      parsearTexto_IOBSageServicosTomados,
       parsearTexto_IOBSageServicosPrestados,
       parsearPDF_Clude_ServicosTomados,
       parsearPDF_Clude_AnaliseCreditos,
       parsearPDF_Fiscal_AnaliseCreditosPISCOFINS,
       parsearPDF_IOB_Sage_ServicosPrestados,
+      parsearPDF_IOB_Sage_ServicosTomados,
+      validarVinculoCnpjRelatorioFiscal,
       __test__: {
         parsearTexto_CludeServicosTomados,
+        parsearTexto_IOBSageServicosTomados,
         parsearTexto_IOBSageServicosPrestados,
         escolherResultadoPorTotalOficial,
         somaAbsolutaLancamentos

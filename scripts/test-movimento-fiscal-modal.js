@@ -18,8 +18,11 @@ assert(index.includes("setTimeout(function() { abrirModalMovimentoFiscal(); }, 0
 assert(index.includes('abrirModalMovimentoFiscal()'), 'app deve expor acao para abrir o modal fiscal');
 assert(index.includes('validarArquivoMovimentoFiscal()'), 'modal deve separar validacao da importacao');
 assert(index.includes('processarMovimentoFiscalValidado()'), 'modal deve exigir etapa validada antes de importar');
-assert(index.includes('Cadastro = layout = chave NF-e'), 'regra tripla de CNPJ deve estar explicita');
+assert(index.includes('Cadastro = CNPJ do arquivo'), 'regra de CNPJ deve estar explicita para livros e servicos');
 assert(index.includes('window.validarVinculoCnpjFiscal(resultado'), 'frontend deve executar a trava de CNPJ antes da gravacao');
+assert(index.includes('window.validarVinculoCnpjRelatorioFiscal'), 'servicos devem conferir o CNPJ do cabecalho antes da gravacao');
+assert(index.includes('accept=".csv,.txt,.pdf"'), 'modal fiscal deve aceitar livros CSV/TXT e relatorios de servicos PDF');
+assert(index.includes("validacao.layout.codigoEmpresa !== 'GEN'"), 'modelo geral de servicos nao pode ser limitado ao codigo de uma empresa');
 assert(index.includes("origemImportacao: 'movimento_fiscal'"), 'lancamentos fiscais devem manter origem propria');
 assert(index.includes("if (csvFiscalFlanacarDetectado) {"), 'extrator generico deve reconhecer movimento fiscal');
 assert(index.includes('A importação deve ser feita pelo modal fiscal com trava de CNPJ'), 'extrator generico deve redirecionar o movimento fiscal');
@@ -31,5 +34,8 @@ assert(server.includes("require('./layouts-fiscais-padrao')"), 'servidor deve us
 assert(catalogo.includes("codigoEmpresa: '0109'"), 'catalogo deve conter FASTWELD 0109');
 assert(catalogo.includes("cnpj: '02942184000134'"), 'layout FASTWELD deve ter CNPJ homologado');
 assert(catalogo.includes("validacaoCnpj: 'chave_nfe_emitente'"), 'layout deve declarar a fonte da amarracao de CNPJ');
+assert(catalogo.includes("id: 'generico_servicos_tomados_efiscal_pdf'"), 'catalogo deve oferecer servicos tomados para qualquer empresa');
+assert(catalogo.includes("id: 'generico_servicos_prestados_efiscal_pdf'"), 'catalogo deve oferecer servicos prestados para qualquer empresa');
+assert(catalogo.includes("validacaoCnpj: 'cabecalho_relatorio'"), 'modelos de servicos devem declarar a conferencia pelo cabecalho do PDF');
 
 console.log('OK: modal Movimento Fiscal separado, catalogado e bloqueado por CNPJ antes da conferencia/gravação.');
