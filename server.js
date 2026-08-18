@@ -21,6 +21,7 @@ const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResp
 const RelatoriosContabeis = require('./relatorios-contabeis');
 const AtivoImobilizado = require('./ativo-imobilizado');
 const GraphEmail = require('./graph-email-provider');
+const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa } = require('./ajuda-cci-base');
 
 const app = express();
 app.set('trust proxy', true);
@@ -87,7 +88,11 @@ async function authRequired(req, res, next) {
 }
 
 function adminRequired(req, res, next) {
-  if (!req.user || !req.user.is_admin) return res.status(403).json({ erro: 'Requer admin' });
+  if (!req.user || !req.user.is_admin) return res.status(403).json({
+    erro: 'Esta função é exclusiva para administradores. Procure um administrador e informe a empresa, a tela e a ação desejada.',
+    codigo: 'ADMIN_REQUIRED',
+    procurar_ajuda: true
+  });
   next();
 }
 
@@ -3842,6 +3847,156 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
 // Rota da pagina admin
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AJUDA CCI — assistente operacional com base fechada e aprendizado revisado
+// As perguntas alimentam uma fila de curadoria. Nenhuma resposta do modelo
+// vira regra do sistema automaticamente.
+// ═══════════════════════════════════════════════════════════════════════════
+function extrairJsonAjudaCci(texto) {
+  const bruto = String(texto || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+  const inicio = bruto.indexOf('{');
+  const fim = bruto.lastIndexOf('}');
+  if (inicio < 0 || fim <= inicio) return null;
+  try { return JSON.parse(bruto.slice(inicio, fim + 1)); } catch (e) { return null; }
+}
+
+function escaparHtmlAjudaCci(valor) {
+  return String(valor || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+async function notificarSugestaoAjudaCci(registro, protocolo) {
+  const remetente = process.env.GRAPH_REMETENTE || process.env.NOTIF_REMETENTE_EMAIL;
+  const destinatario = process.env.CCI_SUGESTOES_EMAIL || remetente;
+  if (!GraphEmail.configurado() || !remetente || !destinatario) {
+    return { ok: false, status: 'fila_admin', detalhe: 'E-mail não configurado; sugestão disponível no banco administrativo.' };
+  }
+  const html = `<div style="font-family:Arial,sans-serif;color:#14213d;line-height:1.55">
+    <h2>Nova sugestão da Ajuda CCI</h2>
+    <p><strong>Protocolo:</strong> ${escaparHtmlAjudaCci(protocolo)}</p>
+    <p><strong>Pergunta:</strong><br>${escaparHtmlAjudaCci(registro.pergunta)}</p>
+    <p><strong>Usuário:</strong> ${escaparHtmlAjudaCci(registro.usuario_email)}<br>
+    <strong>Empresa:</strong> ${escaparHtmlAjudaCci(registro.cnpj || 'não informada')}<br>
+    <strong>Tela:</strong> ${escaparHtmlAjudaCci(registro.pagina || 'não informada')}<br>
+    <strong>Versão:</strong> ${escaparHtmlAjudaCci(registro.versao || 'não informada')}</p>
+    <p>A dúvida ficou pendente de curadoria. Revise antes de incluir qualquer orientação na base oficial.</p>
+  </div>`;
+  const envio = await GraphEmail.enviarEmail({
+    remetente,
+    para: destinatario,
+    assunto: `[CCI] Sugestão de ajuda ${protocolo}`,
+    html
+  });
+  return { ok: envio.ok === true, status: envio.ok ? 'email_enviado' : 'fila_admin', detalhe: envio.error || '' };
+}
+
+app.post('/api/ajuda-cci/perguntar', async (req, res) => {
+  const body = req.body || {};
+  const pergunta = String(body.pergunta || '').trim().replace(/\s+/g, ' ').slice(0, 1500);
+  if (pergunta.length < 3) return res.status(400).json({ erro: 'Informe uma pergunta com pelo menos 3 caracteres.' });
+
+  const cnpj = String(body.cnpj || '').replace(/\D/g, '').slice(0, 14);
+  const pagina = String(body.pagina || '').trim().slice(0, 120);
+  const versao = String(body.versao || '').trim().slice(0, 30);
+  const detectouAdmin = parecePerguntaAdministrativa(pergunta);
+  let resultado = {
+    resposta: detectouAdmin
+      ? `Essa solicitação envolve uma função administrativa. As ações restritas incluem: ${ACOES_ADMIN_CCI.join('; ')}. Procure um administrador e informe a empresa, a tela e a ação desejada.`
+      : 'Ainda não há uma orientação oficial suficiente para responder com segurança. A pergunta será registrada como sugestão para revisão.',
+    resolvida: detectouAdmin,
+    requer_admin: detectouAdmin,
+    modulo: detectouAdmin ? 'Permissões administrativas' : 'Não identificado',
+    motivo: detectouAdmin ? 'Ação sensível protegida por permissão administrativa.' : 'Base oficial insuficiente.'
+  };
+
+  if (!detectouAdmin) {
+    const client = getGeminiClient();
+    if (client) {
+      const systemInstruction = `Você é a Ajuda CCI, assistente operacional do Consultor Contábil Inteligente.\n
+Responda SOMENTE com base no conteúdo oficial abaixo. Não invente telas, botões, permissões, regras contábeis, fiscais ou legais. Não execute ações. Não peça nem aceite senhas, tokens, dados bancários ou dados pessoais. Se a base não contiver informação suficiente, marque resolvida como false e diga que a dúvida será enviada como sugestão. Se envolver ação administrativa, marque requer_admin como true e oriente a procurar um administrador. Decisões contábeis, fiscais ou legais devem ser confirmadas com o contador responsável.\n
+BASE OFICIAL DO CCI:\n${textoBaseAjuda()}\n
+AÇÕES EXCLUSIVAS DE ADMINISTRADOR:\n- ${ACOES_ADMIN_CCI.join('\n- ')}\n
+Retorne somente JSON válido neste formato: {"resposta":"texto curto e acionável","resolvida":true,"requer_admin":false,"modulo":"nome do módulo","motivo":"fonte ou lacuna"}.`;
+      try {
+        const response = await client.models.generateContent({
+          model: GEMINI_CHAT_MODEL,
+          contents: `Pergunta do colaborador: ${pergunta}`,
+          config: { systemInstruction, responseMimeType: 'application/json', temperature: 0.1 }
+        });
+        const interpretado = extrairJsonAjudaCci(response.text || '');
+        if (interpretado && typeof interpretado.resposta === 'string') {
+          resultado = {
+            resposta: interpretado.resposta.trim().slice(0, 4000),
+            resolvida: interpretado.resolvida === true,
+            requer_admin: interpretado.requer_admin === true,
+            modulo: String(interpretado.modulo || 'Geral').slice(0, 100),
+            motivo: String(interpretado.motivo || '').slice(0, 500)
+          };
+        }
+      } catch (erroIa) {
+        console.error('[ajuda-cci] consulta Gemini falhou:', erroIa && erroIa.message);
+      }
+    }
+  }
+
+  if (resultado.requer_admin) resultado.resolvida = true;
+  const status = resultado.requer_admin ? 'requer_admin' : (resultado.resolvida ? 'respondida' : 'sugestao_pendente');
+  const docRef = db.collection('ajuda_cci_perguntas').doc();
+  const protocolo = `CCI-${docRef.id.slice(0, 8).toUpperCase()}`;
+  const registro = {
+    protocolo,
+    pergunta,
+    resposta: resultado.resposta,
+    resolvida: resultado.resolvida,
+    requer_admin: resultado.requer_admin,
+    modulo: resultado.modulo,
+    motivo: resultado.motivo,
+    status,
+    pagina,
+    cnpj: cnpj.length === 14 ? cnpj : '',
+    versao,
+    usuario_uid: req.user.uid,
+    usuario_email: req.user.email,
+    criado_em: FieldValue.serverTimestamp(),
+    curadoria_status: resultado.resolvida ? 'nao_necessaria' : 'pendente',
+    promovida_base_oficial: false
+  };
+
+  try {
+    await docRef.set(registro);
+    if (!resultado.resolvida) {
+      const notificacao = await notificarSugestaoAjudaCci(registro, protocolo);
+      await docRef.set({
+        notificacao_status: notificacao.status,
+        notificacao_detalhe: String(notificacao.detalhe || '').slice(0, 500),
+        notificacao_em: FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+  } catch (erroRegistro) {
+    console.error('[ajuda-cci] registro falhou:', erroRegistro);
+    return res.status(500).json({ erro: 'Não foi possível registrar a consulta na base de ajuda.' });
+  }
+
+  res.json({
+    ok: true,
+    protocolo,
+    resposta: resultado.resposta,
+    resolvida: resultado.resolvida,
+    requer_admin: resultado.requer_admin,
+    modulo: resultado.modulo,
+    sugestao_registrada: !resultado.resolvida
+  });
+});
+
+app.get('/api/admin/ajuda-cci/sugestoes', adminRequired, async (req, res) => {
+  try {
+    const limite = Math.max(1, Math.min(100, Number(req.query.limit || 50)));
+    const snap = await db.collection('ajuda_cci_perguntas').orderBy('criado_em', 'desc').limit(limite).get();
+    res.json(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message || 'Falha ao listar sugestões da Ajuda CCI.' });
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
