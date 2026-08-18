@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.0",
+  "manual_version": "2.1",
   "updated_at": "2026-08-18",
-  "app_reference": "3.4.145",
+  "app_reference": "3.4.146",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -23,7 +23,7 @@
         {"type": "table", "headers": ["Área", "Situação atual", "Leitura operacional"], "rows": [
           ["Importações bancárias e fiscais", "Operacional", "Recebe arquivos, valida dados e acrescenta os movimentos confirmados."],
           ["Plano, históricos e classificação", "Operacional", "Usa contas e históricos existentes e reaproveita padrões aprovados."],
-          ["Relatórios contábeis", "Operacional", "Balancete, Razão, Diário, DRE, Balanço e análise econômico-financeira."],
+          ["Relatórios contábeis", "Operacional", "Balancete mensal e anual, Razão, Diário, DRE, Balanço e análise econômico-financeira."],
           ["Fechamento mensal", "Operacional com travas", "Controla competência e bloqueia fechamento exclusivo quando faltam parâmetros obrigatórios."],
           ["ECD/ECF", "Operacional em uso", "Módulo existente e utilizado no último fechamento."],
           ["Ativo e depreciação", "Em evolução", "Cadastro e cálculo existem; lançamentos automáticos ainda dependem de implementação e aprovação."],
@@ -45,7 +45,8 @@
           "Parametrizações específicas para Simples Nacional, Lucro Presumido e Lucro Real, confirmadas por administrador.",
           "Fechamento bloqueado para empresa exclusiva enquanto a parametrização tributária estiver incompleta ou incompatível.",
           "Novidades e Ajuda CCI, com dúvidas não resolvidas enviadas à curadoria.",
-          "Manual Operacional dentro do CCI, com pesquisa e downloads Word/PDF gerados da mesma fonte oficial."
+          "Manual Operacional dentro do CCI, com pesquisa e downloads Word/PDF gerados da mesma fonte oficial.",
+          "Balancete Anual Analítico, com hierarquia do plano de contas, saldos de janeiro a dezembro, resumo e exportações em PDF e Excel."
         ]}
       ]
     },
@@ -75,7 +76,7 @@
           "Classificar os lançamentos com débito, crédito e histórico adequados.",
           "Memorizar somente padrões específicos e confiáveis.",
           "Conciliar saldos e investigar duplicidades, ausências e divergências.",
-          "Emitir Balancete, Razão, Diário, DRE, Balanço e análises para revisão.",
+          "Emitir Balancete mensal ou anual, Razão, Diário, DRE, Balanço e análises para revisão.",
           "Corrigir pendências enquanto o período estiver aberto.",
           "Fechar a competência somente após aprovação contábil e executar as obrigações aplicáveis."
         ]}
@@ -124,11 +125,12 @@
           "Entradas e saídas nas contrapartidas corretas.",
           "Saldo final calculado igual ao saldo final do banco.",
           "Diferenças identificadas, justificadas e corrigidas antes do fechamento.",
-          "Balancete, Razão, Diário, DRE e Balanço revisados.",
+          "Balancete mensal ou anual, Razão, Diário, DRE e Balanço revisados.",
           "Competência correta e parametrização obrigatória concluída."
         ]},
         {"type": "table", "headers": ["Relatório", "Finalidade"], "rows": [
           ["Balancete", "Conferir saldos anteriores, débitos, créditos e saldos atuais pela estrutura de contas."],
+          ["Balancete Anual", "Comparar os saldos finais de janeiro a dezembro, com transporte mensal, hierarquia do plano e resumo por grupos."],
           ["Razão Analítico", "Examinar movimentação e composição do saldo de cada conta."],
           ["Livro Diário", "Visualizar lançamentos em ordem cronológica."],
           ["DRE", "Apurar e analisar o resultado do período."],

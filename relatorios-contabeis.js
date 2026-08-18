@@ -304,6 +304,78 @@
     });
   }
 
+  const MESES_BALANCETE_ANUAL = [
+    { numero: '01', nome: 'Janeiro' }, { numero: '02', nome: 'Fevereiro' },
+    { numero: '03', nome: 'Março' }, { numero: '04', nome: 'Abril' },
+    { numero: '05', nome: 'Maio' }, { numero: '06', nome: 'Junho' },
+    { numero: '07', nome: 'Julho' }, { numero: '08', nome: 'Agosto' },
+    { numero: '09', nome: 'Setembro' }, { numero: '10', nome: 'Outubro' },
+    { numero: '11', nome: 'Novembro' }, { numero: '12', nome: 'Dezembro' }
+  ];
+
+  function balanceteAnual(lancamentos, ano, contas, saldosIniciaisPorPeriodo) {
+    const anoNormalizado = texto(ano);
+    if (!/^\d{4}$/.test(anoNormalizado)) {
+      return { ano: anoNormalizado, meses: MESES_BALANCETE_ANUAL.slice(), linhas: [], resumo: [], periodosComMovimento: 0 };
+    }
+    const saldosConfigurados = saldosIniciaisPorPeriodo && typeof saldosIniciaisPorPeriodo === 'object' ? saldosIniciaisPorPeriodo : {};
+    let transportados = {};
+    const linhasPorChave = new Map();
+    let periodosComMovimento = 0;
+
+    MESES_BALANCETE_ANUAL.forEach(function (mes, indice) {
+      const periodo = anoNormalizado + '-' + mes.numero;
+      const explicitos = saldosConfigurados[periodo] && typeof saldosConfigurados[periodo] === 'object' ? saldosConfigurados[periodo] : {};
+      const abertura = Object.assign({}, transportados, explicitos);
+      const movimento = lancamentosDoPeriodo(lancamentos, periodo);
+      if (movimento.length) periodosComMovimento += 1;
+      const mensal = balancete(lancamentos, periodo, contas, abertura);
+
+      mensal.forEach(function (linha) {
+        const chave = linha.codigoCompleto || linha.conta;
+        if (!linhasPorChave.has(chave)) {
+          linhasPorChave.set(chave, Object.assign({}, linha, { saldosMensais: Array(12).fill(0) }));
+        }
+        linhasPorChave.get(chave).saldosMensais[indice] = deCentavos(centavos(linha.saldoAtual));
+      });
+
+      transportados = {};
+      mensal.filter(function (linha) { return linha.analitica !== false; }).forEach(function (linha) {
+        transportados[linha.conta] = deCentavos(centavos(linha.saldoAtual));
+      });
+    });
+
+    const linhas = Array.from(linhasPorChave.values()).sort(function (a, b) {
+      return compararCodigosContabeis(a.codigoCompleto || a.conta, b.codigoCompleto || b.conta);
+    });
+    const grupos = [
+      { codigo: '1', descricao: 'ATIVO' }, { codigo: '2', descricao: 'PASSIVO' },
+      { codigo: '3', descricao: 'RECEITAS' }, { codigo: '4', descricao: 'CUSTOS' },
+      { codigo: '5', descricao: 'DESPESAS' }
+    ];
+    const resumo = grupos.map(function (grupo) {
+      const raiz = linhas.find(function (linha) { return (linha.codigoCompleto || linha.conta) === grupo.codigo; });
+      const saldosMensais = raiz ? raiz.saldosMensais.slice() : MESES_BALANCETE_ANUAL.map(function (_, indice) {
+        const soma = linhas.filter(function (linha) {
+          const codigo = linha.codigoCompleto || linha.conta;
+          return linha.analitica !== false && (codigo === grupo.codigo || codigo.indexOf(grupo.codigo + '.') === 0);
+        }).reduce(function (total, linha) { return total + centavos(linha.saldosMensais[indice]); }, 0);
+        return deCentavos(soma);
+      });
+      return { codigo: grupo.codigo, descricao: grupo.descricao, saldosMensais };
+    });
+    const ativo = resumo.find(function (linha) { return linha.codigo === '1'; });
+    const passivo = resumo.find(function (linha) { return linha.codigo === '2'; });
+    resumo.push({
+      codigo: 'DIFERENCA',
+      descricao: 'Diferença ATIVO e PASSIVO',
+      saldosMensais: MESES_BALANCETE_ANUAL.map(function (_, indice) {
+        return deCentavos(centavos(ativo.saldosMensais[indice]) + centavos(passivo.saldosMensais[indice]));
+      })
+    });
+    return { ano: anoNormalizado, meses: MESES_BALANCETE_ANUAL.slice(), linhas, resumo, periodosComMovimento };
+  }
+
   function razao(lancamentos, periodo, contas, saldosIniciais, contaFiltro) {
     const mapa = mapaContas(contas);
     const saldos = saldosIniciais || {};
@@ -548,6 +620,6 @@
 
   return {
     dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao,
-    validar, balancete, razao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
+    validar, balancete, balanceteAnual, razao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
   };
 });

@@ -152,7 +152,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
       .rc-controls{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px;align-items:end}.rc-field label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px}.rc-field input,.rc-field select,.rc-field textarea{width:100%;padding:10px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a}.rc-field textarea{min-height:104px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}.rc-check{display:flex;align-items:center;gap:8px;min-height:40px;font-size:12px;font-weight:800;color:#334155}.rc-check input{width:auto}.rc-intervalo{display:none;grid-template-columns:1fr 1fr;gap:12px;grid-column:span 2}.rc-intervalo.active{display:grid}.rc-analysis-grid{display:grid;grid-template-columns:repeat(3,minmax(240px,1fr));gap:14px}.rc-analysis-card{padding:14px;border:1px solid #dbe4f0;border-radius:12px;background:#f8fafc}.rc-analysis-card h4{margin:0 0 6px;color:#1e3a8a}.rc-analysis-value{font-size:20px;font-weight:900;color:#0f172a}.rc-analysis-card small{display:block;margin-top:6px;color:#64748b;line-height:1.4}
       .rc-tabs{display:flex;gap:8px;flex-wrap:wrap}.rc-tab{padding:9px 14px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:800;cursor:pointer}.rc-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}.rc-tab[disabled]{opacity:.48;cursor:not-allowed}
       .rc-actions{display:flex;gap:9px;flex-wrap:wrap}.rc-btn{padding:10px 14px;border:0;border-radius:9px;font-weight:800;cursor:pointer}.rc-btn.primary{background:#2563eb;color:#fff}.rc-btn.success{background:#059669;color:#fff}.rc-btn.email{background:#1d4ed8;color:#fff}.rc-btn.whatsapp{background:#16a34a;color:#fff}.rc-btn.warn{background:#f59e0b;color:#fff}.rc-btn.danger{background:#dc2626;color:#fff}.rc-btn.light{background:#e2e8f0;color:#0f172a}.rc-btn:disabled{opacity:.5;cursor:not-allowed}
-      .rc-summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.rc-kpi{padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}.rc-kpi small{display:block;color:#64748b;font-weight:800;text-transform:uppercase}.rc-kpi strong{display:block;font-size:20px;margin-top:5px;color:#0f172a}.rc-ok{color:#047857}.rc-error{color:#b91c1c}.rc-alert{padding:12px 14px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px}.rc-table-wrap{overflow:auto;max-height:62vh;border:1px solid #e2e8f0;border-radius:12px}.rc-table{width:100%;border-collapse:collapse;font-size:12px}.rc-table th{position:sticky;top:0;z-index:1;background:#f1f5f9;color:#475569;text-transform:uppercase;font-size:10px;letter-spacing:.05em}.rc-table th,.rc-table td{padding:9px 10px;border-bottom:1px solid #e2e8f0;text-align:left;white-space:nowrap}.rc-table td.num,.rc-table th.num{text-align:right;font-variant-numeric:tabular-nums}.rc-account-row td{background:#eff6ff;font-weight:900;color:#1e3a8a}.rc-synthetic-row td{background:#f8fafc;font-weight:800}.rc-synthetic-row.rc-level-1 td{background:#dbeafe;color:#172554;font-weight:950;border-top:2px solid #93c5fd}.rc-synthetic-row.rc-level-2 td{background:#eff6ff;color:#1e3a8a;font-weight:900}.rc-settings{border:1px dashed #94a3b8;border-radius:12px;padding:14px}.rc-settings summary{cursor:pointer;font-weight:800;color:#334155}.rc-history{font-size:12px;color:#64748b}
+      .rc-summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.rc-kpi{padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}.rc-kpi small{display:block;color:#64748b;font-weight:800;text-transform:uppercase}.rc-kpi strong{display:block;font-size:20px;margin-top:5px;color:#0f172a}.rc-ok{color:#047857}.rc-error{color:#b91c1c}.rc-alert{padding:12px 14px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px}.rc-table-wrap{overflow:auto;max-height:62vh;border:1px solid #e2e8f0;border-radius:12px}.rc-table{width:100%;border-collapse:collapse;font-size:12px}.rc-table.annual{min-width:1720px;font-size:10px}.rc-table.annual th,.rc-table.annual td{padding:7px 6px}.rc-table.annual th:first-child,.rc-table.annual td:first-child{position:sticky;left:0;z-index:2;background:inherit;min-width:280px}.rc-table th{position:sticky;top:0;z-index:1;background:#f1f5f9;color:#475569;text-transform:uppercase;font-size:10px;letter-spacing:.05em}.rc-table th,.rc-table td{padding:9px 10px;border-bottom:1px solid #e2e8f0;text-align:left;white-space:nowrap}.rc-table td.num,.rc-table th.num{text-align:right;font-variant-numeric:tabular-nums}.rc-account-row td{background:#eff6ff;font-weight:900;color:#1e3a8a}.rc-synthetic-row td{background:#f8fafc;font-weight:800}.rc-synthetic-row.rc-level-1 td{background:#dbeafe;color:#172554;font-weight:950;border-top:2px solid #93c5fd}.rc-synthetic-row.rc-level-2 td{background:#eff6ff;color:#1e3a8a;font-weight:900}.rc-settings{border:1px dashed #94a3b8;border-radius:12px;padding:14px}.rc-settings summary{cursor:pointer;font-weight:800;color:#334155}.rc-history{font-size:12px;color:#64748b}
       .rc-modal{position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.72);display:grid;place-items:center;padding:18px}.rc-modal[hidden]{display:none}.rc-modal-panel{width:min(640px,100%);max-height:calc(100vh - 36px);overflow:auto;background:#fff;color:#0f172a;border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(2,6,23,.4)}.rc-modal-panel.wide{width:min(1180px,100%)}.rc-modal-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}.rc-modal-head h3{margin:0;font-size:20px}.rc-modal-head p{margin:5px 0 0;color:#64748b;font-size:13px}.rc-modal-close{border:0;background:transparent;color:inherit;font-size:24px;cursor:pointer}.rc-modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px;flex-wrap:wrap}.rc-print-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.rc-print-preview{margin-top:16px;height:min(64vh,720px);border:1px solid #cbd5e1;border-radius:12px;overflow:hidden;background:#fff}.rc-print-preview iframe{width:100%;height:100%;border:0;background:#fff}
       html[data-theme="dark"] .rc-field label,html[data-theme="dark"] .rc-history{color:#cbd5e1}html[data-theme="dark"] .rc-tab,html[data-theme="dark"] .rc-field input,html[data-theme="dark"] .rc-field select,html[data-theme="dark"] .rc-field textarea{background:#0b1220;color:#f8fafc;border-color:#475569;color-scheme:dark}html[data-theme="dark"] .rc-field input::placeholder,html[data-theme="dark"] .rc-field textarea::placeholder{color:#a8b5c8;opacity:1}html[data-theme="dark"] .rc-tab.active{background:#2563eb;border-color:#60a5fa}html[data-theme="dark"] .rc-kpi{background:#0b1220;border-color:#334155}html[data-theme="dark"] .rc-kpi small{color:#94a3b8}html[data-theme="dark"] .rc-kpi strong{color:#f8fafc}html[data-theme="dark"] .rc-table-wrap{border-color:#334155}html[data-theme="dark"] .rc-table th{background:#020617!important;color:#cbd5e1!important}html[data-theme="dark"] .rc-table td{border-color:#334155;color:#e2e8f0}html[data-theme="dark"] .rc-account-row td{background:#172554!important;color:#bfdbfe}html[data-theme="dark"] .rc-alert{background:#431407;border-color:#9a3412;color:#fed7aa}html[data-theme="dark"] .rc-settings{border-color:#475569}html[data-theme="dark"] .rc-settings summary{color:#e2e8f0}html[data-theme="dark"] .rc-btn.light{background:#334155;color:#f8fafc}html[data-theme="dark"] .rc-modal-panel{background:#111827;color:#f8fafc;border:1px solid #334155}html[data-theme="dark"] .rc-modal-head p{color:#cbd5e1}html[data-theme="dark"] .rc-print-preview{border-color:#334155}
       html[data-theme="dark"] .rc-synthetic-row td{background:#111827!important;color:#dbeafe}html[data-theme="dark"] .rc-synthetic-row.rc-level-1 td{background:#172554!important;color:#fff;border-top-color:#3b82f6}html[data-theme="dark"] .rc-synthetic-row.rc-level-2 td{background:#1e293b!important;color:#bfdbfe}
@@ -173,14 +173,15 @@ function preferenciasImpressao(ctx, sobrescritas) {
         <section class="rc-hero"><div><small style="letter-spacing:.14em;text-transform:uppercase;color:#bfdbfe;font-weight:900">Núcleo contábil</small><h2>📊 Relatórios Contábeis</h2><p>Balancete, Razão e Diário gerados diretamente dos lançamentos da empresa ativa.</p></div><div class="rc-status" id="rcStatusPeriodo">Período aberto</div></section>
         <section class="card" style="padding:20px">
           <div class="rc-controls">
-            <div class="rc-field"><label>Competência</label><input type="month" id="rcPeriodo" value="${esc(periodo)}"></div>
+            <div class="rc-field" id="rcPeriodoWrap"><label>Competência</label><input type="month" id="rcPeriodo" value="${esc(periodo)}"></div>
+            <div class="rc-field" id="rcAnoWrap" style="display:none"><label>Ano do Balancete Anual</label><input type="number" min="2000" max="2100" id="rcAno" value="${esc(periodo.slice(0, 4))}"></div>
             <label class="rc-check"><input type="checkbox" id="rcUsarIntervalo"> Selecionar intervalo de datas</label>
             <div class="rc-intervalo" id="rcIntervalo"><div class="rc-field"><label>Data inicial</label><input type="date" id="rcDataInicio" value="${esc(periodo + '-01')}"></div><div class="rc-field"><label>Data final</label><input type="date" id="rcDataFim" value="${esc(periodo + '-' + String(new Date(Number(periodo.slice(0,4)), Number(periodo.slice(5,7)), 0).getDate()).padStart(2,'0'))}"></div></div>
             <div class="rc-field"><label>Formato do Balancete</label><select id="rcFormato"><option value="6">Modelo SAGE — 6 colunas</option><option value="4">4 colunas</option><option value="2">2 colunas</option></select></div>
             <div class="rc-field"><label>Conta no Razão</label><input id="rcConta" placeholder="Reduzido ou descrição"></div>
             <div class="rc-field"><label>Pesquisar</label><input id="rcBusca" placeholder="Conta, histórico ou documento"></div>
           </div>
-          <div class="rc-tabs" style="margin-top:16px"><button class="rc-tab active" data-rc-tipo="balancete">Balancete</button><button class="rc-tab" data-rc-tipo="razao">Razão Analítico</button><button class="rc-tab" data-rc-tipo="diario">Livro Diário</button><button class="rc-tab" data-rc-tipo="dre">DRE</button><button class="rc-tab" data-rc-tipo="balanco">Balanço Patrimonial</button><button class="rc-tab" data-rc-tipo="analise">Análise Econômico-Financeira</button></div>
+          <div class="rc-tabs" style="margin-top:16px"><button class="rc-tab active" data-rc-tipo="balancete">Balancete</button><button class="rc-tab" data-rc-tipo="balancete_anual">Balancete Anual</button><button class="rc-tab" data-rc-tipo="razao">Razão Analítico</button><button class="rc-tab" data-rc-tipo="diario">Livro Diário</button><button class="rc-tab" data-rc-tipo="dre">DRE</button><button class="rc-tab" data-rc-tipo="balanco">Balanço Patrimonial</button><button class="rc-tab" data-rc-tipo="analise">Análise Econômico-Financeira</button></div>
         <div class="rc-actions" style="margin-top:16px"><button class="rc-btn primary" id="rcAtualizar">Atualizar prévia</button><button class="rc-btn light" id="rcImprimir">Visualizar impressão</button><button class="rc-btn light" id="rcPdf">Exportar PDF</button><button class="rc-btn success" id="rcExcel">Exportar Excel</button><button class="rc-btn email" id="rcEmail">✉️ Enviar PDF por e-mail</button><button class="rc-btn whatsapp" id="rcWhatsapp">💬 Enviar PDF no WhatsApp</button><button class="rc-btn warn" id="rcFechar">Encerrar período</button><button class="rc-btn danger" id="rcReabrir" style="display:none">Reabrir período</button></div>
         </section>
         <section class="card" style="padding:20px"><div class="rc-summary" id="rcResumo"></div><div id="rcAvisos" style="margin-top:12px"></div></section>
@@ -211,6 +212,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
         </div>
       </div>`;
     document.getElementById('rcPeriodo').addEventListener('change', function () { preencherSaldos(); atualizarTudo(); });
+    document.getElementById('rcAno').addEventListener('change', render);
     document.getElementById('rcUsarIntervalo').addEventListener('change', function () { atualizarModoPeriodo(); preencherSaldos(); atualizarTudo(); });
     ['rcDataInicio', 'rcDataFim'].forEach(function (id) { document.getElementById(id).addEventListener('change', function () { preencherSaldos(); atualizarTudo(); }); });
     ['rcFormato', 'rcConta', 'rcBusca'].forEach(function (id) { document.getElementById(id).addEventListener(id === 'rcFormato' ? 'change' : 'input', render); });
@@ -233,7 +235,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     document.getElementById('rcAprovarSaldos').addEventListener('click', aprovarSaldosAbertura);
     document.getElementById('rcFechar').addEventListener('click', fecharPeriodo);
     document.getElementById('rcReabrir').addEventListener('click', reabrirPeriodo);
-    root.querySelectorAll('[data-rc-tipo]').forEach(function (btn) { btn.addEventListener('click', function () { tipoAtual = btn.dataset.rcTipo; root.querySelectorAll('[data-rc-tipo]').forEach(function (b) { b.classList.toggle('active', b === btn); }); render(); }); });
+    root.querySelectorAll('[data-rc-tipo]').forEach(function (btn) { btn.addEventListener('click', function () { tipoAtual = btn.dataset.rcTipo; root.querySelectorAll('[data-rc-tipo]').forEach(function (b) { b.classList.toggle('active', b === btn); }); atualizarModoPeriodo(); render(); }); });
     preencherSaldos();
     atualizarModoPeriodo();
     inicializado = true;
@@ -243,16 +245,20 @@ function preferenciasImpressao(ctx, sobrescritas) {
     const ctx = contexto();
     const filtro = filtroSelecionado();
     const periodo = Core.rotuloFiltro(filtro);
+    const ano = String((document.getElementById('rcAno') || {}).value || periodo.slice(0, 4));
     const saldos = saldosDoFiltro(ctx, filtro);
     const balancete = Core.balancete(ctx.entries, filtro, ctx.contas, saldos);
+    const filtroValidacao = tipoAtual === 'balancete_anual' ? { inicio: ano + '-01-01', fim: ano + '-12-31' } : filtro;
     return {
       ctx,
-      periodo,
+      periodo: tipoAtual === 'balancete_anual' ? ano : periodo,
+      ano,
       filtro,
-      periodoLegivel: rotuloPeriodo(filtro),
+      periodoLegivel: tipoAtual === 'balancete_anual' ? ano : rotuloPeriodo(filtro),
       saldos,
-      validacao: Core.validar(ctx.entries, filtro, ctx.contas),
+      validacao: Core.validar(ctx.entries, filtroValidacao, ctx.contas),
       balancete,
+      balanceteAnual: Core.balanceteAnual(ctx.entries, ano, ctx.contas, (((ctx || {}).config || {}).saldosIniciais || {})),
       razao: Core.razao(ctx.entries, filtro, ctx.contas, saldos, (document.getElementById('rcConta') || {}).value || ''),
       diario: Core.diario(ctx.entries, filtro, ctx.contas),
       dre: Core.dre(balancete),
@@ -262,10 +268,15 @@ function preferenciasImpressao(ctx, sobrescritas) {
   }
 
   function atualizarModoPeriodo() {
+    const anual = tipoAtual === 'balancete_anual';
     const intervalo = !!document.getElementById('rcUsarIntervalo').checked;
-    document.getElementById('rcIntervalo').classList.toggle('active', intervalo);
-    document.getElementById('rcPeriodo').disabled = intervalo;
-    document.querySelector('details.rc-settings').style.display = intervalo ? 'none' : '';
+    document.getElementById('rcAnoWrap').style.display = anual ? '' : 'none';
+    document.getElementById('rcPeriodoWrap').style.display = anual ? 'none' : '';
+    document.getElementById('rcUsarIntervalo').closest('label').style.display = anual ? 'none' : '';
+    document.getElementById('rcIntervalo').classList.toggle('active', !anual && intervalo);
+    document.getElementById('rcPeriodo').disabled = !anual && intervalo;
+    document.getElementById('rcFormato').closest('.rc-field').style.display = anual ? 'none' : '';
+    document.querySelector('details.rc-settings').style.display = anual || intervalo ? 'none' : '';
   }
 
   function buscaAceita(valores) {
@@ -277,11 +288,12 @@ function preferenciasImpressao(ctx, sobrescritas) {
     if (!inicializado) return;
     const dados = dadosAtuais();
     const formato = String((document.getElementById('rcFormato') || {}).value || '6');
-    const emIntervalo = typeof dados.filtro !== 'string';
-    const periodoStatus = emIntervalo ? null : statusDoPeriodo(dados.periodo);
+    const anual = tipoAtual === 'balancete_anual';
+    const emIntervalo = !anual && typeof dados.filtro !== 'string';
+    const periodoStatus = emIntervalo || anual ? null : statusDoPeriodo(dados.periodo);
     const fechado = periodoStatus && periodoStatus.status === 'fechado';
-    document.getElementById('rcStatusPeriodo').textContent = emIntervalo ? '📅 Intervalo personalizado' : (fechado ? '🔒 Período encerrado' : (periodoStatus && periodoStatus.status === 'reaberto' ? '🔓 Período reaberto' : '🟢 Período aberto'));
-    document.getElementById('rcFechar').style.display = emIntervalo || fechado ? 'none' : '';
+    document.getElementById('rcStatusPeriodo').textContent = anual ? '📅 Visão anual ' + dados.ano : (emIntervalo ? '📅 Intervalo personalizado' : (fechado ? '🔒 Período encerrado' : (periodoStatus && periodoStatus.status === 'reaberto' ? '🔓 Período reaberto' : '🟢 Período aberto')));
+    document.getElementById('rcFechar').style.display = anual || emIntervalo || fechado ? 'none' : '';
     const podeReabrir = fechado && statusAtual && statusAtual.is_admin;
     document.getElementById('rcReabrir').style.display = podeReabrir ? '' : 'none';
     document.getElementById('rcResumo').innerHTML = `
@@ -291,14 +303,36 @@ function preferenciasImpressao(ctx, sobrescritas) {
       <div class="rc-kpi"><small>Validação</small><strong class="${dados.validacao.ok ? 'rc-ok' : 'rc-error'}">${dados.validacao.ok ? 'Aprovada' : dados.validacao.erros.length + ' erro(s)'}</strong></div>`;
     const mensagens = Core.resumirMensagens(dados.validacao.erros.concat(dados.validacao.avisos), 12);
     document.getElementById('rcAvisos').innerHTML = mensagens.length ? '<div class="rc-alert">' + mensagens.map(function (m) { return '• ' + esc(m.mensagem) + (m.quantidade > 1 ? ' <strong>(' + m.quantidade + ' ocorrências)</strong>' : ''); }).join('<br>') + '</div>' : '';
+    const tabela = document.querySelector('.rc-table');
+    if (tabela) tabela.classList.toggle('annual', anual);
     if (tipoAtual === 'balancete') renderBalancete(dados, formato);
+    else if (tipoAtual === 'balancete_anual') renderBalanceteAnual(dados);
     else if (tipoAtual === 'razao') renderRazao(dados);
     else if (tipoAtual === 'diario') renderDiario(dados);
     else if (tipoAtual === 'dre') renderDRE(dados);
     else if (tipoAtual === 'balanco') renderBalanco(dados);
     else renderAnalise(dados);
     renderHistorico(periodoStatus);
+    if (anual) document.getElementById('rcHistorico').textContent = 'O balancete anual consolida os lançamentos e saldos de abertura cadastrados no CCI, transportando o saldo final de cada conta para o mês seguinte.';
     renderControleAbertura();
+  }
+
+  function renderBalanceteAnual(dados) {
+    document.getElementById('rcTituloTabela').textContent = 'Balancete Anual Analítico — ' + dados.ano;
+    document.getElementById('rcHead').innerHTML = '<tr><th>Descrição</th>' + dados.balanceteAnual.meses.map(function (mes) { return '<th class="num">' + esc(mes.nome) + '</th>'; }).join('') + '</tr>';
+    const linhas = dados.balanceteAnual.linhas.filter(function (linha) { return buscaAceita([linha.codigoCompleto, linha.reduzido, linha.descricao]); });
+    let html = linhas.map(function (linha) {
+      const nivel = Math.max(1, Number(linha.nivel) || 1);
+      const classe = linha.analitica === false ? ' class="rc-synthetic-row rc-level-' + nivel + '"' : '';
+      const identificacao = [linha.codigoCompleto, linha.reduzido].filter(Boolean).join(' / ');
+      const descricao = Array(Math.max(0, nivel - 1)).fill('&nbsp;&nbsp;&nbsp;').join('') + esc(linha.descricao || 'Conta sem descrição') + (identificacao ? ' <small>(' + esc(identificacao) + ')</small>' : '');
+      return '<tr' + classe + '><td>' + descricao + '</td>' + linha.saldosMensais.map(function (saldo) { return '<td class="num">' + saldoComNatureza(saldo) + '</td>'; }).join('') + '</tr>';
+    }).join('');
+    html += '<tr class="rc-account-row"><td colspan="13">RESUMO</td></tr>';
+    html += dados.balanceteAnual.resumo.map(function (linha) {
+      return '<tr class="rc-account-row"><td>' + esc(linha.descricao) + '</td>' + linha.saldosMensais.map(function (saldo) { return '<td class="num">' + saldoComNatureza(saldo) + '</td>'; }).join('') + '</tr>';
+    }).join('');
+    document.getElementById('rcBody').innerHTML = html || '<tr><td colspan="13">Nenhuma conta encontrada para o ano selecionado.</td></tr>';
   }
 
   function renderBalancete(dados, formato) {
@@ -454,8 +488,8 @@ function preferenciasImpressao(ctx, sobrescritas) {
     if (!caixa || !botao) return;
     const imp = (statusAtual && statusAtual.implantacao) || {};
     const exclusiva = imp.modo_contabil === 'cci_exclusivo';
-    caixa.style.display = exclusiva ? '' : 'none';
-    if (!exclusiva) return;
+    caixa.style.display = exclusiva && tipoAtual !== 'balancete_anual' ? '' : 'none';
+    if (!exclusiva || tipoAtual === 'balancete_anual') return;
     const periodo = periodoSelecionado();
     const periodoAbertura = String(imp.inicio_escrituracao_cci || '').slice(0, 7);
     const aprovado = imp.saldo_abertura_status === 'aprovado' && imp.saldo_abertura_periodo === periodoAbertura;
@@ -522,6 +556,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   function linhasExportacao(dados) {
     if (tipoAtual === 'analise') return dados.analise.indicadores.map(function (i) { return [i.id, i.titulo, i.calculavel ? i.valor : 'N.D.', i.percentual ? '%' : (i.monetario ? 'R$' : 'índice'), i.interpretacao]; });
+    if (tipoAtual === 'balancete_anual') return dados.balanceteAnual.linhas.map(function (l) { return [l.descricao].concat(l.saldosMensais); }).concat([['RESUMO']]).concat(dados.balanceteAnual.resumo.map(function (l) { return [l.descricao].concat(l.saldosMensais); }));
     if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [identificacaoBalancete(l), l.descricao, l.saldoAnterior, l.debitos, l.creditos, l.saldoAtual]; });
     if (tipoAtual === 'dre') return dados.dre.linhas.map(function (l) { return [identificacaoBalancete(l), l.descricao, l.valorDemonstracao]; }).concat([['', 'RESULTADO LÍQUIDO DO PERÍODO', dados.dre.resultado]]);
     if (tipoAtual === 'balanco') return dados.balanco.linhas.map(function (l) { return [identificacaoBalancete(l), l.descricao, l.saldoAtual]; }).concat([['RESULTADO', 'Resultado acumulado nas contas de resultado', dados.balanco.resultadoAcumulado], ['', 'TOTAL DO ATIVO', dados.balanco.totalAtivo], ['', 'TOTAL DO PASSIVO + PATRIMÔNIO LÍQUIDO', dados.balanco.totalPassivoPatrimonio]]);
@@ -533,6 +568,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   function linhasExportacaoPDF(dados) {
     if (tipoAtual === 'analise') return dados.analise.indicadores.map(function (i) { return [i.id, i.titulo, i.calculavel ? (i.monetario ? moedaPDF(i.valor) : moeda(i.valor) + (i.percentual ? '%' : '')) : 'N.D.', i.interpretacao]; });
+    if (tipoAtual === 'balancete_anual') return dados.balanceteAnual.linhas.map(function (l) { return [Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao].concat(l.saldosMensais.map(saldoComNatureza)); }).concat([['RESUMO']]).concat(dados.balanceteAnual.resumo.map(function (l) { return [l.descricao].concat(l.saldosMensais.map(saldoComNatureza)); }));
     if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [identificacaoBalancete(l), Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao, saldoPDFComNatureza(l.saldoAnterior), moedaPDF(l.debitos), moedaPDF(l.creditos), saldoPDFComNatureza(l.saldoAtual)]; });
     if (tipoAtual === 'dre') return dados.dre.linhas.map(function (l) { return [identificacaoBalancete(l), Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao, moedaPDF(l.valorDemonstracao)]; }).concat([['', 'RESULTADO LÍQUIDO DO PERÍODO', moedaPDF(dados.dre.resultado)]]);
     if (tipoAtual === 'balanco') return dados.balanco.linhas.map(function (l) { return [identificacaoBalancete(l), Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao, saldoPDFComNatureza(l.saldoAtual)]; }).concat([['RESULTADO', 'Resultado acumulado nas contas de resultado', saldoPDFComNatureza(-dados.balanco.resultadoAcumulado)], ['', 'TOTAL DO ATIVO', moedaPDF(dados.balanco.totalAtivo)], ['', 'TOTAL DO PASSIVO + PATRIMÔNIO LÍQUIDO', moedaPDF(dados.balanco.totalPassivoPatrimonio)]]);
@@ -544,6 +580,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   function cabecalhoExportacao() {
     if (tipoAtual === 'analise') return ['Nº', 'Indicador', 'Resultado', 'Unidade', 'Interpretação'];
+    if (tipoAtual === 'balancete_anual') return ['Descrição'].concat(['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']);
     if (tipoAtual === 'balancete') return ['Conta', 'Descrição', 'Sdo. anterior', 'Débito', 'Crédito', 'Sdo. atual'];
     if (tipoAtual === 'dre') return ['Conta', 'Descrição', 'Valor'];
     if (tipoAtual === 'balanco') return ['Conta', 'Descrição', 'Saldo'];
@@ -594,10 +631,60 @@ function preferenciasImpressao(ctx, sobrescritas) {
     return window.jspdf.jsPDF;
   }
 
+  function criarBalanceteAnualPDF(jsPDF, dados, preferencias) {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const empresa = dados.ctx.empresa || {};
+    const nomeEmpresa = String(empresa.razao_social || empresa.empresa || empresa.nome || 'Empresa');
+    const cnpj = String(empresa.cnpj || '');
+    const cabecalho = cabecalhoExportacao();
+    const linhas = linhasExportacaoPDF(dados);
+    const inicioResumo = dados.balanceteAnual.linhas.length;
+    doc.autoTable({
+      startY: 27,
+      head: [cabecalho],
+      body: linhas,
+      showHead: 'everyPage',
+      theme: 'plain',
+      styles: { fontSize: 5.2, cellPadding: 0.75, lineColor: [120, 120, 120], lineWidth: { bottom: 0.08 }, overflow: 'linebreak' },
+      headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'right', lineWidth: { top: 0.25, bottom: 0.25 } },
+      columnStyles: Object.assign({ 0: { cellWidth: 56, halign: 'left' } }, cabecalho.slice(1).reduce(function (acc, _, indice) { acc[indice + 1] = { cellWidth: 18.3, halign: 'right' }; return acc; }, {})),
+      margin: { top: 27, right: 10, bottom: 12, left: 10 },
+      didParseCell: function (gancho) {
+        if (gancho.section !== 'body') return;
+        if (gancho.row.index >= inicioResumo) gancho.cell.styles.fontStyle = 'bold';
+        const linha = dados.balanceteAnual.linhas[gancho.row.index];
+        if (linha && linha.analitica === false) gancho.cell.styles.fontStyle = 'bold';
+        if (gancho.row.index === inicioResumo) {
+          gancho.cell.styles.fillColor = [235, 235, 235];
+          gancho.cell.styles.lineWidth = { top: 0.35, bottom: 0.35 };
+        }
+      },
+      didDrawPage: function () {
+        const pagina = doc.internal.getCurrentPageInfo().pageNumber;
+        const largura = doc.internal.pageSize.getWidth();
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('BALANCETE ANUAL ANALÍTICO', 10, 9);
+        doc.setFontSize(7.5); doc.text(nomeEmpresa, 10, 14);
+        doc.setFont('helvetica', 'normal'); doc.text('CNPJ: ' + cnpj, 10, 19); doc.text('PERÍODO: ' + dados.ano, 10, 23);
+        doc.text('FOLHA: ' + String(pagina).padStart(6, '0'), largura - 10, 9, { align: 'right' });
+        doc.text('DATA: ' + new Date().toLocaleDateString('pt-BR'), largura - 10, 14, { align: 'right' });
+        doc.text('Usuário: ' + usuarioGerador(), largura - 10, 19, { align: 'right' });
+      }
+    });
+    const paginas = doc.internal.getNumberOfPages();
+    for (let pagina = 1; pagina <= paginas; pagina += 1) {
+      doc.setPage(pagina); doc.setFontSize(6.5);
+      doc.text('Desenvolvido by SP Assessoria Contábil. Todos os direitos reservados.', 10, doc.internal.pageSize.getHeight() - 5);
+      doc.text('Página ' + pagina + ' de ' + paginas, doc.internal.pageSize.getWidth() - 10, doc.internal.pageSize.getHeight() - 5, { align: 'right' });
+    }
+    return { doc, dados, arquivo: nomeArquivo(dados, 'pdf'), preferencias: Object.assign({}, preferencias, { orientacao: 'landscape' }) };
+  }
+
   async function criarDocumentoPDF(opcoes) {
     const jsPDF = await garantirBibliotecasPDF();
     const dados = dadosAtuais();
     const preferencias = preferenciasImpressao(dados.ctx, opcoes);
+    if (tipoAtual === 'balancete_anual') return criarBalanceteAnualPDF(jsPDF, dados, preferencias);
     const doc = new jsPDF({ orientation: preferencias.orientacao, unit: 'mm', format: 'a4' });
     doc.setFontSize(15); doc.text('SP ASSESSORIA CONTÁBIL', 14, 14);
     doc.setFontSize(11); doc.text(nomeTipoRelatorio() + ' — ' + dados.periodoLegivel, 14, 21);
@@ -649,7 +736,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
   }
 
   function nomeTipoRelatorio() {
-    return tipoAtual === 'balancete' ? 'Balancete Analítico' : tipoAtual === 'razao' ? 'Razão Analítico' : tipoAtual === 'dre' ? 'Demonstração do Resultado do Exercício' : tipoAtual === 'balanco' ? 'Balanço Patrimonial' : tipoAtual === 'analise' ? 'Análise Econômico-Financeira' : 'Livro Diário';
+    return tipoAtual === 'balancete' ? 'Balancete Analítico' : tipoAtual === 'balancete_anual' ? 'Balancete Anual Analítico' : tipoAtual === 'razao' ? 'Razão Analítico' : tipoAtual === 'dre' ? 'Demonstração do Resultado do Exercício' : tipoAtual === 'balanco' ? 'Balanço Patrimonial' : tipoAtual === 'analise' ? 'Análise Econômico-Financeira' : 'Livro Diário';
   }
 
   function abrirModalEmail() {
@@ -685,7 +772,8 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   function preencherFormularioImpressao() {
     const preferencias = preferenciasImpressao(contexto());
-    document.getElementById('rcOrientacaoImpressao').value = preferencias.orientacao;
+    document.getElementById('rcOrientacaoImpressao').value = tipoAtual === 'balancete_anual' ? 'landscape' : preferencias.orientacao;
+    document.getElementById('rcOrientacaoImpressao').disabled = tipoAtual === 'balancete_anual';
     document.getElementById('rcResponsavelEmpresa').value = preferencias.responsavelEmpresa;
     document.getElementById('rcDocumentoResponsavel').value = preferencias.documentoResponsavel;
     document.getElementById('rcContadorResponsavel').value = preferencias.contadorResponsavel;

@@ -21,7 +21,7 @@ assert(index.includes('relatoriosContabeis: { saldosIniciais: {} }'), 'configura
 assert(index.includes("p !== 'empresas' && !empresaAtivadaExplicitamente()"), 'gate de ativação da empresa foi removido');
 assert(index.includes('id="btnCadastroEmpresaNav"'), 'cadastro de empresas foi removido');
 
-['Balancete', 'Razão Analítico', 'Livro Diário', 'DRE', 'Balanço Patrimonial', 'Exportar PDF', 'Exportar Excel', 'Enviar PDF por e-mail', 'Enviar PDF no WhatsApp', 'Encerrar período', 'Reabrir período'].forEach(function (texto) {
+['Balancete', 'Balancete Anual', 'Razão Analítico', 'Livro Diário', 'DRE', 'Balanço Patrimonial', 'Exportar PDF', 'Exportar Excel', 'Enviar PDF por e-mail', 'Enviar PDF no WhatsApp', 'Encerrar período', 'Reabrir período'].forEach(function (texto) {
   assert(ui.includes(texto), 'recurso de relatório ausente: ' + texto);
 });
 assert(ui.includes('html[data-theme="dark"]'), 'tema escuro não tratado no módulo');
@@ -48,6 +48,10 @@ assert(ui.includes('orientation: preferencias.orientacao'), 'orientação escolh
 assert(index.includes('cadastro: window.__empresaCadastroInternoAtual || info'), 'cadastro ativo não alimenta responsáveis do relatório');
 assert(index.includes('state.relatoriosContabeis.preferenciasImpressao = preferencias || {}'), 'preferências de impressão não são salvas');
 assert(ui.includes('Balancete Analítico'), 'título analítico do balancete ausente');
+assert(ui.includes('data-rc-tipo="balancete_anual"'), 'aba do Balancete Anual não foi liberada');
+assert(ui.includes('function renderBalanceteAnual(dados)'), 'prévia anual não foi implementada');
+assert(ui.includes("orientation: 'landscape'"), 'Balancete Anual não força o layout horizontal');
+assert(ui.includes("['Descrição'].concat(['Janeiro'"), 'exportação anual não contém os doze meses');
 assert(ui.includes('function renderDRE(dados)'), 'tela da DRE não foi liberada');
 assert(ui.includes('function renderBalanco(dados)'), 'tela do Balanço Patrimonial não foi liberada');
 assert(!ui.includes('DRE — próxima etapa'), 'DRE continua marcada como próxima etapa');
@@ -78,6 +82,7 @@ assert(server.includes('assinaturaEstadoPeriodo(atual, periodo) !== assinaturaEs
 assert(server.includes('SEM_MOVIMENTO_CONTABIL'), 'fechamento sem movimento não está bloqueado');
 assert(server.includes("dre: 'Demonstração do Resultado do Exercício'"), 'envio por e-mail da DRE não foi liberado');
 assert(server.includes("balanco: 'Balanço Patrimonial'"), 'envio por e-mail do Balanço não foi liberado');
+assert(server.includes("balancete_anual: 'Balancete Anual Analítico'"), 'envio por e-mail do Balancete Anual não foi liberado');
 assert(server.includes('analitica: conta.analitica !== false'), 'API não entrega a natureza sintética/analítica da conta');
 assert(adapter.includes('analitica: c.analitica !== false'), 'adaptador não preserva a natureza sintética/analítica da conta');
 assert(index.includes('Contas sinteticas formam a arvore usada no Balancete, Balanco e DRE.'), 'importação não preserva contas sintéticas do plano completo');

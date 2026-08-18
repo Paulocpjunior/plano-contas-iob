@@ -20,8 +20,8 @@ const BASE_AJUDA_CCI = [
   },
   {
     modulo: 'Relatórios contábeis',
-    termos: ['balancete', 'razão', 'diário', 'dre', 'balanço', 'relatório'],
-    orientacao: 'Abra Contábil > Relatórios Contábeis, selecione o período e o relatório. O balancete usa a hierarquia do plano de contas; o razão detalha os lançamentos das contas. DRE, balanço e análise dependem de plano estruturado, saldos e lançamentos conciliados.'
+    termos: ['balancete', 'balancete anual', 'razão', 'diário', 'dre', 'balanço', 'relatório'],
+    orientacao: 'Abra Contábil > Relatórios Contábeis, selecione o período e o relatório. O Balancete Anual permite escolher o ano e compara os saldos finais de janeiro a dezembro, transportando os saldos entre os meses. O balancete usa a hierarquia do plano de contas; o razão detalha os lançamentos das contas. DRE, balanço e análise dependem de plano estruturado, saldos e lançamentos conciliados.'
   },
   {
     modulo: 'Implantação exclusiva no CCI',

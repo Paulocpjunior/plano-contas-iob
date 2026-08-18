@@ -82,6 +82,19 @@ assert.deepStrictEqual(arvore.find(l => l.codigoCompleto === '1.1.1.02'), {
 assert.strictEqual(arvore.find(l => l.codigoCompleto === '2').saldoAtual, -1250, 'passivo sintetico deve preservar natureza credora');
 assert.strictEqual(arvore.filter(l => l.analitica !== false).reduce((s, l) => s + l.debitos, 0), 1250, 'totais nao podem somar sinteticas e analiticas em duplicidade');
 
+const anual = core.balanceteAnual([
+  { id: 'a1', data: '05/01/2026', valor: 1000, contaDebito: '10', contaCredito: '300' },
+  { id: 'a2', data: '05/03/2026', valor: 250, contaDebito: '14', contaCredito: '300' }
+], '2026', planoHierarquico, { '2026-01': { 10: 100 }, '2026-04': { 10: 200 } });
+assert.strictEqual(anual.meses.length, 12, 'balancete anual deve conter janeiro a dezembro');
+assert.strictEqual(anual.periodosComMovimento, 2, 'meses com movimento devem ser contabilizados sem inventar períodos');
+assert.deepStrictEqual(anual.linhas.find(l => l.conta === '10').saldosMensais.slice(0, 5), [1100, 1100, 1100, 200, 200], 'saldo deve ser transportado e saldo explícito deve substituir a conta informada');
+assert.deepStrictEqual(anual.linhas.find(l => l.conta === '14').saldosMensais.slice(0, 5), [0, 0, 250, 250, 250], 'conta iniciada no ano deve preservar meses anteriores zerados');
+assert.strictEqual(anual.resumo.find(l => l.codigo === '1').saldosMensais[2], 1350, 'resumo do ativo deve usar a estrutura sintética real');
+assert.strictEqual(anual.resumo.find(l => l.codigo === '2').saldosMensais[2], -1250, 'resumo do passivo deve preservar natureza credora');
+assert.strictEqual(anual.resumo.find(l => l.codigo === 'DIFERENCA').saldosMensais[2], 100, 'diferença deve comparar ativo e passivo em saldos assinados');
+assert.deepStrictEqual(core.balanceteAnual([], 'ano-invalido', [], {}).linhas, [], 'ano inválido não pode produzir relatório');
+
 const planoDemonstracoes = [
   { codigo: '1', descricao: 'ATIVO', analitica: false },
   { codigo: '1.1.1.02.0001', reduzido: '10', descricao: 'BANCO', analitica: true },
