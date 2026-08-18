@@ -74,7 +74,7 @@ function main() {
     const arquivosJs = [
         'server.js',
         ...fs.readdirSync(RAIZ).filter((f) => f.startsWith('parser-') && f.endsWith('.js')),
-        'api-adapter.js', 'ajuda-cci-base.js', 'ajuda-cci.js', 'historicos-padrao.js', 'historicos-routes.js',
+        'api-adapter.js', 'ajuda-cci-base.js', 'ajuda-cci.js', 'parametrizacao-regime.js', 'parametrizacao-regime-ui.js', 'historicos-padrao.js', 'historicos-routes.js',
         'igrejas-conferencia-caixa.js', 'layouts-bancarios-padrao.js',
         'layout-quality-cases.js', 'layout-quality-evidence.js',
         'mercadopago-integration.js', 'reinf-routes.js',

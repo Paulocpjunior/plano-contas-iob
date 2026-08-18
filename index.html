@@ -33,6 +33,7 @@
     <script src="/saas-brand-theme.js?v=3.4.143"></script>
     <script src="/api-adapter.js?v=3.4.143"></script>
     <script src="/ajuda-cci.js?v=3.4.143"></script>
+    <script src="/parametrizacao-regime-ui.js?v=3.4.143"></script>
     <script src="/relatorios-contabeis.js?v=3.4.143"></script>
     <script src="/relatorios-contabeis-ui.js?v=3.4.143"></script>
     <script src="/ativo-imobilizado.js?v=3.4.143"></script>
@@ -3604,7 +3605,7 @@
                                 <input type="text" id="reinfAplicacoesResponsavel" placeholder="Nome do contato">
                             </div>
                             <div class="filter-group">
-                                <label>Regime tributário</label>
+                                <label>Regime tributário — cadastro do CFI</label>
                                 <select id="reinfAplicacoesRegime" onchange="reinfAplicacoesRecalcular()">
                                     <option value="nao_informado">Confirmar regime</option>
                                     <option value="lucro_real">Lucro Real</option>
@@ -8947,7 +8948,7 @@
                     '<label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Razão social</label><input id="empCadRazao" value="' + empEscape(empresa.razao_social || '') + '" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;margin-bottom:13px">' +
                     '<div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px"><div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Nº da empresa</label><input id="empCadCodigo" inputmode="numeric" maxlength="4" value="' + empEscape(empresa.codigo_empresa || '') + '" placeholder="0001" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"><small style="color:#94a3b8">Busca pelo código, preservando zeros.</small></div>' +
                     '<div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">WhatsApp API</label><input id="empCadWhatsapp" type="tel" value="' + empEscape(empresa.whatsapp || '') + '" placeholder="(11) 91234-5678" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"><small style="color:#94a3b8">Destino do canal oficial da Meta.</small></div></div>' +
-                    '<div style="margin-top:14px;padding:12px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:8px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><div><strong style="font-size:12px;color:#1e3a8a">Regime tributário — cadastro do CFI</strong><div id="empCadRegime" style="margin-top:4px;color:#334155">' + empEscape(empresa.regime_tributario_nome || empNomeRegime(empresa.regime_tributario_codigo)) + '</div></div><button type="button" onclick="empSincronizarRegimeCfi(\'' + empresa.cnpj + '\')" style="padding:8px 10px;border:1px solid #93c5fd;background:#fff;color:#1d4ed8;border-radius:7px;font-weight:700;cursor:pointer">Sincronizar CFI</button></div></div>' +
+                    '<div style="margin-top:14px;padding:12px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:8px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><strong style="font-size:12px;color:#1e3a8a">Regime tributário — cadastro do CFI</strong><div id="empCadRegime" style="margin-top:4px;color:#334155">' + empEscape(empresa.regime_tributario_nome || empNomeRegime(empresa.regime_tributario_codigo)) + '</div></div><div style="display:flex;gap:7px"><button type="button" onclick="empSincronizarRegimeCfi(\'' + empresa.cnpj + '\')" style="padding:8px 10px;border:1px solid #93c5fd;background:#fff;color:#1d4ed8;border-radius:7px;font-weight:700;cursor:pointer">Sincronizar CFI</button><button type="button" onclick="CCIParametrizacaoRegimeUI.abrir(\'' + empresa.cnpj + '\')" style="padding:8px 10px;border:0;background:#1d4ed8;color:#fff;border-radius:7px;font-weight:700;cursor:pointer">⚙️ Parametrizar regras</button></div></div></div>' +
                     '<div style="display:grid;grid-template-columns:1.25fr 1fr;gap:12px;margin-top:14px"><div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Modo contábil</label><select id="empCadModo" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"><option value="ponte_sage"' + (empresa.modo_contabil === 'cci_exclusivo' ? '' : ' selected') + '>Ponte para SAGE</option><option value="cci_exclusivo"' + (empresa.modo_contabil === 'cci_exclusivo' ? ' selected' : '') + '>CCI como sistema único</option></select></div><div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Início da escrituração no CCI</label><input id="empCadInicio" type="date" value="' + empEscape(empresa.inicio_escrituracao_cci || '') + '" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"></div></div>' +
                     '<div style="margin-top:8px;font-size:12px;color:#64748b">Plano de contas e históricos atuais serão preservados. No modo exclusivo, a exportação SAGE é bloqueada e os saldos de abertura exigem aprovação.</div>' +
                     empResumoProntidao(empresa.prontidao_contabil) +
@@ -8983,6 +8984,16 @@
 
         function empNomeRegime(regime) {
             return ({ SIMPLES_NACIONAL: 'Simples Nacional', LUCRO_PRESUMIDO: 'Lucro Presumido', LUCRO_REAL: 'Lucro Real' })[regime] || 'Ainda não sincronizado';
+        }
+
+        function empAlertarParametrizacaoTributaria(empresa) {
+            const avaliacao = empresa && empresa.prontidao_contabil && empresa.prontidao_contabil.parametrizacao_tributaria;
+            if (!avaliacao || avaliacao.ok) return;
+            const primeira = avaliacao.pendencias && avaliacao.pendencias[0];
+            const prefixo = empresa.modo_contabil === 'cci_exclusivo'
+                ? '⚠️ Fechamento bloqueado até concluir a parametrização tributária. '
+                : '⚙️ Parametrização tributária pendente. ';
+            showToast(prefixo + ((primeira && primeira.mensagem) || 'Abra Cadastro > Parametrizar regras.'), 'warn');
         }
 
         async function empSincronizarRegimeCfi(cnpj) {
@@ -9093,6 +9104,7 @@
                     }
                 }
                 window.__empresaCadastroInternoAtual = cadastroOficial;
+                setTimeout(function () { empAlertarParametrizacaoTributaria(cadastroOficial); }, 250);
 
                 if (sess && sess.encontrada && sess.state_json) {
                     const d = JSON.parse(sess.state_json);
@@ -10407,10 +10419,15 @@
             return reinfDigits(state && state.info && (state.info.cnpj || state.info.cnpjEmpresa));
         }
 
+        function reinfAplicacoesRegimeOficial() {
+            const cadastro = window.__empresaCadastroInternoAtual || {};
+            return ({ SIMPLES_NACIONAL: 'simples', LUCRO_PRESUMIDO: 'lucro_presumido', LUCRO_REAL: 'lucro_real' })[cadastro.regime_tributario_codigo] || '';
+        }
+
         function reinfAplicacoesOpcoes() {
             return {
                 competencia: document.getElementById('reinfAplicacoesCompetencia')?.value || '',
-                regimeTributario: document.getElementById('reinfAplicacoesRegime')?.value || 'nao_informado',
+                regimeTributario: reinfAplicacoesRegimeOficial() || document.getElementById('reinfAplicacoesRegime')?.value || 'nao_informado',
                 tipoBeneficiario: document.getElementById('reinfAplicacoesBeneficiario')?.value || 'pj'
             };
         }
@@ -10637,7 +10654,13 @@
             const setVal = (id, valor) => { const el = document.getElementById(id); if (el) el.value = valor == null ? '' : valor; };
             setVal('reinfAplicacoesEmail', resp.emailSolicitacao || '');
             setVal('reinfAplicacoesResponsavel', resp.responsavel || '');
-            setVal('reinfAplicacoesRegime', resp.regimeTributario || 'nao_informado');
+            const regimeOficial = reinfAplicacoesRegimeOficial();
+            setVal('reinfAplicacoesRegime', regimeOficial || resp.regimeTributario || 'nao_informado');
+            const campoRegime = document.getElementById('reinfAplicacoesRegime');
+            if (campoRegime) {
+                campoRegime.disabled = !!regimeOficial;
+                campoRegime.title = regimeOficial ? 'Regime sincronizado do cadastro oficial do CFI.' : 'Sincronize o regime no cadastro da empresa.';
+            }
             setVal('reinfAplicacoesBeneficiario', resp.tipoBeneficiario || 'pj');
             setVal('reinfAplicacoesSolicitarMensalmente', resp.solicitarMensalmente === false ? 'nao' : 'sim');
             if (!(opts && opts.silent)) showToast('Cadastro de aplicações carregado.', 'success');
@@ -10651,7 +10674,7 @@
                 const resp = await window.API.reinfAplicacoesSalvarCadastro(cnpj, {
                     emailSolicitacao: document.getElementById('reinfAplicacoesEmail')?.value || '',
                     responsavel: document.getElementById('reinfAplicacoesResponsavel')?.value || '',
-                    regimeTributario: document.getElementById('reinfAplicacoesRegime')?.value || 'nao_informado',
+                    regimeTributario: reinfAplicacoesOpcoes().regimeTributario,
                     tipoBeneficiario: document.getElementById('reinfAplicacoesBeneficiario')?.value || 'pj',
                     solicitarMensalmente: document.getElementById('reinfAplicacoesSolicitarMensalmente')?.value !== 'nao'
                 });
@@ -17330,7 +17353,8 @@
                        '\n- Natureza juridica: ' + (contextoEmpresa.natureza_juridica || '?') +
                        '\n- Porte: ' + (contextoEmpresa.porte || '?') +
                        (contextoEmpresa.municipio ? '\n- Localizacao: ' + contextoEmpresa.municipio + '/' + (contextoEmpresa.uf || '') : '') +
-                       '\n- Regime tributario: inferir pelo porte e CNAE (provavel Simples Nacional para ME/EPP, Lucro Presumido para demais)' +
+                       '\n- Regime tributario oficial do CFI: ' + (contextoEmpresa.regime_tributario_nome || contextoEmpresa.regime_tributario_codigo || 'nao sincronizado; NAO inferir pelo porte ou CNAE') +
+                       '\n- Status da parametrizacao tributaria: ' + (contextoEmpresa.parametrizacao_tributaria_status || 'pendente') +
                        '\n- Operacoes tipicas: inferir pelo CNAE acima.')
                     : ('Voce eh um contador brasileiro generalista.\n\nCONTEXTO DA EMPRESA:\n- CNPJ: ' + cnpj + ' (dados da Receita indisponiveis no momento)\n- Operacoes: classifique conforme a descricao da transacao.');
             } catch (eHist) {

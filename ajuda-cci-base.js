@@ -32,6 +32,11 @@ const BASE_AJUDA_CCI = [
     orientacao: 'O regime tributário é sincronizado do cadastro central do CFI ao abrir a empresa no CCI. Se estiver ausente ou divergente, corrija primeiro o cadastro oficial no CFI e sincronize novamente; não invente o regime no lançamento.'
   },
   {
+    modulo: 'Parametrização tributária',
+    termos: ['parametrizar regime', 'regras do regime', 'simples nacional', 'lucro presumido', 'lucro real'],
+    orientacao: 'No Cadastro da empresa, clique em Parametrizar regras. O Simples exige critério de receita, anexos e segregações revisadas; o Lucro Presumido exige tratamento de PIS/COFINS e revisão das atividades e receitas adicionais; o Lucro Real exige forma de apuração, tratamento de PIS/COFINS, e-Lalur/e-Lacs e critérios de créditos revisados. Somente administrador confirma. Em empresa exclusiva no CCI, pendências bloqueiam o fechamento.'
+  },
+  {
     modulo: 'Ativo e depreciação',
     termos: ['ativo', 'bem', 'depreciação', 'baixa de bem'],
     orientacao: 'Use Contábil > Ativo e Depreciação para cadastrar bens, vida útil, data de entrada, valor e conta contábil. Revise a política contábil e fiscal aplicável antes de confirmar taxas ou baixas; a Ajuda CCI não substitui decisão técnica do contador responsável.'

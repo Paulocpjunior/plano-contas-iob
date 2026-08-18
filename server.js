@@ -17,6 +17,7 @@ const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client'
 const { buscarRegimeNoCfi } = require('./cfi-regime-client');
 const { exigeSaldoAbertura, periodoInicialEmpresa, validarSaldosAbertura } = require('./implantacao-contabil');
 const { avaliarProntidaoContabil } = require('./prontidao-contabil');
+const { avaliarParametrizacaoRegime, sanitizarParametrizacaoRegime } = require('./parametrizacao-regime');
 const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
 const AtivoImobilizado = require('./ativo-imobilizado');
@@ -1155,6 +1156,48 @@ app.post('/api/empresas/:cnpj/regime-cfi/sincronizar', async (req, res) => {
   }
 });
 
+app.get('/api/empresas/:cnpj/parametrizacao-regime', async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    res.json({ ok: true, cnpj: cnpjLimpo, is_admin: !!req.user.is_admin, ...avaliarParametrizacaoRegime(chk.empresa) });
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message || 'Falha ao consultar parametrização tributária.' });
+  }
+});
+
+app.put('/api/empresas/:cnpj/parametrizacao-regime', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    if (chk.empresa.regime_tributario_origem !== 'CFI') {
+      return res.status(409).json({ erro: 'Sincronize primeiro o regime tributário oficial do CFI.', codigo: 'REGIME_CFI_PENDENTE' });
+    }
+    const validacao = sanitizarParametrizacaoRegime(chk.empresa.regime_tributario_codigo, req.body || {});
+    if (!validacao.ok) return res.status(400).json({ erro: validacao.erro, codigo: 'PARAMETRIZACAO_INVALIDA', pendencias: validacao.pendencias || [] });
+    const parametrizacao = {
+      ...validacao.valor,
+      confirmado_em: new Date(),
+      confirmado_por_uid: req.user.uid,
+      confirmado_por_email: req.user.email,
+      origem_regime: 'CFI'
+    };
+    await db.collection('empresas').doc(cnpjLimpo).set({
+      parametrizacao_tributaria: parametrizacao,
+      parametrizacao_tributaria_atualizada_em: new Date(),
+      updated_at: new Date()
+    }, { merge: true });
+    const empresaAtualizada = { ...chk.empresa, parametrizacao_tributaria: parametrizacao };
+    res.json({ ok: true, cnpj: cnpjLimpo, ...avaliarParametrizacaoRegime(empresaAtualizada) });
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message || 'Falha ao salvar parametrização tributária.' });
+  }
+});
+
 app.get('/api/whatsapp/status', async (req, res) => {
   try {
     const auth = String(req.headers.authorization || '');
@@ -1579,11 +1622,20 @@ app.get('/api/empresas/:cnpj/contexto-ia', async (req, res) => {
 
     const ref = db.collection('empresas').doc(cnpj);
     const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
+    if (!usuarioPodeAcessarEmpresa(snap.data(), req.user)) return res.status(403).json({ erro: 'Sem permissao para esta empresa' });
+    const empresaCadastrada = snap.data() || {};
+    const regimeOficial = {
+      regime_tributario_codigo: empresaCadastrada.regime_tributario_codigo || '',
+      regime_tributario_nome: empresaCadastrada.regime_tributario_nome || '',
+      regime_tributario_origem: empresaCadastrada.regime_tributario_origem || '',
+      parametrizacao_tributaria_status: avaliarParametrizacaoRegime(empresaCadastrada).status
+    };
 
-    if (!force && snap.exists) {
-      const d = snap.data() || {};
+    if (!force) {
+      const d = empresaCadastrada;
       if (d.contexto_ia && d.contexto_ia.cnae_descricao) {
-        return res.json(Object.assign({ origem: 'cache' }, d.contexto_ia));
+        return res.json(Object.assign({ origem: 'cache' }, d.contexto_ia, regimeOficial));
       }
     }
 
@@ -1596,10 +1648,8 @@ app.get('/api/empresas/:cnpj/contexto-ia', async (req, res) => {
       brasilapi = await r.json();
     } catch (eFetch) {
       console.warn('[contexto-ia] falha BrasilAPI:', eFetch.message);
-      if (snap.exists) {
-        const d = snap.data() || {};
-        if (d.contexto_ia) return res.json(Object.assign({ origem: 'cache-fallback' }, d.contexto_ia));
-      }
+      const d = empresaCadastrada;
+      if (d.contexto_ia) return res.json(Object.assign({ origem: 'cache-fallback' }, d.contexto_ia, regimeOficial));
       return res.status(502).json({ erro: 'BrasilAPI indisponivel: ' + eFetch.message });
     }
 
@@ -1618,7 +1668,7 @@ app.get('/api/empresas/:cnpj/contexto-ia', async (req, res) => {
     };
 
     await ref.set({ contexto_ia: ctx }, { merge: true });
-    res.json(Object.assign({ origem: 'brasilapi' }, ctx));
+    res.json(Object.assign({ origem: 'brasilapi' }, ctx, regimeOficial));
   } catch (e) {
     console.error('[contexto-ia] erro:', e);
     res.status(500).json({ erro: e.message });
@@ -2928,6 +2978,7 @@ app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
         regime_tributario_codigo: chk.empresa.regime_tributario_codigo || '',
         regime_tributario_nome: chk.empresa.regime_tributario_nome || '',
         regime_tributario_origem: chk.empresa.regime_tributario_origem || '',
+        parametrizacao_tributaria: avaliarParametrizacaoRegime(chk.empresa),
         saldo_abertura_status: chk.empresa.saldo_abertura_status || '',
         saldo_abertura_periodo: chk.empresa.saldo_abertura_periodo || '',
         saldo_abertura_aprovado_em: serializarDataSegura(chk.empresa.saldo_abertura_aprovado_em),
@@ -3087,6 +3138,14 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
     if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competencia invalida. Use AAAA-MM.' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const parametrizacaoTributaria = avaliarParametrizacaoRegime(chk.empresa);
+    if (chk.empresa.modo_contabil === 'cci_exclusivo' && !parametrizacaoTributaria.ok) {
+      return res.status(409).json({
+        erro: 'Conclua a parametrização de ' + parametrizacaoTributaria.regime_nome + ' antes de encerrar o período. ' + (parametrizacaoTributaria.pendencias[0] ? parametrizacaoTributaria.pendencias[0].mensagem : ''),
+        codigo: 'PARAMETRIZACAO_TRIBUTARIA_PENDENTE',
+        pendencias: parametrizacaoTributaria.pendencias
+      });
+    }
     if (exigeSaldoAbertura(chk.empresa, periodo)) {
       const inicial = periodoInicialEmpresa(chk.empresa);
       if (chk.empresa.saldo_abertura_status !== 'aprovado' || chk.empresa.saldo_abertura_periodo !== inicial) {
