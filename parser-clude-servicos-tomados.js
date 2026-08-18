@@ -97,8 +97,8 @@
   }
 
   function extrairPeriodo(texto) {
-    const m = String(texto || '').match(/Periodo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aá]\s*(\d{2}\/\d{2}\/\d{4})/i)
-      || String(texto || '').match(/Pe\s*r[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aá]\s*(\d{2}\/\d{2}\/\d{4})/i);
+    const m = String(texto || '').match(/Periodo:\s*(?:de\s*)?(\d{2}\/\d{2}\/\d{4})\s*[aáà]\s*(\d{2}\/\d{2}\/\d{4})/i)
+      || String(texto || '').match(/Pe\s*r[ií]odo:\s*(?:de\s*)?(\d{2}\/\d{2}\/\d{4})\s*[aáà]\s*(\d{2}\/\d{2}\/\d{4})/i);
     return {
       inicio: m ? parseDateBR(m[1]) : '',
       fim: m ? parseDateBR(m[2]) : ''
@@ -826,6 +826,152 @@
     };
   }
 
+  function extrairTotaisDemonstrativoRetidos(texto) {
+    const linhas = String(texto || '').split(/\r?\n/);
+    let totais = null;
+    linhas.forEach(function(linha) {
+      const limpa = String(linha || '').replace(/\s+/g, ' ').trim();
+      if (!/^Total\s+/i.test(limpa)) return;
+      const valores = (limpa.match(/\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}/g) || []).map(parseMoneyBR);
+      if (valores.length < 7) return;
+      const ultimos = valores.slice(-7);
+      totais = {
+        valorNotas: ultimos[0],
+        baseRetencao: ultimos[1],
+        pis: ultimos[2],
+        cofins: ultimos[3],
+        csll: ultimos[4],
+        irrf: ultimos[5],
+        inss: ultimos[6]
+      };
+    });
+    return totais;
+  }
+
+  function parsearLinhaDemonstrativoRetidos(linha, periodo, metaEmpresa) {
+    const money = '(\\d{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+,\\d{2})';
+    const documentoPessoa = '(\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2})';
+    const regex = new RegExp('^(\\d{1,3})\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(.+?)\\s+' + documentoPessoa
+      + '\\s+' + money + '\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+' + money + '\\s+' + money
+      + '\\s+' + money + '\\s+' + money + '\\s+' + money + '\\s+' + money + '$');
+    const texto = String(linha || '').replace(/\s+/g, ' ').trim();
+    const m = texto.match(regex);
+    if (!m) return null;
+
+    const identificacaoNota = String(m[3] || '').trim().split(/\s+/);
+    const numero = String(identificacaoNota.pop() || '').replace(/^0+(?=\d)/, '');
+    const serie = identificacaoNota.join(' ');
+    const valorNota = parseMoneyBR(m[5]);
+    const baseRetencao = parseMoneyBR(m[7]);
+    const pis = parseMoneyBR(m[8]);
+    const cofins = parseMoneyBR(m[9]);
+    const csll = parseMoneyBR(m[10]);
+    const irrf = parseMoneyBR(m[11]);
+    const inss = parseMoneyBR(m[12]);
+    const totalRetencoes = pis + cofins + csll + irrf + inss;
+    if (!numero || !valorNota) return null;
+
+    const documentoTomador = m[4];
+    const tipoTomador = somenteDigitos(documentoTomador).length === 14 ? 'CNPJ' : 'CPF';
+    const descricao = ['Servicos prestados com retencao', 'NF ' + numero, tipoTomador + ' tomador ' + documentoTomador]
+      .join(' - ');
+    const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim() || 'FISCAL';
+
+    return {
+      data: parseDateBR(m[2]),
+      descricao,
+      descricao_memoria: 'Servicos prestados com retencao - ' + documentoTomador,
+      memoriaDescricoes: ['Servicos prestados com retencao', documentoTomador, 'NF ' + numero],
+      valor: Math.abs(valorNota),
+      valorNota: Math.abs(valorNota),
+      valorLiquidoAposRetencoes: Math.round((Math.abs(valorNota) - totalRetencoes) * 100) / 100,
+      baseCalculoRetencao: Math.abs(baseRetencao),
+      pisRetido: Math.abs(pis),
+      cofinsRetida: Math.abs(cofins),
+      csllRetida: Math.abs(csll),
+      irrfRetido: Math.abs(irrf),
+      inssRetido: Math.abs(inss),
+      totalRetencoes: Math.round(totalRetencoes * 100) / 100,
+      dataCompensacao: parseDateBR(m[6]),
+      modeloNotaFiscal: m[1],
+      serieSubserie: serie,
+      documento: numero,
+      cnpj_cpf_tomador: documentoTomador,
+      tipoDocumentoFiscal: 'SERVICO_PRESTADO_IMPOSTOS_RETIDOS',
+      naturezaLancamento: 'servico_prestado_com_retencoes',
+      categoriaFiscal: 'RECEITA_SERVICOS',
+      categoria: 'Receita de Servicos',
+      codigoHistorico: '0000',
+      historico: 'SERVICOS PRESTADOS COM RETENCAO',
+      layoutNome: 'SAGE - Demonstrativo de Impostos Retidos em Servicos',
+      layoutParser: 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos',
+      conta: 'Fiscal ' + codigoEmpresa + ' - Impostos Retidos em Servicos',
+      nome_conta: 'Fiscal ' + codigoEmpresa + ' - Impostos Retidos em Servicos',
+      empresaCodigoFiscal: String((metaEmpresa && metaEmpresa.codigo) || '').trim(),
+      empresaCnpjFiscal: (metaEmpresa && metaEmpresa.cnpj) || '',
+      empresaNomeFiscal: (metaEmpresa && metaEmpresa.nome) || '',
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim
+    };
+  }
+
+  function parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos(textoCompleto) {
+    const texto = String(textoCompleto || '');
+    const detector = normalizarTexto(texto).toUpperCase();
+    if (!/DEMONSTRATIVO DOS IMPOSTOS RETIDOS NA FONTE\s*-?\s*NOTAS FISCAIS DE SERVICOS/.test(detector)) {
+      return { detectado: false, lancamentos: [] };
+    }
+
+    const metaEmpresa = extrairEmpresaIOBSage(texto);
+    if (!metaEmpresa.codigo || !cnpjValido(metaEmpresa.cnpj)) {
+      return { detectado: false, lancamentos: [] };
+    }
+    const periodo = extrairPeriodo(texto);
+    if (!periodo.inicio || !periodo.fim) return { detectado: false, lancamentos: [] };
+
+    const lancamentos = texto.split(/\r?\n/)
+      .map(function(linha) { return parsearLinhaDemonstrativoRetidos(linha, periodo, metaEmpresa); })
+      .filter(Boolean);
+    const totaisOficiais = extrairTotaisDemonstrativoRetidos(texto);
+    const somas = lancamentos.reduce(function(acc, l) {
+      acc.valorNotas += Number(l.valorNota || 0);
+      acc.baseRetencao += Number(l.baseCalculoRetencao || 0);
+      acc.pis += Number(l.pisRetido || 0);
+      acc.cofins += Number(l.cofinsRetida || 0);
+      acc.csll += Number(l.csllRetida || 0);
+      acc.irrf += Number(l.irrfRetido || 0);
+      acc.inss += Number(l.inssRetido || 0);
+      return acc;
+    }, { valorNotas: 0, baseRetencao: 0, pis: 0, cofins: 0, csll: 0, irrf: 0, inss: 0 });
+    const camposTotal = ['valorNotas', 'baseRetencao', 'pis', 'cofins', 'csll', 'irrf', 'inss'];
+    const divergencias = totaisOficiais ? camposTotal.filter(function(campo) {
+      return Math.abs(centavos(somas[campo]) - centavos(totaisOficiais[campo])) > 1;
+    }) : [];
+
+    return {
+      detectado: lancamentos.length > 0,
+      banco_detectado: metaEmpresa.codigo,
+      nome_banco_detectado: metaEmpresa.nome || 'Demonstrativo de Impostos Retidos em Servicos',
+      conta_detectada: 'IMPOSTOS_RETIDOS_SERVICOS',
+      nome_conta_detectado: 'SAGE - Demonstrativo de Impostos Retidos em Servicos',
+      cnpj_detectado: metaEmpresa.cnpj,
+      empresa_codigo_detectado: metaEmpresa.codigo,
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim,
+      total_credito: somas.valorNotas,
+      total_debito: 0,
+      total_notas_fiscais: lancamentos.length,
+      direcao_fiscal: 'impostos_retidos_servicos',
+      total_oficial: totaisOficiais ? totaisOficiais.valorNotas : somas.valorNotas,
+      total_oficial_detectado: !!totaisOficiais,
+      totais_retencoes_calculados: somas,
+      totais_retencoes_oficiais: totaisOficiais,
+      total_divergente: divergencias.length > 0,
+      campos_totais_divergentes: divergencias,
+      lancamentos
+    };
+  }
+
   function agruparItensPdfEmLinhas(items, rotacao) {
     const giro = ((Number(rotacao || 0) % 360) + 360) % 360;
     const usaEixoX = giro === 90 || giro === 270;
@@ -937,6 +1083,22 @@
     ], totalOficial, 'debito');
   }
 
+  async function parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos(arrayBuffer) {
+    const pdfjs = root.pdfjsLib || (typeof pdfjsLib !== 'undefined' ? pdfjsLib : null);
+    if (!pdfjs || !pdfjs.getDocument) {
+      throw new Error('PDF.js nao carregado para ler o Demonstrativo de Impostos Retidos da SAGE.');
+    }
+
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
+    const paginas = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
+    }
+    return parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos(paginas.join('\n'));
+  }
+
   function validarVinculoCnpjRelatorioFiscal(resultado, opts) {
     opts = opts || {};
     const cnpjAtivo = somenteDigitos(opts.cnpjEmpresaAtiva || '');
@@ -983,11 +1145,13 @@
   root.parsearTexto_CludeServicosTomados = parsearTexto_CludeServicosTomados;
   root.parsearTexto_IOBSageServicosTomados = parsearTexto_IOBSageServicosTomados;
   root.parsearTexto_IOBSageServicosPrestados = parsearTexto_IOBSageServicosPrestados;
+  root.parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos = parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos;
   root.parsearPDF_Clude_ServicosTomados = parsearPDF_Clude_ServicosTomados;
   root.parsearPDF_Clude_AnaliseCreditos = parsearPDF_Clude_AnaliseCreditos;
   root.parsearPDF_Fiscal_AnaliseCreditosPISCOFINS = parsearPDF_Fiscal_AnaliseCreditosPISCOFINS;
   root.parsearPDF_IOB_Sage_ServicosPrestados = parsearPDF_IOB_Sage_ServicosPrestados;
   root.parsearPDF_IOB_Sage_ServicosTomados = parsearPDF_IOB_Sage_ServicosTomados;
+  root.parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos = parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos;
   root.validarVinculoCnpjRelatorioFiscal = validarVinculoCnpjRelatorioFiscal;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -995,16 +1159,19 @@
       parsearTexto_CludeServicosTomados,
       parsearTexto_IOBSageServicosTomados,
       parsearTexto_IOBSageServicosPrestados,
+      parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos,
       parsearPDF_Clude_ServicosTomados,
       parsearPDF_Clude_AnaliseCreditos,
       parsearPDF_Fiscal_AnaliseCreditosPISCOFINS,
       parsearPDF_IOB_Sage_ServicosPrestados,
       parsearPDF_IOB_Sage_ServicosTomados,
+      parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos,
       validarVinculoCnpjRelatorioFiscal,
       __test__: {
         parsearTexto_CludeServicosTomados,
         parsearTexto_IOBSageServicosTomados,
         parsearTexto_IOBSageServicosPrestados,
+        parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos,
         escolherResultadoPorTotalOficial,
         somaAbsolutaLancamentos
       }

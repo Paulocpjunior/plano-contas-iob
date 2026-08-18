@@ -14,6 +14,11 @@ const BASE_AJUDA_CCI = [
     orientacao: 'Na empresa ativa, abra Operação > Extrator, informe banco, conta e período, selecione o arquivo e confira a prévia. O CCI valida duplicidade, versão do importador, layout e vínculo com a empresa antes de persistir. Não importe novamente um arquivo já contabilizado sem primeiro revisar a importação anterior.'
   },
   {
+    modulo: 'Importação fiscal - impostos retidos',
+    termos: ['impostos retidos', 'demonstrativo sage', 'retenção', 'pis retido', 'cofins retida', 'csll retida', 'irrf'],
+    orientacao: 'Na empresa ativa, abra Importações > Movimento Fiscal e selecione o modelo geral Impostos retidos em notas de serviços. O CCI confere o CNPJ do cabeçalho, período, notas, valor, base, PIS, COFINS, CSLL, IRRF e INSS. Qualquer divergência de CNPJ ou total mantém a importação bloqueada.'
+  },
+  {
     modulo: 'Conciliação e memória',
     termos: ['conciliar', 'memorizar', 'memória', 'classificar', 'lançamento'],
     orientacao: 'Revise descrição, débito, crédito, código IOB e histórico dos lançamentos. Para alterar duas ou mais linhas, marque os itens, clique em Alterar selecionados, escolha os campos e confirme a quantidade. Datas, valores, descrições e documentos são preservados; contas em lote exigem lançamentos da mesma natureza. Memorize somente descrições específicas o bastante para identificar a operação.'

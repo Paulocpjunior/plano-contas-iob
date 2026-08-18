@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.2",
+  "manual_version": "2.3",
   "updated_at": "2026-08-18",
-  "app_reference": "3.4.147",
+  "app_reference": "3.4.151",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -97,6 +97,22 @@
           "Verificar os lançamentos gravados e classificar antes do fechamento."
         ]},
         {"type": "callout", "tone": "info", "label": "Resultado esperado", "text": "Os movimentos confirmados permanecem na base da empresa, podem ser consultados e alimentam os relatórios. Exportar para a SAGE não consome nem apaga esses lançamentos."}
+      ]
+    },
+    {
+      "id": "importacao-fiscal",
+      "title": "5A. Importação de movimento fiscal",
+      "keywords": ["movimento fiscal", "sage", "impostos retidos", "serviços", "cnpj"],
+      "blocks": [
+        {"type": "checklist", "items": [
+          "Ativar a empresa correta e conferir o CNPJ antes de selecionar o arquivo.",
+          "Abrir Importações - Movimento Fiscal e escolher o modelo correspondente ao relatório.",
+          "Para o Demonstrativo de Impostos Retidos da SAGE, usar o modelo geral Impostos retidos em notas de serviços.",
+          "Conferir período, quantidade de notas, valor total, base de retenção, PIS, COFINS, CSLL, IRRF e INSS.",
+          "Não continuar se o CNPJ do cabeçalho divergir da empresa ativa ou se qualquer total oficial não fechar.",
+          "Revisar a prévia antes de confirmar a gravação dos lançamentos."
+        ]},
+        {"type": "callout", "tone": "info", "label": "Modelo geral", "text": "O código e o nome da empresa impressos no relatório são informativos. A liberação depende do CNPJ do cabeçalho ser idêntico ao cadastro da empresa ativa e de todos os totais oficiais estarem conciliados."}
       ]
     },
     {

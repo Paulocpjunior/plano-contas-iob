@@ -52,6 +52,26 @@
       observacao: 'Modelo reutilizavel para qualquer empresa. Extrai e confere o CNPJ do cabecalho, o tipo Servicos Prestados e o total oficial antes da importacao.'
     },
     {
+      id: 'generico_demonstrativo_impostos_retidos_servicos_sage_pdf',
+      codigoEmpresa: 'GEN',
+      cnpj: '',
+      empresa: 'Todas as empresas - Office Fiscal / IOB SAGE',
+      movimento: 'impostos_retidos_servicos',
+      documento: 'DEMONSTRATIVO_IMPOSTOS_RETIDOS_SERVICOS',
+      nome: 'SAGE - Demonstrativo de Impostos Retidos em Servicos',
+      parser: 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos',
+      formato: 'PDF fiscal Office Fiscal / IOB SAGE',
+      extensoes: ['pdf'],
+      confiabilidade: 'Alta',
+      status: 'Ativo',
+      homologacao_status: 'aprovado',
+      validacaoCnpj: 'cabecalho_relatorio',
+      exigirCodigoArquivo: false,
+      exigirChaveNfeTodasNotas: false,
+      ultimoTeste: 'pdf2 markstaff.pdf',
+      observacao: 'Modelo generico para qualquer empresa. Extrai NF, tomador, valor, base, PIS, COFINS, CSLL, IRRF e INSS; confere CNPJ, periodo e todos os totais oficiais antes da importacao.'
+    },
+    {
       id: '0109_fastweld_registro_entradas_iob_sage',
       codigoEmpresa: '0109',
       cnpj: '02942184000134',

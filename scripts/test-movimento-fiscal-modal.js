@@ -40,6 +40,9 @@ assert(catalogo.includes("validacaoCnpj: 'cadastro_layout_codigo_arquivo'"), 'en
 assert(index.includes('direcaoEsperada: layout.movimento'), 'validacao fiscal deve respeitar entrada ou saida selecionada');
 assert(catalogo.includes("id: 'generico_servicos_tomados_efiscal_pdf'"), 'catalogo deve oferecer servicos tomados para qualquer empresa');
 assert(catalogo.includes("id: 'generico_servicos_prestados_efiscal_pdf'"), 'catalogo deve oferecer servicos prestados para qualquer empresa');
+assert(catalogo.includes("id: 'generico_demonstrativo_impostos_retidos_servicos_sage_pdf'"), 'catalogo deve oferecer demonstrativo SAGE de impostos retidos para qualquer empresa');
+assert(catalogo.includes("parser: 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos'"), 'demonstrativo de retidos deve usar parser proprio');
 assert(catalogo.includes("validacaoCnpj: 'cabecalho_relatorio'"), 'modelos de servicos devem declarar a conferencia pelo cabecalho do PDF');
+assert(index.includes("impostos_retidos_servicos: 'Impostos retidos em notas de serviços'"), 'modal deve nomear a nova modalidade fiscal');
 
 console.log('OK: modal Movimento Fiscal separado, catalogado e bloqueado por CNPJ antes da conferencia/gravação.');
