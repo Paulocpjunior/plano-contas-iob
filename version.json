@@ -1,7 +1,7 @@
 {
-  "version": "3.4.142",
-  "build_date": "2026-08-18T10:09:00Z",
+  "version": "3.4.143",
+  "build_date": "2026-08-18T10:26:26Z",
   "release_notes": [
-    "feat: automatizar prontidao contabil das empresas"
+    "feat: adicionar novidades e ajuda operacional ao CCI"
   ]
 }
