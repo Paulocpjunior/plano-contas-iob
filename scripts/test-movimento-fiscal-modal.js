@@ -42,7 +42,17 @@ assert(catalogo.includes("id: 'generico_servicos_tomados_efiscal_pdf'"), 'catalo
 assert(catalogo.includes("id: 'generico_servicos_prestados_efiscal_pdf'"), 'catalogo deve oferecer servicos prestados para qualquer empresa');
 assert(catalogo.includes("id: 'generico_demonstrativo_impostos_retidos_servicos_sage_pdf'"), 'catalogo deve oferecer demonstrativo SAGE de impostos retidos para qualquer empresa');
 assert(catalogo.includes("parser: 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos'"), 'demonstrativo de retidos deve usar parser proprio');
+assert(catalogo.includes("id: 'generico_demonstrativo_impostos_retidos_servicos_tomados_sage_pdf'"), 'catalogo deve oferecer retencoes de servicos tomados para qualquer empresa');
+assert(catalogo.includes("parser: 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicosTomados'"), 'retencoes de servicos tomados devem usar parser proprio');
 assert(catalogo.includes("validacaoCnpj: 'cabecalho_relatorio'"), 'modelos de servicos devem declarar a conferencia pelo cabecalho do PDF');
-assert(index.includes("impostos_retidos_servicos: 'Impostos retidos em notas de serviços'"), 'modal deve nomear a nova modalidade fiscal');
+assert(index.includes("impostos_retidos_servicos: 'Retenções de serviços prestados'"), 'modal deve distinguir retencoes de servicos prestados');
+assert(index.includes("impostos_retidos_servicos_tomados: 'Retenções de serviços tomados'"), 'modal deve distinguir retencoes de servicos tomados');
+assert(index.includes('id="retencoesTomadosOverlay"'), 'retencoes de servicos tomados devem ter modal independente');
+assert(index.includes('Importe o Demonstrativo dos Impostos Retidos - Notas de Entradas de Serviços para qualquer empresa ativa.'), 'novo modal deve declarar disponibilidade geral');
+assert(index.includes('accept=".pdf" onchange="invalidarValidacaoRetencoesServicosTomados()"'), 'novo modal deve aceitar exclusivamente PDF');
+assert(index.includes('abrirModalRetencoesServicosTomados()'), 'app deve expor acao dedicada ao novo modal');
+assert(index.includes('validarArquivoRetencoesServicosTomados()'), 'novo modal deve validar antes de importar');
+assert(index.includes("processarMovimentoFiscalValidado('retencoes_tomados')"), 'novo modal deve reutilizar a conferencia fiscal com origem dedicada');
+assert(index.includes("layout.movimento !== 'impostos_retidos_servicos_tomados'"), 'layout dedicado nao deve ser misturado no modal Movimento Fiscal');
 
 console.log('OK: modal Movimento Fiscal separado, catalogado e bloqueado por CNPJ antes da conferencia/gravação.');

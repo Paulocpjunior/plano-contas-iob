@@ -2334,6 +2334,7 @@
                 <div class="nav-cluster-menu" id="navClusterOperacaoMenu" role="menu">
                     <button class="nav-module-button" onclick="showPage('extrator')"><span>📤</span> Extrator</button>
                     <button class="nav-module-button" onclick="abrirModalMovimentoFiscal()"><span>🧾</span> Importações Fiscais</button>
+                    <button class="nav-module-button" onclick="abrirModalRetencoesServicosTomados()"><span>🧮</span> Retenções Serviços Tomados</button>
                     <button class="nav-module-button" onclick="showPage('lancamentos')"><span>📋</span> Lançamentos</button>
                 </div>
             </div>
@@ -2590,6 +2591,9 @@
                             <button class="btn-action btn-action-primary" onclick="abrirModalMovimentoFiscal()" style="background:#0f766e">
                                 🧾 Importar Movimento Fiscal
                             </button>
+                            <button class="btn-action btn-action-primary" onclick="abrirModalRetencoesServicosTomados()" style="background:#7c3aed">
+                                🧮 Retenções de Serviços Tomados
+                            </button>
                             <button class="btn-action btn-action-primary" onclick="importarLancamentoClick()" style="background:#7c3aed">
                                 📋 Importar Novo Lançamento
                             </button>
@@ -2619,6 +2623,9 @@
                         <div style="display:flex;justify-content:center;margin:14px 0 18px 0">
                             <button class="btn-action btn-action-secondary" type="button" onclick="abrirModalMovimentoFiscal()" style="background:#ecfdf5;color:#0f766e;border:1px solid #99f6e4;margin-right:10px">
                                 🧾 Importações — Movimento Fiscal
+                            </button>
+                            <button class="btn-action btn-action-secondary" type="button" onclick="abrirModalRetencoesServicosTomados()" style="background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe;margin-right:10px">
+                                🧮 Retenções — Serviços Tomados
                             </button>
                             <button class="btn-action btn-action-secondary" type="button" onclick="abrirModalMercadoPago()" style="background:#eef2ff;color:#1d4ed8;border:1px solid #c7d2fe">
                                 🟦 Mercado Pago API / Relatório
@@ -4073,6 +4080,54 @@
         </div>
     </div>
 
+    <!-- Retencoes de Servicos Tomados -->
+    <div class="confirm-import-overlay" id="retencoesTomadosOverlay">
+        <div class="confirm-import-card movimento-fiscal-card">
+            <div class="confirm-import-head">
+                <div>
+                    <h3>🧮 Retenções de Serviços Tomados</h3>
+                    <p>Importe o Demonstrativo dos Impostos Retidos - Notas de Entradas de Serviços para qualquer empresa ativa.</p>
+                </div>
+                <button class="btn-remove" type="button" onclick="fecharModalRetencoesServicosTomados()" aria-label="Fechar">✕</button>
+            </div>
+
+            <div class="movimento-fiscal-lock">
+                <div><span>Empresa ativa</span><strong id="retTomEmpresaAtiva">-</strong></div>
+                <div><span>CNPJ do cadastro</span><strong id="retTomCnpjAtivo">-</strong></div>
+                <div><span>Regra de liberação</span><strong>Cadastro = CNPJ do relatório</strong></div>
+            </div>
+
+            <div class="movimento-fiscal-form" style="grid-template-columns:1fr">
+                <div>
+                    <label for="retTomArquivo">Demonstrativo de retenções dos serviços tomados</label>
+                    <input id="retTomArquivo" type="file" accept=".pdf" onchange="invalidarValidacaoRetencoesServicosTomados()">
+                </div>
+            </div>
+
+            <div id="retTomStatus" class="movimento-fiscal-status info">
+                Nenhum arquivo validado. A importação permanece bloqueada.
+            </div>
+
+            <div id="retTomValidation" class="movimento-fiscal-validation">
+                <div class="confirm-import-grid">
+                    <div class="confirm-import-metric"><span class="label">Código no relatório</span><span class="value" id="retTomCodigoArquivo">-</span></div>
+                    <div class="confirm-import-metric"><span class="label">CNPJ extraído</span><span class="value" id="retTomCnpjArquivo">-</span></div>
+                    <div class="confirm-import-metric"><span class="label">Período</span><span class="value" id="retTomPeriodo">-</span></div>
+                    <div class="confirm-import-metric"><span class="label">Notas fiscais</span><span class="value" id="retTomNotas">0</span></div>
+                    <div class="confirm-import-metric debit"><span class="label">Valor bruto</span><span class="value" id="retTomBruto">R$ 0,00</span></div>
+                    <div class="confirm-import-metric credit"><span class="label">Total retido</span><span class="value" id="retTomRetido">R$ 0,00</span></div>
+                    <div class="confirm-import-metric"><span class="label">Valor líquido</span><span class="value" id="retTomLiquido">R$ 0,00</span></div>
+                </div>
+            </div>
+
+            <div class="confirm-import-actions">
+                <button class="btn btn-secondary" type="button" onclick="fecharModalRetencoesServicosTomados()">Cancelar</button>
+                <button class="btn btn-secondary" type="button" onclick="validarArquivoRetencoesServicosTomados()">Validar arquivo</button>
+                <button class="btn btn-primary" type="button" id="retTomImportarBtn" onclick="processarMovimentoFiscalValidado('retencoes_tomados')" disabled>Continuar para importação</button>
+            </div>
+        </div>
+    </div>
+
     <!-- FLANACAR Fiscal Column Selection -->
     <div class="confirm-import-overlay" id="flanacarColumnsOverlay">
         <div class="confirm-import-card flanacar-columns-card">
@@ -4268,6 +4323,7 @@
         
         let selectedFile = null;
         let movimentoFiscalValidacaoAtual = null;
+        let retencoesTomadosValidacaoAtual = null;
         let layoutsFiscaisCache = [];
         let ultimaAnaliseRazaoNotas = null;
         let chartCategorias = null;
@@ -6293,6 +6349,9 @@
                 'csllRetida','irrfRetido','inssRetido','totalRetencoes','dataCompensacao',
                 'modeloNotaFiscal','serieSubserie','cnpj_cpf_tomador','componenteFiscal',
                 'tributoRetido','valorTributoRetido',
+                'seguridadeSocialRetida','dataPagamento','dataPagamentoCreditoIrrf',
+                'codigoRetencaoPis','codigoRetencaoCofins','codigoRetencaoCsll',
+                'codigoRetencaoIrrf','codigoRetencaoSeguridadeSocial','codigoRetencaoFonte',
                 'cfop','cfops','cfopValores','chave_nfe','chave_cte_substituido',
                 'inscricao_estadual','cidade','uf','situacaoDocumento','emissao',
                 'entradaSaida','especie','serie','subserie','observacao','ufDestino',
@@ -14939,7 +14998,7 @@
                 layouts = window.LAYOUTS_FISCAIS_PADRAO.slice();
             }
             layoutsFiscaisCache = layouts.filter(function(layout) {
-                return layout.status !== 'Inativo' && layout.homologacao_status === 'aprovado';
+                return layout.status !== 'Inativo' && layout.homologacao_status === 'aprovado' && layout.movimento !== 'impostos_retidos_servicos_tomados';
             });
             const select = document.getElementById('movFiscalLayout');
             if (!select) return;
@@ -14949,7 +15008,8 @@
                     entrada: 'NF-e de entrada (compras)',
                     servicos_tomados: 'Serviços tomados',
                     servicos_prestados: 'Serviços prestados',
-                    impostos_retidos_servicos: 'Impostos retidos em notas de serviços'
+                    impostos_retidos_servicos: 'Retenções de serviços prestados',
+                    impostos_retidos_servicos_tomados: 'Retenções de serviços tomados'
                 };
                 const movimento = movimentos[layout.movimento] || layout.movimento || 'Movimento fiscal';
                 const prefixo = layout.codigoEmpresa === 'GEN'
@@ -15063,7 +15123,7 @@
                 document.getElementById('movFiscalPeriodo').textContent = formatarDataBR(resultado.periodo_inicio) + ' a ' + formatarDataBR(resultado.periodo_fim);
                 document.getElementById('movFiscalNotas').textContent = String(resultado.total_notas_fiscais || (resultado.lancamentos || []).length || 0);
                 document.getElementById('movFiscalVendas').textContent = formatarMoedaBR(
-                    layout.movimento === 'impostos_retidos_servicos'
+                    /^impostos_retidos_servicos(?:_tomados)?$/.test(layout.movimento)
                         ? (resultado.total_credito || 0)
                         : ((resultado.total_credito || 0) + (resultado.total_debito || 0))
                 );
@@ -15083,10 +15143,111 @@
             }
         }
 
-        async function processarMovimentoFiscalValidado() {
-            const validacao = movimentoFiscalValidacaoAtual;
+        function retencoesTomadosStatus(tipo, html) {
+            const el = document.getElementById('retTomStatus');
+            if (!el) return;
+            el.className = 'movimento-fiscal-status ' + (tipo || 'info');
+            el.innerHTML = html || '';
+        }
+
+        function layoutRetencoesServicosTomados() {
+            return (window.LAYOUTS_FISCAIS_PADRAO || []).find(function(layout) {
+                return layout.id === 'generico_demonstrativo_impostos_retidos_servicos_tomados_sage_pdf';
+            }) || null;
+        }
+
+        async function abrirModalRetencoesServicosTomados() {
+            if (!state.infoConfirmed || !state.info) {
+                showToast('Selecione e confirme a empresa antes de importar retenções de serviços tomados.', 'error');
+                showPage('inicio');
+                return;
+            }
+            const cnpj = String(state.info.cnpj || '').replace(/\D/g, '');
+            if (cnpj.length !== 14) {
+                showToast('A empresa ativa não possui CNPJ válido. Corrija o cadastro antes da importação.', 'error');
+                return;
+            }
+            retencoesTomadosValidacaoAtual = null;
+            document.getElementById('retTomEmpresaAtiva').textContent = state.info.empresa || '-';
+            document.getElementById('retTomCnpjAtivo').textContent = formatarCnpjMovimentoFiscal(cnpj);
+            document.getElementById('retTomValidation').classList.remove('show');
+            document.getElementById('retTomImportarBtn').disabled = true;
+            retencoesTomadosStatus('info', 'Selecione o PDF da SAGE. O CNPJ, o período e todos os totais impressos serão conferidos antes da prévia.');
+            document.getElementById('retencoesTomadosOverlay').classList.add('show');
+        }
+
+        function fecharModalRetencoesServicosTomados() {
+            const overlay = document.getElementById('retencoesTomadosOverlay');
+            if (overlay) overlay.classList.remove('show');
+            retencoesTomadosValidacaoAtual = null;
+            const file = document.getElementById('retTomArquivo');
+            if (file) file.value = '';
+            const validation = document.getElementById('retTomValidation');
+            if (validation) validation.classList.remove('show');
+            const importar = document.getElementById('retTomImportarBtn');
+            if (importar) importar.disabled = true;
+        }
+
+        function invalidarValidacaoRetencoesServicosTomados() {
+            retencoesTomadosValidacaoAtual = null;
+            const validation = document.getElementById('retTomValidation');
+            if (validation) validation.classList.remove('show');
+            const importar = document.getElementById('retTomImportarBtn');
+            if (importar) importar.disabled = true;
+            retencoesTomadosStatus('info', 'Arquivo ainda não validado. A importação permanece bloqueada.');
+        }
+
+        async function validarArquivoRetencoesServicosTomados() {
+            const layout = layoutRetencoesServicosTomados();
+            const file = (document.getElementById('retTomArquivo') || {}).files?.[0];
+            const importar = document.getElementById('retTomImportarBtn');
+            if (importar) importar.disabled = true;
+            retencoesTomadosValidacaoAtual = null;
+            if (!layout) {
+                retencoesTomadosStatus('error', 'O layout geral de retenções de serviços tomados não está carregado. Atualize o CCI.');
+                return;
+            }
+            if (!file || String(file.name.split('.').pop() || '').toLowerCase() !== 'pdf') {
+                retencoesTomadosStatus('error', 'Selecione o PDF do Demonstrativo dos Impostos Retidos - Notas de Entradas de Serviços.');
+                return;
+            }
+            const parser = window[layout.parser];
+            if (typeof parser !== 'function' || typeof window.validarVinculoCnpjRelatorioFiscal !== 'function') {
+                retencoesTomadosStatus('error', 'Parser ou trava de CNPJ não carregado. Atualize o CCI.');
+                return;
+            }
+            retencoesTomadosStatus('info', 'Validando notas, códigos de retenção, impostos, totais oficiais e vínculo de CNPJ…');
+            try {
+                const entrada = await file.arrayBuffer();
+                const resultado = await parser(entrada, { arquivoNome: file.name });
+                const cnpjAtivo = String(state.info && state.info.cnpj || '').replace(/\D/g, '');
+                const vinculo = window.validarVinculoCnpjRelatorioFiscal(resultado, {
+                    cnpjEmpresaAtiva: cnpjAtivo,
+                    movimento: layout.movimento
+                });
+                retencoesTomadosValidacaoAtual = { layout, file, entrada, resultado, vinculo, cnpjAtivo, relatorioServicos: true };
+                document.getElementById('retTomCodigoArquivo').textContent = vinculo.codigoArquivo;
+                document.getElementById('retTomCnpjArquivo').textContent = formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo);
+                document.getElementById('retTomPeriodo').textContent = formatarDataBR(resultado.periodo_inicio) + ' a ' + formatarDataBR(resultado.periodo_fim);
+                document.getElementById('retTomNotas').textContent = String(resultado.total_notas_fiscais || 0);
+                document.getElementById('retTomBruto').textContent = formatarMoedaBR(resultado.total_debito || 0);
+                document.getElementById('retTomRetido').textContent = formatarMoedaBR(resultado.total_credito || 0);
+                document.getElementById('retTomLiquido').textContent = formatarMoedaBR(resultado.total_liquido || 0);
+                document.getElementById('retTomValidation').classList.add('show');
+                retencoesTomadosStatus('ok', '<strong>Arquivo validado.</strong> CNPJ, período, ' + escaparHtmlImportacao(String(resultado.total_notas_fiscais || 0)) + ' notas e todos os totais oficiais conferidos. Revise as linhas antes da gravação.');
+                if (importar) importar.disabled = false;
+            } catch (e) {
+                console.error('[retencoes servicos tomados] validacao bloqueada:', e);
+                retencoesTomadosStatus('error', '<strong>Importação bloqueada.</strong> ' + escaparHtmlImportacao(e.message || e));
+            }
+        }
+
+        async function processarMovimentoFiscalValidado(origemModal) {
+            const modalRetencoesTomados = origemModal === 'retencoes_tomados';
+            const statusFiscal = modalRetencoesTomados ? retencoesTomadosStatus : movimentoFiscalStatus;
+            const validacao = modalRetencoesTomados ? retencoesTomadosValidacaoAtual : movimentoFiscalValidacaoAtual;
             if (!validacao) {
-                movimentoFiscalStatus('error', 'Valide o arquivo antes de continuar.');
+                statusFiscal('error', 'Valide o arquivo antes de continuar.');
                 return;
             }
             if (typeof window.__verificarVersaoAntesDeImportar === 'function') {
@@ -15094,11 +15255,12 @@
                 if (!versaoAtual) return;
             }
             const cnpjAtivoAgora = String(state.info && state.info.cnpj || '').replace(/\D/g, '');
-            const layoutAgora = layoutFiscalSelecionado();
-            const arquivoAgora = (document.getElementById('movFiscalArquivo') || {}).files?.[0];
+            const layoutAgora = modalRetencoesTomados ? layoutRetencoesServicosTomados() : layoutFiscalSelecionado();
+            const arquivoAgora = (document.getElementById(modalRetencoesTomados ? 'retTomArquivo' : 'movFiscalArquivo') || {}).files?.[0];
             if (!layoutAgora || layoutAgora.id !== validacao.layout.id || arquivoAgora !== validacao.file || cnpjAtivoAgora !== validacao.cnpjAtivo) {
-                invalidarValidacaoMovimentoFiscal();
-                movimentoFiscalStatus('error', 'Empresa, layout ou arquivo mudou após a validação. Valide novamente.');
+                if (modalRetencoesTomados) invalidarValidacaoRetencoesServicosTomados();
+                else invalidarValidacaoMovimentoFiscal();
+                statusFiscal('error', 'Empresa, layout ou arquivo mudou após a validação. Valide novamente.');
                 return;
             }
 
@@ -15107,7 +15269,7 @@
                 if (Array.isArray(validacao.resultado.colunas_disponiveis) && validacao.resultado.colunas_disponiveis.length) {
                     colunasSelecionadas = await abrirSelecaoColunasFlanacar(validacao.resultado);
                     if (!colunasSelecionadas) {
-                        movimentoFiscalStatus('info', 'Seleção de colunas cancelada. Nenhum lançamento foi gravado.');
+                        statusFiscal('info', 'Seleção de colunas cancelada. Nenhum lançamento foi gravado.');
                         return;
                     }
                 }
@@ -15175,7 +15337,7 @@
                     vinculoCnpj: formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo) + ' — validado'
                 });
                 if (!confirmado) {
-                    movimentoFiscalStatus('info', 'Conferência cancelada. Nenhum lançamento foi gravado.');
+                    statusFiscal('info', 'Conferência cancelada. Nenhum lançamento foi gravado.');
                     return;
                 }
 
@@ -15183,7 +15345,8 @@
                 state.entries = state.entries.concat(entries);
                 state.lastFile = validacao.file.name;
                 saveState();
-                fecharModalMovimentoFiscal();
+                if (modalRetencoesTomados) fecharModalRetencoesServicosTomados();
+                else fecharModalMovimentoFiscal();
                 updateDashboard();
                 updateCharts();
                 popularFiltroImportacoes();
@@ -15209,7 +15372,7 @@
                     periodo_fim: validacao.resultado.periodo_fim,
                     motivo: e.message || String(e)
                 });
-                movimentoFiscalStatus('error', '<strong>Importação bloqueada.</strong> ' + escaparHtmlImportacao(e.message || e));
+                statusFiscal('error', '<strong>Importação bloqueada.</strong> ' + escaparHtmlImportacao(e.message || e));
             }
         }
 

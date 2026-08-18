@@ -186,6 +186,8 @@ def add_docx_block(document, block, bullet_num, ordered_num):
             for idx, value in enumerate(source_row):
                 row.cells[idx].text = str(value); row.cells[idx].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
                 row.cells[idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.LEFT
+                row.cells[idx].paragraphs[0].paragraph_format.left_indent = Pt(0)
+                row.cells[idx].paragraphs[0].paragraph_format.first_line_indent = Pt(0)
         set_table_geometry(table, widths)
         document.add_paragraph().paragraph_format.space_after = Pt(0)
 
@@ -206,7 +208,7 @@ def generate_docx(content):
     normal = styles['Normal']; normal.font.name = 'Calibri'; normal._element.rPr.rFonts.set(qn('w:ascii'), 'Calibri'); normal._element.rPr.rFonts.set(qn('w:hAnsi'), 'Calibri'); normal.font.size = Pt(11)
     normal.paragraph_format.space_after = Pt(6); normal.paragraph_format.line_spacing = 1.25
     for style_name, size, before, after, color in [('Heading 1', 16, 18, 10, BLUE), ('Heading 2', 13, 14, 7, BLUE), ('Heading 3', 12, 10, 5, DARK_BLUE)]:
-        style = styles[style_name]; style.font.name = 'Calibri'; style._element.rPr.rFonts.set(qn('w:ascii'), 'Calibri'); style._element.rPr.rFonts.set(qn('w:hAnsi'), 'Calibri'); style.font.size = Pt(size); style.font.bold = True; style.font.color.rgb = RGBColor.from_string(color); style.paragraph_format.space_before = Pt(before); style.paragraph_format.space_after = Pt(after); style.paragraph_format.left_indent = Pt(0); style.paragraph_format.first_line_indent = Pt(0)
+        style = styles[style_name]; style.font.name = 'Calibri'; style._element.rPr.rFonts.set(qn('w:ascii'), 'Calibri'); style._element.rPr.rFonts.set(qn('w:hAnsi'), 'Calibri'); style.font.size = Pt(size); style.font.bold = True; style.font.color.rgb = RGBColor.from_string(color); style.paragraph_format.space_before = Pt(before); style.paragraph_format.space_after = Pt(after); style.paragraph_format.left_indent = Pt(0); style.paragraph_format.first_line_indent = Pt(0); style.paragraph_format.keep_together = True; style.paragraph_format.keep_with_next = True
     header = section.header.paragraphs[0]; header.text = 'CCI  |  MANUAL OPERACIONAL'; header.style = styles['Normal']; header.runs[0].font.size = Pt(8); header.runs[0].font.bold = True; header.runs[0].font.color.rgb = RGBColor.from_string(MUTED)
     footer = section.footer.paragraphs[0]; footer.alignment = WD_ALIGN_PARAGRAPH.RIGHT; footer.add_run(f"Uso interno  •  v{content['manual_version']}  •  {content['updated_at'].split('-')[::-1][0]}/{content['updated_at'].split('-')[::-1][1]}/{content['updated_at'].split('-')[::-1][2]}").font.size = Pt(8)
 
@@ -223,6 +225,8 @@ def generate_docx(content):
 
     bullet_num = add_numbering(document, False); ordered_num = add_numbering(document, True)
     for chapter in content['chapters']:
+        if chapter.get('page_break_before'):
+            document.add_page_break()
         document.add_heading(chapter['title'], level=1)
         for block in chapter['blocks']:
             add_docx_block(document, block, bullet_num, ordered_num)
@@ -264,6 +268,8 @@ def generate_pdf(content):
     story += [status_table, Spacer(1, 0.55 * inch), Paragraph('SP Assessoria Contábil  •  Consultor Contábil Inteligente', small_center), PageBreak()]
 
     for chapter in content['chapters']:
+        if chapter.get('page_break_before'):
+            story.append(PageBreak())
         story.append(Paragraph(chapter['title'], h1))
         for block in chapter['blocks']:
             kind = block['type']

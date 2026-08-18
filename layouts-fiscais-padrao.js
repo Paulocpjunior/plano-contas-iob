@@ -72,6 +72,26 @@
       observacao: 'Modelo generico para qualquer empresa. Extrai NF, tomador, valor, base, PIS, COFINS, CSLL, IRRF e INSS; confere CNPJ, periodo e todos os totais oficiais antes da importacao.'
     },
     {
+      id: 'generico_demonstrativo_impostos_retidos_servicos_tomados_sage_pdf',
+      codigoEmpresa: 'GEN',
+      cnpj: '',
+      empresa: 'Todas as empresas - Office Fiscal / IOB SAGE',
+      movimento: 'impostos_retidos_servicos_tomados',
+      documento: 'DEMONSTRATIVO_IMPOSTOS_RETIDOS_SERVICOS_TOMADOS',
+      nome: 'SAGE - Retencoes de Servicos Tomados',
+      parser: 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicosTomados',
+      formato: 'PDF fiscal Office Fiscal / IOB SAGE',
+      extensoes: ['pdf'],
+      confiabilidade: 'Alta',
+      status: 'Ativo',
+      homologacao_status: 'aprovado',
+      validacaoCnpj: 'cabecalho_relatorio',
+      exigirCodigoArquivo: false,
+      exigirChaveNfeTodasNotas: false,
+      ultimoTeste: 'Demonstrativo dos Impostos Retidos - Entradas de Servicos 1.pdf',
+      observacao: 'Modelo generico para notas de entradas de servicos. Preserva NF, serie, fornecedor, datas, codigos e valores de PIS, COFINS, CSLL, IRRF e Seguridade Social; confere CNPJ, periodo e todos os totais oficiais.'
+    },
+    {
       id: '0109_fastweld_registro_entradas_iob_sage',
       codigoEmpresa: '0109',
       cnpj: '02942184000134',

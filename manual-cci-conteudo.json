@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.5",
+  "manual_version": "2.6",
   "updated_at": "2026-08-18",
-  "app_reference": "3.4.153",
+  "app_reference": "3.4.154",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -48,7 +48,8 @@
           "Manual Operacional dentro do CCI, com pesquisa e downloads Word/PDF gerados da mesma fonte oficial.",
           "Balancete Anual Analítico, com hierarquia do plano de contas, saldos de janeiro a dezembro, resumo e exportações em PDF e Excel.",
           "Alteração explícita de classificações em lote, com seleção dos campos, confirmação, travas por natureza e auditoria do usuário.",
-          "Demonstrativo SAGE de impostos retidos com linha bruta e linhas separadas de PIS, COFINS, CSLL, IRRF e INSS quando houver valor."
+          "Demonstrativo SAGE de impostos retidos em serviços prestados com linha bruta e linhas separadas de PIS, COFINS, CSLL, IRRF e INSS quando houver valor.",
+          "Novo modal Retenções de Serviços Tomados, disponível para todas as empresas, com leitura do relatório SAGE de notas de entradas de serviços."
         ]}
       ]
     },
@@ -111,6 +112,8 @@
           "Ativar a empresa correta e conferir o CNPJ antes de selecionar o arquivo.",
           "Abrir Importações - Movimento Fiscal e escolher o modelo correspondente ao relatório.",
           "Para o Demonstrativo de Impostos Retidos da SAGE, usar o modelo geral Impostos retidos em notas de serviços.",
+          "Para retenções sobre serviços tomados, abrir o modal independente Retenções Serviços Tomados. Ele está disponível para qualquer empresa ativa e aceita o Demonstrativo dos Impostos Retidos - Notas de Entradas de Serviços em PDF.",
+          "No novo modal, validar o CNPJ, o período, a quantidade de notas, o valor bruto, o total retido e o valor líquido antes de continuar para a prévia.",
           "Conferir período, quantidade de notas, valor bruto, base de retenção, PIS, COFINS, CSLL, IRRF, INSS, total retido e valor líquido.",
           "Na prévia, cada nota gera uma linha de valor bruto e uma linha para cada imposto retido com valor diferente de zero. Impostos zerados permanecem nos dados de origem, sem criar lançamento contábil artificial.",
           "Número e modelo da NF, série, tomador, base de retenção e data de compensação acompanham as linhas geradas.",
@@ -118,6 +121,7 @@
           "Revisar a prévia antes de confirmar a gravação dos lançamentos."
         ]},
         {"type": "callout", "tone": "info", "label": "Modelo geral", "text": "O código e o nome da empresa impressos no relatório são informativos. A liberação depende do CNPJ do cabeçalho ser idêntico ao cadastro da empresa ativa e de todos os totais oficiais estarem conciliados."},
+        {"type": "callout", "tone": "info", "label": "Serviços tomados", "text": "O valor bruto da nota é apresentado como despesa e cada retenção não zerada como linha própria que reduz o líquido do fornecedor. O CCI preserva NF, série, CNPJ do fornecedor, datas de pagamento, bases, valores e códigos de retenção; código fiscal não é convertido em histórico contábil."},
         {"type": "callout", "tone": "warning", "label": "Classificação contábil", "text": "O CCI não inventa contas para os impostos. Débito, crédito e histórico devem vir do plano e das regras aprovadas para a empresa; somente depois a classificação pode ser memorizada."}
       ]
     },
@@ -168,13 +172,14 @@
     {
       "id": "regime-tributario",
       "title": "8. Regime tributário e parametrizações",
+      "page_break_before": true,
       "keywords": ["simples nacional", "lucro presumido", "lucro real", "cfi", "parametrização"],
       "blocks": [
         {"type": "paragraph", "text": "O regime tributário vem do cadastro oficial do CFI. O CCI não deve inferir enquadramento por porte, CNAE ou movimentação. Divergências devem ser corrigidas no CFI e sincronizadas novamente."},
-        {"type": "table", "headers": ["Regime", "Confirmações obrigatórias"], "rows": [
-          ["Simples Nacional", "Critério de receita, anexos aplicáveis e revisão das segregações."],
-          ["Lucro Presumido", "Periodicidade de IRPJ/CSLL, tratamento de PIS/COFINS e revisão de atividades e receitas adicionais."],
-          ["Lucro Real", "Forma de apuração, tratamento de PIS/COFINS, e-Lalur/e-Lacs e critérios de créditos."]
+        {"type": "definitions", "items": [
+          {"term": "Simples Nacional", "definition": "Confirmar critério de receita, anexos aplicáveis e revisão das segregações."},
+          {"term": "Lucro Presumido", "definition": "Confirmar periodicidade de IRPJ/CSLL, tratamento de PIS/COFINS e revisão de atividades e receitas adicionais."},
+          {"term": "Lucro Real", "definition": "Confirmar forma de apuração, tratamento de PIS/COFINS, e-Lalur/e-Lacs e critérios de créditos."}
         ]},
         {"type": "callout", "tone": "warning", "label": "Acesso administrativo", "text": "Somente administrador confirma a parametrização. O CCI registra pendências e bloqueia o fechamento exclusivo, mas não inventa anexos, percentuais, créditos ou exceções fiscais."}
       ]
@@ -222,14 +227,15 @@
     {
       "id": "duas-frentes",
       "title": "12. Próxima frente: divisão do trabalho",
+      "page_break_before": true,
       "keywords": ["paulo", "equipe", "codex", "desenvolvimento", "tarefas"],
       "blocks": [
-        {"type": "table", "headers": ["Frente do Paulo e equipe", "Frente de desenvolvimento"], "rows": [
-          ["Escolher 2 ou 3 empresas-piloto e a competência inicial.", "Preparar roteiro reproduzível e painel de pendências do piloto."],
-          ["Cadastrar/aprovar saldos anteriores, regime, plano e históricos.", "Validar travas, rastreabilidade e consistência desses cadastros."],
-          ["Fornecer extratos, livros e relatórios finais da SAGE para comparação.", "Implementar conciliação formal e testes com os arquivos aprovados."],
-          ["Definir contas críticas e política do ativo/depreciação.", "Integrar o ativo à prévia de lançamentos, sem decisão contábil automática."],
-          ["Aprovar relatórios e registrar exceções de cada fechamento.", "Corrigir, testar, versionar, publicar e verificar cada etapa em produção."]
+        {"type": "definitions", "items": [
+          {"term": "1. Pilotos", "definition": "Paulo e equipe escolhem 2 ou 3 empresas e a competência inicial; desenvolvimento prepara o roteiro reproduzível e o painel de pendências."},
+          {"term": "2. Cadastros", "definition": "Paulo e equipe aprovam saldos anteriores, regime, plano e históricos; desenvolvimento valida travas, rastreabilidade e consistência."},
+          {"term": "3. Comparação", "definition": "Paulo e equipe fornecem extratos, livros e relatórios finais da SAGE; desenvolvimento implementa a conciliação formal e os testes."},
+          {"term": "4. Ativo", "definition": "Paulo e equipe definem contas críticas e a política patrimonial; desenvolvimento integra o ativo à prévia, sem decisão contábil automática."},
+          {"term": "5. Fechamento", "definition": "Paulo e equipe aprovam relatórios e registram exceções; desenvolvimento corrige, testa, versiona, publica e verifica cada etapa."}
         ]},
         {"type": "callout", "tone": "info", "label": "Próxima ação conjunta", "text": "Selecionar a primeira empresa de 2026 que ainda não iniciou na SAGE, marcá-la como exclusiva no CCI e concluir seu cadastro de abertura antes da primeira importação."}
       ]
