@@ -1,7 +1,8 @@
 {
-  "version": "3.4.146",
-  "build_date": "2026-08-18T13:18:10Z",
+  "version": "3.4.147",
+  "build_date": "2026-08-18T13:35:10Z",
   "release_notes": [
+    "feat: adiciona alteracao segura em lote",
     "feat: adiciona balancete anual analitico",
     "feat: publicar manual operacional no CCI",
     "feat: parametrizar regras por regime tributario",
@@ -10,7 +11,6 @@
     "feat: iniciar escrituracao exclusiva no CCI",
     "feat: adiciona extrato unificado Bradesco",
     "feat: libera DRE e balanco patrimonial",
-    "fix: estrutura balancete pelo plano de contas",
-    "fix: preserva cobranca e exige novo login"
+    "fix: estrutura balancete pelo plano de contas"
   ]
 }
