@@ -1,16 +1,7 @@
 {
-  "version": "3.4.141",
-  "build_date": "2026-08-17T23:30:11Z",
+  "version": "3.4.142",
+  "build_date": "2026-08-18T10:09:00Z",
   "release_notes": [
-    "feat: iniciar escrituracao exclusiva no CCI",
-    "feat: adiciona extrato unificado Bradesco",
-    "feat: libera DRE e balanco patrimonial",
-    "fix: estrutura balancete pelo plano de contas",
-    "fix: preserva cobranca e exige novo login",
-    "feat: adiciona ativo e aprimora relatorios contabeis",
-    "fix: ajustar cartões de empresas no tema escuro",
-    "feat: concluir navegacao responsiva e atalhos contabeis",
-    "fix: atualizar trafego apos deploy no Cloud Run",
-    "fix: direcionar deploy para a revisao mais recente"
+    "feat: automatizar prontidao contabil das empresas"
   ]
 }
