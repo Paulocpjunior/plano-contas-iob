@@ -1,7 +1,8 @@
 {
-  "version": "3.4.149",
-  "build_date": "2026-08-18T14:22:01Z",
+  "version": "3.4.150",
+  "build_date": "2026-08-18T16:57:54Z",
   "release_notes": [
+    "feat(importacao): homologar layouts BB e Itau",
     "fix: restaurar livro fiscal de entradas",
     "fix: restaurar PDFs de servicos no movimento fiscal",
     "feat: adiciona alteracao segura em lote",
@@ -10,7 +11,6 @@
     "feat: parametrizar regras por regime tributario",
     "feat: adicionar novidades e ajuda operacional ao CCI",
     "feat: automatizar prontidao contabil das empresas",
-    "feat: iniciar escrituracao exclusiva no CCI",
-    "feat: adiciona extrato unificado Bradesco"
+    "feat: iniciar escrituracao exclusiva no CCI"
   ]
 }
