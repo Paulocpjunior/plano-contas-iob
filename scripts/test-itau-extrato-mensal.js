@@ -49,6 +49,30 @@ function testarOCRPosicionalPeriodo() {
 async function main() {
   testarOCRPosicionalPeriodo();
 
+  const lancamentosPeriodo = '/Users/paulocesarpereirajunior/Downloads/E - EXTRATO ITAÚ ABRIL 2026 (1).pdf';
+  assert.ok(fs.existsSync(lancamentosPeriodo), `Arquivo de regressao nao encontrado: ${lancamentosPeriodo}`);
+  const bufferLancamentosPeriodo = fs.readFileSync(lancamentosPeriodo);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferLancamentosPeriodo).digest('hex'),
+    '0c2563ebec27496f5954ea854ba42d52bc4904e573b6efb6523933d7ebc61903',
+    'fixture Itau Lancamentos por Periodo deve ser o PDF real validado'
+  );
+  const periodoNovo = await itau.parsearPDF_Itau_LancamentosPeriodo(new Uint8Array(bufferLancamentosPeriodo));
+  assert.strictEqual(periodoNovo.detectado, true);
+  assert.strictEqual(periodoNovo.periodo_inicio, '2026-04-01');
+  assert.strictEqual(periodoNovo.periodo_fim, '2026-04-30');
+  assert.strictEqual(periodoNovo.conta_detectada, 'AG-0534/CC-0043579-7');
+  assert.strictEqual(periodoNovo.lancamentos.length, 65);
+  assert.strictEqual(Number(periodoNovo.total_credito.toFixed(2)), 345629.11);
+  assert.strictEqual(Number(periodoNovo.total_debito.toFixed(2)), 346100.00);
+  assert.strictEqual(periodoNovo.saldo_anterior, 536.01);
+  assert.strictEqual(periodoNovo.saldo_final, 65.12);
+  assert.strictEqual(periodoNovo.saldos_conciliados, true);
+  assert.strictEqual(periodoNovo.lancamentos.filter(l => l.data === '2026-04-06' && l.valor === 5).length, 2, 'movimentos repetidos legitimos devem ser preservados');
+  assert.ok(periodoNovo.lancamentos.some(l => l.valor === 300000), 'credito de R$ 300.000,00 deve ser importado');
+  assert.ok(periodoNovo.lancamentos.some(l => l.valor === -300000), 'aplicacao de R$ 300.000,00 deve ser importada');
+  assert.ok(!periodoNovo.lancamentos.some(l => /SALDO/i.test(l.descricao)), 'saldos nao podem virar lancamentos');
+
   const arquivo = '/Users/paulocesarpereirajunior/Downloads/itau abril 26 3.pdf';
   assert.ok(fs.existsSync(arquivo), `Arquivo de regressao nao encontrado: ${arquivo}`);
 

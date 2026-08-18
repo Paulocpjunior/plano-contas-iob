@@ -1,7 +1,8 @@
 const assert = require('assert');
+const crypto = require('crypto');
 const fs = require('fs');
 global.pdfjsLib = require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js');
-const { parsearPDF_BB_ContaAtual, __test__ } = require('../parser-bb-conta-atual');
+const { parsearPDF_BB_ContaAtual, parsearPDF_BB_ExtratoContaCorrente, __test__ } = require('../parser-bb-conta-atual');
 
 const PDF_BB_FEV_2026 = '/Users/paulocesarpereirajunior/Downloads/EXTRATO BB - CC 14910-1 - MATRIZ SP (3) 1.pdf';
 
@@ -51,6 +52,37 @@ assertLancamento(
 console.log('OK: parser BB Conta Atual protege valor/sinal pela direita e linhas quebradas.');
 
 (async () => {
+  const fixturesMaisMenos = [
+    {
+      arquivo: '/Users/paulocesarpereirajunior/Downloads/Extrato Bancario 04 26.pdf',
+      hash: '8372dff253d30b08faaf366c47df0b355f4eba80f2d1b2b63b3116dc4dc73445',
+      conta: 'AG-6998-1/CC-7949-9', lancamentos: 42, credito: 34522.04, debito: 34522.04, anterior: 0, final: 0, automaticos: 11
+    },
+    {
+      arquivo: '/Users/paulocesarpereirajunior/Downloads/0046-Trindade_Extrato - 04-2025.pdf',
+      hash: 'd7d13f597dac0b5ae8e6344402bfc2750f1f17b2ceb189f619d891f02b88ea23',
+      conta: 'AG-1824-4/CC-123456-0', lancamentos: 6, credito: 6000, debito: 6065, anterior: 575.39, final: 510.39, automaticos: 0
+    }
+  ];
+  for (const fixture of fixturesMaisMenos) {
+    assert.ok(fs.existsSync(fixture.arquivo), `Arquivo de evidencia nao encontrado: ${fixture.arquivo}`);
+    const buffer = fs.readFileSync(fixture.arquivo);
+    assert.strictEqual(crypto.createHash('sha256').update(buffer).digest('hex'), fixture.hash, 'fixture BB deve ser o PDF real validado');
+    const extrato = await parsearPDF_BB_ExtratoContaCorrente(new Uint8Array(buffer));
+    assert.strictEqual(extrato.detectado, true);
+    assert.strictEqual(extrato.periodo_inicio, '2026-04-01');
+    assert.strictEqual(extrato.periodo_fim, '2026-04-30');
+    assert.strictEqual(extrato.conta_detectada, fixture.conta);
+    assert.strictEqual(extrato.lancamentos.length, fixture.lancamentos);
+    assert.strictEqual(money(extrato.total_credito), money(fixture.credito));
+    assert.strictEqual(money(extrato.total_debito), money(fixture.debito));
+    assert.strictEqual(money(extrato.saldo_anterior), money(fixture.anterior));
+    assert.strictEqual(money(extrato.saldo_final), money(fixture.final));
+    assert.strictEqual(extrato.saldos_conciliados, true);
+    assert.strictEqual(extrato.lancamentos.filter(l => l.movimentoAplicacaoAutomatica).length, fixture.automaticos);
+    assert.ok(!extrato.lancamentos.some(l => /Saldo do dia|S\s*A\s*L\s*D\s*O/i.test(l.descricao)), 'saldos BB nao podem virar lancamentos');
+  }
+
   assert.ok(fs.existsSync(PDF_BB_FEV_2026), `Arquivo de evidencia nao encontrado: ${PDF_BB_FEV_2026}`);
   const resultado = await parsearPDF_BB_ContaAtual(new Uint8Array(fs.readFileSync(PDF_BB_FEV_2026)));
   const totalCredito = resultado.lancamentos

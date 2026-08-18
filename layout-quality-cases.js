@@ -705,6 +705,36 @@ const LAYOUT_QUALITY_CASES = [
     validado_em: '2026-07-31T12:00:00-03:00',
     observacao: 'Extrato Stone textual validado pelo texto extraido e pelo PDF.js do navegador. A regressao reconcilia quatro fechamentos diarios, inclusive o saldo repetido pelo banco em movimentos do mesmo dia.'
   },
+  {
+    id: 'bb-extrato-mais-menos-trindade-2026-04',
+    banco: '001',
+    nomeBanco: 'Banco do Brasil',
+    layout: 'Banco do Brasil - Extrato de Conta Corrente (+/-)',
+    parser: 'parsearPDF_BB_ExtratoContaCorrente',
+    arquivo: 'Extrato Bancario 04 26.pdf',
+    empresa: 'CLUBE D C E D S TRINDADE',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: { total_lancamentos: 42, total_credito: 34522.04, total_debito: 34522.04 },
+    status: 'Aprovado',
+    validado_em: '2026-08-18T00:00:00-03:00',
+    observacao: 'PDF textual com sinais (+)/(-), 11 movimentos BB Rende Facil classificados e saldo inicial/final zero conciliado.'
+  },
+  {
+    id: 'itau-lancamentos-periodo-manaim-2026-04',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 2 - Lancamentos por Periodo',
+    parser: 'parsearPDF_Itau_LancamentosPeriodo',
+    arquivo: 'E - EXTRATO ITAU ABRIL 2026 (1).pdf',
+    empresa: 'IGREJA EVANGELICA MANAIM',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: { total_lancamentos: 65, total_credito: 345629.11, total_debito: 346100.00 },
+    status: 'Aprovado',
+    validado_em: '2026-08-18T00:00:00-03:00',
+    observacao: 'PDF textual Lancamentos/Periodo com saldo anterior R$ 536,01 e final R$ 65,12 conciliados; preserva dois movimentos legitimos iguais de R$ 5,00.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_CASES };

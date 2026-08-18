@@ -615,6 +615,51 @@ const LAYOUT_QUALITY_EVIDENCE = [
     status: 'Regressao aprovada',
     observacao: 'PDF textual real de 1 pagina. Validado com 6 movimentos, credito de R$ 1.519,42, debito de R$ 1.904,10, saldo anterior reconstruido de R$ 1.212,90 e saldo final de R$ 828,22.'
   },
+  {
+    id: 'bb-extrato-mais-menos-trindade-2026-04',
+    banco: '001',
+    nomeBanco: 'Banco do Brasil',
+    layout: 'Banco do Brasil - Extrato de Conta Corrente (+/-)',
+    parser: 'parsearPDF_BB_ExtratoContaCorrente',
+    arquivo: 'Extrato Bancario 04 26.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Extrato Bancario 04 26.pdf',
+    empresa: 'CLUBE D C E D S TRINDADE',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF textual real de 3 paginas. Validado com 42 movimentos, credito e debito de R$ 34.522,04 e saldos conciliados.'
+  },
+  {
+    id: 'bb-extrato-mais-menos-tt-assessoria-2026-04',
+    banco: '001',
+    nomeBanco: 'Banco do Brasil',
+    layout: 'Banco do Brasil - Extrato de Conta Corrente (+/-)',
+    parser: 'parsearPDF_BB_ExtratoContaCorrente',
+    arquivo: '0046-Trindade_Extrato - 04-2025.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/0046-Trindade_Extrato - 04-2025.pdf',
+    empresa: 'T T ASSESSORIA ESP LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'O nome do arquivo menciona 2025, mas o periodo interno e abril de 2026. Validado com 6 movimentos e saldos de R$ 575,39 a R$ 510,39.'
+  },
+  {
+    id: 'itau-lancamentos-periodo-manaim-2026-04',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 2 - Lancamentos por Periodo',
+    parser: 'parsearPDF_Itau_LancamentosPeriodo',
+    arquivo: 'E - EXTRATO ITAU ABRIL 2026 (1).pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/E - EXTRATO ITAÚ ABRIL 2026 (1).pdf',
+    empresa: 'IGREJA EVANGELICA MANAIM',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF textual real de 1 pagina. Validado com 65 movimentos, credito de R$ 345.629,11, debito de R$ 346.100,00 e saldo final de R$ 65,12.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_EVIDENCE };

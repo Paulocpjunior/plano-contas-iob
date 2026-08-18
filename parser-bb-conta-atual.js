@@ -23,12 +23,163 @@
     return isNaN(n) ? 0 : n;
   }
 
+  function parsearTextoBBExtratoMaisMenos(textoCompleto) {
+    textoCompleto = String(textoCompleto || '');
+    const ehModelo = /Extrato de Conta Corrente/i.test(textoCompleto)
+      && /Ag[eê]ncia:\s*[0-9]+-[0-9X]\s+Conta:\s*[0-9]+-[0-9X]/i.test(textoCompleto)
+      && /Dia\s+Lote\s+Documento\s+Hist[oó]rico\s+Valor/i.test(textoCompleto)
+      && /\d{1,3}(?:\.\d{3})*,\d{2}\s*\([+-]\)/.test(textoCompleto);
+    if (!ehModelo) return null;
+
+    const metaMatch = textoCompleto.match(/Ag[eê]ncia:\s*([0-9]+-[0-9X])\s+Conta:\s*([0-9]+-[0-9X])/i);
+    const clienteMatch = textoCompleto.match(/Cliente\s+(.+?)(?:\r?\n|Ag[eê]ncia:)/i);
+    const linhas = textoCompleto.split(/\r?\n/).map(function(l) { return l.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
+    const lancamentos = [];
+    const datas = [];
+    let operacaoPendente = '';
+    let atual = null;
+    let ultimo = null;
+
+    const ehCabecalho = /^(Extrato de Conta Corrente|Cliente\b|Ag[eê]ncia:|Lan[cç]amentos$|Dia\s+Lote|Total Aplica[cç][oõ]es|\* Saldos|Sujeitos a confirma[cç][aã]o)/i;
+    const ehOperacao = /^(Pix\b|Transfer[eê]ncia\b|TED\b|Tarifa\b|Pagamento\b|Pgto\b|BB Rende F[aá]cil\b)/i;
+    const ehSaldo = /(Saldo Anterior|Saldo do dia|S\s*A\s*L\s*D\s*O|Total Aplica[cç][oõ]es)/i;
+    const valorDireita = /(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*\(([+-])\)\s*$/;
+
+    function dataISO(dataBR) {
+      const p = dataBR.split('/');
+      return p[2] + '-' + p[1] + '-' + p[0];
+    }
+
+    function limparCorpo(corpo) {
+      return String(corpo || '')
+        .replace(/^\s*\d+(?:\s+|$)/, '')
+        .replace(/^\s*\d+(?:\s+|$)/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function adicionar(bloco, linhaValor, matchValor) {
+      const bruto = linhaValor.slice(0, matchValor.index).trim();
+      if (ehSaldo.test((bloco.operacao || '') + ' ' + bruto)) return;
+      const valor = parseValorBR(matchValor[1]);
+      if (!valor) return;
+      const corpo = limparCorpo(bruto);
+      let descricao = [bloco.operacao, corpo].filter(Boolean).join(' - ').replace(/\s+/g, ' ').trim();
+      if (!descricao) descricao = 'Lancamento Banco do Brasil';
+      const documentoMatch = bruto.match(/^\d+\s+(\d+)/);
+      const tipo = matchValor[2] === '-' ? 'D' : 'C';
+      const automatico = /BB Rende F[aá]cil/i.test(descricao);
+      const natureza = automatico ? (tipo === 'D' ? 'APLICACAO_AUTOMATICA' : 'RESGATE_AUTOMATICO') : '';
+      ultimo = {
+        data: dataISO(bloco.data),
+        descricao: descricao,
+        documento: documentoMatch ? documentoMatch[1] : '',
+        valor: tipo === 'D' ? -Math.abs(valor) : Math.abs(valor),
+        tipo: tipo,
+        cnpj: extrairCNPJ(descricao),
+        historico: descricao,
+        origem: 'pdf-bb-extrato-conta-corrente-mais-menos'
+      };
+      if (automatico) {
+        ultimo.movimentoAplicacaoAutomatica = true;
+        ultimo.naturezaLancamento = natureza;
+      }
+      lancamentos.push(ultimo);
+      datas.push(ultimo.data);
+    }
+
+    linhas.forEach(function(linha) {
+      if (ehCabecalho.test(linha)) return;
+      if (/^Rende Facil$/i.test(linha) || /^00\/00\/0000$/.test(linha)) return;
+
+      const inicio = linha.match(/^(\d{2}\/\d{2}\/\d{4})(?:\s+(.+))?$/);
+      if (inicio && inicio[1] !== '00/00/0000') {
+        atual = { data: inicio[1], operacao: (inicio[2] || operacaoPendente || '').trim() };
+        operacaoPendente = '';
+        const valorNaData = linha.match(valorDireita);
+        if (valorNaData) {
+          adicionar(atual, linha.slice(10).trim(), valorNaData);
+          atual = null;
+        }
+        return;
+      }
+
+      if (!atual && ehOperacao.test(linha)) {
+        operacaoPendente = linha;
+        return;
+      }
+
+      const matchValor = linha.match(valorDireita);
+      if (atual && matchValor) {
+        adicionar(atual, linha, matchValor);
+        atual = null;
+        operacaoPendente = '';
+        return;
+      }
+
+      if (!atual && ultimo && !matchValor && !ehOperacao.test(linha) && !ehSaldo.test(linha)) {
+        ultimo.descricao = (ultimo.descricao + ' - ' + linha).replace(/\s+/g, ' ').trim();
+        ultimo.historico = ultimo.descricao;
+        ultimo.cnpj = extrairCNPJ(ultimo.descricao);
+      }
+    });
+
+    const saldoAnteriorMatch = textoCompleto.match(/Saldo Anterior\s+(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*\(([+-])\)/i);
+    const saldosFinais = Array.from(textoCompleto.matchAll(/S\s*A\s*L\s*D\s*O\s+(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*\(([+-])\)/gi));
+    const saldoAnterior = saldoAnteriorMatch ? parseValorBR(saldoAnteriorMatch[1]) * (saldoAnteriorMatch[2] === '-' ? -1 : 1) : null;
+    const saldoFinalMatch = saldosFinais.length ? saldosFinais[saldosFinais.length - 1] : null;
+    const saldoFinal = saldoFinalMatch ? parseValorBR(saldoFinalMatch[1]) * (saldoFinalMatch[2] === '-' ? -1 : 1) : null;
+    const totalCredito = lancamentos.filter(function(l) { return l.valor > 0; }).reduce(function(s, l) { return s + l.valor; }, 0);
+    const totalDebito = lancamentos.filter(function(l) { return l.valor < 0; }).reduce(function(s, l) { return s + Math.abs(l.valor); }, 0);
+    const diferencaCentavos = saldoAnterior === null || saldoFinal === null ? null : Math.round((saldoAnterior + totalCredito - totalDebito - saldoFinal) * 100);
+    if (diferencaCentavos !== null && diferencaCentavos !== 0) {
+      throw new Error('Extrato Banco do Brasil nao conciliou com os saldos impressos (anterior=' + saldoAnterior.toFixed(2)
+        + ', creditos=' + totalCredito.toFixed(2) + ', debitos=' + totalDebito.toFixed(2)
+        + ', final=' + saldoFinal.toFixed(2) + '). Importe somente apos parametrizacao do layout.');
+    }
+
+    const datasOrdenadas = datas.slice().sort();
+    const referencia = datasOrdenadas[0] || '';
+    const ano = referencia.slice(0, 4);
+    const mes = referencia.slice(5, 7);
+    const periodoInicio = referencia ? ano + '-' + mes + '-01' : '';
+    const periodoFim = referencia ? new Date(Number(ano), Number(mes), 0).toISOString().slice(0, 10) : '';
+    const agencia = metaMatch ? metaMatch[1] : '';
+    const conta = metaMatch ? metaMatch[2] : '';
+
+    return {
+      detectado: true,
+      lancamentos: lancamentos,
+      textoCompleto: textoCompleto,
+      fingerprint: 'bb-extrato-mais-menos-' + agencia + '-' + conta + '-' + ano + mes,
+      banco_detectado: 'BB',
+      conta_detectada: 'AG-' + agencia + '/CC-' + conta,
+      nome_conta_detectado: clienteMatch ? clienteMatch[1].trim() : 'CONTA CORRENTE BB',
+      total_credito: totalCredito,
+      total_debito: totalDebito,
+      saldo_anterior: saldoAnterior,
+      saldo_final: saldoFinal,
+      saldos_conciliados: diferencaCentavos === null ? null : true,
+      periodo_inicio: periodoInicio,
+      periodo_fim: periodoFim
+    };
+  }
+
   function extrairCNPJ(txt) {
     const m = String(txt||'').match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/);
     if (m) return m[0];
     const m2 = String(txt||'').match(/(\d{14})(?=\s|$)/);
     if (m2) {
       const c = m2[1];
+      if (/^(\d)\1{13}$/.test(c)) return '';
+      const calcular = function(base, pesos) {
+        const soma = base.split('').reduce(function(acc, digito, idx) { return acc + Number(digito) * pesos[idx]; }, 0);
+        const resto = soma % 11;
+        return resto < 2 ? 0 : 11 - resto;
+      };
+      const d1 = calcular(c.slice(0, 12), [5,4,3,2,9,8,7,6,5,4,3,2]);
+      const d2 = calcular(c.slice(0, 12) + d1, [6,5,4,3,2,9,8,7,6,5,4,3,2]);
+      if (c.slice(12) !== String(d1) + String(d2)) return '';
       return c.slice(0,2)+'.'+c.slice(2,5)+'.'+c.slice(5,8)+'/'+c.slice(8,12)+'-'+c.slice(12,14);
     }
     return '';
@@ -192,7 +343,7 @@
     };
   }
 
-  async function parsearPDF_BB_ContaAtual(arrayBuffer) {
+  async function extrairTextoPDFBB(arrayBuffer) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
@@ -213,21 +364,34 @@
       });
     }
 
-    return parsearTextoBBContaAtual(textoCompleto);
+    return textoCompleto;
+  }
+
+  async function parsearPDF_BB_ContaAtual(arrayBuffer) {
+    return parsearTextoBBContaAtual(await extrairTextoPDFBB(arrayBuffer));
+  }
+
+  async function parsearPDF_BB_ExtratoContaCorrente(arrayBuffer) {
+    const textoCompleto = await extrairTextoPDFBB(arrayBuffer);
+    return parsearTextoBBExtratoMaisMenos(textoCompleto)
+      || { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
   }
 
   const api = {
     parsearPDF_BB_ContaAtual: parsearPDF_BB_ContaAtual,
+    parsearPDF_BB_ExtratoContaCorrente: parsearPDF_BB_ExtratoContaCorrente,
     __test__: {
       parseLinhaLancamentoBB: parseLinhaLancamentoBB,
       montarLinhaLancamento: montarLinhaLancamento,
       normalizarDescricaoBB: normalizarDescricaoBB,
+      parsearTextoBBExtratoMaisMenos: parsearTextoBBExtratoMaisMenos,
       parsearTextoBBContaAtual: parsearTextoBBContaAtual
     }
   };
 
   if (typeof window !== 'undefined') {
     window.parsearPDF_BB_ContaAtual = parsearPDF_BB_ContaAtual;
+    window.parsearPDF_BB_ExtratoContaCorrente = parsearPDF_BB_ExtratoContaCorrente;
     console.log('[parser-bb-conta-atual] carregado');
   }
   if (typeof module !== 'undefined' && module.exports) {
