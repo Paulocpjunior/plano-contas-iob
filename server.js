@@ -16,6 +16,7 @@ const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
 const { buscarRegimeNoCfi } = require('./cfi-regime-client');
 const { exigeSaldoAbertura, periodoInicialEmpresa, validarSaldosAbertura } = require('./implantacao-contabil');
+const { avaliarProntidaoContabil } = require('./prontidao-contabil');
 const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
 const AtivoImobilizado = require('./ativo-imobilizado');
@@ -840,7 +841,10 @@ function hashSaldosAbertura(saldos) {
 app.get('/api/empresas', async (req, res) => {
   try {
     const docs = await listarEmpresasAcessiveis(req.user);
-    res.json(docs.map(d => ({ cnpj: d.id, ...d.data() })));
+    res.json(docs.map(function (d) {
+      const empresa = { cnpj: d.id, ...d.data() };
+      return { ...empresa, prontidao_contabil: avaliarProntidaoContabil(empresa) };
+    }));
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
@@ -865,7 +869,15 @@ app.get('/api/empresas/listar', async (req, res) => {
           whatsapp: emp.whatsapp || emp.whatsapp_cliente || '',
           ativo: emp.ativo !== false,
           owner_email: emp.created_by_email || null,
-          responsaveis: normalizarResponsaveis(emp.responsaveis)
+          responsaveis: normalizarResponsaveis(emp.responsaveis),
+          modo_contabil: emp.modo_contabil || '',
+          inicio_escrituracao_cci: emp.inicio_escrituracao_cci || '',
+          regime_tributario_codigo: emp.regime_tributario_codigo || '',
+          regime_tributario_nome: emp.regime_tributario_nome || '',
+          plano_id: emp.plano_id || null,
+          saldo_abertura_status: emp.saldo_abertura_status || '',
+          saldo_abertura_periodo: emp.saldo_abertura_periodo || '',
+          prontidao_contabil: avaliarProntidaoContabil(emp)
         };
       });
       if (q) leves = leves.filter(function (empresa) { return empresaBateBusca(q, empresa); });
@@ -937,7 +949,8 @@ app.get('/api/empresas/listar', async (req, res) => {
         total_lancamentos: totalLanc,
         periodo_atual: periodoAtual,
         total_relatorios: totalRel,
-        status: status_calc
+        status: status_calc,
+        prontidao_contabil: avaliarProntidaoContabil(emp)
       };
     }));
 
@@ -1039,7 +1052,8 @@ app.get('/api/empresas/:cnpj', async (req, res) => {
     const doc = await db.collection('empresas').doc(cnpjLimpo).get();
     if (!doc.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
     if (!usuarioPodeAcessarEmpresa(doc.data(), req.user)) return res.status(403).json({ erro: 'Sem permissao para esta empresa' });
-    res.json({ cnpj: doc.id, ...doc.data() });
+    const empresa = { cnpj: doc.id, ...doc.data() };
+    res.json({ ...empresa, prontidao_contabil: avaliarProntidaoContabil(empresa) });
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
