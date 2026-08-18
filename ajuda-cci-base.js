@@ -10,8 +10,8 @@ const BASE_AJUDA_CCI = [
   },
   {
     modulo: 'Importação bancária',
-    termos: ['extrato', 'ofx', 'pdf', 'importar banco', 'extrator'],
-    orientacao: 'Na empresa ativa, abra Operação > Extrator, informe banco, conta e período, selecione o arquivo e confira a prévia. O CCI valida duplicidade, versão do importador, layout e vínculo com a empresa antes de persistir. Não importe novamente um arquivo já contabilizado sem primeiro revisar a importação anterior.'
+    termos: ['extrato', 'ofx', 'pdf', 'importar banco', 'extrator', 'bb escaneado', 'gemini sem créditos'],
+    orientacao: 'Na empresa ativa, abra Operação > Extrator, informe banco, conta e período, selecione o arquivo e confira a prévia. No Banco do Brasil, o layout Extrato de Conta Corrente (+/-) aceita PDF textual ou escaneado e usa OCR local, sem depender dos créditos do Gemini. O CCI valida duplicidade, versão, layout, vínculo, quantidade, saldos e totais antes de persistir. Não importe novamente um arquivo já contabilizado sem primeiro revisar a importação anterior.'
   },
   {
     modulo: 'Importação fiscal - impostos retidos',

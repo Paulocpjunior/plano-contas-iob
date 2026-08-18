@@ -8,7 +8,7 @@ const root = path.join(__dirname, '..');
 const manual = require(path.join(root, 'manual-cci-base'));
 
 assert(manual.validarManualCCI(), 'O conteúdo oficial do manual deve ser válido.');
-assert.strictEqual(manual.conteudo.manual_version, '2.3', 'A versão atual do manual deve estar explícita.');
+assert.strictEqual(manual.conteudo.manual_version, '2.4', 'A versão atual do manual deve estar explícita.');
 assert(manual.textoManualCCI().includes('Simples Nacional'), 'O manual deve cobrir parametrizações tributárias.');
 assert(manual.textoManualCCI().includes('78%'), 'A referência histórica de prontidão deve estar identificada sem recalcular automaticamente.');
 
@@ -36,4 +36,5 @@ assert(frontend.includes("'/api/manual-cci/download/'"), 'O download deve manter
 assert(manual.textoManualCCI().includes('Balancete Anual'), 'Manual deve acompanhar o novo relatório anual.');
 assert(manual.textoManualCCI().includes('Alterar selecionados'), 'Manual deve acompanhar a alteração explícita em lote.');
 assert(manual.textoManualCCI().includes('Demonstrativo de Impostos Retidos da SAGE'), 'Manual deve acompanhar o novo layout fiscal genérico.');
-console.log('OK: Manual CCI v2.3 usa fonte única no app, na Ajuda e nos downloads versionados.');
+assert(manual.textoManualCCI().includes('OCR local, sem depender de créditos do Gemini'), 'Manual deve orientar o uso do BB escaneado sem IA paga.');
+console.log('OK: Manual CCI v2.4 usa fonte única no app, na Ajuda e nos downloads versionados.');

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.3",
+  "manual_version": "2.4",
   "updated_at": "2026-08-18",
-  "app_reference": "3.4.151",
+  "app_reference": "3.4.152",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -91,12 +91,14 @@
         {"type": "checklist", "items": [
           "Confirmar que a empresa ativa e o CNPJ correspondem ao titular do extrato.",
           "Selecionar banco e leiaute apropriados.",
+          "No Banco do Brasil, o leiaute Extrato de Conta Corrente (+/-) aceita PDF textual ou escaneado e executa OCR local, sem depender de créditos do Gemini.",
           "Conferir período, conta bancária, quantidade de movimentos e totais.",
           "Verificar se o mesmo arquivo já foi importado; nunca confirmar novamente sem análise.",
           "Confirmar somente quando a prévia estiver correta.",
           "Verificar os lançamentos gravados e classificar antes do fechamento."
         ]},
-        {"type": "callout", "tone": "info", "label": "Resultado esperado", "text": "Os movimentos confirmados permanecem na base da empresa, podem ser consultados e alimentam os relatórios. Exportar para a SAGE não consome nem apaga esses lançamentos."}
+        {"type": "callout", "tone": "info", "label": "Resultado esperado", "text": "Os movimentos confirmados permanecem na base da empresa, podem ser consultados e alimentam os relatórios. Exportar para a SAGE não consome nem apaga esses lançamentos."},
+        {"type": "callout", "tone": "warning", "label": "Trava do Banco do Brasil", "text": "Em PDF escaneado, o CCI reconstrói as linhas pela posição das palavras. A importação permanece bloqueada se saldo anterior + créditos - débitos não coincidir exatamente com o saldo final impresso."}
       ]
     },
     {

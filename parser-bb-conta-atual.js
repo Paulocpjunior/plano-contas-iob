@@ -367,14 +367,136 @@
     return textoCompleto;
   }
 
+  function extrairPalavrasResultadoOCR(data) {
+    const palavras = [];
+    const tsv = data && typeof data.tsv === 'string' ? data.tsv : '';
+    if (tsv.trim()) {
+      const linhas = tsv.split(/\r?\n/);
+      const cabecalho = (linhas.shift() || '').split('\t');
+      const pos = {};
+      cabecalho.forEach(function(nome, indice) { pos[nome] = indice; });
+      linhas.forEach(function(linha) {
+        const colunas = linha.split('\t');
+        const texto = colunas.slice(pos.text).join('\t').trim();
+        if (colunas[pos.level] !== '5' || !texto) return;
+        palavras.push({
+          texto: texto,
+          esquerda: Number(colunas[pos.left] || 0),
+          topo: Number(colunas[pos.top] || 0),
+          largura: Number(colunas[pos.width] || 0),
+          altura: Number(colunas[pos.height] || 0)
+        });
+      });
+      return palavras;
+    }
+
+    function visitar(no) {
+      if (!no || typeof no !== 'object') return;
+      const temFilhos = ['blocks', 'paragraphs', 'lines', 'words', 'symbols'].some(function(chave) {
+        return Array.isArray(no[chave]) && no[chave].length > 0;
+      });
+      if (typeof no.text === 'string' && no.text.trim() && no.bbox
+        && !temFilhos && Number.isFinite(Number(no.bbox.x0)) && Number.isFinite(Number(no.bbox.y0))) {
+        palavras.push({
+          texto: no.text.trim(),
+          esquerda: Number(no.bbox.x0),
+          topo: Number(no.bbox.y0),
+          largura: Math.max(0, Number(no.bbox.x1) - Number(no.bbox.x0)),
+          altura: Math.max(0, Number(no.bbox.y1) - Number(no.bbox.y0))
+        });
+      }
+      Object.keys(no).forEach(function(chave) {
+        if (chave === 'bbox' || chave === 'text' || chave === 'confidence') return;
+        const valor = no[chave];
+        if (Array.isArray(valor)) valor.forEach(visitar);
+      });
+    }
+    if (data && Array.isArray(data.blocks)) data.blocks.forEach(visitar);
+    return palavras;
+  }
+
+  function agruparPalavrasOCRPorLinha(palavras) {
+    const grupos = [];
+    (palavras || []).slice().sort(function(a, b) {
+      const ya = Number(a.topo || 0) + Number(a.altura || 0) / 2;
+      const yb = Number(b.topo || 0) + Number(b.altura || 0) / 2;
+      return ya - yb || Number(a.esquerda || 0) - Number(b.esquerda || 0);
+    }).forEach(function(palavra) {
+      const centroY = Number(palavra.topo || 0) + Number(palavra.altura || 0) / 2;
+      let grupo = null;
+      let menorDistancia = Infinity;
+      grupos.forEach(function(candidato) {
+        const distancia = Math.abs(candidato.centroY - centroY);
+        if (distancia <= 10 && distancia < menorDistancia) {
+          grupo = candidato;
+          menorDistancia = distancia;
+        }
+      });
+      if (!grupo) {
+        grupo = { centroY: centroY, palavras: [] };
+        grupos.push(grupo);
+      }
+      grupo.palavras.push(palavra);
+    });
+
+    return grupos.sort(function(a, b) { return a.centroY - b.centroY; }).map(function(grupo) {
+      return grupo.palavras.sort(function(a, b) {
+        return Number(a.esquerda || 0) - Number(b.esquerda || 0);
+      }).map(function(palavra) { return palavra.texto; }).join(' ').replace(/\s+/g, ' ').trim();
+    }).filter(Boolean);
+  }
+
+  async function extrairTextoPDFBBComOCR(arrayBuffer) {
+    if (typeof Tesseract === 'undefined' || typeof document === 'undefined') {
+      throw new Error('Tesseract.js nao carregado para OCR do extrato Banco do Brasil.');
+    }
+    if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const canvas = document.createElement('canvas');
+    const contexto = canvas.getContext('2d');
+    const paginas = [];
+
+    for (let numero = 1; numero <= pdf.numPages; numero++) {
+      if (typeof showToast === 'function') showToast('OCR Banco do Brasil pagina ' + numero + '/' + pdf.numPages + '...', 'success');
+      const pagina = await pdf.getPage(numero);
+      const viewport = pagina.getViewport({ scale: 4 });
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      contexto.clearRect(0, 0, canvas.width, canvas.height);
+      await pagina.render({ canvasContext: contexto, viewport: viewport }).promise;
+      const resultado = await Tesseract.recognize(canvas, 'por', {
+        logger: function(m) { console.log('[bb-extrato-ocr]', numero, m.status, m.progress); }
+      });
+      const palavras = extrairPalavrasResultadoOCR(resultado && resultado.data);
+      const linhas = agruparPalavrasOCRPorLinha(palavras);
+      paginas.push(linhas.length ? linhas.join('\n') : String(resultado && resultado.data && resultado.data.text || ''));
+    }
+    return paginas.join('\n');
+  }
+
   async function parsearPDF_BB_ContaAtual(arrayBuffer) {
     return parsearTextoBBContaAtual(await extrairTextoPDFBB(arrayBuffer));
   }
 
   async function parsearPDF_BB_ExtratoContaCorrente(arrayBuffer) {
-    const textoCompleto = await extrairTextoPDFBB(arrayBuffer);
-    return parsearTextoBBExtratoMaisMenos(textoCompleto)
-      || { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+    const dadosOCR = arrayBuffer && typeof arrayBuffer.slice === 'function' ? arrayBuffer.slice(0) : arrayBuffer;
+    const dadosTexto = arrayBuffer && typeof arrayBuffer.slice === 'function' ? arrayBuffer.slice(0) : arrayBuffer;
+    const textoCompleto = await extrairTextoPDFBB(dadosTexto);
+    const textual = parsearTextoBBExtratoMaisMenos(textoCompleto);
+    if (textual) return textual;
+
+    if (typeof Tesseract !== 'undefined' && typeof document !== 'undefined') {
+      const textoOCR = await extrairTextoPDFBBComOCR(dadosOCR);
+      const resultadoOCR = parsearTextoBBExtratoMaisMenos(textoOCR);
+      if (resultadoOCR) {
+        resultadoOCR.origem_ocr = true;
+        resultadoOCR.fingerprint = (resultadoOCR.fingerprint || 'bb-extrato-mais-menos') + '-ocr';
+        resultadoOCR.textoCompleto = textoOCR;
+        return resultadoOCR;
+      }
+    }
+
+    return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
   }
 
   const api = {
@@ -384,6 +506,8 @@
       parseLinhaLancamentoBB: parseLinhaLancamentoBB,
       montarLinhaLancamento: montarLinhaLancamento,
       normalizarDescricaoBB: normalizarDescricaoBB,
+      extrairPalavrasResultadoOCR: extrairPalavrasResultadoOCR,
+      agruparPalavrasOCRPorLinha: agruparPalavrasOCRPorLinha,
       parsearTextoBBExtratoMaisMenos: parsearTextoBBExtratoMaisMenos,
       parsearTextoBBContaAtual: parsearTextoBBContaAtual
     }
