@@ -32,8 +32,12 @@ assert(index.includes('confImpVinculoCnpj'), 'conferencia final deve exibir o vi
 assert(server.includes("app.get('/api/layouts-fiscais'"), 'servidor deve publicar catalogo fiscal proprio');
 assert(server.includes("require('./layouts-fiscais-padrao')"), 'servidor deve usar o catalogo fiscal canonico');
 assert(catalogo.includes("codigoEmpresa: '0109'"), 'catalogo deve conter FASTWELD 0109');
+assert(catalogo.includes("id: '0109_fastweld_registro_entradas_iob_sage'"), 'catalogo deve conter o livro de entradas FASTWELD 0109');
+assert(catalogo.includes("parser: 'parsearCSV_FastweldRegistroEntradas'"), 'livro de entradas FASTWELD deve usar parser proprio');
 assert(catalogo.includes("cnpj: '02942184000134'"), 'layout FASTWELD deve ter CNPJ homologado');
 assert(catalogo.includes("validacaoCnpj: 'chave_nfe_emitente'"), 'layout deve declarar a fonte da amarracao de CNPJ');
+assert(catalogo.includes("validacaoCnpj: 'cadastro_layout_codigo_arquivo'"), 'entrada deve amarrar empresa, layout e codigo do arquivo');
+assert(index.includes('direcaoEsperada: layout.movimento'), 'validacao fiscal deve respeitar entrada ou saida selecionada');
 assert(catalogo.includes("id: 'generico_servicos_tomados_efiscal_pdf'"), 'catalogo deve oferecer servicos tomados para qualquer empresa');
 assert(catalogo.includes("id: 'generico_servicos_prestados_efiscal_pdf'"), 'catalogo deve oferecer servicos prestados para qualquer empresa');
 assert(catalogo.includes("validacaoCnpj: 'cabecalho_relatorio'"), 'modelos de servicos devem declarar a conferencia pelo cabecalho do PDF');

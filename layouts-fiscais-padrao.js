@@ -52,6 +52,26 @@
       observacao: 'Modelo reutilizavel para qualquer empresa. Extrai e confere o CNPJ do cabecalho, o tipo Servicos Prestados e o total oficial antes da importacao.'
     },
     {
+      id: '0109_fastweld_registro_entradas_iob_sage',
+      codigoEmpresa: '0109',
+      cnpj: '02942184000134',
+      empresa: 'FASTWELD INDUSTRIA E COMERCIO LTDA',
+      movimento: 'entrada',
+      documento: 'NFS_ENTRADA_COMPRAS',
+      nome: 'FASTWELD - NF-e de Entrada (Compras)',
+      parser: 'parsearCSV_FastweldRegistroEntradas',
+      formato: 'CSV fiscal Office Fiscal / IOB SAGE',
+      extensoes: ['csv', 'txt'],
+      confiabilidade: 'Alta',
+      status: 'Ativo',
+      homologacao_status: 'aprovado',
+      validacaoCnpj: 'cadastro_layout_codigo_arquivo',
+      exigirCodigoArquivo: true,
+      exigirChaveNfeTodasNotas: true,
+      ultimoTeste: '0109_RelatorioNotas_20260401_20260430.Csv',
+      observacao: 'Livro de entradas da FASTWELD. Confere direcao E, codigo 0109 no nome, CNPJ da empresa ativa contra o layout homologado e validade das chaves de fornecedores.'
+    },
+    {
       id: '0109_fastweld_registro_saidas_iob_sage',
       codigoEmpresa: '0109',
       cnpj: '02942184000134',
