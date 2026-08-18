@@ -1,7 +1,8 @@
 {
-  "version": "3.4.148",
-  "build_date": "2026-08-18T14:18:30Z",
+  "version": "3.4.149",
+  "build_date": "2026-08-18T14:22:01Z",
   "release_notes": [
+    "fix: restaurar livro fiscal de entradas",
     "fix: restaurar PDFs de servicos no movimento fiscal",
     "feat: adiciona alteracao segura em lote",
     "feat: adiciona balancete anual analitico",
@@ -10,7 +11,6 @@
     "feat: adicionar novidades e ajuda operacional ao CCI",
     "feat: automatizar prontidao contabil das empresas",
     "feat: iniciar escrituracao exclusiva no CCI",
-    "feat: adiciona extrato unificado Bradesco",
-    "feat: libera DRE e balanco patrimonial"
+    "feat: adiciona extrato unificado Bradesco"
   ]
 }
