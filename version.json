@@ -1,16 +1,11 @@
 {
-  "version": "3.4.155",
-  "build_date": "2026-08-18T20:51:52Z",
+  "version": "3.4.156",
+  "build_date": "2026-08-18T22:51:00Z",
   "release_notes": [
-    "feat: adicionar cadastro matriz e filial",
-    "feat: adicionar retencoes de servicos tomados",
-    "fix: incluir impostos retidos do demonstrativo SAGE",
-    "fix: processar extrato BB escaneado sem Gemini",
-    "feat: importar demonstrativo SAGE de impostos retidos",
-    "feat(importacao): homologar layouts BB e Itau",
-    "fix: restaurar livro fiscal de entradas",
-    "fix: restaurar PDFs de servicos no movimento fiscal",
-    "feat: adiciona alteracao segura em lote",
-    "feat: adiciona balancete anual analitico"
+    "Parametrização de Isenta, Imune e Terceiro Setor com CNAE do CFI e parecer orientativo do Gemini 3.7",
+    "Conciliação bancária formal com aprovação, auditoria e trava de fechamento",
+    "Transporte automático e protegido de saldos entre competências",
+    "Integração contábil do ativo para aquisição, transferência, depreciação e baixa",
+    "Manual Operacional e painel de novidades atualizados"
   ]
 }

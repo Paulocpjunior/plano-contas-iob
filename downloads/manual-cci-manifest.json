@@ -1,17 +1,17 @@
 {
-  "manual_version": "2.7",
+  "manual_version": "2.8",
   "updated_at": "2026-08-18",
-  "source_sha256": "de7cc71b49b1feff2025b161b67f205e68e9ce6c9729dd085658a83234fd7ea5",
+  "source_sha256": "00189061ef007d8fe68aa74c71b708138ce8ae28d47d077b41cada7d7621a337",
   "files": {
     "docx": {
       "name": "Manual_Operacional_CCI.docx",
-      "sha256": "b2eec1381c00c4502c89bfa34cdc20ab37cffac9fd31068f2945d5ece608274b",
-      "size": 45662
+      "sha256": "1881a3fa3e436fbd61a0a23c0ca57744a56f3a3ea81e2bff7052183c29f135fe",
+      "size": 46210
     },
     "pdf": {
       "name": "Manual_Operacional_CCI.pdf",
-      "sha256": "96bfa51936aa5df83671ca6d6f4a9f5ce78b561d440a5d0465beee8836535890",
-      "size": 21137
+      "sha256": "66dfb35d49d7ed7b02ee3a4478747cd8dfa8f11f858e5888445bf55b40c2a6fa",
+      "size": 21145
     }
   }
 }

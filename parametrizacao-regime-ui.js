@@ -40,11 +40,20 @@
       <label class="ptr-confirm"><input id="ptrBalancete" type="checkbox"${checked(p.usa_balancete_suspensao_reducao)}> A empresa utiliza balanços ou balancetes de suspensão/redução.</label>`;
   }
 
+  function campoEntidade(p, status) {
+    const cnae = p.cnae_principal || status.cnae_principal || '';
+    const descricao = p.cnae_descricao || status.cnae_principal_descricao || '';
+    const terceiro = status.regime_codigo === 'TERCEIRO_SETOR' ? '<label class="ptr-label">Qualificação tributária complementar</label><select id="ptrQualificacao" class="ptr-input"><option value="">Confirme...</option><option value="IMUNE"' + selected(p.qualificacao_tributaria, 'IMUNE') + '>Imune</option><option value="ISENTA"' + selected(p.qualificacao_tributaria, 'ISENTA') + '>Isenta</option><option value="TRIBUTADA"' + selected(p.qualificacao_tributaria, 'TRIBUTADA') + '>Tributada</option></select>' : '';
+    const ia = p.validacao_ia && p.validacao_ia.status === 'concluida' ? '<div class="ptr-fixed"><strong>IA ' + esc(p.validacao_ia.modelo || '') + ':</strong> ' + esc(p.validacao_ia.parecer || 'cruzamento concluído') + '</div>' : '';
+    return '<label class="ptr-label">CNAE principal recebido do CFI</label><input id="ptrCnae" class="ptr-input" readonly value="' + esc(cnae) + '"><div class="ptr-fixed">' + esc(descricao || 'Descrição não recebida do CFI') + '</div>' + terceiro + '<label class="ptr-label">Fundamento legal/documental</label><textarea id="ptrFundamento" class="ptr-input" rows="4">' + esc(p.fundamento_legal || '') + '</textarea><label class="ptr-confirm"><input id="ptrDocumentacao" type="checkbox"' + checked(p.documentacao_revisada) + '> Confirmo que estatuto, natureza jurídica, certificados e demais documentos aplicáveis foram revisados pelo responsável.</label><button type="button" class="ptr-secondary" style="margin-top:10px" onclick="CCIParametrizacaoRegimeUI.validarIA()">🤖 Cruzar CNAE com Gemini 3.7</button>' + ia;
+  }
+
   function conteudoRegime(status) {
     const p = status.parametrizacao || {};
     if (status.regime_codigo === 'SIMPLES_NACIONAL') return campoSimples(p);
     if (status.regime_codigo === 'LUCRO_PRESUMIDO') return campoPresumido(p);
     if (status.regime_codigo === 'LUCRO_REAL') return campoReal(p);
+    if (['ISENTA', 'IMUNE', 'TERCEIRO_SETOR'].includes(status.regime_codigo)) return campoEntidade(p, status);
     return '<div class="ptr-warning">Sincronize o regime tributário no cadastro do CFI antes de parametrizar.</div>';
   }
 
@@ -93,6 +102,13 @@
       body.lalur_lacs_configurado = document.getElementById('ptrLalur').checked;
       body.creditos_pis_cofins_revisados = document.getElementById('ptrCreditos').checked;
       body.usa_balancete_suspensao_reducao = document.getElementById('ptrBalancete').checked;
+    } else if (['ISENTA', 'IMUNE', 'TERCEIRO_SETOR'].includes(status.regime_codigo)) {
+      body.cnae_principal = document.getElementById('ptrCnae').value;
+      body.cnae_descricao = status.cnae_principal_descricao || status.parametrizacao.cnae_descricao || '';
+      body.fundamento_legal = document.getElementById('ptrFundamento').value;
+      body.documentacao_revisada = document.getElementById('ptrDocumentacao').checked;
+      body.qualificacao_tributaria = document.getElementById('ptrQualificacao') ? document.getElementById('ptrQualificacao').value : '';
+      body.validacao_ia = status.validacao_ia_pendente || status.parametrizacao.validacao_ia || null;
     }
     return body;
   }
@@ -125,6 +141,18 @@
         msg.textContent = erro.message || String(erro);
         msg.style.color = '#b91c1c';
       }
+    },
+    validarIA: async function () {
+      const msg = document.getElementById('ptrMensagem');
+      try {
+        msg.textContent = 'Gemini cruzando CNAE e enquadramento informado...';
+        const validacao = await window.API.validarRegimeCnaeIA(statusAtual.cnpj, { cnae_principal: document.getElementById('ptrCnae').value, fundamento_legal: document.getElementById('ptrFundamento').value });
+        statusAtual.validacao_ia_pendente = validacao;
+        msg.textContent = 'Cruzamento concluído. Revise o parecer e salve para confirmar.';
+        const p = statusAtual.parametrizacao || {};
+        statusAtual.parametrizacao = Object.assign({}, p, { validacao_ia: validacao, cnae_principal: validacao.cnae, fundamento_legal: document.getElementById('ptrFundamento').value, documentacao_revisada: document.getElementById('ptrDocumentacao').checked, qualificacao_tributaria: document.getElementById('ptrQualificacao') ? document.getElementById('ptrQualificacao').value : '' });
+        renderModal(statusAtual.cnpj, statusAtual);
+      } catch (erro) { msg.textContent = erro.message || String(erro); msg.style.color = '#b91c1c'; }
     }
   };
 

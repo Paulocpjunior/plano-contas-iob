@@ -15,12 +15,14 @@ const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados }
 const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
 const { buscarRegimeNoCfi } = require('./cfi-regime-client');
-const { exigeSaldoAbertura, periodoInicialEmpresa, validarSaldosAbertura } = require('./implantacao-contabil');
+const { exigeSaldoAbertura, periodoInicialEmpresa, validarSaldosAbertura, proximoPeriodo, saldosParaTransporte } = require('./implantacao-contabil');
 const { avaliarProntidaoContabil } = require('./prontidao-contabil');
 const { avaliarParametrizacaoRegime, sanitizarParametrizacaoRegime } = require('./parametrizacao-regime');
 const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
 const AtivoImobilizado = require('./ativo-imobilizado');
+const AtivoImobilizadoContabil = require('./ativo-imobilizado-contabil');
+const ConciliacaoContabil = require('./conciliacao-contabil');
 const GraphEmail = require('./graph-email-provider');
 const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa } = require('./ajuda-cci-base');
 const { conteudo: MANUAL_CCI } = require('./manual-cci-base');
@@ -818,8 +820,13 @@ async function sincronizarRegimeTributarioCfi(cnpj, req) {
   const cadastro = await buscarRegimeNoCfi({ cnpj, token: tokenBearerRequisicao(req) });
   const regime = cadastro.regime || {};
   if (!regime.codigo || !regime.nome) throw new Error('O cadastro fiscal do CFI nao informou um regime tributario valido.');
+  const regimeNormalizado = ({
+    ISENTO: 'ISENTA', ISENCAO: 'ISENTA',
+    IMUNIDADE: 'IMUNE',
+    TERCEIROSETOR: 'TERCEIRO_SETOR', TERCEIRO_SETOR: 'TERCEIRO_SETOR', '3_SETOR': 'TERCEIRO_SETOR'
+  })[String(regime.codigo).trim().toUpperCase().replace(/[\s-]+/g, '_')] || String(regime.codigo).trim().toUpperCase();
   const campos = {
-    regime_tributario_codigo: String(regime.codigo),
+    regime_tributario_codigo: regimeNormalizado,
     regime_tributario_nome: String(regime.nome),
     regime_tributario_origem: 'CFI',
     regime_tributario_cfi_id: cadastro.id || '',
@@ -828,6 +835,10 @@ async function sincronizarRegimeTributarioCfi(cnpj, req) {
     regime_tributario_sincronizado_por_uid: req.user.uid,
     regime_tributario_sincronizado_por_email: req.user.email,
   };
+  const cnae = cadastro.cnae_principal || cadastro.cnae || cadastro.cnaePrincipal || (cadastro.empresa && (cadastro.empresa.cnae_principal || cadastro.empresa.cnae));
+  const cnaeDescricao = cadastro.cnae_descricao || cadastro.descricao_cnae || cadastro.cnaeDescricao || (cadastro.empresa && (cadastro.empresa.cnae_descricao || cadastro.empresa.descricao_cnae));
+  if (cnae) campos.cnae_principal = String(cnae).replace(/\D/g, '').slice(0, 7);
+  if (cnaeDescricao) campos.cnae_principal_descricao = String(cnaeDescricao).trim().slice(0, 300);
   await db.collection('empresas').doc(cnpj).set(campos, { merge: true });
   return { cadastro, campos };
 }
@@ -1168,7 +1179,7 @@ app.get('/api/empresas/:cnpj/parametrizacao-regime', async (req, res) => {
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    res.json({ ok: true, cnpj: cnpjLimpo, is_admin: !!req.user.is_admin, ...avaliarParametrizacaoRegime(chk.empresa) });
+    res.json({ ok: true, cnpj: cnpjLimpo, is_admin: !!req.user.is_admin, cnae_principal: chk.empresa.cnae_principal || '', cnae_principal_descricao: chk.empresa.cnae_principal_descricao || '', ...avaliarParametrizacaoRegime(chk.empresa) });
   } catch (erro) {
     res.status(500).json({ erro: erro.message || 'Falha ao consultar parametrização tributária.' });
   }
@@ -1201,6 +1212,43 @@ app.put('/api/empresas/:cnpj/parametrizacao-regime', adminRequired, async (req, 
     res.json({ ok: true, cnpj: cnpjLimpo, ...avaliarParametrizacaoRegime(empresaAtualizada) });
   } catch (erro) {
     res.status(500).json({ erro: erro.message || 'Falha ao salvar parametrização tributária.' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/parametrizacao-regime/validar-ia', adminRequired, async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const regime = String(chk.empresa.regime_tributario_codigo || '');
+    if (!['ISENTA', 'IMUNE', 'TERCEIRO_SETOR'].includes(regime)) return res.status(409).json({ erro: 'O cruzamento especial é destinado a entidades isentas, imunes ou do Terceiro Setor.' });
+    const cnae = String((req.body && req.body.cnae_principal) || chk.empresa.cnae_principal || '').replace(/\D/g, '').slice(0, 7);
+    if (!cnae) return res.status(400).json({ erro: 'CNAE principal ausente no cadastro do CFI.' });
+    const client = getGeminiClient();
+    if (!client) return res.status(503).json({ erro: 'Gemini não configurado no servidor.' });
+    const model = resolverModeloGemini(null, GEMINI_DEFAULT_MODEL);
+    const prompt = [
+      'Atue como revisor tributário brasileiro. Não decida o enquadramento e não substitua o contador.',
+      'Cruze apenas a coerência entre o cadastro informado, o CNAE principal e os pontos documentais que precisam ser conferidos.',
+      'Responda em JSON válido com as chaves parecer (string), alertas (array de strings) e documentos_a_conferir (array de strings).',
+      'Empresa: ' + String(chk.empresa.razao_social || cnpj),
+      'Situação tributária informada pelo CFI: ' + regime,
+      'CNAE principal: ' + cnae + ' - ' + String(chk.empresa.cnae_principal_descricao || ''),
+      'Fundamento informado pelo usuário: ' + String((req.body && req.body.fundamento_legal) || '')
+    ].join('\n');
+    const resposta = await client.models.generateContent({ model, contents: prompt, config: { responseMimeType: 'application/json' } });
+    let parecer;
+    try { parecer = JSON.parse(String(resposta.text || '{}')); } catch (_) { parecer = { parecer: String(resposta.text || ''), alertas: ['A IA não retornou JSON estruturado. Revise manualmente.'], documentos_a_conferir: [] }; }
+    res.json({
+      status: 'concluida', cnae, modelo: model,
+      parecer: String(parecer.parecer || '').slice(0, 3000),
+      alertas: Array.isArray(parecer.alertas) ? parecer.alertas.map(String).slice(0, 20) : [],
+      documentos_a_conferir: Array.isArray(parecer.documentos_a_conferir) ? parecer.documentos_a_conferir.map(String).slice(0, 20) : [],
+      orientativo: true
+    });
+  } catch (erro) {
+    console.error('validar regime por IA erro:', erro);
+    res.status(erro.status || 500).json({ erro: erro.message || 'Falha no cruzamento orientativo por IA.' });
   }
 });
 
@@ -1907,6 +1955,22 @@ async function impedirAlteracaoPeriodosFechados(cnpj, stateJsonAtual, stateJsonN
       409,
       'PERIODO_CONTABIL_FECHADO'
     );
+  }
+}
+
+async function impedirSobrescritaSaldosTransportados(cnpj, stateJsonNovo) {
+  const snap = await db.collection('empresas').doc(cnpj).collection('transportes_saldos').where('status', '==', 'vigente').get();
+  if (snap.empty) return;
+  const novo = lerEstadoContabil(stateJsonNovo);
+  const saldosPorPeriodo = novo.relatoriosContabeis && novo.relatoriosContabeis.saldosIniciais || {};
+  const divergentes = snap.docs.filter(function (doc) {
+    const transporte = doc.data() || {};
+    const informados = saldosPorPeriodo[doc.id];
+    if (!informados || !Object.keys(informados).length) return false;
+    return hashSaldosAbertura(informados) !== hashSaldosAbertura(transporte.saldos || {});
+  }).map(function (doc) { return doc.id; });
+  if (divergentes.length) {
+    throw erroSessao('Os saldos de ' + divergentes.join(', ') + ' foram transportados por fechamento e não podem ser substituídos manualmente. Reabra a competência de origem.', 409, 'SALDOS_TRANSPORTADOS_PROTEGIDOS');
   }
 }
 
@@ -2672,6 +2736,7 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
       throw erroSessao('Esta sessão foi alterada por um administrador. Recarregue a empresa antes de salvar novamente.', 409, 'SESSAO_DESATUALIZADA');
     }
     await impedirAlteracaoPeriodosFechados(cnpjLimpo, atual.stateJson, state_json);
+    await impedirSobrescritaSaldosTransportados(cnpjLimpo, state_json);
     const versaoServidor = lerVersao().version || '';
     const validacaoVersao = validarVersaoParaNovaImportacao({
       stateJsonNovo: state_json,
@@ -2912,6 +2977,7 @@ function normalizarBemAtivo(body) {
     conta_ativo: String(b.conta_ativo || '').trim().slice(0, 40),
     conta_depreciacao_acumulada: String(b.conta_depreciacao_acumulada || '').trim().slice(0, 40),
     conta_despesa_depreciacao: String(b.conta_despesa_depreciacao || '').trim().slice(0, 40),
+    conta_contrapartida_aquisicao: String(b.conta_contrapartida_aquisicao || '').trim().slice(0, 40),
     centro_custo: String(b.centro_custo || '').trim().slice(0, 80),
     localizacao: String(b.localizacao || '').trim().slice(0, 120),
     fornecedor: String(b.fornecedor || '').trim().slice(0, 160),
@@ -2972,19 +3038,180 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/baixa', async (req, res) =
     const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
     const chk = await checarAcessoEmpresa(cnpj, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const dataBaixa = AtivoImobilizado.dataISO(req.body && req.body.data_baixa);
-    const motivo = String(req.body && req.body.motivo || '').trim();
-    if (!dataBaixa || motivo.length < 5) return res.status(400).json({ erro: 'Informe data e motivo da baixa.' });
-    const ref = db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').doc(String(req.params.id || ''));
-    const atual = await ref.get();
-    if (!atual.exists) return res.status(404).json({ erro: 'Bem não encontrado.' });
-    const bemAtual = atual.data() || {};
-    if (bemAtual.status === 'baixado') return res.status(409).json({ erro: 'A baixa deste bem já foi registrada.' });
-    const inicioUso = AtivoImobilizado.dataISO(bemAtual.data_disponivel_uso || bemAtual.data_aquisicao);
-    if (inicioUso && dataBaixa < inicioUso) return res.status(400).json({ erro: 'A data da baixa não pode ser anterior à aquisição/disponibilidade do bem.' });
-    await ref.set({ status: 'baixado', data_baixa: dataBaixa, motivo_baixa: motivo.slice(0, 500), valor_baixa: AtivoImobilizado.numero(req.body && req.body.valor_baixa), baixa_em: new Date(), baixa_por_uid: req.user.uid, baixa_por_email: req.user.email, atualizado_em: new Date(), atualizado_por_uid: req.user.uid, atualizado_por_email: req.user.email }, { merge: true });
-    res.json({ ok: true, id: ref.id, status: 'baixado', data_baixa: dataBaixa });
+    res.status(409).json({ erro: 'A baixa direta foi desativada. Gere a prévia contábil e aprove o evento patrimonial antes de alterar o bem.', codigo: 'BAIXA_EXIGE_PREVIA_CONTABIL' });
   } catch (e) { console.error('baixar ativo imobilizado erro:', e); res.status(500).json({ erro: e.message }); }
+});
+
+async function previaEventoAtivoEmpresa(empresaRef, bemId, tipo, dados, stateJson) {
+  const [bemDoc, geradosSnap] = await Promise.all([
+    empresaRef.collection('ativos_imobilizados').doc(bemId).get(),
+    empresaRef.collection('ativos_lancamentos').get()
+  ]);
+  if (!bemDoc.exists) throw erroSessao('Bem não encontrado.', 404, 'ATIVO_NAO_ENCONTRADO');
+  const bem = { id: bemDoc.id, ...(bemDoc.data() || {}) };
+  const chavesSessao = stateJson ? parsearStateJson(stateJson).entries.map(function (item) { return String(item.chave || ''); }).filter(Boolean) : [];
+  const chaves = geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao);
+  return AtivoImobilizadoContabil.previaEvento(bem, tipo, dados, chaves);
+}
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/eventos/previa', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const sessao = await carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current'));
+    const tipo = String(req.body && req.body.tipo || '').trim();
+    const previa = await previaEventoAtivoEmpresa(empresaRef, String(req.params.id || ''), tipo, req.body || {}, sessao.stateJson || '');
+    if (previa.periodo) {
+      const periodoDoc = await empresaRef.collection('periodos_contabeis').doc(previa.periodo).get();
+      if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') return res.status(409).json({ erro: 'Reabra a competência antes de contabilizar o evento patrimonial.', codigo: 'PERIODO_CONTABIL_FECHADO' });
+    }
+    res.json({ ...previa, hash_previa: hashSessao(JSON.stringify({ lancamentos: previa.lancamentos, mutacao_bem: previa.mutacao_bem })) });
+  } catch (e) { res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_PREVIA_EVENTO_ATIVO' }); }
+});
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/eventos/aprovar', async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const bemId = String(req.params.id || '');
+    const tipo = String(req.body && req.body.tipo || '').trim();
+    const hashPrevia = String(req.body && req.body.hash_previa || '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    sessaoRef = empresaRef.collection('sessoes').doc('current');
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'evento_ativo_' + tipo);
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Sessão contábil não encontrada.', 409, 'SESSAO_NAO_ENCONTRADA');
+    const previa = await previaEventoAtivoEmpresa(empresaRef, bemId, tipo, req.body || {}, sessao.stateJson);
+    if (!previa.ok) throw erroSessao(previa.erros[0] || 'Evento patrimonial sem lançamento válido.', 409, 'ATIVO_SEM_LANCAMENTOS');
+    const periodoDoc = await empresaRef.collection('periodos_contabeis').doc(previa.periodo).get();
+    if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') throw erroSessao('Reabra a competência antes de contabilizar o evento patrimonial.', 409, 'PERIODO_CONTABIL_FECHADO');
+    const hashAtual = hashSessao(JSON.stringify({ lancamentos: previa.lancamentos, mutacao_bem: previa.mutacao_bem }));
+    if (!hashPrevia || hashAtual !== hashPrevia) throw erroSessao('A prévia mudou. Revise o evento antes de aprovar.', 409, 'PREVIA_DESATUALIZADA');
+    const state = parsearStateJson(sessao.stateJson);
+    const agora = new Date().toISOString();
+    previa.lancamentos.forEach(function (lancamento, indice) {
+      state.entries.push({
+        ...lancamento,
+        id: 'ativo-' + cryptoAdmin.createHash('sha1').update(lancamento.chave).digest('hex').slice(0, 16),
+        codigoHistorico: '', historicoPadraoDescricao: '', incomum: false,
+        empresa: chk.empresa.razao_social || '', cnpj, categoria: 'Ativo imobilizado',
+        importacaoId: 'ativo-' + previa.periodo, importacaoTitulo: 'Ativo imobilizado - ' + previa.periodo,
+        criadoAutomaticoEm: agora, aprovadoPorEmail: req.user.email, ordem: indice + 1
+      });
+    });
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const validacao = RelatoriosContabeis.validar(state.entries, previa.periodo, contas);
+    if (!validacao.ok) throw erroSessao(validacao.erros[0].mensagem, 409, 'LANCAMENTOS_ATIVO_INVALIDOS');
+    const resumo = { ...(sessao.dados && sessao.dados.resumo || {}), total_lancamentos: state.entries.length };
+    const resultado = await gravarSessaoBloqueada(sessaoRef, JSON.stringify(state), resumo, req.user, { exigirRevisao: true });
+    tokenTrava = null;
+    const batch = db.batch();
+    previa.lancamentos.forEach(function (lancamento) {
+      const id = cryptoAdmin.createHash('sha256').update(lancamento.chave).digest('hex');
+      batch.create(empresaRef.collection('ativos_lancamentos').doc(id), { ...lancamento, periodo: previa.periodo, aprovado_em: new Date(), aprovado_por_uid: req.user.uid, aprovado_por_email: req.user.email, session_revision: resultado.revisao });
+    });
+    const mutacao = { ...(previa.mutacao_bem || {}), atualizado_em: new Date(), atualizado_por_uid: req.user.uid, atualizado_por_email: req.user.email };
+    if (tipo === 'aquisicao') mutacao.aquisicao_contabilizada_em = new Date();
+    if (tipo === 'baixa') { mutacao.baixa_em = new Date(); mutacao.baixa_por_uid = req.user.uid; mutacao.baixa_por_email = req.user.email; }
+    batch.set(empresaRef.collection('ativos_imobilizados').doc(bemId), mutacao, { merge: true });
+    batch.create(empresaRef.collection('auditoria_contabil').doc(), { tipo: 'ATIVO_' + tipo.toUpperCase() + '_APROVADO', periodo: previa.periodo, bem_id: bemId, quantidade: previa.lancamentos.length, total: previa.total, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
+    await batch.commit();
+    res.status(201).json({ ok: true, tipo, periodo: previa.periodo, quantidade: previa.lancamentos.length, total: previa.total, session_revision: resultado.revisao });
+  } catch (e) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_APROVAR_EVENTO_ATIVO' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/previa', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competência inválida.' });
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const [bensSnap, geradosSnap, periodoDoc, sessao] = await Promise.all([
+      empresaRef.collection('ativos_imobilizados').get(),
+      empresaRef.collection('ativos_lancamentos').where('periodo', '==', periodo).get(),
+      empresaRef.collection('periodos_contabeis').doc(periodo).get(),
+      carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current'))
+    ]);
+    if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') return res.status(409).json({ erro: 'Reabra a competência antes de gerar lançamentos do ativo.', codigo: 'PERIODO_CONTABIL_FECHADO' });
+    const bens = bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; });
+    const chavesSessao = sessao.encontrada && sessao.stateJson ? parsearStateJson(sessao.stateJson).entries.map(function (item) { return String(item.chave || ''); }).filter(Boolean) : [];
+    const jaGerados = geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao);
+    const previa = AtivoImobilizadoContabil.previaDepreciacao(bens, periodo, jaGerados);
+    res.json({ ...previa, hash_previa: hashSessao(JSON.stringify(previa.lancamentos)) });
+  } catch (e) { res.status(e.status || 500).json({ erro: e.message }); }
+});
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/aprovar', async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    const hashPrevia = String(req.body && req.body.hash_previa || '');
+    if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competência inválida.' });
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const periodoDoc = await empresaRef.collection('periodos_contabeis').doc(periodo).get();
+    if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') return res.status(409).json({ erro: 'Reabra a competência antes de gerar lançamentos do ativo.', codigo: 'PERIODO_CONTABIL_FECHADO' });
+    sessaoRef = empresaRef.collection('sessoes').doc('current');
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'ativo_imobilizado');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Sessão contábil não encontrada.', 409, 'SESSAO_NAO_ENCONTRADA');
+    const [bensSnap, geradosSnap] = await Promise.all([
+      empresaRef.collection('ativos_imobilizados').get(),
+      empresaRef.collection('ativos_lancamentos').where('periodo', '==', periodo).get()
+    ]);
+    const chavesSessao = parsearStateJson(sessao.stateJson).entries.map(function (item) { return String(item.chave || ''); }).filter(Boolean);
+    const previa = AtivoImobilizadoContabil.previaDepreciacao(
+      bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; }),
+      periodo,
+      geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao)
+    );
+    if (!previa.ok) throw erroSessao(previa.erros[0] || 'Nenhuma depreciação pendente nesta competência.', 409, 'ATIVO_SEM_LANCAMENTOS');
+    const hashAtual = hashSessao(JSON.stringify(previa.lancamentos));
+    if (!hashPrevia || hashAtual !== hashPrevia) throw erroSessao('A prévia mudou. Revise os valores antes de aprovar.', 409, 'PREVIA_DESATUALIZADA');
+    const state = parsearStateJson(sessao.stateJson);
+    const agora = new Date().toISOString();
+    previa.lancamentos.forEach(function (lancamento, indice) {
+      state.entries.push({
+        ...lancamento,
+        id: 'ativo-' + periodo.replace('-', '') + '-' + cryptoAdmin.createHash('sha1').update(lancamento.chave).digest('hex').slice(0, 12),
+        codigoHistorico: '', historicoPadraoDescricao: '', incomum: false,
+        empresa: chk.empresa.razao_social || '', cnpj,
+        categoria: 'Ativo imobilizado', importacaoId: 'ativo-' + periodo,
+        importacaoTitulo: 'Ativo imobilizado - ' + periodo,
+        criadoAutomaticoEm: agora, aprovadoPorEmail: req.user.email, ordem: indice + 1
+      });
+    });
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const validacao = RelatoriosContabeis.validar(state.entries, periodo, contas);
+    if (!validacao.ok) throw erroSessao(validacao.erros[0].mensagem, 409, 'LANCAMENTOS_ATIVO_INVALIDOS');
+    const resumo = { ...(sessao.dados && sessao.dados.resumo || {}), total_lancamentos: state.entries.length };
+    const resultado = await gravarSessaoBloqueada(sessaoRef, JSON.stringify(state), resumo, req.user, { exigirRevisao: true });
+    tokenTrava = null;
+    const batch = db.batch();
+    previa.lancamentos.forEach(function (lancamento) {
+      const id = cryptoAdmin.createHash('sha256').update(lancamento.chave).digest('hex');
+      batch.create(empresaRef.collection('ativos_lancamentos').doc(id), { ...lancamento, periodo, chave: lancamento.chave, aprovado_em: new Date(), aprovado_por_uid: req.user.uid, aprovado_por_email: req.user.email, session_revision: resultado.revisao });
+    });
+    await batch.commit();
+    await empresaRef.collection('auditoria_contabil').add({ tipo: 'DEPRECIACAO_APROVADA', periodo, quantidade: previa.lancamentos.length, total: previa.total, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
+    res.status(201).json({ ok: true, periodo, quantidade: previa.lancamentos.length, total: previa.total, session_revision: resultado.revisao });
+  } catch (e) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_APROVAR_DEPRECIACAO' });
+  }
 });
 
 app.post('/api/empresas/:cnpj/relatorio', async (req, res) => {
@@ -3021,7 +3248,12 @@ app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const snap = await db.collection('empresas').doc(cnpjLimpo).collection('periodos_contabeis').get();
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    const [snap, transportesSnap, conciliacoesSnap] = await Promise.all([
+      empresaRef.collection('periodos_contabeis').get(),
+      empresaRef.collection('transportes_saldos').get(),
+      empresaRef.collection('conciliacoes_bancarias').get()
+    ]);
     const periodos = snap.docs.map(function (doc) {
       const dados = doc.data() || {};
       return {
@@ -3039,6 +3271,8 @@ app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
     }).sort(function (a, b) { return b.periodo.localeCompare(a.periodo); });
     res.json({
       periodos,
+      transportes: transportesSnap.docs.map(function (doc) { const d = doc.data() || {}; return { id: doc.id, ...d, gerado_em: serializarDataSegura(d.gerado_em) }; }),
+      conciliacoes: conciliacoesSnap.docs.map(function (doc) { const d = doc.data() || {}; return { id: doc.id, ...d, aprovado_em: serializarDataSegura(d.aprovado_em) }; }),
       is_admin: !!req.user.is_admin,
       implantacao: {
         modo_contabil: chk.empresa.modo_contabil || 'ponte_sage',
@@ -3057,6 +3291,68 @@ app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
     console.error('listar periodos contabeis erro:', e);
     res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_LISTAR_PERIODOS' });
   }
+});
+
+async function saldosIniciaisContabeis(empresaRef, estado, periodo) {
+  const explicitos = estado.relatoriosContabeis && estado.relatoriosContabeis.saldosIniciais
+    ? estado.relatoriosContabeis.saldosIniciais[periodo] || null
+    : null;
+  if (explicitos && Object.keys(explicitos).length) return { saldos: explicitos, origem: 'informado' };
+  const transporte = await empresaRef.collection('transportes_saldos').doc(periodo).get();
+  if (transporte.exists && String((transporte.data() || {}).status || 'vigente') === 'vigente') {
+    return { saldos: (transporte.data() || {}).saldos || {}, origem: 'transporte', transporte: transporte.data() || {} };
+  }
+  return { saldos: {}, origem: 'ausente' };
+}
+
+app.post('/api/empresas/:cnpj/contabilidade/conciliacoes/avaliar', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    const conta = String(req.body && req.body.conta || '').trim();
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    if (!RelatoriosContabeis.periodoValido(periodo) || !conta) return res.status(400).json({ erro: 'Informe competência e conta bancária.' });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const sessao = await carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current'));
+    if (!sessao.encontrada || !sessao.stateJson) return res.status(409).json({ erro: 'Sessão contábil não encontrada.' });
+    const estado = lerEstadoContabil(sessao.stateJson);
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const abertura = await saldosIniciaisContabeis(empresaRef, estado, periodo);
+    const linha = RelatoriosContabeis.balancete(estado.entries, periodo, contas, abertura.saldos).find(function (item) {
+      return String(item.conta) === conta || String(item.reduzido).replace(/^0+/, '') === conta.replace(/^0+/, '') || String(item.codigoCompleto) === conta;
+    });
+    const avaliacao = ConciliacaoContabil.avaliar({ periodo, conta, saldo_contabil: linha ? linha.saldoAtual : 0, saldo_extrato: req.body.saldo_extrato });
+    res.json({ ...avaliacao, origem_saldo_inicial: abertura.origem, movimentos: linha ? { saldo_anterior: linha.saldoAnterior, debitos: linha.debitos, creditos: linha.creditos } : { saldo_anterior: 0, debitos: 0, creditos: 0 } });
+  } catch (e) { res.status(e.status || 500).json({ erro: e.message }); }
+});
+
+app.post('/api/empresas/:cnpj/contabilidade/conciliacoes/aprovar', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    const conta = String(req.body && req.body.conta || '').trim();
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const sessao = await carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current'));
+    if (!sessao.encontrada || !sessao.stateJson) return res.status(409).json({ erro: 'Sessão contábil não encontrada.' });
+    const estado = lerEstadoContabil(sessao.stateJson);
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const abertura = await saldosIniciaisContabeis(empresaRef, estado, periodo);
+    const linha = RelatoriosContabeis.balancete(estado.entries, periodo, contas, abertura.saldos).find(function (item) { return String(item.conta) === conta || String(item.reduzido).replace(/^0+/, '') === conta.replace(/^0+/, '') || String(item.codigoCompleto) === conta; });
+    const avaliacao = ConciliacaoContabil.avaliar({ periodo, conta, saldo_contabil: linha ? linha.saldoAtual : 0, saldo_extrato: req.body.saldo_extrato });
+    if (!avaliacao.ok) return res.status(409).json({ erro: 'A conciliação possui diferença de R$ ' + Math.abs(avaliacao.diferenca).toFixed(2) + '.', codigo: 'CONCILIACAO_COM_DIFERENCA', avaliacao });
+    const chave = ConciliacaoContabil.chave(periodo, conta);
+    await empresaRef.collection('conciliacoes_bancarias').doc(chave).set({
+      ...avaliacao, movimentos: linha ? { saldo_anterior: linha.saldoAnterior, debitos: linha.debitos, creditos: linha.creditos } : null,
+      origem_saldo_inicial: abertura.origem, hash_periodo: assinaturaEstadoPeriodo(estado, periodo), status: 'conciliada',
+      aprovado_em: new Date(), aprovado_por_uid: req.user.uid, aprovado_por_email: req.user.email
+    });
+    await empresaRef.set({ contas_bancarias_conciliacao: FieldValue.arrayUnion(conta) }, { merge: true });
+    await empresaRef.collection('auditoria_contabil').add({ tipo: 'CONCILIACAO_BANCARIA_APROVADA', periodo, conta, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
+    res.json({ ok: true, id: chave, ...avaliacao });
+  } catch (e) { res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_CONCILIACAO' }); }
 });
 
 app.post('/api/empresas/:cnpj/contabilidade/saldos-abertura/aprovar', async (req, res) => {
@@ -3236,10 +3532,22 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
     if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Nenhuma sessão contábil encontrada para a empresa.', 409, 'SESSAO_NAO_ENCONTRADA');
     const estado = lerEstadoContabil(sessao.stateJson);
     const contas = await carregarContasContabeisEmpresa(chk.empresa);
-    const saldosIniciais = (estado.relatoriosContabeis.saldosIniciais || {})[periodo] || {};
+    const aberturaContabil = await saldosIniciaisContabeis(empresaRef, estado, periodo);
+    const saldosIniciais = aberturaContabil.saldos;
     const validacao = RelatoriosContabeis.validar(estado.entries, periodo, contas);
     if (!validacao.quantidade) throw erroSessao('Não há lançamentos contábeis nesta competência.', 409, 'SEM_MOVIMENTO_CONTABIL');
     if (!validacao.ok) throw erroSessao('O período possui inconsistências e não pode ser encerrado.', 409, 'VALIDACAO_CONTABIL_FALHOU');
+    const contasBancarias = Array.isArray(chk.empresa.contas_bancarias_conciliacao) ? chk.empresa.contas_bancarias_conciliacao.map(String).filter(Boolean) : [];
+    if (contasBancarias.length) {
+      const conciliacoesSnap = await empresaRef.collection('conciliacoes_bancarias').where('periodo', '==', periodo).get();
+      const conciliadas = new Map(conciliacoesSnap.docs.map(function (doc) { const d = doc.data() || {}; return [String(d.conta), d]; }));
+      const hashAtualPeriodo = assinaturaEstadoPeriodo(estado, periodo);
+      const pendentes = contasBancarias.filter(function (conta) {
+        const registro = conciliadas.get(conta);
+        return !registro || registro.status !== 'conciliada' || registro.hash_periodo !== hashAtualPeriodo;
+      });
+      if (pendentes.length) throw erroSessao('Concilie novamente as contas bancárias antes do fechamento: ' + pendentes.join(', ') + '.', 409, 'CONCILIACAO_BANCARIA_PENDENTE');
+    }
     const fotografia = RelatoriosContabeis.snapshot({
       periodo,
       lancamentos: estado.entries,
@@ -3250,6 +3558,13 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
     const fotografiaSemHash = { ...fotografia };
     delete fotografiaSemHash.hash;
     fotografia.hash = hashSessao(JSON.stringify(fotografiaSemHash));
+    const proximo = proximoPeriodo(periodo);
+    const saldosTransportados = saldosParaTransporte(fotografia.balancete);
+    const transporteRef = empresaRef.collection('transportes_saldos').doc(proximo);
+    const transporteAtual = await transporteRef.get();
+    if (transporteAtual.exists && String((transporteAtual.data() || {}).status || 'vigente') === 'vigente' && String((transporteAtual.data() || {}).origem_hash || '') !== fotografia.hash) {
+      throw erroSessao('Já existe um transporte diferente para ' + proximo + '. Reabra a sequência contábil antes de substituir.', 409, 'TRANSPORTE_SALDOS_CONFLITANTE');
+    }
     const fechamentoRef = empresaRef.collection('fechamentos_contabeis').doc();
     await gravarDocumentoJson(fechamentoRef, JSON.stringify(fotografia), {
       periodo,
@@ -3261,7 +3576,8 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
       fechado_por_uid: req.user.uid,
       fechado_por_email: req.user.email
     });
-    await periodoRef.set({
+    const fechamentoBatch = db.batch();
+    fechamentoBatch.set(periodoRef, {
       status: 'fechado',
       fechamento_id: fechamentoRef.id,
       hash: fotografia.hash,
@@ -3274,9 +3590,17 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
       reaberto_por_email: FieldValue.delete(),
       motivo_reabertura: FieldValue.delete()
     }, { merge: true });
+    fechamentoBatch.set(transporteRef, {
+      status: 'vigente', periodo_origem: periodo, periodo_destino: proximo,
+      origem_fechamento_id: fechamentoRef.id, origem_hash: fotografia.hash,
+      saldos: saldosTransportados, quantidade_contas: Object.keys(saldosTransportados).length,
+      gerado_em: new Date(), gerado_por_uid: req.user.uid, gerado_por_email: req.user.email
+    });
+    await fechamentoBatch.commit();
+    await empresaRef.collection('auditoria_contabil').add({ tipo: 'SALDOS_TRANSPORTADOS', periodo_origem: periodo, periodo_destino: proximo, origem_hash: fotografia.hash, quantidade_contas: Object.keys(saldosTransportados).length, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
     await liberarTravaSessao(sessaoRef, tokenTrava);
     tokenTrava = null;
-    res.status(201).json({ ok: true, periodo, status: 'fechado', fechamento_id: fechamentoRef.id, hash: fotografia.hash, resumo: validacao });
+    res.status(201).json({ ok: true, periodo, status: 'fechado', fechamento_id: fechamentoRef.id, hash: fotografia.hash, resumo: validacao, transporte: { periodo: proximo, quantidade_contas: Object.keys(saldosTransportados).length } });
   } catch (e) {
     if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
     console.error('fechar periodo contabil erro:', e);
@@ -3299,12 +3623,22 @@ app.post('/api/empresas/:cnpj/contabilidade/reabrir', adminRequired, async (req,
     if (!atual.exists || String((atual.data() || {}).status) !== 'fechado') {
       return res.status(409).json({ erro: 'A competência não está encerrada.', codigo: 'PERIODO_NAO_FECHADO' });
     }
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    const proximo = proximoPeriodo(periodo);
+    const proximoDoc = await empresaRef.collection('periodos_contabeis').doc(proximo).get();
+    if (proximoDoc.exists && String((proximoDoc.data() || {}).status) === 'fechado') {
+      return res.status(409).json({ erro: 'Reabra primeiro a competência posterior ' + proximo + ' para preservar a cadeia de saldos.', codigo: 'PERIODO_POSTERIOR_FECHADO' });
+    }
     await periodoRef.set({
       status: 'reaberto',
       reaberto_em: new Date(),
       reaberto_por_uid: req.user.uid,
       reaberto_por_email: req.user.email,
       motivo_reabertura: motivo
+    }, { merge: true });
+    await empresaRef.collection('transportes_saldos').doc(proximo).set({
+      status: 'invalidado', invalidado_em: new Date(), invalidado_por_uid: req.user.uid,
+      invalidado_por_email: req.user.email, motivo_invalidacao: 'Reabertura da competência de origem ' + periodo
     }, { merge: true });
     await periodoRef.collection('eventos').add({ tipo: 'reabertura', motivo, timestamp: new Date(), uid: req.user.uid, email: req.user.email });
     res.json({ ok: true, periodo, status: 'reaberto' });

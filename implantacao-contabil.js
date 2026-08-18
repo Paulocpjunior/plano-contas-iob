@@ -72,10 +72,29 @@ function validarSaldosAbertura(saldos, contas) {
   };
 }
 
+function proximoPeriodo(periodo) {
+  const partes = String(periodo || '').split('-').map(Number);
+  if (partes.length !== 2 || !partes[0] || partes[1] < 1 || partes[1] > 12) return '';
+  const data = new Date(Date.UTC(partes[0], partes[1], 1));
+  return data.getUTCFullYear() + '-' + String(data.getUTCMonth() + 1).padStart(2, '0');
+}
+
+function saldosParaTransporte(linhasBalancete) {
+  const saldos = {};
+  (linhasBalancete || []).filter(function (linha) { return linha && linha.analitica !== false; }).forEach(function (linha) {
+    const conta = String(linha.conta || linha.reduzido || linha.codigoCompleto || '').trim();
+    const valor = Math.round(Number(linha.saldoAtual || 0) * 100) / 100;
+    if (conta && valor) saldos[conta] = valor;
+  });
+  return saldos;
+}
+
 module.exports = {
   normalizarModoContabil,
   normalizarInicioEscrituracao,
   periodoInicialEmpresa,
   exigeSaldoAbertura,
-  validarSaldosAbertura
+  validarSaldosAbertura,
+  proximoPeriodo,
+  saldosParaTransporte
 };

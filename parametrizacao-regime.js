@@ -1,6 +1,9 @@
 'use strict';
 
-const REGIMES_TRIBUTARIOS = new Set(['SIMPLES_NACIONAL', 'LUCRO_PRESUMIDO', 'LUCRO_REAL']);
+const REGIMES_TRIBUTARIOS = new Set([
+  'SIMPLES_NACIONAL', 'LUCRO_PRESUMIDO', 'LUCRO_REAL',
+  'ISENTA', 'IMUNE', 'TERCEIRO_SETOR'
+]);
 const ANEXOS_SIMPLES = new Set(['I', 'II', 'III', 'IV', 'V', 'MULTIPLOS']);
 
 const FONTES_OFICIAIS = {
@@ -18,7 +21,10 @@ function nomeRegime(codigo) {
   return ({
     SIMPLES_NACIONAL: 'Simples Nacional',
     LUCRO_PRESUMIDO: 'Lucro Presumido',
-    LUCRO_REAL: 'Lucro Real'
+    LUCRO_REAL: 'Lucro Real',
+    ISENTA: 'Isenta',
+    IMUNE: 'Imune',
+    TERCEIRO_SETOR: 'Terceiro Setor'
   })[String(codigo || '').trim()] || 'Regime não reconhecido';
 }
 
@@ -59,6 +65,33 @@ function matrizRegime(codigo) {
         'Balanços ou balancetes de suspensão e redução somente devem ser usados quando configurados e revisados.'
       ],
       fontes: [FONTES_OFICIAIS.irpj, FONTES_OFICIAIS.csll, FONTES_OFICIAIS.ecf]
+    },
+    ISENTA: {
+      regras: [
+        'Documentar o fundamento legal e a vigência da isenção aplicável à entidade e às suas atividades.',
+        'Separar contabilmente receitas abrangidas, receitas não abrangidas e atividades econômicas acessórias.',
+        'Revisar anualmente a manutenção dos requisitos e obrigações acessórias.'
+      ],
+      alertas: ['CNAE isolado não comprova isenção. A classificação exige fundamento legal e revisão do responsável contábil.'],
+      fontes: [FONTES_OFICIAIS.irpj]
+    },
+    IMUNE: {
+      regras: [
+        'Registrar o fundamento constitucional da imunidade e a natureza jurídica da entidade.',
+        'Controlar requisitos legais, destinação dos recursos e escrituração segregada por atividade.',
+        'Revisar receitas e operações que possam não estar abrangidas pela imunidade.'
+      ],
+      alertas: ['A imunidade não é inferida automaticamente pelo CNAE ou pela natureza jurídica; exige validação documental.'],
+      fontes: [FONTES_OFICIAIS.irpj]
+    },
+    TERCEIRO_SETOR: {
+      regras: [
+        'Confirmar natureza jurídica, finalidade estatutária, títulos ou certificações e regime efetivamente aplicável.',
+        'Segregar projetos, recursos com restrição, gratuidades, receitas próprias e atividades econômicas.',
+        'Definir se a entidade é imune, isenta ou tributada em cada obrigação; Terceiro Setor não é, sozinho, um regime tributário.'
+      ],
+      alertas: ['O enquadramento no Terceiro Setor exige uma qualificação tributária complementar: imune, isenta ou tributada.'],
+      fontes: [FONTES_OFICIAIS.irpj]
     }
   };
   return matrizes[String(codigo || '').trim()] || { regras: [], alertas: [], fontes: [] };
@@ -107,7 +140,18 @@ function avaliarParametrizacaoRegime(empresa) {
     }
   }
 
-  const totalEsperado = regime === 'LUCRO_REAL' ? 5 : (regimeValido(regime) ? 4 : 1);
+    if (['ISENTA', 'IMUNE', 'TERCEIRO_SETOR'].includes(regime)) {
+      if (!String(p.cnae_principal || '').trim()) pendencias.push(pendencia('CNAE_PRINCIPAL', 'Sincronize e confirme o CNAE principal do cadastro fiscal.', 'cnae_principal'));
+      if (!String(p.fundamento_legal || '').trim()) pendencias.push(pendencia('FUNDAMENTO_LEGAL', 'Informe o fundamento legal ou documental do enquadramento.', 'fundamento_legal'));
+      if (p.documentacao_revisada !== true) pendencias.push(pendencia('DOCUMENTACAO_REVISADA', 'Confirme a revisão da documentação da entidade.', 'documentacao_revisada'));
+      if (!p.validacao_ia || p.validacao_ia.status !== 'concluida' || p.validacao_ia.cnae !== p.cnae_principal) {
+        pendencias.push(pendencia('VALIDACAO_IA_CNAE', 'Execute novamente o cruzamento orientativo do CNAE com a IA antes da confirmação.', 'validacao_ia'));
+      }
+      if (regime === 'TERCEIRO_SETOR' && !['IMUNE', 'ISENTA', 'TRIBUTADA'].includes(p.qualificacao_tributaria)) {
+        pendencias.push(pendencia('QUALIFICACAO_TERCEIRO_SETOR', 'Informe se a entidade é imune, isenta ou tributada.', 'qualificacao_tributaria'));
+      }
+    }
+  const totalEsperado = regime === 'LUCRO_REAL' ? 5 : (['ISENTA', 'IMUNE'].includes(regime) ? 5 : (regime === 'TERCEIRO_SETOR' ? 6 : (regimeValido(regime) ? 4 : 1)));
   const fundamentalPendente = pendencias.some((pnd) => ['REGIME_CFI_PENDENTE', 'PARAMETRIZACAO_AUSENTE', 'REGIME_ALTERADO'].includes(pnd.codigo));
   const percentual = fundamentalPendente ? 0 : Math.max(0, Math.round(((totalEsperado - Math.min(totalEsperado, pendencias.length)) / totalEsperado) * 100));
   return {
@@ -148,6 +192,19 @@ function sanitizarParametrizacaoRegime(regimeBruto, entrada) {
     comum.lalur_lacs_configurado = body.lalur_lacs_configurado === true;
     comum.creditos_pis_cofins_revisados = body.creditos_pis_cofins_revisados === true;
     comum.usa_balancete_suspensao_reducao = body.usa_balancete_suspensao_reducao === true;
+  } else if (['ISENTA', 'IMUNE', 'TERCEIRO_SETOR'].includes(regime)) {
+    comum.cnae_principal = String(body.cnae_principal || '').replace(/[^0-9]/g, '').slice(0, 7);
+    comum.cnae_descricao = String(body.cnae_descricao || '').trim().slice(0, 300);
+    comum.fundamento_legal = String(body.fundamento_legal || '').trim().slice(0, 1200);
+    comum.documentacao_revisada = body.documentacao_revisada === true;
+    comum.qualificacao_tributaria = String(body.qualificacao_tributaria || '').trim().toUpperCase();
+    comum.validacao_ia = body.validacao_ia && typeof body.validacao_ia === 'object' ? {
+      status: body.validacao_ia.status === 'concluida' ? 'concluida' : '',
+      cnae: String(body.validacao_ia.cnae || '').replace(/\D/g, '').slice(0, 7),
+      modelo: String(body.validacao_ia.modelo || '').slice(0, 80),
+      parecer: String(body.validacao_ia.parecer || '').slice(0, 3000),
+      alertas: Array.isArray(body.validacao_ia.alertas) ? body.validacao_ia.alertas.map(String).slice(0, 20) : []
+    } : null;
   }
   const avaliacao = avaliarParametrizacaoRegime({
     regime_tributario_codigo: regime,

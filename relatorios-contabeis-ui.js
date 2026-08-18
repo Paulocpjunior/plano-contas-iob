@@ -3,6 +3,7 @@
   const Core = window.CCIRelatoriosContabeis;
   let tipoAtual = 'balancete';
   let statusAtual = null;
+  let conciliacaoAtual = null;
   let inicializado = false;
   let urlPreviaImpressao = '';
   let documentoPreviaImpressao = null;
@@ -120,7 +121,12 @@ function preferenciasImpressao(ctx, sobrescritas) {
   }
 
   function saldosDoPeriodo(ctx, periodo) {
-    return (((ctx || {}).config || {}).saldosIniciais || {})[periodo] || {};
+    const informado = (((ctx || {}).config || {}).saldosIniciais || {})[periodo] || {};
+    if (Object.keys(informado).length) return informado;
+    const transporte = statusAtual && Array.isArray(statusAtual.transportes)
+      ? statusAtual.transportes.find(function (item) { return item.periodo_destino === periodo && item.status === 'vigente'; })
+      : null;
+    return transporte && transporte.saldos ? transporte.saldos : {};
   }
 
   function saldosDoFiltro(ctx, filtro) {
@@ -186,7 +192,8 @@ function preferenciasImpressao(ctx, sobrescritas) {
         </section>
         <section class="card" style="padding:20px"><div class="rc-summary" id="rcResumo"></div><div id="rcAvisos" style="margin-top:12px"></div></section>
         <section class="card" style="padding:20px"><div id="rcTituloTabela" style="font-size:17px;font-weight:900;margin-bottom:12px"></div><div class="rc-table-wrap"><table class="rc-table"><thead id="rcHead"></thead><tbody id="rcBody"></tbody></table></div></section>
-        <section class="card" style="padding:20px"><div id="rcAberturaControle" class="rc-alert" style="display:none;margin-bottom:12px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><strong id="rcAberturaTitulo">Implantação contábil no CCI</strong><div id="rcAberturaStatus" style="margin-top:4px"></div></div><button class="rc-btn primary" id="rcAprovarSaldos" type="button">Aprovar saldos de abertura</button></div></div><details class="rc-settings"><summary>Saldos iniciais da competência</summary><p class="rc-history">Informe uma conta por linha no formato <strong>conta;valor</strong>. Saldo devedor positivo; saldo credor negativo. Exemplo: <code>111;1500,00</code>.</p><div class="rc-field"><textarea id="rcSaldos"></textarea></div><button class="rc-btn primary" id="rcSalvarSaldos" style="margin-top:10px">Salvar saldos iniciais</button></details><div id="rcHistorico" class="rc-history" style="margin-top:14px"></div></section>
+        <section class="card" style="padding:20px"><div id="rcAberturaControle" class="rc-alert" style="display:none;margin-bottom:12px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><strong id="rcAberturaTitulo">Implantação contábil no CCI</strong><div id="rcAberturaStatus" style="margin-top:4px"></div></div><button class="rc-btn primary" id="rcAprovarSaldos" type="button">Aprovar saldos de abertura</button></div></div><details class="rc-settings"><summary>Saldos iniciais da competência</summary><p class="rc-history">Informe uma conta por linha no formato <strong>conta;valor</strong>. Saldo devedor positivo; saldo credor negativo. O fechamento transporta automaticamente os saldos para a competência seguinte.</p><div class="rc-field"><textarea id="rcSaldos"></textarea></div><button class="rc-btn primary" id="rcSalvarSaldos" style="margin-top:10px">Salvar saldos iniciais</button></details><div id="rcHistorico" class="rc-history" style="margin-top:14px"></div></section>
+        <section class="card" style="padding:20px"><h3 style="margin-top:0">Conciliação bancária formal</h3><p class="rc-history">Informe a conta contábil do banco e o saldo final do extrato. O CCI confronta saldo anterior + débitos − créditos com o extrato e registra a aprovação com usuário, data e hash da sessão.</p><div class="rc-controls"><div class="rc-field"><label>Conta bancária</label><input id="rcConciliacaoConta" placeholder="Reduzido ou código"></div><div class="rc-field"><label>Saldo final do extrato</label><input id="rcConciliacaoSaldo" inputmode="decimal" placeholder="0,00"></div><div class="rc-actions"><button class="rc-btn light" id="rcConciliacaoAvaliar">Conferir diferença</button><button class="rc-btn success" id="rcConciliacaoAprovar" disabled>Aprovar conciliação</button></div></div><div id="rcConciliacaoResultado" style="margin-top:12px"></div></section>
       </div>
       <div class="rc-modal" id="rcEmailModal" hidden role="dialog" aria-modal="true" aria-labelledby="rcEmailTitulo">
         <div class="rc-modal-panel">
@@ -217,6 +224,8 @@ function preferenciasImpressao(ctx, sobrescritas) {
     ['rcDataInicio', 'rcDataFim'].forEach(function (id) { document.getElementById(id).addEventListener('change', function () { preencherSaldos(); atualizarTudo(); }); });
     ['rcFormato', 'rcConta', 'rcBusca'].forEach(function (id) { document.getElementById(id).addEventListener(id === 'rcFormato' ? 'change' : 'input', render); });
     document.getElementById('rcAtualizar').addEventListener('click', atualizarTudo);
+    document.getElementById('rcConciliacaoAvaliar').addEventListener('click', avaliarConciliacao);
+    document.getElementById('rcConciliacaoAprovar').addEventListener('click', aprovarConciliacao);
     document.getElementById('rcImprimir').addEventListener('click', abrirModalImpressao);
     document.getElementById('rcPdf').addEventListener('click', exportarPDF);
     document.getElementById('rcExcel').addEventListener('click', exportarExcel);
@@ -438,9 +447,17 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   function preencherSaldos() {
     const ctx = contexto();
-    const saldos = saldosDoPeriodo(ctx, chaveSaldoInicial(filtroSelecionado()));
+    const periodo = chaveSaldoInicial(filtroSelecionado());
+    const saldos = saldosDoPeriodo(ctx, periodo);
     const el = document.getElementById('rcSaldos');
-    if (el) el.value = Object.keys(saldos).sort().map(function (conta) { return conta + ';' + moeda(saldos[conta]); }).join('\n');
+    const transporte = statusAtual && Array.isArray(statusAtual.transportes) ? statusAtual.transportes.find(function (item) { return item.periodo_destino === periodo && item.status === 'vigente'; }) : null;
+    if (el) {
+      el.value = Object.keys(saldos).sort().map(function (conta) { return conta + ';' + moeda(saldos[conta]); }).join('\n');
+      el.readOnly = !!transporte;
+      el.title = transporte ? 'Saldo transportado automaticamente do fechamento de ' + transporte.periodo_origem + '.' : '';
+    }
+    const salvar = document.getElementById('rcSalvarSaldos');
+    if (salvar) { salvar.disabled = !!transporte; salvar.textContent = transporte ? 'Saldo transportado e protegido' : 'Salvar saldos iniciais'; }
   }
 
   function parseSaldos() {
@@ -476,6 +493,29 @@ function preferenciasImpressao(ctx, sobrescritas) {
     if (!ctx || !ctx.empresa || !ctx.empresa.cnpj || !window.API || !window.API.listarPeriodosContabeis) return;
     try { statusAtual = await window.API.listarPeriodosContabeis(ctx.empresa.cnpj); }
     catch (e) { statusAtual = { periodos: [], is_admin: !!(window.CURRENT_USER && window.CURRENT_USER.is_admin) }; }
+  }
+
+  async function avaliarConciliacao() {
+    const ctx = contexto();
+    const conta = String((document.getElementById('rcConciliacaoConta') || {}).value || '').trim();
+    const saldo = String((document.getElementById('rcConciliacaoSaldo') || {}).value || '').trim();
+    try {
+      conciliacaoAtual = await window.API.avaliarConciliacaoBancaria(ctx.empresa.cnpj, { periodo: periodoSelecionado(), conta, saldo_extrato: saldo });
+      const classe = conciliacaoAtual.ok ? 'rc-ok' : 'rc-error';
+      document.getElementById('rcConciliacaoResultado').innerHTML = '<div class="rc-alert"><strong class="' + classe + '">' + (conciliacaoAtual.ok ? 'Valores conciliados' : 'Diferença encontrada') + '</strong><br>Saldo anterior: R$ ' + moeda(conciliacaoAtual.movimentos.saldo_anterior) + ' · Débitos: R$ ' + moeda(conciliacaoAtual.movimentos.debitos) + ' · Créditos: R$ ' + moeda(conciliacaoAtual.movimentos.creditos) + '<br>Saldo contábil: R$ ' + moeda(conciliacaoAtual.saldo_contabil) + ' · Extrato: R$ ' + moeda(conciliacaoAtual.saldo_extrato) + ' · Diferença: R$ ' + moeda(conciliacaoAtual.diferenca) + '</div>';
+      document.getElementById('rcConciliacaoAprovar').disabled = !conciliacaoAtual.ok;
+    } catch (e) { conciliacaoAtual = null; document.getElementById('rcConciliacaoAprovar').disabled = true; window.showToast(e.message || String(e), 'error'); }
+  }
+
+  async function aprovarConciliacao() {
+    const ctx = contexto();
+    if (!conciliacaoAtual || !conciliacaoAtual.ok) return;
+    try {
+      await window.API.aprovarConciliacaoBancaria(ctx.empresa.cnpj, { periodo: conciliacaoAtual.periodo, conta: conciliacaoAtual.conta, saldo_extrato: conciliacaoAtual.saldo_extrato });
+      document.getElementById('rcConciliacaoAprovar').disabled = true;
+      window.showToast('Conciliação bancária aprovada e auditada.', 'success');
+      await carregarStatus();
+    } catch (e) { window.showToast(e.message || String(e), 'error'); }
   }
 
   function nomeRegime(regime) {
@@ -525,6 +565,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   async function atualizarTudo() {
     await carregarStatus();
+    preencherSaldos();
     render();
   }
 

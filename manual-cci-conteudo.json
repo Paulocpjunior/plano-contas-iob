@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "manual_version": "2.7",
+  "manual_version": "2.8",
   "updated_at": "2026-08-18",
-  "app_reference": "3.4.155",
+  "app_reference": "3.4.156",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
   "classification": "Uso interno",
   "status": {
     "label": "CCI em implantação controlada como sistema contábil principal",
-    "summary": "A operação cotidiana já cobre importações, classificação, relatórios, fechamento e ECD/ECF. A retirada definitiva da SAGE depende dos fechamentos-piloto, conciliação formal, automação patrimonial e validações operacionais finais.",
+    "summary": "A operação cotidiana já cobre importações, classificação, relatórios, fechamento, conciliação bancária formal, transporte controlado de saldos, eventos contábeis do ativo imobilizado e ECD/ECF. A retirada definitiva da SAGE depende da homologação dessas rotinas em fechamentos-piloto e das validações operacionais finais.",
     "readiness_reference": "A versão 1.0 registrou aproximadamente 78% de prontidão. As entregas de 18/08/2026 fortaleceram governança e parametrização, mas o percentual somente será recalculado após nova homologação com empresas-piloto."
   },
   "chapters": [
@@ -26,8 +26,9 @@
           ["Relatórios contábeis", "Operacional", "Balancete mensal e anual, Razão, Diário, DRE, Balanço e análise econômico-financeira."],
           ["Fechamento mensal", "Operacional com travas", "Controla competência e bloqueia fechamento exclusivo quando faltam parâmetros obrigatórios."],
           ["ECD/ECF", "Operacional em uso", "Módulo existente e utilizado no último fechamento."],
-          ["Ativo e depreciação", "Em evolução", "Cadastro e cálculo existem; lançamentos automáticos ainda dependem de implementação e aprovação."],
-          ["Conciliação formal e escala", "Em evolução", "Ainda requer homologação por saldo bancário, concorrência, recuperação e volume."]
+          ["Ativo e depreciação", "Implementado, em homologação", "Aquisição, transferência, depreciação e baixa geram prévia e somente incluem lançamentos após aprovação."],
+          ["Conciliação e transporte", "Implementado, em homologação", "Confronta saldo contábil e extrato; o fechamento transporta e protege os saldos da competência seguinte."],
+          ["Escala e recuperação", "Em evolução", "Ainda requer homologação de backup/restauração, concorrência e volume."]
         ]},
         {"type": "callout", "tone": "warning", "label": "Prontidão", "text": "A referência de 78% pertence à avaliação de 17/08/2026. Não elevar o percentual apenas por novas telas; recalcular somente após evidência dos fechamentos-piloto."}
       ]
@@ -42,7 +43,11 @@
           "Bloqueio de exportação para a SAGE quando a empresa estiver marcada como exclusiva no CCI.",
           "Painel de prontidão com pendências e próxima ação por empresa.",
           "Regime tributário sincronizado do cadastro oficial do CFI, sem inferência por porte ou CNAE.",
-          "Parametrizações específicas para Simples Nacional, Lucro Presumido e Lucro Real, confirmadas por administrador.",
+          "Parametrizações para Simples Nacional, Lucro Presumido, Lucro Real, Isenta, Imune e Terceiro Setor, confirmadas por administrador.",
+          "Entidades especiais cruzam o CNAE principal recebido do CFI com parecer orientativo do Gemini 3.7, sem decisão automática de enquadramento.",
+          "Conciliação bancária formal com saldo contábil, saldo do extrato, diferença, usuário, data e hash do período.",
+          "Transporte automático e protegido dos saldos finais após o fechamento, incluindo a passagem de dezembro para janeiro.",
+          "Aquisição, transferência, depreciação e baixa integradas à sessão contábil mediante prévia, aprovação e proteção contra duplicidade.",
           "Fechamento bloqueado para empresa exclusiva enquanto a parametrização tributária estiver incompleta ou incompatível.",
           "Novidades e Ajuda CCI, com dúvidas não resolvidas enviadas à curadoria.",
           "Manual Operacional dentro do CCI, com pesquisa e downloads Word/PDF gerados da mesma fonte oficial.",
@@ -156,7 +161,8 @@
           "Movimentos completos e sem duplicidade.",
           "Entradas e saídas nas contrapartidas corretas.",
           "Saldo final calculado igual ao saldo final do banco.",
-          "Diferenças identificadas, justificadas e corrigidas antes do fechamento.",
+          "Usar Conciliação bancária formal, informar conta e saldo final do extrato e aprovar somente quando a diferença for zero.",
+          "Diferenças identificadas, justificadas e corrigidas antes do fechamento; conta já cadastrada para conciliação passa a ser obrigatória nos meses seguintes.",
           "Balancete mensal ou anual, Razão, Diário, DRE e Balanço revisados.",
           "Competência correta e parametrização obrigatória concluída."
         ]},
@@ -169,22 +175,24 @@
           ["Balanço Patrimonial", "Conferir a posição patrimonial e a igualdade contábil."],
           ["Análise Econômico-Financeira", "Avaliar indicadores extraídos dos demonstrativos."]
         ]},
-        {"type": "callout", "tone": "info", "label": "Período aberto", "text": "Os relatórios podem ser visualizados antes do fechamento. O fechamento preserva a versão aprovada; não é necessário esperar para revisar."}
+        {"type": "callout", "tone": "info", "label": "Fechamento e transporte", "text": "Os relatórios podem ser visualizados antes do fechamento. Ao encerrar, o CCI preserva a fotografia aprovada e gera os saldos da competência seguinte. Esses saldos ficam protegidos; para alterá-los, reabra a competência de origem e respeite a sequência mensal."}
       ]
     },
     {
       "id": "regime-tributario",
       "title": "8. Regime tributário e parametrizações",
-      "page_break_before": true,
-      "keywords": ["simples nacional", "lucro presumido", "lucro real", "cfi", "parametrização"],
+      "keywords": ["simples nacional", "lucro presumido", "lucro real", "isenta", "imune", "terceiro setor", "cnae", "gemini", "cfi", "parametrização"],
       "blocks": [
         {"type": "paragraph", "text": "O regime tributário vem do cadastro oficial do CFI. O CCI não deve inferir enquadramento por porte, CNAE ou movimentação. Divergências devem ser corrigidas no CFI e sincronizadas novamente."},
         {"type": "definitions", "items": [
           {"term": "Simples Nacional", "definition": "Confirmar critério de receita, anexos aplicáveis e revisão das segregações."},
           {"term": "Lucro Presumido", "definition": "Confirmar periodicidade de IRPJ/CSLL, tratamento de PIS/COFINS e revisão de atividades e receitas adicionais."},
-          {"term": "Lucro Real", "definition": "Confirmar forma de apuração, tratamento de PIS/COFINS, e-Lalur/e-Lacs e critérios de créditos."}
+          {"term": "Lucro Real", "definition": "Confirmar forma de apuração, tratamento de PIS/COFINS, e-Lalur/e-Lacs e critérios de créditos."},
+          {"term": "Isenta", "definition": "Confirmar CNAE, fundamento legal, vigência, documentação e segregação de receitas abrangidas e não abrangidas."},
+          {"term": "Imune", "definition": "Confirmar fundamento constitucional, natureza jurídica, documentação e operações eventualmente fora da imunidade."},
+          {"term": "Terceiro Setor", "definition": "Confirmar a qualificação complementar como imune, isenta ou tributada; Terceiro Setor, isoladamente, não define o tratamento tributário."}
         ]},
-        {"type": "callout", "tone": "warning", "label": "Acesso administrativo", "text": "Somente administrador confirma a parametrização. O CCI registra pendências e bloqueia o fechamento exclusivo, mas não inventa anexos, percentuais, créditos ou exceções fiscais."}
+        {"type": "callout", "tone": "warning", "label": "IA orientativa e acesso administrativo", "text": "Somente administrador confirma a parametrização. Para Isenta, Imune e Terceiro Setor, o Gemini 3.7 cruza o CNAE do CFI com o enquadramento informado e aponta documentos a conferir. O parecer não altera o regime nem substitui a decisão do responsável contábil."}
       ]
     },
     {
@@ -193,8 +201,8 @@
       "keywords": ["ecd", "ecf", "ativo", "depreciação", "baixa"],
       "blocks": [
         {"type": "paragraph", "text": "A ECD/ECF faz parte da operação atual. Conferir matriz, filiais, CNPJ, período, registros estruturais, validações internas e PVA; preservar arquivo transmitido, recibo e relatório de validação."},
-        {"type": "paragraph", "text": "O módulo patrimonial cadastra bens, vida útil, valor residual e contas, acompanhando depreciação acumulada, valor contábil e baixa. Nesta etapa, cadastro e cálculo não substituem os lançamentos contábeis mensais."},
-        {"type": "callout", "tone": "warning", "label": "Até a automação", "text": "O colaborador deve calcular, revisar e lançar a depreciação na escrituração, vinculando despesa e depreciação acumulada. O cadastro do bem, isoladamente, não atualiza os relatórios."}
+        {"type": "paragraph", "text": "O módulo patrimonial cadastra bens, vida útil, valor residual e contas, acompanhando custo, depreciação acumulada e valor contábil. Aquisição, transferência entre contas, depreciação mensal e baixa possuem prévia contábil antes da escrituração."},
+        {"type": "callout", "tone": "warning", "label": "Aprovação obrigatória", "text": "A prévia não altera a escrituração. Confira competência, valores e contas de débito e crédito antes de aprovar cada evento. O CCI bloqueia duplicidade e impede lançamento em competência fechada."}
       ]
     },
     {
@@ -218,9 +226,9 @@
       "blocks": [
         {"type": "table", "headers": ["Prioridade", "Pendência", "Critério de conclusão"], "rows": [
           ["1", "Empresas-piloto exclusivas no CCI", "Dados de abertura, regime, plano, históricos e competência aprovados."],
-          ["2", "Conciliação bancária formal", "Saldo inicial + movimentos = saldo final por conta, sem diferença não justificada."],
-          ["3", "Transporte de saldos e livro permanente", "Passagem entre competências/exercícios com autoria, versão e trilha auditável."],
-          ["4", "Ativo integrado à escrituração", "Aquisição, depreciação, transferência e baixa geradas com prévia e aprovação."],
+          ["2", "Homologar conciliação bancária formal", "Saldo inicial + movimentos = saldo final por conta em empresas-piloto, sem diferença."],
+          ["3", "Homologar transporte de saldos", "Passagem entre competências e dezembro/janeiro validada em fechamento real."],
+          ["4", "Homologar eventos do ativo", "Aquisição, transferência, depreciação e baixa aprovadas em empresa-piloto, com contas e valores conferidos."],
           ["5", "Homologação operacional", "Backup/restauração, múltiplos usuários, permissões, falhas e volume testados."],
           ["6", "Virada", "Dois ou três fechamentos consecutivos aprovados e sem pendência crítica."]
         ]},
@@ -230,7 +238,6 @@
     {
       "id": "duas-frentes",
       "title": "12. Próxima frente: divisão do trabalho",
-      "page_break_before": true,
       "keywords": ["paulo", "equipe", "codex", "desenvolvimento", "tarefas"],
       "blocks": [
         {"type": "definitions", "items": [

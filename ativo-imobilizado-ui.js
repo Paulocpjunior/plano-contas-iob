@@ -4,6 +4,7 @@
   let itens = [];
   let referencias = Core ? Core.CLASSES_FISCAIS : [];
   let editandoId = '';
+  let previaContabil = null;
   let inicializado = false;
 
   function esc(valor) { return String(valor == null ? '' : valor).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
@@ -35,7 +36,8 @@
     root.innerHTML = `
       <div class="ai-shell">
         <section class="ai-hero"><div><small style="letter-spacing:.14em;text-transform:uppercase;color:#bfdbfe;font-weight:900">Núcleo contábil</small><h2>🏭 Ativo Imobilizado e Depreciação</h2><p>Cadastro, vida útil, valor residual, depreciação e baixa com trilha de auditoria. Vida útil contábil e referência fiscal permanecem separadas.</p></div><span style="padding:9px 13px;border:1px solid rgba(255,255,255,.3);border-radius:10px">CPC 27 / NBC TG 27 / IN RFB 1.700</span></section>
-        <section class="card" style="padding:20px"><div class="ai-note"><strong>Controle:</strong> a depreciação começa quando o bem está disponível para uso. Taxas fiscais são referências, não substituem a estimativa contábil de vida útil e valor residual. Este módulo não cria lançamentos automáticos.</div><div class="ai-grid" id="aiResumo" style="margin-top:14px"></div></section>
+        <section class="card" style="padding:20px"><div class="ai-note"><strong>Controle:</strong> aquisição, transferência, depreciação e baixa somente alteram a escrituração depois da prévia e da aprovação do usuário. A depreciação começa quando o bem está disponível para uso; taxas fiscais são referências e não substituem a vida útil contábil.</div><div class="ai-grid" id="aiResumo" style="margin-top:14px"></div></section>
+        <section class="card" style="padding:20px"><h3 style="margin-top:0">Integração contábil da depreciação</h3><div class="ai-actions"><input id="aiPeriodoContabil" type="month" style="padding:10px;border:1px solid #cbd5e1;border-radius:8px" value="${new Date().toISOString().slice(0,7)}"><button class="ai-btn ai-light" id="aiPreviaContabil">Gerar prévia contábil</button><button class="ai-btn ai-primary" id="aiAprovarContabil" disabled>Aprovar e incluir lançamentos</button></div><div id="aiPreviaContabilResultado" style="margin-top:12px"></div></section>
         <section class="card" style="padding:20px"><h3 id="aiFormTitulo" style="margin-top:0">Cadastrar bem</h3><div class="ai-form">
           <div class="ai-field ai-span-2"><label>Descrição do bem</label><input id="aiDescricao" maxlength="180"></div>
           <div class="ai-field"><label>Nº patrimônio</label><input id="aiPatrimonio" maxlength="60"></div>
@@ -51,6 +53,7 @@
           <div class="ai-field"><label>Status</label><select id="aiStatus"><option value="ativo">Ativo</option><option value="em_construcao">Em construção</option><option value="mantido_venda">Mantido para venda</option></select></div>
           <div class="ai-field" id="aiMantidoVendaBox" style="display:none"><label>Data mantido para venda</label><input type="date" id="aiMantidoVenda"></div>
           <div class="ai-field"><label>Conta do ativo</label><input id="aiContaAtivo"></div>
+          <div class="ai-field"><label>Contrapartida da aquisição</label><input id="aiContaContrapartida" placeholder="Fornecedor, banco ou obrigação"></div>
           <div class="ai-field"><label>Depreciação acumulada</label><input id="aiContaAcumulada"></div>
           <div class="ai-field"><label>Despesa de depreciação</label><input id="aiContaDespesa"></div>
           <div class="ai-field"><label>Centro de custo</label><input id="aiCentro"></div>
@@ -67,6 +70,8 @@
     campo('aiCancelar').addEventListener('click', limpar);
     campo('aiCalcular').addEventListener('click', mostrarCronograma);
     campo('aiAtualizar').addEventListener('click', carregar);
+    campo('aiPreviaContabil').addEventListener('click', gerarPreviaContabil);
+    campo('aiAprovarContabil').addEventListener('click', aprovarPreviaContabil);
     inicializado = true;
     atualizarCondicao();
     atualizarStatus();
@@ -74,7 +79,7 @@
   }
 
   function dadosFormulario() {
-    return { descricao: campo('aiDescricao').value, patrimonio: campo('aiPatrimonio').value, classe_fiscal: campo('aiClasse').value, data_aquisicao: campo('aiAquisicao').value, data_disponivel_uso: campo('aiDisponivel').value, data_primeiro_uso: campo('aiPrimeiroUso').value, data_mantido_venda: campo('aiMantidoVenda').value, custo: campo('aiCusto').value, valor_residual: campo('aiResidual').value, vida_util_meses: campo('aiVida').value, taxa_fiscal_anual: campo('aiTaxa').value, metodo: 'linear', condicao: campo('aiCondicao').value, status: campo('aiStatus').value, conta_ativo: campo('aiContaAtivo').value, conta_depreciacao_acumulada: campo('aiContaAcumulada').value, conta_despesa_depreciacao: campo('aiContaDespesa').value, centro_custo: campo('aiCentro').value, fundamento_taxa: campo('aiFundamento').value, observacoes: campo('aiObservacoes').value };
+    return { descricao: campo('aiDescricao').value, patrimonio: campo('aiPatrimonio').value, classe_fiscal: campo('aiClasse').value, data_aquisicao: campo('aiAquisicao').value, data_disponivel_uso: campo('aiDisponivel').value, data_primeiro_uso: campo('aiPrimeiroUso').value, data_mantido_venda: campo('aiMantidoVenda').value, custo: campo('aiCusto').value, valor_residual: campo('aiResidual').value, vida_util_meses: campo('aiVida').value, taxa_fiscal_anual: campo('aiTaxa').value, metodo: 'linear', condicao: campo('aiCondicao').value, status: campo('aiStatus').value, conta_ativo: campo('aiContaAtivo').value, conta_contrapartida_aquisicao: campo('aiContaContrapartida').value, conta_depreciacao_acumulada: campo('aiContaAcumulada').value, conta_despesa_depreciacao: campo('aiContaDespesa').value, centro_custo: campo('aiCentro').value, fundamento_taxa: campo('aiFundamento').value, observacoes: campo('aiObservacoes').value };
   }
 
   function atualizarCondicao() {
@@ -120,7 +125,7 @@
 
   function limpar() {
     editandoId = '';
-    ['aiDescricao','aiPatrimonio','aiAquisicao','aiDisponivel','aiPrimeiroUso','aiMantidoVenda','aiCusto','aiVida','aiTaxa','aiContaAtivo','aiContaAcumulada','aiContaDespesa','aiCentro','aiFundamento','aiObservacoes'].forEach(function (id) { campo(id).value = ''; });
+    ['aiDescricao','aiPatrimonio','aiAquisicao','aiDisponivel','aiPrimeiroUso','aiMantidoVenda','aiCusto','aiVida','aiTaxa','aiContaAtivo','aiContaContrapartida','aiContaAcumulada','aiContaDespesa','aiCentro','aiFundamento','aiObservacoes'].forEach(function (id) { campo(id).value = ''; });
     campo('aiResidual').value = '0,00'; campo('aiClasse').value = referencias[0] ? referencias[0].id : 'edificacoes'; campo('aiCondicao').value = 'novo'; campo('aiStatus').value = 'ativo'; campo('aiFormTitulo').textContent = 'Cadastrar bem'; campo('aiValidacao').innerHTML = ''; campo('aiCronograma').innerHTML = ''; atualizarCondicao(); atualizarStatus(); aplicarReferencia();
   }
 
@@ -128,7 +133,7 @@
     const bem = itens.find(function (i) { return i.id === id; });
     if (!bem) return;
     editandoId = id;
-    const mapa = { aiDescricao:'descricao', aiPatrimonio:'patrimonio', aiClasse:'classe_fiscal', aiAquisicao:'data_aquisicao', aiDisponivel:'data_disponivel_uso', aiPrimeiroUso:'data_primeiro_uso', aiMantidoVenda:'data_mantido_venda', aiCusto:'custo', aiResidual:'valor_residual', aiVida:'vida_util_meses', aiTaxa:'taxa_fiscal_anual', aiCondicao:'condicao', aiStatus:'status', aiContaAtivo:'conta_ativo', aiContaAcumulada:'conta_depreciacao_acumulada', aiContaDespesa:'conta_despesa_depreciacao', aiCentro:'centro_custo', aiFundamento:'fundamento_taxa', aiObservacoes:'observacoes' };
+    const mapa = { aiDescricao:'descricao', aiPatrimonio:'patrimonio', aiClasse:'classe_fiscal', aiAquisicao:'data_aquisicao', aiDisponivel:'data_disponivel_uso', aiPrimeiroUso:'data_primeiro_uso', aiMantidoVenda:'data_mantido_venda', aiCusto:'custo', aiResidual:'valor_residual', aiVida:'vida_util_meses', aiTaxa:'taxa_fiscal_anual', aiCondicao:'condicao', aiStatus:'status', aiContaAtivo:'conta_ativo', aiContaContrapartida:'conta_contrapartida_aquisicao', aiContaAcumulada:'conta_depreciacao_acumulada', aiContaDespesa:'conta_despesa_depreciacao', aiCentro:'centro_custo', aiFundamento:'fundamento_taxa', aiObservacoes:'observacoes' };
     Object.keys(mapa).forEach(function (idCampo) { if (campo(idCampo)) campo(idCampo).value = bem[mapa[idCampo]] == null ? '' : bem[mapa[idCampo]]; });
     campo('aiFormTitulo').textContent = 'Editar bem - ' + (bem.patrimonio || bem.descricao);
     atualizarCondicao();
@@ -137,22 +142,80 @@
     campo('ativoImobilizadoRoot').scrollIntoView({ behavior: 'smooth' });
   }
 
+  function resumoEvento(previa) {
+    return (previa.lancamentos || []).map(function (l) { return l.descricao + '\nDébito ' + l.contaDebito + ' / Crédito ' + l.contaCredito + ' — ' + moeda(l.valor); }).join('\n\n');
+  }
+
+  async function executarEvento(id, dados) {
+    const cnpj = contexto().empresa.cnpj;
+    const previa = await window.API.previaEventoAtivo(cnpj, id, dados);
+    if (!previa.ok) throw new Error((previa.erros || []).join(' ') || 'Evento sem lançamento válido.');
+    if (!confirm('PRÉVIA CONTÁBIL\n\n' + resumoEvento(previa) + '\n\nAprovar e incluir na escrituração?')) return false;
+    await window.API.aprovarEventoAtivo(cnpj, id, { ...dados, hash_previa: previa.hash_previa });
+    window.showToast('Evento patrimonial integrado à contabilidade. Recarregue a empresa para receber a nova revisão.', 'success');
+    await carregar();
+    return true;
+  }
+
+  async function contabilizarAquisicao(id) {
+    const bem = itens.find(function (item) { return item.id === id; });
+    const conta = prompt('Conta de contrapartida da aquisição:', bem && bem.conta_contrapartida_aquisicao || '');
+    if (conta == null || !conta.trim()) return;
+    try { await executarEvento(id, { tipo: 'aquisicao', conta_contrapartida: conta }); } catch (e) { window.showToast(e.message || String(e), 'error'); }
+  }
+
+  async function transferir(id) {
+    const bem = itens.find(function (item) { return item.id === id; });
+    const data = prompt('Data da transferência (AAAA-MM-DD):', new Date().toISOString().slice(0, 10)); if (data == null) return;
+    const novaConta = prompt('Nova conta do ativo:', bem && bem.conta_ativo || ''); if (novaConta == null) return;
+    const novaAcumulada = prompt('Nova conta de depreciação acumulada:', bem && bem.conta_depreciacao_acumulada || ''); if (novaAcumulada == null) return;
+    try { await executarEvento(id, { tipo: 'transferencia', data: data, nova_conta_ativo: novaConta, nova_conta_depreciacao_acumulada: novaAcumulada }); } catch (e) { window.showToast(e.message || String(e), 'error'); }
+  }
+
   async function baixar(id) {
     const data = prompt('Data da baixa (AAAA-MM-DD):', new Date().toISOString().slice(0, 10));
     if (data == null) return;
     const motivo = prompt('Motivo da baixa:');
     if (motivo == null || motivo.trim().length < 5) return window.showToast('Informe o motivo da baixa.', 'warn');
-    try { await window.API.baixarAtivoImobilizado(contexto().empresa.cnpj, id, { data_baixa: data, motivo: motivo }); window.showToast('Baixa registrada sem gerar lançamento automático.', 'success'); await carregar(); }
+    const valor = prompt('Valor recebido na baixa (0,00 se não houve):', '0,00'); if (valor == null) return;
+    const contaContrapartida = Number(String(valor).replace(/\./g, '').replace(',', '.')) > 0 ? prompt('Conta que receberá o valor da baixa:', '') : '';
+    if (contaContrapartida == null) return;
+    const contaResultado = prompt('Conta de ganho ou perda na baixa (será exigida se houver resultado):', ''); if (contaResultado == null) return;
+    try { await executarEvento(id, { tipo: 'baixa', data_baixa: data, motivo: motivo, valor_baixa: valor, conta_contrapartida: contaContrapartida, conta_resultado: contaResultado }); }
     catch (e) { window.showToast(e.message || String(e), 'error'); }
+  }
+
+  async function gerarPreviaContabil() {
+    const ctx = contexto();
+    try {
+      previaContabil = await window.API.previaDepreciacaoAtivo(ctx.empresa.cnpj, campo('aiPeriodoContabil').value);
+      campo('aiAprovarContabil').disabled = !previaContabil.ok;
+      campo('aiPreviaContabilResultado').innerHTML = (previaContabil.erros || []).map(function (erro) { return '<div class="ai-note">' + esc(erro) + '</div>'; }).join('') + (previaContabil.lancamentos || []).map(function (l) { return '<div class="ai-note"><strong>' + esc(l.descricao) + '</strong> — ' + moeda(l.valor) + '<br>Débito ' + esc(l.contaDebito) + ' · Crédito ' + esc(l.contaCredito) + '</div>'; }).join('') + (previaContabil.lancamentos && previaContabil.lancamentos.length ? '<div style="margin-top:10px;font-weight:900">Total: ' + moeda(previaContabil.total) + '</div>' : '');
+    } catch (e) { previaContabil = null; campo('aiAprovarContabil').disabled = true; window.showToast(e.message || String(e), 'error'); }
+  }
+
+  async function aprovarPreviaContabil() {
+    const ctx = contexto();
+    if (!previaContabil || !previaContabil.hash_previa) return;
+    if (!confirm('Incluir ' + previaContabil.lancamentos.length + ' lançamento(s) de depreciação na competência ' + previaContabil.periodo + '?')) return;
+    try {
+      campo('aiAprovarContabil').disabled = true;
+      const resposta = await window.API.aprovarDepreciacaoAtivo(ctx.empresa.cnpj, previaContabil.periodo, previaContabil.hash_previa);
+      previaContabil = null;
+      campo('aiPreviaContabilResultado').innerHTML = '<div class="ai-note"><strong>Aprovado:</strong> ' + resposta.quantidade + ' lançamento(s), total ' + moeda(resposta.total) + '. Recarregue a empresa para receber a nova revisão contábil.</div>';
+      window.showToast('Depreciação integrada à contabilidade.', 'success');
+    } catch (e) { campo('aiAprovarContabil').disabled = false; window.showToast(e.message || String(e), 'error'); }
   }
 
   function render() {
     let custo = 0, acumulada = 0, valor = 0, ativos = 0;
     itens.forEach(function (bem) { if (bem.status === 'baixado') return; const c = Core.calcular(bem); custo += Number(bem.custo || 0); acumulada += c.depreciacao_acumulada; valor += c.valor_contabil; ativos += 1; });
     campo('aiResumo').innerHTML = '<div class="ai-kpi"><small>Bens ativos</small><strong>' + ativos + '</strong></div><div class="ai-kpi"><small>Custo histórico</small><strong>' + moeda(custo) + '</strong></div><div class="ai-kpi"><small>Depreciação acumulada</small><strong>' + moeda(acumulada) + '</strong></div><div class="ai-kpi"><small>Valor contábil</small><strong>' + moeda(valor) + '</strong></div>';
-    campo('aiBody').innerHTML = itens.map(function (bem) { const calc = Core.calcular(bem); const ref = Core.classeFiscal(bem.classe_fiscal); const acoes = bem.status === 'baixado' ? '<small>Histórico preservado</small>' : '<button class="ai-btn ai-light" data-ai-editar="' + esc(bem.id) + '">Editar</button> <button class="ai-btn ai-warn" data-ai-baixar="' + esc(bem.id) + '">Baixar</button>'; return '<tr><td>' + esc(bem.patrimonio || '-') + '</td><td><strong>' + esc(bem.descricao) + '</strong><br><small>' + esc(bem.conta_ativo || 'Conta não vinculada') + '</small></td><td>' + esc(ref.nome) + '</td><td>' + dataBR(bem.data_disponivel_uso) + '</td><td>' + moeda(bem.custo) + '</td><td>' + moeda(calc.depreciacao_acumulada) + '</td><td>' + moeda(calc.valor_contabil) + '</td><td><span class="ai-status ' + esc(bem.status) + '">' + esc(bem.status) + '</span></td><td>' + acoes + '</td></tr>'; }).join('') || '<tr><td colspan="9">Nenhum bem cadastrado.</td></tr>';
+    campo('aiBody').innerHTML = itens.map(function (bem) { const calc = Core.calcular(bem); const ref = Core.classeFiscal(bem.classe_fiscal); const acoes = bem.status === 'baixado' ? '<small>Histórico preservado</small>' : '<button class="ai-btn ai-light" data-ai-editar="' + esc(bem.id) + '">Editar</button> <button class="ai-btn ai-light" data-ai-aquisicao="' + esc(bem.id) + '">Aquisição</button> <button class="ai-btn ai-light" data-ai-transferir="' + esc(bem.id) + '">Transferir</button> <button class="ai-btn ai-warn" data-ai-baixar="' + esc(bem.id) + '">Baixar</button>'; return '<tr><td>' + esc(bem.patrimonio || '-') + '</td><td><strong>' + esc(bem.descricao) + '</strong><br><small>' + esc(bem.conta_ativo || 'Conta não vinculada') + '</small></td><td>' + esc(ref.nome) + '</td><td>' + dataBR(bem.data_disponivel_uso) + '</td><td>' + moeda(bem.custo) + '</td><td>' + moeda(calc.depreciacao_acumulada) + '</td><td>' + moeda(calc.valor_contabil) + '</td><td><span class="ai-status ' + esc(bem.status) + '">' + esc(bem.status) + '</span></td><td>' + acoes + '</td></tr>'; }).join('') || '<tr><td colspan="9">Nenhum bem cadastrado.</td></tr>';
     campo('aiBody').querySelectorAll('[data-ai-editar]').forEach(function (b) { b.addEventListener('click', function () { editar(b.dataset.aiEditar); }); });
     campo('aiBody').querySelectorAll('[data-ai-baixar]').forEach(function (b) { b.addEventListener('click', function () { baixar(b.dataset.aiBaixar); }); });
+    campo('aiBody').querySelectorAll('[data-ai-aquisicao]').forEach(function (b) { b.addEventListener('click', function () { contabilizarAquisicao(b.dataset.aiAquisicao); }); });
+    campo('aiBody').querySelectorAll('[data-ai-transferir]').forEach(function (b) { b.addEventListener('click', function () { transferir(b.dataset.aiTransferir); }); });
   }
 
   async function carregar() {
