@@ -17,9 +17,12 @@ assert.strictEqual(
   'updateEntry nao pode sobrescrever as demais linhas selecionadas'
 );
 assert(
-  index.includes('A edição altera somente a linha atual. A seleção é usada apenas para memorizar padrões.'),
+  index.includes('A edição direta altera somente a linha atual. Selecione 2 ou mais para alterar em lote.'),
   'a interface deve informar a protecao de classificacao'
 );
+assert(index.includes('id="btnAlterarSelecionados"'));
+assert(index.includes('function abrirModalAlterarSelecionados()'));
+assert(index.includes('function aplicarAlteracaoSelecionados()'));
 assert(index.includes('function memorizarLancamentosSelecionados()'));
 assert(index.includes('id="btnMemorizarSelecionados"'));
 
@@ -29,4 +32,4 @@ assert(inicioUpdate > 0 && fimUpdate > inicioUpdate, 'updateEntry deve existir')
 const updateEntry = index.slice(inicioUpdate, fimUpdate);
 assert.strictEqual(updateEntry.includes('lancamentosSelecionados'), false, 'edicao individual nao deve consultar selecao em lote');
 
-console.log('OK: edição individual preserva as classificações das demais linhas selecionadas.');
+console.log('OK: edição individual protegida e alteração em lote somente por ação explícita.');

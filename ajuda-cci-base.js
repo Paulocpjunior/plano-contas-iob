@@ -16,7 +16,7 @@ const BASE_AJUDA_CCI = [
   {
     modulo: 'Conciliação e memória',
     termos: ['conciliar', 'memorizar', 'memória', 'classificar', 'lançamento'],
-    orientacao: 'Revise descrição, débito, crédito, código IOB e histórico dos lançamentos. Memorize somente descrições específicas o bastante para identificar a operação. Padrões genéricos, como apenas Cobrança, devem conservar o identificador ou fornecedor antes de virar regra.'
+    orientacao: 'Revise descrição, débito, crédito, código IOB e histórico dos lançamentos. Para alterar duas ou mais linhas, marque os itens, clique em Alterar selecionados, escolha os campos e confirme a quantidade. Datas, valores, descrições e documentos são preservados; contas em lote exigem lançamentos da mesma natureza. Memorize somente descrições específicas o bastante para identificar a operação.'
   },
   {
     modulo: 'Relatórios contábeis',

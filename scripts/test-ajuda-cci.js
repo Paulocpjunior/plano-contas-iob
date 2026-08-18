@@ -26,8 +26,9 @@ assert(index.includes('/ajuda-cci.js?v='), 'O frontend da Ajuda CCI deve ser car
 
 const frontend = fs.readFileSync(path.join(root, 'ajuda-cci.js'), 'utf8');
 const novidades = fs.readFileSync(path.join(root, 'novidades-cci.html'), 'utf8');
-assert(frontend.includes("const NOVIDADES_VERSAO = '2026-08-18.3'"), 'A versão visual das novidades deve ser explícita.');
+assert(frontend.includes("const NOVIDADES_VERSAO = '2026-08-18.4'"), 'A versão visual das novidades deve ser explícita.');
 assert(novidades.includes('Atualizado em 18/08/2026'), 'A página deve declarar a mesma data da versão visual.');
+assert(novidades.includes('Alteração segura de lançamentos selecionados'), 'Novidades deve acompanhar a classificação em lote.');
 assert(frontend.includes("'/api/ajuda-cci/perguntar'"), 'O modal deve usar a rota dedicada, não o Gemini geral.');
 assert(frontend.includes('Não informe senhas, tokens, dados bancários ou dados pessoais.'), 'O modal deve alertar contra dados sensíveis.');
 

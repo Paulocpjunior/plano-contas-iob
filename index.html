@@ -39,6 +39,7 @@
     <script src="/relatorios-contabeis-ui.js?v=3.4.146"></script>
     <script src="/ativo-imobilizado.js?v=3.4.146"></script>
     <script src="/ativo-imobilizado-ui.js?v=3.4.146"></script>
+    <script src="/lancamentos-edicao-lote.js?v=3.4.146"></script>
     <script src="/migracao-sage-ui.js?v=3.4.146"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js"></script>
@@ -946,6 +947,23 @@
             box-shadow: var(--shadow-sm);
         }
         .btn-memorizar-selecionados:disabled {
+            background: #cbd5e1;
+            color: #64748b;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .btn-alterar-selecionados {
+            padding: 8px 12px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: #2563eb;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+        }
+        .btn-alterar-selecionados:disabled {
             background: #cbd5e1;
             color: #64748b;
             cursor: not-allowed;
@@ -2930,7 +2948,10 @@
                             </div>
                         </div>
                         <div class="selection-toolbar-actions">
-                            <div class="selection-summary" id="selectionHint">A edição altera somente a linha atual. A seleção é usada apenas para memorizar padrões.</div>
+                            <div class="selection-summary" id="selectionHint">A edição direta altera somente a linha atual. Selecione 2 ou mais para alterar em lote.</div>
+                            <button id="btnAlterarSelecionados" class="btn-alterar-selecionados" onclick="abrirModalAlterarSelecionados()" disabled>
+                                ✏️ Alterar selecionados
+                            </button>
                             <button id="btnMemorizarSelecionados" class="btn-memorizar-selecionados" onclick="memorizarLancamentosSelecionados()" disabled>
                                 🧠 Memorizar selecionados
                             </button>
@@ -6275,7 +6296,7 @@
                 'baseIcmsSt','valorIcmsSt','baseIpi','valorIpi','valorPis','valorCofins',
                 'movimentoAplicacaoAutomatica','totaisOficiaisExcluemAplicacoesAutomaticas',
                 'linhasComplementaresAgregadas','empresaCodigoFiscal','empresaNomeFiscal',
-                'layoutBanco','bancoLayout'
+                'layoutBanco','bancoLayout','auditoriaAlteracoes'
             ].forEach(function(k) {
                 if (e[k] !== undefined && e[k] !== null && e[k] !== '') out[k] = e[k];
             });
@@ -15966,8 +15987,15 @@
             const hintEl = document.getElementById('selectionHint');
             if (hintEl) {
                 hintEl.textContent = total > 0
-                    ? 'A edição altera somente a linha atual. As ' + total + ' selecionada' + (total !== 1 ? 's' : '') + ' serão usadas apenas ao clicar em Memorizar selecionados.'
-                    : 'A edição altera somente a linha atual. A seleção é usada apenas para memorizar padrões.';
+                    ? 'A edição direta altera somente a linha atual. Use Alterar selecionados para aplicar campos às ' + total + ' linha' + (total !== 1 ? 's' : '') + '.'
+                    : 'A edição direta altera somente a linha atual. Selecione 2 ou mais para alterar em lote.';
+            }
+            const btnAlterar = document.getElementById('btnAlterarSelecionados');
+            if (btnAlterar) {
+                btnAlterar.disabled = total < 2;
+                btnAlterar.textContent = total >= 2
+                    ? '✏️ Alterar selecionados (' + total + ')'
+                    : '✏️ Alterar selecionados';
             }
             const btnMem = document.getElementById('btnMemorizarSelecionados');
             if (btnMem) {
@@ -16002,6 +16030,105 @@
             atualizarResumoSelecao();
             const row = document.querySelector('tr[data-entry-id="' + id + '"]');
             if (row) row.classList.toggle('selected-row', checked);
+        }
+        function lancamentosSelecionadosAtuais() {
+            return (state.entries || []).filter(function(entry) {
+                return entry && lancamentosSelecionados.has(entry.id);
+            });
+        }
+        function sincronizarCampoAlteracaoLote(campo) {
+            const checkbox = document.getElementById('bulkCampo' + campo);
+            const input = document.getElementById('bulkValor' + campo);
+            if (checkbox && input && String(input.value || '').trim()) checkbox.checked = true;
+        }
+        function abrirModalAlterarSelecionados() {
+            const selecionados = lancamentosSelecionadosAtuais();
+            if (selecionados.length < 2) {
+                showToast('Selecione pelo menos dois lançamentos para alterar em lote.', 'error');
+                return;
+            }
+            const modal = document.getElementById('modalAlterarSelecionados');
+            if (!modal) return;
+            ['ContaDebito','ContaCredito','CodigoHistorico','Historico'].forEach(function(campo) {
+                const checkbox = document.getElementById('bulkCampo' + campo);
+                const input = document.getElementById('bulkValor' + campo);
+                if (checkbox) checkbox.checked = false;
+                if (input) input.value = '';
+            });
+            const naturezas = new Set(selecionados.map(tipoLancamento));
+            const resumo = document.getElementById('bulkAlteracaoResumo');
+            const aviso = document.getElementById('bulkAlteracaoAviso');
+            if (resumo) resumo.textContent = selecionados.length + ' lançamentos serão considerados nesta alteração.';
+            if (aviso) {
+                aviso.style.display = naturezas.size > 1 ? 'block' : 'none';
+                aviso.textContent = naturezas.size > 1
+                    ? 'Há débitos e créditos na seleção. Nesse caso, altere apenas código IOB ou histórico; contas exigem lançamentos da mesma natureza.'
+                    : 'Datas, valores, descrições e documentos serão preservados.';
+            }
+            modal.style.display = 'flex';
+            setTimeout(function() {
+                const primeiro = document.getElementById('bulkValorContaDebito');
+                if (primeiro) primeiro.focus();
+            }, 50);
+        }
+        function fecharModalAlterarSelecionados() {
+            const modal = document.getElementById('modalAlterarSelecionados');
+            if (modal) modal.style.display = 'none';
+        }
+        async function aplicarAlteracaoSelecionados() {
+            if (!window.CCILancamentosEdicaoLote) {
+                showToast('O recurso de alteração em lote não foi carregado. Atualize a página.', 'error');
+                return;
+            }
+            const mapaCampos = [
+                { sufixo: 'ContaDebito', campo: 'contaDebito', rotulo: 'conta débito' },
+                { sufixo: 'ContaCredito', campo: 'contaCredito', rotulo: 'conta crédito' },
+                { sufixo: 'CodigoHistorico', campo: 'codigoHistorico', rotulo: 'código IOB' },
+                { sufixo: 'Historico', campo: 'historico', rotulo: 'histórico' }
+            ];
+            const alteracao = {};
+            const rotulos = [];
+            mapaCampos.forEach(function(item) {
+                const checkbox = document.getElementById('bulkCampo' + item.sufixo);
+                const input = document.getElementById('bulkValor' + item.sufixo);
+                if (checkbox && checkbox.checked) {
+                    alteracao[item.campo] = input ? input.value : '';
+                    rotulos.push(item.rotulo);
+                }
+            });
+            const selecionados = lancamentosSelecionadosAtuais();
+            if (!rotulos.length) {
+                showToast('Selecione ao menos um campo para alterar.', 'error');
+                return;
+            }
+            if (!confirm('Aplicar ' + rotulos.join(', ') + ' em ' + selecionados.length + ' lançamentos selecionados?')) return;
+            try {
+                const usuario = (window.CURRENT_USER && (window.CURRENT_USER.email || window.CURRENT_USER.nome)) || 'usuario_nao_identificado';
+                const resultado = window.CCILancamentosEdicaoLote.aplicar(
+                    state.entries,
+                    lancamentosSelecionados,
+                    alteracao,
+                    { por: usuario, em: new Date().toISOString() }
+                );
+                if (Object.prototype.hasOwnProperty.call(alteracao, 'codigoHistorico')) {
+                    resultado.selecionados.forEach(function(entry) {
+                        const padrao = window.SP_HistoricosPadrao && window.SP_HistoricosPadrao.buscarPorCodigo(entry.codigoHistorico);
+                        if (padrao && padrao.descricao) {
+                            entry.historicoPadraoDescricao = padrao.descricao;
+                            if (!Object.prototype.hasOwnProperty.call(alteracao, 'historico')) entry.historico = padrao.descricao;
+                        }
+                    });
+                }
+                saveState();
+                updateDashboard();
+                updateCharts();
+                renderLancamentos();
+                fecharModalAlterarSelecionados();
+                showToast('Classificação atualizada em ' + resultado.quantidade + ' lançamentos. Salvamento automático iniciado.', 'success');
+                try { await salvarSessaoRemotoAgora({ mostrarErro: true }); } catch (e) {}
+            } catch (e) {
+                showToast(e && e.message ? e.message : 'Não foi possível alterar os lançamentos selecionados.', 'error');
+            }
         }
         function renderLancamentos() {
             const c = document.getElementById('lancamentosTable');
@@ -18355,6 +18482,38 @@ async function confirmarVincularPlano() {
           </thead>
           <tbody id="memoriaEmpresaBody"></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal alteracao em lote -->
+<div id="modalAlterarSelecionados" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.72);z-index:10001;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:12px;box-shadow:0 24px 70px rgba(15,23,42,0.35);width:min(760px,96vw);max-height:92vh;overflow:auto">
+    <div style="padding:22px 24px 14px;border-bottom:1px solid #e5e7eb;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+      <div>
+        <h3 style="margin:0;color:#111827;font-size:20px;font-weight:800">✏️ Alterar selecionados</h3>
+        <p id="bulkAlteracaoResumo" style="margin:6px 0 0;color:#64748b;font-size:13px"></p>
+      </div>
+      <button aria-label="Fechar alteração em lote" onclick="fecharModalAlterarSelecionados()" style="border:none;background:#f1f5f9;color:#475569;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:18px">×</button>
+    </div>
+    <div style="padding:20px 24px">
+      <div id="bulkAlteracaoAviso" style="padding:11px 13px;margin-bottom:16px;border-radius:8px;background:#eff6ff;color:#1e40af;font-size:12px;font-weight:700"></div>
+      <p style="margin:0 0 14px;color:#475569;font-size:13px">Marque somente os campos que deseja aplicar. Campos não marcados permanecerão inalterados.</p>
+      <div style="display:grid;grid-template-columns:minmax(180px,220px) 1fr;gap:12px;align-items:center">
+        <label style="display:flex;align-items:center;gap:8px;color:#334155;font-size:13px;font-weight:700"><input id="bulkCampoContaDebito" type="checkbox"> Conta débito</label>
+        <input id="bulkValorContaDebito" type="text" placeholder="Reduzido da conta débito" oninput="sincronizarCampoAlteracaoLote('ContaDebito')" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:monospace">
+        <label style="display:flex;align-items:center;gap:8px;color:#334155;font-size:13px;font-weight:700"><input id="bulkCampoContaCredito" type="checkbox"> Conta crédito</label>
+        <input id="bulkValorContaCredito" type="text" placeholder="Reduzido da conta crédito" oninput="sincronizarCampoAlteracaoLote('ContaCredito')" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:monospace">
+        <label style="display:flex;align-items:center;gap:8px;color:#334155;font-size:13px;font-weight:700"><input id="bulkCampoCodigoHistorico" type="checkbox"> Código IOB</label>
+        <input id="bulkValorCodigoHistorico" list="historicosIOBList" type="text" maxlength="4" placeholder="0000" oninput="sincronizarCampoAlteracaoLote('CodigoHistorico')" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:monospace">
+        <label style="display:flex;align-items:center;gap:8px;color:#334155;font-size:13px;font-weight:700"><input id="bulkCampoHistorico" type="checkbox"> Histórico</label>
+        <input id="bulkValorHistorico" type="text" placeholder="Texto do histórico" oninput="sincronizarCampoAlteracaoLote('Historico')" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
+      </div>
+      <div style="margin-top:18px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:8px;color:#64748b;font-size:12px"><strong>Proteção:</strong> data, valor, descrição e documento nunca são alterados por esta operação. Para aplicar contas, todos os itens devem ser somente débitos ou somente créditos.</div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #e5e7eb;padding-top:16px;margin-top:18px">
+        <button onclick="fecharModalAlterarSelecionados()" style="padding:11px 18px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Cancelar</button>
+        <button onclick="aplicarAlteracaoSelecionados()" style="padding:11px 18px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer">Aplicar alterações</button>
       </div>
     </div>
   </div>

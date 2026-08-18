@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.1",
+  "manual_version": "2.2",
   "updated_at": "2026-08-18",
-  "app_reference": "3.4.146",
+  "app_reference": "3.4.147",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -46,7 +46,8 @@
           "Fechamento bloqueado para empresa exclusiva enquanto a parametrização tributária estiver incompleta ou incompatível.",
           "Novidades e Ajuda CCI, com dúvidas não resolvidas enviadas à curadoria.",
           "Manual Operacional dentro do CCI, com pesquisa e downloads Word/PDF gerados da mesma fonte oficial.",
-          "Balancete Anual Analítico, com hierarquia do plano de contas, saldos de janeiro a dezembro, resumo e exportações em PDF e Excel."
+          "Balancete Anual Analítico, com hierarquia do plano de contas, saldos de janeiro a dezembro, resumo e exportações em PDF e Excel.",
+          "Alteração explícita de classificações em lote, com seleção dos campos, confirmação, travas por natureza e auditoria do usuário."
         ]}
       ]
     },
@@ -107,6 +108,8 @@
           "Utilizar contas existentes e ativas no plano da empresa.",
           "Não usar a mesma conta no débito e no crédito.",
           "Revisar sentido bancário e natureza da operação antes de memorizar.",
+          "Para alterar duas ou mais linhas, marque os lançamentos e use Alterar selecionados; escolha somente os campos que serão replicados e confirme a quantidade.",
+          "A alteração em lote preserva data, valor, descrição e documento. Contas só podem ser aplicadas quando todos os selecionados tiverem a mesma natureza.",
           "Descrições como Cobrança, Pagamento ou Transferência são genéricas; conservar fornecedor, cliente, documento ou identificador.",
           "Memorizar somente quando a regra se repete e não depende de exceção.",
           "Se o padrão estiver incorreto, interromper o uso em massa e solicitar revisão administrativa."
