@@ -1,7 +1,16 @@
 {
-  "version": "3.4.143",
-  "build_date": "2026-08-18T10:26:26Z",
+  "version": "3.4.144",
+  "build_date": "2026-08-18T10:41:53Z",
   "release_notes": [
-    "feat: adicionar novidades e ajuda operacional ao CCI"
+    "feat: parametrizar regras por regime tributario",
+    "feat: adicionar novidades e ajuda operacional ao CCI",
+    "feat: automatizar prontidao contabil das empresas",
+    "feat: iniciar escrituracao exclusiva no CCI",
+    "feat: adiciona extrato unificado Bradesco",
+    "feat: libera DRE e balanco patrimonial",
+    "fix: estrutura balancete pelo plano de contas",
+    "fix: preserva cobranca e exige novo login",
+    "feat: adiciona ativo e aprimora relatorios contabeis",
+    "fix: ajustar cartões de empresas no tema escuro"
   ]
 }
