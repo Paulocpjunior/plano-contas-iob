@@ -33,6 +33,13 @@ def file_hash(path):
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else None
 
 
+def data_extenso_br(valor):
+    ano, mes, dia = str(valor).split('-')
+    meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+             'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+    return f"{int(dia)} de {meses[int(mes) - 1]} de {ano}"
+
+
 def update_manifest(content):
     manifest = {
         'manual_version': content['manual_version'],
@@ -216,7 +223,7 @@ def generate_docx(content):
     kicker = document.add_paragraph(); kicker.alignment = WD_ALIGN_PARAGRAPH.CENTER; run = kicker.add_run('GUIA INTERNO DE OPERAÇÃO E TRANSIÇÃO'); run.bold = True; run.font.size = Pt(10); run.font.color.rgb = RGBColor.from_string(BLUE)
     title = document.add_paragraph(); title.alignment = WD_ALIGN_PARAGRAPH.CENTER; title.paragraph_format.space_after = Pt(10); run = title.add_run(content['title']); run.bold = True; run.font.size = Pt(28); run.font.color.rgb = RGBColor.from_string(DARK_BLUE)
     subtitle = document.add_paragraph(); subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER; subtitle.paragraph_format.space_after = Pt(10); run = subtitle.add_run(content['subtitle']); run.font.size = Pt(14); run.font.color.rgb = RGBColor.from_string(BLUE)
-    meta = document.add_paragraph(); meta.alignment = WD_ALIGN_PARAGRAPH.CENTER; run = meta.add_run(f"Versão {content['manual_version']}  |  18 de agosto de 2026  |  {content['classification']}"); run.font.size = Pt(10); run.font.color.rgb = RGBColor.from_string(MUTED)
+    meta = document.add_paragraph(); meta.alignment = WD_ALIGN_PARAGRAPH.CENTER; run = meta.add_run(f"Versão {content['manual_version']}  |  {data_extenso_br(content['updated_at'])}  |  {content['classification']}"); run.font.size = Pt(10); run.font.color.rgb = RGBColor.from_string(MUTED)
     document.add_paragraph()
     add_docx_block(document, {'type': 'callout', 'tone': 'info', 'label': 'Situação atual', 'text': content['status']['summary']}, 0, 0)
     document.add_paragraph()
@@ -262,7 +269,7 @@ def generate_pdf(content):
     document = BaseDocTemplate(str(PDF_OUT), pagesize=letter, rightMargin=inch, leftMargin=inch, topMargin=0.8 * inch, bottomMargin=0.75 * inch, title=content['title'], author='SP Assessoria Contábil')
     frame = Frame(document.leftMargin, document.bottomMargin, document.width, document.height, id='normal')
     document.addPageTemplates([PageTemplate(id='cci', frames=frame, onPage=page)])
-    story = [Spacer(1, 1.25 * inch), Paragraph('GUIA INTERNO DE OPERAÇÃO E TRANSIÇÃO', ParagraphStyle('Kicker', parent=small_center, fontName='Helvetica-Bold', textColor=colors.HexColor('#2454D7'), spaceAfter=14)), Paragraph(content['title'], title), Paragraph(content['subtitle'], subtitle), Paragraph(f"Versão {content['manual_version']}  |  18 de agosto de 2026  |  {content['classification']}", small_center), Spacer(1, 0.35 * inch)]
+    story = [Spacer(1, 1.25 * inch), Paragraph('GUIA INTERNO DE OPERAÇÃO E TRANSIÇÃO', ParagraphStyle('Kicker', parent=small_center, fontName='Helvetica-Bold', textColor=colors.HexColor('#2454D7'), spaceAfter=14)), Paragraph(content['title'], title), Paragraph(content['subtitle'], subtitle), Paragraph(f"Versão {content['manual_version']}  |  {data_extenso_br(content['updated_at'])}  |  {content['classification']}", small_center), Spacer(1, 0.35 * inch)]
     status_table = Table([[Paragraph('<b>Situação atual:</b> ' + content['status']['summary'], body)]], colWidths=[document.width])
     status_table.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#EFF6FF')), ('BOX', (0,0), (-1,-1), 0, colors.white), ('LINEBEFORE', (0,0), (0,-1), 3, colors.HexColor('#2454D7')), ('LEFTPADDING', (0,0), (-1,-1), 10), ('RIGHTPADDING', (0,0), (-1,-1), 10), ('TOPPADDING', (0,0), (-1,-1), 9), ('BOTTOMPADDING', (0,0), (-1,-1), 9)]))
     story += [status_table, Spacer(1, 0.55 * inch), Paragraph('SP Assessoria Contábil  •  Consultor Contábil Inteligente', small_center), PageBreak()]

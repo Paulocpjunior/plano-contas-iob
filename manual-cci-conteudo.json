@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.8",
-  "updated_at": "2026-08-18",
-  "app_reference": "3.4.156",
+  "manual_version": "2.9",
+  "updated_at": "2026-08-19",
+  "app_reference": "3.4.157",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -53,6 +53,7 @@
           "Manual Operacional dentro do CCI, com pesquisa e downloads Word/PDF gerados da mesma fonte oficial.",
           "Balancete Anual Analítico, com hierarquia do plano de contas, saldos de janeiro a dezembro, resumo e exportações em PDF e Excel.",
           "Alteração explícita de classificações em lote, com seleção dos campos, confirmação, travas por natureza e auditoria do usuário.",
+          "Acesso direto e visível ao De/Para de Arquivos, para validar o relacionamento SAGE → CCI sem gravar lançamentos ou saldos.",
           "Demonstrativo SAGE de impostos retidos em serviços prestados com linha bruta e linhas separadas de PIS, COFINS, CSLL, IRRF e INSS quando houver valor.",
           "Novo modal Retenções de Serviços Tomados, disponível para todas as empresas, com leitura do relatório SAGE de notas de entradas de serviços.",
           "Nova área Dados e Matriz/Filial, com cadastro completo da empresa, vínculo direto da filial à matriz principal e relação das unidades vinculadas."
@@ -144,6 +145,7 @@
           "Revisar sentido bancário e natureza da operação antes de memorizar.",
           "Para alterar duas ou mais linhas, marque os lançamentos e use Alterar selecionados; escolha somente os campos que serão replicados e confirme a quantidade.",
           "A alteração em lote preserva data, valor, descrição e documento. Contas só podem ser aplicadas quando todos os selecionados tiverem a mesma natureza.",
+          "Lançamentos já memorizados também podem ser corrigidos em lote. Para levar a correção às próximas importações, o administrador deve marcar Atualizar também a memória da empresa; a mudança é auditada e não ocorre silenciosamente.",
           "Descrições como Cobrança, Pagamento ou Transferência são genéricas; conservar fornecedor, cliente, documento ou identificador.",
           "Memorizar somente quando a regra se repete e não depende de exceção.",
           "Se o padrão estiver incorreto, interromper o uso em massa e solicitar revisão administrativa."

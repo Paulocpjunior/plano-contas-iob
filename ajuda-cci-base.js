@@ -21,7 +21,7 @@ const BASE_AJUDA_CCI = [
   {
     modulo: 'Conciliação e memória',
     termos: ['conciliar', 'memorizar', 'memória', 'classificar', 'lançamento'],
-    orientacao: 'Revise descrição, débito, crédito, código IOB e histórico dos lançamentos. Para alterar duas ou mais linhas, marque os itens, clique em Alterar selecionados, escolha os campos e confirme a quantidade. Datas, valores, descrições e documentos são preservados; contas em lote exigem lançamentos da mesma natureza. Memorize somente descrições específicas o bastante para identificar a operação.'
+    orientacao: 'Revise descrição, débito, crédito, código IOB e histórico dos lançamentos. Para alterar duas ou mais linhas, marque os itens, clique em Alterar selecionados, escolha os campos e confirme a quantidade. Datas, valores, descrições e documentos são preservados; contas em lote exigem lançamentos da mesma natureza. Se as linhas já estiverem memorizadas, a classificação atual pode ser corrigida normalmente; somente administrador pode marcar Atualizar também a memória da empresa para aplicar a correção às próximas importações.'
   },
   {
     modulo: 'Relatórios contábeis',
@@ -61,7 +61,7 @@ const BASE_AJUDA_CCI = [
   {
     modulo: 'Migração e exportação SAGE',
     termos: ['sage', 'exportar', 'migração'],
-    orientacao: 'Empresas em modo ponte podem usar Migração SAGE e Exportar. Empresas definidas como exclusivas no CCI têm a exportação para a SAGE bloqueada para evitar dupla escrituração.'
+    orientacao: 'O De/Para de Arquivos possui acesso direto na navegação e valida localmente o arquivo de relacionamento SAGE → CCI. Empresas em modo ponte também podem usar Exportar. Empresas definidas como exclusivas no CCI têm a exportação para a SAGE bloqueada para evitar dupla escrituração.'
   },
   {
     modulo: 'Permissões administrativas',

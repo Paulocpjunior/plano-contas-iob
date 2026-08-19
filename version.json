@@ -1,11 +1,8 @@
 {
-  "version": "3.4.156",
-  "build_date": "2026-08-18T22:51:00Z",
+  "version": "3.4.157",
+  "build_date": "2026-08-19T12:39:03Z",
   "release_notes": [
-    "Parametrização de Isenta, Imune e Terceiro Setor com CNAE do CFI e parecer orientativo do Gemini 3.7",
-    "Conciliação bancária formal com aprovação, auditoria e trava de fechamento",
-    "Transporte automático e protegido de saldos entre competências",
-    "Integração contábil do ativo para aquisição, transferência, depreciação e baixa",
-    "Manual Operacional e painel de novidades atualizados"
+    "Correção em lote de lançamentos já memorizados, com atualização administrativa e auditável da memória da empresa",
+    "Acesso direto e visível ao De/Para de Arquivos"
   ]
 }

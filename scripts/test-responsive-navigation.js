@@ -25,6 +25,8 @@ const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   'function toggleNavCluster(button, event)',
   'id="btnCarteiraResponsaveisNav"',
   'id="btnConfiguracaoContabilNav"',
+  'id="btnDeParaArquivosNav"',
+  '> De/Para de Arquivos</button>',
   'function abrirConfiguracaoContabilImpressao()',
   "document.querySelectorAll('.nav-module-button')",
 ].forEach((trecho) => assert(html.includes(trecho), `Navegação responsiva ausente: ${trecho}`));

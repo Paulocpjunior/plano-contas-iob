@@ -8,7 +8,7 @@ const root = path.join(__dirname, '..');
 const manual = require(path.join(root, 'manual-cci-base'));
 
 assert(manual.validarManualCCI(), 'O conteúdo oficial do manual deve ser válido.');
-assert.strictEqual(manual.conteudo.manual_version, '2.8', 'A versão atual do manual deve estar explícita.');
+assert.strictEqual(manual.conteudo.manual_version, '2.9', 'A versão atual do manual deve estar explícita.');
 assert(manual.textoManualCCI().includes('Simples Nacional'), 'O manual deve cobrir parametrizações tributárias.');
 assert(manual.textoManualCCI().includes('78%'), 'A referência histórica de prontidão deve estar identificada sem recalcular automaticamente.');
 
@@ -35,6 +35,7 @@ assert(frontend.includes("'/api/manual-cci/download/'"), 'O download deve manter
 
 assert(manual.textoManualCCI().includes('Balancete Anual'), 'Manual deve acompanhar o novo relatório anual.');
 assert(manual.textoManualCCI().includes('Alterar selecionados'), 'Manual deve acompanhar a alteração explícita em lote.');
+assert(manual.textoManualCCI().includes('Atualizar também a memória da empresa'), 'Manual deve orientar a correção administrativa de memórias em lote.');
 assert(manual.textoManualCCI().includes('Demonstrativo de Impostos Retidos da SAGE'), 'Manual deve acompanhar o novo layout fiscal genérico.');
 assert(manual.textoManualCCI().includes('uma linha para cada imposto retido'), 'Manual deve explicar as linhas separadas de retenções fiscais.');
 assert(manual.textoManualCCI().includes('modal independente Retenções Serviços Tomados'), 'Manual deve orientar o novo modal geral de retenções tomadas.');
