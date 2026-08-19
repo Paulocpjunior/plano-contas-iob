@@ -48,8 +48,8 @@
       validacaoCnpj: 'cabecalho_relatorio',
       exigirCodigoArquivo: false,
       exigirChaveNfeTodasNotas: false,
-      ultimoTeste: '1183 - SERV. PRESTADOS 04.2026 FISCAL 1.pdf',
-      observacao: 'Modelo reutilizavel para qualquer empresa. Extrai e confere o CNPJ do cabecalho, o tipo Servicos Prestados e o total oficial antes da importacao.'
+      ultimoTeste: '1183 - SERV. PRESTADOS 04.2026 FISCAL 1.pdf e SERVICOS PRESTADOS 06.2026.pdf',
+      observacao: 'Modelo reutilizavel para qualquer empresa. Extrai e confere o CNPJ do cabecalho, o tipo Servicos Prestados e o total oficial antes da importacao; preserva base, aliquota, valor do ISS e gera linha propria para ISS retido nao zerado.'
     },
     {
       id: 'generico_demonstrativo_impostos_retidos_servicos_sage_pdf',

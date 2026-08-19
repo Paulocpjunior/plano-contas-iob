@@ -122,6 +122,7 @@
           "Ativar a empresa correta e conferir o CNPJ antes de selecionar o arquivo.",
           "Abrir Importações - Movimento Fiscal e escolher o modelo correspondente ao relatório.",
           "Para o Demonstrativo de Impostos Retidos da SAGE, usar o modelo geral Impostos retidos em notas de serviços.",
+          "Na Relação de NFs de Serviços Prestados, o CCI preserva base de cálculo, alíquota, valor do ISS e ISS retido; cada ISS retido não zerado gera uma linha própria vinculada à mesma NF e ao tomador.",
           "Para retenções sobre serviços tomados, abrir o modal independente Retenções Serviços Tomados. Ele está disponível para qualquer empresa ativa e aceita o Demonstrativo dos Impostos Retidos - Notas de Entradas de Serviços em PDF.",
           "No novo modal, validar o CNPJ, o período, a quantidade de notas, o valor bruto, o total retido e o valor líquido antes de continuar para a prévia.",
           "Conferir período, quantidade de notas, valor bruto, base de retenção, PIS, COFINS, CSLL, IRRF, INSS, total retido e valor líquido.",
@@ -132,7 +133,7 @@
         ]},
         {"type": "callout", "tone": "info", "label": "Modelo geral", "text": "O código e o nome da empresa impressos no relatório são informativos. A liberação depende do CNPJ do cabeçalho ser idêntico ao cadastro da empresa ativa e de todos os totais oficiais estarem conciliados."},
         {"type": "callout", "tone": "info", "label": "Serviços tomados", "text": "O valor bruto da nota é apresentado como despesa e cada retenção não zerada como linha própria que reduz o líquido do fornecedor. O CCI preserva NF, série, CNPJ do fornecedor, datas de pagamento, bases, valores e códigos de retenção; código fiscal não é convertido em histórico contábil."},
-        {"type": "callout", "tone": "warning", "label": "Classificação contábil", "text": "O CCI não inventa contas para os impostos. Débito, crédito e histórico devem vir do plano e das regras aprovadas para a empresa; somente depois a classificação pode ser memorizada."}
+        {"type": "callout", "tone": "warning", "label": "Classificação contábil", "text": "O CCI não inventa contas para os impostos. Débito, crédito e histórico devem vir do plano e das regras aprovadas para a empresa; somente depois a classificação pode ser memorizada. No relatório de serviços prestados, confira se o total das linhas de ISS retido coincide com o total oficial impresso pela SAGE."}
       ]
     },
     {

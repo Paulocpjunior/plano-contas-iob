@@ -1,8 +1,8 @@
 {
-  "version": "3.4.158",
-  "build_date": "2026-08-19T13:57:20Z",
+  "version": "3.4.159",
+  "build_date": "2026-08-19T14:08:34Z",
   "release_notes": [
-    "Extrato Itaú Lançamentos por Período em PDF imagem processado por OCR local com conciliação obrigatória",
-    "Extratos Itaú reconhecidos não dependem do Gemini e mensagens técnicas de cobrança do provedor foram ocultadas"
+    "ISS retido da Relação de NFs de Serviços Prestados agora gera linha fiscal própria vinculada à nota e ao tomador",
+    "Base de cálculo, alíquota, valor do ISS e total oficial de ISS retido são preservados e conferidos antes da importação"
   ]
 }

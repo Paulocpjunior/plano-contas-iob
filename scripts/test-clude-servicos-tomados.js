@@ -1,9 +1,12 @@
 const assert = require('assert');
+const crypto = require('crypto');
 const fs = require('fs');
 const pdf = require('pdf-parse');
+global.pdfjsLib = require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js');
 const {
   parsearTexto_CludeServicosTomados,
   parsearTexto_IOBSageServicosPrestados,
+  parsearPDF_IOB_Sage_ServicosPrestados,
   __test__
 } = require('../parser-clude-servicos-tomados');
 
@@ -11,6 +14,7 @@ const arquivo = '/Users/paulocesarpereirajunior/Downloads/733 serviços tomados
 const arquivoAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/733  CLUDE SERV. TOMADOS ABRIL.pdf';
 const arquivoDaxxAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/1183 - SERVIÇOS TOMADOS 042026.pdf';
 const arquivoDaxxServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/1183 - SERV.  PRESTADOS 04.2026 FISCAL 1.pdf';
+const arquivoSinteseServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/SERVIÇOS PRESTADOS 06.2026.pdf';
 
 function money(n) {
   return Math.round(Number(n || 0) * 100) / 100;
@@ -99,6 +103,37 @@ function money(n) {
     assert.ok(resultadoPrestados.lancamentos.some(l => l.codigo_servico === '2496'), 'codigo de servico deve ser preservado');
     assert.ok(resultadoPrestados.lancamentos.every(l => l.historico === 'SERVICOS PRESTADOS'), 'historico padrao deve vir preenchido para parametrizacao');
   }
+
+  assert.ok(fs.existsSync(arquivoSinteseServicosPrestados), 'fixture real da SINTESE com ISS retido deve existir');
+  const bufferSintese = fs.readFileSync(arquivoSinteseServicosPrestados);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferSintese).digest('hex'),
+    'f72c7b25252ac605efdba151dd30ef8280a069adac460525ecf315eaeca9f50a',
+    'fixture da SINTESE deve ser o PDF real validado'
+  );
+  const resultadoSintese = await parsearPDF_IOB_Sage_ServicosPrestados(new Uint8Array(bufferSintese));
+  assert.strictEqual(resultadoSintese.detectado, true);
+  assert.strictEqual(resultadoSintese.cnpj_detectado, '02.986.671/0001-07');
+  assert.strictEqual(resultadoSintese.periodo_inicio, '2026-06-01');
+  assert.strictEqual(resultadoSintese.periodo_fim, '2026-06-30');
+  assert.strictEqual(resultadoSintese.total_notas_fiscais, 19);
+  assert.strictEqual(resultadoSintese.total_lancamentos_fiscais, 20);
+  assert.strictEqual(money(resultadoSintese.total_credito), 283994.17);
+  assert.strictEqual(money(resultadoSintese.total_debito), 1875.52);
+  assert.strictEqual(money(resultadoSintese.total_liquido), 282118.65);
+  assert.strictEqual(resultadoSintese.total_divergente, false);
+  const nota7698 = resultadoSintese.lancamentos.filter(l => l.documento === '7698');
+  assert.strictEqual(nota7698.length, 2, 'NF 7698 deve gerar valor bruto e linha propria de ISS retido');
+  const bruto7698 = nota7698.find(l => l.componenteFiscal !== 'IMPOSTO_RETIDO');
+  const iss7698 = nota7698.find(l => l.tributoRetido === 'ISS');
+  assert.ok(bruto7698 && iss7698, 'valor bruto e ISS retido devem permanecer vinculados a mesma NF');
+  assert.strictEqual(money(bruto7698.baseCalculoIss), 37510.49);
+  assert.strictEqual(money(bruto7698.aliquotaIss), 5);
+  assert.strictEqual(money(bruto7698.valorIss), 1875.52);
+  assert.strictEqual(money(bruto7698.issRetido), 1875.52);
+  assert.strictEqual(money(iss7698.valor), -1875.52);
+  assert.strictEqual(money(iss7698.valorTributoRetido), 1875.52);
+  assert.strictEqual(iss7698.cnpj_tomador, '11.300.963/0001-27');
 
   const textoDaxxVisualPdfjs = `
 Office Fiscal

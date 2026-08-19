@@ -110,10 +110,40 @@
     return m ? parseMoneyBR(m[1]) : 0;
   }
 
+  function extrairTotaisRelacaoServicosPrestados(texto) {
+    const linhas = String(texto || '').split(/\r?\n/);
+    let totais = null;
+    linhas.forEach(function(linha) {
+      const limpa = String(linha || '').replace(/\s+/g, ' ').trim();
+      if (!/^Total\s+/i.test(limpa)) return;
+      const valores = (limpa.match(/\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}/g) || []).map(parseMoneyBR);
+      if (valores.length < 4) return;
+      const ultimos = valores.slice(-4);
+      totais = {
+        valorNotas: ultimos[0],
+        baseCalculoIss: ultimos[1],
+        valorIss: ultimos[2],
+        issRetido: ultimos[3]
+      };
+    });
+    return totais;
+  }
+
   function somaAbsolutaLancamentos(lancamentos) {
     return (lancamentos || []).reduce(function(acc, l) {
       return acc + Math.abs(Number((l && l.valor) || 0));
     }, 0);
+  }
+
+  function totalResultadoPorTipo(resultado, tipo) {
+    if (!resultado) return 0;
+    if (tipo === 'credito' && Number.isFinite(Number(resultado.total_credito))) {
+      return Math.abs(Number(resultado.total_credito));
+    }
+    if (tipo === 'debito' && Number.isFinite(Number(resultado.total_debito))) {
+      return Math.abs(Number(resultado.total_debito));
+    }
+    return somaAbsolutaLancamentos(resultado.lancamentos);
   }
 
   function centavos(valor) {
@@ -125,8 +155,8 @@
     resultado.total_oficial = totalOficial;
     resultado.total_oficial_detectado = true;
     resultado.total_divergente = false;
-    if (tipo === 'credito') resultado.total_credito = somaAbsolutaLancamentos(resultado.lancamentos);
-    if (tipo === 'debito') resultado.total_debito = somaAbsolutaLancamentos(resultado.lancamentos);
+    if (tipo === 'credito') resultado.total_credito = totalResultadoPorTipo(resultado, tipo);
+    if (tipo === 'debito') resultado.total_debito = totalResultadoPorTipo(resultado, tipo);
     return resultado;
   }
 
@@ -135,15 +165,15 @@
     resultado.total_oficial = totalOficial;
     resultado.total_oficial_detectado = true;
     resultado.total_divergente = true;
-    resultado.diferenca_total_oficial = Math.round((somaAbsolutaLancamentos(resultado.lancamentos) - totalOficial) * 100) / 100;
-    if (tipo === 'credito') resultado.total_credito = somaAbsolutaLancamentos(resultado.lancamentos);
-    if (tipo === 'debito') resultado.total_debito = somaAbsolutaLancamentos(resultado.lancamentos);
+    resultado.diferenca_total_oficial = Math.round((totalResultadoPorTipo(resultado, tipo) - totalOficial) * 100) / 100;
+    if (tipo === 'credito') resultado.total_credito = totalResultadoPorTipo(resultado, tipo);
+    if (tipo === 'debito') resultado.total_debito = totalResultadoPorTipo(resultado, tipo);
     return resultado;
   }
 
-  function resultadoConfereComTotal(resultado, totalOficial) {
+  function resultadoConfereComTotal(resultado, totalOficial, tipo) {
     if (!resultado || !totalOficial) return false;
-    return Math.abs(centavos(somaAbsolutaLancamentos(resultado.lancamentos)) - centavos(totalOficial)) <= 1;
+    return Math.abs(centavos(totalResultadoPorTipo(resultado, tipo)) - centavos(totalOficial)) <= 1;
   }
 
   function escolherResultadoPorTotalOficial(candidatos, totalOficial, tipo) {
@@ -153,12 +183,12 @@
     if (!validos.length) return { detectado: false, lancamentos: [] };
 
     if (totalOficial) {
-      const exato = validos.find(function(r) { return resultadoConfereComTotal(r, totalOficial); });
+      const exato = validos.find(function(r) { return resultadoConfereComTotal(r, totalOficial, tipo); });
       if (exato) return aplicarTotalOficial(exato, totalOficial, tipo);
 
       const maisProximo = validos.slice().sort(function(a, b) {
-        return Math.abs(centavos(somaAbsolutaLancamentos(a.lancamentos)) - centavos(totalOficial))
-          - Math.abs(centavos(somaAbsolutaLancamentos(b.lancamentos)) - centavos(totalOficial));
+        return Math.abs(centavos(totalResultadoPorTipo(a, tipo)) - centavos(totalOficial))
+          - Math.abs(centavos(totalResultadoPorTipo(b, tipo)) - centavos(totalOficial));
       })[0];
       return marcarTotalOficialDivergente(maisProximo, totalOficial, tipo);
     }
@@ -286,7 +316,7 @@
     };
   }
 
-  function criarLancamentoServicoPrestado({ cnpj, tomador, valor, documento, data, periodo, metaEmpresa, servico }) {
+  function criarLancamentoServicoPrestado({ cnpj, tomador, valor, documento, data, periodo, metaEmpresa, servico, baseCalculoIss, aliquotaIss, valorIss, issRetido }) {
     const tomadorLimpo = normalizarTomadorPrestado(tomador);
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
     if (!tomadorLimpo || !valor || !data) return null;
@@ -318,6 +348,12 @@
       ].filter(Boolean),
       valor: valorNota,
       valorNota: valorNota,
+      baseCalculoIss: Math.abs(Number(baseCalculoIss || 0)),
+      aliquotaIss: Math.abs(Number(aliquotaIss || 0)),
+      valorIss: Math.abs(Number(valorIss || 0)),
+      issRetido: Math.abs(Number(issRetido || 0)),
+      totalRetencoes: Math.abs(Number(issRetido || 0)),
+      valorLiquidoAposRetencoes: Math.round((valorNota - Math.abs(Number(issRetido || 0))) * 100) / 100,
       baseCalculoPisCofins: 0,
       baseCalculoPisCofinsOrigem: 'servico_prestado_sem_credito',
       categoriaFiscal: 'RECEITA_SERVICOS',
@@ -338,6 +374,28 @@
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim
     };
+  }
+
+  function criarLancamentoIssRetidoServicoPrestado(nota) {
+    const valor = Math.abs(Number(nota && nota.issRetido || 0));
+    if (!nota || centavos(valor) === 0) return null;
+    const contexto = ['NF ' + nota.documento, nota.cnpj_tomador ? ('tomador ' + nota.cnpj_tomador) : ''].filter(Boolean).join(' - ');
+    const codigoEmpresa = String(nota.empresaCodigoFiscal || '').trim() || 'FISCAL';
+    return Object.assign({}, nota, {
+      descricao: 'ISS RETIDO - ' + contexto,
+      descricao_memoria: 'ISS RETIDO EM SERVICO PRESTADO - ' + (nota.cnpj_tomador || ''),
+      memoriaDescricoes: ['ISS retido em servico prestado', nota.cnpj_tomador, 'NF ' + nota.documento].filter(Boolean),
+      valor: -valor,
+      categoriaFiscal: 'RETENCAO_SERVICO_PRESTADO',
+      categoria: 'Impostos Retidos',
+      historico: 'ISS RETIDO NF ' + nota.documento,
+      componenteFiscal: 'IMPOSTO_RETIDO',
+      tributoRetido: 'ISS',
+      valorTributoRetido: valor,
+      naturezaLancamento: 'iss_retido_servico_prestado',
+      conta: 'Fiscal ' + codigoEmpresa + ' - ISS Retido em Servicos',
+      nome_conta: 'Fiscal ' + codigoEmpresa + ' - ISS Retido em Servicos'
+    });
   }
 
   function parsearLinhaAnaliseCreditos(linha, categoriaAtual, periodo, metaEmpresa) {
@@ -685,7 +743,11 @@
         data: parseDateBR(dataMatch[1]),
         periodo,
         metaEmpresa,
-        servico
+        servico,
+        baseCalculoIss: valores.length >= 5 ? valores[1].valor : 0,
+        aliquotaIss: valores.length >= 5 ? valores[2].valor : 0,
+        valorIss: valores.length >= 5 ? valores[3].valor : 0,
+        issRetido: valores.length >= 5 ? valores[4].valor : 0
       });
       if (lanc) registros.push(lanc);
     }
@@ -792,13 +854,21 @@
     if (!metaEmpresa.codigo || !cnpjValido(metaEmpresa.cnpj)) {
       return { detectado: false, lancamentos: [] };
     }
-    const totalOficial = extrairTotalOficial(texto);
-    const registros = unirRegistros(
-      parsearRegistrosServicosPrestadosIOB(texto, periodo, metaEmpresa)
-        .concat(parsearRegistrosServicosPrestadosVisual(texto, periodo, metaEmpresa))
+    const totaisOficiais = extrairTotaisRelacaoServicosPrestados(texto);
+    const totalOficial = totaisOficiais ? totaisOficiais.valorNotas : extrairTotalOficial(texto);
+    const notasFiscais = unirRegistros(
+      parsearRegistrosServicosPrestadosVisual(texto, periodo, metaEmpresa)
+        .concat(parsearRegistrosServicosPrestadosIOB(texto, periodo, metaEmpresa))
     );
-    const totalCredito = registros.reduce((acc, l) => acc + Math.abs(Number(l.valor) || 0), 0);
-    const totalConfere = totalOficial ? Math.abs(centavos(totalCredito) - centavos(totalOficial)) <= 1 : true;
+    const registros = notasFiscais.reduce(function(todos, nota) {
+      const iss = criarLancamentoIssRetidoServicoPrestado(nota);
+      return iss ? todos.concat([nota, iss]) : todos.concat([nota]);
+    }, []);
+    const totalCredito = notasFiscais.reduce((acc, l) => acc + Math.abs(Number(l.valorNota || l.valor) || 0), 0);
+    const totalIssRetido = notasFiscais.reduce((acc, l) => acc + Math.abs(Number(l.issRetido || 0)), 0);
+    const divergencias = [];
+    if (totalOficial && Math.abs(centavos(totalCredito) - centavos(totalOficial)) > 1) divergencias.push('valorNotas');
+    if (totaisOficiais && Math.abs(centavos(totalIssRetido) - centavos(totaisOficiais.issRetido)) > 1) divergencias.push('issRetido');
     const codigoEmpresa = String(metaEmpresa.codigo || '').trim() || 'FISCAL';
     const nomeLayout = codigoEmpresa === '1183'
       ? 'DAXX - Servicos Prestados Fiscal'
@@ -815,13 +885,18 @@
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim,
       total_credito: totalCredito,
-      total_debito: 0,
-      total_notas_fiscais: registros.length,
+      total_debito: totalIssRetido,
+      total_liquido: Math.round((totalCredito - totalIssRetido) * 100) / 100,
+      total_iss_retido: Math.round(totalIssRetido * 100) / 100,
+      total_notas_fiscais: notasFiscais.length,
+      total_lancamentos_fiscais: registros.length,
       direcao_fiscal: 'servicos_prestados',
       total_oficial: totalOficial || totalCredito,
       total_oficial_detectado: !!totalOficial,
-      total_divergente: !!totalOficial && !totalConfere,
-      diferenca_total_oficial: totalOficial && !totalConfere ? Math.round((totalCredito - totalOficial) * 100) / 100 : 0,
+      totais_iss_oficiais: totaisOficiais,
+      total_divergente: divergencias.length > 0,
+      campos_totais_divergentes: divergencias,
+      diferenca_total_oficial: divergencias.includes('valorNotas') ? Math.round((totalCredito - totalOficial) * 100) / 100 : 0,
       lancamentos: registros
     };
   }
@@ -1332,8 +1407,8 @@
     const combinado = agrupado + '\n' + raw;
     const totalOficial = extrairTotalOficial(raw) || extrairTotalOficial(agrupado) || extrairTotalOficial(combinado);
     return escolherResultadoPorTotalOficial([
-      parsearTexto_IOBSageServicosPrestados(raw),
       parsearTexto_IOBSageServicosPrestados(agrupado),
+      parsearTexto_IOBSageServicosPrestados(raw),
       parsearTexto_IOBSageServicosPrestados(combinado)
     ], totalOficial, 'credito');
   }
