@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
-  "manual_version": "2.14",
+  "manual_version": "2.15",
   "updated_at": "2026-08-19",
-  "app_reference": "3.4.164",
+  "app_reference": "3.4.166",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
   "classification": "Uso interno",
   "status": {
     "label": "CCI em implantação controlada como sistema contábil principal",
-    "summary": "A operação cotidiana já cobre importações, classificação, relatórios, fechamento, conciliação bancária formal, transporte controlado de saldos, eventos contábeis do ativo imobilizado e ECD/ECF. A retirada definitiva da SAGE depende da homologação dessas rotinas em fechamentos-piloto e das validações operacionais finais.",
-    "readiness_reference": "A versão 1.0 registrou aproximadamente 78% de prontidão. As entregas de 18/08/2026 fortaleceram governança e parametrização, mas o percentual somente será recalculado após nova homologação com empresas-piloto."
+    "summary": "A operação cotidiana já cobre importações, classificação, relatórios, fechamento, conciliação bancária formal, transporte controlado de saldos, eventos contábeis do ativo imobilizado e ECD/ECF. Em 19/08/2026 foram corrigidas nove frentes operacionais e adicionadas regressões com arquivos reais. A retirada definitiva da SAGE continua condicionada aos fechamentos-piloto, à recuperação de backup e às validações finais de operação.",
+    "readiness_reference": "A versão 1.0 registrou aproximadamente 78% de prontidão. As entregas de 18 e 19/08/2026 aumentaram a cobertura funcional e as proteções, mas o percentual somente será recalculado depois de fechamentos-piloto completos com evidência contábil."
   },
   "chapters": [
     {
@@ -259,24 +259,48 @@
       ]
     },
     {
+      "id": "balanco-19-08",
+      "title": "12. Balanço de 19/08/2026",
+      "keywords": ["resumo do dia", "19/08/2026", "erros", "acertos", "status"],
+      "blocks": [
+        {"type": "paragraph", "text": "O dia terminou com nove entregas publicadas, da v3.4.157 à v3.4.165. Os erros tratados foram reproduzidos com os arquivos enviados pelos colaboradores, transformados em testes permanentes e validados novamente no deploy."},
+        {"type": "table", "headers": ["Frente", "Resultado do dia", "Status"], "rows": [
+          ["De/Para e memória", "Acesso restaurado e correção em lote permitida com auditoria.", "Publicado e testado"],
+          ["Extratos Itaú", "PDF em imagem processado localmente; FI confere sentido e conta bancária.", "Publicado e homologado com arquivos reais"],
+          ["Movimento fiscal", "ISS retido restaurado; Serviços Tomados aceita CPF; livros gerais de Entradas e Saídas criados.", "Publicado e testado"],
+          ["Conciliação", "Planilha de pagamentos passa a respeitar saídas e divergências de data vão para revisão manual.", "Motor publicado; falta fechamento-piloto"],
+          ["AuditAI", "Extração local do balancete, totais oficiais de Ativo/Passivo, aba Balancete e falha visível do parecer.", "Publicado; falta homologação operacional ampliada"],
+          ["Implantação", "Saldos anteriores acessíveis e aprovação liberada na competência inicial; lançamento importado pode ser localizado e editado.", "Publicado; falta uso em empresa-piloto"],
+          ["Qualidade", "Suíte integral aprovada e arquivos reais incorporados às regressões.", "Controle contínuo ativo"]
+        ]},
+        {"type": "bullets", "items": [
+          "Nenhum lançamento, empresa ou memória existente foi excluído automaticamente durante as correções.",
+          "Erros técnicos do provedor de IA deixaram de ser apresentados como se fossem erro do arquivo quando existe processamento local homologado.",
+          "A validação passou a comparar conteúdo importado, arquivo FI e relatório da SAGE antes de concluir a correção.",
+          "Novidades, versão do aplicativo e testes foram atualizados junto com cada publicação."
+        ]},
+        {"type": "callout", "tone": "warning", "label": "Status da substituição da SAGE", "text": "A cobertura funcional é alta, mas a virada definitiva ainda não está autorizada. O próximo ganho real depende de escolher empresas-piloto, aprovar saldos de abertura e completar fechamentos mensais consecutivos, incluindo conciliação, transporte e ativo."}
+      ]
+    },
+    {
       "id": "pendencias",
-      "title": "12. Pendências para substituir definitivamente a SAGE",
+      "title": "13. Pendências atualizadas para substituir definitivamente a SAGE",
       "keywords": ["pendências", "substituir sage", "próximos passos", "piloto"],
       "blocks": [
         {"type": "table", "headers": ["Prioridade", "Pendência", "Critério de conclusão"], "rows": [
-          ["1", "Empresas-piloto exclusivas no CCI", "Dados de abertura, regime, plano, históricos e competência aprovados."],
-          ["2", "Homologar conciliação bancária formal", "Saldo inicial + movimentos = saldo final por conta em empresas-piloto, sem diferença."],
-          ["3", "Homologar transporte de saldos", "Passagem entre competências e dezembro/janeiro validada em fechamento real."],
-          ["4", "Homologar eventos do ativo", "Aquisição, transferência, depreciação e baixa aprovadas em empresa-piloto, com contas e valores conferidos."],
-          ["5", "Homologação operacional", "Backup/restauração, múltiplos usuários, permissões, falhas e volume testados."],
-          ["6", "Virada", "Dois ou três fechamentos consecutivos aprovados e sem pendência crítica."]
+          ["1", "A INICIAR — empresas-piloto exclusivas no CCI", "Selecionar 2 ou 3 empresas; aprovar dados de abertura, regime, plano, históricos e competência."],
+          ["2", "EM HOMOLOGAÇÃO — conciliação bancária formal", "Motor implementado; comprovar saldo inicial + movimentos = saldo final por conta em fechamentos reais."],
+          ["3", "EM HOMOLOGAÇÃO — transporte de saldos", "Motor e regressões aprovados; validar passagem entre competências e dezembro/janeiro em fechamento real."],
+          ["4", "EM HOMOLOGAÇÃO — eventos do ativo", "Integração implementada; aprovar aquisição, transferência, depreciação e baixa em empresa-piloto."],
+          ["5", "PENDENTE — backup e recuperação operacional", "Definir Firestore + cópia externa, agenda, retenção e executar teste documentado de restauração; validar múltiplos usuários e volume."],
+          ["6", "PENDENTE — virada definitiva", "Concluir dois ou três fechamentos consecutivos, revisar relatórios e encerrar todas as pendências críticas."]
         ]},
         {"type": "callout", "tone": "warning", "label": "Decisão de virada", "text": "A SAGE permanece como referência paralela durante a homologação. Depois dos critérios de saída, o CCI passa a ser a fonte principal e a SAGE fica somente para consulta histórica."}
       ]
     },
     {
       "id": "duas-frentes",
-      "title": "13. Próxima frente: divisão do trabalho",
+      "title": "14. Próxima frente: divisão do trabalho",
       "keywords": ["paulo", "equipe", "codex", "desenvolvimento", "tarefas"],
       "blocks": [
         {"type": "definitions", "items": [

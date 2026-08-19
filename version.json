@@ -1,9 +1,9 @@
 {
-  "version": "3.4.165",
-  "build_date": "2026-08-19T19:58:11Z",
+  "version": "3.4.166",
+  "build_date": "2026-08-19T22:26:45Z",
   "release_notes": [
-    "FI da SAGE passa a validar a conta bancária de cada extrato antes da exportação",
-    "Conta de disponibilidade divergente é corrigida somente com evidência dominante da mesma conta física",
-    "Extrato Itaú janeiro/2026 conciliado com 34 lançamentos e R$ 38.067,35 em cada lado"
+    "Resumo de 19/08 e pendências oficiais atualizados no Manual CCI",
+    "Nove entregas do dia consolidadas por status e evidência",
+    "Próximos marcos: pilotos, conciliação, transporte, ativo e recuperação"
   ]
 }
