@@ -18,7 +18,7 @@ assert(index.includes("setTimeout(function() { abrirModalMovimentoFiscal(); }, 0
 assert(index.includes('abrirModalMovimentoFiscal()'), 'app deve expor acao para abrir o modal fiscal');
 assert(index.includes('validarArquivoMovimentoFiscal()'), 'modal deve separar validacao da importacao');
 assert(index.includes('processarMovimentoFiscalValidado()'), 'modal deve exigir etapa validada antes de importar');
-assert(index.includes('Cadastro = CNPJ do arquivo'), 'regra de CNPJ deve estar explicita para livros e servicos');
+assert(index.includes('Cadastro = identidade fiscal do arquivo'), 'regra de identidade fiscal deve estar explicita para livros e servicos');
 assert(index.includes('window.validarVinculoCnpjFiscal(resultado'), 'frontend deve executar a trava de CNPJ antes da gravacao');
 assert(index.includes('window.validarVinculoCnpjRelatorioFiscal'), 'servicos devem conferir o CNPJ do cabecalho antes da gravacao');
 assert(index.includes('accept=".csv,.txt,.pdf"'), 'modal fiscal deve aceitar livros CSV/TXT e relatorios de servicos PDF');
@@ -39,6 +39,12 @@ assert(catalogo.includes("validacaoCnpj: 'chave_nfe_emitente'"), 'layout deve de
 assert(catalogo.includes("validacaoCnpj: 'cadastro_layout_codigo_arquivo'"), 'entrada deve amarrar empresa, layout e codigo do arquivo');
 assert(index.includes('direcaoEsperada: layout.movimento'), 'validacao fiscal deve respeitar entrada ou saida selecionada');
 assert(catalogo.includes("id: 'generico_servicos_tomados_efiscal_pdf'"), 'catalogo deve oferecer servicos tomados para qualquer empresa');
+assert(catalogo.includes("id: 'generico_livro_entradas_iob_sage_csv'"), 'catalogo deve oferecer livro de entradas para qualquer empresa');
+assert(catalogo.includes("parser: 'parsearCSV_IOB_Sage_LivroEntradas'"), 'livro geral de entradas deve usar parser fiscal proprio');
+assert(catalogo.includes("id: 'generico_livro_saidas_iob_sage_csv'"), 'catalogo deve oferecer livro de saidas para qualquer empresa');
+assert(catalogo.includes("parser: 'parsearCSV_IOB_Sage_LivroSaidas'"), 'livro geral de saidas deve usar parser fiscal proprio');
+assert(index.includes('codigoEmpresaFiscalAtiva()'), 'livro geral de entradas deve conferir o numero da empresa no cadastro');
+assert(index.includes('Nº da empresa no cadastro = código NNNN_ do arquivo'), 'modal deve explicar a trava especifica do livro de entradas');
 assert(catalogo.includes("id: 'generico_servicos_prestados_efiscal_pdf'"), 'catalogo deve oferecer servicos prestados para qualquer empresa');
 assert(catalogo.includes("id: 'generico_demonstrativo_impostos_retidos_servicos_sage_pdf'"), 'catalogo deve oferecer demonstrativo SAGE de impostos retidos para qualquer empresa');
 assert(catalogo.includes("parser: 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos'"), 'demonstrativo de retidos deve usar parser proprio');

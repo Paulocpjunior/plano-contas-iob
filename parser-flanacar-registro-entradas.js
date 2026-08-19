@@ -3,6 +3,48 @@
   'use strict';
 
   const LAYOUTS = {
+    genericoEntrada: {
+      direcao: 'entrada',
+      es: 'E',
+      banco: 'GEN',
+      empresa: 'Todas as empresas - Office Fiscal / IOB SAGE',
+      nome: 'Modelo geral - Livro de Entradas',
+      parser: 'parsearCSV_IOB_Sage_LivroEntradas',
+      conta: 'Fiscal - Livro de Entradas',
+      contaDetectada: 'LIVRO_ENTRADAS_FISCAL_GENERICO',
+      tipoDocumento: 'REGISTRO_ENTRADA_FISCAL',
+      tipoDocumentoImposto: 'REGISTRO_ENTRADA_FISCAL_IMPOSTO',
+      natureza: 'entrada_fiscal_compra',
+      naturezaImposto: 'entrada_fiscal_imposto_destacado',
+      origem: 'movimento-fiscal-generico-entradas',
+      origemImposto: 'movimento-fiscal-generico-entradas-imposto',
+      rotulo: 'Entrada fiscal',
+      contraparte: 'Fornecedor',
+      sinalPrincipal: -1,
+      aceitaArquivoMisto: true,
+      separarLancamentosPorCfop: true
+    },
+    genericoSaida: {
+      direcao: 'saida',
+      es: 'S',
+      banco: 'GEN',
+      empresa: 'Todas as empresas - Office Fiscal / IOB SAGE',
+      nome: 'Modelo geral - Livro de Saidas',
+      parser: 'parsearCSV_IOB_Sage_LivroSaidas',
+      conta: 'Fiscal - Livro de Saidas',
+      contaDetectada: 'LIVRO_SAIDAS_FISCAL_GENERICO',
+      tipoDocumento: 'REGISTRO_SAIDA_FISCAL',
+      tipoDocumentoImposto: 'REGISTRO_SAIDA_FISCAL_IMPOSTO',
+      natureza: 'saida_fiscal_venda',
+      naturezaImposto: 'saida_fiscal_imposto_destacado',
+      origem: 'movimento-fiscal-generico-saidas',
+      origemImposto: 'movimento-fiscal-generico-saidas-imposto',
+      rotulo: 'Saida fiscal',
+      contraparte: 'Cliente',
+      sinalPrincipal: 1,
+      aceitaArquivoMisto: false,
+      separarLancamentosPorCfop: true
+    },
     entrada: {
       direcao: 'entrada',
       es: 'E',
@@ -207,23 +249,22 @@
     const cnpjsArquivo = Array.isArray(resultado && resultado.cnpjs_empresa_detectados)
       ? resultado.cnpjs_empresa_detectados.map(somenteDigitos).filter(Boolean)
       : [];
-    const codigoLayout = String(opts.codigoEmpresa || (resultado && resultado.codigo_empresa_layout) || '').replace(/\D/g, '').padStart(4, '0');
+    const codigoInformado = String(opts.codigoEmpresaAtiva || opts.codigoEmpresa || (resultado && resultado.codigo_empresa_layout) || '').replace(/\D/g, '');
+    const codigoLayout = codigoInformado ? codigoInformado.padStart(4, '0') : '';
     const codigoArquivo = codigoEmpresaDoArquivo(opts.arquivoNome || '');
     const totalNotas = Number(resultado && resultado.total_notas_fiscais || 0);
     const chavesValidas = Number(resultado && resultado.chaves_nfe_validas || 0);
     const chavesInvalidas = Number(resultado && resultado.chaves_nfe_invalidas || 0);
 
-    if (!resultado || !resultado.detectado || resultado.direcao_fiscal !== 'saida') {
-      throw criarErroVinculo('layout_fiscal_invalido', 'O arquivo nao foi reconhecido como livro fiscal de saidas do modelo selecionado.');
+    const direcaoEsperada = String(opts.direcaoEsperada || (resultado && resultado.direcao_fiscal) || '').toLowerCase();
+    if (!resultado || !resultado.detectado || !/^(entrada|saida)$/.test(direcaoEsperada) || resultado.direcao_fiscal !== direcaoEsperada) {
+      throw criarErroVinculo('layout_fiscal_invalido', 'O arquivo nao foi reconhecido como livro fiscal de ' + (direcaoEsperada === 'entrada' ? 'entradas' : 'saidas') + ' do modelo selecionado.');
     }
     if (!cnpjValido(cnpjAtivo)) {
       throw criarErroVinculo('cnpj_empresa_ativa_invalido', 'A empresa ativa nao possui um CNPJ valido para liberar a importacao fiscal.');
     }
-    if (!cnpjValido(cnpjLayout)) {
+    if (cnpjLayout && !cnpjValido(cnpjLayout)) {
       throw criarErroVinculo('cnpj_layout_invalido', 'O layout fiscal selecionado nao possui CNPJ homologado. A importacao permanece bloqueada.');
-    }
-    if (cnpjsArquivo.length !== 1 || !cnpjValido(cnpjsArquivo[0])) {
-      throw criarErroVinculo('cnpj_arquivo_ambiguo', 'Nao foi possivel identificar um unico CNPJ emitente valido nas chaves NF-e do arquivo.');
     }
     if (opts.exigirChaveNfeTodasNotas !== false && (chavesInvalidas > 0 || !totalNotas || chavesValidas !== totalNotas)) {
       throw criarErroVinculo(
@@ -231,17 +272,27 @@
         'A importacao exige uma chave NF-e valida em todas as notas. Validas: ' + chavesValidas + ' de ' + totalNotas + '; invalidas/ausentes: ' + chavesInvalidas + '.'
       );
     }
-    if (cnpjsArquivo[0] !== cnpjLayout) {
-      throw criarErroVinculo('cnpj_arquivo_layout_divergente', 'O CNPJ emitente do arquivo nao pertence ao layout fiscal selecionado.');
-    }
-    if (cnpjsArquivo[0] !== cnpjAtivo) {
-      throw criarErroVinculo('cnpj_empresa_arquivo_divergente', 'O CNPJ emitente do arquivo difere do CNPJ da empresa ativa. Selecione a empresa correta antes de importar.');
+    if (direcaoEsperada === 'saida') {
+      if (cnpjsArquivo.length !== 1 || !cnpjValido(cnpjsArquivo[0])) {
+        throw criarErroVinculo('cnpj_arquivo_ambiguo', 'Nao foi possivel identificar um unico CNPJ emitente valido nas chaves NF-e do livro de saidas.');
+      }
+      if (cnpjLayout && cnpjsArquivo[0] !== cnpjLayout) {
+        throw criarErroVinculo('cnpj_arquivo_layout_divergente', 'O CNPJ emitente do arquivo nao pertence ao layout fiscal selecionado.');
+      }
+      if (cnpjsArquivo[0] !== cnpjAtivo) {
+        throw criarErroVinculo('cnpj_empresa_arquivo_divergente', 'O CNPJ emitente do arquivo difere do CNPJ da empresa ativa. Selecione a empresa correta antes de importar.');
+      }
+    } else if (cnpjLayout && cnpjLayout !== cnpjAtivo) {
+      throw criarErroVinculo('cnpj_empresa_layout_divergente', 'O CNPJ da empresa ativa difere do layout de entradas selecionado.');
     }
     if (opts.exigirCodigoArquivo !== false) {
       if (!codigoArquivo) {
         throw criarErroVinculo('codigo_empresa_arquivo_ausente', 'O nome do arquivo nao contem o codigo da empresa no padrao NNNN_. Exporte novamente pelo modelo homologado.');
       }
-      if (!codigoLayout || codigoArquivo !== codigoLayout) {
+      if (!codigoLayout) {
+        throw criarErroVinculo('codigo_empresa_cadastro_ausente', 'O cadastro da empresa ativa nao possui o numero da empresa usado pela SAGE. Preencha esse campo antes de importar o livro de entradas.');
+      }
+      if (codigoArquivo !== codigoLayout) {
         throw criarErroVinculo('codigo_empresa_arquivo_divergente', 'O codigo ' + codigoArquivo + ' do arquivo difere do codigo ' + (codigoLayout || '-') + ' do layout selecionado.');
       }
     }
@@ -250,13 +301,13 @@
       valido: true,
       cnpjEmpresaAtiva: cnpjAtivo,
       cnpjLayout,
-      cnpjArquivo: cnpjsArquivo[0],
+      cnpjArquivo: direcaoEsperada === 'saida' ? cnpjsArquivo[0] : cnpjAtivo,
       codigoLayout,
       codigoArquivo,
       totalNotas,
       chavesValidas,
       chavesInvalidas,
-      origemCnpj: 'chave_nfe_emitente'
+      origemCnpj: direcaoEsperada === 'saida' ? 'chave_nfe_emitente' : 'cadastro_codigo_empresa_arquivo'
     };
   }
 
@@ -888,6 +939,14 @@
     return parsearTextoFiscalFlanacar(textoCompleto, opts || {}, LAYOUTS.fastweldSaida);
   }
 
+  function parsearCSV_IOB_Sage_LivroEntradas(textoCompleto, opts) {
+    return parsearTextoFiscalFlanacar(textoCompleto, opts || {}, LAYOUTS.genericoEntrada);
+  }
+
+  function parsearCSV_IOB_Sage_LivroSaidas(textoCompleto, opts) {
+    return parsearTextoFiscalFlanacar(textoCompleto, opts || {}, LAYOUTS.genericoSaida);
+  }
+
   root.detectarCSV_FlanacarRegistroEntradas = detectarCSV_FlanacarRegistroEntradas;
   root.detectarCSV_FlanacarRegistroSaidas = detectarCSV_FlanacarRegistroSaidas;
   root.parsearCSV_FlanacarRegistroEntradas = parsearCSV_FlanacarRegistroEntradas;
@@ -896,6 +955,8 @@
   root.parsearTexto_FlanacarRegistroSaidas = parsearTexto_FlanacarRegistroSaidas;
   root.detectarCSV_FastweldRegistroSaidas = detectarCSV_FastweldRegistroSaidas;
   root.parsearCSV_FastweldRegistroSaidas = parsearCSV_FastweldRegistroSaidas;
+  root.parsearCSV_IOB_Sage_LivroEntradas = parsearCSV_IOB_Sage_LivroEntradas;
+  root.parsearCSV_IOB_Sage_LivroSaidas = parsearCSV_IOB_Sage_LivroSaidas;
   root.validarVinculoCnpjFiscal = validarVinculoCnpjFiscal;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -908,6 +969,8 @@
       parsearTexto_FlanacarRegistroSaidas,
       detectarCSV_FastweldRegistroSaidas,
       parsearCSV_FastweldRegistroSaidas,
+      parsearCSV_IOB_Sage_LivroEntradas,
+      parsearCSV_IOB_Sage_LivroSaidas,
       validarVinculoCnpjFiscal,
       _internals: {
         parseMoneyBR,

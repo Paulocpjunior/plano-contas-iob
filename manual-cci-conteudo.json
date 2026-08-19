@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.13",
+  "manual_version": "2.14",
   "updated_at": "2026-08-19",
-  "app_reference": "3.4.163",
+  "app_reference": "3.4.164",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -59,6 +59,7 @@
           "Nova área Dados e Matriz/Filial, com cadastro completo da empresa, vínculo direto da filial à matriz principal e relação das unidades vinculadas.",
           "AuditAI com totalização oficial de Ativo, Passivo, Circulante e Não Circulante, aba Balancete de quatro colunas e falha visível quando o parecer de IA estiver indisponível.",
           "Relação SAGE de Serviços Tomados aceita fornecedor identificado por CNPJ ou CPF e exige que todas as notas fechem com o total oficial."
+          ,"Modelos gerais de Livro de Entradas e Livro de Saídas da SAGE, disponíveis para qualquer empresa ativa, com direção fiscal, chaves, impostos, CFOP e identidade da empresa protegidos antes da gravação."
         ]}
       ]
     },
@@ -137,11 +138,15 @@
     {
       "id": "importacao-fiscal",
       "title": "6A. Importação de movimento fiscal",
-      "keywords": ["movimento fiscal", "sage", "impostos retidos", "serviços", "cnpj"],
+      "keywords": ["movimento fiscal", "sage", "livro de entradas", "livro de saídas", "impostos retidos", "serviços", "cnpj"],
       "blocks": [
         {"type": "checklist", "items": [
           "Ativar a empresa correta e conferir o CNPJ antes de selecionar o arquivo.",
           "Abrir Importações - Movimento Fiscal e escolher o modelo correspondente ao relatório.",
+          "Para mercadorias e documentos fiscais da SAGE, selecionar Modelo geral — NF-e de entrada (compras) ou Modelo geral — NF-e de saída (vendas). Os dois modelos atendem todas as empresas.",
+          "No Livro de Entradas, manter o nome exportado no padrão NNNN_RelatorioNotas...; o código NNNN_ deve coincidir com o Nº da empresa informado no Cadastro do CCI.",
+          "No Livro de Saídas, o CCI extrai o CNPJ emitente das chaves NF-e e exige igualdade com o CNPJ da empresa ativa.",
+          "Conferir direção E/S, quantidade de notas, cobertura das chaves, período, CFOP, valor contábil e impostos destacados antes de continuar.",
           "Para o Demonstrativo de Impostos Retidos da SAGE, usar o modelo geral Impostos retidos em notas de serviços.",
           "Na Relação de NFs de Serviços Prestados, o CCI preserva base de cálculo, alíquota, valor do ISS e ISS retido; cada ISS retido não zerado gera uma linha própria vinculada à mesma NF e ao tomador.",
           "Para retenções sobre serviços tomados, abrir o modal independente Retenções Serviços Tomados. Ele está disponível para qualquer empresa ativa e aceita o Demonstrativo dos Impostos Retidos - Notas de Entradas de Serviços em PDF.",
@@ -152,6 +157,8 @@
           "Não continuar se o CNPJ do cabeçalho divergir da empresa ativa ou se qualquer total oficial não fechar.",
           "Revisar a prévia antes de confirmar a gravação dos lançamentos."
         ]},
+        {"type": "callout", "tone": "warning", "label": "Livro de Entradas", "text": "A chave NF-e de uma entrada identifica o fornecedor emitente, não a empresa compradora. Por isso, a trava segura usa o código NNNN_ do arquivo contra o Nº da empresa no cadastro ativo, além de exigir estrutura, direção E e cobertura das chaves. Não renomeie o arquivo removendo o código."},
+        {"type": "callout", "tone": "info", "label": "Livro de Saídas", "text": "Nas saídas, a chave NF-e contém o CNPJ da própria empresa emitente. Todas as notas devem possuir chave válida e apontar para um único CNPJ, idêntico ao cadastro ativo."},
         {"type": "callout", "tone": "info", "label": "Modelo geral", "text": "O código e o nome da empresa impressos no relatório são informativos. A liberação depende do CNPJ do cabeçalho ser idêntico ao cadastro da empresa ativa e de todos os totais oficiais estarem conciliados."},
         {"type": "callout", "tone": "info", "label": "Serviços tomados", "text": "O valor bruto da nota é apresentado como despesa e cada retenção não zerada como linha própria que reduz o líquido do fornecedor. O CCI preserva NF, série, CNPJ do fornecedor, datas de pagamento, bases, valores e códigos de retenção; código fiscal não é convertido em histórico contábil."},
         {"type": "callout", "tone": "warning", "label": "Classificação contábil", "text": "O CCI não inventa contas para os impostos. Débito, crédito e histórico devem vir do plano e das regras aprovadas para a empresa; somente depois a classificação pode ser memorizada. No relatório de serviços prestados, confira se o total das linhas de ISS retido coincide com o total oficial impresso pela SAGE."}

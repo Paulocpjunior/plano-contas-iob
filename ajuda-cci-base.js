@@ -14,6 +14,11 @@ const BASE_AJUDA_CCI = [
     orientacao: 'Na empresa ativa, abra Operação > Extrator, informe banco, conta e período, selecione o arquivo e confira a prévia. No Banco do Brasil, o layout Extrato de Conta Corrente (+/-) aceita PDF textual ou escaneado e usa OCR local, sem depender dos créditos do Gemini. O CCI valida duplicidade, versão, layout, vínculo, quantidade, saldos e totais antes de persistir. Não importe novamente um arquivo já contabilizado sem primeiro revisar a importação anterior.'
   },
   {
+    modulo: 'Importação fiscal - livros de entradas e saídas',
+    termos: ['livro de entradas', 'livro de saidas', 'livro de saídas', 'registro de entradas', 'registro de saidas', 'registro de saídas', 'relatorio notas', 'relatório notas'],
+    orientacao: 'Na empresa ativa, abra Importações > Movimento Fiscal. Para compras, escolha Modelo geral — NF-e de entrada; o nome do arquivo deve conservar o código NNNN_ da SAGE, igual ao Nº da empresa no Cadastro do CCI. Para vendas, escolha Modelo geral — NF-e de saída; o CCI compara o CNPJ emitente das chaves NF-e com o CNPJ ativo. Nos dois casos, direção E/S, período, notas, CFOP, valores, impostos e cobertura das chaves são conferidos antes da prévia.'
+  },
+  {
     modulo: 'Importação fiscal - impostos retidos',
     termos: ['impostos retidos', 'demonstrativo sage', 'retenção', 'pis retido', 'cofins retida', 'csll retida', 'irrf'],
     orientacao: 'Na empresa ativa, abra Importações > Movimento Fiscal e selecione o modelo geral Impostos retidos em notas de serviços. O CCI confere o CNPJ do cabeçalho, período, notas, valor, base, PIS, COFINS, CSLL, IRRF e INSS. Qualquer divergência de CNPJ ou total mantém a importação bloqueada.'

@@ -1,8 +1,9 @@
 {
-  "version": "3.4.163",
-  "build_date": "2026-08-19T19:30:00Z",
+  "version": "3.4.164",
+  "build_date": "2026-08-19T19:35:21Z",
   "release_notes": [
-    "Saldos anteriores ganham acesso direto, seleção automática da competência inicial, conferência de débitos e créditos e orientação local na Ajuda CCI",
-    "Lançamentos recebem numeração permanente, filtro por número e edição auditável sem perder a origem da importação"
+    "Modelos gerais de Livro de Entradas e Livro de Saidas da SAGE disponíveis para qualquer empresa ativa",
+    "Entradas validadas pelo número da empresa no cadastro e código NNNN_ do arquivo; saídas validadas pelo CNPJ emitente das chaves NF-e",
+    "Direção fiscal, notas, chaves, CFOP, valores e impostos destacados conferidos antes da gravação"
   ]
 }
