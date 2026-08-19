@@ -13,6 +13,18 @@
   <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 19/08/2026</span></div></section>
   <main class="wrap content">
     <article class="release">
+      <div class="tag">Exportação SAGE</div>
+      <header><h2>Conferência da conta bancária no arquivo FI</h2><span class="date">19/08/2026 · v3.4.165</span></header>
+      <ul>
+        <li>Antes de gerar o FI, o CCI passa a conferir não apenas o sentido débito/crédito, mas também a conta reduzida usada como banco.</li>
+        <li>Quando uma mesma conta física do extrato possui uma conta de disponibilidade claramente dominante, linhas isoladas classificadas contra outro banco são corrigidas.</li>
+        <li>A proteção continua restrita a extratos bancários; livros e lançamentos fiscais não são alterados pela regra.</li>
+        <li>O caso Itaú janeiro/2026 corrigiu a inversão de R$ 74,41 e duas saídas tributárias que somam R$ 4.642,89.</li>
+        <li>A regressão confere 34 lançamentos e fechamento de R$ 38.067,35 no débito e no crédito da conta bancária.</li>
+      </ul>
+      <div class="status"><strong>Atenção:</strong> se um FI anterior já tiver sido importado na SAGE, não importe novamente sem antes estornar ou excluir o lote anterior para evitar duplicidade.</div>
+    </article>
+    <article class="release">
       <div class="tag">Movimento fiscal</div>
       <header><h2>Livros gerais de Entradas e Saídas da SAGE</h2><span class="date">19/08/2026 · v3.4.164</span></header>
       <ul>

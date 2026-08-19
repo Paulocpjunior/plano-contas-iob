@@ -3,7 +3,9 @@
 const assert = require('assert');
 const fs = require('fs');
 const pdf = require('pdf-parse');
+global.pdfjsLib = require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js');
 const bradesco = require('../parser-bradesco-netempresa.js');
+const itau = require('../parser-itau-extrato-mensal.js');
 const guard = require('../iob-sentido-bancario.js');
 
 const PDF = process.env.BRADESCO_SENTIDO_PDF || '/Users/paulocesarpereirajunior/Downloads/extrato 01 1.pdf';
@@ -56,7 +58,53 @@ function parseFi(texto) {
   assert.strictEqual(Math.round(totalDebitoBanco * 100), 3791799);
   assert.strictEqual(Math.round(totalCreditoBanco * 100), 2333142);
   assert.strictEqual(Math.round((totalDebitoBanco - totalCreditoBanco) * 100), 1458657);
-  console.log('OK: FI Bradesco corrigido em 8 sentidos; debito banco R$ 37.917,99, credito banco R$ 23.331,42.');
+
+  const pdfItau = '/Users/paulocesarpereirajunior/Downloads/Extrato Mensal_Janeiro2026.pdf';
+  const fiItau = '/Users/paulocesarpereirajunior/Downloads/FI03290329.01';
+  assert(fs.existsSync(pdfItau), 'Extrato Itau de evidencia nao encontrado: ' + pdfItau);
+  assert(fs.existsSync(fiItau), 'Arquivo FI Itau de evidencia nao encontrado: ' + fiItau);
+  const extratoItau = await itau.parsearPDF_Itau_ExtratoMensal(new Uint8Array(fs.readFileSync(pdfItau)));
+  const linhasItau = parseFi(fs.readFileSync(fiItau, 'latin1'));
+  assert.strictEqual(extratoItau.lancamentos.length, 34);
+  assert.strictEqual(linhasItau.length, 34);
+  const entradasItau = linhasItau.map(function(item, idx) {
+    const original = extratoItau.lancamentos[idx];
+    assert.strictEqual(Math.round(item.valorAbs * 100), Math.round(Math.abs(original.valor) * 100), 'Valor Itau divergente na linha ' + (idx + 1));
+    return {
+      ...item,
+      valor: original.valor,
+      banco: 'ITAU',
+      conta: extratoItau.conta_detectada
+    };
+  });
+  const reduzidos = new Set();
+  entradasItau.forEach(function(lanc) {
+    reduzidos.add(guard.normalizarReduzido(lanc.contaDebito));
+    reduzidos.add(guard.normalizarReduzido(lanc.contaCredito));
+  });
+  const planoItau = { contas: Array.from(reduzidos).map(function(reduzido) {
+    if (reduzido === '11') return { codigo: '1.1.1.02.0002', reduzido: '11', descricao: 'BANCO ITAU' };
+    if (reduzido === '13') return { codigo: '1.1.1.02.0004', reduzido: '13', descricao: 'OUTRO BANCO' };
+    return { codigo: '4.9.' + reduzido, reduzido: reduzido, descricao: 'CONTRAPARTIDA ' + reduzido };
+  }) };
+  const resultadoItau = guard.corrigirSentido(entradasItau, planoItau);
+  assert.strictEqual(resultadoItau.corrigidos, 3, 'FI Itau real deve corrigir um sentido e duas contas bancarias');
+  assert.deepStrictEqual(resultadoItau.correcoes.map(function(c) { return c.idx + 1; }), [16, 30, 31]);
+  assert.strictEqual(resultadoItau.lancamentos[15].contaDebito, '11');
+  assert.strictEqual(resultadoItau.lancamentos[15].contaCredito, '32');
+  assert.strictEqual(resultadoItau.lancamentos[29].contaCredito, '11');
+  assert.strictEqual(resultadoItau.lancamentos[30].contaCredito, '11');
+  assert.ok(!resultadoItau.lancamentos.some(function(l) {
+    return guard.normalizarReduzido(l.contaDebito) === '13' || guard.normalizarReduzido(l.contaCredito) === '13';
+  }), 'Conta bancaria divergente 13 nao pode permanecer no FI desta conta fisica');
+  const debitoItau = resultadoItau.lancamentos.filter(function(l) { return guard.normalizarReduzido(l.contaDebito) === '11'; })
+    .reduce(function(soma, l) { return soma + Math.abs(l.valor); }, 0);
+  const creditoItau = resultadoItau.lancamentos.filter(function(l) { return guard.normalizarReduzido(l.contaCredito) === '11'; })
+    .reduce(function(soma, l) { return soma + Math.abs(l.valor); }, 0);
+  assert.strictEqual(Math.round(debitoItau * 100), 3806735);
+  assert.strictEqual(Math.round(creditoItau * 100), 3806735);
+
+  console.log('OK: FI Bradesco corrigido em 8 sentidos; FI Itau corrigido nas linhas 16, 30 e 31 e conciliado em R$ 38.067,35 por lado.');
 })().catch(function(err) {
   console.error(err);
   process.exit(1);

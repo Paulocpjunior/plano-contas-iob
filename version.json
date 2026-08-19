@@ -1,9 +1,9 @@
 {
-  "version": "3.4.164",
-  "build_date": "2026-08-19T19:35:21Z",
+  "version": "3.4.165",
+  "build_date": "2026-08-19T19:58:11Z",
   "release_notes": [
-    "Modelos gerais de Livro de Entradas e Livro de Saidas da SAGE disponíveis para qualquer empresa ativa",
-    "Entradas validadas pelo número da empresa no cadastro e código NNNN_ do arquivo; saídas validadas pelo CNPJ emitente das chaves NF-e",
-    "Direção fiscal, notas, chaves, CFOP, valores e impostos destacados conferidos antes da gravação"
+    "FI da SAGE passa a validar a conta bancária de cada extrato antes da exportação",
+    "Conta de disponibilidade divergente é corrigida somente com evidência dominante da mesma conta física",
+    "Extrato Itaú janeiro/2026 conciliado com 34 lançamentos e R$ 38.067,35 em cada lado"
   ]
 }
