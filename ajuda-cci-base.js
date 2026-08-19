@@ -30,8 +30,8 @@ const BASE_AJUDA_CCI = [
   },
   {
     modulo: 'Implantação exclusiva no CCI',
-    termos: ['saldos anteriores', 'saldo de abertura', 'substituir sage', 'modo exclusivo', 'implantação'],
-    orientacao: 'Empresas que começam a escrituração diretamente no CCI devem ter modo contábil exclusivo, início de escrituração e saldos de abertura cadastrados e aprovados. O painel de prontidão mostra pendências e a próxima ação antes do fechamento.'
+    termos: ['saldos anteriores', 'saldo anterior', 'saldo inicial', 'saldos iniciais', 'saldo de abertura', 'substituir sage', 'modo exclusivo', 'implantação'],
+    orientacao: 'Ative a empresa e abra Contábil > Saldos anteriores. Confira no Cadastro de Empresas se o modo contábil está como CCI — sistema único e se a data de início da escrituração está correta. Na competência inicial, informe somente contas analíticas no formato conta;valor: devedor positivo e credor negativo. O CCI mostra quantidade, total devedor, total credor e diferença. Salve e, com diferença zero, aprove os saldos de abertura. A aprovação fica habilitada somente na competência inicial. Os meses seguintes recebem o transporte automático após o fechamento; não recadastre o saldo manualmente.'
   },
   {
     modulo: 'Regime tributário',
@@ -91,4 +91,22 @@ function parecePerguntaAdministrativa(pergunta) {
   return /(reabrir|excluir (empresa|plano|lan[cç]amentos)|trocar plano|homologar|bloquear layout|promover.*admin|permiss[aã]o|gerenciar usu[aá]rios|respons[aá]ve(is|l))/i.test(texto);
 }
 
-module.exports = { BASE_AJUDA_CCI, ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa };
+function buscarOrientacaoAjuda(pergunta) {
+  const normalizar = (valor) => String(valor || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g, ' ').trim();
+  const texto = normalizar(pergunta);
+  if (!texto) return null;
+  let melhor = null;
+  BASE_AJUDA_CCI.forEach((item) => {
+    let pontos = 0;
+    (item.termos || []).forEach((termo) => {
+      const chave = normalizar(termo);
+      if (chave && texto.includes(chave)) pontos = Math.max(pontos, chave.split(' ').length * 10 + chave.length);
+    });
+    if (pontos && (!melhor || pontos > melhor.pontos)) melhor = { pontos, item };
+  });
+  return melhor ? { resposta: melhor.item.orientacao, resolvida: true, requer_admin: false, modulo: melhor.item.modulo, motivo: 'Base oficial determinística do CCI.' } : null;
+}
+
+module.exports = { BASE_AJUDA_CCI, ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa, buscarOrientacaoAjuda };

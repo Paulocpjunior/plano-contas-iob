@@ -2,6 +2,8 @@
 
 const assert = require('assert');
 const lote = require('../lancamentos-edicao-lote');
+const fs = require('fs');
+const path = require('path');
 
 function base() {
   return [
@@ -42,6 +44,12 @@ assert.throws(() => lote.aplicar(base(), ['a'], { historico: 'TESTE' }), /pelo m
 assert.throws(() => lote.aplicar(base(), ['a', 'b'], {}), /ao menos um campo/i);
 assert.throws(() => lote.aplicar(base(), ['a', 'b'], { codigoHistorico: '0000' }), /código de histórico/i);
 assert.throws(() => lote.aplicar(base(), ['a', 'c'], { contaDebito: '900' }), /mesma natureza/i);
+
+const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+assert(html.includes('id="filterNumeroLancamento"'), 'Lançamentos deve ter localizador por número.');
+assert(html.includes('function abrirModalEditarLancamento(idx)'), 'Lançamento existente deve abrir modal de edição.');
+assert(html.includes('historicoEdicoes.push'), 'Edição individual deve preservar trilha anterior.');
+assert(html.includes('está encerrado. Solicite a reabertura administrativa'), 'Edição individual deve bloquear competência encerrada.');
 
 {
   const entries = base();

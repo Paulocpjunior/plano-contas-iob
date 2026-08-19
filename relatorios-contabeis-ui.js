@@ -157,13 +157,14 @@ function preferenciasImpressao(ctx, sobrescritas) {
       .rc-hero h2{margin:4px 0;font-size:24px}.rc-hero p{margin:0;color:#dbeafe}.rc-status{padding:9px 13px;border:1px solid rgba(255,255,255,.3);border-radius:10px;background:rgba(255,255,255,.1);font-weight:800;font-size:12px}
       .rc-controls{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px;align-items:end}.rc-field label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px}.rc-field input,.rc-field select,.rc-field textarea{width:100%;padding:10px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a}.rc-field textarea{min-height:104px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}.rc-check{display:flex;align-items:center;gap:8px;min-height:40px;font-size:12px;font-weight:800;color:#334155}.rc-check input{width:auto}.rc-intervalo{display:none;grid-template-columns:1fr 1fr;gap:12px;grid-column:span 2}.rc-intervalo.active{display:grid}.rc-analysis-grid{display:grid;grid-template-columns:repeat(3,minmax(240px,1fr));gap:14px}.rc-analysis-card{padding:14px;border:1px solid #dbe4f0;border-radius:12px;background:#f8fafc}.rc-analysis-card h4{margin:0 0 6px;color:#1e3a8a}.rc-analysis-value{font-size:20px;font-weight:900;color:#0f172a}.rc-analysis-card small{display:block;margin-top:6px;color:#64748b;line-height:1.4}
       .rc-tabs{display:flex;gap:8px;flex-wrap:wrap}.rc-tab{padding:9px 14px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:800;cursor:pointer}.rc-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}.rc-tab[disabled]{opacity:.48;cursor:not-allowed}
+      .rc-opening-card{border:1px solid #93c5fd!important;background:linear-gradient(135deg,#eff6ff,#fff)}.rc-opening-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}.rc-opening-head h3{margin:0 0 5px;color:#172554}.rc-opening-grid{display:grid;grid-template-columns:minmax(280px,1.4fr) minmax(240px,.8fr);gap:16px;margin-top:14px}.rc-opening-guide{padding:13px 15px;border-radius:10px;background:#dbeafe;color:#1e3a8a;font-size:12px;line-height:1.6}.rc-opening-guide ol{margin:7px 0 0;padding-left:20px}.rc-opening-summary{display:grid;gap:9px}.rc-opening-summary .rc-kpi{padding:12px}.rc-opening-summary .rc-kpi strong{font-size:17px}.rc-opening-balance{padding:10px 12px;border-radius:9px;background:#ecfdf5;color:#065f46;font-weight:800}.rc-opening-balance.error{background:#fef2f2;color:#991b1b}
       .rc-actions{display:flex;gap:9px;flex-wrap:wrap}.rc-btn{padding:10px 14px;border:0;border-radius:9px;font-weight:800;cursor:pointer}.rc-btn.primary{background:#2563eb;color:#fff}.rc-btn.success{background:#059669;color:#fff}.rc-btn.email{background:#1d4ed8;color:#fff}.rc-btn.whatsapp{background:#16a34a;color:#fff}.rc-btn.warn{background:#f59e0b;color:#fff}.rc-btn.danger{background:#dc2626;color:#fff}.rc-btn.light{background:#e2e8f0;color:#0f172a}.rc-btn:disabled{opacity:.5;cursor:not-allowed}
       .rc-summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.rc-kpi{padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}.rc-kpi small{display:block;color:#64748b;font-weight:800;text-transform:uppercase}.rc-kpi strong{display:block;font-size:20px;margin-top:5px;color:#0f172a}.rc-ok{color:#047857}.rc-error{color:#b91c1c}.rc-alert{padding:12px 14px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px}.rc-table-wrap{overflow:auto;max-height:62vh;border:1px solid #e2e8f0;border-radius:12px}.rc-table{width:100%;border-collapse:collapse;font-size:12px}.rc-table.annual{min-width:1720px;font-size:10px}.rc-table.annual th,.rc-table.annual td{padding:7px 6px}.rc-table.annual th:first-child,.rc-table.annual td:first-child{position:sticky;left:0;z-index:2;background:inherit;min-width:280px}.rc-table th{position:sticky;top:0;z-index:1;background:#f1f5f9;color:#475569;text-transform:uppercase;font-size:10px;letter-spacing:.05em}.rc-table th,.rc-table td{padding:9px 10px;border-bottom:1px solid #e2e8f0;text-align:left;white-space:nowrap}.rc-table td.num,.rc-table th.num{text-align:right;font-variant-numeric:tabular-nums}.rc-account-row td{background:#eff6ff;font-weight:900;color:#1e3a8a}.rc-synthetic-row td{background:#f8fafc;font-weight:800}.rc-synthetic-row.rc-level-1 td{background:#dbeafe;color:#172554;font-weight:950;border-top:2px solid #93c5fd}.rc-synthetic-row.rc-level-2 td{background:#eff6ff;color:#1e3a8a;font-weight:900}.rc-settings{border:1px dashed #94a3b8;border-radius:12px;padding:14px}.rc-settings summary{cursor:pointer;font-weight:800;color:#334155}.rc-history{font-size:12px;color:#64748b}
       .rc-modal{position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,.72);display:grid;place-items:center;padding:18px}.rc-modal[hidden]{display:none}.rc-modal-panel{width:min(640px,100%);max-height:calc(100vh - 36px);overflow:auto;background:#fff;color:#0f172a;border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(2,6,23,.4)}.rc-modal-panel.wide{width:min(1180px,100%)}.rc-modal-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}.rc-modal-head h3{margin:0;font-size:20px}.rc-modal-head p{margin:5px 0 0;color:#64748b;font-size:13px}.rc-modal-close{border:0;background:transparent;color:inherit;font-size:24px;cursor:pointer}.rc-modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px;flex-wrap:wrap}.rc-print-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.rc-print-preview{margin-top:16px;height:min(64vh,720px);border:1px solid #cbd5e1;border-radius:12px;overflow:hidden;background:#fff}.rc-print-preview iframe{width:100%;height:100%;border:0;background:#fff}
       html[data-theme="dark"] .rc-field label,html[data-theme="dark"] .rc-history{color:#cbd5e1}html[data-theme="dark"] .rc-tab,html[data-theme="dark"] .rc-field input,html[data-theme="dark"] .rc-field select,html[data-theme="dark"] .rc-field textarea{background:#0b1220;color:#f8fafc;border-color:#475569;color-scheme:dark}html[data-theme="dark"] .rc-field input::placeholder,html[data-theme="dark"] .rc-field textarea::placeholder{color:#a8b5c8;opacity:1}html[data-theme="dark"] .rc-tab.active{background:#2563eb;border-color:#60a5fa}html[data-theme="dark"] .rc-kpi{background:#0b1220;border-color:#334155}html[data-theme="dark"] .rc-kpi small{color:#94a3b8}html[data-theme="dark"] .rc-kpi strong{color:#f8fafc}html[data-theme="dark"] .rc-table-wrap{border-color:#334155}html[data-theme="dark"] .rc-table th{background:#020617!important;color:#cbd5e1!important}html[data-theme="dark"] .rc-table td{border-color:#334155;color:#e2e8f0}html[data-theme="dark"] .rc-account-row td{background:#172554!important;color:#bfdbfe}html[data-theme="dark"] .rc-alert{background:#431407;border-color:#9a3412;color:#fed7aa}html[data-theme="dark"] .rc-settings{border-color:#475569}html[data-theme="dark"] .rc-settings summary{color:#e2e8f0}html[data-theme="dark"] .rc-btn.light{background:#334155;color:#f8fafc}html[data-theme="dark"] .rc-modal-panel{background:#111827;color:#f8fafc;border:1px solid #334155}html[data-theme="dark"] .rc-modal-head p{color:#cbd5e1}html[data-theme="dark"] .rc-print-preview{border-color:#334155}
       html[data-theme="dark"] .rc-synthetic-row td{background:#111827!important;color:#dbeafe}html[data-theme="dark"] .rc-synthetic-row.rc-level-1 td{background:#172554!important;color:#fff;border-top-color:#3b82f6}html[data-theme="dark"] .rc-synthetic-row.rc-level-2 td{background:#1e293b!important;color:#bfdbfe}
-      html[data-theme="dark"] .rc-analysis-card{background:#0b1220;border-color:#334155}html[data-theme="dark"] .rc-analysis-card h4{color:#bfdbfe}html[data-theme="dark"] .rc-analysis-value{color:#f8fafc}html[data-theme="dark"] .rc-analysis-card small,html[data-theme="dark"] .rc-check{color:#cbd5e1}
-      @media(max-width:900px){.rc-controls,.rc-summary,.rc-print-grid,.rc-analysis-grid{grid-template-columns:1fr 1fr}}@media(max-width:560px){.rc-controls,.rc-summary,.rc-print-grid,.rc-analysis-grid{grid-template-columns:1fr}.rc-intervalo{grid-column:auto;grid-template-columns:1fr}}
+      html[data-theme="dark"] .rc-analysis-card{background:#0b1220;border-color:#334155}html[data-theme="dark"] .rc-analysis-card h4{color:#bfdbfe}html[data-theme="dark"] .rc-analysis-value{color:#f8fafc}html[data-theme="dark"] .rc-analysis-card small,html[data-theme="dark"] .rc-check{color:#cbd5e1}html[data-theme="dark"] .rc-opening-card{background:linear-gradient(135deg,#102044,#0b1220);border-color:#2563eb!important}html[data-theme="dark"] .rc-opening-head h3{color:#dbeafe}html[data-theme="dark"] .rc-opening-guide{background:#172554;color:#dbeafe}
+      @media(max-width:900px){.rc-controls,.rc-summary,.rc-print-grid,.rc-analysis-grid,.rc-opening-grid{grid-template-columns:1fr 1fr}}@media(max-width:560px){.rc-controls,.rc-summary,.rc-print-grid,.rc-analysis-grid,.rc-opening-grid{grid-template-columns:1fr}.rc-intervalo{grid-column:auto;grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
   }
@@ -190,9 +191,14 @@ function preferenciasImpressao(ctx, sobrescritas) {
           <div class="rc-tabs" style="margin-top:16px"><button class="rc-tab active" data-rc-tipo="balancete">Balancete</button><button class="rc-tab" data-rc-tipo="balancete_anual">Balancete Anual</button><button class="rc-tab" data-rc-tipo="razao">Razão Analítico</button><button class="rc-tab" data-rc-tipo="diario">Livro Diário</button><button class="rc-tab" data-rc-tipo="dre">DRE</button><button class="rc-tab" data-rc-tipo="balanco">Balanço Patrimonial</button><button class="rc-tab" data-rc-tipo="analise">Análise Econômico-Financeira</button></div>
         <div class="rc-actions" style="margin-top:16px"><button class="rc-btn primary" id="rcAtualizar">Atualizar prévia</button><button class="rc-btn light" id="rcImprimir">Visualizar impressão</button><button class="rc-btn light" id="rcPdf">Exportar PDF</button><button class="rc-btn success" id="rcExcel">Exportar Excel</button><button class="rc-btn email" id="rcEmail">✉️ Enviar PDF por e-mail</button><button class="rc-btn whatsapp" id="rcWhatsapp">💬 Enviar PDF no WhatsApp</button><button class="rc-btn warn" id="rcFechar">Encerrar período</button><button class="rc-btn danger" id="rcReabrir" style="display:none">Reabrir período</button></div>
         </section>
+        <section class="card rc-opening-card" id="rcSaldosAberturaSecao" style="padding:20px">
+          <div class="rc-opening-head"><div><small style="font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#2563eb">Implantação contábil</small><h3>📥 Saldos anteriores / de abertura</h3><p class="rc-history" id="rcSaldosContexto" style="margin:0">Cadastre a posição patrimonial anterior à primeira competência escriturada no CCI.</p></div><button class="rc-btn light" type="button" id="rcIrCadastroEmpresa">Conferir início da escrituração</button></div>
+          <div id="rcAberturaControle" class="rc-alert" style="display:none;margin-top:14px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><strong id="rcAberturaTitulo">Implantação contábil no CCI</strong><div id="rcAberturaStatus" style="margin-top:4px"></div></div><button class="rc-btn primary" id="rcAprovarSaldos" type="button">Aprovar saldos de abertura</button></div></div>
+          <details class="rc-settings" id="rcSaldosDetalhes" open style="margin-top:14px"><summary>Informar saldos por conta analítica</summary><div class="rc-opening-grid"><div><div class="rc-opening-guide"><strong>Como preencher</strong><ol><li>Use somente contas analíticas do plano ativo.</li><li>Informe uma linha no formato <strong>conta;valor</strong>.</li><li>Saldo devedor é positivo; saldo credor é negativo.</li><li>Débitos e créditos devem ter o mesmo total.</li></ol></div><div class="rc-field" style="margin-top:12px"><label>Saldos anteriores</label><textarea id="rcSaldos" placeholder="111;1500,00&#10;211;-1500,00"></textarea></div><div class="rc-actions" style="margin-top:10px"><button class="rc-btn primary" id="rcSalvarSaldos">Salvar saldos anteriores</button></div></div><aside class="rc-opening-summary"><div class="rc-kpi"><small>Contas informadas</small><strong id="rcSaldosQuantidade">0</strong></div><div class="rc-kpi"><small>Total devedor</small><strong id="rcSaldosDebitos">R$ 0,00</strong></div><div class="rc-kpi"><small>Total credor</small><strong id="rcSaldosCreditos">R$ 0,00</strong></div><div class="rc-opening-balance" id="rcSaldosDiferenca">Diferença: R$ 0,00</div></aside></div></details>
+          <div id="rcHistorico" class="rc-history" style="margin-top:14px"></div>
+        </section>
         <section class="card" style="padding:20px"><div class="rc-summary" id="rcResumo"></div><div id="rcAvisos" style="margin-top:12px"></div></section>
         <section class="card" style="padding:20px"><div id="rcTituloTabela" style="font-size:17px;font-weight:900;margin-bottom:12px"></div><div class="rc-table-wrap"><table class="rc-table"><thead id="rcHead"></thead><tbody id="rcBody"></tbody></table></div></section>
-        <section class="card" style="padding:20px"><div id="rcAberturaControle" class="rc-alert" style="display:none;margin-bottom:12px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><strong id="rcAberturaTitulo">Implantação contábil no CCI</strong><div id="rcAberturaStatus" style="margin-top:4px"></div></div><button class="rc-btn primary" id="rcAprovarSaldos" type="button">Aprovar saldos de abertura</button></div></div><details class="rc-settings"><summary>Saldos iniciais da competência</summary><p class="rc-history">Informe uma conta por linha no formato <strong>conta;valor</strong>. Saldo devedor positivo; saldo credor negativo. O fechamento transporta automaticamente os saldos para a competência seguinte.</p><div class="rc-field"><textarea id="rcSaldos"></textarea></div><button class="rc-btn primary" id="rcSalvarSaldos" style="margin-top:10px">Salvar saldos iniciais</button></details><div id="rcHistorico" class="rc-history" style="margin-top:14px"></div></section>
         <section class="card" style="padding:20px"><h3 style="margin-top:0">Conciliação bancária formal</h3><p class="rc-history">Informe a conta contábil do banco e o saldo final do extrato. O CCI confronta saldo anterior + débitos − créditos com o extrato e registra a aprovação com usuário, data e hash da sessão.</p><div class="rc-controls"><div class="rc-field"><label>Conta bancária</label><input id="rcConciliacaoConta" placeholder="Reduzido ou código"></div><div class="rc-field"><label>Saldo final do extrato</label><input id="rcConciliacaoSaldo" inputmode="decimal" placeholder="0,00"></div><div class="rc-actions"><button class="rc-btn light" id="rcConciliacaoAvaliar">Conferir diferença</button><button class="rc-btn success" id="rcConciliacaoAprovar" disabled>Aprovar conciliação</button></div></div><div id="rcConciliacaoResultado" style="margin-top:12px"></div></section>
       </div>
       <div class="rc-modal" id="rcEmailModal" hidden role="dialog" aria-modal="true" aria-labelledby="rcEmailTitulo">
@@ -241,6 +247,8 @@ function preferenciasImpressao(ctx, sobrescritas) {
     document.getElementById('rcImpressaoExportar').addEventListener('click', exportarPreviaImpressao);
     document.getElementById('rcImpressaoModal').addEventListener('click', function (evento) { if (evento.target === evento.currentTarget) fecharModalImpressao(); });
     document.getElementById('rcSalvarSaldos').addEventListener('click', salvarSaldos);
+    document.getElementById('rcSaldos').addEventListener('input', atualizarResumoSaldos);
+    document.getElementById('rcIrCadastroEmpresa').addEventListener('click', function () { if (typeof window.abrirCadastroEmpresa === 'function') window.abrirCadastroEmpresa(); });
     document.getElementById('rcAprovarSaldos').addEventListener('click', aprovarSaldosAbertura);
     document.getElementById('rcFechar').addEventListener('click', fecharPeriodo);
     document.getElementById('rcReabrir').addEventListener('click', reabrirPeriodo);
@@ -457,7 +465,42 @@ function preferenciasImpressao(ctx, sobrescritas) {
       el.title = transporte ? 'Saldo transportado automaticamente do fechamento de ' + transporte.periodo_origem + '.' : '';
     }
     const salvar = document.getElementById('rcSalvarSaldos');
-    if (salvar) { salvar.disabled = !!transporte; salvar.textContent = transporte ? 'Saldo transportado e protegido' : 'Salvar saldos iniciais'; }
+    if (salvar) { salvar.disabled = !!transporte; salvar.textContent = transporte ? 'Saldo transportado e protegido' : 'Salvar saldos anteriores'; }
+    atualizarResumoSaldos();
+  }
+
+  function resumoSaldosDigitados() {
+    const saldos = parseSaldos();
+    return Object.keys(saldos).reduce(function (resumo, conta) {
+      const valor = Number(saldos[conta] || 0);
+      resumo.quantidade += Math.abs(valor) >= 0.005 ? 1 : 0;
+      if (valor > 0) resumo.debitos += valor;
+      if (valor < 0) resumo.creditos += Math.abs(valor);
+      return resumo;
+    }, { quantidade: 0, debitos: 0, creditos: 0 });
+  }
+
+  function atualizarResumoSaldos() {
+    const quantidade = document.getElementById('rcSaldosQuantidade');
+    const debitos = document.getElementById('rcSaldosDebitos');
+    const creditos = document.getElementById('rcSaldosCreditos');
+    const diferenca = document.getElementById('rcSaldosDiferenca');
+    if (!quantidade || !debitos || !creditos || !diferenca) return;
+    try {
+      const resumo = resumoSaldosDigitados();
+      const valorDiferenca = Math.abs(resumo.debitos - resumo.creditos);
+      quantidade.textContent = String(resumo.quantidade);
+      debitos.textContent = 'R$ ' + moeda(resumo.debitos);
+      creditos.textContent = 'R$ ' + moeda(resumo.creditos);
+      diferenca.textContent = 'Diferença: R$ ' + moeda(valorDiferenca);
+      diferenca.classList.toggle('error', valorDiferenca >= 0.005);
+    } catch (e) {
+      quantidade.textContent = '—';
+      debitos.textContent = 'R$ —';
+      creditos.textContent = 'R$ —';
+      diferenca.textContent = e.message || 'Formato inválido.';
+      diferenca.classList.add('error');
+    }
   }
 
   function parseSaldos() {
@@ -532,6 +575,19 @@ function preferenciasImpressao(ctx, sobrescritas) {
     if (!exclusiva || tipoAtual === 'balancete_anual') return;
     const periodo = periodoSelecionado();
     const periodoAbertura = String(imp.inicio_escrituracao_cci || '').slice(0, 7);
+    const inicio = String(imp.inicio_escrituracao_cci || '').slice(0, 10);
+    const contextoEl = document.getElementById('rcSaldosContexto');
+    if (contextoEl) {
+      let referencia = '';
+      if (inicio) {
+        const partes = inicio.split('-').map(Number);
+        const anterior = new Date(partes[0], partes[1] - 1, partes[2] - 1);
+        referencia = anterior.toLocaleDateString('pt-BR');
+      }
+      contextoEl.textContent = periodoAbertura
+        ? 'Competência inicial: ' + periodoAbertura + '. Informe a posição das contas em ' + (referencia || 'data imediatamente anterior') + '; os meses seguintes serão transportados automaticamente após o fechamento.'
+        : 'Defina primeiro o modo contábil e a data de início da escrituração no Cadastro de Empresas.';
+    }
     const aprovado = imp.saldo_abertura_status === 'aprovado' && imp.saldo_abertura_periodo === periodoAbertura;
     document.getElementById('rcAberturaTitulo').textContent = 'CCI como sistema contábil único — ' + (imp.regime_tributario_nome || nomeRegime(imp.regime_tributario_codigo));
     document.getElementById('rcAberturaStatus').textContent = aprovado
@@ -956,6 +1012,23 @@ function preferenciasImpressao(ctx, sobrescritas) {
       const periodo = document.getElementById('rcPeriodo');
       if (ctx && periodo && !periodo.value) periodo.value = competenciaPadrao(ctx.entries);
       await abrirModalImpressao();
+    },
+    abrirSaldosAnteriores: async function () {
+      if (!inicializado) montarTela();
+      await carregarStatus();
+      const imp = (statusAtual && statusAtual.implantacao) || {};
+      const periodoAbertura = String(imp.inicio_escrituracao_cci || '').slice(0, 7);
+      const periodo = document.getElementById('rcPeriodo');
+      const intervalo = document.getElementById('rcUsarIntervalo');
+      if (intervalo) intervalo.checked = false;
+      if (periodoAbertura && periodo) periodo.value = periodoAbertura;
+      atualizarModoPeriodo();
+      preencherSaldos();
+      render();
+      const detalhes = document.getElementById('rcSaldosDetalhes');
+      if (detalhes) detalhes.open = true;
+      const secao = document.getElementById('rcSaldosAberturaSecao');
+      if (secao) secao.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
     render: render
   };

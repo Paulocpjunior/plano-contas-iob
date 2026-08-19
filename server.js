@@ -24,7 +24,7 @@ const AtivoImobilizado = require('./ativo-imobilizado');
 const AtivoImobilizadoContabil = require('./ativo-imobilizado-contabil');
 const ConciliacaoContabil = require('./conciliacao-contabil');
 const GraphEmail = require('./graph-email-provider');
-const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa } = require('./ajuda-cci-base');
+const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa, buscarOrientacaoAjuda } = require('./ajuda-cci-base');
 const { conteudo: MANUAL_CCI } = require('./manual-cci-base');
 const { extractAccountingPdf } = require('./auditai/pdf-contabil-extractor');
 
@@ -4386,7 +4386,8 @@ app.post('/api/ajuda-cci/perguntar', async (req, res) => {
   const pagina = String(body.pagina || '').trim().slice(0, 120);
   const versao = String(body.versao || '').trim().slice(0, 30);
   const detectouAdmin = parecePerguntaAdministrativa(pergunta);
-  let resultado = {
+  const orientacaoLocal = detectouAdmin ? null : buscarOrientacaoAjuda(pergunta);
+  let resultado = orientacaoLocal || {
     resposta: detectouAdmin
       ? `Essa solicitação envolve uma função administrativa. As ações restritas incluem: ${ACOES_ADMIN_CCI.join('; ')}. Procure um administrador e informe a empresa, a tela e a ação desejada.`
       : 'Ainda não há uma orientação oficial suficiente para responder com segurança. A pergunta será registrada como sugestão para revisão.',
@@ -4396,7 +4397,7 @@ app.post('/api/ajuda-cci/perguntar', async (req, res) => {
     motivo: detectouAdmin ? 'Ação sensível protegida por permissão administrativa.' : 'Base oficial insuficiente.'
   };
 
-  if (!detectouAdmin) {
+  if (!detectouAdmin && !orientacaoLocal) {
     const client = getGeminiClient();
     if (client) {
       const systemInstruction = `Você é a Ajuda CCI, assistente operacional do Consultor Contábil Inteligente.\n

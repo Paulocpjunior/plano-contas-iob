@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.12",
+  "manual_version": "2.13",
   "updated_at": "2026-08-19",
-  "app_reference": "3.4.162",
+  "app_reference": "3.4.163",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -78,8 +78,27 @@
       ]
     },
     {
+      "id": "saldos-anteriores",
+      "title": "4. Saldos anteriores e implantação da empresa",
+      "keywords": ["saldo inicial", "saldos anteriores", "saldo de abertura", "implantação", "competência inicial"],
+      "blocks": [
+        {"type": "paragraph", "text": "O saldo anterior representa a posição patrimonial imediatamente anterior ao início da escrituração no CCI. Ele não é uma nova importação bancária e não deve ser repetido em cada mês."},
+        {"type": "steps", "items": [
+          "Ativar a empresa e abrir Cadastro de Empresas.",
+          "Definir Modo contábil como CCI — sistema único e conferir a data de início da escrituração.",
+          "Abrir Contábil > Saldos anteriores; o CCI selecionará automaticamente a competência inicial.",
+          "Informar somente contas analíticas do plano ativo, uma por linha no formato conta;valor.",
+          "Usar valor positivo para saldo devedor e negativo para saldo credor.",
+          "Conferir quantidade, total devedor, total credor e diferença; a diferença deve ser zero.",
+          "Salvar os saldos e aprovar a abertura. A aprovação somente fica disponível na competência inicial.",
+          "Nos meses seguintes, utilizar o transporte automático produzido pelo fechamento; não recadastrar manualmente."
+        ]},
+        {"type": "callout", "tone": "warning", "label": "Travas", "text": "O CCI rejeita conta inexistente, conta sintética, saldo vazio e abertura sem igualdade entre débitos e créditos. Período encerrado ou saldo transportado ficam protegidos contra alteração manual."}
+      ]
+    },
+    {
       "id": "fluxo-mensal",
-      "title": "4. Fluxo mensal recomendado",
+      "title": "5. Fluxo mensal recomendado",
       "keywords": ["rotina", "fluxo", "mês", "competência"],
       "blocks": [
         {"type": "steps", "items": [
@@ -98,7 +117,7 @@
     },
     {
       "id": "importacao-bancaria",
-      "title": "5. Importação de extrato bancário",
+      "title": "6. Importação de extrato bancário",
       "keywords": ["extrato", "banco", "ofx", "pdf", "duplicidade"],
       "blocks": [
         {"type": "checklist", "items": [
@@ -117,7 +136,7 @@
     },
     {
       "id": "importacao-fiscal",
-      "title": "5A. Importação de movimento fiscal",
+      "title": "6A. Importação de movimento fiscal",
       "keywords": ["movimento fiscal", "sage", "impostos retidos", "serviços", "cnpj"],
       "blocks": [
         {"type": "checklist", "items": [
@@ -140,7 +159,7 @@
     },
     {
       "id": "classificacao-memoria",
-      "title": "6. Classificação e memorização",
+      "title": "7. Classificação e memorização",
       "keywords": ["classificar", "memorizar", "cobrança", "histórico", "fornecedor"],
       "blocks": [
         {"type": "bullets", "items": [
@@ -149,6 +168,8 @@
           "Revisar sentido bancário e natureza da operação antes de memorizar.",
           "Para alterar duas ou mais linhas, marque os lançamentos e use Alterar selecionados; escolha somente os campos que serão replicados e confirme a quantidade.",
           "A alteração em lote preserva data, valor, descrição e documento. Contas só podem ser aplicadas quando todos os selecionados tiverem a mesma natureza.",
+          "Cada lançamento recebe uma numeração permanente na empresa. Em Lançamentos, use o filtro Nº do lançamento para localizar diretamente um registro já importado.",
+          "Para editar um lançamento existente, clique no lápis da linha. O CCI preserva a origem da importação, registra os valores anteriores, o usuário e a data da alteração, e bloqueia a edição quando a competência estiver encerrada.",
           "Lançamentos já memorizados também podem ser corrigidos em lote. Para levar a correção às próximas importações, o administrador deve marcar Atualizar também a memória da empresa; a mudança é auditada e não ocorre silenciosamente.",
           "Descrições como Cobrança, Pagamento ou Transferência são genéricas; conservar fornecedor, cliente, documento ou identificador.",
           "Memorizar somente quando a regra se repete e não depende de exceção.",
@@ -158,7 +179,7 @@
     },
     {
       "id": "relatorios-fechamento",
-      "title": "7. Conciliação, relatórios e fechamento",
+      "title": "8. Conciliação, relatórios e fechamento",
       "keywords": ["conciliação", "balancete", "razão", "diário", "dre", "balanço", "fechar"],
       "blocks": [
         {"type": "paragraph", "text": "Débitos e créditos iguais não provam que a contabilidade está correta. Ainda podem existir conta incorreta, duplicidade, ausência de movimento ou diferença bancária."},
@@ -191,7 +212,7 @@
     },
     {
       "id": "regime-tributario",
-      "title": "8. Regime tributário e parametrizações",
+      "title": "9. Regime tributário e parametrizações",
       "keywords": ["simples nacional", "lucro presumido", "lucro real", "isenta", "imune", "terceiro setor", "cnae", "gemini", "cfi", "parametrização"],
       "blocks": [
         {"type": "paragraph", "text": "O regime tributário vem do cadastro oficial do CFI. O CCI não deve inferir enquadramento por porte, CNAE ou movimentação. Divergências devem ser corrigidas no CFI e sincronizadas novamente."},
@@ -208,7 +229,7 @@
     },
     {
       "id": "ecd-ecf-ativo",
-      "title": "9. ECD/ECF, ativo e depreciação",
+      "title": "10. ECD/ECF, ativo e depreciação",
       "keywords": ["ecd", "ecf", "ativo", "depreciação", "baixa"],
       "blocks": [
         {"type": "paragraph", "text": "A ECD/ECF faz parte da operação atual. Conferir matriz, filiais, CNPJ, período, registros estruturais, validações internas e PVA; preservar arquivo transmitido, recibo e relatório de validação."},
@@ -218,7 +239,7 @@
     },
     {
       "id": "permissoes",
-      "title": "10. Permissões e segurança",
+      "title": "11. Permissões e segurança",
       "keywords": ["admin", "administrador", "permissão", "login", "senha", "reabrir", "excluir"],
       "blocks": [
         {"type": "paragraph", "text": "O usuário deve autenticar novamente a cada novo acesso. Nunca compartilhar senha, token, arquivo bancário ou dado pessoal na Ajuda CCI."},
@@ -232,7 +253,7 @@
     },
     {
       "id": "pendencias",
-      "title": "11. Pendências para substituir definitivamente a SAGE",
+      "title": "12. Pendências para substituir definitivamente a SAGE",
       "keywords": ["pendências", "substituir sage", "próximos passos", "piloto"],
       "blocks": [
         {"type": "table", "headers": ["Prioridade", "Pendência", "Critério de conclusão"], "rows": [
@@ -248,7 +269,7 @@
     },
     {
       "id": "duas-frentes",
-      "title": "12. Próxima frente: divisão do trabalho",
+      "title": "13. Próxima frente: divisão do trabalho",
       "keywords": ["paulo", "equipe", "codex", "desenvolvimento", "tarefas"],
       "blocks": [
         {"type": "definitions", "items": [

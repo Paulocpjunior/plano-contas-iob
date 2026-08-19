@@ -10,6 +10,8 @@ assert(base.BASE_AJUDA_CCI.length >= 10, 'A base oficial deve cobrir os principa
 assert(base.textoBaseAjuda().includes('Importação bancária'), 'A base deve orientar a importação bancária.');
 assert(base.parecePerguntaAdministrativa('Como reabrir o período?'), 'Reabertura deve ser reconhecida como ação administrativa.');
 assert(!base.parecePerguntaAdministrativa('Como importar um extrato?'), 'Importação comum não deve ser marcada como ação administrativa.');
+const saldoInicial = base.buscarOrientacaoAjuda('como implementar saldo inicial de uma empresa');
+assert(saldoInicial && saldoInicial.resolvida && saldoInicial.resposta.includes('Contábil > Saldos anteriores'), 'Saldo inicial deve ser respondido localmente mesmo sem cota de IA.');
 
 const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 assert(server.includes("app.post('/api/ajuda-cci/perguntar'"), 'A rota autenticada da Ajuda CCI deve existir.');
@@ -26,8 +28,8 @@ assert(index.includes('/ajuda-cci.js?v='), 'O frontend da Ajuda CCI deve ser car
 
 const frontend = fs.readFileSync(path.join(root, 'ajuda-cci.js'), 'utf8');
 const novidades = fs.readFileSync(path.join(root, 'novidades-cci.html'), 'utf8');
-assert(frontend.includes("const NOVIDADES_VERSAO = '2026-08-18.8'"), 'A versão visual das novidades deve ser explícita.');
-assert(novidades.includes('Atualizado em 18/08/2026'), 'A página deve declarar a mesma data da versão visual.');
+assert(frontend.includes("const NOVIDADES_VERSAO = '2026-08-19.2'"), 'A versão visual das novidades deve ser explícita.');
+assert(novidades.includes('Atualizado em 19/08/2026'), 'A página deve declarar a mesma data da versão visual.');
 assert(novidades.includes('Quatro modalidades no Movimento Fiscal'), 'Novidades deve registrar a restauração dos quatro modelos fiscais.');
 assert(novidades.includes('Novos layouts Banco do Brasil e Itaú'), 'Novidades deve registrar os novos layouts bancários homologados.');
 assert(novidades.includes('Demonstrativo SAGE de impostos retidos'), 'Novidades deve registrar o novo relatório fiscal genérico.');

@@ -40,5 +40,9 @@ assert.match(html, /empSincronizarRegimeCfi/);
 const relatorios = fs.readFileSync(path.join(__dirname, '..', 'relatorios-contabeis-ui.js'), 'utf8');
 assert.match(relatorios, /Aprovar saldos de abertura/);
 assert.match(relatorios, /aprovarSaldosAbertura/);
+assert.match(relatorios, /Saldos anteriores \/ de abertura/);
+assert.match(relatorios, /abrirSaldosAnteriores/);
+assert.match(relatorios, /rcSaldosDiferenca/);
+assert.match(html, /onclick="abrirSaldosAnteriores\(\)"/);
 
 console.log('OK: regime CFI, modo contábil e validação dos saldos de abertura');
