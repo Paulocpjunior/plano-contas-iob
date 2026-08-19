@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.4.159';
+  const AUDITAI_MOTOR_VERSION = '3.4.160';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.159';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.160';
 
   const STATE = {
     files: { a: null, b: null },
@@ -299,7 +299,8 @@
     return -1;
   }
 
-  function rowsFromMatrix(matrix) {
+  function rowsFromMatrix(matrix, options) {
+    options = options || {};
     const rows = matrix.filter(function (r) { return r.some(function (v) { return String(v || '').trim() !== ''; }); });
     if (!rows.length) return [];
     const headerRow = findHeaderRow(rows);
@@ -310,14 +311,21 @@
     const descCol = findHeaderIndex(headers, [/DESCRICAO/, /HISTORICO/, /CLIENTE/, /FORNECEDOR/, /FAVORECIDO/, /NOME/]);
     const creditCol = findHeaderIndex(headers, [/ENTRADAS?/, /CREDITOS?/, /CREDITO/]);
     const debitCol = findHeaderIndex(headers, [/SAIDAS?/, /DEBITOS?/, /DEBITO/]);
+    const context = normalizeText(options.context || '');
+    const paymentReport = creditCol < 0 && debitCol < 0 && /\b(PAGAMENTO|PAGAMENTOS)\b/.test(context);
     return rows.slice(headerRow + 1).map(function (r, i) {
       const joined = r.join(' ');
+      const primaryLabel = String(r[dateCol >= 0 ? dateCol : 0] || '').trim();
+      if (/^(?:TOTAL|SUBTOTAL|SALDO(?:\s+FINAL)?)\b/i.test(primaryLabel)) return null;
       let amount = null;
       const credit = creditCol >= 0 ? parseMoney(r[creditCol]) : null;
       const debit = debitCol >= 0 ? parseMoney(r[debitCol]) : null;
       if (credit !== null && Math.abs(credit) > 0) amount = Math.abs(credit);
       else if (debit !== null && Math.abs(debit) > 0) amount = -Math.abs(debit);
-      else amount = parseMoney(r[cols.amount]);
+      else {
+        amount = parseMoney(r[cols.amount]);
+        if (paymentReport && amount !== null) amount = -Math.abs(amount);
+      }
       const doc = docCol >= 0 ? String(r[docCol] || '').trim() : '';
       const desc = descCol >= 0 ? String(r[descCol] || '').trim() : (r[cols.desc] || joined);
       return buildRow({
@@ -327,12 +335,12 @@
         amount: amount,
         raw: joined
       });
-    }).filter(function (r) { return r.amount !== null && Math.abs(r.amount) > 0 && r.description; });
+    }).filter(function (r) { return r && r.amount !== null && Math.abs(r.amount) > 0 && r.description; });
   }
 
-  function rowsFromSheet(sheet) {
+  function rowsFromSheet(sheet, sheetName) {
     const matrix = window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, blankrows: false });
-    return rowsFromMatrix(matrix);
+    return rowsFromMatrix(matrix, { context: sheetName || '' });
   }
 
   function splitDelimitedLine(line, delimiter) {
@@ -780,7 +788,7 @@
     const ext = file.name.split('.').pop().toLowerCase();
     if (ext === 'xlsx' || ext === 'xls') {
       const wb = window.XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
-      return wb.SheetNames.flatMap(function (name) { return rowsFromSheet(wb.Sheets[name]); });
+      return wb.SheetNames.flatMap(function (name) { return rowsFromSheet(wb.Sheets[name], file.name + ' ' + name); });
     }
     if (ext === 'csv' || ext === 'tsv') return rowsFromDelimitedText(await file.text(), ext);
     if (ext === 'pdf') return parsePdf(file);
@@ -1203,6 +1211,36 @@
       });
     });
 
+    function groupOpenByAmount(rows, usedSet, ambiguousSet) {
+      const grouped = new Map();
+      rows.forEach(function (row, index) {
+        if (usedSet.has(index) || ambiguousSet.has(index)) return;
+        if (!row.date || !Number.isFinite(row.amount) || Math.abs(row.amount) === 0) return;
+        const key = [row.amount < 0 ? 'D' : 'C', Math.abs(row.amount).toFixed(2)].join('|');
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push({ row: row, index: index });
+      });
+      return grouped;
+    }
+
+    const openAByAmount = groupOpenByAmount(aRows, usedA, ambiguousA);
+    const openBByAmount = groupOpenByAmount(bRows, usedB, ambiguousB);
+    openAByAmount.forEach(function (left, key) {
+      const right = openBByAmount.get(key) || [];
+      if (left.length !== 1 || right.length !== 1) return;
+      const dateGap = daysBetween(left[0].row.date, right[0].row.date);
+      if (dateGap < 1 || dateGap > 10) return;
+      ambiguousA.add(left[0].index);
+      ambiguousB.add(right[0].index);
+      ambiguous.push({
+        aRows: [left[0].row],
+        bRows: [right[0].row],
+        amountDiff: 0,
+        dateGap: dateGap,
+        reason: 'mesmo valor e sentido; datas divergentes em ' + dateGap + ' dia(s) - confirmar'
+      });
+    });
+
     const outOfScopeAIndexes = new Set();
     const outOfScopeBIndexes = new Set();
     aRows.forEach(function (row, index) {
@@ -1547,7 +1585,7 @@
       '<h3 class="font-black text-slate-900 dark:text-white mb-2">Como interpretar este resultado</h3>' +
       '<div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs leading-relaxed">' +
       '<div><strong>Conciliados automaticamente:</strong> data, valor e descricao/lote ficaram consistentes entre os dois arquivos. Estes itens entram na cobertura fechada.</div>' +
-      '<div><strong>Revisao manual:</strong> existe mesma data e valor, mas ha mais de uma opcao possivel. O colaborador decide qual contraparte e correta.</div>' +
+      '<div><strong>Revisao manual:</strong> existe mais de uma opcao para a mesma data e valor, ou o mesmo valor e sentido aparece em data diferente dentro de 10 dias. O colaborador confirma a contraparte correta.</div>' +
       '<div><strong>Sem vinculo:</strong> item transacional que nao encontrou contraparte suficiente. Deve ser conferido no arquivo de origem antes de concluir a conciliacao.</div>' +
       '<div><strong>Cobertura consolidada:</strong> totais ou lotes explicados por data e natureza. Serve como evidência de fechamento, sem entrar como revisão manual.</div>' +
       '<div><strong>Fora do escopo:</strong> ' + outScope + ' item(ns) informativo(s), aplicacao/resgate/rendimento ou saldo que nao deve reduzir a qualidade da conciliacao.</div>' +
@@ -1766,6 +1804,7 @@
     parseItauMonthlyLines: parseItauMonthlyLines,
     reconcileRows: reconcileRows,
     renderOutOfScope: renderOutOfScope,
+    rowsFromMatrix: rowsFromMatrix,
     rowsFromDelimitedText: rowsFromDelimitedText,
     rowsFromText: rowsFromText,
     parseMoney: parseMoney

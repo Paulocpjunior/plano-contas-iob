@@ -1,13 +1,17 @@
 const assert = require('assert');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const pdf = require('pdf-parse');
+const XLSX = require('xlsx');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const AUDITAI_ENGINE = path.join(REPO_ROOT, 'auditai', 'conciliacao-arquivos.js');
 const ARQUIVO_A = '/Users/paulocesarpereirajunior/Downloads/EXTRATO LITE ITAU 1154 DETALHADO 04.26.pdf';
 const ARQUIVO_B = '/Users/paulocesarpereirajunior/Downloads/Extrato Mensal_Abril2026 itau consolidado.pdf';
+const ARQUIVO_MANTOAN_PDF = '/Users/paulocesarpereirajunior/Downloads/ExtratoJulho2026 (1).pdf';
+const ARQUIVO_MANTOAN_XLSX = '/Users/paulocesarpereirajunior/Downloads/Relatorio_Pagamentos_Clinica_Mantoan.xlsx';
 
 function loadAuditAiTestApi() {
   const sandbox = {
@@ -81,7 +85,27 @@ async function main() {
     api.renderOutOfScope(result.outOfScopeB);
   }, 'Renderizacao de Fora do escopo nao deve chamar helper inexistente no navegador');
 
-  console.log(`OK: AuditAI concilia ${path.basename(ARQUIVO_A)} x ${path.basename(ARQUIVO_B)} com layouts Itau gravados no motor.`);
+  assert.strictEqual(crypto.createHash('sha256').update(fs.readFileSync(ARQUIVO_MANTOAN_PDF)).digest('hex'), '06bf9d518543f7daffa650caafc5d5a7afa065b27b7b08723fbb2d9ba05b7e7d');
+  assert.strictEqual(crypto.createHash('sha256').update(fs.readFileSync(ARQUIVO_MANTOAN_XLSX)).digest('hex'), 'f11f1804b9f7206526f4d744ea00fc99a64a37f36bacf901ef9f51d19bbf8dc5');
+  const mantoanPdf = await textLines(ARQUIVO_MANTOAN_PDF);
+  const mantoanBankRows = api.parseItauMonthlyLines(mantoanPdf.lines, mantoanPdf.text);
+  const mantoanWorkbook = XLSX.read(fs.readFileSync(ARQUIVO_MANTOAN_XLSX), { type: 'buffer', cellDates: true });
+  const mantoanSheetName = mantoanWorkbook.SheetNames[0];
+  const mantoanMatrix = XLSX.utils.sheet_to_json(mantoanWorkbook.Sheets[mantoanSheetName], { header: 1, raw: true, blankrows: false });
+  const mantoanPaymentRows = api.rowsFromMatrix(mantoanMatrix, { context: mantoanSheetName });
+  assert.strictEqual(mantoanPaymentRows.length, 3, 'Relatorio Pagamentos deve ignorar a linha TOTAL');
+  assert.deepStrictEqual(mantoanPaymentRows.map(row => row.amount), [-1050, -166.4, -5155.33], 'Valores do Relatorio Pagamentos devem ser tratados como saidas');
+  assert.ok(mantoanBankRows.some(row => row.date === '2026-07-21' && row.amount === -1050 && /MARCIA CRIST/i.test(row.description)), 'Extrato Mantoan deve reconhecer o PIX de 1.050,00');
+  assert.ok(mantoanBankRows.some(row => row.date === '2026-07-14' && row.amount === -166.4), 'Extrato Mantoan deve reconhecer o debito de 166,40');
+  assert.ok(mantoanBankRows.some(row => row.date === '2026-07-24' && row.amount === -5155.33), 'Extrato Mantoan deve reconhecer o debito de 5.155,33');
+  const mantoanResult = api.reconcileRows(mantoanPaymentRows, mantoanBankRows);
+  assert.strictEqual(mantoanResult.matches.filter(match => [1050, 166.4, 5155.33].includes(Math.abs(match.a.amount))).length, 1, 'Somente o pagamento com data e favorecida compativeis deve ser automatico');
+  assert.ok(mantoanResult.matches.some(match => Math.abs(match.a.amount) === 1050), 'Pagamento de 1.050,00 deve conciliar automaticamente por data, valor e favorecida');
+  assert.ok(mantoanResult.ambiguous.some(item => Math.abs(item.aRows[0].amount) === 166.4 && item.dateGap === 10), 'Pagamento de 166,40 deve ir para revisao manual por diferenca de 10 dias');
+  assert.ok(mantoanResult.ambiguous.some(item => Math.abs(item.aRows[0].amount) === 5155.33 && item.dateGap === 7), 'Pagamento de 5.155,33 deve ir para revisao manual por diferenca de 7 dias');
+  assert.strictEqual(mantoanResult.unmatchedA.length, 0, 'Nenhum pagamento da planilha Mantoan deve desaparecer como sem vinculo');
+
+  console.log(`OK: AuditAI concilia ${path.basename(ARQUIVO_A)} x ${path.basename(ARQUIVO_B)} e envia divergencias de data da Mantoan para revisao manual.`);
 }
 
 main().catch(err => {

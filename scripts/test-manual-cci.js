@@ -8,7 +8,7 @@ const root = path.join(__dirname, '..');
 const manual = require(path.join(root, 'manual-cci-base'));
 
 assert(manual.validarManualCCI(), 'O conteúdo oficial do manual deve ser válido.');
-assert.strictEqual(manual.conteudo.manual_version, '2.9', 'A versão atual do manual deve estar explícita.');
+assert.strictEqual(manual.conteudo.manual_version, '2.10', 'A versão atual do manual deve estar explícita.');
 assert(manual.textoManualCCI().includes('Simples Nacional'), 'O manual deve cobrir parametrizações tributárias.');
 assert(manual.textoManualCCI().includes('78%'), 'A referência histórica de prontidão deve estar identificada sem recalcular automaticamente.');
 
@@ -42,5 +42,7 @@ assert(manual.textoManualCCI().includes('modal independente Retenções Serviço
 assert(manual.textoManualCCI().includes('Dados e Matriz/Filial'), 'Manual deve acompanhar o cadastro empresarial e a hierarquia das unidades.');
 assert(manual.textoManualCCI().includes('OCR local, sem depender de créditos do Gemini'), 'Manual deve orientar o uso do BB escaneado sem IA paga.');
 assert(manual.textoManualCCI().includes('Conciliação bancária formal'), 'Manual deve acompanhar a conciliação formal.');
+assert(manual.textoManualCCI().includes('Relatório Pagamentos tratam a coluna Valor como saída'), 'Manual deve orientar o sentido das planilhas de pagamentos.');
+assert(manual.textoManualCCI().includes('datas diferentes por até 10 dias seguem para Revisão manual'), 'Manual deve explicar a revisão por divergência de datas.');
 assert(manual.textoManualCCI().includes('Gemini 3.7 cruza o CNAE'), 'Manual deve explicar a validação orientativa das entidades especiais.');
-console.log('OK: Manual CCI v2.8 usa fonte única no app, na Ajuda e nos downloads versionados.');
+console.log('OK: Manual CCI v2.10 usa fonte única no app, na Ajuda e nos downloads versionados.');

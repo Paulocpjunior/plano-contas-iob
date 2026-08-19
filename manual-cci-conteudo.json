@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.9",
+  "manual_version": "2.10",
   "updated_at": "2026-08-19",
-  "app_reference": "3.4.157",
+  "app_reference": "3.4.160",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -166,6 +166,8 @@
           "Entradas e saídas nas contrapartidas corretas.",
           "Saldo final calculado igual ao saldo final do banco.",
           "Usar Conciliação bancária formal, informar conta e saldo final do extrato e aprovar somente quando a diferença for zero.",
+          "No modal Conciliação de Arquivos, planilhas identificadas como Relatório Pagamentos tratam a coluna Valor como saída. A linha TOTAL não é importada como movimento.",
+          "Mesmo valor e sentido em datas diferentes por até 10 dias seguem para Revisão manual; somente o colaborador confirma a contraparte correta.",
           "Diferenças identificadas, justificadas e corrigidas antes do fechamento; conta já cadastrada para conciliação passa a ser obrigatória nos meses seguintes.",
           "Balancete mensal ou anual, Razão, Diário, DRE e Balanço revisados.",
           "Competência correta e parametrização obrigatória concluída."

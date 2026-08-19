@@ -1,8 +1,8 @@
 {
-  "version": "3.4.159",
-  "build_date": "2026-08-19T14:08:34Z",
+  "version": "3.4.160",
+  "build_date": "2026-08-19T14:30:12Z",
   "release_notes": [
-    "ISS retido da Relação de NFs de Serviços Prestados agora gera linha fiscal própria vinculada à nota e ao tomador",
-    "Base de cálculo, alíquota, valor do ISS e total oficial de ISS retido são preservados e conferidos antes da importação"
+    "Relatórios de pagamentos passam a tratar a coluna Valor como saída e ignoram linhas de totalização",
+    "Valores e sentidos iguais com diferença de até 10 dias são apresentados para revisão manual antes da confirmação"
   ]
 }
