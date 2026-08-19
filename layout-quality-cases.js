@@ -735,6 +735,21 @@ const LAYOUT_QUALITY_CASES = [
     validado_em: '2026-08-18T00:00:00-03:00',
     observacao: 'PDF textual Lancamentos/Periodo com saldo anterior R$ 536,01 e final R$ 65,12 conciliados; preserva dois movimentos legitimos iguais de R$ 5,00.'
   },
+  {
+    id: 'itau-lancamentos-periodo-manaim-ocr-2026-05',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 2 - Lancamentos por Periodo',
+    parser: 'parsearPDF_Itau_LancamentosPeriodo',
+    arquivo: 'E - Extrato Itau Maio 2026.pdf',
+    empresa: 'IGREJA EVANGELICA MANAIM',
+    periodo_inicio: '2026-05-01',
+    periodo_fim: '2026-05-31',
+    esperado: { total_lancamentos: 60, total_credito: 144548.60, total_debito: 137500.00 },
+    status: 'Aprovado',
+    validado_em: '2026-08-19T00:00:00-03:00',
+    observacao: 'PDF imagem sem camada textual. OCR local em alta resolucao recupera sinal e centavos pela coluna monetaria; saldo anterior R$ 65,12 e final R$ 7.113,72 conciliados sem Gemini.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_CASES };

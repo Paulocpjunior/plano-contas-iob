@@ -103,13 +103,14 @@
           "Confirmar que a empresa ativa e o CNPJ correspondem ao titular do extrato.",
           "Selecionar banco e leiaute apropriados.",
           "No Banco do Brasil, o leiaute Extrato de Conta Corrente (+/-) aceita PDF textual ou escaneado e executa OCR local, sem depender de créditos do Gemini.",
+          "No Itaú, o leiaute Lançamentos por Período aceita PDF textual ou em imagem, executa OCR local e não depende do Gemini.",
           "Conferir período, conta bancária, quantidade de movimentos e totais.",
           "Verificar se o mesmo arquivo já foi importado; nunca confirmar novamente sem análise.",
           "Confirmar somente quando a prévia estiver correta.",
           "Verificar os lançamentos gravados e classificar antes do fechamento."
         ]},
         {"type": "callout", "tone": "info", "label": "Resultado esperado", "text": "Os movimentos confirmados permanecem na base da empresa, podem ser consultados e alimentam os relatórios. Exportar para a SAGE não consome nem apaga esses lançamentos."},
-        {"type": "callout", "tone": "warning", "label": "Trava do Banco do Brasil", "text": "Em PDF escaneado, o CCI reconstrói as linhas pela posição das palavras. A importação permanece bloqueada se saldo anterior + créditos - débitos não coincidir exatamente com o saldo final impresso."}
+        {"type": "callout", "tone": "warning", "label": "Trava dos extratos em imagem", "text": "Nos layouts homologados do Banco do Brasil e do Itaú, o CCI reconstrói as linhas pela posição das palavras. A importação permanece bloqueada se saldo anterior + créditos - débitos não coincidir exatamente com o saldo final impresso."}
       ]
     },
     {

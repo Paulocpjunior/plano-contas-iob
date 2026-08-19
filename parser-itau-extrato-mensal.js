@@ -66,6 +66,19 @@
     return items.map(function(i){ return i.s; }).join(' ').replace(/\s+/g, ' ').trim();
   }
 
+  function normalizarTokenMonetarioPosicionalOCR(text, x) {
+    let raw = String(text || '').trim();
+    if (!raw || Number(x || 0) < 400) return raw;
+    // Nesse layout, valor e saldo ficam à direita. O OCR pode trocar o sinal
+    // por "=" ou apagar a vírgula fina dos centavos (271,77 -> 27177).
+    raw = raw.replace(/^[=_~]+(?=\d)/, '-').replace(/,$/, '');
+    const semSinal = raw.replace(/^-/, '');
+    if (/^\d{3,9}$/.test(semSinal)) {
+      raw = (raw.startsWith('-') ? '-' : '') + semSinal.slice(0, -2) + ',' + semSinal.slice(-2);
+    }
+    return raw;
+  }
+
   function anoMesDoCabecalho(texto) {
     const meses = {
       jan: '01', fev: '02', mar: '03', abr: '04', mai: '05', jun: '06',
@@ -133,7 +146,7 @@
       && /Ag[eê]ncia\s+\d+\s+Conta\s+\d+/i.test(textoCompleto);
     const modeloPeriodoSeparado = /(?:^|\n)\s*Lan[cç]amentos\s*(?:\n|$)/i.test(textoCompleto)
       && (/(?:Per[ií]odo:\s*)?\d{2}\/\d{2}\/\d{4}\s+at[eé]\s+\d{2}\/\d{2}\/\d{4}/i.test(textoCompleto))
-      && /Data\s+Lan[cç]amento\s+Raz[aã]o Social\s+CPF\/CNPJ\s+Valor\s*\(R\$\)\s+Saldo\s*\(R\$\)/i.test(textoCompleto)
+      && /Data\s+Lan[cç]amento(?:s)?\s+Raz[aã]o Social\s+\S{3,12}\s+Valor\s*\(R[^)]*\)\s+Saldo\s*\(R[^)]*\)/i.test(textoCompleto)
       && /Conta:\s*[0-9.-]+/i.test(textoCompleto);
     const ehPeriodo = modeloPeriodoNaFrase || modeloPeriodoSeparado;
     if (!ehPeriodo) return null;
@@ -420,14 +433,15 @@
     const scaleX = pageWidth ? 595 / pageWidth : 1;
     return grupos.map(function(g) {
       const items = g.words.sort(function(a,b){ return a.x - b.x; }).map(function(w) {
-        return { x: Math.round(w.x * scaleX), s: w.text };
+        const x = Math.round(w.x * scaleX);
+        return { x: x, s: normalizarTokenMonetarioPosicionalOCR(w.text, x) };
       });
       const text = cleanLineText(items);
       return text ? { page: pageNum, y: Math.round(g.y), items: items, text: text } : null;
     }).filter(Boolean);
   }
 
-  async function linhasItauComOCR(pdf) {
+  async function linhasItauComOCR(pdf, escala) {
     if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js nao carregado para OCR Itau');
     if (typeof document === 'undefined') throw new Error('OCR Itau indisponivel fora do navegador');
     const canvas = document.createElement('canvas');
@@ -437,7 +451,7 @@
     for (let p = 1; p <= pdf.numPages; p++) {
       if (typeof showToast === 'function') showToast('OCR Itau pagina ' + p + '/' + pdf.numPages + '...', 'success');
       const page = await pdf.getPage(p);
-      const viewport = page.getViewport({ scale: 2.8 });
+      const viewport = page.getViewport({ scale: Number(escala || 2.8) });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -785,19 +799,26 @@
       const precisaOCR = textoCompleto.trim().length < 120
         || (/Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto) && !(periodo && periodo.detectado));
       if (precisaOCR) {
-        try {
-          const ocr = await linhasItauComOCR(pdf);
-          const periodoOCR = parseItauLancamentosPeriodo(ocr.lines, ocr.textoCompleto);
-          if (periodoOCR && periodoOCR.detectado && periodoOCR.lancamentos && periodoOCR.lancamentos.length) {
-            periodoOCR.origem_ocr = true;
-            periodoOCR.textoCompleto = ocr.textoCompleto;
-            periodoOCR.fingerprint = String(periodoOCR.fingerprint || 'itau-lancamentos-periodo') + '-ocr';
-            periodoOCR.lancamentos.forEach(function(l) { l.origem = 'pdf-itau-lancamentos-periodo-ocr'; });
-            return periodoOCR;
+        let ultimoErroOCR = null;
+        const escalasOCR = pdf.numPages <= 3 ? [2.8, 4.0] : [2.8];
+        for (let tentativa = 0; tentativa < escalasOCR.length; tentativa++) {
+          try {
+            const ocr = await linhasItauComOCR(pdf, escalasOCR[tentativa]);
+            const periodoOCR = parseItauLancamentosPeriodo(ocr.lines, ocr.textoCompleto);
+            if (periodoOCR && periodoOCR.detectado && periodoOCR.lancamentos && periodoOCR.lancamentos.length) {
+              periodoOCR.origem_ocr = true;
+              periodoOCR.escala_ocr = escalasOCR[tentativa];
+              periodoOCR.textoCompleto = ocr.textoCompleto;
+              periodoOCR.fingerprint = String(periodoOCR.fingerprint || 'itau-lancamentos-periodo') + '-ocr';
+              periodoOCR.lancamentos.forEach(function(l) { l.origem = 'pdf-itau-lancamentos-periodo-ocr'; });
+              return periodoOCR;
+            }
+          } catch (eOCR) {
+            ultimoErroOCR = eOCR;
+            console.warn('[itau-ocr] tentativa ' + (tentativa + 1) + ' falhou:', eOCR.message || eOCR);
           }
-        } catch (eOCR) {
-          console.warn('[itau-ocr] falha no OCR:', eOCR.message || eOCR);
         }
+        if (ultimoErroOCR) throw ultimoErroOCR;
       }
       return periodo || { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
     }
@@ -914,7 +935,8 @@
       parseItauExtratoMensalOCRScaneado: parseItauExtratoMensalOCRScaneado,
       linhasDePalavrasOCR: linhasDePalavrasOCR,
       ignorarLancamentoTecnicoExtratoMensal: ignorarLancamentoTecnicoExtratoMensal,
-      tipoMovimentoAplicacaoAutomatica: tipoMovimentoAplicacaoAutomatica
+      tipoMovimentoAplicacaoAutomatica: tipoMovimentoAplicacaoAutomatica,
+      normalizarTokenMonetarioPosicionalOCR: normalizarTokenMonetarioPosicionalOCR
     }
   };
 

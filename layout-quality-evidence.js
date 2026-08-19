@@ -660,6 +660,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     status: 'Regressao aprovada',
     observacao: 'PDF textual real de 1 pagina. Validado com 65 movimentos, credito de R$ 345.629,11, debito de R$ 346.100,00 e saldo final de R$ 65,12.'
   },
+  {
+    id: 'itau-lancamentos-periodo-manaim-ocr-2026-05',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 2 - Lancamentos por Periodo',
+    parser: 'parsearPDF_Itau_LancamentosPeriodo',
+    arquivo: 'E - Extrato Itau Maio 2026.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/E - Extrato Itaú Maio 2026.pdf',
+    empresa: 'IGREJA EVANGELICA MANAIM',
+    periodo_inicio: '2026-05-01',
+    periodo_fim: '2026-05-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF real de 1 pagina composto por imagem. OCR local a 4x validado com 60 movimentos, credito de R$ 144.548,60, debito de R$ 137.500,00 e saldos de R$ 65,12 a R$ 7.113,72 conciliados; nenhuma chamada ao Gemini.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_EVIDENCE };

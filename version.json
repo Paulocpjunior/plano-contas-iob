@@ -1,8 +1,8 @@
 {
-  "version": "3.4.157",
-  "build_date": "2026-08-19T12:39:03Z",
+  "version": "3.4.158",
+  "build_date": "2026-08-19T13:57:20Z",
   "release_notes": [
-    "Correção em lote de lançamentos já memorizados, com atualização administrativa e auditável da memória da empresa",
-    "Acesso direto e visível ao De/Para de Arquivos"
+    "Extrato Itaú Lançamentos por Período em PDF imagem processado por OCR local com conciliação obrigatória",
+    "Extratos Itaú reconhecidos não dependem do Gemini e mensagens técnicas de cobrança do provedor foram ocultadas"
   ]
 }
