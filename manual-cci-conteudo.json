@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.11",
+  "manual_version": "2.12",
   "updated_at": "2026-08-19",
-  "app_reference": "3.4.161",
+  "app_reference": "3.4.162",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -56,7 +56,9 @@
           "Acesso direto e visível ao De/Para de Arquivos, para validar o relacionamento SAGE → CCI sem gravar lançamentos ou saldos.",
           "Demonstrativo SAGE de impostos retidos em serviços prestados com linha bruta e linhas separadas de PIS, COFINS, CSLL, IRRF e INSS quando houver valor.",
           "Novo modal Retenções de Serviços Tomados, disponível para todas as empresas, com leitura do relatório SAGE de notas de entradas de serviços.",
-          "Nova área Dados e Matriz/Filial, com cadastro completo da empresa, vínculo direto da filial à matriz principal e relação das unidades vinculadas."
+          "Nova área Dados e Matriz/Filial, com cadastro completo da empresa, vínculo direto da filial à matriz principal e relação das unidades vinculadas.",
+          "AuditAI com totalização oficial de Ativo, Passivo, Circulante e Não Circulante, aba Balancete de quatro colunas e falha visível quando o parecer de IA estiver indisponível.",
+          "Relação SAGE de Serviços Tomados aceita fornecedor identificado por CNPJ ou CPF e exige que todas as notas fechem com o total oficial."
         ]}
       ]
     },
@@ -169,6 +171,8 @@
           "No modal Conciliação de Arquivos, planilhas identificadas como Relatório Pagamentos tratam a coluna Valor como saída. A linha TOTAL não é importada como movimento.",
           "Mesmo valor e sentido em datas diferentes por até 10 dias seguem para Revisão manual; somente o colaborador confirma a contraparte correta.",
           "No AuditAI, balancetes PDF com texto pesquisável são extraídos localmente. O CCI preserva contas, CNPJ, período e totais oficiais sem depender de créditos do Gemini; a IA fica como contingência para documentos em imagem e para pareceres complementares.",
+          "No AuditAI, usar a aba Balancete para conferir saldo anterior, débito, crédito e saldo atual. No Balanço, os subtotais e os totais gerais devem coincidir com as linhas oficiais do arquivo.",
+          "Se o provedor de IA estiver sem cota, o parecer deve mostrar aviso e opção Tentar novamente; os demonstrativos e valores permanecem disponíveis e não podem ficar em branco silenciosamente.",
           "Diferenças identificadas, justificadas e corrigidas antes do fechamento; conta já cadastrada para conciliação passa a ser obrigatória nos meses seguintes.",
           "Balancete mensal ou anual, Razão, Diário, DRE e Balanço revisados.",
           "Competência correta e parametrização obrigatória concluída."

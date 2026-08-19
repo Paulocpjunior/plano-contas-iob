@@ -43,13 +43,23 @@ const expectedSha256 = '08ff551945f2018927eb66d51a58fcc0adc5abda0b307a9ec102a25f
   assert(contaItau && contaItau.name.includes('BANCO ITAÚ'), 'Conta analítica com código interno deve ser preservada.');
 
   assert(result.lines.includes('OFFICIAL_TOTAL_ATIVO | Total Ativo | 358825.87'));
+  assert(result.lines.includes('OFFICIAL_ATIVO_CIRCULANTE | Ativo Circulante | 354681.96'));
+  assert(result.lines.includes('OFFICIAL_ATIVO_NAO_CIRCULANTE | Ativo Não Circulante | 4143.91'));
   assert(result.lines.includes('OFFICIAL_TOTAL_PASSIVO | Total Passivo | 82636.38'));
+  assert(result.lines.includes('OFFICIAL_PASSIVO_CIRCULANTE | Passivo Circulante | 18322.45'));
+  assert(result.lines.includes('OFFICIAL_PASSIVO_NAO_CIRCULANTE | Passivo Não Circulante | 59934.49'));
   assert(result.lines.includes('OFFICIAL_RESULTADO_EXERCICIO | Resultado no Exercício | 276189.49'));
 
   const bundle = fs.readFileSync(path.join(__dirname, '../auditai/assets/index-DREfix3266.js'), 'utf8');
   const server = fs.readFileSync(path.join(__dirname, '../server.js'), 'utf8');
   assert(bundle.includes('/api/auditai/extrair-pdf-contabil'), 'Bundle deve chamar o extrator local antes da IA.');
   assert(bundle.includes('JxAuditPeriod?{period:JxAuditPeriod'), 'Período local deve evitar uma segunda chamada obrigatória ao Gemini.');
+  assert(bundle.includes('{id:"trial",label:"📋 Balancete",desc:"4 Colunas"}'), 'AuditAI deve oferecer a aba Balancete.');
+  assert(bundle.includes('Balancete de Verificação — 4 Colunas'), 'Aba Balancete deve preservar as quatro colunas de movimento.');
+  assert(bundle.includes('ae.ac=xe.ativoCirculante??ae.ac'), 'Subtotais ausentes não podem apagar valores calculados do balanço.');
+  assert(bundle.includes('ae.totalAtivo=xe.totalAtivo??ae.ac+ae.anc'), 'Cabeçalho do Ativo deve usar o total oficial.');
+  assert(bundle.includes('Parecer de IA temporariamente indisponível'), 'Falha de cota da IA não pode deixar o parecer em branco.');
+  assert(bundle.includes('children:"Tentar novamente"'), 'Colaborador deve conseguir repetir a geração do parecer de IA.');
   assert(server.includes("app.post('/api/auditai/extrair-pdf-contabil'"), 'Servidor deve expor a rota autenticada do extrator.');
 
   console.log('OK: balancete real da R2 é extraído integralmente no AuditAI sem créditos do Gemini.');

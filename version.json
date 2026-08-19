@@ -1,8 +1,8 @@
 {
-  "version": "3.4.161",
-  "build_date": "2026-08-19T15:26:52Z",
+  "version": "3.4.162",
+  "build_date": "2026-08-19T17:20:00Z",
   "release_notes": [
-    "AuditAI passa a extrair balancetes PDF textuais localmente, sem depender de créditos do Gemini",
-    "Contas, período, CNPJ e totais oficiais são preservados antes da análise; IA permanece apenas como contingência para PDFs em imagem"
+    "AuditAI restaura a totalização oficial do Balanço, acrescenta a aba Balancete e torna visível a indisponibilidade do parecer de IA",
+    "Serviços Tomados da SAGE passam a reconhecer fornecedores por CNPJ ou CPF sem perder notas na conferência do total oficial"
   ]
 }

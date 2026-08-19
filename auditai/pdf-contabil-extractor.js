@@ -161,7 +161,11 @@ async function extractAccountingPdf(buffer) {
   const printedResult = findPrintedResult(allGroups);
   const official = [
     officialLine('OFFICIAL_TOTAL_ATIVO', 'Total Ativo', byCode('1')),
+    officialLine('OFFICIAL_ATIVO_CIRCULANTE', 'Ativo Circulante', byCode('1.1')),
+    officialLine('OFFICIAL_ATIVO_NAO_CIRCULANTE', 'Ativo Não Circulante', byCode('1.2')),
     officialLine('OFFICIAL_TOTAL_PASSIVO', 'Total Passivo', byCode('2')),
+    officialLine('OFFICIAL_PASSIVO_CIRCULANTE', 'Passivo Circulante', byCode('2.1')),
+    officialLine('OFFICIAL_PASSIVO_NAO_CIRCULANTE', 'Passivo Não Circulante', byCode('2.2')),
     officialLine('OFFICIAL_PATRIMONIO_LIQUIDO', 'Patrimônio Líquido', byCode('2.4')),
     officialLine('OFFICIAL_TOTAL_RECEITAS', 'Total Receitas', byCode('3')),
     officialLine('OFFICIAL_TOTAL_CUSTOS', 'Total Custos', byCode('4')),

@@ -6,6 +6,7 @@ const fs = require('fs');
 
 global.pdfjsLib = require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js');
 const {
+  parsearPDF_IOB_Sage_ServicosTomados,
   parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicosTomados,
   validarVinculoCnpjRelatorioFiscal
 } = require('../parser-clude-servicos-tomados');
@@ -13,6 +14,8 @@ const { LAYOUTS_FISCAIS_PADRAO } = require('../layouts-fiscais-padrao');
 
 const ARQUIVO = '/Users/paulocesarpereirajunior/Downloads/Demonstrativo dos Impostos Retidos - Entradas de Serviços 1.pdf';
 const HASH = '9deb36326825f86d425f2640016e7e2a05a8efc883cc2ab32909577ba470bf7a';
+const ARQUIVO_RELACAO = '/Users/paulocesarpereirajunior/Downloads/SERVIÇOS TOMADOS 01.2026.pdf';
+const HASH_RELACAO = '1d90421f4a8390a500f1603297dc3669086b1250e78fb112e9c54ab3089d0143';
 
 function money(valor) {
   return Math.round(Number(valor || 0) * 100);
@@ -106,7 +109,27 @@ function money(valor) {
   assert.strictEqual(layout.movimento, 'impostos_retidos_servicos_tomados');
   assert.strictEqual(layout.parser, 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicosTomados');
 
-  console.log('OK: modal geral de retencoes tomadas preserva as 18 notas, os impostos e os totais oficiais da CLUDE.');
+  assert.ok(fs.existsSync(ARQUIVO_RELACAO), `Arquivo de regressao nao encontrado: ${ARQUIVO_RELACAO}`);
+  const bufferRelacao = fs.readFileSync(ARQUIVO_RELACAO);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferRelacao).digest('hex'),
+    HASH_RELACAO,
+    'fixture da relação de serviços tomados deve permanecer o PDF homologado'
+  );
+  const relacao = await parsearPDF_IOB_Sage_ServicosTomados(new Uint8Array(bufferRelacao));
+  assert.strictEqual(relacao.detectado, true);
+  assert.strictEqual(relacao.cnpj_detectado, '02.986.671/0001-07');
+  assert.strictEqual(relacao.total_notas_fiscais, 7, 'CNPJ e CPF devem ser aceitos na coluna CNPJ/CPF.');
+  assert.strictEqual(money(relacao.total_debito), money(5047.28));
+  assert.strictEqual(money(relacao.total_oficial), money(5047.28));
+  assert.strictEqual(relacao.total_divergente, false);
+  const pessoaFisica = relacao.lancamentos.find(l => l.documento === '1358060');
+  assert.ok(pessoaFisica, 'A nota do fornecedor pessoa física não pode ser descartada.');
+  assert.strictEqual(pessoaFisica.tipo_documento_fornecedor, 'CPF');
+  assert.strictEqual(pessoaFisica.cpf_fornecedor, '302.104.028-49');
+  assert.strictEqual(money(pessoaFisica.valorNota), money(206.39));
+
+  console.log('OK: serviços tomados preservam CNPJ/CPF, retenções e totais oficiais dos PDFs SAGE homologados.');
 })().catch((err) => {
   console.error(err);
   process.exit(1);

@@ -8,7 +8,7 @@ const root = path.join(__dirname, '..');
 const manual = require(path.join(root, 'manual-cci-base'));
 
 assert(manual.validarManualCCI(), 'O conteúdo oficial do manual deve ser válido.');
-assert.strictEqual(manual.conteudo.manual_version, '2.11', 'A versão atual do manual deve estar explícita.');
+assert.strictEqual(manual.conteudo.manual_version, '2.12', 'A versão atual do manual deve estar explícita.');
 assert(manual.textoManualCCI().includes('Simples Nacional'), 'O manual deve cobrir parametrizações tributárias.');
 assert(manual.textoManualCCI().includes('78%'), 'A referência histórica de prontidão deve estar identificada sem recalcular automaticamente.');
 
@@ -46,4 +46,4 @@ assert(manual.textoManualCCI().includes('Relatório Pagamentos tratam a coluna V
 assert(manual.textoManualCCI().includes('datas diferentes por até 10 dias seguem para Revisão manual'), 'Manual deve explicar a revisão por divergência de datas.');
 assert(manual.textoManualCCI().includes('balancetes PDF com texto pesquisável são extraídos localmente'), 'Manual deve explicar a extração local dos balancetes no AuditAI.');
 assert(manual.textoManualCCI().includes('Gemini 3.7 cruza o CNAE'), 'Manual deve explicar a validação orientativa das entidades especiais.');
-console.log('OK: Manual CCI v2.11 usa fonte única no app, na Ajuda e nos downloads versionados.');
+console.log('OK: Manual CCI v2.12 usa fonte única no app, na Ajuda e nos downloads versionados.');

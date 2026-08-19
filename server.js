@@ -4507,6 +4507,20 @@ app.get('/api/admin/ajuda-cci/sugestoes', adminRequired, async (req, res) => {
 // o frontend recebe index.html e quebra ao tentar interpretar HTML como JSON.
 // ═══════════════════════════════════════════════════════════════════════════
 let _geminiClient = null;
+function mensagemSeguraErroGemini(err) {
+  const raw = String((err && err.message) || '');
+  const normalized = raw.toLowerCase();
+  if (
+    (err && Number(err.status) === 429)
+    || normalized.includes('resource_exhausted')
+    || normalized.includes('prepayment')
+    || normalized.includes('credits are depleted')
+  ) {
+    return 'Cota do provedor de IA esgotada. Regularize a cota e tente novamente.';
+  }
+  return 'Não foi possível concluir a análise de IA neste momento.';
+}
+
 function getGeminiClient() {
   if (_geminiClient) return _geminiClient;
   const key = process.env.GEMINI_API_KEY;
@@ -4532,7 +4546,7 @@ app.post('/api/gemini/generate', adminRequired, async (req, res) => {
   } catch (err) {
     console.error('[gemini/generate]', err && err.message);
     const status = err && err.status >= 400 && err.status < 600 ? err.status : 500;
-    res.status(status).json({ erro: (err && err.message) || 'Erro Gemini' });
+    res.status(status).json({ erro: mensagemSeguraErroGemini(err) });
   }
 });
 
@@ -4551,7 +4565,8 @@ app.post('/api/gemini/chat', adminRequired, async (req, res) => {
     res.json({ text: result.text || '' });
   } catch (err) {
     console.error('[gemini/chat]', err && err.message);
-    res.status(500).json({ erro: (err && err.message) || 'Erro chat' });
+    const status = err && err.status >= 400 && err.status < 600 ? err.status : 500;
+    res.status(status).json({ erro: mensagemSeguraErroGemini(err) });
   }
 });
 

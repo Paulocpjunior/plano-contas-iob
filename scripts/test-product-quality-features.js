@@ -275,7 +275,8 @@ assertNotContains('auditai/assets/index-DREfix3266.js', '__auditai_rol_receita_b
 assertNotContains('auditai/assets/index-DREfix3266.js', 'auditaiRolHistoryValidation', 'validacao ROL nao pode bloquear consolidacao pelo historico');
 assertNotContains('auditai/assets/index-DREfix3266.js', 'Não foi possível confirmar um período único para todas as DREs', 'validacao ROL nao pode bloquear analise de grupo');
 assertNotContains('auditai/assets/index-DREfix3266.js', '&&auditaiValidCnpj(P.cnpj))&&n.trim()', 'CNPJ da ROL nao pode impedir processamento do grupo');
-assertContains('auditai/assets/index-DREfix3266.js', 'ae.ac=xe.ativoCirculante||0,ae.anc=xe.ativoNaoCirculante||0', 'Dashboard AuditAI usa abertura oficial de ativo e passivo');
+assertContains('auditai/assets/index-DREfix3266.js', 'ae.ac=xe.ativoCirculante??ae.ac,ae.anc=xe.ativoNaoCirculante??ae.anc', 'Dashboard AuditAI usa subtotais oficiais sem apagar valores calculados');
+assertContains('auditai/assets/index-DREfix3266.js', 'ae.totalAtivo=xe.totalAtivo??ae.ac+ae.anc', 'Dashboard AuditAI preserva o total oficial do Ativo');
 assertContains('auditai/assets/index-DREfix3266.js', 'JxAuditShouldSkipSpellcheckAlert', 'AuditAI filtra falsos positivos de grafia em contas contabeis oficiais');
 assertContains('auditai/assets/index-DREfix3266.js', 'OBRIGACOES FINANCEIRAS', 'AuditAI nao trata grupo contabil normal como conta suspeita');
 assertContains('auditai/assets/index-DREfix3266.js', 'NAO recalcule nem substitua Total Ativo', 'Parecer AuditAI preserva totais oficiais do balanco');

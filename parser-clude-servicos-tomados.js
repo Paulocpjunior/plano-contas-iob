@@ -276,7 +276,9 @@
       ? 'Fiscal CLUDE - Servicos Tomados'
       : 'Fiscal ' + bancoEmpresa + ' - Servicos Tomados';
 
-    const descricao = ['Servicos tomados', fornecedorLimpo, documentoLimpo ? ('NF ' + documentoLimpo) : '', 'CNPJ ' + cnpj]
+    const documentoFornecedor = somenteDigitos(cnpj);
+    const tipoDocumentoFornecedor = documentoFornecedor.length === 11 ? 'CPF' : 'CNPJ';
+    const descricao = ['Servicos tomados', fornecedorLimpo, documentoLimpo ? ('NF ' + documentoLimpo) : '', tipoDocumentoFornecedor + ' ' + cnpj]
       .filter(Boolean)
       .join(' - ')
       .replace(/\s+/g, ' ')
@@ -302,6 +304,9 @@
       tipoDocumentoFiscal: 'SERVICO_TOMADO',
       documento: documentoLimpo,
       cnpj_fornecedor: cnpj,
+      cpf_fornecedor: tipoDocumentoFornecedor === 'CPF' ? cnpj : '',
+      documento_fornecedor: cnpj,
+      tipo_documento_fornecedor: tipoDocumentoFornecedor,
       codigoHistorico: '1207',
       historico: 'PAGTO SERVICOS TOMADOS',
       layoutNome,
@@ -584,7 +589,7 @@
     const linhas = String(texto || '').split(/\r?\n/).map(function(linha) {
       return linha.replace(/\s+/g, ' ').trim();
     }).filter(Boolean);
-    const cnpjRegex = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/;
+    const cnpjRegex = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/;
     const moneyRegex = /(?<![\d.,])([0-9]{1,3}(?:\.\d{3})*,\d{2}|[0-9]+,\d{2})(?![\d.,])/g;
 
     for (const linha of linhas) {
