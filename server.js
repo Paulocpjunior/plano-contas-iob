@@ -26,6 +26,7 @@ const ConciliacaoContabil = require('./conciliacao-contabil');
 const GraphEmail = require('./graph-email-provider');
 const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa } = require('./ajuda-cci-base');
 const { conteudo: MANUAL_CCI } = require('./manual-cci-base');
+const { extractAccountingPdf } = require('./auditai/pdf-contabil-extractor');
 
 const app = express();
 app.set('trust proxy', true);
@@ -101,6 +102,29 @@ function adminRequired(req, res, next) {
 }
 
 app.use('/api', authRequired);
+
+app.post('/api/auditai/extrair-pdf-contabil', adminRequired, async (req, res) => {
+  const base64 = String((req.body && req.body.data) || '').replace(/^data:application\/pdf;base64,/, '');
+  if (!base64) return res.status(400).json({ erro: 'PDF não informado.', codigo: 'PDF_AUSENTE' });
+  try {
+    const buffer = Buffer.from(base64, 'base64');
+    if (!buffer.length || buffer.subarray(0, 4).toString('ascii') !== '%PDF') {
+      return res.status(400).json({ erro: 'Arquivo PDF inválido.', codigo: 'PDF_INVALIDO' });
+    }
+    const result = await extractAccountingPdf(buffer);
+    return res.json(result);
+  } catch (error) {
+    const structuredTextMissing = error && error.code === 'PDF_SEM_TEXTO_ESTRUTURADO';
+    console.error('[auditai/pdf-local]', error && error.message);
+    return res.status(structuredTextMissing ? 422 : 500).json({
+      erro: structuredTextMissing
+        ? 'O PDF não contém texto contábil estruturado. O AuditAI tentará a leitura assistida por imagem.'
+        : 'Não foi possível extrair o PDF contábil localmente.',
+      codigo: structuredTextMissing ? 'PDF_SEM_TEXTO_ESTRUTURADO' : 'PDF_EXTRACAO_LOCAL_ERRO',
+    });
+  }
+});
+
 // Gate de departamento do SaaS (08/08): pergunta ao cadastro central do CFI
 // se o usuário está vinculado ao módulo Contábil. Nasce em MODO AVISO — vira
 // bloqueio pela env DEPARTAMENTO_GATE_MODO=bloqueio quando os vínculos

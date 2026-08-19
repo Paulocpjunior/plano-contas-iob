@@ -1,8 +1,8 @@
 {
-  "version": "3.4.160",
-  "build_date": "2026-08-19T14:30:12Z",
+  "version": "3.4.161",
+  "build_date": "2026-08-19T15:26:52Z",
   "release_notes": [
-    "Relatórios de pagamentos passam a tratar a coluna Valor como saída e ignoram linhas de totalização",
-    "Valores e sentidos iguais com diferença de até 10 dias são apresentados para revisão manual antes da confirmação"
+    "AuditAI passa a extrair balancetes PDF textuais localmente, sem depender de créditos do Gemini",
+    "Contas, período, CNPJ e totais oficiais são preservados antes da análise; IA permanece apenas como contingência para PDFs em imagem"
   ]
 }

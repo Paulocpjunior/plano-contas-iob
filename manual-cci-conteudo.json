@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.10",
+  "manual_version": "2.11",
   "updated_at": "2026-08-19",
-  "app_reference": "3.4.160",
+  "app_reference": "3.4.161",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -168,6 +168,7 @@
           "Usar Conciliação bancária formal, informar conta e saldo final do extrato e aprovar somente quando a diferença for zero.",
           "No modal Conciliação de Arquivos, planilhas identificadas como Relatório Pagamentos tratam a coluna Valor como saída. A linha TOTAL não é importada como movimento.",
           "Mesmo valor e sentido em datas diferentes por até 10 dias seguem para Revisão manual; somente o colaborador confirma a contraparte correta.",
+          "No AuditAI, balancetes PDF com texto pesquisável são extraídos localmente. O CCI preserva contas, CNPJ, período e totais oficiais sem depender de créditos do Gemini; a IA fica como contingência para documentos em imagem e para pareceres complementares.",
           "Diferenças identificadas, justificadas e corrigidas antes do fechamento; conta já cadastrada para conciliação passa a ser obrigatória nos meses seguintes.",
           "Balancete mensal ou anual, Razão, Diário, DRE e Balanço revisados.",
           "Competência correta e parametrização obrigatória concluída."
