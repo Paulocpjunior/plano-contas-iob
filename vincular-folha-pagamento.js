@@ -74,9 +74,11 @@
 
   let estado = {
     cnpjLimpo: null, empresaNome: null, cnpjFmt: null,
-    planoId: null, numeroFilial: '', origemPadrao: 'IMP_FOLHA_FILIAL',
+    planoId: null, codigoEmpresa: '', numeroFilial: '', origemPadrao: 'IMP_FOLHA_FILIAL',
     folhaParsed: null, mapeamento: null,
   };
+
+  const esc = (valor) => String(valor == null ? '' : valor).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 
   function renderModalShell() {
     let modal = document.getElementById('modal-importar-folha');
@@ -103,8 +105,9 @@
     const c = document.getElementById('folha-container');
     c.innerHTML =
       '<div style="background:#f8f9fa;border:2px dashed #c8d0d8;border-radius:8px;padding:40px;text-align:center;">' +
-        '<div style="font-size:14px;margin-bottom:12px;">Selecione o <strong>Resumo Geral</strong> da folha (PDF do sistema IOB)</div>' +
-        '<input type="file" id="folha-pdf-input" accept="application/pdf" style="margin:8px 0;" />' +
+        '<div style="font-size:14px;margin-bottom:6px;">Selecione o arquivo da folha de pagamento</div>' +
+        '<div style="font-size:12px;color:#64748b;margin-bottom:12px;"><strong>SAGE Folha:</strong> FPIMP + código da empresa + .mês (ex.: FPIMP0040.01)<br>Também é aceito o Resumo Geral em PDF.</div>' +
+        '<input type="file" id="folha-pdf-input" accept=".01,.02,.03,.04,.05,.06,.07,.08,.09,.10,.11,.12,.pdf,application/pdf,text/plain,application/octet-stream" style="margin:8px 0;" />' +
         '<div id="folha-status" style="font-size:12px;color:#666;margin-top:12px;"></div>' +
       '</div>';
 
@@ -112,25 +115,17 @@
       const file = e.target.files[0];
       if (!file) return;
       const status = document.getElementById('folha-status');
-      status.textContent = 'Enviando e parseando PDF...';
+      status.textContent = 'Validando o layout e a empresa...';
       try {
         const fd = new FormData();
-        fd.append('pdf', file);
+        fd.append('arquivo', file);
+        fd.append('cnpj', estado.cnpjLimpo);
         const folha = await apiPost('/api/folha/parse-resumo', fd, true);
         estado.folhaParsed = folha;
 
         if (estado.cnpjLimpo && folha.cnpj) {
-          const cnpjPdfLimpo = folha.cnpj.replace(/\D/g, '');
-          if (cnpjPdfLimpo !== estado.cnpjLimpo) {
-            if (!confirm('CNPJ do PDF (' + folha.cnpj + ') diferente da empresa (' + estado.cnpjFmt + '). Continuar?')) return;
-          }
-        }
-
-        const m = await apiGet('/api/folha/mapeamento/' + estado.cnpjLimpo);
-        estado.mapeamento = m.encontrado ? m : { regras: {}, encargos: {} };
-        if (m.encontrado) {
-          if (m.numero_filial && !estado.numeroFilial) estado.numeroFilial = m.numero_filial;
-          if (m.origem_padrao) estado.origemPadrao = m.origem_padrao;
+          const cnpjArquivoLimpo = folha.cnpj.replace(/\D/g, '');
+          if (cnpjArquivoLimpo !== estado.cnpjLimpo) throw new Error('O arquivo não pertence à empresa ativa.');
         }
 
         const dup = await apiGet('/api/folha/checar-duplicidade?cnpj=' + estado.cnpjLimpo + '&competencia=' + encodeURIComponent(folha.competencia) + '&hash=' + folha.raw_text_hash);
@@ -140,12 +135,86 @@
           if (!confirm('Esta folha (' + folha.competencia + ') ja foi importada em ' + dataFmt + '. Importar novamente?')) return;
         }
 
+        if (folha.formato === 'sage_fpimp') {
+          renderTelaFpimp();
+          return;
+        }
+
+        const m = await apiGet('/api/folha/mapeamento/' + estado.cnpjLimpo);
+        estado.mapeamento = m.encontrado ? m : { regras: {}, encargos: {} };
+        if (m.encontrado) {
+          if (m.numero_filial && !estado.numeroFilial) estado.numeroFilial = m.numero_filial;
+          if (m.origem_padrao) estado.origemPadrao = m.origem_padrao;
+        }
+
         renderTelaMapeamento();
       } catch (err) {
         console.error(err);
         status.innerHTML = '<span style="color:#c00;">Erro: ' + err.message + '</span>';
       }
     };
+  }
+
+  function renderTelaFpimp() {
+    const f = estado.folhaParsed;
+    const c = document.getElementById('folha-container');
+    const linhas = (f.lancamentos || []).map((l) =>
+      '<tr><td style="padding:7px 5px">' + esc(l.data_br) + '</td>' +
+      '<td style="padding:7px 5px;font-family:monospace">' + esc(l.contaDebito) + '</td>' +
+      '<td style="padding:7px 5px;font-family:monospace">' + esc(l.contaCredito) + '</td>' +
+      '<td style="padding:7px 5px;font-family:monospace">' + esc(l.codigoHistorico) + '</td>' +
+      '<td style="padding:7px 5px;max-width:330px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + esc(l.descricao) + '">' + esc(l.descricao) + '</td>' +
+      '<td style="padding:7px 5px;text-align:right">' + Number(l.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2}) + '</td></tr>'
+    ).join('');
+    c.innerHTML =
+      '<div style="padding:12px 14px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;margin-bottom:14px;color:#065f46">' +
+        '<strong>Layout SAGE Folha reconhecido</strong><br>' + esc(f.nome_arquivo) + ' · empresa ' + esc(f.codigo_empresa_arquivo) + ' · competência ' + esc(f.competencia) +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;font-size:13px">' +
+        '<div style="padding:10px;background:#f8fafc;border-radius:7px"><strong>' + Number(f.totais.lancamentos || 0) + '</strong><br><span style="color:#64748b">lançamentos</span></div>' +
+        '<div style="padding:10px;background:#f8fafc;border-radius:7px"><strong>R$ ' + Number(f.totais.debitos || 0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong><br><span style="color:#64748b">débitos</span></div>' +
+        '<div style="padding:10px;background:#f8fafc;border-radius:7px"><strong>R$ ' + Number(f.totais.creditos || 0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong><br><span style="color:#64748b">créditos</span></div>' +
+      '</div>' +
+      '<div style="max-height:390px;overflow:auto;border:1px solid #e2e8f0;border-radius:7px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="position:sticky;top:0;background:#f1f5f9"><tr>' +
+        '<th style="padding:8px 5px;text-align:left">Data</th><th style="padding:8px 5px;text-align:left">Débito</th><th style="padding:8px 5px;text-align:left">Crédito</th><th style="padding:8px 5px;text-align:left">Hist.</th><th style="padding:8px 5px;text-align:left">Complemento</th><th style="padding:8px 5px;text-align:right">Valor</th>' +
+      '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
+      '<div style="margin-top:12px;padding:10px;background:#eff6ff;border-radius:7px;color:#1e3a8a;font-size:12px">As contas, o histórico, o valor e o complemento serão mantidos exatamente conforme o arquivo SAGE. Revise a conferência antes de gravar.</div>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:16px"><button id="btn-importar-fpimp" style="padding:11px 20px;background:#2563eb;color:#fff;border:0;border-radius:7px;font-weight:700;cursor:pointer">Importar lançamentos no CCI</button></div>';
+    document.getElementById('btn-importar-fpimp').onclick = importarFpimp;
+  }
+
+  async function importarFpimp() {
+    const botao = document.getElementById('btn-importar-fpimp');
+    try {
+      if (!window.CCIImportarFolhaSage) throw new Error('Integração contábil da folha não carregada. Atualize a página.');
+      botao.disabled = true;
+      botao.textContent = 'Conferindo...';
+      const f = estado.folhaParsed;
+      const resultado = await window.CCIImportarFolhaSage(f);
+      if (!resultado || !resultado.importado) {
+        botao.disabled = false;
+        botao.textContent = 'Importar lançamentos no CCI';
+        return;
+      }
+      try {
+        await apiPost('/api/folha/registrar-importacao', {
+          cnpj: estado.cnpjLimpo,
+          competencia: f.competencia,
+          raw_text_hash: f.raw_text_hash,
+          total_lancamentos: f.lancamentos.length,
+          total_valor: f.totais.debitos
+        }, false);
+      } catch (erroHistorico) {
+        console.warn('Folha gravada; histórico técnico será recomposto pela sessão:', erroHistorico.message);
+      }
+      alert('Folha SAGE importada no CCI: ' + f.lancamentos.length + ' lançamentos, competência ' + f.competencia + '.');
+      const modal = document.getElementById('modal-importar-folha');
+      if (modal) modal.remove();
+    } catch (err) {
+      console.error(err);
+      alert('Erro: ' + err.message);
+      if (botao) { botao.disabled = false; botao.textContent = 'Importar lançamentos no CCI'; }
+    }
   }
 
   function renderTelaMapeamento() {
@@ -336,10 +405,11 @@
     } catch (err) { alert('Erro: ' + err.message); }
   }
 
-  window.abrirModalImportarFolha = function (cnpjLimpo, empresaNome, cnpjFmt, planoId, numeroFilial) {
+  window.abrirModalImportarFolha = function (cnpjLimpo, empresaNome, cnpjFmt, planoId, numeroFilial, codigoEmpresa) {
     estado = {
       cnpjLimpo: String(cnpjLimpo || '').replace(/\D/g, ''),
       empresaNome, cnpjFmt, planoId,
+      codigoEmpresa: codigoEmpresa || '',
       numeroFilial: numeroFilial || '',
       origemPadrao: 'IMP_FOLHA_FILIAL',
       folhaParsed: null, mapeamento: null,
@@ -373,7 +443,8 @@
         escolhida.razao_social || escolhida.cnpj_formatado,
         escolhida.cnpj_formatado,
         planoId,
-        escolhida.numero_filial_iob || ''
+        escolhida.numero_filial_iob || '',
+        escolhida.codigo_empresa || ''
       );
     } catch (err) {
       console.error('abrirModalImportarFolhaDePlano erro:', err);

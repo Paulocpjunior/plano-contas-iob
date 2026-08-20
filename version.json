@@ -1,11 +1,12 @@
 {
-  "version": "3.4.168",
-  "build_date": "2026-08-20T17:17:18Z",
+  "version": "3.4.169",
+  "build_date": "2026-08-20T17:46:02Z",
   "release_notes": [
-    "Importação de folha de pagamento liberada para todos os colaboradores autenticados.",
-    "Empresas exibidas no fluxo de folha agora respeitam a carteira e as permissões do usuário.",
-    "Mapeamentos, verificação de duplicidade e registro da importação permanecem isolados por empresa.",
-    "Vincular empresa continua sendo uma função exclusiva do administrador.",
-    "Manual Operacional e downloads Word/PDF atualizados para a versão 2.17."
+    "Importação direta do arquivo SAGE Folha no padrão FPIMP + código da empresa + .mês.",
+    "Contas, histórico, complemento, valor, digitador e campos SPED do arquivo são preservados.",
+    "Código da empresa, mês do arquivo, competência ativa, layout e duplicidade são validados antes da gravação.",
+    "Arquivos FPIMP com múltiplas partidas ou tipo de movimento diferente de Folha são bloqueados para evitar duplicidade.",
+    "Resumo Geral em PDF continua disponível como fluxo alternativo.",
+    "Manual Operacional e downloads Word/PDF atualizados para a versão 2.18."
   ]
 }

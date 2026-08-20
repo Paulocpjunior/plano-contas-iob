@@ -225,6 +225,7 @@ async function garantirLayoutsBancariosPadrao() {
 const pdfParse = require('pdf-parse');
 const multer = require('multer');
 const cryptoFolha = require('crypto');
+const { parseSageFolhaFpimp } = require('./parser-sage-folha-fpimp');
 
 const uploadFolha = multer({
   storage: multer.memoryStorage(),
@@ -341,14 +342,37 @@ async function parseResumoIOB(pdfBuffer) {
 }
 
 // POST /api/folha/parse-resumo  (auth herdada de app.use('/api', authRequired))
-app.post('/api/folha/parse-resumo', uploadFolha.single('pdf'), async (req, res) => {
+// Aceita o Resumo Geral em PDF e o arquivo texto FPIMPnnnn.mm da SAGE Folha.
+app.post('/api/folha/parse-resumo', uploadFolha.fields([{ name: 'arquivo', maxCount: 1 }, { name: 'pdf', maxCount: 1 }]), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ erro: 'arquivo PDF não enviado (campo "pdf")' });
-    const resultado = await parseResumoIOB(req.file.buffer);
+    const arquivo = ((req.files && req.files.arquivo) || (req.files && req.files.pdf) || [])[0];
+    if (!arquivo) return res.status(400).json({ erro: 'arquivo não enviado' });
+    const cnpjLimpo = String(req.body && req.body.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ da empresa ativa não informado' });
+    const acesso = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
+    const ehPdf = arquivo.buffer.slice(0, 5).toString('ascii') === '%PDF-';
+    let resultado;
+    if (ehPdf) {
+      resultado = await parseResumoIOB(arquivo.buffer);
+      resultado.formato = 'resumo_geral_pdf';
+      resultado.layout = 'Resumo Geral IOB/SAGE (PDF)';
+      resultado.nome_arquivo = arquivo.originalname;
+      if (resultado.cnpj && resultado.cnpj.replace(/\D/g, '') !== cnpjLimpo) {
+        return res.status(409).json({ erro: 'O CNPJ do PDF não corresponde à empresa ativa.' });
+      }
+    } else {
+      resultado = parseSageFolhaFpimp(arquivo.buffer, {
+        nomeArquivo: arquivo.originalname,
+        codigoEmpresa: codigoEmpresaDe(acesso.empresa)
+      });
+      resultado.cnpj = cnpjLimpo;
+      resultado.empresa = acesso.empresa.razao_social || '';
+    }
     res.json(resultado);
   } catch (err) {
     console.error('parse-resumo erro:', err.message);
-    res.status(500).json({ erro: err.message });
+    res.status(400).json({ erro: err.message });
   }
 });
 
@@ -396,6 +420,7 @@ app.get('/api/folha/empresas-do-plano/:planoId', async (req, res) => {
         cnpj: cnpjLimpo,
         cnpj_formatado: cnpjFmt,
         razao_social: data.razao_social || null,
+        codigo_empresa: codigoEmpresaDe(data) || null,
         numero_filial_iob: data.numero_filial_iob || null,
       };
     });

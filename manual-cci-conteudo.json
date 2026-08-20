@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "manual_version": "2.17",
+  "manual_version": "2.18",
   "updated_at": "2026-08-20",
-  "app_reference": "3.4.168",
+  "app_reference": "3.4.169",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
@@ -44,7 +44,8 @@
           "Nenhuma etapa pode ser aprovada manualmente pelo painel; o status muda somente quando a operação correspondente é concluída no CCI.",
           "Empresas sem bens cadastrados recebem Ativo imobilizado como etapa não aplicável, sem reduzir artificialmente a prontidão.",
           "Isenta, Imune e Terceiro Setor passaram a ser reconhecidos também pelo cálculo geral de prontidão contábil, alinhado às parametrizações já existentes.",
-          "Importar Folha passou a ficar disponível para todos os colaboradores autenticados, sempre limitado às empresas da carteira do usuário; vincular empresa e excluir cadastros continuam sendo funções administrativas."
+          "Importar Folha passou a ficar disponível para todos os colaboradores autenticados, sempre limitado às empresas da carteira do usuário; vincular empresa e excluir cadastros continuam sendo funções administrativas.",
+          "O arquivo contábil da SAGE Folha no padrão FPIMP + código da empresa + .mês é reconhecido diretamente pelo CCI. Antes da conferência e gravação, o sistema valida o código da empresa, o mês do arquivo, a competência ativa, o layout fixo, as contas, o histórico, o valor e a duplicidade."
         ]},
         {"type": "callout", "tone": "warning", "label": "Critério de virada", "text": "O percentual da empresa-piloto não autoriza sozinho a retirada da SAGE. A decisão final continua dependendo dos fechamentos reais, recuperação de backup, múltiplos usuários e validação do responsável contábil."}
       ]
