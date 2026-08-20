@@ -30,7 +30,7 @@ function parseLinha(linha, numero) {
   }
   const debito = textoCampo(linha, 6, 23);
   const credito = textoCampo(linha, 24, 41);
-  const codigoHistorico = textoCampo(linha, 42, 45);
+  const codigoHistorico = textoCampo(linha, 42, 46);
   const valorBruto = textoCampo(linha, 47, 58);
   const dataBr = textoCampo(linha, 59, 68);
   const complemento = textoCampo(linha, 75, 217).replace(/\s+/g, ' ');

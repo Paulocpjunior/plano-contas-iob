@@ -1,12 +1,11 @@
 {
-  "version": "3.4.169",
-  "build_date": "2026-08-20T17:46:02Z",
+  "version": "3.4.170",
+  "build_date": "2026-08-20T17:56:16Z",
   "release_notes": [
-    "Importação direta do arquivo SAGE Folha no padrão FPIMP + código da empresa + .mês.",
-    "Contas, histórico, complemento, valor, digitador e campos SPED do arquivo são preservados.",
-    "Código da empresa, mês do arquivo, competência ativa, layout e duplicidade são validados antes da gravação.",
-    "Arquivos FPIMP com múltiplas partidas ou tipo de movimento diferente de Folha são bloqueados para evitar duplicidade.",
-    "Resumo Geral em PDF continua disponível como fluxo alternativo.",
-    "Manual Operacional e downloads Word/PDF atualizados para a versão 2.18."
+    "Layout real FPIMP0040.01 homologado com 15 lançamentos e totais contábeis conciliados.",
+    "Arquivo SAGE Folha de 342 posições validado sem depender de PDF ou IA.",
+    "Código de histórico passou a preservar as cinco posições previstas pelo layout.",
+    "Regressão protege campos SPED e número de arquivamento nas posições adicionais.",
+    "Empresa, competência, contas, tipo de movimento e duplicidade continuam validados antes da gravação."
   ]
 }

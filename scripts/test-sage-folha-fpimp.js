@@ -11,21 +11,25 @@ function escrever(linha, inicio, fim, valor) {
 }
 
 function registro(dados) {
-  const linha = Array(328).fill(' ');
+  const linha = Array(dados.layout342 ? 342 : 328).fill(' ');
   escrever(linha, 6, 23, dados.debito);
   escrever(linha, 24, 41, dados.credito);
-  escrever(linha, 42, 45, dados.historico);
+  escrever(linha, 42, 46, dados.historico);
   escrever(linha, 47, 58, String(Math.round(dados.valor * 100)).padStart(12, '0'));
   escrever(linha, 59, 68, dados.data);
   escrever(linha, 75, 217, dados.complemento);
   escrever(linha, 218, 237, 'FOLHA SAGE');
   escrever(linha, 238, 257, '6');
   escrever(linha, 328, 328, dados.tipo || 'N');
+  if (dados.layout342) {
+    escrever(linha, 329, 332, dados.participanteSped || '1234');
+    escrever(linha, 333, 342, dados.numeroArquivamento || '0000005678');
+  }
   return linha.join('');
 }
 
 const texto = [
-  registro({ debito: '601', credito: '210', historico: '1207', valor: 12345.67, data: '31/01/2026', complemento: 'SALARIOS A PAGAR' }),
+  registro({ debito: '601', credito: '210', historico: '12078', valor: 12345.67, data: '31/01/2026', complemento: 'SALARIOS A PAGAR', layout342: true }),
   registro({ debito: '608', credito: '211', historico: '1208', valor: 2345.89, data: '31/01/2026', complemento: 'INSS SOBRE FOLHA' })
 ].join('\r\n') + '\r\n';
 
@@ -35,7 +39,9 @@ assert.strictEqual(resultado.competencia, '01/2026');
 assert.strictEqual(resultado.lancamentos.length, 2);
 assert.strictEqual(resultado.lancamentos[0].contaDebito, '601');
 assert.strictEqual(resultado.lancamentos[0].contaCredito, '210');
-assert.strictEqual(resultado.lancamentos[0].codigoHistorico, '1207');
+assert.strictEqual(resultado.lancamentos[0].codigoHistorico, '12078');
+assert.strictEqual(resultado.lancamentos[0].participante_sped, '1234');
+assert.strictEqual(resultado.lancamentos[0].numero_arquivamento, '0000005678');
 assert.strictEqual(resultado.lancamentos[0].descricao, 'SALARIOS A PAGAR');
 assert.strictEqual(resultado.lancamentos[0].valor, 12345.67);
 assert.strictEqual(resultado.totais.debitos, 14691.56);
