@@ -91,11 +91,13 @@
       else mapa.set(alias, null);
     }
     (contas || []).forEach(function (conta) {
-      const codigo = normalizarConta(conta.codigo || conta.cod);
+      const codigoOriginal = normalizarConta(conta.codigo || conta.cod);
+      const codigo = codigoEstruturalConta(conta);
       const reduzido = normalizarConta(conta.reduzido || conta.ref_rfb || conta.refRfb || conta.ref || conta.codigo_reduzido || conta.codigoReduzido);
       const idLegado = normalizarConta(conta.id || conta.conta_id || conta.contaId);
       const descricao = texto(conta.descricao || conta.desc || conta.nome);
-      const registro = { codigo, reduzido, descricao, analitica: conta.analitica !== false };
+      const registro = { codigo, codigoOriginal, reduzido, descricao, analitica: contaAnaliticaPlano(conta) };
+      registrar(codigoOriginal, registro);
       registrar(codigo, registro);
       registrar(reduzido, registro);
       if (/^\d{1,14}$/.test(idLegado)) registrar(idLegado, registro);
@@ -157,13 +159,33 @@
     return /^\d{1,4}$/.test(s) ? s.padStart(4, '0') : s;
   }
 
+  function contaAnaliticaPlano(conta) {
+    const codigo = normalizarConta((conta || {}).codigo || (conta || {}).cod);
+    const reduzido = normalizarConta((conta || {}).reduzido || (conta || {}).ref_rfb || (conta || {}).refRfb || (conta || {}).ref || (conta || {}).codigo_reduzido || (conta || {}).codigoReduzido);
+    if (reduzido) return true;
+    if ((conta || {}).analitica === false) return false;
+    const partes = codigo.split('.').filter(Boolean);
+    // O plano IOB/SAGE grava todos os níveis em cinco segmentos. Os zeros à
+    // direita são marcadores da conta sintética, não uma conta movimentável.
+    if (partes.length > 1 && /^0+$/.test(partes[partes.length - 1])) return false;
+    return true;
+  }
+
+  function codigoEstruturalConta(conta) {
+    const codigo = normalizarConta((conta || {}).codigo || (conta || {}).cod);
+    if (!codigo || contaAnaliticaPlano(conta)) return codigo;
+    const partes = codigo.split('.').filter(Boolean);
+    while (partes.length > 1 && /^0+$/.test(partes[partes.length - 1])) partes.pop();
+    return partes.join('.');
+  }
+
   function registrosPlano(contas) {
     return (contas || []).map(function (conta) {
       return {
-        codigo: normalizarConta(conta.codigo || conta.cod),
+        codigo: codigoEstruturalConta(conta),
         reduzido: normalizarConta(conta.reduzido || conta.ref_rfb || conta.refRfb || conta.ref || conta.codigo_reduzido || conta.codigoReduzido),
         descricao: texto(conta.descricao || conta.desc || conta.nome),
-        analitica: conta.analitica !== false
+        analitica: contaAnaliticaPlano(conta)
       };
     }).filter(function (conta) { return !!conta.codigo; });
   }

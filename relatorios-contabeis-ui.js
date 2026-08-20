@@ -361,7 +361,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
       const nivel = Math.max(1, Number(linha.nivel) || 1);
       const classe = linha.analitica === false ? ' class="rc-synthetic-row rc-level-' + nivel + '"' : '';
       const identificacao = [linha.codigoCompleto, linha.reduzido].filter(Boolean).join(' / ');
-      const descricao = Array(Math.max(0, nivel - 1)).fill('&nbsp;&nbsp;&nbsp;').join('') + esc(linha.descricao || 'Conta sem descrição') + (identificacao ? ' <small>(' + esc(identificacao) + ')</small>' : '');
+      const descricao = Array(Math.max(0, nivel - 1)).fill('&nbsp;&nbsp;&nbsp;').join('') + (identificacao ? '<strong>' + esc(identificacao) + '</strong> - ' : '') + esc(linha.descricao || 'Conta sem descrição');
       return '<tr' + classe + '><td>' + descricao + '</td>' + linha.saldosMensais.map(function (saldo) { return '<td class="num">' + saldoComNatureza(saldo) + '</td>'; }).join('') + '</tr>';
     }).join('');
     html += '<tr class="rc-account-row"><td colspan="13">RESUMO</td></tr>';
@@ -406,6 +406,13 @@ function preferenciasImpressao(ctx, sobrescritas) {
   function descricaoHierarquica(linha) {
     const nivel = Math.max(1, Number((linha || {}).nivel) || 1);
     return '<td style="padding-left:' + (10 + Math.max(0, nivel - 1) * 14) + 'px">' + esc((linha || {}).descricao || 'Conta sem descrição no plano') + '</td>';
+  }
+
+  function rotuloContaHierarquica(linha) {
+    const nivel = Math.max(1, Number((linha || {}).nivel) || 1);
+    const recuo = Array(Math.max(0, nivel - 1)).fill('  ').join('');
+    const identificacao = identificacaoBalancete(linha);
+    return recuo + (identificacao ? identificacao + ' - ' : '') + ((linha || {}).descricao || 'Conta sem descrição no plano');
   }
 
   function renderDRE(dados) {
@@ -704,7 +711,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   function linhasExportacao(dados) {
     if (tipoAtual === 'analise') return dados.analise.indicadores.map(function (i) { return [i.id, i.titulo, i.calculavel ? i.valor : 'N.D.', i.percentual ? '%' : (i.monetario ? 'R$' : 'índice'), i.interpretacao]; });
-    if (tipoAtual === 'balancete_anual') return dados.balanceteAnual.linhas.map(function (l) { return [l.descricao].concat(l.saldosMensais); }).concat([['RESUMO']]).concat(dados.balanceteAnual.resumo.map(function (l) { return [l.descricao].concat(l.saldosMensais); }));
+    if (tipoAtual === 'balancete_anual') return dados.balanceteAnual.linhas.map(function (l) { return [rotuloContaHierarquica(l)].concat(l.saldosMensais); }).concat([['RESUMO']]).concat(dados.balanceteAnual.resumo.map(function (l) { return [l.descricao].concat(l.saldosMensais); }));
     if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [identificacaoBalancete(l), l.descricao, l.saldoAnterior, l.debitos, l.creditos, l.saldoAtual]; });
     if (tipoAtual === 'dre') return dados.dre.linhas.map(function (l) { return [identificacaoBalancete(l), l.descricao, l.valorDemonstracao]; }).concat([['', 'RESULTADO LÍQUIDO DO PERÍODO', dados.dre.resultado]]);
     if (tipoAtual === 'balanco') return dados.balanco.linhas.map(function (l) { return [identificacaoBalancete(l), l.descricao, l.saldoAtual]; }).concat([['RESULTADO', 'Resultado acumulado nas contas de resultado', dados.balanco.resultadoAcumulado], ['', 'TOTAL DO ATIVO', dados.balanco.totalAtivo], ['', 'TOTAL DO PASSIVO + PATRIMÔNIO LÍQUIDO', dados.balanco.totalPassivoPatrimonio]]);
@@ -716,7 +723,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   function linhasExportacaoPDF(dados) {
     if (tipoAtual === 'analise') return dados.analise.indicadores.map(function (i) { return [i.id, i.titulo, i.calculavel ? (i.monetario ? moedaPDF(i.valor) : moeda(i.valor) + (i.percentual ? '%' : '')) : 'N.D.', i.interpretacao]; });
-    if (tipoAtual === 'balancete_anual') return dados.balanceteAnual.linhas.map(function (l) { return [Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao].concat(l.saldosMensais.map(saldoComNatureza)); }).concat([['RESUMO']]).concat(dados.balanceteAnual.resumo.map(function (l) { return [l.descricao].concat(l.saldosMensais.map(saldoComNatureza)); }));
+    if (tipoAtual === 'balancete_anual') return dados.balanceteAnual.linhas.map(function (l) { return [rotuloContaHierarquica(l)].concat(l.saldosMensais.map(saldoComNatureza)); }).concat([['RESUMO']]).concat(dados.balanceteAnual.resumo.map(function (l) { return [l.descricao].concat(l.saldosMensais.map(saldoComNatureza)); }));
     if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [identificacaoBalancete(l), Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao, saldoPDFComNatureza(l.saldoAnterior), moedaPDF(l.debitos), moedaPDF(l.creditos), saldoPDFComNatureza(l.saldoAtual)]; });
     if (tipoAtual === 'dre') return dados.dre.linhas.map(function (l) { return [identificacaoBalancete(l), Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao, moedaPDF(l.valorDemonstracao)]; }).concat([['', 'RESULTADO LÍQUIDO DO PERÍODO', moedaPDF(dados.dre.resultado)]]);
     if (tipoAtual === 'balanco') return dados.balanco.linhas.map(function (l) { return [identificacaoBalancete(l), Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao, saldoPDFComNatureza(l.saldoAtual)]; }).concat([['RESULTADO', 'Resultado acumulado nas contas de resultado', saldoPDFComNatureza(-dados.balanco.resultadoAcumulado)], ['', 'TOTAL DO ATIVO', moedaPDF(dados.balanco.totalAtivo)], ['', 'TOTAL DO PASSIVO + PATRIMÔNIO LÍQUIDO', moedaPDF(dados.balanco.totalPassivoPatrimonio)]]);

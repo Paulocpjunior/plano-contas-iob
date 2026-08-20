@@ -82,6 +82,30 @@ assert.deepStrictEqual(arvore.find(l => l.codigoCompleto === '1.1.1.02'), {
 assert.strictEqual(arvore.find(l => l.codigoCompleto === '2').saldoAtual, -1250, 'passivo sintetico deve preservar natureza credora');
 assert.strictEqual(arvore.filter(l => l.analitica !== false).reduce((s, l) => s + l.debitos, 0), 1250, 'totais nao podem somar sinteticas e analiticas em duplicidade');
 
+const planoIOBSageMascarado = [
+  { codigo: '1.0.0.00.0000', descricao: 'ATIVO', analitica: true },
+  { codigo: '1.1.0.00.0000', descricao: 'ATIVO CIRCULANTE', analitica: true },
+  { codigo: '1.1.1.00.0000', descricao: 'DISPONÍVEL', analitica: true },
+  { codigo: '1.1.1.02.0000', descricao: 'BANCOS C/ MOVIMENTO', analitica: true },
+  { codigo: '1.1.1.02.0002', reduzido: '0000000011', descricao: 'BANCO ITAÚ', analitica: true },
+  { codigo: '2.0.0.00.0000', descricao: 'PASSIVO', analitica: true },
+  { codigo: '2.1.0.00.0000', descricao: 'PASSIVO CIRCULANTE', analitica: true },
+  { codigo: '2.1.1.00.0000', descricao: 'OBRIGAÇÕES A CURTO PRAZO', analitica: true },
+  { codigo: '2.1.1.07.0000', descricao: 'CONTAS A PAGAR', analitica: true },
+  { codigo: '2.1.1.07.0005', reduzido: '0000000395', descricao: 'CONTAS A PAGAR', analitica: true }
+];
+const arvoreIOBSage = core.balancete([
+  { id: 'sage-1', data: '31/07/2026', valor: 777.79, contaDebito: '11', contaCredito: '395' }
+], '2026-07', planoIOBSageMascarado, {});
+assert.deepStrictEqual(arvoreIOBSage.map(l => l.codigoCompleto), [
+  '1', '1.1', '1.1.1', '1.1.1.02', '1.1.1.02.0002',
+  '2', '2.1', '2.1.1', '2.1.1.07', '2.1.1.07.0005'
+], 'máscara IOB/SAGE com zeros deve formar os cinco níveis reais mesmo quando o cadastro legado marcou tudo como analítico');
+assert.strictEqual(arvoreIOBSage.find(l => l.codigoCompleto === '1.1.1.02').debitos, 777.79, 'conta sintética deve totalizar a reduzida imediatamente subordinada');
+assert.strictEqual(arvoreIOBSage.find(l => l.codigoCompleto === '2').creditos, 777.79, 'grupo contábil deve totalizar todos os descendentes sem duplicidade');
+assert.strictEqual(arvoreIOBSage.find(l => l.codigoCompleto === '1').analitica, false, 'grupo mascarado não pode permanecer movimentável');
+assert.strictEqual(arvoreIOBSage.find(l => l.codigoCompleto === '1.1.1.02.0002').reduzido, '0000000011', 'reduzido deve permanecer rastreável abaixo da conta sintética');
+
 const anual = core.balanceteAnual([
   { id: 'a1', data: '05/01/2026', valor: 1000, contaDebito: '10', contaCredito: '300' },
   { id: 'a2', data: '05/03/2026', valor: 250, contaDebito: '14', contaCredito: '300' }

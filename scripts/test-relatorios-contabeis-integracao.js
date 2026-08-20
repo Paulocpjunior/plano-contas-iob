@@ -50,6 +50,7 @@ assert(index.includes('state.relatoriosContabeis.preferenciasImpressao = prefere
 assert(ui.includes('Balancete Analítico'), 'título analítico do balancete ausente');
 assert(ui.includes('data-rc-tipo="balancete_anual"'), 'aba do Balancete Anual não foi liberada');
 assert(ui.includes('function renderBalanceteAnual(dados)'), 'prévia anual não foi implementada');
+assert(ui.includes('function rotuloContaHierarquica(linha)'), 'exportação anual deve preservar código, reduzido, descrição e recuo hierárquico');
 assert(ui.includes('function saldosDoAno(ctx, ano)'), 'balancete anual deve incorporar somente saldos cadastrados e transportes formais');
 assert(ui.includes("item.status === 'vigente'"), 'transporte anual deve exigir status vigente');
 assert(ui.includes('Meses futuros não recebem projeção automática.'), 'balancete anual deve explicar que meses futuros não são projetados');
@@ -89,6 +90,7 @@ assert(server.includes("balancete_anual: 'Balancete Anual Analítico'"), 'envio 
 assert(server.includes('analitica: conta.analitica !== false'), 'API não entrega a natureza sintética/analítica da conta');
 assert(adapter.includes('analitica: c.analitica !== false'), 'adaptador não preserva a natureza sintética/analítica da conta');
 assert(index.includes('Contas sinteticas formam a arvore usada no Balancete, Balanco e DRE.'), 'importação não preserva contas sintéticas do plano completo');
+assert(index.includes("niveis >= 5 && !/\\.0+$/.test(codigo)"), 'importação deve reconhecer os zeros estruturais das contas sintéticas IOB/SAGE');
 assert(index.includes('analitica: c.analitica !== false'), 'cadastro do plano ainda força todas as contas como analíticas');
 assert(index.includes('body: JSON.stringify({ contas: contas })'), 'sobrescrita do plano não usa o conjunto recebido');
 assert.strictEqual(estruturaFastweld.length, 77, 'estrutura sintética extraída do balancete de referência está incompleta');
