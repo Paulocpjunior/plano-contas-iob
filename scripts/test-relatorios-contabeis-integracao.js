@@ -50,6 +50,9 @@ assert(index.includes('state.relatoriosContabeis.preferenciasImpressao = prefere
 assert(ui.includes('Balancete Analítico'), 'título analítico do balancete ausente');
 assert(ui.includes('data-rc-tipo="balancete_anual"'), 'aba do Balancete Anual não foi liberada');
 assert(ui.includes('function renderBalanceteAnual(dados)'), 'prévia anual não foi implementada');
+assert(ui.includes('function saldosDoAno(ctx, ano)'), 'balancete anual deve incorporar somente saldos cadastrados e transportes formais');
+assert(ui.includes("item.status === 'vigente'"), 'transporte anual deve exigir status vigente');
+assert(ui.includes('Meses futuros não recebem projeção automática.'), 'balancete anual deve explicar que meses futuros não são projetados');
 assert(ui.includes("orientation: 'landscape'"), 'Balancete Anual não força o layout horizontal');
 assert(ui.includes("['Descrição'].concat(['Janeiro'"), 'exportação anual não contém os doze meses');
 assert(ui.includes('function renderDRE(dados)'), 'tela da DRE não foi liberada');

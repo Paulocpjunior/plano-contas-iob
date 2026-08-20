@@ -326,8 +326,13 @@
     MESES_BALANCETE_ANUAL.forEach(function (mes, indice) {
       const periodo = anoNormalizado + '-' + mes.numero;
       const explicitos = saldosConfigurados[periodo] && typeof saldosConfigurados[periodo] === 'object' ? saldosConfigurados[periodo] : {};
-      const abertura = Object.assign({}, transportados, explicitos);
       const movimento = lancamentosDoPeriodo(lancamentos, periodo);
+      const periodoComEvidencia = movimento.length > 0 || Object.keys(explicitos).length > 0;
+      if (!periodoComEvidencia) {
+        transportados = {};
+        return;
+      }
+      const abertura = Object.assign({}, transportados, explicitos);
       if (movimento.length) periodosComMovimento += 1;
       const mensal = balancete(lancamentos, periodo, contas, abertura);
 

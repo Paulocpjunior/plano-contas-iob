@@ -1,11 +1,11 @@
 {
-  "version": "3.4.170",
-  "build_date": "2026-08-20T17:56:16Z",
+  "version": "3.4.171",
+  "build_date": "2026-08-20T18:08:00Z",
   "release_notes": [
-    "Layout real FPIMP0040.01 homologado com 15 lançamentos e totais contábeis conciliados.",
-    "Arquivo SAGE Folha de 342 posições validado sem depender de PDF ou IA.",
-    "Código de histórico passou a preservar as cinco posições previstas pelo layout.",
-    "Regressão protege campos SPED e número de arquivamento nas posições adicionais.",
-    "Empresa, competência, contas, tipo de movimento e duplicidade continuam validados antes da gravação."
+    "Balancete Anual deixa de projetar saldos de janeiro para meses futuros sem escrituração.",
+    "Competências anuais só exibem valores quando possuem lançamentos, saldos cadastrados ou transporte formal vigente.",
+    "Transporte oficial do fechamento continua preservado e protegido.",
+    "Regressão cobre empresa iniciada do zero em janeiro com fevereiro a dezembro sem valores.",
+    "Primeira empresa iniciada integralmente no CCI registrada como marco operacional."
   ]
 }

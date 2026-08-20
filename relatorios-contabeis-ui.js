@@ -143,6 +143,18 @@ function preferenciasImpressao(ctx, sobrescritas) {
     return saldos;
   }
 
+  function saldosDoAno(ctx, ano) {
+    const configurados = Object.assign({}, (((ctx || {}).config || {}).saldosIniciais || {}));
+    if (!statusAtual || !Array.isArray(statusAtual.transportes)) return configurados;
+    statusAtual.transportes.forEach(function (item) {
+      const periodo = String((item || {}).periodo_destino || '');
+      if (item && item.status === 'vigente' && periodo.slice(0, 4) === String(ano) && item.saldos && typeof item.saldos === 'object') {
+        configurados[periodo] = item.saldos;
+      }
+    });
+    return configurados;
+  }
+
   function statusDoPeriodo(periodo) {
     return statusAtual && Array.isArray(statusAtual.periodos)
       ? statusAtual.periodos.find(function (p) { return p.periodo === periodo; }) || null
@@ -282,7 +294,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
       saldos,
       validacao: Core.validar(ctx.entries, filtroValidacao, ctx.contas),
       balancete,
-      balanceteAnual: Core.balanceteAnual(ctx.entries, ano, ctx.contas, (((ctx || {}).config || {}).saldosIniciais || {})),
+      balanceteAnual: Core.balanceteAnual(ctx.entries, ano, ctx.contas, saldosDoAno(ctx, ano)),
       razao: Core.razao(ctx.entries, filtro, ctx.contas, saldos, (document.getElementById('rcConta') || {}).value || ''),
       diario: Core.diario(ctx.entries, filtro, ctx.contas),
       dre: Core.dre(balancete),
@@ -337,7 +349,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     else if (tipoAtual === 'balanco') renderBalanco(dados);
     else renderAnalise(dados);
     renderHistorico(periodoStatus);
-    if (anual) document.getElementById('rcHistorico').textContent = 'O balancete anual consolida os lançamentos e saldos de abertura cadastrados no CCI, transportando o saldo final de cada conta para o mês seguinte.';
+    if (anual) document.getElementById('rcHistorico').textContent = 'O balancete anual mostra somente competências com lançamentos, saldos cadastrados ou transporte formal do fechamento. Meses futuros não recebem projeção automática.';
     renderControleAbertura();
   }
 
