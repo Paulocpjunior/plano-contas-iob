@@ -47,6 +47,25 @@ assert.strictEqual(vinculoEntradas.valido, true);
 assert.strictEqual(vinculoEntradas.codigoArquivo, '0109');
 assert.strictEqual(vinculoEntradas.origemCnpj, 'cadastro_codigo_empresa_arquivo');
 
+const csvRazaoSocialComSeparador = [
+  ';E/S;Entrada/Saída;Nº da NF;CNPJ Remetente/Destinatário;Razão Social;Cidade;Uf;Chave NF-E;Cfop;Valor Contabil;',
+  ";E;22/06/2026;0000064411;05.595.560/0001-50;COMERCIAL OAMP;P EIRELI;SAO PAULO;SP;'35260605595560000150551000000644111672011771;1102;1.361,48;"
+].join('\r\n');
+const entradaRazaoSocialComSeparador = parsearCSV_IOB_Sage_LivroEntradas(csvRazaoSocialComSeparador);
+assert.strictEqual(entradaRazaoSocialComSeparador.total_notas_fiscais, 1, 'ponto e virgula sem aspas na razao social nao pode criar nota invalida');
+assert.strictEqual(entradaRazaoSocialComSeparador.chaves_nfe_validas, 1, 'chave NF-e deslocada deve ser recuperada e validada integralmente');
+assert.strictEqual(entradaRazaoSocialComSeparador.chaves_nfe_invalidas, 0);
+assert.strictEqual(entradaRazaoSocialComSeparador.linhas_recompostas_por_chave_nfe, 1);
+assert.strictEqual(entradaRazaoSocialComSeparador.lancamentos[0].fornecedor, 'COMERCIAL OAMP; P EIRELI');
+assert.strictEqual(validarVinculoCnpjFiscal(entradaRazaoSocialComSeparador, {
+  cnpjEmpresaAtiva: '08.836.321/0001-32',
+  codigoEmpresaAtiva: '0813',
+  direcaoEsperada: 'entrada',
+  arquivoNome: '0813_RelatorioNotas_20260601_20260630.Csv',
+  exigirCodigoArquivo: true,
+  exigirChaveNfeTodasNotas: true
+}).valido, true, 'arquivo 0813 deve ser liberado sem desativar a trava de chave NF-e');
+
 assert.throws(() => validarVinculoCnpjFiscal(entradas, {
   cnpjEmpresaAtiva: '02.942.184/0001-34',
   codigoEmpresa: 'GEN',

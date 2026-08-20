@@ -1,11 +1,10 @@
 {
-  "version": "3.4.171",
-  "build_date": "2026-08-20T18:08:00Z",
+  "version": "3.4.172",
+  "build_date": "2026-08-20T18:45:19Z",
   "release_notes": [
-    "Balancete Anual deixa de projetar saldos de janeiro para meses futuros sem escrituração.",
-    "Competências anuais só exibem valores quando possuem lançamentos, saldos cadastrados ou transporte formal vigente.",
-    "Transporte oficial do fechamento continua preservado e protegido.",
-    "Regressão cobre empresa iniciada do zero em janeiro com fevereiro a dezembro sem valores.",
-    "Primeira empresa iniciada integralmente no CCI registrada como marco operacional."
+    "Livro fiscal da SAGE recompõe razão social que contenha ponto e vírgula sem aspas.",
+    "A NF 0000064411 do arquivo 0813 passa a preservar fornecedor, chave NF-e, CFOP e valores nas colunas corretas.",
+    "Arquivo real da FR CLIMATIZAÇÃO validado com 8 de 8 chaves NF-e válidas e 9 lançamentos por CFOP.",
+    "A trava fiscal permanece ativa: a recomposição exige uma única chave NF-e válida de 44 dígitos como evidência."
   ]
 }

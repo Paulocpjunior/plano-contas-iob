@@ -389,6 +389,36 @@
     };
   }
 
+  // Alguns CSVs exportados pela SAGE deixam ponto e virgula sem aspas dentro
+  // da Razao Social. Como a chave NF-e fica depois desse campo, todas as
+  // colunas seguintes acabam deslocadas. A recomposicao so ocorre quando ha
+  // colunas excedentes e uma unica chave NF-e valida confirma o deslocamento;
+  // a validacao fiscal permanece integral.
+  function recomporLinhaPorChaveNfe(row, headerLength, mapa) {
+    if (!Array.isArray(row) || row.length <= headerLength) return row;
+    const indiceChaveEsperado = Number(mapa && mapa.chaveNfe);
+    const indiceRazaoSocial = Number(mapa && mapa.razaoSocial);
+    if (indiceChaveEsperado < 0 || indiceRazaoSocial < 0 || chaveNfeValida(row[indiceChaveEsperado])) return row;
+
+    const indicesChave = [];
+    row.forEach(function(valor, indice) {
+      if (chaveNfeValida(valor)) indicesChave.push(indice);
+    });
+    if (indicesChave.length !== 1 || indicesChave[0] <= indiceChaveEsperado) return row;
+
+    const deslocamento = indicesChave[0] - indiceChaveEsperado;
+    if (row.length - deslocamento !== headerLength || indiceRazaoSocial + deslocamento >= indicesChave[0]) return row;
+
+    const razaoRecomposta = row
+      .slice(indiceRazaoSocial, indiceRazaoSocial + deslocamento + 1)
+      .map(limparCampo)
+      .filter(Boolean)
+      .join('; ');
+    return row
+      .slice(0, indiceRazaoSocial)
+      .concat([razaoRecomposta], row.slice(indiceRazaoSocial + deslocamento + 1));
+  }
+
   function criarMapaColunas(headerRow) {
     const headers = (headerRow || []).map(normalizarHeader);
     const mapa = {};
@@ -779,6 +809,14 @@
     const matriz = linhasParaMatriz(textoCompleto);
     const cab = encontrarCabecalho(matriz.rows);
     if (!cab) return { detectado: false, lancamentos: [], motivo: 'cabecalho_nao_reconhecido' };
+    let linhasRecompostas = 0;
+    const tamanhoCabecalho = matriz.rows[cab.index].length;
+    matriz.rows = matriz.rows.map(function(row, indice) {
+      if (indice <= cab.index) return row;
+      const recomposta = recomporLinhaPorChaveNfe(row, tamanhoCabecalho, cab.mapa);
+      if (recomposta !== row) linhasRecompostas++;
+      return recomposta;
+    });
     const direcoes = new Set(matriz.rows.slice(cab.index + 1).map(function(row) {
       return valorColuna(row || [], cab.mapa, 'es').toUpperCase();
     }).filter(Boolean));
@@ -881,6 +919,7 @@
       total_oficial: Math.round((totalCredito + totalDebito) * 100) / 100,
       total_lancamentos: lancamentos.length,
       linhas_complementares_agregadas: complementares,
+      linhas_recompostas_por_chave_nfe: linhasRecompostas,
       colunas_disponiveis: colunasDisponiveis,
       colunas_selecionadas: colunasDisponiveis.filter(function(c) { return c.selecionada; }).map(function(c) { return c.chave; }),
       lancamentos
@@ -980,6 +1019,7 @@
         linhasParaMatriz,
         cnpjValido,
         chaveNfeValida,
+        recomporLinhaPorChaveNfe,
         codigoEmpresaDoArquivo
       }
     };
