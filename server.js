@@ -359,9 +359,13 @@ app.post('/api/folha/registrar-importacao', async (req, res) => {
     if (!cnpj || !competencia || !raw_text_hash) {
       return res.status(400).json({ erro: 'campos obrigatórios: cnpj, competencia, raw_text_hash' });
     }
+    const cnpjLimpo = String(cnpj).replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido' });
+    const acesso = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
     const docRef = await db.collection('folha_importacoes').add({
       owner_uid: req.user.uid,
-      cnpj, competencia, raw_text_hash,
+      cnpj: cnpjLimpo, competencia, raw_text_hash,
       total_lancamentos: total_lancamentos || 0,
       total_valor: total_valor || 0,
       criado_em: new Date(),
@@ -382,7 +386,9 @@ app.get('/api/folha/empresas-do-plano/:planoId', async (req, res) => {
       .where('plano_id', '==', planoId)
       .where('ativo', '==', true)
       .get();
-    const empresas = snap.docs.map(d => {
+    const empresas = snap.docs
+      .filter(d => usuarioPodeAcessarEmpresa(d.data() || {}, req.user))
+      .map(d => {
       const data = d.data();
       const cnpjLimpo = d.id;
       const cnpjFmt = cnpjLimpo.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
@@ -405,6 +411,8 @@ app.get('/api/folha/mapeamento/:cnpj', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido' });
+    const acesso = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
     const snap = await db.collection('folha_mapeamentos')
       .where('cnpj', '==', cnpjLimpo).limit(1).get();
     if (snap.empty) return res.json({ encontrado: false });
@@ -421,6 +429,8 @@ app.put('/api/folha/mapeamento/:cnpj', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido' });
+    const acesso = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
     const { regras, encargos, origem_padrao, numero_filial } = req.body;
     const snap = await db.collection('folha_mapeamentos')
       .where('cnpj', '==', cnpjLimpo).limit(1).get();
@@ -453,6 +463,9 @@ app.get('/api/folha/checar-duplicidade', async (req, res) => {
     const { cnpj, competencia, hash } = req.query;
     if (!cnpj || !competencia) return res.status(400).json({ erro: 'cnpj e competencia obrigatórios' });
     const cnpjLimpo = String(cnpj).replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido' });
+    const acesso = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
     const snap = await db.collection('folha_importacoes')
       .where('cnpj', '==', cnpjLimpo)
       .where('competencia', '==', competencia)

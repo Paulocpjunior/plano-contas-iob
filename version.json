@@ -1,10 +1,11 @@
 {
-  "version": "3.4.167",
-  "build_date": "2026-08-20T09:42:54Z",
+  "version": "3.4.168",
+  "build_date": "2026-08-20T17:17:18Z",
   "release_notes": [
-    "Novo roteiro da empresa-piloto em Relatórios Contábeis, com percentual e próxima ação baseados em evidências reais.",
-    "Acompanhamento conjunto de abertura, fechamentos consecutivos, conciliações, transportes e ativo imobilizado.",
-    "Prontidão contábil alinhada para Isenta, Imune e Terceiro Setor.",
-    "Manual Operacional e downloads Word/PDF atualizados para a versão 2.16."
+    "Importação de folha de pagamento liberada para todos os colaboradores autenticados.",
+    "Empresas exibidas no fluxo de folha agora respeitam a carteira e as permissões do usuário.",
+    "Mapeamentos, verificação de duplicidade e registro da importação permanecem isolados por empresa.",
+    "Vincular empresa continua sendo uma função exclusiva do administrador.",
+    "Manual Operacional e downloads Word/PDF atualizados para a versão 2.17."
   ]
 }

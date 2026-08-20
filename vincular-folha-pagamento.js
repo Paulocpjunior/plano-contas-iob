@@ -357,7 +357,7 @@
       const r = await apiGet('/api/folha/empresas-do-plano/' + encodeURIComponent(planoId));
       const empresas = r.empresas || [];
       if (empresas.length === 0) {
-        alert('Nenhuma empresa ativa vinculada ao plano "' + planoNome + '".\n\nUse o botao Vincular primeiro.');
+        alert('Nenhuma empresa ativa e acessivel vinculada ao plano "' + planoNome + '".\n\nSe necessario, solicite acesso ao administrador.');
         return;
       }
       let escolhida = empresas[0];

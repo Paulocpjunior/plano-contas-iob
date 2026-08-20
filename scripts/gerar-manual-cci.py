@@ -290,7 +290,7 @@ def generate_pdf(content):
             elif kind in ('bullets', 'checklist', 'steps'):
                 for index, item in enumerate(block['items'], 1):
                     marker = f'{index}.' if kind == 'steps' else '[ ]' if kind == 'checklist' else '•'
-                    story.append(Paragraph(f'{marker} {item}', list_style))
+                    story.append(KeepTogether([Paragraph(f'{marker} {item}', list_style)]))
                 story.append(Spacer(1, 4))
             elif kind == 'table':
                 cols = len(block['headers']); widths = [document.width/2]*2 if cols == 2 else [document.width*0.22, document.width*0.25, document.width*0.53]
