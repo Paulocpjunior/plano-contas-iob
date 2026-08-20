@@ -2,7 +2,7 @@
 
 const { avaliarParametrizacaoRegime } = require('./parametrizacao-regime');
 
-const REGIMES = new Set(['SIMPLES_NACIONAL', 'LUCRO_PRESUMIDO', 'LUCRO_REAL']);
+const REGIMES = new Set(['SIMPLES_NACIONAL', 'LUCRO_PRESUMIDO', 'LUCRO_REAL', 'ISENTA', 'IMUNE', 'TERCEIRO_SETOR']);
 
 function item(codigo, titulo, ok, bloqueante, acao) {
   return { codigo, titulo, ok: ok === true, bloqueante: bloqueante === true, acao: ok ? '' : acao };

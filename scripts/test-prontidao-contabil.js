@@ -47,4 +47,11 @@ assert.strictEqual(exclusivaPronta.status, 'pronta');
 const semPlanoRegime = avaliarProntidaoContabil({ modo_contabil: 'cci_exclusivo' });
 assert.deepStrictEqual(semPlanoRegime.bloqueios.map(function (i) { return i.codigo; }), ['PLANO_CONTAS', 'REGIME_CFI', 'PARAMETRIZACAO_REGIME', 'INICIO_CCI', 'SALDOS_ABERTURA']);
 
+const isenta = avaliarProntidaoContabil({
+  plano_id: 'plano-1', modo_contabil: 'ponte_sage', regime_tributario_codigo: 'ISENTA', regime_tributario_origem: 'CFI',
+  parametrizacao_tributaria: { regime_codigo: 'ISENTA', vigencia_inicio: '2026-01', cnae_principal: '9499500', fundamento_legal: 'Fundamento revisado', documentacao_revisada: true, validacao_ia: { status: 'concluida', cnae: '9499500' } }
+});
+assert.strictEqual(isenta.status, 'pronta');
+assert.strictEqual(isenta.percentual, 100);
+
 console.log('OK: prontidão contábil separa ponte, CCI exclusivo, pendências e bloqueios');

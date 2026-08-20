@@ -8,7 +8,7 @@ const root = path.join(__dirname, '..');
 const manual = require(path.join(root, 'manual-cci-base'));
 
 assert(manual.validarManualCCI(), 'O conteúdo oficial do manual deve ser válido.');
-assert.strictEqual(manual.conteudo.manual_version, '2.15', 'A versão atual do manual deve estar explícita.');
+assert.strictEqual(manual.conteudo.manual_version, '2.16', 'A versão atual do manual deve estar explícita.');
 assert(manual.textoManualCCI().includes('Simples Nacional'), 'O manual deve cobrir parametrizações tributárias.');
 assert(manual.textoManualCCI().includes('78%'), 'A referência histórica de prontidão deve estar identificada sem recalcular automaticamente.');
 
@@ -53,4 +53,5 @@ assert(manual.textoManualCCI().includes('código NNNN_ do arquivo'), 'Manual dev
 assert(manual.textoManualCCI().includes('CNPJ emitente das chaves NF-e'), 'Manual deve explicar a identificação segura do livro de saídas.');
 assert(manual.textoManualCCI().includes('Balanço de 19/08/2026'), 'Manual deve registrar a evolução consolidada do dia.');
 assert(manual.textoManualCCI().includes('backup e recuperação operacional'), 'Manual deve manter explícita a pendência de recuperação.');
-console.log('OK: Manual CCI v2.15 usa fonte única no app, na Ajuda e nos downloads versionados.');
+assert(manual.textoManualCCI().includes('roteiro da empresa-piloto'), 'Manual deve acompanhar o roteiro de homologação por evidências.');
+console.log('OK: Manual CCI v2.16 usa fonte única no app, na Ajuda e nos downloads versionados.');

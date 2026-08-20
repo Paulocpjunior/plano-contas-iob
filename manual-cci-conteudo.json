@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "manual_version": "2.15",
-  "updated_at": "2026-08-19",
-  "app_reference": "3.4.166",
+  "manual_version": "2.16",
+  "updated_at": "2026-08-20",
+  "app_reference": "3.4.167",
   "title": "Manual Operacional do CCI",
   "subtitle": "Operação contábil, transição da SAGE e próximos passos",
   "audience": "Colaboradores e administradores da SP Assessoria Contábil",
   "classification": "Uso interno",
   "status": {
     "label": "CCI em implantação controlada como sistema contábil principal",
-    "summary": "A operação cotidiana já cobre importações, classificação, relatórios, fechamento, conciliação bancária formal, transporte controlado de saldos, eventos contábeis do ativo imobilizado e ECD/ECF. Em 19/08/2026 foram corrigidas nove frentes operacionais e adicionadas regressões com arquivos reais. A retirada definitiva da SAGE continua condicionada aos fechamentos-piloto, à recuperação de backup e às validações finais de operação.",
+    "summary": "A operação cotidiana já cobre importações, classificação, relatórios, fechamento, conciliação bancária formal, transporte controlado de saldos, eventos contábeis do ativo imobilizado e ECD/ECF. Em 20/08/2026 o CCI passou a calcular o roteiro de homologação de cada empresa-piloto com evidências gravadas no próprio sistema. A retirada definitiva da SAGE continua condicionada aos fechamentos-piloto, à recuperação de backup e às validações finais de operação.",
     "readiness_reference": "A versão 1.0 registrou aproximadamente 78% de prontidão. As entregas de 18 e 19/08/2026 aumentaram a cobertura funcional e as proteções, mas o percentual somente será recalculado depois de fechamentos-piloto completos com evidência contábil."
   },
   "chapters": [
@@ -34,8 +34,23 @@
       ]
     },
     {
+      "id": "novidades-20-08",
+      "title": "2. Entregas concluídas em 20/08/2026",
+      "keywords": ["novidades", "empresa piloto", "homologação", "sage", "prontidão"],
+      "blocks": [
+        {"type": "bullets", "items": [
+          "Novo roteiro da empresa-piloto dentro dos Relatórios Contábeis, com percentual e próxima ação.",
+          "A homologação usa evidências gravadas: configuração, abertura, fechamentos consecutivos, conciliações, transportes e eventos do ativo.",
+          "Nenhuma etapa pode ser aprovada manualmente pelo painel; o status muda somente quando a operação correspondente é concluída no CCI.",
+          "Empresas sem bens cadastrados recebem Ativo imobilizado como etapa não aplicável, sem reduzir artificialmente a prontidão.",
+          "Isenta, Imune e Terceiro Setor passaram a ser reconhecidos também pelo cálculo geral de prontidão contábil, alinhado às parametrizações já existentes."
+        ]},
+        {"type": "callout", "tone": "warning", "label": "Critério de virada", "text": "O percentual da empresa-piloto não autoriza sozinho a retirada da SAGE. A decisão final continua dependendo dos fechamentos reais, recuperação de backup, múltiplos usuários e validação do responsável contábil."}
+      ]
+    },
+    {
       "id": "novidades-18-08",
-      "title": "2. Entregas concluídas em 18/08/2026",
+      "title": "2.1 Entregas concluídas em 18/08/2026",
       "keywords": ["novidades", "regime", "prontidão", "manual", "ajuda"],
       "blocks": [
         {"type": "bullets", "items": [

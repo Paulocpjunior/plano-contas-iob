@@ -23,6 +23,7 @@ const RelatoriosContabeis = require('./relatorios-contabeis');
 const AtivoImobilizado = require('./ativo-imobilizado');
 const AtivoImobilizadoContabil = require('./ativo-imobilizado-contabil');
 const ConciliacaoContabil = require('./conciliacao-contabil');
+const HomologacaoPiloto = require('./homologacao-piloto');
 const GraphEmail = require('./graph-email-provider');
 const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa, buscarOrientacaoAjuda } = require('./ajuda-cci-base');
 const { conteudo: MANUAL_CCI } = require('./manual-cci-base');
@@ -3314,6 +3315,36 @@ app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
   } catch (e) {
     console.error('listar periodos contabeis erro:', e);
     res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_LISTAR_PERIODOS' });
+  }
+});
+
+app.get('/api/empresas/:cnpj/contabilidade/homologacao-piloto', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const [periodosSnap, transportesSnap, conciliacoesSnap, ativosSnap, ativosLancamentosSnap] = await Promise.all([
+      empresaRef.collection('periodos_contabeis').get(),
+      empresaRef.collection('transportes_saldos').get(),
+      empresaRef.collection('conciliacoes_bancarias').get(),
+      empresaRef.collection('ativos_imobilizados').get(),
+      empresaRef.collection('ativos_lancamentos').get()
+    ]);
+    const dados = function (snap) { return snap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; }); };
+    res.json(HomologacaoPiloto.avaliarHomologacaoPiloto({
+      empresa: chk.empresa,
+      periodos: dados(periodosSnap),
+      transportes: dados(transportesSnap),
+      conciliacoes: dados(conciliacoesSnap),
+      ativos: dados(ativosSnap),
+      ativos_lancamentos: dados(ativosLancamentosSnap),
+      meta_fechamentos: 2
+    }));
+  } catch (e) {
+    console.error('homologacao piloto erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_HOMOLOGACAO_PILOTO' });
   }
 });
 
