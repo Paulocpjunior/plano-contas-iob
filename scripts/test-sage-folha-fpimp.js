@@ -64,6 +64,11 @@ assert(server.includes("codigoEmpresa: codigoEmpresaDe(acesso.empresa)"), 'Servi
 assert(front.includes("folha.formato === 'sage_fpimp'"), 'Frontend deve separar FPIMP do PDF.');
 assert(front.includes('Importar lançamentos no CCI'), 'Frontend deve oferecer gravação no CCI.');
 assert(index.includes('window.CCIImportarFolhaSage'), 'Integração deve gravar os lançamentos na sessão contábil.');
-assert(index.includes('Ative a competência correta antes de importar'), 'Importação deve bloquear competência divergente.');
+assert(index.includes('Deseja alterar a competência ativa para'), 'Competência divergente deve oferecer troca confirmada ao colaborador.');
+assert(index.includes('Os lançamentos dos meses anteriores serão preservados.'), 'Troca de competência deve informar que o histórico será preservado.');
+assert(index.includes('await salvarSessaoRemotoAgora({ mostrarErro: true })'), 'Nova competência deve ser persistida no servidor.');
+assert(index.includes("{ code: 'FOLHA', name: 'FOLHA DE PAGAMENTO' }"), 'Filtro deve oferecer o historico acumulado da folha.');
+assert(index.includes("sincronizarComboboxBanco('filterBanco', 'FOLHA')"), 'Apos importar, a tela deve mostrar todas as competencias da folha, nao somente o ultimo arquivo.');
+assert(index.includes('totalAcumulado: folhasAcumuladas.length'), 'Retorno da importacao deve confirmar o historico acumulado preservado.');
 
 console.log('OK: SAGE Folha FPIMP valida empresa, competência, campos fixos e importação direta no CCI.');

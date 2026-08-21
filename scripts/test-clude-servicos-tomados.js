@@ -15,6 +15,7 @@ const arquivoAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/733  CL
 const arquivoDaxxAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/1183 - SERVIÇOS TOMADOS 042026.pdf';
 const arquivoDaxxServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/1183 - SERV.  PRESTADOS 04.2026 FISCAL 1.pdf';
 const arquivoSinteseServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/SERVIÇOS PRESTADOS 06.2026.pdf';
+const arquivoDaxxTotalPass = '/Users/paulocesarpereirajunior/Downloads/Serviços prestados 07.2026.pdf';
 
 function money(n) {
   return Math.round(Number(n || 0) * 100) / 100;
@@ -134,6 +135,22 @@ function money(n) {
   assert.strictEqual(money(iss7698.valor), -1875.52);
   assert.strictEqual(money(iss7698.valorTributoRetido), 1875.52);
   assert.strictEqual(iss7698.cnpj_tomador, '11.300.963/0001-27');
+
+  assert.ok(fs.existsSync(arquivoDaxxTotalPass), 'fixture real DAXX julho/2026 deve existir');
+  const bufferDaxxTotalPass = fs.readFileSync(arquivoDaxxTotalPass);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferDaxxTotalPass).digest('hex'),
+    'd8e9c374f10d6bb97eac8f5c3c57611afa7362f41acae479fa08ace3d0f203aa',
+    'fixture DAXX TOTAL PASS deve ser o PDF real validado'
+  );
+  const resultadoDaxxTotalPass = await parsearPDF_IOB_Sage_ServicosPrestados(new Uint8Array(bufferDaxxTotalPass));
+  assert.strictEqual(resultadoDaxxTotalPass.detectado, true);
+  assert.strictEqual(resultadoDaxxTotalPass.cnpj_detectado, '60.527.879/0001-56');
+  assert.strictEqual(resultadoDaxxTotalPass.total_notas_fiscais, 64);
+  assert.strictEqual(money(resultadoDaxxTotalPass.total_credito), 8647374.14);
+  assert.strictEqual(resultadoDaxxTotalPass.total_divergente, false);
+  assert.ok(resultadoDaxxTotalPass.lancamentos.some(l => l.documento === '378' && money(l.valor) === 22328.17), 'NF 378 da TOTAL PASS deve ser preservada');
+  assert.ok(resultadoDaxxTotalPass.lancamentos.some(l => l.documento === '416' && money(l.valor) === 17879.28), 'NF 416 da TOTAL PASS deve ser preservada');
 
   const textoDaxxVisualPdfjs = `
 Office Fiscal

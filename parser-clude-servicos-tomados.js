@@ -697,7 +697,10 @@
         j++;
       }
 
-      bloco = bloco.replace(/\bTotal\b[\s\S]*$/i, '').trim();
+      // Remove somente o rodape seguido pelo valor total. Nao corte a palavra
+      // no meio da linha: ela pode iniciar uma razao social valida, como
+      // "TOTAL PASS PARTICIPACOES LTDA".
+      bloco = bloco.replace(/\bTotal(?=\s+[0-9]{1,3}(?:\.[0-9]{3})*,\d{2})[\s\S]*$/i, '').trim();
       if (ehTrechoCabecalhoServicoPrestado(bloco)) continue;
 
       const cnpjMatch = bloco.match(cpfCnpj);

@@ -1,11 +1,12 @@
 {
-  "version": "3.4.173",
-  "build_date": "2026-08-20T19:53:21Z",
+  "version": "3.4.174",
+  "build_date": "2026-08-21T12:09:59Z",
   "release_notes": [
-    "Balancetes e demonstrações passam a reconstruir a hierarquia real do plano IOB/SAGE.",
-    "Códigos sintéticos mascarados por zeros são exibidos como 1, 1.1, 1.1.1 e 1.1.1.02.",
-    "Cada grupo, subgrupo e conta sintética totaliza saldo anterior, débitos, créditos e saldo atual sem duplicar reduzidas.",
-    "PDF, Excel e tela preservam código estrutural, reduzido e descrição para rastreabilidade.",
-    "Clínica Mantoan validada com 29 totalizadores, 24 contas movimentáveis e zero divergências hierárquicas."
+    "Serviços prestados reconhecem razões sociais iniciadas por TOTAL sem confundir com o rodapé.",
+    "DAXX julho/2026 validada com 64 notas e total oficial de R$ 8.647.374,14.",
+    "Histórico da folha permanece acumulado ao trocar a competência.",
+    "Todos os colaboradores podem confirmar a troca para a competência do arquivo FPIMP.",
+    "Após nova folha, a tela exibe todas as competências já gravadas da empresa.",
+    "Clínica Mantoan conferida com janeiro, fevereiro e março preservados no banco."
   ]
 }
