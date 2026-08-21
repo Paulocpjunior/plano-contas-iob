@@ -6,6 +6,91 @@
     'use strict';
 
     const CAMPOS_PERMITIDOS = ['contaDebito', 'contaCredito', 'codigoHistorico', 'historico'];
+    const CAMPOS_EDICAO_INDIVIDUAL = ['data', 'descricao', 'valor', 'contaDebito', 'contaCredito', 'codigoHistorico', 'historico', 'historicoPadraoDescricao', 'incomum'];
+
+    function periodoLancamento(entry) {
+        return String(entry && entry.data || '').slice(0, 7);
+    }
+
+    function periodoFechado(entry, periodos) {
+        const periodo = periodoLancamento(entry);
+        return !!periodo && (periodos || []).some(function (item) {
+            return item && item.periodo === periodo && item.status === 'fechado';
+        });
+    }
+
+    function garantirPeriodosAbertos(entries, periodos) {
+        const fechados = Array.from(new Set((entries || [])
+            .filter(function (entry) { return periodoFechado(entry, periodos); })
+            .map(periodoLancamento)));
+        if (fechados.length) {
+            const erro = new Error('O período ' + fechados.join(', ') + ' está encerrado. Solicite a reabertura administrativa antes de alterar.');
+            erro.code = 'PERIODO_CONTABIL_FECHADO';
+            throw erro;
+        }
+    }
+
+    function copiar(valor) {
+        return JSON.parse(JSON.stringify(valor));
+    }
+
+    async function executarComRollback(estado, mutacao, persistir) {
+        if (!estado || !Array.isArray(estado.entries)) throw new Error('Estado contábil inválido.');
+        const snapshot = {
+            entries: copiar(estado.entries),
+            auditoriaLancamentos: copiar(estado.auditoriaLancamentos || []),
+            lastFile: estado.lastFile
+        };
+        try {
+            const resultado = await mutacao();
+            await persistir();
+            return resultado;
+        } catch (erro) {
+            estado.entries.splice(0, estado.entries.length, ...snapshot.entries);
+            estado.auditoriaLancamentos = snapshot.auditoriaLancamentos;
+            estado.lastFile = snapshot.lastFile;
+            throw erro;
+        }
+    }
+
+    function aplicarEdicaoIndividual(entry, alteracao, metadados) {
+        if (!entry) throw new Error('Lançamento não encontrado para edição.');
+        const meta = metadados || {};
+        garantirPeriodosAbertos([entry], meta.periodos || []);
+        const antes = {};
+        CAMPOS_EDICAO_INDIVIDUAL.forEach(function (campo) { antes[campo] = entry[campo]; });
+        Object.keys(alteracao || {}).forEach(function (campo) {
+            if (CAMPOS_EDICAO_INDIVIDUAL.includes(campo)) entry[campo] = alteracao[campo];
+        });
+        const evento = {
+            tipo: meta.tipo || 'edicao_individual',
+            antes: antes,
+            campos: Object.keys(alteracao || {}).filter(function (campo) { return CAMPOS_EDICAO_INDIVIDUAL.includes(campo); }),
+            editadoEm: meta.em || new Date().toISOString(),
+            editadoPor: meta.por || 'usuario_nao_identificado',
+            origem: entry.origem || entry.origemImportacao || entry.layoutParser || 'nao_informada'
+        };
+        const historico = Array.isArray(entry.historicoEdicoes) ? entry.historicoEdicoes.slice(-19) : [];
+        historico.push(evento);
+        entry.historicoEdicoes = historico;
+        entry.editadoEm = evento.editadoEm;
+        entry.editadoPor = evento.editadoPor;
+        return evento;
+    }
+
+    function registrarExclusao(estado, entry, metadados) {
+        const meta = metadados || {};
+        garantirPeriodosAbertos([entry], meta.periodos || []);
+        const auditoria = Array.isArray(estado.auditoriaLancamentos) ? estado.auditoriaLancamentos.slice(-99) : [];
+        auditoria.push({
+            tipo: 'exclusao_lancamento',
+            em: meta.em || new Date().toISOString(),
+            por: meta.por || 'usuario_nao_identificado',
+            numeroLancamento: entry && entry.numeroLancamento || null,
+            lancamento: copiar(entry || {})
+        });
+        estado.auditoriaLancamentos = auditoria;
+    }
 
     function textoObrigatorio(valor, rotulo) {
         const texto = String(valor == null ? '' : valor).trim();
@@ -56,6 +141,7 @@
         const preparada = prepararAlteracao(alteracao);
         validarNatureza(selecionados, preparada.campos);
         const meta = metadados || {};
+        garantirPeriodosAbertos(selecionados, meta.periodos || []);
         const auditoria = {
             tipo: 'classificacao_em_lote',
             em: meta.em || new Date().toISOString(),
@@ -65,9 +151,14 @@
         };
 
         selecionados.forEach(function (entry) {
+            const antes = {};
+            preparada.campos.forEach(function (campo) { antes[campo] = entry[campo]; });
             preparada.campos.forEach(function (campo) { entry[campo] = preparada.valores[campo]; });
             const historicoAuditoria = Array.isArray(entry.auditoriaAlteracoes) ? entry.auditoriaAlteracoes.slice(-19) : [];
-            historicoAuditoria.push(Object.assign({}, auditoria));
+            historicoAuditoria.push(Object.assign({}, auditoria, {
+                antes: antes,
+                origem: entry.origem || entry.origemImportacao || entry.layoutParser || 'nao_informada'
+            }));
             entry.auditoriaAlteracoes = historicoAuditoria;
         });
 
@@ -83,6 +174,12 @@
         prepararAlteracao: prepararAlteracao,
         selecionarLancamentos: selecionarLancamentos,
         validarNatureza: validarNatureza,
-        aplicar: aplicar
+        aplicar: aplicar,
+        periodoLancamento: periodoLancamento,
+        periodoFechado: periodoFechado,
+        garantirPeriodosAbertos: garantirPeriodosAbertos,
+        executarComRollback: executarComRollback,
+        aplicarEdicaoIndividual: aplicarEdicaoIndividual,
+        registrarExclusao: registrarExclusao
     };
 });

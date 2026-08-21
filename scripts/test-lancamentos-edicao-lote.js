@@ -46,10 +46,20 @@ assert.throws(() => lote.aplicar(base(), ['a', 'b'], { codigoHistorico: '0000' }
 assert.throws(() => lote.aplicar(base(), ['a', 'c'], { contaDebito: '900' }), /mesma natureza/i);
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const modulo = fs.readFileSync(path.join(__dirname, '..', 'lancamentos-edicao-lote.js'), 'utf8');
 assert(html.includes('id="filterNumeroLancamento"'), 'Lançamentos deve ter localizador por número.');
 assert(html.includes('function abrirModalEditarLancamento(idx)'), 'Lançamento existente deve abrir modal de edição.');
-assert(html.includes('historicoEdicoes.push'), 'Edição individual deve preservar trilha anterior.');
-assert(html.includes('está encerrado. Solicite a reabertura administrativa'), 'Edição individual deve bloquear competência encerrada.');
+assert(html.includes('aplicarEdicaoIndividual(entry, alteracao'), 'Edição direta deve usar a trilha auditável centralizada.');
+assert(html.includes('persistirMutacaoLancamentos'), 'Edição deve possuir rollback quando a persistência falhar.');
+assert(modulo.includes('está encerrado. Solicite a reabertura administrativa'), 'Edição individual deve bloquear competência encerrada.');
+assert(html.includes('lancamentoFechadoNoCache(e)'), 'Tabela deve identificar visualmente lançamentos de competência encerrada.');
+assert.strictEqual(
+  (html.match(/state\.entries = state\.entries\.concat\(entries\);\s+garantirIntegridadeLancamentos\(state\.entries\);/g) || []).length,
+  3,
+  'cada fluxo de importação deve consolidar a numeração na lista completa antes de salvar'
+);
+const pacote = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+assert(pacote.scripts.precheck.includes('npm run test:lancamentos-lote'), 'deploy local deve executar obrigatoriamente os testes de edição segura');
 
 {
   const entries = base();
@@ -58,5 +68,61 @@ assert(html.includes('está encerrado. Solicite a reabertura administrativa'), '
   assert.strictEqual(entries[0].historico, 'DOCUMENTO CONFERIDO');
   assert.strictEqual(entries[2].historico, 'DOCUMENTO CONFERIDO');
 }
+
+{
+  const entry = { id: 'x', numeroLancamento: 99, data: '2026-01-05', descricao: 'Original', valor: -10, contaDebito: '1', contaCredito: '2', origem: 'extrato-itau' };
+  assert.throws(
+    () => lote.aplicarEdicaoIndividual(entry, { descricao: 'Bloqueada' }, { periodos: [{ periodo: '2026-01', status: 'fechado' }] }),
+    /está encerrado/i,
+    'edição individual deve ser bloqueada antes da mutação'
+  );
+  assert.strictEqual(entry.descricao, 'Original');
+}
+
+{
+  const entry = { id: 'x', numeroLancamento: 99, data: '2026-01-05', descricao: 'Original', valor: -10, contaDebito: '1', contaCredito: '2', origem: 'extrato-itau' };
+  const evento = lote.aplicarEdicaoIndividual(entry, { descricao: 'Corrigida', historico: 'PAGAMENTO' }, {
+    periodos: [{ periodo: '2026-01', status: 'aberto' }],
+    por: 'colaborador@empresa.com',
+    em: '2026-08-21T12:00:00.000Z'
+  });
+  assert.strictEqual(entry.descricao, 'Corrigida');
+  assert.strictEqual(evento.antes.descricao, 'Original');
+  assert.strictEqual(evento.origem, 'extrato-itau');
+  assert.strictEqual(entry.editadoPor, 'colaborador@empresa.com');
+}
+
+(async function testarPersistenciaERollback() {
+  const estado = { entries: [{ id: 'a', data: '2026-02-01', descricao: 'Antes', valor: 10 }], auditoriaLancamentos: [], lastFile: 'origem.pdf' };
+  await assert.rejects(
+    lote.executarComRollback(estado, async () => {
+      lote.aplicarEdicaoIndividual(estado.entries[0], { descricao: 'Não pode ficar' }, { periodos: [] });
+      estado.entries.splice(0, 1);
+      estado.lastFile = 'alterado.pdf';
+    }, async () => { throw new Error('falha de persistência'); }),
+    /falha de persistência/
+  );
+  assert.strictEqual(estado.entries.length, 1, 'rollback deve restaurar exclusão visual');
+  assert.strictEqual(estado.entries[0].descricao, 'Antes', 'rollback deve restaurar edição visual');
+  assert.strictEqual(estado.lastFile, 'origem.pdf');
+
+  await lote.executarComRollback(estado, async () => {
+    lote.aplicarEdicaoIndividual(estado.entries[0], { descricao: 'Depois' }, { periodos: [] });
+  }, async () => true);
+  const recarregado = JSON.parse(JSON.stringify(estado));
+  assert.strictEqual(recarregado.entries[0].descricao, 'Depois', 'edição salva deve sobreviver à recarga');
+  assert.strictEqual(recarregado.entries[0].historicoEdicoes.length, 1, 'auditoria deve sobreviver à recarga');
+
+  const antesExcluir = estado.entries[0];
+  lote.registrarExclusao(estado, antesExcluir, { periodos: [], por: 'colaborador@empresa.com' });
+  estado.entries.splice(0, 1);
+  assert.strictEqual(estado.auditoriaLancamentos.length, 1);
+  assert.strictEqual(estado.auditoriaLancamentos[0].lancamento.descricao, 'Depois');
+})().then(function () {
+  console.log('OK: edição, bloqueio, auditoria, persistência e rollback validados.');
+}).catch(function (erro) {
+  console.error(erro);
+  process.exitCode = 1;
+});
 
 console.log('OK: alteração explícita em lote preserva dados financeiros e aplica travas contábeis.');

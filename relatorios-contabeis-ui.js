@@ -520,12 +520,14 @@ function preferenciasImpressao(ctx, sobrescritas) {
       creditos.textContent = 'R$ ' + moeda(resumo.creditos);
       diferenca.textContent = 'Diferença: R$ ' + moeda(valorDiferenca);
       diferenca.classList.toggle('error', valorDiferenca >= 0.005);
+      renderControleAbertura();
     } catch (e) {
       quantidade.textContent = '—';
       debitos.textContent = 'R$ —';
       creditos.textContent = 'R$ —';
       diferenca.textContent = e.message || 'Formato inválido.';
       diferenca.classList.add('error');
+      renderControleAbertura();
     }
   }
 
@@ -544,14 +546,17 @@ function preferenciasImpressao(ctx, sobrescritas) {
     return saldos;
   }
 
-  function salvarSaldos() {
+  async function salvarSaldos(opcoes) {
+    const opts = opcoes && opcoes.silencioso !== undefined ? opcoes : {};
     try {
       const ctx = contexto();
       const periodo = periodoSelecionado();
       if (statusDoPeriodo(periodo) && statusDoPeriodo(periodo).status === 'fechado') throw new Error('Reabra o período antes de alterar os saldos iniciais.');
       ctx.salvarSaldos(periodo, parseSaldos());
+      if (typeof ctx.flush === 'function') await ctx.flush();
+      if (opts.atualizarStatus !== false) await carregarStatus();
       const exclusiva = statusAtual && statusAtual.implantacao && statusAtual.implantacao.modo_contabil === 'cci_exclusivo';
-      window.showToast(exclusiva ? 'Saldos salvos. Agora aprove a abertura para liberar o fechamento.' : 'Saldos iniciais salvos na sessão da empresa.', exclusiva ? 'warning' : 'success');
+      if (!opts.silencioso) window.showToast(exclusiva ? 'Saldos salvos. Agora aprove a abertura para liberar o fechamento.' : 'Saldos iniciais salvos na sessão da empresa.', exclusiva ? 'warning' : 'success');
       render();
       return true;
     } catch (e) { window.showToast(e.message || String(e), 'error'); return false; }
@@ -646,13 +651,25 @@ function preferenciasImpressao(ctx, sobrescritas) {
         : 'Defina primeiro o modo contábil e a data de início da escrituração no Cadastro de Empresas.';
     }
     const aprovado = imp.saldo_abertura_status === 'aprovado' && imp.saldo_abertura_periodo === periodoAbertura;
+    let motivoBloqueio = '';
+    let resumoAbertura = null;
+    try {
+      resumoAbertura = resumoSaldosDigitados();
+      const diferenca = Math.abs(resumoAbertura.debitos - resumoAbertura.creditos);
+      if (!periodoAbertura) motivoBloqueio = 'Defina a data de início da escrituração no Cadastro de Empresas.';
+      else if (periodo !== periodoAbertura) motivoBloqueio = 'Selecione a competência inicial ' + periodoAbertura + '.';
+      else if (!resumoAbertura.quantidade) motivoBloqueio = 'Informe e salve ao menos uma conta analítica de saldo anterior.';
+      else if (diferenca >= 0.005) motivoBloqueio = 'Os saldos estão desequilibrados: diferença de R$ ' + moeda(diferenca) + '.';
+    } catch (erro) {
+      motivoBloqueio = erro.message || 'Corrija o formato dos saldos anteriores.';
+    }
     document.getElementById('rcAberturaTitulo').textContent = 'CCI como sistema contábil único — ' + (imp.regime_tributario_nome || nomeRegime(imp.regime_tributario_codigo));
     document.getElementById('rcAberturaStatus').textContent = aprovado
       ? 'Saldos de abertura aprovados para ' + periodoAbertura + '. Alterações exigem nova aprovação.'
-      : 'Aprovação obrigatória dos saldos de abertura em ' + (periodoAbertura || 'competência inicial não definida') + ' antes do fechamento.';
+      : (motivoBloqueio || ('Saldos equilibrados e prontos para aprovação em ' + periodoAbertura + '.'));
     botao.style.display = aprovado ? 'none' : '';
-    botao.disabled = !periodoAbertura || periodo !== periodoAbertura;
-    botao.title = botao.disabled ? 'Selecione a competência inicial ' + periodoAbertura + '.' : '';
+    botao.disabled = !!motivoBloqueio;
+    botao.title = motivoBloqueio;
   }
 
   async function aprovarSaldosAbertura() {
@@ -660,8 +677,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     const botao = document.getElementById('rcAprovarSaldos');
     try {
       if (!ctx || !ctx.empresa || !ctx.empresa.cnpj) throw new Error('Empresa ativa não identificada.');
-      if (!salvarSaldos()) return;
-      if (typeof ctx.flush === 'function') await ctx.flush();
+      if (!await salvarSaldos({ silencioso: true, atualizarStatus: false })) return;
       botao.disabled = true;
       botao.textContent = 'Validando...';
       await window.API.aprovarSaldosAbertura(ctx.empresa.cnpj, periodoSelecionado());

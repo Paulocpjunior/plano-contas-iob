@@ -1,11 +1,13 @@
 {
-  "version": "3.4.175",
-  "build_date": "2026-08-21T13:08:35Z",
+  "version": "3.4.176",
+  "build_date": "2026-08-21T14:00:21Z",
   "release_notes": [
-    "Razão e Livro Diário passam a transportar a descrição completa do extrato bancário.",
-    "Histórico IOB e nomenclatura bancária são apresentados juntos, sem duplicação.",
-    "Clínica Mantoan validada com o complemento VR. REF A BOLETO PAGO NANOTECH.",
-    "Alterações na descrição bancária atualizam corretamente a prévia dos relatórios.",
-    "Nenhum lançamento contábil existente foi modificado pela atualização."
+    "Edição direta, lápis, alteração em lote, inclusão e exclusão agora respeitam a mesma trava de competência encerrada.",
+    "Falhas de gravação restauram automaticamente os lançamentos exibidos, sem deixar alteração apenas visual.",
+    "Auditoria registra valores anteriores, usuário, data, origem e exclusões de lançamentos.",
+    "Campos e ações ficam desabilitados visualmente quando a competência está encerrada.",
+    "Saldos anteriores informam o motivo exato do bloqueio, incluindo ausência de contas e diferença entre débitos e créditos.",
+    "Numeração dos lançamentos é consolidada na lista completa antes de cada importação ser salva.",
+    "Testes de edição segura e rollback passam a ser obrigatórios na validação de publicação."
   ]
 }

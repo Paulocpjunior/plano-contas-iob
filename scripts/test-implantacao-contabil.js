@@ -43,6 +43,9 @@ assert.match(relatorios, /aprovarSaldosAbertura/);
 assert.match(relatorios, /Saldos anteriores \/ de abertura/);
 assert.match(relatorios, /abrirSaldosAnteriores/);
 assert.match(relatorios, /rcSaldosDiferenca/);
+assert.match(relatorios, /Informe e salve ao menos uma conta analítica de saldo anterior/);
+assert.match(relatorios, /Os saldos estão desequilibrados: diferença de R\$/);
+assert.match(relatorios, /botao\.disabled = !!motivoBloqueio/);
 assert.match(html, /onclick="abrirSaldosAnteriores\(\)"/);
 
 console.log('OK: regime CFI, modo contábil e validação dos saldos de abertura');
