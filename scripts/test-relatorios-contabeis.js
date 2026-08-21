@@ -42,6 +42,30 @@ const diario = core.diario(lancamentos, '2026-01');
 assert.strictEqual(diario.length, 2);
 assert.strictEqual(diario[0].data, '2026-01-15');
 
+const lancamentoMantoan = {
+  id: 'mantoan-742', data: '01/07/2026', valor: 180,
+  contaDebito: '818', contaCredito: '111', codigoHistorico: '1299',
+  historico: 'VR. REF A', descricao: 'BOLETO PAGO NANOTECH'
+};
+assert.strictEqual(
+  core.complementoLancamento(lancamentoMantoan),
+  'VR. REF A BOLETO PAGO NANOTECH',
+  'relatorio deve transportar a nomenclatura bancaria depois do historico IOB'
+);
+const razaoMantoan = core.razao([lancamentoMantoan], '2026-07', [], {}, '818');
+assert.strictEqual(razaoMantoan[0].movimentos[0].descricao, 'VR. REF A BOLETO PAGO NANOTECH');
+assert.strictEqual(core.diario([lancamentoMantoan], '2026-07')[0].historico, 'VR. REF A BOLETO PAGO NANOTECH');
+assert.strictEqual(
+  core.complementoLancamento({ historico: 'TARIFA BANCARIA', descricao: 'TARIFA BANCARIA TAR PIX PGTO TRANSF' }),
+  'TARIFA BANCARIA TAR PIX PGTO TRANSF',
+  'historico ja presente na descricao nao pode ser duplicado'
+);
+assert.notStrictEqual(
+  core.assinaturaPeriodo([lancamentoMantoan], '2026-07'),
+  core.assinaturaPeriodo([{ ...lancamentoMantoan, descricao: 'BOLETO PAGO OUTRO FORNECEDOR' }], '2026-07'),
+  'mudanca na nomenclatura bancaria deve invalidar a previa do relatorio'
+);
+
 const contasComZeros = [{ codigo: '0000000300', descricao: 'Fornecedores' }, { codigo: '0000000111', descricao: 'Banco' }];
 const lancamentosComZeros = [
   { id: 'z1', data: '01/01/2026', valor: 100, contaDebito: '300', contaCredito: '0000000111' },

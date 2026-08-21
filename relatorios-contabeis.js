@@ -9,6 +9,30 @@
     return String(valor == null ? '' : valor).trim();
   }
 
+  function textoComparavel(valor) {
+    return texto(valor)
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function complementoLancamento(lancamento) {
+    const item = lancamento || {};
+    const historico = texto(item.historico || item.historicoPadraoDescricao);
+    const descricao = texto(item.descricao);
+    if (!historico) return descricao;
+    if (!descricao) return historico;
+    const historicoNormalizado = textoComparavel(historico);
+    const descricaoNormalizada = textoComparavel(descricao);
+    if (!historicoNormalizado) return descricao;
+    if (!descricaoNormalizada) return historico;
+    if (descricaoNormalizada.includes(historicoNormalizado)) return descricao;
+    if (historicoNormalizado.includes(descricaoNormalizada)) return historico;
+    return historico + ' ' + descricao;
+  }
+
   function dinheiroNumero(valor) {
     if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
     let s = texto(valor).replace(/\s/g, '').replace(/R\$/gi, '');
@@ -431,7 +455,7 @@
         const g = grupo(parte[0]);
         g.saldoCentavos += parte[1] - parte[2];
         g.movimentos.push({
-          id: texto(lancamento.id), data: dataISO(lancamento.data), descricao: texto(lancamento.historico || lancamento.descricao),
+          id: texto(lancamento.id), data: dataISO(lancamento.data), descricao: complementoLancamento(lancamento),
           documento: texto(lancamento.documento || lancamento.numero_nf), contrapartida: parte[3],
           debito: deCentavos(parte[1]), credito: deCentavos(parte[2]), saldo: deCentavos(g.saldoCentavos),
           origem: texto(lancamento.importacaoTitulo || lancamento.layoutNome || lancamento.bancoNome || lancamento.status_origem)
@@ -461,7 +485,7 @@
         debito: contaCanonica(lancamento.contaDebito, mapa),
         credito: contaCanonica(lancamento.contaCredito, mapa),
         valor: Math.abs(dinheiroNumero(lancamento.valor)),
-        historico: texto(lancamento.historico || lancamento.descricao),
+        historico: complementoLancamento(lancamento),
         documento: texto(lancamento.documento || lancamento.numero_nf),
         origem: texto(lancamento.importacaoTitulo || lancamento.layoutNome || lancamento.bancoNome || lancamento.status_origem)
       };
@@ -640,13 +664,13 @@
 
   function assinaturaPeriodo(lancamentos, periodo) {
     const normalizados = lancamentosDoPeriodo(lancamentos, periodo).map(function (l) {
-      return [texto(l.id), dataISO(l.data), normalizarConta(l.contaDebito), normalizarConta(l.contaCredito), centavos(l.valor), texto(l.historico || l.descricao)].join('|');
+      return [texto(l.id), dataISO(l.data), normalizarConta(l.contaDebito), normalizarConta(l.contaCredito), centavos(l.valor), complementoLancamento(l)].join('|');
     }).sort();
     return hashTexto(normalizados.join('\n'));
   }
 
   return {
-    dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao,
+    dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao, complementoLancamento,
     validar, balancete, balanceteAnual, razao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
   };
 });

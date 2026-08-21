@@ -1,12 +1,11 @@
 {
-  "version": "3.4.174",
-  "build_date": "2026-08-21T12:09:59Z",
+  "version": "3.4.175",
+  "build_date": "2026-08-21T13:08:35Z",
   "release_notes": [
-    "Serviços prestados reconhecem razões sociais iniciadas por TOTAL sem confundir com o rodapé.",
-    "DAXX julho/2026 validada com 64 notas e total oficial de R$ 8.647.374,14.",
-    "Histórico da folha permanece acumulado ao trocar a competência.",
-    "Todos os colaboradores podem confirmar a troca para a competência do arquivo FPIMP.",
-    "Após nova folha, a tela exibe todas as competências já gravadas da empresa.",
-    "Clínica Mantoan conferida com janeiro, fevereiro e março preservados no banco."
+    "Razão e Livro Diário passam a transportar a descrição completa do extrato bancário.",
+    "Histórico IOB e nomenclatura bancária são apresentados juntos, sem duplicação.",
+    "Clínica Mantoan validada com o complemento VR. REF A BOLETO PAGO NANOTECH.",
+    "Alterações na descrição bancária atualizam corretamente a prévia dos relatórios.",
+    "Nenhum lançamento contábil existente foi modificado pela atualização."
   ]
 }
