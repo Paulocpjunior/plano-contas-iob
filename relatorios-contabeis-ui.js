@@ -82,6 +82,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     responsavelEmpresa: primeiroValor(fontes, ['responsavelEmpresa', 'responsavel_empresa', 'responsavel_nome', 'nome_responsavel', 'responsavel', 'responsavel_legal']),
     documentoResponsavel: primeiroValor(fontes, ['documentoResponsavel', 'documento_responsavel', 'cpf_responsavel', 'responsavel_cpf', 'documento_responsavel_empresa']),
     contadorResponsavel: primeiroValor(fontes, ['contadorResponsavel', 'contador_responsavel', 'nome_contador', 'contador', 'responsavel_contabil']),
+    cpfContador: primeiroValor(fontes, ['cpfContador', 'cpf_contador', 'contador_cpf', 'cpf_responsavel_contabil']),
     crcContador: primeiroValor(fontes, ['crcContador', 'crc_contador', 'contador_crc', 'crc', 'registro_contador'])
   };
 }
@@ -235,8 +236,9 @@ function preferenciasImpressao(ctx, sobrescritas) {
           <div class="rc-print-grid">
             <div class="rc-field"><label>Orientação</label><select id="rcOrientacaoImpressao"><option value="portrait">Vertical</option><option value="landscape">Horizontal</option></select></div>
             <div class="rc-field"><label>Responsável pela empresa</label><input id="rcResponsavelEmpresa"></div>
-            <div class="rc-field"><label>CPF/CNPJ do responsável</label><input id="rcDocumentoResponsavel"></div>
+            <div class="rc-field"><label>CPF do sócio/responsável</label><input id="rcDocumentoResponsavel" inputmode="numeric" autocomplete="off"></div>
             <div class="rc-field"><label>Contador responsável</label><input id="rcContadorResponsavel"></div>
+            <div class="rc-field"><label>CPF do contador</label><input id="rcCPFContador" inputmode="numeric" autocomplete="off"></div>
             <div class="rc-field"><label>CRC do contador</label><input id="rcCRCContador"></div>
           </div>
           <div class="rc-print-preview"><iframe id="rcQuadroPreviaImpressao" title="Prévia do relatório para impressão"></iframe></div>
@@ -884,9 +886,10 @@ function preferenciasImpressao(ctx, sobrescritas) {
     doc.line(inicioContador, inicioY, inicioContador + larguraAssinatura, inicioY);
     doc.setFontSize(8);
     doc.text(preferencias.responsavelEmpresa || 'Responsável pela empresa', centroEmpresa, inicioY + 5, { align: 'center' });
-    doc.text(preferencias.documentoResponsavel ? 'Documento: ' + preferencias.documentoResponsavel : 'Documento: —', centroEmpresa, inicioY + 10, { align: 'center' });
+    doc.text(preferencias.documentoResponsavel ? 'CPF: ' + preferencias.documentoResponsavel : 'CPF: —', centroEmpresa, inicioY + 10, { align: 'center' });
     doc.text(preferencias.contadorResponsavel || 'Contador responsável', centroContador, inicioY + 5, { align: 'center' });
-    doc.text(preferencias.crcContador ? 'CRC: ' + preferencias.crcContador : 'CRC: —', centroContador, inicioY + 10, { align: 'center' });
+    doc.text(preferencias.cpfContador ? 'CPF: ' + preferencias.cpfContador : 'CPF: —', centroContador, inicioY + 10, { align: 'center' });
+    doc.text(preferencias.crcContador ? 'CRC: ' + preferencias.crcContador : 'CRC: —', centroContador, inicioY + 15, { align: 'center' });
     const paginas = doc.internal.getNumberOfPages();
     for (let pagina = 1; pagina <= paginas; pagina += 1) {
       doc.setPage(pagina);
@@ -932,6 +935,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
       responsavelEmpresa: document.getElementById('rcResponsavelEmpresa').value,
       documentoResponsavel: document.getElementById('rcDocumentoResponsavel').value,
       contadorResponsavel: document.getElementById('rcContadorResponsavel').value,
+      cpfContador: document.getElementById('rcCPFContador').value,
       crcContador: document.getElementById('rcCRCContador').value
     };
   }
@@ -948,6 +952,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     document.getElementById('rcResponsavelEmpresa').value = preferencias.responsavelEmpresa;
     document.getElementById('rcDocumentoResponsavel').value = preferencias.documentoResponsavel;
     document.getElementById('rcContadorResponsavel').value = preferencias.contadorResponsavel;
+    document.getElementById('rcCPFContador').value = preferencias.cpfContador;
     document.getElementById('rcCRCContador').value = preferencias.crcContador;
   }
 

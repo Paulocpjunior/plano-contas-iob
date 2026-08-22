@@ -1,13 +1,11 @@
 {
-  "version": "3.4.176",
-  "build_date": "2026-08-21T14:00:21Z",
+  "version": "3.4.177",
+  "build_date": "2026-08-22T09:15:27Z",
   "release_notes": [
-    "Edição direta, lápis, alteração em lote, inclusão e exclusão agora respeitam a mesma trava de competência encerrada.",
-    "Falhas de gravação restauram automaticamente os lançamentos exibidos, sem deixar alteração apenas visual.",
-    "Auditoria registra valores anteriores, usuário, data, origem e exclusões de lançamentos.",
-    "Campos e ações ficam desabilitados visualmente quando a competência está encerrada.",
-    "Saldos anteriores informam o motivo exato do bloqueio, incluindo ausência de contas e diferença entre débitos e créditos.",
-    "Numeração dos lançamentos é consolidada na lista completa antes de cada importação ser salva.",
-    "Testes de edição segura e rollback passam a ser obrigatórios na validação de publicação."
+    "Relatórios contábeis passam a apresentar o CPF do sócio ou responsável pela empresa em vez do rótulo genérico Documento.",
+    "A configuração de impressão passa a possuir um campo específico para o CPF do contador.",
+    "A assinatura do contador apresenta nome, CPF e CRC em linhas separadas.",
+    "Dados já salvos de responsável, contador e CRC permanecem compatíveis.",
+    "CPF do contador também pode ser preenchido automaticamente quando estiver disponível no cadastro da empresa."
   ]
 }

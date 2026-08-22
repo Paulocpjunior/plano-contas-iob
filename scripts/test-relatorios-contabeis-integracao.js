@@ -40,9 +40,13 @@ assert(ui.includes("return ['Conta', 'Descrição', 'Sdo. anterior', 'Débito', 
 assert(ui.includes('id="rcImprimir"'), 'ação de visualização para impressão ausente');
 assert(ui.includes('id="rcImpressaoModal"'), 'modal de visualização para impressão ausente');
 assert(ui.includes('id="rcOrientacaoImpressao"'), 'seletor vertical/horizontal ausente');
-['rcResponsavelEmpresa', 'rcDocumentoResponsavel', 'rcContadorResponsavel', 'rcCRCContador'].forEach(function (id) {
+['rcResponsavelEmpresa', 'rcDocumentoResponsavel', 'rcContadorResponsavel', 'rcCPFContador', 'rcCRCContador'].forEach(function (id) {
   assert(ui.includes('id="' + id + '"'), 'campo obrigatório do relatório ausente: ' + id);
 });
+assert(ui.includes("cpfContador: primeiroValor(fontes, ['cpfContador', 'cpf_contador', 'contador_cpf', 'cpf_responsavel_contabil'])"), 'CPF do contador não é carregado das preferências ou cadastro');
+assert(ui.includes("'CPF: ' + preferencias.documentoResponsavel"), 'assinatura do sócio/responsável não identifica o documento como CPF');
+assert(ui.includes("'CPF: ' + preferencias.cpfContador"), 'assinatura do contador não apresenta CPF');
+assert(ui.includes("'CRC: ' + preferencias.crcContador"), 'assinatura do contador não preserva o CRC');
 assert(ui.includes('function abrirModalImpressao()'), 'motor de prévia real não foi ligado');
 assert(ui.includes('orientation: preferencias.orientacao'), 'orientação escolhida não chega ao PDF');
 assert(index.includes('cadastro: window.__empresaCadastroInternoAtual || info'), 'cadastro ativo não alimenta responsáveis do relatório');
