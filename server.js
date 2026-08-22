@@ -28,6 +28,7 @@ const GraphEmail = require('./graph-email-provider');
 const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa, buscarOrientacaoAjuda } = require('./ajuda-cci-base');
 const { conteudo: MANUAL_CCI } = require('./manual-cci-base');
 const { extractAccountingPdf } = require('./auditai/pdf-contabil-extractor');
+const { validarPayloadFiscalConnector, resumirItensFiscais } = require('./fiscal-payments-contract');
 
 const app = express();
 app.set('trust proxy', true);
@@ -2090,7 +2091,7 @@ function normalizarFiscalBody(body) {
   };
 }
 
-const FISCAL_GATEWAY_URL = (process.env.FISCAL_GATEWAY_URL || 'https://consultor-fiscal-inteligente-631239634290.us-central1.run.app').replace(/\/+$/, '');
+const FISCAL_GATEWAY_URL = (process.env.FISCAL_GATEWAY_URL || 'https://consultor-fiscal-inteligente-zricstsjqa-uw.a.run.app').replace(/\/+$/, '');
 const FISCAL_GATEWAY_TOKEN = String(process.env.FISCAL_GATEWAY_TOKEN || process.env.CONSULTOR_FISCAL_GATEWAY_TOKEN || '').trim();
 
 function fiscalGatewayHeaders() {
@@ -2380,16 +2381,23 @@ app.get('/api/empresas/:cnpj/fiscal/impostos', async (req, res) => {
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const snap = await db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').orderBy('competencia', 'desc').limit(300).get();
-    const itens = snap.docs.map(d => ({ id: d.id, ...serializarFiscal(d.data()) }));
-    const resumo = itens.reduce((acc, item) => {
-      acc.total++;
-      acc.valor_apurado += Number(item.valor_apurado || 0);
-      acc.valor_pago += Number(item.valor_pago || 0);
-      acc.status[item.status || 'EM_ABERTO'] = (acc.status[item.status || 'EM_ABERTO'] || 0) + 1;
-      if (['EM_ABERTO', 'VENCIDO', 'PENDENTE_RECEITA', 'PAGO_COM_DIFERENCA'].includes(item.status)) acc.pendencias++;
-      return acc;
-    }, { total: 0, valor_apurado: 0, valor_pago: 0, pendencias: 0, status: {} });
+    const baseQuery = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').orderBy('competencia', 'desc');
+    const docs = [];
+    let ultimo = null;
+    while (docs.length < 10000) {
+      let query = baseQuery.limit(500);
+      if (ultimo) query = query.startAfter(ultimo);
+      const pagina = await query.get();
+      if (pagina.empty) break;
+      docs.push(...pagina.docs);
+      ultimo = pagina.docs[pagina.docs.length - 1];
+      if (pagina.size < 500) break;
+    }
+    if (docs.length >= 10000) {
+      throw new Error('Consulta fiscal excedeu o teto de seguranca de 10.000 registros; total nao exibido para evitar truncamento silencioso.');
+    }
+    const itens = docs.map(d => ({ id: d.id, ...serializarFiscal(d.data()) }));
+    const resumo = resumirItensFiscais(itens);
     res.json({ cnpj: cnpjLimpo, resumo, itens });
   } catch (err) {
     console.error('fiscal impostos GET erro:', err);
@@ -2431,6 +2439,9 @@ app.put('/api/empresas/:cnpj/fiscal/impostos/:id', async (req, res) => {
     const ref = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').doc(req.params.id);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ erro: 'registro fiscal nao encontrado' });
+    if (doc.data()?.criado_por_origem === 'CFI_FISCAL_CONNECTOR') {
+      return res.status(409).json({ erro: 'Registro importado do CFI e somente leitura. Atualize pela fonte oficial.' });
+    }
     await ref.set({
       ...dados,
       atualizado_em: new Date(),
@@ -2450,7 +2461,13 @@ app.delete('/api/empresas/:cnpj/fiscal/impostos/:id', async (req, res) => {
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    await db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').doc(req.params.id).delete();
+    const ref = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ erro: 'registro fiscal nao encontrado' });
+    if (doc.data()?.criado_por_origem === 'CFI_FISCAL_CONNECTOR') {
+      return res.status(409).json({ erro: 'Registro importado do CFI nao pode ser excluido no CCI.' });
+    }
+    await ref.delete();
     res.json({ ok: true });
   } catch (err) {
     console.error('fiscal impostos DELETE erro:', err);
@@ -2468,14 +2485,10 @@ app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro', async (req, res) => {
     const statusGateway = await fiscalGatewayJson('/api/internal/plano-contas/status', { timeoutMs: 12000 });
     const avisos = [];
     if (!FISCAL_GATEWAY_TOKEN) {
-      avisos.push('FISCAL_GATEWAY_TOKEN ainda nao esta configurado neste app. Status SERPRO consultado, sem importacao protegida.');
-      return res.json({
-        ok: true,
-        cnpj: cnpjLimpo,
-        modo: 'status_only',
-        gateway: statusGateway,
-        resumo: { importados: 0, atualizados: 0 },
-        avisos
+      return res.status(503).json({
+        ok: false,
+        erro: 'Conector fiscal protegido nao configurado; nenhum valor foi importado.',
+        gateway: statusGateway
       });
     }
 
@@ -2487,51 +2500,84 @@ app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro', async (req, res) => {
         competencia: String(req.body?.competencia || '').trim()
       }
     });
-
-    const itens = [
-      ...normalizarItensSerpro('DAS', payload.das),
-      ...normalizarItensSerpro('DCTFWEB', payload.dctfweb),
-      ...normalizarItensSerpro('CAIXA_POSTAL', payload.caixaPostal)
-    ];
+    let itens;
+    try {
+      itens = validarPayloadFiscalConnector(payload);
+    } catch (e) {
+      e.status = 502;
+      e.data = payload;
+      throw e;
+    }
 
     const impostosRef = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos');
     const agora = new Date();
-    let gravados = 0;
+    const idsRecebidos = new Set(itens.map(item => String(item.id)));
+    const existentesSnap = await impostosRef.where('criado_por_origem', '==', 'CFI_FISCAL_CONNECTOR').get();
+    const competenciaSolicitada = String(req.body?.competencia || '').trim();
+    const obsoletos = existentesSnap.docs.filter(doc => {
+      const anterior = doc.data() || {};
+      return (!competenciaSolicitada || anterior.competencia === competenciaSolicitada) && !idsRecebidos.has(doc.id);
+    });
+    if (itens.length + obsoletos.length + 1 > 500) {
+      return res.status(409).json({
+        ok: false,
+        erro: 'Reconciliacao fiscal excedeu o limite atomico de 500 operacoes; nenhum valor foi alterado.'
+      });
+    }
+
+    const batch = db.batch();
     for (const item of itens) {
       const ref = impostosRef.doc(item.id);
-      await ref.set({
+      batch.set(ref, {
         ...item,
         sincronizado_em: agora,
         atualizado_em: agora,
         atualizado_por_uid: req.user.uid,
         atualizado_por_email: req.user.email,
-        criado_por_origem: 'SERPRO_BRIDGE'
-      }, { merge: true });
-      gravados++;
+        criado_por_origem: 'CFI_FISCAL_CONNECTOR'
+      });
     }
 
-    await db.collection('empresas').doc(cnpjLimpo).collection('fiscal_sync_logs').add({
-      origem: 'SERPRO',
+    for (const doc of obsoletos) {
+      batch.set(doc.ref, {
+        contabilizavel: false,
+        valor_pago: 0,
+        status: 'EM_ANALISE',
+        pendencia_ecac: 'Registro nao retornado pela fonte na ultima consulta; confirmacao suspensa.',
+        sincronizado_em: agora,
+        atualizado_em: agora,
+        atualizado_por_uid: req.user.uid,
+        atualizado_por_email: req.user.email
+      }, { merge: true });
+    }
+
+    const logRef = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_sync_logs').doc();
+    batch.set(logRef, {
+      origem: 'CFI_FISCAL_CONNECTOR',
       gateway_url: FISCAL_GATEWAY_URL,
       gateway_modes: payload.modes || statusGateway,
-      total_das: Array.isArray(payload.das) ? payload.das.length : 0,
-      total_dctfweb: Array.isArray(payload.dctfweb) ? payload.dctfweb.length : 0,
-      total_caixa_postal: Array.isArray(payload.caixaPostal) ? payload.caixaPostal.length : 0,
-      total_gravado: gravados,
-      erros: payload.erros || [],
+      contrato: payload.contrato,
+      credencial: payload.credencial || null,
+      cobertura: payload.cobertura || null,
+      resumo_origem: payload.resumo || null,
+      total_gravado: itens.length,
+      total_confirmacao_suspensa: obsoletos.length,
+      avisos: payload.avisos || [],
       criado_em: agora,
       criado_por_uid: req.user.uid,
       criado_por_email: req.user.email
     });
+    await batch.commit();
 
     res.json({
       ok: true,
       cnpj: cnpjLimpo,
       modo: 'sincronizado',
       gateway: statusGateway,
-      resumo: { importados: gravados, atualizados: gravados },
-      erros: payload.erros || [],
-      avisos
+      resumo: { importados: itens.length, atualizados: itens.length, confirmacoes_suspensas: obsoletos.length, ...(payload.resumo || {}) },
+      cobertura: payload.cobertura || {},
+      credencial: payload.credencial || null,
+      avisos: [...avisos, ...(payload.avisos || [])]
     });
   } catch (err) {
     console.error('sincronizar-serpro erro:', err);

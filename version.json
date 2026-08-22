@@ -1,11 +1,11 @@
 {
-  "version": "3.4.177",
-  "build_date": "2026-08-22T09:15:27Z",
+  "version": "3.4.178",
+  "build_date": "2026-08-22T21:33:13Z",
   "release_notes": [
-    "Relatórios contábeis passam a apresentar o CPF do sócio ou responsável pela empresa em vez do rótulo genérico Documento.",
-    "A configuração de impressão passa a possuir um campo específico para o CPF do contador.",
-    "A assinatura do contador apresenta nome, CPF e CRC em linhas separadas.",
-    "Dados já salvos de responsável, contador e CRC permanecem compatíveis.",
-    "CPF do contador também pode ser preenchido automaticamente quando estiver disponível no cadastro da empresa."
+    "O modal fiscal consulta o conector unificado do CFI em vez de tratar todos os tributos como uma consulta exclusivamente SERPRO.",
+    "Somente pagamentos com evidência oficial explícita entram no total pago confirmado.",
+    "Valores marcados localmente como pagos permanecem visíveis, mas aguardam comprovante e não são contabilizáveis.",
+    "A sincronização é atômica e suspende confirmações que deixaram de ser retornadas pela fonte.",
+    "Coberturas ainda não configuradas de e-CAC, FGTS Digital, SEFAZ e municípios são exibidas sem interpretar ausência como imposto não pago."
   ]
 }

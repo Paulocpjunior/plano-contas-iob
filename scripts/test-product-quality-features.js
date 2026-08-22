@@ -141,9 +141,15 @@ assertContains('index.html', 'Layout homologado pelo Admin', 'selo operacional d
 assertContains('index.html', 'Situação Fiscal / Impostos', 'nova aba de situacao fiscal');
 assertContains('index.html', 'carregarFiscalCertificado', 'status do certificado no modulo fiscal');
 assertContains('index.html', 'FISCAL_CERT_DOC_PATH', 'orientacao para vincular certificado fiscal');
-assertContains('index.html', 'Consultar SERPRO', 'botao para consultar dados SERPRO');
+assertContains('index.html', 'Consultar pagamentos', 'botao para consultar pagamentos fiscais em todas as fontes');
 assertContains('index.html', 'sincronizarFiscalSerpro', 'acao frontend de sincronizacao SERPRO');
-assertContains('index.html', 'Ponte SERPRO ativa', 'aviso correto quando a integracao usa app fiscal externo');
+assertContains('index.html', 'Total pago confirmado', 'total contabilizavel exige confirmacao oficial');
+assertContains('index.html', 'não contabilizável', 'tela distingue informacao local de comprovante oficial');
+assertContains('index.html', 'Cobertura incompleta — não interprete ausência como imposto não pago.', 'tela nao confunde fonte indisponivel com ausencia de pagamento');
+assertContains('server.js', "payload.contrato", 'backend valida contrato versionado do conector fiscal');
+assertContains('server.js', "CFI_FISCAL_CONNECTOR", 'registros do conector fiscal possuem origem auditavel');
+assertContains('fiscal-payments-contract.js', "evidencia_pagamento?.nivel !== 'oficial'", 'contrato bloqueia contabilizacao sem evidencia oficial');
+assertContains('index.html', 'Conector fiscal ativo', 'aviso correto quando a integracao usa app fiscal externo');
 assertContains('index.html', "criarSnapshotState({ semLancamentos: true })", 'snapshot local guarda apenas metadados e evita recarregamento por memoria');
 assertContains('index.html', 'versionModalLater', 'popup de atualizacao permite adiar sem interromper trabalho');
 assertContains('index.html', 'Voce pode atualizar agora ou continuar trabalhando e atualizar depois.', 'popup de atualizacao nao deve ser bloqueante');
