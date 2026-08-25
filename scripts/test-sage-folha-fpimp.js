@@ -30,7 +30,7 @@ function registro(dados) {
 
 const texto = [
   registro({ debito: '601', credito: '210', historico: '12078', valor: 12345.67, data: '31/01/2026', complemento: 'SALARIOS A PAGAR', layout342: true }),
-  registro({ debito: '608', credito: '211', historico: '1208', valor: 2345.89, data: '31/01/2026', complemento: 'INSS SOBRE FOLHA' })
+  registro({ debito: '210', credito: '211', historico: '1208', valor: 2345.89, data: '31/01/2026', complemento: 'INSS DESCONTADO' })
 ].join('\r\n') + '\r\n';
 
 const resultado = parseSageFolhaFpimp(Buffer.from(texto, 'latin1'), { nomeArquivo: 'FPIMP0040.01', codigoEmpresa: '0040' });
@@ -44,6 +44,10 @@ assert.strictEqual(resultado.lancamentos[0].participante_sped, '1234');
 assert.strictEqual(resultado.lancamentos[0].numero_arquivamento, '0000005678');
 assert.strictEqual(resultado.lancamentos[0].descricao, 'SALARIOS A PAGAR');
 assert.strictEqual(resultado.lancamentos[0].valor, 12345.67);
+assert.strictEqual(resultado.lancamentos[0].natureza_operacional, 'credito');
+assert.strictEqual(resultado.lancamentos[0].valor_operacional, 12345.67);
+assert.strictEqual(resultado.lancamentos[1].natureza_operacional, 'debito');
+assert.strictEqual(resultado.lancamentos[1].valor_operacional, -2345.89);
 assert.strictEqual(resultado.totais.debitos, 14691.56);
 assert.strictEqual(resultado.totais.creditos, 14691.56);
 
@@ -70,5 +74,6 @@ assert(index.includes('await salvarSessaoRemotoAgora({ mostrarErro: true })'), '
 assert(index.includes("{ code: 'FOLHA', name: 'FOLHA DE PAGAMENTO' }"), 'Filtro deve oferecer o historico acumulado da folha.');
 assert(index.includes("sincronizarComboboxBanco('filterBanco', 'FOLHA')"), 'Apos importar, a tela deve mostrar todas as competencias da folha, nao somente o ultimo arquivo.');
 assert(index.includes('totalAcumulado: folhasAcumuladas.length'), 'Retorno da importacao deve confirmar o historico acumulado preservado.');
+assert(index.includes('Number(lancamento.valor_operacional)'), 'Importacao deve preservar a natureza operacional de proventos e descontos da folha.');
 
 console.log('OK: SAGE Folha FPIMP valida empresa, competência, campos fixos e importação direta no CCI.');

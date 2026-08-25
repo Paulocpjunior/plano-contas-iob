@@ -1,11 +1,9 @@
 {
-  "version": "3.4.178",
-  "build_date": "2026-08-22T21:33:13Z",
+  "version": "3.4.179",
+  "build_date": "2026-08-25T09:57:24Z",
   "release_notes": [
-    "O modal fiscal consulta o conector unificado do CFI em vez de tratar todos os tributos como uma consulta exclusivamente SERPRO.",
-    "Somente pagamentos com evidência oficial explícita entram no total pago confirmado.",
-    "Valores marcados localmente como pagos permanecem visíveis, mas aguardam comprovante e não são contabilizáveis.",
-    "A sincronização é atômica e suspende confirmações que deixaram de ser retornadas pela fonte.",
-    "Coberturas ainda não configuradas de e-CAC, FGTS Digital, SEFAZ e municípios são exibidas sem interpretar ausência como imposto não pago."
+    "A conferência inicial do FPIMP passa a distinguir proventos e encargos dos descontos da folha.",
+    "Descontos como o INSS são exibidos no total de débito com sinal negativo, sem alterar a partida contábil original.",
+    "A natureza é identificada pelas próprias contas de provisão do arquivo, sem depender de descrições ou contas fixas de uma empresa."
   ]
 }

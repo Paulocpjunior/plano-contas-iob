@@ -76,6 +76,24 @@ function parseLinha(linha, numero) {
   };
 }
 
+function aplicarNaturezaOperacional(lancamentos) {
+  // Na folha, proventos/encargos debitam uma despesa e creditam uma conta de
+  // provisao. Os descontos fazem o caminho seguinte: debitam essa mesma conta
+  // de provisao e creditam a obrigacao correspondente. Assim a natureza pode
+  // ser obtida das partidas do proprio arquivo, sem depender do nome da rubrica
+  // nem de contas especificas de uma empresa.
+  const contasCreditadas = new Set(lancamentos.map(function(lancamento) {
+    return String(lancamento.contaCredito || '').trim();
+  }).filter(Boolean));
+
+  lancamentos.forEach(function(lancamento) {
+    const desconto = contasCreditadas.has(String(lancamento.contaDebito || '').trim());
+    lancamento.natureza_operacional = desconto ? 'debito' : 'credito';
+    lancamento.valor_operacional = desconto ? -Math.abs(lancamento.valor) : Math.abs(lancamento.valor);
+  });
+  return lancamentos;
+}
+
 function parseSageFolhaFpimp(buffer, opcoes) {
   const opts = opcoes || {};
   const arquivo = dadosNomeArquivo(opts.nomeArquivo);
@@ -92,7 +110,9 @@ function parseSageFolhaFpimp(buffer, opcoes) {
   if (!texto.trim()) throw new Error('Arquivo FPIMP vazio.');
   const linhas = texto.split(/\r\n|\n|\r/).filter(function (linha) { return linha.length > 0; });
   if (!linhas.length) throw new Error('Arquivo FPIMP sem registros.');
-  const lancamentos = linhas.map(function (linha, indice) { return parseLinha(linha, indice + 1); });
+  const lancamentos = aplicarNaturezaOperacional(
+    linhas.map(function (linha, indice) { return parseLinha(linha, indice + 1); })
+  );
   const meses = Array.from(new Set(lancamentos.map(function (l) { return l.data.slice(5, 7); })));
   if (meses.length !== 1) throw new Error('O arquivo FPIMP contém lançamentos de mais de um mês. Importe uma competência por vez.');
   if (meses[0] !== arquivo.mes) {
