@@ -120,7 +120,12 @@ function parseSageFolhaFpimp(buffer, opcoes) {
   }
   const anos = Array.from(new Set(lancamentos.map(function (l) { return l.data.slice(0, 4); })));
   if (anos.length !== 1) throw new Error('O arquivo FPIMP contém mais de um ano.');
-  const total = lancamentos.reduce(function (soma, l) { return soma + Math.round(l.valor * 100); }, 0) / 100;
+  const totaisOperacionais = lancamentos.reduce(function (totais, lancamento) {
+    const valorCentavos = Math.round(Math.abs(Number(lancamento.valor) || 0) * 100);
+    if (lancamento.natureza_operacional === 'debito') totais.debitos += valorCentavos;
+    else totais.creditos += valorCentavos;
+    return totais;
+  }, { debitos: 0, creditos: 0 });
   const crypto = require('crypto');
   return {
     formato: 'sage_fpimp',
@@ -130,7 +135,11 @@ function parseSageFolhaFpimp(buffer, opcoes) {
     competencia: arquivo.mes + '/' + anos[0],
     data_lancamento: lancamentos[lancamentos.length - 1].data_br,
     lancamentos,
-    totais: { lancamentos: lancamentos.length, debitos: total, creditos: total },
+    totais: {
+      lancamentos: lancamentos.length,
+      debitos: totaisOperacionais.debitos / 100,
+      creditos: totaisOperacionais.creditos / 100
+    },
     raw_text_hash: crypto.createHash('sha256').update(Buffer.isBuffer(buffer) ? buffer : Buffer.from(texto, 'latin1')).digest('hex').slice(0, 16)
   };
 }

@@ -1,9 +1,8 @@
 {
-  "version": "3.4.179",
-  "build_date": "2026-08-25T09:57:24Z",
+  "version": "3.4.180",
+  "build_date": "2026-08-25T11:51:12Z",
   "release_notes": [
-    "A conferência inicial do FPIMP passa a distinguir proventos e encargos dos descontos da folha.",
-    "Descontos como o INSS são exibidos no total de débito com sinal negativo, sem alterar a partida contábil original.",
-    "A natureza é identificada pelas próprias contas de provisão do arquivo, sem depender de descrições ou contas fixas de uma empresa."
+    "A conferência inicial do FPIMP agora separa os totais de crédito e débito conforme a natureza operacional.",
+    "O caso validado exibe R$ 3.890,40 em créditos e R$ 356,62 em débitos, igual à conferência final."
   ]
 }

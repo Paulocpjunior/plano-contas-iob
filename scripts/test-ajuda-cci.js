@@ -28,8 +28,10 @@ assert(index.includes('/ajuda-cci.js?v='), 'O frontend da Ajuda CCI deve ser car
 
 const frontend = fs.readFileSync(path.join(root, 'ajuda-cci.js'), 'utf8');
 const novidades = fs.readFileSync(path.join(root, 'novidades-cci.html'), 'utf8');
-assert(frontend.includes("const NOVIDADES_VERSAO = '2026-08-19.2'"), 'A versão visual das novidades deve ser explícita.');
-assert(novidades.includes('Atualizado em 19/08/2026'), 'A página deve declarar a mesma data da versão visual.');
+const versaoNovidades = frontend.match(/const NOVIDADES_VERSAO = '(\d{4})-(\d{2})-(\d{2})\.\d+';/);
+assert(versaoNovidades, 'A versão visual das novidades deve ser explícita.');
+const dataNovidades = versaoNovidades[3] + '/' + versaoNovidades[2] + '/' + versaoNovidades[1];
+assert(novidades.includes('Atualizado em ' + dataNovidades), 'A página deve declarar a mesma data da versão visual.');
 assert(novidades.includes('Quatro modalidades no Movimento Fiscal'), 'Novidades deve registrar a restauração dos quatro modelos fiscais.');
 assert(novidades.includes('Novos layouts Banco do Brasil e Itaú'), 'Novidades deve registrar os novos layouts bancários homologados.');
 assert(novidades.includes('Demonstrativo SAGE de impostos retidos'), 'Novidades deve registrar o novo relatório fiscal genérico.');
