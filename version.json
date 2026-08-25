@@ -1,8 +1,10 @@
 {
-  "version": "3.4.180",
-  "build_date": "2026-08-25T11:51:12Z",
+  "version": "3.4.181",
+  "build_date": "2026-08-25T13:26:15Z",
   "release_notes": [
-    "A conferência inicial do FPIMP agora separa os totais de crédito e débito conforme a natureza operacional.",
-    "O caso validado exibe R$ 3.890,40 em créditos e R$ 356,62 em débitos, igual à conferência final."
+    "O modal libera a tela após validar o lançamento e salva alterações sequencialmente em segundo plano.",
+    "Alterações acumuladas durante uma gravação são consolidadas, evitando autosaves duplicados e concorrência entre sessões.",
+    "A consulta de competências é reutilizada por 30 segundos, mantendo a validação definitiva no servidor.",
+    "O Santander preserva históricos em duas linhas no lançamento correto, sem deslocar complementos para o registro seguinte."
   ]
 }

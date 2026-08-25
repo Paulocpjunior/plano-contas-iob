@@ -51,6 +51,14 @@ assert(html.includes('id="filterNumeroLancamento"'), 'Lançamentos deve ter loca
 assert(html.includes('function abrirModalEditarLancamento(idx)'), 'Lançamento existente deve abrir modal de edição.');
 assert(html.includes('aplicarEdicaoIndividual(entry, alteracao'), 'Edição direta deve usar a trilha auditável centralizada.');
 assert(html.includes('persistirMutacaoLancamentos'), 'Edição deve possuir rollback quando a persistência falhar.');
+assert(html.includes('enfileirarMutacaoModalLancamento'), 'Modal deve liberar a tela e enfileirar a persistência sem perder o rollback.');
+assert(html.includes('filaMutacoesModalLancamento.splice(0, filaMutacoesModalLancamento.length)'), 'Alterações acumuladas durante uma gravação devem ser consolidadas no próximo lote.');
+assert(html.includes('As alterações seguintes foram canceladas porque o lote anterior não pôde ser salvo.'), 'Falha de um lote deve cancelar a fila ainda não aplicada para preservar o rollback.');
+assert(html.includes("showToast('Lançamento nº ' + numeroExistente + ' enviado para salvamento. Você já pode continuar.'"), 'Edição deve liberar explicitamente o colaborador para o próximo lançamento.');
+assert(html.includes('carregarStatusPeriodosLancamentos(!!(opcoes && opcoes.forcar))'), 'Modal deve reutilizar o cache de competências sem remover a consulta forçada administrativa.');
+assert(html.includes("salvarSessaoRemotoAgora({ mostrarErro: true, cancelarAgendado: true })"), 'Persistência imediata deve cancelar o autosave redundante já agendado.');
+assert(html.includes('if (_sessaoDirty) salvarSessaoRemotoAgora()'), 'Timer remoto não deve reenviar uma sessão que já foi confirmada.');
+assert(html.includes('const indiceLancamentoPorId = new Map'), 'Renderização deve localizar lançamentos em tempo linear.');
 assert(modulo.includes('está encerrado. Solicite a reabertura administrativa'), 'Edição individual deve bloquear competência encerrada.');
 assert(html.includes('lancamentoFechadoNoCache(e)'), 'Tabela deve identificar visualmente lançamentos de competência encerrada.');
 assert.strictEqual(
