@@ -4,6 +4,7 @@ const assert = require('assert');
 const lote = require('../lancamentos-edicao-lote');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 function base() {
   return [
@@ -52,6 +53,7 @@ assert(html.includes('function abrirModalEditarLancamento(idx)'), 'Lançamento e
 assert(html.includes('aplicarEdicaoIndividual(entry, alteracao'), 'Edição direta deve usar a trilha auditável centralizada.');
 assert(html.includes('persistirMutacaoLancamentos'), 'Edição deve possuir rollback quando a persistência falhar.');
 assert(html.includes('enfileirarMutacaoModalLancamento'), 'Modal deve liberar a tela e enfileirar a persistência sem perder o rollback.');
+assert(/async function updateEntry[\s\S]*?enfileirarMutacaoModalLancamento\(async function/.test(html), 'Edição direta na grade deve usar a fila e liberar o próximo lançamento sem aguardar o POST anterior.');
 assert(html.includes('filaMutacoesModalLancamento.splice(0, filaMutacoesModalLancamento.length)'), 'Alterações acumuladas durante uma gravação devem ser consolidadas no próximo lote.');
 assert(html.includes('As alterações seguintes foram canceladas porque o lote anterior não pôde ser salvo.'), 'Falha de um lote deve cancelar a fila ainda não aplicada para preservar o rollback.');
 assert(html.includes("showToast('Lançamento nº ' + numeroExistente + ' enviado para salvamento. Você já pode continuar.'"), 'Edição deve liberar explicitamente o colaborador para o próximo lançamento.');
@@ -59,6 +61,46 @@ assert(html.includes('carregarStatusPeriodosLancamentos(!!(opcoes && opcoes.forc
 assert(html.includes("salvarSessaoRemotoAgora({ mostrarErro: true, cancelarAgendado: true })"), 'Persistência imediata deve cancelar o autosave redundante já agendado.');
 assert(html.includes('if (_sessaoDirty) salvarSessaoRemotoAgora()'), 'Timer remoto não deve reenviar uma sessão que já foi confirmada.');
 assert(html.includes('const indiceLancamentoPorId = new Map'), 'Renderização deve localizar lançamentos em tempo linear.');
+assert(html.includes('function capturarEdicaoAtivaLancamentos()'), 'Renderização deve capturar o campo que o colaborador ainda está digitando.');
+assert(html.includes('restaurarEdicaoAtivaLancamentos(edicaoAtiva);'), 'Renderização deve restaurar valor, foco e cursor da edição em andamento.');
+['valor', 'contaDebito', 'contaCredito', 'codigoHistorico', 'historico'].forEach((campo) => {
+  assert(html.includes(`data-entry-field="${campo}"`), `Campo ${campo} deve ser identificável para preservar a digitação.`);
+});
+
+{
+  const inicio = html.indexOf('function capturarEdicaoAtivaLancamentos()');
+  const fim = html.indexOf('function renderLancamentos()', inicio);
+  assert(inicio >= 0 && fim > inicio, 'Funções de preservação da edição devem permanecer isoladas e testáveis.');
+  const restaurado = { value: '', focado: false, selecao: null };
+  restaurado.focus = () => { restaurado.focado = true; };
+  restaurado.setSelectionRange = (a, b) => { restaurado.selecao = [a, b]; };
+  const ativo = {
+    value: '401',
+    selectionStart: 2,
+    selectionEnd: 3,
+    classList: { contains: (classe) => classe === 'editable-input' },
+    closest: () => ({ getAttribute: () => 'lancamento-128' }),
+    getAttribute: (nome) => nome === 'data-entry-field' ? 'contaDebito' : null
+  };
+  const contexto = {
+    document: {
+      activeElement: ativo,
+      querySelector: (seletor) => {
+        assert(seletor.includes('lancamento-128'));
+        assert(seletor.includes('contaDebito'));
+        return restaurado;
+      }
+    },
+    CSS: { escape: (valor) => valor }
+  };
+  vm.createContext(contexto);
+  vm.runInContext(html.slice(inicio, fim), contexto);
+  const edicao = contexto.capturarEdicaoAtivaLancamentos();
+  contexto.restaurarEdicaoAtivaLancamentos(edicao);
+  assert.strictEqual(restaurado.value, '401', 'valor ainda digitado deve sobreviver ao rerender');
+  assert.strictEqual(restaurado.focado, true, 'foco deve voltar ao segundo lançamento');
+  assert.deepStrictEqual(restaurado.selecao, [2, 3], 'posição do cursor deve ser preservada');
+}
 assert(modulo.includes('está encerrado. Solicite a reabertura administrativa'), 'Edição individual deve bloquear competência encerrada.');
 assert(html.includes('lancamentoFechadoNoCache(e)'), 'Tabela deve identificar visualmente lançamentos de competência encerrada.');
 assert.strictEqual(

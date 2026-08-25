@@ -1,10 +1,10 @@
 {
-  "version": "3.4.181",
-  "build_date": "2026-08-25T13:26:15Z",
+  "version": "3.4.182",
+  "build_date": "2026-08-25T14:09:52Z",
   "release_notes": [
-    "O modal libera a tela após validar o lançamento e salva alterações sequencialmente em segundo plano.",
-    "Alterações acumuladas durante uma gravação são consolidadas, evitando autosaves duplicados e concorrência entre sessões.",
-    "A consulta de competências é reutilizada por 30 segundos, mantendo a validação definitiva no servidor.",
-    "O Santander preserva históricos em duas linhas no lançamento correto, sem deslocar complementos para o registro seguinte."
+    "As edições feitas diretamente na grade usam a mesma fila sequencial do modal e não aguardam o salvamento anterior.",
+    "A atualização da tabela preserva o valor ainda digitado no lançamento seguinte, além do foco e da posição do cursor.",
+    "Auditoria, rollback e validação definitiva da competência no servidor continuam ativos.",
+    "O ajuste vale para todas as empresas e todos os campos editáveis da grade de lançamentos."
   ]
 }
