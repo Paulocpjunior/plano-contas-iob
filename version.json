@@ -1,10 +1,10 @@
 {
-  "version": "3.4.182",
-  "build_date": "2026-08-25T14:09:52Z",
+  "version": "3.4.183",
+  "build_date": "2026-08-26T14:24:04Z",
   "release_notes": [
-    "As edições feitas diretamente na grade usam a mesma fila sequencial do modal e não aguardam o salvamento anterior.",
-    "A atualização da tabela preserva o valor ainda digitado no lançamento seguinte, além do foco e da posição do cursor.",
-    "Auditoria, rollback e validação definitiva da competência no servidor continuam ativos.",
-    "O ajuste vale para todas as empresas e todos os campos editáveis da grade de lançamentos."
+    "O histórico SAGE 0308, contribuição da empresa ao INSS, passa a compor os débitos da folha.",
+    "A regra utiliza o código contábil presente no arquivo FPIMP e vale para todas as empresas.",
+    "As contas, o histórico e o valor originais do lançamento continuam preservados.",
+    "O arquivo FPIMP1086.01 fecha em R$ 502,51 de débitos e R$ 1.621,00 de créditos."
   ]
 }

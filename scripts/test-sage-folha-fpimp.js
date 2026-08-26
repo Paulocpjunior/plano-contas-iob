@@ -49,10 +49,22 @@ assert.strictEqual(resultado.lancamentos[0].natureza_operacional, 'credito');
 assert.strictEqual(resultado.lancamentos[0].valor_operacional, 3242);
 assert.strictEqual(resultado.lancamentos[1].natureza_operacional, 'debito');
 assert.strictEqual(resultado.lancamentos[1].valor_operacional, -356.62);
-assert.strictEqual(resultado.lancamentos[2].natureza_operacional, 'credito');
-assert.strictEqual(resultado.lancamentos[2].valor_operacional, 648.40);
-assert.strictEqual(resultado.totais.debitos, 356.62);
-assert.strictEqual(resultado.totais.creditos, 3890.40);
+assert.strictEqual(resultado.lancamentos[2].natureza_operacional, 'debito');
+assert.strictEqual(resultado.lancamentos[2].valor_operacional, -648.40);
+assert.strictEqual(resultado.totais.debitos, 1005.02);
+assert.strictEqual(resultado.totais.creditos, 3242.00);
+
+const arquivoRealInssEmpresa = [
+  registro({ debito: '0000000771', credito: '0000000362', historico: '0273', valor: 1621.00, data: '31/01/2026', complemento: '01/2026 - 0900/0000/0000 Processamento: Mensal Ocor.: 4992 - CONTRIB. INDIVIDUAL-PRO LABORE' }),
+  registro({ debito: '0000000362', credito: '0000000371', historico: '0313', valor: 178.31, data: '31/01/2026', complemento: '01/2026 - 0900/0000/0000 Processamento: Mensal Ocor.: 9860 - I.N.S.S.' }),
+  registro({ debito: '0000000775', credito: '0000000371', historico: '0308', valor: 324.20, data: '31/01/2026', complemento: '01/2026 - 0000/0000/0000 Processamento: Mensal Ocor.: Empresas' })
+].join('\r\n') + '\r\n';
+const resultadoInssEmpresa = parseSageFolhaFpimp(Buffer.from(arquivoRealInssEmpresa, 'latin1'), { nomeArquivo: 'FPIMP1086.01', codigoEmpresa: '1086' });
+assert.strictEqual(resultadoInssEmpresa.lancamentos[2].codigoHistorico, '0308');
+assert.strictEqual(resultadoInssEmpresa.lancamentos[2].natureza_operacional, 'debito', 'INSS Empresas 0308 deve ser débito em qualquer empresa');
+assert.strictEqual(resultadoInssEmpresa.lancamentos[2].valor_operacional, -324.20);
+assert.strictEqual(resultadoInssEmpresa.totais.debitos, 502.51);
+assert.strictEqual(resultadoInssEmpresa.totais.creditos, 1621.00);
 
 assert.throws(() => parseSageFolhaFpimp(Buffer.from(texto, 'latin1'), { nomeArquivo: 'FPIMP0041.01', codigoEmpresa: '0040' }), /pertence à empresa SAGE/);
 assert.throws(() => parseSageFolhaFpimp(Buffer.from(texto, 'latin1'), { nomeArquivo: 'FPIMP0040.01', codigoEmpresa: '' }), /Cadastre o número da empresa SAGE/);

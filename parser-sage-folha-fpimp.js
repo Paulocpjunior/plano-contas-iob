@@ -88,8 +88,13 @@ function aplicarNaturezaOperacional(lancamentos) {
 
   lancamentos.forEach(function(lancamento) {
     const desconto = contasCreditadas.has(String(lancamento.contaDebito || '').trim());
-    lancamento.natureza_operacional = desconto ? 'debito' : 'credito';
-    lancamento.valor_operacional = desconto ? -Math.abs(lancamento.valor) : Math.abs(lancamento.valor);
+    // O histórico SAGE 0308 identifica a contribuição patronal da empresa ao
+    // INSS. É encargo da folha e deve compor os débitos operacionais, ainda que
+    // sua conta de despesa não apareça antes como conta creditada no arquivo.
+    const inssEmpresa = String(lancamento.codigoHistorico || '').trim() === '0308';
+    const debitoOperacional = desconto || inssEmpresa;
+    lancamento.natureza_operacional = debitoOperacional ? 'debito' : 'credito';
+    lancamento.valor_operacional = debitoOperacional ? -Math.abs(lancamento.valor) : Math.abs(lancamento.valor);
   });
   return lancamentos;
 }
