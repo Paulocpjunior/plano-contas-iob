@@ -16,6 +16,8 @@ const ARQUIVO = '/Users/paulocesarpereirajunior/Downloads/Demonstrativo dos Impo
 const HASH = '9deb36326825f86d425f2640016e7e2a05a8efc883cc2ab32909577ba470bf7a';
 const ARQUIVO_RELACAO = '/Users/paulocesarpereirajunior/Downloads/SERVIÇOS TOMADOS 01.2026.pdf';
 const HASH_RELACAO = '1d90421f4a8390a500f1603297dc3669086b1250e78fb112e9c54ab3089d0143';
+const ARQUIVO_PAISAGEM_NATIVA = '/Users/paulocesarpereirajunior/Downloads/Serviços tomados retençoes (1).pdf';
+const HASH_PAISAGEM_NATIVA = '2ffcd6c72ca819ead5f910eb2b0d114ac3ef1b5c2c764b1e41e2a24fd3d63cfc';
 
 function money(valor) {
   return Math.round(Number(valor || 0) * 100);
@@ -109,6 +111,49 @@ function money(valor) {
   assert.strictEqual(layout.movimento, 'impostos_retidos_servicos_tomados');
   assert.strictEqual(layout.parser, 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicosTomados');
 
+  assert.ok(fs.existsSync(ARQUIVO_PAISAGEM_NATIVA), `Arquivo de regressao nao encontrado: ${ARQUIVO_PAISAGEM_NATIVA}`);
+  const bufferPaisagemNativa = fs.readFileSync(ARQUIVO_PAISAGEM_NATIVA);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferPaisagemNativa).digest('hex'),
+    HASH_PAISAGEM_NATIVA,
+    'fixture SAGE em paisagem nativa deve ser o PDF homologado da empresa 0360'
+  );
+  const paisagemNativa = await parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicosTomados(
+    new Uint8Array(bufferPaisagemNativa)
+  );
+  assert.strictEqual(paisagemNativa.detectado, true);
+  assert.strictEqual(paisagemNativa.empresa_codigo_detectado, '0360');
+  assert.strictEqual(paisagemNativa.cnpj_detectado, '14.583.444/0001-01');
+  assert.strictEqual(paisagemNativa.periodo_inicio, '2026-01-01');
+  assert.strictEqual(paisagemNativa.periodo_fim, '2026-07-31');
+  assert.strictEqual(paisagemNativa.total_notas_fiscais, 5);
+  assert.strictEqual(paisagemNativa.total_lancamentos_fiscais, 20);
+  assert.strictEqual(money(paisagemNativa.total_debito), money(1518.18));
+  assert.strictEqual(money(paisagemNativa.total_credito), money(70.60));
+  assert.strictEqual(money(paisagemNativa.total_liquido), money(1447.58));
+  assert.deepStrictEqual(paisagemNativa.totais_retencoes_oficiais, {
+    valorNotas: 1518.18,
+    baseRetencao: 1518.18,
+    pis: 9.87,
+    cofins: 45.54,
+    csll: 15.19,
+    irrf: 0,
+    seguridadeSocial: 0
+  });
+  assert.deepStrictEqual(paisagemNativa.totais_retencoes_calculados, paisagemNativa.totais_retencoes_oficiais);
+  assert.strictEqual(paisagemNativa.total_divergente, false);
+  assert.deepStrictEqual(paisagemNativa.campos_totais_divergentes, []);
+  const brutosPaisagem = paisagemNativa.lancamentos.filter(l => l.componenteFiscal === 'VALOR_BRUTO_SERVICO_TOMADO');
+  assert.deepStrictEqual(brutosPaisagem.map(l => l.documento), [
+    '0000010254', '0000010920', '0000011557', '0000012872', '0000013608'
+  ]);
+  assert.deepStrictEqual(brutosPaisagem.map(l => l.serieSubserie), ['', '', '', 'E', '000']);
+  assert.ok(brutosPaisagem.every(l => l.cnpj_fornecedor === '54.561.257/0001-41'));
+  assert.ok(brutosPaisagem.every(l => l.data === l.dataPagamento && l.data === l.dataPagamentoCreditoIrrf));
+  const impostosPaisagem = paisagemNativa.lancamentos.filter(l => l.componenteFiscal === 'IMPOSTO_RETIDO_SERVICO_TOMADO');
+  assert.strictEqual(impostosPaisagem.length, 15);
+  assert.ok(impostosPaisagem.every(l => l.codigoRetencaoFonte === '5952'));
+
   assert.ok(fs.existsSync(ARQUIVO_RELACAO), `Arquivo de regressao nao encontrado: ${ARQUIVO_RELACAO}`);
   const bufferRelacao = fs.readFileSync(ARQUIVO_RELACAO);
   assert.strictEqual(
@@ -129,7 +174,7 @@ function money(valor) {
   assert.strictEqual(pessoaFisica.cpf_fornecedor, '302.104.028-49');
   assert.strictEqual(money(pessoaFisica.valorNota), money(206.39));
 
-  console.log('OK: serviços tomados preservam CNPJ/CPF, retenções e totais oficiais dos PDFs SAGE homologados.');
+  console.log('OK: serviços tomados preservam CNPJ/CPF, rotações, retenções e totais oficiais dos PDFs SAGE homologados.');
 })().catch((err) => {
   console.error(err);
   process.exit(1);

@@ -1111,14 +1111,15 @@
 
   function agruparItensPorCoordenada(items, rotacao) {
     const giro = ((Number(rotacao || 0) % 360) + 360) % 360;
-    if (giro !== 90 && giro !== 270) return [];
+    const paisagemNativa = giro === 0;
+    if (!paisagemNativa && giro !== 90 && giro !== 270) return [];
     const grupos = [];
     (items || []).forEach(function(item) {
       const str = String(item.str || '').trim();
       if (!str) return;
       const t = item.transform || [1, 0, 0, 1, 0, 0];
-      const coordenadaLinha = Number(t[4] || 0);
-      const coordenadaColuna = Number(t[5] || 0);
+      const coordenadaLinha = Number(t[paisagemNativa ? 5 : 4] || 0);
+      const coordenadaColuna = Number(t[paisagemNativa ? 4 : 5] || 0);
       let grupo = grupos.find(function(g) { return Math.abs(g.coordenada - coordenadaLinha) <= 0.8; });
       if (!grupo) {
         grupo = { coordenada: coordenadaLinha, itens: [] };
@@ -1127,7 +1128,9 @@
       grupo.itens.push({ str: str, coluna: coordenadaColuna });
     });
     grupos.forEach(function(grupo) { grupo.itens.sort(function(a, b) { return a.coluna - b.coluna; }); });
-    return grupos.sort(function(a, b) { return a.coordenada - b.coordenada; });
+    return grupos.sort(function(a, b) {
+      return paisagemNativa ? b.coordenada - a.coordenada : a.coordenada - b.coordenada;
+    });
   }
 
   function valorMonetarioNaFaixa(itens, inicio, fim) {
@@ -1244,20 +1247,35 @@
     if (!metaEmpresa.codigo || !cnpjValido(metaEmpresa.cnpj) || !periodo.inicio || !periodo.fim) {
       return { detectado: false, lancamentos: [] };
     }
+    const giro = ((Number(rotacao || 0) % 360) + 360) % 360;
+    const paisagemNativa = giro === 0;
+    const colunas = paisagemNativa ? {
+      linhaInicio: 40, linhaFim: 455, cabecalhoFim: 200,
+      valorNota: [200, 230], pagamento: [230, 275], base: [305, 350],
+      pis: [378, 400], codigoPis: [400, 430], cofins: [455, 478], codigoCofins: [478, 505],
+      csll: [535, 558], codigoCsll: [558, 580], pagamentoIrrf: [558, 630],
+      irrf: [650, 670], codigoIrrf: [670, 705], seguridade: [720, 745], codigoSeguridade: [745, 785]
+    } : {
+      linhaInicio: 150, linhaFim: 520, cabecalhoFim: 210,
+      valorNota: [220, 255], pagamento: [250, 295], base: [330, 380],
+      pis: [395, 422], codigoPis: [422, 455], cofins: [470, 501], codigoCofins: [501, 535],
+      csll: [545, 578], codigoCsll: [578, 610], pagamentoIrrf: [575, 650],
+      irrf: [655, 689], codigoIrrf: [689, 720], seguridade: [730, 770], codigoSeguridade: [770, 805]
+    };
     const grupos = agruparItensPorCoordenada(items, rotacao);
     const notasFiscais = grupos.map(function(grupo) {
-      if (grupo.coordenada < 150 || grupo.coordenada > 520) return null;
-      const cabecalho = grupo.itens.filter(function(i) { return i.coluna < 210; })
+      if (grupo.coordenada < colunas.linhaInicio || grupo.coordenada > colunas.linhaFim) return null;
+      const cabecalho = grupo.itens.filter(function(i) { return i.coluna < colunas.cabecalhoFim; })
         .map(function(i) { return i.str; }).join(' ').replace(/\s+/g, ' ').trim();
-      const m = cabecalho.match(/^(\d{2}\/\d{2}\/\d{4})\s+(?:(\d{1,4})\s+)?(\d{8,12})\s+(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/);
+      const m = cabecalho.match(/^(\d{2}\/\d{2}\/\d{4})\s+(?:([A-Z0-9]{1,4})\s+)?(\d{8,12})\s+(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/i);
       if (!m) return null;
-      const valorNota = valorMonetarioNaFaixa(grupo.itens, 220, 255);
+      const valorNota = valorMonetarioNaFaixa(grupo.itens, colunas.valorNota[0], colunas.valorNota[1]);
       if (centavos(valorNota) === 0) return null;
-      const pis = valorMonetarioNaFaixa(grupo.itens, 395, 422);
-      const cofins = valorMonetarioNaFaixa(grupo.itens, 470, 501);
-      const csll = valorMonetarioNaFaixa(grupo.itens, 545, 578);
-      const irrf = valorMonetarioNaFaixa(grupo.itens, 655, 689);
-      const seguridade = valorMonetarioNaFaixa(grupo.itens, 730, 770);
+      const pis = valorMonetarioNaFaixa(grupo.itens, colunas.pis[0], colunas.pis[1]);
+      const cofins = valorMonetarioNaFaixa(grupo.itens, colunas.cofins[0], colunas.cofins[1]);
+      const csll = valorMonetarioNaFaixa(grupo.itens, colunas.csll[0], colunas.csll[1]);
+      const irrf = valorMonetarioNaFaixa(grupo.itens, colunas.irrf[0], colunas.irrf[1]);
+      const seguridade = valorMonetarioNaFaixa(grupo.itens, colunas.seguridade[0], colunas.seguridade[1]);
       const totalRetencoes = pis + cofins + csll + irrf + seguridade;
       return {
         data: parseDateBR(m[1]),
@@ -1265,7 +1283,7 @@
         documento: String(m[3] || '').trim(),
         cnpj_fornecedor: String(m[4] || '').trim(),
         valorNota: valorNota,
-        baseCalculoRetencao: valorMonetarioNaFaixa(grupo.itens, 330, 380),
+        baseCalculoRetencao: valorMonetarioNaFaixa(grupo.itens, colunas.base[0], colunas.base[1]),
         pisRetido: pis,
         cofinsRetida: cofins,
         csllRetida: csll,
@@ -1273,24 +1291,28 @@
         seguridadeSocialRetida: seguridade,
         totalRetencoes: Math.round(totalRetencoes * 100) / 100,
         valorLiquidoAposRetencoes: Math.round((valorNota - totalRetencoes) * 100) / 100,
-        dataPagamento: dataNaFaixa(grupo.itens, 250, 295),
-        dataPagamentoCreditoIrrf: dataNaFaixa(grupo.itens, 575, 650),
-        codigoRetencaoPis: codigoRetencaoNaFaixa(grupo.itens, 422, 455),
-        codigoRetencaoCofins: codigoRetencaoNaFaixa(grupo.itens, 501, 535),
-        codigoRetencaoCsll: codigoRetencaoNaFaixa(grupo.itens, 578, 610),
-        codigoRetencaoIrrf: codigoRetencaoNaFaixa(grupo.itens, 689, 720),
-        codigoRetencaoSeguridadeSocial: codigoRetencaoNaFaixa(grupo.itens, 770, 805)
+        dataPagamento: dataNaFaixa(grupo.itens, colunas.pagamento[0], colunas.pagamento[1]),
+        dataPagamentoCreditoIrrf: dataNaFaixa(grupo.itens, colunas.pagamentoIrrf[0], colunas.pagamentoIrrf[1]),
+        codigoRetencaoPis: codigoRetencaoNaFaixa(grupo.itens, colunas.codigoPis[0], colunas.codigoPis[1]),
+        codigoRetencaoCofins: codigoRetencaoNaFaixa(grupo.itens, colunas.codigoCofins[0], colunas.codigoCofins[1]),
+        codigoRetencaoCsll: codigoRetencaoNaFaixa(grupo.itens, colunas.codigoCsll[0], colunas.codigoCsll[1]),
+        codigoRetencaoIrrf: codigoRetencaoNaFaixa(grupo.itens, colunas.codigoIrrf[0], colunas.codigoIrrf[1]),
+        codigoRetencaoSeguridadeSocial: codigoRetencaoNaFaixa(grupo.itens, colunas.codigoSeguridade[0], colunas.codigoSeguridade[1])
       };
     }).filter(Boolean);
-    const grupoTotais = grupos.find(function(grupo) { return grupo.coordenada > 530; });
+    const grupoTotais = paisagemNativa
+      ? grupos.filter(function(grupo) {
+        return grupo.itens.some(function(item) { return normalizarTexto(item.str).toUpperCase() === 'TOTAL'; });
+      }).sort(function(a, b) { return a.coordenada - b.coordenada; })[0]
+      : grupos.find(function(grupo) { return grupo.coordenada > 530; });
     const totaisOficiais = grupoTotais ? {
-      valorNotas: valorMonetarioNaFaixa(grupoTotais.itens, 220, 255),
-      baseRetencao: valorMonetarioNaFaixa(grupoTotais.itens, 330, 380),
-      pis: valorMonetarioNaFaixa(grupoTotais.itens, 395, 422),
-      cofins: valorMonetarioNaFaixa(grupoTotais.itens, 470, 501),
-      csll: valorMonetarioNaFaixa(grupoTotais.itens, 545, 578),
-      irrf: valorMonetarioNaFaixa(grupoTotais.itens, 655, 689),
-      seguridadeSocial: valorMonetarioNaFaixa(grupoTotais.itens, 730, 770)
+      valorNotas: valorMonetarioNaFaixa(grupoTotais.itens, colunas.valorNota[0], colunas.valorNota[1]),
+      baseRetencao: valorMonetarioNaFaixa(grupoTotais.itens, colunas.base[0], colunas.base[1]),
+      pis: valorMonetarioNaFaixa(grupoTotais.itens, colunas.pis[0], colunas.pis[1]),
+      cofins: valorMonetarioNaFaixa(grupoTotais.itens, colunas.cofins[0], colunas.cofins[1]),
+      csll: valorMonetarioNaFaixa(grupoTotais.itens, colunas.csll[0], colunas.csll[1]),
+      irrf: valorMonetarioNaFaixa(grupoTotais.itens, colunas.irrf[0], colunas.irrf[1]),
+      seguridadeSocial: valorMonetarioNaFaixa(grupoTotais.itens, colunas.seguridade[0], colunas.seguridade[1])
     } : null;
     const somas = notasFiscais.reduce(function(acc, nota) {
       acc.valorNotas += nota.valorNota;

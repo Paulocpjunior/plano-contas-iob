@@ -1,10 +1,10 @@
 {
-  "version": "3.4.184",
-  "build_date": "2026-08-26T17:23:48Z",
+  "version": "3.4.185",
+  "build_date": "2026-08-26T18:15:52Z",
   "release_notes": [
-    "A exclusão administrativa permite filtrar por tipo do movimento, período, número do lançamento, conta reduzida, histórico e valor.",
-    "A prévia separa os resultados por importação e exige a seleção explícita antes da exclusão.",
-    "Lançamentos fora de qualquer filtro, inclusive dentro da mesma importação, são preservados.",
-    "Backup integral, confirmação EXCLUIR, trava de revisão e auditoria administrativa continuam obrigatórios."
+    "O relatório SAGE de retenções de serviços tomados passa a aceitar páginas em paisagem nativa, além do modelo rotacionado já homologado.",
+    "Notas, séries, fornecedores, datas, códigos e valores de PIS, COFINS, CSLL, IRRF e Seguridade Social permanecem preservados.",
+    "A conferência continua bloqueando divergências entre os lançamentos calculados e os totais oficiais do relatório.",
+    "O arquivo da empresa 0360 foi homologado com 5 notas, R$ 1.518,18 de serviços e R$ 70,60 de retenções."
   ]
 }

@@ -128,8 +128,8 @@
       validacaoCnpj: 'cabecalho_relatorio',
       exigirCodigoArquivo: false,
       exigirChaveNfeTodasNotas: false,
-      ultimoTeste: 'Demonstrativo dos Impostos Retidos - Entradas de Servicos 1.pdf',
-      observacao: 'Modelo generico para notas de entradas de servicos. Preserva NF, serie, fornecedor, datas, codigos e valores de PIS, COFINS, CSLL, IRRF e Seguridade Social; confere CNPJ, periodo e todos os totais oficiais.'
+      ultimoTeste: 'Servicos tomados retencoes (1).pdf',
+      observacao: 'Modelo generico para notas de entradas de servicos, tanto em pagina rotacionada quanto em paisagem nativa. Preserva NF, serie, fornecedor, datas, codigos e valores de PIS, COFINS, CSLL, IRRF e Seguridade Social; confere CNPJ, periodo e todos os totais oficiais.'
     },
     {
       id: '0109_fastweld_registro_entradas_iob_sage',
