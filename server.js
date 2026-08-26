@@ -2601,8 +2601,8 @@ function hashSessao(stateJson) {
   return cryptoAdmin.createHash('sha256').update(String(stateJson || ''), 'utf8').digest('hex');
 }
 
-function tokenPreviaExclusao(stateJson, cnpj, dataInicial, dataFinal) {
-  return hashSessao([hashSessao(stateJson), cnpj, dataInicial, dataFinal].join('|'));
+function tokenPreviaExclusao(stateJson, cnpj, filtros) {
+  return hashSessao([hashSessao(stateJson), cnpj, JSON.stringify(filtros || {})].join('|'));
 }
 
 function novaRevisaoSessao() {
@@ -2933,12 +2933,12 @@ app.post('/api/admin/exclusao-lancamentos/preview', adminRequired, async (req, r
     const sessao = await carregarSessaoAtualPorRef(sessaoRef);
     if (!sessao.encontrada || !sessao.stateJson) return res.status(404).json({ erro: 'A empresa não possui uma sessão de lançamentos salva.' });
     const state = parsearStateJson(sessao.stateJson);
-    const previa = montarPreviaExclusao(state.entries, req.body.dataInicial, req.body.dataFinal);
+    const previa = montarPreviaExclusao(state.entries, req.body.filtros || req.body);
     res.json({
       ok: true,
       empresa: { cnpj: cnpjLimpo, razao_social: chk.empresa.razao_social || chk.empresa.nome || cnpjLimpo },
       previa,
-      previewToken: tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, previa.dataInicial, previa.dataFinal),
+      previewToken: tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, previa.filtros),
       sessaoAtualizadaEm: sessao.dados.updated_at || null,
     });
   } catch (e) {
@@ -2969,9 +2969,9 @@ app.post('/api/admin/exclusao-lancamentos/executar', adminRequired, async (req, 
     const sessao = await carregarSessaoAtualPorRef(sessaoRef);
     if (!sessao.encontrada || !sessao.stateJson) return res.status(404).json({ erro: 'A empresa não possui uma sessão de lançamentos salva.' });
     const state = parsearStateJson(sessao.stateJson);
-    const exclusao = aplicarExclusao(state.entries, body.dataInicial, body.dataFinal, chavesSelecionadas);
-    if (tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, exclusao.resumo.dataInicial, exclusao.resumo.dataFinal) !== body.previewToken) {
-      throw erroSessao('A sessão ou o período mudou depois da prévia. Gere uma nova prévia antes de excluir.', 409, 'PREVIA_DESATUALIZADA');
+    const exclusao = aplicarExclusao(state.entries, body.filtros || body, chavesSelecionadas);
+    if (tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, exclusao.resumo.filtros) !== body.previewToken) {
+      throw erroSessao('A sessão ou os filtros mudaram depois da prévia. Gere uma nova prévia antes de excluir.', 409, 'PREVIA_DESATUALIZADA');
     }
     if (exclusao.resumo.quantidadeRemovida !== quantidadeEsperada) {
       throw erroSessao('A quantidade de lançamentos mudou. Gere uma nova prévia antes de excluir.', 409, 'QUANTIDADE_DIVERGENTE');
@@ -2997,6 +2997,7 @@ app.post('/api/admin/exclusao-lancamentos/executar', adminRequired, async (req, 
       empresa: chk.empresa.razao_social || chk.empresa.nome || cnpjLimpo,
       data_inicial: exclusao.resumo.dataInicial,
       data_final: exclusao.resumo.dataFinal,
+      filtros: exclusao.resumo.filtros,
       chaves_importacao: chavesSelecionadas,
       quantidade_antes: exclusao.resumo.quantidadeAntes,
       quantidade_removida: exclusao.resumo.quantidadeRemovida,

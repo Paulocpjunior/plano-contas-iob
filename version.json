@@ -1,10 +1,10 @@
 {
-  "version": "3.4.183",
-  "build_date": "2026-08-26T14:24:04Z",
+  "version": "3.4.184",
+  "build_date": "2026-08-26T17:23:48Z",
   "release_notes": [
-    "O histórico SAGE 0308, contribuição da empresa ao INSS, passa a compor os débitos da folha.",
-    "A regra utiliza o código contábil presente no arquivo FPIMP e vale para todas as empresas.",
-    "As contas, o histórico e o valor originais do lançamento continuam preservados.",
-    "O arquivo FPIMP1086.01 fecha em R$ 502,51 de débitos e R$ 1.621,00 de créditos."
+    "A exclusão administrativa permite filtrar por tipo do movimento, período, número do lançamento, conta reduzida, histórico e valor.",
+    "A prévia separa os resultados por importação e exige a seleção explícita antes da exclusão.",
+    "Lançamentos fora de qualquer filtro, inclusive dentro da mesma importação, são preservados.",
+    "Backup integral, confirmação EXCLUIR, trava de revisão e auditoria administrativa continuam obrigatórios."
   ]
 }
