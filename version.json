@@ -1,10 +1,10 @@
 {
-  "version": "3.4.185",
-  "build_date": "2026-08-26T18:15:52Z",
+  "version": "3.4.186",
+  "build_date": "2026-08-26T19:08:07Z",
   "release_notes": [
-    "O relatório SAGE de retenções de serviços tomados passa a aceitar páginas em paisagem nativa, além do modelo rotacionado já homologado.",
-    "Notas, séries, fornecedores, datas, códigos e valores de PIS, COFINS, CSLL, IRRF e Seguridade Social permanecem preservados.",
-    "A conferência continua bloqueando divergências entre os lançamentos calculados e os totais oficiais do relatório.",
-    "O arquivo da empresa 0360 foi homologado com 5 notas, R$ 1.518,18 de serviços e R$ 70,60 de retenções."
+    "O extrato de conta corrente do Banco do Brasil passa a reconstruir datas divididas entre duas páginas do PDF.",
+    "O lançamento recuperado preserva data, documento, histórico, CNPJ, valor e sentido de crédito ou débito.",
+    "A correção exige evidência nos dois lados da quebra de página e não flexibiliza a conciliação dos saldos.",
+    "O arquivo da conta 2074-5 foi homologado com 27 lançamentos e saldo final de R$ 1.258,70."
   ]
 }

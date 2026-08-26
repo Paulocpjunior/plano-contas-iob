@@ -347,7 +347,7 @@
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-    let textoCompleto = '';
+    const paginas = [];
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const tc = await page.getTextContent();
@@ -358,13 +358,61 @@
         linhas[y].push({ x: it.transform[4], s: it.str });
       });
       const ys = Object.keys(linhas).map(Number).sort((a,b) => b - a);
+      const linhasPagina = [];
       ys.forEach(y => {
         const linha = linhas[y].sort((a,b) => a.x - b.x).map(o => o.s).join(' ').replace(/\s+/g,' ').trim();
-        if (linha) textoCompleto += linha + '\n';
+        if (linha) linhasPagina.push(linha);
       });
+      paginas.push(linhasPagina);
     }
 
-    return textoCompleto;
+    return repararDataDivididaEntrePaginasBB(paginas).map(function(linhas) {
+      return linhas.join('\n');
+    }).join('\n');
+  }
+
+  function repararDataDivididaEntrePaginasBB(paginasOriginais) {
+    const paginas = (paginasOriginais || []).map(function(linhas) { return (linhas || []).slice(); });
+    for (let p = 0; p < paginas.length - 1; p++) {
+      const anterior = paginas[p];
+      const seguinte = paginas[p + 1];
+      let indiceData = -1;
+      for (let i = Math.max(0, anterior.length - 8); i < anterior.length; i++) {
+        if (/^\d{2}\/\d{2}\/\d{3}(?:\s|$)/.test(anterior[i])) indiceData = i;
+      }
+      if (indiceData < 0) continue;
+      const possuiValorDoMovimento = anterior.slice(indiceData + 1).some(function(linha) {
+        return /(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*\([+-]\)\s*$/.test(linha);
+      });
+      if (!possuiValorDoMovimento) continue;
+
+      const limiteCabecalho = Math.min(15, seguinte.length);
+      let indiceDigito = -1;
+      for (let i = 0; i < limiteCabecalho; i++) {
+        if (/^\d$/.test(seguinte[i])) {
+          indiceDigito = i;
+          break;
+        }
+      }
+      if (indiceDigito < 0) continue;
+
+      const digito = seguinte[indiceDigito];
+      const dataCompleta = anterior[indiceData].match(/^(\d{2})\/(\d{2})\/(\d{3})/);
+      const ano = Number(dataCompleta[3] + digito);
+      const mes = Number(dataCompleta[2]);
+      const dia = Number(dataCompleta[1]);
+      const possuiComplementoMesmaData = seguinte.slice(0, limiteCabecalho).some(function(linha) {
+        const inicio = linha.match(/^(\d{2})\/(\d{2})(?:\s|$)/);
+        return inicio && Number(inicio[1]) === dia && Number(inicio[2]) === mes;
+      });
+      const dataValida = ano >= 1900 && ano <= 2199 && mes >= 1 && mes <= 12
+        && dia >= 1 && dia <= new Date(ano, mes, 0).getDate();
+      if (!dataValida || !possuiComplementoMesmaData) continue;
+
+      anterior[indiceData] = anterior[indiceData].replace(/^(\d{2}\/\d{2}\/\d{3})(?=\s|$)/, '$1' + digito);
+      seguinte.splice(indiceDigito, 1);
+    }
+    return paginas;
   }
 
   function extrairPalavrasResultadoOCR(data) {
@@ -508,6 +556,7 @@
       normalizarDescricaoBB: normalizarDescricaoBB,
       extrairPalavrasResultadoOCR: extrairPalavrasResultadoOCR,
       agruparPalavrasOCRPorLinha: agruparPalavrasOCRPorLinha,
+      repararDataDivididaEntrePaginasBB: repararDataDivididaEntrePaginasBB,
       parsearTextoBBExtratoMaisMenos: parsearTextoBBExtratoMaisMenos,
       parsearTextoBBContaAtual: parsearTextoBBContaAtual
     }

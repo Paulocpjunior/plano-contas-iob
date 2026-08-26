@@ -10,6 +10,8 @@ const { parsearPDF_BB_ContaAtual, parsearPDF_BB_ExtratoContaCorrente, __test__ }
 const PDF_BB_FEV_2026 = '/Users/paulocesarpereirajunior/Downloads/EXTRATO BB - CC 14910-1 - MATRIZ SP (3) 1.pdf';
 const PDF_BB_0017_OCR = '/Users/paulocesarpereirajunior/Downloads/0017-CDC_Extrato - 04-2026.pdf';
 const HASH_BB_0017_OCR = 'd03823791b22b01f3ac98db2b0bdfb11880132ca1ba9d6891532f056244871fa';
+const PDF_BB_DATA_ENTRE_PAGINAS = '/Users/paulocesarpereirajunior/Downloads/ComprovanteBB - 2026-07-10-082813.pdf';
+const HASH_BB_DATA_ENTRE_PAGINAS = '2c7a5e4cd9bc6886400c2a005b8f5a3645c19857b5894a8889289d6d991ea497';
 
 const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const layoutsBancarios = fs.readFileSync(path.join(__dirname, '..', 'layouts-bancarios-padrao.js'), 'utf8');
@@ -37,6 +39,13 @@ assertLancamento(
   '05/01/2026 5717 15128 103 Cheque Pago Outra Agencia 853.420 30.000,00 D',
   { dataBR: '05/01/2026', tipo: 'D', valor: 30000, descricao: 'Cheque Pago Outra Agencia' }
 );
+
+const paginasComDataDividida = __test__.repararDataDivididaEntrePaginasBB([
+  ['25/02/2026', '14397 Saldo do dia 4.278,70 (+)', '26/02/202 Pix - Recebido', '14397 261431403608701 1.000,00 (+)'],
+  ['Extrato de Conta Corrente', 'Dia Lote Documento Histórico Valor', '26/02 14:31 55270733000138 JADE ENGENH', '6', 'Pix - Recebido']
+]);
+assert.strictEqual(paginasComDataDividida[0][2], '26/02/2026 Pix - Recebido');
+assert.ok(!paginasComDataDividida[1].includes('6'), 'digito isolado da data nao pode permanecer como historico');
 
 assertLancamento(
   'ted credito com documento longo',
@@ -155,6 +164,30 @@ function validarPdfEscaneado0017ComOCRLocal() {
     assert.strictEqual(extrato.lancamentos.filter(l => l.movimentoAplicacaoAutomatica).length, fixture.automaticos);
     assert.ok(!extrato.lancamentos.some(l => /Saldo do dia|S\s*A\s*L\s*D\s*O/i.test(l.descricao)), 'saldos BB nao podem virar lancamentos');
   }
+
+  assert.ok(fs.existsSync(PDF_BB_DATA_ENTRE_PAGINAS), `Arquivo de evidencia nao encontrado: ${PDF_BB_DATA_ENTRE_PAGINAS}`);
+  const bufferDataEntrePaginas = fs.readFileSync(PDF_BB_DATA_ENTRE_PAGINAS);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferDataEntrePaginas).digest('hex'),
+    HASH_BB_DATA_ENTRE_PAGINAS,
+    'fixture BB com data dividida deve ser o PDF real homologado'
+  );
+  const extratoDataEntrePaginas = await parsearPDF_BB_ExtratoContaCorrente(new Uint8Array(bufferDataEntrePaginas));
+  assert.strictEqual(extratoDataEntrePaginas.detectado, true);
+  assert.strictEqual(extratoDataEntrePaginas.conta_detectada, 'AG-5853-0/CC-2074-5');
+  assert.strictEqual(extratoDataEntrePaginas.periodo_inicio, '2026-02-01');
+  assert.strictEqual(extratoDataEntrePaginas.periodo_fim, '2026-02-28');
+  assert.strictEqual(extratoDataEntrePaginas.lancamentos.length, 27);
+  assert.strictEqual(money(extratoDataEntrePaginas.total_credito), money(15977.75));
+  assert.strictEqual(money(extratoDataEntrePaginas.total_debito), money(16268.18));
+  assert.strictEqual(money(extratoDataEntrePaginas.saldo_anterior), money(1549.13));
+  assert.strictEqual(money(extratoDataEntrePaginas.saldo_final), money(1258.70));
+  assert.strictEqual(extratoDataEntrePaginas.saldos_conciliados, true);
+  const pixJade = extratoDataEntrePaginas.lancamentos.find(l => l.documento === '261431403608701');
+  assert.ok(pixJade, 'PIX JADE dividido entre as paginas deve ser preservado');
+  assert.strictEqual(pixJade.data, '2026-02-26');
+  assert.strictEqual(money(pixJade.valor), money(1000));
+  assert.ok(/JADE ENGENH/i.test(pixJade.descricao));
 
   assert.ok(fs.existsSync(PDF_BB_FEV_2026), `Arquivo de evidencia nao encontrado: ${PDF_BB_FEV_2026}`);
   const resultado = await parsearPDF_BB_ContaAtual(new Uint8Array(fs.readFileSync(PDF_BB_FEV_2026)));
