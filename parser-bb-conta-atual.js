@@ -381,28 +381,33 @@
         if (/^\d{2}\/\d{2}\/\d{3}(?:\s|$)/.test(anterior[i])) indiceData = i;
       }
       if (indiceData < 0) continue;
-      const possuiValorDoMovimento = anterior.slice(indiceData + 1).some(function(linha) {
+      // O JasperReports pode manter data, documento, historico e valor na mesma
+      // linha visual. Nesse caso nao existe uma linha posterior ao fragmento
+      // de data, embora o valor impresso esteja completo na propria linha.
+      const possuiValorDoMovimento = anterior.slice(indiceData).some(function(linha) {
         return /(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*\([+-]\)\s*$/.test(linha);
       });
       if (!possuiValorDoMovimento) continue;
 
       const limiteCabecalho = Math.min(15, seguinte.length);
       let indiceDigito = -1;
+      let digito = '';
       for (let i = 0; i < limiteCabecalho; i++) {
-        if (/^\d$/.test(seguinte[i])) {
+        const inicioDigito = seguinte[i].match(/^(\d)(?:\s|$)/);
+        if (inicioDigito) {
           indiceDigito = i;
+          digito = inicioDigito[1];
           break;
         }
       }
       if (indiceDigito < 0) continue;
 
-      const digito = seguinte[indiceDigito];
       const dataCompleta = anterior[indiceData].match(/^(\d{2})\/(\d{2})\/(\d{3})/);
       const ano = Number(dataCompleta[3] + digito);
       const mes = Number(dataCompleta[2]);
       const dia = Number(dataCompleta[1]);
       const possuiComplementoMesmaData = seguinte.slice(0, limiteCabecalho).some(function(linha) {
-        const inicio = linha.match(/^(\d{2})\/(\d{2})(?:\s|$)/);
+        const inicio = linha.replace(/^\d\s+/, '').match(/^(\d{2})\/(\d{2})(?:\s|$)/);
         return inicio && Number(inicio[1]) === dia && Number(inicio[2]) === mes;
       });
       const dataValida = ano >= 1900 && ano <= 2199 && mes >= 1 && mes <= 12
@@ -410,7 +415,8 @@
       if (!dataValida || !possuiComplementoMesmaData) continue;
 
       anterior[indiceData] = anterior[indiceData].replace(/^(\d{2}\/\d{2}\/\d{3})(?=\s|$)/, '$1' + digito);
-      seguinte.splice(indiceDigito, 1);
+      seguinte[indiceDigito] = seguinte[indiceDigito].replace(/^\d\s*/, '').trim();
+      if (!seguinte[indiceDigito]) seguinte.splice(indiceDigito, 1);
     }
     return paginas;
   }

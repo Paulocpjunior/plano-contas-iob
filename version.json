@@ -1,10 +1,16 @@
 {
-  "version": "3.4.186",
-  "build_date": "2026-08-26T19:08:07Z",
+  "version": "3.4.187",
+  "build_date": "2026-08-27T19:29:45Z",
   "release_notes": [
-    "O extrato de conta corrente do Banco do Brasil passa a reconstruir datas divididas entre duas páginas do PDF.",
-    "O lançamento recuperado preserva data, documento, histórico, CNPJ, valor e sentido de crédito ou débito.",
-    "A correção exige evidência nos dois lados da quebra de página e não flexibiliza a conciliação dos saldos.",
-    "O arquivo da conta 2074-5 foi homologado com 27 lançamentos e saldo final de R$ 1.258,70."
+    "fix: reconstruir data BB dividida entre paginas",
+    "fix: reconhecer retencoes SAGE em paisagem nativa",
+    "feat: detalhar filtros de exclusao de lancamentos",
+    "fix: classificar INSS empresa como debito",
+    "fix: preservar digitacao durante salvamento",
+    "fix: agilizar modal e preservar historicos Santander",
+    "fix: separar totais da folha SAGE",
+    "fix: reconhecer descontos na folha SAGE",
+    "feat: confirmar pagamentos fiscais por evidencia oficial",
+    "fix: incluir CPF nas assinaturas contabeis"
   ]
 }

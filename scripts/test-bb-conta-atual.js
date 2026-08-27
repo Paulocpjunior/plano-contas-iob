@@ -12,6 +12,8 @@ const PDF_BB_0017_OCR = '/Users/paulocesarpereirajunior/Downloads/0017-CDC_Extra
 const HASH_BB_0017_OCR = 'd03823791b22b01f3ac98db2b0bdfb11880132ca1ba9d6891532f056244871fa';
 const PDF_BB_DATA_ENTRE_PAGINAS = '/Users/paulocesarpereirajunior/Downloads/ComprovanteBB - 2026-07-10-082813.pdf';
 const HASH_BB_DATA_ENTRE_PAGINAS = '2c7a5e4cd9bc6886400c2a005b8f5a3645c19857b5894a8889289d6d991ea497';
+const PDF_BB_DATA_E_VALOR_NA_MESMA_LINHA = '/Users/paulocesarpereirajunior/Downloads/BANCO DO BRASIL (2).pdf';
+const HASH_BB_DATA_E_VALOR_NA_MESMA_LINHA = '9be241625be398f2b515de2ec5949e2129baf2d54d350a46d7e427dbafb2a010';
 
 const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const layoutsBancarios = fs.readFileSync(path.join(__dirname, '..', 'layouts-bancarios-padrao.js'), 'utf8');
@@ -46,6 +48,21 @@ const paginasComDataDividida = __test__.repararDataDivididaEntrePaginasBB([
 ]);
 assert.strictEqual(paginasComDataDividida[0][2], '26/02/2026 Pix - Recebido');
 assert.ok(!paginasComDataDividida[1].includes('6'), 'digito isolado da data nao pode permanecer como historico');
+
+const paginasComDataEValorNaMesmaLinha = __test__.repararDataDivididaEntrePaginasBB([
+  ['29/06/2026', '14397 290735254047971 Pix - Recebido 1.889,07 (+)', '29/06/202 Pix - Enviado', '13105 62901 4.000,00 (-)'],
+  ['Extrato de Conta Corrente', 'Dia Lote Documento Historico Valor', '6 29/06 11:31 BRUNO PELLEGRINO']
+]);
+assert.strictEqual(
+  paginasComDataEValorNaMesmaLinha[0][2],
+  '29/06/2026 Pix - Enviado',
+  'data deve ser reparada quando o valor estiver na ultima linha visual da pagina'
+);
+assert.strictEqual(
+  paginasComDataEValorNaMesmaLinha[1][2],
+  '29/06 11:31 BRUNO PELLEGRINO',
+  'o complemento que compartilha a linha com o digito do ano deve ser preservado'
+);
 
 assertLancamento(
   'ted credito com documento longo',
@@ -188,6 +205,29 @@ function validarPdfEscaneado0017ComOCRLocal() {
   assert.strictEqual(pixJade.data, '2026-02-26');
   assert.strictEqual(money(pixJade.valor), money(1000));
   assert.ok(/JADE ENGENH/i.test(pixJade.descricao));
+
+  assert.ok(fs.existsSync(PDF_BB_DATA_E_VALOR_NA_MESMA_LINHA), `Arquivo de evidencia nao encontrado: ${PDF_BB_DATA_E_VALOR_NA_MESMA_LINHA}`);
+  const bufferDataEValorNaMesmaLinha = fs.readFileSync(PDF_BB_DATA_E_VALOR_NA_MESMA_LINHA);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferDataEValorNaMesmaLinha).digest('hex'),
+    HASH_BB_DATA_E_VALOR_NA_MESMA_LINHA,
+    'fixture BB com data e valor na mesma linha deve ser o PDF real homologado'
+  );
+  const extratoDataEValorNaMesmaLinha = await parsearPDF_BB_ExtratoContaCorrente(new Uint8Array(bufferDataEValorNaMesmaLinha));
+  assert.strictEqual(extratoDataEValorNaMesmaLinha.detectado, true);
+  assert.strictEqual(extratoDataEValorNaMesmaLinha.conta_detectada, 'AG-5853-0/CC-2074-5');
+  assert.strictEqual(extratoDataEValorNaMesmaLinha.periodo_inicio, '2026-06-01');
+  assert.strictEqual(extratoDataEValorNaMesmaLinha.periodo_fim, '2026-06-30');
+  assert.strictEqual(money(extratoDataEValorNaMesmaLinha.total_credito), money(15877.75));
+  assert.strictEqual(money(extratoDataEValorNaMesmaLinha.total_debito), money(17869.00));
+  assert.strictEqual(money(extratoDataEValorNaMesmaLinha.saldo_anterior), money(3119.19));
+  assert.strictEqual(money(extratoDataEValorNaMesmaLinha.saldo_final), money(1127.94));
+  assert.strictEqual(extratoDataEValorNaMesmaLinha.saldos_conciliados, true);
+  const pixBruno = extratoDataEValorNaMesmaLinha.lancamentos.find(l => l.documento === '62901');
+  assert.ok(pixBruno, 'PIX BRUNO dividido entre as paginas deve ser preservado');
+  assert.strictEqual(pixBruno.data, '2026-06-29');
+  assert.strictEqual(money(pixBruno.valor), money(-4000));
+  assert.ok(/BRUNO PELLEGRINO/i.test(pixBruno.descricao));
 
   assert.ok(fs.existsSync(PDF_BB_FEV_2026), `Arquivo de evidencia nao encontrado: ${PDF_BB_FEV_2026}`);
   const resultado = await parsearPDF_BB_ContaAtual(new Uint8Array(fs.readFileSync(PDF_BB_FEV_2026)));
