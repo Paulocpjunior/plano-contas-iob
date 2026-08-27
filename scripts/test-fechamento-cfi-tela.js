@@ -59,4 +59,30 @@ assert.ok(/o app não escolhe/.test(html), 'e não escolhe');
 // Falha do outro app não vira lista vazia.
 assert.ok(/Não consegui consultar: /.test(html), 'erro é dito, não engolido');
 
+
+// ── 🔒 O SELO: o alerta que aparece SEM alguém procurar ─────────────────────
+//
+// Paulo, 27/08: *"o colaborador do dpto contábil, quando for importar as
+// informações do CFI, deve receber um alerta na empresa para que ele saiba que
+// aquele determinado mês está fechado ou não"*.
+//
+// Alerta que só aparece depois de alguém CLICAR não é alerta, é resultado de
+// busca — e quem vai importar não sabe que precisa perguntar.
+assert.ok(/id="fechamentoCfiSelo"/.test(html), 'o selo tem lugar ao lado do nome da empresa');
+assert.ok(/consultarFechamentoCfi\(\)\.catch/.test(html), 'e ele nasce sozinho ao carregar a empresa');
+assert.ok(/onchange="consultarFechamentoCfi\(\)"/.test(html), 'trocar a competência reconsulta');
+assert.ok(/competenciaPadraoFechamento/.test(html), 'a competência já vem no mês anterior — o que se importa');
+
+// Os TRÊS estados que o túnel distingue, cada um com a ação na frase.
+assert.ok(/Mês FECHADO no CFI — pode importar/.test(html), 'fechada diz que pode');
+assert.ok(/Mês REABERTO no CFI — NÃO importe ainda/.test(html), 'reaberta BLOQUEIA');
+assert.ok(/Mês ABERTO no CFI — o Fiscal ainda não fechou/.test(html), 'aberta não é "sem movimento"');
+
+// ⚠️ Falha do túnel NÃO deixa selo velho na tela: ele afirmaria um estado que a
+// consulta não confirmou — pior que não ter selo.
+assert.ok(/pintarSeloFechamento\(null\);\s*\n\s*box\.textContent = 'Não consegui consultar/.test(html),
+  'falha limpa o selo antes de dizer o erro');
+
+console.log('✅ selo do fechamento: o Contábil vê o estado do mês SEM precisar perguntar');
+
 console.log('✅ tela do fechamento do CFI: botão, rota e as frases que decidem o clique');
