@@ -4,12 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-<<<<<<< HEAD
-    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.125';</script>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.125"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.125"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.125"></script>
-=======
     <link rel="icon" type="image/png" href="/sp-logo.png">
     <script>
       (function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();
@@ -18,7 +12,6 @@
     <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.125"></script>
     <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.125"></script>
     <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.125"></script>
->>>>>>> origin/main
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -31,7 +24,6 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-<<<<<<< HEAD
     <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.125"></script>
     <script src="/reinf/reinf-aluguel-utils.js?v=3.4.125"></script>
     <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.125"></script>
@@ -64,43 +56,6 @@
     <script src="/layouts-fiscais-padrao.js?v=3.4.125"></script>
     <script src="/parser-flanacar-registro-entradas.js?v=3.4.125"></script>
     <script src="/igrejas-conferencia-caixa.js?v=3.4.125"></script>
-=======
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.125"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.125"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.125"></script>
-    <script src="/reinf/reinf-import-xml-utils.js?v=3.4.125"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="/saas-brand-theme.js?v=3.4.125"></script>
-    <script src="/api-adapter.js?v=3.4.125"></script>
-    <script src="/relatorios-contabeis.js?v=3.4.125"></script>
-    <script src="/relatorios-contabeis-ui.js?v=3.4.125"></script>
-    <script src="/historicos-padrao.js"></script>
-    <script src="/vincular-folha-pagamento.js"></script>
-    <script src="/vincular-empresa.js?v=3.4.125"></script>
-    <script src="/parser-ofx.js?v=3.4.125"></script>
-    <script src="/iob-sentido-bancario.js?v=3.4.125"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.125"></script>
-    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.125"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.125"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.125"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.125"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.125"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.125"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.125"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.125"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.125"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.125"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.125"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.125"></script>
-    <script src="/parser-inter-extrato.js?v=3.4.125"></script>
-    <script src="/parser-stone-extrato.js?v=3.4.125"></script>
-    <script src="/parser-extrato-conciliado.js?v=3.4.125"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.125"></script>
-    <script src="/layouts-fiscais-padrao.js?v=3.4.125"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.125"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.125"></script>
->>>>>>> origin/main
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -2914,6 +2869,30 @@
 
                     <div id="fiscalCertificadoBox" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:18px;color:#475569">
                         Carregando status do certificado do escritório...
+                    </div>
+
+                    <!-- 🔒 O FECHAMENTO DO MÊS VEM DO CFI (fase 5 do túnel).
+                         Antes, o apurado era DIGITADO no campo aqui embaixo —
+                         dois números para o mesmo fato, com uma digitação no
+                         meio. O que atravessa é o CARIMBO: imutável, versionado
+                         e com a ressalva que PROÍBE recalcular deste lado. -->
+                    <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:14px;margin-bottom:18px">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                            <div>
+                                <strong style="color:#3730a3">📥 Importar o fechamento do Consultor Fiscal</strong>
+                                <div style="color:#4338ca;font-size:13px;margin-top:2px">
+                                    O valor apurado vem do mês FECHADO lá — não digite, e não refaça a conta.
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                <input type="month" id="fechamentoCfiCompetencia" style="padding:6px 8px;border:1px solid #c7d2fe;border-radius:6px">
+                                <button class="btn-action btn-action-secondary" onclick="consultarFechamentoCfi()">🔎 Consultar</button>
+                                <button class="btn-action btn-action-primary" onclick="importarFechamentoCfi()">📥 Importar</button>
+                            </div>
+                        </div>
+                        <div id="fechamentoCfiStatus" style="margin-top:10px;font-size:13px;color:#4338ca">
+                            Escolha a competência e consulte. A consulta NÃO grava nada.
+                        </div>
                     </div>
 
                     <div class="filters-section">
@@ -8871,6 +8850,95 @@
                 if (empresaInfo) empresaInfo.textContent = ((state.info && state.info.empresa) || 'Empresa') + ' - ' + cnpj + ' - ' + fiscalImpostosCache.length + ' registro(s)';
             } catch (e) {
                 showToast('Erro ao carregar situação fiscal: ' + (e.message || e), 'error');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🔒 O FECHAMENTO DO MÊS VEM DO CFI (fase 5 do túnel, 26/08)
+        //
+        // Antes, o apurado era DIGITADO no campo logo abaixo. O que atravessa
+        // agora é o CARIMBO — imutável, versionado, com o acervo do corte e o
+        // lastro. A ressalva PROÍBE recalcular deste lado: dois números para o
+        // mesmo fato é o pior defeito de um arquivo fiscal.
+        // ═══════════════════════════════════════════════════════════════
+        function fechamentoCfiStatusEl() { return document.getElementById('fechamentoCfiStatus'); }
+
+        function fechamentoCfiCompetencia() {
+            return String((document.getElementById('fechamentoCfiCompetencia') || {}).value || '').trim();
+        }
+
+        async function consultarFechamentoCfi() {
+            const box = fechamentoCfiStatusEl();
+            const cnpj = fiscalCnpjAtual();
+            const comp = fechamentoCfiCompetencia();
+            if (!box) return;
+            if (!cnpj) { box.textContent = 'Selecione uma empresa primeiro.'; return; }
+            // A competência é OBRIGATÓRIA: sem ela não dá para dizer QUAL mês
+            // foi fechado, e importar o mês errado não volta atrás.
+            if (!comp) { box.textContent = 'Escolha a competência — sem ela não dá para dizer qual mês foi fechado.'; return; }
+            box.textContent = 'Consultando o Consultor Fiscal…';
+            try {
+                const r = await window.API.fiscalFechamentosCfi(comp, cnpj);
+                if (r.erro) throw new Error(r.erro);
+                const linha = (r.fechamentos || [])[0];
+                if (!linha) { box.textContent = 'O Consultor Fiscal não conhece esta empresa nesta competência.'; return; }
+                const plano = linha.plano || {};
+                if (!plano.podeImportar) { box.innerHTML = '<strong>Não dá para importar ainda.</strong> ' + fiscalEscape(plano.recusa || ''); return; }
+                const linhas = (plano.lancamentos || [])
+                    .map(function (l) { return l.tributo + ' ' + formatarMoedaBR(l.valor_apurado); }).join(' · ');
+                // "0 lançamentos" NÃO se lê como falha: mês fechado sem apurado
+                // é caso legítimo, e ele sai DITO.
+                box.innerHTML = '<strong>Mês fechado</strong>'
+                    + (linha.fechadoEm ? ' em ' + fiscalEscape(String(linha.fechadoEm).slice(0, 10)) : '')
+                    + (linha.fechadoPor ? ' por ' + fiscalEscape(linha.fechadoPor) : '')
+                    + (linha.versao ? ' (versão ' + linha.versao + ')' : '') + '. '
+                    + (linhas ? 'Vai lançar: ' + fiscalEscape(linhas) + '. ' : '')
+                    + (plano.semApurado ? 'Nenhum valor apurado nesta competência — isso é resposta, não falha. ' : '')
+                    + (plano.totalDaFicha !== null && plano.totalDaFicha !== undefined
+                        ? '<br>Total da ficha (só para CONFERÊNCIA, não é lançado): '
+                          + formatarMoedaBR(plano.totalDaFicha)
+                          + ' — a composição por código de receita não está no carimbo.'
+                        : '')
+                    + (linha.lastro && linha.lastro.cor === 'falha'
+                        ? '<br><strong style="color:#b45309">⚠ ' + fiscalEscape(linha.lastro.mensagem || '') + '</strong>'
+                        : '');
+            } catch (e) {
+                // Falha do outro app NÃO vira "nada a importar".
+                box.textContent = 'Não consegui consultar: ' + (e.message || e);
+            }
+        }
+
+        async function importarFechamentoCfi() {
+            const box = fechamentoCfiStatusEl();
+            const cnpj = fiscalCnpjAtual();
+            const comp = fechamentoCfiCompetencia();
+            if (!box) return;
+            if (!cnpj) { box.textContent = 'Selecione uma empresa primeiro.'; return; }
+            if (!comp) { box.textContent = 'Escolha a competência — sem ela não dá para dizer qual mês foi fechado.'; return; }
+            box.textContent = 'Importando…';
+            try {
+                const r = await window.API.fiscalImportarFechamentoCfi(cnpj, comp);
+                if (r.erro) throw new Error(r.erro);
+                const c = r.conferencia || {};
+                const div = (c.divergente || []);
+                // 🚨 A DIVERGÊNCIA MOSTRA OS DOIS NÚMEROS — o app não escolhe.
+                // Ela quase sempre significa que alguém refez a conta deste
+                // lado, e é justamente isso que a ressalva proíbe.
+                box.innerHTML = '<strong>Importado.</strong> ' + (r.gravados || 0) + ' lançamento(s) gravado(s).'
+                    + (div.length
+                        ? '<br><strong style="color:#b45309">⚠ ' + div.length + ' valor(es) DIFERENTE(S) do que já estava aqui:</strong> '
+                          + fiscalEscape(div.map(function (d) {
+                              return d.tributo + ': ' + formatarMoedaBR(d.de) + ' → ' + formatarMoedaBR(d.para);
+                          }).join(' · '))
+                          + ' — o número do CFI é o do mês FECHADO; confira quem refez a conta.'
+                        : '')
+                    + ((c.versaoNova || []).length
+                        ? '<br>' + c.versaoNova.length + ' lançamento(s) com o mesmo valor e versão NOVA — o carimbo foi atualizado.'
+                        : '')
+                    + (r.semApurado ? '<br>Este mês fechou SEM valor apurado — não há guia a lançar.' : '');
+                await carregarFiscal();
+            } catch (e) {
+                box.textContent = 'Não importei: ' + (e.message || e);
             }
         }
 
