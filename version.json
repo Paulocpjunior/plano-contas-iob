@@ -1,16 +1,7 @@
 {
-  "version": "3.4.187",
-  "build_date": "2026-08-27T19:29:45Z",
+  "version": "3.4.188",
+  "build_date": "2026-08-27T20:39:36Z",
   "release_notes": [
-    "fix: reconstruir data BB dividida entre paginas",
-    "fix: reconhecer retencoes SAGE em paisagem nativa",
-    "feat: detalhar filtros de exclusao de lancamentos",
-    "fix: classificar INSS empresa como debito",
-    "fix: preservar digitacao durante salvamento",
-    "fix: agilizar modal e preservar historicos Santander",
-    "fix: separar totais da folha SAGE",
-    "fix: reconhecer descontos na folha SAGE",
-    "feat: confirmar pagamentos fiscais por evidencia oficial",
-    "fix: incluir CPF nas assinaturas contabeis"
+    "fix: distinguir notas fiscais por serie"
   ]
 }
