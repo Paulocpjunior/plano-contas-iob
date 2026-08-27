@@ -44,6 +44,78 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **🚨 A MAIN FICOU VERMELHA 10 DIAS COM MARCADOR DE CONFLITO COMMITADO — e
+  nada avisou** (27/08, achado ao rodar `npm run check` ANTES de tocar no repo).
+  O `node --check` parava na primeira linha: `auditai/conciliacao-arquivos.js:5
+  <<<<<<< HEAD  SyntaxError: Unexpected token '<<'`. Eram **quatro arquivos**
+  com marcador gravado no commit `2ceeee1` — e um deles é o **`index.html`, que
+  é SERVIDO**. O deploy falha desde **17/08 (run 64)**.
+  ✂️ **AS CINCO RESOLUÇÕES ERAM MECÂNICAS** — em quatro um lado CONTÉM o outro,
+  numa os dois são idênticos. Nenhuma exigia escolher comportamento.
+  ⚠️ **A ÚNICA QUE PEDIU LEITURA foi o bloco 2 do `index.html`**: a `origin/main`
+  tinha PERDIDO as tags de `chart.js`, `parser-inter-extrato` e
+  `parser-stone-extrato`. Os dois parsers **existem no repo e têm teste ATIVO**
+  na cadeia do `check` — sem a tag `<script>` eles não carregam no navegador e
+  os dois layouts oficiais quebrariam **NA TELA com os testes VERDES**. É a
+  classe *"layout registrado que a tela não carrega"*: por isso a UNIÃO, nunca
+  "o lado mais novo".
+  📌 **REGRA QUE FICA: `git add -A` depois de um merge engole conflito não
+  resolvido em arquivo que você não abriu** — e aqui ele foi para a `main` e
+  ficou. Depois de QUALQUER merge, varrer a árvore inteira por marcador, e ler
+  o gate **sem pipe** (`| tail` mascara o exit code).
+  🚩 **E FICA UMA PERGUNTA NOMEADA, não uma suposição**: o `deploy-app.yml`
+  daqui **TEM** o passo `if: failure()` que abre issue (eu escrevi o contrário
+  antes de ler o arquivo — corrigido). Não consegui conferir se ele disparou
+  nestes dez dias: a API de issues estourou o rate limit na sessão. O que se
+  SABE é a fraqueza ESTRUTURAL: ele vive **DENTRO do job `deploy`**, e foi
+  exatamente isso que o CFI corrigiu em 17/08 — lá o aviso virou **job
+  próprio** (`avisar-falha`, `needs: deploy`, **zero `uses:`**) porque o
+  cenário coberto é justamente o download de action falhar, e aí *nenhum passo*
+  do job roda, inclusive o que avisaria. Também passou a disparar em
+  `cancelled()`. **Portar esse desenho para cá é a próxima leva** — e antes
+  disso, conferir se há issue aberta de 17/08.
+
+- **🔒 O FECHAMENTO DO MÊS VEM DO CFI — o apurado era DIGITADO aqui** (27/08,
+  fase 5 do túnel; Paulo, 26/08: *"o departamento contábil, através do CCI, deve
+  fazer a importação com a mesma exatidão dos valores apurados e o mês
+  fechado"*). A aba de impostos tinha um `<input type="number"
+  id="fiscalValorApurado">` e alguém copiava o número da tela do Consultor
+  Fiscal para cá: **dois números para o mesmo fato, com uma digitação no meio**.
+  ✂️ `reinf/fechamento-cfi.js` (PURO) + `GET /api/fiscal/fechamentos-cfi`
+  (consulta, não grava) + `POST /:cnpj/fiscal/importar-fechamento-cfi`, com
+  botão na aba de impostos — **rota sem botão não é funcionalidade**.
+  📌 **O QUE ATRAVESSA É O CARIMBO, NUNCA A FICHA**: a ficha do Lucro é um
+  registro VIVO (alguém edita e o número muda); o fechamento é imutável e
+  VERSIONADO. Competência **aberta não entrega valor**, **reaberta BLOQUEIA**
+  dizendo qual versão o Contábil pode ter importado, e empresa **sem fechamento
+  NÃO some da lista** — sumir faria concluir *"este cliente não teve
+  movimento"*, afirmação que ninguém fez.
+  🚨 **AS TRÊS RECUSAS SÃO O CORAÇÃO DO DESENHO**: (1) **não inventa CÓDIGO DE
+  RECEITA** — o carimbo traz o apurado por FAMÍLIA de tributo, o código é de
+  tabela oficial e não está lá; sai VAZIO, porque escrevê-lo de memória é o
+  `1405` com outra roupa; (2) **não lança o `totalImpostos`** — ele é a SOMA da
+  ficha e o painel daqui soma `valor_apurado`, então lançá-lo ao lado do IPI
+  contaria o mesmo dinheiro duas vezes (vem para CONFERÊNCIA, e a tela DIZ que
+  não foi lançado e por quê); (3) **apurado ausente é `null` e não vira
+  lançamento zerado** — zero num campo de imposto é uma AFIRMAÇÃO.
+  ⚠️ **REIMPORTAR NÃO DUPLICA** (id `cfi_<competência>_<tributo>`), a
+  divergência mostra os DOIS números e **o app não escolhe** — um centavo já
+  acende, porque aqui não há arredondamento em jogo: o número atravessa
+  verbatim, e quem o refez criou o segundo. E a **ressalva do CFI vai na
+  `observacoes` de toda linha**: ela PROÍBE recalcular deste lado, que é a régua
+  provada no R-2055.
+  ⚠️ **O LASTRO ATRAVESSA e é contado À PARTE** — número fechado com ZERO
+  documento por trás é o caso EXPERTE, e sem a ressalva ele chegaria limpo na
+  tela de quem vai lançar na contabilidade.
+  🚩 **CONFERIR NO CLOUD RUN**: o default de `FISCAL_GATEWAY_URL` no `server.js`
+  aponta para **us-central1** e o CFI roda em **us-west1**. Se `CFI_URL` não
+  estiver definida, a chamada cai num 404 — a casca já traduz isso como *"é a
+  URL apontando pro lugar errado"*, mas o certo é a env estar certa.
+  ⚠️ **E `npm run check` INTEIRO NÃO RODA fora do Mac do Paulo**: os testes de
+  parser exigem PDFs em `/Users/paulocesarpereirajunior/Downloads/`. Em sessão
+  remota, rodar a fatia que não depende deles e **dizer isso** — nunca carimbar
+  "gate verde" com a cadeia truncada.
+
 - **Nunca commitar direto na main.** Trabalho vai em branch → PR →
   squash-merge. `deploy-app.yml` publica sozinho no merge.
 - 🚨 **O REPO TINHA DUAS LINHAS, e a `main` NÃO era a que estava no ar**
