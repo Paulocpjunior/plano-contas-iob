@@ -59,6 +59,26 @@ ver "Ligação com o CFI".
   os dois layouts oficiais quebrariam **NA TELA com os testes VERDES**. É a
   classe *"layout registrado que a tela não carrega"*: por isso a UNIÃO, nunca
   "o lado mais novo".
+  🔴 **E EU ESCOLHI O LADO ERRADO DO BLOCO 2 — o deploy 65 caiu por isso.** Li
+  um bloco de **69 linhas por AMOSTRAGEM** (as primeiras e as últimas) e
+  concluí *"HEAD é superset"* porque vi `chart.js`, `parser-inter` e
+  `parser-stone` só do lado HEAD — eles estavam do outro lado TAMBÉM, mais
+  adiante. Medindo os dois lados inteiros: só o HEAD tinha
+  `/vincular-empresa.js` **sem** cache-buster, e só a `origin/main` tinha
+  `saas-brand-theme.js`, `relatorios-contabeis.js` e `relatorios-contabeis-ui.js`.
+  **A `origin/main` era o superset — o contrário do que eu escrevi.**
+  📌 **REGRA QUE FICA: "um lado contém o outro" se MEDE comparando os conjuntos
+  INTEIROS, nunca se deduz das pontas do bloco.** Dois comandos respondem; a
+  amostragem custou um deploy.
+  🚨 **E A LIÇÃO DE RITO É MAIOR QUE O DEFEITO: existe `npm run check:ci` neste
+  repo, e eu rodei uma fatia de testes escolhida À MÃO.** Ele é a porta
+  PORTÁTIL — feita justamente para rodar fora do Mac das evidências, e ele DIZ
+  quantos pulou (*"59 passaram · 18 pulados · 0 falharam"*). É o que o deploy
+  roda. Os dois testes que pegaram meu erro (*"index.html deve carregar o tema
+  compartilhado"* e *"motor não carregado no CCI"*) estavam nele o tempo todo.
+  **Gate do repo se RODA, não se reinventa** — e em repo que não é o de casa,
+  a primeira pergunta é *"qual é o comando do gate aqui?"*.
+
   📌 **REGRA QUE FICA: `git add -A` depois de um merge engole conflito não
   resolvido em arquivo que você não abriu** — e aqui ele foi para a `main` e
   ficou. Depois de QUALQUER merge, varrer a árvore inteira por marcador, e ler
