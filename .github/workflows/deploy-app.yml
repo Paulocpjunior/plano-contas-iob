@@ -226,6 +226,37 @@ jobs:
           done
           echo "Projeto do gcloud fixado em $PROJECT_ID (recurso e quota)."
 
+      - name: Bloquear downgrade da versão em produção
+        run: |
+          CANDIDATE_VERSION=$(node -p "require('./version.json').version")
+          if ! PRODUCTION_URL=$(gcloud run services describe "$SERVICE_NAME" \
+            --region "$REGION" \
+            --project "$PROJECT_ID" \
+            --format='value(status.url)' 2>/dev/null); then
+            echo "Serviço ainda não existe; liberando o primeiro deploy da versão $CANDIDATE_VERSION."
+            exit 0
+          fi
+          test -n "$PRODUCTION_URL" || { echo "::error::Serviço existente sem URL pública para conferir a versão."; exit 1; }
+          PRODUCTION_VERSION=$(curl --retry 3 --retry-all-errors --connect-timeout 10 -sSf \
+            "$PRODUCTION_URL/api/version" | jq -er '.version | select(type == "string" and length > 0)')
+          node - "$CANDIDATE_VERSION" "$PRODUCTION_VERSION" <<'NODE'
+          const candidate = process.argv[2];
+          const production = process.argv[3];
+          const parse = (value) => {
+            const match = String(value || '').match(/^(\d+)\.(\d+)\.(\d+)$/);
+            if (!match) throw new Error(`versão inválida: ${value || '(vazia)'}`);
+            return match.slice(1).map(Number);
+          };
+          const left = parse(candidate);
+          const right = parse(production);
+          const order = left.findIndex((part, index) => part !== right[index]);
+          if (order >= 0 && left[order] < right[order]) {
+            console.error(`::error::Downgrade bloqueado: candidato ${candidate}, produção ${production}.`);
+            process.exit(1);
+          }
+          console.log(`Versão autorizada: candidato ${candidate}, produção ${production}.`);
+          NODE
+
       - name: Deploy no Cloud Run (sem tráfego, revisão candidata)
         # --no-traffic + --tag candidate: a revisão nova sobe isolada. Só recebe
         # tráfego depois de passar no health check. Retry porque o Cloud Run
