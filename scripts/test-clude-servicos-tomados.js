@@ -5,8 +5,10 @@ const pdf = require('pdf-parse');
 global.pdfjsLib = require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js');
 const {
   parsearTexto_CludeServicosTomados,
+  parsearTexto_IOBSageServicosTomados,
   parsearTexto_IOBSageServicosPrestados,
   parsearPDF_IOB_Sage_ServicosPrestados,
+  parsearPDF_IOB_Sage_ServicosTomados,
   __test__
 } = require('../parser-clude-servicos-tomados');
 
@@ -16,12 +18,30 @@ const arquivoDaxxAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/118
 const arquivoDaxxServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/1183 - SERV.  PRESTADOS 04.2026 FISCAL 1.pdf';
 const arquivoSinteseServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/SERVIÇOS PRESTADOS 06.2026.pdf';
 const arquivoDaxxTotalPass = '/Users/paulocesarpereirajunior/Downloads/Serviços prestados 07.2026.pdf';
+const arquivoDiegoTomadosMarco = '/tmp/codex-remote-attachments/01a03857-ccca-7311-92e3-8ea9cdcf0b8f/C24A510B-3AF4-4244-AE98-D6254FA52C85/2-DIEGO-BOMFIM-tomados-mes-03.pdf';
+const hashDiegoTomadosMarco = '4d40224cefbe879a8761d1ff6d5298f018c5243a066486a0a2686682d5f5ed48';
 
 function money(n) {
   return Math.round(Number(n || 0) * 100) / 100;
 }
 
 (async () => {
+  const textoSeriesDistintas = `
+Empresa: 1273 - DIEGO BOMFIM FREIRE
+C.N.P.J.: 31.162.727/0001-07
+Periodo: 01/03/2026 a 31/03/2026
+Relacao de NFs de Servicos Tomados
+Emissao Numero Serie C.I CNPJ/CPF Razao Social Valor da NF Base de Calculo Aliquota Valor do ISS Iss Retido
+18/03/2026 000000004 001 58.149.103/0001-06 GIOVANNA ANDREOTTI SMIT 1.933,11 0,00 0,00 0,00 0,00
+18/03/2026 000000004 1 001 58.149.103/0001-06 GIOVANNA ANDREOTTI SMIT 1.933,11 0,00 0,00 0,00 0,00
+Total 3.866,22 0,00 0,00 0,00
+`;
+  const resultadoSeriesDistintas = parsearTexto_IOBSageServicosTomados(textoSeriesDistintas);
+  assert.strictEqual(resultadoSeriesDistintas.lancamentos.length, 2, 'mesma NF em series distintas nao e duplicidade');
+  assert.strictEqual(money(resultadoSeriesDistintas.total_debito), 3866.22);
+  assert.strictEqual(resultadoSeriesDistintas.total_divergente, false);
+  assert.deepStrictEqual(resultadoSeriesDistintas.lancamentos.map(l => l.serieSubserie).sort(), ['', '1']);
+
   if (!fs.existsSync(arquivo)) {
     console.log('SKIP: arquivo de servicos tomados CLUDE nao encontrado localmente.');
     return;
@@ -151,6 +171,25 @@ function money(n) {
   assert.strictEqual(resultadoDaxxTotalPass.total_divergente, false);
   assert.ok(resultadoDaxxTotalPass.lancamentos.some(l => l.documento === '378' && money(l.valor) === 22328.17), 'NF 378 da TOTAL PASS deve ser preservada');
   assert.ok(resultadoDaxxTotalPass.lancamentos.some(l => l.documento === '416' && money(l.valor) === 17879.28), 'NF 416 da TOTAL PASS deve ser preservada');
+
+  assert.ok(fs.existsSync(arquivoDiegoTomadosMarco), 'fixture real DIEGO BOMFIM servicos tomados deve existir');
+  const bufferDiegoTomadosMarco = fs.readFileSync(arquivoDiegoTomadosMarco);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferDiegoTomadosMarco).digest('hex'),
+    hashDiegoTomadosMarco,
+    'fixture DIEGO BOMFIM deve ser o PDF real validado'
+  );
+  const resultadoDiegoTomadosMarco = await parsearPDF_IOB_Sage_ServicosTomados(new Uint8Array(bufferDiegoTomadosMarco));
+  assert.strictEqual(resultadoDiegoTomadosMarco.detectado, true);
+  assert.strictEqual(resultadoDiegoTomadosMarco.cnpj_detectado, '31.162.727/0001-07');
+  assert.strictEqual(resultadoDiegoTomadosMarco.periodo_inicio, '2026-03-01');
+  assert.strictEqual(resultadoDiegoTomadosMarco.periodo_fim, '2026-03-31');
+  assert.strictEqual(money(resultadoDiegoTomadosMarco.total_debito), 701673.53);
+  assert.strictEqual(money(resultadoDiegoTomadosMarco.total_oficial), 701673.53);
+  assert.strictEqual(resultadoDiegoTomadosMarco.total_divergente, false);
+  const notas4 = resultadoDiegoTomadosMarco.lancamentos.filter(l => l.documento === '4' && l.cnpj_fornecedor === '58.149.103/0001-06');
+  assert.strictEqual(notas4.length, 2, 'NF 4 com series distintas deve gerar dois documentos fiscais');
+  assert.deepStrictEqual(notas4.map(l => l.serieSubserie).sort(), ['', '1']);
 
   const textoDaxxVisualPdfjs = `
 Office Fiscal

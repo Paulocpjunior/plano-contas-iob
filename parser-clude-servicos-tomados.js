@@ -263,7 +263,7 @@
     return (codigoEmpresa || 'FISCAL') + ' - Servicos Tomados Fiscal';
   }
 
-  function criarLancamentoFiscal({ cnpj, fornecedor, valor, documento, data, periodo, metaEmpresa, layoutParser }) {
+  function criarLancamentoFiscal({ cnpj, fornecedor, valor, documento, serieSubserie, codigoIntegracao, data, periodo, metaEmpresa, layoutParser }) {
     const fornecedorLimpo = normalizarFornecedor(fornecedor);
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
     if (!fornecedorLimpo || !valor || !data) return null;
@@ -278,7 +278,9 @@
 
     const documentoFornecedor = somenteDigitos(cnpj);
     const tipoDocumentoFornecedor = documentoFornecedor.length === 11 ? 'CPF' : 'CNPJ';
-    const descricao = ['Servicos tomados', fornecedorLimpo, documentoLimpo ? ('NF ' + documentoLimpo) : '', tipoDocumentoFornecedor + ' ' + cnpj]
+    const serieLimpa = String(serieSubserie || '').trim();
+    const codigoIntegracaoLimpo = String(codigoIntegracao || '').trim();
+    const descricao = ['Servicos tomados', fornecedorLimpo, documentoLimpo ? ('NF ' + documentoLimpo) : '', serieLimpa ? ('serie ' + serieLimpa) : '', tipoDocumentoFornecedor + ' ' + cnpj]
       .filter(Boolean)
       .join(' - ')
       .replace(/\s+/g, ' ')
@@ -303,6 +305,8 @@
       categoria: categoriaFiscal,
       tipoDocumentoFiscal: 'SERVICO_TOMADO',
       documento: documentoLimpo,
+      serieSubserie: serieLimpa,
+      codigoIntegracao: codigoIntegracaoLimpo,
       cnpj_fornecedor: cnpj,
       cpf_fornecedor: tipoDocumentoFornecedor === 'CPF' ? cnpj : '',
       documento_fornecedor: cnpj,
@@ -598,8 +602,11 @@
       if (!dataMatch || !cnpjMatch || !cnpjMatch.index) continue;
 
       const antesCnpj = linha.slice(dataMatch[0].length, cnpjMatch.index).trim();
-      const documento = ((antesCnpj.match(/^(\d{6,})\b/) || [])[1] || '').replace(/^0+(?=\d)/, '');
+      const identificacao = antesCnpj.split(/\s+/).filter(Boolean);
+      const documento = String(identificacao.shift() || '').replace(/^0+(?=\d)/, '');
       if (!documento) continue;
+      const codigoIntegracao = identificacao.length ? identificacao[identificacao.length - 1] : '';
+      const serieSubserie = identificacao.length > 1 ? identificacao.slice(0, -1).join(' ') : '';
 
       const depoisCnpj = linha.slice(cnpjMatch.index + cnpjMatch[0].length).trim();
       const valores = [...depoisCnpj.matchAll(moneyRegex)];
@@ -615,6 +622,8 @@
         fornecedor,
         valor: parseMoneyBR(primeiroValor[1]),
         documento,
+        serieSubserie,
+        codigoIntegracao,
         data: parseDateBR(dataMatch[1]),
         periodo,
         metaEmpresa,
@@ -767,7 +776,7 @@
     const seen = new Set();
     return (registros || []).filter(function(l) {
       const cnpjRegistro = l.cnpj_fornecedor || l.cnpj_tomador || '';
-      const k = [l.data, cnpjRegistro, l.documento, Math.round(Math.abs(Number(l.valor || 0)) * 100)].join('|');
+      const k = [l.data, cnpjRegistro, l.documento, l.serieSubserie || '', Math.round(Math.abs(Number(l.valor || 0)) * 100)].join('|');
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
@@ -819,9 +828,9 @@
     const periodo = extrairPeriodo(texto);
     const totalOficial = extrairTotalOficial(texto);
     const layoutParser = 'parsearPDF_IOB_Sage_ServicosTomados';
-    const registros = unirRegistros(
-      parsearRegistrosServicosTomadosVisual(texto, periodo, metaEmpresa, layoutParser)
-        .concat(parsearRegistrosPorLinha(texto, periodo, metaEmpresa, layoutParser))
+    const registrosVisuais = parsearRegistrosServicosTomadosVisual(texto, periodo, metaEmpresa, layoutParser);
+    const registros = unirRegistros(registrosVisuais.length ? registrosVisuais :
+      parsearRegistrosPorLinha(texto, periodo, metaEmpresa, layoutParser)
         .concat(parsearRegistrosPorCnpj(texto, periodo, metaEmpresa, layoutParser))
     );
     const totalDebito = somaAbsolutaLancamentos(registros);
