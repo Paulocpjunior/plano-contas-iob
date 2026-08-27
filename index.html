@@ -2888,7 +2888,7 @@
                                 </div>
                             </div>
                             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                                <input type="month" id="fechamentoCfiCompetencia" style="padding:6px 8px;border:1px solid #c7d2fe;border-radius:6px">
+                                <input type="month" id="fechamentoCfiCompetencia" onchange="consultarFechamentoCfi()" style="padding:6px 8px;border:1px solid #c7d2fe;border-radius:6px">
                                 <button class="btn-action btn-action-secondary" onclick="consultarFechamentoCfi()">🔎 Consultar</button>
                                 <button class="btn-action btn-action-primary" onclick="importarFechamentoCfi()">📥 Importar</button>
                             </div>
@@ -2995,6 +2995,11 @@
                     <div class="table-info">
                         <div class="table-info-left">
                             <span id="fiscalEmpresaInfo">Selecione uma empresa para carregar os impostos.</span>
+                            <!-- 🔒 O ESTADO DO MÊS NO CFI, ao lado do nome da empresa.
+                                 Paulo, 27/08: o colaborador do Contábil precisa SABER, na
+                                 empresa, se aquele mês está fechado — antes de importar, e
+                                 sem ter que ir consultar. -->
+                            <span id="fechamentoCfiSelo" style="margin-left:10px"></span>
                         </div>
                     </div>
                     <div class="table-container">
@@ -8851,6 +8856,15 @@
                 renderFiscalResumo(data.resumo || {});
                 renderFiscalTabela(fiscalImpostosCache);
                 if (empresaInfo) empresaInfo.textContent = ((state.info && state.info.empresa) || 'Empresa') + ' - ' + cnpj + ' - ' + fiscalImpostosCache.length + ' registro(s)';
+                // 🔒 O SELO NASCE SOZINHO. Alerta que só aparece depois de alguém
+                // procurar não é alerta — e quem vai importar não sabe que precisa
+                // perguntar se o mês fechou. A competência já vem no mês ANTERIOR,
+                // que é o que se importa.
+                const campoComp = document.getElementById('fechamentoCfiCompetencia');
+                if (campoComp && !campoComp.value) campoComp.value = competenciaPadraoFechamento();
+                // Não derruba o carregamento dos impostos se o túnel estiver fora:
+                // a consulta já DIZ a falha na própria caixa.
+                consultarFechamentoCfi().catch(() => {});
             } catch (e) {
                 showToast('Erro ao carregar situação fiscal: ' + (e.message || e), 'error');
             }
@@ -8870,6 +8884,43 @@
             return String((document.getElementById('fechamentoCfiCompetencia') || {}).value || '').trim();
         }
 
+        /**
+         * 🔒 O SELO — o estado do mês no CFI, ao lado do nome da empresa.
+         *
+         * Paulo, 27/08: *"o colaborador do dpto contábil, quando for importar as
+         * informações do CFI, deve receber um alerta na empresa para que ele saiba
+         * que aquele determinado mês está fechado ou não"*.
+         *
+         * ⚠️ Ele aparece SEM clicar — porque o alerta que só existe depois de
+         * alguém procurar não é alerta, é resultado de busca. Quem importa não
+         * sabe que precisa perguntar.
+         *
+         * ⚠️ E NENHUMA RÉGUA MORA AQUI: os três estados são os que o túnel do CFI
+         * já distingue. Decidir aqui o que é "fechado" criaria a segunda cópia.
+         */
+        const SELO_FECHAMENTO = {
+            fechada:  { cor: '#065f46', fundo: '#d1fae5', texto: '🔒 Mês FECHADO no CFI — pode importar' },
+            reaberta: { cor: '#92400e', fundo: '#fef3c7', texto: '⚠ Mês REABERTO no CFI — NÃO importe ainda' },
+            aberta:   { cor: '#3730a3', fundo: '#e0e7ff', texto: '⏳ Mês ABERTO no CFI — o Fiscal ainda não fechou' },
+        };
+
+        function pintarSeloFechamento(estado, detalhe) {
+            const el = document.getElementById('fechamentoCfiSelo');
+            if (!el) return;
+            if (!estado) { el.innerHTML = ''; return; }
+            const s = SELO_FECHAMENTO[estado] || SELO_FECHAMENTO.aberta;
+            el.innerHTML = '<span title="' + fiscalEscape(detalhe || '') + '" style="display:inline-block;padding:2px 8px;'
+                + 'border-radius:999px;font-size:12px;font-weight:700;color:' + s.cor + ';background:' + s.fundo + '">'
+                + fiscalEscape(s.texto) + '</span>';
+        }
+
+        /** O mês que se importa é o ANTERIOR — é ele que acabou de fechar. */
+        function competenciaPadraoFechamento() {
+            const d = new Date();
+            d.setDate(1); d.setMonth(d.getMonth() - 1);
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        }
+
         async function consultarFechamentoCfi() {
             const box = fechamentoCfiStatusEl();
             const cnpj = fiscalCnpjAtual();
@@ -8884,8 +8935,13 @@
                 const r = await window.API.fiscalFechamentosCfi(comp, cnpj);
                 if (r.erro) throw new Error(r.erro);
                 const linha = (r.fechamentos || [])[0];
-                if (!linha) { box.textContent = 'O Consultor Fiscal não conhece esta empresa nesta competência.'; return; }
+                if (!linha) {
+                    pintarSeloFechamento(null);
+                    box.textContent = 'O Consultor Fiscal não conhece esta empresa nesta competência.';
+                    return;
+                }
                 const plano = linha.plano || {};
+                pintarSeloFechamento(linha.estado, plano.recusa || plano.carimbo || '');
                 if (!plano.podeImportar) { box.innerHTML = '<strong>Não dá para importar ainda.</strong> ' + fiscalEscape(plano.recusa || ''); return; }
                 const linhas = (plano.lancamentos || [])
                     .map(function (l) { return l.tributo + ' ' + formatarMoedaBR(l.valor_apurado); }).join(' · ');
@@ -8906,7 +8962,10 @@
                         ? '<br><strong style="color:#b45309">⚠ ' + fiscalEscape(linha.lastro.mensagem || '') + '</strong>'
                         : '');
             } catch (e) {
-                // Falha do outro app NÃO vira "nada a importar".
+                // ⚠️ Falha do outro app NÃO vira "nada a importar" — nem deixa um
+                // selo VELHO na tela, que seria pior: ele afirmaria um estado que
+                // esta consulta não confirmou.
+                pintarSeloFechamento(null);
                 box.textContent = 'Não consegui consultar: ' + (e.message || e);
             }
         }

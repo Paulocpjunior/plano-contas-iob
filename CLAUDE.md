@@ -127,6 +127,19 @@ ver "Ligação com o CFI".
   ⚠️ **O LASTRO ATRAVESSA e é contado À PARTE** — número fechado com ZERO
   documento por trás é o caso EXPERTE, e sem a ressalva ele chegaria limpo na
   tela de quem vai lançar na contabilidade.
+  🔒 **E O CONTÁBIL VÊ O ESTADO DO MÊS SEM PRECISAR PERGUNTAR** (27/08, Paulo:
+  *"o colaborador do dpto contábil, quando for importar as informações do CFI,
+  deve receber um alerta na empresa para que ele saiba que aquele determinado
+  mês está fechado ou não"*). O selo nasce **ao carregar a empresa**, ao lado do
+  nome, com a competência já no **mês ANTERIOR** — que é o que se importa.
+  📌 **ALERTA QUE SÓ APARECE DEPOIS DE ALGUÉM CLICAR NÃO É ALERTA, é resultado
+  de busca** — e quem vai importar não sabe que precisa perguntar se o mês
+  fechou. Os três estados vêm do túnel, cada um com a AÇÃO na frase: **🔒
+  FECHADO — pode importar**, **⚠ REABERTO — NÃO importe ainda**, **⏳ ABERTO — o
+  Fiscal ainda não fechou** (que **não** é "o cliente não teve movimento").
+  ⚠️ **Falha do túnel LIMPA o selo** em vez de deixar o anterior na tela: selo
+  velho afirmaria um estado que aquela consulta não confirmou, e isso é pior que
+  não ter selo.
   🚩 **CONFERIR NO CLOUD RUN**: o default de `FISCAL_GATEWAY_URL` no `server.js`
   aponta para **us-central1** e o CFI roda em **us-west1**. Se `CFI_URL` não
   estiver definida, a chamada cai num 404 — a casca já traduz isso como *"é a
