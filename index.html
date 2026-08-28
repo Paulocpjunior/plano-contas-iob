@@ -3250,16 +3250,16 @@
                         <h2><span class="icon">🧾</span> Validador DEFIS</h2>
                         <div class="action-buttons">
                             <button class="btn-action btn-action-secondary" onclick="limparValidadorDefis()">Limpar</button>
-                            <button class="btn-action btn-action-primary" onclick="document.getElementById('defisFileInput').click()">📁 Selecionar PDFs</button>
+                            <button class="btn-action btn-action-primary" onclick="document.getElementById('defisFileInput').click()">📁 Adicionar PDFs</button>
                         </div>
                     </div>
                     <p style="color:var(--text-muted);margin-bottom:18px">
-                        Confira a Declaração de Informações Socioeconômicas e Fiscais antes da transmissão e, depois do envio, valide também o recibo oficial do PGDAS-D.
+                        Confira a declaração oficial e, quando disponível, adicione também o balancete analítico e o recibo do PGDAS-D. Os arquivos podem ser escolhidos juntos ou adicionados um de cada vez.
                     </p>
                     <input type="file" id="defisFileInput" accept=".pdf,application/pdf" multiple style="display:none" onchange="processarArquivosDefis(event)">
 
                     <div style="padding:14px 16px;margin-bottom:18px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:9px;color:#1e3a8a;font-size:13px;line-height:1.55">
-                        <strong>Contrato oficial:</strong> a DEFIS é preenchida no portal PGDAS-D e não possui registros TXT do SPED. Este validador lê a cópia e o recibo em PDF, sem transmitir ou substituir a validação da Receita Federal.
+                        <strong>Contrato oficial:</strong> a DEFIS é preenchida no portal PGDAS-D e não possui registros TXT do SPED. Este validador lê a cópia e o recibo em PDF e usa o balancete apenas como apoio contábil, sem transmitir ou substituir a validação da Receita Federal.
                     </div>
 
                     <div class="filters-section">
@@ -3292,11 +3292,11 @@
                         <div class="import-total-card credit">
                             <h3>Documentos</h3>
                             <div class="value" id="defisDocumentosResumo" style="font-size:25px;color:#2563eb">0</div>
-                            <div class="sub">Declaração + recibo opcional</div>
+                            <div class="sub">Declaração + balancete/recibo opcionais</div>
                         </div>
                         <div class="import-total-card credit">
                             <h3>Campos do roteiro</h3>
-                            <div class="value" id="defisCamposResumo" style="font-size:25px;color:#059669">0 / 23</div>
+                            <div class="value" id="defisCamposResumo" style="font-size:25px;color:#059669">0 / 26</div>
                             <div class="sub">Pessoa jurídica e estabelecimentos</div>
                         </div>
                     </div>
@@ -3305,7 +3305,7 @@
                         <div class="empty-state">
                             <div class="icon">🧾</div>
                             <h3>Nenhuma DEFIS validada</h3>
-                            <p>Selecione a cópia oficial da declaração em PDF. Se já transmitida, selecione também o recibo.</p>
+                            <p>Adicione a cópia oficial da declaração. O balancete e o recibo podem ser incluídos para ampliar a conferência.</p>
                         </div>
                     </div>
                 </div>
@@ -12557,7 +12557,10 @@
             el.value = ano === atual ? 'Conforme evento especial' : '31/03/' + (ano + 1);
         }
 
+        let defisArquivosSelecionados = [];
+
         function limparValidadorDefis() {
+            defisArquivosSelecionados = [];
             const input = document.getElementById('defisFileInput');
             if (input) input.value = '';
             const status = document.getElementById('defisStatusResumo');
@@ -12567,9 +12570,9 @@
             const docs = document.getElementById('defisDocumentosResumo');
             if (docs) docs.textContent = '0';
             const campos = document.getElementById('defisCamposResumo');
-            if (campos) campos.textContent = '0 / 23';
+            if (campos) campos.textContent = '0 / 26';
             const res = document.getElementById('defisResultado');
-            if (res) res.innerHTML = '<div class="empty-state"><div class="icon">🧾</div><h3>Nenhuma DEFIS validada</h3><p>Selecione a cópia oficial da declaração em PDF. Se já transmitida, selecione também o recibo.</p></div>';
+            if (res) res.innerHTML = '<div class="empty-state"><div class="icon">🧾</div><h3>Nenhuma DEFIS validada</h3><p>Adicione a cópia oficial da declaração. O balancete e o recibo podem ser incluídos para ampliar a conferência.</p></div>';
         }
 
         async function extrairTextoPdfDefis(file) {
@@ -12618,19 +12621,30 @@
 
             function lista(titulo, itens, cor, icone) {
                 if (!itens.length) return '';
-                return '<div style="margin-top:12px"><strong style="color:' + cor + '">' + icone + ' ' + defisEscape(titulo) + '</strong><ul style="margin:7px 0 0 20px;color:#334155;line-height:1.55">' + itens.map(function(v) { return '<li>' + defisEscape(v) + '</li>'; }).join('') + '</ul></div>';
+                return '<div style="margin-top:12px"><strong style="color:' + cor + '">' + icone + ' ' + defisEscape(titulo) + '</strong><ul style="margin:7px 0 0 20px;color:' + cor + ';line-height:1.55">' + itens.map(function(v) { return '<li>' + defisEscape(v) + '</li>'; }).join('') + '</ul></div>';
             }
             const tipo = [resultado.tipo.declaracao, resultado.tipo.situacao, resultado.tipo.evento].filter(Boolean).join(' · ') || 'Não identificado';
             const arquivos = resultado.documentos.map(function(d) {
-                const classe = d.declaracao && d.recibo ? 'Declaração + recibo' : (d.declaracao ? 'Declaração' : (d.recibo ? 'Recibo' : 'Não reconhecido'));
+                const classe = d.declaracao && d.recibo ? 'Declaração + recibo' : (d.declaracao ? 'Declaração' : (d.recibo ? 'Recibo' : (d.balancete ? 'Balancete de apoio' : 'Não reconhecido')));
                 return '<tr><td style="padding:9px;border-bottom:1px solid #e2e8f0">' + defisEscape(d.nome) + '</td><td style="padding:9px;border-bottom:1px solid #e2e8f0">' + defisEscape(classe) + '</td><td style="padding:9px;border-bottom:1px solid #e2e8f0;text-align:center">' + d.paginas + '</td></tr>';
             }).join('');
+            const conciliacoes = (resultado.conciliacoes || []).map(function(c) {
+                const cor = c.status === 'CONFERIDO' ? '#047857' : '#b91c1c';
+                const sinal = c.status === 'CONFERIDO' ? '✅' : '⛔';
+                return '<tr><td style="padding:9px;border-bottom:1px solid #e2e8f0"><strong>' + defisEscape(c.nome) + '</strong><br><span style="font-size:11px;color:#64748b">' + defisEscape(c.criterio) + '</span></td>' +
+                    '<td style="padding:9px;border-bottom:1px solid #e2e8f0;text-align:right">' + formatMoney(c.defis) + '</td>' +
+                    '<td style="padding:9px;border-bottom:1px solid #e2e8f0;text-align:right">' + formatMoney(c.balancete) + '</td>' +
+                    '<td style="padding:9px;border-bottom:1px solid #e2e8f0;text-align:right;color:' + cor + '">' + formatMoney(c.diferenca) + '</td>' +
+                    '<td style="padding:9px;border-bottom:1px solid #e2e8f0;color:' + cor + ';font-weight:800">' + sinal + ' ' + defisEscape(c.status) + '</td></tr>';
+            }).join('');
+            const quadroConciliacao = conciliacoes ? '<div class="table-container" style="margin-top:14px"><h3 style="padding:12px 12px 0;margin:0;color:#0f172a">Conferência DEFIS x balancete</h3><table><thead><tr><th>Campo comparado</th><th style="text-align:right">DEFIS</th><th style="text-align:right">Balancete</th><th style="text-align:right">Diferença</th><th>Status</th></tr></thead><tbody>' + conciliacoes + '</tbody></table></div>' : '';
             document.getElementById('defisResultado').innerHTML =
                 '<div style="padding:16px;border:1px solid ' + paleta.borda + ';background:' + paleta.fundo + ';border-radius:9px">' +
-                    '<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><strong style="font-size:17px;color:' + paleta.cor + '">' + paleta.icone + ' ' + resultado.status + '</strong><span style="font-size:12px;font-weight:800;color:#475569">' + resultado.modo + ' · ' + defisEscape(tipo) + '</span></div>' +
+                    '<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><strong style="font-size:17px;color:' + paleta.cor + '">' + paleta.icone + ' ' + resultado.status + '</strong><span style="font-size:12px;font-weight:800;color:' + paleta.cor + '">' + resultado.modo + ' · ' + defisEscape(tipo) + '</span></div>' +
                     lista('Bloqueios', resultado.erros, '#b91c1c', '⛔') + lista('Ressalvas para revisão', resultado.alertas, '#b45309', '⚠️') + lista('Conferências concluídas', resultado.ok, '#047857', '✅') +
                 '</div>' +
                 '<div class="table-container" style="margin-top:14px"><table><thead><tr><th>Arquivo</th><th>Documento detectado</th><th style="text-align:center">Páginas</th></tr></thead><tbody>' + arquivos + '</tbody></table></div>' +
+                quadroConciliacao +
                 '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;margin-top:14px">' +
                     renderizarGrupoCamposDefis('Informações da pessoa jurídica', resultado.camposPJ) +
                     renderizarGrupoCamposDefis('Informações por estabelecimento', resultado.camposEstabelecimento) +
@@ -12640,17 +12654,25 @@
 
         async function processarArquivosDefis(event) {
             prepararValidadorDefis();
-            const files = Array.from((event && event.target && event.target.files) || []);
-            if (!files.length) return;
-            if (files.some(function(f) { return !/\.pdf$/i.test(f.name) && f.type !== 'application/pdf'; })) {
-                showToast('Selecione somente a declaração e o recibo DEFIS em PDF.', 'error');
+            const novos = Array.from((event && event.target && event.target.files) || []);
+            if (!novos.length) return;
+            if (novos.some(function(f) { return !/\.pdf$/i.test(f.name) && f.type !== 'application/pdf'; })) {
+                showToast('Selecione somente a declaração, o balancete e o recibo em PDF.', 'error');
                 return;
             }
+            novos.forEach(function(file) {
+                const chave = [file.name, file.size, file.lastModified].join(':');
+                const indice = defisArquivosSelecionados.findIndex(function(item) { return item.chave === chave; });
+                if (indice >= 0) defisArquivosSelecionados[indice] = { chave, file };
+                else defisArquivosSelecionados.push({ chave, file });
+            });
+            const files = defisArquivosSelecionados.map(function(item) { return item.file; });
+            if (event && event.target) event.target.value = '';
             const status = document.getElementById('defisStatusResumo');
             status.textContent = 'Processando';
             status.style.color = '#2563eb';
             document.getElementById('defisModoResumo').textContent = 'Lendo PDFs localmente';
-            document.getElementById('defisResultado').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><h3>Validando DEFIS</h3><p>Extraindo a camada de texto dos documentos oficiais...</p></div>';
+            document.getElementById('defisResultado').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><h3>Validando DEFIS</h3><p>Extraindo localmente a declaração e os documentos de apoio...</p></div>';
             try {
                 const documentos = [];
                 for (const file of files) documentos.push(await extrairTextoPdfDefis(file));
