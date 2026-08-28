@@ -1,7 +1,7 @@
 {
-  "version": "3.4.188",
-  "build_date": "2026-08-27T20:39:36Z",
+  "version": "3.4.189",
+  "build_date": "2026-08-28T16:03:26Z",
   "release_notes": [
-    "fix: distinguir notas fiscais por serie"
+    "fix: preservar prestador recebido no CCI"
   ]
 }
