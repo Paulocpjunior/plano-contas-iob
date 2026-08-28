@@ -41,6 +41,7 @@
     <script src="/ativo-imobilizado-ui.js?v=3.4.189"></script>
     <script src="/lancamentos-edicao-lote.js?v=3.4.189"></script>
     <script src="/migracao-sage-ui.js?v=3.4.189"></script>
+    <script src="/validador-defis.js?v=3.4.189"></script>
     <script src="/historicos-padrao.js"></script>
     <script src="/vincular-folha-pagamento.js?v=3.4.189"></script>
     <script src="/vincular-empresa.js?v=3.4.189"></script>
@@ -2358,6 +2359,7 @@
                 <button class="nav-cluster-toggle" type="button" onclick="toggleNavCluster(this, event)" aria-expanded="false" aria-haspopup="menu" aria-controls="navClusterObrigacoesMenu" title="Validações e obrigações acessórias">✅ Obrigações <span>▾</span></button>
                 <div class="nav-cluster-menu" id="navClusterObrigacoesMenu" role="menu">
                     <button class="nav-module-button" onclick="showPage('validador')"><span>✅</span> Validador Obrigações</button>
+                    <button class="nav-module-button" onclick="showPage('defis')"><span>🧾</span> Validador DEFIS</button>
                     <button class="nav-module-button" onclick="showPage('reinf')"><span>📄</span> EFD-Reinf / Informes</button>
                     <button class="nav-module-button" onclick="showPage('ecdecf')"><span>📑</span> ECD/ECF</button>
                 </div>
@@ -3175,6 +3177,74 @@
                                 <h3>Nenhuma obrigação validada</h3>
                                 <p>Selecione um arquivo ECD ou ECF para conferir o layout antes do envio.</p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Page: Validador DEFIS -->
+            <div id="pageDefis" class="hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><span class="icon">🧾</span> Validador DEFIS</h2>
+                        <div class="action-buttons">
+                            <button class="btn-action btn-action-secondary" onclick="limparValidadorDefis()">Limpar</button>
+                            <button class="btn-action btn-action-primary" onclick="document.getElementById('defisFileInput').click()">📁 Selecionar PDFs</button>
+                        </div>
+                    </div>
+                    <p style="color:var(--text-muted);margin-bottom:18px">
+                        Confira a Declaração de Informações Socioeconômicas e Fiscais antes da transmissão e, depois do envio, valide também o recibo oficial do PGDAS-D.
+                    </p>
+                    <input type="file" id="defisFileInput" accept=".pdf,application/pdf" multiple style="display:none" onchange="processarArquivosDefis(event)">
+
+                    <div style="padding:14px 16px;margin-bottom:18px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:9px;color:#1e3a8a;font-size:13px;line-height:1.55">
+                        <strong>Contrato oficial:</strong> a DEFIS é preenchida no portal PGDAS-D e não possui registros TXT do SPED. Este validador lê a cópia e o recibo em PDF, sem transmitir ou substituir a validação da Receita Federal.
+                    </div>
+
+                    <div class="filters-section">
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Empresa ativa</label>
+                                <input type="text" id="defisEmpresaAtiva" readonly placeholder="Ative uma empresa">
+                            </div>
+                            <div class="filter-group">
+                                <label>CNPJ esperado</label>
+                                <input type="text" id="defisCnpjEsperado" readonly placeholder="00.000.000/0000-00">
+                            </div>
+                            <div class="filter-group">
+                                <label>Ano-calendário</label>
+                                <select id="defisAnoEsperado" onchange="atualizarPrazoDefis()"></select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Prazo normal</label>
+                                <input type="text" id="defisPrazo" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="import-totals-grid">
+                        <div class="import-total-card debit">
+                            <h3>Status</h3>
+                            <div class="value" id="defisStatusResumo" style="font-size:25px;color:#64748b">Aguardando</div>
+                            <div class="sub" id="defisModoResumo">Nenhum PDF selecionado</div>
+                        </div>
+                        <div class="import-total-card credit">
+                            <h3>Documentos</h3>
+                            <div class="value" id="defisDocumentosResumo" style="font-size:25px;color:#2563eb">0</div>
+                            <div class="sub">Declaração + recibo opcional</div>
+                        </div>
+                        <div class="import-total-card credit">
+                            <h3>Campos do roteiro</h3>
+                            <div class="value" id="defisCamposResumo" style="font-size:25px;color:#059669">0 / 23</div>
+                            <div class="sub">Pessoa jurídica e estabelecimentos</div>
+                        </div>
+                    </div>
+
+                    <div id="defisResultado" style="margin-top:18px">
+                        <div class="empty-state">
+                            <div class="icon">🧾</div>
+                            <h3>Nenhuma DEFIS validada</h3>
+                            <p>Selecione a cópia oficial da declaração em PDF. Se já transmitida, selecione também o recibo.</p>
                         </div>
                     </div>
                 </div>
@@ -12185,7 +12255,7 @@
                 lancamentos: 'Lançamentos', relatorios: 'Relatórios Contábeis',
                 migracaosage: 'Migração SAGE',
                 plano: 'Plano de Contas / Histórico', mapeamento: 'Mapeamento',
-                validador: 'Validador Obrigações', reinf: 'EFD-Reinf / Informes',
+                validador: 'Validador Obrigações', defis: 'Validador DEFIS', reinf: 'EFD-Reinf / Informes',
                 exportar: 'Exportar', ecdecf: 'ECD/ECF', sobre: 'Sobre'
             };
             label.textContent = nomes[pagina] || (button ? button.textContent.replace(/\s+/g, ' ').trim() : 'Módulos');
@@ -12256,7 +12326,7 @@
             }
             atualizarRotuloNavegacao(btn, p);
             closeResponsiveNav();
-            ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Relatorios', 'Ativoimobilizado', 'Migracaosage', 'Plano', 'Mapeamento', 'Validador', 'Fiscal', 'Reinf', 'Exportar', 'Ecdecf', 'Sobre'].forEach(n => {
+            ['Inicio', 'Empresas', 'Extrator', 'Lancamentos', 'Relatorios', 'Ativoimobilizado', 'Migracaosage', 'Plano', 'Mapeamento', 'Validador', 'Defis', 'Fiscal', 'Reinf', 'Exportar', 'Ecdecf', 'Sobre'].forEach(n => {
                 const el = document.getElementById('page' + n);
                 if (el) el.classList.add('hidden');
             });
@@ -12297,6 +12367,9 @@
             if (p === 'validador') {
                 try { if (typeof prepararValidadorObrigacoes === 'function') prepararValidadorObrigacoes(); } catch(e) {}
             }
+            if (p === 'defis') {
+                try { if (typeof prepararValidadorDefis === 'function') prepararValidadorDefis(); } catch(e) {}
+            }
             if (p === 'fiscal') {
                 try { if (typeof carregarFiscal === 'function') carregarFiscal(); } catch(e) {}
             }
@@ -12334,6 +12407,157 @@
                 dataEl.textContent = '-';
                 tituloEl.textContent = 'Atualizações';
                 notesEl.innerHTML = '<li>Não foi possível carregar as informações de versão.</li>';
+            }
+        }
+
+        function defisEscape(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+                return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+            });
+        }
+
+        function defisFormatarCnpj(v) {
+            const d = String(v || '').replace(/\D/g, '');
+            return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : String(v || '');
+        }
+
+        function prepararValidadorDefis() {
+            const anoEl = document.getElementById('defisAnoEsperado');
+            if (anoEl && !anoEl.options.length) {
+                const atual = new Date().getFullYear();
+                for (let ano = atual; ano >= atual - 6; ano--) {
+                    const opt = document.createElement('option');
+                    opt.value = String(ano);
+                    opt.textContent = String(ano) + (ano === atual ? ' (situação especial)' : '');
+                    if (ano === atual - 1) opt.selected = true;
+                    anoEl.appendChild(opt);
+                }
+            }
+            const info = (state && state.info) || {};
+            const empresaEl = document.getElementById('defisEmpresaAtiva');
+            const cnpjEl = document.getElementById('defisCnpjEsperado');
+            if (empresaEl) empresaEl.value = info.empresa || '';
+            if (cnpjEl) cnpjEl.value = defisFormatarCnpj(info.cnpj || '');
+            atualizarPrazoDefis();
+        }
+
+        function atualizarPrazoDefis() {
+            const ano = Number((document.getElementById('defisAnoEsperado') || {}).value);
+            const el = document.getElementById('defisPrazo');
+            if (!el || !ano) return;
+            const atual = new Date().getFullYear();
+            el.value = ano === atual ? 'Conforme evento especial' : '31/03/' + (ano + 1);
+        }
+
+        function limparValidadorDefis() {
+            const input = document.getElementById('defisFileInput');
+            if (input) input.value = '';
+            const status = document.getElementById('defisStatusResumo');
+            if (status) { status.textContent = 'Aguardando'; status.style.color = '#64748b'; }
+            const modo = document.getElementById('defisModoResumo');
+            if (modo) modo.textContent = 'Nenhum PDF selecionado';
+            const docs = document.getElementById('defisDocumentosResumo');
+            if (docs) docs.textContent = '0';
+            const campos = document.getElementById('defisCamposResumo');
+            if (campos) campos.textContent = '0 / 23';
+            const res = document.getElementById('defisResultado');
+            if (res) res.innerHTML = '<div class="empty-state"><div class="icon">🧾</div><h3>Nenhuma DEFIS validada</h3><p>Selecione a cópia oficial da declaração em PDF. Se já transmitida, selecione também o recibo.</p></div>';
+        }
+
+        async function extrairTextoPdfDefis(file) {
+            if (!window.pdfjsLib) throw new Error('Leitor PDF indisponível. Atualize a página e tente novamente.');
+            const buf = await file.arrayBuffer();
+            const pdf = await window.pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+            const paginas = [];
+            for (let n = 1; n <= pdf.numPages; n++) {
+                const page = await pdf.getPage(n);
+                const content = await page.getTextContent();
+                let linha = '';
+                const linhas = [];
+                (content.items || []).forEach(function(item) {
+                    const pedaco = String(item.str || '').trim();
+                    if (pedaco) linha += (linha ? ' ' : '') + pedaco;
+                    if (item.hasEOL && linha) { linhas.push(linha); linha = ''; }
+                });
+                if (linha) linhas.push(linha);
+                paginas.push(linhas.join('\n'));
+            }
+            return { nome: file.name, paginas: pdf.numPages, texto: paginas.join('\n\n') };
+        }
+
+        function renderizarGrupoCamposDefis(titulo, campos) {
+            return '<div style="border:1px solid #e2e8f0;border-radius:9px;padding:14px;background:#fff">' +
+                '<h4 style="margin:0 0 10px;color:#0f172a">' + defisEscape(titulo) + '</h4>' +
+                '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:7px">' + campos.map(function(c) {
+                    return '<div style="padding:8px 10px;border-radius:7px;background:' + (c.encontrado ? '#f0fdf4' : '#fff7ed') + ';color:' + (c.encontrado ? '#166534' : '#9a3412') + ';font-size:12px">' + (c.encontrado ? '✅ ' : '⚠️ ') + defisEscape(c.nome) + '</div>';
+                }).join('') + '</div></div>';
+        }
+
+        function renderizarResultadoDefis(resultado) {
+            const paleta = resultado.status === 'APROVADO'
+                ? { cor:'#059669', fundo:'#ecfdf5', borda:'#6ee7b7', icone:'✅' }
+                : resultado.status === 'BLOQUEADO'
+                    ? { cor:'#dc2626', fundo:'#fef2f2', borda:'#fca5a5', icone:'⛔' }
+                    : { cor:'#d97706', fundo:'#fffbeb', borda:'#fcd34d', icone:'⚠️' };
+            const status = document.getElementById('defisStatusResumo');
+            status.textContent = resultado.status;
+            status.style.color = paleta.cor;
+            document.getElementById('defisModoResumo').textContent = resultado.modo;
+            document.getElementById('defisDocumentosResumo').textContent = String(resultado.documentos.length);
+            const campos = resultado.camposPJ.concat(resultado.camposEstabelecimento);
+            const encontrados = campos.filter(function(c) { return c.encontrado; }).length;
+            document.getElementById('defisCamposResumo').textContent = encontrados + ' / ' + campos.length;
+
+            function lista(titulo, itens, cor, icone) {
+                if (!itens.length) return '';
+                return '<div style="margin-top:12px"><strong style="color:' + cor + '">' + icone + ' ' + defisEscape(titulo) + '</strong><ul style="margin:7px 0 0 20px;color:#334155;line-height:1.55">' + itens.map(function(v) { return '<li>' + defisEscape(v) + '</li>'; }).join('') + '</ul></div>';
+            }
+            const tipo = [resultado.tipo.declaracao, resultado.tipo.situacao, resultado.tipo.evento].filter(Boolean).join(' · ') || 'Não identificado';
+            const arquivos = resultado.documentos.map(function(d) {
+                const classe = d.declaracao && d.recibo ? 'Declaração + recibo' : (d.declaracao ? 'Declaração' : (d.recibo ? 'Recibo' : 'Não reconhecido'));
+                return '<tr><td style="padding:9px;border-bottom:1px solid #e2e8f0">' + defisEscape(d.nome) + '</td><td style="padding:9px;border-bottom:1px solid #e2e8f0">' + defisEscape(classe) + '</td><td style="padding:9px;border-bottom:1px solid #e2e8f0;text-align:center">' + d.paginas + '</td></tr>';
+            }).join('');
+            document.getElementById('defisResultado').innerHTML =
+                '<div style="padding:16px;border:1px solid ' + paleta.borda + ';background:' + paleta.fundo + ';border-radius:9px">' +
+                    '<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><strong style="font-size:17px;color:' + paleta.cor + '">' + paleta.icone + ' ' + resultado.status + '</strong><span style="font-size:12px;font-weight:800;color:#475569">' + resultado.modo + ' · ' + defisEscape(tipo) + '</span></div>' +
+                    lista('Bloqueios', resultado.erros, '#b91c1c', '⛔') + lista('Ressalvas para revisão', resultado.alertas, '#b45309', '⚠️') + lista('Conferências concluídas', resultado.ok, '#047857', '✅') +
+                '</div>' +
+                '<div class="table-container" style="margin-top:14px"><table><thead><tr><th>Arquivo</th><th>Documento detectado</th><th style="text-align:center">Páginas</th></tr></thead><tbody>' + arquivos + '</tbody></table></div>' +
+                '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;margin-top:14px">' +
+                    renderizarGrupoCamposDefis('Informações da pessoa jurídica', resultado.camposPJ) +
+                    renderizarGrupoCamposDefis('Informações por estabelecimento', resultado.camposEstabelecimento) +
+                '</div>' +
+                '<div style="margin-top:14px;padding:12px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;color:#92400e;font-size:12px;line-height:1.5"><strong>Conferência externa necessária:</strong> confirme no PGDAS-D que todas as apurações mensais do período foram transmitidas. Essa condição não pode ser comprovada apenas pela cópia PDF da DEFIS.</div>';
+        }
+
+        async function processarArquivosDefis(event) {
+            prepararValidadorDefis();
+            const files = Array.from((event && event.target && event.target.files) || []);
+            if (!files.length) return;
+            if (files.some(function(f) { return !/\.pdf$/i.test(f.name) && f.type !== 'application/pdf'; })) {
+                showToast('Selecione somente a declaração e o recibo DEFIS em PDF.', 'error');
+                return;
+            }
+            const status = document.getElementById('defisStatusResumo');
+            status.textContent = 'Processando';
+            status.style.color = '#2563eb';
+            document.getElementById('defisModoResumo').textContent = 'Lendo PDFs localmente';
+            document.getElementById('defisResultado').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><h3>Validando DEFIS</h3><p>Extraindo a camada de texto dos documentos oficiais...</p></div>';
+            try {
+                const documentos = [];
+                for (const file of files) documentos.push(await extrairTextoPdfDefis(file));
+                const resultado = window.CCIValidadorDEFIS.validar(documentos, {
+                    cnpjEsperado: document.getElementById('defisCnpjEsperado').value,
+                    anoEsperado: document.getElementById('defisAnoEsperado').value
+                });
+                renderizarResultadoDefis(resultado);
+                showToast(resultado.status === 'BLOQUEADO' ? 'DEFIS bloqueada: revise os erros encontrados.' : (resultado.status === 'APROVADO' ? 'DEFIS e recibo validados.' : 'DEFIS validada com ressalvas para revisão.'), resultado.status === 'BLOQUEADO' ? 'error' : (resultado.status === 'APROVADO' ? 'success' : 'warn'));
+            } catch (e) {
+                status.textContent = 'Erro';
+                status.style.color = '#dc2626';
+                document.getElementById('defisModoResumo').textContent = 'Falha na leitura';
+                document.getElementById('defisResultado').innerHTML = '<div style="padding:16px;border:1px solid #fca5a5;background:#fef2f2;border-radius:9px;color:#991b1b"><strong>Não foi possível validar.</strong><br>' + defisEscape(e.message || e) + '</div>';
+                showToast(e.message || String(e), 'error');
             }
         }
 
