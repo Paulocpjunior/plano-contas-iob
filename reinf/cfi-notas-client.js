@@ -127,10 +127,31 @@ function interpretarRespostaCfi({ status, corpo, url }) {
   // R-4020, produtores para o R-2055) e recortar aqui faria a casca precisar
   // saber de cada um. As chaves comuns ganham default pra quem consome não ter
   // que testar undefined.
+  // O CFI possui duas famílias de documento: captura do portal em campos
+  // chatos e XML em objetos `prestador`/`emitente`. O contrato público deve
+  // entregar o mesmo prestador em ambas, mas o CCI também preserva o dado na
+  // sua fronteira para que uma versão antiga do serviço não transforme razão
+  // social existente em "—" na tabela de beneficiários.
+  const preservarPrestador = (item) => {
+    if (!item || typeof item !== 'object') return item;
+    const prestador = item.prestador || {};
+    const emitente = item.emitente || {};
+    const prestadorNome = String(
+      item.prestadorNome || prestador.nome || prestador.razaoSocial
+      || item.xNomeEmit || emitente.nome || emitente.razaoSocial || '',
+    ).trim();
+    const prestadorCnpj = String(
+      item.prestadorCnpj || prestador.cnpjCpf || prestador.cnpj
+      || item.cnpjEmit || emitente.cnpjCpf || emitente.cnpj || '',
+    ).trim();
+    return { ...item, prestadorNome, prestadorCnpj };
+  };
+
   return {
     ...body,
     empresa: body.empresa || null,
-    notas: Array.isArray(body.notas) ? body.notas : [],
+    notas: Array.isArray(body.notas) ? body.notas.map(preservarPrestador) : [],
+    prestadores: Array.isArray(body.prestadores) ? body.prestadores.map(preservarPrestador) : [],
     produtores: Array.isArray(body.produtores) ? body.produtores : [],
     resumo: body.resumo || null,
     ressalvas: Array.isArray(body.ressalvas) ? body.ressalvas : [],

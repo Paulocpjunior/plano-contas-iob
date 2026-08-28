@@ -78,6 +78,23 @@ const vazio = interpretarRespostaCfi({
 assert.deepStrictEqual(vazio.notas, []);
 assert.strictEqual(vazio.ressalvas.length, 1, 'a ressalva do CFI não some no caminho');
 
+// A NFS-e importada por XML guarda o prestador em objeto. Mesmo que uma
+// revisão antiga do CFI deixe esse formato atravessar o contrato, o CCI não
+// pode apagar um nome que existe na fonte e mostrar "—" ao colaborador.
+const comPrestadorAninhado = interpretarRespostaCfi({
+  status: 200,
+  corpo: {
+    ok: true,
+    notas: [{
+      numero: '0000000578',
+      prestador: { cnpjCpf: '11.950.487/7002-20', nome: 'MILANO COMERCIO VAREJISTA' },
+      base: 9717.73, pis: 63.17, cofins: 291.53, csllOuTotal: 97.18, ir: 145.77,
+    }],
+  },
+});
+assert.strictEqual(comPrestadorAninhado.notas[0].prestadorNome, 'MILANO COMERCIO VAREJISTA');
+assert.strictEqual(comPrestadorAninhado.notas[0].prestadorCnpj, '11.950.487/7002-20');
+
 // ─── O contrato casa: o que o CFI manda é o que apurarRetencoesPJ come ──────
 // Nota real da CLINIPAR (base 590,10): o portal manda 27,44 no campo "CSLL",
 // que é o TOTAL. O nome `csllOuTotal` é o que faz esta ponte não mentir.
