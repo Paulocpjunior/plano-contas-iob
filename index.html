@@ -67,6 +67,7 @@
     <script src="/parser-clude-servicos-tomados.js?v=3.4.190"></script>
     <script src="/layouts-fiscais-padrao.js?v=3.4.190"></script>
     <script src="/parser-flanacar-registro-entradas.js?v=3.4.190"></script>
+    <script src="/filtro-fiscal.js?v=3.4.190"></script>
     <script src="/igrejas-conferencia-caixa.js?v=3.4.190"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -850,6 +851,64 @@
             cursor: pointer;
             font-family: inherit;
             color: var(--text-muted);
+        }
+        .btn-filtro-fiscal {
+            padding: 10px 20px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            color: #1d4ed8;
+        }
+        .btn-filtro-fiscal.ativo {
+            background: #dbeafe;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
+        }
+        .filtro-fiscal-resumo {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: 999px;
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .filtro-fiscal-resumo.show { display: inline-flex; }
+        .filtro-fiscal-card { width: min(620px, 100%); }
+        .filtro-fiscal-form {
+            display: grid;
+            grid-template-columns: minmax(150px, .7fr) minmax(180px, 1fr);
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .filtro-fiscal-form .wide { grid-column: 1 / -1; }
+        .filtro-fiscal-preview {
+            padding: 12px 14px;
+            margin-bottom: 18px;
+            border: 1px solid #dbeafe;
+            border-radius: 10px;
+            background: #f8fbff;
+            color: #334155;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .filtro-fiscal-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .filtro-fiscal-actions-right { display: flex;gap:10px;flex-wrap:wrap; }
+        @media (max-width: 700px) {
+            .filtro-fiscal-form { grid-template-columns: 1fr; }
+            .filtro-fiscal-form .wide { grid-column: auto; }
         }
         
         /* Table */
@@ -2927,7 +2986,9 @@
                             </div>
                         </div>
                         <div class="filters-row">
+                            <button id="btnAbrirFiltroFiscal" class="btn-filtro-fiscal" type="button" onclick="abrirModalFiltroFiscal()">⚙️ Filtro fiscal</button>
                             <button class="btn-clear-filters" onclick="limparFiltros()">🔄 Limpar Filtros</button>
+                            <span id="filtroFiscalResumo" class="filtro-fiscal-resumo" aria-live="polite"></span>
                         </div>
                     </div>
                     
@@ -4104,6 +4165,53 @@
     
     <!-- Toast -->
     <div id="toast" class="toast hidden"></div>
+
+    <!-- Filtro estruturado para lançamentos fiscais -->
+    <div class="confirm-import-overlay" id="filtroFiscalOverlay" role="dialog" aria-modal="true" aria-labelledby="filtroFiscalTitulo" onclick="fecharModalFiltroFiscalNoFundo(event)">
+        <div class="confirm-import-card filtro-fiscal-card">
+            <div class="confirm-import-head">
+                <div>
+                    <h3 id="filtroFiscalTitulo">⚙️ Filtro fiscal</h3>
+                    <p>Combine o CFOP com o lançamento fiscal que será alterado em massa.</p>
+                </div>
+                <button class="btn-remove" type="button" onclick="fecharModalFiltroFiscal()" aria-label="Fechar">✕</button>
+            </div>
+            <div class="filtro-fiscal-form">
+                <div class="filter-group">
+                    <label for="filtroFiscalTipo">1º filtro</label>
+                    <select id="filtroFiscalTipo" onchange="atualizarPreviewFiltroFiscal()">
+                        <option value="CFOP">CFOP</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filtroFiscalValor">CFOP exato</label>
+                    <input id="filtroFiscalValor" type="text" inputmode="numeric" maxlength="4" list="filtroFiscalCfopsDisponiveis" placeholder="Ex.: 1102" oninput="normalizarCampoCfopFiscal();atualizarPreviewFiltroFiscal()">
+                    <datalist id="filtroFiscalCfopsDisponiveis"></datalist>
+                </div>
+                <div class="filter-group wide">
+                    <label for="filtroFiscalLancamento">2º filtro — lançamento a alterar</label>
+                    <select id="filtroFiscalLancamento" onchange="atualizarPreviewFiltroFiscal()">
+                        <option value="">Todos do CFOP</option>
+                        <option value="ENTRADA">Entrada Fiscal (sem impostos)</option>
+                        <option value="SAIDA">Saída Fiscal (sem impostos)</option>
+                        <option value="ICMS">Somente ICMS</option>
+                        <option value="ICMS ST">Somente ICMS-ST</option>
+                        <option value="IPI">Somente IPI</option>
+                        <option value="PIS">Somente PIS</option>
+                        <option value="COFINS">Somente COFINS</option>
+                    </select>
+                </div>
+            </div>
+            <div id="filtroFiscalPreview" class="filtro-fiscal-preview">Informe um CFOP com 4 dígitos.</div>
+            <div class="filtro-fiscal-actions">
+                <button class="btn btn-secondary" type="button" onclick="limparFiltroFiscal()">Limpar filtro fiscal</button>
+                <div class="filtro-fiscal-actions-right">
+                    <button class="btn btn-secondary" type="button" onclick="fecharModalFiltroFiscal()">Cancelar</button>
+                    <button class="btn btn-primary" id="btnAplicarFiltroFiscal" type="button" onclick="aplicarFiltroFiscal()" disabled>Aplicar filtro</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Importacoes - Movimento Fiscal -->
     <div class="confirm-import-overlay" id="movimentoFiscalOverlay">
@@ -16648,6 +16756,120 @@
         
         // Render Lançamentos
         // === v3.1.8: filtros centralizados (reusados por export e render) ===
+        let filtroFiscalSelecionado = { tipo: '', valor: '', lancamento: '' };
+
+        function filtroFiscalEstaAtivo() {
+            return !!(window.FiltroFiscal && window.FiltroFiscal.ativo(filtroFiscalSelecionado));
+        }
+
+        function rotuloLancamentoFiltroFiscal(valor) {
+            return ({ ENTRADA: 'Entrada Fiscal', SAIDA: 'Saída Fiscal', ICMS: 'ICMS', 'ICMS ST': 'ICMS-ST', IPI: 'IPI', PIS: 'PIS', COFINS: 'COFINS' })[valor] || 'Todos os lançamentos';
+        }
+
+        function atualizarIndicadorFiltroFiscal() {
+            const ativo = filtroFiscalEstaAtivo();
+            const botao = document.getElementById('btnAbrirFiltroFiscal');
+            const resumo = document.getElementById('filtroFiscalResumo');
+            const texto = ativo ? 'CFOP ' + filtroFiscalSelecionado.valor + ' • ' + rotuloLancamentoFiltroFiscal(filtroFiscalSelecionado.lancamento) : '';
+            if (botao) {
+                botao.classList.toggle('ativo', ativo);
+                botao.textContent = ativo ? '⚙️ Alterar filtro fiscal' : '⚙️ Filtro fiscal';
+            }
+            if (resumo) {
+                resumo.classList.toggle('show', ativo);
+                resumo.textContent = texto;
+            }
+        }
+
+        function cfopsDisponiveisNosLancamentos() {
+            if (!window.FiltroFiscal) return [];
+            const encontrados = new Set();
+            (state.entries || []).forEach(function(entry) {
+                window.FiltroFiscal.cfopsDoLancamento(entry).forEach(function(cfop) { encontrados.add(cfop); });
+            });
+            return Array.from(encontrados).sort();
+        }
+
+        function abrirModalFiltroFiscal() {
+            if (!window.FiltroFiscal) {
+                showToast('Filtro fiscal indisponível. Atualize a página.', 'error');
+                return;
+            }
+            const lista = document.getElementById('filtroFiscalCfopsDisponiveis');
+            if (lista) lista.innerHTML = cfopsDisponiveisNosLancamentos().map(function(cfop) { return '<option value="' + cfop + '"></option>'; }).join('');
+            const tipo = document.getElementById('filtroFiscalTipo');
+            const valor = document.getElementById('filtroFiscalValor');
+            const lancamento = document.getElementById('filtroFiscalLancamento');
+            if (tipo) tipo.value = filtroFiscalSelecionado.tipo || 'CFOP';
+            if (valor) valor.value = filtroFiscalSelecionado.valor || '';
+            if (lancamento) lancamento.value = filtroFiscalSelecionado.lancamento || '';
+            document.getElementById('filtroFiscalOverlay')?.classList.add('show');
+            atualizarPreviewFiltroFiscal();
+            setTimeout(function() { if (valor) valor.focus(); }, 0);
+        }
+
+        function fecharModalFiltroFiscal() {
+            document.getElementById('filtroFiscalOverlay')?.classList.remove('show');
+        }
+
+        function fecharModalFiltroFiscalNoFundo(event) {
+            if (event && event.target && event.target.id === 'filtroFiscalOverlay') fecharModalFiltroFiscal();
+        }
+
+        function normalizarCampoCfopFiscal() {
+            const campo = document.getElementById('filtroFiscalValor');
+            if (campo && window.FiltroFiscal) campo.value = window.FiltroFiscal.normalizarCfop(campo.value);
+        }
+
+        function filtroFiscalDoModal() {
+            return {
+                tipo: ((document.getElementById('filtroFiscalTipo') || {}).value || 'CFOP'),
+                valor: ((document.getElementById('filtroFiscalValor') || {}).value || ''),
+                lancamento: ((document.getElementById('filtroFiscalLancamento') || {}).value || '')
+            };
+        }
+
+        function atualizarPreviewFiltroFiscal() {
+            const filtro = filtroFiscalDoModal();
+            const valido = !!(window.FiltroFiscal && window.FiltroFiscal.ativo(filtro));
+            const preview = document.getElementById('filtroFiscalPreview');
+            const aplicar = document.getElementById('btnAplicarFiltroFiscal');
+            if (aplicar) aplicar.disabled = !valido;
+            if (!preview) return;
+            if (!valido) {
+                preview.textContent = 'Informe um CFOP exato com 4 dígitos.';
+                return;
+            }
+            const total = (state.entries || []).filter(function(entry) { return window.FiltroFiscal.atende(entry, filtro); }).length;
+            const escopo = rotuloLancamentoFiltroFiscal(filtro.lancamento);
+            preview.textContent = 'CFOP ' + filtro.valor + ' • ' + escopo + ' • ' + total + ' lançamento' + (total === 1 ? '' : 's') + ' encontrado' + (total === 1 ? '' : 's') + '.';
+        }
+
+        function aplicarFiltroFiscal() {
+            const filtro = filtroFiscalDoModal();
+            if (!window.FiltroFiscal || !window.FiltroFiscal.ativo(filtro)) {
+                showToast('Informe um CFOP válido com 4 dígitos.', 'error');
+                return;
+            }
+            filtroFiscalSelecionado = { tipo: 'CFOP', valor: window.FiltroFiscal.normalizarCfop(filtro.valor), lancamento: filtro.lancamento || '' };
+            atualizarIndicadorFiltroFiscal();
+            fecharModalFiltroFiscal();
+            lancamentosSelecionados.clear();
+            marcarOpcaoSelecao('nenhum');
+            renderLancamentos();
+        }
+
+        function limparFiltroFiscal(opcoes) {
+            filtroFiscalSelecionado = { tipo: '', valor: '', lancamento: '' };
+            atualizarIndicadorFiltroFiscal();
+            const valor = document.getElementById('filtroFiscalValor');
+            const lancamento = document.getElementById('filtroFiscalLancamento');
+            if (valor) valor.value = '';
+            if (lancamento) lancamento.value = '';
+            atualizarPreviewFiltroFiscal();
+            if (!opcoes || !opcoes.semRender) renderLancamentos();
+        }
+
         function obterEntriesFiltrados() {
             if (!state.entries.length) return [];
             const numeroLancamento = String((document.getElementById('filterNumeroLancamento')||{}).value || '').trim();
@@ -16677,6 +16899,7 @@
                 if (Math.abs(e.valor) > valorMax) return false;
                 if (banco && e.bancoId !== banco) return false;
                 if (importacao && e.importacaoId !== importacao) return false;
+                if (filtroFiscalEstaAtivo() && !window.FiltroFiscal.atende(e, filtroFiscalSelecionado)) return false;
                 return true;
             });
         }
@@ -16684,7 +16907,7 @@
             const ids = ['filterNumeroLancamento','filterDescricao','filterCategoria','filterTipo','filterStatus',
                          'filterDataInicio','filterDataFim','filterValorMin','filterValorMax',
                          'filterBanco','filterImportacao'];
-            return ids.some(function(id){ const el = document.getElementById(id); return el && el.value && el.value.trim() !== ''; });
+            return filtroFiscalEstaAtivo() || ids.some(function(id){ const el = document.getElementById(id); return el && el.value && el.value.trim() !== ''; });
         }
         function tipoLancamento(e) {
             if (!e) return '';
@@ -18336,6 +18559,7 @@
             document.getElementById('filterValorMax').value = '';
             document.getElementById('filterBanco').value = '';
             document.getElementById('filterImportacao').value = '';
+            limparFiltroFiscal({ semRender: true });
             renderLancamentos();
         }
         
