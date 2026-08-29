@@ -189,11 +189,31 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### 🟠 P09 — Cobertura fiscal oficial por fonte
 
-- Estado: `ABERTA`
+- Estado: `EM RESOLUÇÃO`
 - Gap: contrato contábil exige evidência oficial, mas a cobertura completa de
   e-CAC direto, FGTS Digital, SEFAZ/GNRE e municípios não está comprovada.
 - Critério de aceite: matriz por tributo/fonte, conectores homologados e gaps
   apresentados como cobertura pendente, nunca como ausência de pagamento.
+- Auditoria de 29/08/2026: o CFI correto é o serviço do projeto
+  `consultorfiscalapp`, revisão `consultor-fiscal-inteligente-02121-qag`, 100%
+  do tráfego e health/ready com Firestore aprovado. DAS, DARF e DCTFWeb estão
+  ativos; comprovantes Receita/e-CAC têm credencial, mas não consulta
+  automática; FGTS Digital, SEFAZ/GNRE e municipal permanecem sem adaptador.
+- Etapa técnica preparada: o contrato CFI→CCI passa a exigir as seis fontes
+  nominais em todo payload. Item contabilizável por fonte não consultada é
+  rejeitado antes de qualquer gravação. A resposta e o log guardam resumo da
+  cobertura e matriz DAS, DARFs federais, FGTS, tributos estaduais e ISS.
+- Prova real somente leitura: a ponte protegida respondeu o contrato
+  `fiscal_pagamentos_v1` para empresa/competência de teste e a candidata o
+  validou sem gravar dados: 2 fontes consultadas, 4 não cobertas e todos os
+  grupos tributários corretamente marcados como `cobertura_pendente`. O retorno
+  sem itens não foi interpretado como ausência de pagamento.
+- Interface preparada: fonte consultada aparece em verde, não coberta em
+  amarelo, falha em vermelho e status desconhecido em cinza; o alerta afirma
+  expressamente que fonte não consultada não comprova ausência de pagamento.
+- Evidência ainda necessária: publicar a candidata no CCI e homologar os
+  adaptadores oficiais que continuam ausentes. Eles não serão simulados nem
+  marcados como cobertos sem acesso e prova oficial.
 
 ## 🟡 Médias
 

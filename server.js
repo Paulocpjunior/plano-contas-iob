@@ -30,7 +30,7 @@ const GraphEmail = require('./graph-email-provider');
 const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa, buscarOrientacaoAjuda } = require('./ajuda-cci-base');
 const { conteudo: MANUAL_CCI } = require('./manual-cci-base');
 const { extractAccountingPdf } = require('./auditai/pdf-contabil-extractor');
-const { validarPayloadFiscalConnector, resumirItensFiscais } = require('./fiscal-payments-contract');
+const { validarCoberturaFiscal, montarMatrizTributos, validarPayloadFiscalConnector, resumirItensFiscais } = require('./fiscal-payments-contract');
 const {
   ENCODING_PLAIN,
   LIMITE_CHUNK_SESSAO,
@@ -2699,8 +2699,12 @@ app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro', async (req, res) => {
       }
     });
     let itens;
+    let coberturaResumo;
+    let matrizTributos;
     try {
       itens = validarPayloadFiscalConnector(payload);
+      coberturaResumo = validarCoberturaFiscal(payload.cobertura);
+      matrizTributos = montarMatrizTributos(coberturaResumo);
     } catch (e) {
       e.status = 502;
       e.data = payload;
@@ -2757,6 +2761,8 @@ app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro', async (req, res) => {
       contrato: payload.contrato,
       credencial: payload.credencial || null,
       cobertura: payload.cobertura || null,
+      cobertura_resumo: coberturaResumo,
+      matriz_tributos: matrizTributos,
       resumo_origem: payload.resumo || null,
       total_gravado: itens.length,
       total_confirmacao_suspensa: obsoletos.length,
@@ -2774,6 +2780,8 @@ app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro', async (req, res) => {
       gateway: statusGateway,
       resumo: { importados: itens.length, atualizados: itens.length, confirmacoes_suspensas: obsoletos.length, ...(payload.resumo || {}) },
       cobertura: payload.cobertura || {},
+      cobertura_resumo: coberturaResumo,
+      matriz_tributos: matrizTributos,
       credencial: payload.credencial || null,
       avisos: [...avisos, ...(payload.avisos || [])]
     });

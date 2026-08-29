@@ -1,7 +1,7 @@
 {
-  "version": "3.4.207",
-  "build_date": "2026-08-29T19:48:47Z",
+  "version": "3.4.208",
+  "build_date": "2026-08-29T20:26:47Z",
   "release_notes": [
-    "Fila de layouts com responsável, SLA, versão e evidência obrigatórios"
+    "Cobertura fiscal obrigatória por fonte e matriz de tributos"
   ]
 }
