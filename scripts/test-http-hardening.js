@@ -17,12 +17,14 @@ assert(server.includes('app.use(aplicarHeadersSeguranca)'), 'headers precisam es
 assert(server.includes("express.json({ limit: '100mb', verify: verificarTamanhoJson })"), 'parser JSON precisa aplicar limite dinâmico');
 assert(server.includes("app.use('/api/empresas/:cnpj/sessao', criarLimitador"), 'autosave precisa de throttling próprio');
 assert(server.includes("app.use('/api/gemini', criarLimitador"), 'Gemini precisa de throttling próprio');
+assert(server.includes("app.use('/api/admin/empresas/:cnpj/migracao-sage', criarLimitador"), 'migração administrativa precisa de throttling próprio');
 assert(server.includes("err.type === 'entity.too.large'"), '413 precisa retornar erro estruturado');
 
 assert.strictEqual(limiteCorpoPara({ originalUrl: '/api/empresas/123/sessao' }), LIMITES_CORPO.sessao);
 assert.strictEqual(limiteCorpoPara({ originalUrl: '/api/empresas/123/relatorio' }), LIMITES_CORPO.relatorioSessao);
 assert.strictEqual(limiteCorpoPara({ originalUrl: '/api/auditai/extrair-pdf-contabil' }), LIMITES_CORPO.auditaiPdf);
 assert.strictEqual(limiteCorpoPara({ originalUrl: '/api/empresas/123/contabilidade/relatorios/enviar-email' }), LIMITES_CORPO.relatorioEmail);
+assert.strictEqual(limiteCorpoPara({ originalUrl: '/api/admin/empresas/123/migracao-sage/staging' }), LIMITES_CORPO.migracaoSage);
 assert.strictEqual(limiteCorpoPara({ originalUrl: '/api/qualquer' }), LIMITES_CORPO.padrao);
 assert.doesNotThrow(() => verificarTamanhoJson({ originalUrl: '/api/qualquer' }, null, Buffer.alloc(LIMITES_CORPO.padrao)));
 assert.throws(

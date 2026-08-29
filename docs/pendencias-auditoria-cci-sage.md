@@ -91,12 +91,22 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ## 🟠 Altas
 
-### 🟠 P04 — Executor controlado de migração SAGE
+### 🟢 P04 — Executor controlado de migração SAGE
 
-- Estado: `ABERTA`
+- Estado: `RESOLVIDA`
 - Gap: o módulo atual é somente pré-validação e não importa nem persiste dados.
 - Critério de aceite: staging imutável, de-para versionado, lote idempotente,
   rejeições, hashes, rollback por lote, painel SAGE × CCI e termo de aceite.
+- Implementado em 29/08/2026: staging persistido por hash canônico e arquivo
+  fonte SHA-256; de-para e plano ativo versionados; totais oficiais, conta,
+  histórico, centro de custo, competência e chaves originais validados sem
+  inferência; rejeições duráveis; aplicação administrativa idempotente com
+  trava/revisão da sessão e proteção de períodos encerrados.
+- Retorno seguro: backup integral anterior preservado em chunks e rollback
+  seletivo por lote. Lançamentos posteriores são mantidos; se um lançamento
+  migrado tiver sido editado, a reversão automática é bloqueada. O painel
+  compara quantidade/total SAGE × CCI e exige `MIGRAR`, responsável, função/CRC,
+  evidência do aceite e identidade do administrador.
 
 ### 🟠 P05 — Recuperação de desastre independente
 
@@ -200,9 +210,9 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   `plano-contas-iob-00743-xux`, 100% do tráfego, 108 testes aprovados e nenhum
   log de severidade `ERROR`; `X-Powered-By` ausente na resposta pública.
 
-### 🟡 P12 — Cobertura da trilha administrativa
+### 🟢 P12 — Cobertura da trilha administrativa
 
-- Estado: `EM RESOLUÇÃO`
+- Estado: `RESOLVIDA`
 - Gap: somente 7 documentos na coleção específica de auditoria administrativa.
 - Critério de aceite: exclusão, fechamento, reabertura, migração, alteração de
   plano e ações destrutivas registrados com ator, data, escopo e resultado.
@@ -211,9 +221,10 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   lançamentos, troca/vínculo de plano, fechamento e reabertura passaram a
   alimentar `admin_audit_logs`. Fechamento e reabertura gravam a trilha no
   mesmo batch Firestore da alteração, impedindo operação crítica sem o evento.
-- Pendente para encerramento: o evento de migração somente poderá ser ligado ao
-  executor controlado ainda não existente da P04; não será fabricado evento de
-  migração para a tela atual, que executa apenas pré-validação sem persistência.
+- Fechamento em 29/08/2026: o executor da P04 registra staging criado/rejeitado,
+  aplicação e reversão do lote na mesma trilha, com administrador, empresa,
+  competência, lote, hashes, quantidade e resultado. A cobertura prevista no
+  critério de aceite agora existe para todas as ações críticas enumeradas.
 
 ### 🟡 P13 — Teste real de concorrência e volume
 
@@ -279,3 +290,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - 29/08/2026 — P12 passou de `ABERTA` para `EM RESOLUÇÃO`: os fluxos críticos
   existentes foram integrados à trilha uniforme; falta o executor da P04 para
   existir uma ação real de migração que possa ser auditada.
+- 29/08/2026 — P04 passou de `ABERTA` para `RESOLVIDA` com staging imutável,
+  aplicação idempotente, painel SAGE × CCI, aceite formal e rollback por lote.
+- 29/08/2026 — P12 passou de `EM RESOLUÇÃO` para `RESOLVIDA` após os eventos de
+  staging, aplicação e reversão da P04 entrarem na trilha administrativa.

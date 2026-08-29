@@ -8,6 +8,7 @@ const LIMITES_CORPO = Object.freeze({
   auditaiPdf: 36 * MB,
   relatorioEmail: 6 * MB,
   mercadoPago: 24 * MB,
+  migracaoSage: 64 * MB,
   padrao: 8 * MB,
 });
 
@@ -22,6 +23,7 @@ function limiteCorpoPara(req) {
   if (caminho === '/api/auditai/extrair-pdf-contabil') return LIMITES_CORPO.auditaiPdf;
   if (/^\/api\/empresas\/[^/]+\/contabilidade\/relatorios\/enviar-email\/?$/.test(caminho)) return LIMITES_CORPO.relatorioEmail;
   if (/^\/api\/empresas\/[^/]+\/mercadopago\/preview-report\/?$/.test(caminho)) return LIMITES_CORPO.mercadoPago;
+  if (/^\/api\/admin\/empresas\/[^/]+\/migracao-sage\/staging\/?$/.test(caminho)) return LIMITES_CORPO.migracaoSage;
   return LIMITES_CORPO.padrao;
 }
 

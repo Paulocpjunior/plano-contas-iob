@@ -27,5 +27,12 @@ assert(invalid.errors.some(message => message.includes('natureza')));
 assert(invalid.errors.some(message => message.includes('código e descrição')));
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'migracao-sage-ui.js'), 'utf8');
-assert(!source.includes('fetch('), 'pré-validação não pode enviar dados ao servidor');
-console.log('✅ Migração SAGE: parser, bloqueios e execução local validados.');
+assert(source.includes('/migracao-sage/staging'), 'painel deve criar staging no servidor');
+assert(source.includes("confirmacao: 'MIGRAR'"), 'aplicação deve exigir confirmação formal');
+assert(source.includes("confirmacao: 'REVERTER'"), 'rollback deve exigir confirmação formal');
+assert(source.includes('sageSourceInput'), 'arquivo-fonte deve ser separado do pacote estruturado');
+assert(source.includes('staging_hash: loteAtual.staging_hash'), 'aceite deve estar preso ao hash exibido');
+assert(source.includes('pacote-lancamentos-sage.json'), 'painel deve oferecer o contrato do pacote');
+const pacote = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'docs', 'templates', 'pacote-lancamentos-sage.json'), 'utf8'));
+assert.deepStrictEqual(pacote.lancamentos, [], 'modelo nunca pode conter lançamento importável');
+console.log('✅ Migração SAGE: parser local, staging, aceite, painel e rollback validados.');
