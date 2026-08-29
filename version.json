@@ -1,9 +1,9 @@
 {
-  "version": "3.4.197",
-  "build_date": "2026-08-29T15:43:22Z",
+  "version": "3.4.198",
+  "build_date": "2026-08-29T15:54:00Z",
   "release_notes": [
-    "release: bloquear deploy manual fora da main",
-    "release: unificar auditoria, testes, candidata e health em um único fluxo",
-    "docs: confirmar resolução das vulnerabilidades críticas de PDF"
+    "security: adicionar headers HTTP seguros e respostas 413/429 estruturadas",
+    "security: aplicar limites de payload específicos por fluxo",
+    "stability: proteger autosave e Gemini com throttling compatível"
   ]
 }
