@@ -136,10 +136,23 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### 🟠 P07 — Menor privilégio no Google Cloud
 
-- Estado: `ABERTA`
+- Estado: `EM RESOLUÇÃO`
 - Gap: conta padrão do Cloud Run com `Editor`, `Run Admin`,
   `Secret Manager Admin` e outros papéis amplos.
 - Critério de aceite: conta dedicada ao runtime e permissões mínimas verificadas.
+- Preparado em 29/08/2026: criada a conta dedicada
+  `cci-runtime@gen-lang-client-0569062468.iam.gserviceaccount.com`; no projeto,
+  ela possui somente `roles/datastore.user`. O acesso a segredo foi concedido
+  no próprio recurso: leitura de `GEMINI_API_KEY`, `fiscal-gateway-token`,
+  `graph-client-secret`, `reinf-cert-a1` e `reinf-cert-password`, e inclusão de
+  versão somente nos dois segredos A1.
+- Hardening do código: o runtime deixou de criar containers no Secret Manager;
+  a infraestrutura deve provisioná-los previamente. O workflow fixa a conta
+  dedicada em toda nova revisão e interrompe antes do tráfego se o Cloud Run
+  aplicar uma identidade diferente.
+- Evidência ainda necessária: publicar a candidata, confirmar a conta na
+  revisão, health com leitura real do Firestore, versão pública, políticas IAM
+  finais e ausência de erros antes de marcar como resolvida.
 
 ### 🟠 P08 — Homologação e fila de qualidade de layouts
 

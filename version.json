@@ -1,7 +1,7 @@
 {
-  "version": "3.4.205",
-  "build_date": "2026-08-29T16:56:46Z",
+  "version": "3.4.206",
+  "build_date": "2026-08-29T19:40:21Z",
   "release_notes": [
-    "Migração SAGE controlada por staging, aceite, lote idempotente e rollback"
+    "Cloud Run com conta de execução dedicada e permissões mínimas"
   ]
 }

@@ -54,6 +54,7 @@ env:
   CCI_AUTH_PROJECT_ID: ${{ vars.CCI_AUTH_PROJECT_ID || 'projetos-app-sp' }}
   CCI_BACKUP_PROJECT_ID: ${{ vars.CCI_BACKUP_PROJECT_ID || 'gen-lang-client-0569062468' }}
   CCI_BACKUP_BUCKET: ${{ vars.CCI_BACKUP_BUCKET || 'cci-firestore-backups-292090471177' }}
+  CCI_RUNTIME_SERVICE_ACCOUNT: ${{ vars.CCI_RUNTIME_SERVICE_ACCOUNT || 'cci-runtime@gen-lang-client-0569062468.iam.gserviceaccount.com' }}
 
 jobs:
   deploy:
@@ -272,10 +273,18 @@ jobs:
               --platform managed \
               --region "$REGION" \
               --project "$PROJECT_ID" \
+              --service-account "$CCI_RUNTIME_SERVICE_ACCOUNT" \
               --update-env-vars=CCI_RUNTIME_PROJECT_ID="$PROJECT_ID",CCI_DATA_PROJECT_ID="$CCI_DATA_PROJECT_ID",CCI_AUTH_PROJECT_ID="$CCI_AUTH_PROJECT_ID",CCI_BACKUP_PROJECT_ID="$CCI_BACKUP_PROJECT_ID",CCI_BACKUP_BUCKET="$CCI_BACKUP_BUCKET",MERCADO_PAGO_OAUTH_ENABLED=false,DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_MODEL=gemini-3.7-flash,GEMINI_FLASH_MODEL=gemini-3.7-flash,GEMINI_CHAT_MODEL=gemini-3.7-flash,GEMINI_ALLOW_CLIENT_MODEL=false \
               --remove-env-vars=MERCADO_PAGO_CLIENT_ID,MERCADO_PAGO_CLIENT_SECRET \
               --no-traffic --tag candidate \
               --quiet; then
+              DEPLOYED_RUNTIME_SA=$(gcloud run services describe "$SERVICE_NAME" \
+                --region "$REGION" --project "$PROJECT_ID" \
+                --format='value(spec.template.spec.serviceAccountName)')
+              if [ "$DEPLOYED_RUNTIME_SA" != "$CCI_RUNTIME_SERVICE_ACCOUNT" ]; then
+                echo "::error::Runtime usa $DEPLOYED_RUNTIME_SA; esperado $CCI_RUNTIME_SERVICE_ACCOUNT."
+                exit 1
+              fi
               exit 0
             fi
             echo "Deploy falhou (tentativa ${attempt}/3) — aguardando antes de repetir…"
