@@ -4985,6 +4985,72 @@ app.patch('/api/layout-rejections/:id', adminRequired, async (req, res) => {
   }
 });
 
+app.patch('/api/layout-rejection-cases/:fingerprint', adminRequired, async (req, res) => {
+  try {
+    const fingerprint = String(req.params.fingerprint || '').trim().toLowerCase();
+    if (!/^[a-f0-9]{64}$/.test(fingerprint)) return res.status(400).json({ erro: 'fingerprint de caso invalido' });
+    const body = req.body || {};
+    // A ação administrativa precisa alcançar todas as tentativas históricas do caso.
+    // O painel pode limitar a leitura para exibição, mas o tratamento não pode deixar
+    // ocorrências antigas pendentes silenciosamente.
+    const snap = await db.collection('layout_rejections').get();
+    const tentativas = snap.docs.map(d => ({ ref: d.ref, id: d.id, dados: d.data() || {} }))
+      .filter(item => (item.dados.caso_fingerprint || fingerprintCasoRejeicao(item.dados)) === fingerprint);
+    if (!tentativas.length) return res.status(404).json({ erro: 'caso de rejeicao nao encontrado' });
+    if (tentativas.length > 400) return res.status(409).json({ erro: 'caso excede o limite atomico de 400 tentativas' });
+    const evidenciaId = String(body.evidencia_id || '').trim();
+    const evidencia = (LAYOUT_QUALITY_EVIDENCE || []).find(item => item.id === evidenciaId);
+    const contexto = {
+      ator_uid: req.user.uid,
+      ator_email: req.user.email,
+      versao_publicada: lerVersao().version,
+      evidencia: evidencia ? { ...evidencia, banco: normalizarBancoLayout(evidencia.banco) } : null,
+      agora: new Date(),
+    };
+    let atualizacoes;
+    try {
+      atualizacoes = tentativas.map(item => ({
+        ...item,
+        patch: {
+          ...prepararAtualizacao(item.dados, body, contexto),
+          caso_fingerprint: fingerprint,
+        },
+      }));
+    } catch (erroValidacao) {
+      return res.status(400).json({ erro: erroValidacao.message });
+    }
+    const batch = db.batch();
+    atualizacoes.forEach(item => batch.set(item.ref, item.patch, { merge: true }));
+    const primeiro = tentativas[0].dados;
+    batch.set(db.collection('layout_events').doc(), {
+      tipo: 'caso_rejeicao_atualizado',
+      caso_fingerprint: fingerprint,
+      tentativas: tentativas.length,
+      banco: primeiro.banco || '',
+      nomeBanco: primeiro.nomeBanco || '',
+      parser: primeiro.parser || '',
+      status: atualizacoes[0].patch.status,
+      prioridade: atualizacoes[0].patch.prioridade,
+      responsavel_email: atualizacoes[0].patch.responsavel_email,
+      versao_correcao: atualizacoes[0].patch.versao_correcao || '',
+      evidencia_id: atualizacoes[0].patch.evidencia_id || '',
+      criado_em: contexto.agora,
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email,
+    });
+    await batch.commit();
+    res.json({
+      ok: true,
+      caso_fingerprint: fingerprint,
+      tentativas_atualizadas: tentativas.length,
+      status: atualizacoes[0].patch.status,
+    });
+  } catch (err) {
+    console.error('layout-rejection-cases PATCH erro:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store');
@@ -5143,12 +5209,22 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
       };
     }).sort((a, b) => String(b.mes).localeCompare(String(a.mes)));
     const casosAbertos = casosRejeicao.filter(caso => caso.aberto);
-    const casosSlaVencidos = casosAbertos.filter(caso => resumirSla({
-      status: caso.estado,
-      prioridade: caso.prioridade || undefined,
-      categoria_erro: caso.categoria_erro,
-      criado_em: caso.primeira_em,
-    }).vencido).length;
+    const casosOperacionais = casosRejeicao.map(caso => {
+      const sla = resumirSla({
+        status: caso.estado,
+        prioridade: caso.prioridade || undefined,
+        categoria_erro: caso.categoria_erro,
+        criado_em: caso.primeira_em,
+      });
+      return { ...caso, prioridade: caso.prioridade || sla.prioridade, sla };
+    }).sort((a, b) => {
+      const peso = { critica: 3, alta: 2, normal: 1, baixa: 0 };
+      return Number(b.aberto) - Number(a.aberto)
+        || Number(b.sla.vencido) - Number(a.sla.vencido)
+        || (peso[b.prioridade] || 0) - (peso[a.prioridade] || 0)
+        || b.tentativas - a.tentativas;
+    });
+    const casosSlaVencidos = casosOperacionais.filter(caso => caso.aberto && caso.sla.vencido).length;
     res.json({
       resumo: {
         sucessos: sucessosOperacionais,
@@ -5173,7 +5249,8 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
       por_colaborador,
       por_banco,
       mensal,
-      alertas: alertas.slice(0, 20)
+      alertas: alertas.slice(0, 20),
+      casos: casosOperacionais,
     });
   } catch (err) {
     console.error('layout-quality ops erro:', err);

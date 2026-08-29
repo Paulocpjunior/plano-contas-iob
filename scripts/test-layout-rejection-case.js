@@ -44,8 +44,13 @@ const admin = fs.readFileSync(path.join(raiz, 'admin.html'), 'utf8');
 assert(server.includes('doc.caso_fingerprint = fingerprintCasoRejeicao(doc)'));
 assert(server.includes('tentativas_repetidas: rejeicoesDocumentos.length - casosRejeicao.length'));
 assert(server.includes('casos_sem_parser: casosAbertos.filter'));
+assert(server.includes("app.patch('/api/layout-rejection-cases/:fingerprint', adminRequired"));
+assert(server.includes("tipo: 'caso_rejeicao_atualizado'"));
+assert(server.includes('tentativas_atualizadas: tentativas.length'));
 assert(admin.includes('Tentativas repetidas'));
 assert(admin.includes('tentativas neste caso'));
+assert(admin.includes('Casos únicos de rejeição'));
+assert(admin.includes('tratarCasoRejeicao'));
 assert(!server.includes("db.collection('layout_rejections').doc(d.id).delete"), 'agrupamento não pode apagar tentativas');
 
 console.log('OK: rejeições repetidas são agrupadas por caso e todas as tentativas permanecem auditáveis.');

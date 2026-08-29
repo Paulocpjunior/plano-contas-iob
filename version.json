@@ -1,7 +1,7 @@
 {
-  "version": "3.4.212",
-  "build_date": "2026-08-29T23:45:57Z",
+  "version": "3.4.213",
+  "build_date": "2026-08-29T23:56:33Z",
   "release_notes": [
-    "Fila de layouts agrupada por caso sem apagar tentativas repetidas"
+    "Tratamento administrativo de todas as tentativas de um caso de layout"
   ]
 }

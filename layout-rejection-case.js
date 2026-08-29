@@ -55,6 +55,8 @@ function agruparCasosRejeicao(rejeicoes = []) {
         nomeBanco: texto(item.nomeBanco, 180),
         parser: texto(item.parser, 160),
         categoria_erro: categoriaDaRejeicao(item),
+        arquivo: texto(item.arquivo, 260),
+        formato: texto(item.formato, 30),
         responsavel_email: texto(item.responsavel_email, 180),
         prioridade: texto(item.prioridade, 20),
       });
@@ -75,6 +77,8 @@ function agruparCasosRejeicao(rejeicoes = []) {
       caso.responsavel_email = texto(item.responsavel_email, 180);
       caso.prioridade = texto(item.prioridade, 20);
       caso.parser = texto(item.parser, 160);
+      caso.arquivo = texto(item.arquivo, 260);
+      caso.formato = texto(item.formato, 30);
     }
   });
   return Array.from(casos.values()).map((caso) => {

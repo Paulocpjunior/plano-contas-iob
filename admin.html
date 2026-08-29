@@ -6,31 +6,31 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.212"></script>
+<script src="/saas-brand-theme.js?v=3.4.213"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.212"></script>
-<script src="/parser-ofx.js?v=3.4.212"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.212"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.212"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.212"></script>
-<script src="/parser-safra-extrato.js?v=3.4.212"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.212"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.212"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.212"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.212"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.212"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.212"></script>
-<script src="/parser-btg-pactual.js?v=3.4.212"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.212"></script>
-<script src="/parser-abc-extrato.js?v=3.4.212"></script>
-<script src="/parser-inter-extrato.js?v=3.4.212"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.212"></script>
-<script src="/parser-stone-extrato.js?v=3.4.212"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.212"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.212"></script>
+<script src="/api-adapter.js?v=3.4.213"></script>
+<script src="/parser-ofx.js?v=3.4.213"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.213"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.213"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.213"></script>
+<script src="/parser-safra-extrato.js?v=3.4.213"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.213"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.213"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.213"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.213"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.213"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.213"></script>
+<script src="/parser-btg-pactual.js?v=3.4.213"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.213"></script>
+<script src="/parser-abc-extrato.js?v=3.4.213"></script>
+<script src="/parser-inter-extrato.js?v=3.4.213"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.213"></script>
+<script src="/parser-stone-extrato.js?v=3.4.213"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.213"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.213"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1140,6 +1140,7 @@ function renderLayoutQuality() {
   const porBancoOperacional = operacional.por_banco || [];
   const mensalOperacional = operacional.mensal || [];
   const alertasOperacionais = operacional.alertas || [];
+  const casosRejeicao = operacional.casos || [];
   const cards = `
     <div class="layout-grid">
       <div class="layout-card"><div class="bank">Casos validados</div><div class="count">${resumo.total_casos || 0}</div><div class="caption">Arquivos-modelo cadastrados</div></div>
@@ -1172,6 +1173,26 @@ function renderLayoutQuality() {
         <td><strong>${escapeHtml(a.titulo || '-')}</strong></td>
         <td style="font-size:12px;color:#374151">${escapeHtml(a.detalhe || '-')}</td>
         <td style="font-size:12px;color:#374151">${escapeHtml(acao)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+  if (casosRejeicao.length) {
+    html += '<h3 style="margin:22px 0 10px;color:#111827">Casos únicos de rejeição</h3>';
+    html += '<table><thead><tr><th>Prioridade</th><th>Banco/Arquivo</th><th>Categoria</th><th>Tentativas</th><th>SLA</th><th>Responsável</th><th>Ações do caso</th></tr></thead><tbody>';
+    casosRejeicao.slice(0, 120).forEach(caso => {
+      const sla = caso.sla || {};
+      const slaTexto = sla.vencido ? 'SLA vencido' : (sla.fechado ? 'Fechado' : (sla.restante_horas == null ? 'Sem SLA' : sla.restante_horas + 'h restantes'));
+      const slaClasse = sla.vencido ? 'badge-logout' : (sla.fechado ? 'badge-ok' : 'badge-warn');
+      const prioridadeClasse = caso.prioridade === 'critica' ? 'badge-logout' : (caso.prioridade === 'alta' ? 'badge-warn' : 'badge-info');
+      html += `<tr>
+        <td><span class="badge ${prioridadeClasse}">${escapeHtml((caso.prioridade || 'normal').toUpperCase())}</span><br><span style="font-size:11px;color:#64748b">${escapeHtml((caso.estado || '').replace(/_/g, ' '))}</span></td>
+        <td><strong>${escapeHtml(caso.banco || '-')} ${escapeHtml(caso.nomeBanco || '')}</strong><br>${escapeHtml(caso.arquivo || '-')}<br><span class="text-mono" style="font-size:11px;color:#9ca3af">${escapeHtml(caso.parser || 'parser não identificado')}</span></td>
+        <td><span class="badge badge-info">${escapeHtml((caso.categoria_erro || 'falha_importacao').replace(/_/g, ' '))}</span></td>
+        <td><strong>${escapeHtml(caso.tentativas || 1)}</strong><br><span style="font-size:11px;color:#64748b">ocorrências preservadas</span></td>
+        <td><span class="badge ${slaClasse}">${escapeHtml(slaTexto)}</span><br><span style="font-size:11px;color:#9ca3af">desde ${fmtDate(caso.primeira_em)}</span></td>
+        <td style="font-size:12px;color:#64748b">${escapeHtml(caso.responsavel_email || 'Não atribuído')}</td>
+        <td><button class="btn-sm" onclick="tratarCasoRejeicao('${escapeHtml(caso.fingerprint)}','em_parametrizacao')">Assumir caso</button> <button class="btn-sm btn-promote" onclick="tratarCasoRejeicao('${escapeHtml(caso.fingerprint)}','resolvido')">Resolver caso</button> <button class="btn-sm" onclick="tratarCasoRejeicao('${escapeHtml(caso.fingerprint)}','ignorado')">Ignorar caso</button></td>
       </tr>`;
     });
     html += '</tbody></table>';
@@ -1397,12 +1418,10 @@ function exportLayoutEvidenceCSV() {
   a.click();
 }
 
-async function tratarRejeicao(id, status) {
-  if (!id || !status || !currentLayoutQuality) return;
-  const item = (currentLayoutQuality.rejeicoes || []).find(r => r.id === id) || {};
+function coletarTratamentoRejeicao(item, status) {
   const usuario = (window.firebase && firebase.auth().currentUser) || {};
   const responsavel = prompt('Responsável pela pendência:', item.responsavel_email || usuario.email || '');
-  if (responsavel === null) return;
+  if (responsavel === null) return null;
   const body = { status, responsavel_email: responsavel, prioridade: item.prioridade || 'normal' };
   if (status === 'resolvido') {
     const compativeis = (currentLayoutQuality.evidencias || []).filter(e => {
@@ -1410,19 +1429,27 @@ async function tratarRejeicao(id, status) {
     });
     if (!compativeis.length) {
       alert('Não existe evidência de regressão aprovada compatível. Cadastre e publique a evidência antes de resolver.');
-      return;
+      return null;
     }
     const lista = compativeis.map(e => e.id).join(', ');
     const evidenciaId = prompt('Evidência aprovada (opções: ' + lista + '):', compativeis[0].id);
-    if (evidenciaId === null) return;
+    if (evidenciaId === null) return null;
     body.evidencia_id = evidenciaId;
     body.versao_correcao = currentLayoutQuality.versao_publicada || '';
     body.observacao_admin = prompt('Resumo da correção e conferência:', item.observacao_admin || '') || '';
   } else if (status === 'ignorado') {
     const justificativa = prompt('Justificativa para ignorar (obrigatória):', item.observacao_admin || '');
-    if (justificativa === null) return;
+    if (justificativa === null) return null;
     body.observacao_admin = justificativa;
   }
+  return body;
+}
+
+async function tratarRejeicao(id, status) {
+  if (!id || !status || !currentLayoutQuality) return;
+  const item = (currentLayoutQuality.rejeicoes || []).find(r => r.id === id) || {};
+  const body = coletarTratamentoRejeicao(item, status);
+  if (!body) return;
   try {
     const r = await window.API.apiFetch('/api/layout-rejections/' + encodeURIComponent(id), {
       method: 'PATCH',
@@ -1433,6 +1460,25 @@ async function tratarRejeicao(id, status) {
     await loadLayoutQuality();
   } catch (e) {
     alert('Erro ao atualizar status: ' + (e.message || e));
+  }
+}
+
+async function tratarCasoRejeicao(fingerprint, status) {
+  if (!fingerprint || !status || !currentLayoutQuality) return;
+  const item = (((currentLayoutQuality.operacional || {}).casos) || []).find(c => c.fingerprint === fingerprint) || {};
+  const body = coletarTratamentoRejeicao(item, status);
+  if (!body) return;
+  try {
+    const r = await window.API.apiFetch('/api/layout-rejection-cases/' + encodeURIComponent(fingerprint), {
+      method: 'PATCH',
+      body: JSON.stringify(body)
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.erro || ('HTTP ' + r.status));
+    alert((data.tentativas_atualizadas || 0) + ' tentativa(s) do caso foram atualizadas sem apagar o histórico.');
+    await loadLayoutQuality();
+  } catch (e) {
+    alert('Erro ao atualizar caso: ' + (e.message || e));
   }
 }
 
