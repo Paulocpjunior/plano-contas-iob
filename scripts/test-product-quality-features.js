@@ -164,7 +164,9 @@ assertContains('api-adapter.js', 'client_version: window.__PLANO_CONTAS_IOB_BUIL
 assertContains('server.js', 'validarVersaoParaNovaImportacao', 'backend bloqueia nova importacao criada por parser desatualizado');
 assertContains('index.html', 'confImpAplicacoesAutomaticas', 'conferencia mostra a quantidade de aplicacoes automaticas');
 assertContains('index.html', 'confImpResgatesAutomaticos', 'conferencia mostra a quantidade de resgates automaticos');
-assertContains('server.js', "express.json({ limit: '100mb' })", 'backend aceita sessoes grandes dos colaboradores');
+assertContains('server.js', "express.json({ limit: '100mb', verify: verificarTamanhoJson })", 'backend aplica limites por rota sem remover suporte a payload grande');
+assertContains('http-hardening.js', 'sessao: 32 * MB', 'backend preserva margem dedicada para sessoes compactadas dos colaboradores');
+assertContains('http-hardening.js', 'relatorioSessao: 96 * MB', 'backend preserva relatorio contabil completo com teto explicito');
 assertContains('index.html', 'salvarFiscalImposto', 'cadastro manual de imposto fiscal');
 assertContains('index.html', 'Validador de Obrigações ECD / ECF', 'aba de validador de obrigacoes restaurada');
 assertContains('index.html', 'Layouts das obrigações cadastrados', 'lista visivel de layouts ECD/ECF');

@@ -158,11 +158,19 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### P11 — Hardening HTTP
 
-- Estado: `ABERTA`
+- Estado: `EM_RESOLUÇÃO`
 - Gap: serviço público sem headers de segurança padronizados, rate limiting ou
   limites específicos por rota; limite JSON global de 100 MB.
 - Critério de aceite: headers, limites e throttling compatíveis com cada fluxo,
   sem quebrar importações homologadas.
+- Candidata em 29/08/2026: headers seguros sem CSP disruptiva, `Cache-Control:
+  no-store` para APIs, HSTS em HTTPS, limite padrão de 8 MB e exceções explícitas
+  para sessão (32 MB), relatório fechado (96 MB), PDF AuditAI (36 MB), e-mail
+  contábil (6 MB) e Mercado Pago (24 MB). Limites gerais, por usuário, autosave
+  e Gemini retornam HTTP 429 com `Retry-After` e headers `RateLimit-*`.
+- Compatibilidade protegida: autosave admite 240 POSTs/min por usuário/empresa,
+  a sessão grande compactada continua com round-trip exato e os limites maiores
+  preservam os fluxos que transportam PDF ou estado contábil completo.
 
 ### P12 — Cobertura da trilha administrativa
 

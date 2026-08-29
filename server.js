@@ -37,6 +37,11 @@ const {
   stateJsonDoBody,
   dividirPayload,
 } = require('./session-state-codec');
+const {
+  verificarTamanhoJson,
+  aplicarHeadersSeguranca,
+  criarLimitador,
+} = require('./http-hardening');
 
 const app = express();
 app.set('trust proxy', true);
@@ -51,7 +56,13 @@ admin.initializeApp({ projectId: 'projetos-app-sp' });
 const adminAuth = admin.auth();
 const DOMAIN = '@spassessoriacontabil.com.br';
 
-app.use(express.json({ limit: '100mb' }));
+app.use(aplicarHeadersSeguranca);
+app.use('/api', criarLimitador({
+  janelaMs: 60 * 1000,
+  maximo: 3000,
+  chave: (req) => req.ip || req.socket?.remoteAddress || 'ip-desconhecido',
+}));
+app.use(express.json({ limit: '100mb', verify: verificarTamanhoJson }));
 
 // === Endpoint de versao (consumido pelo frontend para detectar atualizacoes) ===
 const VERSION_FILE_PATH = require('path').join(__dirname, 'version.json');
@@ -112,6 +123,23 @@ function adminRequired(req, res, next) {
 }
 
 app.use('/api', authRequired);
+app.use('/api', criarLimitador({
+  janelaMs: 60 * 1000,
+  maximo: 1200,
+  chave: (req) => req.user && req.user.uid || req.ip || 'usuario-desconhecido',
+}));
+app.use('/api/empresas/:cnpj/sessao', criarLimitador({
+  janelaMs: 60 * 1000,
+  maximo: 240,
+  aplicar: (req) => req.method === 'POST',
+  chave: (req) => `${req.user && req.user.uid || 'usuario'}:${String(req.params.cnpj || '').replace(/\D/g, '')}`,
+}));
+app.use('/api/gemini', criarLimitador({
+  janelaMs: 60 * 1000,
+  maximo: 60,
+  aplicar: (req) => req.method === 'POST',
+  chave: (req) => req.user && req.user.uid || req.ip || 'usuario-desconhecido',
+}));
 
 app.post('/api/auditai/extrair-pdf-contabil', adminRequired, async (req, res) => {
   const base64 = String((req.body && req.body.data) || '').replace(/^data:application\/pdf;base64,/, '');
@@ -4951,6 +4979,20 @@ app.use(express.static(__dirname, { index: 'index.html', setHeaders: headersAppP
 app.get('*', (req, res) => {
   headersAppPrincipal(res, path.join(__dirname, 'index.html'));
   res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err && (err.status === 413 || err.type === 'entity.too.large')) {
+    return res.status(413).json({
+      erro: err.message || 'Payload acima do limite permitido para esta rota.',
+      codigo: err.codigo || 'PAYLOAD_MUITO_GRANDE',
+    });
+  }
+  if (err && err.type === 'entity.parse.failed') {
+    return res.status(400).json({ erro: 'JSON inválido.', codigo: 'JSON_INVALIDO' });
+  }
+  return next(err);
 });
 
 
