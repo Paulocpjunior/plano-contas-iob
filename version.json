@@ -1,9 +1,8 @@
 {
-  "version": "3.4.202",
-  "build_date": "2026-08-29T16:27:19Z",
+  "version": "3.4.203",
+  "build_date": "2026-08-29T16:32:13Z",
   "release_notes": [
-    "Mercado Pago: desabilitar OAuth e relatório automático sem credenciais homologadas",
-    "segurança: remover credenciais placeholder da configuração de produção",
-    "importação: preservar o fluxo manual CSV/XLSX do Mercado Pago"
+    "Mercado Pago: distinguir recurso desabilitado de indisponibilidade operacional",
+    "observabilidade: evitar falso alerta 5xx quando o OAuth estiver desligado"
   ]
 }
