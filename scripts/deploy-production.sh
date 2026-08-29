@@ -1,85 +1,55 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly PROJECT_ID="gen-lang-client-0569062468"
-readonly REGION="us-west1"
-readonly SERVICE="plano-contas-iob"
-readonly EXPECTED_URL="https://plano-contas-iob-q4woqnee3a-uw.a.run.app"
-readonly EXPECTED_GEMINI_MODEL="gemini-3.7-flash"
-
-export CLOUDSDK_CORE_PROJECT="$PROJECT_ID"
-export CLOUDSDK_RUN_REGION="$REGION"
+# O deploy manual e apenas uma porta de entrada para o MESMO workflow oficial.
+# Ele nunca publica o checkout local: a origem sempre e origin/main, validada
+# com auditoria, testes, candidata sem trafego, health e promocao controlada.
+readonly REPOSITORY="Paulocpjunior/plano-contas-iob"
+readonly WORKFLOW="deploy-app.yml"
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_dir"
 
 if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
-  echo "ERRO: o deploy de produção exige uma árvore Git limpa."
+  echo "ERRO: o acionamento de produção exige uma árvore Git limpa."
   git status --short
   exit 1
 fi
 
-service_url="$(gcloud run services describe "$SERVICE" \
-  --project "$PROJECT_ID" \
-  --region "$REGION" \
-  --format='value(status.url)')"
-
-if [[ "$service_url" != "$EXPECTED_URL" ]]; then
-  echo "ERRO: serviço resolvido em URL inesperada: $service_url"
-  echo "Esperado: $EXPECTED_URL"
+if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then
+  echo "ERRO: GitHub CLI autenticado é obrigatório para usar o fluxo oficial."
   exit 1
 fi
 
-npm ci --no-audit --no-fund
+git fetch origin main --quiet
+head_sha="$(git rev-parse HEAD)"
+main_sha="$(git rev-parse origin/main)"
+if [[ "$head_sha" != "$main_sha" ]]; then
+  echo "ERRO: deploy recusado. O checkout atual não é exatamente origin/main."
+  echo "HEAD:        $head_sha"
+  echo "origin/main: $main_sha"
+  echo "Abra e mescle um PR; produção só aceita a linha oficial."
+  exit 1
+fi
 
-npm run check
+before_run_id="$(gh api "repos/$REPOSITORY/actions/workflows/$WORKFLOW/runs?branch=main&event=workflow_dispatch&per_page=1" --jq '.workflow_runs[0].id // 0')"
+gh api --method POST "repos/$REPOSITORY/actions/workflows/$WORKFLOW/dispatches" -f ref=main >/dev/null
 
-gcloud run deploy "$SERVICE" \
-  --source . \
-  --project "$PROJECT_ID" \
-  --region "$REGION" \
-  --platform managed \
-  --quiet
-
-gcloud run services update-traffic "$SERVICE" \
-  --project "$PROJECT_ID" \
-  --region "$REGION" \
-  --platform managed \
-  --to-latest \
-  --quiet
-
-expected_version="$(node -p "require('./version.json').version")"
-published_version=""
+run_id=""
 for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
-  published_version="$(curl -fsS --max-time 20 "$EXPECTED_URL/api/version" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{process.stdout.write(JSON.parse(d).version||'')}catch(e){}})")"
-  [[ "$published_version" == "$expected_version" ]] && break
-  sleep 5
+  candidate_id="$(gh api "repos/$REPOSITORY/actions/workflows/$WORKFLOW/runs?branch=main&event=workflow_dispatch&per_page=1" --jq '.workflow_runs[0].id // 0')"
+  if [[ "$candidate_id" -gt "$before_run_id" ]]; then
+    run_id="$candidate_id"
+    break
+  fi
+  sleep 2
 done
 
-if [[ "$published_version" != "$expected_version" ]]; then
-  echo "ERRO: versão publicada '$published_version' difere da esperada '$expected_version'."
+if [[ -z "$run_id" ]]; then
+  echo "ERRO: workflow disparado, mas a execução não foi localizada."
+  echo "Consulte: https://github.com/$REPOSITORY/actions/workflows/$WORKFLOW"
   exit 1
 fi
 
-published_html="$(curl -fsS --max-time 20 "$EXPECTED_URL/?build=$expected_version")"
-if [[ "$published_html" != *"window.__PLANO_CONTAS_IOB_BUILD__ = '$expected_version'"* ]]; then
-  echo "ERRO: o HTML público não contém o marcador da versão '$expected_version'."
-  exit 1
-fi
-if [[ "$published_html" != *"id=\"btnAtivarEmpresaNav\""* || "$published_html" != *"function abrirCarteiraResponsaveis()"* ]]; then
-  echo "ERRO: o HTML público não contém a ativação obrigatória e a carteira contábil esperadas."
-  exit 1
-fi
-
-health_status="$(curl -fsS --max-time 20 "$EXPECTED_URL/api/health" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);process.stdout.write((j.status||'')+'|'+(j.versao||'')+'|'+(j.firestore||'')+'|'+(j.gemini_model||''))}catch(e){}})")"
-if [[ "$health_status" != "ok|$expected_version|connected|$EXPECTED_GEMINI_MODEL" ]]; then
-  echo "ERRO: health check inesperado: $health_status"
-  exit 1
-fi
-
-revision="$(gcloud run services describe "$SERVICE" \
-  --project "$PROJECT_ID" \
-  --region "$REGION" \
-  --format='value(status.traffic[0].revisionName)')"
-
-echo "Deploy validado: $SERVICE $revision | API e HTML na versão $published_version | $EXPECTED_URL"
+echo "Deploy oficial acionado: https://github.com/$REPOSITORY/actions/runs/$run_id"
+gh run watch "$run_id" --repo "$REPOSITORY" --exit-status
