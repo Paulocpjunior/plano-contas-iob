@@ -1,7 +1,7 @@
 {
-  "version": "3.4.204",
-  "build_date": "2026-08-29T16:41:10Z",
+  "version": "3.4.205",
+  "build_date": "2026-08-29T16:56:46Z",
   "release_notes": [
-    "Trilha administrativa padronizada para exclusão, plano, fechamento e reabertura"
+    "Migração SAGE controlada por staging, aceite, lote idempotente e rollback"
   ]
 }
