@@ -2099,6 +2099,9 @@ function normalizarFiscalBody(body) {
   };
 }
 
+const { buscarFechamentosNoCfi } = require('./reinf/cfi-notas-client');
+const { lancamentosDoFechamento, conferirContraLancado, resumirImportacao } = require('./reinf/fechamento-cfi');
+
 const FISCAL_GATEWAY_URL = (process.env.FISCAL_GATEWAY_URL || 'https://consultor-fiscal-inteligente-zricstsjqa-uw.a.run.app').replace(/\/+$/, '');
 const FISCAL_GATEWAY_TOKEN = String(process.env.FISCAL_GATEWAY_TOKEN || process.env.CONSULTOR_FISCAL_GATEWAY_TOKEN || '').trim();
 
@@ -2410,6 +2413,118 @@ app.get('/api/empresas/:cnpj/fiscal/impostos', async (req, res) => {
   } catch (err) {
     console.error('fiscal impostos GET erro:', err);
     res.status(500).json({ erro: err.message });
+  }
+});
+
+// ============================================================================
+// 🔒 O FECHAMENTO DO MÊS VEM DO CFI — fase 5 do túnel (26/08)
+//
+// Paulo: *"o departamento contábil, através do CCI, deve fazer a importação com
+// a mesma exatidão dos valores apurados e o mês fechado"*.
+//
+// Hoje esse número é DIGITADO aqui (o `fiscalValorApurado` da aba de impostos).
+// Estas duas rotas trocam a digitação pelo CARIMBO — imutável e versionado.
+//
+// A régua está em `reinf/fechamento-cfi.js` (PURO, testado); aqui é só I/O.
+// ============================================================================
+
+/** O Bearer do usuário logado AQUI — é ele que abre a porta do CFI. */
+function tokenDoUsuario(req) {
+  const auth = String(req.headers.authorization || '');
+  return auth.startsWith('Bearer ') ? auth.slice(7) : '';
+}
+
+/**
+ * O que dá para importar nesta competência — CONSULTA PURA, não grava nada.
+ *
+ * Sem `cnpj` responde pela carteira inteira; com ele, por um cliente só.
+ */
+app.get('/api/fiscal/fechamentos-cfi', async (req, res) => {
+  try {
+    const competencia = String(req.query.competencia || '').trim();
+    const cnpj = String(req.query.cnpj || '').replace(/\D/g, '');
+    if (cnpj) {
+      const chk = await checarAcessoEmpresa(cnpj, req.user);
+      if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    }
+    const doCfi = await buscarFechamentosNoCfi({ competencia, cnpj: cnpj || undefined, token: tokenDoUsuario(req) });
+    const linhas = doCfi.fechamentos.map((l) => ({ ...l, plano: lancamentosDoFechamento(l) }));
+    return res.json({
+      ok: true,
+      competencia: doCfi.competencia,
+      resumo: resumirImportacao(doCfi.fechamentos),
+      fechamentos: linhas,
+    });
+  } catch (err) {
+    // ⚠️ Falha do outro app NÃO vira lista vazia: vazio aqui se leria como
+    // "nenhum cliente fechou o mês", e o Contábil concluiria que não há o que
+    // importar. O erro sobe com a frase que diz o que fazer.
+    console.error('fechamentos-cfi GET erro:', err);
+    return res.status(502).json({ erro: err.message });
+  }
+});
+
+/**
+ * Importa o fechamento de UMA empresa para `fiscal_impostos`.
+ *
+ * ⚠️ UMA EMPRESA POR VEZ, como do lado do CFI — é a família do *"ninguém emite
+ * em série"*: importação em lote multiplicaria o erro por 200 antes de alguém
+ * ver. E o id do documento é DETERMINÍSTICO (`cfi_<competência>_<tributo>`),
+ * então reimportar SOBRESCREVE em vez de duplicar — duas linhas do mesmo
+ * tributo na mesma competência dobrariam o `valor_apurado` do resumo.
+ */
+app.post('/api/empresas/:cnpj/fiscal/importar-fechamento-cfi', async (req, res) => {
+  try {
+    const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+
+    const competencia = String(req.body?.competencia || '').trim();
+    const doCfi = await buscarFechamentosNoCfi({ competencia, cnpj: cnpjLimpo, token: tokenDoUsuario(req) });
+    const linha = (doCfi.fechamentos || [])[0] || null;
+    if (!linha) return res.status(404).json({ erro: 'O Consultor Fiscal não conhece esta empresa nesta competência.' });
+
+    const plano = lancamentosDoFechamento(linha);
+    // A recusa é 409, nunca 500: "não pode importar" é RESPOSTA, não falha —
+    // e ela carrega o motivo e a ação (mês aberto é trabalho do Fiscal; mês
+    // reaberto é uma conversa entre os dois departamentos).
+    if (!plano.podeImportar) return res.status(409).json({ erro: plano.recusa, estado: linha.estado });
+
+    const impostosRef = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos');
+    const snap = await impostosRef.where('competencia', '==', linha.competencia).get();
+    const jaGravados = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+    const conferencia = conferirContraLancado(plano.lancamentos, jaGravados);
+
+    const agora = new Date();
+    for (const l of plano.lancamentos) {
+      const id = `cfi_${String(l.competencia).replace(/\W/g, '')}_${String(l.tributo).replace(/\W/g, '')}`;
+      await impostosRef.doc(id).set({
+        ...l,
+        importado_em: agora,
+        importado_por_uid: req.user.uid,
+        importado_por_email: req.user.email,
+        atualizado_em: agora,
+        atualizado_por_uid: req.user.uid,
+        atualizado_por_email: req.user.email,
+        criado_por_origem: 'CFI_FECHAMENTO',
+      }, { merge: true });
+    }
+
+    return res.json({
+      ok: true,
+      competencia: linha.competencia,
+      gravados: plano.lancamentos.length,
+      // O TOTAL DA FICHA vem para CONFERÊNCIA e NÃO foi lançado: ele é a soma,
+      // e o resumo desta tela soma `valor_apurado`.
+      totalDaFicha: plano.totalDaFicha,
+      semApurado: plano.semApurado,
+      conferencia,
+      carimbo: plano.carimbo,
+    });
+  } catch (err) {
+    console.error('importar-fechamento-cfi erro:', err);
+    return res.status(502).json({ erro: err.message });
   }
 });
 

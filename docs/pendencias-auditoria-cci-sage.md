@@ -44,7 +44,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### P02 — Linha oficial de release e prevenção de regressão
 
-- Estado: `ABERTA`
+- Estado: `EM_RESOLUÇÃO`
 - Evidência inicial: a revisão publicada está 95 commits à frente e 7 atrás de
   `origin/main`; somente `origin/codex/cci-homologar-nubank` contém o commit
   publicado. O deploy manual não executa `npm audit` e encaminha tráfego antes
@@ -58,6 +58,15 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   qualidade bloqueou um candidato antes do deploy por cache-buster divergente e
   a versão 3.4.195 foi sincronizada e validada antes da publicação. A
   reconciliação da branch e a equivalência dos gates continuam abertas.
+- Reconciliação preparada em 29/08/2026 na branch
+  `codex/cci-release-3.4.195`: os 7 commits exclusivos da `main` foram
+  integrados aos 99 commits da linha publicada, preservando a versão 3.4.195,
+  o endpoint correto do CFI em `us-west1`, o fechamento CFI e os ajustes
+  R-2010. A bateria completa `npm run check` foi aprovada após a resolução dos
+  conflitos.
+- Evidência ainda necessária: publicar a branch reconciliada por PR na `main`,
+  confirmar que a revisão de produção descende dela e unificar o gate do deploy
+  manual com o GitHub Actions antes de marcar como `RESOLVIDA`.
 
 ### P03 — Piloto formal da migração
 

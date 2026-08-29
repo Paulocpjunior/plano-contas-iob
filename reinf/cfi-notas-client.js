@@ -35,6 +35,8 @@
 // três lados.
 // ============================================================================
 
+const { montarUrlFechamentosCfi } = require('./fechamento-cfi');
+
 /** Base do CFI. Env dedicada, com o gateway já configurado como reserva. */
 function baseCfi(env = process.env) {
   const url = String(env.CFI_URL || env.FISCAL_GATEWAY_URL || '').trim();
@@ -287,8 +289,49 @@ const buscarAquisicoesRuraisNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'a
  */
 const buscarServicosTomadosNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'servicos-tomados' }, deps);
 
+
+/**
+ * 🔒 FASE 5 DO TÚNEL — o FECHAMENTO da competência (26/08).
+ *
+ * Outra FAMÍLIA de rota: o cadastro central não tem competência
+ * (`/cadastro/responsaveis/:cnpj`) e este tem — o mês É o recorte. A rota do
+ * CFI recusa sem ele de propósito: sem a competência não dá para dizer QUAL
+ * mês foi fechado, e importar o mês errado não volta atrás.
+ *
+ * O que atravessa é o CARIMBO, nunca a ficha: a ficha é um registro VIVO e o
+ * carimbo é imutável e versionado. Competência aberta não entrega valor,
+ * reaberta BLOQUEIA, e empresa sem fechamento NÃO some da lista.
+ */
+async function buscarFechamentosNoCfi({ competencia, cnpj, token }, deps = {}) {
+  const doFetch = deps.fetch || globalThis.fetch;
+  const url = montarUrlFechamentosCfi({
+    competencia, cnpj, base: baseCfi(deps.env || process.env),
+  });
+  if (!token) throw new Error('Sessão sem token. Faça login novamente.');
+
+  let resp;
+  try {
+    resp = await doFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (e) {
+    // Falha de REDE é indeterminada — e num GET isso é seguro dizer, porque
+    // nenhuma consulta muda dado. Mas NÃO devolve lista vazia: vazio aqui se
+    // leria como "nenhum cliente fechou o mês", que é outra afirmação.
+    throw new Error(`Não consegui falar com o Consultor Fiscal (${e.message}). Tente de novo em instantes.`);
+  }
+  let corpo = {};
+  try { corpo = await resp.json(); } catch { corpo = {}; }
+  const body = interpretarRespostaCfi({ status: resp.status, corpo, url });
+  return {
+    ...body,
+    competencia: body.competencia || competencia,
+    fechamentos: Array.isArray(body.fechamentos) ? body.fechamentos
+      : (body.fechamento ? [body.fechamento] : []),
+  };
+}
+
 module.exports = {
   montarUrlCfi, montarUrlCadastroCfi, interpretarRespostaCfi, buscarNoCfi,
+  buscarFechamentosNoCfi,
   buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarServicosTomadosNoCfi,
   buscarResponsavelNoCfi, buscarCertificadoNoCfi, buscarAcessoModuloNoCfi,
 };

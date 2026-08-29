@@ -4,6 +4,8 @@
 // porque e registrada abaixo de /api no server.js.
 // ============================================================================
 const express = require('express');
+// FieldValue.delete() — remover a base informada de UMA nota sem tocar nas outras.
+const { FieldValue } = require('@google-cloud/firestore');
 const {
   LEIAUTE_REINF,
   REVISAO_XSD_R4010,
@@ -1723,6 +1725,9 @@ function registrarRotasReinf(app, { db } = {}) {
           tpServico: v.tpServico || null,
           indObra: v.indObra === 0 || v.indObra ? String(v.indObra) : null,
           indCPRB: v.indCPRB === 0 || v.indCPRB ? String(v.indCPRB) : null,
+          // A base informada por NOTA. Sem ela aqui, a tela grava e a apuração
+          // continua vendo pendência — trava que aceita a resposta e não a usa.
+          basesPorNota: v.basesPorNota || {},
         };
       });
       return out;
@@ -1786,6 +1791,48 @@ function registrarRotasReinf(app, { db } = {}) {
       if (cnpjTomador.length !== 14) throw new Error('Informe o CNPJ do tomador com 14 dígitos.');
       if (cnpjPrestador.length !== 14) throw new Error('Informe o CNPJ do prestador com 14 dígitos.');
 
+      // 🚨 A BASE INFORMADA PELO PRESTADOR — o campo que faltava.
+      //
+      // Paulo, 17/08: *"preciso subir esse INSS"*. A tela dizia "peça a base ao
+      // prestador" e não tinha onde escrever a resposta, então o prestador
+      // ficava pendente para sempre e o R-2010 do mês não saía. Alerta sem
+      // caminho não é trava, é parada.
+      //
+      // Guardado por NÚMERO DE NOTA: a dedução de material/insumo (IN RFB 971
+      // arts. 121-124) é de cada documento, não do prestador.
+      // 🚨 A BASE INFORMADA PELO PRESTADOR — o campo que faltava.
+      //
+      // Paulo, 17/08: *"preciso subir esse INSS"*. A tela dizia "peça a base ao
+      // prestador" e não tinha onde escrever a resposta, então o prestador
+      // ficava pendente para sempre e o R-2010 do mês não saía. Alerta sem
+      // caminho não é trava, é parada.
+      //
+      // UMA NOTA POR VEZ, e não o mapa inteiro: a tela não carrega o cadastro
+      // atual, e mandar o mapa remontado do que está na tela apagaria em
+      // silêncio a base de uma nota que outra pessoa informou no mesmo dia.
+      //
+      // Guardado por NÚMERO DE NOTA porque a dedução de material/insumo (IN RFB
+      // 971 arts. 121-124) é de cada documento, não do prestador.
+      let patchBase = null;
+      if (p.baseNota && String(p.baseNota.numero || '').trim()) {
+        const numero = String(p.baseNota.numero).trim();
+        const bruto = String(p.baseNota.valor == null ? '' : p.baseNota.valor).trim();
+        if (!bruto) {
+          // Vazio APAGA — a nota volta a ser pendência, que é o estado honesto.
+          patchBase = { [`basesPorNota.${numero}`]: FieldValue.delete() };
+        } else {
+          const v = Number(bruto.replace(/\./g, '').replace(',', '.'));
+          if (!Number.isFinite(v) || v <= 0) {
+            // Zero NÃO é "sem base": seria declarar que não há base, que é outra
+            // afirmação. Recusa dizendo qual é a saída.
+            throw new Error(`Base da nota ${numero} inválida ("${bruto}"). Informe o valor da base `
+              + 'de retenção que o prestador confirmou — maior que zero. Para REMOVER a base '
+              + 'informada, deixe o campo vazio.');
+          }
+          patchBase = { [`basesPorNota.${numero}`]: Math.round(v * 100) / 100 };
+        }
+      }
+
       const tpServico = String(p.tpServico == null ? '' : p.tpServico).trim();
       const indObra = String(p.indObra == null ? '' : p.indObra).trim();
       const indCPRB = String(p.indCPRB == null ? '' : p.indCPRB).trim();
@@ -1813,6 +1860,14 @@ function registrarRotasReinf(app, { db } = {}) {
           informadoPor: (req.user && (req.user.email || req.user.uid)) || 'desconhecido',
           informadoEm: Date.now(),
         }, { merge: true });
+
+      // O patch da base vai em UPDATE com caminho pontilhado: `set/merge` com o
+      // mapa inteiro sobrescreveria as bases das OUTRAS notas.
+      if (patchBase) {
+        await db.collection('reinf_servicos_tomados_prestadores')
+          .doc(cnpjTomador + '_' + cnpjPrestador)
+          .update(patchBase);
+      }
 
       res.json({ ok: true, cnpjPrestador });
     } catch (err) {

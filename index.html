@@ -3343,6 +3343,30 @@
                     </div>
                     <div id="fiscalCoberturaBox" style="display:none;background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px;margin-bottom:18px;color:#92400e"></div>
 
+                    <!-- 🔒 O FECHAMENTO DO MÊS VEM DO CFI (fase 5 do túnel).
+                         Antes, o apurado era DIGITADO no campo aqui embaixo —
+                         dois números para o mesmo fato, com uma digitação no
+                         meio. O que atravessa é o CARIMBO: imutável, versionado
+                         e com a ressalva que PROÍBE recalcular deste lado. -->
+                    <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:14px;margin-bottom:18px">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                            <div>
+                                <strong style="color:#3730a3">📥 Importar o fechamento do Consultor Fiscal</strong>
+                                <div style="color:#4338ca;font-size:13px;margin-top:2px">
+                                    O valor apurado vem do mês FECHADO lá — não digite, e não refaça a conta.
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                <input type="month" id="fechamentoCfiCompetencia" onchange="consultarFechamentoCfi()" style="padding:6px 8px;border:1px solid #c7d2fe;border-radius:6px">
+                                <button class="btn-action btn-action-secondary" onclick="consultarFechamentoCfi()">🔎 Consultar</button>
+                                <button class="btn-action btn-action-primary" onclick="importarFechamentoCfi()">📥 Importar</button>
+                            </div>
+                        </div>
+                        <div id="fechamentoCfiStatus" style="margin-top:10px;font-size:13px;color:#4338ca">
+                            Escolha a competência e consulte. A consulta NÃO grava nada.
+                        </div>
+                    </div>
+
                     <div class="filters-section">
                         <input type="hidden" id="fiscalId">
                         <div class="filters-grid">
@@ -3440,6 +3464,11 @@
                     <div class="table-info">
                         <div class="table-info-left">
                             <span id="fiscalEmpresaInfo">Selecione uma empresa para carregar os impostos.</span>
+                            <!-- 🔒 O ESTADO DO MÊS NO CFI, ao lado do nome da empresa.
+                                 Paulo, 27/08: o colaborador do Contábil precisa SABER, na
+                                 empresa, se aquele mês está fechado — antes de importar, e
+                                 sem ter que ir consultar. -->
+                            <span id="fechamentoCfiSelo" style="margin-left:10px"></span>
                         </div>
                     </div>
                     <div class="table-container">
@@ -9676,8 +9705,151 @@
                 renderFiscalResumo(data.resumo || {});
                 renderFiscalTabela(fiscalImpostosCache);
                 if (empresaInfo) empresaInfo.textContent = ((state.info && state.info.empresa) || 'Empresa') + ' - ' + cnpj + ' - ' + fiscalImpostosCache.length + ' registro(s)';
+                // 🔒 O SELO NASCE SOZINHO. Alerta que só aparece depois de alguém
+                // procurar não é alerta — e quem vai importar não sabe que precisa
+                // perguntar se o mês fechou. A competência já vem no mês ANTERIOR,
+                // que é o que se importa.
+                const campoComp = document.getElementById('fechamentoCfiCompetencia');
+                if (campoComp && !campoComp.value) campoComp.value = competenciaPadraoFechamento();
+                // Não derruba o carregamento dos impostos se o túnel estiver fora:
+                // a consulta já DIZ a falha na própria caixa.
+                consultarFechamentoCfi().catch(() => {});
             } catch (e) {
                 showToast('Erro ao carregar situação fiscal: ' + (e.message || e), 'error');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🔒 O FECHAMENTO DO MÊS VEM DO CFI (fase 5 do túnel, 26/08)
+        //
+        // Antes, o apurado era DIGITADO no campo logo abaixo. O que atravessa
+        // agora é o CARIMBO — imutável, versionado, com o acervo do corte e o
+        // lastro. A ressalva PROÍBE recalcular deste lado: dois números para o
+        // mesmo fato é o pior defeito de um arquivo fiscal.
+        // ═══════════════════════════════════════════════════════════════
+        function fechamentoCfiStatusEl() { return document.getElementById('fechamentoCfiStatus'); }
+
+        function fechamentoCfiCompetencia() {
+            return String((document.getElementById('fechamentoCfiCompetencia') || {}).value || '').trim();
+        }
+
+        /**
+         * 🔒 O SELO — o estado do mês no CFI, ao lado do nome da empresa.
+         *
+         * Paulo, 27/08: *"o colaborador do dpto contábil, quando for importar as
+         * informações do CFI, deve receber um alerta na empresa para que ele saiba
+         * que aquele determinado mês está fechado ou não"*.
+         *
+         * ⚠️ Ele aparece SEM clicar — porque o alerta que só existe depois de
+         * alguém procurar não é alerta, é resultado de busca. Quem importa não
+         * sabe que precisa perguntar.
+         *
+         * ⚠️ E NENHUMA RÉGUA MORA AQUI: os três estados são os que o túnel do CFI
+         * já distingue. Decidir aqui o que é "fechado" criaria a segunda cópia.
+         */
+        const SELO_FECHAMENTO = {
+            fechada:  { cor: '#065f46', fundo: '#d1fae5', texto: '🔒 Mês FECHADO no CFI — pode importar' },
+            reaberta: { cor: '#92400e', fundo: '#fef3c7', texto: '⚠ Mês REABERTO no CFI — NÃO importe ainda' },
+            aberta:   { cor: '#3730a3', fundo: '#e0e7ff', texto: '⏳ Mês ABERTO no CFI — o Fiscal ainda não fechou' },
+        };
+
+        function pintarSeloFechamento(estado, detalhe) {
+            const el = document.getElementById('fechamentoCfiSelo');
+            if (!el) return;
+            if (!estado) { el.innerHTML = ''; return; }
+            const s = SELO_FECHAMENTO[estado] || SELO_FECHAMENTO.aberta;
+            el.innerHTML = '<span title="' + fiscalEscape(detalhe || '') + '" style="display:inline-block;padding:2px 8px;'
+                + 'border-radius:999px;font-size:12px;font-weight:700;color:' + s.cor + ';background:' + s.fundo + '">'
+                + fiscalEscape(s.texto) + '</span>';
+        }
+
+        /** O mês que se importa é o ANTERIOR — é ele que acabou de fechar. */
+        function competenciaPadraoFechamento() {
+            const d = new Date();
+            d.setDate(1); d.setMonth(d.getMonth() - 1);
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        }
+
+        async function consultarFechamentoCfi() {
+            const box = fechamentoCfiStatusEl();
+            const cnpj = fiscalCnpjAtual();
+            const comp = fechamentoCfiCompetencia();
+            if (!box) return;
+            if (!cnpj) { box.textContent = 'Selecione uma empresa primeiro.'; return; }
+            // A competência é OBRIGATÓRIA: sem ela não dá para dizer QUAL mês
+            // foi fechado, e importar o mês errado não volta atrás.
+            if (!comp) { box.textContent = 'Escolha a competência — sem ela não dá para dizer qual mês foi fechado.'; return; }
+            box.textContent = 'Consultando o Consultor Fiscal…';
+            try {
+                const r = await window.API.fiscalFechamentosCfi(comp, cnpj);
+                if (r.erro) throw new Error(r.erro);
+                const linha = (r.fechamentos || [])[0];
+                if (!linha) {
+                    pintarSeloFechamento(null);
+                    box.textContent = 'O Consultor Fiscal não conhece esta empresa nesta competência.';
+                    return;
+                }
+                const plano = linha.plano || {};
+                pintarSeloFechamento(linha.estado, plano.recusa || plano.carimbo || '');
+                if (!plano.podeImportar) { box.innerHTML = '<strong>Não dá para importar ainda.</strong> ' + fiscalEscape(plano.recusa || ''); return; }
+                const linhas = (plano.lancamentos || [])
+                    .map(function (l) { return l.tributo + ' ' + formatarMoedaBR(l.valor_apurado); }).join(' · ');
+                // "0 lançamentos" NÃO se lê como falha: mês fechado sem apurado
+                // é caso legítimo, e ele sai DITO.
+                box.innerHTML = '<strong>Mês fechado</strong>'
+                    + (linha.fechadoEm ? ' em ' + fiscalEscape(String(linha.fechadoEm).slice(0, 10)) : '')
+                    + (linha.fechadoPor ? ' por ' + fiscalEscape(linha.fechadoPor) : '')
+                    + (linha.versao ? ' (versão ' + linha.versao + ')' : '') + '. '
+                    + (linhas ? 'Vai lançar: ' + fiscalEscape(linhas) + '. ' : '')
+                    + (plano.semApurado ? 'Nenhum valor apurado nesta competência — isso é resposta, não falha. ' : '')
+                    + (plano.totalDaFicha !== null && plano.totalDaFicha !== undefined
+                        ? '<br>Total da ficha (só para CONFERÊNCIA, não é lançado): '
+                          + formatarMoedaBR(plano.totalDaFicha)
+                          + ' — a composição por código de receita não está no carimbo.'
+                        : '')
+                    + (linha.lastro && linha.lastro.cor === 'falha'
+                        ? '<br><strong style="color:#b45309">⚠ ' + fiscalEscape(linha.lastro.mensagem || '') + '</strong>'
+                        : '');
+            } catch (e) {
+                // ⚠️ Falha do outro app NÃO vira "nada a importar" — nem deixa um
+                // selo VELHO na tela, que seria pior: ele afirmaria um estado que
+                // esta consulta não confirmou.
+                pintarSeloFechamento(null);
+                box.textContent = 'Não consegui consultar: ' + (e.message || e);
+            }
+        }
+
+        async function importarFechamentoCfi() {
+            const box = fechamentoCfiStatusEl();
+            const cnpj = fiscalCnpjAtual();
+            const comp = fechamentoCfiCompetencia();
+            if (!box) return;
+            if (!cnpj) { box.textContent = 'Selecione uma empresa primeiro.'; return; }
+            if (!comp) { box.textContent = 'Escolha a competência — sem ela não dá para dizer qual mês foi fechado.'; return; }
+            box.textContent = 'Importando…';
+            try {
+                const r = await window.API.fiscalImportarFechamentoCfi(cnpj, comp);
+                if (r.erro) throw new Error(r.erro);
+                const c = r.conferencia || {};
+                const div = (c.divergente || []);
+                // 🚨 A DIVERGÊNCIA MOSTRA OS DOIS NÚMEROS — o app não escolhe.
+                // Ela quase sempre significa que alguém refez a conta deste
+                // lado, e é justamente isso que a ressalva proíbe.
+                box.innerHTML = '<strong>Importado.</strong> ' + (r.gravados || 0) + ' lançamento(s) gravado(s).'
+                    + (div.length
+                        ? '<br><strong style="color:#b45309">⚠ ' + div.length + ' valor(es) DIFERENTE(S) do que já estava aqui:</strong> '
+                          + fiscalEscape(div.map(function (d) {
+                              return d.tributo + ': ' + formatarMoedaBR(d.de) + ' → ' + formatarMoedaBR(d.para);
+                          }).join(' · '))
+                          + ' — o número do CFI é o do mês FECHADO; confira quem refez a conta.'
+                        : '')
+                    + ((c.versaoNova || []).length
+                        ? '<br>' + c.versaoNova.length + ' lançamento(s) com o mesmo valor e versão NOVA — o carimbo foi atualizado.'
+                        : '')
+                    + (r.semApurado ? '<br>Este mês fechou SEM valor apurado — não há guia a lançar.' : '');
+                await carregarFiscal();
+            } catch (e) {
+                box.textContent = 'Não importei: ' + (e.message || e);
             }
         }
 
@@ -10060,9 +10232,38 @@
                 }).join('');
                 // A BASE só aparece quando foi PROVADA. "—" com o aviso do lado
                 // é honesto; um número estimado aqui seria lido como a base.
-                const base = p.vlrTotalBaseRet == null
-                    ? '<span title="A base não é o valor bruto quando há dedução de material/insumo (IN RFB 971). Peça a base ao prestador." style="color:#b45309">— a provar</span>'
-                    : reinfMoney(p.vlrTotalBaseRet);
+                const est = 'padding:5px 7px;border:1px solid #cbd5f5;border-radius:6px;font-size:12px';
+                // A BASE agora TEM ONDE SER INFORMADA (Paulo, 17/08: *"preciso
+                // subir esse INSS"*). Antes a coluna dizia "peça a base ao
+                // prestador" e não havia campo nenhum — o prestador ficava
+                // pendente para sempre e o R-2010 do mês não saía. Alerta sem
+                // caminho não é trava, é parada.
+                //
+                // Um campo POR NOTA, porque a dedução de material/insumo é de
+                // cada documento. A estimativa do app aparece como placeholder
+                // (para conferir), NUNCA preenchida — número estimado dentro do
+                // campo seria lido como resposta.
+                const base = p.vlrTotalBaseRet != null
+                    ? reinfMoney(p.vlrTotalBaseRet)
+                        + ((p.basesDasNotas || []).some(function (x) { return x.origem === 'informada pelo prestador'; })
+                            ? '<div style="color:#64748b;font-size:10px">informada</div>' : '')
+                    : '<div style="color:#b45309;font-size:11px;margin-bottom:4px" title="A base não é o valor bruto quando há dedução de material/insumo (IN RFB 971, arts. 121-124). Peça a base ao prestador e informe abaixo.">— a provar</div>'
+                        + (p.notas || []).map(function (n) {
+                            const num = reinfEscape(String(n.numero == null ? '' : n.numero));
+                            // 🚨 A ESTIMATIVA VEM PRONTA DO CFI (`baseRetencao`),
+                            // NUNCA calculada aqui. Eu tinha escrito a conta na
+                            // tela e o teste pegou: alíquota na tela é segunda
+                            // cópia da régua, e é assim que dois números do mesmo
+                            // fato passam a discordar.
+                            const est11 = Number(n.baseRetencao) > 0 ? Number(n.baseRetencao) : 0;
+                            return '<div style="margin-bottom:3px;white-space:nowrap">'
+                                + '<span style="font-size:10px;color:#64748b">nº ' + num + '</span> '
+                                + '<input type="text" inputmode="decimal" style="' + est + ';width:92px;text-align:right"'
+                                + ' placeholder="' + (est11 ? '≈' + est11.toFixed(2) : 'base') + '"'
+                                + ' title="Base de retenção DESTA nota, informada pelo prestador. O placeholder é a estimativa do app (retenção ÷ 11%) — serve para conferir, não é resposta."'
+                                + ' onchange="salvarBaseNotaServTom(\'' + cnpj + '\', \'' + num + '\', this.value)">'
+                                + '</div>';
+                        }).join('');
                 const opcoesObra = [['', '--'], ['0', '0 · não é obra'], ['1', '1 · obra com CNO'], ['2', '2 · empreitada total']]
                     .map(function (o) {
                         return '<option value="' + o[0] + '"' + (String(p.indObra) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
@@ -10071,7 +10272,6 @@
                     .map(function (o) {
                         return '<option value="' + o[0] + '"' + (String(p.indCPRB) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
                     }).join('');
-                const est = 'padding:5px 7px;border:1px solid #cbd5f5;border-radius:6px;font-size:12px';
                 return '<tr>'
                     + '<td>' + reinfEscape(p.nome || '—')
                     + '<div style="color:#64748b;font-size:11px">' + reinfFormatCpfCnpj(cnpj) + '</div>' + pend + '</td>'
@@ -10128,6 +10328,35 @@
             } catch (e) {
                 reinfServTomStatus('Não foi possível gravar: ' + reinfEscape(e.message || e), 'error');
             }
+        }
+
+        /**
+         * A BASE de UMA nota, informada pelo prestador.
+         *
+         * Vai para o MESMO cadastro do prestador (mapa `basesPorNota`), porque é
+         * lá que o backend lê — mas o valor é do DOCUMENTO, não do prestador: a
+         * dedução de material/insumo é de cada nota, e por isso a chave é o
+         * número dela.
+         *
+         * Campo vazio APAGA a base informada (volta a ser pendência). Zero NÃO é
+         * aceito pelo backend: base zero seria "declarei que não há base", que é
+         * outra afirmação.
+         */
+        /**
+         * A BASE de UMA nota, informada pelo prestador.
+         *
+         * Manda SÓ a nota alterada — o backend grava com caminho pontilhado, e
+         * por isso a base das outras notas não é tocada. Mandar o mapa remontado
+         * do que está na tela apagaria em silêncio o que outra pessoa informou.
+         *
+         * Campo vazio APAGA a base informada (a nota volta a ser pendência, que
+         * é o estado honesto). Zero é RECUSADO pelo backend: base zero seria
+         * "declarei que não há base", que é outra afirmação.
+         */
+        async function salvarBaseNotaServTom(cnpjPrestador, numeroNota, valor) {
+            await salvarPrestadorServTom(cnpjPrestador, {
+                baseNota: { numero: numeroNota, valor: valor },
+            });
         }
 
         // ── R-2099 · fechamento da competência ───────────────────────────
