@@ -2087,8 +2087,8 @@ function assinaturaEstadoPeriodo(estado, periodo) {
   return hashSessao(RelatoriosContabeis.assinaturaPeriodo((estado && estado.entries) || [], periodo) + '|' + JSON.stringify(saldos));
 }
 
-async function impedirAlteracaoPeriodosFechados(cnpj, stateJsonAtual, stateJsonNovo) {
-  const periodos = await db.collection('empresas').doc(cnpj).collection('periodos_contabeis').get();
+async function impedirAlteracaoPeriodosFechados(cnpj, stateJsonAtual, stateJsonNovo, periodosCarregados) {
+  const periodos = periodosCarregados || await db.collection('empresas').doc(cnpj).collection('periodos_contabeis').get();
   const fechados = periodos.docs.filter(function (doc) { return String((doc.data() || {}).status) === 'fechado'; });
   if (!fechados.length) return;
   const atual = lerEstadoContabil(stateJsonAtual);
@@ -2105,8 +2105,8 @@ async function impedirAlteracaoPeriodosFechados(cnpj, stateJsonAtual, stateJsonN
   }
 }
 
-async function impedirSobrescritaSaldosTransportados(cnpj, stateJsonNovo) {
-  const snap = await db.collection('empresas').doc(cnpj).collection('transportes_saldos').where('status', '==', 'vigente').get();
+async function impedirSobrescritaSaldosTransportados(cnpj, stateJsonNovo, transportesCarregados) {
+  const snap = transportesCarregados || await db.collection('empresas').doc(cnpj).collection('transportes_saldos').where('status', '==', 'vigente').get();
   if (snap.empty) return;
   const novo = lerEstadoContabil(stateJsonNovo);
   const saldosPorPeriodo = novo.relatoriosContabeis && novo.relatoriosContabeis.saldosIniciais || {};
@@ -2958,7 +2958,7 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
   const geracao = chunked ? novaRevisaoSessao() : null;
   if (chunked) await gravarPartes(sessaoRef.collection('chunks'), partes, geracao);
   const revisao = novaRevisaoSessao();
-  await sessaoRef.set({
+  const dadosSessao = {
     resumo: resumo || null,
     updated_at: new Date(),
     updated_by_uid: user.uid,
@@ -2974,8 +2974,18 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
     session_revision: revisao,
     require_session_revision: opts.exigirRevisao === true,
     session_write_lock: admin.firestore.FieldValue.delete(),
-  }, { merge: true });
-  await limparChunksAntigos(sessaoRef, geracao).catch(erro => console.warn('[sessao] limpeza de chunks antigos falhou:', erro.message || erro));
+  };
+  if (opts.empresaRef && opts.atualizacaoEmpresa) {
+    const batch = db.batch();
+    batch.set(sessaoRef, dadosSessao, { merge: true });
+    batch.set(opts.empresaRef, opts.atualizacaoEmpresa, { merge: true });
+    await batch.commit();
+  } else {
+    await sessaoRef.set(dadosSessao, { merge: true });
+  }
+  if (chunked || opts.limparChunksAntigos !== false) {
+    await limparChunksAntigos(sessaoRef, geracao).catch(erro => console.warn('[sessao] limpeza de chunks antigos falhou:', erro.message || erro));
+  }
   return {
     revisao,
     chunked,
@@ -3063,22 +3073,32 @@ function parsearStateJson(stateJson) {
 app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
   let sessaoRef = null;
   let tokenTrava = null;
+  const inicioPersistencia = Date.now();
+  const temposPersistencia = {};
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    temposPersistencia.acesso = Date.now() - inicioPersistencia;
     const { resumo, session_revision, client_version } = req.body || {};
     const state_json = stateJsonDoBody(req.body || {});
-    sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    sessaoRef = empresaRef.collection('sessoes').doc('current');
     tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'autosave');
-    const atual = await carregarSessaoAtualPorRef(sessaoRef);
+    temposPersistencia.trava = Date.now() - inicioPersistencia - temposPersistencia.acesso;
+    const [atual, periodosContabeis, transportesSaldos] = await Promise.all([
+      carregarSessaoAtualPorRef(sessaoRef),
+      empresaRef.collection('periodos_contabeis').get(),
+      empresaRef.collection('transportes_saldos').where('status', '==', 'vigente').get(),
+    ]);
+    temposPersistencia.leituras = Date.now() - inicioPersistencia - temposPersistencia.acesso - temposPersistencia.trava;
     const exigirRevisao = !!(atual.dados && atual.dados.require_session_revision);
     if (exigirRevisao && (!session_revision || session_revision !== atual.dados.session_revision)) {
       throw erroSessao('Esta sessão foi alterada por um administrador. Recarregue a empresa antes de salvar novamente.', 409, 'SESSAO_DESATUALIZADA');
     }
-    await impedirAlteracaoPeriodosFechados(cnpjLimpo, atual.stateJson, state_json);
-    await impedirSobrescritaSaldosTransportados(cnpjLimpo, state_json);
+    await impedirAlteracaoPeriodosFechados(cnpjLimpo, atual.stateJson, state_json, periodosContabeis);
+    await impedirSobrescritaSaldosTransportados(cnpjLimpo, state_json, transportesSaldos);
     const versaoServidor = lerVersao().version || '';
     const validacaoVersao = validarVersaoParaNovaImportacao({
       stateJsonNovo: state_json,
@@ -3112,8 +3132,6 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
       }
     }
 
-    const resultado = await gravarSessaoBloqueada(sessaoRef, state_json, resumo, req.user, { exigirRevisao });
-    tokenTrava = null;
     const atualizacaoEmpresa = { last_session_at: new Date(), last_session_by_email: req.user.email };
     if (chk.empresa.modo_contabil === 'cci_exclusivo' && chk.empresa.saldo_abertura_status === 'aprovado') {
       const periodoInicial = periodoInicialEmpresa(chk.empresa);
@@ -3129,7 +3147,30 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
         atualizacaoEmpresa.saldo_abertura_invalidado_por_email = req.user.email;
       }
     }
-    await db.collection('empresas').doc(cnpjLimpo).set(atualizacaoEmpresa, { merge: true });
+    const resultado = await gravarSessaoBloqueada(sessaoRef, state_json, resumo, req.user, {
+      exigirRevisao,
+      empresaRef,
+      atualizacaoEmpresa,
+      limparChunksAntigos: !!(atual.dados && atual.dados.state_chunked),
+    });
+    temposPersistencia.gravacao = Date.now() - inicioPersistencia - temposPersistencia.acesso - temposPersistencia.trava - temposPersistencia.leituras;
+    tokenTrava = null;
+    const totalPersistencia = Date.now() - inicioPersistencia;
+    res.setHeader('Server-Timing', [
+      `access;dur=${temposPersistencia.acesso}`,
+      `lock;dur=${temposPersistencia.trava}`,
+      `reads;dur=${temposPersistencia.leituras}`,
+      `write;dur=${temposPersistencia.gravacao}`,
+      `total;dur=${totalPersistencia}`,
+    ].join(', '));
+    console.info('[sessao-perf]', JSON.stringify({
+      status: 200,
+      total_ms: totalPersistencia,
+      ...temposPersistencia,
+      state_bytes: resultado.stateBytes,
+      stored_bytes: resultado.storedBytes,
+      chunked: resultado.chunked,
+    }));
     res.json({
       ok: true,
       chunked: resultado.chunked,

@@ -1,7 +1,7 @@
 {
-  "version": "3.4.209",
-  "build_date": "2026-08-29T20:37:03Z",
+  "version": "3.4.210",
+  "build_date": "2026-08-29T20:44:49Z",
   "release_notes": [
-    "Edição do próximo lançamento sem reconstruir a grade durante o salvamento anterior"
+    "Persistência de sessão com leituras paralelas, commit único e telemetria de latência"
   ]
 }
