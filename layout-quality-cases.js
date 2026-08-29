@@ -706,6 +706,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'Extrato Stone textual validado pelo texto extraido e pelo PDF.js do navegador. A regressao reconcilia quatro fechamentos diarios, inclusive o saldo repetido pelo banco em movimentos do mesmo dia.'
   },
   {
+    id: 'nubank-waldesa-2026-07',
+    banco: '260',
+    nomeBanco: 'Nubank',
+    layout: 'Nubank - Extrato da Conta PJ',
+    parser: 'parsearPDF_Nubank_Extrato',
+    arquivo: 'Extrato Nubank - Motomercantil SP_07.2026.pdf',
+    empresa: 'WALDESA MOTOMERCANTIL LTDA.',
+    periodo_inicio: '2026-07-01',
+    periodo_fim: '2026-07-31',
+    esperado: {
+      total_lancamentos: 16,
+      total_credito: 7100.09,
+      total_debito: 7371.38
+    },
+    status: 'Aprovado',
+    validado_em: '2026-08-29T12:00:00-03:00',
+    observacao: 'PDF textual Nubank PJ validado pelo PDF.js. Concilia 11 saldos diarios, preserva o movimento dividido entre paginas e importa R$ 0,09 de rendimento alem dos R$ 7.100,00 de entradas.'
+  },
+  {
     id: 'bb-extrato-mais-menos-trindade-2026-04',
     banco: '001',
     nomeBanco: 'Banco do Brasil',

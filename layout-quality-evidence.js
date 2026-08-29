@@ -616,6 +616,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'PDF textual real de 1 pagina. Validado com 6 movimentos, credito de R$ 1.519,42, debito de R$ 1.904,10, saldo anterior reconstruido de R$ 1.212,90 e saldo final de R$ 828,22.'
   },
   {
+    id: 'nubank-waldesa-2026-07',
+    banco: '260',
+    nomeBanco: 'Nubank',
+    layout: 'Nubank - Extrato da Conta PJ',
+    parser: 'parsearPDF_Nubank_Extrato',
+    arquivo: 'Extrato Nubank - Motomercantil SP_07.2026.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Extrato Nubank - Motomercantil SP_07.2026.pdf',
+    empresa: 'WALDESA MOTOMERCANTIL LTDA.',
+    periodo_inicio: '2026-07-01',
+    periodo_fim: '2026-07-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF textual real de 3 paginas. Validado com 16 movimentos, credito de R$ 7.100,09, debito de R$ 7.371,38, saldo inicial de R$ 1.365,32, 11 saldos diarios e saldo final de R$ 1.094,03.'
+  },
+  {
     id: 'bb-extrato-mais-menos-trindade-2026-04',
     banco: '001',
     nomeBanco: 'Banco do Brasil',
