@@ -163,8 +163,9 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 ### 🟠 P08 — Homologação e fila de qualidade de layouts
 
 - Estado: `EM RESOLUÇÃO`
-- Gap: 6 de 36 layouts bancários com aprovação explícita; 618 rejeições
-  registradas e 227 pendências na janela recente analisada.
+- Gap: 6 de 36 layouts bancários com aprovação explícita. A amostra inicial
+  mostrava 227 pendências; a leitura completa posterior confirmou 618
+  rejeições e todas as 618 ainda com status pendente.
 - Critério de aceite: status confiável por layout, responsável, SLA, versão de
   correção e regressão obrigatória por evidência real.
 - Etapa técnica preparada em 29/08/2026: toda rejeição nova recebe prioridade e
@@ -176,9 +177,15 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Aprovação de layout passa a guardar administrador, data, versão e IDs dos
   casos/evidências que sustentaram a decisão. O painel destaca SLA vencido,
   itens sem responsável, prioridade e vínculo da resolução.
-- Evidência ainda necessária: publicar a candidata e atribuir os itens legados
-  aos responsáveis operacionais. A etapa técnica não promove automaticamente
-  os 29 layouts aptos nem inventa dono para as 227 pendências.
+- Evidência de produção: versão `3.4.207`, revisão
+  `plano-contas-iob-00759-vaq`, 100% do tráfego, health com Firestore conectado,
+  painel novo servido publicamente e nenhum log de severidade `ERROR`; 115
+  testes passaram, sem pulos ou falhas.
+- Passivo medido sem alteração em 29/08/2026: 618 pendentes, 618 sem
+  responsável, 611 fora do SLA inferido e zero com versão + evidência de
+  resolução. A etapa técnica não promove automaticamente os 29 layouts aptos
+  nem inventa donos; a resolução da P08 depende da distribuição e tratamento
+  administrativo desse passivo.
 
 ### 🟠 P09 — Cobertura fiscal oficial por fonte
 
