@@ -36,8 +36,8 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 - Critério de aceite: digitação do lançamento seguinte nunca é desfeita ou
   bloqueada; p95 de persistência menor que 2 s em teste de carga representativo;
   zero HTTP 500/409 indevido e zero perda de lançamento.
-- Próxima ação: reduzir a unidade de persistência, tornar a gravação idempotente
-  e proteger o comportamento com teste concorrente e payload grande.
+- Próxima ação: medir a revisão atual com uso autenticado representativo e
+  reduzir a latência do caminho de persistência até p95 menor que 2 s.
 - Implementado em 29/08/2026: mutação otimista para que a edição seguinte entre
   imediatamente no estado; fila remota serializada sem cancelamento da
   digitação; controle de versão local para um POST antigo não limpar uma edição
@@ -48,9 +48,20 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 - Evidência de publicação: versão `3.4.195`, revisão
   `plano-contas-iob-00643-46z`, 100% do tráfego e health/version validados;
   nenhuma ocorrência de severidade `ERROR` na revisão na primeira verificação.
-- Evidência ainda necessária: uso real ou teste autenticado concorrente e
-  observação de p95/HTTP 500/409 após a revisão 00643. Ainda não houve POST de
-  sessão registrado na nova revisão desde a publicação.
+- Reforço publicado em 29/08/2026: a versão `3.4.209`, revisão
+  `plano-contas-iob-00763-yek`, deixou de reconstruir toda a grade na edição
+  direta e passou a sincronizar somente a linha alterada. Um teste dinâmico
+  manteve o primeiro POST pendente, aplicou a segunda edição imediatamente e
+  comprovou que a confirmação seguinte continha as duas alterações, sem
+  re-render nem perda. A porta completa passou com 115 testes, sem pulos ou
+  falhas; produção está com 100% do tráfego, health/versão corretos e sem log
+  `ERROR` na revisão na primeira verificação.
+- Linha de base observada antes da revisão 00763: 77 POSTs nas últimas 24 h,
+  sendo 74 HTTP 200, dois 401 e um 409 por revisão administrativa; p50 de
+  5,36 s e p95 de 6,12 s. Não houve HTTP 500 nessa amostra.
+- Evidência ainda necessária: uso real ou teste autenticado concorrente na
+  revisão 00763 e redução comprovada do p95 para menos de 2 s. A P01 permanece
+  `AGUARDANDO EVIDÊNCIA` e não será promovida a verde antes desse aceite.
 
 ### 🟢 P02 — Linha oficial de release e prevenção de regressão
 
