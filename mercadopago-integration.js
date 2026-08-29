@@ -245,25 +245,45 @@ function parsearRelatorioMercadoPago(payload = {}) {
   };
 }
 
-function getMpEnv() {
+function credencialPlaceholder(valor) {
+  const texto = String(valor || '').trim().toLowerCase();
+  return !texto || texto === '1234567890123456' || texto.includes('xxxxxxxx') || texto.includes('changeme') || texto.includes('placeholder');
+}
+
+function getMpEnv(origem) {
+  const env = origem || process.env;
   return {
-    clientId: process.env.MERCADO_PAGO_CLIENT_ID || process.env.MP_CLIENT_ID || '',
-    clientSecret: process.env.MERCADO_PAGO_CLIENT_SECRET || process.env.MP_CLIENT_SECRET || '',
-    redirectUri: process.env.MERCADO_PAGO_REDIRECT_URI || process.env.MP_REDIRECT_URI || '',
-    accountReportUrl: process.env.MERCADO_PAGO_ACCOUNT_REPORT_URL || 'https://api.mercadopago.com/v1/account/settlement_report',
-    publicBaseUrl: process.env.PUBLIC_BASE_URL || process.env.APP_BASE_URL || ''
+    enabled: String(env.MERCADO_PAGO_OAUTH_ENABLED || '').toLowerCase() === 'true',
+    clientId: env.MERCADO_PAGO_CLIENT_ID || env.MP_CLIENT_ID || '',
+    clientSecret: env.MERCADO_PAGO_CLIENT_SECRET || env.MP_CLIENT_SECRET || '',
+    redirectUri: env.MERCADO_PAGO_REDIRECT_URI || env.MP_REDIRECT_URI || '',
+    accountReportUrl: env.MERCADO_PAGO_ACCOUNT_REPORT_URL || 'https://api.mercadopago.com/v1/account/settlement_report',
+    publicBaseUrl: env.PUBLIC_BASE_URL || env.APP_BASE_URL || ''
   };
+}
+
+function estadoMpEnv(env) {
+  const config = env || getMpEnv();
+  if (!config.enabled) return { habilitado: false, configurado: false, codigo: 'MERCADO_PAGO_OAUTH_DESABILITADO', motivo: 'Integração OAuth Mercado Pago desabilitada até a homologação das credenciais.' };
+  const credenciaisValidas = !credencialPlaceholder(config.clientId) && !credencialPlaceholder(config.clientSecret) && /^https:\/\//i.test(String(config.redirectUri || ''));
+  if (!credenciaisValidas) return { habilitado: true, configurado: false, codigo: 'MERCADO_PAGO_CONFIG_INVALIDA', motivo: 'Integração habilitada sem credenciais reais no Secret Manager.' };
+  return { habilitado: true, configurado: true, codigo: 'MERCADO_PAGO_OAUTH_ATIVO', motivo: '' };
+}
+
+function bloquearOAuth(res, estado) {
+  if (estado.configurado) return false;
+  res.status(503).json({ erro: estado.motivo, codigo: estado.codigo, importacao_manual_habilitada: true });
+  return true;
 }
 
 function registrarRotasPublicasMercadoPago(app, { db }) {
   app.get('/mercadopago/oauth/callback', async (req, res) => {
     const { code, state } = req.query || {};
     const env = getMpEnv();
+    const estado = estadoMpEnv(env);
     try {
+      if (!estado.configurado) return res.status(503).send(estado.motivo);
       if (!code || !state) return res.status(400).send('Codigo ou state ausente.');
-      if (!env.clientId || !env.clientSecret || !env.redirectUri) {
-        return res.status(503).send('Credenciais Mercado Pago nao configuradas no servidor.');
-      }
       const stateDoc = await db.collection('mercadopago_oauth_states').doc(String(state)).get();
       if (!stateDoc.exists) return res.status(400).send('State invalido ou expirado.');
       const stateData = stateDoc.data() || {};
@@ -310,17 +330,23 @@ function registrarRotasMercadoPago(app, { db, adminRequired }) {
     const cnpj = somenteDigitos(req.params.cnpj);
     if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const env = getMpEnv();
+    const estado = estadoMpEnv(env);
     const doc = await db.collection('mercadopago_integracoes').doc(cnpj).get();
     const dados = doc.exists ? doc.data() || {} : {};
     res.json({
       ok: true,
-      conectado: doc.exists && !!dados.access_token,
+      habilitado: estado.habilitado,
+      conectado: estado.configurado && doc.exists && !!dados.access_token,
+      vinculo_armazenado: doc.exists && !!dados.access_token,
       cnpj,
       user_id: dados.user_id || '',
       conectado_em: dados.conectado_em || null,
       atualizado_em: dados.atualizado_em || null,
-      oauth_configurado: !!(env.clientId && env.clientSecret && env.redirectUri),
-      relatorio_automatico_configurado: !!(env.clientId && env.clientSecret && env.redirectUri && env.accountReportUrl),
+      oauth_configurado: estado.configurado,
+      relatorio_automatico_configurado: estado.configurado && !!env.accountReportUrl,
+      codigo: estado.codigo,
+      motivo: estado.motivo,
+      importacao_manual_habilitada: true,
       relatorio_endpoint_padrao: !process.env.MERCADO_PAGO_ACCOUNT_REPORT_URL
     });
   });
@@ -329,9 +355,8 @@ function registrarRotasMercadoPago(app, { db, adminRequired }) {
     const cnpj = somenteDigitos(req.params.cnpj);
     if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const env = getMpEnv();
-    if (!env.clientId || !env.redirectUri) {
-      return res.status(503).json({ erro: 'Configure MERCADO_PAGO_CLIENT_ID e MERCADO_PAGO_REDIRECT_URI no servidor.' });
-    }
+    const estado = estadoMpEnv(env);
+    if (bloquearOAuth(res, estado)) return;
     const state = crypto.randomBytes(24).toString('hex');
     await db.collection('mercadopago_oauth_states').doc(state).set({
       cnpj,
@@ -365,12 +390,8 @@ function registrarRotasMercadoPago(app, { db, adminRequired }) {
     const cnpj = somenteDigitos(req.params.cnpj);
     if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const env = getMpEnv();
-    if (!env.clientId || !env.clientSecret || !env.redirectUri || !env.accountReportUrl) {
-      return res.status(501).json({
-        erro: 'Relatorio automatico Mercado Pago ainda sem OAuth configurado.',
-        detalhe: 'Configure MERCADO_PAGO_CLIENT_ID, MERCADO_PAGO_CLIENT_SECRET e MERCADO_PAGO_REDIRECT_URI no servidor.'
-      });
-    }
+    const estado = estadoMpEnv(env);
+    if (bloquearOAuth(res, estado)) return;
     const doc = await db.collection('mercadopago_integracoes').doc(cnpj).get();
     const dados = doc.exists ? doc.data() || {} : {};
     if (!dados.access_token) return res.status(409).json({ erro: 'Empresa sem Mercado Pago conectado.' });
@@ -397,6 +418,9 @@ module.exports = {
   parsearMercadoPagoRows,
   registrarRotasMercadoPago,
   registrarRotasPublicasMercadoPago,
+  credencialPlaceholder,
+  estadoMpEnv,
+  getMpEnv,
   normalizarTexto,
   parseValor
 };

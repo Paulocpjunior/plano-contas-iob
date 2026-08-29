@@ -1,7 +1,9 @@
 const assert = require('assert');
 const {
   parsearRelatorioMercadoPago,
-  parseValor
+  parseValor,
+  estadoMpEnv,
+  getMpEnv
 } = require('../mercadopago-integration');
 
 const csv = [
@@ -32,4 +34,36 @@ assert.strictEqual(parseValor('R$ 1.234,56'), 1234.56);
 assert.strictEqual(parseValor('-R$ 1.234,56'), -1234.56);
 assert.strictEqual(parseValor('1,234.56'), 1234.56);
 
-console.log('OK Mercado Pago integration parser');
+const desabilitado = estadoMpEnv(getMpEnv({ MERCADO_PAGO_OAUTH_ENABLED: 'false' }));
+assert.strictEqual(desabilitado.configurado, false);
+assert.strictEqual(desabilitado.codigo, 'MERCADO_PAGO_OAUTH_DESABILITADO');
+
+const placeholder = estadoMpEnv(getMpEnv({
+  MERCADO_PAGO_OAUTH_ENABLED: 'true',
+  MERCADO_PAGO_CLIENT_ID: '1234567890123456',
+  MERCADO_PAGO_CLIENT_SECRET: 'APP_USR-xxxxxxxxxxxxxxxxxxxxxxxx',
+  MERCADO_PAGO_REDIRECT_URI: 'https://example.test/callback'
+}));
+assert.strictEqual(placeholder.configurado, false);
+assert.strictEqual(placeholder.codigo, 'MERCADO_PAGO_CONFIG_INVALIDA');
+
+const ativo = estadoMpEnv(getMpEnv({
+  MERCADO_PAGO_OAUTH_ENABLED: 'true',
+  MERCADO_PAGO_CLIENT_ID: '9876543210987654',
+  MERCADO_PAGO_CLIENT_SECRET: 'APP_USR-segredo-real-de-teste',
+  MERCADO_PAGO_REDIRECT_URI: 'https://example.test/callback'
+}));
+assert.strictEqual(ativo.configurado, true);
+assert.strictEqual(ativo.codigo, 'MERCADO_PAGO_OAUTH_ATIVO');
+
+const fs = require('fs');
+const workflow = fs.readFileSync(require('path').join(__dirname, '..', '.github', 'workflows', 'deploy-app.yml'), 'utf8');
+assert.ok(workflow.includes('MERCADO_PAGO_OAUTH_ENABLED=false'));
+assert.ok(workflow.includes('--remove-env-vars=MERCADO_PAGO_CLIENT_ID,MERCADO_PAGO_CLIENT_SECRET'));
+const html = fs.readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
+assert.ok(html.includes('id="mpOAuthBtn"'));
+assert.ok(html.includes('btn.disabled = !oauthDisponivel'));
+assert.ok(html.includes('A importação manual CSV/XLSX continua disponível.'));
+assert.ok(html.includes('escaparHtmlMercadoPago(status.motivo)'));
+
+console.log('OK Mercado Pago: parser manual ativo e OAuth bloqueado sem credenciais homologadas');
