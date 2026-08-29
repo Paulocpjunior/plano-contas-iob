@@ -140,8 +140,8 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 ### 🟠 P05 — Recuperação de desastre independente
 
 - Estado: `EM RESOLUÇÃO`
-- Gap: PITR, backups e exportações GCS existem, mas réplica independente e
-  restore test documentado em banco separado não estão comprovados.
+- Gap: restauração isolada já foi comprovada; falta configurar e restaurar uma
+  réplica independente do Google Cloud.
 - Critério de aceite: restauração validada, RTO/RPO medidos, réplica externa
   íntegra e procedimento documentado.
 - Evidência de 29/08/2026: PITR de sete dias ativo; 11 backups nativos diários
@@ -152,9 +152,22 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   `DELETE_PROTECTION_ENABLED`; o bucket de export recebeu retenção explícita
   e reversível de 98 dias, mantendo também soft delete de sete dias. Nenhum
   objeto foi apagado ou sobrescrito.
-- Evidência ainda necessária: restaurar o último export em banco isolado,
-  conferir integridade e medir RTO/RPO; configurar réplica fora do Google Cloud
-  após confirmação do NAS e do destino corporativo OneDrive/SharePoint.
+- Restauração comprovada em 29/08/2026: o export de 23/08 foi importado no
+  banco isolado e protegido `cci-restore-test-20260829`. A operação terminou
+  em `SUCCESSFUL`, sem erro, com 140.471 de 140.471 documentos e 171.388.403
+  bytes processados. O RTO medido foi 10 min 27,648 s; a fotografia tinha
+  6 dias, 15 h, 21 min e 42 s no início do teste, dentro da cadência semanal.
+- Integridade estrutural: produção e restauração apresentaram as mesmas 24
+  coleções-raiz, sem coleção ausente ou excedente. Também foram conferidos os
+  grupos aninhados críticos: 143 sessões, 68.837 contas, 356 chunks, 227
+  importações, 556 eventos Reinf e 4 exclusões administrativas na fotografia.
+  As diferenças para a produção atual são posteriores ao snapshot e foram
+  preservadas; nenhuma escrita foi direcionada ao banco `(default)`.
+- Procedimento repetível: [recuperacao-desastre-cci.md](recuperacao-desastre-cci.md).
+  O banco isolado permanece protegido para revisão; não foi apagado.
+- Evidência ainda necessária: configurar e testar a restauração da réplica fora
+  do Google Cloud após confirmação do NAS e do destino corporativo
+  OneDrive/SharePoint. A P05 permanece laranja somente por esse requisito.
 
 ### 🟢 P06 — Vulnerabilidades de dependências de produção
 
@@ -397,3 +410,7 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   aplicação idempotente, painel SAGE × CCI, aceite formal e rollback por lote.
 - 29/08/2026 — P12 passou de `EM RESOLUÇÃO` para `RESOLVIDA` após os eventos de
   staging, aplicação e reversão da P04 entrarem na trilha administrativa.
+- 29/08/2026 — P05 concluiu o restore test isolado: 140.471 documentos,
+  24/24 coleções-raiz, operação sem erro e RTO de 10 min 27,648 s. Permanece
+  `EM RESOLUÇÃO` até existir e ser restaurada uma réplica externa ao Google
+  Cloud.
