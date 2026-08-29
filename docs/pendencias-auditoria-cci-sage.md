@@ -16,7 +16,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### P01 — Persistência e salvamento de sessões
 
-- Estado: `EM RESOLUÇÃO`
+- Estado: `AGUARDANDO EVIDÊNCIA`
 - Evidência inicial: nos 1.000 POSTs de sessão consultados desde 28/08/2026,
   houve 54 respostas HTTP 500, 28 conflitos HTTP 409, p95 de 63,6 s e payload
   máximo de 22,1 MB. O erro de servidor foi `DEADLINE_EXCEEDED` no commit em
@@ -28,6 +28,19 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   zero HTTP 500/409 indevido e zero perda de lançamento.
 - Próxima ação: reduzir a unidade de persistência, tornar a gravação idempotente
   e proteger o comportamento com teste concorrente e payload grande.
+- Implementado em 29/08/2026: mutação otimista para que a edição seguinte entre
+  imediatamente no estado; fila remota serializada sem cancelamento da
+  digitação; controle de versão local para um POST antigo não limpar uma edição
+  nova; transporte e armazenamento `gzip-base64` compatíveis com sessões
+  legadas; chunks novos limitados a 700.000 caracteres.
+- Evidência técnica: fixture de 6.874.252 bytes reduzida para 357.440 bytes
+  (94,8%), um chunk, round-trip byte a byte; bateria completa aprovada.
+- Evidência de publicação: versão `3.4.195`, revisão
+  `plano-contas-iob-00643-46z`, 100% do tráfego e health/version validados;
+  nenhuma ocorrência de severidade `ERROR` na revisão na primeira verificação.
+- Evidência ainda necessária: uso real ou teste autenticado concorrente e
+  observação de p95/HTTP 500/409 após a revisão 00643. Ainda não houve POST de
+  sessão registrado na nova revisão desde a publicação.
 
 ### P02 — Linha oficial de release e prevenção de regressão
 
@@ -41,6 +54,10 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   de dependências em todos os caminhos; candidata validada antes do tráfego.
 - Próxima ação: reconciliar a branch publicada com a `main`, criar o contrato de
   release e eliminar a diferença entre deploy manual e GitHub Actions.
+- Progresso em 29/08/2026: criado `scripts/sync-version-markers.js`; a porta de
+  qualidade bloqueou um candidato antes do deploy por cache-buster divergente e
+  a versão 3.4.195 foi sincronizada e validada antes da publicação. A
+  reconciliação da branch e a equivalência dos gates continuam abertas.
 
 ### P03 — Piloto formal da migração
 
@@ -149,4 +166,6 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ## Histórico de resoluções
 
-Nenhuma pendência foi marcada como resolvida desde a abertura deste registro.
+- 29/08/2026 — P01 passou de `EM RESOLUÇÃO` para `AGUARDANDO EVIDÊNCIA` após a
+  publicação da versão 3.4.195. A implementação e os testes foram concluídos;
+  falta confirmar a meta operacional em produção antes de declarar resolução.
