@@ -139,12 +139,22 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 
 ### 🟠 P05 — Recuperação de desastre independente
 
-- Estado: `ABERTA`
+- Estado: `EM RESOLUÇÃO`
 - Gap: PITR, backups e exportações GCS existem, mas réplica independente e
-  restore test documentado em banco separado não estão comprovados; proteção
-  contra exclusão está desativada.
+  restore test documentado em banco separado não estão comprovados.
 - Critério de aceite: restauração validada, RTO/RPO medidos, réplica externa
   íntegra e procedimento documentado.
+- Evidência de 29/08/2026: PITR de sete dias ativo; 11 backups nativos diários
+  em estado `READY`, com retenção de 98 dias; export semanal habilitado e
+  último export de 23/08 concluído sem erro no bucket regional protegido contra
+  acesso público.
+- Proteções aplicadas em 29/08/2026: exclusão do banco de produção passou para
+  `DELETE_PROTECTION_ENABLED`; o bucket de export recebeu retenção explícita
+  e reversível de 98 dias, mantendo também soft delete de sete dias. Nenhum
+  objeto foi apagado ou sobrescrito.
+- Evidência ainda necessária: restaurar o último export em banco isolado,
+  conferir integridade e medir RTO/RPO; configurar réplica fora do Google Cloud
+  após confirmação do NAS e do destino corporativo OneDrive/SharePoint.
 
 ### 🟢 P06 — Vulnerabilidades de dependências de produção
 
