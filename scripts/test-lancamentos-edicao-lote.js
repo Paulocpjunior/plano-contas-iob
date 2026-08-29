@@ -65,6 +65,8 @@ assert(html.includes('if (_sessaoDirty) salvarSessaoRemotoAgora()'), 'Timer remo
 assert(html.includes('const indiceLancamentoPorId = new Map'), 'Renderização deve localizar lançamentos em tempo linear.');
 assert(html.includes('function capturarEdicaoAtivaLancamentos()'), 'Renderização deve capturar o campo que o colaborador ainda está digitando.');
 assert(html.includes('restaurarEdicaoAtivaLancamentos(edicaoAtiva);'), 'Renderização deve restaurar valor, foco e cursor da edição em andamento.');
+assert(html.includes('if (!(callbacks && callbacks.semRender)) renderLancamentos();'), 'Edição direta deve poder confirmar o estado sem reconstruir toda a grade.');
+assert(/async function updateEntry[\s\S]*?sincronizarLinhaLancamentoSemRerender\(entry\);[\s\S]*?semRender:\s*true/.test(html), 'Edição direta deve atualizar somente sua linha e preservar a digitação da próxima.');
 ['valor', 'contaDebito', 'contaCredito', 'codigoHistorico', 'historico'].forEach((campo) => {
   assert(html.includes(`data-entry-field="${campo}"`), `Campo ${campo} deve ser identificável para preservar a digitação.`);
 });
@@ -102,6 +104,63 @@ assert(html.includes('restaurarEdicaoAtivaLancamentos(edicaoAtiva);'), 'Renderiz
   assert.strictEqual(restaurado.value, '401', 'valor ainda digitado deve sobreviver ao rerender');
   assert.strictEqual(restaurado.focado, true, 'foco deve voltar ao segundo lançamento');
   assert.deepStrictEqual(restaurado.selecao, [2, 3], 'posição do cursor deve ser preservada');
+}
+
+{
+  const inicio = html.indexOf('let lancamentoManualEdicaoIndex = -1;');
+  const fim = html.indexOf('function atualizarCabecalhoModalLancamento', inicio);
+  assert(inicio >= 0 && fim > inicio, 'Fila otimista do modal deve permanecer isolada e testável.');
+  const contexto = {
+    console,
+    Promise,
+    setTimeout,
+    clearTimeout
+  };
+  vm.createContext(contexto);
+  vm.runInContext(`
+    var estadoTeste = [];
+    var snapshotsRemotos = [];
+    var renders = 0;
+    var resolverPrimeiro = null;
+    let _sessaoSalvando = false;
+    function saveState() {}
+    function renderLancamentos() { renders++; }
+    function updateDashboard() {}
+    function updateCharts() {}
+    function atualizarIndicadorSalvamento() {}
+    async function salvarSessaoRemotoAgora() {
+      _sessaoSalvando = true;
+      snapshotsRemotos.push(estadoTeste.slice());
+      if (snapshotsRemotos.length === 1) {
+        await new Promise(function(resolve) { resolverPrimeiro = resolve; });
+      }
+      _sessaoSalvando = false;
+      return { ok: true };
+    }
+  ` + html.slice(inicio, fim), contexto);
+
+  (async function testarSegundaEdicaoDurantePostLento() {
+    contexto.enfileirarMutacaoModalLancamento(function() {
+      contexto.estadoTeste.push('primeira');
+    }, { semRender: true });
+    await new Promise(resolve => setTimeout(resolve, 160));
+    assert.deepStrictEqual(Array.from(contexto.snapshotsRemotos[0] || []), ['primeira'], 'primeiro POST deve representar apenas a primeira edição');
+
+    contexto.enfileirarMutacaoModalLancamento(function() {
+      contexto.estadoTeste.push('segunda');
+    }, { semRender: true });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.deepStrictEqual(Array.from(contexto.estadoTeste), ['primeira', 'segunda'], 'segunda edição deve entrar no estado antes de o primeiro POST terminar');
+    assert.strictEqual(contexto.renders, 0, 'edições diretas não podem reconstruir a grade e apagar a digitação ativa');
+
+    contexto.resolverPrimeiro();
+    await new Promise(resolve => setTimeout(resolve, 320));
+    assert.strictEqual(contexto.snapshotsRemotos.length, 2, 'estado alterado durante o primeiro POST deve gerar uma segunda confirmação');
+    assert.deepStrictEqual(Array.from(contexto.snapshotsRemotos[1]), ['primeira', 'segunda'], 'segunda confirmação deve conter as duas edições, sem perda');
+  })().catch(function(erro) {
+    console.error(erro);
+    process.exitCode = 1;
+  });
 }
 assert(modulo.includes('está encerrado. Solicite a reabertura administrativa'), 'Edição individual deve bloquear competência encerrada.');
 assert(html.includes('lancamentoFechadoNoCache(e)'), 'Tabela deve identificar visualmente lançamentos de competência encerrada.');

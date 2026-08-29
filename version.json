@@ -1,7 +1,7 @@
 {
-  "version": "3.4.208",
-  "build_date": "2026-08-29T20:26:47Z",
+  "version": "3.4.209",
+  "build_date": "2026-08-29T20:37:03Z",
   "release_notes": [
-    "Cobertura fiscal obrigatória por fonte e matriz de tributos"
+    "Edição do próximo lançamento sem reconstruir a grade durante o salvamento anterior"
   ]
 }
