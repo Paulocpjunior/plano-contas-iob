@@ -1,8 +1,7 @@
 {
-  "version": "3.4.203",
-  "build_date": "2026-08-29T16:32:13Z",
+  "version": "3.4.204",
+  "build_date": "2026-08-29T16:41:10Z",
   "release_notes": [
-    "Mercado Pago: distinguir recurso desabilitado de indisponibilidade operacional",
-    "observabilidade: evitar falso alerta 5xx quando o OAuth estiver desligado"
+    "Trilha administrativa padronizada para exclusão, plano, fechamento e reabertura"
   ]
 }
