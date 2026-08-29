@@ -230,12 +230,20 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   `gen-lang-client-0569062468`, autenticação em `projetos-app-sp` e bucket
   `cci-firestore-backups-292090471177`. Nenhum dado foi movido.
 
-### 🟡 P15 — Configuração da integração Mercado Pago
+### 🟢 P15 — Configuração da integração Mercado Pago
 
-- Estado: `ABERTA`
+- Estado: `RESOLVIDA`
 - Gap: OAuth permanece com valores placeholder na configuração observada.
 - Critério de aceite: integração configurada via Secret Manager e homologada,
   ou funcionalidade desabilitada de forma explícita.
+- Implementado em 29/08/2026: OAuth e relatório automático ficam
+  explicitamente desabilitados por `MERCADO_PAGO_OAUTH_ENABLED=false`; o deploy
+  remove os valores placeholder de client ID/secret; backend e interface
+  informam o estado e impedem conexão/solicitação automática. A importação
+  manual CSV/XLSX permanece ativa e protegida pelos testes existentes.
+- Reativação segura: exige secrets reais no Secret Manager, flag explícita e
+  homologação do callback/relatório; valor vazio ou placeholder continua
+  bloqueado mesmo que a flag seja ligada por engano.
 
 ## Histórico de resoluções
 
@@ -250,3 +258,6 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   métricas, SLOs e políticas de alerta ativos no projeto de produção.
 - 29/08/2026 — P14 passou de `ABERTA` para `RESOLVIDA` após tornar explícita e
   testável a topologia real de runtime, dados, autenticação e backup.
+- 29/08/2026 — P15 passou de `ABERTA` para `RESOLVIDA`: OAuth Mercado Pago
+  desabilitado de forma explícita, placeholders removidos e importação manual
+  preservada.
