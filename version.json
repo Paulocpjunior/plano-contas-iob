@@ -1,9 +1,8 @@
 {
-  "version": "3.4.198",
-  "build_date": "2026-08-29T15:54:00Z",
+  "version": "3.4.199",
+  "build_date": "2026-08-29T15:58:17Z",
   "release_notes": [
-    "security: adicionar headers HTTP seguros e respostas 413/429 estruturadas",
-    "security: aplicar limites de payload específicos por fluxo",
-    "stability: proteger autosave e Gemini com throttling compatível"
+    "security: remover identificação do framework nos headers públicos",
+    "docs: registrar evidências públicas da conclusão do hardening HTTP"
   ]
 }
