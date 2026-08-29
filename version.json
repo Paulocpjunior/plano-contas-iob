@@ -1,9 +1,9 @@
 {
-  "version": "3.4.196",
-  "build_date": "2026-08-29T15:38:27Z",
+  "version": "3.4.197",
+  "build_date": "2026-08-29T15:43:22Z",
   "release_notes": [
-    "security: remover vulnerabilidades crítica e alta da geração de PDFs",
-    "release: reconciliar a linha publicada com a main sem perda funcional",
-    "fix: preservar a próxima digitação enquanto o lançamento anterior é salvo"
+    "release: bloquear deploy manual fora da main",
+    "release: unificar auditoria, testes, candidata e health em um único fluxo",
+    "docs: confirmar resolução das vulnerabilidades críticas de PDF"
   ]
 }

@@ -44,7 +44,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### P02 — Linha oficial de release e prevenção de regressão
 
-- Estado: `EM_RESOLUÇÃO`
+- Estado: `AGUARDANDO EVIDÊNCIA`
 - Evidência inicial: a revisão publicada está 95 commits à frente e 7 atrás de
   `origin/main`; somente `origin/codex/cci-homologar-nubank` contém o commit
   publicado. O deploy manual não executa `npm audit` e encaminha tráfego antes
@@ -64,9 +64,17 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   o endpoint correto do CFI em `us-west1`, o fechamento CFI e os ajustes
   R-2010. A bateria completa `npm run check` foi aprovada após a resolução dos
   conflitos.
-- Evidência ainda necessária: publicar a branch reconciliada por PR na `main`,
-  confirmar que a revisão de produção descende dela e unificar o gate do deploy
-  manual com o GitHub Actions antes de marcar como `RESOLVIDA`.
+- Etapa oficial cumprida: a branch reconciliada foi publicada por PR na
+  `main` e a revisão de produção passou a descender da linha oficial.
+- Publicação oficial em 29/08/2026: PR #65 mesclado por squash na `main`; o
+  workflow oficial aprovou auditoria, porta de qualidade, candidata sem tráfego,
+  health pré-tráfego e health final. A versão 3.4.196 foi confirmada na revisão
+  `plano-contas-iob-00737-dak`, com 100% do tráfego, e o commit publicado é
+  descendente da `main`.
+- Gate manual preparado em 29/08/2026: `npm run deploy:production` deixa de
+  executar `gcloud` localmente, recusa qualquer HEAD diferente de
+  `origin/main` e apenas dispara/acompanha o mesmo workflow oficial. Falta
+  publicar esse último contrato para concluir P02.
 
 ### P03 — Piloto formal da migração
 
@@ -98,7 +106,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### P06 — Vulnerabilidades de dependências de produção
 
-- Estado: `AGUARDANDO EVIDÊNCIA`
+- Estado: `RESOLVIDA`
 - Gap: 1 vulnerabilidade crítica, 1 alta e 9 moderadas no lock auditado.
 - Critério de aceite: zero advisory crítico/alto ou exceção formal com prazo;
   regressão de PDFs e importadores aprovada.
@@ -110,8 +118,8 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Evidência: bateria completa `npm run check` aprovada após a atualização,
   incluindo relatórios contábeis, AuditAI, Conferência de Caixa, geração de PDF
   e todos os importadores homologados.
-- Evidência ainda necessária: revisão 3.4.196 publicada e health/version
-  confirmados antes de marcar como `RESOLVIDA`.
+- Evidência de produção: versão 3.4.196 publicada pela `main` na revisão
+  `plano-contas-iob-00737-dak`, 100% do tráfego, health/version aprovados.
 
 ### P07 — Menor privilégio no Google Cloud
 
