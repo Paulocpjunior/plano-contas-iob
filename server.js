@@ -1,6 +1,7 @@
 const express = require('express');
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { validarVersaoParaNovaImportacao } = require('./session-import-version-guard');
+const { avaliarRevisaoSessao } = require('./session-revision-guard');
 const { aplicarPlanoNaSessao, usuarioPodeAcessarEmpresa } = require('./empresa-plano-vinculo');
 const admin = require('firebase-admin');
 const path = require('path');
@@ -3094,8 +3095,20 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     ]);
     temposPersistencia.leituras = Date.now() - inicioPersistencia - temposPersistencia.acesso - temposPersistencia.trava;
     const exigirRevisao = !!(atual.dados && atual.dados.require_session_revision);
-    if (exigirRevisao && (!session_revision || session_revision !== atual.dados.session_revision)) {
-      throw erroSessao('Esta sessão foi alterada por um administrador. Recarregue a empresa antes de salvar novamente.', 409, 'SESSAO_DESATUALIZADA');
+    const resultadoRevisao = avaliarRevisaoSessao({
+      revisaoAtual: atual.dados && atual.dados.session_revision,
+      revisaoCliente: session_revision,
+      revisaoObrigatoria: exigirRevisao,
+    });
+    if (!resultadoRevisao.ok) {
+      const concorrente = resultadoRevisao.codigo === 'SESSAO_CONCORRENTE';
+      throw erroSessao(
+        concorrente
+          ? 'Outra tela ou colaborador salvou esta empresa primeiro. Suas alterações locais não foram sobrescritas; confira-as antes de recarregar.'
+          : 'Esta sessão foi alterada por um administrador. Recarregue a empresa antes de salvar novamente.',
+        409,
+        resultadoRevisao.codigo
+      );
     }
     await impedirAlteracaoPeriodosFechados(cnpjLimpo, atual.stateJson, state_json, periodosContabeis);
     await impedirSobrescritaSaldosTransportados(cnpjLimpo, state_json, transportesSaldos);

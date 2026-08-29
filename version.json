@@ -1,7 +1,7 @@
 {
-  "version": "3.4.210",
-  "build_date": "2026-08-29T20:44:49Z",
+  "version": "3.4.211",
+  "build_date": "2026-08-29T21:07:11Z",
   "release_notes": [
-    "Persistência de sessão com leituras paralelas, commit único e telemetria de latência"
+    "Proteção contra sobrescrita silenciosa entre duas telas ou colaboradores"
   ]
 }
