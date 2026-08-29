@@ -6,31 +6,31 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.206"></script>
+<script src="/saas-brand-theme.js?v=3.4.207"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.206"></script>
-<script src="/parser-ofx.js?v=3.4.206"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.206"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.206"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.206"></script>
-<script src="/parser-safra-extrato.js?v=3.4.206"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.206"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.206"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.206"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.206"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.206"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.206"></script>
-<script src="/parser-btg-pactual.js?v=3.4.206"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.206"></script>
-<script src="/parser-abc-extrato.js?v=3.4.206"></script>
-<script src="/parser-inter-extrato.js?v=3.4.206"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.206"></script>
-<script src="/parser-stone-extrato.js?v=3.4.206"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.206"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.206"></script>
+<script src="/api-adapter.js?v=3.4.207"></script>
+<script src="/parser-ofx.js?v=3.4.207"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.207"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.207"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.207"></script>
+<script src="/parser-safra-extrato.js?v=3.4.207"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.207"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.207"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.207"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.207"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.207"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.207"></script>
+<script src="/parser-btg-pactual.js?v=3.4.207"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.207"></script>
+<script src="/parser-abc-extrato.js?v=3.4.207"></script>
+<script src="/parser-inter-extrato.js?v=3.4.207"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.207"></script>
+<script src="/parser-stone-extrato.js?v=3.4.207"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.207"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.207"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1149,6 +1149,8 @@ function renderLayoutQuality() {
       <div class="layout-card"><div class="bank">Layouts aprovados</div><div class="count">${resumo.layouts_aprovados_operacao || 0}</div><div class="caption">${resumo.layouts_em_teste || 0} em teste • ${resumo.layouts_bloqueados || 0} bloqueados</div></div>
       <div class="layout-card"><div class="bank">Pendentes da fila</div><div class="count">${opResumo.pendentes || 0}</div><div class="caption">${opResumo.em_parametrizacao || 0} em parametrização</div></div>
       <div class="layout-card"><div class="bank">Rejeições resolvidas</div><div class="count">${opResumo.resolvidos || 0}</div><div class="caption">${opResumo.rejeicoes || 0} rejeições monitoradas</div></div>
+      <div class="layout-card"><div class="bank">SLA vencido</div><div class="count">${opResumo.sla_vencidos || 0}</div><div class="caption">Pendências fora do prazo</div></div>
+      <div class="layout-card"><div class="bank">Sem responsável</div><div class="count">${opResumo.sem_responsavel || 0}</div><div class="caption">Aguardando atribuição</div></div>
     </div>`;
 
   let html = cards;
@@ -1215,7 +1217,7 @@ function renderLayoutQuality() {
         : (l.apto ? 'Promover para aprovado' : 'Cadastrar evidência e caso de regressão');
       html += `<tr>
         <td><strong>${escapeHtml(l.banco)} - ${escapeHtml(l.nomeBanco || '')}</strong><br><span style="font-size:12px;color:#374151">${escapeHtml(l.layout || '')}</span><br><span class="text-mono" style="font-size:11px;color:#9ca3af">${escapeHtml(l.parser || '')}</span></td>
-        <td><span class="badge ${cls}">${escapeHtml(st.replace(/_/g, ' '))}</span><br><span style="font-size:11px;color:#6b7280">${escapeHtml(l.homologacao_observacao || '')}</span></td>
+        <td><span class="badge ${cls}">${escapeHtml(st.replace(/_/g, ' '))}</span><br><span style="font-size:11px;color:#6b7280">${escapeHtml(l.homologacao_observacao || '')}</span><br><span style="font-size:11px;color:#9ca3af">${escapeHtml(l.homologacao_versao ? 'v' + l.homologacao_versao : 'versão não registrada')} · ${escapeHtml(l.homologado_por_email || 'sem responsável')}</span></td>
         <td style="font-size:12px;color:#374151">${escapeHtml(provas)}<br>${l.apto ? '<span class="badge badge-ok">Apto</span>' : '<span class="badge badge-warn">Falta prova</span>'}</td>
         <td style="font-size:12px;color:#374151">${escapeHtml(l.total_usos || 0)} uso(s)<br><span style="font-size:11px;color:#9ca3af">${escapeHtml(l.ultimoTeste || '-')}</span></td>
         <td style="font-size:12px;color:#374151">${escapeHtml(acao)}</td>
@@ -1274,27 +1276,25 @@ function renderLayoutQuality() {
 
   if (rejeicoes.length) {
     html += '<h3 style="margin:22px 0 10px;color:#111827">Fila de arquivos rejeitados</h3>';
-    html += '<table><thead><tr><th>Quando</th><th>Banco/Arquivo</th><th>Empresa</th><th>Diagnóstico</th><th>Motivo</th><th>Status</th><th>Usuário</th><th>Ações</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>Quando</th><th>Banco/Arquivo</th><th>Empresa</th><th>Diagnóstico</th><th>Motivo</th><th>Governança</th><th>Responsável</th><th>Ações</th></tr></thead><tbody>';
     rejeicoes.forEach(r => {
       const st = r.status || 'pendente_parametrizacao';
       const diag = r.diagnostico || {};
       const categoria = r.categoria_erro || diag.categoria_erro || 'sem_categoria';
       const acao = r.acao_sugerida || diag.acao_sugerida || 'Revisar na Central de Qualidade';
       const layoutsTentados = r.layouts_tentados || diag.layouts_tentados || [];
+      const sla = r.sla || {};
+      const slaTexto = sla.vencido ? 'SLA vencido' : (sla.fechado ? 'Fechado' : (sla.restante_horas == null ? 'SLA legado ausente' : sla.restante_horas + 'h restantes'));
+      const slaClasse = sla.vencido ? 'badge-logout' : (sla.fechado ? 'badge-ok' : 'badge-warn');
       html += `<tr>
         <td style="font-size:12px">${fmtDate(r.criado_em)}</td>
         <td><strong>${escapeHtml(r.banco || '-')} ${escapeHtml(r.nomeBanco || '')}</strong><br>${escapeHtml(r.arquivo || '')}<br><span style="font-size:11px;color:#9ca3af">${escapeHtml(r.formato || '')} ${r.tamanho ? '• ' + Math.round(r.tamanho / 1024) + ' KB' : ''}</span></td>
         <td style="font-size:12px;color:#374151">${escapeHtml(r.empresa || '-')}<br>${escapeHtml(r.cnpj || '')}</td>
         <td style="font-size:12px;color:#374151"><span class="badge badge-info">${escapeHtml(categoria.replace(/_/g, ' '))}</span><br><strong>Ação:</strong> ${escapeHtml(acao)}<br><span style="color:#64748b">Tentados: ${escapeHtml(layoutsTentados.join(', ') || '-')}</span></td>
         <td style="font-size:12px;color:#991b1b">${escapeHtml(r.motivo || '').slice(0, 260)}</td>
-        <td><select onchange="atualizarStatusRejeicao('${escapeHtml(r.id)}', this.value)" style="padding:7px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px">
-          <option value="pendente_parametrizacao" ${st === 'pendente_parametrizacao' ? 'selected' : ''}>Pendente</option>
-          <option value="em_parametrizacao" ${st === 'em_parametrizacao' ? 'selected' : ''}>Em parametrização</option>
-          <option value="resolvido" ${st === 'resolvido' ? 'selected' : ''}>Resolvido</option>
-          <option value="ignorado" ${st === 'ignorado' ? 'selected' : ''}>Ignorado</option>
-        </select></td>
-        <td style="font-size:12px;color:#64748b">${escapeHtml(r.criado_por_email || '-')}</td>
-        <td><button class="btn-sm btn-promote" onclick="atualizarStatusRejeicao('${escapeHtml(r.id)}','resolvido')">Resolver</button></td>
+        <td><span class="badge ${slaClasse}">${escapeHtml(slaTexto)}</span><br><span style="font-size:11px;color:#64748b">${escapeHtml((r.prioridade || 'legado').toUpperCase())} · ${escapeHtml(st.replace(/_/g, ' '))}</span><br><span style="font-size:11px;color:#9ca3af">${escapeHtml(r.versao_correcao ? 'v' + r.versao_correcao : '')} ${escapeHtml(r.evidencia_id || '')}</span></td>
+        <td style="font-size:12px;color:#64748b">${escapeHtml(r.responsavel_email || 'Não atribuído')}<br><span style="font-size:11px;color:#9ca3af">aberto por ${escapeHtml(r.criado_por_email || '-')}</span></td>
+        <td><button class="btn-sm" onclick="tratarRejeicao('${escapeHtml(r.id)}','em_parametrizacao')">Assumir</button> <button class="btn-sm btn-promote" onclick="tratarRejeicao('${escapeHtml(r.id)}','resolvido')">Resolver</button> <button class="btn-sm" onclick="tratarRejeicao('${escapeHtml(r.id)}','ignorado')">Ignorar</button></td>
       </tr>`;
     });
     html += '</tbody></table>';
@@ -1394,14 +1394,39 @@ function exportLayoutEvidenceCSV() {
   a.click();
 }
 
-async function atualizarStatusRejeicao(id, status) {
-  if (!id || !status) return;
+async function tratarRejeicao(id, status) {
+  if (!id || !status || !currentLayoutQuality) return;
+  const item = (currentLayoutQuality.rejeicoes || []).find(r => r.id === id) || {};
+  const usuario = (window.firebase && firebase.auth().currentUser) || {};
+  const responsavel = prompt('Responsável pela pendência:', item.responsavel_email || usuario.email || '');
+  if (responsavel === null) return;
+  const body = { status, responsavel_email: responsavel, prioridade: item.prioridade || 'normal' };
+  if (status === 'resolvido') {
+    const compativeis = (currentLayoutQuality.evidencias || []).filter(e => {
+      return String(e.banco || '') === String(item.banco || '') && (!item.parser || e.parser === item.parser) && (e.etapa === 'regressao_aprovada' || /regressao aprovada/i.test(e.status || ''));
+    });
+    if (!compativeis.length) {
+      alert('Não existe evidência de regressão aprovada compatível. Cadastre e publique a evidência antes de resolver.');
+      return;
+    }
+    const lista = compativeis.map(e => e.id).join(', ');
+    const evidenciaId = prompt('Evidência aprovada (opções: ' + lista + '):', compativeis[0].id);
+    if (evidenciaId === null) return;
+    body.evidencia_id = evidenciaId;
+    body.versao_correcao = currentLayoutQuality.versao_publicada || '';
+    body.observacao_admin = prompt('Resumo da correção e conferência:', item.observacao_admin || '') || '';
+  } else if (status === 'ignorado') {
+    const justificativa = prompt('Justificativa para ignorar (obrigatória):', item.observacao_admin || '');
+    if (justificativa === null) return;
+    body.observacao_admin = justificativa;
+  }
   try {
     const r = await window.API.apiFetch('/api/layout-rejections/' + encodeURIComponent(id), {
       method: 'PATCH',
-      body: JSON.stringify({ status })
+      body: JSON.stringify(body)
     });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.erro || ('HTTP ' + r.status));
     await loadLayoutQuality();
   } catch (e) {
     alert('Erro ao atualizar status: ' + (e.message || e));

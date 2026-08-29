@@ -78,7 +78,7 @@ assertContains('admin.html', /^(?![\s\S]*Selecione um PDF para testar\.)[\s\S]*$
 assertContains('admin.html', 'Fila de arquivos rejeitados', 'fila de rejeicoes no admin');
 assertContains('admin.html', 'Confiabilidade por banco', 'relatorio de confiabilidade no admin');
 assertContains('admin.html', 'Taxa operacional por colaborador', 'taxa operacional por colaborador');
-assertContains('admin.html', 'atualizarStatusRejeicao', 'mudanca de status da fila no admin');
+assertContains('admin.html', 'tratarRejeicao', 'tratamento governado da fila no admin');
 assertContains('admin.html', 'atualizarHomologacaoLayout', 'controle de homologacao de layout');
 assertContains('admin.html', 'Homologados', 'card de homologacao de layouts');
 assertContains('admin.html', 'promoverLayoutQualidade', 'promocao de layout pela central de qualidade');
