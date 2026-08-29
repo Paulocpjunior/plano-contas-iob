@@ -1,9 +1,9 @@
 {
-  "version": "3.4.200",
-  "build_date": "2026-08-29T16:11:19Z",
+  "version": "3.4.201",
+  "build_date": "2026-08-29T16:20:14Z",
   "release_notes": [
-    "observabilidade: ativar telemetria estruturada para sessão, importação e parser",
-    "monitoramento: criar uptime, métricas e políticas de alerta do CCI",
-    "auditoria: classificar pendências por cores e corrigir os estados P01/P02"
+    "infraestrutura: explicitar projetos de runtime, dados, autenticação e backup",
+    "segurança operacional: recusar deploy com topologia de projetos divergente",
+    "auditoria: corrigir a documentação da topologia real do CCI"
   ]
 }

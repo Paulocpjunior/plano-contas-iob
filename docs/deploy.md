@@ -43,7 +43,16 @@ Os defaults foram tirados do próprio repositório:
 |---|---|---|
 | `CLOUD_RUN_SERVICE` | `plano-contas-iob` | `seed-historicos.sh` |
 | `CLOUD_RUN_REGION` | `us-west1` | sufixo `-uw` da URL do serviço |
-| `GCP_PROJECT_ID` | `projetos-app-sp` | `admin.initializeApp` no `server.js` |
+| `GCP_PROJECT_ID` | `gen-lang-client-0569062468` | projeto onde o Cloud Run está publicado |
+| `CCI_DATA_PROJECT_ID` | `gen-lang-client-0569062468` | Firestore `(default)` que contém os dados do CCI |
+| `CCI_AUTH_PROJECT_ID` | `projetos-app-sp` | Firebase Authentication dos colaboradores |
+| `CCI_BACKUP_PROJECT_ID` | `gen-lang-client-0569062468` | projeto que contém as exportações Firestore |
+| `CCI_BACKUP_BUCKET` | `cci-firestore-backups-292090471177` | bucket oficial de backup na mesma região dos dados |
+
+Esses destinos são intencionalmente distintos. Alterar uma variável não é uma
+migração: exige plano próprio, cópia validada e janela aprovada. O health check
+publica apenas os quatro project IDs não sensíveis e o pipeline recusa uma
+revisão cuja topologia divergir da configuração oficial.
 
 Sem o `GCP_SA_KEY`, o workflow **falha no primeiro passo** com essas
 instruções — de propósito, para não estourar no meio do deploy.
