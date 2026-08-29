@@ -149,6 +149,10 @@ assertContains('index.html', 'Cobertura incompleta — não interprete ausência
 assertContains('server.js', "payload.contrato", 'backend valida contrato versionado do conector fiscal');
 assertContains('server.js', "CFI_FISCAL_CONNECTOR", 'registros do conector fiscal possuem origem auditavel');
 assertContains('fiscal-payments-contract.js', "evidencia_pagamento?.nivel !== 'oficial'", 'contrato bloqueia contabilizacao sem evidencia oficial');
+assertContains('fiscal-payments-contract.js', 'FONTES_COBERTURA', 'contrato exige matriz nominal de fontes fiscais');
+assertContains('fiscal-payments-contract.js', 'montarMatrizTributos', 'contrato cruza tributos e fontes de comprovacao');
+assertContains('index.html', 'não interprete ausência como imposto não pago', 'tela nao transforma gap de fonte em ausencia de pagamento');
+assertContains('index.html', 'verde consultada, amarelo não coberta, vermelho falha', 'tela explica classificacao por cores da cobertura');
 assertContains('index.html', 'Conector fiscal ativo', 'aviso correto quando a integracao usa app fiscal externo');
 assertContains('index.html', "criarSnapshotState({ semLancamentos: true })", 'snapshot local guarda apenas metadados e evita recarregamento por memoria');
 assertContains('index.html', 'versionModalLater', 'popup de atualizacao permite adiar sem interromper trabalho');
