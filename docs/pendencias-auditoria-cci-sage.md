@@ -64,6 +64,14 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   acesso, trava, leituras e gravação para medir o p95 da própria revisão sem
   registrar CNPJ nem conteúdo contábil. Health/versão aprovados, 115 testes
   passaram e não houve log `ERROR` na primeira verificação.
+- Concorrência reforçada em 29/08/2026: versão `3.4.211`, revisão
+  `plano-contas-iob-00767-cip`, passou a recusar a fotografia de uma segunda
+  tela quando ela informa uma revisão já substituída. O primeiro salvamento é
+  preservado, o segundo não sobrescreve silenciosamente os lançamentos e a
+  tela interrompe o retry do snapshot obsoleto mantendo as alterações locais
+  visíveis para conferência. A porta completa e o teste dinâmico de duas
+  revisões passaram; candidata, health final, versão pública e 100% do tráfego
+  foram confirmados, sem log `ERROR` na nova revisão.
 - Linha de base observada antes da revisão 00763: 77 POSTs nas últimas 24 h,
   sendo 74 HTTP 200, dois 401 e um 409 por revisão administrativa; p50 de
   5,36 s e p95 de 6,12 s. Não houve HTTP 500 nessa amostra.
@@ -344,11 +352,25 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 
 ### 🟡 P13 — Teste real de concorrência e volume
 
-- Estado: `ABERTA`
-- Gap: 103 testes portáteis passam, mas não reproduzem múltiplos colaboradores,
-  payload grande, latência e disputa de revisão.
+- Estado: `EM RESOLUÇÃO`
+- Gap: a porta portátil passa, mas ainda não reproduz em ambiente autenticado
+  múltiplos colaboradores, payload grande, latência e disputa de revisão.
 - Critério de aceite: teste E2E reproduzível cobrindo edição simultânea,
   desconexão, retry, reload e payload de grande volume.
+- Etapa concluída em 29/08/2026: o contrato de revisão agora cobre duas telas
+  ou colaboradores que partiram do mesmo estado. Um teste reproduzível prova
+  que a revisão do primeiro salvamento é aceita e a fotografia obsoleta do
+  segundo recebe `SESSAO_CONCORRENTE`, sem last-write-wins silencioso. Clientes
+  legados sem revisão permanecem compatíveis durante a transição; o modo
+  administrativo estrito continua bloqueando revisão ausente.
+- Evidência de produção: versão `3.4.211`, revisão
+  `plano-contas-iob-00767-cip`, workflow oficial `33275290138` aprovado,
+  candidata validada antes do tráfego, health final aprovado, 100% do tráfego
+  e nenhum log de severidade `ERROR` na primeira verificação.
+- Evidência ainda necessária: execução autenticada em empresa exclusivamente
+  destinada a teste, cobrindo concorrência, desconexão, retry, reload, payload
+  de grande volume e p95. Nenhuma empresa real será sobrescrita para fabricar
+  essa prova.
 
 ### 🟢 P14 — Configuração explícita dos projetos Google Cloud
 
@@ -414,3 +436,6 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   24/24 coleções-raiz, operação sem erro e RTO de 10 min 27,648 s. Permanece
   `EM RESOLUÇÃO` até existir e ser restaurada uma réplica externa ao Google
   Cloud.
+- 29/08/2026 — P13 passou de `ABERTA` para `EM RESOLUÇÃO`: a versão 3.4.211
+  eliminou a sobrescrita silenciosa entre duas telas com revisão obsoleta. O
+  fechamento aguarda o E2E autenticado em empresa dedicada de teste.
