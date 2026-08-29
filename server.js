@@ -46,6 +46,7 @@ const {
 const app = express();
 app.set('trust proxy', true);
 app.set('etag', false);
+app.disable('x-powered-by');
 const PORT = process.env.PORT || 8080;
 const GEMINI_DEFAULT_MODEL = process.env.GEMINI_MODEL || process.env.GEMINI_FLASH_MODEL || 'gemini-3.7-flash';
 const GEMINI_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || process.env.GEMINI_PRO_MODEL || GEMINI_DEFAULT_MODEL;

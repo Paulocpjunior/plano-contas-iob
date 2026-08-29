@@ -158,7 +158,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### P11 — Hardening HTTP
 
-- Estado: `EM_RESOLUÇÃO`
+- Estado: `RESOLVIDA`
 - Gap: serviço público sem headers de segurança padronizados, rate limiting ou
   limites específicos por rota; limite JSON global de 100 MB.
 - Critério de aceite: headers, limites e throttling compatíveis com cada fluxo,
@@ -171,6 +171,13 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Compatibilidade protegida: autosave admite 240 POSTs/min por usuário/empresa,
   a sessão grande compactada continua com round-trip exato e os limites maiores
   preservam os fluxos que transportam PDF ou estado contábil completo.
+- Evidência de produção: versão 3.4.198 na revisão
+  `plano-contas-iob-00741-jop`, 100% do tráfego, health/version aprovados e zero
+  log de severidade `ERROR` na verificação. Headers de segurança e
+  `RateLimit-*` confirmados publicamente; payload comum de 9 MB recebeu HTTP
+  413 estruturado, enquanto 9 MB na rota de sessão foi aceito pelo parser e
+  chegou à autenticação, comprovando o limite específico sem gravação de dados.
+- Fechamento: identificação `X-Powered-By` removida e protegida por regressão.
 
 ### P12 — Cobertura da trilha administrativa
 
