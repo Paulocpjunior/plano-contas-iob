@@ -1,6 +1,6 @@
 {
-  "version": "3.4.194",
-  "build_date": "2026-08-29T15:25:04Z",
+  "version": "3.4.195",
+  "build_date": "2026-08-29T15:27:38Z",
   "release_notes": [
     "fix: preservar a próxima digitação enquanto o lançamento anterior é salvo",
     "perf: compactar sessões grandes antes do transporte e do Firestore",
