@@ -10,6 +10,7 @@ const { LAYOUTS_FISCAIS_PADRAO } = require('./layouts-fiscais-padrao');
 const { LAYOUT_QUALITY_CASES } = require('./layout-quality-cases');
 const { LAYOUT_QUALITY_EVIDENCE } = require('./layout-quality-evidence');
 const { criarGovernancaRejeicao, prepararAtualizacao, resumirSla } = require('./layout-quality-workflow');
+const { categoriaDaRejeicao, fingerprintCasoRejeicao, agruparCasosRejeicao } = require('./layout-rejection-case');
 const { registrarRotasMercadoPago, registrarRotasPublicasMercadoPago } = require('./mercadopago-integration');
 const registrarRotasReinf = require('./reinf-routes');
 const cryptoAdmin = require('crypto');
@@ -4895,6 +4896,7 @@ app.post('/api/layout-rejections', async (req, res) => {
       criado_por_uid: req.user.uid,
       criado_por_email: req.user.email
     };
+    doc.caso_fingerprint = fingerprintCasoRejeicao(doc);
     const ref = await db.collection('layout_rejections').add(doc);
     res.status(201).json({ ok: true, id: ref.id });
   } catch (err) {
@@ -4906,13 +4908,30 @@ app.post('/api/layout-rejections', async (req, res) => {
 app.get('/api/layout-rejections', adminRequired, async (req, res) => {
   try {
     const lim = Math.min(parseInt(req.query.limit, 10) || 100, 500);
-    const snap = await db.collection('layout_rejections').orderBy('criado_em', 'desc').limit(lim).get();
+    const snap = await db.collection('layout_rejections').orderBy('criado_em', 'desc').limit(1000).get();
     const agora = new Date();
-    res.json({ rejeicoes: snap.docs.map(d => {
-      const dados = d.data() || {};
-      const sla = resumirSla(dados, agora);
-      return { id: d.id, ...dados, prioridade: dados.prioridade || sla.prioridade, sla };
-    }) });
+    const documentos = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+    const casos = agruparCasosRejeicao(documentos);
+    const contagemPorCaso = new Map(casos.map(caso => [caso.fingerprint, caso.tentativas]));
+    res.json({
+      resumo: {
+        tentativas: documentos.length,
+        casos_unicos: casos.length,
+        tentativas_repetidas: documentos.length - casos.length,
+      },
+      rejeicoes: documentos.slice(0, lim).map(dados => {
+        const sla = resumirSla(dados, agora);
+        const casoFingerprint = dados.caso_fingerprint || fingerprintCasoRejeicao(dados);
+        return {
+          ...dados,
+          caso_fingerprint: casoFingerprint,
+          tentativas_caso: contagemPorCaso.get(casoFingerprint) || 1,
+          categoria_erro: categoriaDaRejeicao(dados),
+          prioridade: dados.prioridade || sla.prioridade,
+          sla,
+        };
+      })
+    });
   } catch (err) {
     console.error('layout-rejections GET erro:', err);
     res.status(500).json({ erro: err.message });
@@ -5030,13 +5049,14 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
       ensureItemMes(mes.bancos, e.banco, { banco: e.banco || 'sem-banco', nomeBanco: e.nomeBanco || '' }).sucessos++;
       ensureItemMes(mes.colaboradores, e.criado_por_email || e.ultimo_uso_por_email || 'sem-email', { email: e.criado_por_email || e.ultimo_uso_por_email || 'sem-email' }).sucessos++;
     });
-    rejeicoesSnap.docs.forEach(d => {
-      const r = d.data() || {};
+    const rejeicoesDocumentos = rejeicoesSnap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+    const casosRejeicao = agruparCasosRejeicao(rejeicoesDocumentos);
+    rejeicoesDocumentos.forEach(r => {
       const st = r.status || 'pendente_parametrizacao';
       const sla = resumirSla(r);
       if (sla.vencido) slaVencidos++;
       if (!sla.fechado && !String(r.responsavel_email || '').trim()) semResponsavel++;
-      const categoria = r.categoria_erro || (r.diagnostico && r.diagnostico.categoria_erro) || 'sem_categoria';
+      const categoria = categoriaDaRejeicao(r);
       categoriasErro[categoria] = (categoriasErro[categoria] || 0) + 1;
       status[st] = (status[st] || 0) + 1;
       const u = ensureUsuario(r.criado_por_email || '');
@@ -5122,6 +5142,13 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
         colaboradores: colaboradoresMes
       };
     }).sort((a, b) => String(b.mes).localeCompare(String(a.mes)));
+    const casosAbertos = casosRejeicao.filter(caso => caso.aberto);
+    const casosSlaVencidos = casosAbertos.filter(caso => resumirSla({
+      status: caso.estado,
+      prioridade: caso.prioridade || undefined,
+      categoria_erro: caso.categoria_erro,
+      criado_em: caso.primeira_em,
+    }).vencido).length;
     res.json({
       resumo: {
         sucessos: sucessosOperacionais,
@@ -5132,6 +5159,14 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
         ignorados: status.ignorado || 0,
         sla_vencidos: slaVencidos,
         sem_responsavel: semResponsavel,
+        casos_unicos: casosRejeicao.length,
+        casos_pendentes: casosAbertos.length,
+        casos_resolvidos: casosRejeicao.filter(caso => caso.estado === 'resolvido').length,
+        casos_ignorados: casosRejeicao.filter(caso => caso.estado === 'ignorado').length,
+        tentativas_repetidas: rejeicoesDocumentos.length - casosRejeicao.length,
+        casos_sla_vencidos: casosSlaVencidos,
+        casos_sem_responsavel: casosAbertos.filter(caso => !caso.responsavel_email).length,
+        casos_sem_parser: casosAbertos.filter(caso => !caso.parser).length,
         categorias_erro: categoriasErro
       },
       status,

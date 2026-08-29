@@ -6,31 +6,31 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.211"></script>
+<script src="/saas-brand-theme.js?v=3.4.212"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.211"></script>
-<script src="/parser-ofx.js?v=3.4.211"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.211"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.211"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.211"></script>
-<script src="/parser-safra-extrato.js?v=3.4.211"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.211"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.211"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.211"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.211"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.211"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.211"></script>
-<script src="/parser-btg-pactual.js?v=3.4.211"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.211"></script>
-<script src="/parser-abc-extrato.js?v=3.4.211"></script>
-<script src="/parser-inter-extrato.js?v=3.4.211"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.211"></script>
-<script src="/parser-stone-extrato.js?v=3.4.211"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.211"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.211"></script>
+<script src="/api-adapter.js?v=3.4.212"></script>
+<script src="/parser-ofx.js?v=3.4.212"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.212"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.212"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.212"></script>
+<script src="/parser-safra-extrato.js?v=3.4.212"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.212"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.212"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.212"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.212"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.212"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.212"></script>
+<script src="/parser-btg-pactual.js?v=3.4.212"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.212"></script>
+<script src="/parser-abc-extrato.js?v=3.4.212"></script>
+<script src="/parser-inter-extrato.js?v=3.4.212"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.212"></script>
+<script src="/parser-stone-extrato.js?v=3.4.212"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.212"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.212"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1105,13 +1105,14 @@ async function loadLayoutQuality() {
     const [r, rej, ops] = await Promise.all([
       window.API.apiFetch('/api/layout-quality'),
       window.API.apiFetch('/api/layout-rejections?limit=80'),
-      window.API.apiFetch('/api/layout-quality/ops?limit=500')
+      window.API.apiFetch('/api/layout-quality/ops?limit=1000')
     ]);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     currentLayoutQuality = await r.json();
     if (rej.ok) {
       const rejeicoes = await rej.json();
       currentLayoutQuality.rejeicoes = rejeicoes.rejeicoes || [];
+      currentLayoutQuality.rejeicoes_resumo = rejeicoes.resumo || {};
     }
     if (ops.ok) {
       currentLayoutQuality.operacional = await ops.json();
@@ -1147,10 +1148,12 @@ function renderLayoutQuality() {
       <div class="layout-card"><div class="bank">Cobertura</div><div class="count">${resumo.cobertura || 0}%</div><div class="caption">${resumo.layouts_oficiais || 0} layouts oficiais</div></div>
       <div class="layout-card"><div class="bank">Aptos a aprovar</div><div class="count">${resumo.layouts_aprovaveis || 0}</div><div class="caption">Com caso e evidência aprovados</div></div>
       <div class="layout-card"><div class="bank">Layouts aprovados</div><div class="count">${resumo.layouts_aprovados_operacao || 0}</div><div class="caption">${resumo.layouts_em_teste || 0} em teste • ${resumo.layouts_bloqueados || 0} bloqueados</div></div>
-      <div class="layout-card"><div class="bank">Pendentes da fila</div><div class="count">${opResumo.pendentes || 0}</div><div class="caption">${opResumo.em_parametrizacao || 0} em parametrização</div></div>
-      <div class="layout-card"><div class="bank">Rejeições resolvidas</div><div class="count">${opResumo.resolvidos || 0}</div><div class="caption">${opResumo.rejeicoes || 0} rejeições monitoradas</div></div>
-      <div class="layout-card"><div class="bank">SLA vencido</div><div class="count">${opResumo.sla_vencidos || 0}</div><div class="caption">Pendências fora do prazo</div></div>
-      <div class="layout-card"><div class="bank">Sem responsável</div><div class="count">${opResumo.sem_responsavel || 0}</div><div class="caption">Aguardando atribuição</div></div>
+      <div class="layout-card"><div class="bank">Casos pendentes</div><div class="count">${opResumo.casos_pendentes ?? opResumo.pendentes ?? 0}</div><div class="caption">${opResumo.rejeicoes || 0} tentativas preservadas</div></div>
+      <div class="layout-card"><div class="bank">Casos resolvidos</div><div class="count">${opResumo.casos_resolvidos ?? opResumo.resolvidos ?? 0}</div><div class="caption">${opResumo.casos_unicos || 0} casos únicos monitorados</div></div>
+      <div class="layout-card"><div class="bank">Casos com SLA vencido</div><div class="count">${opResumo.casos_sla_vencidos ?? opResumo.sla_vencidos ?? 0}</div><div class="caption">Prazo contado desde a primeira tentativa</div></div>
+      <div class="layout-card"><div class="bank">Casos sem responsável</div><div class="count">${opResumo.casos_sem_responsavel ?? opResumo.sem_responsavel ?? 0}</div><div class="caption">Aguardando atribuição</div></div>
+      <div class="layout-card"><div class="bank">Tentativas repetidas</div><div class="count">${opResumo.tentativas_repetidas || 0}</div><div class="caption">Mantidas na auditoria, sem inflar casos</div></div>
+      <div class="layout-card"><div class="bank">Casos sem parser</div><div class="count">${opResumo.casos_sem_parser || 0}</div><div class="caption">Precisam de triagem técnica</div></div>
     </div>`;
 
   let html = cards;
@@ -1288,7 +1291,7 @@ function renderLayoutQuality() {
       const slaClasse = sla.vencido ? 'badge-logout' : (sla.fechado ? 'badge-ok' : 'badge-warn');
       html += `<tr>
         <td style="font-size:12px">${fmtDate(r.criado_em)}</td>
-        <td><strong>${escapeHtml(r.banco || '-')} ${escapeHtml(r.nomeBanco || '')}</strong><br>${escapeHtml(r.arquivo || '')}<br><span style="font-size:11px;color:#9ca3af">${escapeHtml(r.formato || '')} ${r.tamanho ? '• ' + Math.round(r.tamanho / 1024) + ' KB' : ''}</span></td>
+        <td><strong>${escapeHtml(r.banco || '-')} ${escapeHtml(r.nomeBanco || '')}</strong><br>${escapeHtml(r.arquivo || '')}<br><span style="font-size:11px;color:#9ca3af">${escapeHtml(r.formato || '')} ${r.tamanho ? '• ' + Math.round(r.tamanho / 1024) + ' KB' : ''}</span>${Number(r.tentativas_caso || 1) > 1 ? '<br><span class="badge badge-warn">' + escapeHtml(r.tentativas_caso) + ' tentativas neste caso</span>' : ''}</td>
         <td style="font-size:12px;color:#374151">${escapeHtml(r.empresa || '-')}<br>${escapeHtml(r.cnpj || '')}</td>
         <td style="font-size:12px;color:#374151"><span class="badge badge-info">${escapeHtml(categoria.replace(/_/g, ' '))}</span><br><strong>Ação:</strong> ${escapeHtml(acao)}<br><span style="color:#64748b">Tentados: ${escapeHtml(layoutsTentados.join(', ') || '-')}</span></td>
         <td style="font-size:12px;color:#991b1b">${escapeHtml(r.motivo || '').slice(0, 260)}</td>
