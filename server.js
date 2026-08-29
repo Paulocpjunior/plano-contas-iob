@@ -12,6 +12,7 @@ const { registrarRotasMercadoPago, registrarRotasPublicasMercadoPago } = require
 const registrarRotasReinf = require('./reinf-routes');
 const cryptoAdmin = require('crypto');
 const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados } = require('./admin-exclusao-lancamentos');
+const { aplicarNoEstado: aplicarMigracaoSageNoEstado, prepararStaging: prepararStagingMigracaoSage, removerLoteDoEstado: removerMigracaoSageDoEstado, sha256: hashMigracaoSage } = require('./migracao-sage-executor');
 const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
 const { buscarRegimeNoCfi } = require('./cfi-regime-client');
@@ -137,6 +138,12 @@ app.use('/api', criarLimitador({
 app.use('/api/empresas/:cnpj/sessao', criarLimitador({
   janelaMs: 60 * 1000,
   maximo: 240,
+  aplicar: (req) => req.method === 'POST',
+  chave: (req) => `${req.user && req.user.uid || 'usuario'}:${String(req.params.cnpj || '').replace(/\D/g, '')}`,
+}));
+app.use('/api/admin/empresas/:cnpj/migracao-sage', criarLimitador({
+  janelaMs: 60 * 1000,
+  maximo: 30,
   aplicar: (req) => req.method === 'POST',
   chave: (req) => `${req.user && req.user.uid || 'usuario'}:${String(req.params.cnpj || '').replace(/\D/g, '')}`,
 }));
@@ -2975,6 +2982,24 @@ async function gravarTextoBackup(backupRef, subcolecao, texto) {
   return { geracao, partes: partes.length, bytes: String(texto || '').length };
 }
 
+async function carregarTextoBackup(backupRef, subcolecao, metadados) {
+  const meta = metadados || {};
+  const geracao = String(meta.geracao || '');
+  const esperado = Number(meta.partes || 0);
+  if (!geracao || !Number.isInteger(esperado) || esperado < 1) {
+    throw erroSessao('O backup do lote de migração está incompleto.', 409, 'BACKUP_MIGRACAO_INCOMPLETO');
+  }
+  const snap = await backupRef.collection(subcolecao).get();
+  const partes = snap.docs
+    .map(doc => doc.data() || {})
+    .filter(item => String(item.geracao || '') === geracao)
+    .sort((a, b) => Number(a.idx || 0) - Number(b.idx || 0));
+  if (partes.length !== esperado) {
+    throw erroSessao('O backup do lote de migração está incompleto.', 409, 'BACKUP_MIGRACAO_INCOMPLETO');
+  }
+  return partes.map(item => String(item.parte || '')).join('');
+}
+
 async function prepararBackupMetadadosImportacao(cnpj, fingerprints, backupRef) {
   const unicos = [...new Set((fingerprints || []).map(String).filter(fp => fp && fp.length <= 500 && !fp.includes('/')))];
   if (!unicos.length) return [];
@@ -3125,6 +3150,323 @@ app.get('/api/empresas/:cnpj/sessao', async (req, res) => {
   } catch (e) {
     console.error('carregar sessao erro:', e);
     res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_CARREGAR_SESSAO' });
+  }
+});
+
+function idLoteMigracaoSage(valor) {
+  const id = String(valor || '');
+  return /^sage_\d{6}_[a-f0-9]{24}$/.test(id) ? id : '';
+}
+
+async function carregarLoteMigracaoSage(loteRef) {
+  const armazenamento = await carregarSessaoAtualPorRef(loteRef);
+  if (!armazenamento.encontrada || !armazenamento.stateJson) {
+    throw erroSessao('Lote de migração SAGE não encontrado ou incompleto.', 404, 'LOTE_MIGRACAO_NAO_ENCONTRADO');
+  }
+  try {
+    return { armazenamento, staging: JSON.parse(armazenamento.stateJson) };
+  } catch (_) {
+    throw erroSessao('Staging do lote de migração está corrompido.', 409, 'STAGING_MIGRACAO_INVALIDO');
+  }
+}
+
+app.post('/api/admin/empresas/:cnpj/migracao-sage/staging', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const contasPlano = await carregarContasContabeisEmpresa(chk.empresa);
+    const contasCciValidas = [...new Set(contasPlano.flatMap(conta => [conta.id, conta.codigo, conta.reduzido]).map(String).filter(Boolean))];
+    const staging = prepararStagingMigracaoSage({ ...(req.body || {}), empresa_cnpj: cnpjLimpo, contas_cci_validas: contasCciValidas });
+    const loteRef = db.collection('empresas').doc(cnpjLimpo).collection('migracoes_sage').doc(staging.lote_id);
+    const existente = await loteRef.get();
+    if (existente.exists) {
+      const anterior = existente.data() || {};
+      if (String(anterior.staging_hash || '') !== staging.staging_hash) {
+        throw erroSessao('O identificador do lote já existe com outro conteúdo.', 409, 'STAGING_HASH_CONFLITANTE');
+      }
+      if (anterior.status && anterior.status !== 'gravando_staging') {
+        return res.status(anterior.status === 'rejeitado' ? 422 : 200).json({
+          ok: anterior.status !== 'rejeitado',
+          idempotente: true,
+          lote_id: staging.lote_id,
+          status: anterior.status,
+          staging_hash: staging.staging_hash,
+          resumo: anterior.resumo || staging.resumo,
+          erros_gerais: staging.erros_gerais,
+          rejeicoes: staging.rejeicoes.slice(0, 500),
+          rejeicoes_truncadas: staging.rejeicoes.length > 500,
+        });
+      }
+    } else {
+      await loteRef.create({
+        status: 'gravando_staging',
+        staging_hash: staging.staging_hash,
+        lote_id: staging.lote_id,
+        empresa_cnpj: cnpjLimpo,
+        criado_em: new Date(),
+        criado_por_uid: req.user.uid,
+        criado_por_email: req.user.email,
+      });
+    }
+    const status = staging.apto ? 'staged' : 'rejeitado';
+    await gravarDocumentoJson(loteRef, JSON.stringify(staging), {
+      status,
+      staging_hash: staging.staging_hash,
+      lote_id: staging.lote_id,
+      empresa_cnpj: cnpjLimpo,
+      codigo_empresa_sage: staging.codigo_empresa_sage,
+      competencia: staging.competencia,
+      fonte: staging.fonte,
+      de_para_hash: staging.de_para_hash,
+      plano_cci_hash: staging.plano_cci_hash,
+      resumo: staging.resumo,
+      total_oficial: staging.total_oficial,
+      atualizado_em: new Date(),
+      atualizado_por_uid: req.user.uid,
+      atualizado_por_email: req.user.email,
+    });
+    await registrarAuditoriaAdmin(db, {
+      evento: staging.apto ? 'migracao_sage_staging_criado' : 'migracao_sage_staging_rejeitado',
+      categoria: 'migracao',
+      acao: 'preparar_staging_sage',
+      resultado: { status: staging.apto ? 'sucesso' : 'bloqueado', httpStatus: staging.apto ? 201 : 422 },
+      cnpj: cnpjLimpo,
+      escopo: { recurso: 'migracoes_sage', recursoId: staging.lote_id, periodo: staging.competencia, loteId: staging.lote_id },
+      detalhes: { recebidos: staging.resumo.recebidos, aceitos: staging.resumo.aceitos, rejeitados: staging.resumo.rejeitados, staging_hash: staging.staging_hash },
+      user: req.user,
+    });
+    return res.status(staging.apto ? 201 : 422).json({
+      ok: staging.apto,
+      idempotente: false,
+      lote_id: staging.lote_id,
+      status,
+      staging_hash: staging.staging_hash,
+      resumo: staging.resumo,
+      erros_gerais: staging.erros_gerais,
+      rejeicoes: staging.rejeicoes.slice(0, 500),
+      rejeicoes_truncadas: staging.rejeicoes.length > 500,
+    });
+  } catch (erro) {
+    console.error('staging migracao SAGE erro:', erro);
+    return res.status(erro.status || 500).json({ erro: erro.message, codigo: erro.codigo || 'ERRO_STAGING_MIGRACAO' });
+  }
+});
+
+app.get('/api/admin/empresas/:cnpj/migracao-sage/lotes', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const snap = await db.collection('empresas').doc(cnpjLimpo).collection('migracoes_sage').orderBy('atualizado_em', 'desc').limit(100).get();
+    const lotes = snap.docs.map(doc => {
+      const dados = doc.data() || {};
+      return {
+        lote_id: doc.id,
+        status: dados.status || 'desconhecido',
+        staging_hash: dados.staging_hash || null,
+        competencia: dados.competencia || null,
+        fonte: dados.fonte || null,
+        resumo: dados.resumo || null,
+        total_oficial: dados.total_oficial || null,
+        aceite: dados.aceite || null,
+        aplicado_em: dados.aplicado_em || null,
+        revertido_em: dados.revertido_em || null,
+      };
+    });
+    return res.json({ ok: true, lotes });
+  } catch (erro) {
+    console.error('listar lotes migracao SAGE erro:', erro);
+    return res.status(erro.status || 500).json({ erro: erro.message, codigo: erro.codigo || 'ERRO_LISTAR_MIGRACOES' });
+  }
+});
+
+app.get('/api/admin/empresas/:cnpj/migracao-sage/:loteId', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const loteId = idLoteMigracaoSage(req.params.loteId);
+    if (cnpjLimpo.length !== 14 || !loteId) return res.status(400).json({ erro: 'Empresa ou lote inválido.' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const loteRef = db.collection('empresas').doc(cnpjLimpo).collection('migracoes_sage').doc(loteId);
+    const { armazenamento, staging } = await carregarLoteMigracaoSage(loteRef);
+    const dados = armazenamento.dados || {};
+    return res.json({
+      ok: true,
+      lote_id: loteId,
+      status: dados.status,
+      staging_hash: staging.staging_hash,
+      competencia: staging.competencia,
+      fonte: staging.fonte,
+      de_para_hash: staging.de_para_hash,
+      plano_cci_hash: staging.plano_cci_hash,
+      resumo: staging.resumo,
+      total_oficial: staging.total_oficial,
+      erros_gerais: staging.erros_gerais,
+      rejeicoes: staging.rejeicoes.slice(0, 1000),
+      rejeicoes_truncadas: staging.rejeicoes.length > 1000,
+      aceite: dados.aceite || null,
+    });
+  } catch (erro) {
+    console.error('detalhar lote migracao SAGE erro:', erro);
+    return res.status(erro.status || 500).json({ erro: erro.message, codigo: erro.codigo || 'ERRO_DETALHAR_MIGRACAO' });
+  }
+});
+
+app.post('/api/admin/empresas/:cnpj/migracao-sage/:loteId/aplicar', adminRequired, async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const loteId = idLoteMigracaoSage(req.params.loteId);
+    const body = req.body || {};
+    const aceite = body.aceite || {};
+    if (cnpjLimpo.length !== 14 || !loteId) return res.status(400).json({ erro: 'Empresa ou lote inválido.' });
+    if (body.confirmacao !== 'MIGRAR' || aceite.termo_aceite !== true) return res.status(400).json({ erro: 'Confirme MIGRAR e o termo de aceite formal.' });
+    if (String(aceite.responsavel_contabil || '').trim().length < 5) return res.status(400).json({ erro: 'Informe o responsável contábil pelo aceite.' });
+    if (String(aceite.funcao || '').trim().length < 4) return res.status(400).json({ erro: 'Informe a função ou identificação profissional do responsável.' });
+    if (String(aceite.observacao || '').trim().length < 10) return res.status(400).json({ erro: 'Registre a evidência do aceite com pelo menos 10 caracteres.' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const loteRef = db.collection('empresas').doc(cnpjLimpo).collection('migracoes_sage').doc(loteId);
+    const { armazenamento, staging } = await carregarLoteMigracaoSage(loteRef);
+    const loteDados = armazenamento.dados || {};
+    if (String(body.staging_hash || '') !== staging.staging_hash) throw erroSessao('O staging mudou ou não corresponde à prévia aceita.', 409, 'STAGING_HASH_DIVERGENTE');
+    const contasPlanoAtuais = await carregarContasContabeisEmpresa(chk.empresa);
+    const aliasesPlanoAtuais = [...new Set(contasPlanoAtuais.flatMap(conta => [conta.id, conta.codigo, conta.reduzido]).map(String).filter(Boolean))].sort();
+    if (hashMigracaoSage(aliasesPlanoAtuais) !== String(staging.plano_cci_hash || '')) {
+      throw erroSessao('O plano de contas mudou depois do staging. Gere uma nova prévia antes de migrar.', 409, 'PLANO_CCI_ALTERADO_APOS_STAGING');
+    }
+    if (loteDados.status === 'revertido') return res.status(409).json({ erro: 'O lote já foi revertido e não pode ser reaplicado.', codigo: 'LOTE_REVERTIDO' });
+    if (!['staged', 'aplicando', 'aplicado'].includes(loteDados.status)) return res.status(409).json({ erro: 'O lote não está apto para aplicação.', codigo: 'LOTE_NAO_APTO' });
+    sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'migracao_sage');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('A empresa não possui sessão contábil para receber a migração.', 409, 'SESSAO_NAO_ENCONTRADA');
+    if (loteDados.status === 'aplicado') {
+      if (hashSessao(sessao.stateJson) !== String(loteDados.hash_estado_depois || '')) {
+        throw erroSessao('A sessão mudou após a aplicação do lote. Reaplicação automática bloqueada.', 409, 'SESSAO_ALTERADA_APOS_MIGRACAO');
+      }
+      await liberarTravaSessao(sessaoRef, tokenTrava);
+      tokenTrava = null;
+      return res.json({ ok: true, lote_id: loteId, status: 'aplicado', idempotente: true, quantidade: Number(loteDados.quantidade_aplicada || 0), session_revision: loteDados.session_revision_aplicacao || null });
+    }
+    const estado = parsearStateJson(sessao.stateJson);
+    let backupMeta = loteDados.backup_estado_anterior || null;
+    let hashAntes = loteDados.hash_estado_antes || null;
+    if (!backupMeta) {
+      hashAntes = hashSessao(sessao.stateJson);
+      backupMeta = await gravarTextoBackup(loteRef, 'estado_anterior_chunks', sessao.stateJson);
+      await loteRef.set({
+        status: 'aplicando',
+        hash_estado_antes: hashAntes,
+        backup_estado_anterior: backupMeta,
+        aceite: {
+          termo_aceite: true,
+          responsavel_contabil: String(aceite.responsavel_contabil).trim().slice(0, 180),
+          funcao: String(aceite.funcao || '').trim().slice(0, 120),
+          observacao: String(aceite.observacao).trim().slice(0, 500),
+          aceito_em: new Date(),
+          aceito_por_uid: req.user.uid,
+          aceito_por_email: req.user.email,
+        },
+        atualizado_em: new Date(),
+      }, { merge: true });
+    }
+    const aplicacao = aplicarMigracaoSageNoEstado(estado, staging, new Date(), req.user);
+    const novoStateJson = JSON.stringify(estado);
+    await impedirAlteracaoPeriodosFechados(cnpjLimpo, sessao.stateJson, novoStateJson);
+    const resumo = { ...(sessao.dados.resumo || {}), total_lancamentos: estado.entries.length, ultima_migracao_sage_lote: loteId };
+    let resultadoSessao = null;
+    if (!aplicacao.idempotente) resultadoSessao = await gravarSessaoBloqueada(sessaoRef, novoStateJson, resumo, req.user, { exigirRevisao: true });
+    else await liberarTravaSessao(sessaoRef, tokenTrava);
+    tokenTrava = null;
+    const hashDepois = hashSessao(novoStateJson);
+    await loteRef.set({
+      status: 'aplicado',
+      hash_estado_antes: hashAntes,
+      hash_estado_depois: hashDepois,
+      backup_estado_anterior: backupMeta,
+      quantidade_aplicada: staging.aceitos.length,
+      aplicado_em: new Date(),
+      aplicado_por_uid: req.user.uid,
+      aplicado_por_email: req.user.email,
+      session_revision_aplicacao: resultadoSessao && resultadoSessao.revisao || loteDados.session_revision_aplicacao || null,
+      atualizado_em: new Date(),
+    }, { merge: true });
+    await registrarAuditoriaAdmin(db, {
+      evento: 'migracao_sage_lote_aplicado', categoria: 'migracao', acao: 'aplicar_lote_sage',
+      resultado: { status: 'sucesso', httpStatus: aplicacao.idempotente ? 200 : 201 }, cnpj: cnpjLimpo,
+      escopo: { recurso: 'migracoes_sage', recursoId: loteId, periodo: staging.competencia, loteId },
+      detalhes: { quantidade: staging.aceitos.length, idempotente: aplicacao.idempotente, staging_hash: staging.staging_hash, hash_estado_depois: hashDepois }, user: req.user,
+    });
+    return res.status(aplicacao.idempotente ? 200 : 201).json({ ok: true, lote_id: loteId, status: 'aplicado', idempotente: aplicacao.idempotente, quantidade: staging.aceitos.length, session_revision: resultadoSessao && resultadoSessao.revisao || null });
+  } catch (erro) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    console.error('aplicar migracao SAGE erro:', erro);
+    return res.status(erro.status || 500).json({ erro: erro.message, codigo: erro.codigo || 'ERRO_APLICAR_MIGRACAO' });
+  }
+});
+
+app.post('/api/admin/empresas/:cnpj/migracao-sage/:loteId/reverter', adminRequired, async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const loteId = idLoteMigracaoSage(req.params.loteId);
+    const body = req.body || {};
+    const motivo = String(body.motivo || '').trim();
+    if (cnpjLimpo.length !== 14 || !loteId) return res.status(400).json({ erro: 'Empresa ou lote inválido.' });
+    if (body.confirmacao !== 'REVERTER' || motivo.length < 10) return res.status(400).json({ erro: 'Confirme REVERTER e informe o motivo com pelo menos 10 caracteres.' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const loteRef = db.collection('empresas').doc(cnpjLimpo).collection('migracoes_sage').doc(loteId);
+    const loteDoc = await loteRef.get();
+    if (!loteDoc.exists) return res.status(404).json({ erro: 'Lote não encontrado.' });
+    const lote = loteDoc.data() || {};
+    if (lote.status === 'revertido') return res.json({ ok: true, lote_id: loteId, status: 'revertido', idempotente: true });
+    if (lote.status !== 'aplicado') return res.status(409).json({ erro: 'Somente lote aplicado pode ser revertido.', codigo: 'LOTE_NAO_APLICADO' });
+    sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'rollback_migracao_sage');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('A sessão contábil não foi encontrada.', 409, 'SESSAO_NAO_ENCONTRADA');
+    const estadoAnterior = await carregarTextoBackup(loteRef, 'estado_anterior_chunks', lote.backup_estado_anterior);
+    if (hashSessao(estadoAnterior) !== String(lote.hash_estado_antes || '')) throw erroSessao('O backup anterior não corresponde ao hash registrado.', 409, 'BACKUP_MIGRACAO_DIVERGENTE');
+    const estado = parsearStateJson(sessao.stateJson);
+    let reversao;
+    try {
+      reversao = removerMigracaoSageDoEstado(estado, loteId);
+    } catch (erroReversao) {
+      throw erroSessao(erroReversao.message, 409, 'LANCAMENTO_MIGRADO_ALTERADO');
+    }
+    if (reversao.quantidade !== Number(lote.quantidade_aplicada || 0)) {
+      throw erroSessao('A quantidade do lote na sessão diverge da aplicação registrada.', 409, 'LOTE_MIGRACAO_INCOMPLETO');
+    }
+    const estadoRevertidoJson = JSON.stringify(estado);
+    await impedirAlteracaoPeriodosFechados(cnpjLimpo, sessao.stateJson, estadoRevertidoJson);
+    const resumo = { ...(sessao.dados.resumo || {}), total_lancamentos: estado.entries.length, ultima_migracao_sage_revertida: loteId };
+    const resultado = await gravarSessaoBloqueada(sessaoRef, estadoRevertidoJson, resumo, req.user, { exigirRevisao: true });
+    tokenTrava = null;
+    const hashDepoisReversao = hashSessao(estadoRevertidoJson);
+    await loteRef.set({
+      status: 'revertido', revertido_em: new Date(), revertido_por_uid: req.user.uid,
+      revertido_por_email: req.user.email, motivo_reversao: motivo.slice(0, 500),
+      session_revision_reversao: resultado.revisao, hash_estado_depois_reversao: hashDepoisReversao,
+      quantidade_revertida: reversao.quantidade, atualizado_em: new Date(),
+    }, { merge: true });
+    await registrarAuditoriaAdmin(db, {
+      evento: 'migracao_sage_lote_revertido', categoria: 'migracao', acao: 'reverter_lote_sage',
+      resultado: { status: 'sucesso', httpStatus: 200 }, cnpj: cnpjLimpo,
+      escopo: { recurso: 'migracoes_sage', recursoId: loteId, periodo: lote.competencia, loteId },
+      detalhes: { quantidade: reversao.quantidade, motivo, hash_estado_depois_reversao: hashDepoisReversao }, user: req.user,
+    });
+    return res.json({ ok: true, lote_id: loteId, status: 'revertido', idempotente: false, session_revision: resultado.revisao });
+  } catch (erro) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    console.error('reverter migracao SAGE erro:', erro);
+    return res.status(erro.status || 500).json({ erro: erro.message, codigo: erro.codigo || 'ERRO_REVERTER_MIGRACAO' });
   }
 });
 

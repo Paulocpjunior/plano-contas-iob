@@ -76,6 +76,22 @@ Todo registro migrado deve guardar `origem=MIGRACAO_SAGE`, identificador do lote
 4. **Conciliação:** painel comparativo SAGE × CCI e termo de aceite.
 5. **Corte:** bloqueio de competências anteriores, CCI oficial e SAGE somente leitura.
 
+## Contrato do executor controlado
+
+O painel usa dois arquivos diferentes: o arquivo-fonte original, cujo SHA-256 é
+calculado localmente, e o pacote estruturado conforme
+`docs/templates/pacote-lancamentos-sage.json`. O pacote não substitui a fonte e
+não autoriza inferências; ele apenas transporta as chaves originais, partidas,
+históricos, centros de custo, competência e totais oficiais necessários para o
+staging.
+
+O staging é identificado pelo hash canônico do conteúdo, é imutável e pode ser
+repetido sem duplicação. Somente administrador pode aplicar ou reverter. A
+aplicação exige `MIGRAR`, termo de aceite, responsável contábil e evidência; o
+rollback exige `REVERTER`, motivo e uma sessão ainda idêntica ao hash posterior
+à aplicação. Se houver qualquer edição depois da migração, a reversão
+automática é bloqueada para não apagar trabalho posterior.
+
 ## Evidências necessárias para o piloto
 
 - uma empresa piloto e seu CNPJ;
@@ -85,4 +101,3 @@ Todo registro migrado deve guardar `origem=MIGRACAO_SAGE`, identificador do lote
 - relatório de saldos de encerramento do último exercício;
 - lista de centros de custo e históricos padronizados;
 - dicionário ou fotografia somente leitura das tabelas do SAGE, se os arquivos não forem suficientes.
-
