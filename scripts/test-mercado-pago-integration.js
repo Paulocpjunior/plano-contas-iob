@@ -37,6 +37,7 @@ assert.strictEqual(parseValor('1,234.56'), 1234.56);
 const desabilitado = estadoMpEnv(getMpEnv({ MERCADO_PAGO_OAUTH_ENABLED: 'false' }));
 assert.strictEqual(desabilitado.configurado, false);
 assert.strictEqual(desabilitado.codigo, 'MERCADO_PAGO_OAUTH_DESABILITADO');
+assert.strictEqual(desabilitado.status, 409);
 
 const placeholder = estadoMpEnv(getMpEnv({
   MERCADO_PAGO_OAUTH_ENABLED: 'true',
@@ -46,6 +47,7 @@ const placeholder = estadoMpEnv(getMpEnv({
 }));
 assert.strictEqual(placeholder.configurado, false);
 assert.strictEqual(placeholder.codigo, 'MERCADO_PAGO_CONFIG_INVALIDA');
+assert.strictEqual(placeholder.status, 503);
 
 const ativo = estadoMpEnv(getMpEnv({
   MERCADO_PAGO_OAUTH_ENABLED: 'true',
@@ -55,6 +57,7 @@ const ativo = estadoMpEnv(getMpEnv({
 }));
 assert.strictEqual(ativo.configurado, true);
 assert.strictEqual(ativo.codigo, 'MERCADO_PAGO_OAUTH_ATIVO');
+assert.strictEqual(ativo.status, 200);
 
 const fs = require('fs');
 const workflow = fs.readFileSync(require('path').join(__dirname, '..', '.github', 'workflows', 'deploy-app.yml'), 'utf8');

@@ -244,6 +244,9 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Reativação segura: exige secrets reais no Secret Manager, flag explícita e
   homologação do callback/relatório; valor vazio ou placeholder continua
   bloqueado mesmo que a flag seja ligada por engano.
+- Sem falso incidente: estado intencionalmente desabilitado responde HTTP 409;
+  flag habilitada com credencial ausente/inválida responde HTTP 503 e aciona a
+  observabilidade como falha real de configuração.
 
 ## Histórico de resoluções
 

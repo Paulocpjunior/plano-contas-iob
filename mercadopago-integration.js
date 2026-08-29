@@ -264,15 +264,15 @@ function getMpEnv(origem) {
 
 function estadoMpEnv(env) {
   const config = env || getMpEnv();
-  if (!config.enabled) return { habilitado: false, configurado: false, codigo: 'MERCADO_PAGO_OAUTH_DESABILITADO', motivo: 'Integração OAuth Mercado Pago desabilitada até a homologação das credenciais.' };
+  if (!config.enabled) return { habilitado: false, configurado: false, status: 409, codigo: 'MERCADO_PAGO_OAUTH_DESABILITADO', motivo: 'Integração OAuth Mercado Pago desabilitada até a homologação das credenciais.' };
   const credenciaisValidas = !credencialPlaceholder(config.clientId) && !credencialPlaceholder(config.clientSecret) && /^https:\/\//i.test(String(config.redirectUri || ''));
-  if (!credenciaisValidas) return { habilitado: true, configurado: false, codigo: 'MERCADO_PAGO_CONFIG_INVALIDA', motivo: 'Integração habilitada sem credenciais reais no Secret Manager.' };
-  return { habilitado: true, configurado: true, codigo: 'MERCADO_PAGO_OAUTH_ATIVO', motivo: '' };
+  if (!credenciaisValidas) return { habilitado: true, configurado: false, status: 503, codigo: 'MERCADO_PAGO_CONFIG_INVALIDA', motivo: 'Integração habilitada sem credenciais reais no Secret Manager.' };
+  return { habilitado: true, configurado: true, status: 200, codigo: 'MERCADO_PAGO_OAUTH_ATIVO', motivo: '' };
 }
 
 function bloquearOAuth(res, estado) {
   if (estado.configurado) return false;
-  res.status(503).json({ erro: estado.motivo, codigo: estado.codigo, importacao_manual_habilitada: true });
+  res.status(estado.status || 503).json({ erro: estado.motivo, codigo: estado.codigo, importacao_manual_habilitada: true });
   return true;
 }
 
@@ -282,7 +282,7 @@ function registrarRotasPublicasMercadoPago(app, { db }) {
     const env = getMpEnv();
     const estado = estadoMpEnv(env);
     try {
-      if (!estado.configurado) return res.status(503).send(estado.motivo);
+      if (!estado.configurado) return res.status(estado.status || 503).send(estado.motivo);
       if (!code || !state) return res.status(400).send('Codigo ou state ausente.');
       const stateDoc = await db.collection('mercadopago_oauth_states').doc(String(state)).get();
       if (!stateDoc.exists) return res.status(400).send('State invalido ou expirado.');
