@@ -1,0 +1,24 @@
+{
+  "displayName": "CCI - indisponibilidade pública",
+  "documentation": {
+    "content": "O endpoint público /api/health falhou por pelo menos 2 minutos. Verifique a revisão ativa, Firestore e os logs do Cloud Run.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "enabled": true,
+  "conditions": [{
+    "displayName": "Health check sem sucesso",
+    "conditionThreshold": {
+      "filter": "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.type=\"uptime_url\" AND metric.label.check_id=\"__UPTIME_ID__\"",
+      "comparison": "COMPARISON_LT",
+      "thresholdValue": 1,
+      "duration": "120s",
+      "aggregations": [{
+        "alignmentPeriod": "60s",
+        "perSeriesAligner": "ALIGN_FRACTION_TRUE",
+        "crossSeriesReducer": "REDUCE_MEAN"
+      }]
+    }
+  }],
+  "userLabels": { "service": "cci", "severity": "critical", "source": "codex" }
+}

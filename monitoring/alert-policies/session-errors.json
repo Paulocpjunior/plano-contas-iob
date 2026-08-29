@@ -1,0 +1,32 @@
+{
+  "displayName": "CCI - falhas de sessão ou conflitos 409",
+  "documentation": {
+    "content": "Foram detectadas falhas de sessão ou uma sequência de conflitos HTTP 409. Verifique concorrência, revisão e persistência.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "enabled": true,
+  "conditions": [
+    {
+      "displayName": "Falha no fluxo de sessão",
+      "conditionThreshold": {
+        "filter": "resource.type=\"cloud_run_revision\" AND metric.type=\"logging.googleapis.com/user/cci_session_failures\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "aggregations": [{ "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE", "crossSeriesReducer": "REDUCE_SUM" }]
+      }
+    },
+    {
+      "displayName": "Mais de 3 conflitos 409 por minuto",
+      "conditionThreshold": {
+        "filter": "resource.type=\"cloud_run_revision\" AND metric.type=\"logging.googleapis.com/user/cci_http_409\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0.05,
+        "duration": "60s",
+        "aggregations": [{ "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE", "crossSeriesReducer": "REDUCE_SUM" }]
+      }
+    }
+  ],
+  "userLabels": { "service": "cci", "severity": "critical", "source": "codex" }
+}
