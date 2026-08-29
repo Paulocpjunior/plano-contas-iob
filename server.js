@@ -8,6 +8,7 @@ const { LAYOUTS_BANCARIOS_PADRAO, normalizarBancoLayout, layoutBancoId } = requi
 const { LAYOUTS_FISCAIS_PADRAO } = require('./layouts-fiscais-padrao');
 const { LAYOUT_QUALITY_CASES } = require('./layout-quality-cases');
 const { LAYOUT_QUALITY_EVIDENCE } = require('./layout-quality-evidence');
+const { criarGovernancaRejeicao, prepararAtualizacao, resumirSla } = require('./layout-quality-workflow');
 const { registrarRotasMercadoPago, registrarRotasPublicasMercadoPago } = require('./mercadopago-integration');
 const registrarRotasReinf = require('./reinf-routes');
 const cryptoAdmin = require('crypto');
@@ -202,6 +203,8 @@ function avaliarAprovacaoLayoutBanco(banco, parser) {
     apto: casosAprovados.length > 0 && evidenciasAprovadas.length > 0,
     casos_aprovados: casosAprovados.length,
     evidencias_aprovadas: evidenciasAprovadas.length,
+    casos_ids: casosAprovados.map(c => c.id),
+    evidencias_ids: evidenciasAprovadas.map(e => e.id),
     motivo: casosAprovados.length > 0 && evidenciasAprovadas.length > 0
       ? 'Layout possui caso aprovado e evidencia de regressao.'
       : 'Para aprovar, o layout precisa ter caso aprovado e evidencia de regressao cadastrados.'
@@ -4578,6 +4581,7 @@ app.patch('/api/layouts-bancarios/:id/homologacao', adminRequired, async (req, r
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ erro: 'layout nao encontrado' });
     const layoutAtual = doc.data() || {};
+    let avaliacaoAprovacao = null;
     if (homologacao_status === 'aprovado') {
       const avaliacao = avaliarAprovacaoLayoutBanco(layoutAtual.banco, layoutAtual.parser);
       if (!avaliacao.apto) {
@@ -4587,6 +4591,7 @@ app.patch('/api/layouts-bancarios/:id/homologacao', adminRequired, async (req, r
           qualidade: avaliacao
         });
       }
+      avaliacaoAprovacao = avaliacao;
     }
     const patch = {
       homologacao_status,
@@ -4596,6 +4601,11 @@ app.patch('/api/layouts-bancarios/:id/homologacao', adminRequired, async (req, r
       homologado_por_email: req.user.email,
       atualizado_em: new Date()
     };
+    if (avaliacaoAprovacao) {
+      patch.homologacao_versao = lerVersao().version;
+      patch.homologacao_casos_ids = avaliacaoAprovacao.casos_ids;
+      patch.homologacao_evidencias_ids = avaliacaoAprovacao.evidencias_ids;
+    }
     await ref.set(patch, { merge: true });
     await db.collection('layout_events').add({
       tipo: 'homologacao',
@@ -4642,6 +4652,11 @@ app.get('/api/layout-quality', async (req, res) => {
         ultimoTeste: l.ultimoTeste,
         homologacao_status: dbLayout.homologacao_status || 'em_teste',
         homologacao_observacao: dbLayout.homologacao_observacao || '',
+        homologado_por_email: dbLayout.homologado_por_email || '',
+        homologado_em: dbLayout.homologado_em || null,
+        homologacao_versao: dbLayout.homologacao_versao || '',
+        homologacao_casos_ids: dbLayout.homologacao_casos_ids || [],
+        homologacao_evidencias_ids: dbLayout.homologacao_evidencias_ids || [],
         total_usos: dbLayout.total_usos || 0,
         ultimo_uso_em: dbLayout.ultimo_uso_em || null,
         ...avaliarAprovacaoLayoutBanco(l.banco, l.parser)
@@ -4693,7 +4708,7 @@ app.get('/api/layout-quality', async (req, res) => {
       const score = Math.min(100, Math.round((coberturaBanco * 0.7) + ((item.alta / Math.max(item.layouts, 1)) * 30)));
       return { ...item, cobertura: coberturaBanco, score };
     }).sort((a, b) => b.score - a.score || String(a.banco).localeCompare(String(b.banco)));
-    res.json({ resumo, casos, pendentes, evidencias, aprovacao_layouts, confiabilidade_bancos });
+    res.json({ resumo, casos, pendentes, evidencias, aprovacao_layouts, confiabilidade_bancos, versao_publicada: lerVersao().version });
   } catch (err) {
     console.error('layout-quality GET erro:', err);
     res.status(500).json({ erro: err.message });
@@ -4791,6 +4806,8 @@ app.post('/api/layout-rejections', async (req, res) => {
     const motivo = String(body.motivo || '').slice(0, 1200);
     if (!arquivo || !motivo) return res.status(400).json({ erro: 'arquivo e motivo obrigatorios' });
     const diagnostico = normalizarDiagnosticoLayout({ ...body, motivo });
+    const criadoEm = new Date();
+    const governanca = criarGovernancaRejeicao({ categoria_erro: diagnostico.categoria_erro, criado_em: criadoEm });
     const doc = {
       banco,
       nomeBanco: body.nomeBanco || '',
@@ -4809,9 +4826,10 @@ app.post('/api/layout-rejections', async (req, res) => {
       acao_sugerida: diagnostico.acao_sugerida,
       layouts_tentados: diagnostico.layouts_tentados,
       versao_app: diagnostico.versao_app,
-      status: body.status || 'pendente_parametrizacao',
+      status: 'pendente_parametrizacao',
+      ...governanca,
       origem: body.origem || 'extrator',
-      criado_em: new Date(),
+      criado_em: criadoEm,
       criado_por_uid: req.user.uid,
       criado_por_email: req.user.email
     };
@@ -4827,7 +4845,12 @@ app.get('/api/layout-rejections', adminRequired, async (req, res) => {
   try {
     const lim = Math.min(parseInt(req.query.limit, 10) || 100, 500);
     const snap = await db.collection('layout_rejections').orderBy('criado_em', 'desc').limit(lim).get();
-    res.json({ rejeicoes: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    const agora = new Date();
+    res.json({ rejeicoes: snap.docs.map(d => {
+      const dados = d.data() || {};
+      const sla = resumirSla(dados, agora);
+      return { id: d.id, ...dados, prioridade: dados.prioridade || sla.prioridade, sla };
+    }) });
   } catch (err) {
     console.error('layout-rejections GET erro:', err);
     res.status(500).json({ erro: err.message });
@@ -4838,21 +4861,42 @@ app.patch('/api/layout-rejections/:id', adminRequired, async (req, res) => {
   try {
     const id = String(req.params.id || '').trim();
     if (!id) return res.status(400).json({ erro: 'id obrigatorio' });
-    const statusPermitidos = new Set(['pendente_parametrizacao', 'em_parametrizacao', 'resolvido', 'ignorado']);
     const body = req.body || {};
-    const status = String(body.status || '').trim();
-    if (status && !statusPermitidos.has(status)) return res.status(400).json({ erro: 'status invalido' });
     const ref = db.collection('layout_rejections').doc(id);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ erro: 'rejeicao nao encontrada' });
-    const patch = {
-      atualizado_em: new Date(),
-      atualizado_por_uid: req.user.uid,
-      atualizado_por_email: req.user.email
-    };
-    if (status) patch.status = status;
-    if (typeof body.observacao_admin === 'string') patch.observacao_admin = body.observacao_admin.slice(0, 600);
+    const atual = doc.data() || {};
+    const evidenciaId = String(body.evidencia_id || atual.evidencia_id || '').trim();
+    const evidencia = (LAYOUT_QUALITY_EVIDENCE || []).find(item => item.id === evidenciaId);
+    let patch;
+    try {
+      patch = prepararAtualizacao(atual, body, {
+        ator_uid: req.user.uid,
+        ator_email: req.user.email,
+        versao_publicada: lerVersao().version,
+        evidencia: evidencia ? { ...evidencia, banco: normalizarBancoLayout(evidencia.banco) } : null,
+        agora: new Date()
+      });
+    } catch (erroValidacao) {
+      return res.status(400).json({ erro: erroValidacao.message });
+    }
     await ref.set(patch, { merge: true });
+    await db.collection('layout_events').add({
+      tipo: 'rejeicao_atualizada',
+      rejeicao_id: id,
+      banco: atual.banco || '',
+      nomeBanco: atual.nomeBanco || '',
+      layout: atual.layout || '',
+      parser: atual.parser || '',
+      status: patch.status,
+      prioridade: patch.prioridade,
+      responsavel_email: patch.responsavel_email,
+      versao_correcao: patch.versao_correcao || '',
+      evidencia_id: patch.evidencia_id || '',
+      criado_em: new Date(),
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email
+    });
     res.json({ ok: true, id, ...patch });
   } catch (err) {
     console.error('layout-rejections PATCH erro:', err);
@@ -4873,6 +4917,9 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
     const meses = new Map();
     const status = {};
     const categoriasErro = {};
+    let sucessosOperacionais = 0;
+    let slaVencidos = 0;
+    let semResponsavel = 0;
     const mesEvento = (valor) => {
       const ms = valor && typeof valor.toMillis === 'function'
         ? valor.toMillis()
@@ -4906,6 +4953,11 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
     };
     eventosSnap.docs.forEach(d => {
       const e = d.data() || {};
+      // Homologação, rascunho e atualização administrativa permanecem na
+      // trilha, mas não são importações bem-sucedidas e não podem inflar a
+      // taxa operacional do layout.
+      if (e.tipo !== 'sucesso') return;
+      sucessosOperacionais++;
       const u = ensureUsuario(e.criado_por_email || e.ultimo_uso_por_email || '');
       u.sucessos++;
       if (e.banco) u.bancos.add(e.banco);
@@ -4919,6 +4971,9 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
     rejeicoesSnap.docs.forEach(d => {
       const r = d.data() || {};
       const st = r.status || 'pendente_parametrizacao';
+      const sla = resumirSla(r);
+      if (sla.vencido) slaVencidos++;
+      if (!sla.fechado && !String(r.responsavel_email || '').trim()) semResponsavel++;
       const categoria = r.categoria_erro || (r.diagnostico && r.diagnostico.categoria_erro) || 'sem_categoria';
       categoriasErro[categoria] = (categoriasErro[categoria] || 0) + 1;
       status[st] = (status[st] || 0) + 1;
@@ -5007,12 +5062,14 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
     }).sort((a, b) => String(b.mes).localeCompare(String(a.mes)));
     res.json({
       resumo: {
-        sucessos: eventosSnap.size,
+        sucessos: sucessosOperacionais,
         rejeicoes: rejeicoesSnap.size,
         pendentes: status.pendente_parametrizacao || 0,
         em_parametrizacao: status.em_parametrizacao || 0,
         resolvidos: status.resolvido || 0,
         ignorados: status.ignorado || 0,
+        sla_vencidos: slaVencidos,
+        sem_responsavel: semResponsavel,
         categorias_erro: categoriasErro
       },
       status,

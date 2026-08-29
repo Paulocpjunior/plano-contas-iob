@@ -1,7 +1,7 @@
 {
-  "version": "3.4.206",
-  "build_date": "2026-08-29T19:40:21Z",
+  "version": "3.4.207",
+  "build_date": "2026-08-29T19:48:47Z",
   "release_notes": [
-    "Cloud Run com conta de execução dedicada e permissões mínimas"
+    "Fila de layouts com responsável, SLA, versão e evidência obrigatórios"
   ]
 }

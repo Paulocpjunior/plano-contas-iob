@@ -162,11 +162,23 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### 🟠 P08 — Homologação e fila de qualidade de layouts
 
-- Estado: `ABERTA`
+- Estado: `EM RESOLUÇÃO`
 - Gap: 6 de 36 layouts bancários com aprovação explícita; 618 rejeições
   registradas e 227 pendências na janela recente analisada.
 - Critério de aceite: status confiável por layout, responsável, SLA, versão de
   correção e regressão obrigatória por evidência real.
+- Etapa técnica preparada em 29/08/2026: toda rejeição nova recebe prioridade e
+  SLA automáticos; registros legados ganham cálculo de prazo na leitura sem
+  apagar o histórico. Iniciar tratamento exige responsável válido. Resolver
+  exige responsável, a versão atualmente publicada e uma evidência real de
+  regressão aprovada compatível com banco/parser; a alteração também entra em
+  `layout_events`.
+- Aprovação de layout passa a guardar administrador, data, versão e IDs dos
+  casos/evidências que sustentaram a decisão. O painel destaca SLA vencido,
+  itens sem responsável, prioridade e vínculo da resolução.
+- Evidência ainda necessária: publicar a candidata e atribuir os itens legados
+  aos responsáveis operacionais. A etapa técnica não promove automaticamente
+  os 29 layouts aptos nem inventa dono para as 227 pendências.
 
 ### 🟠 P09 — Cobertura fiscal oficial por fonte
 
