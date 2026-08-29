@@ -202,10 +202,18 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### 🟡 P12 — Cobertura da trilha administrativa
 
-- Estado: `ABERTA`
+- Estado: `EM RESOLUÇÃO`
 - Gap: somente 7 documentos na coleção específica de auditoria administrativa.
 - Critério de aceite: exclusão, fechamento, reabertura, migração, alteração de
   plano e ações destrutivas registrados com ator, data, escopo e resultado.
+- Implementado em 29/08/2026: contrato único e sanitizado de auditoria com
+  versão de schema, ator, data, escopo, ação e resultado; exclusão de
+  lançamentos, troca/vínculo de plano, fechamento e reabertura passaram a
+  alimentar `admin_audit_logs`. Fechamento e reabertura gravam a trilha no
+  mesmo batch Firestore da alteração, impedindo operação crítica sem o evento.
+- Pendente para encerramento: o evento de migração somente poderá ser ligado ao
+  executor controlado ainda não existente da P04; não será fabricado evento de
+  migração para a tela atual, que executa apenas pré-validação sem persistência.
 
 ### 🟡 P13 — Teste real de concorrência e volume
 
@@ -247,6 +255,10 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Sem falso incidente: estado intencionalmente desabilitado responde HTTP 409;
   flag habilitada com credencial ausente/inválida responde HTTP 503 e aciona a
   observabilidade como falha real de configuração.
+- Evidência de produção: versão `3.4.203`, revisão
+  `plano-contas-iob-00751-bos`, 100% do tráfego, health/version aprovados e
+  nenhum log de severidade `ERROR` na nova revisão. A chamada pública ao
+  callback desabilitado retornou HTTP 409 com mensagem explícita.
 
 ## Histórico de resoluções
 
@@ -264,3 +276,6 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - 29/08/2026 — P15 passou de `ABERTA` para `RESOLVIDA`: OAuth Mercado Pago
   desabilitado de forma explícita, placeholders removidos e importação manual
   preservada.
+- 29/08/2026 — P12 passou de `ABERTA` para `EM RESOLUÇÃO`: os fluxos críticos
+  existentes foram integrados à trilha uniforme; falta o executor da P04 para
+  existir uma ação real de migração que possa ser auditada.

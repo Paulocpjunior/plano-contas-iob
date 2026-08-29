@@ -44,6 +44,7 @@ const {
 } = require('./http-hardening');
 const { criarObservabilidadeHttp } = require('./observability');
 const { carregarRuntimeConfig, identidadePublica } = require('./runtime-config');
+const { montarEventoAuditoriaAdmin, registrarAuditoriaAdmin } = require('./admin-audit-trail');
 
 const app = express();
 app.set('trust proxy', true);
@@ -1761,6 +1762,22 @@ app.post('/api/admin/trocar-plano-empresa', adminRequired, async (req, res) => {
       por_email: req.user.email,
       por_uid: req.user.uid
     });
+    await registrarAuditoriaAdmin(db, {
+      evento: 'plano_contas_alterado',
+      categoria: 'plano_contas',
+      acao: 'trocar_plano_empresa',
+      resultado: { status: 'sucesso', httpStatus: 200 },
+      cnpj: cnpjLimpo,
+      escopo: { recurso: 'empresas', recursoId: cnpjLimpo },
+      detalhes: {
+        plano_anterior_id: empresaData.plano_id || '',
+        plano_novo_id: novo_plano_id,
+        descartou_classificacoes: !!descartar_classificacoes,
+        total_lancamentos_afetados: totalAfetados,
+        sessao_sincronizada: sincronizacaoSessao.sincronizada === true,
+      },
+      user: req.user,
+    });
 
     res.json({
       ok: true,
@@ -1914,6 +1931,21 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     let regimeAviso = null;
     try { regimeCfi = await sincronizarRegimeTributarioCfi(cnpjLimpo, req); }
     catch (e) { regimeAviso = e.message; console.warn('[vincular] regime CFI pendente:', e.message); }
+    await registrarAuditoriaAdmin(db, {
+      evento: empresaAtual ? 'vinculo_plano_atualizado' : 'vinculo_plano_criado',
+      categoria: 'plano_contas',
+      acao: 'vincular_empresa_plano',
+      resultado: { status: 'sucesso', httpStatus: 200 },
+      cnpj: cnpjLimpo,
+      escopo: { recurso: 'empresas', recursoId: cnpjLimpo },
+      detalhes: {
+        plano_anterior_id: empresaAtual && empresaAtual.plano_id || '',
+        plano_novo_id: plano_id,
+        sessao_sincronizada: sincronizacaoSessao.sincronizada === true,
+        origem_admin: opts.adminOverride === true,
+      },
+      user: req.user,
+    });
     res.json({
       ok: true,
       cnpj: cnpjLimpo,
@@ -3218,15 +3250,22 @@ app.post('/api/admin/exclusao-lancamentos/executar', adminRequired, async (req, 
     }, { merge: true }).catch(erro => console.warn('[exclusao-admin] atualizar backup aplicado falhou:', erro.message || erro));
     await db.collection('empresas').doc(cnpjLimpo).set({ last_session_at: new Date(), last_session_by_email: req.user.email }, { merge: true })
       .catch(erro => console.warn('[exclusao-admin] atualizar empresa falhou:', erro.message || erro));
-    await db.collection('admin_audit_logs').add({
+    await registrarAuditoriaAdmin(db, {
       evento: 'exclusao_lancamentos_importacao',
+      categoria: 'exclusao',
+      acao: 'excluir_lancamentos_importados',
+      resultado: { status: 'sucesso', httpStatus: 200 },
       cnpj: cnpjLimpo,
-      empresa: chk.empresa.razao_social || chk.empresa.nome || cnpjLimpo,
-      backup_id: backupRef.id,
-      ...exclusao.resumo,
-      timestamp: new Date(),
-      uid: req.user.uid,
-      email: req.user.email,
+      escopo: { recurso: 'sessoes', recursoId: 'current', loteId: backupRef.id },
+      detalhes: {
+        quantidade_antes: exclusao.resumo.quantidadeAntes,
+        quantidade_removida: exclusao.resumo.quantidadeRemovida,
+        quantidade_depois: exclusao.resumo.quantidadeDepois,
+        creditos_removidos: exclusao.resumo.creditosRemovidos,
+        debitos_removidos: exclusao.resumo.debitosRemovidos,
+        importacoes_liberadas: metadadosImportacao.length,
+      },
+      user: req.user,
     }).catch(erroAudit => console.warn('[exclusao-admin] audit log falhou:', erroAudit.message || erroAudit));
     res.json({ ok: true, backupId: backupRef.id, resumo: exclusao.resumo, importacoesLiberadas: metadadosImportacao.length, avisos, session_revision: resultado.revisao });
   } catch (e) {
@@ -3909,6 +3948,21 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
       saldos: saldosTransportados, quantidade_contas: Object.keys(saldosTransportados).length,
       gerado_em: new Date(), gerado_por_uid: req.user.uid, gerado_por_email: req.user.email
     });
+    fechamentoBatch.create(db.collection('admin_audit_logs').doc(), montarEventoAuditoriaAdmin({
+      evento: 'periodo_contabil_fechado',
+      categoria: 'fechamento',
+      acao: 'fechar_competencia',
+      resultado: { status: 'sucesso', httpStatus: 201 },
+      cnpj: cnpjLimpo,
+      escopo: { recurso: 'periodos_contabeis', recursoId: periodo, periodo, loteId: fechamentoRef.id },
+      detalhes: {
+        hash: fotografia.hash,
+        quantidade_lancamentos: validacao.quantidade,
+        quantidade_contas_transportadas: Object.keys(saldosTransportados).length,
+        periodo_destino: proximo,
+      },
+      user: req.user,
+    }));
     await fechamentoBatch.commit();
     await empresaRef.collection('auditoria_contabil').add({ tipo: 'SALDOS_TRANSPORTADOS', periodo_origem: periodo, periodo_destino: proximo, origem_hash: fotografia.hash, quantidade_contas: Object.keys(saldosTransportados).length, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
     await liberarTravaSessao(sessaoRef, tokenTrava);
@@ -3942,17 +3996,29 @@ app.post('/api/empresas/:cnpj/contabilidade/reabrir', adminRequired, async (req,
     if (proximoDoc.exists && String((proximoDoc.data() || {}).status) === 'fechado') {
       return res.status(409).json({ erro: 'Reabra primeiro a competência posterior ' + proximo + ' para preservar a cadeia de saldos.', codigo: 'PERIODO_POSTERIOR_FECHADO' });
     }
-    await periodoRef.set({
+    const reaberturaBatch = db.batch();
+    reaberturaBatch.set(periodoRef, {
       status: 'reaberto',
       reaberto_em: new Date(),
       reaberto_por_uid: req.user.uid,
       reaberto_por_email: req.user.email,
       motivo_reabertura: motivo
     }, { merge: true });
-    await empresaRef.collection('transportes_saldos').doc(proximo).set({
+    reaberturaBatch.set(empresaRef.collection('transportes_saldos').doc(proximo), {
       status: 'invalidado', invalidado_em: new Date(), invalidado_por_uid: req.user.uid,
       invalidado_por_email: req.user.email, motivo_invalidacao: 'Reabertura da competência de origem ' + periodo
     }, { merge: true });
+    reaberturaBatch.create(db.collection('admin_audit_logs').doc(), montarEventoAuditoriaAdmin({
+      evento: 'periodo_contabil_reaberto',
+      categoria: 'fechamento',
+      acao: 'reabrir_competencia',
+      resultado: { status: 'sucesso', httpStatus: 200 },
+      cnpj: cnpjLimpo,
+      escopo: { recurso: 'periodos_contabeis', recursoId: periodo, periodo },
+      detalhes: { motivo, periodo_transporte_invalidado: proximo },
+      user: req.user,
+    }));
+    await reaberturaBatch.commit();
     await periodoRef.collection('eventos').add({ tipo: 'reabertura', motivo, timestamp: new Date(), uid: req.user.uid, email: req.user.email });
     res.json({ ok: true, periodo, status: 'reaberto' });
   } catch (e) {
