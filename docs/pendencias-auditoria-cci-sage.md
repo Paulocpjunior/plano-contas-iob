@@ -56,6 +56,14 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   re-render nem perda. A porta completa passou com 115 testes, sem pulos ou
   falhas; produção está com 100% do tráfego, health/versão corretos e sem log
   `ERROR` na revisão na primeira verificação.
+- Otimização publicada em 29/08/2026: versão `3.4.210`, revisão
+  `plano-contas-iob-00765-wer`, 100% do tráfego. As leituras da sessão,
+  períodos fechados e saldos transportados passaram a ocorrer em paralelo; a
+  sessão e os metadados da empresa usam um único commit; o autosave comum não
+  consulta chunks inexistentes. A resposta e os logs passaram a decompor
+  acesso, trava, leituras e gravação para medir o p95 da própria revisão sem
+  registrar CNPJ nem conteúdo contábil. Health/versão aprovados, 115 testes
+  passaram e não houve log `ERROR` na primeira verificação.
 - Linha de base observada antes da revisão 00763: 77 POSTs nas últimas 24 h,
   sendo 74 HTTP 200, dois 401 e um 409 por revisão administrativa; p50 de
   5,36 s e p95 de 6,12 s. Não houve HTTP 500 nessa amostra.
