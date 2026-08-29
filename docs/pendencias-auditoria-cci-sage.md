@@ -134,9 +134,9 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Evidência de produção: versão 3.4.196 publicada pela `main` na revisão
   `plano-contas-iob-00737-dak`, 100% do tráfego, health/version aprovados.
 
-### 🟠 P07 — Menor privilégio no Google Cloud
+### 🟢 P07 — Menor privilégio no Google Cloud
 
-- Estado: `EM RESOLUÇÃO`
+- Estado: `RESOLVIDA`
 - Gap: conta padrão do Cloud Run com `Editor`, `Run Admin`,
   `Secret Manager Admin` e outros papéis amplos.
 - Critério de aceite: conta dedicada ao runtime e permissões mínimas verificadas.
@@ -150,9 +150,15 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   a infraestrutura deve provisioná-los previamente. O workflow fixa a conta
   dedicada em toda nova revisão e interrompe antes do tráfego se o Cloud Run
   aplicar uma identidade diferente.
-- Evidência ainda necessária: publicar a candidata, confirmar a conta na
-  revisão, health com leitura real do Firestore, versão pública, políticas IAM
-  finais e ausência de erros antes de marcar como resolvida.
+- Evidência de produção: PR #76 aprovado pela porta oficial com 114 testes e
+  zero vulnerabilidade alta/crítica; versão `3.4.206`, revisão
+  `plano-contas-iob-00757-tuy`, 100% do tráfego. A revisão está `Ready` usando
+  a conta dedicada, o health público confirmou Firestore conectado e não houve
+  log de severidade `ERROR` na verificação.
+- Matriz final conferida: somente `roles/datastore.user` no projeto; leitura
+  nos cinco segredos listados; `roles/secretmanager.secretVersionAdder`
+  exclusivamente nos dois segredos A1. Nenhum papel `Editor`, `Run Admin` ou
+  `Secret Manager Admin` foi concedido ao runtime dedicado.
 
 ### 🟠 P08 — Homologação e fila de qualidade de layouts
 
