@@ -16,7 +16,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### P01 — Persistência e salvamento de sessões
 
-- Estado: `AGUARDANDO EVIDÊNCIA`
+- Estado: `RESOLVIDA`
 - Evidência inicial: nos 1.000 POSTs de sessão consultados desde 28/08/2026,
   houve 54 respostas HTTP 500, 28 conflitos HTTP 409, p95 de 63,6 s e payload
   máximo de 22,1 MB. O erro de servidor foi `DEADLINE_EXCEEDED` no commit em
@@ -73,12 +73,15 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   descendente da `main`.
 - Gate manual preparado em 29/08/2026: `npm run deploy:production` deixa de
   executar `gcloud` localmente, recusa qualquer HEAD diferente de
-  `origin/main` e apenas dispara/acompanha o mesmo workflow oficial. Falta
-  publicar esse último contrato para concluir P02.
+  `origin/main` e apenas dispara/acompanha o mesmo workflow oficial.
+- Resolução confirmada em produção: o contrato final foi mesclado pelo PR #66;
+  versão 3.4.197 na revisão `plano-contas-iob-00739-beg`, 100% do tráfego,
+  auditoria e porta de qualidade aprovadas, candidata validada antes do tráfego
+  e health/version finais aprovados.
 
 ### P03 — Piloto formal da migração
 
-- Estado: `AGUARDANDO P01 E P02`
+- Estado: `AGUARDANDO P01`
 - Evidência inicial: 0 de 146 empresas com piloto homologado e 0 saldos de
   abertura formalmente aprovados na fotografia de 29/08/2026.
 - Critério de aceite: 2 a 3 empresas representativas com saldo de abertura,
