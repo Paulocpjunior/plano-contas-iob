@@ -12,6 +12,16 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - `RESOLVIDA`: critério de aceite cumprido e evidência registrada.
 - `BLOQUEADA`: depende de decisão, acesso ou fonte externa explicitamente indicada.
 
+## Classificação por cores
+
+- 🔴 **Crítica**: bloqueia ou ameaça diretamente a migração.
+- 🟠 **Alta**: risco relevante que precisa ser tratado antes do corte.
+- 🟡 **Média**: pendência controlável, sem bloqueio imediato.
+- 🟢 **Resolvida**: aceite cumprido, com teste e evidência de produção quando aplicável.
+
+A cor mostra a classificação executiva. O campo `Estado` de cada item registra
+se ele está aberto, em resolução, aguardando evidência, resolvido ou bloqueado.
+
 ## 🔴 Críticas
 
 ### 🔴 P01 — Persistência e salvamento de sessões
@@ -211,9 +221,15 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Interface preparada: fonte consultada aparece em verde, não coberta em
   amarelo, falha em vermelho e status desconhecido em cinza; o alerta afirma
   expressamente que fonte não consultada não comprova ausência de pagamento.
-- Evidência ainda necessária: publicar a candidata no CCI e homologar os
-  adaptadores oficiais que continuam ausentes. Eles não serão simulados nem
-  marcados como cobertos sem acesso e prova oficial.
+- Evidência de produção em 29/08/2026: versão `3.4.208`, revisão
+  `plano-contas-iob-00761-cev`, 100% do tráfego, health com Firestore
+  conectado, endpoint de versão correto e interface pública com a legenda das
+  quatro cores. O fluxo sem autenticação permaneceu protegido com HTTP 401 e
+  não houve log de severidade `ERROR` na nova revisão. A porta de qualidade
+  passou com 115 testes, sem pulos ou falhas.
+- Evidência ainda necessária: homologar os adaptadores oficiais que continuam
+  ausentes. Eles não serão simulados nem marcados como cobertos sem acesso e
+  prova oficial; por isso a P09 permanece `EM RESOLUÇÃO`.
 
 ## 🟡 Médias
 
