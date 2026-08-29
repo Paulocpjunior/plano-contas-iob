@@ -1,0 +1,32 @@
+{
+  "displayName": "CCI - falhas de importação ou parser",
+  "documentation": {
+    "content": "Foi detectada falha HTTP em importação ou parser. Use o X-Request-Id para localizar a operação sem expor CNPJ nos logs estruturados.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "enabled": true,
+  "conditions": [
+    {
+      "displayName": "Falha de importação",
+      "conditionThreshold": {
+        "filter": "resource.type=\"cloud_run_revision\" AND metric.type=\"logging.googleapis.com/user/cci_import_failures\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "aggregations": [{ "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE", "crossSeriesReducer": "REDUCE_SUM" }]
+      }
+    },
+    {
+      "displayName": "Falha de parser",
+      "conditionThreshold": {
+        "filter": "resource.type=\"cloud_run_revision\" AND metric.type=\"logging.googleapis.com/user/cci_parser_failures\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "aggregations": [{ "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE", "crossSeriesReducer": "REDUCE_SUM" }]
+      }
+    }
+  ],
+  "userLabels": { "service": "cci", "severity": "warning", "source": "codex" }
+}

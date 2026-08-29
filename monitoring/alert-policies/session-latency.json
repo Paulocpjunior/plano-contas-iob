@@ -1,0 +1,24 @@
+{
+  "displayName": "CCI - sessão p95 acima de 2s",
+  "documentation": {
+    "content": "A latência p95 do salvamento de sessão permaneceu acima de 2 segundos por 5 minutos. Este é o SLO operacional da P01.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "enabled": true,
+  "conditions": [{
+    "displayName": "p95 de sessão acima de 2.000 ms",
+    "conditionThreshold": {
+      "filter": "resource.type=\"cloud_run_revision\" AND metric.type=\"logging.googleapis.com/user/cci_session_latency_ms\"",
+      "comparison": "COMPARISON_GT",
+      "thresholdValue": 2000,
+      "duration": "300s",
+      "aggregations": [{
+        "alignmentPeriod": "60s",
+        "perSeriesAligner": "ALIGN_PERCENTILE_95",
+        "crossSeriesReducer": "REDUCE_MAX"
+      }]
+    }
+  }],
+  "userLabels": { "service": "cci", "severity": "warning", "source": "codex" }
+}

@@ -1,0 +1,24 @@
+{
+  "displayName": "CCI - respostas HTTP 5xx",
+  "documentation": {
+    "content": "O CCI apresentou respostas HTTP 5xx. Consulte os logs da revisão e correlacione pelo X-Request-Id.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "enabled": true,
+  "conditions": [{
+    "displayName": "Mais de 2 respostas 5xx por minuto",
+    "conditionThreshold": {
+      "filter": "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"plano-contas-iob\" AND metric.type=\"run.googleapis.com/request_count\" AND metric.label.response_code_class=\"5xx\"",
+      "comparison": "COMPARISON_GT",
+      "thresholdValue": 0.0333333333,
+      "duration": "60s",
+      "aggregations": [{
+        "alignmentPeriod": "60s",
+        "perSeriesAligner": "ALIGN_RATE",
+        "crossSeriesReducer": "REDUCE_SUM"
+      }]
+    }
+  }],
+  "userLabels": { "service": "cci", "severity": "critical", "source": "codex" }
+}

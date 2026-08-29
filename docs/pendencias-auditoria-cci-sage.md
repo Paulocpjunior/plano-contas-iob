@@ -14,9 +14,9 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ## 🔴 Críticas
 
-### P01 — Persistência e salvamento de sessões
+### 🔴 P01 — Persistência e salvamento de sessões
 
-- Estado: `RESOLVIDA`
+- Estado: `AGUARDANDO EVIDÊNCIA`
 - Evidência inicial: nos 1.000 POSTs de sessão consultados desde 28/08/2026,
   houve 54 respostas HTTP 500, 28 conflitos HTTP 409, p95 de 63,6 s e payload
   máximo de 22,1 MB. O erro de servidor foi `DEADLINE_EXCEEDED` no commit em
@@ -42,9 +42,9 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   observação de p95/HTTP 500/409 após a revisão 00643. Ainda não houve POST de
   sessão registrado na nova revisão desde a publicação.
 
-### P02 — Linha oficial de release e prevenção de regressão
+### 🟢 P02 — Linha oficial de release e prevenção de regressão
 
-- Estado: `AGUARDANDO EVIDÊNCIA`
+- Estado: `RESOLVIDA`
 - Evidência inicial: a revisão publicada está 95 commits à frente e 7 atrás de
   `origin/main`; somente `origin/codex/cci-homologar-nubank` contém o commit
   publicado. O deploy manual não executa `npm audit` e encaminha tráfego antes
@@ -79,7 +79,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   auditoria e porta de qualidade aprovadas, candidata validada antes do tráfego
   e health/version finais aprovados.
 
-### P03 — Piloto formal da migração
+### 🔴 P03 — Piloto formal da migração
 
 - Estado: `AGUARDANDO P01`
 - Evidência inicial: 0 de 146 empresas com piloto homologado e 0 saldos de
@@ -91,14 +91,14 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ## 🟠 Altas
 
-### P04 — Executor controlado de migração SAGE
+### 🟠 P04 — Executor controlado de migração SAGE
 
 - Estado: `ABERTA`
 - Gap: o módulo atual é somente pré-validação e não importa nem persiste dados.
 - Critério de aceite: staging imutável, de-para versionado, lote idempotente,
   rejeições, hashes, rollback por lote, painel SAGE × CCI e termo de aceite.
 
-### P05 — Recuperação de desastre independente
+### 🟠 P05 — Recuperação de desastre independente
 
 - Estado: `ABERTA`
 - Gap: PITR, backups e exportações GCS existem, mas réplica independente e
@@ -107,7 +107,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Critério de aceite: restauração validada, RTO/RPO medidos, réplica externa
   íntegra e procedimento documentado.
 
-### P06 — Vulnerabilidades de dependências de produção
+### 🟢 P06 — Vulnerabilidades de dependências de produção
 
 - Estado: `RESOLVIDA`
 - Gap: 1 vulnerabilidade crítica, 1 alta e 9 moderadas no lock auditado.
@@ -124,14 +124,14 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Evidência de produção: versão 3.4.196 publicada pela `main` na revisão
   `plano-contas-iob-00737-dak`, 100% do tráfego, health/version aprovados.
 
-### P07 — Menor privilégio no Google Cloud
+### 🟠 P07 — Menor privilégio no Google Cloud
 
 - Estado: `ABERTA`
 - Gap: conta padrão do Cloud Run com `Editor`, `Run Admin`,
   `Secret Manager Admin` e outros papéis amplos.
 - Critério de aceite: conta dedicada ao runtime e permissões mínimas verificadas.
 
-### P08 — Homologação e fila de qualidade de layouts
+### 🟠 P08 — Homologação e fila de qualidade de layouts
 
 - Estado: `ABERTA`
 - Gap: 6 de 36 layouts bancários com aprovação explícita; 618 rejeições
@@ -139,7 +139,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Critério de aceite: status confiável por layout, responsável, SLA, versão de
   correção e regressão obrigatória por evidência real.
 
-### P09 — Cobertura fiscal oficial por fonte
+### 🟠 P09 — Cobertura fiscal oficial por fonte
 
 - Estado: `ABERTA`
 - Gap: contrato contábil exige evidência oficial, mas a cobertura completa de
@@ -149,14 +149,27 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ## 🟡 Médias
 
-### P10 — Observabilidade e alertas
+### 🟢 P10 — Observabilidade e alertas
 
-- Estado: `ABERTA`
+- Estado: `RESOLVIDA`
 - Gap: nenhum uptime check encontrado e políticas de alerta não confirmadas.
 - Critério de aceite: SLOs e alertas para saúde, latência, 5xx, 409, sessão,
   importação e parser.
+- Implementado em 29/08/2026: telemetria HTTP estruturada sem CNPJ, e-mail,
+  UID ou URL; `X-Request-Id` para correlação; cinco métricas no Cloud Logging;
+  uptime público a cada minuto em América do Sul, EUA e Europa; cinco políticas
+  ativas cobrindo indisponibilidade, 5xx, sessão p95 acima de 2 s, falhas/409 de
+  sessão e falhas de importação/parser.
+- Evidência: provisionamento idempotente executado duas vezes sem duplicar
+  recursos; uptime `CCI produção - API health`, cinco métricas `cci_*` e cinco
+  políticas `CCI - *` confirmados via APIs do Google Cloud. A regressão local
+  comprova que a telemetria não inclui o CNPJ usado na requisição.
+- Limite operacional explícito: as políticas abrem incidentes no Cloud
+  Monitoring, mas o projeto não possui canal externo cadastrado. A definição
+  de destinatário/plantão é ação organizacional, não uma razão para deixar os
+  SLOs sem monitoramento.
 
-### P11 — Hardening HTTP
+### 🟢 P11 — Hardening HTTP
 
 - Estado: `RESOLVIDA`
 - Gap: serviço público sem headers de segurança padronizados, rate limiting ou
@@ -178,15 +191,18 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   413 estruturado, enquanto 9 MB na rota de sessão foi aceito pelo parser e
   chegou à autenticação, comprovando o limite específico sem gravação de dados.
 - Fechamento: identificação `X-Powered-By` removida e protegida por regressão.
+- Evidência final: versão `3.4.199`, revisão
+  `plano-contas-iob-00743-xux`, 100% do tráfego, 108 testes aprovados e nenhum
+  log de severidade `ERROR`; `X-Powered-By` ausente na resposta pública.
 
-### P12 — Cobertura da trilha administrativa
+### 🟡 P12 — Cobertura da trilha administrativa
 
 - Estado: `ABERTA`
 - Gap: somente 7 documentos na coleção específica de auditoria administrativa.
 - Critério de aceite: exclusão, fechamento, reabertura, migração, alteração de
   plano e ações destrutivas registrados com ator, data, escopo e resultado.
 
-### P13 — Teste real de concorrência e volume
+### 🟡 P13 — Teste real de concorrência e volume
 
 - Estado: `ABERTA`
 - Gap: 103 testes portáteis passam, mas não reproduzem múltiplos colaboradores,
@@ -194,7 +210,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Critério de aceite: teste E2E reproduzível cobrindo edição simultânea,
   desconexão, retry, reload e payload de grande volume.
 
-### P14 — Configuração explícita dos projetos Google Cloud
+### 🟡 P14 — Configuração explícita dos projetos Google Cloud
 
 - Estado: `ABERTA`
 - Gap: autenticação e dados usam projetos distintos de forma implícita e os
@@ -202,7 +218,7 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Critério de aceite: variáveis explícitas, health com identidade não sensível
   dos recursos e documentação única de runtime, autenticação, dados e backup.
 
-### P15 — Configuração da integração Mercado Pago
+### 🟡 P15 — Configuração da integração Mercado Pago
 
 - Estado: `ABERTA`
 - Gap: OAuth permanece com valores placeholder na configuração observada.
@@ -214,3 +230,9 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - 29/08/2026 — P01 passou de `EM RESOLUÇÃO` para `AGUARDANDO EVIDÊNCIA` após a
   publicação da versão 3.4.195. A implementação e os testes foram concluídos;
   falta confirmar a meta operacional em produção antes de declarar resolução.
+- 29/08/2026 — P02 foi confirmada como `RESOLVIDA` na versão 3.4.197 após a
+  reconciliação da `main` e o fechamento do caminho manual de deploy.
+- 29/08/2026 — P11 foi confirmada como `RESOLVIDA` na versão 3.4.199 após a
+  verificação dos headers públicos e dos logs da revisão 00743.
+- 29/08/2026 — P10 passou de `ABERTA` para `RESOLVIDA` com telemetria, uptime,
+  métricas, SLOs e políticas de alerta ativos no projeto de produção.

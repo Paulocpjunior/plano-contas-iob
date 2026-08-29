@@ -1,0 +1,17 @@
+{
+  "name": "cci_session_latency_ms",
+  "description": "Distribuição da latência dos salvamentos de sessão do CCI em milissegundos.",
+  "filter": "resource.type=\"cloud_run_revision\" AND jsonPayload.event=\"cci_http_request\" AND jsonPayload.flow=\"session\"",
+  "valueExtractor": "EXTRACT(jsonPayload.latency_ms)",
+  "bucketOptions": {
+    "explicitBuckets": {
+      "bounds": [100, 250, 500, 1000, 2000, 5000, 10000, 30000, 60000]
+    }
+  },
+  "metricDescriptor": {
+    "metricKind": "DELTA",
+    "valueType": "DISTRIBUTION",
+    "unit": "ms",
+    "displayName": "CCI - Latência de sessão"
+  }
+}

@@ -42,6 +42,7 @@ const {
   aplicarHeadersSeguranca,
   criarLimitador,
 } = require('./http-hardening');
+const { criarObservabilidadeHttp } = require('./observability');
 
 const app = express();
 app.set('trust proxy', true);
@@ -58,6 +59,7 @@ const adminAuth = admin.auth();
 const DOMAIN = '@spassessoriacontabil.com.br';
 
 app.use(aplicarHeadersSeguranca);
+app.use(criarObservabilidadeHttp());
 app.use('/api', criarLimitador({
   janelaMs: 60 * 1000,
   maximo: 3000,

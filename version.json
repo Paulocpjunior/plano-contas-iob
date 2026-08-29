@@ -1,8 +1,9 @@
 {
-  "version": "3.4.199",
-  "build_date": "2026-08-29T15:58:17Z",
+  "version": "3.4.200",
+  "build_date": "2026-08-29T16:11:19Z",
   "release_notes": [
-    "security: remover identificação do framework nos headers públicos",
-    "docs: registrar evidências públicas da conclusão do hardening HTTP"
+    "observabilidade: ativar telemetria estruturada para sessão, importação e parser",
+    "monitoramento: criar uptime, métricas e políticas de alerta do CCI",
+    "auditoria: classificar pendências por cores e corrigir os estados P01/P02"
   ]
 }
