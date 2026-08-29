@@ -43,13 +43,17 @@ env:
   SERVICE_NAME: ${{ vars.CLOUD_RUN_SERVICE || 'plano-contas-iob' }}
   REGION: ${{ vars.CLOUD_RUN_REGION || 'us-west1' }}
   # DOIS PROJETOS, e confundi-los custou 13 runs vermelhos (07/08):
-  #   · Cloud Run  → gen-lang-client-0569062468  (é aqui que o app RODA)
-  #   · Firestore  → projetos-app-sp             (fixado no server.js)
+  #   · Cloud Run e Firestore de dados → gen-lang-client-0569062468
+  #   · Firebase Authentication       → projetos-app-sp
   # O default anterior apontava pro projeto do Firestore, e o gcloud respondia
   # "Cloud Run Admin API não está habilitada" — mensagem que manda habilitar a
   # API no lugar errado, em vez de dizer que o projeto é outro.
   # A verdade está em scripts/deploy-production.sh, que publica de verdade.
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'gen-lang-client-0569062468' }}
+  CCI_DATA_PROJECT_ID: ${{ vars.CCI_DATA_PROJECT_ID || 'gen-lang-client-0569062468' }}
+  CCI_AUTH_PROJECT_ID: ${{ vars.CCI_AUTH_PROJECT_ID || 'projetos-app-sp' }}
+  CCI_BACKUP_PROJECT_ID: ${{ vars.CCI_BACKUP_PROJECT_ID || 'gen-lang-client-0569062468' }}
+  CCI_BACKUP_BUCKET: ${{ vars.CCI_BACKUP_BUCKET || 'cci-firestore-backups-292090471177' }}
 
 jobs:
   deploy:
@@ -81,7 +85,7 @@ jobs:
               Valor: JSON da service account com permissão de deploy
 
           PAPÉIS NECESSÁRIOS — concedidos NO PROJETO DO CLOUD RUN
-          (gen-lang-client-0569062468), que NÃO é o projeto do Firestore.
+          (gen-lang-client-0569062468), que também contém o Firestore de dados.
           O deploy é `gcloud run deploy --source .`, que passa por Cloud Build,
           Cloud Storage (bucket de origem) e Artifact Registry. Faltar UM
           derruba só na hora do build:
@@ -268,7 +272,7 @@ jobs:
               --platform managed \
               --region "$REGION" \
               --project "$PROJECT_ID" \
-              --update-env-vars=DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_MODEL=gemini-3.7-flash,GEMINI_FLASH_MODEL=gemini-3.7-flash,GEMINI_CHAT_MODEL=gemini-3.7-flash,GEMINI_ALLOW_CLIENT_MODEL=false \
+              --update-env-vars=CCI_RUNTIME_PROJECT_ID="$PROJECT_ID",CCI_DATA_PROJECT_ID="$CCI_DATA_PROJECT_ID",CCI_AUTH_PROJECT_ID="$CCI_AUTH_PROJECT_ID",CCI_BACKUP_PROJECT_ID="$CCI_BACKUP_PROJECT_ID",CCI_BACKUP_BUCKET="$CCI_BACKUP_BUCKET",DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_MODEL=gemini-3.7-flash,GEMINI_FLASH_MODEL=gemini-3.7-flash,GEMINI_CHAT_MODEL=gemini-3.7-flash,GEMINI_ALLOW_CLIENT_MODEL=false \
               --no-traffic --tag candidate \
               --quiet; then
               exit 0
@@ -313,6 +317,10 @@ jobs:
             echo "::error::Candidata iniciou com motor $HEALTH_MODEL; esperado gemini-3.7-flash."
             exit 1
           fi
+          jq -e --arg runtime "$PROJECT_ID" --arg data "$CCI_DATA_PROJECT_ID" --arg auth "$CCI_AUTH_PROJECT_ID" --arg backup "$CCI_BACKUP_PROJECT_ID" \
+            '.projects == {runtime:$runtime,data:$data,auth:$auth,backup:$backup}' /tmp/health.json >/dev/null || {
+            echo "::error::Topologia de projetos da candidata diverge da configuração explícita."; exit 1;
+          }
 
           API_VERSION=$(curl -sSf "$CANDIDATE_URL/api/version" | jq -r '.version // empty')
           curl -sSf "$CANDIDATE_URL/?build=$EXPECTED_VERSION" > /tmp/candidate-index.html
@@ -370,6 +378,10 @@ jobs:
           if [ "$HEALTH_MODEL" != "gemini-3.7-flash" ]; then
             echo "::error::Produção iniciou com motor $HEALTH_MODEL; esperado gemini-3.7-flash."; exit 1
           fi
+          jq -e --arg runtime "$PROJECT_ID" --arg data "$CCI_DATA_PROJECT_ID" --arg auth "$CCI_AUTH_PROJECT_ID" --arg backup "$CCI_BACKUP_PROJECT_ID" \
+            '.projects == {runtime:$runtime,data:$data,auth:$auth,backup:$backup}' /tmp/production-health.json >/dev/null || {
+            echo "::error::Topologia de projetos da produção diverge da configuração explícita."; exit 1;
+          }
           echo ""
           echo "── /api/version ──"
           API_VERSION=$(curl -sSf "$URL/api/version" | jq -r '.version // empty')

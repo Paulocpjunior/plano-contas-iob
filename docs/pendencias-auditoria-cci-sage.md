@@ -168,6 +168,11 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   Monitoring, mas o projeto não possui canal externo cadastrado. A definição
   de destinatário/plantão é ação organizacional, não uma razão para deixar os
   SLOs sem monitoramento.
+- Evidência de produção: versão `3.4.200`, revisão
+  `plano-contas-iob-00745-cit`, 100% do tráfego, 109 testes aprovados, uptime
+  aprovado nas três regiões e nenhum log de severidade `ERROR`. Um POST não
+  autenticado confirmou a telemetria pública de sessão e o `X-Request-Id` sem
+  gravar dados nem expor o CNPJ enviado.
 
 ### 🟢 P11 — Hardening HTTP
 
@@ -210,13 +215,20 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 - Critério de aceite: teste E2E reproduzível cobrindo edição simultânea,
   desconexão, retry, reload e payload de grande volume.
 
-### 🟡 P14 — Configuração explícita dos projetos Google Cloud
+### 🟢 P14 — Configuração explícita dos projetos Google Cloud
 
-- Estado: `ABERTA`
+- Estado: `RESOLVIDA`
 - Gap: autenticação e dados usam projetos distintos de forma implícita e os
   comentários operacionais não descrevem corretamente o wiring em execução.
 - Critério de aceite: variáveis explícitas, health com identidade não sensível
   dos recursos e documentação única de runtime, autenticação, dados e backup.
+- Implementado em 29/08/2026: runtime, Firestore de dados, Firebase Auth e
+  backup possuem variáveis independentes; o servidor fixa explicitamente o
+  projeto do Firestore e do Auth; o health apresenta somente os quatro project
+  IDs; a candidata e a produção são recusadas se a topologia divergir.
+- Topologia preservada: runtime/dados/backup em
+  `gen-lang-client-0569062468`, autenticação em `projetos-app-sp` e bucket
+  `cci-firestore-backups-292090471177`. Nenhum dado foi movido.
 
 ### 🟡 P15 — Configuração da integração Mercado Pago
 
@@ -236,3 +248,5 @@ e, quando afetar produção, confirmação da versão/revisão pública.
   verificação dos headers públicos e dos logs da revisão 00743.
 - 29/08/2026 — P10 passou de `ABERTA` para `RESOLVIDA` com telemetria, uptime,
   métricas, SLOs e políticas de alerta ativos no projeto de produção.
+- 29/08/2026 — P14 passou de `ABERTA` para `RESOLVIDA` após tornar explícita e
+  testável a topologia real de runtime, dados, autenticação e backup.
