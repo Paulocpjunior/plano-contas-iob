@@ -204,12 +204,40 @@
     }
   }
 
+  async function compactarStateParaTransporte(state_json) {
+    const texto = String(state_json || '');
+    if (texto.length < 65536 || typeof CompressionStream === 'undefined' || typeof TextEncoder === 'undefined') {
+      return { state_json: texto };
+    }
+    try {
+      const bytes = new TextEncoder().encode(texto);
+      const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+      const compactado = new Uint8Array(await new Response(stream).arrayBuffer());
+      let binario = '';
+      const bloco = 32768;
+      for (let i = 0; i < compactado.length; i += bloco) {
+        binario += String.fromCharCode.apply(null, compactado.subarray(i, i + bloco));
+      }
+      const base64 = btoa(binario);
+      if (base64.length >= texto.length) return { state_json: texto };
+      return {
+        state_encoding: 'gzip-base64',
+        state_gzip_base64: base64,
+        state_uncompressed_bytes: bytes.length,
+      };
+    } catch (erro) {
+      console.warn('[sessao] compactacao de transporte indisponivel; usando JSON normal:', erro);
+      return { state_json: texto };
+    }
+  }
+
   async function salvarSessaoEmpresa(cnpj, state_json, resumo) {
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
+    const statePayload = await compactarStateParaTransporte(state_json);
     const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao', {
       method: 'POST',
       body: JSON.stringify({
-        state_json,
+        ...statePayload,
         resumo: resumo || null,
         session_revision: sessaoRevisoes.get(cnpjLimpo) || null,
         client_version: window.__PLANO_CONTAS_IOB_BUILD__ || null

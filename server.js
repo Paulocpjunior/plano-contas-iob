@@ -29,6 +29,14 @@ const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa, buscarOri
 const { conteudo: MANUAL_CCI } = require('./manual-cci-base');
 const { extractAccountingPdf } = require('./auditai/pdf-contabil-extractor');
 const { validarPayloadFiscalConnector, resumirItensFiscais } = require('./fiscal-payments-contract');
+const {
+  ENCODING_PLAIN,
+  LIMITE_CHUNK_SESSAO,
+  codificarStateJson,
+  decodificarPayload,
+  stateJsonDoBody,
+  dividirPayload,
+} = require('./session-state-codec');
 
 const app = express();
 app.set('trust proxy', true);
@@ -2588,8 +2596,6 @@ app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro', async (req, res) => {
   }
 });
 
-const LIMITE_CHUNK_SESSAO = 200000;
-
 function erroSessao(mensagem, status, codigo) {
   const erro = new Error(mensagem);
   erro.status = status || 500;
@@ -2617,10 +2623,7 @@ function millisTimestamp(valor) {
 }
 
 function dividirTexto(texto, limite) {
-  const valor = String(texto || '');
-  const partes = [];
-  for (let i = 0; i < valor.length; i += limite) partes.push(valor.slice(i, i + limite));
-  return partes;
+  return dividirPayload(texto, limite);
 }
 
 async function gravarPartes(colecaoRef, partes, geracao) {
@@ -2667,7 +2670,9 @@ async function carregarSessaoAtualPorRef(sessaoRef) {
   const doc = await sessaoRef.get();
   if (!doc.exists) return { encontrada: false, doc, dados: null, stateJson: '' };
   const dados = doc.data() || {};
-  let stateJson = typeof dados.state_json === 'string' ? dados.state_json : '';
+  let payload = typeof dados.state_payload === 'string'
+    ? dados.state_payload
+    : (typeof dados.state_json === 'string' ? dados.state_json : '');
   if (dados.state_chunked) {
     const chunks = await sessaoRef.collection('chunks').get();
     const geracao = String(dados.state_generation || '');
@@ -2678,8 +2683,9 @@ async function carregarSessaoAtualPorRef(sessaoRef) {
     if (Number(dados.state_chunks || 0) !== partes.length) {
       throw erroSessao('A sessão está incompleta no armazenamento. Nenhuma alteração foi realizada.', 409, 'SESSAO_INCOMPLETA');
     }
-    stateJson = partes.map(parte => parte.parte || '').join('');
+    payload = partes.map(parte => parte.parte || '').join('');
   }
+  const stateJson = decodificarPayload(payload, dados.state_encoding || ENCODING_PLAIN);
   return {
     encontrada: true,
     doc,
@@ -2748,8 +2754,9 @@ async function gravarDocumentoJson(ref, stateJson, metadados) {
 
 async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes) {
   const opts = opcoes || {};
-  const partes = dividirTexto(stateJson, LIMITE_CHUNK_SESSAO);
-  const chunked = String(stateJson).length > LIMITE_CHUNK_SESSAO;
+  const codificado = codificarStateJson(stateJson);
+  const partes = dividirTexto(codificado.payload, LIMITE_CHUNK_SESSAO);
+  const chunked = codificado.payload.length > LIMITE_CHUNK_SESSAO;
   const geracao = chunked ? novaRevisaoSessao() : null;
   if (chunked) await gravarPartes(sessaoRef.collection('chunks'), partes, geracao);
   const revisao = novaRevisaoSessao();
@@ -2758,17 +2765,27 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
     updated_at: new Date(),
     updated_by_uid: user.uid,
     updated_by_email: user.email,
-    state_json: chunked ? null : stateJson,
+    state_json: codificado.encoding === ENCODING_PLAIN && !chunked ? codificado.payload : null,
+    state_payload: codificado.encoding !== ENCODING_PLAIN && !chunked ? codificado.payload : null,
+    state_encoding: codificado.encoding,
     state_chunked: chunked,
     state_chunks: chunked ? partes.length : 0,
-    state_bytes: String(stateJson).length,
+    state_bytes: codificado.bytesOriginais,
+    state_stored_bytes: codificado.bytesArmazenados,
     state_generation: geracao,
     session_revision: revisao,
     require_session_revision: opts.exigirRevisao === true,
     session_write_lock: admin.firestore.FieldValue.delete(),
   }, { merge: true });
   await limparChunksAntigos(sessaoRef, geracao).catch(erro => console.warn('[sessao] limpeza de chunks antigos falhou:', erro.message || erro));
-  return { revisao, chunked, chunks: chunked ? partes.length : 0 };
+  return {
+    revisao,
+    chunked,
+    chunks: chunked ? partes.length : 0,
+    encoding: codificado.encoding,
+    stateBytes: codificado.bytesOriginais,
+    storedBytes: codificado.bytesArmazenados,
+  };
 }
 
 async function gravarTextoBackup(backupRef, subcolecao, texto) {
@@ -2835,8 +2852,8 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const { state_json, resumo, session_revision, client_version } = req.body || {};
-    if (typeof state_json !== 'string' || !state_json) return res.status(400).json({ erro: 'state_json obrigatorio' });
+    const { resumo, session_revision, client_version } = req.body || {};
+    const state_json = stateJsonDoBody(req.body || {});
     sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
     tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'autosave');
     const atual = await carregarSessaoAtualPorRef(sessaoRef);
@@ -2897,7 +2914,15 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
       }
     }
     await db.collection('empresas').doc(cnpjLimpo).set(atualizacaoEmpresa, { merge: true });
-    res.json({ ok: true, chunked: resultado.chunked, chunks: resultado.chunks, session_revision: resultado.revisao });
+    res.json({
+      ok: true,
+      chunked: resultado.chunked,
+      chunks: resultado.chunks,
+      encoding: resultado.encoding,
+      state_bytes: resultado.stateBytes,
+      stored_bytes: resultado.storedBytes,
+      session_revision: resultado.revisao,
+    });
   } catch (e) {
     if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
     console.error('salvar sessao erro:', e);

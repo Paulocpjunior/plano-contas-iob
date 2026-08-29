@@ -54,8 +54,10 @@ assert(html.includes('aplicarEdicaoIndividual(entry, alteracao'), 'Edição dire
 assert(html.includes('persistirMutacaoLancamentos'), 'Edição deve possuir rollback quando a persistência falhar.');
 assert(html.includes('enfileirarMutacaoModalLancamento'), 'Modal deve liberar a tela e enfileirar a persistência sem perder o rollback.');
 assert(/async function updateEntry[\s\S]*?enfileirarMutacaoModalLancamento\(async function/.test(html), 'Edição direta na grade deve usar a fila e liberar o próximo lançamento sem aguardar o POST anterior.');
-assert(html.includes('filaMutacoesModalLancamento.splice(0, filaMutacoesModalLancamento.length)'), 'Alterações acumuladas durante uma gravação devem ser consolidadas no próximo lote.');
-assert(html.includes('As alterações seguintes foram canceladas porque o lote anterior não pôde ser salvo.'), 'Falha de um lote deve cancelar a fila ainda não aplicada para preservar o rollback.');
+assert(html.includes('Promise.resolve(mutacao())'), 'Mutação seguinte deve entrar no estado local imediatamente, antes da confirmação remota.');
+assert(html.includes('const lote = filaMutacoesModalLancamento.splice(0, filaMutacoesModalLancamento.length)'), 'Confirmações acumuladas durante uma gravação devem ser consolidadas no próximo lote.');
+assert(html.includes('Alterações preservadas — aguardando nova tentativa'), 'Falha remota deve preservar a digitação e manter o retry.');
+assert(!html.includes('As alterações seguintes foram canceladas porque o lote anterior não pôde ser salvo.'), 'Fila não pode cancelar a digitação posterior.');
 assert(html.includes("showToast('Lançamento nº ' + numeroExistente + ' enviado para salvamento. Você já pode continuar.'"), 'Edição deve liberar explicitamente o colaborador para o próximo lançamento.');
 assert(html.includes('carregarStatusPeriodosLancamentos(!!(opcoes && opcoes.forcar))'), 'Modal deve reutilizar o cache de competências sem remover a consulta forçada administrativa.');
 assert(html.includes("salvarSessaoRemotoAgora({ mostrarErro: true, cancelarAgendado: true })"), 'Persistência imediata deve cancelar o autosave redundante já agendado.');

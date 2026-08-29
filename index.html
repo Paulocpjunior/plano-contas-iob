@@ -6431,6 +6431,8 @@
         let _sessaoRetryTimer = null;
         let _tokenFlush = null;
         let _sessaoBloqueadaPorRevisao = false;
+        let _sessaoVersaoLocal = 0;
+        let _sessaoVersaoConfirmada = 0;
         const LIMITE_SNAPSHOT_REMOTO_SEGURO = 95 * 1024 * 1024;
 
         function atualizarIndicadorSalvamento(texto, cor) {
@@ -6460,6 +6462,7 @@
                 _sessaoDebounceTimer = null;
             }
             _sessaoSalvando = true;
+            const versaoEnviada = _sessaoVersaoLocal;
             try {
                 atualizarIndicadorSalvamento('💾 Salvando...', 'warn');
                 try { if (window.API.getToken) _tokenFlush = await window.API.getToken() || _tokenFlush; } catch (e) {}
@@ -6482,8 +6485,9 @@
                 const r = await window.API.salvarSessaoEmpresa(cnpj, state_json, resumo);
                 if (r && r.ok) {
                     _sessaoBloqueadaPorRevisao = false;
-                    _sessaoDirty = false;
-                    _sessaoDirtyDesde = 0;
+                    _sessaoVersaoConfirmada = Math.max(_sessaoVersaoConfirmada, versaoEnviada);
+                    _sessaoDirty = _sessaoVersaoLocal > _sessaoVersaoConfirmada;
+                    if (!_sessaoDirty) _sessaoDirtyDesde = 0;
                     if (_sessaoRetryTimer) { clearTimeout(_sessaoRetryTimer); _sessaoRetryTimer = null; }
                     atualizarIndicadorSalvamento(snapshotLeve ? '✅ Metadados salvos' : ('✅ Sessão salva (' + totalLancamentos + ')'), snapshotLeve ? 'warn' : 'ok');
                     return r;
@@ -6520,18 +6524,19 @@
                 }
             } finally {
                 _sessaoSalvando = false;
-                if (_sessaoSavePendente) {
+                if (_sessaoSavePendente || _sessaoDirty) {
                     _sessaoSavePendente = false;
-                    if (!_sessaoBloqueadaPorRevisao) agendarSaveRemoto();
+                    if (!_sessaoBloqueadaPorRevisao) agendarSaveRemoto({ manterVersao: true });
                 }
             }
         }
 
-        function agendarSaveRemoto() {
+        function agendarSaveRemoto(opcoes) {
             if (_sessaoBloqueadaPorRevisao) {
                 atualizarIndicadorSalvamento('⛔ Recarregue a página antes de editar', 'err');
                 return;
             }
+            if (!(opcoes && opcoes.manterVersao)) _sessaoVersaoLocal++;
             _sessaoDirty = true;
             if (!_sessaoDirtyDesde) _sessaoDirtyDesde = Date.now();
             if (_sessaoDebounceTimer) clearTimeout(_sessaoDebounceTimer);
@@ -18300,13 +18305,28 @@
         }
 
         function enfileirarMutacaoModalLancamento(mutacao, callbacks) {
-            filaMutacoesModalLancamento.push({
-                mutacao: mutacao,
+            const item = {
                 sucesso: callbacks && callbacks.sucesso,
                 erro: callbacks && callbacks.erro
-            });
-            atualizarIndicadorSalvamento('⏳ ' + filaMutacoesModalLancamento.length + ' alteração(ões) na fila', 'warn');
-            agendarProcessamentoFilaMutacoesModal();
+            };
+            // A mutação é aplicada imediatamente no estado local. A fila contém apenas
+            // confirmações pendentes do servidor: uma gravação lenta nunca pode segurar
+            // ou desfazer a digitação do lançamento seguinte.
+            try {
+                Promise.resolve(mutacao()).then(function() {
+                    saveState();
+                    renderLancamentos();
+                    updateDashboard();
+                    updateCharts();
+                    filaMutacoesModalLancamento.push(item);
+                    atualizarIndicadorSalvamento('⏳ ' + filaMutacoesModalLancamento.length + ' alteração(ões) aguardando confirmação', 'warn');
+                    agendarProcessamentoFilaMutacoesModal();
+                }).catch(function(erro) {
+                    if (typeof item.erro === 'function') item.erro(erro);
+                });
+            } catch (erro) {
+                if (typeof item.erro === 'function') item.erro(erro);
+            }
         }
 
         async function processarFilaMutacoesModal() {
@@ -18314,20 +18334,16 @@
             processandoFilaMutacoesModal = true;
             const lote = filaMutacoesModalLancamento.splice(0, filaMutacoesModalLancamento.length);
             try {
-                await persistirMutacaoLancamentos(async function() {
-                    for (let i = 0; i < lote.length; i++) await lote[i].mutacao();
-                    renderLancamentos();
-                    updateDashboard();
-                    updateCharts();
-                });
+                // O lote já foi aplicado de forma otimista. Aqui só serializamos a
+                // confirmação remota para nunca abrir dois POSTs concorrentes.
+                while (_sessaoSalvando) {
+                    await new Promise(function(resolve) { setTimeout(resolve, 50); });
+                }
+                await salvarSessaoRemotoAgora({ mostrarErro: true, cancelarAgendado: true });
                 lote.forEach(function(item) { if (typeof item.sucesso === 'function') item.sucesso(); });
             } catch (erro) {
                 lote.forEach(function(item) { if (typeof item.erro === 'function') item.erro(erro); });
-                const canceladas = filaMutacoesModalLancamento.splice(0, filaMutacoesModalLancamento.length);
-                if (canceladas.length) {
-                    const erroFila = new Error('As alterações seguintes foram canceladas porque o lote anterior não pôde ser salvo. Revise os lançamentos antes de tentar novamente.');
-                    canceladas.forEach(function(item) { if (typeof item.erro === 'function') item.erro(erroFila); });
-                }
+                atualizarIndicadorSalvamento('⚠️ Alterações preservadas — aguardando nova tentativa', 'err');
             } finally {
                 processandoFilaMutacoesModal = false;
                 if (filaMutacoesModalLancamento.length) agendarProcessamentoFilaMutacoesModal();
