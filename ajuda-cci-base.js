@@ -1,0 +1,117 @@
+'use strict';
+
+const { textoManualCCI } = require('./manual-cci-base');
+
+const BASE_AJUDA_CCI = [
+  {
+    modulo: 'Começar o trabalho',
+    termos: ['começar', 'iniciar', 'ativar empresa', 'empresa ativa'],
+    orientacao: 'Localize a empresa em Ativar empresa e clique em Ativar empresa no cartão. O CCI só libera os demais módulos depois que uma empresa estiver ativa, evitando misturar dados entre CNPJs.'
+  },
+  {
+    modulo: 'Importação bancária',
+    termos: ['extrato', 'ofx', 'pdf', 'importar banco', 'extrator', 'bb escaneado', 'gemini sem créditos'],
+    orientacao: 'Na empresa ativa, abra Operação > Extrator, informe banco, conta e período, selecione o arquivo e confira a prévia. No Banco do Brasil, o layout Extrato de Conta Corrente (+/-) aceita PDF textual ou escaneado e usa OCR local, sem depender dos créditos do Gemini. O CCI valida duplicidade, versão, layout, vínculo, quantidade, saldos e totais antes de persistir. Não importe novamente um arquivo já contabilizado sem primeiro revisar a importação anterior.'
+  },
+  {
+    modulo: 'Importação fiscal - livros de entradas e saídas',
+    termos: ['livro de entradas', 'livro de saidas', 'livro de saídas', 'registro de entradas', 'registro de saidas', 'registro de saídas', 'relatorio notas', 'relatório notas'],
+    orientacao: 'Na empresa ativa, abra Importações > Movimento Fiscal. Para compras, escolha Modelo geral — NF-e de entrada; o nome do arquivo deve conservar o código NNNN_ da SAGE, igual ao Nº da empresa no Cadastro do CCI. Para vendas, escolha Modelo geral — NF-e de saída; o CCI compara o CNPJ emitente das chaves NF-e com o CNPJ ativo. Nos dois casos, direção E/S, período, notas, CFOP, valores, impostos e cobertura das chaves são conferidos antes da prévia.'
+  },
+  {
+    modulo: 'Importação fiscal - impostos retidos',
+    termos: ['impostos retidos', 'demonstrativo sage', 'retenção', 'pis retido', 'cofins retida', 'csll retida', 'irrf'],
+    orientacao: 'Na empresa ativa, abra Importações > Movimento Fiscal e selecione o modelo geral Impostos retidos em notas de serviços. O CCI confere o CNPJ do cabeçalho, período, notas, valor, base, PIS, COFINS, CSLL, IRRF e INSS. Qualquer divergência de CNPJ ou total mantém a importação bloqueada.'
+  },
+  {
+    modulo: 'Conciliação e memória',
+    termos: ['conciliar', 'memorizar', 'memória', 'classificar', 'lançamento'],
+    orientacao: 'Revise descrição, débito, crédito, código IOB e histórico dos lançamentos. Para alterar duas ou mais linhas, marque os itens, clique em Alterar selecionados, escolha os campos e confirme a quantidade. Datas, valores, descrições e documentos são preservados; contas em lote exigem lançamentos da mesma natureza. Se as linhas já estiverem memorizadas, a classificação atual pode ser corrigida normalmente; somente administrador pode marcar Atualizar também a memória da empresa para aplicar a correção às próximas importações.'
+  },
+  {
+    modulo: 'Relatórios contábeis',
+    termos: ['balancete', 'balancete anual', 'razão', 'diário', 'dre', 'balanço', 'relatório'],
+    orientacao: 'Abra Contábil > Relatórios Contábeis, selecione o período e o relatório. O Balancete Anual permite escolher o ano e compara os saldos finais de janeiro a dezembro, transportando os saldos entre os meses. O balancete usa a hierarquia do plano de contas; o razão detalha os lançamentos das contas. DRE, balanço e análise dependem de plano estruturado, saldos e lançamentos conciliados.'
+  },
+  {
+    modulo: 'Implantação exclusiva no CCI',
+    termos: ['saldos anteriores', 'saldo anterior', 'saldo inicial', 'saldos iniciais', 'saldo de abertura', 'substituir sage', 'modo exclusivo', 'implantação'],
+    orientacao: 'Ative a empresa e abra Contábil > Saldos anteriores. Confira no Cadastro de Empresas se o modo contábil está como CCI — sistema único e se a data de início da escrituração está correta. Na competência inicial, informe somente contas analíticas no formato conta;valor: devedor positivo e credor negativo. O CCI mostra quantidade, total devedor, total credor e diferença. Salve e, com diferença zero, aprove os saldos de abertura. A aprovação fica habilitada somente na competência inicial. Os meses seguintes recebem o transporte automático após o fechamento; não recadastre o saldo manualmente.'
+  },
+  {
+    modulo: 'Regime tributário',
+    termos: ['regime', 'simples nacional', 'lucro presumido', 'lucro real', 'cfi'],
+    orientacao: 'O regime tributário é sincronizado do cadastro central do CFI ao abrir a empresa no CCI. Se estiver ausente ou divergente, corrija primeiro o cadastro oficial no CFI e sincronize novamente; não invente o regime no lançamento.'
+  },
+  {
+    modulo: 'Parametrização tributária',
+    termos: ['parametrizar regime', 'regras do regime', 'simples nacional', 'lucro presumido', 'lucro real'],
+    orientacao: 'No Cadastro da empresa, clique em Parametrizar regras. O Simples exige critério de receita, anexos e segregações revisadas; o Lucro Presumido exige tratamento de PIS/COFINS e revisão das atividades e receitas adicionais; o Lucro Real exige forma de apuração, tratamento de PIS/COFINS, e-Lalur/e-Lacs e critérios de créditos revisados. Somente administrador confirma. Em empresa exclusiva no CCI, pendências bloqueiam o fechamento.'
+  },
+  {
+    modulo: 'Ativo e depreciação',
+    termos: ['ativo', 'bem', 'depreciação', 'baixa de bem'],
+    orientacao: 'Use Contábil > Ativo e Depreciação para cadastrar bens, vida útil, data de entrada, valor e conta contábil. Revise a política contábil e fiscal aplicável antes de confirmar taxas ou baixas; a Ajuda CCI não substitui decisão técnica do contador responsável.'
+  },
+  {
+    modulo: 'Fechamento mensal',
+    termos: ['fechar mês', 'encerrar período', 'fechamento', 'reabrir'],
+    orientacao: 'Antes de fechar, confira prontidão, saldos, conciliação, débitos e créditos, pendências e relatórios. A reabertura de período é exclusiva de administrador e deve ser usada com justificativa e nova conferência.'
+  },
+  {
+    modulo: 'ECD e ECF',
+    termos: ['ecd', 'ecf', 'sped contábil'],
+    orientacao: 'Abra Obrigações > ECD/ECF para validar e consolidar arquivos da matriz e filiais. Faça a conferência dos registros e das demonstrações antes da geração definitiva. Divergências técnicas devem ser encaminhadas ao contador responsável.'
+  },
+  {
+    modulo: 'Migração e exportação SAGE',
+    termos: ['sage', 'exportar', 'migração'],
+    orientacao: 'O De/Para de Arquivos possui acesso direto na navegação e valida localmente o arquivo de relacionamento SAGE → CCI. Empresas em modo ponte também podem usar Exportar. Empresas definidas como exclusivas no CCI têm a exportação para a SAGE bloqueada para evitar dupla escrituração.'
+  },
+  {
+    modulo: 'Permissões administrativas',
+    termos: ['admin', 'administrador', 'permissão', 'acesso', 'excluir', 'usuário'],
+    orientacao: 'Ações sensíveis são exclusivas de administrador, incluindo gerenciar usuários e responsáveis, excluir empresa ou plano, excluir lançamentos em massa, homologar layouts, trocar plano e reabrir período. Quando aparecer o aviso de acesso restrito, procure um administrador e informe empresa, tela e ação desejada.'
+  }
+];
+
+const ACOES_ADMIN_CCI = [
+  'gerenciar usuários e permissões',
+  'definir responsáveis pelas empresas',
+  'excluir empresa ou plano de contas',
+  'trocar o plano vinculado à empresa',
+  'excluir lançamentos em massa',
+  'homologar ou bloquear layouts bancários',
+  'reabrir período contábil',
+  'alterar memórias de classificação já gravadas'
+];
+
+function textoBaseAjuda() {
+  const baseRapida = BASE_AJUDA_CCI.map((item) => `${item.modulo}: ${item.orientacao}`).join('\n');
+  return `${baseRapida}\n\nMANUAL OPERACIONAL OFICIAL:\n${textoManualCCI()}`;
+}
+
+function parecePerguntaAdministrativa(pergunta) {
+  const texto = String(pergunta || '').toLocaleLowerCase('pt-BR');
+  return /(reabrir|excluir (empresa|plano|lan[cç]amentos)|trocar plano|homologar|bloquear layout|promover.*admin|permiss[aã]o|gerenciar usu[aá]rios|respons[aá]ve(is|l))/i.test(texto);
+}
+
+function buscarOrientacaoAjuda(pergunta) {
+  const normalizar = (valor) => String(valor || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g, ' ').trim();
+  const texto = normalizar(pergunta);
+  if (!texto) return null;
+  let melhor = null;
+  BASE_AJUDA_CCI.forEach((item) => {
+    let pontos = 0;
+    (item.termos || []).forEach((termo) => {
+      const chave = normalizar(termo);
+      if (chave && texto.includes(chave)) pontos = Math.max(pontos, chave.split(' ').length * 10 + chave.length);
+    });
+    if (pontos && (!melhor || pontos > melhor.pontos)) melhor = { pontos, item };
+  });
+  return melhor ? { resposta: melhor.item.orientacao, resolvida: true, requer_admin: false, modulo: melhor.item.modulo, motivo: 'Base oficial determinística do CCI.' } : null;
+}
+
+module.exports = { BASE_AJUDA_CCI, ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa, buscarOrientacaoAjuda };

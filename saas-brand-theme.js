@@ -69,30 +69,6 @@
     return apply(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
   }
 
-  function enhanceAuditAIBrand() {
-    document.querySelectorAll('header h1').forEach(function (title) {
-      if (!/SP ASSESSORIA CONT[ÁA]BIL/i.test(title.textContent || '')) return;
-      const titleWrap = title.parentElement;
-      const brandRow = titleWrap && titleWrap.parentElement;
-      if (!brandRow || brandRow.querySelector('[data-sp-official-logo]')) return;
-
-      const logoWrap = document.createElement('div');
-      logoWrap.setAttribute('data-sp-official-logo', 'runtime');
-      logoWrap.className = 'sp-official-logo-runtime';
-      logoWrap.innerHTML = '<img src="/sp-logo.png" alt="SP Assessoria Contábil">';
-
-      const possibleIcon = brandRow.firstElementChild;
-      if (possibleIcon && possibleIcon !== titleWrap && possibleIcon.querySelector('svg')) {
-        possibleIcon.replaceWith(logoWrap);
-      } else {
-        brandRow.insertBefore(logoWrap, titleWrap);
-        brandRow.style.display = 'flex';
-        brandRow.style.alignItems = 'center';
-        brandRow.style.gap = '12px';
-      }
-    });
-  }
-
   function enhanceAuditAIThemeToggle() {
     document.querySelectorAll('header button').forEach(function (button) {
       const text = (button.textContent || '').trim();
@@ -107,7 +83,6 @@
 
   function enhance() {
     syncButtons(document.documentElement.dataset.theme || storedTheme());
-    enhanceAuditAIBrand();
     enhanceAuditAIThemeToggle();
     syncCharts(document.documentElement.dataset.theme || storedTheme());
   }
@@ -118,6 +93,16 @@
 
   apply(storedTheme());
 
+  let enhanceScheduled = false;
+  function scheduleEnhance() {
+    if (enhanceScheduled) return;
+    enhanceScheduled = true;
+    root.requestAnimationFrame(function () {
+      enhanceScheduled = false;
+      enhanceAuditAIThemeToggle();
+    });
+  }
+
   const observer = new MutationObserver(function (mutations) {
     if (applying) return;
     const classChanged = mutations.some(function (mutation) {
@@ -127,8 +112,9 @@
       const externalTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
       if (document.documentElement.dataset.theme !== externalTheme) apply(externalTheme);
     }
-    enhanceAuditAIBrand();
-    enhanceAuditAIThemeToggle();
+    if (mutations.some(function (mutation) { return mutation.type === 'childList'; })) {
+      scheduleEnhance();
+    }
   });
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
 

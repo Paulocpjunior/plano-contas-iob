@@ -33,9 +33,9 @@ assert.strictEqual(resultado.origem_cnpj_empresa, 'chave_nfe_emitente');
 assert.strictEqual(resultado.total_notas_fiscais, 106);
 assert.strictEqual(resultado.chaves_nfe_validas, 106);
 assert.strictEqual(resultado.chaves_nfe_invalidas, 0);
-assert.strictEqual(resultado.lancamentos.length, 464);
+assert.strictEqual(resultado.lancamentos.length, 514);
 assert.strictEqual(notas.length, 119);
-assert.strictEqual(impostos.length, 345);
+assert.strictEqual(impostos.length, 395);
 assert.strictEqual(resultado.total_lancamentos_cfop, 119);
 assert.strictEqual(notas.filter(item => item.cfop === '5102').length, 8, 'todas as linhas CFOP 5102 devem gerar lancamento');
 assert.strictEqual(notas.filter(item => item.cfop === '6102').length, 2, 'todas as linhas CFOP 6102 devem gerar lancamento');
@@ -115,4 +115,4 @@ assert.strictEqual(validarVinculoCnpjFiscal(apenasEstruturais, {
   arquivoNome: path.basename(arquivo)
 }).valido, true, 'segunda validacao deve permanecer valida apos limpar opcionais');
 
-console.log('OK: FASTWELD 0109 validada com 106 NF-e, 119 lancamentos por CFOP e travas de empresa/layout/arquivo.');
+console.log('OK: FASTWELD 0109 validada com 106 NF-e, 119 lancamentos por CFOP, 395 impostos por CFOP e travas de empresa/layout/arquivo.');

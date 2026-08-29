@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Novidades do CCI</title>
+  <style>
+    :root{color-scheme:light dark;--navy:#07152f;--blue:#2454d7;--ink:#10213e;--muted:#64748b;--line:#dbe4f0;--paper:#fff;--bg:#f3f6fb;--green:#059669}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.hero{padding:54px 22px 72px;background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff}.wrap{width:min(940px,calc(100% - 32px));margin:auto}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#bfdbfe}.hero h1{font-size:clamp(32px,6vw,54px);margin:9px 0 10px;line-height:1}.hero p{margin:0;color:#dbeafe;max-width:720px;line-height:1.6}.updated{display:inline-flex;margin-top:20px;padding:8px 12px;border:1px solid rgba(255,255,255,.25);border-radius:999px;background:rgba(255,255,255,.1);font-size:12px;font-weight:700}.content{margin-top:-34px;padding-bottom:50px}.release{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:25px;margin-bottom:18px;box-shadow:0 14px 38px rgba(15,23,42,.08)}.release header{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}.release h2{margin:0;font-size:23px}.date{color:var(--muted);font-size:13px;font-weight:700}.tag{display:inline-flex;margin-bottom:10px;border-radius:999px;padding:5px 9px;background:#dcfce7;color:#047857;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.release ul{margin:18px 0 0;padding-left:22px;line-height:1.75}.release li+li{margin-top:6px}.status{margin-top:18px;padding:13px 15px;border-radius:10px;background:#eff6ff;color:#1e40af;font-size:13px;line-height:1.5}.footer{text-align:center;color:var(--muted);font-size:12px;padding:4px 0 30px}@media(prefers-color-scheme:dark){:root{--ink:#e2e8f0;--muted:#94a3b8;--line:#334155;--paper:#111c30;--bg:#08101f}.status{background:#13254a;color:#bfdbfe}}
+  </style>
+</head>
+<body>
+  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 19/08/2026</span></div></section>
+  <main class="wrap content">
+    <article class="release">
+      <div class="tag">Balanço do dia</div>
+      <header><h2>Evolução e pendências oficiais atualizadas</h2><span class="date">19/08/2026 · v3.4.166</span></header>
+      <ul>
+        <li>Nove entregas foram publicadas no dia, cobrindo De/Para, memória em lote, extratos Itaú, movimento fiscal, conciliação, AuditAI, saldos anteriores e edição auditável.</li>
+        <li>Os casos enviados pelos colaboradores foram reproduzidos com arquivos reais e incorporados aos testes permanentes.</li>
+        <li>Extratos e balancetes homologados passam a usar processamento local quando possível, sem transformar indisponibilidade da IA em erro do arquivo.</li>
+        <li>As validações de importação e do arquivo FI preservam identidade da empresa, sentido do movimento, conta bancária e totais oficiais.</li>
+        <li>O Manual Operacional foi atualizado para a versão 2.15 com o status de cada frente e os critérios objetivos para substituir a SAGE.</li>
+      </ul>
+      <div class="status"><strong>Próxima etapa:</strong> escolher 2 ou 3 empresas-piloto, aprovar saldos de abertura, validar conciliação, transporte e ativo em fechamentos reais e concluir o plano de backup e restauração.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Exportação SAGE</div>
+      <header><h2>Conferência da conta bancária no arquivo FI</h2><span class="date">19/08/2026 · v3.4.165</span></header>
+      <ul>
+        <li>Antes de gerar o FI, o CCI passa a conferir não apenas o sentido débito/crédito, mas também a conta reduzida usada como banco.</li>
+        <li>Quando uma mesma conta física do extrato possui uma conta de disponibilidade claramente dominante, linhas isoladas classificadas contra outro banco são corrigidas.</li>
+        <li>A proteção continua restrita a extratos bancários; livros e lançamentos fiscais não são alterados pela regra.</li>
+        <li>O caso Itaú janeiro/2026 corrigiu a inversão de R$ 74,41 e duas saídas tributárias que somam R$ 4.642,89.</li>
+        <li>A regressão confere 34 lançamentos e fechamento de R$ 38.067,35 no débito e no crédito da conta bancária.</li>
+      </ul>
+      <div class="status"><strong>Atenção:</strong> se um FI anterior já tiver sido importado na SAGE, não importe novamente sem antes estornar ou excluir o lote anterior para evitar duplicidade.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Movimento fiscal</div>
+      <header><h2>Livros gerais de Entradas e Saídas da SAGE</h2><span class="date">19/08/2026 · v3.4.164</span></header>
+      <ul>
+        <li>O modal Movimento Fiscal passa a oferecer <strong>Modelo geral — NF-e de entrada (compras)</strong> e <strong>Modelo geral — NF-e de saída (vendas)</strong> para qualquer empresa.</li>
+        <li>O Livro de Entradas confere o código <strong>NNNN_</strong> do arquivo contra o Nº da empresa no Cadastro do CCI.</li>
+        <li>O Livro de Saídas extrai o CNPJ emitente das chaves NF-e e exige igualdade com o CNPJ da empresa ativa.</li>
+        <li>Direção E/S, período, notas, cobertura das chaves, CFOP, valores e impostos destacados são preservados e validados antes da prévia.</li>
+        <li>Selecionar o modelo oposto ao conteúdo mantém a importação bloqueada.</li>
+      </ul>
+      <div class="status"><strong>Uso:</strong> ative a empresa e abra Importações → Movimento Fiscal; não utilize a Central de Layouts Bancários para livros fiscais.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Implantação e rastreabilidade</div>
+      <header><h2>Saldos anteriores e edição auditável de lançamentos</h2><span class="date">19/08/2026 · v3.4.163</span></header>
+      <ul>
+        <li>O menu <strong>Contábil → Saldos anteriores</strong> abre diretamente a competência inicial definida no cadastro da empresa.</li>
+        <li>A tela mostra contas informadas, total devedor, total credor e diferença antes da aprovação.</li>
+        <li>A Ajuda CCI passa a responder localmente como cadastrar saldo inicial, mesmo quando a IA externa estiver indisponível.</li>
+        <li>Cada lançamento recebe uma numeração permanente e pode ser localizado diretamente pelo número.</li>
+        <li>O lápis permite editar lançamento já importado, preservando a origem e registrando valores anteriores, usuário e data; período encerrado permanece bloqueado.</li>
+      </ul>
+      <div class="status"><strong>Proteção:</strong> nenhuma importação existente é recriada ou removida; as alterações permanecem vinculadas à sessão da empresa.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Correções protegidas</div>
+      <header><h2>AuditAI completo e Serviços Tomados com CPF</h2><span class="date">19/08/2026 · v3.4.162</span></header>
+      <ul>
+        <li>O Balanço do AuditAI volta a usar os subtotais oficiais de Ativo e Passivo e não zera valores já extraídos.</li>
+        <li>A nova aba <strong>Balancete</strong> apresenta Conta, Descrição, Saldo anterior, Débito, Crédito e Saldo atual.</li>
+        <li>Os pareceres de IA mostram a indisponibilidade da cota e oferecem <strong>Tentar novamente</strong>, sem painel vazio.</li>
+        <li>A Relação SAGE de Serviços Tomados aceita fornecedores identificados por CNPJ ou CPF.</li>
+        <li>Os arquivos reais da R2 e da SINTESE passam a compor testes permanentes de regressão antes de cada publicação.</li>
+      </ul>
+      <div class="status"><strong>Homologação:</strong> SINTESE janeiro/2026 com 7 notas e total oficial de R$ 5.047,28; R2 com Ativo de R$ 358.825,87.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Correção AuditAI</div>
+      <header><h2>Balancetes PDF sem dependência obrigatória do Gemini</h2><span class="date">19/08/2026 · v3.4.161</span></header>
+      <ul>
+        <li>Balancetes PDF com texto pesquisável passam a ser extraídos localmente pelo AuditAI.</li>
+        <li>Contas sintéticas e analíticas, saldos, débitos, créditos, CNPJ e período são preservados diretamente do documento.</li>
+        <li>Os totais oficiais de Ativo, Passivo, Patrimônio Líquido, Receitas, Custos, Despesas e Resultado são mantidos como controles da análise.</li>
+        <li>O Gemini deixa de ser obrigatório para a extração; permanece apenas como contingência para PDFs em imagem e para pareceres complementares.</li>
+      </ul>
+      <div class="status"><strong>Homologação:</strong> balancete R2 Consultoria, janeiro a julho de 2026, com três páginas e somatórias de R$ 506.762,20 em débitos e créditos.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Correção de conciliação</div>
+      <header><h2>Relatórios de pagamentos no modal de conciliação</h2><span class="date">19/08/2026 · v3.4.160</span></header>
+      <ul>
+        <li>Planilhas identificadas como <strong>Relatório Pagamentos</strong> passam a tratar a coluna Valor como saída, mesmo sem uma coluna Débito separada.</li>
+        <li>Linhas de TOTAL ou SUBTOTAL deixam de ser interpretadas como movimentos.</li>
+        <li>Mesmo valor e sentido em datas diferentes por até 10 dias são encaminhados à Revisão manual, sem conciliação silenciosa.</li>
+        <li>O extrato Itaú mensal continua separando aplicações e resgates automáticos do escopo dos pagamentos.</li>
+      </ul>
+      <div class="status"><strong>Homologação:</strong> Clínica Mantoan, julho de 2026: R$ 1.050,00 conciliado automaticamente; R$ 166,40 e R$ 5.155,33 apresentados para confirmação por divergência de datas.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Ciclo contábil</div>
+      <header><h2>Conciliação, transporte de saldos e ativo integrado</h2><span class="date">18/08/2026 · v3.4.156</span></header>
+      <ul>
+        <li>A <strong>Conciliação bancária formal</strong> compara saldo anterior, débitos, créditos e saldo contábil com o saldo final do extrato.</li>
+        <li>A aprovação registra empresa, competência, conta, usuário, data e assinatura do período; qualquer alteração posterior exige nova conciliação.</li>
+        <li>O fechamento transporta os saldos analíticos para o mês seguinte, inclusive de dezembro para janeiro, e bloqueia substituição manual.</li>
+        <li>A reabertura invalida o transporte e respeita a ordem dos períodos para preservar a cadeia contábil.</li>
+        <li>No Ativo Imobilizado, aquisição, transferência, depreciação e baixa geram prévia e somente incluem lançamentos após confirmação do usuário, com proteção contra duplicidade.</li>
+      </ul>
+      <div class="status"><strong>Homologação:</strong> os motores e as travas estão implementados; a liberação definitiva da SAGE ainda depende dos fechamentos-piloto.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Tributação</div>
+      <header><h2>Isenta, Imune e Terceiro Setor com CNAE e Gemini 3.7</h2><span class="date">18/08/2026 · v3.4.156</span></header>
+      <ul>
+        <li>A parametrização passa a contemplar <strong>Isenta</strong>, <strong>Imune</strong> e <strong>Terceiro Setor</strong>, além dos três regimes já existentes.</li>
+        <li>O CNAE principal e sua descrição são recebidos do cadastro fiscal do CFI.</li>
+        <li>O Gemini 3.7 faz um cruzamento orientativo e lista alertas e documentos a conferir, sem alterar o enquadramento.</li>
+        <li>Fundamento legal, documentação revisada e confirmação administrativa permanecem obrigatórios.</li>
+        <li>Terceiro Setor exige qualificação complementar como imune, isenta ou tributada.</li>
+      </ul>
+      <div class="status"><strong>Governança:</strong> IA apoia a revisão; a decisão e a responsabilidade continuam com o profissional contábil.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Cadastro empresarial</div>
+      <header><h2>Dados cadastrais e vínculo Matriz/Filial</h2><span class="date">18/08/2026 · v3.4.155</span></header>
+      <ul>
+        <li>A nova opção <strong>Dados e Matriz/Filial</strong> fica disponível após a ativação da empresa.</li>
+        <li>A aba cadastral reúne razão social, nome fantasia, endereço, inscrições, CNAEs, registros, datas e contatos.</li>
+        <li>A aba estrutural identifica a empresa como matriz ou filial, seleciona a matriz principal e apresenta as filiais já vinculadas.</li>
+        <li>O CCI bloqueia auto vínculo, ciclos, seleção de outra filial como matriz e transformação de uma matriz que ainda possua filiais.</li>
+        <li>O cadastro permanece na coleção oficial da empresa, sem criar base paralela ou alterar lançamentos existentes.</li>
+      </ul>
+      <div class="status"><strong>Uso:</strong> ative a empresa e abra Cadastro → Dados e Matriz/Filial.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Novo modal</div>
+      <header><h2>Retenções de Serviços Tomados para todas as empresas</h2><span class="date">18/08/2026 · v3.4.154</span></header>
+      <ul>
+        <li>O novo modal <strong>Retenções Serviços Tomados</strong> é independente do Movimento Fiscal e pode ser usado com qualquer empresa ativa.</li>
+        <li>O CCI lê o Demonstrativo SAGE de Notas de Entradas de Serviços e preserva NF, série, fornecedor, datas, bases, valores e códigos de retenção.</li>
+        <li>O valor bruto e cada PIS, COFINS, CSLL, IRRF ou Seguridade Social não zerado seguem em linhas próprias para a prévia.</li>
+        <li>CNPJ, período, quantidade de notas e totais oficiais precisam fechar antes da liberação.</li>
+        <li>As contas contábeis continuam dependendo do plano e das regras aprovadas; nenhum código fiscal é usado automaticamente como histórico.</li>
+      </ul>
+      <div class="status"><strong>Homologação:</strong> relatório real da CLUDE com 18 notas, R$ 87.137,92 brutos, R$ 4.998,58 retidos e R$ 82.139,34 líquidos.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Ajuste fiscal</div>
+      <header><h2>Impostos retidos agora aparecem como lançamentos próprios</h2><span class="date">18/08/2026 · v3.4.153</span></header>
+      <ul>
+        <li>O Demonstrativo SAGE mantém a linha do valor bruto da nota e inclui linhas separadas para <strong>PIS, COFINS, CSLL, IRRF e INSS</strong> quando houver retenção.</li>
+        <li>Número e modelo da NF, série, tomador, base de retenção e data de compensação permanecem vinculados a todas as linhas.</li>
+        <li>Valor bruto, total retido e valor líquido são conferidos; os totais oficiais impressos continuam sendo uma trava obrigatória.</li>
+        <li>Tributo com valor zero permanece nos dados da nota, sem gerar lançamento contábil artificial.</li>
+        <li>As contas contábeis não são presumidas: devem ser classificadas conforme o plano e as regras aprovadas da empresa.</li>
+      </ul>
+      <div class="status"><strong>Resultado:</strong> a prévia deixa de mostrar somente as notas e passa a apresentar também cada retenção que precisa ser classificada.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Correção fiscal</div>
+      <header><h2>ISS retido nos serviços prestados</h2><span class="date">19/08/2026 · v3.4.159</span></header>
+      <ul>
+        <li>A Relação de NFs de Serviços Prestados da SAGE agora preserva base de cálculo, alíquota, valor do ISS e ISS retido.</li>
+        <li>Cada ISS retido não zerado gera uma linha fiscal própria, vinculada à mesma NF e ao mesmo tomador.</li>
+        <li>O valor bruto continua sendo receita; o ISS retido entra separadamente e não aumenta o faturamento.</li>
+        <li>A importação fica bloqueada se o valor bruto ou o ISS retido não coincidirem com os totais oficiais impressos.</li>
+      </ul>
+      <div class="status"><strong>Homologação:</strong> SINTESE, junho de 2026, receita bruta de R$ 283.994,17 e ISS retido de R$ 1.875,52 na NF 7698.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Correção</div>
+      <header><h2>Extrato Itaú em imagem sem dependência do Gemini</h2><span class="date">19/08/2026 · v3.4.158</span></header>
+      <ul>
+        <li>O layout <strong>Itaú — Lançamentos por Período</strong> agora processa localmente o PDF em imagem.</li>
+        <li>A leitura preserva data, descrição, razão social, CPF/CNPJ, valor e saldo.</li>
+        <li>O arquivo reconhecido não é enviado ao Gemini e mensagens técnicas de cobrança do provedor não são exibidas ao colaborador.</li>
+        <li>A importação continua bloqueada se saldo anterior, créditos, débitos e saldo final não fecharem exatamente.</li>
+      </ul>
+      <div class="status"><strong>Homologação:</strong> maio de 2026, 60 lançamentos, R$ 144.548,60 em créditos, R$ 137.500,00 em débitos e saldo final de R$ 7.113,72.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Correção</div>
+      <header><h2>Extrato BB escaneado sem dependência do Gemini</h2><span class="date">18/08/2026 · v3.4.152</span></header>
+      <ul>
+        <li>O layout <strong>Banco do Brasil - Extrato de Conta Corrente (+/-)</strong> agora aceita o mesmo relatório em PDF textual ou escaneado.</li>
+        <li>As linhas da imagem são reconstruídas localmente pela posição de datas, históricos, documentos, valores e sinais.</li>
+        <li>A falta de créditos do Gemini não impede mais a leitura desse modelo do Banco do Brasil.</li>
+        <li>A trava contábil continua obrigatória: saldo anterior, créditos, débitos e saldo final precisam fechar exatamente.</li>
+      </ul>
+      <div class="status"><strong>Homologação:</strong> arquivo real 0017-CDC de abril de 2026, com 42 lançamentos e R$ 34.522,04 em créditos e débitos.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Liberado</div>
+      <header><h2>Demonstrativo SAGE de impostos retidos</h2><span class="date">18/08/2026 · v3.4.151</span></header>
+      <ul>
+        <li>Novo modelo geral para <strong>Demonstrativo dos Impostos Retidos na Fonte - Notas Fiscais de Serviços</strong>.</li>
+        <li>O mesmo layout pode ser usado por qualquer empresa; o CNPJ do cabeçalho é comparado com a empresa ativa.</li>
+        <li>O CCI preserva NF, tomador, valor, base, data de compensação, PIS, COFINS, CSLL, IRRF e INSS.</li>
+        <li>A importação fica bloqueada se qualquer total oficial impresso não fechar.</li>
+      </ul>
+      <div class="status"><strong>Onde usar:</strong> Importações - Movimento Fiscal - Modelo geral - Impostos retidos em notas de serviços.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Liberado</div>
+      <header><h2>Novos layouts Banco do Brasil e Itaú</h2><span class="date">18/08/2026 · v3.4.150</span></header>
+      <ul>
+        <li>Novo <strong>Banco do Brasil — Extrato de Conta Corrente (+/-)</strong>, com leitura do valor e do sinal pela margem direita.</li>
+        <li>Novo <strong>Itaú — Lançamentos por Período</strong>, com Data, Razão Social, CPF/CNPJ, valor e saldo.</li>
+        <li>Documentos e históricos são preservados; aplicações e resgates do BB Rende Fácil recebem identificação própria.</li>
+        <li>Os dois layouts bloqueiam a importação quando créditos, débitos e saldos impressos não fecharem.</li>
+      </ul>
+      <div class="status"><strong>Homologação:</strong> três PDFs reais de abril de 2026 foram conferidos e incluídos nos testes permanentes.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Correção urgente</div>
+      <header><h2>Quatro modalidades no Movimento Fiscal</h2><span class="date">18/08/2026 · v3.4.149</span></header>
+      <ul>
+        <li>Restaurados os modelos homologados de <strong>Livro de Entradas</strong>, <strong>Livro de Saídas</strong>, <strong>Serviços Prestados</strong> e <strong>Serviços Tomados</strong> no seletor fiscal.</li>
+        <li>O campo de arquivo voltou a aceitar relatórios fiscais em PDF, além dos livros em CSV/TXT.</li>
+        <li>O CNPJ do cabeçalho, o tipo do relatório e o total oficial são conferidos antes da importação.</li>
+        <li>Se a empresa, o arquivo ou o modelo não corresponderem, o CCI mantém a gravação bloqueada.</li>
+      </ul>
+      <div class="status"><strong>Fluxo preservado:</strong> valide o PDF, confira os lançamentos e só então confirme a gravação.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Liberado</div>
+      <header><h2>Alteração segura de lançamentos selecionados</h2><span class="date">18/08/2026 · v3.4.147</span></header>
+      <ul>
+        <li>Marque dois ou mais lançamentos e use <strong>Alterar selecionados</strong> para aplicar conta débito, conta crédito, código IOB ou histórico.</li>
+        <li>O CCI mostra a quantidade afetada e exige confirmação antes de gravar.</li>
+        <li>Data, valor, descrição e documento permanecem protegidos.</li>
+        <li>Contas em lote exigem que todos os itens sejam da mesma natureza; código e histórico podem ser aplicados separadamente.</li>
+        <li>A operação registra usuário, data, campos e quantidade para auditoria.</li>
+      </ul>
+      <div class="status"><strong>Uso recomendado:</strong> selecione apenas lançamentos que realmente compartilham a mesma classificação contábil.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Liberado</div>
+      <header><h2>Manual Operacional dentro do CCI</h2><span class="date">18/08/2026</span></header>
+      <ul>
+        <li>Novo botão <strong>Manual Operacional</strong> no menu Inteligência, com pesquisa por assunto.</li>
+        <li>Conteúdo atualizado com implantação exclusiva, prontidão, parametrizações tributárias e pendências da transição da SAGE.</li>
+        <li>Downloads em Word e PDF gerados da mesma fonte oficial exibida no aplicativo.</li>
+        <li>A Ajuda CCI passa a consultar também o conteúdo integral do manual.</li>
+      </ul>
+      <div class="status"><strong>Controle de versão:</strong> o manual v2.2 registra a referência anterior de 78%, mas o percentual só será recalculado após nova homologação com empresas-piloto.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Nova frente</div>
+      <header><h2>Parametrizações por regime tributário</h2><span class="date">18/08/2026</span></header>
+      <ul>
+        <li>Regras e alertas específicos para Simples Nacional, Lucro Presumido e Lucro Real.</li>
+        <li>O regime vem obrigatoriamente do cadastro oficial do CFI; porte e CNAE não são usados para inferir enquadramento.</li>
+        <li>Parametrização confirmada por administrador, com vigência e rastreabilidade.</li>
+        <li>Empresas exclusivas no CCI não podem fechar o período enquanto a parametrização estiver pendente ou incompatível com o regime atual.</li>
+      </ul>
+      <div class="status"><strong>Segurança tributária:</strong> o CCI controla decisões e pendências, mas não presume anexo, percentual, crédito ou exceção fiscal.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Nova frente</div>
+      <header><h2>Ajuda CCI e comunicação com a equipe</h2><span class="date">18/08/2026</span></header>
+      <ul>
+        <li>Novo botão <strong>Ajuda CCI</strong> para dúvidas sobre como operar o sistema.</li>
+        <li>Respostas limitadas à base operacional oficial, com aviso quando a orientação exigir decisão técnica ou acesso administrativo.</li>
+        <li>Dúvidas não resolvidas são registradas como sugestões, com usuário, tela, empresa e versão para análise do administrador.</li>
+        <li>Novo botão <strong>Novidades</strong> com indicador enquanto houver uma atualização ainda não lida.</li>
+      </ul>
+      <div class="status"><strong>Aprendizado supervisionado:</strong> as perguntas aumentam a base de análise, mas somente orientações revisadas e aprovadas passam a integrar a base oficial.</div>
+    </article>
+    <article class="release">
+      <header><h2>Prontidão contábil automatizada</h2><span class="date">18/08/2026 · v3.4.142</span></header>
+      <ul>
+        <li>O CCI passa a avaliar automaticamente o percentual de prontidão de cada empresa.</li>
+        <li>O painel mostra pendências e a próxima ação para ganhar tempo na implantação e no fechamento.</li>
+        <li>Ao abrir a empresa, o regime tributário pode ser sincronizado a partir do cadastro central do CFI.</li>
+      </ul>
+    </article>
+    <article class="release">
+      <header><h2>Implantação exclusiva no CCI</h2><span class="date">18/08/2026 · v3.4.141</span></header>
+      <ul>
+        <li>Cadastro do modo contábil e da data de início da escrituração no CCI.</li>
+        <li>Saldos anteriores obrigatórios e aprovação dos saldos de abertura para empresas iniciadas diretamente no CCI.</li>
+        <li>Bloqueio de exportação para a SAGE quando a empresa estiver definida como exclusiva no CCI, evitando dupla escrituração.</li>
+      </ul>
+    </article>
+    <article class="release">
+      <header><h2>Relatórios, ativo e importações</h2><span class="date">Agosto de 2026</span></header>
+      <ul>
+        <li>Balancete estruturado com contas sintéticas e analíticas, razão detalhado, DRE, balanço e análise econômico-financeira.</li>
+        <li>Módulo de ativo imobilizado e depreciação integrado à escrituração.</li>
+        <li>Descrições bancárias completas, proteção das memórias genéricas e novos layouts de extratos.</li>
+        <li>Login obrigatório a cada novo acesso para reforçar a segurança e a rastreabilidade.</li>
+      </ul>
+    </article>
+  </main>
+  <footer class="footer">SP Assessoria Contábil · CCI</footer>
+</body>
+</html>

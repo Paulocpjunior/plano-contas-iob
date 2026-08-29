@@ -6,29 +6,31 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.125"></script>
+<script src="/saas-brand-theme.js?v=3.4.196"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.125"></script>
-<script src="/parser-ofx.js?v=3.4.125"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.125"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.125"></script>
-<script src="/parser-safra-extrato.js?v=3.4.125"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.125"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.125"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.125"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.125"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.125"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.125"></script>
-<script src="/parser-btg-pactual.js?v=3.4.125"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.125"></script>
-<script src="/parser-abc-extrato.js?v=3.4.125"></script>
-<script src="/parser-inter-extrato.js?v=3.4.125"></script>
-<script src="/parser-stone-extrato.js?v=3.4.125"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.125"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.125"></script>
+<script src="/api-adapter.js?v=3.4.196"></script>
+<script src="/parser-ofx.js?v=3.4.196"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.196"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.196"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.196"></script>
+<script src="/parser-safra-extrato.js?v=3.4.196"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.196"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.196"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.196"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.196"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.196"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.196"></script>
+<script src="/parser-btg-pactual.js?v=3.4.196"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.196"></script>
+<script src="/parser-abc-extrato.js?v=3.4.196"></script>
+<script src="/parser-inter-extrato.js?v=3.4.196"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.196"></script>
+<script src="/parser-stone-extrato.js?v=3.4.196"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.196"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.196"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -137,7 +139,10 @@
   .layout-drafts h3 { font-size:15px; margin-bottom:8px; }
   .danger-card { border-color:#fecaca; box-shadow:0 12px 32px rgba(185,28,28,.08); }
   .danger-alert { padding:14px 16px; border:1px solid #fecaca; background:#fef2f2; color:#991b1b; border-radius:10px; font-size:13px; line-height:1.55; margin-bottom:18px; }
-  .exclusao-form { display:grid; grid-template-columns:minmax(280px,2fr) minmax(150px,1fr) minmax(150px,1fr) auto; gap:12px; align-items:end; }
+  .exclusao-form { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:12px; align-items:end; }
+  .exclusao-form .empresa { grid-column:span 2; }
+  .exclusao-form .acao { display:flex; align-items:end; height:100%; }
+  .exclusao-form .acao .btn { width:100%; }
   .exclusao-form label, .confirmacao-exclusao label { display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-weight:800; }
   .exclusao-form input, .exclusao-form select, .confirmacao-exclusao input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:#fff; font-family:inherit; }
   .btn-danger { background:linear-gradient(135deg,#dc2626,#991b1b); }
@@ -199,6 +204,7 @@
     .layout-intake-grid { grid-template-columns:1fr; }
     .layout-intake-grid .wide { grid-column:span 1; }
     .exclusao-form { grid-template-columns:1fr; }
+    .exclusao-form .empresa { grid-column:span 1; }
   }
 </style>
 </head>
@@ -341,15 +347,25 @@
     <div class="card danger-card">
       <div style="margin-bottom:16px">
         <h2 style="font-size:20px;margin-bottom:5px;color:#991b1b">🗑️ Exclusão administrativa de lançamentos</h2>
-        <p style="font-size:13px;color:#64748b">Selecione a empresa e o intervalo de datas. A prévia separa os lançamentos por importação para você escolher exatamente o que será removido.</p>
+        <p style="font-size:13px;color:#64748b">Localize os lançamentos como na SAGE: combine tipo do movimento, datas, número, conta reduzida, histórico e valor. A prévia ainda separa o resultado por importação antes de permitir a exclusão.</p>
       </div>
       <div class="danger-alert">
         <strong>Área restrita a administradores.</strong> A exclusão atinge somente os lançamentos da sessão atual que estejam simultaneamente no período e nas importações marcadas. Cadastros, plano de contas, relatórios fechados e lançamentos fora do filtro são preservados. Antes da alteração, o sistema grava uma cópia integral recuperável e registra o administrador responsável.
       </div>
       <div class="exclusao-form">
-        <div>
+        <div class="empresa">
           <label for="exclusaoEmpresa">Empresa</label>
           <select id="exclusaoEmpresa" onchange="invalidarPreviaExclusao()"><option value="">Carregando empresas…</option></select>
+        </div>
+        <div>
+          <label for="exclusaoTipoMovimento">Tipo do movimento</label>
+          <select id="exclusaoTipoMovimento" onchange="invalidarPreviaExclusao()">
+            <option value="todos">Todos</option>
+            <option value="bancaria">Extratos bancários</option>
+            <option value="fiscal">Escrita fiscal</option>
+            <option value="folha">Folha de pagamento</option>
+            <option value="manual">Lançamentos manuais</option>
+          </select>
         </div>
         <div>
           <label for="exclusaoDataInicial">Data inicial</label>
@@ -359,7 +375,27 @@
           <label for="exclusaoDataFinal">Data final</label>
           <input id="exclusaoDataFinal" type="date" onchange="invalidarPreviaExclusao()">
         </div>
-        <button id="btnPreviaExclusao" class="btn" onclick="previsualizarExclusaoAdmin()">Gerar prévia</button>
+        <div>
+          <label for="exclusaoLancamentoInicial">Lançamento inicial</label>
+          <input id="exclusaoLancamentoInicial" type="number" min="1" step="1" placeholder="Ex.: 100" onchange="invalidarPreviaExclusao()">
+        </div>
+        <div>
+          <label for="exclusaoLancamentoFinal">Lançamento final</label>
+          <input id="exclusaoLancamentoFinal" type="number" min="1" step="1" placeholder="Ex.: 250" onchange="invalidarPreviaExclusao()">
+        </div>
+        <div>
+          <label for="exclusaoConta">Conta reduzida</label>
+          <input id="exclusaoConta" inputmode="numeric" placeholder="Débito ou crédito" onchange="invalidarPreviaExclusao()">
+        </div>
+        <div>
+          <label for="exclusaoHistorico">Histórico contém</label>
+          <input id="exclusaoHistorico" placeholder="Código ou descrição" onchange="invalidarPreviaExclusao()">
+        </div>
+        <div>
+          <label for="exclusaoValor">Valor exato</label>
+          <input id="exclusaoValor" inputmode="decimal" placeholder="0,00" onchange="invalidarPreviaExclusao()">
+        </div>
+        <div class="acao"><button id="btnPreviaExclusao" class="btn" onclick="previsualizarExclusaoAdmin()">Gerar prévia</button></div>
       </div>
       <div id="exclusaoStatus" class="exclusao-status"></div>
       <div id="exclusaoPreview" class="exclusao-preview"></div>
@@ -443,6 +479,8 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+const authPersistenceReady = auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+window.__adminLoginDigitadoNestaCarga = false;
 if (typeof pdfjsLib !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
@@ -483,13 +521,20 @@ async function doLogin() {
   const pass = document.getElementById('loginPass').value;
   document.getElementById('loginErr').textContent = '';
   try {
+    await authPersistenceReady;
+    window.__adminLoginDigitadoNestaCarga = true;
     await auth.signInWithEmailAndPassword(email, pass);
   } catch (e) {
+    window.__adminLoginDigitadoNestaCarga = false;
     document.getElementById('loginErr').textContent = e.message;
   }
 }
 
 auth.onAuthStateChanged(async u => {
+  if (u && !window.__adminLoginDigitadoNestaCarga) {
+    await auth.signOut();
+    return;
+  }
   if (!u) {
     document.getElementById('loginView').classList.remove('hidden');
     document.getElementById('adminView').classList.add('hidden');
@@ -901,11 +946,35 @@ function invalidarPreviaExclusao() {
   atualizarBotaoExclusao();
 }
 
+function coletarFiltrosExclusao() {
+  return {
+    dataInicial: (document.getElementById('exclusaoDataInicial') || {}).value || '',
+    dataFinal: (document.getElementById('exclusaoDataFinal') || {}).value || '',
+    tipoMovimento: (document.getElementById('exclusaoTipoMovimento') || {}).value || 'todos',
+    lancamentoInicial: (document.getElementById('exclusaoLancamentoInicial') || {}).value || '',
+    lancamentoFinal: (document.getElementById('exclusaoLancamentoFinal') || {}).value || '',
+    conta: (document.getElementById('exclusaoConta') || {}).value || '',
+    historico: (document.getElementById('exclusaoHistorico') || {}).value || '',
+    valor: (document.getElementById('exclusaoValor') || {}).value || '',
+  };
+}
+
+function descricaoFiltrosExclusao(filtros) {
+  const f = filtros || {};
+  const tipos = { todos: 'Todos', bancaria: 'Extratos bancários', fiscal: 'Escrita fiscal', folha: 'Folha de pagamento', manual: 'Lançamentos manuais' };
+  const partes = ['Movimento: ' + (tipos[f.tipoMovimento] || f.tipoMovimento || 'Todos')];
+  if (f.lancamentoInicial != null) partes.push('Lançamento inicial: ' + f.lancamentoInicial);
+  if (f.lancamentoFinal != null) partes.push('Lançamento final: ' + f.lancamentoFinal);
+  if (f.conta) partes.push('Conta: ' + f.conta);
+  if (f.historico) partes.push('Histórico: ' + f.historico);
+  if (f.valor != null) partes.push('Valor: ' + formatMoney(f.valor));
+  return partes.join(' • ');
+}
+
 async function previsualizarExclusaoAdmin() {
   const cnpj = (document.getElementById('exclusaoEmpresa') || {}).value || '';
-  const dataInicial = (document.getElementById('exclusaoDataInicial') || {}).value || '';
-  const dataFinal = (document.getElementById('exclusaoDataFinal') || {}).value || '';
-  if (!cnpj || !dataInicial || !dataFinal) {
+  const filtros = coletarFiltrosExclusao();
+  if (!cnpj || !filtros.dataInicial || !filtros.dataFinal) {
     setExclusaoStatus('error', 'Selecione a empresa, a data inicial e a data final.');
     return;
   }
@@ -914,11 +983,11 @@ async function previsualizarExclusaoAdmin() {
   botao.disabled = true;
   setExclusaoStatus('info', 'Consultando a sessão salva e calculando a prévia, sem alterar dados…');
   try {
-    const resultado = await window.API.adminPrevisualizarExclusaoLancamentos({ cnpj, dataInicial, dataFinal });
+    const resultado = await window.API.adminPrevisualizarExclusaoLancamentos({ cnpj, filtros });
     currentExclusaoPreview = resultado;
     renderExclusaoPreview();
     if (resultado.previa.totalPeriodo > 0) {
-      setExclusaoStatus('info', 'Prévia gerada. Marque uma ou mais importações e confira a quantidade antes de confirmar.');
+      setExclusaoStatus('info', 'Prévia gerada com os filtros informados. Marque uma ou mais importações e confira a quantidade antes de confirmar.');
     } else {
       setExclusaoStatus('ok', 'Nenhum lançamento com data válida foi encontrado no período informado. Nada pode ser excluído.');
     }
@@ -939,9 +1008,10 @@ function renderExclusaoPreview() {
   let html = `
     <div class="summary-grid" style="margin-bottom:16px">
       <div class="layout-card"><div class="bank">Lançamentos na sessão</div><div class="count">${previa.totalSessao}</div></div>
-      <div class="layout-card"><div class="bank">No período informado</div><div class="count">${previa.totalPeriodo}</div><div class="caption">${escapeHtml(previa.dataInicial)} a ${escapeHtml(previa.dataFinal)}</div></div>
+      <div class="layout-card"><div class="bank">Correspondem aos filtros</div><div class="count">${previa.totalPeriodo}</div><div class="caption">${escapeHtml(previa.dataInicial)} a ${escapeHtml(previa.dataFinal)}</div></div>
       <div class="layout-card"><div class="bank">Datas inválidas preservadas</div><div class="count">${previa.datasInvalidas}</div><div class="caption">Nunca entram na exclusão por período</div></div>
-    </div>`;
+    </div>
+    <div style="margin-bottom:16px;padding:11px 13px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1e40af;font-size:12px"><strong>Filtros aplicados:</strong> ${escapeHtml(descricaoFiltrosExclusao(previa.filtros))}</div>`;
   if (!previa.importacoes.length) {
     el.innerHTML = html;
     if (confirmacao) confirmacao.classList.remove('active');
@@ -949,7 +1019,7 @@ function renderExclusaoPreview() {
   }
   html += `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-      <strong>Importações encontradas no período</strong>
+      <strong>Importações que possuem lançamentos correspondentes</strong>
       <div><button class="btn-sm" onclick="selecionarImportacoesExclusao(true)">Marcar todas</button> <button class="btn-sm" onclick="selecionarImportacoesExclusao(false)">Desmarcar todas</button></div>
     </div>
     <div style="overflow-x:auto"><table><thead><tr><th>Selecionar</th><th>Importação</th><th>Banco</th><th>Período encontrado</th><th>No período</th><th>Total da importação</th><th>Créditos</th><th>Débitos</th></tr></thead><tbody>`;
@@ -1010,8 +1080,7 @@ async function executarExclusaoAdmin() {
   try {
     const resultado = await window.API.adminExecutarExclusaoLancamentos({
       cnpj: empresa.cnpj,
-      dataInicial: previa.dataInicial,
-      dataFinal: previa.dataFinal,
+      filtros: previa.filtros,
       chavesSelecionadas: selecao.chaves,
       previewToken: currentExclusaoPreview.previewToken,
       quantidadeEsperada: selecao.quantidade,

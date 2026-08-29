@@ -109,6 +109,31 @@ TEL TELECO 06084614000185
   return resultado;
 }
 
+function assertSantanderHistoricoMultilinhaComColunasSeparadas() {
+  const texto = `Santander
+Internet Banking Empresarial
+EMPRESA TESTE Agencia: 4790 Conta: 130035079
+Data Historico Documento Valor
+22/05/2026 Ted Recebida 03824725000192
+1.170,00 87.655,20
+22/05/2026 Debito Aut. Cta Energia Eletrica ENEL
+-36,70 86.485,20
+ENERGIA
+21/05/2026 Pix Enviado GISELE CRISTINA
+-574,00 86.521,90
+SILVEIRA
+21/05/2026 Pix Enviado Eduardo Aparecido da Silv
+-275,47 87.095,90`;
+  const resultado = __test__.parsearTexto_SantanderEmpresas(texto);
+  assert.ok(resultado.detectado, 'Santander multiline: parser nao detectou layout');
+  assert.strictEqual(resultado.lancamentos.length, 4, 'Santander multiline: cada data/valor deve gerar somente seu registro');
+  assert.ok(resultado.lancamentos.some((l) => l.descricao === 'Ted Recebida' && cents(l.valor) === cents(1170)), 'Santander multiline: TED nao pode receber o historico seguinte');
+  assert.ok(resultado.lancamentos.some((l) => l.descricao === 'Debito Aut. Cta Energia Eletrica ENEL - ENERGIA' && cents(l.valor) === cents(-36.70)), 'Santander multiline: ENERGIA deve completar o debito automatico');
+  assert.ok(resultado.lancamentos.some((l) => l.descricao === 'Pix Enviado GISELE CRISTINA - SILVEIRA' && cents(l.valor) === cents(-574)), 'Santander multiline: SILVEIRA deve completar o PIX da Gisele');
+  assert.ok(resultado.lancamentos.some((l) => l.descricao === 'Pix Enviado Eduardo Aparecido da Silv' && cents(l.valor) === cents(-275.47)), 'Santander multiline: PIX Eduardo deve permanecer isolado');
+  assert.ok(resultado.lancamentos.every((l) => !/^ENERGIA$|^SILVEIRA$/i.test(l.descricao)), 'Santander multiline: complemento nao pode virar lancamento isolado');
+}
+
 async function parsePdfText(caminho) {
   const data = await pdf(fs.readFileSync(caminho));
   return data.text;
@@ -133,6 +158,7 @@ async function assertSantander(label, caminho, esperado) {
   assertSantanderInternetBankingOCR();
   assertSantanderInternetBankingPDFJSNative();
   assertSantanderEmpresasPriorizaSinalDoValor();
+  assertSantanderHistoricoMultilinhaComColunasSeparadas();
 
   const internet = await assertSantander(
     'Santander 1 Internet Banking',

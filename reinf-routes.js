@@ -389,6 +389,19 @@ function reinfAplicacoesRegimeValido(regime) {
   return ['lucro_real', 'lucro_presumido', 'lucro_arbitrado', 'simples', 'isenta', 'imune', 'nao_informado'].includes(String(regime || ''));
 }
 
+function reinfAplicacoesRegimeCfi(codigo) {
+  return ({ SIMPLES_NACIONAL: 'simples', LUCRO_PRESUMIDO: 'lucro_presumido', LUCRO_REAL: 'lucro_real' })[String(codigo || '').trim()] || '';
+}
+
+async function reinfValidarRegimeAplicacoesEmpresa(db, cnpj, regimeInformado) {
+  const snap = await db.collection('empresas').doc(cnpj).get();
+  if (!snap.exists) throw new Error('Empresa não encontrada.');
+  const oficial = reinfAplicacoesRegimeCfi((snap.data() || {}).regime_tributario_codigo);
+  if (!oficial) throw new Error('Sincronize o regime tributário oficial do CFI antes de tratar aplicações financeiras.');
+  if (String(regimeInformado || '') !== oficial) throw new Error('O regime informado diverge do cadastro oficial do CFI. Atualize a tela e tente novamente.');
+  return { snap, oficial };
+}
+
 function reinfAplicacoesTipoBeneficiarioValido(tipo) {
   return ['pj', 'pf'].includes(String(tipo || ''));
 }
@@ -702,13 +715,15 @@ function registrarRotasReinf(app, { db } = {}) {
       if (!snap.exists) return res.status(404).json({ ok: false, erro: 'Empresa não encontrada.' });
       const dados = snap.data() || {};
       const apl = dados.reinfAplicacoes || {};
+      const regimeOficial = reinfAplicacoesRegimeCfi(dados.regime_tributario_codigo);
       res.json({
         ok: true,
         cnpj,
         empresa: dados.razao_social || dados.empresa || dados.nome || null,
         emailSolicitacao: apl.emailSolicitacao || dados.email_reinf || dados.email || '',
         responsavel: apl.responsavel || '',
-        regimeTributario: reinfAplicacoesRegimeValido(apl.regimeTributario) ? apl.regimeTributario : 'nao_informado',
+        regimeTributario: regimeOficial || (reinfAplicacoesRegimeValido(apl.regimeTributario) ? apl.regimeTributario : 'nao_informado'),
+        regimeOrigem: regimeOficial ? 'CFI' : 'cadastro_aplicacoes',
         tipoBeneficiario: reinfAplicacoesTipoBeneficiarioValido(apl.tipoBeneficiario) ? apl.tipoBeneficiario : 'pj',
         solicitarMensalmente: apl.solicitarMensalmente !== false,
         versaoRegras: VERSAO_REGRAS_APLICACOES,
@@ -731,6 +746,7 @@ function registrarRotasReinf(app, { db } = {}) {
       if (email && !reinfEmailValido(email)) throw new Error('E-mail de solicitação de extratos inválido.');
       if (!reinfAplicacoesRegimeValido(regimeTributario)) throw new Error('Regime tributário inválido para aplicações financeiras.');
       if (!reinfAplicacoesTipoBeneficiarioValido(tipoBeneficiario)) throw new Error('Tipo de beneficiário inválido.');
+      await reinfValidarRegimeAplicacoesEmpresa(db, cnpj, regimeTributario);
       await db.collection('empresas').doc(cnpj).set({
         reinfAplicacoes: {
           emailSolicitacao: email,
@@ -766,6 +782,7 @@ function registrarRotasReinf(app, { db } = {}) {
       if (!nomeArquivo) throw new Error('Nome do arquivo não informado.');
       if (!reinfAplicacoesRegimeValido(regimeTributario)) throw new Error('Regime tributário inválido.');
       if (!reinfAplicacoesTipoBeneficiarioValido(tipoBeneficiario)) throw new Error('Tipo de beneficiário inválido.');
+      await reinfValidarRegimeAplicacoesEmpresa(db, cnpj, regimeTributario);
       if (!Array.isArray(body.investimentos) || !body.investimentos.length) throw new Error('A análise não possui investimentos para registrar.');
       if (body.investimentos.length > 500) throw new Error('Análise acima do limite de 500 investimentos por arquivo.');
 

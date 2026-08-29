@@ -34,6 +34,27 @@
     return !!da && !!db && da === db;
   }
 
+  function cnpjValido(valor) {
+    const digits = somenteDigitos(valor);
+    if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) return false;
+    function digito(base, pesos) {
+      const soma = base.split('').reduce(function(total, n, idx) { return total + Number(n) * pesos[idx]; }, 0);
+      const resto = soma % 11;
+      return resto < 2 ? 0 : 11 - resto;
+    }
+    const d1 = digito(digits.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+    const d2 = digito(digits.slice(0, 12) + d1, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+    return digits.endsWith(String(d1) + String(d2));
+  }
+
+  function copiarDadosPdf(dados) {
+    if (dados instanceof ArrayBuffer) return dados.slice(0);
+    if (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView && ArrayBuffer.isView(dados)) {
+      return dados.buffer.slice(dados.byteOffset, dados.byteOffset + dados.byteLength);
+    }
+    return dados;
+  }
+
   function ehTrechoCabecalhoServicoPrestado(valor) {
     const t = normalizarTexto(valor).toUpperCase();
     return /SERVICO\s+NUMERO\s+SERIE/.test(t)
@@ -76,8 +97,8 @@
   }
 
   function extrairPeriodo(texto) {
-    const m = String(texto || '').match(/Periodo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aá]\s*(\d{2}\/\d{2}\/\d{4})/i)
-      || String(texto || '').match(/Per[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aá]\s*(\d{2}\/\d{2}\/\d{4})/i);
+    const m = String(texto || '').match(/Periodo:\s*(?:de\s*)?(\d{2}\/\d{2}\/\d{4})\s*[aáà]\s*(\d{2}\/\d{2}\/\d{4})/i)
+      || String(texto || '').match(/Pe\s*r[ií]odo:\s*(?:de\s*)?(\d{2}\/\d{2}\/\d{4})\s*[aáà]\s*(\d{2}\/\d{2}\/\d{4})/i);
     return {
       inicio: m ? parseDateBR(m[1]) : '',
       fim: m ? parseDateBR(m[2]) : ''
@@ -85,14 +106,44 @@
   }
 
   function extrairTotalOficial(texto) {
-    const m = String(texto || '').match(/Total\s+([0-9.]+,\d{2})([0-9.]+,\d{2})/i);
+    const m = String(texto || '').match(/Total\s+([0-9.]+,\d{2})\s*([0-9.]+,\d{2})/i);
     return m ? parseMoneyBR(m[1]) : 0;
+  }
+
+  function extrairTotaisRelacaoServicosPrestados(texto) {
+    const linhas = String(texto || '').split(/\r?\n/);
+    let totais = null;
+    linhas.forEach(function(linha) {
+      const limpa = String(linha || '').replace(/\s+/g, ' ').trim();
+      if (!/^Total\s+/i.test(limpa)) return;
+      const valores = (limpa.match(/\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}/g) || []).map(parseMoneyBR);
+      if (valores.length < 4) return;
+      const ultimos = valores.slice(-4);
+      totais = {
+        valorNotas: ultimos[0],
+        baseCalculoIss: ultimos[1],
+        valorIss: ultimos[2],
+        issRetido: ultimos[3]
+      };
+    });
+    return totais;
   }
 
   function somaAbsolutaLancamentos(lancamentos) {
     return (lancamentos || []).reduce(function(acc, l) {
       return acc + Math.abs(Number((l && l.valor) || 0));
     }, 0);
+  }
+
+  function totalResultadoPorTipo(resultado, tipo) {
+    if (!resultado) return 0;
+    if (tipo === 'credito' && Number.isFinite(Number(resultado.total_credito))) {
+      return Math.abs(Number(resultado.total_credito));
+    }
+    if (tipo === 'debito' && Number.isFinite(Number(resultado.total_debito))) {
+      return Math.abs(Number(resultado.total_debito));
+    }
+    return somaAbsolutaLancamentos(resultado.lancamentos);
   }
 
   function centavos(valor) {
@@ -104,8 +155,8 @@
     resultado.total_oficial = totalOficial;
     resultado.total_oficial_detectado = true;
     resultado.total_divergente = false;
-    if (tipo === 'credito') resultado.total_credito = somaAbsolutaLancamentos(resultado.lancamentos);
-    if (tipo === 'debito') resultado.total_debito = somaAbsolutaLancamentos(resultado.lancamentos);
+    if (tipo === 'credito') resultado.total_credito = totalResultadoPorTipo(resultado, tipo);
+    if (tipo === 'debito') resultado.total_debito = totalResultadoPorTipo(resultado, tipo);
     return resultado;
   }
 
@@ -114,15 +165,15 @@
     resultado.total_oficial = totalOficial;
     resultado.total_oficial_detectado = true;
     resultado.total_divergente = true;
-    resultado.diferenca_total_oficial = Math.round((somaAbsolutaLancamentos(resultado.lancamentos) - totalOficial) * 100) / 100;
-    if (tipo === 'credito') resultado.total_credito = somaAbsolutaLancamentos(resultado.lancamentos);
-    if (tipo === 'debito') resultado.total_debito = somaAbsolutaLancamentos(resultado.lancamentos);
+    resultado.diferenca_total_oficial = Math.round((totalResultadoPorTipo(resultado, tipo) - totalOficial) * 100) / 100;
+    if (tipo === 'credito') resultado.total_credito = totalResultadoPorTipo(resultado, tipo);
+    if (tipo === 'debito') resultado.total_debito = totalResultadoPorTipo(resultado, tipo);
     return resultado;
   }
 
-  function resultadoConfereComTotal(resultado, totalOficial) {
+  function resultadoConfereComTotal(resultado, totalOficial, tipo) {
     if (!resultado || !totalOficial) return false;
-    return Math.abs(centavos(somaAbsolutaLancamentos(resultado.lancamentos)) - centavos(totalOficial)) <= 1;
+    return Math.abs(centavos(totalResultadoPorTipo(resultado, tipo)) - centavos(totalOficial)) <= 1;
   }
 
   function escolherResultadoPorTotalOficial(candidatos, totalOficial, tipo) {
@@ -132,12 +183,12 @@
     if (!validos.length) return { detectado: false, lancamentos: [] };
 
     if (totalOficial) {
-      const exato = validos.find(function(r) { return resultadoConfereComTotal(r, totalOficial); });
+      const exato = validos.find(function(r) { return resultadoConfereComTotal(r, totalOficial, tipo); });
       if (exato) return aplicarTotalOficial(exato, totalOficial, tipo);
 
       const maisProximo = validos.slice().sort(function(a, b) {
-        return Math.abs(centavos(somaAbsolutaLancamentos(a.lancamentos)) - centavos(totalOficial))
-          - Math.abs(centavos(somaAbsolutaLancamentos(b.lancamentos)) - centavos(totalOficial));
+        return Math.abs(centavos(totalResultadoPorTipo(a, tipo)) - centavos(totalOficial))
+          - Math.abs(centavos(totalResultadoPorTipo(b, tipo)) - centavos(totalOficial));
       })[0];
       return marcarTotalOficialDivergente(maisProximo, totalOficial, tipo);
     }
@@ -158,7 +209,9 @@
     }
     return {
       codigo: String(m[1] || '').trim(),
-      nome: normalizarTexto(m[2] || '').toUpperCase(),
+      nome: normalizarTexto(m[2] || '')
+        .replace(/\s+Data:\s*\d{2}\/\d{2}\/\d{4}.*$/i, '')
+        .toUpperCase(),
       cnpj: String(m[3] || '').trim()
     };
   }
@@ -200,14 +253,34 @@
     };
   }
 
-  function criarLancamentoFiscal({ cnpj, fornecedor, valor, documento, data, periodo }) {
+  function nomeLayoutServicosTomados(metaEmpresa) {
+    const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim();
+    if (!metaEmpresa) return 'CLUDE - Servicos Tomados Fiscal';
+    if (codigoEmpresa === '1183') return 'DAXX - Servicos Tomados Fiscal';
+    if (codigoEmpresa === '733' || normalizarTexto(metaEmpresa && metaEmpresa.nome).toUpperCase().indexOf('CLUDE') >= 0) {
+      return 'CLUDE - Servicos Tomados Fiscal';
+    }
+    return (codigoEmpresa || 'FISCAL') + ' - Servicos Tomados Fiscal';
+  }
+
+  function criarLancamentoFiscal({ cnpj, fornecedor, valor, documento, serieSubserie, codigoIntegracao, data, periodo, metaEmpresa, layoutParser }) {
     const fornecedorLimpo = normalizarFornecedor(fornecedor);
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
     if (!fornecedorLimpo || !valor || !data) return null;
     const valorNota = Math.abs(valor);
     const categoriaFiscal = categoriaFiscalClude(fornecedorLimpo);
+    const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim();
+    const bancoEmpresa = metaEmpresa ? (codigoEmpresa || bancoFiscalPorEmpresa(metaEmpresa)) : 'CLU';
+    const layoutNome = nomeLayoutServicosTomados(metaEmpresa);
+    const contaFiscal = bancoEmpresa === 'CLU'
+      ? 'Fiscal CLUDE - Servicos Tomados'
+      : 'Fiscal ' + bancoEmpresa + ' - Servicos Tomados';
 
-    const descricao = ['Servicos tomados', fornecedorLimpo, documentoLimpo ? ('NF ' + documentoLimpo) : '', 'CNPJ ' + cnpj]
+    const documentoFornecedor = somenteDigitos(cnpj);
+    const tipoDocumentoFornecedor = documentoFornecedor.length === 11 ? 'CPF' : 'CNPJ';
+    const serieLimpa = String(serieSubserie || '').trim();
+    const codigoIntegracaoLimpo = String(codigoIntegracao || '').trim();
+    const descricao = ['Servicos tomados', fornecedorLimpo, documentoLimpo ? ('NF ' + documentoLimpo) : '', serieLimpa ? ('serie ' + serieLimpa) : '', tipoDocumentoFornecedor + ' ' + cnpj]
       .filter(Boolean)
       .join(' - ')
       .replace(/\s+/g, ' ')
@@ -232,19 +305,27 @@
       categoria: categoriaFiscal,
       tipoDocumentoFiscal: 'SERVICO_TOMADO',
       documento: documentoLimpo,
+      serieSubserie: serieLimpa,
+      codigoIntegracao: codigoIntegracaoLimpo,
       cnpj_fornecedor: cnpj,
+      cpf_fornecedor: tipoDocumentoFornecedor === 'CPF' ? cnpj : '',
+      documento_fornecedor: cnpj,
+      tipo_documento_fornecedor: tipoDocumentoFornecedor,
       codigoHistorico: '1207',
       historico: 'PAGTO SERVICOS TOMADOS',
-      layoutNome: 'CLUDE - Servicos Tomados Fiscal',
-      layoutParser: 'parsearPDF_Clude_ServicosTomados',
-      conta: 'Fiscal CLUDE - Servicos Tomados',
-      nome_conta: 'Fiscal CLUDE - Servicos Tomados',
+      layoutNome,
+      layoutParser: layoutParser || 'parsearPDF_Clude_ServicosTomados',
+      conta: contaFiscal,
+      nome_conta: contaFiscal,
+      empresaCodigoFiscal: codigoEmpresa,
+      empresaCnpjFiscal: (metaEmpresa && metaEmpresa.cnpj) || '',
+      empresaNomeFiscal: (metaEmpresa && metaEmpresa.nome) || '',
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim
     };
   }
 
-  function criarLancamentoServicoPrestado({ cnpj, tomador, valor, documento, data, periodo, metaEmpresa, servico }) {
+  function criarLancamentoServicoPrestado({ cnpj, tomador, valor, documento, data, periodo, metaEmpresa, servico, baseCalculoIss, aliquotaIss, valorIss, issRetido }) {
     const tomadorLimpo = normalizarTomadorPrestado(tomador);
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
     if (!tomadorLimpo || !valor || !data) return null;
@@ -276,6 +357,12 @@
       ].filter(Boolean),
       valor: valorNota,
       valorNota: valorNota,
+      baseCalculoIss: Math.abs(Number(baseCalculoIss || 0)),
+      aliquotaIss: Math.abs(Number(aliquotaIss || 0)),
+      valorIss: Math.abs(Number(valorIss || 0)),
+      issRetido: Math.abs(Number(issRetido || 0)),
+      totalRetencoes: Math.abs(Number(issRetido || 0)),
+      valorLiquidoAposRetencoes: Math.round((valorNota - Math.abs(Number(issRetido || 0))) * 100) / 100,
       baseCalculoPisCofins: 0,
       baseCalculoPisCofinsOrigem: 'servico_prestado_sem_credito',
       categoriaFiscal: 'RECEITA_SERVICOS',
@@ -296,6 +383,28 @@
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim
     };
+  }
+
+  function criarLancamentoIssRetidoServicoPrestado(nota) {
+    const valor = Math.abs(Number(nota && nota.issRetido || 0));
+    if (!nota || centavos(valor) === 0) return null;
+    const contexto = ['NF ' + nota.documento, nota.cnpj_tomador ? ('tomador ' + nota.cnpj_tomador) : ''].filter(Boolean).join(' - ');
+    const codigoEmpresa = String(nota.empresaCodigoFiscal || '').trim() || 'FISCAL';
+    return Object.assign({}, nota, {
+      descricao: 'ISS RETIDO - ' + contexto,
+      descricao_memoria: 'ISS RETIDO EM SERVICO PRESTADO - ' + (nota.cnpj_tomador || ''),
+      memoriaDescricoes: ['ISS retido em servico prestado', nota.cnpj_tomador, 'NF ' + nota.documento].filter(Boolean),
+      valor: -valor,
+      categoriaFiscal: 'RETENCAO_SERVICO_PRESTADO',
+      categoria: 'Impostos Retidos',
+      historico: 'ISS RETIDO NF ' + nota.documento,
+      componenteFiscal: 'IMPOSTO_RETIDO',
+      tributoRetido: 'ISS',
+      valorTributoRetido: valor,
+      naturezaLancamento: 'iss_retido_servico_prestado',
+      conta: 'Fiscal ' + codigoEmpresa + ' - ISS Retido em Servicos',
+      nome_conta: 'Fiscal ' + codigoEmpresa + ' - ISS Retido em Servicos'
+    });
   }
 
   function parsearLinhaAnaliseCreditos(linha, categoriaAtual, periodo, metaEmpresa) {
@@ -402,16 +511,22 @@
     };
   }
 
-  function parsearBlocoRegistro(bloco, periodo) {
+  function parsearBlocoRegistro(bloco, periodo, metaEmpresa, layoutParser) {
     const cnpj = (String(bloco || '').match(/^\s*(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/) || [])[1];
     if (!cnpj) return null;
 
     const dataMatch = String(bloco || '').match(/(\d{2}\/\d{2}\/\d{4})/);
     if (!dataMatch) return null;
 
-    const antesData = String(bloco || '').slice(String(bloco || '').indexOf(cnpj) + cnpj.length, dataMatch.index)
+    let antesData = String(bloco || '').slice(String(bloco || '').indexOf(cnpj) + cnpj.length, dataMatch.index)
       .replace(/\s+/g, ' ')
       .trim();
+    if (metaEmpresa && metaEmpresa.codigo) {
+      antesData = antesData
+        .replace(/0,00[\d.,]*$/g, '')
+        .replace(new RegExp('^' + cnpj.slice(0, 10).replace(/\./g, '\\.') + '\\s+'), '')
+        .trim();
+    }
     const depoisData = String(bloco || '').slice(dataMatch.index + dataMatch[0].length)
       .replace(/\s+/g, ' ')
       .trim();
@@ -424,11 +539,13 @@
       valor: parseMoneyBR(valorDocMatch[1]),
       documento: valorDocMatch[2],
       data: parseDateBR(dataMatch[1]),
-      periodo
+      periodo,
+      metaEmpresa,
+      layoutParser
     });
   }
 
-  function parsearRegistrosPorLinha(texto, periodo) {
+  function parsearRegistrosPorLinha(texto, periodo, metaEmpresa, layoutParser) {
     const linhas = String(texto || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const registros = [];
 
@@ -450,13 +567,13 @@
         j++;
       }
 
-      const lanc = parsearBlocoRegistro(bloco, periodo);
+      const lanc = parsearBlocoRegistro(bloco, periodo, metaEmpresa, layoutParser);
       if (lanc) registros.push(lanc);
     }
     return registros;
   }
 
-  function parsearRegistrosPorCnpj(texto, periodo) {
+  function parsearRegistrosPorCnpj(texto, periodo, metaEmpresa, layoutParser) {
     const registros = [];
     const flat = String(texto || '')
       .replace(/\r?\n/g, ' ')
@@ -465,7 +582,53 @@
     const re = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})([\s\S]*?)(?=\s+\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b|\s+Total\s+|$)/g;
     let m;
     while ((m = re.exec(flat))) {
-      const lanc = parsearBlocoRegistro((m[1] + ' ' + m[2]).trim(), periodo);
+      const lanc = parsearBlocoRegistro((m[1] + ' ' + m[2]).trim(), periodo, metaEmpresa, layoutParser);
+      if (lanc) registros.push(lanc);
+    }
+    return registros;
+  }
+
+  function parsearRegistrosServicosTomadosVisual(texto, periodo, metaEmpresa, layoutParser) {
+    const registros = [];
+    const linhas = String(texto || '').split(/\r?\n/).map(function(linha) {
+      return linha.replace(/\s+/g, ' ').trim();
+    }).filter(Boolean);
+    const cnpjRegex = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/;
+    const moneyRegex = /(?<![\d.,])([0-9]{1,3}(?:\.\d{3})*,\d{2}|[0-9]+,\d{2})(?![\d.,])/g;
+
+    for (const linha of linhas) {
+      const dataMatch = linha.match(/^(\d{2}\/\d{2}\/\d{4})\s+/);
+      const cnpjMatch = linha.match(cnpjRegex);
+      if (!dataMatch || !cnpjMatch || !cnpjMatch.index) continue;
+
+      const antesCnpj = linha.slice(dataMatch[0].length, cnpjMatch.index).trim();
+      const identificacao = antesCnpj.split(/\s+/).filter(Boolean);
+      const documento = String(identificacao.shift() || '').replace(/^0+(?=\d)/, '');
+      if (!documento) continue;
+      const codigoIntegracao = identificacao.length ? identificacao[identificacao.length - 1] : '';
+      const serieSubserie = identificacao.length > 1 ? identificacao.slice(0, -1).join(' ') : '';
+
+      const depoisCnpj = linha.slice(cnpjMatch.index + cnpjMatch[0].length).trim();
+      const valores = [...depoisCnpj.matchAll(moneyRegex)];
+      if (!valores.length) continue;
+      const primeiroValor = valores[0];
+      let fornecedor = depoisCnpj.slice(0, primeiroValor.index || 0).trim();
+      fornecedor = fornecedor
+        .replace(new RegExp('^' + cnpjMatch[1].slice(0, 10).replace(/\./g, '\\.') + '\\s+'), '')
+        .trim();
+
+      const lanc = criarLancamentoFiscal({
+        cnpj: cnpjMatch[1],
+        fornecedor,
+        valor: parseMoneyBR(primeiroValor[1]),
+        documento,
+        serieSubserie,
+        codigoIntegracao,
+        data: parseDateBR(dataMatch[1]),
+        periodo,
+        metaEmpresa,
+        layoutParser
+      });
       if (lanc) registros.push(lanc);
     }
     return registros;
@@ -521,7 +684,7 @@
   function parsearRegistrosServicosPrestadosVisual(texto, periodo, metaEmpresa) {
     const registros = [];
     const linhas = String(texto || '').split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
-    const cpfCnpj = /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/;
+    const cpfCnpj = /(?:\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/;
     const money = /(?<![\d.,])([0-9]{1,3}(?:\.\d{3})*,\d{2}|[0-9]+,\d{2})(?![\d.,])/g;
 
     for (let i = 0; i < linhas.length; i++) {
@@ -543,7 +706,10 @@
         j++;
       }
 
-      bloco = bloco.replace(/\bTotal\b[\s\S]*$/i, '').trim();
+      // Remove somente o rodape seguido pelo valor total. Nao corte a palavra
+      // no meio da linha: ela pode iniciar uma razao social valida, como
+      // "TOTAL PASS PARTICIPACOES LTDA".
+      bloco = bloco.replace(/\bTotal(?=\s+[0-9]{1,3}(?:\.[0-9]{3})*,\d{2})[\s\S]*$/i, '').trim();
       if (ehTrechoCabecalhoServicoPrestado(bloco)) continue;
 
       const cnpjMatch = bloco.match(cpfCnpj);
@@ -580,10 +746,11 @@
       if (!documento) continue;
       const antesCnpj = bloco.slice(0, cnpjMatch.index || 0);
       const depoisCnpj = bloco.slice((cnpjMatch.index || 0) + cnpjMatch[0].length);
+      const servicoDecimal = (antesCnpj.match(/\b(\d{1,2}\.\d{2})\b/) || [])[1] || '';
       const servicosAntes = [...antesCnpj.matchAll(/\b(\d{4})\b/g)].map(m => m[1]);
       const depoisSemDatas = depoisCnpj.replace(/\d{2}\/\d{2}\/\d{4}/g, ' ');
       const servicosDepois = [...depoisSemDatas.matchAll(/\b(\d{4})\b/g)].map(m => m[1]);
-      const servico = servicosAntes.concat(servicosDepois).find(s => s !== '0000' && s !== '2026') || '';
+      const servico = servicoDecimal || servicosAntes.concat(servicosDepois).find(s => s !== '0000' && s !== '2026') || '';
 
       const lanc = criarLancamentoServicoPrestado({
         cnpj: cnpjMatch[0],
@@ -593,7 +760,11 @@
         data: parseDateBR(dataMatch[1]),
         periodo,
         metaEmpresa,
-        servico
+        servico,
+        baseCalculoIss: valores.length >= 5 ? valores[1].valor : 0,
+        aliquotaIss: valores.length >= 5 ? valores[2].valor : 0,
+        valorIss: valores.length >= 5 ? valores[3].valor : 0,
+        issRetido: valores.length >= 5 ? valores[4].valor : 0
       });
       if (lanc) registros.push(lanc);
     }
@@ -605,7 +776,7 @@
     const seen = new Set();
     return (registros || []).filter(function(l) {
       const cnpjRegistro = l.cnpj_fornecedor || l.cnpj_tomador || '';
-      const k = [l.data, cnpjRegistro, l.documento, Math.round(Math.abs(Number(l.valor || 0)) * 100)].join('|');
+      const k = [l.data, cnpjRegistro, l.documento, l.serieSubserie || '', Math.round(Math.abs(Number(l.valor || 0)) * 100)].join('|');
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
@@ -642,6 +813,52 @@
     };
   }
 
+  function parsearTexto_IOBSageServicosTomados(textoCompleto) {
+    const texto = String(textoCompleto || '');
+    const detector = normalizarTexto(texto).toUpperCase();
+    if (!/RELACAO DE NFS DE SERVICOS TOMADOS/.test(detector)) {
+      return { detectado: false, lancamentos: [] };
+    }
+
+    const metaEmpresa = extrairEmpresaIOBSage(texto);
+    if (!metaEmpresa.codigo || !cnpjValido(metaEmpresa.cnpj)) {
+      return { detectado: false, lancamentos: [] };
+    }
+
+    const periodo = extrairPeriodo(texto);
+    const totalOficial = extrairTotalOficial(texto);
+    const layoutParser = 'parsearPDF_IOB_Sage_ServicosTomados';
+    const registrosVisuais = parsearRegistrosServicosTomadosVisual(texto, periodo, metaEmpresa, layoutParser);
+    const registros = unirRegistros(registrosVisuais.length ? registrosVisuais :
+      parsearRegistrosPorLinha(texto, periodo, metaEmpresa, layoutParser)
+        .concat(parsearRegistrosPorCnpj(texto, periodo, metaEmpresa, layoutParser))
+    );
+    const totalDebito = somaAbsolutaLancamentos(registros);
+    const totalConfere = totalOficial ? Math.abs(centavos(totalDebito) - centavos(totalOficial)) <= 1 : true;
+    const nomeLayout = nomeLayoutServicosTomados(metaEmpresa);
+
+    return {
+      detectado: registros.length > 0,
+      banco_detectado: metaEmpresa.codigo,
+      nome_banco_detectado: metaEmpresa.nome || nomeLayout,
+      conta_detectada: 'SERVICOS_TOMADOS',
+      nome_conta_detectado: nomeLayout,
+      cnpj_detectado: metaEmpresa.cnpj,
+      empresa_codigo_detectado: metaEmpresa.codigo,
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim,
+      total_credito: 0,
+      total_debito: totalDebito,
+      total_notas_fiscais: registros.length,
+      direcao_fiscal: 'servicos_tomados',
+      total_oficial: totalOficial || totalDebito,
+      total_oficial_detectado: !!totalOficial,
+      total_divergente: !!totalOficial && !totalConfere,
+      diferenca_total_oficial: totalOficial && !totalConfere ? Math.round((totalDebito - totalOficial) * 100) / 100 : 0,
+      lancamentos: registros
+    };
+  }
+
   function parsearTexto_IOBSageServicosPrestados(textoCompleto) {
     const texto = String(textoCompleto || '');
     const detector = normalizarTexto(texto).toUpperCase();
@@ -651,13 +868,24 @@
 
     const periodo = extrairPeriodo(texto);
     const metaEmpresa = extrairEmpresaIOBSage(texto);
-    const totalOficial = extrairTotalOficial(texto);
-    const registros = unirRegistros(
-      parsearRegistrosServicosPrestadosIOB(texto, periodo, metaEmpresa)
-        .concat(parsearRegistrosServicosPrestadosVisual(texto, periodo, metaEmpresa))
+    if (!metaEmpresa.codigo || !cnpjValido(metaEmpresa.cnpj)) {
+      return { detectado: false, lancamentos: [] };
+    }
+    const totaisOficiais = extrairTotaisRelacaoServicosPrestados(texto);
+    const totalOficial = totaisOficiais ? totaisOficiais.valorNotas : extrairTotalOficial(texto);
+    const notasFiscais = unirRegistros(
+      parsearRegistrosServicosPrestadosVisual(texto, periodo, metaEmpresa)
+        .concat(parsearRegistrosServicosPrestadosIOB(texto, periodo, metaEmpresa))
     );
-    const totalCredito = registros.reduce((acc, l) => acc + Math.abs(Number(l.valor) || 0), 0);
-    const totalConfere = totalOficial ? Math.abs(centavos(totalCredito) - centavos(totalOficial)) <= 1 : true;
+    const registros = notasFiscais.reduce(function(todos, nota) {
+      const iss = criarLancamentoIssRetidoServicoPrestado(nota);
+      return iss ? todos.concat([nota, iss]) : todos.concat([nota]);
+    }, []);
+    const totalCredito = notasFiscais.reduce((acc, l) => acc + Math.abs(Number(l.valorNota || l.valor) || 0), 0);
+    const totalIssRetido = notasFiscais.reduce((acc, l) => acc + Math.abs(Number(l.issRetido || 0)), 0);
+    const divergencias = [];
+    if (totalOficial && Math.abs(centavos(totalCredito) - centavos(totalOficial)) > 1) divergencias.push('valorNotas');
+    if (totaisOficiais && Math.abs(centavos(totalIssRetido) - centavos(totaisOficiais.issRetido)) > 1) divergencias.push('issRetido');
     const codigoEmpresa = String(metaEmpresa.codigo || '').trim() || 'FISCAL';
     const nomeLayout = codigoEmpresa === '1183'
       ? 'DAXX - Servicos Prestados Fiscal'
@@ -674,16 +902,474 @@
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim,
       total_credito: totalCredito,
-      total_debito: 0,
+      total_debito: totalIssRetido,
+      total_liquido: Math.round((totalCredito - totalIssRetido) * 100) / 100,
+      total_iss_retido: Math.round(totalIssRetido * 100) / 100,
+      total_notas_fiscais: notasFiscais.length,
+      total_lancamentos_fiscais: registros.length,
+      direcao_fiscal: 'servicos_prestados',
       total_oficial: totalOficial || totalCredito,
       total_oficial_detectado: !!totalOficial,
-      total_divergente: !!totalOficial && !totalConfere,
-      diferenca_total_oficial: totalOficial && !totalConfere ? Math.round((totalCredito - totalOficial) * 100) / 100 : 0,
+      totais_iss_oficiais: totaisOficiais,
+      total_divergente: divergencias.length > 0,
+      campos_totais_divergentes: divergencias,
+      diferenca_total_oficial: divergencias.includes('valorNotas') ? Math.round((totalCredito - totalOficial) * 100) / 100 : 0,
       lancamentos: registros
     };
   }
 
-  function agruparItensPdfEmLinhas(items) {
+  function extrairTotaisDemonstrativoRetidos(texto) {
+    const linhas = String(texto || '').split(/\r?\n/);
+    let totais = null;
+    linhas.forEach(function(linha) {
+      const limpa = String(linha || '').replace(/\s+/g, ' ').trim();
+      if (!/^Total\s+/i.test(limpa)) return;
+      const valores = (limpa.match(/\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}/g) || []).map(parseMoneyBR);
+      if (valores.length < 7) return;
+      const ultimos = valores.slice(-7);
+      totais = {
+        valorNotas: ultimos[0],
+        baseRetencao: ultimos[1],
+        pis: ultimos[2],
+        cofins: ultimos[3],
+        csll: ultimos[4],
+        irrf: ultimos[5],
+        inss: ultimos[6]
+      };
+    });
+    return totais;
+  }
+
+  function parsearLinhaDemonstrativoRetidos(linha, periodo, metaEmpresa) {
+    const money = '(\\d{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+,\\d{2})';
+    const documentoPessoa = '(\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2})';
+    const regex = new RegExp('^(\\d{1,3})\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(.+?)\\s+' + documentoPessoa
+      + '\\s+' + money + '\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+' + money + '\\s+' + money
+      + '\\s+' + money + '\\s+' + money + '\\s+' + money + '\\s+' + money + '$');
+    const texto = String(linha || '').replace(/\s+/g, ' ').trim();
+    const m = texto.match(regex);
+    if (!m) return null;
+
+    const identificacaoNota = String(m[3] || '').trim().split(/\s+/);
+    const numero = String(identificacaoNota.pop() || '').replace(/^0+(?=\d)/, '');
+    const serie = identificacaoNota.join(' ');
+    const valorNota = parseMoneyBR(m[5]);
+    const baseRetencao = parseMoneyBR(m[7]);
+    const pis = parseMoneyBR(m[8]);
+    const cofins = parseMoneyBR(m[9]);
+    const csll = parseMoneyBR(m[10]);
+    const irrf = parseMoneyBR(m[11]);
+    const inss = parseMoneyBR(m[12]);
+    const totalRetencoes = pis + cofins + csll + irrf + inss;
+    if (!numero || !valorNota) return null;
+
+    const documentoTomador = m[4];
+    const tipoTomador = somenteDigitos(documentoTomador).length === 14 ? 'CNPJ' : 'CPF';
+    const descricao = ['Valor bruto do servico', 'NF ' + numero, tipoTomador + ' tomador ' + documentoTomador]
+      .join(' - ');
+    const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim() || 'FISCAL';
+
+    return {
+      data: parseDateBR(m[2]),
+      descricao,
+      descricao_memoria: 'Valor bruto do servico com retencoes - ' + documentoTomador,
+      memoriaDescricoes: ['Valor bruto do servico com retencoes', documentoTomador, 'NF ' + numero],
+      valor: Math.abs(valorNota),
+      valorNota: Math.abs(valorNota),
+      valorLiquidoAposRetencoes: Math.round((Math.abs(valorNota) - totalRetencoes) * 100) / 100,
+      baseCalculoRetencao: Math.abs(baseRetencao),
+      pisRetido: Math.abs(pis),
+      cofinsRetida: Math.abs(cofins),
+      csllRetida: Math.abs(csll),
+      irrfRetido: Math.abs(irrf),
+      inssRetido: Math.abs(inss),
+      totalRetencoes: Math.round(totalRetencoes * 100) / 100,
+      dataCompensacao: parseDateBR(m[6]),
+      modeloNotaFiscal: m[1],
+      serieSubserie: serie,
+      documento: numero,
+      cnpj_cpf_tomador: documentoTomador,
+      componenteFiscal: 'VALOR_BRUTO_SERVICO',
+      tributoRetido: '',
+      valorTributoRetido: 0,
+      tipoDocumentoFiscal: 'SERVICO_PRESTADO_IMPOSTOS_RETIDOS',
+      naturezaLancamento: 'servico_prestado_com_retencoes',
+      categoriaFiscal: 'RECEITA_SERVICOS',
+      categoria: 'Receita de Servicos',
+      codigoHistorico: '0000',
+      historico: 'SERVICOS PRESTADOS COM RETENCAO',
+      layoutNome: 'SAGE - Demonstrativo de Impostos Retidos em Servicos',
+      layoutParser: 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos',
+      conta: 'Fiscal ' + codigoEmpresa + ' - Impostos Retidos em Servicos',
+      nome_conta: 'Fiscal ' + codigoEmpresa + ' - Impostos Retidos em Servicos',
+      empresaCodigoFiscal: String((metaEmpresa && metaEmpresa.codigo) || '').trim(),
+      empresaCnpjFiscal: (metaEmpresa && metaEmpresa.cnpj) || '',
+      empresaNomeFiscal: (metaEmpresa && metaEmpresa.nome) || '',
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim
+    };
+  }
+
+  function criarLancamentosDemonstrativoRetidos(nota) {
+    if (!nota) return [];
+    const modeloSerie = [nota.modeloNotaFiscal ? 'modelo ' + nota.modeloNotaFiscal : '', nota.serieSubserie ? 'serie ' + nota.serieSubserie : '']
+      .filter(Boolean).join(', ');
+    const contexto = [
+      'NF ' + nota.documento,
+      modeloSerie,
+      'tomador ' + nota.cnpj_cpf_tomador,
+      'base ' + Number(nota.baseCalculoRetencao || 0).toFixed(2),
+      nota.dataCompensacao ? 'compensacao ' + nota.dataCompensacao : ''
+    ].filter(Boolean).join(' - ');
+    const bruto = Object.assign({}, nota, {
+      descricao: 'VALOR BRUTO DO SERVICO - ' + contexto,
+      historico: 'VALOR BRUTO SERVICO NF ' + nota.documento,
+      componenteFiscal: 'VALOR_BRUTO_SERVICO',
+      tributoRetido: '',
+      valorTributoRetido: 0
+    });
+    const tributos = [
+      { campo: 'pisRetido', codigo: 'PIS', nome: 'PIS RETIDO' },
+      { campo: 'cofinsRetida', codigo: 'COFINS', nome: 'COFINS RETIDA' },
+      { campo: 'csllRetida', codigo: 'CSLL', nome: 'CSLL RETIDA' },
+      { campo: 'irrfRetido', codigo: 'IRRF', nome: 'IRRF RETIDO' },
+      { campo: 'inssRetido', codigo: 'INSS', nome: 'INSS RETIDO' }
+    ];
+    const retencoes = tributos.map(function(tributo) {
+      const valor = Math.abs(Number(nota[tributo.campo] || 0));
+      if (centavos(valor) === 0) return null;
+      return Object.assign({}, nota, {
+        descricao: tributo.nome + ' - ' + contexto,
+        descricao_memoria: tributo.nome + ' EM SERVICO PRESTADO - ' + nota.cnpj_cpf_tomador,
+        memoriaDescricoes: [tributo.nome + ' em servico prestado', nota.cnpj_cpf_tomador, 'NF ' + nota.documento],
+        valor: -valor,
+        categoriaFiscal: 'RETENCAO_SERVICO_PRESTADO',
+        categoria: 'Impostos Retidos',
+        historico: tributo.nome + ' NF ' + nota.documento,
+        componenteFiscal: 'IMPOSTO_RETIDO',
+        tributoRetido: tributo.codigo,
+        valorTributoRetido: valor,
+        naturezaLancamento: 'imposto_retido_servico_prestado'
+      });
+    }).filter(Boolean);
+    return [bruto].concat(retencoes);
+  }
+
+  function parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos(textoCompleto) {
+    const texto = String(textoCompleto || '');
+    const detector = normalizarTexto(texto).toUpperCase();
+    if (!/DEMONSTRATIVO DOS IMPOSTOS RETIDOS NA FONTE\s*-?\s*NOTAS FISCAIS DE SERVICOS/.test(detector)) {
+      return { detectado: false, lancamentos: [] };
+    }
+
+    const metaEmpresa = extrairEmpresaIOBSage(texto);
+    if (!metaEmpresa.codigo || !cnpjValido(metaEmpresa.cnpj)) {
+      return { detectado: false, lancamentos: [] };
+    }
+    const periodo = extrairPeriodo(texto);
+    if (!periodo.inicio || !periodo.fim) return { detectado: false, lancamentos: [] };
+
+    const notasFiscais = texto.split(/\r?\n/)
+      .map(function(linha) { return parsearLinhaDemonstrativoRetidos(linha, periodo, metaEmpresa); })
+      .filter(Boolean);
+    const totaisOficiais = extrairTotaisDemonstrativoRetidos(texto);
+    const somas = notasFiscais.reduce(function(acc, l) {
+      acc.valorNotas += Number(l.valorNota || 0);
+      acc.baseRetencao += Number(l.baseCalculoRetencao || 0);
+      acc.pis += Number(l.pisRetido || 0);
+      acc.cofins += Number(l.cofinsRetida || 0);
+      acc.csll += Number(l.csllRetida || 0);
+      acc.irrf += Number(l.irrfRetido || 0);
+      acc.inss += Number(l.inssRetido || 0);
+      return acc;
+    }, { valorNotas: 0, baseRetencao: 0, pis: 0, cofins: 0, csll: 0, irrf: 0, inss: 0 });
+    const camposTotal = ['valorNotas', 'baseRetencao', 'pis', 'cofins', 'csll', 'irrf', 'inss'];
+    const divergencias = totaisOficiais ? camposTotal.filter(function(campo) {
+      return Math.abs(centavos(somas[campo]) - centavos(totaisOficiais[campo])) > 1;
+    }) : [];
+    const lancamentos = notasFiscais.reduce(function(todos, nota) {
+      return todos.concat(criarLancamentosDemonstrativoRetidos(nota));
+    }, []);
+    const totalRetencoes = somas.pis + somas.cofins + somas.csll + somas.irrf + somas.inss;
+
+    return {
+      detectado: notasFiscais.length > 0,
+      banco_detectado: metaEmpresa.codigo,
+      nome_banco_detectado: metaEmpresa.nome || 'Demonstrativo de Impostos Retidos em Servicos',
+      conta_detectada: 'IMPOSTOS_RETIDOS_SERVICOS',
+      nome_conta_detectado: 'SAGE - Demonstrativo de Impostos Retidos em Servicos',
+      cnpj_detectado: metaEmpresa.cnpj,
+      empresa_codigo_detectado: metaEmpresa.codigo,
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim,
+      total_credito: somas.valorNotas,
+      total_debito: totalRetencoes,
+      total_liquido: Math.round((somas.valorNotas - totalRetencoes) * 100) / 100,
+      total_notas_fiscais: notasFiscais.length,
+      total_lancamentos_fiscais: lancamentos.length,
+      direcao_fiscal: 'impostos_retidos_servicos',
+      total_oficial: totaisOficiais ? totaisOficiais.valorNotas : somas.valorNotas,
+      total_oficial_detectado: !!totaisOficiais,
+      totais_retencoes_calculados: somas,
+      totais_retencoes_oficiais: totaisOficiais,
+      total_divergente: divergencias.length > 0,
+      campos_totais_divergentes: divergencias,
+      lancamentos
+    };
+  }
+
+  function agruparItensPorCoordenada(items, rotacao) {
+    const giro = ((Number(rotacao || 0) % 360) + 360) % 360;
+    const paisagemNativa = giro === 0;
+    if (!paisagemNativa && giro !== 90 && giro !== 270) return [];
+    const grupos = [];
+    (items || []).forEach(function(item) {
+      const str = String(item.str || '').trim();
+      if (!str) return;
+      const t = item.transform || [1, 0, 0, 1, 0, 0];
+      const coordenadaLinha = Number(t[paisagemNativa ? 5 : 4] || 0);
+      const coordenadaColuna = Number(t[paisagemNativa ? 4 : 5] || 0);
+      let grupo = grupos.find(function(g) { return Math.abs(g.coordenada - coordenadaLinha) <= 0.8; });
+      if (!grupo) {
+        grupo = { coordenada: coordenadaLinha, itens: [] };
+        grupos.push(grupo);
+      }
+      grupo.itens.push({ str: str, coluna: coordenadaColuna });
+    });
+    grupos.forEach(function(grupo) { grupo.itens.sort(function(a, b) { return a.coluna - b.coluna; }); });
+    return grupos.sort(function(a, b) {
+      return paisagemNativa ? b.coordenada - a.coordenada : a.coordenada - b.coordenada;
+    });
+  }
+
+  function valorMonetarioNaFaixa(itens, inicio, fim) {
+    const item = (itens || []).find(function(i) {
+      return i.coluna >= inicio && i.coluna < fim && /^\s*\d{1,3}(?:\.\d{3})*,\d{2}\s*$|^\s*\d+,\d{2}\s*$/.test(i.str);
+    });
+    return item ? Math.abs(parseMoneyBR(item.str)) : 0;
+  }
+
+  function codigoRetencaoNaFaixa(itens, inicio, fim) {
+    const texto = (itens || []).filter(function(i) { return i.coluna >= inicio && i.coluna < fim; })
+      .map(function(i) { return i.str; }).join(' ');
+    const m = texto.match(/\b(\d{4})\b/);
+    return m ? m[1] : '';
+  }
+
+  function dataNaFaixa(itens, inicio, fim) {
+    const texto = (itens || []).filter(function(i) { return i.coluna >= inicio && i.coluna < fim; })
+      .map(function(i) { return i.str; }).join(' ');
+    return parseDateBR(texto);
+  }
+
+  function criarLancamentosDemonstrativoRetidosTomados(nota, periodo, metaEmpresa) {
+    const codigoEmpresa = String((metaEmpresa && metaEmpresa.codigo) || '').trim() || 'FISCAL';
+    const contexto = [
+      'NF ' + nota.documento,
+      nota.serieSubserie ? 'serie ' + nota.serieSubserie : '',
+      'fornecedor ' + nota.cnpj_fornecedor,
+      'base ' + Number(nota.baseCalculoRetencao || 0).toFixed(2)
+    ].filter(Boolean).join(' - ');
+    const camposComuns = {
+      data: nota.data,
+      valorNota: nota.valorNota,
+      valorLiquidoAposRetencoes: nota.valorLiquidoAposRetencoes,
+      baseCalculoRetencao: nota.baseCalculoRetencao,
+      pisRetido: nota.pisRetido,
+      cofinsRetida: nota.cofinsRetida,
+      csllRetida: nota.csllRetida,
+      irrfRetido: nota.irrfRetido,
+      seguridadeSocialRetida: nota.seguridadeSocialRetida,
+      totalRetencoes: nota.totalRetencoes,
+      dataPagamento: nota.dataPagamento,
+      dataPagamentoCreditoIrrf: nota.dataPagamentoCreditoIrrf,
+      serieSubserie: nota.serieSubserie,
+      documento: nota.documento,
+      fornecedor: nota.cnpj_fornecedor,
+      cnpj_fornecedor: nota.cnpj_fornecedor,
+      codigoRetencaoPis: nota.codigoRetencaoPis,
+      codigoRetencaoCofins: nota.codigoRetencaoCofins,
+      codigoRetencaoCsll: nota.codigoRetencaoCsll,
+      codigoRetencaoIrrf: nota.codigoRetencaoIrrf,
+      codigoRetencaoSeguridadeSocial: nota.codigoRetencaoSeguridadeSocial,
+      tipoDocumentoFiscal: 'SERVICO_TOMADO_IMPOSTOS_RETIDOS',
+      layoutNome: 'SAGE - Retencoes de Servicos Tomados',
+      layoutParser: 'parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicosTomados',
+      conta: 'Fiscal ' + codigoEmpresa + ' - Retencoes de Servicos Tomados',
+      nome_conta: 'Fiscal ' + codigoEmpresa + ' - Retencoes de Servicos Tomados',
+      empresaCodigoFiscal: String((metaEmpresa && metaEmpresa.codigo) || '').trim(),
+      empresaCnpjFiscal: (metaEmpresa && metaEmpresa.cnpj) || '',
+      empresaNomeFiscal: (metaEmpresa && metaEmpresa.nome) || '',
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim,
+      codigoHistorico: '0000'
+    };
+    const bruto = Object.assign({}, camposComuns, {
+      descricao: 'VALOR BRUTO DO SERVICO TOMADO - ' + contexto,
+      descricao_memoria: 'Valor bruto do servico tomado - ' + nota.cnpj_fornecedor,
+      memoriaDescricoes: ['Valor bruto do servico tomado', nota.cnpj_fornecedor, 'NF ' + nota.documento],
+      valor: -nota.valorNota,
+      categoriaFiscal: 'DESPESA_SERVICOS',
+      categoria: 'Servicos Tomados',
+      historico: 'VALOR BRUTO SERVICO TOMADO NF ' + nota.documento,
+      componenteFiscal: 'VALOR_BRUTO_SERVICO_TOMADO',
+      tributoRetido: '',
+      valorTributoRetido: 0,
+      naturezaLancamento: 'servico_tomado_com_retencoes'
+    });
+    const tributos = [
+      { campo: 'pisRetido', codigo: 'PIS', nome: 'PIS RETIDO', codigoFonte: 'codigoRetencaoPis' },
+      { campo: 'cofinsRetida', codigo: 'COFINS', nome: 'COFINS RETIDA', codigoFonte: 'codigoRetencaoCofins' },
+      { campo: 'csllRetida', codigo: 'CSLL', nome: 'CSLL RETIDA', codigoFonte: 'codigoRetencaoCsll' },
+      { campo: 'irrfRetido', codigo: 'IRRF', nome: 'IRRF RETIDO', codigoFonte: 'codigoRetencaoIrrf' },
+      { campo: 'seguridadeSocialRetida', codigo: 'SEG_SOCIAL', nome: 'SEGURIDADE SOCIAL RETIDA', codigoFonte: 'codigoRetencaoSeguridadeSocial' }
+    ];
+    const retencoes = tributos.map(function(tributo) {
+      const valor = Math.abs(Number(nota[tributo.campo] || 0));
+      if (centavos(valor) === 0) return null;
+      const codigoFonte = String(nota[tributo.codigoFonte] || '');
+      return Object.assign({}, camposComuns, {
+        descricao: tributo.nome + ' - ' + contexto + (codigoFonte ? ' - codigo ' + codigoFonte : ''),
+        descricao_memoria: tributo.nome + ' - ' + nota.cnpj_fornecedor,
+        memoriaDescricoes: [tributo.nome, nota.cnpj_fornecedor, 'NF ' + nota.documento, codigoFonte ? 'Codigo ' + codigoFonte : ''].filter(Boolean),
+        valor: valor,
+        categoriaFiscal: 'RETENCAO_SERVICO_TOMADO',
+        categoria: 'Impostos Retidos',
+        historico: tributo.nome + ' NF ' + nota.documento,
+        componenteFiscal: 'IMPOSTO_RETIDO_SERVICO_TOMADO',
+        tributoRetido: tributo.codigo,
+        valorTributoRetido: valor,
+        codigoRetencaoFonte: codigoFonte,
+        naturezaLancamento: 'imposto_retido_servico_tomado'
+      });
+    }).filter(Boolean);
+    return [bruto].concat(retencoes);
+  }
+
+  function parsearItensDemonstrativoRetidosServicosTomados(items, rotacao, textoPagina) {
+    const detector = normalizarTexto(textoPagina).toUpperCase();
+    if (!/DEMONSTRATIVO DOS IMPOSTOS RETIDOS NA FONTE\s*-?\s*NOTAS DE ENTRADAS DE SERVICOS/.test(detector)) {
+      return { detectado: false, lancamentos: [] };
+    }
+    const metaEmpresa = extrairEmpresaIOBSage(textoPagina);
+    const periodo = extrairPeriodo(textoPagina);
+    if (!metaEmpresa.codigo || !cnpjValido(metaEmpresa.cnpj) || !periodo.inicio || !periodo.fim) {
+      return { detectado: false, lancamentos: [] };
+    }
+    const giro = ((Number(rotacao || 0) % 360) + 360) % 360;
+    const paisagemNativa = giro === 0;
+    const colunas = paisagemNativa ? {
+      linhaInicio: 40, linhaFim: 455, cabecalhoFim: 200,
+      valorNota: [200, 230], pagamento: [230, 275], base: [305, 350],
+      pis: [378, 400], codigoPis: [400, 430], cofins: [455, 478], codigoCofins: [478, 505],
+      csll: [535, 558], codigoCsll: [558, 580], pagamentoIrrf: [558, 630],
+      irrf: [650, 670], codigoIrrf: [670, 705], seguridade: [720, 745], codigoSeguridade: [745, 785]
+    } : {
+      linhaInicio: 150, linhaFim: 520, cabecalhoFim: 210,
+      valorNota: [220, 255], pagamento: [250, 295], base: [330, 380],
+      pis: [395, 422], codigoPis: [422, 455], cofins: [470, 501], codigoCofins: [501, 535],
+      csll: [545, 578], codigoCsll: [578, 610], pagamentoIrrf: [575, 650],
+      irrf: [655, 689], codigoIrrf: [689, 720], seguridade: [730, 770], codigoSeguridade: [770, 805]
+    };
+    const grupos = agruparItensPorCoordenada(items, rotacao);
+    const notasFiscais = grupos.map(function(grupo) {
+      if (grupo.coordenada < colunas.linhaInicio || grupo.coordenada > colunas.linhaFim) return null;
+      const cabecalho = grupo.itens.filter(function(i) { return i.coluna < colunas.cabecalhoFim; })
+        .map(function(i) { return i.str; }).join(' ').replace(/\s+/g, ' ').trim();
+      const m = cabecalho.match(/^(\d{2}\/\d{2}\/\d{4})\s+(?:([A-Z0-9]{1,4})\s+)?(\d{8,12})\s+(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/i);
+      if (!m) return null;
+      const valorNota = valorMonetarioNaFaixa(grupo.itens, colunas.valorNota[0], colunas.valorNota[1]);
+      if (centavos(valorNota) === 0) return null;
+      const pis = valorMonetarioNaFaixa(grupo.itens, colunas.pis[0], colunas.pis[1]);
+      const cofins = valorMonetarioNaFaixa(grupo.itens, colunas.cofins[0], colunas.cofins[1]);
+      const csll = valorMonetarioNaFaixa(grupo.itens, colunas.csll[0], colunas.csll[1]);
+      const irrf = valorMonetarioNaFaixa(grupo.itens, colunas.irrf[0], colunas.irrf[1]);
+      const seguridade = valorMonetarioNaFaixa(grupo.itens, colunas.seguridade[0], colunas.seguridade[1]);
+      const totalRetencoes = pis + cofins + csll + irrf + seguridade;
+      return {
+        data: parseDateBR(m[1]),
+        serieSubserie: String(m[2] || '').trim(),
+        documento: String(m[3] || '').trim(),
+        cnpj_fornecedor: String(m[4] || '').trim(),
+        valorNota: valorNota,
+        baseCalculoRetencao: valorMonetarioNaFaixa(grupo.itens, colunas.base[0], colunas.base[1]),
+        pisRetido: pis,
+        cofinsRetida: cofins,
+        csllRetida: csll,
+        irrfRetido: irrf,
+        seguridadeSocialRetida: seguridade,
+        totalRetencoes: Math.round(totalRetencoes * 100) / 100,
+        valorLiquidoAposRetencoes: Math.round((valorNota - totalRetencoes) * 100) / 100,
+        dataPagamento: dataNaFaixa(grupo.itens, colunas.pagamento[0], colunas.pagamento[1]),
+        dataPagamentoCreditoIrrf: dataNaFaixa(grupo.itens, colunas.pagamentoIrrf[0], colunas.pagamentoIrrf[1]),
+        codigoRetencaoPis: codigoRetencaoNaFaixa(grupo.itens, colunas.codigoPis[0], colunas.codigoPis[1]),
+        codigoRetencaoCofins: codigoRetencaoNaFaixa(grupo.itens, colunas.codigoCofins[0], colunas.codigoCofins[1]),
+        codigoRetencaoCsll: codigoRetencaoNaFaixa(grupo.itens, colunas.codigoCsll[0], colunas.codigoCsll[1]),
+        codigoRetencaoIrrf: codigoRetencaoNaFaixa(grupo.itens, colunas.codigoIrrf[0], colunas.codigoIrrf[1]),
+        codigoRetencaoSeguridadeSocial: codigoRetencaoNaFaixa(grupo.itens, colunas.codigoSeguridade[0], colunas.codigoSeguridade[1])
+      };
+    }).filter(Boolean);
+    const grupoTotais = paisagemNativa
+      ? grupos.filter(function(grupo) {
+        return grupo.itens.some(function(item) { return normalizarTexto(item.str).toUpperCase() === 'TOTAL'; });
+      }).sort(function(a, b) { return a.coordenada - b.coordenada; })[0]
+      : grupos.find(function(grupo) { return grupo.coordenada > 530; });
+    const totaisOficiais = grupoTotais ? {
+      valorNotas: valorMonetarioNaFaixa(grupoTotais.itens, colunas.valorNota[0], colunas.valorNota[1]),
+      baseRetencao: valorMonetarioNaFaixa(grupoTotais.itens, colunas.base[0], colunas.base[1]),
+      pis: valorMonetarioNaFaixa(grupoTotais.itens, colunas.pis[0], colunas.pis[1]),
+      cofins: valorMonetarioNaFaixa(grupoTotais.itens, colunas.cofins[0], colunas.cofins[1]),
+      csll: valorMonetarioNaFaixa(grupoTotais.itens, colunas.csll[0], colunas.csll[1]),
+      irrf: valorMonetarioNaFaixa(grupoTotais.itens, colunas.irrf[0], colunas.irrf[1]),
+      seguridadeSocial: valorMonetarioNaFaixa(grupoTotais.itens, colunas.seguridade[0], colunas.seguridade[1])
+    } : null;
+    const somas = notasFiscais.reduce(function(acc, nota) {
+      acc.valorNotas += nota.valorNota;
+      acc.baseRetencao += nota.baseCalculoRetencao;
+      acc.pis += nota.pisRetido;
+      acc.cofins += nota.cofinsRetida;
+      acc.csll += nota.csllRetida;
+      acc.irrf += nota.irrfRetido;
+      acc.seguridadeSocial += nota.seguridadeSocialRetida;
+      return acc;
+    }, { valorNotas: 0, baseRetencao: 0, pis: 0, cofins: 0, csll: 0, irrf: 0, seguridadeSocial: 0 });
+    const campos = ['valorNotas', 'baseRetencao', 'pis', 'cofins', 'csll', 'irrf', 'seguridadeSocial'];
+    const divergencias = totaisOficiais ? campos.filter(function(campo) {
+      return Math.abs(centavos(somas[campo]) - centavos(totaisOficiais[campo])) > 1;
+    }) : ['totais_oficiais_ausentes'];
+    const lancamentos = notasFiscais.reduce(function(todos, nota) {
+      return todos.concat(criarLancamentosDemonstrativoRetidosTomados(nota, periodo, metaEmpresa));
+    }, []);
+    const totalRetencoes = somas.pis + somas.cofins + somas.csll + somas.irrf + somas.seguridadeSocial;
+    return {
+      detectado: notasFiscais.length > 0,
+      banco_detectado: metaEmpresa.codigo,
+      nome_banco_detectado: metaEmpresa.nome || 'Retencoes de Servicos Tomados',
+      conta_detectada: 'IMPOSTOS_RETIDOS_SERVICOS_TOMADOS',
+      nome_conta_detectado: 'SAGE - Retencoes de Servicos Tomados',
+      cnpj_detectado: metaEmpresa.cnpj,
+      empresa_codigo_detectado: metaEmpresa.codigo,
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim,
+      total_credito: totalRetencoes,
+      total_debito: somas.valorNotas,
+      total_liquido: Math.round((somas.valorNotas - totalRetencoes) * 100) / 100,
+      total_notas_fiscais: notasFiscais.length,
+      total_lancamentos_fiscais: lancamentos.length,
+      direcao_fiscal: 'impostos_retidos_servicos_tomados',
+      total_oficial: totaisOficiais ? totaisOficiais.valorNotas : 0,
+      total_oficial_detectado: !!totaisOficiais,
+      totais_retencoes_calculados: somas,
+      totais_retencoes_oficiais: totaisOficiais,
+      total_divergente: divergencias.length > 0,
+      campos_totais_divergentes: divergencias,
+      lancamentos: lancamentos
+    };
+  }
+
+  function agruparItensPdfEmLinhas(items, rotacao) {
+    const giro = ((Number(rotacao || 0) % 360) + 360) % 360;
+    const usaEixoX = giro === 90 || giro === 270;
     const itens = (items || [])
       .map(function(item) {
         const t = item.transform || [1, 0, 0, 1, 0, 0];
@@ -691,6 +1377,11 @@
       })
       .filter(function(item) { return item.str; })
       .sort(function(a, b) {
+        if (usaEixoX) {
+          const ordemLinha = giro === 90 ? a.x - b.x : b.x - a.x;
+          if (Math.abs(ordemLinha) > 2) return ordemLinha;
+          return giro === 90 ? a.y - b.y : b.y - a.y;
+        }
         if (Math.abs(b.y - a.y) > 2) return b.y - a.y;
         return a.x - b.x;
       });
@@ -698,8 +1389,9 @@
     const linhas = [];
     for (const item of itens) {
       const ultima = linhas[linhas.length - 1];
-      if (!ultima || Math.abs(ultima.y - item.y) > 2) {
-        linhas.push({ y: item.y, parts: [item.str] });
+      const coordenada = usaEixoX ? item.x : item.y;
+      if (!ultima || Math.abs(ultima.coordenada - coordenada) > 2) {
+        linhas.push({ coordenada: coordenada, parts: [item.str] });
       } else {
         ultima.parts.push(item.str);
       }
@@ -713,14 +1405,14 @@
       throw new Error('PDF.js nao carregado para ler servicos tomados CLUDE.');
     }
 
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
     const paginas = [];
     const sequencia = [];
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
-      paginas.push(agruparItensPdfEmLinhas(content.items).join('\n'));
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
     }
     const agrupado = paginas.join('\n');
     const raw = sequencia.join('\n');
@@ -740,24 +1432,161 @@
       throw new Error('PDF.js nao carregado para ler servicos prestados IOB SAGE.');
     }
 
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
     const paginas = [];
     const sequencia = [];
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
-      paginas.push(agruparItensPdfEmLinhas(content.items).join('\n'));
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
     }
     const agrupado = paginas.join('\n');
     const raw = sequencia.join('\n');
     const combinado = agrupado + '\n' + raw;
     const totalOficial = extrairTotalOficial(raw) || extrairTotalOficial(agrupado) || extrairTotalOficial(combinado);
     return escolherResultadoPorTotalOficial([
-      parsearTexto_IOBSageServicosPrestados(raw),
       parsearTexto_IOBSageServicosPrestados(agrupado),
+      parsearTexto_IOBSageServicosPrestados(raw),
       parsearTexto_IOBSageServicosPrestados(combinado)
     ], totalOficial, 'credito');
+  }
+
+  async function parsearPDF_IOB_Sage_ServicosTomados(arrayBuffer) {
+    const pdfjs = root.pdfjsLib || (typeof pdfjsLib !== 'undefined' ? pdfjsLib : null);
+    if (!pdfjs || !pdfjs.getDocument) {
+      throw new Error('PDF.js nao carregado para ler servicos tomados IOB SAGE.');
+    }
+
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
+    const paginas = [];
+    const sequencia = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
+    }
+    const agrupado = paginas.join('\n');
+    const raw = sequencia.join('\n');
+    const combinado = agrupado + '\n' + raw;
+    const totalOficial = extrairTotalOficial(raw) || extrairTotalOficial(agrupado) || extrairTotalOficial(combinado);
+    return escolherResultadoPorTotalOficial([
+      parsearTexto_IOBSageServicosTomados(raw),
+      parsearTexto_IOBSageServicosTomados(agrupado),
+      parsearTexto_IOBSageServicosTomados(combinado)
+    ], totalOficial, 'debito');
+  }
+
+  async function parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos(arrayBuffer) {
+    const pdfjs = root.pdfjsLib || (typeof pdfjsLib !== 'undefined' ? pdfjsLib : null);
+    if (!pdfjs || !pdfjs.getDocument) {
+      throw new Error('PDF.js nao carregado para ler o Demonstrativo de Impostos Retidos da SAGE.');
+    }
+
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
+    const paginas = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
+    }
+    return parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos(paginas.join('\n'));
+  }
+
+  async function parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicosTomados(arrayBuffer) {
+    const pdfjs = root.pdfjsLib || (typeof pdfjsLib !== 'undefined' ? pdfjsLib : null);
+    if (!pdfjs || !pdfjs.getDocument) {
+      throw new Error('PDF.js nao carregado para ler as retencoes de servicos tomados da SAGE.');
+    }
+    const pdf = await pdfjs.getDocument({ data: copiarDadosPdf(arrayBuffer) }).promise;
+    const resultados = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const textoPagina = agruparItensPdfEmLinhas(content.items, page.rotate).join('\n');
+      resultados.push(parsearItensDemonstrativoRetidosServicosTomados(content.items, page.rotate, textoPagina));
+    }
+    const validos = resultados.filter(function(resultado) { return resultado && resultado.detectado; });
+    if (!validos.length) return { detectado: false, lancamentos: [] };
+    if (validos.length === 1) return validos[0];
+    const primeiro = validos[0];
+    const identidadeDivergente = validos.some(function(resultado) {
+      return somenteDigitos(resultado.cnpj_detectado) !== somenteDigitos(primeiro.cnpj_detectado) ||
+        resultado.periodo_inicio !== primeiro.periodo_inicio || resultado.periodo_fim !== primeiro.periodo_fim;
+    });
+    if (identidadeDivergente) {
+      throw new Error('O PDF contem paginas de empresas ou periodos diferentes. Separe os relatorios antes de importar.');
+    }
+    const campos = ['valorNotas', 'baseRetencao', 'pis', 'cofins', 'csll', 'irrf', 'seguridadeSocial'];
+    const somas = validos.reduce(function(acc, resultado) {
+      campos.forEach(function(campo) {
+        acc[campo] += Number((resultado.totais_retencoes_calculados || {})[campo] || 0);
+      });
+      return acc;
+    }, { valorNotas: 0, baseRetencao: 0, pis: 0, cofins: 0, csll: 0, irrf: 0, seguridadeSocial: 0 });
+    campos.forEach(function(campo) { somas[campo] = Math.round(somas[campo] * 100) / 100; });
+    const comTotalOficial = validos.filter(function(resultado) { return resultado.total_oficial_detectado; });
+    if (comTotalOficial.length !== 1) {
+      throw new Error('Nao foi possivel identificar um unico total oficial no relatorio de multiplas paginas.');
+    }
+    const totaisOficiais = comTotalOficial[0].totais_retencoes_oficiais;
+    const divergencias = campos.filter(function(campo) {
+      return Math.abs(centavos(somas[campo]) - centavos(totaisOficiais[campo])) > 1;
+    });
+    const lancamentos = validos.reduce(function(todos, resultado) {
+      return todos.concat(resultado.lancamentos || []);
+    }, []);
+    const totalRetencoes = somas.pis + somas.cofins + somas.csll + somas.irrf + somas.seguridadeSocial;
+    return Object.assign({}, primeiro, {
+      total_credito: Math.round(totalRetencoes * 100) / 100,
+      total_debito: somas.valorNotas,
+      total_liquido: Math.round((somas.valorNotas - totalRetencoes) * 100) / 100,
+      total_notas_fiscais: validos.reduce(function(total, resultado) { return total + Number(resultado.total_notas_fiscais || 0); }, 0),
+      total_lancamentos_fiscais: lancamentos.length,
+      total_oficial: totaisOficiais.valorNotas,
+      total_oficial_detectado: true,
+      totais_retencoes_calculados: somas,
+      totais_retencoes_oficiais: totaisOficiais,
+      total_divergente: divergencias.length > 0,
+      campos_totais_divergentes: divergencias,
+      lancamentos: lancamentos
+    });
+  }
+
+  function validarVinculoCnpjRelatorioFiscal(resultado, opts) {
+    opts = opts || {};
+    const cnpjAtivo = somenteDigitos(opts.cnpjEmpresaAtiva || '');
+    const cnpjArquivo = somenteDigitos(resultado && resultado.cnpj_detectado);
+    const movimentoEsperado = String(opts.movimento || '');
+    const movimentoDetectado = String((resultado && resultado.direcao_fiscal) || '');
+    if (!resultado || !resultado.detectado || !Array.isArray(resultado.lancamentos) || !resultado.lancamentos.length) {
+      throw new Error('O PDF nao foi reconhecido como relatorio E-Fiscal de servicos do modelo selecionado.');
+    }
+    if (movimentoEsperado && movimentoDetectado !== movimentoEsperado) {
+      throw new Error('O PDF e de ' + movimentoDetectado.replace(/_/g, ' ') + ', mas o modelo selecionado e de ' + movimentoEsperado.replace(/_/g, ' ') + '.');
+    }
+    if (!cnpjValido(cnpjAtivo)) {
+      throw new Error('A empresa ativa nao possui um CNPJ valido para liberar a importacao fiscal.');
+    }
+    if (!cnpjValido(cnpjArquivo)) {
+      throw new Error('Nao foi possivel extrair um CNPJ valido do cabecalho do relatorio E-Fiscal.');
+    }
+    if (cnpjArquivo !== cnpjAtivo) {
+      throw new Error('O CNPJ do relatorio (' + (resultado.cnpj_detectado || '-') + ') difere do CNPJ da empresa ativa. Selecione a empresa correta antes de importar.');
+    }
+    if (resultado.total_divergente === true) {
+      throw new Error('O total dos lancamentos diverge do total oficial impresso no PDF. A importacao permanece bloqueada.');
+    }
+    return {
+      valido: true,
+      cnpjEmpresaAtiva: cnpjAtivo,
+      cnpjArquivo,
+      codigoArquivo: resultado.empresa_codigo_detectado || '-',
+      chavesValidas: Number(resultado.total_notas_fiscais || resultado.lancamentos.length),
+      totalNotas: Number(resultado.total_notas_fiscais || resultado.lancamentos.length),
+      origem: 'cabecalho_relatorio_efiscal'
+    };
   }
 
   async function parsearPDF_Clude_AnaliseCreditos(arrayBuffer) {
@@ -769,23 +1598,38 @@
   }
 
   root.parsearTexto_CludeServicosTomados = parsearTexto_CludeServicosTomados;
+  root.parsearTexto_IOBSageServicosTomados = parsearTexto_IOBSageServicosTomados;
   root.parsearTexto_IOBSageServicosPrestados = parsearTexto_IOBSageServicosPrestados;
+  root.parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos = parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos;
   root.parsearPDF_Clude_ServicosTomados = parsearPDF_Clude_ServicosTomados;
   root.parsearPDF_Clude_AnaliseCreditos = parsearPDF_Clude_AnaliseCreditos;
   root.parsearPDF_Fiscal_AnaliseCreditosPISCOFINS = parsearPDF_Fiscal_AnaliseCreditosPISCOFINS;
   root.parsearPDF_IOB_Sage_ServicosPrestados = parsearPDF_IOB_Sage_ServicosPrestados;
+  root.parsearPDF_IOB_Sage_ServicosTomados = parsearPDF_IOB_Sage_ServicosTomados;
+  root.parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos = parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos;
+  root.parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicosTomados = parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicosTomados;
+  root.validarVinculoCnpjRelatorioFiscal = validarVinculoCnpjRelatorioFiscal;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       parsearTexto_CludeServicosTomados,
+      parsearTexto_IOBSageServicosTomados,
       parsearTexto_IOBSageServicosPrestados,
+      parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos,
       parsearPDF_Clude_ServicosTomados,
       parsearPDF_Clude_AnaliseCreditos,
       parsearPDF_Fiscal_AnaliseCreditosPISCOFINS,
       parsearPDF_IOB_Sage_ServicosPrestados,
+      parsearPDF_IOB_Sage_ServicosTomados,
+      parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicos,
+      parsearPDF_IOB_Sage_DemonstrativoImpostosRetidosServicosTomados,
+      validarVinculoCnpjRelatorioFiscal,
       __test__: {
         parsearTexto_CludeServicosTomados,
+        parsearTexto_IOBSageServicosTomados,
         parsearTexto_IOBSageServicosPrestados,
+        parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos,
+        parsearItensDemonstrativoRetidosServicosTomados,
         escolherResultadoPorTotalOficial,
         somaAbsolutaLancamentos
       }

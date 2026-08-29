@@ -41,6 +41,13 @@ gcloud run deploy "$SERVICE" \
   --platform managed \
   --quiet
 
+gcloud run services update-traffic "$SERVICE" \
+  --project "$PROJECT_ID" \
+  --region "$REGION" \
+  --platform managed \
+  --to-latest \
+  --quiet
+
 expected_version="$(node -p "require('./version.json').version")"
 published_version=""
 for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do

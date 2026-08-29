@@ -1,16 +1,9 @@
 {
-  "version": "3.4.125",
-  "build_date": "2026-08-17T19:03:02Z",
+  "version": "3.4.196",
+  "build_date": "2026-08-29T15:38:27Z",
   "release_notes": [
-    "R-2010: a base do prestador tem onde ser informada — o INSS destravou",
-    "R-2099 calibrado contra o arquivo ACEITO — a trava pagou o que prometia (v3.4.112)",
-    "R-2099: o fechamento que faltava — esqueleto provado, infoFech como HIPÓTESE (v3.4.111) (#55)",
-    "R-2099: o fechamento que faltava — esqueleto provado, infoFech como HIPOTESE (v3.4.110)",
-    "R-2010: fecha o ciclo — o primeiro deixa de decidir pelos outros (v3.4.109) (#54)",
-    "R-2010: fecha o ciclo — o primeiro deixa de decidir pelos outros (v3.4.109)",
-    "Deploy que falha vira issue — o furo que passou batido duas vezes ontem (#53)",
-    "Deploy que falha vira issue — o furo que passou batido duas vezes ontem",
-    "R-2010: a tela que faltava — serviços tomados com retenção previdenciária (v3.4.108) (#52)",
-    "Bump de versão passa a propagar sozinho — dois deploys caíram por isso (v3.4.107) (#51)"
+    "security: remover vulnerabilidades crítica e alta da geração de PDFs",
+    "release: reconciliar a linha publicada com a main sem perda funcional",
+    "fix: preservar a próxima digitação enquanto o lançamento anterior é salvo"
   ]
 }

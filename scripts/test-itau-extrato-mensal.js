@@ -24,6 +24,41 @@ function linhaOCR(y, partes) {
   });
 }
 
+function linhaOCRPosicional(y, partes) {
+  return partes.map(([text, x]) => palavra(text, x, y, x + Math.max(18, String(text).length * 7), y + 12));
+}
+
+function testarOCRImagemLancamentosPeriodo() {
+  const words = [
+    ...linhaOCRPosicional(20, [['Agência:', 80], ['0534', 145]]),
+    ...linhaOCRPosicional(40, [['Conta:', 80], ['0043579-7', 145]]),
+    ...linhaOCRPosicional(60, [['Lançamentos', 80]]),
+    ...linhaOCRPosicional(80, [['Periodo:', 80], ['01/05/2026', 145], ['até', 225], ['31/05/2026', 255]]),
+    ...linhaOCRPosicional(100, [['Data', 70], ['Lançamento', 130], ['Razão Social', 220], ['CPEICNPJ', 315], ['Valor (R$)', 410], ['Saldo (R$)', 500]]),
+    ...linhaOCRPosicional(120, [['30/04/2026', 70], ['SALDO ANTERIOR', 150], ['65,12', 510]]),
+    ...linhaOCRPosicional(140, [['04/05/2026', 70], ['PIX RECEBIDO CLIENTE', 150], ['600,00', 430]]),
+    ...linhaOCRPosicional(160, [['04/05/2026', 70], ['SALDO TOTAL DISPONÍVEL DIA', 150], ['66512', 510]]),
+    ...linhaOCRPosicional(180, [['05/05/2026', 70], ['PIX ENVIADO FORNECEDOR', 150], ['=100,00', 430]]),
+    ...linhaOCRPosicional(200, [['05/05/2026', 70], ['RENDIMENTOS', 150], ['0,01', 430]]),
+    ...linhaOCRPosicional(220, [['05/05/2026', 70], ['SALDO TOTAL DISPONÍVEL DIA', 150], ['56513', 510]]),
+    ...linhaOCRPosicional(240, [['06/05/2026', 70], ['RECEBIMENTO REDE', 150], ['27177', 430]]),
+    ...linhaOCRPosicional(260, [['06/05/2026', 70], ['SALDO TOTAL DISPONÍVEL DIA', 150], ['83690', 510]])
+  ];
+  const lines = itau.__test__.linhasDePalavrasOCR(words, 1, 595);
+  const textoCompleto = lines.map((l) => l.text).join('\n');
+  const resultado = itau.__test__.parseItauLancamentosPeriodo(lines, textoCompleto);
+
+  assert.ok(resultado && resultado.detectado, 'OCR deve tolerar CPF/CNPJ reconhecido como CPEICNPJ');
+  assert.strictEqual(resultado.lancamentos.length, 4);
+  assert.strictEqual(Number(resultado.total_credito.toFixed(2)), 871.78);
+  assert.strictEqual(Number(resultado.total_debito.toFixed(2)), 100.00);
+  assert.strictEqual(resultado.saldo_anterior, 65.12);
+  assert.strictEqual(resultado.saldo_final, 836.90);
+  assert.strictEqual(resultado.saldos_conciliados, true);
+  assert.ok(resultado.lancamentos.some((l) => l.valor === -100), 'sinal = do OCR deve ser recuperado como débito na coluna de valor');
+  assert.ok(resultado.lancamentos.some((l) => l.valor === 271.77), 'vírgula apagada pelo OCR deve ser recuperada apenas na coluna monetária');
+}
+
 function testarOCRPosicionalPeriodo() {
   const words = [
     ...linhaOCR(20, ['LANCHONETE JO BRAS LTDA', 'CNPJ', '58.579.529/0001-91']),
@@ -48,6 +83,46 @@ function testarOCRPosicionalPeriodo() {
 
 async function main() {
   testarOCRPosicionalPeriodo();
+  testarOCRImagemLancamentosPeriodo();
+
+  const maioImagem = '/Users/paulocesarpereirajunior/Downloads/E - Extrato Itaú Maio 2026.pdf';
+  assert.ok(fs.existsSync(maioImagem), `Arquivo de regressao nao encontrado: ${maioImagem}`);
+  const bufferMaioImagem = fs.readFileSync(maioImagem);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferMaioImagem).digest('hex'),
+    '429e3856b3b9c540019094df985380e5de2de6268aa3388ff0c1b262b5ba82e6',
+    'fixture Itau maio/2026 em imagem deve ser o PDF real validado'
+  );
+  const parserSource = fs.readFileSync(path.join(__dirname, '..', 'parser-itau-extrato-mensal.js'), 'utf8');
+  const indexSource = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert.ok(parserSource.includes('pdf.numPages <= 3 ? [2.8, 4.0] : [2.8]'), 'OCR Itaú curto deve repetir em alta resolução quando a conciliação falhar');
+  assert.ok(indexSource.includes("['237', '341'].includes(normalizarCodigoBancoLayout(bancoResolvido))"), 'PDF Itaú identificado não pode cair no Gemini após falha de integridade');
+  assert.ok(indexSource.includes("processPDFComLayoutDoBanco(buf, bancoResolvido, f.name, 'parsearPDF_Itau_LancamentosPeriodo')"), 'PDF Itaú em imagem deve priorizar o layout Lançamentos por Período');
+  assert.ok(indexSource.includes('O serviço de IA está temporariamente indisponível.'), 'erro técnico de cobrança do provedor não deve ser exposto ao colaborador');
+
+  const lancamentosPeriodo = '/Users/paulocesarpereirajunior/Downloads/E - EXTRATO ITAÚ ABRIL 2026 (1).pdf';
+  assert.ok(fs.existsSync(lancamentosPeriodo), `Arquivo de regressao nao encontrado: ${lancamentosPeriodo}`);
+  const bufferLancamentosPeriodo = fs.readFileSync(lancamentosPeriodo);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferLancamentosPeriodo).digest('hex'),
+    '0c2563ebec27496f5954ea854ba42d52bc4904e573b6efb6523933d7ebc61903',
+    'fixture Itau Lancamentos por Periodo deve ser o PDF real validado'
+  );
+  const periodoNovo = await itau.parsearPDF_Itau_LancamentosPeriodo(new Uint8Array(bufferLancamentosPeriodo));
+  assert.strictEqual(periodoNovo.detectado, true);
+  assert.strictEqual(periodoNovo.periodo_inicio, '2026-04-01');
+  assert.strictEqual(periodoNovo.periodo_fim, '2026-04-30');
+  assert.strictEqual(periodoNovo.conta_detectada, 'AG-0534/CC-0043579-7');
+  assert.strictEqual(periodoNovo.lancamentos.length, 65);
+  assert.strictEqual(Number(periodoNovo.total_credito.toFixed(2)), 345629.11);
+  assert.strictEqual(Number(periodoNovo.total_debito.toFixed(2)), 346100.00);
+  assert.strictEqual(periodoNovo.saldo_anterior, 536.01);
+  assert.strictEqual(periodoNovo.saldo_final, 65.12);
+  assert.strictEqual(periodoNovo.saldos_conciliados, true);
+  assert.strictEqual(periodoNovo.lancamentos.filter(l => l.data === '2026-04-06' && l.valor === 5).length, 2, 'movimentos repetidos legitimos devem ser preservados');
+  assert.ok(periodoNovo.lancamentos.some(l => l.valor === 300000), 'credito de R$ 300.000,00 deve ser importado');
+  assert.ok(periodoNovo.lancamentos.some(l => l.valor === -300000), 'aplicacao de R$ 300.000,00 deve ser importada');
+  assert.ok(!periodoNovo.lancamentos.some(l => /SALDO/i.test(l.descricao)), 'saldos nao podem virar lancamentos');
 
   const arquivo = '/Users/paulocesarpereirajunior/Downloads/itau abril 26 3.pdf';
   assert.ok(fs.existsSync(arquivo), `Arquivo de regressao nao encontrado: ${arquivo}`);

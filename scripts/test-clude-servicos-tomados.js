@@ -1,9 +1,14 @@
 const assert = require('assert');
+const crypto = require('crypto');
 const fs = require('fs');
 const pdf = require('pdf-parse');
+global.pdfjsLib = require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js');
 const {
   parsearTexto_CludeServicosTomados,
+  parsearTexto_IOBSageServicosTomados,
   parsearTexto_IOBSageServicosPrestados,
+  parsearPDF_IOB_Sage_ServicosPrestados,
+  parsearPDF_IOB_Sage_ServicosTomados,
   __test__
 } = require('../parser-clude-servicos-tomados');
 
@@ -11,12 +16,32 @@ const arquivo = '/Users/paulocesarpereirajunior/Downloads/733 serviços tomados
 const arquivoAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/733  CLUDE SERV. TOMADOS ABRIL.pdf';
 const arquivoDaxxAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/1183 - SERVIÇOS TOMADOS 042026.pdf';
 const arquivoDaxxServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/1183 - SERV.  PRESTADOS 04.2026 FISCAL 1.pdf';
+const arquivoSinteseServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/SERVIÇOS PRESTADOS 06.2026.pdf';
+const arquivoDaxxTotalPass = '/Users/paulocesarpereirajunior/Downloads/Serviços prestados 07.2026.pdf';
+const arquivoDiegoTomadosMarco = '/tmp/codex-remote-attachments/01a03857-ccca-7311-92e3-8ea9cdcf0b8f/C24A510B-3AF4-4244-AE98-D6254FA52C85/2-DIEGO-BOMFIM-tomados-mes-03.pdf';
+const hashDiegoTomadosMarco = '4d40224cefbe879a8761d1ff6d5298f018c5243a066486a0a2686682d5f5ed48';
 
 function money(n) {
   return Math.round(Number(n || 0) * 100) / 100;
 }
 
 (async () => {
+  const textoSeriesDistintas = `
+Empresa: 1273 - DIEGO BOMFIM FREIRE
+C.N.P.J.: 31.162.727/0001-07
+Periodo: 01/03/2026 a 31/03/2026
+Relacao de NFs de Servicos Tomados
+Emissao Numero Serie C.I CNPJ/CPF Razao Social Valor da NF Base de Calculo Aliquota Valor do ISS Iss Retido
+18/03/2026 000000004 001 58.149.103/0001-06 GIOVANNA ANDREOTTI SMIT 1.933,11 0,00 0,00 0,00 0,00
+18/03/2026 000000004 1 001 58.149.103/0001-06 GIOVANNA ANDREOTTI SMIT 1.933,11 0,00 0,00 0,00 0,00
+Total 3.866,22 0,00 0,00 0,00
+`;
+  const resultadoSeriesDistintas = parsearTexto_IOBSageServicosTomados(textoSeriesDistintas);
+  assert.strictEqual(resultadoSeriesDistintas.lancamentos.length, 2, 'mesma NF em series distintas nao e duplicidade');
+  assert.strictEqual(money(resultadoSeriesDistintas.total_debito), 3866.22);
+  assert.strictEqual(resultadoSeriesDistintas.total_divergente, false);
+  assert.deepStrictEqual(resultadoSeriesDistintas.lancamentos.map(l => l.serieSubserie).sort(), ['', '1']);
+
   if (!fs.existsSync(arquivo)) {
     console.log('SKIP: arquivo de servicos tomados CLUDE nao encontrado localmente.');
     return;
@@ -99,6 +124,72 @@ function money(n) {
     assert.ok(resultadoPrestados.lancamentos.some(l => l.codigo_servico === '2496'), 'codigo de servico deve ser preservado');
     assert.ok(resultadoPrestados.lancamentos.every(l => l.historico === 'SERVICOS PRESTADOS'), 'historico padrao deve vir preenchido para parametrizacao');
   }
+
+  assert.ok(fs.existsSync(arquivoSinteseServicosPrestados), 'fixture real da SINTESE com ISS retido deve existir');
+  const bufferSintese = fs.readFileSync(arquivoSinteseServicosPrestados);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferSintese).digest('hex'),
+    'f72c7b25252ac605efdba151dd30ef8280a069adac460525ecf315eaeca9f50a',
+    'fixture da SINTESE deve ser o PDF real validado'
+  );
+  const resultadoSintese = await parsearPDF_IOB_Sage_ServicosPrestados(new Uint8Array(bufferSintese));
+  assert.strictEqual(resultadoSintese.detectado, true);
+  assert.strictEqual(resultadoSintese.cnpj_detectado, '02.986.671/0001-07');
+  assert.strictEqual(resultadoSintese.periodo_inicio, '2026-06-01');
+  assert.strictEqual(resultadoSintese.periodo_fim, '2026-06-30');
+  assert.strictEqual(resultadoSintese.total_notas_fiscais, 19);
+  assert.strictEqual(resultadoSintese.total_lancamentos_fiscais, 20);
+  assert.strictEqual(money(resultadoSintese.total_credito), 283994.17);
+  assert.strictEqual(money(resultadoSintese.total_debito), 1875.52);
+  assert.strictEqual(money(resultadoSintese.total_liquido), 282118.65);
+  assert.strictEqual(resultadoSintese.total_divergente, false);
+  const nota7698 = resultadoSintese.lancamentos.filter(l => l.documento === '7698');
+  assert.strictEqual(nota7698.length, 2, 'NF 7698 deve gerar valor bruto e linha propria de ISS retido');
+  const bruto7698 = nota7698.find(l => l.componenteFiscal !== 'IMPOSTO_RETIDO');
+  const iss7698 = nota7698.find(l => l.tributoRetido === 'ISS');
+  assert.ok(bruto7698 && iss7698, 'valor bruto e ISS retido devem permanecer vinculados a mesma NF');
+  assert.strictEqual(money(bruto7698.baseCalculoIss), 37510.49);
+  assert.strictEqual(money(bruto7698.aliquotaIss), 5);
+  assert.strictEqual(money(bruto7698.valorIss), 1875.52);
+  assert.strictEqual(money(bruto7698.issRetido), 1875.52);
+  assert.strictEqual(money(iss7698.valor), -1875.52);
+  assert.strictEqual(money(iss7698.valorTributoRetido), 1875.52);
+  assert.strictEqual(iss7698.cnpj_tomador, '11.300.963/0001-27');
+
+  assert.ok(fs.existsSync(arquivoDaxxTotalPass), 'fixture real DAXX julho/2026 deve existir');
+  const bufferDaxxTotalPass = fs.readFileSync(arquivoDaxxTotalPass);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferDaxxTotalPass).digest('hex'),
+    'd8e9c374f10d6bb97eac8f5c3c57611afa7362f41acae479fa08ace3d0f203aa',
+    'fixture DAXX TOTAL PASS deve ser o PDF real validado'
+  );
+  const resultadoDaxxTotalPass = await parsearPDF_IOB_Sage_ServicosPrestados(new Uint8Array(bufferDaxxTotalPass));
+  assert.strictEqual(resultadoDaxxTotalPass.detectado, true);
+  assert.strictEqual(resultadoDaxxTotalPass.cnpj_detectado, '60.527.879/0001-56');
+  assert.strictEqual(resultadoDaxxTotalPass.total_notas_fiscais, 64);
+  assert.strictEqual(money(resultadoDaxxTotalPass.total_credito), 8647374.14);
+  assert.strictEqual(resultadoDaxxTotalPass.total_divergente, false);
+  assert.ok(resultadoDaxxTotalPass.lancamentos.some(l => l.documento === '378' && money(l.valor) === 22328.17), 'NF 378 da TOTAL PASS deve ser preservada');
+  assert.ok(resultadoDaxxTotalPass.lancamentos.some(l => l.documento === '416' && money(l.valor) === 17879.28), 'NF 416 da TOTAL PASS deve ser preservada');
+
+  assert.ok(fs.existsSync(arquivoDiegoTomadosMarco), 'fixture real DIEGO BOMFIM servicos tomados deve existir');
+  const bufferDiegoTomadosMarco = fs.readFileSync(arquivoDiegoTomadosMarco);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(bufferDiegoTomadosMarco).digest('hex'),
+    hashDiegoTomadosMarco,
+    'fixture DIEGO BOMFIM deve ser o PDF real validado'
+  );
+  const resultadoDiegoTomadosMarco = await parsearPDF_IOB_Sage_ServicosTomados(new Uint8Array(bufferDiegoTomadosMarco));
+  assert.strictEqual(resultadoDiegoTomadosMarco.detectado, true);
+  assert.strictEqual(resultadoDiegoTomadosMarco.cnpj_detectado, '31.162.727/0001-07');
+  assert.strictEqual(resultadoDiegoTomadosMarco.periodo_inicio, '2026-03-01');
+  assert.strictEqual(resultadoDiegoTomadosMarco.periodo_fim, '2026-03-31');
+  assert.strictEqual(money(resultadoDiegoTomadosMarco.total_debito), 701673.53);
+  assert.strictEqual(money(resultadoDiegoTomadosMarco.total_oficial), 701673.53);
+  assert.strictEqual(resultadoDiegoTomadosMarco.total_divergente, false);
+  const notas4 = resultadoDiegoTomadosMarco.lancamentos.filter(l => l.documento === '4' && l.cnpj_fornecedor === '58.149.103/0001-06');
+  assert.strictEqual(notas4.length, 2, 'NF 4 com series distintas deve gerar dois documentos fiscais');
+  assert.deepStrictEqual(notas4.map(l => l.serieSubserie).sort(), ['', '1']);
 
   const textoDaxxVisualPdfjs = `
 Office Fiscal

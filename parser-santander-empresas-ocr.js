@@ -520,7 +520,6 @@
     let inMov = false;
     let aguardandoMovimentacao = false;
     let stopMov = false;
-    let currentDate = '';
 
     const linhas = textoCompleto
       .split(/\r?\n/)
@@ -566,55 +565,76 @@
       }
 
       const data = dataNoInicio(linha, ref);
-      if (data) currentDate = data.iso;
-      const restLinha = data ? data.rest : linha;
-      if (!currentDate) continue;
-      if (ref.fim && currentDate > ref.fim) continue;
-      const mov = extrairMovimentoSantander(restLinha);
-      if (!mov) continue;
+      if (!data) continue;
+      if (ref.fim && data.iso > ref.fim) continue;
 
-      let descBase = restLinha.slice(0, mov.index).replace(/\d{4,12}\s*$/, '').trim();
-      const extras = [];
-      for (let j = i + 1; j < Math.min(i + 4, linhas.length); j++) {
-        const prox = linhas[j];
+      // O PDF.js pode entregar cada registro em tres partes: data/descricao,
+      // valor/saldo e complemento. A data seguinte e sempre uma fronteira de
+      // registro, mesmo quando o valor dela veio em outra linha. O look-ahead
+      // antigo atravessava essa fronteira e deslocava todos os historicos.
+      const bloco = [data.rest];
+      let proximoIndice = i + 1;
+      for (; proximoIndice < linhas.length; proximoIndice++) {
+        const prox = linhas[proximoIndice];
         if (/^(Saldos por Periodo|Compras com Cartao|Comprovantes de Pagamento|Transferencias entre Contas|SALDO EM)/i.test(prox)) break;
-        const proxData = dataNoInicio(prox, ref);
-        const proxValores = extrairMovimentoSantander(proxData ? proxData.rest : prox);
-        if (proxData && proxValores) break;
+        if (dataNoInicio(prox, ref)) break;
         if (/(Santander Empresas|EXTRATO CONSOLIDADO)|^(janeiro\/|fevereiro\/|marco\/|abril\/|maio\/|junho\/|julho\/|agosto\/|setembro\/|outubro\/|novembro\/|dezembro\/|Data Descricao|Creditos Debitos|Pagina:)/i.test(prox)) continue;
-        if (!proxValores && !/^Pagina:/i.test(prox)) {
-          extras.push((proxData ? proxData.rest : prox).replace(/^\d{2}\/\d{2}\s+/, '').trim());
-        }
+        bloco.push(prox);
       }
-      let descricao = limparDescricao([descBase].concat(extras).filter(Boolean).join(' - '));
-      if (!descricao || /^-+$/.test(descricao)) descricao = 'Lancamento Santander';
+      i = proximoIndice - 1;
 
-      const rawMovimento = String(mov.raw || '');
-      const tipo = isInternetBankingOCRNumerico
-        ? ((/^-/.test(rawMovimento) || /-$/.test(rawMovimento)) ? 'D' : tipoPorDescricao(descricao, rawMovimento))
-        : tipoPorSinalSantanderEmpresas(rawMovimento);
-      const valor = tipo === 'D' ? -Math.abs(mov.valor) : Math.abs(mov.valor);
-      if (!valor) continue;
+      const encontradosNoBloco = [];
+      let descricaoPendente = [];
+      let ultimoEncontrado = null;
+      bloco.forEach(function(parte) {
+        const textoParte = String(parte || '').trim();
+        if (!textoParte) return;
+        const mov = extrairMovimentoSantander(textoParte);
+        if (!mov) {
+          const complemento = textoParte.replace(/^\d{2}\/\d{2}\s+/, '').trim();
+          if (!complemento) return;
+          if (ultimoEncontrado) ultimoEncontrado.complementos.push(complemento);
+          else descricaoPendente.push(complemento);
+          return;
+        }
 
-      const chave = [currentDate, descricao.toLowerCase(), Math.abs(valor).toFixed(2), tipo].join('|');
-      if (vistos.has(chave)) continue;
-      vistos.add(chave);
+        const antesValor = textoParte.slice(0, mov.index).replace(/\d{4,14}\s*$/, '').trim();
+        const partesDescricao = descricaoPendente.slice();
+        if (antesValor) partesDescricao.push(antesValor);
+        const encontrado = { mov: mov, partes: partesDescricao, complementos: [] };
+        encontradosNoBloco.push(encontrado);
+        ultimoEncontrado = encontrado;
+        descricaoPendente = [];
+      });
 
-      lancamentos.push({
-        id: uuid(),
-        data: currentDate,
-        descricao: descricao,
-        documento: '',
-        valor: valor,
-        tipo: tipo,
-        empresa: '',
-        cnpj: '',
-        categoria: 'Nao categorizado',
-        contaDebito: '',
-        contaCredito: '',
-        historico: descricao,
-        incomum: false,
-        origem: isInternetBankingOCRNumerico ? 'pdf-santander-internet-banking' : 'pdf-santander-empresas-ocr'
+      encontradosNoBloco.forEach(function(encontrado) {
+        let descricao = limparDescricao(encontrado.partes.concat(encontrado.complementos).filter(Boolean).join(' - '));
+        if (!descricao || /^-+$/.test(descricao)) descricao = 'Lancamento Santander';
+        const rawMovimento = String(encontrado.mov.raw || '');
+        const tipo = isInternetBankingOCRNumerico
+          ? ((/^-/.test(rawMovimento) || /-$/.test(rawMovimento)) ? 'D' : tipoPorDescricao(descricao, rawMovimento))
+          : tipoPorSinalSantanderEmpresas(rawMovimento);
+        const valor = tipo === 'D' ? -Math.abs(encontrado.mov.valor) : Math.abs(encontrado.mov.valor);
+        if (!valor) return;
+        const chave = [data.iso, descricao.toLowerCase(), Math.abs(valor).toFixed(2), tipo].join('|');
+        if (vistos.has(chave)) return;
+        vistos.add(chave);
+        lancamentos.push({
+          id: uuid(),
+          data: data.iso,
+          descricao: descricao,
+          documento: '',
+          valor: valor,
+          tipo: tipo,
+          empresa: '',
+          cnpj: '',
+          categoria: 'Nao categorizado',
+          contaDebito: '',
+          contaCredito: '',
+          historico: descricao,
+          incomum: false,
+          origem: isInternetBankingOCRNumerico ? 'pdf-santander-internet-banking' : 'pdf-santander-empresas-ocr'
+        });
       });
     }
 

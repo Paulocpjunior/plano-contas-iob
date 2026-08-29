@@ -1,0 +1,4 @@
+empresa_cnpj,codigo_empresa_sage,tipo_registro,codigo_sage,descricao_sage,codigo_cci,descricao_cci,natureza,centro_custo_sage,centro_custo_cci,vigencia_inicio,status,observacao
+EXEMPLO_NAO_IMPORTAR,0001,CONTA,1.1.01.001,Banco conta movimento,111,Banco conta movimento,DEVEDORA,,,2026-01-01,PENDENTE,Substituir pelos dados reais e validar com o responsável contábil
+EXEMPLO_NAO_IMPORTAR,0001,HISTORICO,001,Pagamento de fornecedor,001,Pagamento de fornecedor,,,,2026-01-01,PENDENTE,Exemplo de histórico; não importar
+EXEMPLO_NAO_IMPORTAR,0001,CENTRO_CUSTO,ADM,Administrativo,ADM,Administrativo,,,,2026-01-01,PENDENTE,Exemplo de centro de custo; não importar

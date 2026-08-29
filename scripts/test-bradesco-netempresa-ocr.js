@@ -102,7 +102,7 @@ assert.throws(function() {
 
 const indexSource = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 assert(
-  indexSource.includes("if (pdfEscaneado && normalizarCodigoBancoLayout(bancoResolvido) === '237') throw e;"),
+  indexSource.includes("if (pdfEscaneado && ['237', '341'].includes(normalizarCodigoBancoLayout(bancoResolvido))) throw e;"),
   'Bradesco escaneado nao pode cair no leitor generico depois de uma falha de integridade.'
 );
 assert(

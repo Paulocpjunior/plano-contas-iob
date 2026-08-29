@@ -37,6 +37,11 @@ assert(conciliacao.includes('data-theme-toggle'), 'A conciliacao deve oferecer C
 assert(theme.includes("const STORAGE_KEY = 'sp_saas_theme'"), 'Todos os modulos devem compartilhar a mesma preferencia.');
 assert(theme.includes("document.documentElement.classList.toggle('dark'"), 'O tema compartilhado deve ser compativel com o AuditAI.');
 assert(theme.includes('syncCharts(next)'), 'Graficos precisam acompanhar o tema selecionado.');
+assert(!theme.includes('possibleIcon.replaceWith('), 'O tema nao pode substituir nos controlados pelo React do AuditAI.');
+assert(!theme.includes('brandRow.insertBefore('), 'O tema nao pode inserir filhos dentro do cabecalho controlado pelo React.');
+assert(!theme.includes('possibleIcon.classList.add'), 'O tema nao pode aplicar o logo a um ancestral indeterminado do AuditAI.');
+assert(!audit.includes('.sp-official-logo-runtime svg'), 'O AuditAI nao pode ocultar ou redimensionar o SVG controlado pelo React.');
+assert(theme.includes("mutation.type === 'childList'"), 'O aprimoramento visual do AuditAI deve ser agendado apenas para mudancas estruturais.');
 assert(!index.includes('<div class="header-logo">📊'), 'O cabecalho nao deve voltar ao emoji antigo.');
 
 console.log('OK: logo oficial e temas Claro/Escuro padronizados em todos os modulos.');

@@ -65,8 +65,99 @@ function arredondar(valor) {
   return Math.round((numero(valor) + Number.EPSILON) * 100) / 100;
 }
 
-function montarPreviaExclusao(entries, dataInicial, dataFinal) {
-  const periodo = validarPeriodo(dataInicial, dataFinal);
+function normalizarInteiroFiltro(valor, rotulo) {
+  const texto = String(valor == null ? '' : valor).trim();
+  if (!texto) return null;
+  if (!/^\d+$/.test(texto) || Number(texto) < 1) throw new Error(rotulo + ' deve ser um número inteiro positivo.');
+  return Number(texto);
+}
+
+function normalizarConta(valor) {
+  const texto = String(valor == null ? '' : valor).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!texto) return '';
+  return /^\d+$/.test(texto) ? texto.replace(/^0+(?=\d)/, '') : texto;
+}
+
+function normalizarTexto(valor) {
+  return String(valor == null ? '' : valor)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase().replace(/\s+/g, ' ').trim();
+}
+
+function normalizarValorFiltro(valor) {
+  const texto = String(valor == null ? '' : valor).trim();
+  if (!texto) return null;
+  const limpo = texto.replace(/R\$/gi, '').replace(/\s/g, '');
+  const decimal = limpo.includes(',') ? limpo.replace(/\./g, '').replace(',', '.') : limpo;
+  const n = Number(decimal);
+  if (!Number.isFinite(n) || n < 0) throw new Error('Valor deve ser um número válido maior ou igual a zero.');
+  return arredondar(Math.abs(n));
+}
+
+function tipoMovimentoLancamento(item) {
+  const lancamento = item || {};
+  const origem = normalizarTexto(lancamento.origem);
+  const banco = normalizarTexto(lancamento.bancoId || lancamento.bancoNome);
+  const tipoFiscal = normalizarTexto(lancamento.tipoDocumentoFiscal || lancamento.direcaoFiscal);
+  const layout = normalizarTexto(lancamento.layoutParser || lancamento.layoutNome);
+  if (origem === 'SAGE-FOLHA-FPIMP' || banco === 'FOLHA') return 'folha';
+  if (tipoFiscal || /FISCAL|REGISTRO DE ENTRADAS|REGISTRO DE SAIDAS|SERVICO TOMADO|SERVICO PRESTADO/.test(origem + ' ' + layout)) return 'fiscal';
+  if (origem === 'MANUAL' || lancamento.criadoManualEm) return 'manual';
+  return 'bancaria';
+}
+
+function normalizarFiltrosExclusao(filtrosOuDataInicial, dataFinalLegada) {
+  const entrada = filtrosOuDataInicial && typeof filtrosOuDataInicial === 'object'
+    ? filtrosOuDataInicial
+    : { dataInicial: filtrosOuDataInicial, dataFinal: dataFinalLegada };
+  const periodo = validarPeriodo(entrada.dataInicial, entrada.dataFinal);
+  const tiposPermitidos = new Set(['todos', 'bancaria', 'fiscal', 'folha', 'manual']);
+  const tipoMovimento = String(entrada.tipoMovimento || 'todos').trim().toLowerCase();
+  if (!tiposPermitidos.has(tipoMovimento)) throw new Error('Tipo do movimento inválido.');
+  const lancamentoInicial = normalizarInteiroFiltro(entrada.lancamentoInicial, 'Lançamento inicial');
+  const lancamentoFinal = normalizarInteiroFiltro(entrada.lancamentoFinal, 'Lançamento final');
+  if (lancamentoInicial !== null && lancamentoFinal !== null && lancamentoInicial > lancamentoFinal) {
+    throw new Error('O lançamento inicial não pode ser maior que o lançamento final.');
+  }
+  return {
+    dataInicial: periodo.inicio,
+    dataFinal: periodo.fim,
+    tipoMovimento,
+    lancamentoInicial,
+    lancamentoFinal,
+    conta: normalizarConta(entrada.conta),
+    historico: normalizarTexto(entrada.historico).slice(0, 160),
+    valor: normalizarValorFiltro(entrada.valor),
+  };
+}
+
+function lancamentoCorrespondeFiltros(item, filtros, dataNormalizada) {
+  const data = dataNormalizada || normalizarDataLancamento(item && item.data);
+  if (!data || data < filtros.dataInicial || data > filtros.dataFinal) return false;
+  if (filtros.tipoMovimento !== 'todos' && tipoMovimentoLancamento(item) !== filtros.tipoMovimento) return false;
+  const numeroLancamento = Number(item && item.numeroLancamento);
+  if (filtros.lancamentoInicial !== null && (!Number.isFinite(numeroLancamento) || numeroLancamento < filtros.lancamentoInicial)) return false;
+  if (filtros.lancamentoFinal !== null && (!Number.isFinite(numeroLancamento) || numeroLancamento > filtros.lancamentoFinal)) return false;
+  if (filtros.conta) {
+    const debito = normalizarConta(item && item.contaDebito);
+    const credito = normalizarConta(item && item.contaCredito);
+    if (debito !== filtros.conta && credito !== filtros.conta) return false;
+  }
+  if (filtros.historico) {
+    const texto = normalizarTexto([
+      item && item.codigoHistorico,
+      item && item.historico,
+      item && item.historicoPadraoDescricao,
+      item && item.descricao,
+    ].filter(Boolean).join(' '));
+    if (!texto.includes(filtros.historico)) return false;
+  }
+  if (filtros.valor !== null && Math.round(Math.abs(numero(item && item.valor)) * 100) !== Math.round(filtros.valor * 100)) return false;
+  return true;
+}
+
+function montarPreviaExclusao(entries, filtrosOuDataInicial, dataFinalLegada) {
+  const filtros = normalizarFiltrosExclusao(filtrosOuDataInicial, dataFinalLegada);
   const lista = Array.isArray(entries) ? entries : [];
   const totaisImportacao = new Map();
   lista.forEach(item => {
@@ -82,7 +173,7 @@ function montarPreviaExclusao(entries, dataInicial, dataFinal) {
       datasInvalidas++;
       return;
     }
-    if (data < periodo.inicio || data > periodo.fim) return;
+    if (!lancamentoCorrespondeFiltros(item, filtros, data)) return;
     const chave = chaveImportacao(item);
     if (!grupos.has(chave)) {
       grupos.set(chave, {
@@ -119,8 +210,9 @@ function montarPreviaExclusao(entries, dataInicial, dataFinal) {
     .sort((a, b) => a.dataInicial.localeCompare(b.dataInicial) || a.titulo.localeCompare(b.titulo));
 
   return {
-    dataInicial: periodo.inicio,
-    dataFinal: periodo.fim,
+    dataInicial: filtros.dataInicial,
+    dataFinal: filtros.dataFinal,
+    filtros,
     totalSessao: lista.length,
     totalPeriodo: importacoes.reduce((s, grupo) => s + grupo.quantidadePeriodo, 0),
     datasInvalidas,
@@ -128,8 +220,10 @@ function montarPreviaExclusao(entries, dataInicial, dataFinal) {
   };
 }
 
-function aplicarExclusao(entries, dataInicial, dataFinal, chavesSelecionadas) {
-  const periodo = validarPeriodo(dataInicial, dataFinal);
+function aplicarExclusao(entries, filtrosOuDataInicial, dataFinalOuChaves, chavesSelecionadasLegadas) {
+  const usandoFiltros = filtrosOuDataInicial && typeof filtrosOuDataInicial === 'object';
+  const filtros = normalizarFiltrosExclusao(filtrosOuDataInicial, usandoFiltros ? undefined : dataFinalOuChaves);
+  const chavesSelecionadas = usandoFiltros ? dataFinalOuChaves : chavesSelecionadasLegadas;
   const selecionadas = new Set((Array.isArray(chavesSelecionadas) ? chavesSelecionadas : []).map(String).filter(Boolean));
   if (!selecionadas.size) throw new Error('Selecione ao menos uma importação para excluir.');
   const lista = Array.isArray(entries) ? entries : [];
@@ -137,18 +231,19 @@ function aplicarExclusao(entries, dataInicial, dataFinal, chavesSelecionadas) {
   const mantidos = [];
   lista.forEach(item => {
     const data = normalizarDataLancamento(item && item.data);
-    const dentroPeriodo = !!data && data >= periodo.inicio && data <= periodo.fim;
-    if (dentroPeriodo && selecionadas.has(chaveImportacao(item))) removidos.push(item);
+    const corresponde = lancamentoCorrespondeFiltros(item, filtros, data);
+    if (corresponde && selecionadas.has(chaveImportacao(item))) removidos.push(item);
     else mantidos.push(item);
   });
   if (!removidos.length) throw new Error('Nenhum lançamento corresponde à seleção e ao período informados.');
-  const previaRemovidos = montarPreviaExclusao(removidos, periodo.inicio, periodo.fim);
+  const previaRemovidos = montarPreviaExclusao(removidos, filtros);
   return {
     mantidos,
     removidos,
     resumo: {
-      dataInicial: periodo.inicio,
-      dataFinal: periodo.fim,
+      dataInicial: filtros.dataInicial,
+      dataFinal: filtros.dataFinal,
+      filtros,
       quantidadeAntes: lista.length,
       quantidadeRemovida: removidos.length,
       quantidadeDepois: mantidos.length,
@@ -164,6 +259,9 @@ module.exports = {
   dataIsoValida,
   normalizarDataLancamento,
   validarPeriodo,
+  normalizarFiltrosExclusao,
+  tipoMovimentoLancamento,
+  lancamentoCorrespondeFiltros,
   chaveImportacao,
   fingerprintsImportacaoLiberados,
   montarPreviaExclusao,

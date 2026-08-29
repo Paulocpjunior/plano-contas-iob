@@ -66,6 +66,19 @@
     return items.map(function(i){ return i.s; }).join(' ').replace(/\s+/g, ' ').trim();
   }
 
+  function normalizarTokenMonetarioPosicionalOCR(text, x) {
+    let raw = String(text || '').trim();
+    if (!raw || Number(x || 0) < 400) return raw;
+    // Nesse layout, valor e saldo ficam à direita. O OCR pode trocar o sinal
+    // por "=" ou apagar a vírgula fina dos centavos (271,77 -> 27177).
+    raw = raw.replace(/^[=_~]+(?=\d)/, '-').replace(/,$/, '');
+    const semSinal = raw.replace(/^-/, '');
+    if (/^\d{3,9}$/.test(semSinal)) {
+      raw = (raw.startsWith('-') ? '-' : '') + semSinal.slice(0, -2) + ',' + semSinal.slice(-2);
+    }
+    return raw;
+  }
+
   function anoMesDoCabecalho(texto) {
     const meses = {
       jan: '01', fev: '02', mar: '03', abr: '04', mai: '05', jun: '06',
@@ -100,12 +113,15 @@
 
   function periodoLancamentosItau(texto) {
     const m = String(texto || '').match(/Lan[cç]amentos do per[ií]odo:\s*(\d{2})\/(\d{2})\/(\d{4})\s+at[eé]\s+(\d{2})\/(\d{2})\/(\d{4})/i);
-    if (!m) return { inicio: '', fim: '', ano: String(new Date().getFullYear()), mes: '' };
+    const periodoSeparado = !m && (String(texto || '').match(/Per[ií]odo:\s*(\d{2})\/(\d{2})\/(\d{4})\s+at[eé]\s+(\d{2})\/(\d{2})\/(\d{4})/i)
+      || String(texto || '').match(/(\d{2})\/(\d{2})\/(\d{4})\s+at[eé]\s+(\d{2})\/(\d{2})\/(\d{4})\s*\n\s*Per[ií]odo:/i));
+    const match = m || periodoSeparado;
+    if (!match) return { inicio: '', fim: '', ano: String(new Date().getFullYear()), mes: '' };
     return {
-      inicio: m[3] + '-' + m[2] + '-' + m[1],
-      fim: m[6] + '-' + m[5] + '-' + m[4],
-      ano: m[3],
-      mes: m[2]
+      inicio: match[3] + '-' + match[2] + '-' + match[1],
+      fim: match[6] + '-' + match[5] + '-' + match[4],
+      ano: match[3],
+      mes: match[2]
     };
   }
 
@@ -125,13 +141,21 @@
   }
 
   function parseItauLancamentosPeriodo(lines, textoCompleto) {
-    const ehPeriodo = /Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto)
+    const modeloPeriodoNaFrase = /Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto)
       && /Data\s+Lan[cç]amentos\s+Raz[aã]o Social\s+CNPJ\/CPF\s+Valor/i.test(textoCompleto)
       && /Ag[eê]ncia\s+\d+\s+Conta\s+\d+/i.test(textoCompleto);
+    const modeloPeriodoSeparado = /(?:^|\n)\s*Lan[cç]amentos\s*(?:\n|$)/i.test(textoCompleto)
+      && (/(?:Per[ií]odo:\s*)?\d{2}\/\d{2}\/\d{4}\s+at[eé]\s+\d{2}\/\d{2}\/\d{4}/i.test(textoCompleto))
+      && /Data\s+Lan[cç]amento(?:s)?\s+Raz[aã]o Social\s+\S{3,12}\s+Valor\s*\(R[^)]*\)\s+Saldo\s*\(R[^)]*\)/i.test(textoCompleto)
+      && /Conta:\s*[0-9.-]+/i.test(textoCompleto);
+    const ehPeriodo = modeloPeriodoNaFrase || modeloPeriodoSeparado;
     if (!ehPeriodo) return null;
 
     const periodo = periodoLancamentosItau(textoCompleto);
-    const contaMatch = textoCompleto.match(/Ag[eê]ncia\s+(\d+)\s+Conta\s+([0-9.-]+)/i);
+    const agenciaMatch = textoCompleto.match(/Ag[eê]ncia:?\s*(?:\n\s*)?(\d+(?:-\d+)?)/i)
+      || textoCompleto.match(/(\d+(?:-\d+)?)\s*\n\s*Ag[eê]ncia:/i);
+    const numeroContaMatch = textoCompleto.match(/Conta:?\s*([0-9.-]+)/i);
+    const contaMatch = agenciaMatch && numeroContaMatch ? [null, agenciaMatch[1], numeroContaMatch[1]] : null;
     const lancamentos = [];
     const vistos = new Set();
     let pendente = null;
@@ -223,8 +247,8 @@
       if (/SALDO TOTAL DISPON[IÍ]VEL DIA/i.test(descricao) || /SALDO ANTERIOR/i.test(descricao)) return false;
 
       const chave = [data, descricao.toLowerCase(), valor.toFixed(2)].join('|');
-      if (vistos.has(chave)) return false;
-      vistos.add(chave);
+      if (!modeloPeriodoSeparado && vistos.has(chave)) return false;
+      if (!modeloPeriodoSeparado) vistos.add(chave);
       lancamentos.push({
         id: uuid(),
         data: data,
@@ -304,7 +328,7 @@
     // linhas textuais diferentes das linhas posicionais do pdf.js. Rodamos uma
     // segunda passada pelo texto completo para recuperar casos como Redecard e
     // Rendimentos; a chave `vistos` evita duplicidade.
-    if (!temLinhasComValorESaldo) {
+    if (!temLinhasComValorESaldo && !modeloPeriodoSeparado) {
       pendente = null;
       String(textoCompleto || '').split(/\n+/).forEach(processarLinhaTexto);
       flush();
@@ -336,6 +360,18 @@
 
     const totalCredito = lancamentos.filter(function(l){ return l.valor > 0; }).reduce(function(a,l){ return a + l.valor; }, 0);
     const totalDebito = lancamentos.filter(function(l){ return l.valor < 0; }).reduce(function(a,l){ return a + Math.abs(l.valor); }, 0);
+    const saldoAnteriorMatch = textoCompleto.match(/SALDO ANTERIOR\s+(-?[\d.]+,\d{2})/i);
+    const saldosFinais = Array.from(textoCompleto.matchAll(/SALDO TOTAL DISPON[IÍ]VEL DIA\s+(-?[\d.]+,\d{2})/gi));
+    const saldoAnterior = saldoAnteriorMatch ? parseValorBR(saldoAnteriorMatch[1]) : null;
+    const saldoFinal = saldosFinais.length ? parseValorBR(saldosFinais[saldosFinais.length - 1][1]) : null;
+    const conciliacaoCentavos = !modeloPeriodoSeparado || saldoAnterior === null || saldoFinal === null
+      ? null
+      : Math.round((saldoAnterior + totalCredito - totalDebito - saldoFinal) * 100);
+    if (conciliacaoCentavos !== null && conciliacaoCentavos !== 0) {
+      throw new Error('Extrato Itau nao conciliou com os saldos impressos (anterior=' + saldoAnterior.toFixed(2)
+        + ', creditos=' + totalCredito.toFixed(2) + ', debitos=' + totalDebito.toFixed(2)
+        + ', final=' + saldoFinal.toFixed(2) + '). Importe somente apos parametrizacao do layout.');
+    }
 
     return {
       detectado: true,
@@ -347,6 +383,10 @@
       nome_conta_detectado: 'CONTA CORRENTE ITAU',
       total_credito: totalCredito,
       total_debito: totalDebito,
+      saldo_anterior: saldoAnterior,
+      saldo_final: saldoFinal,
+      saldos_conciliados: conciliacaoCentavos === null ? null : true,
+      layout_modelo: modeloPeriodoSeparado ? 'lancamentos-periodo-separado' : 'lancamentos-do-periodo',
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim
     };
@@ -393,14 +433,15 @@
     const scaleX = pageWidth ? 595 / pageWidth : 1;
     return grupos.map(function(g) {
       const items = g.words.sort(function(a,b){ return a.x - b.x; }).map(function(w) {
-        return { x: Math.round(w.x * scaleX), s: w.text };
+        const x = Math.round(w.x * scaleX);
+        return { x: x, s: normalizarTokenMonetarioPosicionalOCR(w.text, x) };
       });
       const text = cleanLineText(items);
       return text ? { page: pageNum, y: Math.round(g.y), items: items, text: text } : null;
     }).filter(Boolean);
   }
 
-  async function linhasItauComOCR(pdf) {
+  async function linhasItauComOCR(pdf, escala) {
     if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js nao carregado para OCR Itau');
     if (typeof document === 'undefined') throw new Error('OCR Itau indisponivel fora do navegador');
     const canvas = document.createElement('canvas');
@@ -410,7 +451,7 @@
     for (let p = 1; p <= pdf.numPages; p++) {
       if (typeof showToast === 'function') showToast('OCR Itau pagina ' + p + '/' + pdf.numPages + '...', 'success');
       const page = await pdf.getPage(p);
-      const viewport = page.getViewport({ scale: 2.8 });
+      const viewport = page.getViewport({ scale: Number(escala || 2.8) });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -705,7 +746,7 @@
     };
   }
 
-  async function parsearPDF_Itau_ExtratoMensal(arrayBuffer) {
+  async function parsearPDF_Itau_ExtratoMensal(arrayBuffer, opcoes) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const lines = [];
@@ -736,8 +777,20 @@
       && /entradas R\$/i.test(textoCompleto)
       && /sa[ií]das R\$/i.test(textoCompleto);
 
+    if (ehItau && opcoes && opcoes.somenteLancamentosPeriodoSeparado) {
+      return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+    }
+
     if (!ehItau) {
       const periodo = parseItauLancamentosPeriodo(lines, textoCompleto);
+      if (opcoes && opcoes.somenteLancamentosPeriodoSeparado) {
+        return periodo && periodo.layout_modelo === 'lancamentos-periodo-separado'
+          ? periodo
+          : { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+      }
+      if (periodo && periodo.layout_modelo === 'lancamentos-periodo-separado') {
+        return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
+      }
       if (periodo && periodo.detectado && periodo.lancamentos && periodo.lancamentos.length) return periodo;
 
       const ocrScan = parseItauExtratoMensalOCRScaneado(lines, textoCompleto);
@@ -746,19 +799,26 @@
       const precisaOCR = textoCompleto.trim().length < 120
         || (/Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto) && !(periodo && periodo.detectado));
       if (precisaOCR) {
-        try {
-          const ocr = await linhasItauComOCR(pdf);
-          const periodoOCR = parseItauLancamentosPeriodo(ocr.lines, ocr.textoCompleto);
-          if (periodoOCR && periodoOCR.detectado && periodoOCR.lancamentos && periodoOCR.lancamentos.length) {
-            periodoOCR.origem_ocr = true;
-            periodoOCR.textoCompleto = ocr.textoCompleto;
-            periodoOCR.fingerprint = String(periodoOCR.fingerprint || 'itau-lancamentos-periodo') + '-ocr';
-            periodoOCR.lancamentos.forEach(function(l) { l.origem = 'pdf-itau-lancamentos-periodo-ocr'; });
-            return periodoOCR;
+        let ultimoErroOCR = null;
+        const escalasOCR = pdf.numPages <= 3 ? [2.8, 4.0] : [2.8];
+        for (let tentativa = 0; tentativa < escalasOCR.length; tentativa++) {
+          try {
+            const ocr = await linhasItauComOCR(pdf, escalasOCR[tentativa]);
+            const periodoOCR = parseItauLancamentosPeriodo(ocr.lines, ocr.textoCompleto);
+            if (periodoOCR && periodoOCR.detectado && periodoOCR.lancamentos && periodoOCR.lancamentos.length) {
+              periodoOCR.origem_ocr = true;
+              periodoOCR.escala_ocr = escalasOCR[tentativa];
+              periodoOCR.textoCompleto = ocr.textoCompleto;
+              periodoOCR.fingerprint = String(periodoOCR.fingerprint || 'itau-lancamentos-periodo') + '-ocr';
+              periodoOCR.lancamentos.forEach(function(l) { l.origem = 'pdf-itau-lancamentos-periodo-ocr'; });
+              return periodoOCR;
+            }
+          } catch (eOCR) {
+            ultimoErroOCR = eOCR;
+            console.warn('[itau-ocr] tentativa ' + (tentativa + 1) + ' falhou:', eOCR.message || eOCR);
           }
-        } catch (eOCR) {
-          console.warn('[itau-ocr] falha no OCR:', eOCR.message || eOCR);
         }
+        if (ultimoErroOCR) throw ultimoErroOCR;
       }
       return periodo || { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
     }
@@ -860,8 +920,13 @@
     };
   }
 
+  async function parsearPDF_Itau_LancamentosPeriodo(arrayBuffer) {
+    return parsearPDF_Itau_ExtratoMensal(arrayBuffer, { somenteLancamentosPeriodoSeparado: true });
+  }
+
   const api = {
     parsearPDF_Itau_ExtratoMensal: parsearPDF_Itau_ExtratoMensal,
+    parsearPDF_Itau_LancamentosPeriodo: parsearPDF_Itau_LancamentosPeriodo,
     __test__: {
       parseValorBR: parseValorBR,
       moneyToken: moneyToken,
@@ -870,12 +935,14 @@
       parseItauExtratoMensalOCRScaneado: parseItauExtratoMensalOCRScaneado,
       linhasDePalavrasOCR: linhasDePalavrasOCR,
       ignorarLancamentoTecnicoExtratoMensal: ignorarLancamentoTecnicoExtratoMensal,
-      tipoMovimentoAplicacaoAutomatica: tipoMovimentoAplicacaoAutomatica
+      tipoMovimentoAplicacaoAutomatica: tipoMovimentoAplicacaoAutomatica,
+      normalizarTokenMonetarioPosicionalOCR: normalizarTokenMonetarioPosicionalOCR
     }
   };
 
   if (typeof window !== 'undefined') {
     window.parsearPDF_Itau_ExtratoMensal = parsearPDF_Itau_ExtratoMensal;
+    window.parsearPDF_Itau_LancamentosPeriodo = parsearPDF_Itau_LancamentosPeriodo;
     console.log('[parser-itau-extrato-mensal] carregado');
   }
   if (typeof module !== 'undefined' && module.exports) {

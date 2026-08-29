@@ -141,9 +141,15 @@ assertContains('index.html', 'Layout homologado pelo Admin', 'selo operacional d
 assertContains('index.html', 'Situação Fiscal / Impostos', 'nova aba de situacao fiscal');
 assertContains('index.html', 'carregarFiscalCertificado', 'status do certificado no modulo fiscal');
 assertContains('index.html', 'FISCAL_CERT_DOC_PATH', 'orientacao para vincular certificado fiscal');
-assertContains('index.html', 'Consultar SERPRO', 'botao para consultar dados SERPRO');
+assertContains('index.html', 'Consultar pagamentos', 'botao para consultar pagamentos fiscais em todas as fontes');
 assertContains('index.html', 'sincronizarFiscalSerpro', 'acao frontend de sincronizacao SERPRO');
-assertContains('index.html', 'Ponte SERPRO ativa', 'aviso correto quando a integracao usa app fiscal externo');
+assertContains('index.html', 'Total pago confirmado', 'total contabilizavel exige confirmacao oficial');
+assertContains('index.html', 'não contabilizável', 'tela distingue informacao local de comprovante oficial');
+assertContains('index.html', 'Cobertura incompleta — não interprete ausência como imposto não pago.', 'tela nao confunde fonte indisponivel com ausencia de pagamento');
+assertContains('server.js', "payload.contrato", 'backend valida contrato versionado do conector fiscal');
+assertContains('server.js', "CFI_FISCAL_CONNECTOR", 'registros do conector fiscal possuem origem auditavel');
+assertContains('fiscal-payments-contract.js', "evidencia_pagamento?.nivel !== 'oficial'", 'contrato bloqueia contabilizacao sem evidencia oficial');
+assertContains('index.html', 'Conector fiscal ativo', 'aviso correto quando a integracao usa app fiscal externo');
 assertContains('index.html', "criarSnapshotState({ semLancamentos: true })", 'snapshot local guarda apenas metadados e evita recarregamento por memoria');
 assertContains('index.html', 'versionModalLater', 'popup de atualizacao permite adiar sem interromper trabalho');
 assertContains('index.html', 'Voce pode atualizar agora ou continuar trabalhando e atualizar depois.', 'popup de atualizacao nao deve ser bloqueante');
@@ -275,7 +281,8 @@ assertNotContains('auditai/assets/index-DREfix3266.js', '__auditai_rol_receita_b
 assertNotContains('auditai/assets/index-DREfix3266.js', 'auditaiRolHistoryValidation', 'validacao ROL nao pode bloquear consolidacao pelo historico');
 assertNotContains('auditai/assets/index-DREfix3266.js', 'Não foi possível confirmar um período único para todas as DREs', 'validacao ROL nao pode bloquear analise de grupo');
 assertNotContains('auditai/assets/index-DREfix3266.js', '&&auditaiValidCnpj(P.cnpj))&&n.trim()', 'CNPJ da ROL nao pode impedir processamento do grupo');
-assertContains('auditai/assets/index-DREfix3266.js', 'ae.ac=xe.ativoCirculante||0,ae.anc=xe.ativoNaoCirculante||0', 'Dashboard AuditAI usa abertura oficial de ativo e passivo');
+assertContains('auditai/assets/index-DREfix3266.js', 'ae.ac=xe.ativoCirculante??ae.ac,ae.anc=xe.ativoNaoCirculante??ae.anc', 'Dashboard AuditAI usa subtotais oficiais sem apagar valores calculados');
+assertContains('auditai/assets/index-DREfix3266.js', 'ae.totalAtivo=xe.totalAtivo??ae.ac+ae.anc', 'Dashboard AuditAI preserva o total oficial do Ativo');
 assertContains('auditai/assets/index-DREfix3266.js', 'JxAuditShouldSkipSpellcheckAlert', 'AuditAI filtra falsos positivos de grafia em contas contabeis oficiais');
 assertContains('auditai/assets/index-DREfix3266.js', 'OBRIGACOES FINANCEIRAS', 'AuditAI nao trata grupo contabil normal como conta suspeita');
 assertContains('auditai/assets/index-DREfix3266.js', 'NAO recalcule nem substitua Total Ativo', 'Parecer AuditAI preserva totais oficiais do balanco');
@@ -284,7 +291,8 @@ assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_vers
 assertContains('auditai/conciliacao-arquivos.js', `Motor conciliacao v${version}`, 'versao visivel do motor de conciliacao');
 assertContains('auditai/conciliacao-arquivos.js', 'plano_contas_iob_auditai_motor_cache', 'chave de autocorrecao de cache do motor AuditAI');
 assertNotContains('auditai/assets/index-DREfix3266.js', 'https://www.gstatic.com/firebasejs/', 'AuditAI inicializa sem dependencia externa bloqueante do Firebase');
-assertContains('auditai/index.html', '<script async src="https://cdn.tailwindcss.com"></script>', 'Tailwind remoto nao bloqueia a montagem do AuditAI');
+assertNotContains('auditai/index.html', 'cdn.tailwindcss.com', 'AuditAI nao depende do Tailwind remoto para montar');
+assertContains('auditai/index.html', '/auditai/auditai-tailwind.css', 'AuditAI carrega estilos Tailwind locais');
 assertContains('auditai/conciliacao-arquivos.js', 'auditaiFresh', 'URL fresca para impedir aba antiga do AuditAI');
 assertContains('auditai/conciliacao-arquivos.js', 'reconciliationMetrics', 'metricas de conciliacao sem inflar aderencia por lote 1:N');
 assertContains('auditai/conciliacao-arquivos.js', 'cobertura A', 'detalhe de cobertura por arquivo na conciliacao');

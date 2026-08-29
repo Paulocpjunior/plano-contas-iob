@@ -87,7 +87,7 @@
     if (!valorInfo || !valorInfo.valor) return null;
 
     let corpo = valorInfo.antes;
-    const documentoMatch = corpo.match(/(\d{6,}(?:-\d+)?)$/);
+    const documentoMatch = corpo.match(/((?:\d{1,3}\.){3,}\d{1,3}|\d{6,}(?:-\d+)?)$/);
     const documento = documentoMatch ? documentoMatch[1] : '';
     if (documento) corpo = corpo.slice(0, documentoMatch.index).trim();
 

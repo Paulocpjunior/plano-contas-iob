@@ -228,6 +228,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'PDF digitalizado com 14 paginas: 238 movimentos na conta 25287-5 e 88 na conta 14609-9. Paginas de investimentos sao ignoradas e cada conta fecha pelos totais impressos e pela sequencia de saldos.'
   },
   {
+    id: 'bradesco-extrato-unificado-hs-projetos-2026-01',
+    banco: '237',
+    nomeBanco: 'Bradesco',
+    layout: 'Bradesco - Extrato Unificado Pessoa Juridica',
+    parser: 'parsearPDF_Bradesco_ExtratoUnificado',
+    arquivo: 'Extrato Unificado Mensal-Janeiro_2026.pdf',
+    empresa: 'HS PROJETOS E AGRIMENSURA S/S LTDA',
+    periodo_inicio: '2026-01-01',
+    periodo_fim: '2026-01-31',
+    esperado: {
+      total_lancamentos: 48,
+      total_credito: 22430.15,
+      total_debito: 47278.41
+    },
+    status: 'Aprovado',
+    validado_em: '2026-08-17T16:46:00-03:00',
+    observacao: 'PDF textual Extrato Unificado Pessoa Juridica. Le as colunas por coordenadas, preserva complementos entre paginas e encerra no Total da conta-corrente antes das secoes de investimentos.'
+  },
+  {
     id: 'bradesco-netempresa-ocr-ferrante-2026-06',
     banco: '237',
     nomeBanco: 'Bradesco',
@@ -685,6 +704,70 @@ const LAYOUT_QUALITY_CASES = [
     status: 'Aprovado',
     validado_em: '2026-07-31T12:00:00-03:00',
     observacao: 'Extrato Stone textual validado pelo texto extraido e pelo PDF.js do navegador. A regressao reconcilia quatro fechamentos diarios, inclusive o saldo repetido pelo banco em movimentos do mesmo dia.'
+  },
+  {
+    id: 'nubank-waldesa-2026-07',
+    banco: '260',
+    nomeBanco: 'Nubank',
+    layout: 'Nubank - Extrato da Conta PJ',
+    parser: 'parsearPDF_Nubank_Extrato',
+    arquivo: 'Extrato Nubank - Motomercantil SP_07.2026.pdf',
+    empresa: 'WALDESA MOTOMERCANTIL LTDA.',
+    periodo_inicio: '2026-07-01',
+    periodo_fim: '2026-07-31',
+    esperado: {
+      total_lancamentos: 16,
+      total_credito: 7100.09,
+      total_debito: 7371.38
+    },
+    status: 'Aprovado',
+    validado_em: '2026-08-29T12:00:00-03:00',
+    observacao: 'PDF textual Nubank PJ validado pelo PDF.js. Concilia 11 saldos diarios, preserva o movimento dividido entre paginas e importa R$ 0,09 de rendimento alem dos R$ 7.100,00 de entradas.'
+  },
+  {
+    id: 'bb-extrato-mais-menos-trindade-2026-04',
+    banco: '001',
+    nomeBanco: 'Banco do Brasil',
+    layout: 'Banco do Brasil - Extrato de Conta Corrente (+/-)',
+    parser: 'parsearPDF_BB_ExtratoContaCorrente',
+    arquivo: 'Extrato Bancario 04 26.pdf',
+    empresa: 'CLUBE D C E D S TRINDADE',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: { total_lancamentos: 42, total_credito: 34522.04, total_debito: 34522.04 },
+    status: 'Aprovado',
+    validado_em: '2026-08-18T00:00:00-03:00',
+    observacao: 'PDF textual com sinais (+)/(-), 11 movimentos BB Rende Facil classificados e saldo inicial/final zero conciliado.'
+  },
+  {
+    id: 'itau-lancamentos-periodo-manaim-2026-04',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 2 - Lancamentos por Periodo',
+    parser: 'parsearPDF_Itau_LancamentosPeriodo',
+    arquivo: 'E - EXTRATO ITAU ABRIL 2026 (1).pdf',
+    empresa: 'IGREJA EVANGELICA MANAIM',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: { total_lancamentos: 65, total_credito: 345629.11, total_debito: 346100.00 },
+    status: 'Aprovado',
+    validado_em: '2026-08-18T00:00:00-03:00',
+    observacao: 'PDF textual Lancamentos/Periodo com saldo anterior R$ 536,01 e final R$ 65,12 conciliados; preserva dois movimentos legitimos iguais de R$ 5,00.'
+  },
+  {
+    id: 'itau-lancamentos-periodo-manaim-ocr-2026-05',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 2 - Lancamentos por Periodo',
+    parser: 'parsearPDF_Itau_LancamentosPeriodo',
+    arquivo: 'E - Extrato Itau Maio 2026.pdf',
+    empresa: 'IGREJA EVANGELICA MANAIM',
+    periodo_inicio: '2026-05-01',
+    periodo_fim: '2026-05-31',
+    esperado: { total_lancamentos: 60, total_credito: 144548.60, total_debito: 137500.00 },
+    status: 'Aprovado',
+    validado_em: '2026-08-19T00:00:00-03:00',
+    observacao: 'PDF imagem sem camada textual. OCR local em alta resolucao recupera sinal e centavos pela coluna monetaria; saldo anterior R$ 65,12 e final R$ 7.113,72 conciliados sem Gemini.'
   },
 ];
 

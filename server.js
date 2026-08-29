@@ -14,8 +14,29 @@ const cryptoAdmin = require('crypto');
 const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados } = require('./admin-exclusao-lancamentos');
 const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
+const { buscarRegimeNoCfi } = require('./cfi-regime-client');
+const { exigeSaldoAbertura, periodoInicialEmpresa, validarSaldosAbertura, proximoPeriodo, saldosParaTransporte } = require('./implantacao-contabil');
+const { avaliarProntidaoContabil } = require('./prontidao-contabil');
+const { avaliarParametrizacaoRegime, sanitizarParametrizacaoRegime } = require('./parametrizacao-regime');
 const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
+const AtivoImobilizado = require('./ativo-imobilizado');
+const AtivoImobilizadoContabil = require('./ativo-imobilizado-contabil');
+const ConciliacaoContabil = require('./conciliacao-contabil');
+const HomologacaoPiloto = require('./homologacao-piloto');
+const GraphEmail = require('./graph-email-provider');
+const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa, buscarOrientacaoAjuda } = require('./ajuda-cci-base');
+const { conteudo: MANUAL_CCI } = require('./manual-cci-base');
+const { extractAccountingPdf } = require('./auditai/pdf-contabil-extractor');
+const { validarPayloadFiscalConnector, resumirItensFiscais } = require('./fiscal-payments-contract');
+const {
+  ENCODING_PLAIN,
+  LIMITE_CHUNK_SESSAO,
+  codificarStateJson,
+  decodificarPayload,
+  stateJsonDoBody,
+  dividirPayload,
+} = require('./session-state-codec');
 
 const app = express();
 app.set('trust proxy', true);
@@ -82,11 +103,38 @@ async function authRequired(req, res, next) {
 }
 
 function adminRequired(req, res, next) {
-  if (!req.user || !req.user.is_admin) return res.status(403).json({ erro: 'Requer admin' });
+  if (!req.user || !req.user.is_admin) return res.status(403).json({
+    erro: 'Esta função é exclusiva para administradores. Procure um administrador e informe a empresa, a tela e a ação desejada.',
+    codigo: 'ADMIN_REQUIRED',
+    procurar_ajuda: true
+  });
   next();
 }
 
 app.use('/api', authRequired);
+
+app.post('/api/auditai/extrair-pdf-contabil', adminRequired, async (req, res) => {
+  const base64 = String((req.body && req.body.data) || '').replace(/^data:application\/pdf;base64,/, '');
+  if (!base64) return res.status(400).json({ erro: 'PDF não informado.', codigo: 'PDF_AUSENTE' });
+  try {
+    const buffer = Buffer.from(base64, 'base64');
+    if (!buffer.length || buffer.subarray(0, 4).toString('ascii') !== '%PDF') {
+      return res.status(400).json({ erro: 'Arquivo PDF inválido.', codigo: 'PDF_INVALIDO' });
+    }
+    const result = await extractAccountingPdf(buffer);
+    return res.json(result);
+  } catch (error) {
+    const structuredTextMissing = error && error.code === 'PDF_SEM_TEXTO_ESTRUTURADO';
+    console.error('[auditai/pdf-local]', error && error.message);
+    return res.status(structuredTextMissing ? 422 : 500).json({
+      erro: structuredTextMissing
+        ? 'O PDF não contém texto contábil estruturado. O AuditAI tentará a leitura assistida por imagem.'
+        : 'Não foi possível extrair o PDF contábil localmente.',
+      codigo: structuredTextMissing ? 'PDF_SEM_TEXTO_ESTRUTURADO' : 'PDF_EXTRACAO_LOCAL_ERRO',
+    });
+  }
+});
+
 // Gate de departamento do SaaS (08/08): pergunta ao cadastro central do CFI
 // se o usuário está vinculado ao módulo Contábil. Nasce em MODO AVISO — vira
 // bloqueio pela env DEPARTAMENTO_GATE_MODO=bloqueio quando os vínculos
@@ -186,6 +234,7 @@ async function garantirLayoutsBancariosPadrao() {
 const pdfParse = require('pdf-parse');
 const multer = require('multer');
 const cryptoFolha = require('crypto');
+const { parseSageFolhaFpimp } = require('./parser-sage-folha-fpimp');
 
 const uploadFolha = multer({
   storage: multer.memoryStorage(),
@@ -302,14 +351,37 @@ async function parseResumoIOB(pdfBuffer) {
 }
 
 // POST /api/folha/parse-resumo  (auth herdada de app.use('/api', authRequired))
-app.post('/api/folha/parse-resumo', uploadFolha.single('pdf'), async (req, res) => {
+// Aceita o Resumo Geral em PDF e o arquivo texto FPIMPnnnn.mm da SAGE Folha.
+app.post('/api/folha/parse-resumo', uploadFolha.fields([{ name: 'arquivo', maxCount: 1 }, { name: 'pdf', maxCount: 1 }]), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ erro: 'arquivo PDF não enviado (campo "pdf")' });
-    const resultado = await parseResumoIOB(req.file.buffer);
+    const arquivo = ((req.files && req.files.arquivo) || (req.files && req.files.pdf) || [])[0];
+    if (!arquivo) return res.status(400).json({ erro: 'arquivo não enviado' });
+    const cnpjLimpo = String(req.body && req.body.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ da empresa ativa não informado' });
+    const acesso = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
+    const ehPdf = arquivo.buffer.slice(0, 5).toString('ascii') === '%PDF-';
+    let resultado;
+    if (ehPdf) {
+      resultado = await parseResumoIOB(arquivo.buffer);
+      resultado.formato = 'resumo_geral_pdf';
+      resultado.layout = 'Resumo Geral IOB/SAGE (PDF)';
+      resultado.nome_arquivo = arquivo.originalname;
+      if (resultado.cnpj && resultado.cnpj.replace(/\D/g, '') !== cnpjLimpo) {
+        return res.status(409).json({ erro: 'O CNPJ do PDF não corresponde à empresa ativa.' });
+      }
+    } else {
+      resultado = parseSageFolhaFpimp(arquivo.buffer, {
+        nomeArquivo: arquivo.originalname,
+        codigoEmpresa: codigoEmpresaDe(acesso.empresa)
+      });
+      resultado.cnpj = cnpjLimpo;
+      resultado.empresa = acesso.empresa.razao_social || '';
+    }
     res.json(resultado);
   } catch (err) {
     console.error('parse-resumo erro:', err.message);
-    res.status(500).json({ erro: err.message });
+    res.status(400).json({ erro: err.message });
   }
 });
 
@@ -320,9 +392,13 @@ app.post('/api/folha/registrar-importacao', async (req, res) => {
     if (!cnpj || !competencia || !raw_text_hash) {
       return res.status(400).json({ erro: 'campos obrigatórios: cnpj, competencia, raw_text_hash' });
     }
+    const cnpjLimpo = String(cnpj).replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido' });
+    const acesso = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
     const docRef = await db.collection('folha_importacoes').add({
       owner_uid: req.user.uid,
-      cnpj, competencia, raw_text_hash,
+      cnpj: cnpjLimpo, competencia, raw_text_hash,
       total_lancamentos: total_lancamentos || 0,
       total_valor: total_valor || 0,
       criado_em: new Date(),
@@ -343,7 +419,9 @@ app.get('/api/folha/empresas-do-plano/:planoId', async (req, res) => {
       .where('plano_id', '==', planoId)
       .where('ativo', '==', true)
       .get();
-    const empresas = snap.docs.map(d => {
+    const empresas = snap.docs
+      .filter(d => usuarioPodeAcessarEmpresa(d.data() || {}, req.user))
+      .map(d => {
       const data = d.data();
       const cnpjLimpo = d.id;
       const cnpjFmt = cnpjLimpo.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
@@ -351,6 +429,7 @@ app.get('/api/folha/empresas-do-plano/:planoId', async (req, res) => {
         cnpj: cnpjLimpo,
         cnpj_formatado: cnpjFmt,
         razao_social: data.razao_social || null,
+        codigo_empresa: codigoEmpresaDe(data) || null,
         numero_filial_iob: data.numero_filial_iob || null,
       };
     });
@@ -366,6 +445,8 @@ app.get('/api/folha/mapeamento/:cnpj', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido' });
+    const acesso = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
     const snap = await db.collection('folha_mapeamentos')
       .where('cnpj', '==', cnpjLimpo).limit(1).get();
     if (snap.empty) return res.json({ encontrado: false });
@@ -382,6 +463,8 @@ app.put('/api/folha/mapeamento/:cnpj', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido' });
+    const acesso = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
     const { regras, encargos, origem_padrao, numero_filial } = req.body;
     const snap = await db.collection('folha_mapeamentos')
       .where('cnpj', '==', cnpjLimpo).limit(1).get();
@@ -414,6 +497,9 @@ app.get('/api/folha/checar-duplicidade', async (req, res) => {
     const { cnpj, competencia, hash } = req.query;
     if (!cnpj || !competencia) return res.status(400).json({ erro: 'cnpj e competencia obrigatórios' });
     const cnpjLimpo = String(cnpj).replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido' });
+    const acesso = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
     const snap = await db.collection('folha_importacoes')
       .where('cnpj', '==', cnpjLimpo)
       .where('competencia', '==', competencia)
@@ -584,7 +670,8 @@ function snapshotAprendizadoAudit(dados) {
     contaCredito: dados.contaCredito || '',
     codigoHistorico: dados.codigoHistorico || '',
     historico: dados.historico || '',
-    historicoPadraoDescricao: dados.historicoPadraoDescricao || ''
+    historicoPadraoDescricao: dados.historicoPadraoDescricao || '',
+    direcao: dados.direcao || ''
   };
 }
 
@@ -625,8 +712,16 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
   try {
     const cnpj = (req.params.cnpj || '').replace(/\D/g, '');
     if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
-    const { hash, descricao_normalizada, descricao_exemplo, contaDebito, contaCredito, codigoHistorico, historico, historicoPadraoDescricao, bancoCodigo, bancoNome, layoutParser, layoutNome, escopo } = req.body;
+    const { hash, descricao_normalizada, descricao_exemplo, contaDebito, contaCredito, codigoHistorico, historico, historicoPadraoDescricao, bancoCodigo, bancoNome, layoutParser, layoutNome, escopo, direcao } = req.body;
     if (!hash || !descricao_normalizada) return res.status(400).json({ erro: 'hash e descricao_normalizada obrigatorios' });
+    const descricaoNormalizada = String(descricao_normalizada || '').trim().toLowerCase();
+    const tokensDescricao = descricaoNormalizada.split(/\s+/).filter(token => token.length >= 3);
+    const cobrancaEscopada = descricaoNormalizada === 'cobranca'
+      && !!String(bancoCodigo || '').trim()
+      && ['credito', 'debito'].includes(String(direcao || '').toLowerCase());
+    if (tokensDescricao.length < 2 && !cobrancaEscopada) {
+      return res.status(400).json({ erro: 'Padrao generico exige identificacao adicional; cobranca so pode ser memorizada com banco e direcao.' });
+    }
     
     // Validar codigoHistorico (4 digitos)
     const codHist = codigoHistorico ? String(codigoHistorico).replace(/\D/g, '').padStart(4, '0').slice(-4) : null;
@@ -643,7 +738,7 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
     const dados = {
       cnpj: cnpj,
       hash: hash,
-      descricao_normalizada: String(descricao_normalizada).substring(0, 200),
+      descricao_normalizada: descricaoNormalizada.substring(0, 200),
       descricao_exemplo: String(descricao_exemplo || '').substring(0, 200),
       contaDebito: contaDebito || '',
       contaCredito: contaCredito || '',
@@ -655,6 +750,7 @@ app.post('/api/empresas/:cnpj/aprendizado', async (req, res) => {
       layoutParser: String(layoutParser || '').substring(0, 120),
       layoutNome: String(layoutNome || '').substring(0, 160),
       escopo: String(escopo || '').substring(0, 40),
+      direcao: ['credito', 'debito'].includes(String(direcao || '').toLowerCase()) ? String(direcao).toLowerCase() : '',
       vezes_usado: existing.exists ? (existing.data().vezes_usado || 0) + 1 : 1,
       criado_em: existing.exists ? existing.data().criado_em : now,
       ultima_vez: now,
@@ -697,6 +793,7 @@ app.put('/api/empresas/:cnpj/aprendizado/:hash', adminRequired, async (req, res)
       ...(body.layoutParser !== undefined ? { layoutParser: String(body.layoutParser || '').substring(0, 120) } : {}),
       ...(body.layoutNome !== undefined ? { layoutNome: String(body.layoutNome || '').substring(0, 160) } : {}),
       ...(body.escopo !== undefined ? { escopo: String(body.escopo || '').substring(0, 40) } : {}),
+      ...(body.direcao !== undefined ? { direcao: ['credito', 'debito'].includes(String(body.direcao || '').toLowerCase()) ? String(body.direcao).toLowerCase() : '' } : {}),
       atualizado_em: new Date(),
       atualizado_por_uid: req.user.uid,
       atualizado_por_email: req.user.email,
@@ -778,19 +875,74 @@ async function validarCodigoEmpresaUnico(codigo, cnpjIgnorado) {
   };
 }
 
+function tokenBearerRequisicao(req) {
+  const auth = String(req && req.headers && req.headers.authorization || '');
+  return auth.startsWith('Bearer ') ? auth.slice(7) : '';
+}
+
+function validarConfiguracaoContabilEmpresa(empresa) {
+  if (!empresa || empresa.modo_contabil !== 'cci_exclusivo') return { ok: true };
+  if (!periodoInicialEmpresa(empresa)) {
+    return { ok: false, erro: 'Informe a data de inicio da escrituracao no CCI para usar o modo CCI exclusivo.' };
+  }
+  return { ok: true };
+}
+
+async function sincronizarRegimeTributarioCfi(cnpj, req) {
+  const cadastro = await buscarRegimeNoCfi({ cnpj, token: tokenBearerRequisicao(req) });
+  const regime = cadastro.regime || {};
+  if (!regime.codigo || !regime.nome) throw new Error('O cadastro fiscal do CFI nao informou um regime tributario valido.');
+  const regimeNormalizado = ({
+    ISENTO: 'ISENTA', ISENCAO: 'ISENTA',
+    IMUNIDADE: 'IMUNE',
+    TERCEIROSETOR: 'TERCEIRO_SETOR', TERCEIRO_SETOR: 'TERCEIRO_SETOR', '3_SETOR': 'TERCEIRO_SETOR'
+  })[String(regime.codigo).trim().toUpperCase().replace(/[\s-]+/g, '_')] || String(regime.codigo).trim().toUpperCase();
+  const campos = {
+    regime_tributario_codigo: regimeNormalizado,
+    regime_tributario_nome: String(regime.nome),
+    regime_tributario_origem: 'CFI',
+    regime_tributario_cfi_id: cadastro.id || '',
+    regime_tributario_cfi_fonte: cadastro.fonte || '',
+    regime_tributario_sincronizado_em: new Date(),
+    regime_tributario_sincronizado_por_uid: req.user.uid,
+    regime_tributario_sincronizado_por_email: req.user.email,
+  };
+  const cnae = cadastro.cnae_principal || cadastro.cnae || cadastro.cnaePrincipal || (cadastro.empresa && (cadastro.empresa.cnae_principal || cadastro.empresa.cnae));
+  const cnaeDescricao = cadastro.cnae_descricao || cadastro.descricao_cnae || cadastro.cnaeDescricao || (cadastro.empresa && (cadastro.empresa.cnae_descricao || cadastro.empresa.descricao_cnae));
+  if (cnae) campos.cnae_principal = String(cnae).replace(/\D/g, '').slice(0, 7);
+  if (cnaeDescricao) campos.cnae_principal_descricao = String(cnaeDescricao).trim().slice(0, 300);
+  await db.collection('empresas').doc(cnpj).set(campos, { merge: true });
+  return { cadastro, campos };
+}
+
+function saldosOrdenados(saldos) {
+  const ordenados = {};
+  Object.keys(saldos || {}).sort().forEach(function (conta) {
+    ordenados[conta] = Number(saldos[conta]);
+  });
+  return ordenados;
+}
+
+function hashSaldosAbertura(saldos) {
+  return cryptoAdmin.createHash('sha256').update(JSON.stringify(saldosOrdenados(saldos))).digest('hex');
+}
+
 // EMPRESAS - COLABORATIVO
 app.get('/api/empresas', async (req, res) => {
   try {
     const docs = await listarEmpresasAcessiveis(req.user);
-    res.json(docs.map(d => ({ cnpj: d.id, ...d.data() })));
+    res.json(docs.map(function (d) {
+      const empresa = { cnpj: d.id, ...d.data() };
+      return { ...empresa, prontidao_contabil: avaliarProntidaoContabil(empresa) };
+    }));
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
 // ==================== LISTAR EMPRESAS COM AGREGACOES (Gestao) ====================
 app.get('/api/empresas/listar', async (req, res) => {
   try {
-    const { q, banco, status, periodo_de, periodo_ate, sort, order, limit, offset, admin_ver_tudo, modo } = req.query || {};
-    const verTudo = req.user.is_admin && admin_ver_tudo === '1';
+    const { q, banco, status, periodo_de, periodo_ate, sort, order, limit, offset, modo } = req.query || {};
+    const verTudo = !!req.user.is_admin;
     const docs = verTudo
       ? (await db.collection('empresas').get()).docs
       : await listarEmpresasAcessiveis(req.user, { somenteVinculadas: true });
@@ -807,7 +959,15 @@ app.get('/api/empresas/listar', async (req, res) => {
           whatsapp: emp.whatsapp || emp.whatsapp_cliente || '',
           ativo: emp.ativo !== false,
           owner_email: emp.created_by_email || null,
-          responsaveis: normalizarResponsaveis(emp.responsaveis)
+          responsaveis: normalizarResponsaveis(emp.responsaveis),
+          modo_contabil: emp.modo_contabil || '',
+          inicio_escrituracao_cci: emp.inicio_escrituracao_cci || '',
+          regime_tributario_codigo: emp.regime_tributario_codigo || '',
+          regime_tributario_nome: emp.regime_tributario_nome || '',
+          plano_id: emp.plano_id || null,
+          saldo_abertura_status: emp.saldo_abertura_status || '',
+          saldo_abertura_periodo: emp.saldo_abertura_periodo || '',
+          prontidao_contabil: avaliarProntidaoContabil(emp)
         };
       });
       if (q) leves = leves.filter(function (empresa) { return empresaBateBusca(q, empresa); });
@@ -879,7 +1039,8 @@ app.get('/api/empresas/listar', async (req, res) => {
         total_lancamentos: totalLanc,
         periodo_atual: periodoAtual,
         total_relatorios: totalRel,
-        status: status_calc
+        status: status_calc,
+        prontidao_contabil: avaliarProntidaoContabil(emp)
       };
     }));
 
@@ -953,7 +1114,8 @@ app.get('/api/empresas/:cnpj/plano-contexto', async (req, res) => {
         id: doc.id,
         codigo: conta.cod || conta.codigo || '',
         descricao: conta.desc || conta.descricao || '',
-        reduzido: String(reduzido).trim()
+        reduzido: String(reduzido).trim(),
+        analitica: conta.analitica !== false
       };
     });
     const chave = (plano.nome || plano.name || empresa.plano_id) + ' - ' + (empresa.razao_social || cnpjLimpo);
@@ -980,7 +1142,8 @@ app.get('/api/empresas/:cnpj', async (req, res) => {
     const doc = await db.collection('empresas').doc(cnpjLimpo).get();
     if (!doc.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
     if (!usuarioPodeAcessarEmpresa(doc.data(), req.user)) return res.status(403).json({ erro: 'Sem permissao para esta empresa' });
-    res.json({ cnpj: doc.id, ...doc.data() });
+    const empresa = { cnpj: doc.id, ...doc.data() };
+    res.json({ ...empresa, prontidao_contabil: avaliarProntidaoContabil(empresa) });
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
@@ -993,12 +1156,22 @@ app.post('/api/empresas', async (req, res) => {
     if (!razao_social || !plano_id) return res.status(400).json({ erro: 'razao_social e plano_id obrigatorios' });
     const cadastro = camposCadastroEmpresa(req.body);
     if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
+    if (!cadastro.campos.modo_contabil) cadastro.campos.modo_contabil = 'ponte_sage';
+    if (!cadastro.campos.tipo_estabelecimento) cadastro.campos.tipo_estabelecimento = 'MATRIZ';
+    const configuracao = validarConfiguracaoContabilEmpresa(cadastro.campos);
+    if (!configuracao.ok) return res.status(400).json({ erro: configuracao.erro });
+    const estrutura = await validarEstruturaMatrizFilial(cnpjLimpo, cadastro.campos, req.user, null);
+    if (!estrutura.ok) return res.status(estrutura.status || 400).json({ erro: estrutura.erro, codigo: estrutura.codigo });
     const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
     if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const planoDoc = await db.collection('planos').doc(plano_id).get();
     if (!planoDoc.exists) return res.status(400).json({ erro: 'Plano ' + plano_id + ' nao existe' });
     await db.collection('empresas').doc(cnpjLimpo).set({ ...cadastro.campos, razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
-    res.status(201).json({ cnpj: cnpjLimpo, razao_social, plano_id, ...cadastro.campos });
+    let regimeCfi = null;
+    let regimeAviso = null;
+    try { regimeCfi = await sincronizarRegimeTributarioCfi(cnpjLimpo, req); }
+    catch (e) { regimeAviso = e.message; console.warn('[empresa] regime CFI pendente:', e.message); }
+    res.status(201).json({ cnpj: cnpjLimpo, razao_social, plano_id, ...cadastro.campos, regime_cfi: regimeCfi && regimeCfi.cadastro || null, regime_aviso: regimeAviso });
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
@@ -1028,8 +1201,28 @@ app.patch('/api/empresas/:cnpj/cadastro', async (req, res) => {
     }
     const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
     if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
+    const futuro = { ...chk.empresa, ...cadastro.campos };
+    const configuracao = validarConfiguracaoContabilEmpresa(futuro);
+    if (!configuracao.ok) return res.status(400).json({ erro: configuracao.erro });
+    const estrutura = await validarEstruturaMatrizFilial(cnpjLimpo, cadastro.campos, req.user, chk.empresa);
+    if (!estrutura.ok) return res.status(estrutura.status || 400).json({ erro: estrutura.erro, codigo: estrutura.codigo });
+    const alterouImplantacao = (
+      cadastro.campos.modo_contabil !== undefined
+      && cadastro.campos.modo_contabil !== chk.empresa.modo_contabil
+    ) || (
+      cadastro.campos.inicio_escrituracao_cci !== undefined
+      && cadastro.campos.inicio_escrituracao_cci !== chk.empresa.inicio_escrituracao_cci
+    );
     await db.collection('empresas').doc(cnpjLimpo).set({
       ...cadastro.campos,
+      ...(alterouImplantacao ? {
+        saldo_abertura_status: futuro.modo_contabil === 'cci_exclusivo' ? 'pendente' : FieldValue.delete(),
+        saldo_abertura_hash: FieldValue.delete(),
+        saldo_abertura_periodo: FieldValue.delete(),
+        saldo_abertura_aprovado_em: FieldValue.delete(),
+        saldo_abertura_aprovado_por_uid: FieldValue.delete(),
+        saldo_abertura_aprovado_por_email: FieldValue.delete(),
+      } : {}),
       updated_at: new Date(),
       cadastro_atualizado_por_uid: req.user.uid,
       cadastro_atualizado_por_email: req.user.email
@@ -1037,6 +1230,98 @@ app.patch('/api/empresas/:cnpj/cadastro', async (req, res) => {
     const atualizado = await db.collection('empresas').doc(cnpjLimpo).get();
     res.json({ ok: true, cnpj: cnpjLimpo, ...atualizado.data() });
   } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+app.post('/api/empresas/:cnpj/regime-cfi/sincronizar', async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const sincronizado = await sincronizarRegimeTributarioCfi(cnpjLimpo, req);
+    res.json({ ok: true, cnpj: cnpjLimpo, cadastro: sincronizado.cadastro, regime: sincronizado.campos });
+  } catch (e) {
+    res.status(e.status || 502).json({ erro: e.message, codigo: e.codigo || 'ERRO_SINCRONIZAR_REGIME_CFI' });
+  }
+});
+
+app.get('/api/empresas/:cnpj/parametrizacao-regime', async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    res.json({ ok: true, cnpj: cnpjLimpo, is_admin: !!req.user.is_admin, cnae_principal: chk.empresa.cnae_principal || '', cnae_principal_descricao: chk.empresa.cnae_principal_descricao || '', ...avaliarParametrizacaoRegime(chk.empresa) });
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message || 'Falha ao consultar parametrização tributária.' });
+  }
+});
+
+app.put('/api/empresas/:cnpj/parametrizacao-regime', adminRequired, async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    if (chk.empresa.regime_tributario_origem !== 'CFI') {
+      return res.status(409).json({ erro: 'Sincronize primeiro o regime tributário oficial do CFI.', codigo: 'REGIME_CFI_PENDENTE' });
+    }
+    const validacao = sanitizarParametrizacaoRegime(chk.empresa.regime_tributario_codigo, req.body || {});
+    if (!validacao.ok) return res.status(400).json({ erro: validacao.erro, codigo: 'PARAMETRIZACAO_INVALIDA', pendencias: validacao.pendencias || [] });
+    const parametrizacao = {
+      ...validacao.valor,
+      confirmado_em: new Date(),
+      confirmado_por_uid: req.user.uid,
+      confirmado_por_email: req.user.email,
+      origem_regime: 'CFI'
+    };
+    await db.collection('empresas').doc(cnpjLimpo).set({
+      parametrizacao_tributaria: parametrizacao,
+      parametrizacao_tributaria_atualizada_em: new Date(),
+      updated_at: new Date()
+    }, { merge: true });
+    const empresaAtualizada = { ...chk.empresa, parametrizacao_tributaria: parametrizacao };
+    res.json({ ok: true, cnpj: cnpjLimpo, ...avaliarParametrizacaoRegime(empresaAtualizada) });
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message || 'Falha ao salvar parametrização tributária.' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/parametrizacao-regime/validar-ia', adminRequired, async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const regime = String(chk.empresa.regime_tributario_codigo || '');
+    if (!['ISENTA', 'IMUNE', 'TERCEIRO_SETOR'].includes(regime)) return res.status(409).json({ erro: 'O cruzamento especial é destinado a entidades isentas, imunes ou do Terceiro Setor.' });
+    const cnae = String((req.body && req.body.cnae_principal) || chk.empresa.cnae_principal || '').replace(/\D/g, '').slice(0, 7);
+    if (!cnae) return res.status(400).json({ erro: 'CNAE principal ausente no cadastro do CFI.' });
+    const client = getGeminiClient();
+    if (!client) return res.status(503).json({ erro: 'Gemini não configurado no servidor.' });
+    const model = resolverModeloGemini(null, GEMINI_DEFAULT_MODEL);
+    const prompt = [
+      'Atue como revisor tributário brasileiro. Não decida o enquadramento e não substitua o contador.',
+      'Cruze apenas a coerência entre o cadastro informado, o CNAE principal e os pontos documentais que precisam ser conferidos.',
+      'Responda em JSON válido com as chaves parecer (string), alertas (array de strings) e documentos_a_conferir (array de strings).',
+      'Empresa: ' + String(chk.empresa.razao_social || cnpj),
+      'Situação tributária informada pelo CFI: ' + regime,
+      'CNAE principal: ' + cnae + ' - ' + String(chk.empresa.cnae_principal_descricao || ''),
+      'Fundamento informado pelo usuário: ' + String((req.body && req.body.fundamento_legal) || '')
+    ].join('\n');
+    const resposta = await client.models.generateContent({ model, contents: prompt, config: { responseMimeType: 'application/json' } });
+    let parecer;
+    try { parecer = JSON.parse(String(resposta.text || '{}')); } catch (_) { parecer = { parecer: String(resposta.text || ''), alertas: ['A IA não retornou JSON estruturado. Revise manualmente.'], documentos_a_conferir: [] }; }
+    res.json({
+      status: 'concluida', cnae, modelo: model,
+      parecer: String(parecer.parecer || '').slice(0, 3000),
+      alertas: Array.isArray(parecer.alertas) ? parecer.alertas.map(String).slice(0, 20) : [],
+      documentos_a_conferir: Array.isArray(parecer.documentos_a_conferir) ? parecer.documentos_a_conferir.map(String).slice(0, 20) : [],
+      orientativo: true
+    });
+  } catch (erro) {
+    console.error('validar regime por IA erro:', erro);
+    res.status(erro.status || 500).json({ erro: erro.message || 'Falha no cruzamento orientativo por IA.' });
+  }
 });
 
 app.get('/api/whatsapp/status', async (req, res) => {
@@ -1463,11 +1748,20 @@ app.get('/api/empresas/:cnpj/contexto-ia', async (req, res) => {
 
     const ref = db.collection('empresas').doc(cnpj);
     const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ erro: 'Empresa nao encontrada' });
+    if (!usuarioPodeAcessarEmpresa(snap.data(), req.user)) return res.status(403).json({ erro: 'Sem permissao para esta empresa' });
+    const empresaCadastrada = snap.data() || {};
+    const regimeOficial = {
+      regime_tributario_codigo: empresaCadastrada.regime_tributario_codigo || '',
+      regime_tributario_nome: empresaCadastrada.regime_tributario_nome || '',
+      regime_tributario_origem: empresaCadastrada.regime_tributario_origem || '',
+      parametrizacao_tributaria_status: avaliarParametrizacaoRegime(empresaCadastrada).status
+    };
 
-    if (!force && snap.exists) {
-      const d = snap.data() || {};
+    if (!force) {
+      const d = empresaCadastrada;
       if (d.contexto_ia && d.contexto_ia.cnae_descricao) {
-        return res.json(Object.assign({ origem: 'cache' }, d.contexto_ia));
+        return res.json(Object.assign({ origem: 'cache' }, d.contexto_ia, regimeOficial));
       }
     }
 
@@ -1480,10 +1774,8 @@ app.get('/api/empresas/:cnpj/contexto-ia', async (req, res) => {
       brasilapi = await r.json();
     } catch (eFetch) {
       console.warn('[contexto-ia] falha BrasilAPI:', eFetch.message);
-      if (snap.exists) {
-        const d = snap.data() || {};
-        if (d.contexto_ia) return res.json(Object.assign({ origem: 'cache-fallback' }, d.contexto_ia));
-      }
+      const d = empresaCadastrada;
+      if (d.contexto_ia) return res.json(Object.assign({ origem: 'cache-fallback' }, d.contexto_ia, regimeOficial));
       return res.status(502).json({ erro: 'BrasilAPI indisponivel: ' + eFetch.message });
     }
 
@@ -1502,7 +1794,7 @@ app.get('/api/empresas/:cnpj/contexto-ia', async (req, res) => {
     };
 
     await ref.set({ contexto_ia: ctx }, { merge: true });
-    res.json(Object.assign({ origem: 'brasilapi' }, ctx));
+    res.json(Object.assign({ origem: 'brasilapi' }, ctx, regimeOficial));
   } catch (e) {
     console.error('[contexto-ia] erro:', e);
     res.status(500).json({ erro: e.message });
@@ -1535,6 +1827,12 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     const empresaAtual = empresaDoc.exists ? (empresaDoc.data() || {}) : null;
     const cadastro = camposCadastroEmpresa(req.body);
     if (!cadastro.ok) return res.status(400).json({ erro: cadastro.erro });
+    if (!empresaAtual && !cadastro.campos.modo_contabil) cadastro.campos.modo_contabil = 'ponte_sage';
+    if (!empresaAtual && !cadastro.campos.tipo_estabelecimento) cadastro.campos.tipo_estabelecimento = 'MATRIZ';
+    const configuracao = validarConfiguracaoContabilEmpresa({ ...(empresaAtual || {}), ...cadastro.campos });
+    if (!configuracao.ok) return res.status(400).json({ erro: configuracao.erro });
+    const estrutura = await validarEstruturaMatrizFilial(cnpjLimpo, cadastro.campos, req.user, empresaAtual);
+    if (!estrutura.ok) return res.status(estrutura.status || 400).json({ erro: estrutura.erro, codigo: estrutura.codigo });
     const codigoUnico = await validarCodigoEmpresaUnico(cadastro.campos.codigo_empresa, cnpjLimpo);
     if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const isAdmin = !!(req.user && req.user.is_admin);
@@ -1579,6 +1877,10 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     } catch (e) {
       console.warn('vincular-empresa-plano: erro ao sincronizar sessao:', e.message);
     }
+    let regimeCfi = null;
+    let regimeAviso = null;
+    try { regimeCfi = await sincronizarRegimeTributarioCfi(cnpjLimpo, req); }
+    catch (e) { regimeAviso = e.message; console.warn('[vincular] regime CFI pendente:', e.message); }
     res.json({
       ok: true,
       cnpj: cnpjLimpo,
@@ -1586,7 +1888,11 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
       plano_nome: dados.plano_nome,
       codigo_empresa: dados.codigo_empresa !== undefined ? dados.codigo_empresa : codigoEmpresaDe(empresaAtual),
       whatsapp: dados.whatsapp !== undefined ? dados.whatsapp : ((empresaAtual && empresaAtual.whatsapp) || ''),
-      sessao_sincronizada: sincronizacaoSessao.sincronizada === true
+      modo_contabil: dados.modo_contabil !== undefined ? dados.modo_contabil : ((empresaAtual && empresaAtual.modo_contabil) || 'ponte_sage'),
+      inicio_escrituracao_cci: dados.inicio_escrituracao_cci !== undefined ? dados.inicio_escrituracao_cci : ((empresaAtual && empresaAtual.inicio_escrituracao_cci) || ''),
+      sessao_sincronizada: sincronizacaoSessao.sincronizada === true,
+      regime_cfi: regimeCfi && regimeCfi.cadastro || null,
+      regime_aviso: regimeAviso
     });
   } catch (e) { console.error('vincular-empresa-plano erro:', e); res.status(500).json({ erro: e.message }); }
 }
@@ -1607,6 +1913,65 @@ async function checarAcessoEmpresa(cnpj, user) {
   if (!usuarioPodeAcessarEmpresa(emp, user)) return { ok: false, status: 403, erro: 'Sem permissao para esta empresa' };
   return { ok: true, empresa: emp };
 }
+
+async function validarEstruturaMatrizFilial(cnpj, campos, user, empresaAtual) {
+  const atual = empresaAtual || {};
+  const tipo = String(campos.tipo_estabelecimento !== undefined ? campos.tipo_estabelecimento : (atual.tipo_estabelecimento || 'MATRIZ')).toUpperCase();
+  const matrizCnpj = String(campos.matriz_cnpj !== undefined ? campos.matriz_cnpj : (atual.matriz_cnpj || '')).replace(/\D/g, '');
+  if (tipo === 'FILIAL') {
+    if (!matrizCnpj) return { ok: false, status: 400, codigo: 'MATRIZ_OBRIGATORIA', erro: 'Selecione a matriz desta filial.' };
+    if (matrizCnpj === cnpj) return { ok: false, status: 409, codigo: 'AUTO_VINCULO_MATRIZ', erro: 'Uma empresa nao pode ser matriz e filial de si mesma.' };
+    const matrizDoc = await db.collection('empresas').doc(matrizCnpj).get();
+    if (!matrizDoc.exists) return { ok: false, status: 404, codigo: 'MATRIZ_NAO_ENCONTRADA', erro: 'A matriz selecionada nao esta cadastrada no CCI.' };
+    const matriz = matrizDoc.data() || {};
+    if (!usuarioPodeAcessarEmpresa(matriz, user)) return { ok: false, status: 403, codigo: 'SEM_ACESSO_MATRIZ', erro: 'Sem permissao para vincular esta matriz.' };
+    if (String(matriz.tipo_estabelecimento || 'MATRIZ').toUpperCase() === 'FILIAL') {
+      return { ok: false, status: 409, codigo: 'MATRIZ_EH_FILIAL', erro: 'A empresa escolhida ja e filial. Selecione a matriz principal do grupo.' };
+    }
+  }
+  if (tipo === 'FILIAL' && String(atual.tipo_estabelecimento || 'MATRIZ').toUpperCase() !== 'FILIAL') {
+    const filhos = await db.collection('empresas').where('matriz_cnpj', '==', cnpj).limit(1).get();
+    if (!filhos.empty) {
+      return { ok: false, status: 409, codigo: 'MATRIZ_COM_FILIAIS', erro: 'Esta empresa possui filiais vinculadas e nao pode ser transformada em filial.' };
+    }
+  }
+  return { ok: true, tipo_estabelecimento: tipo, matriz_cnpj: tipo === 'FILIAL' ? matrizCnpj : '' };
+}
+
+app.get('/api/empresas/:cnpj/estrutura-matriz-filial', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const [todasSnap, filiaisSnap] = await Promise.all([
+      db.collection('empresas').get(),
+      db.collection('empresas').where('matriz_cnpj', '==', cnpj).get()
+    ]);
+    const visiveis = todasSnap.docs
+      .filter(function (doc) { return usuarioPodeAcessarEmpresa(doc.data() || {}, req.user); })
+      .map(function (doc) { return { cnpj: doc.id, ...(doc.data() || {}) }; });
+    const matrizes = visiveis
+      .filter(function (empresa) { return empresa.cnpj !== cnpj && String(empresa.tipo_estabelecimento || 'MATRIZ').toUpperCase() !== 'FILIAL'; })
+      .map(function (empresa) { return { cnpj: empresa.cnpj, razao_social: empresa.razao_social || '', codigo_empresa: empresa.codigo_empresa || '' }; });
+    const filiais = filiaisSnap.docs
+      .filter(function (doc) { return usuarioPodeAcessarEmpresa(doc.data() || {}, req.user); })
+      .map(function (doc) { const empresa = doc.data() || {}; return { cnpj: doc.id, razao_social: empresa.razao_social || '', codigo_empresa: empresa.codigo_empresa || '' }; });
+    let matriz = null;
+    const matrizCnpj = String(chk.empresa.matriz_cnpj || '').replace(/\D/g, '');
+    if (matrizCnpj) {
+      const encontrada = visiveis.find(function (empresa) { return empresa.cnpj === matrizCnpj; });
+      if (encontrada) matriz = { cnpj: encontrada.cnpj, razao_social: encontrada.razao_social || '', codigo_empresa: encontrada.codigo_empresa || '' };
+    }
+    res.json({
+      cnpj,
+      tipo_estabelecimento: String(chk.empresa.tipo_estabelecimento || 'MATRIZ').toUpperCase(),
+      matriz_cnpj: matrizCnpj,
+      matriz,
+      matrizes_disponiveis: matrizes,
+      filiais
+    });
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
 
 function lerEstadoContabil(stateJson) {
   try {
@@ -1662,6 +2027,22 @@ async function impedirAlteracaoPeriodosFechados(cnpj, stateJsonAtual, stateJsonN
       409,
       'PERIODO_CONTABIL_FECHADO'
     );
+  }
+}
+
+async function impedirSobrescritaSaldosTransportados(cnpj, stateJsonNovo) {
+  const snap = await db.collection('empresas').doc(cnpj).collection('transportes_saldos').where('status', '==', 'vigente').get();
+  if (snap.empty) return;
+  const novo = lerEstadoContabil(stateJsonNovo);
+  const saldosPorPeriodo = novo.relatoriosContabeis && novo.relatoriosContabeis.saldosIniciais || {};
+  const divergentes = snap.docs.filter(function (doc) {
+    const transporte = doc.data() || {};
+    const informados = saldosPorPeriodo[doc.id];
+    if (!informados || !Object.keys(informados).length) return false;
+    return hashSaldosAbertura(informados) !== hashSaldosAbertura(transporte.saldos || {});
+  }).map(function (doc) { return doc.id; });
+  if (divergentes.length) {
+    throw erroSessao('Os saldos de ' + divergentes.join(', ') + ' foram transportados por fechamento e não podem ser substituídos manualmente. Reabra a competência de origem.', 409, 'SALDOS_TRANSPORTADOS_PROTEGIDOS');
   }
 }
 
@@ -1721,7 +2102,7 @@ function normalizarFiscalBody(body) {
 const { buscarFechamentosNoCfi } = require('./reinf/cfi-notas-client');
 const { lancamentosDoFechamento, conferirContraLancado, resumirImportacao } = require('./reinf/fechamento-cfi');
 
-const FISCAL_GATEWAY_URL = (process.env.FISCAL_GATEWAY_URL || 'https://consultor-fiscal-inteligente-631239634290.us-central1.run.app').replace(/\/+$/, '');
+const FISCAL_GATEWAY_URL = (process.env.FISCAL_GATEWAY_URL || 'https://consultor-fiscal-inteligente-zricstsjqa-uw.a.run.app').replace(/\/+$/, '');
 const FISCAL_GATEWAY_TOKEN = String(process.env.FISCAL_GATEWAY_TOKEN || process.env.CONSULTOR_FISCAL_GATEWAY_TOKEN || '').trim();
 
 function fiscalGatewayHeaders() {
@@ -2011,16 +2392,23 @@ app.get('/api/empresas/:cnpj/fiscal/impostos', async (req, res) => {
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const snap = await db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').orderBy('competencia', 'desc').limit(300).get();
-    const itens = snap.docs.map(d => ({ id: d.id, ...serializarFiscal(d.data()) }));
-    const resumo = itens.reduce((acc, item) => {
-      acc.total++;
-      acc.valor_apurado += Number(item.valor_apurado || 0);
-      acc.valor_pago += Number(item.valor_pago || 0);
-      acc.status[item.status || 'EM_ABERTO'] = (acc.status[item.status || 'EM_ABERTO'] || 0) + 1;
-      if (['EM_ABERTO', 'VENCIDO', 'PENDENTE_RECEITA', 'PAGO_COM_DIFERENCA'].includes(item.status)) acc.pendencias++;
-      return acc;
-    }, { total: 0, valor_apurado: 0, valor_pago: 0, pendencias: 0, status: {} });
+    const baseQuery = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').orderBy('competencia', 'desc');
+    const docs = [];
+    let ultimo = null;
+    while (docs.length < 10000) {
+      let query = baseQuery.limit(500);
+      if (ultimo) query = query.startAfter(ultimo);
+      const pagina = await query.get();
+      if (pagina.empty) break;
+      docs.push(...pagina.docs);
+      ultimo = pagina.docs[pagina.docs.length - 1];
+      if (pagina.size < 500) break;
+    }
+    if (docs.length >= 10000) {
+      throw new Error('Consulta fiscal excedeu o teto de seguranca de 10.000 registros; total nao exibido para evitar truncamento silencioso.');
+    }
+    const itens = docs.map(d => ({ id: d.id, ...serializarFiscal(d.data()) }));
+    const resumo = resumirItensFiscais(itens);
     res.json({ cnpj: cnpjLimpo, resumo, itens });
   } catch (err) {
     console.error('fiscal impostos GET erro:', err);
@@ -2174,6 +2562,9 @@ app.put('/api/empresas/:cnpj/fiscal/impostos/:id', async (req, res) => {
     const ref = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').doc(req.params.id);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ erro: 'registro fiscal nao encontrado' });
+    if (doc.data()?.criado_por_origem === 'CFI_FISCAL_CONNECTOR') {
+      return res.status(409).json({ erro: 'Registro importado do CFI e somente leitura. Atualize pela fonte oficial.' });
+    }
     await ref.set({
       ...dados,
       atualizado_em: new Date(),
@@ -2193,7 +2584,13 @@ app.delete('/api/empresas/:cnpj/fiscal/impostos/:id', async (req, res) => {
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    await db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').doc(req.params.id).delete();
+    const ref = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ erro: 'registro fiscal nao encontrado' });
+    if (doc.data()?.criado_por_origem === 'CFI_FISCAL_CONNECTOR') {
+      return res.status(409).json({ erro: 'Registro importado do CFI nao pode ser excluido no CCI.' });
+    }
+    await ref.delete();
     res.json({ ok: true });
   } catch (err) {
     console.error('fiscal impostos DELETE erro:', err);
@@ -2211,14 +2608,10 @@ app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro', async (req, res) => {
     const statusGateway = await fiscalGatewayJson('/api/internal/plano-contas/status', { timeoutMs: 12000 });
     const avisos = [];
     if (!FISCAL_GATEWAY_TOKEN) {
-      avisos.push('FISCAL_GATEWAY_TOKEN ainda nao esta configurado neste app. Status SERPRO consultado, sem importacao protegida.');
-      return res.json({
-        ok: true,
-        cnpj: cnpjLimpo,
-        modo: 'status_only',
-        gateway: statusGateway,
-        resumo: { importados: 0, atualizados: 0 },
-        avisos
+      return res.status(503).json({
+        ok: false,
+        erro: 'Conector fiscal protegido nao configurado; nenhum valor foi importado.',
+        gateway: statusGateway
       });
     }
 
@@ -2230,51 +2623,84 @@ app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro', async (req, res) => {
         competencia: String(req.body?.competencia || '').trim()
       }
     });
-
-    const itens = [
-      ...normalizarItensSerpro('DAS', payload.das),
-      ...normalizarItensSerpro('DCTFWEB', payload.dctfweb),
-      ...normalizarItensSerpro('CAIXA_POSTAL', payload.caixaPostal)
-    ];
+    let itens;
+    try {
+      itens = validarPayloadFiscalConnector(payload);
+    } catch (e) {
+      e.status = 502;
+      e.data = payload;
+      throw e;
+    }
 
     const impostosRef = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_impostos');
     const agora = new Date();
-    let gravados = 0;
+    const idsRecebidos = new Set(itens.map(item => String(item.id)));
+    const existentesSnap = await impostosRef.where('criado_por_origem', '==', 'CFI_FISCAL_CONNECTOR').get();
+    const competenciaSolicitada = String(req.body?.competencia || '').trim();
+    const obsoletos = existentesSnap.docs.filter(doc => {
+      const anterior = doc.data() || {};
+      return (!competenciaSolicitada || anterior.competencia === competenciaSolicitada) && !idsRecebidos.has(doc.id);
+    });
+    if (itens.length + obsoletos.length + 1 > 500) {
+      return res.status(409).json({
+        ok: false,
+        erro: 'Reconciliacao fiscal excedeu o limite atomico de 500 operacoes; nenhum valor foi alterado.'
+      });
+    }
+
+    const batch = db.batch();
     for (const item of itens) {
       const ref = impostosRef.doc(item.id);
-      await ref.set({
+      batch.set(ref, {
         ...item,
         sincronizado_em: agora,
         atualizado_em: agora,
         atualizado_por_uid: req.user.uid,
         atualizado_por_email: req.user.email,
-        criado_por_origem: 'SERPRO_BRIDGE'
-      }, { merge: true });
-      gravados++;
+        criado_por_origem: 'CFI_FISCAL_CONNECTOR'
+      });
     }
 
-    await db.collection('empresas').doc(cnpjLimpo).collection('fiscal_sync_logs').add({
-      origem: 'SERPRO',
+    for (const doc of obsoletos) {
+      batch.set(doc.ref, {
+        contabilizavel: false,
+        valor_pago: 0,
+        status: 'EM_ANALISE',
+        pendencia_ecac: 'Registro nao retornado pela fonte na ultima consulta; confirmacao suspensa.',
+        sincronizado_em: agora,
+        atualizado_em: agora,
+        atualizado_por_uid: req.user.uid,
+        atualizado_por_email: req.user.email
+      }, { merge: true });
+    }
+
+    const logRef = db.collection('empresas').doc(cnpjLimpo).collection('fiscal_sync_logs').doc();
+    batch.set(logRef, {
+      origem: 'CFI_FISCAL_CONNECTOR',
       gateway_url: FISCAL_GATEWAY_URL,
       gateway_modes: payload.modes || statusGateway,
-      total_das: Array.isArray(payload.das) ? payload.das.length : 0,
-      total_dctfweb: Array.isArray(payload.dctfweb) ? payload.dctfweb.length : 0,
-      total_caixa_postal: Array.isArray(payload.caixaPostal) ? payload.caixaPostal.length : 0,
-      total_gravado: gravados,
-      erros: payload.erros || [],
+      contrato: payload.contrato,
+      credencial: payload.credencial || null,
+      cobertura: payload.cobertura || null,
+      resumo_origem: payload.resumo || null,
+      total_gravado: itens.length,
+      total_confirmacao_suspensa: obsoletos.length,
+      avisos: payload.avisos || [],
       criado_em: agora,
       criado_por_uid: req.user.uid,
       criado_por_email: req.user.email
     });
+    await batch.commit();
 
     res.json({
       ok: true,
       cnpj: cnpjLimpo,
       modo: 'sincronizado',
       gateway: statusGateway,
-      resumo: { importados: gravados, atualizados: gravados },
-      erros: payload.erros || [],
-      avisos
+      resumo: { importados: itens.length, atualizados: itens.length, confirmacoes_suspensas: obsoletos.length, ...(payload.resumo || {}) },
+      cobertura: payload.cobertura || {},
+      credencial: payload.credencial || null,
+      avisos: [...avisos, ...(payload.avisos || [])]
     });
   } catch (err) {
     console.error('sincronizar-serpro erro:', err);
@@ -2284,8 +2710,6 @@ app.post('/api/empresas/:cnpj/fiscal/sincronizar-serpro', async (req, res) => {
     });
   }
 });
-
-const LIMITE_CHUNK_SESSAO = 200000;
 
 function erroSessao(mensagem, status, codigo) {
   const erro = new Error(mensagem);
@@ -2298,8 +2722,8 @@ function hashSessao(stateJson) {
   return cryptoAdmin.createHash('sha256').update(String(stateJson || ''), 'utf8').digest('hex');
 }
 
-function tokenPreviaExclusao(stateJson, cnpj, dataInicial, dataFinal) {
-  return hashSessao([hashSessao(stateJson), cnpj, dataInicial, dataFinal].join('|'));
+function tokenPreviaExclusao(stateJson, cnpj, filtros) {
+  return hashSessao([hashSessao(stateJson), cnpj, JSON.stringify(filtros || {})].join('|'));
 }
 
 function novaRevisaoSessao() {
@@ -2314,10 +2738,7 @@ function millisTimestamp(valor) {
 }
 
 function dividirTexto(texto, limite) {
-  const valor = String(texto || '');
-  const partes = [];
-  for (let i = 0; i < valor.length; i += limite) partes.push(valor.slice(i, i + limite));
-  return partes;
+  return dividirPayload(texto, limite);
 }
 
 async function gravarPartes(colecaoRef, partes, geracao) {
@@ -2364,7 +2785,9 @@ async function carregarSessaoAtualPorRef(sessaoRef) {
   const doc = await sessaoRef.get();
   if (!doc.exists) return { encontrada: false, doc, dados: null, stateJson: '' };
   const dados = doc.data() || {};
-  let stateJson = typeof dados.state_json === 'string' ? dados.state_json : '';
+  let payload = typeof dados.state_payload === 'string'
+    ? dados.state_payload
+    : (typeof dados.state_json === 'string' ? dados.state_json : '');
   if (dados.state_chunked) {
     const chunks = await sessaoRef.collection('chunks').get();
     const geracao = String(dados.state_generation || '');
@@ -2375,8 +2798,9 @@ async function carregarSessaoAtualPorRef(sessaoRef) {
     if (Number(dados.state_chunks || 0) !== partes.length) {
       throw erroSessao('A sessão está incompleta no armazenamento. Nenhuma alteração foi realizada.', 409, 'SESSAO_INCOMPLETA');
     }
-    stateJson = partes.map(parte => parte.parte || '').join('');
+    payload = partes.map(parte => parte.parte || '').join('');
   }
+  const stateJson = decodificarPayload(payload, dados.state_encoding || ENCODING_PLAIN);
   return {
     encontrada: true,
     doc,
@@ -2445,8 +2869,9 @@ async function gravarDocumentoJson(ref, stateJson, metadados) {
 
 async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes) {
   const opts = opcoes || {};
-  const partes = dividirTexto(stateJson, LIMITE_CHUNK_SESSAO);
-  const chunked = String(stateJson).length > LIMITE_CHUNK_SESSAO;
+  const codificado = codificarStateJson(stateJson);
+  const partes = dividirTexto(codificado.payload, LIMITE_CHUNK_SESSAO);
+  const chunked = codificado.payload.length > LIMITE_CHUNK_SESSAO;
   const geracao = chunked ? novaRevisaoSessao() : null;
   if (chunked) await gravarPartes(sessaoRef.collection('chunks'), partes, geracao);
   const revisao = novaRevisaoSessao();
@@ -2455,17 +2880,27 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
     updated_at: new Date(),
     updated_by_uid: user.uid,
     updated_by_email: user.email,
-    state_json: chunked ? null : stateJson,
+    state_json: codificado.encoding === ENCODING_PLAIN && !chunked ? codificado.payload : null,
+    state_payload: codificado.encoding !== ENCODING_PLAIN && !chunked ? codificado.payload : null,
+    state_encoding: codificado.encoding,
     state_chunked: chunked,
     state_chunks: chunked ? partes.length : 0,
-    state_bytes: String(stateJson).length,
+    state_bytes: codificado.bytesOriginais,
+    state_stored_bytes: codificado.bytesArmazenados,
     state_generation: geracao,
     session_revision: revisao,
     require_session_revision: opts.exigirRevisao === true,
     session_write_lock: admin.firestore.FieldValue.delete(),
   }, { merge: true });
   await limparChunksAntigos(sessaoRef, geracao).catch(erro => console.warn('[sessao] limpeza de chunks antigos falhou:', erro.message || erro));
-  return { revisao, chunked, chunks: chunked ? partes.length : 0 };
+  return {
+    revisao,
+    chunked,
+    chunks: chunked ? partes.length : 0,
+    encoding: codificado.encoding,
+    stateBytes: codificado.bytesOriginais,
+    storedBytes: codificado.bytesArmazenados,
+  };
 }
 
 async function gravarTextoBackup(backupRef, subcolecao, texto) {
@@ -2532,8 +2967,8 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const { state_json, resumo, session_revision, client_version } = req.body || {};
-    if (typeof state_json !== 'string' || !state_json) return res.status(400).json({ erro: 'state_json obrigatorio' });
+    const { resumo, session_revision, client_version } = req.body || {};
+    const state_json = stateJsonDoBody(req.body || {});
     sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
     tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'autosave');
     const atual = await carregarSessaoAtualPorRef(sessaoRef);
@@ -2542,6 +2977,7 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
       throw erroSessao('Esta sessão foi alterada por um administrador. Recarregue a empresa antes de salvar novamente.', 409, 'SESSAO_DESATUALIZADA');
     }
     await impedirAlteracaoPeriodosFechados(cnpjLimpo, atual.stateJson, state_json);
+    await impedirSobrescritaSaldosTransportados(cnpjLimpo, state_json);
     const versaoServidor = lerVersao().version || '';
     const validacaoVersao = validarVersaoParaNovaImportacao({
       stateJsonNovo: state_json,
@@ -2577,8 +3013,31 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
 
     const resultado = await gravarSessaoBloqueada(sessaoRef, state_json, resumo, req.user, { exigirRevisao });
     tokenTrava = null;
-    await db.collection('empresas').doc(cnpjLimpo).set({ last_session_at: new Date(), last_session_by_email: req.user.email }, { merge: true });
-    res.json({ ok: true, chunked: resultado.chunked, chunks: resultado.chunks, session_revision: resultado.revisao });
+    const atualizacaoEmpresa = { last_session_at: new Date(), last_session_by_email: req.user.email };
+    if (chk.empresa.modo_contabil === 'cci_exclusivo' && chk.empresa.saldo_abertura_status === 'aprovado') {
+      const periodoInicial = periodoInicialEmpresa(chk.empresa);
+      const estadoNovo = lerEstadoContabil(state_json);
+      const saldosNovos = periodoInicial && estadoNovo.relatoriosContabeis && estadoNovo.relatoriosContabeis.saldosIniciais
+        ? estadoNovo.relatoriosContabeis.saldosIniciais[periodoInicial] || {}
+        : {};
+      if (!periodoInicial || hashSaldosAbertura(saldosNovos) !== String(chk.empresa.saldo_abertura_hash || '')) {
+        atualizacaoEmpresa.saldo_abertura_status = 'pendente_reaprovacao';
+        atualizacaoEmpresa.saldo_abertura_hash = FieldValue.delete();
+        atualizacaoEmpresa.saldo_abertura_invalidado_em = new Date();
+        atualizacaoEmpresa.saldo_abertura_invalidado_por_uid = req.user.uid;
+        atualizacaoEmpresa.saldo_abertura_invalidado_por_email = req.user.email;
+      }
+    }
+    await db.collection('empresas').doc(cnpjLimpo).set(atualizacaoEmpresa, { merge: true });
+    res.json({
+      ok: true,
+      chunked: resultado.chunked,
+      chunks: resultado.chunks,
+      encoding: resultado.encoding,
+      state_bytes: resultado.stateBytes,
+      stored_bytes: resultado.storedBytes,
+      session_revision: resultado.revisao,
+    });
   } catch (e) {
     if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
     console.error('salvar sessao erro:', e);
@@ -2614,12 +3073,12 @@ app.post('/api/admin/exclusao-lancamentos/preview', adminRequired, async (req, r
     const sessao = await carregarSessaoAtualPorRef(sessaoRef);
     if (!sessao.encontrada || !sessao.stateJson) return res.status(404).json({ erro: 'A empresa não possui uma sessão de lançamentos salva.' });
     const state = parsearStateJson(sessao.stateJson);
-    const previa = montarPreviaExclusao(state.entries, req.body.dataInicial, req.body.dataFinal);
+    const previa = montarPreviaExclusao(state.entries, req.body.filtros || req.body);
     res.json({
       ok: true,
       empresa: { cnpj: cnpjLimpo, razao_social: chk.empresa.razao_social || chk.empresa.nome || cnpjLimpo },
       previa,
-      previewToken: tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, previa.dataInicial, previa.dataFinal),
+      previewToken: tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, previa.filtros),
       sessaoAtualizadaEm: sessao.dados.updated_at || null,
     });
   } catch (e) {
@@ -2650,9 +3109,9 @@ app.post('/api/admin/exclusao-lancamentos/executar', adminRequired, async (req, 
     const sessao = await carregarSessaoAtualPorRef(sessaoRef);
     if (!sessao.encontrada || !sessao.stateJson) return res.status(404).json({ erro: 'A empresa não possui uma sessão de lançamentos salva.' });
     const state = parsearStateJson(sessao.stateJson);
-    const exclusao = aplicarExclusao(state.entries, body.dataInicial, body.dataFinal, chavesSelecionadas);
-    if (tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, exclusao.resumo.dataInicial, exclusao.resumo.dataFinal) !== body.previewToken) {
-      throw erroSessao('A sessão ou o período mudou depois da prévia. Gere uma nova prévia antes de excluir.', 409, 'PREVIA_DESATUALIZADA');
+    const exclusao = aplicarExclusao(state.entries, body.filtros || body, chavesSelecionadas);
+    if (tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, exclusao.resumo.filtros) !== body.previewToken) {
+      throw erroSessao('A sessão ou os filtros mudaram depois da prévia. Gere uma nova prévia antes de excluir.', 409, 'PREVIA_DESATUALIZADA');
     }
     if (exclusao.resumo.quantidadeRemovida !== quantidadeEsperada) {
       throw erroSessao('A quantidade de lançamentos mudou. Gere uma nova prévia antes de excluir.', 409, 'QUANTIDADE_DIVERGENTE');
@@ -2678,6 +3137,7 @@ app.post('/api/admin/exclusao-lancamentos/executar', adminRequired, async (req, 
       empresa: chk.empresa.razao_social || chk.empresa.nome || cnpjLimpo,
       data_inicial: exclusao.resumo.dataInicial,
       data_final: exclusao.resumo.dataFinal,
+      filtros: exclusao.resumo.filtros,
       chaves_importacao: chavesSelecionadas,
       quantidade_antes: exclusao.resumo.quantidadeAntes,
       quantidade_removida: exclusao.resumo.quantidadeRemovida,
@@ -2746,6 +3206,264 @@ app.post('/api/admin/exclusao-lancamentos/executar', adminRequired, async (req, 
   }
 });
 
+function normalizarBemAtivo(body) {
+  const b = body || {};
+  const statusPermitidos = new Set(['ativo', 'em_construcao', 'mantido_venda', 'baixado']);
+  const classe = AtivoImobilizado.classeFiscal(String(b.classe_fiscal || 'customizado'));
+  return {
+    descricao: String(b.descricao || '').trim().slice(0, 180),
+    patrimonio: String(b.patrimonio || '').trim().slice(0, 60),
+    classe_fiscal: classe.id,
+    data_aquisicao: AtivoImobilizado.dataISO(b.data_aquisicao),
+    data_disponivel_uso: AtivoImobilizado.dataISO(b.data_disponivel_uso),
+    data_mantido_venda: AtivoImobilizado.dataISO(b.data_mantido_venda),
+    custo: AtivoImobilizado.numero(b.custo),
+    valor_residual: AtivoImobilizado.numero(b.valor_residual),
+    vida_util_meses: Math.round(AtivoImobilizado.numero(b.vida_util_meses)),
+    taxa_fiscal_anual: AtivoImobilizado.numero(b.taxa_fiscal_anual === '' || b.taxa_fiscal_anual == null ? classe.taxaAnual : b.taxa_fiscal_anual),
+    metodo: 'linear',
+    condicao: String(b.condicao || 'novo') === 'usado' ? 'usado' : 'novo',
+    data_primeiro_uso: AtivoImobilizado.dataISO(b.data_primeiro_uso),
+    conta_ativo: String(b.conta_ativo || '').trim().slice(0, 40),
+    conta_depreciacao_acumulada: String(b.conta_depreciacao_acumulada || '').trim().slice(0, 40),
+    conta_despesa_depreciacao: String(b.conta_despesa_depreciacao || '').trim().slice(0, 40),
+    conta_contrapartida_aquisicao: String(b.conta_contrapartida_aquisicao || '').trim().slice(0, 40),
+    centro_custo: String(b.centro_custo || '').trim().slice(0, 80),
+    localizacao: String(b.localizacao || '').trim().slice(0, 120),
+    fornecedor: String(b.fornecedor || '').trim().slice(0, 160),
+    documento: String(b.documento || '').trim().slice(0, 80),
+    fundamento_taxa: String(b.fundamento_taxa || '').trim().slice(0, 800),
+    observacoes: String(b.observacoes || '').trim().slice(0, 1200),
+    status: statusPermitidos.has(String(b.status || 'ativo')) ? String(b.status || 'ativo') : 'ativo'
+  };
+}
+
+app.get('/api/empresas/:cnpj/ativos-imobilizados', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const snap = await db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').orderBy('descricao').limit(1000).get();
+    const itens = snap.docs.map(function (doc) {
+      const dados = doc.data() || {};
+      return { id: doc.id, ...dados, criado_em: serializarDataSegura(dados.criado_em), atualizado_em: serializarDataSegura(dados.atualizado_em), baixa_em: serializarDataSegura(dados.baixa_em) };
+    });
+    res.json({ itens, referencias_fiscais: AtivoImobilizado.CLASSES_FISCAIS });
+  } catch (e) { console.error('listar ativos imobilizados erro:', e); res.status(500).json({ erro: e.message }); }
+});
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const dados = normalizarBemAtivo(req.body);
+    const validacao = AtivoImobilizado.validar(dados);
+    if (!validacao.ok) return res.status(400).json({ erro: validacao.erros.join(' '), validacao });
+    const ref = db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').doc();
+    await ref.set({ ...dados, criado_em: new Date(), criado_por_uid: req.user.uid, criado_por_email: req.user.email, atualizado_em: new Date(), atualizado_por_uid: req.user.uid, atualizado_por_email: req.user.email, versao_regra: 'CPC27-IN1700-2026', lancamento_automatico: false });
+    res.status(201).json({ id: ref.id, ...dados, validacao });
+  } catch (e) { console.error('cadastrar ativo imobilizado erro:', e); res.status(500).json({ erro: e.message }); }
+});
+
+app.put('/api/empresas/:cnpj/ativos-imobilizados/:id', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const ref = db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').doc(String(req.params.id || ''));
+    const atual = await ref.get();
+    if (!atual.exists) return res.status(404).json({ erro: 'Bem não encontrado.' });
+    if (String((atual.data() || {}).status) === 'baixado') return res.status(409).json({ erro: 'Bem baixado não pode ser editado; a trilha histórica foi preservada.' });
+    const dados = normalizarBemAtivo({ ...(atual.data() || {}), ...(req.body || {}) });
+    const validacao = AtivoImobilizado.validar(dados);
+    if (!validacao.ok) return res.status(400).json({ erro: validacao.erros.join(' '), validacao });
+    await ref.set({ ...dados, atualizado_em: new Date(), atualizado_por_uid: req.user.uid, atualizado_por_email: req.user.email }, { merge: true });
+    res.json({ id: ref.id, ...dados, validacao });
+  } catch (e) { console.error('atualizar ativo imobilizado erro:', e); res.status(500).json({ erro: e.message }); }
+});
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/baixa', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    res.status(409).json({ erro: 'A baixa direta foi desativada. Gere a prévia contábil e aprove o evento patrimonial antes de alterar o bem.', codigo: 'BAIXA_EXIGE_PREVIA_CONTABIL' });
+  } catch (e) { console.error('baixar ativo imobilizado erro:', e); res.status(500).json({ erro: e.message }); }
+});
+
+async function previaEventoAtivoEmpresa(empresaRef, bemId, tipo, dados, stateJson) {
+  const [bemDoc, geradosSnap] = await Promise.all([
+    empresaRef.collection('ativos_imobilizados').doc(bemId).get(),
+    empresaRef.collection('ativos_lancamentos').get()
+  ]);
+  if (!bemDoc.exists) throw erroSessao('Bem não encontrado.', 404, 'ATIVO_NAO_ENCONTRADO');
+  const bem = { id: bemDoc.id, ...(bemDoc.data() || {}) };
+  const chavesSessao = stateJson ? parsearStateJson(stateJson).entries.map(function (item) { return String(item.chave || ''); }).filter(Boolean) : [];
+  const chaves = geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao);
+  return AtivoImobilizadoContabil.previaEvento(bem, tipo, dados, chaves);
+}
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/eventos/previa', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const sessao = await carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current'));
+    const tipo = String(req.body && req.body.tipo || '').trim();
+    const previa = await previaEventoAtivoEmpresa(empresaRef, String(req.params.id || ''), tipo, req.body || {}, sessao.stateJson || '');
+    if (previa.periodo) {
+      const periodoDoc = await empresaRef.collection('periodos_contabeis').doc(previa.periodo).get();
+      if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') return res.status(409).json({ erro: 'Reabra a competência antes de contabilizar o evento patrimonial.', codigo: 'PERIODO_CONTABIL_FECHADO' });
+    }
+    res.json({ ...previa, hash_previa: hashSessao(JSON.stringify({ lancamentos: previa.lancamentos, mutacao_bem: previa.mutacao_bem })) });
+  } catch (e) { res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_PREVIA_EVENTO_ATIVO' }); }
+});
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/eventos/aprovar', async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const bemId = String(req.params.id || '');
+    const tipo = String(req.body && req.body.tipo || '').trim();
+    const hashPrevia = String(req.body && req.body.hash_previa || '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    sessaoRef = empresaRef.collection('sessoes').doc('current');
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'evento_ativo_' + tipo);
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Sessão contábil não encontrada.', 409, 'SESSAO_NAO_ENCONTRADA');
+    const previa = await previaEventoAtivoEmpresa(empresaRef, bemId, tipo, req.body || {}, sessao.stateJson);
+    if (!previa.ok) throw erroSessao(previa.erros[0] || 'Evento patrimonial sem lançamento válido.', 409, 'ATIVO_SEM_LANCAMENTOS');
+    const periodoDoc = await empresaRef.collection('periodos_contabeis').doc(previa.periodo).get();
+    if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') throw erroSessao('Reabra a competência antes de contabilizar o evento patrimonial.', 409, 'PERIODO_CONTABIL_FECHADO');
+    const hashAtual = hashSessao(JSON.stringify({ lancamentos: previa.lancamentos, mutacao_bem: previa.mutacao_bem }));
+    if (!hashPrevia || hashAtual !== hashPrevia) throw erroSessao('A prévia mudou. Revise o evento antes de aprovar.', 409, 'PREVIA_DESATUALIZADA');
+    const state = parsearStateJson(sessao.stateJson);
+    const agora = new Date().toISOString();
+    previa.lancamentos.forEach(function (lancamento, indice) {
+      state.entries.push({
+        ...lancamento,
+        id: 'ativo-' + cryptoAdmin.createHash('sha1').update(lancamento.chave).digest('hex').slice(0, 16),
+        codigoHistorico: '', historicoPadraoDescricao: '', incomum: false,
+        empresa: chk.empresa.razao_social || '', cnpj, categoria: 'Ativo imobilizado',
+        importacaoId: 'ativo-' + previa.periodo, importacaoTitulo: 'Ativo imobilizado - ' + previa.periodo,
+        criadoAutomaticoEm: agora, aprovadoPorEmail: req.user.email, ordem: indice + 1
+      });
+    });
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const validacao = RelatoriosContabeis.validar(state.entries, previa.periodo, contas);
+    if (!validacao.ok) throw erroSessao(validacao.erros[0].mensagem, 409, 'LANCAMENTOS_ATIVO_INVALIDOS');
+    const resumo = { ...(sessao.dados && sessao.dados.resumo || {}), total_lancamentos: state.entries.length };
+    const resultado = await gravarSessaoBloqueada(sessaoRef, JSON.stringify(state), resumo, req.user, { exigirRevisao: true });
+    tokenTrava = null;
+    const batch = db.batch();
+    previa.lancamentos.forEach(function (lancamento) {
+      const id = cryptoAdmin.createHash('sha256').update(lancamento.chave).digest('hex');
+      batch.create(empresaRef.collection('ativos_lancamentos').doc(id), { ...lancamento, periodo: previa.periodo, aprovado_em: new Date(), aprovado_por_uid: req.user.uid, aprovado_por_email: req.user.email, session_revision: resultado.revisao });
+    });
+    const mutacao = { ...(previa.mutacao_bem || {}), atualizado_em: new Date(), atualizado_por_uid: req.user.uid, atualizado_por_email: req.user.email };
+    if (tipo === 'aquisicao') mutacao.aquisicao_contabilizada_em = new Date();
+    if (tipo === 'baixa') { mutacao.baixa_em = new Date(); mutacao.baixa_por_uid = req.user.uid; mutacao.baixa_por_email = req.user.email; }
+    batch.set(empresaRef.collection('ativos_imobilizados').doc(bemId), mutacao, { merge: true });
+    batch.create(empresaRef.collection('auditoria_contabil').doc(), { tipo: 'ATIVO_' + tipo.toUpperCase() + '_APROVADO', periodo: previa.periodo, bem_id: bemId, quantidade: previa.lancamentos.length, total: previa.total, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
+    await batch.commit();
+    res.status(201).json({ ok: true, tipo, periodo: previa.periodo, quantidade: previa.lancamentos.length, total: previa.total, session_revision: resultado.revisao });
+  } catch (e) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_APROVAR_EVENTO_ATIVO' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/previa', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competência inválida.' });
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const [bensSnap, geradosSnap, periodoDoc, sessao] = await Promise.all([
+      empresaRef.collection('ativos_imobilizados').get(),
+      empresaRef.collection('ativos_lancamentos').where('periodo', '==', periodo).get(),
+      empresaRef.collection('periodos_contabeis').doc(periodo).get(),
+      carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current'))
+    ]);
+    if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') return res.status(409).json({ erro: 'Reabra a competência antes de gerar lançamentos do ativo.', codigo: 'PERIODO_CONTABIL_FECHADO' });
+    const bens = bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; });
+    const chavesSessao = sessao.encontrada && sessao.stateJson ? parsearStateJson(sessao.stateJson).entries.map(function (item) { return String(item.chave || ''); }).filter(Boolean) : [];
+    const jaGerados = geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao);
+    const previa = AtivoImobilizadoContabil.previaDepreciacao(bens, periodo, jaGerados);
+    res.json({ ...previa, hash_previa: hashSessao(JSON.stringify(previa.lancamentos)) });
+  } catch (e) { res.status(e.status || 500).json({ erro: e.message }); }
+});
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/aprovar', async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    const hashPrevia = String(req.body && req.body.hash_previa || '');
+    if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competência inválida.' });
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const periodoDoc = await empresaRef.collection('periodos_contabeis').doc(periodo).get();
+    if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') return res.status(409).json({ erro: 'Reabra a competência antes de gerar lançamentos do ativo.', codigo: 'PERIODO_CONTABIL_FECHADO' });
+    sessaoRef = empresaRef.collection('sessoes').doc('current');
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'ativo_imobilizado');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Sessão contábil não encontrada.', 409, 'SESSAO_NAO_ENCONTRADA');
+    const [bensSnap, geradosSnap] = await Promise.all([
+      empresaRef.collection('ativos_imobilizados').get(),
+      empresaRef.collection('ativos_lancamentos').where('periodo', '==', periodo).get()
+    ]);
+    const chavesSessao = parsearStateJson(sessao.stateJson).entries.map(function (item) { return String(item.chave || ''); }).filter(Boolean);
+    const previa = AtivoImobilizadoContabil.previaDepreciacao(
+      bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; }),
+      periodo,
+      geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao)
+    );
+    if (!previa.ok) throw erroSessao(previa.erros[0] || 'Nenhuma depreciação pendente nesta competência.', 409, 'ATIVO_SEM_LANCAMENTOS');
+    const hashAtual = hashSessao(JSON.stringify(previa.lancamentos));
+    if (!hashPrevia || hashAtual !== hashPrevia) throw erroSessao('A prévia mudou. Revise os valores antes de aprovar.', 409, 'PREVIA_DESATUALIZADA');
+    const state = parsearStateJson(sessao.stateJson);
+    const agora = new Date().toISOString();
+    previa.lancamentos.forEach(function (lancamento, indice) {
+      state.entries.push({
+        ...lancamento,
+        id: 'ativo-' + periodo.replace('-', '') + '-' + cryptoAdmin.createHash('sha1').update(lancamento.chave).digest('hex').slice(0, 12),
+        codigoHistorico: '', historicoPadraoDescricao: '', incomum: false,
+        empresa: chk.empresa.razao_social || '', cnpj,
+        categoria: 'Ativo imobilizado', importacaoId: 'ativo-' + periodo,
+        importacaoTitulo: 'Ativo imobilizado - ' + periodo,
+        criadoAutomaticoEm: agora, aprovadoPorEmail: req.user.email, ordem: indice + 1
+      });
+    });
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const validacao = RelatoriosContabeis.validar(state.entries, periodo, contas);
+    if (!validacao.ok) throw erroSessao(validacao.erros[0].mensagem, 409, 'LANCAMENTOS_ATIVO_INVALIDOS');
+    const resumo = { ...(sessao.dados && sessao.dados.resumo || {}), total_lancamentos: state.entries.length };
+    const resultado = await gravarSessaoBloqueada(sessaoRef, JSON.stringify(state), resumo, req.user, { exigirRevisao: true });
+    tokenTrava = null;
+    const batch = db.batch();
+    previa.lancamentos.forEach(function (lancamento) {
+      const id = cryptoAdmin.createHash('sha256').update(lancamento.chave).digest('hex');
+      batch.create(empresaRef.collection('ativos_lancamentos').doc(id), { ...lancamento, periodo, chave: lancamento.chave, aprovado_em: new Date(), aprovado_por_uid: req.user.uid, aprovado_por_email: req.user.email, session_revision: resultado.revisao });
+    });
+    await batch.commit();
+    await empresaRef.collection('auditoria_contabil').add({ tipo: 'DEPRECIACAO_APROVADA', periodo, quantidade: previa.lancamentos.length, total: previa.total, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
+    res.status(201).json({ ok: true, periodo, quantidade: previa.lancamentos.length, total: previa.total, session_revision: resultado.revisao });
+  } catch (e) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_APROVAR_DEPRECIACAO' });
+  }
+});
+
 app.post('/api/empresas/:cnpj/relatorio', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
@@ -2780,7 +3498,12 @@ app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const snap = await db.collection('empresas').doc(cnpjLimpo).collection('periodos_contabeis').get();
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    const [snap, transportesSnap, conciliacoesSnap] = await Promise.all([
+      empresaRef.collection('periodos_contabeis').get(),
+      empresaRef.collection('transportes_saldos').get(),
+      empresaRef.collection('conciliacoes_bancarias').get()
+    ]);
     const periodos = snap.docs.map(function (doc) {
       const dados = doc.data() || {};
       return {
@@ -2796,10 +3519,257 @@ app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
         motivo_reabertura: dados.motivo_reabertura || null
       };
     }).sort(function (a, b) { return b.periodo.localeCompare(a.periodo); });
-    res.json({ periodos, is_admin: !!req.user.is_admin });
+    res.json({
+      periodos,
+      transportes: transportesSnap.docs.map(function (doc) { const d = doc.data() || {}; return { id: doc.id, ...d, gerado_em: serializarDataSegura(d.gerado_em) }; }),
+      conciliacoes: conciliacoesSnap.docs.map(function (doc) { const d = doc.data() || {}; return { id: doc.id, ...d, aprovado_em: serializarDataSegura(d.aprovado_em) }; }),
+      is_admin: !!req.user.is_admin,
+      implantacao: {
+        modo_contabil: chk.empresa.modo_contabil || 'ponte_sage',
+        inicio_escrituracao_cci: chk.empresa.inicio_escrituracao_cci || '',
+        regime_tributario_codigo: chk.empresa.regime_tributario_codigo || '',
+        regime_tributario_nome: chk.empresa.regime_tributario_nome || '',
+        regime_tributario_origem: chk.empresa.regime_tributario_origem || '',
+        parametrizacao_tributaria: avaliarParametrizacaoRegime(chk.empresa),
+        saldo_abertura_status: chk.empresa.saldo_abertura_status || '',
+        saldo_abertura_periodo: chk.empresa.saldo_abertura_periodo || '',
+        saldo_abertura_aprovado_em: serializarDataSegura(chk.empresa.saldo_abertura_aprovado_em),
+        saldo_abertura_aprovado_por_email: chk.empresa.saldo_abertura_aprovado_por_email || null,
+      }
+    });
   } catch (e) {
     console.error('listar periodos contabeis erro:', e);
     res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_LISTAR_PERIODOS' });
+  }
+});
+
+app.get('/api/empresas/:cnpj/contabilidade/homologacao-piloto', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const [periodosSnap, transportesSnap, conciliacoesSnap, ativosSnap, ativosLancamentosSnap] = await Promise.all([
+      empresaRef.collection('periodos_contabeis').get(),
+      empresaRef.collection('transportes_saldos').get(),
+      empresaRef.collection('conciliacoes_bancarias').get(),
+      empresaRef.collection('ativos_imobilizados').get(),
+      empresaRef.collection('ativos_lancamentos').get()
+    ]);
+    const dados = function (snap) { return snap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; }); };
+    res.json(HomologacaoPiloto.avaliarHomologacaoPiloto({
+      empresa: chk.empresa,
+      periodos: dados(periodosSnap),
+      transportes: dados(transportesSnap),
+      conciliacoes: dados(conciliacoesSnap),
+      ativos: dados(ativosSnap),
+      ativos_lancamentos: dados(ativosLancamentosSnap),
+      meta_fechamentos: 2
+    }));
+  } catch (e) {
+    console.error('homologacao piloto erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_HOMOLOGACAO_PILOTO' });
+  }
+});
+
+async function saldosIniciaisContabeis(empresaRef, estado, periodo) {
+  const explicitos = estado.relatoriosContabeis && estado.relatoriosContabeis.saldosIniciais
+    ? estado.relatoriosContabeis.saldosIniciais[periodo] || null
+    : null;
+  if (explicitos && Object.keys(explicitos).length) return { saldos: explicitos, origem: 'informado' };
+  const transporte = await empresaRef.collection('transportes_saldos').doc(periodo).get();
+  if (transporte.exists && String((transporte.data() || {}).status || 'vigente') === 'vigente') {
+    return { saldos: (transporte.data() || {}).saldos || {}, origem: 'transporte', transporte: transporte.data() || {} };
+  }
+  return { saldos: {}, origem: 'ausente' };
+}
+
+app.post('/api/empresas/:cnpj/contabilidade/conciliacoes/avaliar', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    const conta = String(req.body && req.body.conta || '').trim();
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    if (!RelatoriosContabeis.periodoValido(periodo) || !conta) return res.status(400).json({ erro: 'Informe competência e conta bancária.' });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const sessao = await carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current'));
+    if (!sessao.encontrada || !sessao.stateJson) return res.status(409).json({ erro: 'Sessão contábil não encontrada.' });
+    const estado = lerEstadoContabil(sessao.stateJson);
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const abertura = await saldosIniciaisContabeis(empresaRef, estado, periodo);
+    const linha = RelatoriosContabeis.balancete(estado.entries, periodo, contas, abertura.saldos).find(function (item) {
+      return String(item.conta) === conta || String(item.reduzido).replace(/^0+/, '') === conta.replace(/^0+/, '') || String(item.codigoCompleto) === conta;
+    });
+    const avaliacao = ConciliacaoContabil.avaliar({ periodo, conta, saldo_contabil: linha ? linha.saldoAtual : 0, saldo_extrato: req.body.saldo_extrato });
+    res.json({ ...avaliacao, origem_saldo_inicial: abertura.origem, movimentos: linha ? { saldo_anterior: linha.saldoAnterior, debitos: linha.debitos, creditos: linha.creditos } : { saldo_anterior: 0, debitos: 0, creditos: 0 } });
+  } catch (e) { res.status(e.status || 500).json({ erro: e.message }); }
+});
+
+app.post('/api/empresas/:cnpj/contabilidade/conciliacoes/aprovar', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    const conta = String(req.body && req.body.conta || '').trim();
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const sessao = await carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current'));
+    if (!sessao.encontrada || !sessao.stateJson) return res.status(409).json({ erro: 'Sessão contábil não encontrada.' });
+    const estado = lerEstadoContabil(sessao.stateJson);
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const abertura = await saldosIniciaisContabeis(empresaRef, estado, periodo);
+    const linha = RelatoriosContabeis.balancete(estado.entries, periodo, contas, abertura.saldos).find(function (item) { return String(item.conta) === conta || String(item.reduzido).replace(/^0+/, '') === conta.replace(/^0+/, '') || String(item.codigoCompleto) === conta; });
+    const avaliacao = ConciliacaoContabil.avaliar({ periodo, conta, saldo_contabil: linha ? linha.saldoAtual : 0, saldo_extrato: req.body.saldo_extrato });
+    if (!avaliacao.ok) return res.status(409).json({ erro: 'A conciliação possui diferença de R$ ' + Math.abs(avaliacao.diferenca).toFixed(2) + '.', codigo: 'CONCILIACAO_COM_DIFERENCA', avaliacao });
+    const chave = ConciliacaoContabil.chave(periodo, conta);
+    await empresaRef.collection('conciliacoes_bancarias').doc(chave).set({
+      ...avaliacao, movimentos: linha ? { saldo_anterior: linha.saldoAnterior, debitos: linha.debitos, creditos: linha.creditos } : null,
+      origem_saldo_inicial: abertura.origem, hash_periodo: assinaturaEstadoPeriodo(estado, periodo), status: 'conciliada',
+      aprovado_em: new Date(), aprovado_por_uid: req.user.uid, aprovado_por_email: req.user.email
+    });
+    await empresaRef.set({ contas_bancarias_conciliacao: FieldValue.arrayUnion(conta) }, { merge: true });
+    await empresaRef.collection('auditoria_contabil').add({ tipo: 'CONCILIACAO_BANCARIA_APROVADA', periodo, conta, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
+    res.json({ ok: true, id: chave, ...avaliacao });
+  } catch (e) { res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_CONCILIACAO' }); }
+});
+
+app.post('/api/empresas/:cnpj/contabilidade/saldos-abertura/aprovar', async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    const periodo = String(req.body && req.body.periodo || '').trim();
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competencia invalida. Use AAAA-MM.' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    if (chk.empresa.modo_contabil !== 'cci_exclusivo') {
+      return res.status(409).json({ erro: 'A aprovacao da abertura e obrigatoria somente para empresas no modo CCI exclusivo.', codigo: 'MODO_CONTABIL_NAO_EXCLUSIVO' });
+    }
+    const periodoInicial = periodoInicialEmpresa(chk.empresa);
+    if (!periodoInicial) return res.status(409).json({ erro: 'Configure a data de inicio da escrituracao no CCI.', codigo: 'INICIO_ESCRITURACAO_AUSENTE' });
+    if (periodo !== periodoInicial) {
+      return res.status(409).json({ erro: 'A abertura deve ser aprovada na competencia inicial ' + periodoInicial + '.', codigo: 'PERIODO_ABERTURA_INCORRETO' });
+    }
+    const sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    if (!sessao.encontrada || !sessao.stateJson) return res.status(409).json({ erro: 'Salve os saldos iniciais antes de solicitar a aprovacao.', codigo: 'SESSAO_NAO_ENCONTRADA' });
+    const estado = lerEstadoContabil(sessao.stateJson);
+    const saldos = (estado.relatoriosContabeis.saldosIniciais || {})[periodo] || {};
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const validacao = validarSaldosAbertura(saldos, contas);
+    if (!validacao.ok) {
+      return res.status(409).json({ erro: validacao.erros.map(function (item) { return item.mensagem; }).join(' '), codigo: 'SALDOS_ABERTURA_INVALIDOS', validacao });
+    }
+    const hash = hashSaldosAbertura(saldos);
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    await empresaRef.set({
+      saldo_abertura_status: 'aprovado',
+      saldo_abertura_periodo: periodo,
+      saldo_abertura_hash: hash,
+      saldo_abertura_resumo: validacao,
+      saldo_abertura_aprovado_em: new Date(),
+      saldo_abertura_aprovado_por_uid: req.user.uid,
+      saldo_abertura_aprovado_por_email: req.user.email,
+    }, { merge: true });
+    await empresaRef.collection('auditoria_contabil').add({
+      tipo: 'SALDOS_ABERTURA_APROVADOS',
+      periodo,
+      hash,
+      resumo: validacao,
+      quando: new Date(),
+      por_uid: req.user.uid,
+      por_email: req.user.email,
+    });
+    res.json({ ok: true, periodo, hash, validacao });
+  } catch (e) {
+    console.error('aprovar saldos abertura erro:', e);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_APROVAR_SALDOS_ABERTURA' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/contabilidade/relatorios/enviar-email', async (req, res) => {
+  try {
+    const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido' });
+    const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+
+    const entrada = req.body || {};
+    const destinatario = String(entrada.email || '').trim().toLowerCase();
+    const periodo = String(entrada.periodo || '').trim();
+    const tipo = String(entrada.tipo || '').trim().toLowerCase();
+    const tiposPermitidos = { balancete: 'Balancete', balancete_anual: 'Balancete Anual Analítico', razao: 'Razão Analítico', diario: 'Livro Diário', dre: 'Demonstração do Resultado do Exercício', balanco: 'Balanço Patrimonial', analise: 'Análise Econômico-Financeira' };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinatario)) return res.status(400).json({ erro: 'E-mail do destinatário inválido.' });
+    if (!tiposPermitidos[tipo]) return res.status(400).json({ erro: 'Tipo de relatório inválido.' });
+    const periodoValido = tipo === 'balancete_anual' ? /^\d{4}$/.test(periodo) : RelatoriosContabeis.periodoValido(periodo);
+    if (!periodoValido) return res.status(400).json({ erro: tipo === 'balancete_anual' ? 'Ano inválido. Use AAAA.' : 'Competência inválida. Use AAAA-MM.' });
+
+    const base64Limpo = String(entrada.pdf_base64 || '')
+      .replace(/^data:application\/pdf;base64,/i, '')
+      .replace(/\s/g, '');
+    if (!base64Limpo || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64Limpo)) return res.status(400).json({ erro: 'PDF inválido ou ausente.' });
+    const pdfBuffer = Buffer.from(base64Limpo, 'base64');
+    if (!pdfBuffer.length || pdfBuffer.length > 4 * 1024 * 1024) return res.status(413).json({ erro: 'O PDF deve ter no máximo 4 MB.' });
+    if (pdfBuffer.subarray(0, 5).toString('ascii') !== '%PDF-') return res.status(400).json({ erro: 'O arquivo enviado não é um PDF válido.' });
+
+    const nomeEmpresa = String(chk.empresa.razao_social || chk.empresa.empresa || chk.empresa.nome || 'Empresa').trim();
+    const assunto = String(entrada.assunto || `${tiposPermitidos[tipo]} — ${nomeEmpresa} — ${periodo}`).trim().slice(0, 180);
+    const mensagem = String(entrada.mensagem || 'Segue, em anexo, o relatório contábil solicitado.').trim().slice(0, 3000);
+    const escapar = (valor) => String(valor || '').replace(/[&<>"']/g, (caractere) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[caractere]);
+    const html = `
+      <div style="margin:0;padding:24px;background:#f3f6fb;font-family:Arial,sans-serif;color:#14213d">
+        <div style="max-width:680px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #dbe4f0">
+          <div style="padding:24px 28px;background:linear-gradient(135deg,#07152f,#2454d7);color:#fff">
+            <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#bcd3ff">Departamento Contábil</div>
+            <h1 style="margin:8px 0 0;font-size:24px">${escapar(tiposPermitidos[tipo])}</h1>
+          </div>
+          <div style="padding:28px">
+            <p style="margin:0 0 16px;line-height:1.6">${escapar(mensagem).replace(/\n/g, '<br>')}</p>
+            <table style="width:100%;border-collapse:collapse;background:#f7f9fc;border-radius:8px">
+              <tr><td style="padding:10px 12px;color:#667085">Empresa</td><td style="padding:10px 12px;font-weight:700">${escapar(nomeEmpresa)}</td></tr>
+              <tr><td style="padding:10px 12px;color:#667085">CNPJ</td><td style="padding:10px 12px;font-weight:700">${escapar(cnpjLimpo)}</td></tr>
+              <tr><td style="padding:10px 12px;color:#667085">Competência</td><td style="padding:10px 12px;font-weight:700">${escapar(periodo)}</td></tr>
+            </table>
+            <p style="margin:20px 0 0;color:#667085;font-size:13px">O relatório contábil está anexado em formato PDF.</p>
+          </div>
+          <div style="padding:16px 28px;background:#07152f;color:#bcd3ff;font-size:12px;text-align:center">Desenvolvido by SP Assessoria Contábil. Todos os direitos reservados.</div>
+        </div>
+      </div>`;
+
+    const remetente = process.env.GRAPH_REMETENTE || process.env.NOTIF_REMETENTE_EMAIL;
+    if (!GraphEmail.configurado() || !remetente) return res.status(503).json({ erro: 'Envio de e-mail temporariamente indisponível.' });
+    const nomeArquivo = String(entrada.nome_arquivo || `CCI_${tipo}_${periodo}_${cnpjLimpo}.pdf`).replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 150);
+    const envio = await GraphEmail.enviarEmail({
+      remetente,
+      para: destinatario,
+      assunto,
+      html,
+      anexos: [{ name: nomeArquivo, contentType: 'application/pdf', contentBytes: base64Limpo }]
+    });
+    if (!envio.ok) return res.status(502).json({ erro: envio.error || 'Não foi possível enviar o e-mail.' });
+
+    try {
+      await db.collection('empresas').doc(cnpjLimpo).collection('relatorios_contabeis_envios').add({
+        canal: 'email',
+        departamento: 'contabil',
+        destinatario,
+        assunto,
+        tipo,
+        periodo,
+        nome_arquivo: nomeArquivo,
+        tamanho_bytes: pdfBuffer.length,
+        enviado_em: new Date(),
+        enviado_por_uid: req.user.uid,
+        enviado_por_email: req.user.email
+      });
+    } catch (erroAuditoria) {
+      console.error('auditoria do envio de relatorio contabil falhou:', erroAuditoria);
+    }
+    res.json({ ok: true, destinatario, tipo, periodo });
+  } catch (e) {
+    console.error('enviar relatorio contabil por email erro:', e);
+    res.status(500).json({ erro: e.message || 'Falha ao enviar relatório por e-mail.' });
   }
 });
 
@@ -2813,6 +3783,23 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
     if (!RelatoriosContabeis.periodoValido(periodo)) return res.status(400).json({ erro: 'Competencia invalida. Use AAAA-MM.' });
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const parametrizacaoTributaria = avaliarParametrizacaoRegime(chk.empresa);
+    if (chk.empresa.modo_contabil === 'cci_exclusivo' && !parametrizacaoTributaria.ok) {
+      return res.status(409).json({
+        erro: 'Conclua a parametrização de ' + parametrizacaoTributaria.regime_nome + ' antes de encerrar o período. ' + (parametrizacaoTributaria.pendencias[0] ? parametrizacaoTributaria.pendencias[0].mensagem : ''),
+        codigo: 'PARAMETRIZACAO_TRIBUTARIA_PENDENTE',
+        pendencias: parametrizacaoTributaria.pendencias
+      });
+    }
+    if (exigeSaldoAbertura(chk.empresa, periodo)) {
+      const inicial = periodoInicialEmpresa(chk.empresa);
+      if (chk.empresa.saldo_abertura_status !== 'aprovado' || chk.empresa.saldo_abertura_periodo !== inicial) {
+        return res.status(409).json({
+          erro: 'Cadastre e aprove os saldos de abertura de ' + (inicial || 'competencia inicial') + ' antes de encerrar o periodo.',
+          codigo: 'SALDOS_ABERTURA_PENDENTES'
+        });
+      }
+    }
     const empresaRef = db.collection('empresas').doc(cnpjLimpo);
     const periodoRef = empresaRef.collection('periodos_contabeis').doc(periodo);
     const periodoAtual = await periodoRef.get();
@@ -2825,10 +3812,22 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
     if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Nenhuma sessão contábil encontrada para a empresa.', 409, 'SESSAO_NAO_ENCONTRADA');
     const estado = lerEstadoContabil(sessao.stateJson);
     const contas = await carregarContasContabeisEmpresa(chk.empresa);
-    const saldosIniciais = (estado.relatoriosContabeis.saldosIniciais || {})[periodo] || {};
+    const aberturaContabil = await saldosIniciaisContabeis(empresaRef, estado, periodo);
+    const saldosIniciais = aberturaContabil.saldos;
     const validacao = RelatoriosContabeis.validar(estado.entries, periodo, contas);
     if (!validacao.quantidade) throw erroSessao('Não há lançamentos contábeis nesta competência.', 409, 'SEM_MOVIMENTO_CONTABIL');
     if (!validacao.ok) throw erroSessao('O período possui inconsistências e não pode ser encerrado.', 409, 'VALIDACAO_CONTABIL_FALHOU');
+    const contasBancarias = Array.isArray(chk.empresa.contas_bancarias_conciliacao) ? chk.empresa.contas_bancarias_conciliacao.map(String).filter(Boolean) : [];
+    if (contasBancarias.length) {
+      const conciliacoesSnap = await empresaRef.collection('conciliacoes_bancarias').where('periodo', '==', periodo).get();
+      const conciliadas = new Map(conciliacoesSnap.docs.map(function (doc) { const d = doc.data() || {}; return [String(d.conta), d]; }));
+      const hashAtualPeriodo = assinaturaEstadoPeriodo(estado, periodo);
+      const pendentes = contasBancarias.filter(function (conta) {
+        const registro = conciliadas.get(conta);
+        return !registro || registro.status !== 'conciliada' || registro.hash_periodo !== hashAtualPeriodo;
+      });
+      if (pendentes.length) throw erroSessao('Concilie novamente as contas bancárias antes do fechamento: ' + pendentes.join(', ') + '.', 409, 'CONCILIACAO_BANCARIA_PENDENTE');
+    }
     const fotografia = RelatoriosContabeis.snapshot({
       periodo,
       lancamentos: estado.entries,
@@ -2839,6 +3838,13 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
     const fotografiaSemHash = { ...fotografia };
     delete fotografiaSemHash.hash;
     fotografia.hash = hashSessao(JSON.stringify(fotografiaSemHash));
+    const proximo = proximoPeriodo(periodo);
+    const saldosTransportados = saldosParaTransporte(fotografia.balancete);
+    const transporteRef = empresaRef.collection('transportes_saldos').doc(proximo);
+    const transporteAtual = await transporteRef.get();
+    if (transporteAtual.exists && String((transporteAtual.data() || {}).status || 'vigente') === 'vigente' && String((transporteAtual.data() || {}).origem_hash || '') !== fotografia.hash) {
+      throw erroSessao('Já existe um transporte diferente para ' + proximo + '. Reabra a sequência contábil antes de substituir.', 409, 'TRANSPORTE_SALDOS_CONFLITANTE');
+    }
     const fechamentoRef = empresaRef.collection('fechamentos_contabeis').doc();
     await gravarDocumentoJson(fechamentoRef, JSON.stringify(fotografia), {
       periodo,
@@ -2850,7 +3856,8 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
       fechado_por_uid: req.user.uid,
       fechado_por_email: req.user.email
     });
-    await periodoRef.set({
+    const fechamentoBatch = db.batch();
+    fechamentoBatch.set(periodoRef, {
       status: 'fechado',
       fechamento_id: fechamentoRef.id,
       hash: fotografia.hash,
@@ -2863,9 +3870,17 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
       reaberto_por_email: FieldValue.delete(),
       motivo_reabertura: FieldValue.delete()
     }, { merge: true });
+    fechamentoBatch.set(transporteRef, {
+      status: 'vigente', periodo_origem: periodo, periodo_destino: proximo,
+      origem_fechamento_id: fechamentoRef.id, origem_hash: fotografia.hash,
+      saldos: saldosTransportados, quantidade_contas: Object.keys(saldosTransportados).length,
+      gerado_em: new Date(), gerado_por_uid: req.user.uid, gerado_por_email: req.user.email
+    });
+    await fechamentoBatch.commit();
+    await empresaRef.collection('auditoria_contabil').add({ tipo: 'SALDOS_TRANSPORTADOS', periodo_origem: periodo, periodo_destino: proximo, origem_hash: fotografia.hash, quantidade_contas: Object.keys(saldosTransportados).length, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
     await liberarTravaSessao(sessaoRef, tokenTrava);
     tokenTrava = null;
-    res.status(201).json({ ok: true, periodo, status: 'fechado', fechamento_id: fechamentoRef.id, hash: fotografia.hash, resumo: validacao });
+    res.status(201).json({ ok: true, periodo, status: 'fechado', fechamento_id: fechamentoRef.id, hash: fotografia.hash, resumo: validacao, transporte: { periodo: proximo, quantidade_contas: Object.keys(saldosTransportados).length } });
   } catch (e) {
     if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
     console.error('fechar periodo contabil erro:', e);
@@ -2888,12 +3903,22 @@ app.post('/api/empresas/:cnpj/contabilidade/reabrir', adminRequired, async (req,
     if (!atual.exists || String((atual.data() || {}).status) !== 'fechado') {
       return res.status(409).json({ erro: 'A competência não está encerrada.', codigo: 'PERIODO_NAO_FECHADO' });
     }
+    const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    const proximo = proximoPeriodo(periodo);
+    const proximoDoc = await empresaRef.collection('periodos_contabeis').doc(proximo).get();
+    if (proximoDoc.exists && String((proximoDoc.data() || {}).status) === 'fechado') {
+      return res.status(409).json({ erro: 'Reabra primeiro a competência posterior ' + proximo + ' para preservar a cadeia de saldos.', codigo: 'PERIODO_POSTERIOR_FECHADO' });
+    }
     await periodoRef.set({
       status: 'reaberto',
       reaberto_em: new Date(),
       reaberto_por_uid: req.user.uid,
       reaberto_por_email: req.user.email,
       motivo_reabertura: motivo
+    }, { merge: true });
+    await empresaRef.collection('transportes_saldos').doc(proximo).set({
+      status: 'invalidado', invalidado_em: new Date(), invalidado_por_uid: req.user.uid,
+      invalidado_por_email: req.user.email, motivo_invalidacao: 'Reabertura da competência de origem ' + periodo
     }, { merge: true });
     await periodoRef.collection('eventos').add({ tipo: 'reabertura', motivo, timestamp: new Date(), uid: req.user.uid, email: req.user.email });
     res.json({ ok: true, periodo, status: 'reaberto' });
@@ -3567,11 +4592,192 @@ app.get('/admin', (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// AJUDA CCI — assistente operacional com base fechada e aprendizado revisado
+// As perguntas alimentam uma fila de curadoria. Nenhuma resposta do modelo
+// vira regra do sistema automaticamente.
+// ═══════════════════════════════════════════════════════════════════════════
+function extrairJsonAjudaCci(texto) {
+  const bruto = String(texto || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+  const inicio = bruto.indexOf('{');
+  const fim = bruto.lastIndexOf('}');
+  if (inicio < 0 || fim <= inicio) return null;
+  try { return JSON.parse(bruto.slice(inicio, fim + 1)); } catch (e) { return null; }
+}
+
+function escaparHtmlAjudaCci(valor) {
+  return String(valor || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+async function notificarSugestaoAjudaCci(registro, protocolo) {
+  const remetente = process.env.GRAPH_REMETENTE || process.env.NOTIF_REMETENTE_EMAIL;
+  const destinatario = process.env.CCI_SUGESTOES_EMAIL || remetente;
+  if (!GraphEmail.configurado() || !remetente || !destinatario) {
+    return { ok: false, status: 'fila_admin', detalhe: 'E-mail não configurado; sugestão disponível no banco administrativo.' };
+  }
+  const html = `<div style="font-family:Arial,sans-serif;color:#14213d;line-height:1.55">
+    <h2>Nova sugestão da Ajuda CCI</h2>
+    <p><strong>Protocolo:</strong> ${escaparHtmlAjudaCci(protocolo)}</p>
+    <p><strong>Pergunta:</strong><br>${escaparHtmlAjudaCci(registro.pergunta)}</p>
+    <p><strong>Usuário:</strong> ${escaparHtmlAjudaCci(registro.usuario_email)}<br>
+    <strong>Empresa:</strong> ${escaparHtmlAjudaCci(registro.cnpj || 'não informada')}<br>
+    <strong>Tela:</strong> ${escaparHtmlAjudaCci(registro.pagina || 'não informada')}<br>
+    <strong>Versão:</strong> ${escaparHtmlAjudaCci(registro.versao || 'não informada')}</p>
+    <p>A dúvida ficou pendente de curadoria. Revise antes de incluir qualquer orientação na base oficial.</p>
+  </div>`;
+  const envio = await GraphEmail.enviarEmail({
+    remetente,
+    para: destinatario,
+    assunto: `[CCI] Sugestão de ajuda ${protocolo}`,
+    html
+  });
+  return { ok: envio.ok === true, status: envio.ok ? 'email_enviado' : 'fila_admin', detalhe: envio.error || '' };
+}
+
+app.post('/api/ajuda-cci/perguntar', async (req, res) => {
+  const body = req.body || {};
+  const pergunta = String(body.pergunta || '').trim().replace(/\s+/g, ' ').slice(0, 1500);
+  if (pergunta.length < 3) return res.status(400).json({ erro: 'Informe uma pergunta com pelo menos 3 caracteres.' });
+
+  const cnpj = String(body.cnpj || '').replace(/\D/g, '').slice(0, 14);
+  const pagina = String(body.pagina || '').trim().slice(0, 120);
+  const versao = String(body.versao || '').trim().slice(0, 30);
+  const detectouAdmin = parecePerguntaAdministrativa(pergunta);
+  const orientacaoLocal = detectouAdmin ? null : buscarOrientacaoAjuda(pergunta);
+  let resultado = orientacaoLocal || {
+    resposta: detectouAdmin
+      ? `Essa solicitação envolve uma função administrativa. As ações restritas incluem: ${ACOES_ADMIN_CCI.join('; ')}. Procure um administrador e informe a empresa, a tela e a ação desejada.`
+      : 'Ainda não há uma orientação oficial suficiente para responder com segurança. A pergunta será registrada como sugestão para revisão.',
+    resolvida: detectouAdmin,
+    requer_admin: detectouAdmin,
+    modulo: detectouAdmin ? 'Permissões administrativas' : 'Não identificado',
+    motivo: detectouAdmin ? 'Ação sensível protegida por permissão administrativa.' : 'Base oficial insuficiente.'
+  };
+
+  if (!detectouAdmin && !orientacaoLocal) {
+    const client = getGeminiClient();
+    if (client) {
+      const systemInstruction = `Você é a Ajuda CCI, assistente operacional do Consultor Contábil Inteligente.\n
+Responda SOMENTE com base no conteúdo oficial abaixo. Não invente telas, botões, permissões, regras contábeis, fiscais ou legais. Não execute ações. Não peça nem aceite senhas, tokens, dados bancários ou dados pessoais. Se a base não contiver informação suficiente, marque resolvida como false e diga que a dúvida será enviada como sugestão. Se envolver ação administrativa, marque requer_admin como true e oriente a procurar um administrador. Decisões contábeis, fiscais ou legais devem ser confirmadas com o contador responsável.\n
+BASE OFICIAL DO CCI:\n${textoBaseAjuda()}\n
+AÇÕES EXCLUSIVAS DE ADMINISTRADOR:\n- ${ACOES_ADMIN_CCI.join('\n- ')}\n
+Retorne somente JSON válido neste formato: {"resposta":"texto curto e acionável","resolvida":true,"requer_admin":false,"modulo":"nome do módulo","motivo":"fonte ou lacuna"}.`;
+      try {
+        const response = await client.models.generateContent({
+          model: GEMINI_CHAT_MODEL,
+          contents: `Pergunta do colaborador: ${pergunta}`,
+          config: { systemInstruction, responseMimeType: 'application/json', temperature: 0.1 }
+        });
+        const interpretado = extrairJsonAjudaCci(response.text || '');
+        if (interpretado && typeof interpretado.resposta === 'string') {
+          resultado = {
+            resposta: interpretado.resposta.trim().slice(0, 4000),
+            resolvida: interpretado.resolvida === true,
+            requer_admin: interpretado.requer_admin === true,
+            modulo: String(interpretado.modulo || 'Geral').slice(0, 100),
+            motivo: String(interpretado.motivo || '').slice(0, 500)
+          };
+        }
+      } catch (erroIa) {
+        console.error('[ajuda-cci] consulta Gemini falhou:', erroIa && erroIa.message);
+      }
+    }
+  }
+
+  if (resultado.requer_admin) resultado.resolvida = true;
+  const status = resultado.requer_admin ? 'requer_admin' : (resultado.resolvida ? 'respondida' : 'sugestao_pendente');
+  const docRef = db.collection('ajuda_cci_perguntas').doc();
+  const protocolo = `CCI-${docRef.id.slice(0, 8).toUpperCase()}`;
+  const registro = {
+    protocolo,
+    pergunta,
+    resposta: resultado.resposta,
+    resolvida: resultado.resolvida,
+    requer_admin: resultado.requer_admin,
+    modulo: resultado.modulo,
+    motivo: resultado.motivo,
+    status,
+    pagina,
+    cnpj: cnpj.length === 14 ? cnpj : '',
+    versao,
+    usuario_uid: req.user.uid,
+    usuario_email: req.user.email,
+    criado_em: FieldValue.serverTimestamp(),
+    curadoria_status: resultado.resolvida ? 'nao_necessaria' : 'pendente',
+    promovida_base_oficial: false
+  };
+
+  try {
+    await docRef.set(registro);
+    if (!resultado.resolvida) {
+      const notificacao = await notificarSugestaoAjudaCci(registro, protocolo);
+      await docRef.set({
+        notificacao_status: notificacao.status,
+        notificacao_detalhe: String(notificacao.detalhe || '').slice(0, 500),
+        notificacao_em: FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+  } catch (erroRegistro) {
+    console.error('[ajuda-cci] registro falhou:', erroRegistro);
+    return res.status(500).json({ erro: 'Não foi possível registrar a consulta na base de ajuda.' });
+  }
+
+  res.json({
+    ok: true,
+    protocolo,
+    resposta: resultado.resposta,
+    resolvida: resultado.resolvida,
+    requer_admin: resultado.requer_admin,
+    modulo: resultado.modulo,
+    sugestao_registrada: !resultado.resolvida
+  });
+});
+
+app.get('/api/manual-cci', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(MANUAL_CCI);
+});
+
+app.get('/api/manual-cci/download/:formato', (req, res) => {
+  const formato = String(req.params.formato || '').toLowerCase();
+  if (!['docx', 'pdf'].includes(formato)) return res.status(400).json({ erro: 'Formato inválido. Use docx ou pdf.' });
+  const nome = `Manual_Operacional_CCI.${formato}`;
+  const arquivo = path.join(__dirname, 'downloads', nome);
+  res.set('Cache-Control', 'no-store');
+  res.download(arquivo, nome, (erro) => {
+    if (erro && !res.headersSent) res.status(404).json({ erro: 'O download do manual ainda não foi gerado para esta versão.' });
+  });
+});
+
+app.get('/api/admin/ajuda-cci/sugestoes', adminRequired, async (req, res) => {
+  try {
+    const limite = Math.max(1, Math.min(100, Number(req.query.limit || 50)));
+    const snap = await db.collection('ajuda_cci_perguntas').orderBy('criado_em', 'desc').limit(limite).get();
+    res.json(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message || 'Falha ao listar sugestões da Ajuda CCI.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // GEMINI SDK ENDPOINTS — AuditAI e Extratos (admin-only)
 // Deve ficar antes dos fallbacks estaticos. Se ficar depois do fallback geral,
 // o frontend recebe index.html e quebra ao tentar interpretar HTML como JSON.
 // ═══════════════════════════════════════════════════════════════════════════
 let _geminiClient = null;
+function mensagemSeguraErroGemini(err) {
+  const raw = String((err && err.message) || '');
+  const normalized = raw.toLowerCase();
+  if (
+    (err && Number(err.status) === 429)
+    || normalized.includes('resource_exhausted')
+    || normalized.includes('prepayment')
+    || normalized.includes('credits are depleted')
+  ) {
+    return 'Cota do provedor de IA esgotada. Regularize a cota e tente novamente.';
+  }
+  return 'Não foi possível concluir a análise de IA neste momento.';
+}
+
 function getGeminiClient() {
   if (_geminiClient) return _geminiClient;
   const key = process.env.GEMINI_API_KEY;
@@ -3597,7 +4803,7 @@ app.post('/api/gemini/generate', adminRequired, async (req, res) => {
   } catch (err) {
     console.error('[gemini/generate]', err && err.message);
     const status = err && err.status >= 400 && err.status < 600 ? err.status : 500;
-    res.status(status).json({ erro: (err && err.message) || 'Erro Gemini' });
+    res.status(status).json({ erro: mensagemSeguraErroGemini(err) });
   }
 });
 
@@ -3616,7 +4822,8 @@ app.post('/api/gemini/chat', adminRequired, async (req, res) => {
     res.json({ text: result.text || '' });
   } catch (err) {
     console.error('[gemini/chat]', err && err.message);
-    res.status(500).json({ erro: (err && err.message) || 'Erro chat' });
+    const status = err && err.status >= 400 && err.status < 600 ? err.status : 500;
+    res.status(status).json({ erro: mensagemSeguraErroGemini(err) });
   }
 });
 
@@ -3673,7 +4880,29 @@ app.use('/api', (req, res) => {
   res.status(404).json({ erro: `Rota API nao encontrada: ${req.originalUrl}` });
 });
 
+// Os arquivos do manual ficam no pacote para download autenticado pela API,
+// mas não podem ser expostos diretamente pelo express.static.
+app.use('/downloads', (req, res) => {
+  res.status(404).send('Arquivo não encontrado. Acesse o Manual Operacional após fazer login no CCI.');
+});
+
 app.use('/vendor/xlsx', express.static(path.join(__dirname, 'node_modules', 'xlsx', 'dist'), {
+  etag: false,
+  maxAge: '1h',
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+  }
+}));
+
+app.use('/vendor/jspdf', express.static(path.join(__dirname, 'node_modules', 'jspdf', 'dist'), {
+  etag: false,
+  maxAge: '1h',
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+  }
+}));
+
+app.use('/vendor/jspdf-autotable', express.static(path.join(__dirname, 'node_modules', 'jspdf-autotable', 'dist'), {
   etag: false,
   maxAge: '1h',
   setHeaders: (res) => {
