@@ -223,9 +223,9 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 ### 🟠 P08 — Homologação e fila de qualidade de layouts
 
 - Estado: `EM RESOLUÇÃO`
-- Gap: 6 de 36 layouts bancários com aprovação explícita. A amostra inicial
-  mostrava 227 pendências; a leitura completa posterior confirmou 618
-  rejeições e todas as 618 ainda com status pendente.
+- Gap: 6 de 36 layouts bancários com aprovação explícita. A leitura completa
+  confirmou 618 tentativas pendentes, que correspondem a 276 casos únicos;
+  todos os casos continuam sem responsável e 228 ainda não têm parser.
 - Critério de aceite: status confiável por layout, responsável, SLA, versão de
   correção e regressão obrigatória por evidência real.
 - Etapa técnica preparada em 29/08/2026: toda rejeição nova recebe prioridade e
@@ -246,6 +246,18 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   resolução. A etapa técnica não promove automaticamente os 29 layouts aptos
   nem inventa donos; a resolução da P08 depende da distribuição e tratamento
   administrativo desse passivo.
+- Saneamento publicado em 29/08/2026: versão `3.4.212`, revisão
+  `plano-contas-iob-00769-jic`, passou a agrupar tentativas por banco, parser,
+  CNPJ, arquivo, período e categoria. As 618 ocorrências permanecem íntegras
+  para auditoria, mas o painel mostra 276 casos únicos e 342 tentativas
+  repetidas, sem inflar SLA ou carga de trabalho. O maior caso possui 13
+  tentativas. Novas rejeições recebem fingerprint SHA-256; legadas são
+  agrupadas somente na leitura, sem reescrever documentos.
+- A interface agora separa casos pendentes/resolvidos, SLA por caso,
+  tentativas repetidas e casos sem parser; a fila informa quantas tentativas
+  pertencem ao mesmo caso. A porta completa passou, o workflow oficial
+  `33281910660` aprovou candidata e health final, 100% do tráfego está na nova
+  revisão e não houve log `ERROR` na primeira verificação.
 
 ### 🟠 P09 — Cobertura fiscal oficial por fonte
 
@@ -439,3 +451,6 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 - 29/08/2026 — P13 passou de `ABERTA` para `EM RESOLUÇÃO`: a versão 3.4.211
   eliminou a sobrescrita silenciosa entre duas telas com revisão obsoleta. O
   fechamento aguarda o E2E autenticado em empresa dedicada de teste.
+- 29/08/2026 — P08 teve o passivo saneado sem apagar histórico: 618 tentativas
+  foram reconciliadas em 276 casos únicos na versão 3.4.212. Permanece
+  `EM RESOLUÇÃO` até atribuição e tratamento administrativo dos casos.
