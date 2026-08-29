@@ -1,9 +1,9 @@
 {
-  "version": "3.4.195",
-  "build_date": "2026-08-29T15:27:38Z",
+  "version": "3.4.196",
+  "build_date": "2026-08-29T15:38:27Z",
   "release_notes": [
-    "fix: preservar a próxima digitação enquanto o lançamento anterior é salvo",
-    "perf: compactar sessões grandes antes do transporte e do Firestore",
-    "docs: registrar e enumerar as pendências da auditoria CCI/SAGE"
+    "security: remover vulnerabilidades crítica e alta da geração de PDFs",
+    "release: reconciliar a linha publicada com a main sem perda funcional",
+    "fix: preservar a próxima digitação enquanto o lançamento anterior é salvo"
   ]
 }

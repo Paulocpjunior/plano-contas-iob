@@ -98,10 +98,20 @@ e, quando afetar produção, confirmação da versão/revisão pública.
 
 ### P06 — Vulnerabilidades de dependências de produção
 
-- Estado: `ABERTA`
+- Estado: `AGUARDANDO EVIDÊNCIA`
 - Gap: 1 vulnerabilidade crítica, 1 alta e 9 moderadas no lock auditado.
 - Critério de aceite: zero advisory crítico/alto ou exceção formal com prazo;
   regressão de PDFs e importadores aprovada.
+- Candidata em 29/08/2026: `jspdf` atualizado de 2.5.2 para 4.2.1 e
+  `jspdf-autotable` de 3.8.4 para 5.0.8. `npm audit --omit=dev
+  --audit-level=high` passou com zero crítica e zero alta; permaneceram 8
+  moderadas transitivas do ecossistema Google/Firebase, fora do critério
+  bloqueante desta pendência.
+- Evidência: bateria completa `npm run check` aprovada após a atualização,
+  incluindo relatórios contábeis, AuditAI, Conferência de Caixa, geração de PDF
+  e todos os importadores homologados.
+- Evidência ainda necessária: revisão 3.4.196 publicada e health/version
+  confirmados antes de marcar como `RESOLVIDA`.
 
 ### P07 — Menor privilégio no Google Cloud
 
