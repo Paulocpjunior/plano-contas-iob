@@ -3,7 +3,7 @@
 // Carrega o certificado A1 da SP Assessoria (procuradora) do Secret Manager
 // e extrai cert+chave em PEM para o assinador.
 //
-// Le/grava os secrets:
+// Le/grava versões dos secrets previamente provisionados:
 //   - reinf-cert-a1        : conteudo binario do .pfx (PKCS#12)
 //   - reinf-cert-password  : senha do .pfx
 //
@@ -34,24 +34,11 @@ function latestVersionPath(secretName) {
   return `${secretPath(secretName)}/versions/latest`;
 }
 
-async function ensureSecret(secretName) {
-  const name = secretPath(secretName);
-  try {
-    await client.getSecret({ name });
-    return name;
-  } catch (err) {
-    if (err.code !== 5) throw err;
-    const [secret] = await client.createSecret({
-      parent: `projects/${CERT_PROJECT}`,
-      secretId: secretName,
-      secret: { replication: { automatic: {} } },
-    });
-    return secret.name;
-  }
-}
-
 async function addSecretVersion(secretName, data) {
-  const parent = await ensureSecret(secretName);
+  // A aplicação não cria containers de secret. Infraestrutura provisiona os
+  // dois nomes antecipadamente; o runtime recebe somente acesso e permissão
+  // de adicionar versão, sem Secret Manager Admin.
+  const parent = secretPath(secretName);
   const payload = Buffer.isBuffer(data) ? data : Buffer.from(String(data), 'utf8');
   const [version] = await client.addSecretVersion({ parent, payload: { data: payload } });
   return version.name;
