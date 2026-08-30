@@ -323,11 +323,14 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   10 parsers não carregados e 3 divergências de total oficial. São 209 PDFs,
   27 XLSX, 18 OFX, 16 CSV, 3 XLS e 3 formatos unitários; 228 casos ainda não
   possuem parser e todos os 276 continuam sem responsável.
-- Gap de interface identificado na segmentação: o endpoint entregava os 276
-  casos, mas a tabela cortava silenciosamente após o 120º. A versão `3.4.217`
-  foi preparada com filtros por estado, categoria, presença de parser e
-  banco/origem, além de paginação de 100 casos, para tornar toda a fila
-  operacionalmente acessível sem exceder o limite do lote.
+- Gap de interface corrigido na segmentação: o endpoint entregava os 276 casos,
+  mas a tabela cortava silenciosamente após o 120º. A versão `3.4.217`, revisão
+  `plano-contas-iob-00779-qap`, publicou filtros por estado, categoria, presença
+  de parser e banco/origem, além de paginação de 100 casos, tornando toda a fila
+  operacionalmente acessível sem exceder o limite do lote. O workflow oficial
+  `33323156250` passou com 118 testes, zero pulos/falhas, validou candidata e
+  health final; produção está com 100% do tráfego, Firestore conectado no
+  database `(default)` e sem log `ERROR` na primeira verificação.
 - Estado permanece `EM RESOLUÇÃO`: a ferramenta para sanear o passivo está em
   produção, mas os 276 casos ainda precisam de distribuição a responsáveis e
   evidência real antes que a P08 possa ser promovida a verde.
@@ -548,3 +551,6 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   100 casos abertos podem ser distribuídos sem reabrir tentativas concluídas e
   com auditoria por caso. O passivo permanece aberto até a distribuição e o
   tratamento dos 276 casos reais.
+- 30/08/2026 — P08 teve todo o passivo tornado acessível na versão 3.4.217:
+  o corte silencioso após o 120º caso foi substituído por filtros e paginação.
+  A leitura de produção segmentou os 276 casos sem alterar documentos.
