@@ -305,6 +305,19 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   candidata antes do tráfego e o health final. A revisão recebe 100% do
   tráfego, o health público confirmou Firestore conectado, as ações por caso
   foram servidas publicamente e não houve log `ERROR` na verificação.
+- Distribuição em lote publicada em 30/08/2026: versão `3.4.216`, revisão
+  `plano-contas-iob-00777-xay`, permite selecionar até 100 casos abertos e
+  atribuí-los a um responsável em uma única operação atômica. A operação
+  preserva tentativas já resolvidas ou ignoradas, recusa lotes acima do limite
+  transacional em vez de aplicar parcialmente e registra um evento de auditoria
+  por caso. O E2E isolado confirmou dois casos, três tentativas abertas
+  atribuídas, uma tentativa resolvida preservada e dois eventos; todos os dados
+  sintéticos foram removidos ao final.
+- Evidência da 3.4.216: suíte completa e regressão específica aprovadas, zero
+  vulnerabilidade alta/crítica; workflow oficial `33322698558` validou candidata
+  e health final. Produção serve a nova ação, está com 100% do tráfego na revisão
+  `00777-xay`, health informa versão `3.4.216`, Firestore conectado e database
+  `(default)`, sem log de severidade `ERROR` na revisão na primeira verificação.
 - Estado permanece `EM RESOLUÇÃO`: a ferramenta para sanear o passivo está em
   produção, mas os 276 casos ainda precisam de distribuição a responsáveis e
   evidência real antes que a P08 possa ser promovida a verde.
@@ -521,3 +534,7 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   conflito foi publicado na versão 3.4.215, revisão 00775, sem erro.
 - 30/08/2026 — P03 saiu de `AGUARDANDO P01` para `EM RESOLUÇÃO`; a seleção e o
   fechamento comparativo das empresas-piloto podem começar.
+- 30/08/2026 — P08 recebeu atribuição atômica em lote na versão 3.4.216: até
+  100 casos abertos podem ser distribuídos sem reabrir tentativas concluídas e
+  com auditoria por caso. O passivo permanece aberto até a distribuição e o
+  tratamento dos 276 casos reais.
