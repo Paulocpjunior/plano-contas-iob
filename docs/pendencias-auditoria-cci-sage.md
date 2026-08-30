@@ -318,6 +318,16 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   e health final. Produção serve a nova ação, está com 100% do tráfego na revisão
   `00777-xay`, health informa versão `3.4.216`, Firestore conectado e database
   `(default)`, sem log de severidade `ERROR` na revisão na primeira verificação.
+- Segmentação somente leitura em 30/08/2026: os 276 casos abertos são 134 de
+  layout não reconhecido, 91 falhas de importação, 38 arquivos sem transações,
+  10 parsers não carregados e 3 divergências de total oficial. São 209 PDFs,
+  27 XLSX, 18 OFX, 16 CSV, 3 XLS e 3 formatos unitários; 228 casos ainda não
+  possuem parser e todos os 276 continuam sem responsável.
+- Gap de interface identificado na segmentação: o endpoint entregava os 276
+  casos, mas a tabela cortava silenciosamente após o 120º. A versão `3.4.217`
+  foi preparada com filtros por estado, categoria, presença de parser e
+  banco/origem, além de paginação de 100 casos, para tornar toda a fila
+  operacionalmente acessível sem exceder o limite do lote.
 - Estado permanece `EM RESOLUÇÃO`: a ferramenta para sanear o passivo está em
   produção, mas os 276 casos ainda precisam de distribuição a responsáveis e
   evidência real antes que a P08 possa ser promovida a verde.

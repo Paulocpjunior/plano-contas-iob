@@ -1,7 +1,7 @@
 {
-  "version": "3.4.216",
-  "build_date": "2026-08-30T16:48:00Z",
+  "version": "3.4.217",
+  "build_date": "2026-08-30T17:30:00Z",
   "release_notes": [
-    "Atribuição atômica em lote dos casos de rejeição de layout"
+    "Filtros e paginação para acessar toda a fila de rejeições de layout"
   ]
 }

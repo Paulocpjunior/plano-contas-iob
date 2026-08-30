@@ -6,31 +6,31 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.216"></script>
+<script src="/saas-brand-theme.js?v=3.4.217"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.216"></script>
-<script src="/parser-ofx.js?v=3.4.216"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.216"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.216"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.216"></script>
-<script src="/parser-safra-extrato.js?v=3.4.216"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.216"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.216"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.216"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.216"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.216"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.216"></script>
-<script src="/parser-btg-pactual.js?v=3.4.216"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.216"></script>
-<script src="/parser-abc-extrato.js?v=3.4.216"></script>
-<script src="/parser-inter-extrato.js?v=3.4.216"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.216"></script>
-<script src="/parser-stone-extrato.js?v=3.4.216"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.216"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.216"></script>
+<script src="/api-adapter.js?v=3.4.217"></script>
+<script src="/parser-ofx.js?v=3.4.217"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.217"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.217"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.217"></script>
+<script src="/parser-safra-extrato.js?v=3.4.217"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.217"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.217"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.217"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.217"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.217"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.217"></script>
+<script src="/parser-btg-pactual.js?v=3.4.217"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.217"></script>
+<script src="/parser-abc-extrato.js?v=3.4.217"></script>
+<script src="/parser-inter-extrato.js?v=3.4.217"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.217"></script>
+<script src="/parser-stone-extrato.js?v=3.4.217"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.217"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.217"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -491,6 +491,7 @@ let currentLayoutsBancarios = null;
 let currentLayoutDrafts = [];
 let novoLayoutAnaliseAtual = null;
 let currentLayoutQuality = null;
+let layoutCaseFilters = { estado: 'abertos', categoria: '', parser: '', banco: '', pagina: 0 };
 let currentExclusaoPreview = null;
 let exclusaoEmpresasCarregadas = false;
 
@@ -1178,10 +1179,36 @@ function renderLayoutQuality() {
     html += '</tbody></table>';
   }
   if (casosRejeicao.length) {
+    const categoriasCasos = [...new Set(casosRejeicao.map(caso => caso.categoria_erro || 'falha_importacao'))].sort();
+    const bancosCasos = [...new Set(casosRejeicao.map(caso => [caso.banco || '', caso.nomeBanco || ''].filter(Boolean).join(' — ') || 'Não informado'))].sort();
+    const casosFiltrados = casosRejeicao.filter(caso => {
+      const estadoOk = layoutCaseFilters.estado === 'todos'
+        || (layoutCaseFilters.estado === 'abertos' && caso.aberto)
+        || caso.estado === layoutCaseFilters.estado;
+      const categoriaOk = !layoutCaseFilters.categoria || caso.categoria_erro === layoutCaseFilters.categoria;
+      const parserOk = !layoutCaseFilters.parser
+        || (layoutCaseFilters.parser === 'com' && Boolean(caso.parser))
+        || (layoutCaseFilters.parser === 'sem' && !caso.parser);
+      const bancoTexto = [caso.banco, caso.nomeBanco].filter(Boolean).join(' — ') || 'Não informado';
+      const bancoOk = !layoutCaseFilters.banco || bancoTexto === layoutCaseFilters.banco;
+      return estadoOk && categoriaOk && parserOk && bancoOk;
+    });
+    const tamanhoPaginaCasos = 100;
+    const totalPaginasCasos = Math.max(1, Math.ceil(casosFiltrados.length / tamanhoPaginaCasos));
+    if (layoutCaseFilters.pagina >= totalPaginasCasos) layoutCaseFilters.pagina = totalPaginasCasos - 1;
+    const inicioPaginaCasos = layoutCaseFilters.pagina * tamanhoPaginaCasos;
+    const casosPagina = casosFiltrados.slice(inicioPaginaCasos, inicioPaginaCasos + tamanhoPaginaCasos);
     html += '<h3 style="margin:22px 0 10px;color:#111827">Casos únicos de rejeição</h3>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:0 0 10px">';
+    html += `<select onchange="filtrarCasosRejeicao('estado',this.value)"><option value="abertos"${layoutCaseFilters.estado === 'abertos' ? ' selected' : ''}>Somente abertos</option><option value="todos"${layoutCaseFilters.estado === 'todos' ? ' selected' : ''}>Todos os estados</option><option value="resolvido"${layoutCaseFilters.estado === 'resolvido' ? ' selected' : ''}>Resolvidos</option><option value="ignorado"${layoutCaseFilters.estado === 'ignorado' ? ' selected' : ''}>Ignorados</option></select>`;
+    html += `<select onchange="filtrarCasosRejeicao('categoria',this.value)"><option value="">Todas as categorias</option>${categoriasCasos.map(categoria => `<option value="${escapeHtml(categoria)}"${layoutCaseFilters.categoria === categoria ? ' selected' : ''}>${escapeHtml(categoria.replace(/_/g, ' '))}</option>`).join('')}</select>`;
+    html += `<select onchange="filtrarCasosRejeicao('parser',this.value)"><option value=""${!layoutCaseFilters.parser ? ' selected' : ''}>Com ou sem parser</option><option value="sem"${layoutCaseFilters.parser === 'sem' ? ' selected' : ''}>Sem parser</option><option value="com"${layoutCaseFilters.parser === 'com' ? ' selected' : ''}>Com parser</option></select>`;
+    html += `<select onchange="filtrarCasosRejeicao('banco',this.value)"><option value="">Todos os bancos/origens</option>${bancosCasos.map(banco => `<option value="${escapeHtml(banco)}"${layoutCaseFilters.banco === banco ? ' selected' : ''}>${escapeHtml(banco)}</option>`).join('')}</select>`;
+    html += '</div>';
     html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px"><button class="btn-sm" onclick="marcarCasosAbertos(true)">Selecionar abertos visíveis</button><button class="btn-sm" onclick="marcarCasosAbertos(false)">Limpar seleção</button><button class="btn-sm btn-promote" onclick="atribuirCasosSelecionados()">Atribuir selecionados</button><span style="font-size:12px;color:#64748b">Máximo de 100 casos e 450 operações por lote; nada é resolvido sem evidência.</span></div>';
+    html += `<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 10px"><span style="font-size:12px;color:#475569">Exibindo ${casosPagina.length ? inicioPaginaCasos + 1 : 0}–${Math.min(inicioPaginaCasos + casosPagina.length, casosFiltrados.length)} de ${casosFiltrados.length} caso(s) filtrado(s).</span><span><button class="btn-sm" onclick="paginarCasosRejeicao(-1)"${layoutCaseFilters.pagina === 0 ? ' disabled' : ''}>Anterior</button> <strong style="font-size:12px">Página ${layoutCaseFilters.pagina + 1}/${totalPaginasCasos}</strong> <button class="btn-sm" onclick="paginarCasosRejeicao(1)"${layoutCaseFilters.pagina + 1 >= totalPaginasCasos ? ' disabled' : ''}>Próxima</button></span></div>`;
     html += '<table><thead><tr><th>Selecionar</th><th>Prioridade</th><th>Banco/Arquivo</th><th>Categoria</th><th>Tentativas</th><th>SLA</th><th>Responsável</th><th>Ações do caso</th></tr></thead><tbody>';
-    casosRejeicao.slice(0, 120).forEach(caso => {
+    casosPagina.forEach(caso => {
       const sla = caso.sla || {};
       const slaTexto = sla.vencido ? 'SLA vencido' : (sla.fechado ? 'Fechado' : (sla.restante_horas == null ? 'Sem SLA' : sla.restante_horas + 'h restantes'));
       const slaClasse = sla.vencido ? 'badge-logout' : (sla.fechado ? 'badge-ok' : 'badge-warn');
@@ -1486,6 +1513,18 @@ async function tratarCasoRejeicao(fingerprint, status) {
 
 function marcarCasosAbertos(marcar) {
   document.querySelectorAll('.layout-case-select').forEach(item => { item.checked = marcar === true; });
+}
+
+function filtrarCasosRejeicao(campo, valor) {
+  if (!Object.prototype.hasOwnProperty.call(layoutCaseFilters, campo) || campo === 'pagina') return;
+  layoutCaseFilters[campo] = String(valor || '');
+  layoutCaseFilters.pagina = 0;
+  renderLayoutQuality();
+}
+
+function paginarCasosRejeicao(delta) {
+  layoutCaseFilters.pagina = Math.max(0, layoutCaseFilters.pagina + Number(delta || 0));
+  renderLayoutQuality();
 }
 
 async function atribuirCasosSelecionados() {

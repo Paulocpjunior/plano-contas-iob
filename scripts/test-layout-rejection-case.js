@@ -57,6 +57,11 @@ assert(admin.includes('Casos únicos de rejeição'));
 assert(admin.includes('tratarCasoRejeicao'));
 assert(admin.includes('Atribuir selecionados'));
 assert(admin.includes('atribuirCasosSelecionados'));
+assert(admin.includes('Todas as categorias'));
+assert(admin.includes('Todos os bancos/origens'));
+assert(admin.includes('casosFiltrados'));
+assert(admin.includes('paginarCasosRejeicao'));
+assert(!admin.includes('casosRejeicao.slice(0, 120)'), 'fila não pode esconder casos após o 120º item');
 assert(!server.includes("db.collection('layout_rejections').doc(d.id).delete"), 'agrupamento não pode apagar tentativas');
 
 console.log('OK: rejeições repetidas são agrupadas por caso e todas as tentativas permanecem auditáveis.');
