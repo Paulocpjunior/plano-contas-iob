@@ -29,6 +29,7 @@ const RelatoriosContabeis = require('./relatorios-contabeis');
 const AtivoImobilizado = require('./ativo-imobilizado');
 const AtivoImobilizadoContabil = require('./ativo-imobilizado-contabil');
 const ConciliacaoContabil = require('./conciliacao-contabil');
+const ConciliacaoDetalhada = require('./conciliacao-detalhada');
 const HomologacaoPiloto = require('./homologacao-piloto');
 const GraphEmail = require('./graph-email-provider');
 const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa, buscarOrientacaoAjuda } = require('./ajuda-cci-base');
@@ -4069,6 +4070,109 @@ async function saldosIniciaisContabeis(empresaRef, estado, periodo) {
   }
   return { saldos: {}, origem: 'ausente' };
 }
+
+async function avaliarConciliacaoDetalhadaDaRequisicao(cnpj, entrada, usuario) {
+  const periodo = String(entrada && entrada.periodo || '').trim();
+  const conta = String(entrada && entrada.conta || '').trim();
+  const chk = await checarAcessoEmpresa(cnpj, usuario);
+  if (!chk.ok) {
+    const erro = new Error(chk.erro);
+    erro.status = chk.status;
+    throw erro;
+  }
+  if (!RelatoriosContabeis.periodoValido(periodo) || !conta) {
+    const erro = new Error('Informe competência e conta bancária.');
+    erro.status = 400;
+    throw erro;
+  }
+  const empresaRef = db.collection('empresas').doc(cnpj);
+  const sessao = await carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current'));
+  if (!sessao.encontrada || !sessao.stateJson) {
+    const erro = new Error('Sessão contábil não encontrada.');
+    erro.status = 409;
+    throw erro;
+  }
+  const estado = lerEstadoContabil(sessao.stateJson);
+  const avaliacao = ConciliacaoDetalhada.avaliar({
+    periodo,
+    conta,
+    tolerancia_dias: entrada.tolerancia_dias,
+    movimentos_extrato: entrada.movimentos_extrato,
+    lancamentos: estado.entries
+  });
+  return { avaliacao, empresaRef, sessao };
+}
+
+app.post('/api/empresas/:cnpj/contabilidade/conciliacoes/movimentos/avaliar', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido.' });
+    const resultado = await avaliarConciliacaoDetalhadaDaRequisicao(cnpj, req.body || {}, req.user);
+    if (resultado.avaliacao.status === 'invalida') return res.status(400).json(resultado.avaliacao);
+    res.json(resultado.avaliacao);
+  } catch (e) {
+    res.status(e.status || 500).json({ erro: e.message, codigo: 'ERRO_AVALIAR_CONCILIACAO_DETALHADA' });
+  }
+});
+
+app.post('/api/empresas/:cnpj/contabilidade/conciliacoes/movimentos/aprovar', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido.' });
+    const resultado = await avaliarConciliacaoDetalhadaDaRequisicao(cnpj, req.body || {}, req.user);
+    const avaliacao = resultado.avaliacao;
+    if (avaliacao.status === 'invalida') return res.status(400).json(avaliacao);
+    if (!req.body.hash_previa || req.body.hash_previa !== avaliacao.hash_previa) {
+      return res.status(409).json({ erro: 'Os lançamentos ou dados do extrato mudaram. Gere uma nova prévia antes de aprovar.', codigo: 'CONCILIACAO_DETALHADA_PREVIA_DESATUALIZADA', avaliacao });
+    }
+    if (!avaliacao.ok) {
+      return res.status(409).json({ erro: 'A conferência detalhada ainda possui movimentos pendentes.', codigo: 'CONCILIACAO_DETALHADA_PENDENTE', avaliacao });
+    }
+    const chave = ConciliacaoContabil.chave(avaliacao.periodo, avaliacao.conta);
+    const conciliacaoRef = resultado.empresaRef.collection('conciliacoes_detalhadas').doc(chave);
+    const auditoriaRef = resultado.empresaRef.collection('auditoria_contabil').doc();
+    const aprovadoEm = new Date();
+    const documento = {
+      schema: 'conciliacao_detalhada_v1',
+      periodo: avaliacao.periodo,
+      conta: avaliacao.conta,
+      status: 'conciliada',
+      tolerancia_dias: avaliacao.tolerancia_dias,
+      hash_previa: avaliacao.hash_previa,
+      session_revision: resultado.sessao.dados && resultado.sessao.dados.session_revision || null,
+      resumo: avaliacao.resumo,
+      correspondencias: avaliacao.correspondencias.map(function (item) {
+        return {
+          tipo: item.tipo,
+          extrato_ids: (item.extrato || []).map(function (movimento) { return movimento.id; }),
+          contabil_ids: (item.contabil || []).map(function (movimento) { return movimento.id; }),
+          valor: item.valor,
+          confianca: item.confianca,
+          explicacao: item.explicacao
+        };
+      }),
+      aprovado_em: aprovadoEm,
+      aprovado_por_uid: req.user.uid,
+      aprovado_por_email: req.user.email
+    };
+    const batch = db.batch();
+    batch.set(conciliacaoRef, documento);
+    batch.create(auditoriaRef, {
+      tipo: 'CONCILIACAO_DETALHADA_APROVADA',
+      periodo: avaliacao.periodo,
+      conta: avaliacao.conta,
+      hash_previa: avaliacao.hash_previa,
+      resumo: avaliacao.resumo,
+      quando: aprovadoEm,
+      por_uid: req.user.uid,
+      por_email: req.user.email
+    });
+    await batch.commit();
+    res.status(201).json({ ok: true, id: chave, periodo: avaliacao.periodo, conta: avaliacao.conta, hash_previa: avaliacao.hash_previa, resumo: avaliacao.resumo });
+  } catch (e) {
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_APROVAR_CONCILIACAO_DETALHADA' });
+  }
+});
 
 app.post('/api/empresas/:cnpj/contabilidade/conciliacoes/avaliar', async (req, res) => {
   try {
