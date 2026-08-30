@@ -1,7 +1,7 @@
 {
-  "version": "3.4.218",
-  "build_date": "2026-08-30T17:45:00Z",
+  "version": "3.4.219",
+  "build_date": "2026-08-30T18:05:00Z",
   "release_notes": [
-    "Casos de layout separados por tamanho do arquivo e evidência genérica limitada ao arquivo exato"
+    "Evidências reais formalizadas para BB, Itaú, Santander e Bradesco na fila de qualidade"
   ]
 }
