@@ -53,6 +53,7 @@ function origemLancamento(entry) {
 function avaliarProgressaoEmpresa(entrada) {
   const dados = entrada || {};
   const empresa = dados.empresa || {};
+  const acompanhamento = dados.acompanhamento || {};
   const competencia = texto(dados.competencia);
   const agora = dataMillis(dados.agora) || Date.now();
   const diasAlerta = Math.max(1, Number(dados.dias_sem_atividade) || 5);
@@ -77,7 +78,7 @@ function avaliarProgressaoEmpresa(entrada) {
 
   const atividades = [
     empresa.last_session_at, empresa.updated_at, empresa.atualizado_em,
-    dados.sessao_atualizada_em, periodo.fechado_em, periodo.reaberto_em
+    dados.sessao_atualizada_em, periodo.fechado_em, periodo.reaberto_em, acompanhamento.atualizado_em
   ].concat(conciliacoes.map(function (item) { return item.aprovado_em || item.atualizado_em; }));
   const ultimaAtividadeMillis = Math.max.apply(null, [0].concat(atividades.map(dataMillis)));
   const diasSemAtividade = ultimaAtividadeMillis ? Math.max(0, Math.floor((agora - ultimaAtividadeMillis) / 86400000)) : null;
@@ -102,7 +103,17 @@ function avaliarProgressaoEmpresa(entrada) {
     etapa = 'fechamento'; etapaNome = 'Pronta para fechamento'; proximaAcao = 'Revise e encerre oficialmente a competência.'; motivo = 'Competência ainda aberta';
   }
 
-  const parada = !finalizada && diasSemAtividade != null && diasSemAtividade >= diasAlerta;
+  const prazoMillis = acompanhamento.prazo ? dataMillis(acompanhamento.prazo + 'T23:59:59-03:00') : 0;
+  const prazoAtrasado = !finalizada && prazoMillis > 0 && agora > prazoMillis;
+  const impedimentoGerencial = texto(acompanhamento.impedimento);
+  const parada = !finalizada && (!!impedimentoGerencial || prazoAtrasado || (diasSemAtividade != null && diasSemAtividade >= diasAlerta));
+  if (!finalizada && impedimentoGerencial) {
+    motivo = impedimentoGerencial;
+    proximaAcao = 'Resolva ou atualize o impedimento registrado no acompanhamento.';
+  } else if (!finalizada && prazoAtrasado) {
+    motivo = 'Prazo gerencial vencido em ' + acompanhamento.prazo;
+    proximaAcao = 'Replaneje o prazo ou conclua a etapa pendente.';
+  }
   let status = finalizada ? 'finalizada' : (parada ? 'parada' : (etapa === 'configuracao' || etapa === 'aguardando_movimento' ? 'atencao' : 'em_andamento'));
   if (!responsaveis.principal && !finalizada) status = 'sem_responsavel';
   const etapas = [
@@ -130,6 +141,18 @@ function avaliarProgressaoEmpresa(entrada) {
     contabilizacao: { total: lancamentos.length, classificados: classificados.length, pendentes, completa: lancamentos.length > 0 && pendentes === 0, origens },
     conciliacao: { aplicavel: conciliacaoAplicavel, total_contas: contasBancarias.length, conciliadas: conciliadas.length, completa: conciliacaoCompleta },
     fechamento: { finalizado: finalizada, status: finalizada ? 'fechado' : 'aberto', fechado_em: periodo.fechado_em || null },
+    acompanhamento: {
+      prazo: texto(acompanhamento.prazo),
+      prioridade: texto(acompanhamento.prioridade) || 'normal',
+      impedimento: impedimentoGerencial,
+      observacao: texto(acompanhamento.observacao),
+      revisao_status: texto(acompanhamento.revisao_status) || 'nao_solicitada',
+      evidencia_titulo: texto(acompanhamento.evidencia_titulo),
+      evidencia_url: texto(acompanhamento.evidencia_url),
+      atualizado_em: acompanhamento.atualizado_em || null,
+      atualizado_por_email: texto(acompanhamento.atualizado_por_email),
+      prazo_atrasado: prazoAtrasado
+    },
     prontidao: { percentual: prontidao.percentual, status: prontidao.status, bloqueios: prontidao.bloqueios },
     ultima_atividade_em: ultimaAtividadeMillis ? new Date(ultimaAtividadeMillis).toISOString() : null,
     dias_sem_atividade: diasSemAtividade,

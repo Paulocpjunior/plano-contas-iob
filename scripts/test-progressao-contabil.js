@@ -46,6 +46,15 @@ const parada = avaliarProgressaoEmpresa({ empresa: pronta, competencia: '2026-08
 assert.strictEqual(parada.status, 'parada');
 assert.strictEqual(parada.dias_sem_atividade, 10);
 
+const impedida = avaliarProgressaoEmpresa({ empresa: pronta, competencia: '2026-08', agora, sessao_atualizada_em: '2026-08-29T12:00:00Z', acompanhamento: { impedimento: 'Cliente não enviou extrato', prazo: '2026-08-31', prioridade: 'critica' } });
+assert.strictEqual(impedida.status, 'parada');
+assert.strictEqual(impedida.motivo_parada, 'Cliente não enviou extrato');
+assert.strictEqual(impedida.acompanhamento.prioridade, 'critica');
+
+const atrasada = avaliarProgressaoEmpresa({ empresa: pronta, competencia: '2026-08', agora, sessao_atualizada_em: '2026-08-29T12:00:00Z', acompanhamento: { prazo: '2026-08-28' } });
+assert.strictEqual(atrasada.status, 'parada');
+assert.strictEqual(atrasada.acompanhamento.prazo_atrasado, true);
+
 const agregado = resumirProgressao([parcial, finalizada, semResponsavel, parada]);
 assert.strictEqual(agregado.resumo.total, 4);
 assert.strictEqual(agregado.resumo.finalizadas, 1);

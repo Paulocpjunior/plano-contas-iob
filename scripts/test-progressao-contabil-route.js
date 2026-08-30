@@ -9,7 +9,7 @@ const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 const api = fs.readFileSync(path.join(root, 'api-adapter.js'), 'utf8');
 const admin = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
 const inicio = server.indexOf("app.get('/api/admin/progressao-contabil'");
-const fim = server.indexOf("app.get('/api/layouts-bancarios'", inicio);
+const fim = server.indexOf("app.put('/api/admin/progressao-contabil/:cnpj/:competencia/acompanhamento'", inicio);
 assert(inicio > 0 && fim > inicio, 'rota gerencial deve existir antes dos layouts');
 const rota = server.slice(inicio, fim);
 assert(rota.includes('adminRequired'), 'progressão deve ser exclusiva para gestores administradores');

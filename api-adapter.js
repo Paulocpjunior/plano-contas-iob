@@ -189,6 +189,16 @@
     return body;
   }
 
+  async function salvarAdminAcompanhamentoContabil(cnpj, competencia, dados) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/admin/progressao-contabil/' + cnpjLimpo + '/' + encodeURIComponent(competencia) + '/acompanhamento', {
+      method: 'PUT', body: JSON.stringify(dados || {})
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
   async function vincularEmpresaPlano(cnpj, razao_social, plano_id, cadastro) {
     const r = await apiFetch(API_BASE + '/api/vincular-empresa-plano', { method: 'POST', body: JSON.stringify(Object.assign({ cnpj, razao_social, plano_id }, cadastro || {})) });
     const body = await r.json().catch(() => ({}));
@@ -875,6 +885,7 @@
     reinfServicoTomadoPrestador,
     reinfServicosTomadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
   window.API.getAdminProgressaoContabil = getAdminProgressaoContabil;
+  window.API.salvarAdminAcompanhamentoContabil = salvarAdminAcompanhamentoContabil;
   console.log('[API Adapter v3] carregado');
 })();
 
