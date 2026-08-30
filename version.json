@@ -1,7 +1,7 @@
 {
-  "version": "3.4.215",
-  "build_date": "2026-08-30T16:21:00Z",
+  "version": "3.4.216",
+  "build_date": "2026-08-30T16:48:00Z",
   "release_notes": [
-    "Concorrência identificada corretamente em sessões com revisão obrigatória"
+    "Atribuição atômica em lote dos casos de rejeição de layout"
   ]
 }

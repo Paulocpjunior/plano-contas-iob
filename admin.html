@@ -6,31 +6,31 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.215"></script>
+<script src="/saas-brand-theme.js?v=3.4.216"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.215"></script>
-<script src="/parser-ofx.js?v=3.4.215"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.215"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.215"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.215"></script>
-<script src="/parser-safra-extrato.js?v=3.4.215"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.215"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.215"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.215"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.215"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.215"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.215"></script>
-<script src="/parser-btg-pactual.js?v=3.4.215"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.215"></script>
-<script src="/parser-abc-extrato.js?v=3.4.215"></script>
-<script src="/parser-inter-extrato.js?v=3.4.215"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.215"></script>
-<script src="/parser-stone-extrato.js?v=3.4.215"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.215"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.215"></script>
+<script src="/api-adapter.js?v=3.4.216"></script>
+<script src="/parser-ofx.js?v=3.4.216"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.216"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.216"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.216"></script>
+<script src="/parser-safra-extrato.js?v=3.4.216"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.216"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.216"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.216"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.216"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.216"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.216"></script>
+<script src="/parser-btg-pactual.js?v=3.4.216"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.216"></script>
+<script src="/parser-abc-extrato.js?v=3.4.216"></script>
+<script src="/parser-inter-extrato.js?v=3.4.216"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.216"></script>
+<script src="/parser-stone-extrato.js?v=3.4.216"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.216"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.216"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1179,13 +1179,15 @@ function renderLayoutQuality() {
   }
   if (casosRejeicao.length) {
     html += '<h3 style="margin:22px 0 10px;color:#111827">Casos únicos de rejeição</h3>';
-    html += '<table><thead><tr><th>Prioridade</th><th>Banco/Arquivo</th><th>Categoria</th><th>Tentativas</th><th>SLA</th><th>Responsável</th><th>Ações do caso</th></tr></thead><tbody>';
+    html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px"><button class="btn-sm" onclick="marcarCasosAbertos(true)">Selecionar abertos visíveis</button><button class="btn-sm" onclick="marcarCasosAbertos(false)">Limpar seleção</button><button class="btn-sm btn-promote" onclick="atribuirCasosSelecionados()">Atribuir selecionados</button><span style="font-size:12px;color:#64748b">Máximo de 100 casos e 450 operações por lote; nada é resolvido sem evidência.</span></div>';
+    html += '<table><thead><tr><th>Selecionar</th><th>Prioridade</th><th>Banco/Arquivo</th><th>Categoria</th><th>Tentativas</th><th>SLA</th><th>Responsável</th><th>Ações do caso</th></tr></thead><tbody>';
     casosRejeicao.slice(0, 120).forEach(caso => {
       const sla = caso.sla || {};
       const slaTexto = sla.vencido ? 'SLA vencido' : (sla.fechado ? 'Fechado' : (sla.restante_horas == null ? 'Sem SLA' : sla.restante_horas + 'h restantes'));
       const slaClasse = sla.vencido ? 'badge-logout' : (sla.fechado ? 'badge-ok' : 'badge-warn');
       const prioridadeClasse = caso.prioridade === 'critica' ? 'badge-logout' : (caso.prioridade === 'alta' ? 'badge-warn' : 'badge-info');
       html += `<tr>
+        <td>${caso.aberto ? `<input type="checkbox" class="layout-case-select" value="${escapeHtml(caso.fingerprint)}" aria-label="Selecionar caso">` : '—'}</td>
         <td><span class="badge ${prioridadeClasse}">${escapeHtml((caso.prioridade || 'normal').toUpperCase())}</span><br><span style="font-size:11px;color:#64748b">${escapeHtml((caso.estado || '').replace(/_/g, ' '))}</span></td>
         <td><strong>${escapeHtml(caso.banco || '-')} ${escapeHtml(caso.nomeBanco || '')}</strong><br>${escapeHtml(caso.arquivo || '-')}<br><span class="text-mono" style="font-size:11px;color:#9ca3af">${escapeHtml(caso.parser || 'parser não identificado')}</span></td>
         <td><span class="badge badge-info">${escapeHtml((caso.categoria_erro || 'falha_importacao').replace(/_/g, ' '))}</span></td>
@@ -1479,6 +1481,32 @@ async function tratarCasoRejeicao(fingerprint, status) {
     await loadLayoutQuality();
   } catch (e) {
     alert('Erro ao atualizar caso: ' + (e.message || e));
+  }
+}
+
+function marcarCasosAbertos(marcar) {
+  document.querySelectorAll('.layout-case-select').forEach(item => { item.checked = marcar === true; });
+}
+
+async function atribuirCasosSelecionados() {
+  const fingerprints = Array.from(document.querySelectorAll('.layout-case-select:checked')).map(item => item.value);
+  if (!fingerprints.length) return alert('Selecione ao menos um caso aberto.');
+  if (fingerprints.length > 100) return alert('Selecione no máximo 100 casos por lote.');
+  const usuario = (window.firebase && firebase.auth().currentUser) || {};
+  const responsavel = prompt('Responsável pelos ' + fingerprints.length + ' caso(s) selecionado(s):', usuario.email || '');
+  if (responsavel === null) return;
+  if (!confirm('Atribuir ' + fingerprints.length + ' caso(s) a ' + responsavel + '? As tentativas abertas serão preservadas e atualizadas atomicamente.')) return;
+  try {
+    const r = await window.API.apiFetch('/api/layout-rejection-case-assignments', {
+      method: 'PATCH',
+      body: JSON.stringify({ fingerprints, responsavel_email: responsavel })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.erro || ('HTTP ' + r.status));
+    alert(data.casos_atribuidos + ' caso(s) e ' + data.tentativas_atualizadas + ' tentativa(s) foram atribuídos.');
+    await loadLayoutQuality();
+  } catch (e) {
+    alert('Erro na atribuição em lote: ' + (e.message || e));
   }
 }
 

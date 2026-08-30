@@ -4988,6 +4988,91 @@ app.patch('/api/layout-rejections/:id', adminRequired, async (req, res) => {
   }
 });
 
+app.patch('/api/layout-rejection-case-assignments', adminRequired, async (req, res) => {
+  try {
+    const fingerprints = [...new Set((Array.isArray(req.body && req.body.fingerprints) ? req.body.fingerprints : [])
+      .map(item => String(item || '').trim().toLowerCase()))];
+    const responsavel = String(req.body && req.body.responsavel_email || '').trim().toLowerCase();
+    if (!fingerprints.length || fingerprints.length > 100) {
+      return res.status(400).json({ erro: 'selecione entre 1 e 100 casos por atribuição' });
+    }
+    if (fingerprints.some(item => !/^[a-f0-9]{64}$/.test(item))) {
+      return res.status(400).json({ erro: 'fingerprint de caso invalido' });
+    }
+    const selecionados = new Set(fingerprints);
+    const snap = await db.collection('layout_rejections').get();
+    const abertos = snap.docs.map(doc => ({ ref: doc.ref, id: doc.id, dados: doc.data() || {} }))
+      .map(item => ({ ...item, fingerprint: item.dados.caso_fingerprint || fingerprintCasoRejeicao(item.dados) }))
+      .filter(item => selecionados.has(item.fingerprint))
+      .filter(item => !['resolvido', 'ignorado'].includes(String(item.dados.status || 'pendente_parametrizacao')));
+    const porCaso = new Map();
+    abertos.forEach(item => {
+      if (!porCaso.has(item.fingerprint)) porCaso.set(item.fingerprint, []);
+      porCaso.get(item.fingerprint).push(item);
+    });
+    const ausentes = fingerprints.filter(item => !porCaso.has(item));
+    if (ausentes.length) return res.status(409).json({ erro: `${ausentes.length} caso(s) não possuem tentativas abertas` });
+    const totalOperacoes = abertos.length + porCaso.size;
+    if (totalOperacoes > 450) {
+      return res.status(409).json({
+        erro: `a seleção exige ${totalOperacoes} operações; reduza a seleção para manter a atribuição atômica`,
+        tentativas_abertas: abertos.length,
+        casos: porCaso.size,
+      });
+    }
+    const contexto = {
+      ator_uid: req.user.uid,
+      ator_email: req.user.email,
+      versao_publicada: lerVersao().version,
+      agora: new Date(),
+    };
+    let atualizacoes;
+    try {
+      atualizacoes = abertos.map(item => ({
+        ...item,
+        patch: {
+          ...prepararAtualizacao(item.dados, {
+            status: 'em_parametrizacao',
+            responsavel_email: responsavel,
+            prioridade: item.dados.prioridade || undefined,
+          }, contexto),
+          caso_fingerprint: item.fingerprint,
+        },
+      }));
+    } catch (erroValidacao) {
+      return res.status(400).json({ erro: erroValidacao.message });
+    }
+    const batch = db.batch();
+    atualizacoes.forEach(item => batch.set(item.ref, item.patch, { merge: true }));
+    porCaso.forEach((tentativas, fingerprint) => {
+      const primeiro = tentativas[0].dados;
+      batch.set(db.collection('layout_events').doc(), {
+        tipo: 'caso_rejeicao_atribuido_em_lote',
+        caso_fingerprint: fingerprint,
+        tentativas: tentativas.length,
+        banco: primeiro.banco || '',
+        nomeBanco: primeiro.nomeBanco || '',
+        parser: primeiro.parser || '',
+        status: 'em_parametrizacao',
+        responsavel_email: responsavel,
+        criado_em: contexto.agora,
+        criado_por_uid: req.user.uid,
+        criado_por_email: req.user.email,
+      });
+    });
+    await batch.commit();
+    return res.json({
+      ok: true,
+      casos_atribuidos: porCaso.size,
+      tentativas_atualizadas: atualizacoes.length,
+      responsavel_email: responsavel,
+    });
+  } catch (err) {
+    console.error('layout-rejection-case-assignments PATCH erro:', err);
+    return res.status(500).json({ erro: err.message });
+  }
+});
+
 app.patch('/api/layout-rejection-cases/:fingerprint', adminRequired, async (req, res) => {
   try {
     const fingerprint = String(req.params.fingerprint || '').trim().toLowerCase();

@@ -47,10 +47,16 @@ assert(server.includes('casos_sem_parser: casosAbertos.filter'));
 assert(server.includes("app.patch('/api/layout-rejection-cases/:fingerprint', adminRequired"));
 assert(server.includes("tipo: 'caso_rejeicao_atualizado'"));
 assert(server.includes('tentativas_atualizadas: tentativas.length'));
+assert(server.includes("app.patch('/api/layout-rejection-case-assignments', adminRequired"));
+assert(server.includes("tipo: 'caso_rejeicao_atribuido_em_lote'"));
+assert(server.includes('totalOperacoes > 450'), 'atribuição em lote deve permanecer atômica');
+assert(server.includes("!['resolvido', 'ignorado'].includes"), 'atribuição não pode reabrir tentativa encerrada');
 assert(admin.includes('Tentativas repetidas'));
 assert(admin.includes('tentativas neste caso'));
 assert(admin.includes('Casos únicos de rejeição'));
 assert(admin.includes('tratarCasoRejeicao'));
+assert(admin.includes('Atribuir selecionados'));
+assert(admin.includes('atribuirCasosSelecionados'));
 assert(!server.includes("db.collection('layout_rejections').doc(d.id).delete"), 'agrupamento não pode apagar tentativas');
 
 console.log('OK: rejeições repetidas são agrupadas por caso e todas as tentativas permanecem auditáveis.');
