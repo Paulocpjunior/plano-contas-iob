@@ -10,7 +10,7 @@ const { LAYOUTS_FISCAIS_PADRAO } = require('./layouts-fiscais-padrao');
 const { LAYOUT_QUALITY_CASES } = require('./layout-quality-cases');
 const { LAYOUT_QUALITY_EVIDENCE } = require('./layout-quality-evidence');
 const { criarGovernancaRejeicao, prepararAtualizacao, resumirSla } = require('./layout-quality-workflow');
-const { categoriaDaRejeicao, fingerprintCasoRejeicao, agruparCasosRejeicao } = require('./layout-rejection-case');
+const { FINGERPRINT_VERSAO, categoriaDaRejeicao, fingerprintCasoRejeicao, fingerprintEfetivo, agruparCasosRejeicao } = require('./layout-rejection-case');
 const { registrarRotasMercadoPago, registrarRotasPublicasMercadoPago } = require('./mercadopago-integration');
 const registrarRotasReinf = require('./reinf-routes');
 const cryptoAdmin = require('crypto');
@@ -4900,6 +4900,7 @@ app.post('/api/layout-rejections', async (req, res) => {
       criado_por_email: req.user.email
     };
     doc.caso_fingerprint = fingerprintCasoRejeicao(doc);
+    doc.caso_fingerprint_versao = FINGERPRINT_VERSAO;
     const ref = await db.collection('layout_rejections').add(doc);
     res.status(201).json({ ok: true, id: ref.id });
   } catch (err) {
@@ -4924,7 +4925,7 @@ app.get('/api/layout-rejections', adminRequired, async (req, res) => {
       },
       rejeicoes: documentos.slice(0, lim).map(dados => {
         const sla = resumirSla(dados, agora);
-        const casoFingerprint = dados.caso_fingerprint || fingerprintCasoRejeicao(dados);
+        const casoFingerprint = fingerprintEfetivo(dados);
         return {
           ...dados,
           caso_fingerprint: casoFingerprint,
@@ -5002,7 +5003,7 @@ app.patch('/api/layout-rejection-case-assignments', adminRequired, async (req, r
     const selecionados = new Set(fingerprints);
     const snap = await db.collection('layout_rejections').get();
     const abertos = snap.docs.map(doc => ({ ref: doc.ref, id: doc.id, dados: doc.data() || {} }))
-      .map(item => ({ ...item, fingerprint: item.dados.caso_fingerprint || fingerprintCasoRejeicao(item.dados) }))
+      .map(item => ({ ...item, fingerprint: fingerprintEfetivo(item.dados) }))
       .filter(item => selecionados.has(item.fingerprint))
       .filter(item => !['resolvido', 'ignorado'].includes(String(item.dados.status || 'pendente_parametrizacao')));
     const porCaso = new Map();
@@ -5037,6 +5038,7 @@ app.patch('/api/layout-rejection-case-assignments', adminRequired, async (req, r
             prioridade: item.dados.prioridade || undefined,
           }, contexto),
           caso_fingerprint: item.fingerprint,
+          caso_fingerprint_versao: FINGERPRINT_VERSAO,
         },
       }));
     } catch (erroValidacao) {
@@ -5083,7 +5085,7 @@ app.patch('/api/layout-rejection-cases/:fingerprint', adminRequired, async (req,
     // ocorrências antigas pendentes silenciosamente.
     const snap = await db.collection('layout_rejections').get();
     const tentativas = snap.docs.map(d => ({ ref: d.ref, id: d.id, dados: d.data() || {} }))
-      .filter(item => (item.dados.caso_fingerprint || fingerprintCasoRejeicao(item.dados)) === fingerprint);
+      .filter(item => fingerprintEfetivo(item.dados) === fingerprint);
     if (!tentativas.length) return res.status(404).json({ erro: 'caso de rejeicao nao encontrado' });
     if (tentativas.length > 400) return res.status(409).json({ erro: 'caso excede o limite atomico de 400 tentativas' });
     const evidenciaId = String(body.evidencia_id || '').trim();
@@ -5102,6 +5104,7 @@ app.patch('/api/layout-rejection-cases/:fingerprint', adminRequired, async (req,
         patch: {
           ...prepararAtualizacao(item.dados, body, contexto),
           caso_fingerprint: fingerprint,
+          caso_fingerprint_versao: FINGERPRINT_VERSAO,
         },
       }));
     } catch (erroValidacao) {

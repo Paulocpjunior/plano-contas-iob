@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const FINGERPRINT_VERSAO = 2;
 
 function texto(valor, limite = 1200) {
   return String(valor == null ? '' : valor).trim().slice(0, limite);
@@ -25,11 +26,20 @@ function fingerprintCasoRejeicao(rejeicao = {}) {
     texto(rejeicao.parser, 160),
     texto(rejeicao.cnpj, 30).replace(/\D/g, ''),
     texto(rejeicao.arquivo, 260).toLowerCase().replace(/\s+/g, ' '),
+    Math.max(0, Math.trunc(Number(rejeicao.tamanho) || 0)),
     texto(rejeicao.periodo_inicio, 30),
     texto(rejeicao.periodo_fim, 30),
     categoriaDaRejeicao(rejeicao),
   ];
   return crypto.createHash('sha256').update(JSON.stringify(campos)).digest('hex');
+}
+
+function fingerprintEfetivo(rejeicao = {}) {
+  const armazenado = texto(rejeicao.caso_fingerprint, 64).toLowerCase();
+  if (Number(rejeicao.caso_fingerprint_versao) === FINGERPRINT_VERSAO && /^[a-f0-9]{64}$/.test(armazenado)) {
+    return armazenado;
+  }
+  return fingerprintCasoRejeicao(rejeicao);
 }
 
 function millis(valor) {
@@ -41,7 +51,7 @@ function millis(valor) {
 function agruparCasosRejeicao(rejeicoes = []) {
   const casos = new Map();
   rejeicoes.forEach((item) => {
-    const fingerprint = texto(item.caso_fingerprint, 64) || fingerprintCasoRejeicao(item);
+    const fingerprint = fingerprintEfetivo(item);
     if (!casos.has(fingerprint)) {
       casos.set(fingerprint, {
         fingerprint,
@@ -94,7 +104,9 @@ function agruparCasosRejeicao(rejeicoes = []) {
 }
 
 module.exports = {
+  FINGERPRINT_VERSAO,
   categoriaDaRejeicao,
   fingerprintCasoRejeicao,
+  fingerprintEfetivo,
   agruparCasosRejeicao,
 };

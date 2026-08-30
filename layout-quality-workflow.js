@@ -54,7 +54,13 @@ function evidenciaCompativel(rejeicao, evidencia) {
   if (etapa !== 'regressao_aprovada' && !status.includes('regressao aprovada')) return false;
   const bancoRejeicao = texto(rejeicao.banco, 30).toUpperCase();
   const bancoEvidencia = texto(evidencia.banco, 30).toUpperCase();
-  if (bancoRejeicao && bancoEvidencia !== bancoRejeicao) return false;
+  const nomeArquivo = valor => texto(valor, 260).normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ');
+  const evidenciaGenericaExata = bancoEvidencia === 'GEN'
+    && texto(evidencia.parser, 120) === 'parsearArquivoXLSXExtratoConciliado'
+    && nomeArquivo(rejeicao.arquivo)
+    && nomeArquivo(rejeicao.arquivo) === nomeArquivo(evidencia.arquivo);
+  if (bancoRejeicao && bancoEvidencia !== bancoRejeicao && !evidenciaGenericaExata) return false;
   const parserRejeicao = texto(rejeicao.parser, 120);
   return !parserRejeicao || texto(evidencia.parser, 120) === parserRejeicao;
 }

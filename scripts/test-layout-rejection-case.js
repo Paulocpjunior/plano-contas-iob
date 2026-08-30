@@ -3,7 +3,11 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { categoriaDaRejeicao, fingerprintCasoRejeicao, agruparCasosRejeicao } = require('../layout-rejection-case');
+const { FINGERPRINT_VERSAO, categoriaDaRejeicao, fingerprintCasoRejeicao, fingerprintEfetivo, agruparCasosRejeicao } = require('../layout-rejection-case');
+
+// A porta de release já executa este contrato; mantenha junto dela também o
+// contrato de evidência usado para encerrar os casos agrupados.
+require('./test-layout-quality-workflow');
 
 const base = {
   banco: '001',
@@ -24,6 +28,9 @@ assert(!fingerprint.includes('12345678000190'));
 assert.strictEqual(fingerprintCasoRejeicao({ ...base, arquivo: '  EXTRATO   MAIO.PDF ' }), fingerprint);
 assert.notStrictEqual(fingerprintCasoRejeicao({ ...base, categoria_erro: 'parser_nao_carregado' }), fingerprint);
 assert.notStrictEqual(fingerprintCasoRejeicao({ ...base, periodo_inicio: '2026-06-01', periodo_fim: '2026-06-30' }), fingerprint);
+assert.notStrictEqual(fingerprintCasoRejeicao({ ...base, tamanho: 429371 }), fingerprintCasoRejeicao({ ...base, tamanho: 429375 }), 'arquivos homonimos com bytes diferentes nao podem formar o mesmo caso');
+assert.strictEqual(fingerprintEfetivo({ ...base, caso_fingerprint: 'a'.repeat(64), caso_fingerprint_versao: 1 }), fingerprint, 'fingerprint legado deve ser recalculado');
+assert.strictEqual(fingerprintEfetivo({ ...base, caso_fingerprint: 'b'.repeat(64), caso_fingerprint_versao: FINGERPRINT_VERSAO }), 'b'.repeat(64), 'fingerprint atual persistido deve ser preservado');
 
 const casos = agruparCasosRejeicao([
   { id: 'a', ...base },

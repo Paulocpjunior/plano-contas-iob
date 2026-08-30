@@ -61,6 +61,22 @@ assert.strictEqual(resolvida.versao_correcao, '3.4.207');
 assert.strictEqual(resolvida.evidencia_id, 'bb-real');
 assert.strictEqual(resolvida.resolvido_por_email, 'admin@empresa.com.br');
 
+const evidenciaGenerica = {
+  id: 'conciliado-real', banco: 'GEN', parser: 'parsearArquivoXLSXExtratoConciliado',
+  arquivo: 'EXTRATO ITAU-FLANACAR 042026.xlsx', etapa: 'regressao_aprovada', status: 'Regressao aprovada'
+};
+const rejeicaoGenerica = {
+  ...rejeicao, banco: '341', parser: '', arquivo: 'EXTRATO ITAU-FLANACAR 042026.xlsx'
+};
+assert.strictEqual(prepararAtualizacao(rejeicaoGenerica, {
+  status: 'resolvido', responsavel_email: 'dono@empresa.com.br',
+  versao_correcao: '3.4.207', evidencia_id: 'conciliado-real'
+}, { ...contexto, evidencia: evidenciaGenerica }).status, 'resolvido');
+assert.throws(() => prepararAtualizacao({ ...rejeicaoGenerica, arquivo: 'outro.xlsx' }, {
+  status: 'resolvido', responsavel_email: 'dono@empresa.com.br',
+  versao_correcao: '3.4.207', evidencia_id: 'conciliado-real'
+}, { ...contexto, evidencia: evidenciaGenerica }), /evidencia de regressao aprovada/, 'evidencia generica nao pode resolver outro arquivo');
+
 assert.strictEqual(resumirSla({ ...rejeicao, sla_limite_em: governanca.sla_limite_em }, new Date('2026-08-29T21:00:00Z')).vencido, true);
 assert.strictEqual(resumirSla({ ...rejeicao, status: 'resolvido', sla_limite_em: governanca.sla_limite_em }, new Date('2026-08-29T21:00:00Z')).vencido, false);
 
