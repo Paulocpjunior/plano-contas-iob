@@ -159,6 +159,11 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   possui saldo de abertura aprovado e todas estão como piloto não iniciado.
   Nenhum cadastro foi alterado para fabricar prontidão. A P03 permanece
   `EM RESOLUÇÃO` até os gates individuais, dois fechamentos e o aceite contábil.
+- Revalidação somente leitura em 30/08/2026: UIRA, SAINT PATRICK e CLUDE
+  continuam com zero conta bancária formal, zero período fechado, zero
+  conciliação e zero transporte. Nenhuma possui abertura aprovada; as três
+  avaliações retornaram `nao_iniciada`. O sistema não preencherá nem aprovará
+  essas evidências em nome da equipe contábil.
 
 ## 🟠 Altas
 
@@ -210,6 +215,10 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 - Evidência ainda necessária: configurar e testar a restauração da réplica fora
   do Google Cloud após confirmação do NAS e do destino corporativo
   OneDrive/SharePoint. A P05 permanece laranja somente por esse requisito.
+- Descoberta revalidada em 30/08/2026: o host não possui NAS corporativo
+  montado, pasta sincronizada em `Library/CloudStorage` nem cliente `rclone`,
+  `azcopy`, `onedrive` ou `restic`. Nenhuma cópia foi enviada a pasta pessoal;
+  faltam destino corporativo, conta de serviço, retenção e responsável.
 
 ### 🟢 P06 — Vulnerabilidades de dependências de produção
 
@@ -334,6 +343,10 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 - Estado permanece `EM RESOLUÇÃO`: a ferramenta para sanear o passivo está em
   produção, mas os 276 casos ainda precisam de distribuição a responsáveis e
   evidência real antes que a P08 possa ser promovida a verde.
+- Revalidação operacional em 30/08/2026, após as versões 3.4.216 e 3.4.217:
+  276 casos continuam abertos, zero atribuído, zero em parametrização, zero
+  resolvido, zero ignorado e nenhum evento de atribuição em lote. A próxima
+  escrita depende da definição explícita dos responsáveis por grupo.
 
 ### 🟠 P09 — Cobertura fiscal oficial por fonte
 
@@ -368,6 +381,11 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 - Evidência ainda necessária: homologar os adaptadores oficiais que continuam
   ausentes. Eles não serão simulados nem marcados como cobertos sem acesso e
   prova oficial; por isso a P09 permanece `EM RESOLUÇÃO`.
+- Revalidação do conector CFI em 30/08/2026: o contrato rastreado ainda declara
+  e-CAC como credencial pronta sem consulta automática e mantém FGTS Digital,
+  estadual e municipal como `adaptador_nao_configurado`. A integração existente
+  com a Prefeitura de São Paulo prova NFS-e/apuração de ISS, não a arrecadação;
+  portanto não foi promovida indevidamente a comprovante de pagamento.
 
 ## 🟡 Médias
 
@@ -554,3 +572,6 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 - 30/08/2026 — P08 teve todo o passivo tornado acessível na versão 3.4.217:
   o corte silencioso após o 120º caso foi substituído por filtros e paginação.
   A leitura de produção segmentou os 276 casos sem alterar documentos.
+- 30/08/2026 — As quatro pendências restantes foram revalidadas sem escrita:
+  P03 não possui evidências de fechamento; P05 não possui destino externo;
+  P08 ainda não recebeu responsáveis; P09 continua sem adaptadores oficiais.
