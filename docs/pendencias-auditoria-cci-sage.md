@@ -258,6 +258,22 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   pertencem ao mesmo caso. A porta completa passou, o workflow oficial
   `33281910660` aprovou candidata e health final, 100% do tráfego está na nova
   revisão e não houve log `ERROR` na primeira verificação.
+- Tratamento por caso publicado em 29/08/2026: versão `3.4.213`, revisão
+  `plano-contas-iob-00771-zur`, permite assumir, resolver ou ignorar o caso
+  uma única vez e aplica a decisão atomicamente a todas as suas tentativas.
+  Cada ocorrência continua armazenada, ganha o mesmo responsável, status,
+  versão e evidência, e um evento consolidado registra ator, data e quantidade;
+  nenhuma tentativa é apagada. A ação consulta todo o histórico, não apenas as
+  1.000 ocorrências exibidas no painel, e recusa casos acima do limite atômico
+  em vez de realizar atualização parcial silenciosa.
+- Evidência da 3.4.213: suíte completa e regressão específica aprovadas; zero
+  vulnerabilidade alta/crítica; workflow oficial `33282207817` validou a
+  candidata antes do tráfego e o health final. A revisão recebe 100% do
+  tráfego, o health público confirmou Firestore conectado, as ações por caso
+  foram servidas publicamente e não houve log `ERROR` na verificação.
+- Estado permanece `EM RESOLUÇÃO`: a ferramenta para sanear o passivo está em
+  produção, mas os 276 casos ainda precisam de distribuição a responsáveis e
+  evidência real antes que a P08 possa ser promovida a verde.
 
 ### 🟠 P09 — Cobertura fiscal oficial por fonte
 
@@ -454,3 +470,7 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 - 29/08/2026 — P08 teve o passivo saneado sem apagar histórico: 618 tentativas
   foram reconciliadas em 276 casos únicos na versão 3.4.212. Permanece
   `EM RESOLUÇÃO` até atribuição e tratamento administrativo dos casos.
+- 29/08/2026 — P08 recebeu tratamento atômico por caso na versão 3.4.213:
+  assumir, resolver ou ignorar atualiza todas as tentativas e registra evento
+  consolidado sem excluir ocorrências. O passivo continua aberto até receber
+  responsáveis e evidências reais.
