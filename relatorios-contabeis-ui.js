@@ -5,6 +5,8 @@
   let statusAtual = null;
   let homologacaoAtual = null;
   let conciliacaoAtual = null;
+  let conciliacaoDetalhadaAtual = null;
+  let movimentosDetalhadosAtuais = [];
   let inicializado = false;
   let urlPreviaImpressao = '';
   let documentoPreviaImpressao = null;
@@ -219,7 +221,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
         </section>
         <section class="card" style="padding:20px"><div class="rc-summary" id="rcResumo"></div><div id="rcAvisos" style="margin-top:12px"></div></section>
         <section class="card" style="padding:20px"><div id="rcTituloTabela" style="font-size:17px;font-weight:900;margin-bottom:12px"></div><div class="rc-table-wrap"><table class="rc-table"><thead id="rcHead"></thead><tbody id="rcBody"></tbody></table></div></section>
-        <section class="card" style="padding:20px"><h3 style="margin-top:0">Conciliação bancária formal</h3><p class="rc-history">Informe a conta contábil do banco e o saldo final do extrato. O CCI confronta saldo anterior + débitos − créditos com o extrato e registra a aprovação com usuário, data e hash da sessão.</p><div class="rc-controls"><div class="rc-field"><label>Conta bancária</label><input id="rcConciliacaoConta" placeholder="Reduzido ou código"></div><div class="rc-field"><label>Saldo final do extrato</label><input id="rcConciliacaoSaldo" inputmode="decimal" placeholder="0,00"></div><div class="rc-actions"><button class="rc-btn light" id="rcConciliacaoAvaliar">Conferir diferença</button><button class="rc-btn success" id="rcConciliacaoAprovar" disabled>Aprovar conciliação</button></div></div><div id="rcConciliacaoResultado" style="margin-top:12px"></div></section>
+        <section class="card" style="padding:20px"><h3 style="margin-top:0">Conciliação bancária formal</h3><p class="rc-history">Informe a conta contábil do banco e o saldo final do extrato. O CCI confronta saldo anterior + débitos − créditos com o extrato e registra a aprovação com usuário, data e hash da sessão.</p><div class="rc-controls"><div class="rc-field"><label>Conta bancária</label><input id="rcConciliacaoConta" placeholder="Reduzido ou código"></div><div class="rc-field"><label>Saldo final do extrato</label><input id="rcConciliacaoSaldo" inputmode="decimal" placeholder="0,00"></div><div class="rc-actions"><button class="rc-btn light" id="rcConciliacaoAvaliar">Conferir diferença</button><button class="rc-btn success" id="rcConciliacaoAprovar" disabled>Aprovar conciliação</button></div></div><div id="rcConciliacaoResultado" style="margin-top:12px"></div><details class="rc-settings" style="margin-top:16px"><summary>Conferência lançamento a lançamento</summary><p class="rc-history">Carregue um CSV/TXT de conferência no formato <strong>data;valor;descrição;documento</strong>. Entradas devem ser positivas e saídas negativas. O CCI compara com os lançamentos da conta informada e apresenta somente sugestões e divergências.</p><div class="rc-alert" style="margin:12px 0"><strong>Proteção:</strong> Esta conferência não altera lançamentos, classificações, importações nem a conciliação por saldo já existente.</div><div class="rc-controls"><div class="rc-field"><label>Arquivo de conferência (CSV/TXT)</label><input id="rcConciliacaoDetalhadaArquivo" type="file" accept=".csv,.txt,text/csv,text/plain"></div><div class="rc-field"><label>Tolerância entre datas</label><select id="rcConciliacaoDetalhadaTolerancia"><option value="0">Mesma data</option><option value="1">Até 1 dia</option><option value="2" selected>Até 2 dias</option><option value="3">Até 3 dias</option><option value="5">Até 5 dias</option><option value="7">Até 7 dias</option></select></div><div class="rc-actions"><button class="rc-btn primary" id="rcConciliacaoDetalhadaAvaliar" type="button">Comparar movimentos</button><button class="rc-btn success" id="rcConciliacaoDetalhadaAprovar" type="button" disabled>Aprovar conferência detalhada</button></div></div><div class="rc-field" style="margin-top:12px"><label>Movimentos do extrato</label><textarea id="rcConciliacaoDetalhadaTexto" placeholder="05/08/2026;1250,00;PIX RECEBIDO;DOC123&#10;06/08/2026;-49,90;TARIFA BANCÁRIA;TAR001"></textarea></div><div id="rcConciliacaoDetalhadaResultado" style="margin-top:12px"></div></details></section>
       </div>
       <div class="rc-modal" id="rcEmailModal" hidden role="dialog" aria-modal="true" aria-labelledby="rcEmailTitulo">
         <div class="rc-modal-panel">
@@ -245,7 +247,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
           <div class="rc-modal-actions"><button class="rc-btn light" id="rcImpressaoCancelar" type="button">Cancelar</button><button class="rc-btn primary" id="rcImpressaoAtualizar" type="button">Atualizar prévia</button><button class="rc-btn success" id="rcImpressaoExportar" type="button">Exportar PDF</button></div>
         </div>
       </div>`;
-    document.getElementById('rcPeriodo').addEventListener('change', function () { preencherSaldos(); atualizarTudo(); });
+    document.getElementById('rcPeriodo').addEventListener('change', function () { invalidarConciliacaoDetalhada(); preencherSaldos(); atualizarTudo(); });
     document.getElementById('rcAno').addEventListener('change', render);
     document.getElementById('rcUsarIntervalo').addEventListener('change', function () { atualizarModoPeriodo(); preencherSaldos(); atualizarTudo(); });
     ['rcDataInicio', 'rcDataFim'].forEach(function (id) { document.getElementById(id).addEventListener('change', function () { preencherSaldos(); atualizarTudo(); }); });
@@ -253,6 +255,12 @@ function preferenciasImpressao(ctx, sobrescritas) {
     document.getElementById('rcAtualizar').addEventListener('click', atualizarTudo);
     document.getElementById('rcConciliacaoAvaliar').addEventListener('click', avaliarConciliacao);
     document.getElementById('rcConciliacaoAprovar').addEventListener('click', aprovarConciliacao);
+    document.getElementById('rcConciliacaoDetalhadaArquivo').addEventListener('change', carregarArquivoConciliacaoDetalhada);
+    document.getElementById('rcConciliacaoDetalhadaAvaliar').addEventListener('click', avaliarConciliacaoDetalhada);
+    document.getElementById('rcConciliacaoDetalhadaAprovar').addEventListener('click', aprovarConciliacaoDetalhada);
+    document.getElementById('rcConciliacaoDetalhadaTexto').addEventListener('input', invalidarConciliacaoDetalhada);
+    document.getElementById('rcConciliacaoDetalhadaTolerancia').addEventListener('change', invalidarConciliacaoDetalhada);
+    document.getElementById('rcConciliacaoConta').addEventListener('input', invalidarConciliacaoDetalhada);
     document.getElementById('rcImprimir').addEventListener('click', abrirModalImpressao);
     document.getElementById('rcPdf').addEventListener('click', exportarPDF);
     document.getElementById('rcExcel').addEventListener('click', exportarExcel);
@@ -623,6 +631,121 @@ function preferenciasImpressao(ctx, sobrescritas) {
       await carregarStatus();
       renderHomologacaoPiloto();
     } catch (e) { window.showToast(e.message || String(e), 'error'); }
+  }
+
+  function separarLinhaConciliacao(linha, delimitador) {
+    const colunas = [];
+    let atual = '';
+    let aspas = false;
+    for (let i = 0; i < linha.length; i += 1) {
+      const caractere = linha[i];
+      if (caractere === '"') {
+        if (aspas && linha[i + 1] === '"') { atual += '"'; i += 1; }
+        else aspas = !aspas;
+      } else if (caractere === delimitador && !aspas) {
+        colunas.push(atual.trim()); atual = '';
+      } else atual += caractere;
+    }
+    colunas.push(atual.trim());
+    return colunas;
+  }
+
+  function cabecalhoConciliacao(valor) {
+    return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  }
+
+  function parsearMovimentosConciliacaoDetalhada(conteudo) {
+    const linhas = String(conteudo || '').split(/\r?\n/).map(function (linha) { return linha.trim(); }).filter(Boolean);
+    if (!linhas.length) throw new Error('Informe ou carregue os movimentos do extrato.');
+    const delimitador = linhas[0].includes(';') ? ';' : (linhas[0].includes('\t') ? '\t' : ',');
+    const primeira = separarLinhaConciliacao(linhas[0], delimitador);
+    const titulos = primeira.map(cabecalhoConciliacao);
+    const indiceData = titulos.findIndex(function (item) { return ['data', 'datamovimento', 'dtmovimento'].includes(item); });
+    const indiceValor = titulos.findIndex(function (item) { return ['valor', 'montante', 'amount'].includes(item); });
+    const temCabecalho = indiceData >= 0 && indiceValor >= 0;
+    const indiceDescricao = titulos.findIndex(function (item) { return ['descricao', 'historico', 'memo', 'operacao'].includes(item); });
+    const indiceDocumento = titulos.findIndex(function (item) { return ['documento', 'numero', 'doc', 'ref'].includes(item); });
+    const inicio = temCabecalho ? 1 : 0;
+    const movimentos = linhas.slice(inicio).map(function (linha, indice) {
+      const colunas = separarLinhaConciliacao(linha, delimitador);
+      return {
+        id: 'arquivo-' + (indice + 1),
+        data: colunas[temCabecalho ? indiceData : 0] || '',
+        valor: colunas[temCabecalho ? indiceValor : 1] || '',
+        descricao: colunas[temCabecalho && indiceDescricao >= 0 ? indiceDescricao : 2] || '',
+        documento: colunas[temCabecalho && indiceDocumento >= 0 ? indiceDocumento : 3] || ''
+      };
+    });
+    if (movimentos.length > 1000) throw new Error('O arquivo excede o limite de 1.000 movimentos por conferência.');
+    return movimentos;
+  }
+
+  function carregarArquivoConciliacaoDetalhada(evento) {
+    const arquivo = evento.target.files && evento.target.files[0];
+    if (!arquivo) return;
+    if (arquivo.size > 2 * 1024 * 1024) { window.showToast('O arquivo de conferência deve ter no máximo 2 MB.', 'error'); evento.target.value = ''; return; }
+    const leitor = new FileReader();
+    leitor.onload = function () { document.getElementById('rcConciliacaoDetalhadaTexto').value = String(leitor.result || ''); invalidarConciliacaoDetalhada(); };
+    leitor.onerror = function () { window.showToast('Não foi possível ler o arquivo de conferência.', 'error'); };
+    leitor.readAsText(arquivo, 'UTF-8');
+  }
+
+  function invalidarConciliacaoDetalhada() {
+    conciliacaoDetalhadaAtual = null;
+    movimentosDetalhadosAtuais = [];
+    const botao = document.getElementById('rcConciliacaoDetalhadaAprovar');
+    if (botao) botao.disabled = true;
+  }
+
+  function tabelaMovimentosDetalhados(titulo, movimentos) {
+    const lista = Array.isArray(movimentos) ? movimentos : [];
+    if (!lista.length) return '';
+    return '<h4 style="margin:14px 0 7px">' + esc(titulo) + ' (' + lista.length + ')</h4><div class="rc-table-wrap" style="max-height:260px"><table class="rc-table"><thead><tr><th>Data</th><th>Descrição</th><th>Documento</th><th class="num">Valor</th></tr></thead><tbody>' + lista.slice(0, 200).map(function (item) { return '<tr><td>' + esc(dataBR(item.data)) + '</td><td>' + esc(item.descricao || '-') + '</td><td>' + esc(item.documento || '-') + '</td><td class="num">R$ ' + esc(moeda(item.valor)) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+  }
+
+  function renderConciliacaoDetalhada(avaliacao) {
+    const resumo = avaliacao.resumo || {};
+    const classe = avaliacao.ok ? 'rc-ok' : 'rc-error';
+    const titulo = avaliacao.ok ? 'Todos os movimentos foram correspondidos' : 'Divergências encontradas para revisão';
+    const correspondencias = (avaliacao.correspondencias || []).map(function (item) {
+      const extrato = (item.extrato || [])[0] || {};
+      const contabil = (item.contabil || [])[0] || {};
+      const descricoesExtrato = (item.extrato || []).map(function (movimento) { return movimento.descricao || '-'; }).join(' + ');
+      const descricoesContabeis = (item.contabil || []).map(function (movimento) { return movimento.descricao || '-'; }).join(' + ');
+      return '<tr><td>' + esc(dataBR(extrato.data || contabil.data)) + '</td><td>' + esc(descricoesExtrato) + '</td><td>' + esc(descricoesContabeis) + '</td><td class="num">R$ ' + esc(moeda(item.valor)) + '</td><td>' + esc(item.tipo + ' · ' + (item.explicacao || '-')) + '</td></tr>';
+    }).join('');
+    document.getElementById('rcConciliacaoDetalhadaResultado').innerHTML = '<div class="rc-alert"><strong class="' + classe + '">' + titulo + '</strong><br>Extrato: ' + Number(resumo.movimentos_extrato || 0) + ' · Contabilidade: ' + Number(resumo.movimentos_contabeis || 0) + ' · Correspondências: ' + Number(resumo.correspondencias || 0) + ' · Pendências: ' + (Number(resumo.pendentes_extrato || 0) + Number(resumo.pendentes_contabeis || 0)) + '<br>Total extrato: R$ ' + moeda(resumo.total_extrato) + ' · Total contábil: R$ ' + moeda(resumo.total_contabil) + ' · Diferença: R$ ' + moeda(resumo.diferenca) + '</div>' + (correspondencias ? '<h4 style="margin:14px 0 7px">Correspondências sugeridas</h4><div class="rc-table-wrap" style="max-height:300px"><table class="rc-table"><thead><tr><th>Data</th><th>Extrato</th><th>Contabilidade</th><th class="num">Valor</th><th>Critério</th></tr></thead><tbody>' + correspondencias + '</tbody></table></div>' : '') + tabelaMovimentosDetalhados('Pendentes no extrato', avaliacao.pendentes_extrato) + tabelaMovimentosDetalhados('Pendentes na contabilidade', avaliacao.pendentes_contabeis);
+  }
+
+  async function avaliarConciliacaoDetalhada() {
+    const ctx = contexto();
+    const conta = String((document.getElementById('rcConciliacaoConta') || {}).value || '').trim();
+    const textoMovimentos = String((document.getElementById('rcConciliacaoDetalhadaTexto') || {}).value || '');
+    const botao = document.getElementById('rcConciliacaoDetalhadaAvaliar');
+    try {
+      if (!conta) throw new Error('Informe a conta bancária na conciliação formal acima.');
+      movimentosDetalhadosAtuais = parsearMovimentosConciliacaoDetalhada(textoMovimentos);
+      botao.disabled = true; botao.textContent = 'Comparando…';
+      conciliacaoDetalhadaAtual = await window.API.avaliarConciliacaoDetalhada(ctx.empresa.cnpj, { periodo: periodoSelecionado(), conta, tolerancia_dias: Number(document.getElementById('rcConciliacaoDetalhadaTolerancia').value || 0), movimentos_extrato: movimentosDetalhadosAtuais });
+      renderConciliacaoDetalhada(conciliacaoDetalhadaAtual);
+      document.getElementById('rcConciliacaoDetalhadaAprovar').disabled = !conciliacaoDetalhadaAtual.ok;
+    } catch (e) {
+      conciliacaoDetalhadaAtual = null;
+      document.getElementById('rcConciliacaoDetalhadaAprovar').disabled = true;
+      window.showToast(e.message || String(e), 'error');
+    } finally { botao.disabled = false; botao.textContent = 'Comparar movimentos'; }
+  }
+
+  async function aprovarConciliacaoDetalhada() {
+    const ctx = contexto();
+    if (!conciliacaoDetalhadaAtual || !conciliacaoDetalhadaAtual.ok) return;
+    const botao = document.getElementById('rcConciliacaoDetalhadaAprovar');
+    try {
+      botao.disabled = true; botao.textContent = 'Aprovando…';
+      await window.API.aprovarConciliacaoDetalhada(ctx.empresa.cnpj, { periodo: conciliacaoDetalhadaAtual.periodo, conta: conciliacaoDetalhadaAtual.conta, tolerancia_dias: conciliacaoDetalhadaAtual.tolerancia_dias, movimentos_extrato: movimentosDetalhadosAtuais, hash_previa: conciliacaoDetalhadaAtual.hash_previa });
+      window.showToast('Conferência detalhada aprovada e auditada. Nenhum lançamento foi alterado.', 'success');
+    } catch (e) { window.showToast(e.message || String(e), 'error'); }
+    finally { botao.textContent = 'Aprovar conferência detalhada'; }
   }
 
   function nomeRegime(regime) {
