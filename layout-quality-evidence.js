@@ -765,6 +765,36 @@ const LAYOUT_QUALITY_EVIDENCE = [
     status: 'Regressao aprovada',
     observacao: 'PDF real validado com 48 movimentos, credito de R$ 106.742,54, debito de R$ 170.995,26, saldo final de -R$ 71.945,31 e totais oficiais conciliados.'
   },
+  {
+    id: 'daxx-servicos-prestados-iob-sage-2026-04-alias',
+    banco: '1183',
+    nomeBanco: 'DAXX MIDIA LTDA',
+    layout: 'DAXX - Servicos Prestados Fiscal',
+    parser: 'parsearPDF_IOB_Sage_ServicosPrestados',
+    arquivo: '1183 - SERV.  PRESTADOS 04.2026 FISCAL.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/1183 - SERV.  PRESTADOS 04.2026 FISCAL.pdf',
+    empresa: 'DAXX MIDIA LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'Alias byte a byte do PDF DAXX já homologado, protegido pelo mesmo SHA-256. Validado com 36 notas e credito total de R$ 2.208.848,23.'
+  },
+  {
+    id: 'clude-servicos-prestados-iob-sage-2026-06',
+    banco: 'GEN',
+    nomeBanco: 'Movimento Fiscal',
+    layout: 'IOB SAGE - Servicos Prestados Fiscal',
+    parser: 'parsearPDF_IOB_Sage_ServicosPrestados',
+    arquivo: 'TESTE - SERV. PRESTADOS CLUDE.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/TESTE - SERV. PRESTADOS CLUDE.pdf',
+    empresa: 'CLUDE - CARTAO DE SAUDE 360 LTDA',
+    periodo_inicio: '2026-06-01',
+    periodo_fim: '2026-06-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF real protegido por SHA-256. Validado com 961 notas, credito total de R$ 961.282,04 e total oficial conciliado.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_EVIDENCE };

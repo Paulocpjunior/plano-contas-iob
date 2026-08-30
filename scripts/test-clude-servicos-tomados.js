@@ -16,6 +16,8 @@ const arquivo = '/Users/paulocesarpereirajunior/Downloads/733 serviços tomados
 const arquivoAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/733  CLUDE SERV. TOMADOS ABRIL.pdf';
 const arquivoDaxxAnaliseCreditos = '/Users/paulocesarpereirajunior/Downloads/1183 - SERVIÇOS TOMADOS 042026.pdf';
 const arquivoDaxxServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/1183 - SERV.  PRESTADOS 04.2026 FISCAL 1.pdf';
+const arquivoDaxxServicosPrestadosAlias = '/Users/paulocesarpereirajunior/Downloads/1183 - SERV.  PRESTADOS 04.2026 FISCAL.pdf';
+const arquivoCludeServicosPrestadosJunho = '/Users/paulocesarpereirajunior/Downloads/TESTE - SERV. PRESTADOS CLUDE.pdf';
 const arquivoSinteseServicosPrestados = '/Users/paulocesarpereirajunior/Downloads/SERVIÇOS PRESTADOS 06.2026.pdf';
 const arquivoDaxxTotalPass = '/Users/paulocesarpereirajunior/Downloads/Serviços prestados 07.2026.pdf';
 const arquivoDiegoTomadosMarco = '/tmp/codex-remote-attachments/01a03857-ccca-7311-92e3-8ea9cdcf0b8f/C24A510B-3AF4-4244-AE98-D6254FA52C85/2-DIEGO-BOMFIM-tomados-mes-03.pdf';
@@ -124,6 +126,28 @@ Total 3.866,22 0,00 0,00 0,00
     assert.ok(resultadoPrestados.lancamentos.some(l => l.codigo_servico === '2496'), 'codigo de servico deve ser preservado');
     assert.ok(resultadoPrestados.lancamentos.every(l => l.historico === 'SERVICOS PRESTADOS'), 'historico padrao deve vir preenchido para parametrizacao');
   }
+
+  assert.ok(fs.existsSync(arquivoDaxxServicosPrestadosAlias), 'alias real do DAXX abril/2026 deve existir');
+  const bufferDaxxAlias = fs.readFileSync(arquivoDaxxServicosPrestadosAlias);
+  assert.strictEqual(crypto.createHash('sha256').update(bufferDaxxAlias).digest('hex'), 'a453c5e2316a78101d0e1969d411383eddd4487ba94951311cd499d1cb2124a7');
+  const resultadoDaxxAlias = await parsearPDF_IOB_Sage_ServicosPrestados(new Uint8Array(bufferDaxxAlias));
+  assert.strictEqual(resultadoDaxxAlias.detectado, true);
+  assert.strictEqual(resultadoDaxxAlias.cnpj_detectado, '11.775.820/0001-71');
+  assert.strictEqual(resultadoDaxxAlias.lancamentos.length, 36);
+  assert.strictEqual(money(resultadoDaxxAlias.total_credito), 2208848.23);
+  assert.strictEqual(resultadoDaxxAlias.total_divergente, false);
+
+  assert.ok(fs.existsSync(arquivoCludeServicosPrestadosJunho), 'fixture real CLUDE junho/2026 deve existir');
+  const bufferCludePrestados = fs.readFileSync(arquivoCludeServicosPrestadosJunho);
+  assert.strictEqual(crypto.createHash('sha256').update(bufferCludePrestados).digest('hex'), 'c7d75f2a70c10cb1695425c4ca63b77e6132219692ea7b02d724d4c322f96bfa');
+  const resultadoCludePrestados = await parsearPDF_IOB_Sage_ServicosPrestados(new Uint8Array(bufferCludePrestados));
+  assert.strictEqual(resultadoCludePrestados.detectado, true);
+  assert.strictEqual(resultadoCludePrestados.cnpj_detectado, '32.922.514/0001-90');
+  assert.strictEqual(resultadoCludePrestados.periodo_inicio, '2026-06-01');
+  assert.strictEqual(resultadoCludePrestados.periodo_fim, '2026-06-30');
+  assert.strictEqual(resultadoCludePrestados.lancamentos.length, 961);
+  assert.strictEqual(money(resultadoCludePrestados.total_credito), 961282.04);
+  assert.strictEqual(resultadoCludePrestados.total_divergente, false);
 
   assert.ok(fs.existsSync(arquivoSinteseServicosPrestados), 'fixture real da SINTESE com ISS retido deve existir');
   const bufferSintese = fs.readFileSync(arquivoSinteseServicosPrestados);

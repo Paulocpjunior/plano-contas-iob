@@ -1,7 +1,7 @@
 {
-  "version": "3.4.219",
-  "build_date": "2026-08-30T18:05:00Z",
+  "version": "3.4.220",
+  "build_date": "2026-08-30T18:20:00Z",
   "release_notes": [
-    "Evidências reais formalizadas para BB, Itaú, Santander e Bradesco na fila de qualidade"
+    "Regressões fiscais reais de Serviços Prestados formalizadas para qualquer empresa"
   ]
 }

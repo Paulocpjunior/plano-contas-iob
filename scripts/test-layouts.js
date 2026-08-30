@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { LAYOUTS_BANCARIOS_PADRAO, normalizarBancoLayout, layoutBancoId } = require('../layouts-bancarios-padrao');
+const { LAYOUTS_FISCAIS_PADRAO } = require('../layouts-fiscais-padrao');
 const { LAYOUT_QUALITY_CASES } = require('../layout-quality-cases');
 const { LAYOUT_QUALITY_EVIDENCE } = require('../layout-quality-evidence');
 
@@ -47,7 +48,8 @@ for (const layout of LAYOUTS_BANCARIOS_PADRAO) {
 for (const caso of LAYOUT_QUALITY_CASES) {
   const banco = normalizarBancoLayout(caso.banco);
   const parser = caso.parser;
-  const layout = LAYOUTS_BANCARIOS_PADRAO.find(l => normalizarBancoLayout(l.banco) === banco && l.parser === parser);
+  const layout = LAYOUTS_BANCARIOS_PADRAO.find(l => normalizarBancoLayout(l.banco) === banco && l.parser === parser)
+    || LAYOUTS_FISCAIS_PADRAO.find(l => normalizarBancoLayout(l.codigoEmpresa) === banco && l.parser === parser);
   if (!layout) fail(`Caso de qualidade sem layout oficial: ${caso.id} (${caso.banco}/${caso.parser})`);
   if (!caso.esperado || typeof caso.esperado.total_lancamentos !== 'number') fail(`Caso sem total_lancamentos esperado: ${caso.id}`);
   if (!caso.esperado || typeof caso.esperado.total_credito !== 'number') fail(`Caso sem total_credito esperado: ${caso.id}`);
@@ -61,7 +63,8 @@ for (const evidencia of LAYOUT_QUALITY_EVIDENCE) {
 
   const banco = normalizarBancoLayout(evidencia.banco);
   const parser = evidencia.parser;
-  const layout = LAYOUTS_BANCARIOS_PADRAO.find(l => normalizarBancoLayout(l.banco) === banco && l.parser === parser);
+  const layout = LAYOUTS_BANCARIOS_PADRAO.find(l => normalizarBancoLayout(l.banco) === banco && l.parser === parser)
+    || LAYOUTS_FISCAIS_PADRAO.find(l => normalizarBancoLayout(l.codigoEmpresa) === banco && l.parser === parser);
   if (!layout) fail(`Evidencia sem layout oficial: ${evidencia.id} (${evidencia.banco}/${evidencia.parser})`);
   if (!evidencia.arquivo) fail(`Evidencia sem arquivo: ${evidencia.id}`);
   if (!evidencia.status) fail(`Evidencia sem status: ${evidencia.id}`);
