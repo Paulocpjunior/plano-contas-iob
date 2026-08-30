@@ -150,6 +150,15 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   contábil formal.
 - Próxima ação: com P01 e P02 resolvidas, selecionar de duas a três empresas
   representativas e iniciar o primeiro fechamento comparativo SAGE × CCI.
+- Seleção técnica concluída em 30/08/2026 após leitura das 146 empresas ativas:
+  [piloto-migracao-sage-cci.md](piloto-migracao-sage-cci.md) define UIRA
+  CONSULTORIA AMBIENTAL, SAINT PATRICK BAR-RESTAURANTE e CLUDE CARTÃO DE SAÚDE
+  360 LTDA. O grupo cobre Lucro Presumido, Simples Nacional e Lucro Real, com
+  sessões de 300, 2.331 e 3.943 lançamentos, respectivamente.
+- Gap de entrada confirmado: 105 empresas possuem sessão, mas nenhuma das 146
+  possui saldo de abertura aprovado e todas estão como piloto não iniciado.
+  Nenhum cadastro foi alterado para fabricar prontidão. A P03 permanece
+  `EM RESOLUÇÃO` até os gates individuais, dois fechamentos e o aceite contábil.
 
 ## 🟠 Altas
 
