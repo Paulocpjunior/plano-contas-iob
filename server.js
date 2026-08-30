@@ -59,7 +59,10 @@ const GEMINI_DEFAULT_MODEL = process.env.GEMINI_MODEL || process.env.GEMINI_FLAS
 const GEMINI_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || process.env.GEMINI_PRO_MODEL || GEMINI_DEFAULT_MODEL;
 const GEMINI_ALLOW_CLIENT_MODEL = String(process.env.GEMINI_ALLOW_CLIENT_MODEL || '').toLowerCase() === 'true';
 const runtimeConfig = carregarRuntimeConfig(process.env);
-const db = new Firestore({ projectId: runtimeConfig.dataProjectId });
+const db = new Firestore({
+  projectId: runtimeConfig.dataProjectId,
+  databaseId: runtimeConfig.dataDatabaseId,
+});
 const firestorePorProjeto = new Map();
 admin.initializeApp({ projectId: runtimeConfig.authProjectId });
 const adminAuth = admin.auth();

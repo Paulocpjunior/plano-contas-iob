@@ -51,6 +51,7 @@ env:
   # A verdade está em scripts/deploy-production.sh, que publica de verdade.
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'gen-lang-client-0569062468' }}
   CCI_DATA_PROJECT_ID: ${{ vars.CCI_DATA_PROJECT_ID || 'gen-lang-client-0569062468' }}
+  CCI_DATA_DATABASE_ID: ${{ vars.CCI_DATA_DATABASE_ID || '(default)' }}
   CCI_AUTH_PROJECT_ID: ${{ vars.CCI_AUTH_PROJECT_ID || 'projetos-app-sp' }}
   CCI_BACKUP_PROJECT_ID: ${{ vars.CCI_BACKUP_PROJECT_ID || 'gen-lang-client-0569062468' }}
   CCI_BACKUP_BUCKET: ${{ vars.CCI_BACKUP_BUCKET || 'cci-firestore-backups-292090471177' }}
@@ -274,7 +275,7 @@ jobs:
               --region "$REGION" \
               --project "$PROJECT_ID" \
               --service-account "$CCI_RUNTIME_SERVICE_ACCOUNT" \
-              --update-env-vars=CCI_RUNTIME_PROJECT_ID="$PROJECT_ID",CCI_DATA_PROJECT_ID="$CCI_DATA_PROJECT_ID",CCI_AUTH_PROJECT_ID="$CCI_AUTH_PROJECT_ID",CCI_BACKUP_PROJECT_ID="$CCI_BACKUP_PROJECT_ID",CCI_BACKUP_BUCKET="$CCI_BACKUP_BUCKET",MERCADO_PAGO_OAUTH_ENABLED=false,DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_MODEL=gemini-3.7-flash,GEMINI_FLASH_MODEL=gemini-3.7-flash,GEMINI_CHAT_MODEL=gemini-3.7-flash,GEMINI_ALLOW_CLIENT_MODEL=false \
+              --update-env-vars=CCI_RUNTIME_PROJECT_ID="$PROJECT_ID",CCI_DATA_PROJECT_ID="$CCI_DATA_PROJECT_ID",CCI_DATA_DATABASE_ID="$CCI_DATA_DATABASE_ID",CCI_AUTH_PROJECT_ID="$CCI_AUTH_PROJECT_ID",CCI_BACKUP_PROJECT_ID="$CCI_BACKUP_PROJECT_ID",CCI_BACKUP_BUCKET="$CCI_BACKUP_BUCKET",MERCADO_PAGO_OAUTH_ENABLED=false,DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_MODEL=gemini-3.7-flash,GEMINI_FLASH_MODEL=gemini-3.7-flash,GEMINI_CHAT_MODEL=gemini-3.7-flash,GEMINI_ALLOW_CLIENT_MODEL=false \
               --remove-env-vars=MERCADO_PAGO_CLIENT_ID,MERCADO_PAGO_CLIENT_SECRET \
               --no-traffic --tag candidate \
               --quiet; then
@@ -327,8 +328,8 @@ jobs:
             echo "::error::Candidata iniciou com motor $HEALTH_MODEL; esperado gemini-3.7-flash."
             exit 1
           fi
-          jq -e --arg runtime "$PROJECT_ID" --arg data "$CCI_DATA_PROJECT_ID" --arg auth "$CCI_AUTH_PROJECT_ID" --arg backup "$CCI_BACKUP_PROJECT_ID" \
-            '.projects == {runtime:$runtime,data:$data,auth:$auth,backup:$backup}' /tmp/health.json >/dev/null || {
+          jq -e --arg runtime "$PROJECT_ID" --arg data "$CCI_DATA_PROJECT_ID" --arg database "$CCI_DATA_DATABASE_ID" --arg auth "$CCI_AUTH_PROJECT_ID" --arg backup "$CCI_BACKUP_PROJECT_ID" \
+            '.projects == {runtime:$runtime,data:$data,database:$database,auth:$auth,backup:$backup}' /tmp/health.json >/dev/null || {
             echo "::error::Topologia de projetos da candidata diverge da configuração explícita."; exit 1;
           }
 
@@ -388,8 +389,8 @@ jobs:
           if [ "$HEALTH_MODEL" != "gemini-3.7-flash" ]; then
             echo "::error::Produção iniciou com motor $HEALTH_MODEL; esperado gemini-3.7-flash."; exit 1
           fi
-          jq -e --arg runtime "$PROJECT_ID" --arg data "$CCI_DATA_PROJECT_ID" --arg auth "$CCI_AUTH_PROJECT_ID" --arg backup "$CCI_BACKUP_PROJECT_ID" \
-            '.projects == {runtime:$runtime,data:$data,auth:$auth,backup:$backup}' /tmp/production-health.json >/dev/null || {
+          jq -e --arg runtime "$PROJECT_ID" --arg data "$CCI_DATA_PROJECT_ID" --arg database "$CCI_DATA_DATABASE_ID" --arg auth "$CCI_AUTH_PROJECT_ID" --arg backup "$CCI_BACKUP_PROJECT_ID" \
+            '.projects == {runtime:$runtime,data:$data,database:$database,auth:$auth,backup:$backup}' /tmp/production-health.json >/dev/null || {
             echo "::error::Topologia de projetos da produção diverge da configuração explícita."; exit 1;
           }
           echo ""
