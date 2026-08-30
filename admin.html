@@ -6,31 +6,31 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.221"></script>
+<script src="/saas-brand-theme.js?v=3.4.222"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.221"></script>
-<script src="/parser-ofx.js?v=3.4.221"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.221"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.221"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.221"></script>
-<script src="/parser-safra-extrato.js?v=3.4.221"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.221"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.221"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.221"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.221"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.221"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.221"></script>
-<script src="/parser-btg-pactual.js?v=3.4.221"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.221"></script>
-<script src="/parser-abc-extrato.js?v=3.4.221"></script>
-<script src="/parser-inter-extrato.js?v=3.4.221"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.221"></script>
-<script src="/parser-stone-extrato.js?v=3.4.221"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.221"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.221"></script>
+<script src="/api-adapter.js?v=3.4.222"></script>
+<script src="/parser-ofx.js?v=3.4.222"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.222"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.222"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.222"></script>
+<script src="/parser-safra-extrato.js?v=3.4.222"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.222"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.222"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.222"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.222"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.222"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.222"></script>
+<script src="/parser-btg-pactual.js?v=3.4.222"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.222"></script>
+<script src="/parser-abc-extrato.js?v=3.4.222"></script>
+<script src="/parser-inter-extrato.js?v=3.4.222"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.222"></script>
+<script src="/parser-stone-extrato.js?v=3.4.222"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.222"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.222"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -89,6 +89,14 @@
   .progress-bar { width:110px;height:8px;border-radius:99px;background:#e2e8f0;overflow:hidden;margin-top:5px; }
   .progress-bar > span { display:block;height:100%;background:#2563eb;border-radius:99px; }
   .progress-detail { color:var(--muted);font-size:11px;line-height:1.45;margin-top:4px; }
+  .progress-modal { position:fixed;inset:0;background:rgba(15,23,42,.72);display:none;align-items:center;justify-content:center;padding:20px;z-index:10000; }
+  .progress-modal.active { display:flex; }
+  .progress-modal-card { width:min(720px,100%);max-height:92vh;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;box-shadow:0 26px 70px rgba(0,0,0,.32); }
+  .progress-form { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:16px; }
+  .progress-form .wide { grid-column:1/-1; }
+  .progress-form label { display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--muted);margin-bottom:5px; }
+  .progress-form input,.progress-form select,.progress-form textarea { width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;font:inherit;font-size:13px; }
+  .progress-form textarea { min-height:78px;resize:vertical; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; overflow: hidden; }
   .table-scroll { width:100%; max-width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:10px; -webkit-overflow-scrolling:touch; }
   .table-scroll table { min-width:1120px; overflow:visible; }
@@ -208,6 +216,7 @@
   html[data-theme="dark"] [style*="color:#9ca3af"], html[data-theme="dark"] [style*="color: #9ca3af"] { color:#cbd5e1!important; }
   html[data-theme="dark"] .login-box h2, html[data-theme="dark"] .layout-card .count { color:#f8fafc; }
   html[data-theme="dark"] .progress-metric { background:#0b1220;border-color:#334155; }
+  html[data-theme="dark"] .progress-modal-card { background:#111827;border-color:#334155; }
   @media (max-width: 768px) {
     .container { padding: 18px 12px 30px; }
     .header { align-items: flex-start; flex-direction: column; }
@@ -219,6 +228,8 @@
     .layout-intake-grid .wide { grid-column:span 1; }
     .exclusao-form { grid-template-columns:1fr; }
     .exclusao-form .empresa { grid-column:span 1; }
+    .progress-form { grid-template-columns:1fr; }
+    .progress-form .wide { grid-column:span 1; }
   }
 </style>
 </head>
@@ -316,6 +327,27 @@
         <div style="flex:1;min-width:230px"><label>Buscar empresa</label><input id="progressaoBusca" type="search" placeholder="Código, CNPJ ou razão social" oninput="renderProgressaoContabil()" style="width:100%"></div>
       </div>
       <div id="progressaoContent" class="loading">Abra a visão para carregar os dados.</div>
+    </div>
+  </div>
+
+  <div id="progressaoAcompanhamentoModal" class="progress-modal" role="dialog" aria-modal="true" aria-labelledby="progressaoModalTitulo" onclick="if(event.target===this)fecharAcompanhamentoContabil()">
+    <div class="progress-modal-card">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+        <div><h2 id="progressaoModalTitulo" style="font-size:19px">Acompanhamento contábil</h2><p id="progressaoModalEmpresa" style="font-size:12px;color:#64748b;margin-top:4px"></p></div>
+        <button type="button" onclick="fecharAcompanhamentoContabil()" style="border:0;background:transparent;font-size:24px;cursor:pointer;color:#64748b">×</button>
+      </div>
+      <div class="progress-form">
+        <div><label for="progressaoPrazo">Prazo gerencial</label><input id="progressaoPrazo" type="date"></div>
+        <div><label for="progressaoPrioridade">Prioridade</label><select id="progressaoPrioridade"><option value="baixa">Baixa</option><option value="normal">Normal</option><option value="alta">Alta</option><option value="critica">Crítica</option></select></div>
+        <div class="wide"><label for="progressaoImpedimento">Impedimento atual</label><textarea id="progressaoImpedimento" maxlength="1000" placeholder="Deixe vazio quando não houver impedimento"></textarea></div>
+        <div class="wide"><label for="progressaoObservacao">Observação do acompanhamento</label><textarea id="progressaoObservacao" maxlength="2000" placeholder="Orientação, cobrança ou próximo passo"></textarea></div>
+        <div><label for="progressaoRevisao">Revisão gerencial</label><select id="progressaoRevisao"><option value="nao_solicitada">Não solicitada</option><option value="aguardando_revisao">Aguardando revisão</option><option value="ajustes_solicitados">Ajustes solicitados</option><option value="aprovada">Aprovada</option></select></div>
+        <div></div>
+        <div><label for="progressaoEvidenciaTitulo">Título da evidência</label><input id="progressaoEvidenciaTitulo" maxlength="160" placeholder="Ex.: retorno do cliente"></div>
+        <div><label for="progressaoEvidenciaUrl">Link HTTPS da evidência</label><input id="progressaoEvidenciaUrl" type="url" maxlength="600" placeholder="https://..."></div>
+      </div>
+      <div id="progressaoModalStatus" style="font-size:12px;margin-top:13px;color:#64748b">Nenhum lançamento será alterado. Esta ação atualiza somente o acompanhamento gerencial da competência.</div>
+      <div style="display:flex;justify-content:flex-end;gap:9px;margin-top:16px"><button class="btn" type="button" style="background:#64748b" onclick="fecharAcompanhamentoContabil()">Cancelar</button><button id="progressaoSalvarAcompanhamento" class="btn" type="button" onclick="salvarAcompanhamentoContabil()">Salvar acompanhamento</button></div>
     </div>
   </div>
 
@@ -531,6 +563,7 @@ let currentExclusaoPreview = null;
 let exclusaoEmpresasCarregadas = false;
 let currentProgressaoContabil = null;
 let progressaoCarregando = false;
+let progressaoEmpresaEmEdicao = null;
 
 function fmtDate(ts) {
   if (!ts) return '-';
@@ -626,6 +659,61 @@ function rotuloStatusProgressao(status) {
   return ({ finalizada:'Finalizada', em_andamento:'Em andamento', parada:'Parada', atencao:'Atenção', sem_responsavel:'Sem responsável' })[status] || status || '-';
 }
 
+function rotuloRevisaoProgressao(status) {
+  return ({ nao_solicitada:'Não solicitada', aguardando_revisao:'Aguardando revisão', ajustes_solicitados:'Ajustes solicitados', aprovada:'Aprovada' })[status] || 'Não solicitada';
+}
+
+function abrirAcompanhamentoContabil(cnpj) {
+  const empresa = currentProgressaoContabil && (currentProgressaoContabil.empresas || []).find(e => e.cnpj === cnpj);
+  if (!empresa) return;
+  progressaoEmpresaEmEdicao = empresa;
+  const acompanhamento = empresa.acompanhamento || {};
+  document.getElementById('progressaoModalEmpresa').textContent = (empresa.codigo_empresa ? empresa.codigo_empresa + ' — ' : '') + (empresa.razao_social || empresa.cnpj) + ' · ' + empresa.competencia;
+  document.getElementById('progressaoPrazo').value = acompanhamento.prazo || '';
+  document.getElementById('progressaoPrioridade').value = acompanhamento.prioridade || 'normal';
+  document.getElementById('progressaoImpedimento').value = acompanhamento.impedimento || '';
+  document.getElementById('progressaoObservacao').value = acompanhamento.observacao || '';
+  document.getElementById('progressaoRevisao').value = acompanhamento.revisao_status || 'nao_solicitada';
+  document.getElementById('progressaoEvidenciaTitulo').value = acompanhamento.evidencia_titulo || '';
+  document.getElementById('progressaoEvidenciaUrl').value = acompanhamento.evidencia_url || '';
+  document.getElementById('progressaoModalStatus').textContent = 'Nenhum lançamento será alterado. Esta ação atualiza somente o acompanhamento gerencial da competência.';
+  document.getElementById('progressaoAcompanhamentoModal').classList.add('active');
+}
+
+function fecharAcompanhamentoContabil() {
+  document.getElementById('progressaoAcompanhamentoModal').classList.remove('active');
+  progressaoEmpresaEmEdicao = null;
+}
+
+async function salvarAcompanhamentoContabil() {
+  if (!progressaoEmpresaEmEdicao) return;
+  const empresa = progressaoEmpresaEmEdicao;
+  const botao = document.getElementById('progressaoSalvarAcompanhamento');
+  const status = document.getElementById('progressaoModalStatus');
+  botao.disabled = true;
+  status.style.color = '#2563eb';
+  status.textContent = 'Salvando acompanhamento e registrando auditoria…';
+  try {
+    await window.API.salvarAdminAcompanhamentoContabil(empresa.cnpj, empresa.competencia, {
+      prazo: document.getElementById('progressaoPrazo').value,
+      prioridade: document.getElementById('progressaoPrioridade').value,
+      impedimento: document.getElementById('progressaoImpedimento').value,
+      observacao: document.getElementById('progressaoObservacao').value,
+      revisao_status: document.getElementById('progressaoRevisao').value,
+      evidencia_titulo: document.getElementById('progressaoEvidenciaTitulo').value,
+      evidencia_url: document.getElementById('progressaoEvidenciaUrl').value
+    });
+    fecharAcompanhamentoContabil();
+    currentProgressaoContabil = null;
+    await loadProgressaoContabil(true);
+  } catch (e) {
+    status.style.color = '#b91c1c';
+    status.textContent = e.message || String(e);
+  } finally {
+    botao.disabled = false;
+  }
+}
+
 function pessoasDaProgressao(empresa) {
   return [empresa.responsavel_principal].concat(empresa.apoios || []).filter(Boolean);
 }
@@ -698,6 +786,7 @@ function renderProgressaoContabil() {
     const responsavel = empresa.responsavel_principal ? (empresa.responsavel_principal.nome || empresa.responsavel_principal.email) : 'Não definido';
     const cont = empresa.contabilizacao || {};
     const conc = empresa.conciliacao || {};
+    const acompanhamento = empresa.acompanhamento || {};
     const ultima = empresa.ultima_atividade_em ? fmtRelative(empresa.ultima_atividade_em) : 'Sem registro';
     const motivo = empresa.erro_leitura || empresa.motivo_parada || empresa.proxima_acao || '';
     return '<tr>' +
@@ -709,6 +798,9 @@ function renderProgressaoContabil() {
       '<td>' + (conc.aplicavel ? (Number(conc.conciliadas || 0) + '/' + Number(conc.total_contas || 0)) : 'Não aplicável') + '</td>' +
       '<td><strong>' + (empresa.fechamento && empresa.fechamento.finalizado ? 'Fechado' : 'Aberto') + '</strong><div class="progress-detail">' + ultima + (empresa.dias_sem_atividade != null ? ' · ' + empresa.dias_sem_atividade + ' dia(s)' : '') + '</div></td>' +
       '<td>' + escapeHtml(motivo || 'Sem pendência registrada') + '<div class="progress-detail">Próxima ação: ' + escapeHtml(empresa.proxima_acao || '-') + '</div></td>' +
+      '<td><strong>' + escapeHtml(acompanhamento.prazo || 'Sem prazo') + '</strong><div class="progress-detail">' + escapeHtml(String(acompanhamento.prioridade || 'normal').toUpperCase()) + ' · ' + escapeHtml(rotuloRevisaoProgressao(acompanhamento.revisao_status)) + '</div>' +
+        (/^https:\/\//i.test(acompanhamento.evidencia_url || '') ? '<div class="progress-detail"><a href="' + escapeHtml(acompanhamento.evidencia_url) + '" target="_blank" rel="noopener">' + escapeHtml(acompanhamento.evidencia_titulo || 'Abrir evidência') + '</a></div>' : '') +
+        '<button class="btn btn-sm" style="margin-top:7px" onclick="abrirAcompanhamentoContabil(\'' + escapeHtml(empresa.cnpj) + '\')">Acompanhar</button></td>' +
     '</tr>';
   }).join('');
   const linhasColaboradores = Array.from(colaboradores.values()).sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(function (pessoa) {
@@ -719,7 +811,7 @@ function renderProgressaoContabil() {
   document.getElementById('progressaoContent').innerHTML =
     '<div class="progress-summary">' + metricas + '</div>' +
     '<p style="font-size:12px;color:#64748b;margin-bottom:10px">Competência ' + escapeHtml(currentProgressaoContabil.competencia) + ' · atualizado em ' + escapeHtml(fmtDate(currentProgressaoContabil.gerado_em)) + ' · ' + empresas.length + ' empresa(s) no filtro.</p>' +
-    '<div class="table-scroll"><table><thead><tr><th>Empresa</th><th>Status / etapa</th><th>Progresso</th><th>Responsável</th><th>Contabilização</th><th>Conciliação</th><th>Fechamento / atividade</th><th>Onde está parada</th></tr></thead><tbody>' + (linhas || '<tr><td colspan="8" class="empty">Nenhuma empresa encontrada.</td></tr>') + '</tbody></table></div>' +
+    '<div class="table-scroll"><table><thead><tr><th>Empresa</th><th>Status / etapa</th><th>Progresso</th><th>Responsável</th><th>Contabilização</th><th>Conciliação</th><th>Fechamento / atividade</th><th>Onde está parada</th><th>Prazo / revisão</th></tr></thead><tbody>' + (linhas || '<tr><td colspan="9" class="empty">Nenhuma empresa encontrada.</td></tr>') + '</tbody></table></div>' +
     '<h3 style="font-size:16px;margin:22px 0 10px">Visão por colaborador</h3>' +
     '<div class="table-scroll"><table><thead><tr><th>Colaborador</th><th>Empresas</th><th>Finalizadas</th><th>Paradas</th><th>Progresso médio</th></tr></thead><tbody>' + (linhasColaboradores || '<tr><td colspan="5" class="empty">Nenhum responsável no filtro.</td></tr>') + '</tbody></table></div>';
 }

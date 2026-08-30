@@ -22,6 +22,7 @@ const { buscarRegimeNoCfi } = require('./cfi-regime-client');
 const { exigeSaldoAbertura, periodoInicialEmpresa, validarSaldosAbertura, proximoPeriodo, saldosParaTransporte } = require('./implantacao-contabil');
 const { avaliarProntidaoContabil } = require('./prontidao-contabil');
 const { avaliarProgressaoEmpresa, resumirProgressao } = require('./progressao-contabil');
+const { sanitizarAcompanhamento } = require('./acompanhamento-contabil');
 const { avaliarParametrizacaoRegime, sanitizarParametrizacaoRegime } = require('./parametrizacao-regime');
 const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
@@ -4545,12 +4546,13 @@ app.get('/api/admin/progressao-contabil', adminRequired, async (req, res) => {
       const empresaRef = db.collection('empresas').doc(empresa.cnpj);
       try {
         const contasBancarias = Array.isArray(empresa.contas_bancarias_conciliacao) ? empresa.contas_bancarias_conciliacao : [];
-        const [sessao, periodoDoc, conciliacoesSnap] = await Promise.all([
+        const [sessao, periodoDoc, conciliacoesSnap, acompanhamentoDoc] = await Promise.all([
           carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current')),
           empresaRef.collection('periodos_contabeis').doc(competencia).get(),
           contasBancarias.length
             ? empresaRef.collection('conciliacoes_bancarias').where('periodo', '==', competencia).get()
-            : Promise.resolve({ docs: [] })
+            : Promise.resolve({ docs: [] }),
+          empresaRef.collection('acompanhamento_contabil').doc(competencia).get()
         ]);
         const estado = sessao.encontrada && sessao.stateJson ? lerEstadoContabil(sessao.stateJson) : { entries: [] };
         const conciliacoes = conciliacoesSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; });
@@ -4560,6 +4562,7 @@ app.get('/api/admin/progressao-contabil', adminRequired, async (req, res) => {
           competencia,
           entries: estado.entries,
           periodo: periodoDoc.exists ? (periodoDoc.data() || {}) : {},
+          acompanhamento: acompanhamentoDoc.exists ? (acompanhamentoDoc.data() || {}) : {},
           conciliacoes,
           hash_periodo: estado.entries.length ? assinaturaEstadoPeriodo(estado, competencia) : '',
           sessao_atualizada_em: sessao.dados && sessao.dados.updated_at,
@@ -4590,6 +4593,53 @@ app.get('/api/admin/progressao-contabil', adminRequired, async (req, res) => {
   } catch (err) {
     console.error('progressao contabil admin erro:', err);
     res.status(500).json({ erro: err.message, codigo: 'ERRO_PROGRESSAO_CONTABIL' });
+  }
+});
+
+app.put('/api/admin/progressao-contabil/:cnpj/:competencia/acompanhamento', adminRequired, async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const competencia = String(req.params.competencia || '').trim();
+    if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido.' });
+    if (!RelatoriosContabeis.periodoValido(competencia)) return res.status(400).json({ erro: 'Competência inválida. Use AAAA-MM.' });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const empresaDoc = await empresaRef.get();
+    if (!empresaDoc.exists) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+    const acompanhamento = sanitizarAcompanhamento(req.body || {});
+    const agora = new Date();
+    const registro = {
+      ...acompanhamento,
+      competencia,
+      atualizado_em: agora,
+      atualizado_por_uid: req.user.uid,
+      atualizado_por_email: req.user.email
+    };
+    const acompanhamentoRef = empresaRef.collection('acompanhamento_contabil').doc(competencia);
+    const auditoriaRef = db.collection('admin_audit_logs').doc();
+    const auditoria = montarEventoAuditoriaAdmin({
+      evento: 'acompanhamento_contabil_atualizado',
+      categoria: 'fechamento',
+      acao: 'atualizar_acompanhamento_contabil',
+      resultado: { status: 'sucesso', httpStatus: 200 },
+      cnpj,
+      escopo: { recurso: 'acompanhamento_contabil', recursoId: competencia, periodo: competencia },
+      detalhes: {
+        prazo: acompanhamento.prazo || null,
+        prioridade: acompanhamento.prioridade,
+        revisao_status: acompanhamento.revisao_status,
+        possui_impedimento: !!acompanhamento.impedimento,
+        possui_evidencia: !!acompanhamento.evidencia_url
+      },
+      user: req.user
+    });
+    const lote = db.batch();
+    lote.set(acompanhamentoRef, registro, { merge: true });
+    lote.create(auditoriaRef, auditoria);
+    await lote.commit();
+    res.json({ ok: true, cnpj, competencia, acompanhamento: { ...registro, atualizado_em: agora.toISOString() } });
+  } catch (err) {
+    console.error('atualizar acompanhamento contabil erro:', err);
+    res.status(err.status || 500).json({ erro: err.message, codigo: err.codigo || 'ERRO_ACOMPANHAMENTO_CONTABIL' });
   }
 });
 
