@@ -1,7 +1,16 @@
 {
-  "version": "3.4.220",
-  "build_date": "2026-08-30T18:20:00Z",
+  "version": "3.4.221",
+  "build_date": "2026-08-30T21:28:30Z",
   "release_notes": [
-    "Regressões fiscais reais de Serviços Prestados formalizadas para qualquer empresa"
+    "feat: adicionar progressao contabil gerencial",
+    "test: homologar servicos prestados genericos",
+    "test: formalizar evidencias reais de layouts",
+    "fix: separar casos de layout por arquivo real",
+    "docs: registrar bloqueios externos restantes",
+    "docs: registrar segmentacao completa da P08",
+    "fix: sincronizar cache busters da versao 3.4.217",
+    "fix: tornar toda fila de layouts acessivel",
+    "docs: registrar atribuicao em lote da P08",
+    "feat: atribuir casos de layout em lote"
   ]
 }

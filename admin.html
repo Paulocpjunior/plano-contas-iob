@@ -6,31 +6,31 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.220"></script>
+<script src="/saas-brand-theme.js?v=3.4.221"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.220"></script>
-<script src="/parser-ofx.js?v=3.4.220"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.220"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.220"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.220"></script>
-<script src="/parser-safra-extrato.js?v=3.4.220"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.220"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.220"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.220"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.220"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.220"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.220"></script>
-<script src="/parser-btg-pactual.js?v=3.4.220"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.220"></script>
-<script src="/parser-abc-extrato.js?v=3.4.220"></script>
-<script src="/parser-inter-extrato.js?v=3.4.220"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.220"></script>
-<script src="/parser-stone-extrato.js?v=3.4.220"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.220"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.220"></script>
+<script src="/api-adapter.js?v=3.4.221"></script>
+<script src="/parser-ofx.js?v=3.4.221"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.221"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.221"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.221"></script>
+<script src="/parser-safra-extrato.js?v=3.4.221"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.221"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.221"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.221"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.221"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.221"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.221"></script>
+<script src="/parser-btg-pactual.js?v=3.4.221"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.221"></script>
+<script src="/parser-abc-extrato.js?v=3.4.221"></script>
+<script src="/parser-inter-extrato.js?v=3.4.221"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.221"></script>
+<script src="/parser-stone-extrato.js?v=3.4.221"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.221"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.221"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -76,6 +76,19 @@
   .summary-card.purple { background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%); }
   .summary-card .label { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
   .summary-card .value { font-size: 32px; font-weight: 700; }
+  .progress-summary { display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px; }
+  .progress-metric { border:1px solid var(--border);border-radius:10px;padding:14px;background:#f8fafc; }
+  .progress-metric strong { display:block;font-size:25px;margin-top:4px; }
+  .progress-status { display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap; }
+  .progress-status::before { content:"";width:8px;height:8px;border-radius:50%;background:currentColor; }
+  .progress-status.finalizada { background:#dcfce7;color:#15803d; }
+  .progress-status.em_andamento { background:#dbeafe;color:#1d4ed8; }
+  .progress-status.parada { background:#fee2e2;color:#b91c1c; }
+  .progress-status.atencao { background:#fef3c7;color:#b45309; }
+  .progress-status.sem_responsavel { background:#e2e8f0;color:#475569; }
+  .progress-bar { width:110px;height:8px;border-radius:99px;background:#e2e8f0;overflow:hidden;margin-top:5px; }
+  .progress-bar > span { display:block;height:100%;background:#2563eb;border-radius:99px; }
+  .progress-detail { color:var(--muted);font-size:11px;line-height:1.45;margin-top:4px; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; overflow: hidden; }
   .table-scroll { width:100%; max-width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:10px; -webkit-overflow-scrolling:touch; }
   .table-scroll table { min-width:1120px; overflow:visible; }
@@ -194,6 +207,7 @@
   html[data-theme="dark"] [style*="color:#6b7280"], html[data-theme="dark"] [style*="color: #6b7280"],
   html[data-theme="dark"] [style*="color:#9ca3af"], html[data-theme="dark"] [style*="color: #9ca3af"] { color:#cbd5e1!important; }
   html[data-theme="dark"] .login-box h2, html[data-theme="dark"] .layout-card .count { color:#f8fafc; }
+  html[data-theme="dark"] .progress-metric { background:#0b1220;border-color:#334155; }
   @media (max-width: 768px) {
     .container { padding: 18px 12px 30px; }
     .header { align-items: flex-start; flex-direction: column; }
@@ -239,6 +253,7 @@
 
   <div class="tabs">
     <button class="active" onclick="showTab('resumo')">📊 Resumo</button>
+    <button onclick="showTab('progressao', this)">📈 Progressão Contábil</button>
     <button onclick="showTab('layouts')">🏦 Layouts Bancários</button>
     <button onclick="showTab('qualidade')">✅ Qualidade de Layouts</button>
     <button onclick="showTab('exclusao', this)">🗑️ Exclusão de Lançamentos</button>
@@ -281,6 +296,26 @@
   <div id="tab-resumo" class="tab-content active">
     <div class="card">
       <div id="summaryContent" class="loading">Carregando…</div>
+    </div>
+  </div>
+
+  <div id="tab-progressao" class="tab-content">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px">
+        <div>
+          <h2 style="font-size:20px;margin-bottom:4px">📈 Progressão por empresa e colaborador</h2>
+          <p style="font-size:13px;color:#64748b;max-width:820px">Visão gerencial calculada sobre os dados oficiais do CCI. Verde significa competência fechada; vermelho indica inatividade acima da régua escolhida. Este painel não altera lançamentos.</p>
+        </div>
+        <button class="btn" onclick="loadProgressaoContabil(true)">🔄 Atualizar</button>
+      </div>
+      <div class="filters">
+        <div><label>Competência</label><input id="progressaoCompetencia" type="month" onchange="loadProgressaoContabil(true)"></div>
+        <div><label>Alerta sem atividade</label><select id="progressaoDias" onchange="loadProgressaoContabil(true)"><option value="3">3 dias</option><option value="5" selected>5 dias</option><option value="7">7 dias</option><option value="15">15 dias</option></select></div>
+        <div><label>Colaborador</label><select id="progressaoColaborador" onchange="renderProgressaoContabil()"><option value="">Todos</option></select></div>
+        <div><label>Status</label><select id="progressaoStatus" onchange="renderProgressaoContabil()"><option value="">Todos</option><option value="parada">Paradas</option><option value="sem_responsavel">Sem responsável</option><option value="atencao">Atenção</option><option value="em_andamento">Em andamento</option><option value="finalizada">Finalizadas</option></select></div>
+        <div style="flex:1;min-width:230px"><label>Buscar empresa</label><input id="progressaoBusca" type="search" placeholder="Código, CNPJ ou razão social" oninput="renderProgressaoContabil()" style="width:100%"></div>
+      </div>
+      <div id="progressaoContent" class="loading">Abra a visão para carregar os dados.</div>
     </div>
   </div>
 
@@ -494,6 +529,8 @@ let currentLayoutQuality = null;
 let layoutCaseFilters = { estado: 'abertos', categoria: '', parser: '', banco: '', pagina: 0 };
 let currentExclusaoPreview = null;
 let exclusaoEmpresasCarregadas = false;
+let currentProgressaoContabil = null;
+let progressaoCarregando = false;
 
 function fmtDate(ts) {
   if (!ts) return '-';
@@ -572,10 +609,119 @@ function showTab(tab, sourceButton) {
   if (tab === 'layouts') renderLayouts();
   if (tab === 'qualidade') loadLayoutQuality();
   if (tab === 'exclusao') loadExclusaoEmpresas();
+  if (tab === 'progressao') loadProgressaoContabil(false);
 }
 
 function escapeHtml(v) {
   return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+function competenciaAtualSaoPaulo() {
+  const partes = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Sao_Paulo', year:'numeric', month:'2-digit' }).formatToParts(new Date());
+  const mapa = Object.fromEntries(partes.map(p => [p.type, p.value]));
+  return mapa.year + '-' + mapa.month;
+}
+
+function rotuloStatusProgressao(status) {
+  return ({ finalizada:'Finalizada', em_andamento:'Em andamento', parada:'Parada', atencao:'Atenção', sem_responsavel:'Sem responsável' })[status] || status || '-';
+}
+
+function pessoasDaProgressao(empresa) {
+  return [empresa.responsavel_principal].concat(empresa.apoios || []).filter(Boolean);
+}
+
+async function loadProgressaoContabil(forcar) {
+  if (progressaoCarregando) return;
+  const competenciaEl = document.getElementById('progressaoCompetencia');
+  if (!competenciaEl.value) competenciaEl.value = competenciaAtualSaoPaulo();
+  if (currentProgressaoContabil && !forcar && currentProgressaoContabil.competencia === competenciaEl.value) {
+    renderProgressaoContabil();
+    return;
+  }
+  progressaoCarregando = true;
+  const content = document.getElementById('progressaoContent');
+  content.className = 'loading';
+  content.innerHTML = 'Calculando a progressão das empresas sem alterar os dados…';
+  try {
+    currentProgressaoContabil = await window.API.getAdminProgressaoContabil({
+      competencia: competenciaEl.value,
+      dias_sem_atividade: document.getElementById('progressaoDias').value
+    });
+    const seletor = document.getElementById('progressaoColaborador');
+    const valorAtual = seletor.value;
+    seletor.innerHTML = '<option value="">Todos</option>' + (currentProgressaoContabil.colaboradores || []).map(function (pessoa) {
+      const chave = pessoa.uid || pessoa.email;
+      return '<option value="' + escapeHtml(chave) + '">' + escapeHtml(pessoa.nome || pessoa.email) + ' (' + pessoa.empresas + ')</option>';
+    }).join('');
+    seletor.value = Array.from(seletor.options).some(o => o.value === valorAtual) ? valorAtual : '';
+    renderProgressaoContabil();
+  } catch (e) {
+    content.className = 'error';
+    content.textContent = 'Não foi possível montar a progressão: ' + (e.message || e);
+  } finally {
+    progressaoCarregando = false;
+  }
+}
+
+function renderProgressaoContabil() {
+  if (!currentProgressaoContabil) return;
+  const status = document.getElementById('progressaoStatus').value;
+  const colaborador = document.getElementById('progressaoColaborador').value.toLowerCase();
+  const busca = document.getElementById('progressaoBusca').value.trim().toLocaleLowerCase('pt-BR');
+  const empresas = (currentProgressaoContabil.empresas || []).filter(function (empresa) {
+    if (status && empresa.status !== status) return false;
+    if (colaborador && !pessoasDaProgressao(empresa).some(p => String(p.uid || p.email || '').toLowerCase() === colaborador)) return false;
+    if (busca && ![empresa.codigo_empresa, empresa.cnpj, empresa.razao_social].some(v => String(v || '').toLocaleLowerCase('pt-BR').includes(busca))) return false;
+    return true;
+  });
+  const totais = { finalizada:0, em_andamento:0, parada:0, atencao:0, sem_responsavel:0 };
+  empresas.forEach(e => { if (totais[e.status] != null) totais[e.status]++; });
+  const colaboradores = new Map();
+  empresas.forEach(function (empresa) {
+    pessoasDaProgressao(empresa).forEach(function (pessoa) {
+      const chave = pessoa.uid || pessoa.email;
+      const item = colaboradores.get(chave) || { nome:pessoa.nome || pessoa.email, empresas:0, finalizadas:0, paradas:0, progresso:0 };
+      item.empresas++;
+      if (empresa.status === 'finalizada') item.finalizadas++;
+      if (empresa.status === 'parada') item.paradas++;
+      item.progresso += Number(empresa.percentual || 0);
+      colaboradores.set(chave, item);
+    });
+  });
+  const metricas = [
+    ['Empresas', empresas.length, ''], ['Finalizadas', totais.finalizada, 'finalizada'], ['Em andamento', totais.em_andamento, 'em_andamento'],
+    ['Paradas', totais.parada, 'parada'], ['Atenção', totais.atencao, 'atencao'], ['Sem responsável', totais.sem_responsavel, 'sem_responsavel']
+  ].map(function (m) {
+    return '<div class="progress-metric"><span class="progress-status ' + m[2] + '">' + escapeHtml(m[0]) + '</span><strong>' + m[1] + '</strong></div>';
+  }).join('');
+  const linhas = empresas.map(function (empresa) {
+    const responsavel = empresa.responsavel_principal ? (empresa.responsavel_principal.nome || empresa.responsavel_principal.email) : 'Não definido';
+    const cont = empresa.contabilizacao || {};
+    const conc = empresa.conciliacao || {};
+    const ultima = empresa.ultima_atividade_em ? fmtRelative(empresa.ultima_atividade_em) : 'Sem registro';
+    const motivo = empresa.erro_leitura || empresa.motivo_parada || empresa.proxima_acao || '';
+    return '<tr>' +
+      '<td><strong>' + escapeHtml(empresa.codigo_empresa || '-') + ' — ' + escapeHtml(empresa.razao_social || empresa.cnpj) + '</strong><div class="progress-detail text-mono">' + escapeHtml(empresa.cnpj) + '</div></td>' +
+      '<td><span class="progress-status ' + escapeHtml(empresa.status) + '">' + escapeHtml(rotuloStatusProgressao(empresa.status)) + '</span><div class="progress-detail">' + escapeHtml(empresa.etapa_nome) + '</div></td>' +
+      '<td><strong>' + empresa.percentual + '%</strong><div class="progress-bar"><span style="width:' + Math.max(0, Math.min(100, empresa.percentual)) + '%"></span></div></td>' +
+      '<td>' + escapeHtml(responsavel) + '<div class="progress-detail">' + (empresa.apoios || []).length + ' apoio(s)</div></td>' +
+      '<td><strong>' + Number(cont.classificados || 0) + '/' + Number(cont.total || 0) + '</strong><div class="progress-detail">' + Number(cont.pendentes || 0) + ' pendente(s) · ' + escapeHtml((cont.origens || []).join(', ') || 'sem movimento') + '</div></td>' +
+      '<td>' + (conc.aplicavel ? (Number(conc.conciliadas || 0) + '/' + Number(conc.total_contas || 0)) : 'Não aplicável') + '</td>' +
+      '<td><strong>' + (empresa.fechamento && empresa.fechamento.finalizado ? 'Fechado' : 'Aberto') + '</strong><div class="progress-detail">' + ultima + (empresa.dias_sem_atividade != null ? ' · ' + empresa.dias_sem_atividade + ' dia(s)' : '') + '</div></td>' +
+      '<td>' + escapeHtml(motivo || 'Sem pendência registrada') + '<div class="progress-detail">Próxima ação: ' + escapeHtml(empresa.proxima_acao || '-') + '</div></td>' +
+    '</tr>';
+  }).join('');
+  const linhasColaboradores = Array.from(colaboradores.values()).sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(function (pessoa) {
+    const medio = pessoa.empresas ? Math.round(pessoa.progresso / pessoa.empresas) : 0;
+    return '<tr><td><strong>' + escapeHtml(pessoa.nome) + '</strong></td><td>' + pessoa.empresas + '</td><td>' + pessoa.finalizadas + '</td><td>' + pessoa.paradas + '</td><td>' + medio + '%</td></tr>';
+  }).join('');
+  document.getElementById('progressaoContent').className = '';
+  document.getElementById('progressaoContent').innerHTML =
+    '<div class="progress-summary">' + metricas + '</div>' +
+    '<p style="font-size:12px;color:#64748b;margin-bottom:10px">Competência ' + escapeHtml(currentProgressaoContabil.competencia) + ' · atualizado em ' + escapeHtml(fmtDate(currentProgressaoContabil.gerado_em)) + ' · ' + empresas.length + ' empresa(s) no filtro.</p>' +
+    '<div class="table-scroll"><table><thead><tr><th>Empresa</th><th>Status / etapa</th><th>Progresso</th><th>Responsável</th><th>Contabilização</th><th>Conciliação</th><th>Fechamento / atividade</th><th>Onde está parada</th></tr></thead><tbody>' + (linhas || '<tr><td colspan="8" class="empty">Nenhuma empresa encontrada.</td></tr>') + '</tbody></table></div>' +
+    '<h3 style="font-size:16px;margin:22px 0 10px">Visão por colaborador</h3>' +
+    '<div class="table-scroll"><table><thead><tr><th>Colaborador</th><th>Empresas</th><th>Finalizadas</th><th>Paradas</th><th>Progresso médio</th></tr></thead><tbody>' + (linhasColaboradores || '<tr><td colspan="5" class="empty">Nenhum responsável no filtro.</td></tr>') + '</tbody></table></div>';
 }
 
 function normalizarLayoutBanco(l) {
