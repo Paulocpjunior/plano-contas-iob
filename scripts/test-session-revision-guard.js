@@ -34,6 +34,16 @@ assert.deepStrictEqual(segundoColaborador, {
 });
 
 assert.deepStrictEqual(
+  avaliarRevisaoSessao({ revisaoAtual: 'r2', revisaoCliente: 'r1', revisaoObrigatoria: true }),
+  {
+    ok: false,
+    codigo: 'SESSAO_CONCORRENTE',
+    tipo: 'outra_tela_ou_colaborador',
+  },
+  'sessão protegida com revisão informada deve distinguir concorrência de cliente legado'
+);
+
+assert.deepStrictEqual(
   avaliarRevisaoSessao({ revisaoAtual: 'r2', revisaoCliente: '', revisaoObrigatoria: false }),
   { ok: true, tipo: 'cliente_legado' }
 );

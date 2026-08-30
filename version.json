@@ -1,7 +1,7 @@
 {
-  "version": "3.4.214",
-  "build_date": "2026-08-30T00:12:00Z",
+  "version": "3.4.215",
+  "build_date": "2026-08-30T16:21:00Z",
   "release_notes": [
-    "Banco Firestore explícito para testes E2E isolados sem tocar na produção"
+    "Concorrência identificada corretamente em sessões com revisão obrigatória"
   ]
 }
