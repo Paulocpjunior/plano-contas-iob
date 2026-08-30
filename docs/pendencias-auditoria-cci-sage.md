@@ -24,9 +24,9 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 
 ## 🔴 Críticas
 
-### 🔴 P01 — Persistência e salvamento de sessões
+### 🟢 P01 — Persistência e salvamento de sessões
 
-- Estado: `AGUARDANDO EVIDÊNCIA`
+- Estado: `RESOLVIDA`
 - Evidência inicial: nos 1.000 POSTs de sessão consultados desde 28/08/2026,
   houve 54 respostas HTTP 500, 28 conflitos HTTP 409, p95 de 63,6 s e payload
   máximo de 22,1 MB. O erro de servidor foi `DEADLINE_EXCEEDED` no commit em
@@ -36,8 +36,8 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 - Critério de aceite: digitação do lançamento seguinte nunca é desfeita ou
   bloqueada; p95 de persistência menor que 2 s em teste de carga representativo;
   zero HTTP 500/409 indevido e zero perda de lançamento.
-- Próxima ação: medir a revisão atual com uso autenticado representativo e
-  reduzir a latência do caminho de persistência até p95 menor que 2 s.
+- Acompanhamento: manter o SLO/alerta de sessão ativo e reabrir a pendência se
+  o p95 produtivo ultrapassar 2 s ou surgir perda/bloqueio de digitação.
 - Implementado em 29/08/2026: mutação otimista para que a edição seguinte entre
   imediatamente no estado; fila remota serializada sem cancelamento da
   digitação; controle de versão local para um POST antigo não limpar uma edição
@@ -75,15 +75,33 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 - Linha de base observada antes da revisão 00763: 77 POSTs nas últimas 24 h,
   sendo 74 HTTP 200, dois 401 e um 409 por revisão administrativa; p50 de
   5,36 s e p95 de 6,12 s. Não houve HTTP 500 nessa amostra.
-- Evidência ainda necessária: uso real ou teste autenticado concorrente na
-  revisão 00763 e redução comprovada do p95 para menos de 2 s. A P01 permanece
-  `AGUARDANDO EVIDÊNCIA` e não será promovida a verde antes desse aceite.
+- Evidência que ainda era necessária após a revisão 00763: teste autenticado
+  concorrente e p95 menor que 2 s; ela foi obtida no E2E descrito abaixo.
 - Nova medição em 30/08/2026: a consulta explícita do Cloud Logging desde
   `2026-08-29T20:00:00Z` encontrou somente um POST de sessão após a publicação
   da revisão 00763, e ele foi recusado com HTTP 401 em 24 ms. Não houve POST
-  autenticado bem-sucedido nem evento `[sessao-perf]` no período. Logo ainda
-  não existe amostra pós-correção capaz de provar o p95; respostas antigas de
-  outras revisões não serão usadas para promover esta pendência a verde.
+  autenticado bem-sucedido nem evento `[sessao-perf]` no período. Naquele
+  momento ainda não existia amostra pós-correção capaz de provar o p95; a
+  evidência posterior veio do ambiente isolado controlado.
+- E2E isolado concluído em 30/08/2026: o servidor executou o mesmo caminho HTTP
+  autenticado contra o banco restaurado `cci-restore-test-20260829`, usando
+  somente uma empresa sintética marcada como HOMOLOGAÇÃO. O cenário cobriu
+  payload de 30.000 lançamentos, reload por hash, duas telas partindo da mesma
+  revisão, desconexão com retry e carga sequencial. Em 31 amostras, o p50 foi
+  542 ms, o p95 foi 1.456 ms e o máximo 1.704 ms; houve zero HTTP 500, o único
+  HTTP 409 foi o conflito concorrente esperado e a sessão original foi
+  restaurada e conferida por hash ao final.
+- Gap encontrado e corrigido pelo próprio E2E: em sessão com revisão
+  obrigatória, a segunda tela era bloqueada corretamente, mas recebia
+  `SESSAO_DESATUALIZADA`. A versão `3.4.215` passou a classificar uma revisão
+  informada e obsoleta como `SESSAO_CONCORRENTE`, preservando a edição local;
+  somente cliente legado sem revisão recebe a classificação administrativa.
+- Evidência final de produção: workflow oficial `33322174182` aprovou
+  auditoria, porta completa, candidata sem tráfego e health final. A revisão
+  `plano-contas-iob-00775-goc` recebe 100% do tráfego, publica a versão
+  `3.4.215`, confirma Firestore conectado no banco `(default)` e não apresentou
+  log de severidade `ERROR` na verificação. O critério de aceite da P01 foi
+  cumprido sem usar empresa operacional.
 
 ### 🟢 P02 — Linha oficial de release e prevenção de regressão
 
@@ -124,13 +142,14 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 
 ### 🔴 P03 — Piloto formal da migração
 
-- Estado: `AGUARDANDO P01`
+- Estado: `EM RESOLUÇÃO`
 - Evidência inicial: 0 de 146 empresas com piloto homologado e 0 saldos de
   abertura formalmente aprovados na fotografia de 29/08/2026.
 - Critério de aceite: 2 a 3 empresas representativas com saldo de abertura,
   dois ou três meses fechados, conciliação SAGE × CCI, transporte e aceite
   contábil formal.
-- Próxima ação: selecionar as empresas somente depois de P01 e P02.
+- Próxima ação: com P01 e P02 resolvidas, selecionar de duas a três empresas
+  representativas e iniciar o primeiro fechamento comparativo SAGE × CCI.
 
 ## 🟠 Altas
 
@@ -384,9 +403,9 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   competência, lote, hashes, quantidade e resultado. A cobertura prevista no
   critério de aceite agora existe para todas as ações críticas enumeradas.
 
-### 🟡 P13 — Teste real de concorrência e volume
+### 🟢 P13 — Teste real de concorrência e volume
 
-- Estado: `EM RESOLUÇÃO`
+- Estado: `RESOLVIDA`
 - Gap: a porta portátil passa, mas ainda não reproduz em ambiente autenticado
   múltiplos colaboradores, payload grande, latência e disputa de revisão.
 - Critério de aceite: teste E2E reproduzível cobrindo edição simultânea,
@@ -401,10 +420,17 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   `plano-contas-iob-00767-cip`, workflow oficial `33275290138` aprovado,
   candidata validada antes do tráfego, health final aprovado, 100% do tráfego
   e nenhum log de severidade `ERROR` na primeira verificação.
-- Evidência ainda necessária: execução autenticada em empresa exclusivamente
-  destinada a teste, cobrindo concorrência, desconexão, retry, reload, payload
-  de grande volume e p95. Nenhuma empresa real será sobrescrita para fabricar
-  essa prova.
+- Evidência final em 30/08/2026: foi criada uma empresa estritamente sintética
+  no banco isolado restaurado, com autenticação local emulada e o mesmo
+  middleware/endpoint de sessão. O E2E reproduzível executou 30.000 lançamentos,
+  reload, duas telas concorrentes, desconexão, retry e 30 gravações de carga.
+  Foram 31 amostras com p50 de 542 ms, p95 de 1.456 ms e máximo de 1.704 ms;
+  a revisão obsoleta recebeu o HTTP 409 esperado sem alterar o primeiro
+  salvamento, e a sessão original foi restaurada e conferida por hash.
+- Publicação vinculada: a distinção encontrada pelo E2E foi corrigida na
+  versão `3.4.215`, revisão `plano-contas-iob-00775-goc`, 100% do tráfego,
+  workflow `33322174182`, health/version aprovados e zero log `ERROR` na
+  verificação. Nenhuma empresa operacional foi usada ou sobrescrita.
 
 ### 🟢 P14 — Configuração explícita dos projetos Google Cloud
 
@@ -480,3 +506,9 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
   assumir, resolver ou ignorar atualiza todas as tentativas e registra evento
   consolidado sem excluir ocorrências. O passivo continua aberto até receber
   responsáveis e evidências reais.
+- 30/08/2026 — P01 e P13 passaram para `RESOLVIDA`: o E2E isolado e autenticado
+  executou 30.000 lançamentos em 31 amostras, p95 de 1.456 ms, concorrência,
+  desconexão/retry, reload e restauração por hash. O gap de classificação do
+  conflito foi publicado na versão 3.4.215, revisão 00775, sem erro.
+- 30/08/2026 — P03 saiu de `AGUARDANDO P01` para `EM RESOLUÇÃO`; a seleção e o
+  fechamento comparativo das empresas-piloto podem começar.
