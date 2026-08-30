@@ -78,6 +78,12 @@ se ele está aberto, em resolução, aguardando evidência, resolvido ou bloquea
 - Evidência ainda necessária: uso real ou teste autenticado concorrente na
   revisão 00763 e redução comprovada do p95 para menos de 2 s. A P01 permanece
   `AGUARDANDO EVIDÊNCIA` e não será promovida a verde antes desse aceite.
+- Nova medição em 30/08/2026: a consulta explícita do Cloud Logging desde
+  `2026-08-29T20:00:00Z` encontrou somente um POST de sessão após a publicação
+  da revisão 00763, e ele foi recusado com HTTP 401 em 24 ms. Não houve POST
+  autenticado bem-sucedido nem evento `[sessao-perf]` no período. Logo ainda
+  não existe amostra pós-correção capaz de provar o p95; respostas antigas de
+  outras revisões não serão usadas para promover esta pendência a verde.
 
 ### 🟢 P02 — Linha oficial de release e prevenção de regressão
 
