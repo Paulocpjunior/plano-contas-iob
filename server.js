@@ -21,6 +21,7 @@ const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client'
 const { buscarRegimeNoCfi } = require('./cfi-regime-client');
 const { exigeSaldoAbertura, periodoInicialEmpresa, validarSaldosAbertura, proximoPeriodo, saldosParaTransporte } = require('./implantacao-contabil');
 const { avaliarProntidaoContabil } = require('./prontidao-contabil');
+const { avaliarProgressaoEmpresa, resumirProgressao } = require('./progressao-contabil');
 const { avaliarParametrizacaoRegime, sanitizarParametrizacaoRegime } = require('./parametrizacao-regime');
 const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
@@ -4498,6 +4499,98 @@ app.get('/api/admin/summary', adminRequired, async (req, res) => {
       logs_amostrados: logs.size
     });
   } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+async function mapearComConcorrencia(itens, limite, tarefa) {
+  const resultado = new Array(itens.length);
+  let proximo = 0;
+  const trabalhadores = Array.from({ length: Math.min(Math.max(1, limite), itens.length) }, async function () {
+    while (proximo < itens.length) {
+      const indice = proximo++;
+      resultado[indice] = await tarefa(itens[indice], indice);
+    }
+  });
+  await Promise.all(trabalhadores);
+  return resultado;
+}
+
+// Visão somente leitura: consolida contratos existentes sem criar um segundo fluxo contábil.
+app.get('/api/admin/progressao-contabil', adminRequired, async (req, res) => {
+  try {
+    const competencia = String(req.query.competencia || '').trim() || new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit'
+    }).format(new Date()).slice(0, 7);
+    if (!RelatoriosContabeis.periodoValido(competencia)) return res.status(400).json({ erro: 'Competência inválida. Use AAAA-MM.' });
+    const diasSemAtividade = Math.min(60, Math.max(1, Number(req.query.dias_sem_atividade) || 5));
+    const busca = String(req.query.busca || '').trim().toLocaleLowerCase('pt-BR');
+    const colaborador = String(req.query.colaborador || '').trim().toLowerCase();
+    const empresasSnap = await db.collection('empresas').get();
+    let empresas = empresasSnap.docs.map(function (doc) { return { cnpj: doc.id, ...(doc.data() || {}) }; });
+    if (busca) {
+      empresas = empresas.filter(function (empresa) {
+        return [empresa.cnpj, codigoEmpresaDe(empresa), empresa.razao_social, empresa.nome].some(function (valor) {
+          return String(valor || '').toLocaleLowerCase('pt-BR').includes(busca);
+        });
+      });
+    }
+    if (colaborador) {
+      empresas = empresas.filter(function (empresa) {
+        return normalizarResponsaveis(empresa.responsaveis).some(function (pessoa) {
+          return String(pessoa.uid || '').toLowerCase() === colaborador || String(pessoa.email || '').toLowerCase() === colaborador;
+        });
+      });
+    }
+    const geradoEm = new Date();
+    const progressao = await mapearComConcorrencia(empresas, 8, async function (empresa) {
+      const empresaRef = db.collection('empresas').doc(empresa.cnpj);
+      try {
+        const contasBancarias = Array.isArray(empresa.contas_bancarias_conciliacao) ? empresa.contas_bancarias_conciliacao : [];
+        const [sessao, periodoDoc, conciliacoesSnap] = await Promise.all([
+          carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current')),
+          empresaRef.collection('periodos_contabeis').doc(competencia).get(),
+          contasBancarias.length
+            ? empresaRef.collection('conciliacoes_bancarias').where('periodo', '==', competencia).get()
+            : Promise.resolve({ docs: [] })
+        ]);
+        const estado = sessao.encontrada && sessao.stateJson ? lerEstadoContabil(sessao.stateJson) : { entries: [] };
+        const conciliacoes = conciliacoesSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; });
+        const avaliacao = avaliarProgressaoEmpresa({
+          cnpj: empresa.cnpj,
+          empresa: { ...empresa, codigo_empresa: codigoEmpresaDe(empresa), responsaveis: normalizarResponsaveis(empresa.responsaveis) },
+          competencia,
+          entries: estado.entries,
+          periodo: periodoDoc.exists ? (periodoDoc.data() || {}) : {},
+          conciliacoes,
+          hash_periodo: estado.entries.length ? assinaturaEstadoPeriodo(estado, competencia) : '',
+          sessao_atualizada_em: sessao.dados && sessao.dados.updated_at,
+          agora: geradoEm,
+          dias_sem_atividade: diasSemAtividade
+        });
+        return avaliacao;
+      } catch (erroEmpresa) {
+        const avaliacao = avaliarProgressaoEmpresa({
+          cnpj: empresa.cnpj,
+          empresa: { ...empresa, codigo_empresa: codigoEmpresaDe(empresa), responsaveis: normalizarResponsaveis(empresa.responsaveis) },
+          competencia,
+          agora: geradoEm,
+          dias_sem_atividade: diasSemAtividade
+        });
+        return { ...avaliacao, status: 'atencao', erro_leitura: String(erroEmpresa.message || erroEmpresa).slice(0, 240), motivo_parada: 'Dados da empresa precisam de revisão técnica' };
+      }
+    });
+    progressao.sort(function (a, b) {
+      const ordem = { parada: 0, sem_responsavel: 1, atencao: 2, em_andamento: 3, finalizada: 4 };
+      return (ordem[a.status] ?? 9) - (ordem[b.status] ?? 9)
+        || String(a.codigo_empresa || '999999').localeCompare(String(b.codigo_empresa || '999999'))
+        || a.razao_social.localeCompare(b.razao_social, 'pt-BR');
+    });
+    const consolidado = resumirProgressao(progressao);
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, competencia, dias_sem_atividade: diasSemAtividade, gerado_em: geradoEm.toISOString(), ...consolidado, empresas: progressao });
+  } catch (err) {
+    console.error('progressao contabil admin erro:', err);
+    res.status(500).json({ erro: err.message, codigo: 'ERRO_PROGRESSAO_CONTABIL' });
+  }
 });
 
 app.get('/api/layouts-bancarios', async (req, res) => {
