@@ -23,6 +23,7 @@ const { exigeSaldoAbertura, periodoInicialEmpresa, validarSaldosAbertura, proxim
 const { avaliarProntidaoContabil } = require('./prontidao-contabil');
 const { avaliarProgressaoEmpresa, resumirProgressao } = require('./progressao-contabil');
 const { sanitizarAcompanhamento } = require('./acompanhamento-contabil');
+const ProgressaoAlertas = require('./progressao-alertas');
 const { avaliarParametrizacaoRegime, sanitizarParametrizacaoRegime } = require('./parametrizacao-regime');
 const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
@@ -4619,6 +4620,34 @@ async function mapearComConcorrencia(itens, limite, tarefa) {
   return resultado;
 }
 
+async function avaliarProgressaoPersistida(empresa, competencia, agora, diasSemAtividade) {
+  const empresaRef = db.collection('empresas').doc(empresa.cnpj);
+  const contasBancarias = Array.isArray(empresa.contas_bancarias_conciliacao) ? empresa.contas_bancarias_conciliacao : [];
+  const [sessao, periodoDoc, conciliacoesSnap, acompanhamentoDoc] = await Promise.all([
+    carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current')),
+    empresaRef.collection('periodos_contabeis').doc(competencia).get(),
+    contasBancarias.length
+      ? empresaRef.collection('conciliacoes_bancarias').where('periodo', '==', competencia).get()
+      : Promise.resolve({ docs: [] }),
+    empresaRef.collection('acompanhamento_contabil').doc(competencia).get()
+  ]);
+  const estado = sessao.encontrada && sessao.stateJson ? lerEstadoContabil(sessao.stateJson) : { entries: [] };
+  const conciliacoes = conciliacoesSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; });
+  return avaliarProgressaoEmpresa({
+    cnpj: empresa.cnpj,
+    empresa: { ...empresa, codigo_empresa: codigoEmpresaDe(empresa), responsaveis: normalizarResponsaveis(empresa.responsaveis) },
+    competencia,
+    entries: estado.entries,
+    periodo: periodoDoc.exists ? (periodoDoc.data() || {}) : {},
+    acompanhamento: acompanhamentoDoc.exists ? (acompanhamentoDoc.data() || {}) : {},
+    conciliacoes,
+    hash_periodo: estado.entries.length ? assinaturaEstadoPeriodo(estado, competencia) : '',
+    sessao_atualizada_em: sessao.dados && sessao.dados.updated_at,
+    agora,
+    dias_sem_atividade: diasSemAtividade
+  });
+}
+
 // Visão somente leitura: consolida contratos existentes sem criar um segundo fluxo contábil.
 app.get('/api/admin/progressao-contabil', adminRequired, async (req, res) => {
   try {
@@ -4647,33 +4676,8 @@ app.get('/api/admin/progressao-contabil', adminRequired, async (req, res) => {
     }
     const geradoEm = new Date();
     const progressao = await mapearComConcorrencia(empresas, 8, async function (empresa) {
-      const empresaRef = db.collection('empresas').doc(empresa.cnpj);
       try {
-        const contasBancarias = Array.isArray(empresa.contas_bancarias_conciliacao) ? empresa.contas_bancarias_conciliacao : [];
-        const [sessao, periodoDoc, conciliacoesSnap, acompanhamentoDoc] = await Promise.all([
-          carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current')),
-          empresaRef.collection('periodos_contabeis').doc(competencia).get(),
-          contasBancarias.length
-            ? empresaRef.collection('conciliacoes_bancarias').where('periodo', '==', competencia).get()
-            : Promise.resolve({ docs: [] }),
-          empresaRef.collection('acompanhamento_contabil').doc(competencia).get()
-        ]);
-        const estado = sessao.encontrada && sessao.stateJson ? lerEstadoContabil(sessao.stateJson) : { entries: [] };
-        const conciliacoes = conciliacoesSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; });
-        const avaliacao = avaliarProgressaoEmpresa({
-          cnpj: empresa.cnpj,
-          empresa: { ...empresa, codigo_empresa: codigoEmpresaDe(empresa), responsaveis: normalizarResponsaveis(empresa.responsaveis) },
-          competencia,
-          entries: estado.entries,
-          periodo: periodoDoc.exists ? (periodoDoc.data() || {}) : {},
-          acompanhamento: acompanhamentoDoc.exists ? (acompanhamentoDoc.data() || {}) : {},
-          conciliacoes,
-          hash_periodo: estado.entries.length ? assinaturaEstadoPeriodo(estado, competencia) : '',
-          sessao_atualizada_em: sessao.dados && sessao.dados.updated_at,
-          agora: geradoEm,
-          dias_sem_atividade: diasSemAtividade
-        });
-        return avaliacao;
+        return await avaliarProgressaoPersistida(empresa, competencia, geradoEm, diasSemAtividade);
       } catch (erroEmpresa) {
         const avaliacao = avaliarProgressaoEmpresa({
           cnpj: empresa.cnpj,
@@ -4732,7 +4736,11 @@ app.put('/api/admin/progressao-contabil/:cnpj/:competencia/acompanhamento', admi
         prioridade: acompanhamento.prioridade,
         revisao_status: acompanhamento.revisao_status,
         possui_impedimento: !!acompanhamento.impedimento,
-        possui_evidencia: !!acompanhamento.evidencia_url
+        possui_evidencia: !!acompanhamento.evidencia_url,
+        areas_esperadas: acompanhamento.areas_esperadas,
+        alerta_ativo: acompanhamento.alerta_ativo,
+        alerta_dias: acompanhamento.alerta_dias,
+        canais_alerta: acompanhamento.canais_alerta
       },
       user: req.user
     });
@@ -4744,6 +4752,92 @@ app.put('/api/admin/progressao-contabil/:cnpj/:competencia/acompanhamento', admi
   } catch (err) {
     console.error('atualizar acompanhamento contabil erro:', err);
     res.status(err.status || 500).json({ erro: err.message, codigo: err.codigo || 'ERRO_ACOMPANHAMENTO_CONTABIL' });
+  }
+});
+
+async function processarAlertasProgressao(competencia, cnpjAlvo) {
+  if (!RelatoriosContabeis.periodoValido(competencia)) {
+    const erro = new Error('Competência inválida. Use AAAA-MM.');
+    erro.status = 400;
+    throw erro;
+  }
+  const agora = new Date();
+  const snap = cnpjAlvo
+    ? await db.collection('empresas').where(admin.firestore.FieldPath.documentId(), '==', cnpjAlvo).get()
+    : await db.collection('empresas').get();
+  const empresas = snap.docs.map(function (doc) { return { cnpj: doc.id, ...(doc.data() || {}) }; });
+  const remetente = process.env.GRAPH_REMETENTE || process.env.NOTIF_REMETENTE_EMAIL || '';
+  const teamsWebhookUrl = process.env.CCI_PROGRESSAO_TEAMS_WEBHOOK_URL || '';
+  const resultados = await mapearComConcorrencia(empresas, 4, async function (empresa) {
+    try {
+      const avaliacao = await avaliarProgressaoPersistida(empresa, competencia, agora, 5);
+      if (!ProgressaoAlertas.podeEnviar(avaliacao, agora)) return { cnpj: empresa.cnpj, status: 'nao_devido' };
+      const envio = await ProgressaoAlertas.enviar(avaliacao, {
+        remetente,
+        teamsWebhookUrl,
+        enviarEmail: GraphEmail.enviarEmail
+      });
+      const sucessos = envio.resultados.filter(function (item) { return item.ok; }).length;
+      const registro = {
+        competencia,
+        criado_em: agora,
+        status: envio.ok ? 'enviado' : (sucessos ? 'parcial' : 'falhou'),
+        canais: envio.resultados.map(function (item) {
+          return { canal: item.canal, destinatario: item.destinatario || '', ok: item.ok === true, erro: item.error || '' };
+        }),
+        dias_sem_atividade: avaliacao.dias_sem_atividade,
+        etapa: avaliacao.etapa,
+        percentual: avaliacao.percentual
+      };
+      const empresaRef = db.collection('empresas').doc(empresa.cnpj);
+      const lote = db.batch();
+      lote.create(empresaRef.collection('alertas_progressao').doc(), registro);
+      if (sucessos) lote.set(empresaRef.collection('acompanhamento_contabil').doc(competencia), {
+        ultimo_alerta_em: agora,
+        ultimo_alerta_status: registro.status,
+        ultimo_alerta_canais: registro.canais
+      }, { merge: true });
+      await lote.commit();
+      return { cnpj: empresa.cnpj, status: registro.status, canais: registro.canais };
+    } catch (erro) {
+      return { cnpj: empresa.cnpj, status: 'erro', erro: String(erro.message || erro).slice(0, 300) };
+    }
+  });
+  return {
+    competencia,
+    processadas: resultados.length,
+    enviados: resultados.filter(function (item) { return item.status === 'enviado'; }).length,
+    parciais: resultados.filter(function (item) { return item.status === 'parcial'; }).length,
+    falhas: resultados.filter(function (item) { return ['falhou', 'erro'].includes(item.status); }).length,
+    ignorados: resultados.filter(function (item) { return item.status === 'nao_devido'; }).length,
+    resultados
+  };
+}
+
+app.post('/api/admin/progressao-contabil/processar-alertas', adminRequired, async (req, res) => {
+  try {
+    const competencia = String(req.body && req.body.competencia || '').trim();
+    const cnpj = String(req.body && req.body.cnpj || '').replace(/\D/g, '');
+    if (cnpj && cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido.' });
+    const resultado = await processarAlertasProgressao(competencia, cnpj || '');
+    res.json({ ok: true, ...resultado });
+  } catch (erro) {
+    res.status(erro.status || 500).json({ erro: erro.message, codigo: 'ERRO_ALERTAS_PROGRESSAO' });
+  }
+});
+
+app.post('/api/internal/progressao-contabil/processar-alertas', async (req, res) => {
+  const segredo = String(process.env.CCI_PROGRESSAO_ALERT_TOKEN || '');
+  const recebido = String(req.get('x-cci-alert-token') || '');
+  if (!segredo || !recebido || recebido !== segredo) return res.status(403).json({ erro: 'Agendador não autorizado.' });
+  try {
+    const competencia = String(req.body && req.body.competencia || '').trim() || new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit'
+    }).format(new Date()).slice(0, 7);
+    const resultado = await processarAlertasProgressao(competencia, '');
+    res.json({ ok: true, ...resultado });
+  } catch (erro) {
+    res.status(erro.status || 500).json({ erro: erro.message, codigo: 'ERRO_ALERTAS_PROGRESSAO' });
   }
 });
 

@@ -2,6 +2,7 @@
 
 const PRIORIDADES = new Set(['baixa', 'normal', 'alta', 'critica']);
 const STATUS_REVISAO = new Set(['nao_solicitada', 'aguardando_revisao', 'ajustes_solicitados', 'aprovada']);
+const AREAS = new Set(['financeiro', 'fiscal', 'folha']);
 
 function texto(valor, limite) {
   return String(valor == null ? '' : valor).trim().slice(0, limite);
@@ -37,6 +38,22 @@ function sanitizarAcompanhamento(entrada) {
   const impedimento = texto(dados.impedimento, 1000);
   const observacao = texto(dados.observacao, 2000);
   const evidenciaUrl = urlSegura(dados.evidencia_url);
+  const areasEsperadas = Array.from(new Set((Array.isArray(dados.areas_esperadas) ? dados.areas_esperadas : [])
+    .map(function (area) { return texto(area, 20).toLowerCase(); })
+    .filter(function (area) { return AREAS.has(area); })));
+  const alertaAtivo = dados.alerta_ativo === true;
+  const alertaDias = Math.min(60, Math.max(1, Number(dados.alerta_dias) || 5));
+  const canaisEntrada = dados.canais_alerta || {};
+  const canaisAlerta = { email: canaisEntrada.email === true, teams: canaisEntrada.teams === true };
+  const destinatariosAlerta = Array.from(new Set((Array.isArray(dados.destinatarios_alerta) ? dados.destinatarios_alerta : [])
+    .map(function (email) { return texto(email, 180).toLowerCase(); })
+    .filter(function (email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); })));
+  if (alertaAtivo && !canaisAlerta.email && !canaisAlerta.teams) {
+    const erro = new Error('Escolha ao menos um canal de aviso: Teams ou e-mail.');
+    erro.status = 400;
+    erro.codigo = 'CANAL_ALERTA_OBRIGATORIO';
+    throw erro;
+  }
   if (revisaoStatus === 'aprovada' && impedimento) {
     const erro = new Error('Remova o impedimento antes de aprovar a revisão gerencial.');
     erro.status = 409;
@@ -56,7 +73,12 @@ function sanitizarAcompanhamento(entrada) {
     observacao,
     revisao_status: revisaoStatus,
     evidencia_titulo: texto(dados.evidencia_titulo, 160),
-    evidencia_url: evidenciaUrl
+    evidencia_url: evidenciaUrl,
+    areas_esperadas: areasEsperadas.length ? areasEsperadas : ['financeiro', 'fiscal', 'folha'],
+    alerta_ativo: alertaAtivo,
+    alerta_dias: alertaDias,
+    canais_alerta: canaisAlerta,
+    destinatarios_alerta: destinatariosAlerta
   };
 }
 
