@@ -19,6 +19,7 @@ assert(server.includes("app.use('/api/empresas/:cnpj/sessao', criarLimitador"), 
 assert(server.includes("app.use('/api/gemini', criarLimitador"), 'Gemini precisa de throttling próprio');
 assert(server.includes("app.use('/api/admin/empresas/:cnpj/migracao-sage', criarLimitador"), 'migração administrativa precisa de throttling próprio');
 assert(server.includes("err.type === 'entity.too.large'"), '413 precisa retornar erro estruturado');
+assert(server.includes("parser-[^/]+\\.js"), 'parsers de importacao devem ser servidos sem cache para evitar regressao em abas desatualizadas');
 
 assert.strictEqual(limiteCorpoPara({ originalUrl: '/api/empresas/123/sessao' }), LIMITES_CORPO.sessao);
 assert.strictEqual(limiteCorpoPara({ originalUrl: '/api/empresas/123/relatorio' }), LIMITES_CORPO.relatorioSessao);

@@ -15925,6 +15925,15 @@
                 movimentoFiscalStatus('error', 'Formato incompatível com o layout. Use ' + escaparHtmlImportacao((layout.extensoes || []).join(', ').toUpperCase()) + '.');
                 return;
             }
+            if (typeof window.__verificarVersaoAntesDeImportar !== 'function') {
+                movimentoFiscalStatus('error', 'Não foi possível confirmar a versão do importador. Atualize a página antes de validar o arquivo.');
+                return;
+            }
+            const versaoAtual = await window.__verificarVersaoAntesDeImportar();
+            if (!versaoAtual) {
+                movimentoFiscalStatus('error', 'Há uma atualização do importador disponível. Atualize a página e valide o arquivo novamente.');
+                return;
+            }
             const parser = window[layout.parser];
             if (typeof parser !== 'function' || typeof window.validarVinculoCnpjFiscal !== 'function') {
                 movimentoFiscalStatus('error', 'Parser ou trava de CNPJ não carregado. Atualize a aplicação antes de importar.');

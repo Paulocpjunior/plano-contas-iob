@@ -5949,7 +5949,7 @@ app.get('/auditai*', (req, res) => {
 });
 
 function headersAppPrincipal(res, filePath) {
-  if (!/(?:^|\/)(?:index\.html|parser-flanacar-registro-entradas\.js|layouts-fiscais-padrao\.js)$/i.test(filePath || '')) return;
+  if (!/(?:^|\/)(?:index\.html|parser-flanacar-registro-entradas\.js|parser-[^/]+\.js|layouts-fiscais-padrao\.js)$/i.test(filePath || '')) return;
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
