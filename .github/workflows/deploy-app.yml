@@ -286,6 +286,21 @@ jobs:
                 echo "::error::Runtime usa $DEPLOYED_RUNTIME_SA; esperado $CCI_RUNTIME_SERVICE_ACCOUNT."
                 exit 1
               fi
+              CANDIDATE_REVISION=$(gcloud run revisions list \
+                --service "$SERVICE_NAME" --region "$REGION" --project "$PROJECT_ID" \
+                --sort-by='~metadata.creationTimestamp' --limit=1 \
+                --format='value(metadata.name)')
+              if [ -z "$CANDIDATE_REVISION" ]; then
+                echo "::error::Deploy concluiu, mas a revisão criada não foi localizada."
+                exit 1
+              fi
+              # Em alguns deploys o Cloud Run aposenta imediatamente uma revisão
+              # de 0% antes de materializar a tag pedida no `run deploy`. Reaplicar
+              # a tag explicita mantém 0% de tráfego e torna a candidata testável.
+              gcloud run services update-traffic "$SERVICE_NAME" \
+                --region "$REGION" --project "$PROJECT_ID" \
+                --set-tags candidate="$CANDIDATE_REVISION" --quiet
+              echo "CANDIDATE_REVISION=$CANDIDATE_REVISION" >> "$GITHUB_ENV"
               exit 0
             fi
             echo "Deploy falhou (tentativa ${attempt}/3) — aguardando antes de repetir…"
@@ -300,11 +315,17 @@ jobs:
         # roteado e a revisão antiga segue servindo.
         run: |
           EXPECTED_VERSION=$(node -p "require('./version.json').version")
-          CANDIDATE_URL=$(gcloud run services describe "$SERVICE_NAME" \
-            --platform managed --region "$REGION" --project "$PROJECT_ID" \
-            --format=json | jq -r '.status.traffic[] | select(.tag=="candidate") | .url' | head -n1)
+          CANDIDATE_URL=""
+          for attempt in 1 2 3 4 5; do
+            CANDIDATE_URL=$(gcloud run services describe "$SERVICE_NAME" \
+              --platform managed --region "$REGION" --project "$PROJECT_ID" \
+              --format=json | jq -r --arg revision "$CANDIDATE_REVISION" '.status.traffic[] | select(.tag=="candidate" and .revisionName==$revision) | .url' | head -n1)
+            [ -n "$CANDIDATE_URL" ] && break
+            echo "tag candidate ainda não materializada para $CANDIDATE_REVISION (tentativa ${attempt}/5)…"
+            sleep $((attempt * 2))
+          done
           if [ -z "$CANDIDATE_URL" ]; then
-            echo "::error::Não achei a URL da revisão candidata (tag=candidate)."; exit 1
+            echo "::error::Não achei a URL da revisão candidata $CANDIDATE_REVISION (tag=candidate)."; exit 1
           fi
           echo "Revisão candidata: $CANDIDATE_URL"
           HEALTH_OK=0
