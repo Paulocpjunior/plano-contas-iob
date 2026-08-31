@@ -6,31 +6,31 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.227"></script>
+<script src="/saas-brand-theme.js?v=3.4.228"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.227"></script>
-<script src="/parser-ofx.js?v=3.4.227"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.227"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.227"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.227"></script>
-<script src="/parser-safra-extrato.js?v=3.4.227"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.227"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.227"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.227"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.227"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.227"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.227"></script>
-<script src="/parser-btg-pactual.js?v=3.4.227"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.227"></script>
-<script src="/parser-abc-extrato.js?v=3.4.227"></script>
-<script src="/parser-inter-extrato.js?v=3.4.227"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.227"></script>
-<script src="/parser-stone-extrato.js?v=3.4.227"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.227"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.227"></script>
+<script src="/api-adapter.js?v=3.4.228"></script>
+<script src="/parser-ofx.js?v=3.4.228"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.228"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.228"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.228"></script>
+<script src="/parser-safra-extrato.js?v=3.4.228"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.228"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.228"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.228"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.228"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.228"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.228"></script>
+<script src="/parser-btg-pactual.js?v=3.4.228"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.228"></script>
+<script src="/parser-abc-extrato.js?v=3.4.228"></script>
+<script src="/parser-inter-extrato.js?v=3.4.228"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.228"></script>
+<script src="/parser-stone-extrato.js?v=3.4.228"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.228"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.228"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -344,9 +344,14 @@
         <div><label for="progressaoRevisao">Revisão gerencial</label><select id="progressaoRevisao"><option value="nao_solicitada">Não solicitada</option><option value="aguardando_revisao">Aguardando revisão</option><option value="ajustes_solicitados">Ajustes solicitados</option><option value="aprovada">Aprovada</option></select></div>
         <div></div>
         <div class="wide"><label>Áreas esperadas nesta competência</label><div style="display:flex;gap:18px;flex-wrap:wrap;padding:10px 0"><label style="text-transform:none"><input id="progressaoAreaFinanceiro" type="checkbox" checked> Financeiro</label><label style="text-transform:none"><input id="progressaoAreaFiscal" type="checkbox" checked> Fiscal</label><label style="text-transform:none"><input id="progressaoAreaFolha" type="checkbox" checked> Folha</label></div></div>
-        <div><label for="progressaoAlertaDias">Avisar após inatividade</label><select id="progressaoAlertaDias"><option value="1">1 dia</option><option value="3">3 dias</option><option value="5" selected>5 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="30">30 dias</option></select></div>
-        <div><label>Envio do aviso</label><div style="display:flex;gap:14px;flex-wrap:wrap;padding:10px 0"><label style="text-transform:none"><input id="progressaoAlertaAtivo" type="checkbox"> Ativar</label><label style="text-transform:none"><input id="progressaoCanalEmail" type="checkbox"> E-mail</label><label style="text-transform:none"><input id="progressaoCanalTeams" type="checkbox"> Teams</label></div></div>
-        <div class="wide"><label for="progressaoDestinatarios">Destinatários adicionais</label><input id="progressaoDestinatarios" placeholder="nome@empresa.com, gestor@empresa.com"><div style="font-size:11px;color:#64748b;margin-top:4px">O responsável principal já é considerado; separe e-mails adicionais por vírgula.</div></div>
+        <div class="wide" style="border:1px solid #cbd5e1;border-radius:12px;padding:14px;background:rgba(248,250,252,.72)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px"><div><strong style="font-size:13px;color:#0f172a">Automação de avisos</strong><div style="font-size:11px;color:#64748b;margin-top:3px">Configuração restrita a administradores. Nenhum usuário operacional acessa ou altera estes canais.</div></div><span style="font-size:10px;font-weight:800;letter-spacing:.06em;color:#9f1239;background:#ffe4e6;border-radius:999px;padding:5px 8px;white-space:nowrap">SOMENTE ADMIN</span></div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+            <div><label for="progressaoAlertaDias">Avisar após inatividade</label><select id="progressaoAlertaDias"><option value="1">1 dia</option><option value="3">3 dias</option><option value="5" selected>5 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="30">30 dias</option></select></div>
+            <div><label>Envio do aviso</label><div style="display:flex;gap:14px;flex-wrap:wrap;padding:10px 0"><label style="text-transform:none"><input id="progressaoAlertaAtivo" type="checkbox"> Ativar</label><label style="text-transform:none"><input id="progressaoCanalEmail" type="checkbox"> E-mail</label><label style="text-transform:none"><input id="progressaoCanalTeams" type="checkbox"> Teams</label></div></div>
+            <div style="grid-column:1/-1"><label for="progressaoDestinatarios">Destinatários adicionais</label><input id="progressaoDestinatarios" placeholder="nome@empresa.com, gestor@empresa.com"><div style="font-size:11px;color:#64748b;margin-top:4px">O responsável principal já é considerado; separe e-mails adicionais por vírgula.</div></div>
+          </div>
+        </div>
         <div><label for="progressaoEvidenciaTitulo">Título da evidência</label><input id="progressaoEvidenciaTitulo" maxlength="160" placeholder="Ex.: retorno do cliente"></div>
         <div><label for="progressaoEvidenciaUrl">Link HTTPS da evidência</label><input id="progressaoEvidenciaUrl" type="url" maxlength="600" placeholder="https://..."></div>
       </div>
