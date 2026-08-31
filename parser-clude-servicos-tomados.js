@@ -326,7 +326,8 @@
   }
 
   function criarLancamentoServicoPrestado({ cnpj, tomador, valor, documento, data, periodo, metaEmpresa, servico, baseCalculoIss, aliquotaIss, valorIss, issRetido }) {
-    const tomadorLimpo = normalizarTomadorPrestado(tomador);
+    const tomadorLimpo = normalizarTomadorPrestado(tomador)
+      || (somenteDigitos(cnpj) ? 'TOMADOR NAO INFORMADO NO RELATORIO' : '');
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
     if (!tomadorLimpo || !valor || !data) return null;
     if (cnpjIgual(cnpj, metaEmpresa && metaEmpresa.cnpj)) return null;

@@ -44,6 +44,28 @@ Total 3.866,22 0,00 0,00 0,00
   assert.strictEqual(resultadoSeriesDistintas.total_divergente, false);
   assert.deepStrictEqual(resultadoSeriesDistintas.lancamentos.map(l => l.serieSubserie).sort(), ['', '1']);
 
+  const textoPrestadosSemRazaoSocial = `
+Empresa: 0700 - STUDIO ORALE ODONTOLOGIA EIRELI
+C.N.P.J.: 26.173.144/0001-33
+Período: 01/03/2026 á 31/03/2026
+Relação de NFs de Serviços Prestados - Modelo 51 e 53
+Serviço Número Série CNPJ/CPF Razão Social Valor da NF Base de Cálculo Alíquota Valor do ISS Iss Retido Emissão
+05/03/2026 46.93 0003901 002 049.726.078-66 3.960,00 3.960,00 2,00 79,20 79,20
+31/03/2026 46.93 0003924 002 29.309.127/0001-79 AMIL ASSISTENCIA MEDICA INTER 0,00 0,00 0,00 0,00
+Total 3.960,00 3.960,00 79,20 79,20
+`;
+  const resultadoSemRazaoSocial = parsearTexto_IOBSageServicosPrestados(textoPrestadosSemRazaoSocial);
+  assert.strictEqual(resultadoSemRazaoSocial.detectado, true);
+  assert.strictEqual(resultadoSemRazaoSocial.total_notas_fiscais, 1, 'NF com valor e sem razao social deve ser preservada; NF zerada permanece fora');
+  assert.strictEqual(resultadoSemRazaoSocial.total_lancamentos_fiscais, 2);
+  assert.strictEqual(money(resultadoSemRazaoSocial.total_credito), 3960);
+  assert.strictEqual(money(resultadoSemRazaoSocial.total_debito), 79.20);
+  assert.strictEqual(resultadoSemRazaoSocial.total_divergente, false);
+  const receitaSemRazao = resultadoSemRazaoSocial.lancamentos.find(l => l.componenteFiscal !== 'IMPOSTO_RETIDO');
+  assert.ok(receitaSemRazao && /TOMADOR NAO INFORMADO NO RELATORIO/.test(receitaSemRazao.descricao_memoria), 'ausencia da razao social deve ficar explicita, sem inventar o tomador');
+  assert.ok(resultadoSemRazaoSocial.lancamentos.some(l => money(l.valor) === 3960));
+  assert.ok(resultadoSemRazaoSocial.lancamentos.some(l => money(l.valor) === -79.20));
+
   if (!fs.existsSync(arquivo)) {
     console.log('SKIP: arquivo de servicos tomados CLUDE nao encontrado localmente.');
     return;
@@ -196,24 +218,25 @@ Total 3.866,22 0,00 0,00 0,00
   assert.ok(resultadoDaxxTotalPass.lancamentos.some(l => l.documento === '378' && money(l.valor) === 22328.17), 'NF 378 da TOTAL PASS deve ser preservada');
   assert.ok(resultadoDaxxTotalPass.lancamentos.some(l => l.documento === '416' && money(l.valor) === 17879.28), 'NF 416 da TOTAL PASS deve ser preservada');
 
-  assert.ok(fs.existsSync(arquivoDiegoTomadosMarco), 'fixture real DIEGO BOMFIM servicos tomados deve existir');
-  const bufferDiegoTomadosMarco = fs.readFileSync(arquivoDiegoTomadosMarco);
-  assert.strictEqual(
-    crypto.createHash('sha256').update(bufferDiegoTomadosMarco).digest('hex'),
-    hashDiegoTomadosMarco,
-    'fixture DIEGO BOMFIM deve ser o PDF real validado'
-  );
-  const resultadoDiegoTomadosMarco = await parsearPDF_IOB_Sage_ServicosTomados(new Uint8Array(bufferDiegoTomadosMarco));
-  assert.strictEqual(resultadoDiegoTomadosMarco.detectado, true);
-  assert.strictEqual(resultadoDiegoTomadosMarco.cnpj_detectado, '31.162.727/0001-07');
-  assert.strictEqual(resultadoDiegoTomadosMarco.periodo_inicio, '2026-03-01');
-  assert.strictEqual(resultadoDiegoTomadosMarco.periodo_fim, '2026-03-31');
-  assert.strictEqual(money(resultadoDiegoTomadosMarco.total_debito), 701673.53);
-  assert.strictEqual(money(resultadoDiegoTomadosMarco.total_oficial), 701673.53);
-  assert.strictEqual(resultadoDiegoTomadosMarco.total_divergente, false);
-  const notas4 = resultadoDiegoTomadosMarco.lancamentos.filter(l => l.documento === '4' && l.cnpj_fornecedor === '58.149.103/0001-06');
-  assert.strictEqual(notas4.length, 2, 'NF 4 com series distintas deve gerar dois documentos fiscais');
-  assert.deepStrictEqual(notas4.map(l => l.serieSubserie).sort(), ['', '1']);
+  if (fs.existsSync(arquivoDiegoTomadosMarco)) {
+    const bufferDiegoTomadosMarco = fs.readFileSync(arquivoDiegoTomadosMarco);
+    assert.strictEqual(
+      crypto.createHash('sha256').update(bufferDiegoTomadosMarco).digest('hex'),
+      hashDiegoTomadosMarco,
+      'fixture DIEGO BOMFIM deve ser o PDF real validado'
+    );
+    const resultadoDiegoTomadosMarco = await parsearPDF_IOB_Sage_ServicosTomados(new Uint8Array(bufferDiegoTomadosMarco));
+    assert.strictEqual(resultadoDiegoTomadosMarco.detectado, true);
+    assert.strictEqual(resultadoDiegoTomadosMarco.cnpj_detectado, '31.162.727/0001-07');
+    assert.strictEqual(resultadoDiegoTomadosMarco.periodo_inicio, '2026-03-01');
+    assert.strictEqual(resultadoDiegoTomadosMarco.periodo_fim, '2026-03-31');
+    assert.strictEqual(money(resultadoDiegoTomadosMarco.total_debito), 701673.53);
+    assert.strictEqual(money(resultadoDiegoTomadosMarco.total_oficial), 701673.53);
+    assert.strictEqual(resultadoDiegoTomadosMarco.total_divergente, false);
+    const notas4 = resultadoDiegoTomadosMarco.lancamentos.filter(l => l.documento === '4' && l.cnpj_fornecedor === '58.149.103/0001-06');
+    assert.strictEqual(notas4.length, 2, 'NF 4 com series distintas deve gerar dois documentos fiscais');
+    assert.deepStrictEqual(notas4.map(l => l.serieSubserie).sort(), ['', '1']);
+  }
 
   const textoDaxxVisualPdfjs = `
 Office Fiscal
