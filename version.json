@@ -1,7 +1,9 @@
 {
-  "version": "3.4.225",
-  "build_date": "2026-08-31T19:49:06Z",
+  "version": "3.4.226",
+  "build_date": "2026-08-31T22:33:05Z",
   "release_notes": [
+    "feat: criar metricas e alertas da progressao contabil",
+    "fix: habilitar edicao multipla com selecao normalizada",
     "fix: impedir parser fiscal desatualizado no modal",
     "fix: importar servico prestado sem razao social",
     "feat: adicionar conciliacao detalhada segura",
@@ -9,8 +11,6 @@
     "feat: adicionar progressao contabil gerencial",
     "test: homologar servicos prestados genericos",
     "test: formalizar evidencias reais de layouts",
-    "fix: separar casos de layout por arquivo real",
-    "docs: registrar bloqueios externos restantes",
-    "docs: registrar segmentacao completa da P08"
+    "fix: separar casos de layout por arquivo real"
   ]
 }
