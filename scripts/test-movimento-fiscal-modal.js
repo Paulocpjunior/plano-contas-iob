@@ -17,6 +17,14 @@ assert(index.includes("tipoImportacao === 'bancaria' ? valorComboboxBanco('infoB
 assert(index.includes("setTimeout(function() { abrirModalMovimentoFiscal(); }, 0);"), 'confirmacao fiscal inicial deve abrir o modal do livro');
 assert(index.includes('abrirModalMovimentoFiscal()'), 'app deve expor acao para abrir o modal fiscal');
 assert(index.includes('validarArquivoMovimentoFiscal()'), 'modal deve separar validacao da importacao');
+const inicioValidacaoFiscal = index.indexOf('async function validarArquivoMovimentoFiscal()');
+const fimValidacaoFiscal = index.indexOf('function retencoesTomadosStatus', inicioValidacaoFiscal);
+const corpoValidacaoFiscal = index.slice(inicioValidacaoFiscal, fimValidacaoFiscal);
+assert(corpoValidacaoFiscal.includes('await window.__verificarVersaoAntesDeImportar()'), 'modal deve conferir a versao ativa antes de validar o PDF');
+assert(
+  corpoValidacaoFiscal.indexOf('await window.__verificarVersaoAntesDeImportar()') < corpoValidacaoFiscal.indexOf('const parser = window[layout.parser]'),
+  'versao ativa deve ser conferida antes de executar o parser fiscal carregado na aba'
+);
 assert(index.includes('processarMovimentoFiscalValidado()'), 'modal deve exigir etapa validada antes de importar');
 assert(index.includes('Cadastro = identidade fiscal do arquivo'), 'regra de identidade fiscal deve estar explicita para livros e servicos');
 assert(index.includes('window.validarVinculoCnpjFiscal(resultado'), 'frontend deve executar a trava de CNPJ antes da gravacao');
