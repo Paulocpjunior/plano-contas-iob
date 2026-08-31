@@ -17,6 +17,7 @@ assert(!manual.includes('gcloud run services update-traffic'), 'porta manual nã
 assert(workflow.includes('npm audit --omit=dev --audit-level=high'), 'workflow precisa bloquear vulnerabilidades high/critical');
 assert(workflow.includes('npm run check:ci'), 'workflow precisa executar a porta de qualidade');
 assert(workflow.includes('--no-traffic --tag candidate'), 'workflow precisa publicar candidata sem tráfego');
+assert(workflow.includes('CANDIDATE_TAG_OK') && workflow.includes('for tag_attempt in 1 2 3 4 5 6'), 'workflow precisa confirmar a materialização da tag candidate com retentativas');
 assert(workflow.includes('Health check da candidata'), 'workflow precisa validar candidata antes do tráfego');
 assert(workflow.includes('Rotear tráfego para a candidata'), 'workflow precisa promover somente a candidata validada');
 

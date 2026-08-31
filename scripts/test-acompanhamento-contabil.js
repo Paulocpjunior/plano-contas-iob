@@ -41,5 +41,12 @@ assert(admin.includes('function abrirAcompanhamentoContabil'), 'edição deve ac
 assert(admin.includes('Nenhum lançamento será alterado'), 'modal deve declarar a proteção dos lançamentos');
 assert(admin.includes('Áreas esperadas nesta competência'), 'modal deve permitir definir Financeiro, Fiscal e Folha esperados');
 assert(admin.includes('Enviar avisos devidos'), 'gestor deve poder processar avisos vencidos de modo explícito');
+assert(admin.includes('Configuração restrita a administradores'), 'canais de e-mail e Teams devem ficar identificados no componente administrativo');
+assert(admin.includes('SOMENTE ADMIN'), 'componente de automação deve sinalizar a restrição de acesso');
+
+const inicioProcessar = server.indexOf("app.post('/api/admin/progressao-contabil/processar-alertas'");
+const fimProcessar = server.indexOf("app.post('/api/internal/progressao-contabil/processar-alertas'", inicioProcessar);
+assert(inicioProcessar > 0 && fimProcessar > inicioProcessar, 'rota administrativa de envio deve existir');
+assert(server.slice(inicioProcessar, fimProcessar).includes('adminRequired'), 'disparo manual dos avisos deve ser exclusivo do ADMIN no backend');
 
 console.log('OK: acompanhamento aprimora a progressão existente com prazo, impedimento, evidência, revisão e auditoria isolada.');

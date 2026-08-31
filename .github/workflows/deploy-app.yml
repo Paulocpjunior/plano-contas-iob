@@ -294,13 +294,30 @@ jobs:
                 echo "::error::Deploy concluiu, mas a revisão criada não foi localizada."
                 exit 1
               fi
-              # Em alguns deploys o Cloud Run aposenta imediatamente uma revisão
-              # de 0% antes de materializar a tag pedida no `run deploy`. Reaplicar
-              # a tag explicita mantém 0% de tráfego e torna a candidata testável.
-              gcloud run services update-traffic "$SERVICE_NAME" \
-                --region "$REGION" --project "$PROJECT_ID" \
-                --set-tags candidate="$CANDIDATE_REVISION" --quiet
+              # O Cloud Run pode aceitar o update antes de a revisão aparecer no
+              # estado de tráfego. Reaplicamos e confirmamos a tag exata antes de
+              # avançar; a revisão continua com 0% até passar pelo health check.
+              CANDIDATE_TAG_OK=0
+              for tag_attempt in 1 2 3 4 5 6; do
+                gcloud run services update-traffic "$SERVICE_NAME" \
+                  --region "$REGION" --project "$PROJECT_ID" \
+                  --set-tags candidate="$CANDIDATE_REVISION" --quiet || true
+                CANDIDATE_URL=$(gcloud run services describe "$SERVICE_NAME" \
+                  --platform managed --region "$REGION" --project "$PROJECT_ID" \
+                  --format=json | jq -r --arg revision "$CANDIDATE_REVISION" '.status.traffic[] | select(.tag=="candidate" and .revisionName==$revision) | .url' | head -n1)
+                if [ -n "$CANDIDATE_URL" ]; then
+                  CANDIDATE_TAG_OK=1
+                  break
+                fi
+                echo "tag candidate ainda não materializada (tentativa ${tag_attempt}/6)…"
+                sleep $((tag_attempt * 5))
+              done
+              if [ "$CANDIDATE_TAG_OK" != "1" ]; then
+                echo "::error::Não foi possível materializar a tag candidate para $CANDIDATE_REVISION."
+                exit 1
+              fi
               echo "CANDIDATE_REVISION=$CANDIDATE_REVISION" >> "$GITHUB_ENV"
+              echo "CANDIDATE_URL=$CANDIDATE_URL" >> "$GITHUB_ENV"
               exit 0
             fi
             echo "Deploy falhou (tentativa ${attempt}/3) — aguardando antes de repetir…"
@@ -315,15 +332,6 @@ jobs:
         # roteado e a revisão antiga segue servindo.
         run: |
           EXPECTED_VERSION=$(node -p "require('./version.json').version")
-          CANDIDATE_URL=""
-          for attempt in 1 2 3 4 5; do
-            CANDIDATE_URL=$(gcloud run services describe "$SERVICE_NAME" \
-              --platform managed --region "$REGION" --project "$PROJECT_ID" \
-              --format=json | jq -r --arg revision "$CANDIDATE_REVISION" '.status.traffic[] | select(.tag=="candidate" and .revisionName==$revision) | .url' | head -n1)
-            [ -n "$CANDIDATE_URL" ] && break
-            echo "tag candidate ainda não materializada para $CANDIDATE_REVISION (tentativa ${attempt}/5)…"
-            sleep $((attempt * 2))
-          done
           if [ -z "$CANDIDATE_URL" ]; then
             echo "::error::Não achei a URL da revisão candidata $CANDIDATE_REVISION (tag=candidate)."; exit 1
           fi
