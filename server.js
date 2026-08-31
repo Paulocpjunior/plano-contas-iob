@@ -118,6 +118,18 @@ app.get('/api/health', async (req, res) => {
 registrarRotasPublicasMercadoPago(app, { db });
 
 async function authRequired(req, res, next) {
+  const rotaInternaAlertas = '/api/internal/progressao-contabil/processar-alertas';
+  const caminho = String(req.originalUrl || '').split('?')[0];
+  const tokenInterno = String(req.get && req.get('x-cci-alert-token') || '');
+  const segredoInterno = String(process.env.CCI_PROGRESSAO_ALERT_TOKEN || '');
+  const tokenInternoValido = caminho === rotaInternaAlertas
+    && tokenInterno.length > 0
+    && tokenInterno.length === segredoInterno.length
+    && cryptoAdmin.timingSafeEqual(Buffer.from(tokenInterno), Buffer.from(segredoInterno));
+  if (tokenInternoValido) {
+    req.internalScheduler = true;
+    return next();
+  }
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) return res.status(401).json({ erro: 'Token ausente. Faca login no app.' });
