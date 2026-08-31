@@ -1,7 +1,14 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const Alertas = require('../progressao-alertas');
+
+const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+assert(server.includes("const rotaInternaAlertas = '/api/internal/progressao-contabil/processar-alertas'"), 'agendador deve ter uma única exceção interna explícita');
+assert(server.includes('cryptoAdmin.timingSafeEqual'), 'token interno deve ser comparado em tempo constante');
+assert(server.includes('req.internalScheduler = true'), 'autenticação interna válida deve ser marcada antes da rota');
 
 const avaliacao = {
   cnpj: '00112233000144', codigo_empresa: '0040', razao_social: 'Clínica Mantoan', competencia: '2026-07',
