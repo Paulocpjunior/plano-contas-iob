@@ -46,9 +46,17 @@ assert.throws(() => lote.aplicar(base(), ['a', 'b'], {}), /ao menos um campo/i);
 assert.throws(() => lote.aplicar(base(), ['a', 'b'], { codigoHistorico: '0000' }), /código de histórico/i);
 assert.throws(() => lote.aplicar(base(), ['a', 'c'], { contaDebito: '900' }), /mesma natureza/i);
 
+{
+  const entries = [{ id: 1, valor: -10, data: '2026-08-01' }, { id: 2, valor: -20, data: '2026-08-02' }];
+  const resultado = lote.aplicar(entries, new Set(['1', '2']), { historico: 'SELEÇÃO NORMALIZADA' });
+  assert.strictEqual(resultado.quantidade, 2, 'IDs numéricos da importação devem coincidir com os IDs string do DOM');
+}
+
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const modulo = fs.readFileSync(path.join(__dirname, '..', 'lancamentos-edicao-lote.js'), 'utf8');
 assert(html.includes('id="filterNumeroLancamento"'), 'Lançamentos deve ter localizador por número.');
+assert(html.includes('function chaveSelecaoLancamento'), 'seleção múltipla deve normalizar IDs entre estado e DOM');
+assert(/async function abrirModalEditarLancamento[\s\S]*?abrirModalAlterarSelecionados/.test(html), 'lápis deve abrir o lote quando duas ou mais linhas marcadas incluem a linha atual');
 assert(html.includes('function abrirModalEditarLancamento(idx)'), 'Lançamento existente deve abrir modal de edição.');
 assert(html.includes('aplicarEdicaoIndividual(entry, alteracao'), 'Edição direta deve usar a trilha auditável centralizada.');
 assert(html.includes('persistirMutacaoLancamentos'), 'Edição deve possuir rollback quando a persistência falhar.');

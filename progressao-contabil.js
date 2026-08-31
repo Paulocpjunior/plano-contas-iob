@@ -50,6 +50,50 @@ function origemLancamento(entry) {
   return origem ? origem.slice(0, 40) : 'Não informada';
 }
 
+const AREAS_OPERACIONAIS = ['financeiro', 'fiscal', 'folha'];
+
+function areaLancamento(entry) {
+  const origem = texto(entry && (entry.tipoMovimento || entry.tipo_movimento || entry.origemTipo || entry.origem_tipo || entry.origem || entry.source)).toLowerCase();
+  if (/folha|fpimp|sal[aá]rio|pr[oó]-labore/.test(origem)) return 'folha';
+  if (/fiscal|nf-e|nfe|nota|servi[cç]o|cfop|entrada|sa[ií]da/.test(origem)) return 'fiscal';
+  if (/banc|extrato|ofx|financeir|cart[aã]o|manual/.test(origem)) return 'financeiro';
+  return 'nao_informada';
+}
+
+function areasEsperadas(acompanhamento) {
+  const informadas = Array.isArray(acompanhamento && acompanhamento.areas_esperadas)
+    ? acompanhamento.areas_esperadas.map(function (area) { return texto(area).toLowerCase(); })
+    : [];
+  const validas = AREAS_OPERACIONAIS.filter(function (area) { return informadas.includes(area); });
+  return validas.length ? validas : AREAS_OPERACIONAIS.slice();
+}
+
+function dataMovimento(entry) {
+  const iso = dataISO(entry && entry.data);
+  return iso || '';
+}
+
+function montarAreas(lancamentos, esperadas) {
+  const nomes = { financeiro: 'Financeiro', fiscal: 'Fiscal', folha: 'Folha', nao_informada: 'Não informada' };
+  return AREAS_OPERACIONAIS.concat(['nao_informada']).map(function (area) {
+    const itens = lancamentos.filter(function (entry) { return areaLancamento(entry) === area; });
+    const classificados = itens.filter(function (entry) { return !!texto(entry.contaDebito) && !!texto(entry.contaCredito); });
+    const datas = itens.map(dataMovimento).filter(Boolean).sort();
+    return {
+      area,
+      nome: nomes[area],
+      esperada: esperadas.includes(area),
+      total: itens.length,
+      classificados: classificados.length,
+      pendentes: itens.length - classificados.length,
+      iniciada: itens.length > 0,
+      concluida: itens.length > 0 && classificados.length === itens.length,
+      primeiro_movimento_em: datas[0] || null,
+      ultimo_movimento_em: datas[datas.length - 1] || null
+    };
+  });
+}
+
 function avaliarProgressaoEmpresa(entrada) {
   const dados = entrada || {};
   const empresa = dados.empresa || {};
@@ -57,12 +101,18 @@ function avaliarProgressaoEmpresa(entrada) {
   const competencia = texto(dados.competencia);
   const agora = dataMillis(dados.agora) || Date.now();
   const diasAlerta = Math.max(1, Number(dados.dias_sem_atividade) || 5);
+  const alertaDiasConfigurado = Math.max(1, Number(acompanhamento.alerta_dias) || diasAlerta);
   const responsaveis = responsaveisEmpresa(empresa);
   const prontidao = avaliarProntidaoContabil(empresa);
   const lancamentos = lancamentosDaCompetencia(dados.entries, competencia);
   const classificados = lancamentos.filter(function (entry) { return !!texto(entry.contaDebito) && !!texto(entry.contaCredito); });
   const pendentes = lancamentos.length - classificados.length;
   const origens = Array.from(new Set(lancamentos.map(origemLancamento))).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+  const esperadas = areasEsperadas(acompanhamento);
+  const areas = montarAreas(lancamentos, esperadas);
+  const areasEsperadasDetalhe = areas.filter(function (area) { return area.esperada; });
+  const areasAusentes = areasEsperadasDetalhe.filter(function (area) { return !area.iniciada; });
+  const areasPendentes = areasEsperadasDetalhe.filter(function (area) { return area.iniciada && !area.concluida; });
   const periodo = dados.periodo || {};
   const finalizada = texto(periodo.status).toLowerCase() === 'fechado';
   const contasBancarias = Array.from(new Set((Array.isArray(empresa.contas_bancarias_conciliacao) ? empresa.contas_bancarias_conciliacao : []).map(texto).filter(Boolean)));
@@ -93,20 +143,22 @@ function avaliarProgressaoEmpresa(entrada) {
   }
   if (finalizada) {
     etapa = 'finalizada'; etapaNome = 'Finalizada'; proximaAcao = 'Competência encerrada.'; motivo = '';
-  } else if (!prontidao.bloqueios.length && responsaveis.principal && !lancamentos.length) {
+  } else if (responsaveis.principal && !lancamentos.length) {
     etapa = 'aguardando_movimento'; etapaNome = 'Aguardando movimento'; proximaAcao = 'Importe ou registre os movimentos da competência.'; motivo = 'Nenhum lançamento na competência';
-  } else if (!prontidao.bloqueios.length && responsaveis.principal && pendentes > 0) {
+  } else if (responsaveis.principal && areasAusentes.length) {
+    etapa = 'aguardando_areas'; etapaNome = 'Áreas pendentes'; proximaAcao = 'Registre os movimentos de ' + areasAusentes.map(function (area) { return area.nome; }).join(', ') + '.'; motivo = 'Sem movimento em ' + areasAusentes.map(function (area) { return area.nome; }).join(', ');
+  } else if (responsaveis.principal && pendentes > 0) {
     etapa = 'classificacao'; etapaNome = 'Classificação'; proximaAcao = 'Classifique os lançamentos pendentes.'; motivo = pendentes + ' lançamento(ões) sem débito e crédito';
-  } else if (!prontidao.bloqueios.length && responsaveis.principal && lancamentos.length && !conciliacaoCompleta) {
+  } else if (responsaveis.principal && lancamentos.length && !conciliacaoCompleta) {
     etapa = 'conciliacao'; etapaNome = 'Conciliação'; proximaAcao = 'Conclua a conciliação das contas bancárias.'; motivo = (contasBancarias.length - conciliadas.length) + ' conta(s) bancária(s) pendente(s)';
-  } else if (!prontidao.bloqueios.length && responsaveis.principal && lancamentos.length) {
+  } else if (responsaveis.principal && lancamentos.length) {
     etapa = 'fechamento'; etapaNome = 'Pronta para fechamento'; proximaAcao = 'Revise e encerre oficialmente a competência.'; motivo = 'Competência ainda aberta';
   }
 
   const prazoMillis = acompanhamento.prazo ? dataMillis(acompanhamento.prazo + 'T23:59:59-03:00') : 0;
   const prazoAtrasado = !finalizada && prazoMillis > 0 && agora > prazoMillis;
   const impedimentoGerencial = texto(acompanhamento.impedimento);
-  const parada = !finalizada && (!!impedimentoGerencial || prazoAtrasado || (diasSemAtividade != null && diasSemAtividade >= diasAlerta));
+  const parada = !finalizada && (!!impedimentoGerencial || prazoAtrasado || (diasSemAtividade != null && diasSemAtividade >= alertaDiasConfigurado));
   if (!finalizada && impedimentoGerencial) {
     motivo = impedimentoGerencial;
     proximaAcao = 'Resolva ou atualize o impedimento registrado no acompanhamento.';
@@ -114,16 +166,24 @@ function avaliarProgressaoEmpresa(entrada) {
     motivo = 'Prazo gerencial vencido em ' + acompanhamento.prazo;
     proximaAcao = 'Replaneje o prazo ou conclua a etapa pendente.';
   }
-  let status = finalizada ? 'finalizada' : (parada ? 'parada' : (etapa === 'configuracao' || etapa === 'aguardando_movimento' ? 'atencao' : 'em_andamento'));
+  let status = finalizada ? 'finalizada' : (parada ? 'parada' : (['configuracao', 'aguardando_movimento', 'aguardando_areas'].includes(etapa) ? 'atencao' : 'em_andamento'));
   if (!responsaveis.principal && !finalizada) status = 'sem_responsavel';
-  const etapas = [
-    prontidao.bloqueios.length === 0,
-    lancamentos.length > 0,
-    lancamentos.length > 0 && pendentes === 0
-  ];
+  const etapas = areasEsperadasDetalhe.map(function (area) { return area.concluida; });
   if (conciliacaoAplicavel) etapas.push(conciliacaoCompleta);
   etapas.push(finalizada);
   const percentual = finalizada ? 100 : Math.round((etapas.filter(Boolean).length / etapas.length) * 100);
+
+  const alertaAtivo = acompanhamento.alerta_ativo === true;
+  const alertaDias = alertaDiasConfigurado;
+  const alertaDevido = alertaAtivo && !finalizada && diasSemAtividade != null && diasSemAtividade >= alertaDias;
+  const proximoAlertaMillis = ultimaAtividadeMillis ? ultimaAtividadeMillis + alertaDias * 86400000 : 0;
+  const canais = acompanhamento.canais_alerta || {};
+  const criteriosStatus = [
+    'Finalizada somente com fechamento oficial da competência.',
+    'Parada quando há impedimento, prazo vencido ou inatividade acima da régua.',
+    'Atenção quando falta responsável ou movimento em uma área esperada.',
+    'Em andamento quando todas as áreas esperadas começaram e ainda há classificação, conciliação ou fechamento.'
+  ];
 
   return {
     cnpj: texto(dados.cnpj || empresa.cnpj),
@@ -139,6 +199,10 @@ function avaliarProgressaoEmpresa(entrada) {
     responsavel_principal: responsaveis.principal,
     apoios: responsaveis.apoios,
     contabilizacao: { total: lancamentos.length, classificados: classificados.length, pendentes, completa: lancamentos.length > 0 && pendentes === 0, origens },
+    areas: areas,
+    areas_esperadas: esperadas,
+    areas_ausentes: areasAusentes.map(function (area) { return area.area; }),
+    areas_pendentes: areasPendentes.map(function (area) { return area.area; }),
     conciliacao: { aplicavel: conciliacaoAplicavel, total_contas: contasBancarias.length, conciliadas: conciliadas.length, completa: conciliacaoCompleta },
     fechamento: { finalizado: finalizada, status: finalizada ? 'fechado' : 'aberto', fechado_em: periodo.fechado_em || null },
     acompanhamento: {
@@ -151,12 +215,20 @@ function avaliarProgressaoEmpresa(entrada) {
       evidencia_url: texto(acompanhamento.evidencia_url),
       atualizado_em: acompanhamento.atualizado_em || null,
       atualizado_por_email: texto(acompanhamento.atualizado_por_email),
-      prazo_atrasado: prazoAtrasado
+      prazo_atrasado: prazoAtrasado,
+      alerta_ativo: alertaAtivo,
+      alerta_dias: alertaDias,
+      canais_alerta: { email: canais.email === true, teams: canais.teams === true },
+      destinatarios_alerta: Array.isArray(acompanhamento.destinatarios_alerta) ? acompanhamento.destinatarios_alerta.map(texto).filter(Boolean) : [],
+      ultimo_alerta_em: acompanhamento.ultimo_alerta_em || null
     },
     prontidao: { percentual: prontidao.percentual, status: prontidao.status, bloqueios: prontidao.bloqueios },
     ultima_atividade_em: ultimaAtividadeMillis ? new Date(ultimaAtividadeMillis).toISOString() : null,
     dias_sem_atividade: diasSemAtividade,
-    alerta_inatividade: parada
+    alerta_inatividade: alertaDevido,
+    alerta_devido: alertaDevido,
+    proximo_alerta_em: proximoAlertaMillis ? new Date(proximoAlertaMillis).toISOString() : null,
+    criterios_status: criteriosStatus
   };
 }
 
@@ -191,4 +263,4 @@ function resumirProgressao(empresas) {
   };
 }
 
-module.exports = { avaliarProgressaoEmpresa, resumirProgressao, lancamentosDaCompetencia, dataMillis };
+module.exports = { avaliarProgressaoEmpresa, resumirProgressao, lancamentosDaCompetencia, dataMillis, areaLancamento, areasEsperadas, montarAreas, AREAS_OPERACIONAIS };

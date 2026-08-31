@@ -20,6 +20,7 @@ assert.strictEqual(aguardando.status, 'atencao');
 
 const parcial = avaliarProgressaoEmpresa({
   empresa: pronta, competencia: '2026-08', agora, sessao_atualizada_em: '2026-08-29T12:00:00Z',
+  acompanhamento: { areas_esperadas: ['financeiro', 'folha'] },
   entries: [{ data: '10/08/2026', contaDebito: '111', contaCredito: '222', origem: 'extrato bancario' }, { data: '2026-08-11', contaDebito: '', contaCredito: '222', origem: 'folha' }, { data: '2026-07-31', contaDebito: '', contaCredito: '' }]
 });
 assert.strictEqual(parcial.etapa, 'classificacao');
@@ -27,13 +28,15 @@ assert.deepStrictEqual(parcial.contabilizacao, { total: 2, classificados: 1, pen
 
 const conciliacao = avaliarProgressaoEmpresa({
   empresa: { ...pronta, contas_bancarias_conciliacao: ['111'] }, competencia: '2026-08', agora,
-  entries: [{ data: '2026-08-10', contaDebito: '111', contaCredito: '222' }], hash_periodo: 'atual', conciliacoes: []
+  acompanhamento: { areas_esperadas: ['financeiro'] },
+  entries: [{ data: '2026-08-10', contaDebito: '111', contaCredito: '222', origem: 'extrato bancario' }], hash_periodo: 'atual', conciliacoes: []
 });
 assert.strictEqual(conciliacao.etapa, 'conciliacao');
 
 const fechamento = avaliarProgressaoEmpresa({
   empresa: { ...pronta, contas_bancarias_conciliacao: ['111'] }, competencia: '2026-08', agora,
-  entries: [{ data: '2026-08-10', contaDebito: '111', contaCredito: '222' }], hash_periodo: 'atual',
+  acompanhamento: { areas_esperadas: ['financeiro'] },
+  entries: [{ data: '2026-08-10', contaDebito: '111', contaCredito: '222', origem: 'extrato bancario' }], hash_periodo: 'atual',
   conciliacoes: [{ periodo: '2026-08', conta: '111', status: 'conciliada', hash_periodo: 'atual' }]
 });
 assert.strictEqual(fechamento.etapa, 'fechamento');
@@ -54,6 +57,37 @@ assert.strictEqual(impedida.acompanhamento.prioridade, 'critica');
 const atrasada = avaliarProgressaoEmpresa({ empresa: pronta, competencia: '2026-08', agora, sessao_atualizada_em: '2026-08-29T12:00:00Z', acompanhamento: { prazo: '2026-08-28' } });
 assert.strictEqual(atrasada.status, 'parada');
 assert.strictEqual(atrasada.acompanhamento.prazo_atrasado, true);
+
+const mantoan = avaliarProgressaoEmpresa({
+  empresa: pronta, competencia: '2026-07', agora,
+  entries: [
+    { data: '2026-07-01', contaDebito: '1', contaCredito: '2', origem: 'extrato bancario' },
+    { data: '2026-07-02', contaDebito: '1', contaCredito: '2', origem: 'movimento fiscal' },
+    { data: '2026-07-03', contaDebito: '1', contaCredito: '2', origem: 'folha fpimp' }
+  ],
+  sessao_atualizada_em: '2026-08-29T12:00:00Z'
+});
+assert.strictEqual(mantoan.status, 'em_andamento', 'três áreas concluídas e competência aberta devem aguardar fechamento');
+assert.strictEqual(mantoan.etapa, 'fechamento');
+assert.strictEqual(mantoan.percentual, 75, 'três áreas valem 75% e fechamento oficial completa 100%');
+assert.deepStrictEqual(mantoan.areas.filter(a => a.esperada).map(a => [a.area, a.concluida]), [['financeiro', true], ['fiscal', true], ['folha', true]]);
+
+const sbe = avaliarProgressaoEmpresa({
+  empresa: pronta, competencia: '2026-07', agora,
+  entries: [{ data: '2026-07-01', contaDebito: '1', contaCredito: '2', origem: 'extrato bancario' }],
+  sessao_atualizada_em: '2026-08-29T12:00:00Z'
+});
+assert.strictEqual(sbe.status, 'atencao', 'somente financeiro não pode representar andamento das três áreas');
+assert.strictEqual(sbe.etapa, 'aguardando_areas');
+assert.deepStrictEqual(sbe.areas_ausentes, ['fiscal', 'folha']);
+
+const alertaConfigurado = avaliarProgressaoEmpresa({
+  empresa: pronta, competencia: '2026-08', agora,
+  sessao_atualizada_em: '2026-08-26T12:00:00Z',
+  acompanhamento: { alerta_ativo: true, alerta_dias: 3, canais_alerta: { email: true }, atualizado_em: '2026-08-26T12:00:00Z' }
+});
+assert.strictEqual(alertaConfigurado.alerta_devido, true);
+assert.strictEqual(alertaConfigurado.acompanhamento.alerta_dias, 3);
 
 const agregado = resumirProgressao([parcial, finalizada, semResponsavel, parada]);
 assert.strictEqual(agregado.resumo.total, 4);

@@ -17189,10 +17189,16 @@
             if (valor > 0) return 'credito';
             return '';
         }
+        function chaveSelecaoLancamento(entryOuId) {
+            const valor = entryOuId && typeof entryOuId === 'object' ? entryOuId.id : entryOuId;
+            return String(valor == null ? '' : valor);
+        }
         function sincronizarSelecaoLancamentos() {
-            const idsAtuais = new Set((state.entries || []).map(function(e){ return e.id; }));
+            const idsAtuais = new Set((state.entries || []).map(chaveSelecaoLancamento));
             Array.from(lancamentosSelecionados).forEach(function(id) {
-                if (!idsAtuais.has(id)) lancamentosSelecionados.delete(id);
+                const chave = chaveSelecaoLancamento(id);
+                if (!idsAtuais.has(chave)) lancamentosSelecionados.delete(id);
+                else if (id !== chave) { lancamentosSelecionados.delete(id); lancamentosSelecionados.add(chave); }
             });
         }
         function atualizarResumoSelecao() {
@@ -17216,7 +17222,7 @@
             const btnMem = document.getElementById('btnMemorizarSelecionados');
             if (btnMem) {
                 const elegiveis = (state.entries || []).filter(function(e) {
-                return lancamentosSelecionados.has(e.id) && e.contaDebito && e.contaCredito && codigoHistoricoValido(e.codigoHistorico) && !e._memorizado;
+                return lancamentosSelecionados.has(chaveSelecaoLancamento(e)) && e.contaDebito && e.contaCredito && codigoHistoricoValido(e.codigoHistorico) && !e._memorizado;
                 }).length;
                 btnMem.disabled = elegiveis === 0;
                 btnMem.textContent = elegiveis > 0
@@ -17233,15 +17239,16 @@
             lancamentosSelecionados.clear();
             if (tipo && tipo !== 'nenhum') {
                 obterEntriesFiltrados().forEach(function(e) {
-                    if (tipo === 'todos' || tipoLancamento(e) === tipo) lancamentosSelecionados.add(e.id);
+                    if (tipo === 'todos' || tipoLancamento(e) === tipo) lancamentosSelecionados.add(chaveSelecaoLancamento(e));
                 });
             }
             marcarOpcaoSelecao(tipo || 'nenhum');
             renderLancamentos();
         }
         function toggleSelecaoLancamento(id, checked) {
-            if (checked) lancamentosSelecionados.add(id);
-            else lancamentosSelecionados.delete(id);
+            const chave = chaveSelecaoLancamento(id);
+            if (checked) lancamentosSelecionados.add(chave);
+            else lancamentosSelecionados.delete(chave);
             marcarOpcaoSelecao('nenhum');
             atualizarResumoSelecao();
             const row = document.querySelector('tr[data-entry-id="' + id + '"]');
@@ -17249,7 +17256,7 @@
         }
         function lancamentosSelecionadosAtuais() {
             return (state.entries || []).filter(function(entry) {
-                return entry && lancamentosSelecionados.has(entry.id);
+                return entry && lancamentosSelecionados.has(chaveSelecaoLancamento(entry));
             });
         }
         function sincronizarCampoAlteracaoLote(campo) {
@@ -17612,7 +17619,7 @@
                 const vc = e.valor >= 0 ? 'valor-positivo' : 'valor-negativo';
                 const vf = (e.valor >= 0 ? '+' : '') + 'R$ ' + e.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 const rowClass = e.incomum ? 'unusual' : (e.contaDebito && e.contaCredito ? '' : 'pendente');
-                const selecionado = lancamentosSelecionados.has(e.id);
+                const selecionado = lancamentosSelecionados.has(chaveSelecaoLancamento(e));
                 const bloqueado = lancamentoFechadoNoCache(e);
                 const atributoBloqueio = bloqueado ? ' disabled aria-disabled="true" title="Competência encerrada. Solicite a reabertura administrativa."' : '';
                 
@@ -18309,7 +18316,7 @@
             sincronizarSelecaoLancamentos();
             const selecionados = (state.entries || [])
                 .map(function(e, idx) { return { e: e, idx: idx }; })
-                .filter(function(item) { return lancamentosSelecionados.has(item.e.id); });
+                .filter(function(item) { return lancamentosSelecionados.has(chaveSelecaoLancamento(item.e)); });
             if (!selecionados.length) {
                 showToast('Selecione ao menos um lancamento para memorizar.', 'error');
                 return;
@@ -18474,7 +18481,7 @@
                         em: new Date().toISOString(),
                         periodos: periodos
                     });
-                    if (entry.id) lancamentosSelecionados.delete(entry.id);
+                    if (entry.id) lancamentosSelecionados.delete(chaveSelecaoLancamento(entry));
                     state.entries.splice(i, 1);
                 });
                 renderLancamentos();
@@ -18665,6 +18672,10 @@
             const lanc = state.entries && state.entries[idx];
             const modal = document.getElementById('modalLancamentoManual');
             if (!lanc || !modal) return;
+            if (lancamentosSelecionados.size >= 2 && lancamentosSelecionados.has(chaveSelecaoLancamento(lanc))) {
+                await abrirModalAlterarSelecionados();
+                return;
+            }
             try {
                 await garantirLancamentosAbertos([lanc]);
             } catch (erro) {
