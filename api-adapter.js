@@ -293,7 +293,31 @@
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
     const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao');
     if (r.status === 403 || r.status === 404) return { encontrada: false };
-    const data = await r.json();
+    const textoResposta = await r.text();
+    let data = null;
+    try {
+      data = textoResposta ? JSON.parse(textoResposta) : null;
+    } catch (_) {
+      throw new Error('A resposta da sessão foi interrompida antes de terminar. Tente abrir a empresa novamente.');
+    }
+    if (!r.ok || !data) {
+      throw new Error((data && data.erro) || ('Não foi possível carregar a sessão da empresa (HTTP ' + r.status + ').'));
+    }
+    if (data.encontrada && !data.state_json && data.state_encoding === 'gzip-base64' && data.state_gzip_base64) {
+      if (typeof DecompressionStream === 'undefined' || typeof TextDecoder === 'undefined') {
+        throw new Error('Este navegador não consegue abrir sessões contábeis grandes. Atualize o navegador e tente novamente.');
+      }
+      try {
+        const binario = atob(data.state_gzip_base64);
+        const bytes = new Uint8Array(binario.length);
+        for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+        data.state_json = new TextDecoder('utf-8').decode(await new Response(stream).arrayBuffer());
+        delete data.state_gzip_base64;
+      } catch (_) {
+        throw new Error('A sessão compactada está inválida ou incompleta. Nenhuma alteração foi realizada.');
+      }
+    }
     if (data && data.encontrada && data.session_revision) sessaoRevisoes.set(cnpjLimpo, data.session_revision);
     else if (data && !data.encontrada) sessaoRevisoes.delete(cnpjLimpo);
     return data;
