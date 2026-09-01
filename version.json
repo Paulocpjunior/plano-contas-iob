@@ -1,16 +1,9 @@
 {
-  "version": "3.4.232",
-  "build_date": "2026-09-01T16:57:07Z",
+  "version": "3.4.233",
+  "build_date": "2026-09-01T17:09:50Z",
   "release_notes": [
-    "🚨 R-4020: o resumo escondia PIS e COFINS — \"como se fosse subir só a CSLL\" (#94)",
-    "Corrigir progresso e exibir solicitações ao colaborador (#93)",
-    "✍️ R-4020: ajustar a retenção — e parar de recalcular o que o CFI respondeu (#91)",
-    "Restringir automação ao ADMIN e estabilizar deploy (#90)",
-    "Autenticar agendador interno dos alertas (#89)",
-    "Corrigir materialização da candidata no deploy (#88)",
-    "Criar métricas e alertas da progressão contábil (#87)",
-    "fix: impedir parser fiscal desatualizado no modal",
-    "fix: importar servico prestado sem razao social",
-    "feat: adicionar conciliacao detalhada segura"
+    "Sincronizar serviços prestados e tomados diretamente do CFI, sem relatório intermediário",
+    "Manter PDF fiscal exclusivo para arquivos gerados pela SAGE / E-Fiscal",
+    "Validar CNPJ, competência, identidade das notas, duplicidade e total antes da prévia contábil"
   ]
 }
