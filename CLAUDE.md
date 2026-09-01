@@ -499,6 +499,41 @@ continua sendo — como o PVA no SPED.
 
 ## Ligação com o CFI — as notas do R-4020 já chegam prontas (07/08)
 
+### 🚨 O RESUMO DO R-4020 ESCONDIA DOIS TRIBUTOS — e quem lê conclui o pior (01/09)
+
+Paulo, no dia seguinte ao ajuste de retenção entrar (CONDOMINIO EDIFICIO MONTE
+CARLO 08/2026): *"puxou as retenções certas agora, mas está como se fosse subir
+para a REINF apenas a CSLL"*.
+
+🔴 A linha de resumo dizia `1 beneficiário(s) PJ · 1 pronto(s) · 0 pendente(s)
+· IRRF R$ 0,00 · **CSLL R$ 34,13**` — com **PIS 22,19 e COFINS 102,40 na tabela
+logo abaixo**. Duas leituras do MESMO fato na mesma tela, e a de cima é o
+**VEREDITO**: é ela que a pessoa lê para decidir se pode transmitir.
+
+📌 **E OS NÚMEROS JÁ EXISTIAM.** `apurarRetencoesPJ` devolve `totalPis` e
+`totalCofins` desde sempre; a TELA é que os descartava. É a **"flag que ninguém
+lê"** — o dado existe e o leitor joga fora —, a mesma classe do `naoConferidos`
+que o CFI pôs num header que a tela não lia (29/08) e do `errosResumo[].nome`
+que o painel de crons descartava (30/08). **Terceira vez em uma semana**, e as
+três chegaram como PERGUNTA de quem usa, que é o jeito mais caro de descobrir.
+
+✂️ A trava é por **VARREDURA, nunca por lista**: ela lê do NÚCLEO quais
+`total*` existem e exige que a tela nomeie cada um
+(`scripts/test-reinf-resumo-r4020.js`). Lista escrita à mão envelheceria no
+primeiro tributo novo — e envelheceria em silêncio, que é exatamente como este
+viveu. **Provada revertendo**: com a linha antiga ela acusa `totalPis` e
+`totalCofins` pelo nome.
+
+🐛 **E ELA NASCEU ACUSANDO A TELA CERTA** — o vício de sempre, pego na primeira
+execução: o recorte usava `indexOf('reinfRetPjStatus(')`, que acha primeiro a
+**DEFINIÇÃO** da função, não a chamada. A janela caía num trecho sem nenhum
+total e a varredura reprovava a correção. A âncora passou a ser o TEXTO do
+resumo (`beneficiário(s) PJ`), que só existe na linha que importa.
+
+⚠️ **E o teste fecha contra os números do caso REAL**: os três somam
+**158,72**, que é a CSRF que a nota declara — mostrar só a CSLL faria a tela
+afirmar 34,13 sobre uma retenção quatro vezes maior.
+
 ### ✍️ AJUSTAR A RETENÇÃO — e parar de RECALCULAR o que o CFI já respondeu (31/08)
 
 🚨 Paulo, no R-4020 da CONDOMINIO EDIFICIO MONTE CARLO: *"preciso ter a opção
