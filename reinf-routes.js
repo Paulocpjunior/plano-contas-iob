@@ -26,6 +26,7 @@ const { conferirCertificado } = require('./reinf/certificado-conferencia');
 const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
 const { apurarServicosTomados } = require('./reinf/servicos-tomados-apuracao');
 const { gerarEventosR2055 } = require('./reinf/gerar-r2055');
+const { gerarR4020 } = require('./reinf/gerar-r4020');
 const { gerarEventosR2010 } = require('./reinf/gerar-r2010');
 const { gerarR2099, podeTransmitirR2099 } = require('./reinf/gerar-r2099');
 const { derivarGruposDoLog, resumoDoFechamento } = require('./reinf/fechamento-2000-grupos');
@@ -1509,6 +1510,190 @@ function registrarRotasReinf(app, { db } = {}) {
         // certo do que é.
         ressalvasDaFonte: doCfi.ressalvas,
         resumoDaFonte: doCfi.resumo,
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // POST /api/reinf/retencoes-pj/:cnpj/:competencia/transmitir
+  //
+  // 🚀 A TRANSMISSÃO DO R-4020 — ligada em 01/09, quando o leiaute da retenção
+  // ficou PROVADO por um evento aceito em produção (perApur 2026-06).
+  //
+  // Até aqui o gerador existia e **não tinha rota nem botão**: "gerador sem
+  // rota", a família da rota sem botão (13/08) um passo antes. Paulo perguntou
+  // "agora onde eu transmito?" e a resposta era o e-CAC.
+  //
+  // 📌 NÃO RECALCULA NADA. Os valores vêm da MESMA apuração que a tela mostra,
+  // que por sua vez honra o que o CFI decidiu (a régua do R-2055: a ressalva
+  // PROÍBE recalcular do outro lado). Aqui só se traduz para o leiaute — e a
+  // tradução que este evento pede é SOMAR a retenção de volta, porque o R-4020
+  // declara a CSRF **agregada**, num valor só.
+  //
+  // ⚠️ Só entra beneficiário **PRONTO** (natureza definida, sem pendência). O
+  // pendente fica FORA, NOMEADO — declarar um beneficiário a menos é melhor
+  // que declarar valor que a própria apuração desmente.
+  //
+  // ⚠️ tpAmb=2 (produção restrita) é o PADRÃO; produção exige
+  // `confirmoProducao=true`. Entrega ao Reinf não se desfaz.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.post('/retencoes-pj/:cnpj/:competencia/transmitir', async (req, res) => {
+    try {
+      const cnpj = limparCnpj(req.params.cnpj);
+      const competencia = String(req.params.competencia || '').trim();
+      const p = req.body || {};
+      const tpAmb = Number(p.tpAmb || 2);
+      const token = tokenDaRequisicao(req);
+
+      if (cnpj.length !== 14) throw new Error('Informe o CNPJ do tomador com 14 dígitos — é ele quem declara o R-4020.');
+      if (!/^\d{4}-\d{2}$/.test(competencia)) throw new Error('Competência deve ser AAAA-MM.');
+      if (Number(tpAmb) === 1 && p.confirmoProducao !== true) {
+        throw new Error('Transmissão em PRODUÇÃO exige confirmação explícita (confirmoProducao=true). Sem ela, use produção restrita (tpAmb=2).');
+      }
+
+      // Mesma fonte da tela — inclusive as naturezas informadas.
+      const doCfi = await buscarNotasTomadasNoCfi({ cnpj, competencia, token });
+      const informadas = mapaNaturezasInformadas(p.naturezas);
+      const notas = doCfi.notas.map((n) => {
+        const cod = informadas.get(limparCnpj(n.prestadorCnpj));
+        return cod ? { ...n, naturezaInformada: cod } : n;
+      });
+      const apuracao = apurarRetencoesPJ({ competencia, notas });
+
+      const prontos = apuracao.beneficiarios.filter((b) => b.pronto);
+      const pendentes = apuracao.beneficiarios.filter((b) => !b.pronto);
+
+      if (!prontos.length) {
+        return res.json({
+          ok: false,
+          etapa: 'apuracao',
+          motivo: 'Nenhum beneficiário PRONTO nesta competência. Informe a natureza do rendimento e resolva as pendências antes de transmitir.',
+          naoDeclarados: pendentes.map((b) => ({
+            cnpj: b.prestadorCnpj, nome: b.prestadorNome, pendencias: b.pendencias,
+          })),
+        });
+      }
+
+      // ── UM EVENTO POR BENEFICIÁRIO, no MESMO lote ───────────────────────
+      // O arquivo aceito traz UM `ideBenef`, e empilhar foi exatamente o que
+      // derrubou o R-2055 três vezes com MS0030. O lote já aceita vários
+      // eventos; quem não pode empilhar é o evento.
+      //
+      // 🚨 E AQUI ESTÁ A TRADUÇÃO QUE O EVENTO PEDE: a retenção vai AGREGADA.
+      // A apuração separa PIS/COFINS/CSLL porque o EFD-Contribuições e o
+      // Relatório de Retenções precisam assim; o R-4020 declara o TOTAL, a
+      // partir do MESMO número — não é recalcular, é somar de volta.
+      const eventos = [];
+      const bloqueados = [];
+      prontos.forEach((b, i) => {
+        const agregado = Math.round((Number(b.pis || 0) + Number(b.cofins || 0) + Number(b.csll || 0)) * 100) / 100;
+        try {
+          eventos.push(gerarR4020({
+            contribuinte: { tpInsc: 1, nrInsc: cnpj },
+            estabelecimento: { tpInscEstab: 1, nrInscEstab: cnpj },
+            perApur: competencia,
+            tpAmb,
+            seq: i + 1,
+            beneficiario: { cnpj: b.prestadorCnpj },
+            pagamentos: [{
+              natRend: b.natureza,
+              // ⚠️ A data do fato gerador sai da NOTA. Sem ela o gerador
+              // recusa — carimbar "o último dia do mês" seria inventar a data
+              // de um fato gerador, que é o que decide a competência do IR.
+              dtFG: b.dataFatoGerador,
+              vlrBruto: b.bruto,
+              indJud: 'N',
+              // O IRRF viaja para o gerador BLOQUEAR quando houver: onde o IR
+              // entra no <retencoes> não está provado por arquivo aceito.
+              ...(Number(b.ir || 0) > 0 ? { vlrIR: Number(b.ir) } : {}),
+              ...(agregado > 0 ? { vlrBaseAgreg: b.bruto, vlrAgreg: agregado } : {}),
+            }],
+          }));
+        } catch (err) {
+          // 🚩 BENEFICIÁRIO QUE O GERADOR RECUSA NÃO DERRUBA O LOTE INTEIRO —
+          // ele fica FORA, com o motivo. Uma nota com IRRF não pode impedir a
+          // entrega das outras; e um lote que some por causa de uma linha é a
+          // trava sem caminho que a equipe contorna.
+          bloqueados.push({
+            cnpj: b.prestadorCnpj, nome: b.prestadorNome,
+            motivo: String((err && err.message) || err),
+          });
+        }
+      });
+
+      if (!eventos.length) {
+        return res.json({
+          ok: false,
+          etapa: 'leiaute',
+          motivo: 'Nenhum beneficiário pôde ser convertido em evento — veja os motivos e entregue esta competência pelo e-CAC.',
+          bloqueados,
+          naoDeclarados: pendentes.map((b) => ({
+            cnpj: b.prestadorCnpj, nome: b.prestadorNome, pendencias: b.pendencias,
+          })),
+        });
+      }
+
+      const cert = transmissorAtivo() === 'gateway' ? null : await loadCertificado();
+      const loteContrib = normalizarContribuinteLote({ tpInsc: 1, nrInsc: cnpj });
+      const envio = await assinarEEnviarLote(eventos.map((e) => e.xml), cert, loteContrib, tpAmb, req);
+      const info = parseRetornoReinf(envio);
+      const recibo = info.protocolo
+        ? await consultarLoteAteProcessar(info.protocolo, tpAmb, { req })
+        : { httpStatus: envio.status, ...info };
+
+      const ocorrencias = extrairOcorrenciasReinf((recibo && recibo.xml) || info.xml);
+      await registrarLog(db, req, 'transmitir_r4020', {
+        contribuinte: cnpj,
+        tpAmb,
+        competencia,
+        protocolo: info.protocolo || null,
+        httpStatus: envio.status,
+        cdResposta: (recibo && recibo.cdResposta) || info.cdResposta || null,
+        beneficiariosDeclarados: eventos.length,
+        beneficiariosPendentes: pendentes.length,
+        beneficiariosBloqueados: bloqueados.length,
+        // A recusa entra na auditoria: sem isso "transmitiu" e "foi recusado"
+        // ficam iguais no log, e a próxima sessão reconstrói do print.
+        ocorrencias: ocorrencias.map((o) => ({ codigo: o.codigo, descricao: o.descricao })),
+      });
+
+      // ✗ O `ok` NÃO é só o HTTP do envelope: 201 quer dizer "o lote chegou",
+      // e os EVENTOS podem ter sido recusados dentro dele — foi o que pintou ✓
+      // verde sobre um R-2055 recusado em 12/08.
+      const retornoFinal = recibo && recibo.cdResposta ? recibo : info;
+      const comErro = retornoReinfComErro(retornoFinal) || ocorrencias.length > 0;
+      const pendente = retornoReinfPendente(retornoFinal);
+
+      res.json({
+        ok: envio.status === 201 && !comErro && !pendente,
+        eventosRecusados: comErro,
+        aguardandoProcessamento: pendente,
+        ocorrencias,
+        etapa: 'r4020',
+        id: eventos[0] && eventos[0].id,
+        eventosEnviados: eventos.length,
+        tpAmb,
+        httpStatus: envio.status,
+        protocolo: info.protocolo,
+        cdResposta: (recibo && recibo.cdResposta) || info.cdResposta,
+        descResposta: (recibo && recibo.descResposta) || info.descResposta,
+        dhRecepcao: recibo && recibo.dhRecepcao,
+        xmlRetorno: retornoCruReinf((recibo && recibo.xml) || info.xml),
+        declarados: prontos
+          .filter((b) => !bloqueados.some((x) => x.cnpj === b.prestadorCnpj))
+          .map((b) => ({
+            cnpj: b.prestadorCnpj, nome: b.prestadorNome, natureza: b.natureza,
+            bruto: b.bruto,
+            agregado: Math.round((Number(b.pis || 0) + Number(b.cofins || 0) + Number(b.csll || 0)) * 100) / 100,
+          })),
+        // Os dois grupos que NÃO foram: separados, porque as ações são
+        // diferentes — pendente resolve na tela, bloqueado vai ao e-CAC.
+        bloqueados,
+        naoDeclarados: pendentes.map((b) => ({
+          cnpj: b.prestadorCnpj, nome: b.prestadorNome, pendencias: b.pendencias,
+        })),
       });
     } catch (err) {
       respostaErro(res, 400, err);

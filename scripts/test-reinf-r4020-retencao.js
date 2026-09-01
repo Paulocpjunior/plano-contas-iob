@@ -172,4 +172,51 @@ assert.ok(/retenção agregada já é gerada/i.test(tela),
 assert.ok(/IRRF/.test(tela) && /e-CAC/.test(tela),
   'a tela tem de continuar nomeando o que ainda não é gerado, e a saída');
 
-console.log('✓ R-4020: retenção AGREGADA provada por arquivo aceito; separada e IRRF seguem bloqueados');
+// ─── 7. A TRANSMISSÃO ESTÁ LIGADA — rota, adaptador e botão ────────────────
+// 🚨 O gerador existia e NÃO TINHA ROTA NEM BOTÃO: "gerador sem rota", a
+// família da rota sem botão (13/08) um passo antes. Rota que nenhuma tela chama
+// não é funcionalidade — é código morto com cara de entrega. As TRÊS pontas
+// entram juntas ou a entrega não existe.
+const rotas = fs.readFileSync(path.join(__dirname, '..', 'reinf-routes.js'), 'utf8');
+const adapter = fs.readFileSync(path.join(__dirname, '..', 'api-adapter.js'), 'utf8');
+
+assert.ok(rotas.includes("router.post('/retencoes-pj/:cnpj/:competencia/transmitir'"),
+  'a rota de transmissão do R-4020 existe');
+assert.ok(/reinfTransmitirRetencoesPJ/.test(adapter) && /window\.API = \{[^}]*reinfTransmitirRetencoesPJ/s.test(adapter),
+  'o adaptador expõe a função em window.API — sem isso a tela chama o nada');
+assert.ok(/onclick="transmitirRetencoesPJReinf\(1\)"/.test(tela)
+  && /onclick="transmitirRetencoesPJReinf\(2\)"/.test(tela),
+  'a tela tem os dois botões: produção restrita e PRODUÇÃO');
+assert.ok(/async function transmitirRetencoesPJReinf/.test(tela),
+  'e a função que eles chamam existe — botão que chama função inexistente é botão morto');
+// Os ids que a função lê têm de existir na tela.
+for (const id of ['reinfRetPjCnpj', 'reinfRetPjComp', 'reinfRetPjEnvio']) {
+  assert.ok(tela.includes('id="' + id + '"'), `o campo ${id} tem de existir`);
+}
+
+// ─── 8. AS TRAVAS DA TRANSMISSÃO ────────────────────────────────────────────
+// ⚠️ Produção PERGUNTA antes: entrega ao Reinf não se desfaz.
+assert.ok(/Transmitir o R-4020 em PRODUÇÃO para a Receita\? A entrega não se desfaz/.test(tela),
+  'produção confirma antes do clique');
+assert.ok(/confirmoProducao/.test(rotas) && /Transmissão em PRODUÇÃO exige confirmação explícita/.test(rotas),
+  'e o SERVIDOR também exige — trava só na tela é trava que um curl contorna');
+
+// ✗ O ✓ verde não pode sair só do HTTP: 201 é "o lote chegou", e os EVENTOS
+// podem ter sido recusados dentro dele (o ✓ sobre um R-2055 recusado, 12/08).
+assert.ok(/envio\.status === 201 && !comErro && !pendente/.test(rotas),
+  'ok exige lote recebido E nenhum evento recusado E nada pendente');
+
+// 🚩 Beneficiário que o leiaute recusa NÃO derruba o lote inteiro: fica fora,
+// COM o motivo. Uma nota com IRRF não pode impedir a entrega das outras.
+assert.ok(/bloqueados\.push/.test(rotas), 'o recusado sai do lote, não derruba o lote');
+assert.ok(/reinfListaBloqueados/.test(tela), 'e a tela mostra quem ficou de fora, com o motivo');
+
+// ⚠️ Falha de rede num POST não é "não transmitiu" — o lote pode ter chegado.
+assert.ok(/CONFIRA no e-CAC se o lote chegou antes de transmitir de novo/.test(tela),
+  'falha de rede manda CONFERIR antes de repetir — reenviar às cegas duplica evento');
+
+// 📌 E a soma agregada é feita na ROTA a partir da apuração, sem recalcular.
+assert.ok(/Number\(b\.pis \|\| 0\) \+ Number\(b\.cofins \|\| 0\) \+ Number\(b\.csll \|\| 0\)/.test(rotas),
+  'a retenção agregada é a SOMA do que a apuração já decidiu, não uma conta nova');
+
+console.log('✓ R-4020: retenção AGREGADA provada por arquivo aceito, e a transmissão ligada ponta a ponta');
