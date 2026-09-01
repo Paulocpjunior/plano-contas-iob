@@ -499,6 +499,45 @@ continua sendo — como o PVA no SPED.
 
 ## Ligação com o CFI — as notas do R-4020 já chegam prontas (07/08)
 
+### 📣 CATORZE DIAS DE ENTREGA SEM UMA LINHA DE NOVIDADE — e a trava cobria a metade ERRADA (01/09)
+
+As Novidades do CCI estavam paradas em **19/08, na v3.4.166**, com o app na
+**3.4.231**: catorze dias e ~65 versões sem uma linha que a equipe pudesse ler
+— inclusive o **ajuste de retenção do R-4020**, que muda o valor que sobe para
+a EFD-Reinf.
+
+📌 **E A LIÇÃO É SOBRE A TRAVA, não sobre o esquecimento.**
+`scripts/test-ajuda-cci.js` compara `NOVIDADES_VERSAO` com o *"Atualizado em"*
+da página: ele garante que, **SE** a página mudar, o selo vermelho acende. Ele
+**não** garante que a página MUDE quando há entrega — então passou VERDE o
+tempo todo.
+
+🚨 **É a classe que esta casa mais paga, agora dentro da própria trava: ela
+existe, roda, passa — e não cobre o caso pelo qual foi criada.** O CFI levou
+exatamente este defeito no MESMO dia (dez dias de silêncio lá).
+
+✂️ `scripts/test-novidades-cci-cobertura.js` fecha o outro lado: o **CLAUDE.md
+é atualizado em TODO PR**, então a data mais recente dele é o proxy FIEL de
+*"houve entrega"*. Se ela for mais nova que a das Novidades, ou a página está
+atrasada, ou aquela entrega não muda nada para quem usa — e aí isso se
+**DECLARA com o motivo** (`DATAS_SEM_EFEITO_PARA_QUEM_USA`), nunca em silêncio.
+**Provada revertendo**: com a página em 19/08 ela acusa, com as duas datas.
+
+⚠️ **E o texto é para quem USA, não para quem programa**: o que mudou, **onde
+fica** e o que a pessoa precisa fazer — um dos casos do teste exige o
+*"Onde:"* na seção do topo, porque novidade sem lugar é a mesma coisa que
+aviso apontando para o nada.
+
+⚠️ **E o que eu NÃO sabia descrever ficou NOMEADO, não inventado.** Boa parte
+das entregas do período veio de outro agente (`AI Assistant`), com mensagens de
+commit magras. As que eu não consegui apontar na tela entraram numa lista
+*"também entrou"* — nomeadas com fidelidade e **sem "Onde" fabricado**, que
+seria o aviso que manda procurar no lugar errado.
+
+📌 **REGRA QUE FICA: trava de comunicado se prova pelos DOIS lados** — que o
+selo acende quando a página muda, E que a página muda quando houve entrega. A
+primeira sozinha é o silêncio com cara de cobertura.
+
 ### 🚨 O RESUMO DO R-4020 ESCONDIA DOIS TRIBUTOS — e quem lê conclui o pior (01/09)
 
 Paulo, no dia seguinte ao ajuste de retenção entrar (CONDOMINIO EDIFICIO MONTE
