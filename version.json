@@ -1,7 +1,8 @@
 {
-  "version": "3.4.238",
-  "build_date": "2026-09-01T18:20:29Z",
+  "version": "3.4.239",
+  "build_date": "2026-09-01T18:58:06Z",
   "release_notes": [
+    "🚀 R-4020: transmite pelo app — o \"gerador sem rota\" fechou (#99)",
     "✅ R-4020: a retenção destravou — e ela é AGREGADA, não separada (#98)",
     "Vetar importação fiscal por CNPJ, competência e movimento (#97)",
     "Sincronizar movimento fiscal direto do CFI (#96)",
@@ -10,7 +11,6 @@
     "Corrigir progresso e exibir solicitações ao colaborador (#93)",
     "✍️ R-4020: ajustar a retenção — e parar de recalcular o que o CFI respondeu (#91)",
     "Restringir automação ao ADMIN e estabilizar deploy (#90)",
-    "Autenticar agendador interno dos alertas (#89)",
-    "Corrigir materialização da candidata no deploy (#88)"
+    "Autenticar agendador interno dos alertas (#89)"
   ]
 }

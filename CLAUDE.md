@@ -44,6 +44,59 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **🚨 950 KB DE JAVASCRIPT SERVIDOS SEM NENHUMA CHECAGEM DE SINTAXE — e o
+  sintoma disso é "a atualização não subiu"** (01/09, achado enquanto eu
+  procurava a causa de um relato do Paulo).
+  🔴 O gate roda `node --check` em ~120 arquivos `.js` soltos, e o `index.html`
+  — que é **SERVIDO direto, SPA em JS inline** — carrega **17 blocos de
+  `<script>` que nenhum deles alcança**. Um erro de sintaxe ali **derruba o app
+  INTEIRO no navegador**: nenhuma tela renderiza.
+  🚨 **E ELE PASSA POR TUDO.** Passa no `check`, passa no deploy e **passa no
+  health check** — que confere se o HTML foi **SERVIDO** na versão certa, nunca
+  se ele **EXECUTA**. É a família do `ReferenceError` que derrubou a geração do
+  SPED no CFI (20/08), onde o `lint` também não olhava o código que importava e
+  só o clique pegava.
+  📌 **E O CUSTO REAL É O DIAGNÓSTICO ERRADO**: para quem usa, app que não
+  renderiza é indistinguível de deploy que não subiu — a pessoa recarrega,
+  limpa cache e reporta *"não subiu a atualização"*, enquanto a esteira está
+  toda verde. Quem procura vai procurar no lugar errado.
+  ✂️ `scripts/check-html-inline-js.js` (varredura, nunca lista): todo `<script>`
+  **sem `src`** de todo `.html` é escrito num arquivo temporário e passa por
+  `node --check`. ⚠️ `<script src=…>` fica de fora — já é coberto pelo
+  `node --check` do gate, e checar duas vezes seria a segunda cópia; e
+  `application/json`/JSON-LD não é JavaScript (acusá-lo seria alarme sobre
+  marcação correta). Ela **nasce verde nos 17 blocos** e foi **provada quebrando
+  um de propósito** — acusa o arquivo e a linha em que o bloco começa.
+  🚨 **A TRAVA ENTROU NO `check:ci`, NÃO SÓ NO `check` — e essa é a metade que
+  vale.** Quem o deploy roda é o **`check:ci`**; registrar só no `npm run check`
+  seria a "meia trava" de sempre: existe, passa na máquina de quem lembrou, e
+  não protege a entrega.
+  ⚠️ E ela tem **guarda contra o silêncio falso**: menos de 5 blocos encontrados
+  quebra a build, porque o `index.html` sozinho tem mais que isso — se o regex
+  quebrar, ela passaria VERDE sem ler nada, que é exatamente o defeito que ela
+  existe para acabar.
+
+- **🚨 A LIÇÃO DOS 10 DIAS DE MAIN VERMELHA NUNCA VIROU TRAVA — só comentário**
+  (01/09, achado ao ligar a varredura acima). O mata-burro de 27/08 está logo
+  abaixo, com o commit e a data; e **nenhuma varredura deste repositório procura
+  marcador de conflito**. `grep` no `scripts/` e nos workflows: zero. É o vício
+  de 13/08 do CFI na forma mais cara — **regra escrita não é regra travada** —
+  aplicado justamente ao defeito que já custou dez dias de entrega parada.
+  ✂️ `scripts/check-marcador-conflito.js`, no `check` **e** no `check:ci`.
+  **Provada com o arquivo REAL do defeito**: o `index.html` do commit `2ceeee1`
+  posto de volta no repo faz ela acusar as seis linhas exatas (7, 12, 21, 34,
+  67, 103).
+  📌 **E ELA NÃO É REDUNDANTE COM A DE SINTAXE — isso foi MEDIDO, não suposto.**
+  Rodei a varredura de JavaScript inline contra aquele mesmo `index.html` e ela
+  passou **VERDE**: os marcadores estavam entre as tags `<script src=…>` do
+  `<head>`, **fora de bloco inline**. Concluir que uma cobria a outra teria
+  deixado o defeito mais caro do repositório sem rede pela segunda vez.
+  ⚠️ **A assinatura é a que o git de fato escreve** — marcador de 7 caracteres
+  no COMEÇO da linha —, e o `=======` sozinho **não acusa**: ele só é marcador
+  entre um `<<<<<<<` e um `>>>>>>>`. Sem isso, toda régua de comentário viraria
+  falso positivo, e alarme sobre arquivo correto é o jeito conhecido de a equipe
+  desligar a trava.
+
 - **🚨 A MAIN FICOU VERMELHA 10 DIAS COM MARCADOR DE CONFLITO COMMITADO — e
   nada avisou** (27/08, achado ao rodar `npm run check` ANTES de tocar no repo).
   O `node --check` parava na primeira linha: `auditai/conciliacao-arquivos.js:5

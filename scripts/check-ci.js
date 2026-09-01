@@ -93,6 +93,34 @@ function main() {
     }
     console.log(`✓ ${arquivosJs.length} arquivos sem erro de sintaxe\n`);
 
+    // 🚨 O JavaScript EMBUTIDO no HTML entra AQUI, não só no `npm run check`:
+    // quem o deploy roda é o `check:ci`, então trava registrada só lá seria a
+    // "meia trava" de sempre — existe, passa na máquina e não protege a
+    // entrega. E o que ela pega custa o app inteiro: erro de sintaxe no inline
+    // não renderiza nenhuma tela e passa no health check, que confere se o HTML
+    // foi SERVIDO na versão certa, nunca se ele EXECUTA.
+    // 🚨 E o marcador de conflito, que é o defeito mais caro que este repo já
+    // pagou (main vermelha por DEZ DIAS, 17→27/08), continuava sem varredura:
+    // a lição de lá virou comentário, não trava. ⚠️ E ela é NECESSÁRIA ao lado
+    // da de sintaxe, não redundante: MEDIDO contra o `index.html` daquele
+    // commit, a varredura de inline passa VERDE — os marcadores estavam entre
+    // as tags `<script src=…>` do `<head>`, fora de bloco inline.
+    console.log('── Marcador de conflito ──');
+    const conflito = rodar('scripts/check-marcador-conflito.js');
+    if (conflito.status !== 'ok') {
+        console.error(conflito.saida);
+        process.exit(1);
+    }
+    console.log(`${conflito.saida.trim()}\n`);
+
+    console.log('── Sintaxe do JavaScript embutido no HTML ──');
+    const inline = rodar('scripts/check-html-inline-js.js');
+    if (inline.status !== 'ok') {
+        console.error(inline.saida);
+        process.exit(1);
+    }
+    console.log(`${inline.saida.trim()}\n`);
+
     console.log('── Rotas duplicadas ──');
     const rotas = rodar('scripts/check-duplicate-routes.js');
     if (rotas.status === 'falhou') {
