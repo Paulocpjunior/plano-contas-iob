@@ -499,6 +499,88 @@ continua sendo — como o PVA no SPED.
 
 ## Ligação com o CFI — as notas do R-4020 já chegam prontas (07/08)
 
+### ✅ A RETENÇÃO DO R-4020 DESTRAVOU — e ela é AGREGADA, não separada (01/09)
+
+Paulo mandou um R-4020 **aceito em produção** (`ID1546611450000002026070609565000001`,
+perApur 2026-06, tpAmb 1) — do MESMO contribuinte e do MESMO beneficiário do
+caso que estava travado: **MONTE CARLO (54661145) × ATLAS SCHINDLER
+(00028986007030)**.
+
+```xml
+<infoPgto>
+  <dtFG>2026-06-13</dtFG><vlrBruto>3210,96</vlrBruto><indJud>N</indJud>
+  <retencoes><vlrBaseAgreg>3210,96</vlrBaseAgreg><vlrAgreg>149,31</vlrAgreg></retencoes>
+</infoPgto>
+```
+
+🚨 **ELE DESMENTE A ANALOGIA NAS TRÊS PONTAS de uma vez**: o bloco se chama
+**`retencoes`** e fica DENTRO do `infoPgto`, **depois** do `indJud`; os campos
+são **`vlrBaseAgreg`/`vlrAgreg`** — que este módulo listava como NÃO mapeados;
+e o principal, a retenção vai **AGREGADA, num valor só**. O gerador ia emitir
+IR/CSLL/PIS/COFINS **separados**. `3.210,96 × 4,65% = 149,31`, ao centavo: é a
+**CSRF inteira numa linha**.
+
+📌 **Arquivo ACEITO vale mais que leiaute deduzido, pela sexta vez** (R-2055,
+R-2010, R-2099, código 9 do ISS, 0110, agora este). Quatro campos inventados
+teriam passado em qualquer teste nosso e sido recusados na transmissão.
+
+⚠️ **E A DECOMPOSIÇÃO DO CFI CONTINUA VALENDO** — ela não foi desfeita. O
+EFD-Contribuições e o Relatório de Retenções pedem PIS/COFINS/CSLL separados;
+o **R-4020 pede o total**. Somar de volta aqui é declarar no formato que a
+Receita aceita, **a partir do MESMO número** (22,19 + 102,40 + 34,13 = 158,72).
+
+🚩 **O QUE CONTINUA BLOQUEADO, e por quê**: o arquivo tem **IRRF ZERO**, então
+onde o IR entra não está provado — e os campos SEPARADOS por tributo não
+aparecem em arquivo aceito nenhum. IRRF > 0 bloqueia com **motivo PRÓPRIO**
+(dizer "campo não mapeado" sobre uma nota que só tem IRRF mandaria procurar
+erro em PIS/COFINS/CSLL, que estão certos). **IRRF zero NÃO bloqueia** — é o
+caso comum, e barrar ali seria alarme sobre nota correta.
+
+⚠️ **ZERO NÃO SE DECLARA**: `<vlrAgreg>0,00</vlrAgreg>` AFIRMA que não houve
+retenção. Nota sem retenção **omite o bloco** — é assim que o primeiro arquivo
+de referência foi aceito. E **base sem valor** também é recusada: declara a
+base de uma retenção que não existe.
+
+⚠️ **A base sai do CAMPO PRÓPRIO, nunca do `vlrBruto`**: no arquivo aceito os
+dois coincidem porque não houve dedução, e carimbar o bruto declararia base a
+maior na primeira nota com dedução.
+
+✂️ **A conferência de 4,65% ACUSA, nunca corrige** — recalcular faria o evento
+e a apuração declararem números diferentes sobre a mesma nota (a régua do
+R-2055). Dois centavos de tolerância, porque alarme sobre arredondamento é o
+que faz a equipe desligar a trava.
+
+📌 **UMA FIXTURE FOI TROCADA, pelo motivo certo**: `test-reinf-r4020-xml.js`
+travava `vlrIR` como exemplo e afirmava que NENHUMA retenção podia sair — ela
+descrevia o mundo anterior ao arquivo aceito. Passou a travar `vlrCsll`, que é
+o que de fato continua sem prova.
+
+🚩 **E O `natRend` DIVERGE, dito e não corrigido**: o evento aceito de junho usa
+**15044** e a tela de agosto está com **15043**, para o mesmo fornecedor. Pode
+ser serviço diferente — quem decide é quem conhece a nota, não o app.
+
+### ✅ E O R-4099 JÁ EXISTIA — sem nenhum teste (01/09)
+
+O segundo arquivo (`evt4099FechamentoDirf`, `evtFech`, `infoFech/fechRet 0`) é
+o **fechamento** da série R-4000 — sem ele os R-4010/R-4020 ficam recebidos e
+não viram totalizador nem DARF.
+
+📌 **Fui escrever o gerador e ele já estava lá**, em `reinf-utils.gerarR4099` —
+escrever um segundo teria sido a segunda cópia que esta casa mais paga. O que
+faltava era a **PROVA**: ele nunca tinha teste.
+
+✅ E o arquivo aceito **concorda com ele campo a campo** — elemento, ordem do
+`ideEvento`, raiz de 8 dígitos, `ideRespInf`, `infoFech`. **Corroboração**:
+dois caminhos independentes no mesmo resultado, que é o que vale como prova
+aqui — diferente de "passou no meu próprio teste".
+
+⚠️ **`procEmi` sai 1 de propósito**: o arquivo traz **2** porque foi digitado no
+REINF.Web. Copiar o 2 declararia que o nosso evento saiu do portal da Receita.
+
+📌 **REGRA QUE FICA: antes de escrever gerador de evento novo, procure se ele
+já existe** — e se existir sem teste, a entrega é o TESTE, não um segundo
+gerador.
+
 ### 📣 CATORZE DIAS DE ENTREGA SEM UMA LINHA DE NOVIDADE — e a trava cobria a metade ERRADA (01/09)
 
 As Novidades do CCI estavam paradas em **19/08, na v3.4.166**, com o app na

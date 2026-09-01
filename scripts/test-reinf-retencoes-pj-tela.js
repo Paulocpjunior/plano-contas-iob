@@ -66,17 +66,44 @@ assert.ok(/não traz a CSLL individual/.test(index),
 assert.ok(index.includes('>informada</span>') && index.includes('>da nota</span>'),
   'a origem da natureza aparece: informada pela pessoa ou lida da nota');
 
-// ─── O XML CONTINUA BLOQUEADO, E A TELA DIZ POR QUÊ ─────────────────────────
-// Sem isto, a pessoa procura um botão de gerar que não existe e conclui que a
-// tela está quebrada.
-assert.ok(/Por que ainda não há botão de gerar o XML/.test(index),
-  'a tela explica a ausência do botão em vez de deixar o buraco mudo');
-assert.ok(/aceito declarando retenção ZERO/.test(index),
-  'e diz o risco real: não é só ser recusado');
-assert.ok(/competência que TEVE retenção/.test(index), 'e o que destrava');
-assert.ok(!/gerarR4020Reinf\(/.test(index), 'nenhum botão de gerar R-4020 pode existir ainda');
+// ─── A TELA DIZ O QUE SAI E O QUE NÃO SAI ───────────────────────────────────
+// 📌 FIXTURE TROCADA EM 01/09: esta asserção prendia a frase "Por que ainda não
+// há botão de gerar o XML", e ela descrevia o mundo ANTERIOR ao segundo arquivo
+// aceito (perApur 2026-06), que provou o bloco <retencoes> com
+// vlrBaseAgreg/vlrAgreg. Manter o texto faria a tela afirmar um bloqueio que o
+// gerador não tem mais.
+//
+// O que ela tem de garantir é a INTENÇÃO, nos dois sentidos: dizer que a
+// retenção agregada SAI, e continuar nomeando o que NÃO sai — senão some a
+// razão de alguém não confiar num evento com IRRF.
+assert.ok(/retenção agregada já é gerada/i.test(index),
+  'a tela diz que a retenção agregada (CSRF 4,65%) é gerada');
+assert.ok(/O que ainda NÃO é gerado/.test(index) && /IRRF/.test(index),
+  'e continua nomeando o que segue bloqueado, com o tributo pelo nome');
+assert.ok(/e-CAC/.test(index),
+  'com a saída para quem cair no caso bloqueado — trava sem caminho a equipe contorna');
+assert.ok(!/ainda não há botão de gerar o XML/.test(index),
+  'e NÃO afirma um bloqueio que o gerador não tem');
+// ⚠️ O RISCO REAL continua tendo de estar escrito: não é "ser recusado", é
+// sair ACEITO declarando uma retenção que não é a que houve. Recusa se
+// conserta e reenvia; declaração errada aceita só aparece na malha.
+// 🐛 A âncora fica DENTRO de um literal só: o texto da tela é montado por
+// concatenação, então um regex que atravesse o `' + '` nunca casa — é a mesma
+// mordida do <strong> partindo o nó de texto (22/08).
+assert.ok(/retenção de IR que não é a/.test(index),
+  'a tela diz o risco real do caso bloqueado, não só "seria recusado"');
+assert.ok(/mande o XML depois/.test(index), 'e o que destrava');
 
-console.log('✅ tela do R-4020: busca no CFI, natureza conferida no servidor, e o bloqueio do XML explicado');
+// 🚩 O BOTÃO DE GERAR AINDA NÃO EXISTE — e isto está NOMEADO, não escondido.
+//
+// O gerador (`reinf/gerar-r4020.js`) passou a produzir o evento com a retenção
+// agregada, mas **não há rota nem botão** que o chame: é "gerador sem rota", a
+// família da rota sem botão (13/08) um passo antes. Enquanto esta linha estiver
+// aqui, a entrega do R-4020 é pelo e-CAC — e a tela diz isso.
+assert.ok(!/gerarR4020Reinf\(/.test(index),
+  'não há botão de gerar R-4020 ainda — quando houver, esta asserção inverte');
+
+console.log('✅ tela do R-4020: busca no CFI, natureza no servidor, e a tela diz o que sai e o que não sai');
 
 
 // ─── O "SALVAR" QUE FALTAVA (08/08) ─────────────────────────────────────────
