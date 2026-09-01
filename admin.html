@@ -573,6 +573,8 @@ let exclusaoEmpresasCarregadas = false;
 let currentProgressaoContabil = null;
 let progressaoCarregando = false;
 let progressaoEmpresaEmEdicao = null;
+let progressaoAtualizadaEmMillis = 0;
+const PROGRESSAO_ATUALIZACAO_MS = 60000;
 
 function fmtDate(ts) {
   if (!ts) return '-';
@@ -651,7 +653,7 @@ function showTab(tab, sourceButton) {
   if (tab === 'layouts') renderLayouts();
   if (tab === 'qualidade') loadLayoutQuality();
   if (tab === 'exclusao') loadExclusaoEmpresas();
-  if (tab === 'progressao') loadProgressaoContabil(false);
+  if (tab === 'progressao') loadProgressaoContabil(true);
 }
 
 function escapeHtml(v) {
@@ -763,7 +765,8 @@ async function loadProgressaoContabil(forcar) {
   if (progressaoCarregando) return;
   const competenciaEl = document.getElementById('progressaoCompetencia');
   if (!competenciaEl.value) competenciaEl.value = competenciaAtualSaoPaulo();
-  if (currentProgressaoContabil && !forcar && currentProgressaoContabil.competencia === competenciaEl.value) {
+  const cacheRecente = progressaoAtualizadaEmMillis && (Date.now() - progressaoAtualizadaEmMillis) < PROGRESSAO_ATUALIZACAO_MS;
+  if (currentProgressaoContabil && !forcar && cacheRecente && currentProgressaoContabil.competencia === competenciaEl.value) {
     renderProgressaoContabil();
     return;
   }
@@ -776,6 +779,7 @@ async function loadProgressaoContabil(forcar) {
       competencia: competenciaEl.value,
       dias_sem_atividade: document.getElementById('progressaoDias').value
     });
+    progressaoAtualizadaEmMillis = Date.now();
     const seletor = document.getElementById('progressaoColaborador');
     const valorAtual = seletor.value;
     seletor.innerHTML = '<option value="">Todos</option>' + (currentProgressaoContabil.colaboradores || []).map(function (pessoa) {
@@ -791,6 +795,16 @@ async function loadProgressaoContabil(forcar) {
     progressaoCarregando = false;
   }
 }
+
+setInterval(function () {
+  const aba = document.getElementById('tab-progressao');
+  if (!document.hidden && aba && aba.classList.contains('active')) loadProgressaoContabil(true);
+}, PROGRESSAO_ATUALIZACAO_MS);
+
+document.addEventListener('visibilitychange', function () {
+  const aba = document.getElementById('tab-progressao');
+  if (!document.hidden && aba && aba.classList.contains('active')) loadProgressaoContabil(true);
+});
 
 async function processarAlertasProgressao() {
   const competenciaEl = document.getElementById('progressaoCompetencia');
@@ -871,7 +885,7 @@ function renderProgressaoContabil() {
   document.getElementById('progressaoContent').className = '';
   document.getElementById('progressaoContent').innerHTML =
     '<div class="progress-summary">' + metricas + '</div>' +
-    '<p style="font-size:12px;color:#64748b;margin-bottom:10px">Competência ' + escapeHtml(currentProgressaoContabil.competencia) + ' · atualizado em ' + escapeHtml(fmtDate(currentProgressaoContabil.gerado_em)) + ' · ' + empresas.length + ' empresa(s) no filtro.</p>' +
+    '<p style="font-size:12px;color:#64748b;margin-bottom:10px">Competência ' + escapeHtml(currentProgressaoContabil.competencia) + ' · atualizado em ' + escapeHtml(fmtDate(currentProgressaoContabil.gerado_em)) + ' · atualização automática a cada 60 segundos · ' + empresas.length + ' empresa(s) no filtro.</p>' +
     '<details style="margin:0 0 12px;padding:10px 12px;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:12px"><summary style="font-weight:800;cursor:pointer">Como o status e o percentual são calculados</summary><ol style="margin:8px 0 0 20px"><li>O percentual soma as áreas esperadas concluídas, a conciliação quando aplicável e o fechamento oficial.</li><li>Uma área só conclui quando possui movimento e todos os seus lançamentos têm débito e crédito.</li><li>Sem movimento em Financeiro, Fiscal ou Folha esperado gera Atenção; impedimento, prazo vencido ou inatividade gera Parada.</li><li>Finalizada exige o fechamento oficial da competência.</li></ol></details>' +
     '<div class="table-scroll"><table><thead><tr><th>Empresa</th><th>Status / etapa</th><th>Progresso</th><th>Responsável</th><th>Contabilização</th><th>Conciliação</th><th>Fechamento / atividade</th><th>Onde está parada</th><th>Prazo / revisão</th></tr></thead><tbody>' + (linhas || '<tr><td colspan="9" class="empty">Nenhuma empresa encontrada.</td></tr>') + '</tbody></table></div>' +
     '<h3 style="font-size:16px;margin:22px 0 10px">Visão por colaborador</h3>' +
