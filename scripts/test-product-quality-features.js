@@ -99,6 +99,9 @@ assertContains('index.html', 'abrirConferenciaImportacao', 'modo conferencia ant
 assertContains('index.html', `parser-stone-extrato.js?v=${version}`, 'extrator carrega o parser Stone com cache-buster atual');
 assertContains('index.html', 'modalMemoriaEmpresa', 'modal de memoria da empresa');
 assertContains('index.html', 'salvarMemoriaEmpresa', 'edicao de memoria no app');
+assertContains('index.html', 'const auditoriaTexto = auditoria ? empFmtDate(auditoria)', 'modal de memoria deve usar formatador existente no aplicativo');
+assertNotContains('index.html', 'const auditoriaTexto = auditoria ? fmtDate(auditoria)', 'modal de memoria nao pode depender do formatador exclusivo do painel admin');
+assertContains('index.html', "resposta.erro || ('HTTP ' + r.status)", 'edicao da memoria deve exibir a validacao retornada pelo servidor');
 assertContains('index.html', 'registrarArquivoRejeitado', 'registro de arquivo rejeitado pelo extrator');
 assertContains('index.html', 'diagnosticarFalhaImportacao', 'diagnostico client-side da falha de importacao');
 assertContains('index.html', 'layouts_tentados', 'persistencia dos layouts tentados na rejeicao');
