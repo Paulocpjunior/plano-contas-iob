@@ -499,6 +499,54 @@ continua sendo — como o PVA no SPED.
 
 ## Ligação com o CFI — as notas do R-4020 já chegam prontas (07/08)
 
+### 🚀 O R-4020 TRANSMITE PELO APP — o "gerador sem rota" fechou (01/09)
+
+Paulo, depois de eu nomear o buraco: *"pode ligar a transmissão e ligar o 98"*.
+
+📌 **O GERADOR EXISTIA E NÃO TINHA ROTA NEM BOTÃO.** É a família da *rota sem
+botão* (13/08) **um passo antes**: lá era rota que nenhuma tela chamava; aqui
+era gerador que nenhuma rota chamava. Nos dois casos a fila lê como entregue e
+não é — Paulo perguntou *"agora onde eu transmito?"* e a resposta era o e-CAC.
+
+✂️ `POST /api/reinf/retencoes-pj/:cnpj/:competencia/transmitir`, no molde do
+R-2055 que já está provado em produção: mesma fonte da tela, mesmo gateway,
+mesma auditoria.
+
+🚨 **A TRADUÇÃO QUE O EVENTO PEDE — e ela NÃO é recálculo.** A apuração separa
+PIS/COFINS/CSLL porque o EFD-Contribuições e o Relatório de Retenções precisam
+assim; o R-4020 declara o **TOTAL**. A rota SOMA de volta o que a apuração já
+decidiu (`pis + cofins + csll`), a partir do MESMO número — refazer a conta
+faria o evento e a tela declararem valores diferentes sobre a mesma nota (a
+régua do R-2055).
+
+⚠️ **UM EVENTO POR BENEFICIÁRIO, no mesmo lote** — o arquivo aceito traz UM
+`ideBenef`, e empilhar foi o que derrubou o R-2055 três vezes com MS0030.
+
+🚩 **BENEFICIÁRIO QUE O LEIAUTE RECUSA NÃO DERRUBA O LOTE** — ele fica FORA,
+com o motivo (`bloqueados[]`), e os outros vão. Uma nota com IRRF não pode
+impedir a entrega das demais, e lote que some por causa de uma linha é a trava
+sem caminho que a equipe contorna. A tela lista quem ficou de fora e manda só
+ESSES ao e-CAC.
+
+⚠️ **PRODUÇÃO PERGUNTA ANTES, nos DOIS lados**: `confirm()` na tela e
+`confirmoProducao=true` exigido no SERVIDOR — trava só na tela é trava que um
+`curl` contorna. Entrega ao Reinf não se desfaz.
+
+✗ **O ✓ VERDE NÃO SAI DO HTTP**: 201 quer dizer *"o lote chegou"*, e os EVENTOS
+podem ter sido recusados dentro dele — foi exatamente o ✓ verde sobre um R-2055
+recusado (12/08). `ok` exige lote recebido **E** nenhuma ocorrência **E** nada
+pendente; a recusa sobe com as ocorrências e, quando o parser não sabe nomear,
+com o retorno CRU.
+
+⚠️ **FALHA DE REDE NUM POST NÃO É "não transmitiu"** — o lote pode ter chegado.
+A tela manda **CONFERIR no e-CAC antes de repetir**: reenviar às cegas duplica
+evento na Receita.
+
+📌 **AS TRÊS PONTAS ENTRARAM JUNTAS E SÃO TRAVADAS JUNTAS** — rota, `window.API`
+e botão. **Provadas desplugando uma a uma**: tirar o botão, ou tirar a função do
+`window.API`, derruba o teste pelo nome. Sem isso, "gerador sem rota" volta com
+outra roupa: adaptador sem export é a tela chamando o nada.
+
 ### ✅ A RETENÇÃO DO R-4020 DESTRAVOU — e ela é AGREGADA, não separada (01/09)
 
 Paulo mandou um R-4020 **aceito em produção** (`ID1546611450000002026070609565000001`,

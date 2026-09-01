@@ -710,6 +710,22 @@
     return await r.json();
   }
 
+  /**
+   * Transmite o R-4020 da competência (um evento por beneficiário, mesmo lote).
+   *
+   * ⚠️ As naturezas informadas na tela viajam junto: elas são VALIDADAS contra
+   * a Tabela 01 no servidor, que é onde a tabela existe. Código digitado que
+   * ninguém confere é código inventado.
+   */
+  async function reinfTransmitirRetencoesPJ(cnpj, competencia, corpo) {
+    const c = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(
+      API_BASE + '/api/reinf/retencoes-pj/' + c + '/' + encodeURIComponent(competencia || '') + '/transmitir',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo || {}) },
+    );
+    return await r.json();
+  }
+
   // R-2055 — aquisições de produção rural (FUNRURAL sub-rogado), vindas do CFI.
   async function reinfAquisicaoRural(cnpj, competencia, indAquis) {
     const c = String(cnpj || '').replace(/\D/g, '');
@@ -924,7 +940,7 @@
     return await r.json();
   }
 
-  window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, consultarEstruturaMatrizFilial, sincronizarRegimeCfi, consultarParametrizacaoRegime, salvarParametrizacaoRegime, validarRegimeCnaeIA, aprovarSaldosAbertura, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarPeriodosContabeis, consultarHomologacaoPiloto, avaliarConciliacaoBancaria, aprovarConciliacaoBancaria, avaliarConciliacaoDetalhada, aprovarConciliacaoDetalhada, listarAtivosImobilizados, salvarAtivoImobilizado, baixarAtivoImobilizado, previaDepreciacaoAtivo, aprovarDepreciacaoAtivo, previaEventoAtivo, aprovarEventoAtivo, enviarRelatorioContabilEmail, fecharPeriodoContabil, reabrirPeriodoContabil, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalFechamentosCfi, fiscalImportarFechamentoCfi, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAjustarRetencao, reinfAquisicaoRural,
+  window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, consultarEstruturaMatrizFilial, sincronizarRegimeCfi, consultarParametrizacaoRegime, salvarParametrizacaoRegime, validarRegimeCnaeIA, aprovarSaldosAbertura, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarPeriodosContabeis, consultarHomologacaoPiloto, avaliarConciliacaoBancaria, aprovarConciliacaoBancaria, avaliarConciliacaoDetalhada, aprovarConciliacaoDetalhada, listarAtivosImobilizados, salvarAtivoImobilizado, baixarAtivoImobilizado, previaDepreciacaoAtivo, aprovarDepreciacaoAtivo, previaEventoAtivo, aprovarEventoAtivo, enviarRelatorioContabilEmail, fecharPeriodoContabil, reabrirPeriodoContabil, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalFechamentosCfi, fiscalImportarFechamentoCfi, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAjustarRetencao, reinfTransmitirRetencoesPJ, reinfAquisicaoRural,
     reinfServicosTomados,
     reinfServicoTomadoPrestador,
     reinfServicosTomadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };

@@ -14,8 +14,12 @@
   <main class="wrap content">
     <article class="release">
       <div class="tag">Leia esta parte primeiro</div>
-      <header><h2>✍️ R-4020: dá para ajustar a retenção, e o resumo mostra os quatro tributos</h2><span class="date">01/09/2026 · v3.4.232</span></header>
+      <header><h2>🚀 R-4020: agora transmite pelo app — e dá para ajustar a retenção</h2><span class="date">01/09/2026 · v3.4.237</span></header>
       <ul>
+        <li><strong>🚀 O R-4020 passou a ser transmitido daqui.</strong> Antes o app apurava e você entregava pelo e-CAC. O leiaute da retenção ficou provado por um evento aceito em produção, e a transmissão foi ligada.</li>
+        <li><strong>Onde:</strong> EFD-Reinf → <strong>Retenções de PJ para o R-4020</strong> → <em>Buscar no Consultor Fiscal</em> → os botões <strong>🧪 Transmitir (produção restrita)</strong> e <strong>🚀 Transmitir em PRODUÇÃO</strong> aparecem quando há beneficiário pronto.</li>
+        <li><strong>A retenção sobe AGREGADA</strong> — PIS + COFINS + CSLL num valor só, que é como o R-4020 pede. A separação que você vê na tabela continua valendo para o EFD-Contribuições; o evento leva o total, a partir do mesmo número.</li>
+        <li><strong>Quem tem IRRF retido fica de fora, nomeado</strong> — e os outros vão normalmente. Onde o IR entra no evento ainda não está provado, então esses poucos você entrega pelo e-CAC (e mandar o XML depois destrava também esse caso).</li>
         <li><strong>O problema:</strong> a NFS-e de São Paulo tem campos de PIS e COFINS que muitos prestadores preenchem com o <strong>tributo da operação deles</strong>, não com a retenção — e a própria nota costuma avisar isso em “Outras Informações”. Declarar aqueles valores <strong>infla a retenção</strong>.</li>
         <li><strong>Caso real:</strong> ELEVADORES ATLAS SCHINDLER, serviço de R$ 3.413,24. Os campos traziam PIS 56,32 e COFINS 259,41 (soma <strong>315,73</strong>), enquanto a retenção de verdade está em <em>Contribuições Sociais - Retidas</em>: <strong>158,72</strong>. Quase o dobro.</li>
         <li><strong>O que mudou:</strong> a busca no Consultor Fiscal agora devolve <strong>PIS 22,19 · COFINS 102,40 · CSLL 34,13</strong> — os 4,65% separados pelas alíquotas legais (Lei 10.833/2003), e a soma fecha ao centavo com o que a nota declara.</li>
@@ -23,7 +27,7 @@
         <li><strong>E onde o app não consegue derivar</strong>, a linha vem marcada com um botão <strong>✍️ Ajustar</strong> na própria nota: você informa o valor certo, <strong>com autor e motivo escrito</strong>, e ele passa a valer para aquela nota — nunca para o fornecedor inteiro.</li>
         <li><strong>O resumo mostra os QUATRO tributos.</strong> Ele dizia só <em>IRRF · CSLL</em>, com PIS e COFINS na tabela logo abaixo — e isso se lia como “vai subir só a CSLL”. Agora a linha traz IRRF, PIS, COFINS e CSLL.</li>
       </ul>
-      <div class="status"><strong>Atenção:</strong> o ajuste é uma <strong>declaração</strong> — fica gravado quem fez, quando e por quê, e o motivo tem de ser escrito (mínimo de 15 caracteres). Ele muda <strong>a retenção</strong>, nunca a base: a base é o que a nota diz.</div>
+      <div class="status"><strong>🚨 Antes de clicar em PRODUÇÃO:</strong> a entrega ao Reinf <strong>não se desfaz</strong> — o app pergunta antes, e vale conferir a natureza do rendimento de cada linha. Use o <strong>🧪 produção restrita</strong> primeiro: é de graça e não declara nada.<br><br><strong>Atenção:</strong> o ajuste é uma <strong>declaração</strong> — fica gravado quem fez, quando e por quê, e o motivo tem de ser escrito (mínimo de 15 caracteres). Ele muda <strong>a retenção</strong>, nunca a base: a base é o que a nota diz.</div>
     </article>
     <article class="release">
       <div class="tag">Também entrou desde 19/08</div>
