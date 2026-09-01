@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.232",
+  "version": "3.4.233",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -41,7 +41,7 @@
     "test:fastweld-fiscal": "node scripts/test-fastweld-movimento-fiscal.js",
     "test:filtro-fiscal": "node scripts/test-filtro-fiscal.js",
     "test:imposto-por-cfop": "node scripts/test-fiscal-imposto-por-cfop.js",
-    "test:movimento-fiscal-modal": "node scripts/test-movimento-fiscal-modal.js && node scripts/test-livros-fiscais-genericos.js && node scripts/test-sage-impostos-retidos-servicos.js && node scripts/test-sage-impostos-retidos-servicos-tomados.js",
+    "test:movimento-fiscal-modal": "node scripts/test-movimento-fiscal-modal.js && node scripts/test-movimento-fiscal-cfi.js && node scripts/test-livros-fiscais-genericos.js && node scripts/test-sage-impostos-retidos-servicos.js && node scripts/test-sage-impostos-retidos-servicos-tomados.js",
     "test:sage-retidos": "node scripts/test-sage-impostos-retidos-servicos.js",
     "test:sage-retidos-tomados": "node scripts/test-sage-impostos-retidos-servicos-tomados.js",
     "test:flanacar-bank": "node scripts/test-flanacar-bank-combobox.js",
