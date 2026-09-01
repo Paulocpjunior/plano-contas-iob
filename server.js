@@ -2195,7 +2195,7 @@ function normalizarFiscalBody(body) {
   };
 }
 
-const { buscarFechamentosNoCfi } = require('./reinf/cfi-notas-client');
+const { buscarFechamentosNoCfi, buscarMovimentoFiscalNoCfi } = require('./reinf/cfi-notas-client');
 const { lancamentosDoFechamento, conferirContraLancado, resumirImportacao } = require('./reinf/fechamento-cfi');
 
 const FISCAL_GATEWAY_URL = (process.env.FISCAL_GATEWAY_URL || 'https://consultor-fiscal-inteligente-zricstsjqa-uw.a.run.app').replace(/\/+$/, '');
@@ -2556,6 +2556,27 @@ app.get('/api/fiscal/fechamentos-cfi', async (req, res) => {
     // "nenhum cliente fechou o mês", e o Contábil concluiria que não há o que
     // importar. O erro sobe com a frase que diz o que fazer.
     console.error('fechamentos-cfi GET erro:', err);
+    return res.status(502).json({ erro: err.message });
+  }
+});
+
+// Consulta pura CFI -> CCI. O navegador nunca recebe credencial de banco e o
+// CCI nao le o Firestore fiscal diretamente; o token da sessao e validado nos
+// dois apps. A gravacao continua ocorrendo somente depois da previa do modal.
+app.get('/api/fiscal/movimento-cfi', async (req, res) => {
+  try {
+    const cnpj = String(req.query.cnpj || '').replace(/\D/g, '');
+    const competencia = String(req.query.competencia || '').trim();
+    const movimento = String(req.query.movimento || '').trim();
+    if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido.' });
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const payload = await buscarMovimentoFiscalNoCfi({
+      cnpj, competencia, movimento, token: tokenDoUsuario(req),
+    });
+    return res.json(payload);
+  } catch (err) {
+    console.error('movimento-cfi GET erro:', err);
     return res.status(502).json({ erro: err.message });
   }
 });

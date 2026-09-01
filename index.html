@@ -66,6 +66,7 @@
     <script src="/parser-stone-extrato.js?v=3.4.232"></script>
     <script src="/parser-extrato-conciliado.js?v=3.4.232"></script>
     <script src="/parser-clude-servicos-tomados.js?v=3.4.232"></script>
+    <script src="/movimento-fiscal-cfi.js?v=3.4.232"></script>
     <script src="/layouts-fiscais-padrao.js?v=3.4.232"></script>
     <script src="/parser-flanacar-registro-entradas.js?v=3.4.232"></script>
     <script src="/filtro-fiscal.js?v=3.4.232"></script>
@@ -4268,14 +4269,26 @@
 
             <div class="movimento-fiscal-form">
                 <div>
+                    <label for="movFiscalOrigem">Origem dos dados</label>
+                    <select id="movFiscalOrigem" onchange="atualizarOrigemMovimentoFiscal(); invalidarValidacaoMovimentoFiscal()">
+                        <option value="cfi">Sincronização direta do CFI — sem PDF</option>
+                        <option value="arquivo">Arquivo fiscal da SAGE / E-Fiscal</option>
+                    </select>
+                </div>
+                <div>
                     <label for="movFiscalLayout">Modelo do movimento fiscal</label>
                     <select id="movFiscalLayout" onchange="atualizarRegraLayoutFiscal(); invalidarValidacaoMovimentoFiscal()">
                         <option value="">Carregando layouts homologados...</option>
                     </select>
                 </div>
-                <div>
-                    <label for="movFiscalArquivo">Arquivo do movimento fiscal</label>
+                <div id="movFiscalCompetenciaGrupo">
+                    <label for="movFiscalCompetencia">Competência no CFI</label>
+                    <input id="movFiscalCompetencia" type="month" onchange="invalidarValidacaoMovimentoFiscal()">
+                </div>
+                <div id="movFiscalArquivoGrupo" style="display:none">
+                    <label for="movFiscalArquivo">Arquivo da SAGE / E-Fiscal</label>
                     <input id="movFiscalArquivo" type="file" accept=".csv,.txt,.pdf" onchange="invalidarValidacaoMovimentoFiscal()">
+                    <small>PDF aceito somente quando gerado pela SAGE / E-Fiscal.</small>
                 </div>
             </div>
 
@@ -4296,7 +4309,7 @@
 
             <div class="confirm-import-actions">
                 <button class="btn btn-secondary" type="button" onclick="fecharModalMovimentoFiscal()">Cancelar</button>
-                <button class="btn btn-secondary" type="button" id="movFiscalValidarBtn" onclick="validarArquivoMovimentoFiscal()">Validar arquivo</button>
+                <button class="btn btn-secondary" type="button" id="movFiscalValidarBtn" onclick="validarArquivoMovimentoFiscal()">Consultar CFI</button>
                 <button class="btn btn-primary" type="button" id="movFiscalImportarBtn" onclick="processarMovimentoFiscalValidado()" disabled>Continuar para importação</button>
             </div>
         </div>
@@ -16013,13 +16026,46 @@
             const layout = layoutFiscalSelecionado();
             const el = document.getElementById('movFiscalRegraLiberacao');
             if (!el) return;
-            if (layout && layout.validacaoCnpj === 'cadastro_codigo_empresa_arquivo') {
+            if (origemMovimentoFiscal() === 'cfi') {
+                el.textContent = 'CNPJ do cadastro = CNPJ consultado no CFI';
+            } else if (layout && layout.validacaoCnpj === 'cadastro_codigo_empresa_arquivo') {
                 el.textContent = 'Nº da empresa no cadastro = código NNNN_ do arquivo';
             } else if (layout && layout.validacaoCnpj === 'cabecalho_relatorio') {
                 el.textContent = 'CNPJ do cadastro = CNPJ do relatório';
             } else {
                 el.textContent = 'CNPJ do cadastro = emitente das chaves NF-e';
             }
+        }
+
+        function origemMovimentoFiscal() {
+            return String((document.getElementById('movFiscalOrigem') || {}).value || 'cfi');
+        }
+
+        function atualizarOrigemMovimentoFiscal() {
+            const direto = origemMovimentoFiscal() === 'cfi';
+            const arquivo = document.getElementById('movFiscalArquivoGrupo');
+            const competencia = document.getElementById('movFiscalCompetenciaGrupo');
+            const validar = document.getElementById('movFiscalValidarBtn');
+            if (arquivo) arquivo.style.display = direto ? 'none' : '';
+            if (competencia) competencia.style.display = direto ? '' : 'none';
+            if (validar) validar.textContent = direto ? 'Consultar CFI' : 'Validar arquivo SAGE';
+            atualizarRegraLayoutFiscal();
+        }
+
+        async function consultarMovimentoFiscalCfi(layout, cnpj, competencia) {
+            if (!['servicos_prestados', 'servicos_tomados'].includes(String(layout && layout.movimento || ''))) {
+                throw new Error('A sincronização direta do CFI está liberada para Serviços prestados e Serviços tomados. Selecione um desses modelos.');
+            }
+            if (!/^\d{4}-\d{2}$/.test(String(competencia || ''))) {
+                throw new Error('Informe a competência que será consultada no CFI.');
+            }
+            if (!window.API || typeof window.API.apiFetch !== 'function') throw new Error('Sessão da API não carregada. Atualize a página.');
+            if (typeof window.normalizarMovimentoFiscalCfi !== 'function') throw new Error('Contrato CFI → CCI não carregado. Atualize a página.');
+            const qs = new URLSearchParams({ cnpj, competencia, movimento: layout.movimento });
+            const resp = await window.API.apiFetch('/api/fiscal/movimento-cfi?' + qs.toString());
+            const body = await resp.json().catch(function() { return {}; });
+            if (!resp.ok) throw new Error(body.erro || body.error || ('Falha ao consultar o CFI (HTTP ' + resp.status + ').'));
+            return window.normalizarMovimentoFiscalCfi(body, { cnpj, competencia, movimento: layout.movimento });
         }
 
         async function carregarLayoutsFiscaisModal() {
@@ -16075,8 +16121,13 @@
             }
             document.getElementById('movFiscalEmpresaAtiva').textContent = state.info.empresa || '-';
             document.getElementById('movFiscalCnpjAtivo').textContent = formatarCnpjMovimentoFiscal(cnpj);
+            const competencia = document.getElementById('movFiscalCompetencia');
+            if (competencia && !competencia.value) competencia.value = String(state.info.periodoInicio || '').slice(0, 7);
+            const origem = document.getElementById('movFiscalOrigem');
+            if (origem) origem.value = 'cfi';
+            atualizarOrigemMovimentoFiscal();
             document.getElementById('movimentoFiscalOverlay').classList.add('show');
-            movimentoFiscalStatus('info', 'Selecione o modelo homologado e o arquivo. Para serviços, o mesmo modelo atende todas as empresas e o CNPJ do relatório será comparado com a empresa ativa.');
+            movimentoFiscalStatus('info', 'Selecione Serviços prestados ou tomados e a competência. O CCI consultará os dados já capturados no CFI, sem PDF. Arquivos continuam exclusivos da SAGE / E-Fiscal.');
             await carregarLayoutsFiscaisModal();
         }
 
@@ -16098,12 +16149,16 @@
             if (validation) validation.classList.remove('show');
             const importar = document.getElementById('movFiscalImportarBtn');
             if (importar) importar.disabled = true;
-            movimentoFiscalStatus('info', 'Arquivo ainda não validado. A importação permanece bloqueada.');
+            movimentoFiscalStatus('info', origemMovimentoFiscal() === 'cfi'
+                ? 'Sincronização do CFI ainda não validada. A gravação permanece bloqueada.'
+                : 'Arquivo SAGE ainda não validado. A importação permanece bloqueada.');
         }
 
         async function validarArquivoMovimentoFiscal() {
             const layout = layoutFiscalSelecionado();
+            const origem = origemMovimentoFiscal();
             const file = (document.getElementById('movFiscalArquivo') || {}).files?.[0];
+            const competenciaCfi = String((document.getElementById('movFiscalCompetencia') || {}).value || '');
             const importar = document.getElementById('movFiscalImportarBtn');
             if (importar) importar.disabled = true;
             movimentoFiscalValidacaoAtual = null;
@@ -16111,12 +16166,12 @@
                 movimentoFiscalStatus('error', 'Selecione o modelo homologado do movimento fiscal.');
                 return;
             }
-            if (!file) {
-                movimentoFiscalStatus('error', 'Selecione o arquivo do movimento fiscal.');
+            if (origem !== 'cfi' && !file) {
+                movimentoFiscalStatus('error', 'Selecione o arquivo fiscal gerado pela SAGE / E-Fiscal.');
                 return;
             }
-            const ext = String(file.name.split('.').pop() || '').toLowerCase();
-            if (!(layout.extensoes || []).includes(ext)) {
+            const ext = origem === 'cfi' ? 'cfi' : String(file.name.split('.').pop() || '').toLowerCase();
+            if (origem !== 'cfi' && !(layout.extensoes || []).includes(ext)) {
                 movimentoFiscalStatus('error', 'Formato incompatível com o layout. Use ' + escaparHtmlImportacao((layout.extensoes || []).join(', ').toUpperCase()) + '.');
                 return;
             }
@@ -16130,15 +16185,20 @@
                 return;
             }
             const parser = window[layout.parser];
-            if (typeof parser !== 'function' || typeof window.validarVinculoCnpjFiscal !== 'function') {
+            if (origem !== 'cfi' && (typeof parser !== 'function' || typeof window.validarVinculoCnpjFiscal !== 'function')) {
                 movimentoFiscalStatus('error', 'Parser ou trava de CNPJ não carregado. Atualize a aplicação antes de importar.');
                 return;
             }
-            movimentoFiscalStatus('info', 'Validando estrutura, direção fiscal, total oficial e vínculo de CNPJ…');
+            movimentoFiscalStatus('info', origem === 'cfi'
+                ? 'Consultando os dados gravados no CFI e validando CNPJ, competência, identidades e total…'
+                : 'Validando o arquivo SAGE, direção fiscal, total oficial e vínculo de CNPJ…');
             try {
-                const entrada = ext === 'pdf' ? await file.arrayBuffer() : await lerArquivoTexto(file);
-                const resultado = await parser(entrada, { arquivoNome: file.name });
-                if (ext !== 'pdf' && (!resultado || !resultado.detectado)) {
+                const cnpjAtivo = String(state.info && state.info.cnpj || '').replace(/\D/g, '');
+                const entrada = origem === 'cfi' ? null : (ext === 'pdf' ? await file.arrayBuffer() : await lerArquivoTexto(file));
+                const resultado = origem === 'cfi'
+                    ? await consultarMovimentoFiscalCfi(layout, cnpjAtivo, competenciaCfi)
+                    : await parser(entrada, { arquivoNome: file.name });
+                if (origem !== 'cfi' && ext !== 'pdf' && (!resultado || !resultado.detectado)) {
                     const fiscalDetectado = obterParserFiscalFlanacar(entrada, {});
                     if (fiscalDetectado && fiscalDetectado.direcao !== layout.movimento) {
                         const detectadoLabel = fiscalDetectado.direcao === 'saida' ? 'Saídas' : 'Entradas';
@@ -16147,7 +16207,6 @@
                             ', mas o modelo selecionado é de ' + esperadoLabel + '. Selecione o modelo correto.');
                     }
                 }
-                const cnpjAtivo = String(state.info && state.info.cnpj || '').replace(/\D/g, '');
                 const codigoEmpresaAtiva = codigoEmpresaFiscalAtiva();
                 const relatorioServicos = layout.validacaoCnpj === 'cabecalho_relatorio';
                 const validador = relatorioServicos ? window.validarVinculoCnpjRelatorioFiscal : window.validarVinculoCnpjFiscal;
@@ -16161,37 +16220,42 @@
                     codigoEmpresa: layout.codigoEmpresa,
                     codigoEmpresaAtiva,
                     direcaoEsperada: layout.movimento,
-                    arquivoNome: file.name,
+                    arquivoNome: origem === 'cfi' ? 'CFI_API' : file.name,
                     exigirCodigoArquivo: layout.exigirCodigoArquivo !== false,
                     exigirChaveNfeTodasNotas: layout.exigirChaveNfeTodasNotas !== false
                 });
-                movimentoFiscalValidacaoAtual = { layout, file, entrada, resultado, vinculo, cnpjAtivo, relatorioServicos };
+                const arquivoNome = origem === 'cfi'
+                    ? ('CFI direto — ' + layout.movimento.replace(/_/g, ' ') + ' — ' + competenciaCfi)
+                    : file.name;
+                movimentoFiscalValidacaoAtual = { origem, competenciaCfi, layout, file: file || null, arquivoNome, entrada, resultado, vinculo, cnpjAtivo, relatorioServicos };
                 document.getElementById('movFiscalCodigoArquivo').textContent = vinculo.codigoArquivo;
                 document.getElementById('movFiscalCnpjArquivo').textContent = formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo);
                 document.getElementById('movFiscalCoberturaNfe').textContent = relatorioServicos
-                    ? 'CNPJ do cabeçalho conferido'
+                    ? (origem === 'cfi' ? 'CNPJ e dados do CFI conferidos' : 'CNPJ do cabeçalho SAGE conferido')
                     : (vinculo.chavesValidas + ' de ' + vinculo.totalNotas + ' chaves NF-e' +
                         (/^cadastro_/.test(vinculo.origemCnpj || '') ? ' • empresa pelo código do arquivo' : ''));
                 document.getElementById('movFiscalPeriodo').textContent = formatarDataBR(resultado.periodo_inicio) + ' a ' + formatarDataBR(resultado.periodo_fim);
                 document.getElementById('movFiscalNotas').textContent = String(resultado.total_notas_fiscais || (resultado.lancamentos || []).length || 0);
                 document.getElementById('movFiscalVendas').textContent = formatarMoedaBR(
-                    /^impostos_retidos_servicos(?:_tomados)?$/.test(layout.movimento)
+                    origem === 'cfi'
+                        ? (resultado.total_oficial || 0)
+                        : /^impostos_retidos_servicos(?:_tomados)?$/.test(layout.movimento)
                         ? (resultado.total_credito || 0)
                         : ((resultado.total_credito || 0) + (resultado.total_debito || 0))
                 );
                 document.getElementById('movFiscalValidation').classList.add('show');
                 movimentoFiscalStatus(
                     'ok',
-                    '<strong>Arquivo validado e amarrado.</strong> O modelo ' + escaparHtmlImportacao(layout.nome) +
+                    (origem === 'cfi' ? '<strong>Sincronização direta validada e amarrada.</strong> ' : '<strong>Arquivo SAGE validado e amarrado.</strong> ') + 'O modelo ' + escaparHtmlImportacao(layout.nome) +
                     ' e a empresa ativa apontam para ' + escaparHtmlImportacao(formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo)) + '.<br>' +
                     (relatorioServicos
-                        ? 'Tipo do serviço, período e total oficial conferidos. A próxima etapa permite revisar os lançamentos antes da gravação.'
+                        ? 'Tipo do serviço, período e total conferidos. A próxima etapa permite revisar os lançamentos antes da gravação.'
                         : 'A próxima etapa permite selecionar as colunas e revisar os lançamentos antes da gravação.')
                 );
                 if (importar) importar.disabled = false;
             } catch (e) {
                 console.error('[movimento fiscal] validacao bloqueada:', e);
-                movimentoFiscalStatus('error', '<strong>Importação bloqueada.</strong> ' + escaparHtmlImportacao(e.message || e));
+                movimentoFiscalStatus('error', '<strong>Operação bloqueada.</strong> ' + escaparHtmlImportacao(e.message || e));
             }
         }
 
@@ -16302,6 +16366,7 @@
                 statusFiscal('error', 'Valide o arquivo antes de continuar.');
                 return;
             }
+            const nomeFonteValidada = validacao.arquivoNome || (validacao.file && validacao.file.name) || 'Fonte fiscal';
             if (typeof window.__verificarVersaoAntesDeImportar === 'function') {
                 const versaoAtual = await window.__verificarVersaoAntesDeImportar();
                 if (!versaoAtual) return;
@@ -16309,7 +16374,11 @@
             const cnpjAtivoAgora = String(state.info && state.info.cnpj || '').replace(/\D/g, '');
             const layoutAgora = modalRetencoesTomados ? layoutRetencoesServicosTomados() : layoutFiscalSelecionado();
             const arquivoAgora = (document.getElementById(modalRetencoesTomados ? 'retTomArquivo' : 'movFiscalArquivo') || {}).files?.[0];
-            if (!layoutAgora || layoutAgora.id !== validacao.layout.id || arquivoAgora !== validacao.file || cnpjAtivoAgora !== validacao.cnpjAtivo) {
+            const origemAgora = modalRetencoesTomados ? 'arquivo' : origemMovimentoFiscal();
+            const competenciaCfiAgora = modalRetencoesTomados ? '' : String((document.getElementById('movFiscalCompetencia') || {}).value || '');
+            const arquivoMudou = (validacao.origem || 'arquivo') === 'cfi' ? false : arquivoAgora !== validacao.file;
+            if (!layoutAgora || layoutAgora.id !== validacao.layout.id || arquivoMudou || origemAgora !== (validacao.origem || 'arquivo') ||
+                ((validacao.origem || 'arquivo') === 'cfi' && competenciaCfiAgora !== validacao.competenciaCfi) || cnpjAtivoAgora !== validacao.cnpjAtivo) {
                 if (modalRetencoesTomados) invalidarValidacaoRetencoesServicosTomados();
                 else invalidarValidacaoMovimentoFiscal();
                 statusFiscal('error', 'Empresa, layout ou arquivo mudou após a validação. Valide novamente.');
@@ -16325,11 +16394,14 @@
                         return;
                     }
                 }
-                const extensaoValidada = String(validacao.file.name.split('.').pop() || '').toLowerCase();
-                const entradaReprocessamento = extensaoValidada === 'pdf'
+                const diretoCfi = (validacao.origem || 'arquivo') === 'cfi';
+                const extensaoValidada = diretoCfi ? 'cfi' : String(validacao.file.name.split('.').pop() || '').toLowerCase();
+                const entradaReprocessamento = diretoCfi ? null : (extensaoValidada === 'pdf'
                     ? await validacao.file.arrayBuffer()
-                    : (validacao.entrada instanceof ArrayBuffer ? validacao.entrada.slice(0) : validacao.entrada);
-                const resultado = await window[validacao.layout.parser](entradaReprocessamento, { colunasSelecionadas, arquivoNome: validacao.file.name });
+                    : (validacao.entrada instanceof ArrayBuffer ? validacao.entrada.slice(0) : validacao.entrada));
+                const resultado = diretoCfi
+                    ? await consultarMovimentoFiscalCfi(validacao.layout, cnpjAtivoAgora, validacao.competenciaCfi)
+                    : await window[validacao.layout.parser](entradaReprocessamento, { colunasSelecionadas, arquivoNome: validacao.file.name });
                 const vinculo = validacao.relatorioServicos
                     ? window.validarVinculoCnpjRelatorioFiscal(resultado, {
                         cnpjEmpresaAtiva: cnpjAtivoAgora,
@@ -16341,7 +16413,7 @@
                         codigoEmpresa: validacao.layout.codigoEmpresa,
                         codigoEmpresaAtiva: codigoEmpresaFiscalAtiva(),
                         direcaoEsperada: validacao.layout.movimento,
-                        arquivoNome: validacao.file.name,
+                        arquivoNome: nomeFonteValidada,
                         exigirCodigoArquivo: validacao.layout.exigirCodigoArquivo !== false,
                         exigirChaveNfeTodasNotas: validacao.layout.exigirChaveNfeTodasNotas !== false
                     });
@@ -16352,6 +16424,18 @@
                 showProcessing();
                 let entries = (resultado.lancamentos || []).slice();
                 if (!entries.length) throw new Error('Nenhum lançamento fiscal foi encontrado após a seleção de colunas.');
+                if (diretoCfi) {
+                    const jaImportados = new Set((state.entries || [])
+                        .filter(function(entry) { return entry && entry.origemDadosFiscal === 'CFI_API'; })
+                        .map(function(entry) { return String(entry.cfiLancamentoId || ''); })
+                        .filter(Boolean));
+                    const repetidos = entries
+                        .map(function(entry) { return String(entry.cfiLancamentoId || ''); })
+                        .filter(function(id) { return id && jaImportados.has(id); });
+                    if (repetidos.length) {
+                        throw new Error(repetidos.length + ' lançamento(s) deste movimento do CFI já estão nesta empresa. Remova a importação anterior antes de sincronizar novamente.');
+                    }
+                }
                 if (validacao.layout.codigoEmpresa !== 'GEN') validarLayoutCompativelComBanco(entries, validacao.layout.codigoEmpresa);
                 garantirIntegridadeLancamentos(entries);
                 entries = entries.map(applyMapping);
@@ -16368,6 +16452,7 @@
                         importacaoId,
                         importacaoTitulo: titulo,
                         origemImportacao: 'movimento_fiscal',
+                        origemIntegracaoFiscal: diretoCfi ? 'CFI_API' : 'ARQUIVO_SAGE',
                         cnpjEmpresaFiscalValidado: vinculo.cnpjArquivo
                     };
                 });
@@ -16381,11 +16466,11 @@
 
                 hideProcessing();
                 const confirmado = await abrirConferenciaImportacao(entries, {
-                    arquivo: validacao.file.name,
+                    arquivo: nomeFonteValidada,
                     bancoCode: codigoRelatorio,
                     bancoNome: state.info.empresa || resultado.nome_banco_detectado || validacao.layout.empresa,
                     titulo,
-                    formato: validacao.file.name.split('.').pop().toUpperCase() + ' FISCAL',
+                    formato: diretoCfi ? 'CFI API' : (validacao.file.name.split('.').pop().toUpperCase() + ' FISCAL'),
                     tipoImportacao: 'fiscal',
                     vinculoCnpj: formatarCnpjMovimentoFiscal(vinculo.cnpjArquivo) + ' — validado'
                 });
@@ -16394,10 +16479,10 @@
                     return;
                 }
 
-                registrarUsoLayoutArquivo(entries, codigoRelatorio, validacao.file.name, validacao.file.name.split('.').pop().toUpperCase() + ' fiscal');
+                registrarUsoLayoutArquivo(entries, codigoRelatorio, nomeFonteValidada, diretoCfi ? 'CFI API' : (validacao.file.name.split('.').pop().toUpperCase() + ' fiscal'));
                 state.entries = state.entries.concat(entries);
                 garantirIntegridadeLancamentos(state.entries);
-                state.lastFile = validacao.file.name;
+                state.lastFile = nomeFonteValidada;
                 saveState();
                 if (modalRetencoesTomados) fecharModalRetencoesServicosTomados();
                 else fecharModalMovimentoFiscal();
@@ -16417,9 +16502,9 @@
                     nomeBanco: validacao.layout.empresa,
                     layout: validacao.layout.nome,
                     parser: validacao.layout.parser,
-                    arquivo: validacao.file.name,
-                    tamanho: validacao.file.size,
-                    formato: validacao.file.name.split('.').pop().toUpperCase() + ' FISCAL',
+                    arquivo: nomeFonteValidada,
+                    tamanho: validacao.file ? validacao.file.size : 0,
+                    formato: (validacao.origem || 'arquivo') === 'cfi' ? 'CFI API' : (validacao.file.name.split('.').pop().toUpperCase() + ' FISCAL'),
                     empresa: state.info && state.info.empresa,
                     cnpj: state.info && state.info.cnpj,
                     periodo_inicio: validacao.resultado.periodo_inicio,

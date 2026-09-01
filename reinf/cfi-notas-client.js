@@ -289,6 +289,31 @@ const buscarAquisicoesRuraisNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'a
  */
 const buscarServicosTomadosNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'servicos-tomados' }, deps);
 
+/** Movimento fiscal de servicos, direto da base normalizada do CFI. */
+async function buscarMovimentoFiscalNoCfi({ cnpj, competencia, movimento, token }, deps = {}) {
+  const doFetch = deps.fetch || globalThis.fetch;
+  const base = baseCfi(deps.env || process.env);
+  if (!base) throw new Error('A URL do Consultor Fiscal nao esta configurada neste servico.');
+  const limpo = String(cnpj || '').replace(/\D/g, '');
+  if (limpo.length !== 14) throw new Error('Informe o CNPJ com 14 digitos.');
+  if (!/^\d{4}-\d{2}$/.test(String(competencia || ''))) throw new Error('Informe a competencia no formato AAAA-MM.');
+  if (!['servicos_prestados', 'servicos_tomados'].includes(String(movimento || ''))) {
+    throw new Error('O CFI direto atende servicos prestados ou tomados neste fluxo.');
+  }
+  if (!token) throw new Error('Sessao sem token. Faca login novamente.');
+  const qs = new URLSearchParams({ cnpj: limpo, competencia, movimento });
+  const url = `${base}/api/admin/reinf/movimento-fiscal?${qs.toString()}`;
+  let resp;
+  try {
+    resp = await doFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (e) {
+    throw new Error(`Nao consegui falar com o Consultor Fiscal (${e.message}). Tente de novo em instantes.`);
+  }
+  let corpo = {};
+  try { corpo = await resp.json(); } catch { corpo = {}; }
+  return interpretarRespostaCfi({ status: resp.status, corpo, url });
+}
+
 
 /**
  * 🔒 FASE 5 DO TÚNEL — o FECHAMENTO da competência (26/08).
@@ -382,6 +407,7 @@ module.exports = {
   ajustarRetencaoNoCfi,
   montarUrlCfi, montarUrlCadastroCfi, interpretarRespostaCfi, buscarNoCfi,
   buscarFechamentosNoCfi,
+  buscarMovimentoFiscalNoCfi,
   buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarServicosTomadosNoCfi,
   buscarResponsavelNoCfi, buscarCertificadoNoCfi, buscarAcessoModuloNoCfi,
 };

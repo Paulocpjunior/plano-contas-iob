@@ -30,6 +30,12 @@ assert(index.includes('Cadastro = identidade fiscal do arquivo'), 'regra de iden
 assert(index.includes('window.validarVinculoCnpjFiscal(resultado'), 'frontend deve executar a trava de CNPJ antes da gravacao');
 assert(index.includes('window.validarVinculoCnpjRelatorioFiscal'), 'servicos devem conferir o CNPJ do cabecalho antes da gravacao');
 assert(index.includes('accept=".csv,.txt,.pdf"'), 'modal fiscal deve aceitar livros CSV/TXT e relatorios de servicos PDF');
+assert(index.includes('Sincronização direta do CFI — sem PDF'), 'CFI deve aparecer somente como sincronizacao direta, sem relatorio intermediario');
+assert(index.includes('Arquivo fiscal da SAGE / E-Fiscal'), 'arquivo deve ficar identificado como origem exclusiva SAGE/E-Fiscal');
+assert(index.includes('PDF aceito somente quando gerado pela SAGE / E-Fiscal.'), 'regra de PDF exclusivo SAGE deve ficar explicita no modal');
+assert(index.includes("origemIntegracaoFiscal: diretoCfi ? 'CFI_API' : 'ARQUIVO_SAGE'"), 'origem direta e arquivo SAGE devem permanecer auditaveis');
+assert(index.includes('já estão nesta empresa. Remova a importação anterior'), 'sincronizacao CFI deve bloquear repeticao do mesmo lancamento');
+assert(server.includes("app.get('/api/fiscal/movimento-cfi'"), 'CCI deve expor consulta autenticada ao movimento direto do CFI');
 assert(index.includes("validacao.layout.codigoEmpresa !== 'GEN'"), 'modelo geral de servicos nao pode ser limitado ao codigo de uma empresa');
 assert(index.includes("origemImportacao: 'movimento_fiscal'"), 'lancamentos fiscais devem manter origem propria');
 assert(index.includes("if (csvFiscalFlanacarDetectado) {"), 'extrator generico deve reconhecer movimento fiscal');
