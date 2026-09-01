@@ -1,8 +1,8 @@
 {
-  "version": "3.4.230",
-  "build_date": "2026-09-01T15:23:55Z",
+  "version": "3.4.231",
+  "build_date": "2026-09-01T16:47:49Z",
   "release_notes": [
-    "Corrigir progresso e exibir solicitações ao colaborador",
+    "Corrigir progresso e exibir solicitações ao colaborador (#93)",
     "✍️ R-4020: ajustar a retenção — e parar de recalcular o que o CFI respondeu (#91)",
     "Restringir automação ao ADMIN e estabilizar deploy (#90)",
     "Autenticar agendador interno dos alertas (#89)",
