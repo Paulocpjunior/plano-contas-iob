@@ -35,6 +35,10 @@ assert(index.includes('Arquivo fiscal da SAGE / E-Fiscal'), 'arquivo deve ficar 
 assert(index.includes('PDF aceito somente quando gerado pela SAGE / E-Fiscal.'), 'regra de PDF exclusivo SAGE deve ficar explicita no modal');
 assert(index.includes("origemIntegracaoFiscal: diretoCfi ? 'CFI_API' : 'ARQUIVO_SAGE'"), 'origem direta e arquivo SAGE devem permanecer auditaveis');
 assert(index.includes('já estão nesta empresa. Remova a importação anterior'), 'sincronizacao CFI deve bloquear repeticao do mesmo lancamento');
+assert(index.includes('validarEscopoFiscalAntesDeGravar(resultado, vinculo, layout, cnpjAtivo)'), 'validacao inicial deve vetar CNPJ ou competencia divergente');
+assert(index.includes('validarEscopoFiscalAntesDeGravar(resultado, vinculo, validacao.layout, cnpjAtivoAgora)'), 'escopo deve ser conferido novamente antes da gravacao');
+assert(index.includes('competenciaFiscalValidada: competencia'), 'lancamento deve preservar competencia fiscal validada');
+assert(index.includes('movimentoFiscalTipo: validacao.layout.movimento'), 'lancamento deve preservar tipo fiscal para bloquear repeticao');
 assert(server.includes("app.get('/api/fiscal/movimento-cfi'"), 'CCI deve expor consulta autenticada ao movimento direto do CFI');
 assert(index.includes("validacao.layout.codigoEmpresa !== 'GEN'"), 'modelo geral de servicos nao pode ser limitado ao codigo de uma empresa');
 assert(index.includes("origemImportacao: 'movimento_fiscal'"), 'lancamentos fiscais devem manter origem propria');
