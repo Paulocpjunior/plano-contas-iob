@@ -21,7 +21,7 @@ const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client'
 const { buscarRegimeNoCfi } = require('./cfi-regime-client');
 const { exigeSaldoAbertura, periodoInicialEmpresa, validarSaldosAbertura, proximoPeriodo, saldosParaTransporte } = require('./implantacao-contabil');
 const { avaliarProntidaoContabil } = require('./prontidao-contabil');
-const { avaliarProgressaoEmpresa, resumirProgressao } = require('./progressao-contabil');
+const { avaliarProgressaoEmpresa, resumirProgressao, usuarioAtribuido } = require('./progressao-contabil');
 const { sanitizarAcompanhamento } = require('./acompanhamento-contabil');
 const ProgressaoAlertas = require('./progressao-alertas');
 const { avaliarParametrizacaoRegime, sanitizarParametrizacaoRegime } = require('./parametrizacao-regime');
@@ -4659,6 +4659,71 @@ async function avaliarProgressaoPersistida(empresa, competencia, agora, diasSemA
     dias_sem_atividade: diasSemAtividade
   });
 }
+
+// Caixa operacional do colaborador. A configuração de canais permanece no ADMIN;
+// aqui cada responsável vê apenas as solicitações atribuídas a ele.
+app.get('/api/minhas-pendencias-contabeis', async (req, res) => {
+  try {
+    const empresasSnap = await db.collection('empresas').get();
+    const atribuidas = empresasSnap.docs.map(function (doc) {
+      return { cnpj: doc.id, ...(doc.data() || {}) };
+    }).filter(function (empresa) {
+      return usuarioAtribuido({ ...empresa, responsaveis: normalizarResponsaveis(empresa.responsaveis) }, req.user);
+    });
+    const agora = new Date();
+    const porEmpresa = await mapearComConcorrencia(atribuidas, 6, async function (empresa) {
+      const acompanhamentoSnap = await db.collection('empresas').doc(empresa.cnpj).collection('acompanhamento_contabil').get();
+      const abertos = acompanhamentoSnap.docs.filter(function (doc) {
+        const dados = doc.data() || {};
+        return String(dados.revisao_status || 'nao_solicitada') !== 'aprovada';
+      });
+      return await mapearComConcorrencia(abertos, 3, async function (doc) {
+        const avaliacao = await avaliarProgressaoPersistida(empresa, doc.id, agora, 5);
+        return {
+          cnpj: avaliacao.cnpj,
+          codigo_empresa: avaliacao.codigo_empresa,
+          razao_social: avaliacao.razao_social,
+          competencia: avaliacao.competencia,
+          status: avaliacao.status,
+          etapa: avaliacao.etapa,
+          etapa_nome: avaliacao.etapa_nome,
+          percentual: avaliacao.percentual,
+          motivo: avaliacao.motivo_parada,
+          proxima_acao: avaliacao.proxima_acao,
+          prazo: avaliacao.acompanhamento.prazo,
+          prioridade: avaliacao.acompanhamento.prioridade,
+          impedimento: avaliacao.acompanhamento.impedimento,
+          observacao: avaliacao.acompanhamento.observacao,
+          revisao_status: avaliacao.acompanhamento.revisao_status,
+          evidencia_titulo: avaliacao.acompanhamento.evidencia_titulo,
+          evidencia_url: avaliacao.acompanhamento.evidencia_url,
+          solicitado_em: avaliacao.acompanhamento.atualizado_em,
+          solicitado_por_email: avaliacao.acompanhamento.atualizado_por_email,
+          areas: avaliacao.areas.filter(function (area) { return area.esperada; }).map(function (area) {
+            return { area: area.area, nome: area.nome, total: area.total, classificados: area.classificados, pendentes: area.pendentes, concluida: area.concluida };
+          }),
+          aviso_automatico: avaliacao.acompanhamento.alerta_ativo ? {
+            ativo: true,
+            dias: avaliacao.acompanhamento.alerta_dias,
+            proximo_alerta_em: avaliacao.proximo_alerta_em,
+            ultimo_alerta_em: avaliacao.acompanhamento.ultimo_alerta_em
+          } : { ativo: false }
+        };
+      });
+    });
+    const pendencias = porEmpresa.flat().sort(function (a, b) {
+      const prioridade = { critica: 0, alta: 1, normal: 2, baixa: 3 };
+      return (prioridade[a.prioridade] ?? 9) - (prioridade[b.prioridade] ?? 9)
+        || String(a.prazo || '9999-12-31').localeCompare(String(b.prazo || '9999-12-31'))
+        || String(a.codigo_empresa || '999999').localeCompare(String(b.codigo_empresa || '999999'));
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, total: pendencias.length, pendencias });
+  } catch (erro) {
+    console.error('minhas pendencias contabeis erro:', erro);
+    res.status(500).json({ erro: erro.message, codigo: 'ERRO_MINHAS_PENDENCIAS_CONTABEIS' });
+  }
+});
 
 // Visão somente leitura: consolida contratos existentes sem criar um segundo fluxo contábil.
 app.get('/api/admin/progressao-contabil', adminRequired, async (req, res) => {

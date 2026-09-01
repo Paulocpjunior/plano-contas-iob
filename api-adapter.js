@@ -189,6 +189,13 @@
     return body;
   }
 
+  async function getMinhasPendenciasContabeis() {
+    const r = await apiFetch(API_BASE + '/api/minhas-pendencias-contabeis');
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
   async function salvarAdminAcompanhamentoContabil(cnpj, competencia, dados) {
     const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
     const r = await apiFetch(API_BASE + '/api/admin/progressao-contabil/' + cnpjLimpo + '/' + encodeURIComponent(competencia) + '/acompanhamento', {
@@ -910,6 +917,7 @@
     reinfServicoTomadoPrestador,
     reinfServicosTomadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
   window.API.getAdminProgressaoContabil = getAdminProgressaoContabil;
+  window.API.getMinhasPendenciasContabeis = getMinhasPendenciasContabeis;
   window.API.salvarAdminAcompanhamentoContabil = salvarAdminAcompanhamentoContabil;
   window.API.processarAdminAlertasProgressao = processarAdminAlertasProgressao;
   console.log('[API Adapter v3] carregado');
