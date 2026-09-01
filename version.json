@@ -1,8 +1,9 @@
 {
   "version": "3.4.229",
-  "build_date": "2026-09-01T15:10:37Z",
+  "build_date": "2026-09-01T15:21:34Z",
   "release_notes": [
-    "wip",
+    "feat: mostrar solicitações contábeis ao colaborador responsável",
+    "fix: reconhecer Financeiro, Fiscal e Folha pelos metadados reais das importações",
     "Restringir automação ao ADMIN e estabilizar deploy (#90)",
     "Autenticar agendador interno dos alertas (#89)",
     "Corrigir materialização da candidata no deploy (#88)",
