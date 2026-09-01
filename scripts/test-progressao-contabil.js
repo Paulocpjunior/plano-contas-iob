@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { avaliarProgressaoEmpresa, resumirProgressao } = require('../progressao-contabil');
+const { avaliarProgressaoEmpresa, resumirProgressao, usuarioAtribuido } = require('../progressao-contabil');
 
 const pronta = {
   cnpj: '00112233000144', codigo_empresa: '0100', razao_social: 'Empresa Teste', plano_id: 'plano', modo_contabil: 'ponte_sage',
@@ -71,6 +71,22 @@ assert.strictEqual(mantoan.status, 'em_andamento', 'três áreas concluídas e c
 assert.strictEqual(mantoan.etapa, 'fechamento');
 assert.strictEqual(mantoan.percentual, 75, 'três áreas valem 75% e fechamento oficial completa 100%');
 assert.deepStrictEqual(mantoan.areas.filter(a => a.esperada).map(a => [a.area, a.concluida]), [['financeiro', true], ['fiscal', true], ['folha', true]]);
+
+const mantoanMetadadosReais = avaliarProgressaoEmpresa({
+  empresa: pronta, competencia: '2026-06', agora,
+  entries: [
+    { data: '2026-06-01', contaDebito: '1', contaCredito: '2', bancoId: 'itau', layoutParser: 'parsearPDF_Itau_ExtratoMensal', importacaoTitulo: 'Extrato Itaú JUN/26' },
+    { data: '2026-06-02', contaDebito: '1', contaCredito: '2', bancoId: 'itau', layoutParser: 'parsearPDF_IOB_Sage_ServicosPrestados', categoriaFiscal: 'servicos', importacaoTitulo: 'E-Fiscal - Servicos Prestados — 2026-06' },
+    { data: '2026-06-03', contaDebito: '1', contaCredito: '2', bancoId: 'itau', layoutParser: 'parseSageFolhaFpimp', categoria: 'Folha de pagamento', importacaoTitulo: 'Folha SAGE 06/2026 — FPIMP0040.06' }
+  ],
+  sessao_atualizada_em: '2026-08-29T12:00:00Z'
+});
+assert.strictEqual(mantoanMetadadosReais.percentual, 75, 'metadados reais das três áreas devem contar mesmo sem o campo origem');
+assert.strictEqual(mantoanMetadadosReais.etapa, 'fechamento');
+assert.deepStrictEqual(mantoanMetadadosReais.areas.filter(a => a.esperada).map(a => [a.area, a.total]), [['financeiro', 1], ['fiscal', 1], ['folha', 1]]);
+
+assert.strictEqual(usuarioAtribuido(pronta, { uid: 'ana', email: 'ana@sp.com' }), true);
+assert.strictEqual(usuarioAtribuido(pronta, { uid: 'outro', email: 'outro@sp.com' }), false);
 
 const sbe = avaliarProgressaoEmpresa({
   empresa: pronta, competencia: '2026-07', agora,

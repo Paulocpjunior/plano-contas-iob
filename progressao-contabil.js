@@ -40,24 +40,45 @@ function responsaveisEmpresa(empresa) {
   };
 }
 
+const AREAS_OPERACIONAIS = ['financeiro', 'fiscal', 'folha'];
+
+function fonteLancamento(entry) {
+  const item = entry || {};
+  return [
+    item.tipoMovimento, item.tipo_movimento, item.origemTipo, item.origem_tipo, item.origem, item.source,
+    item.importacaoTitulo, item.layoutNome, item.layoutParser, item.categoria, item.categoriaFiscal,
+    item.tipoDocumentoFiscal, item.naturezaLancamento
+  ].map(texto).filter(Boolean).join(' ').toLowerCase();
+}
+
+function areaLancamento(entry) {
+  const item = entry || {};
+  const fonte = fonteLancamento(item);
+  if (/folha|fpimp|sal[aá]rio|pr[oó]-labore/.test(fonte)) return 'folha';
+  if (/fiscal|nf-e|nfe|nota|servi[cç]o|cfop|livro de entrada|livro de sa[ií]da/.test(fonte)
+    || [item.cfop, item.tipoDocumentoFiscal, item.empresaCodigoFiscal, item.categoriaFiscal, item.direcaoFiscal, item.chave_nfe].some(function (valor) { return !!texto(valor); })) return 'fiscal';
+  if (/banc|extrato|ofx|financeir|cart[aã]o|manual|ita[uú]|bradesco|santander|safra|caixa|nubank|inter|btg|c6 bank|banco do brasil/.test(fonte)
+    || [item.bancoId, item.bancoNome, item.layoutBanco, item.conta_bancaria].some(function (valor) { return !!texto(valor); })) return 'financeiro';
+  return 'nao_informada';
+}
+
 function origemLancamento(entry) {
-  const origem = texto(entry && (entry.tipoMovimento || entry.tipo_movimento || entry.origemTipo || entry.origem_tipo || entry.origem || entry.source));
-  const normalizada = origem.toLowerCase();
-  if (/folha|fpimp/.test(normalizada)) return 'Folha';
-  if (/fiscal|nf-e|nfe|servi[cç]o/.test(normalizada)) return 'Fiscal';
-  if (/banc|extrato|ofx/.test(normalizada)) return 'Extrato';
-  if (/manual/.test(normalizada)) return 'Manual';
+  const item = entry || {};
+  const origem = texto(item.tipoMovimento || item.tipo_movimento || item.origemTipo || item.origem_tipo || item.origem || item.source);
+  const area = areaLancamento(item);
+  if (area === 'folha') return 'Folha';
+  if (area === 'fiscal') return 'Fiscal';
+  if (area === 'financeiro') return /manual/.test(fonteLancamento(item)) ? 'Manual' : 'Extrato';
   return origem ? origem.slice(0, 40) : 'Não informada';
 }
 
-const AREAS_OPERACIONAIS = ['financeiro', 'fiscal', 'folha'];
-
-function areaLancamento(entry) {
-  const origem = texto(entry && (entry.tipoMovimento || entry.tipo_movimento || entry.origemTipo || entry.origem_tipo || entry.origem || entry.source)).toLowerCase();
-  if (/folha|fpimp|sal[aá]rio|pr[oó]-labore/.test(origem)) return 'folha';
-  if (/fiscal|nf-e|nfe|nota|servi[cç]o|cfop|entrada|sa[ií]da/.test(origem)) return 'fiscal';
-  if (/banc|extrato|ofx|financeir|cart[aã]o|manual/.test(origem)) return 'financeiro';
-  return 'nao_informada';
+function usuarioAtribuido(empresa, usuario) {
+  const uid = texto(usuario && usuario.uid);
+  const email = texto(usuario && usuario.email).toLowerCase();
+  const responsaveis = responsaveisEmpresa(empresa);
+  return responsaveis.apoios.concat([responsaveis.principal]).filter(Boolean).some(function (pessoa) {
+    return (uid && texto(pessoa.uid) === uid) || (email && texto(pessoa.email).toLowerCase() === email);
+  });
 }
 
 function areasEsperadas(acompanhamento) {
@@ -263,4 +284,4 @@ function resumirProgressao(empresas) {
   };
 }
 
-module.exports = { avaliarProgressaoEmpresa, resumirProgressao, lancamentosDaCompetencia, dataMillis, areaLancamento, areasEsperadas, montarAreas, AREAS_OPERACIONAIS };
+module.exports = { avaliarProgressaoEmpresa, resumirProgressao, lancamentosDaCompetencia, dataMillis, areaLancamento, areasEsperadas, montarAreas, usuarioAtribuido, AREAS_OPERACIONAIS };

@@ -1,8 +1,9 @@
 {
-  "version": "3.4.229",
-  "build_date": "2026-09-01T15:10:37Z",
+  "version": "3.4.230",
+  "build_date": "2026-09-01T15:23:55Z",
   "release_notes": [
-    "wip",
+    "Corrigir progresso e exibir solicitações ao colaborador",
+    "✍️ R-4020: ajustar a retenção — e parar de recalcular o que o CFI respondeu (#91)",
     "Restringir automação ao ADMIN e estabilizar deploy (#90)",
     "Autenticar agendador interno dos alertas (#89)",
     "Corrigir materialização da candidata no deploy (#88)",
@@ -10,7 +11,6 @@
     "fix: impedir parser fiscal desatualizado no modal",
     "fix: importar servico prestado sem razao social",
     "feat: adicionar conciliacao detalhada segura",
-    "feat: aprimorar progressao com acompanhamento",
-    "feat: adicionar progressao contabil gerencial"
+    "feat: aprimorar progressao com acompanhamento"
   ]
 }
