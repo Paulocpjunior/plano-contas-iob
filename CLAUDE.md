@@ -499,6 +499,66 @@ continua sendo — como o PVA no SPED.
 
 ## Ligação com o CFI — as notas do R-4020 já chegam prontas (07/08)
 
+### ✍️ AJUSTAR A RETENÇÃO — e parar de RECALCULAR o que o CFI já respondeu (31/08)
+
+🚨 Paulo, no R-4020 da CONDOMINIO EDIFICIO MONTE CARLO: *"preciso ter a opção
+de ajustar as retenções para entregar com o valor correto, com o novo layout
+estão emitindo errado"*.
+
+📖 O caso, com os números do print — NFS-e 377235, **ELEVADORES ATLAS
+SCHINDLER**: serviço **3.413,24** · campo PIS **56,32** (1,65%) · campo COFINS
+**259,41** (7,60%) · **Contribuições Sociais - Retidas 158,72** (4,65%), com a
+descrição *"3 - PIS/COFINS/CSLL Retidos"*. E a própria nota avisa em Outras
+Informações: *"(5) Informações preenchidas nos campos de PIS e COFINS são
+referentes aos valores TOTAIS sobre a operação"*.
+
+Ou seja: **56,32 e 259,41 são o tributo do PRESTADOR**, não retenção — e
+declará-los manda **315,73** no lugar de **158,72**, quase o DOBRO.
+
+🚨 **A DECISÃO ESTRUTURAL: `resolverRetencoes` PARA DE RECALCULAR quando o CFI
+manda o bloco `retencao`.** Este módulo tinha a própria régua (a subtração da
+CSLL, 07/08) e ela é boa — mas com o CFI passando a decompor a CSRF, refazer a
+conta aqui faria o CCI mostrar **315,73** enquanto o CFI diz **158,72 sobre a
+MESMA nota**. É a régua do R-2055, palavra por palavra: **a ressalva PROÍBE
+recalcular do outro lado** — dois números para o mesmo fato é o pior defeito de
+um arquivo fiscal.
+
+⚠️ **A régua daqui NÃO foi apagada**: sem o bloco (resposta ANTIGA do CFI, ou
+nota de outra fonte) ela continua sendo a única que conhece a subtração da
+CSLL. O que mudou é a PRECEDÊNCIA.
+
+⚠️ **E a ORIGEM viaja junto** (`csllOrigem` recebe `csrf-decomposta`,
+`ajuste-declarado`…): número DERIVADO não se apresenta como fato lido do
+documento. `exigeAjuste` do CFI vira **pendência** aqui — é ele que sabe que o
+documento traz um número que a régua desmente.
+
+✂️ **O AJUSTE É POR NOTA e é GRAVADO NO CFI**, nunca aqui: quem responde
+*"quanto esta nota reteve"* é o dono do dado, e um ajuste guardado deste lado
+faria o **SPED e a EFD-Reinf** declararem números diferentes. A rota daqui
+(`POST /api/reinf/retencoes-pj/:cnpj/:competencia/ajuste`) só repassa.
+
+⚠️ **O AUTOR sai do usuário LOGADO, nunca do corpo da requisição** — autor que
+o cliente escolhe não é autoria, é digitação. Lá o registro é carimbado com
+`autorFonte: 'tunel-contabil'` (*"o app irmão AFIRMA que foi esta pessoa"*),
+porque o CFI não tem como verificar.
+
+⚠️ **Sem CHAVE não se ajusta**: mudar o valor de uma declaração sem poder dizer
+QUAL nota mudou é o ajuste que ninguém confere depois — e a decisão é da NOTA,
+não do prestador (a lição do ✕ do FUNRURAL, 30/08: decisão gravada no nível
+errado apaga o que ninguém mandou apagar).
+
+📌 **A TELA ENTROU NO MESMO PR** — rota sem botão é código morto com cara de
+entrega. O painel mostra **o que o documento traz** ao lado dos campos (é
+contra ele que a pessoa confere), tem **motivo obrigatório**, o **↩ desfazer**
+(botão que tira valor do total nasce com o que desfaz, 14/08) e **recarrega
+depois de gravar** — senão a tela mostraria o número velho e a única saída de
+quem não vê efeito é clicar de novo.
+
+⚠️ **Falha de rede num POST não é "não gravou"**: a mensagem manda CONFERIR
+antes de digitar de novo, nunca tentar às cegas.
+
+
+
 **OS DOIS APPS NÃO COMPARTILHAM FIRESTORE.** O mapa deste repo dizia que sim, e
 isso estava errado — são dois projetos GCP: aqui `projetos-app-sp` (fixo no
 `server.js`), lá `consultorfiscalapp` (`applicationDefault()`). Quem escrevesse

@@ -329,7 +329,57 @@ async function buscarFechamentosNoCfi({ competencia, cnpj, token }, deps = {}) {
   };
 }
 
+/**
+ * ✍️ AJUSTA a retenção de UMA nota — no CFI, que é o dono do dado.
+ *
+ * 🚨 O ajuste NÃO é gravado aqui de propósito. Quem responde "quanto esta nota
+ * reteve" é o Consultor Fiscal (é ele que conhece a forma do documento), e um
+ * ajuste guardado deste lado faria o SPED e a EFD-Reinf declararem números
+ * diferentes sobre a MESMA nota — o pior defeito de um arquivo fiscal.
+ *
+ * ⚠️ O AUTOR vai junto porque este servidor sabe quem está logado e o CFI não:
+ * lá o registro é carimbado com `autorFonte: 'tunel-contabil'`, ou seja "o app
+ * irmão AFIRMA que foi esta pessoa". Fingir verificação que não houve seria o
+ * farol honesto ao contrário.
+ *
+ * ⚠️ E falha de REDE aqui NÃO é "não gravou": um POST pode ter chegado. A
+ * mensagem diz para CONFERIR antes de repetir, nunca para tentar de novo às
+ * cegas — repetir um ajuste é sobrescrever com o mesmo valor (inofensivo),
+ * mas afirmar que não gravou quando gravou é pior.
+ */
+async function ajustarRetencaoNoCfi({ cnpj, competencia, chave, token, autor, motivo, valores, remover }, deps = {}) {
+  const doFetch = deps.fetch || globalThis.fetch;
+  const env = deps.env || process.env;
+  const base = String(env.CFI_BASE_URL || env.CFI_URL || 'https://consultor-fiscal-inteligente-631239634290.us-west1.run.app').replace(/\/+$/, '');
+  if (!token) throw new Error('Sessão sem token. Faça login novamente.');
+  if (!String(chave || '').trim()) {
+    throw new Error('Sem a chave da nota não dá para ajustar: o ajuste é da NOTA, não do prestador.');
+  }
+  const corpoEnvio = {
+    cnpj, competencia, chave: String(chave).trim(), autor, motivo,
+    ...(remover ? { remover: true } : (valores || {})),
+  };
+  let resp;
+  try {
+    resp = await doFetch(`${base}/api/admin/reinf/retencoes-pj/ajuste`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpoEnvio),
+    });
+  } catch (e) {
+    throw new Error(`Não consegui falar com o Consultor Fiscal (${e.message}). `
+      + 'CONFIRA se o ajuste foi gravado (clique em Buscar de novo) antes de digitar outra vez.');
+  }
+  let corpo = {};
+  try { corpo = await resp.json(); } catch { corpo = {}; }
+  if (!resp.ok || corpo.ok === false) {
+    throw new Error(corpo.error || `O Consultor Fiscal recusou o ajuste (HTTP ${resp.status}).`);
+  }
+  return corpo;
+}
+
 module.exports = {
+  ajustarRetencaoNoCfi,
   montarUrlCfi, montarUrlCadastroCfi, interpretarRespostaCfi, buscarNoCfi,
   buscarFechamentosNoCfi,
   buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarServicosTomadosNoCfi,

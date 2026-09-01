@@ -82,6 +82,39 @@ function naturezaNaDiscriminacao(texto) {
  * @returns {{pis, cofins, csll, csllOrigem, total, pendencia}}
  */
 function resolverRetencoes(nota) {
+  // ═══ O CFI JÁ RESPONDEU — e recalcular aqui é criar a divergência ═════════
+  //
+  // 31/08. O CFI passou a devolver, em cada nota, o bloco `retencao` com o que
+  // ela reteve DE VERDADE e a ORIGEM do número: ajuste declarado por uma
+  // pessoa, CSRF decomposta pelas alíquotas legais, ou o próprio documento.
+  //
+  // 🚨 Refazer a conta aqui faria o CCI mostrar 315,73 enquanto o CFI diz
+  // 158,72 sobre a MESMA nota (caso ELEVADORES ATLAS SCHINDLER: os campos de
+  // PIS e COFINS da NFS-e paulistana trazem o tributo da OPERAÇÃO do
+  // prestador, 1,65% e 7,60%, não retenção). É a régua do R-2055, palavra por
+  // palavra: **a ressalva PROÍBE recalcular do outro lado** — dois números
+  // para o mesmo fato é o pior defeito de um arquivo fiscal.
+  //
+  // ⚠️ E a origem viaja junto: número DERIVADO não se apresenta como fato lido
+  // do documento, e quem confere precisa saber a diferença.
+  const doCfi = nota && nota.retencao;
+  if (doCfi && doCfi.origem) {
+    const pis = r2(num(doCfi.pis) || 0);
+    const cofins = r2(num(doCfi.cofins) || 0);
+    const csll = r2(num(doCfi.csll) || 0);
+    return {
+      pis, cofins, csll,
+      csllOrigem: doCfi.origem === 'documento' ? 'informada' : doCfi.origem,
+      total: r2(pis + cofins + csll),
+      // 🚨 `exigeAjuste` do CFI vira PENDÊNCIA aqui: é ele que sabe que o
+      // documento traz um número que a régua desmente e que ninguém corrigiu.
+      pendencia: doCfi.exigeAjuste ? (doCfi.ressalva || 'Retenção sem valor confiável — ajuste antes de declarar.') : null,
+      conferencia: !doCfi.exigeAjuste && doCfi.ressalva ? doCfi.ressalva : undefined,
+    };
+  }
+
+  // Sem o bloco (resposta ANTIGA do CFI, ou nota de outra fonte), vale a régua
+  // daqui — que continua sendo a única que conhece a subtração da CSLL.
   const base = num(nota.base);
   const pis = num(nota.pis);
   const cofins = num(nota.cofins);
@@ -175,6 +208,10 @@ function apurarRetencoesPJ({ competencia, notas } = {}) {
       dataFatoGerador: n.dataFatoGerador || null,
       pendencias: [],
       conferencias: [],
+      // 🚨 AS NOTAS QUE PRECISAM DE AJUSTE, com a CHAVE — sem ela a tela não
+      // tem o que mandar ao CFI, e o ajuste é da NOTA, nunca do prestador
+      // (dois serviços do mesmo fornecedor podem reter diferente).
+      notasParaAjuste: [],
     };
 
     acc.notas += 1;
@@ -185,7 +222,28 @@ function apurarRetencoesPJ({ competencia, notas } = {}) {
     acc.csll = r2(acc.csll + ret.csll);
     if (ret.csllOrigem === 'derivada-do-total') acc.csllDerivada = true;
     if (ret.conferencia) acc.conferencias.push(ret.conferencia);
-    if (ret.pendencia) acc.pendencias.push(`Nota ${n.numero || '(s/nº)'}: ${ret.pendencia}`);
+    if (ret.pendencia) {
+      acc.pendencias.push(`Nota ${n.numero || '(s/nº)'}: ${ret.pendencia}`);
+      const chave = String(n.chave || '').trim()
+        || (soDigitos(n.prestadorCnpj) && n.numero ? `${soDigitos(n.prestadorCnpj)}-${n.numero}` : '');
+      // ⚠️ Sem chave não se ajusta: mudar o valor de uma declaração sem poder
+      // dizer QUAL nota mudou é o ajuste que ninguém confere depois.
+      if (chave) {
+        acc.notasParaAjuste.push({
+          chave,
+          numero: n.numero || null,
+          base: r2(num(n.base)),
+          // O que o DOCUMENTO diz — é contra isto que a pessoa confere antes
+          // de digitar, e substituir sem mostrar o original seria tirar dela o
+          // número que ela vê na nota.
+          doDocumento: {
+            ir: r2(num(n.ir)), pis: r2(num(n.pis)),
+            cofins: r2(num(n.cofins)), csll: r2(num(n.csllOuTotal)),
+          },
+          motivo: ret.pendencia,
+        });
+      }
+    }
     porBenef.set(chave, acc);
   }
 
