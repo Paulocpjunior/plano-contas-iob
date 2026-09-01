@@ -21,6 +21,9 @@ assert(admin.includes("showTab('progressao'"), 'painel admin deve exibir a aba d
 assert(admin.includes('Este painel não altera lançamentos.'), 'interface deve explicitar o contrato somente leitura');
 assert(admin.includes('Visão por colaborador'), 'gestor deve ter consolidação por colaborador');
 assert(admin.includes('Onde está parada'), 'gestor deve visualizar o impedimento de cada empresa');
+assert(admin.includes('PROGRESSAO_ATUALIZACAO_MS = 60000'), 'painel deve renovar a fotografia operacional a cada minuto');
+assert(admin.includes("aba.classList.contains('active')"), 'atualização automática deve ocorrer somente enquanto o painel estiver visível');
+assert(admin.includes('atualização automática a cada 60 segundos'), 'gestor deve enxergar a frequência de atualização');
 
 const inicioMinhas = server.indexOf("app.get('/api/minhas-pendencias-contabeis'");
 const fimMinhas = server.indexOf("app.get('/api/admin/progressao-contabil'", inicioMinhas);

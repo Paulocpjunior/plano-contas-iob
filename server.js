@@ -39,6 +39,7 @@ const { extractAccountingPdf } = require('./auditai/pdf-contabil-extractor');
 const { validarCoberturaFiscal, montarMatrizTributos, validarPayloadFiscalConnector, resumirItensFiscais } = require('./fiscal-payments-contract');
 const {
   ENCODING_PLAIN,
+  ENCODING_GZIP_BASE64,
   LIMITE_CHUNK_SESSAO,
   codificarStateJson,
   decodificarPayload,
@@ -2906,9 +2907,9 @@ async function limparChunksAntigos(sessaoRef, geracaoAtual) {
   if (antigos.length) await excluirDocumentosEmLotes(antigos);
 }
 
-async function carregarSessaoAtualPorRef(sessaoRef) {
+async function carregarSessaoArmazenadaPorRef(sessaoRef) {
   const doc = await sessaoRef.get();
-  if (!doc.exists) return { encontrada: false, doc, dados: null, stateJson: '' };
+  if (!doc.exists) return { encontrada: false, doc, dados: null, payload: '' };
   const dados = doc.data() || {};
   let payload = typeof dados.state_payload === 'string'
     ? dados.state_payload
@@ -2925,13 +2926,21 @@ async function carregarSessaoAtualPorRef(sessaoRef) {
     }
     payload = partes.map(parte => parte.parte || '').join('');
   }
-  const stateJson = decodificarPayload(payload, dados.state_encoding || ENCODING_PLAIN);
   return {
     encontrada: true,
     doc,
     dados,
-    stateJson,
+    payload,
     updateMillis: millisTimestamp(doc.updateTime),
+  };
+}
+
+async function carregarSessaoAtualPorRef(sessaoRef) {
+  const armazenamento = await carregarSessaoArmazenadaPorRef(sessaoRef);
+  if (!armazenamento.encontrada) return { ...armazenamento, stateJson: '' };
+  return {
+    ...armazenamento,
+    stateJson: decodificarPayload(armazenamento.payload, armazenamento.dados.state_encoding || ENCODING_PLAIN),
   };
 }
 
@@ -3248,10 +3257,20 @@ app.get('/api/empresas/:cnpj/sessao', async (req, res) => {
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
     const sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
-    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    // O download mantém o snapshot no formato armazenado. Sessões grandes podem
+    // superar o limite de resposta do Cloud Run quando são descompactadas no
+    // servidor (a Vinatex, por exemplo, ultrapassou 40 MB). O navegador recebe
+    // cerca de 2 MB e descompacta localmente, preservando o JSON original.
+    const sessao = await carregarSessaoArmazenadaPorRef(sessaoRef);
     if (!sessao.encontrada) return res.json({ encontrada: false });
-    const dados = { ...sessao.dados, state_json: sessao.stateJson };
+    const dados = { ...sessao.dados };
+    delete dados.state_payload;
+    delete dados.state_json;
+    const encoding = dados.state_encoding || ENCODING_PLAIN;
+    if (encoding === ENCODING_GZIP_BASE64) dados.state_gzip_base64 = sessao.payload;
+    else dados.state_json = sessao.payload;
     delete dados.session_write_lock;
+    res.set('Cache-Control', 'private, no-store');
     res.json({ encontrada: true, ...dados });
   } catch (e) {
     console.error('carregar sessao erro:', e);

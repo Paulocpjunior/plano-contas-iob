@@ -54,7 +54,11 @@ assert(server.includes('batch.set(opts.empresaRef, opts.atualizacaoEmpresa, { me
 assert(server.includes('limparChunksAntigos: !!(atual.dados && atual.dados.state_chunked)'), 'autosave comum não deve consultar chunks inexistentes a cada edição');
 assert(server.includes("console.info('[sessao-perf]'"), 'autosave deve registrar telemetria de latência sem identificar a empresa');
 assert(server.includes("res.setHeader('Server-Timing'"), 'resposta autenticada deve expor a decomposição segura da latência');
+assert(server.includes('carregarSessaoArmazenadaPorRef(sessaoRef)'), 'download deve preservar a sessão compactada e evitar resposta acima do limite da plataforma');
+assert(server.includes('dados.state_gzip_base64 = sessao.payload'), 'download deve enviar o payload gzip sem descompactá-lo no servidor');
 assert(adapter.includes("new CompressionStream('gzip')"), 'navegador compatível deve compactar antes do POST');
+assert(adapter.includes("new DecompressionStream('gzip')"), 'navegador deve descompactar o download grande localmente');
+assert(adapter.includes('A resposta da sessão foi interrompida antes de terminar'), 'falha de transporte não pode aparecer como erro genérico de JSON');
 assert(adapter.includes("state_encoding: 'gzip-base64'"));
 assert(index.includes('A mutação é aplicada imediatamente no estado local'), 'modal não deve aguardar o POST anterior para aplicar a próxima edição');
 assert(index.includes('Alterações preservadas — aguardando nova tentativa'), 'falha remota não deve desfazer o trabalho seguinte');
