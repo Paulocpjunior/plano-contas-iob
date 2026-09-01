@@ -1,8 +1,9 @@
 {
-  "version": "3.4.239",
-  "build_date": "2026-09-01T18:50:00Z",
+  "version": "3.4.240",
+  "build_date": "2026-09-01T19:06:33Z",
   "release_notes": [
-    "fix: abrir sessoes grandes e atualizar progressao",
+    "🚧 Sintaxe do JS embutido e marcador de conflito entram no gate",
+    "Corrigir abertura da Vinatex e atualização do painel (#100)",
     "🚀 R-4020: transmite pelo app — o \"gerador sem rota\" fechou (#99)",
     "✅ R-4020: a retenção destravou — e ela é AGREGADA, não separada (#98)",
     "Vetar importação fiscal por CNPJ, competência e movimento (#97)",
@@ -10,7 +11,6 @@
     "📣 Catorze dias de entrega sem uma linha de novidade — e a trava cobria a metade errada (#95)",
     "🚨 R-4020: o resumo escondia PIS e COFINS — \"como se fosse subir só a CSLL\" (#94)",
     "Corrigir progresso e exibir solicitações ao colaborador (#93)",
-    "✍️ R-4020: ajustar a retenção — e parar de recalcular o que o CFI respondeu (#91)",
-    "Restringir automação ao ADMIN e estabilizar deploy (#90)"
+    "✍️ R-4020: ajustar a retenção — e parar de recalcular o que o CFI respondeu (#91)"
   ]
 }
