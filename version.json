@@ -1,16 +1,16 @@
 {
-  "version": "3.4.228",
-  "build_date": "2026-08-31T22:48:00Z",
+  "version": "3.4.229",
+  "build_date": "2026-09-01T15:10:37Z",
   "release_notes": [
-    "fix: autenticar agendador interno dos alertas",
-    "feat: criar metricas e alertas da progressao contabil",
-    "fix: habilitar edicao multipla com selecao normalizada",
+    "wip",
+    "Restringir automação ao ADMIN e estabilizar deploy (#90)",
+    "Autenticar agendador interno dos alertas (#89)",
+    "Corrigir materialização da candidata no deploy (#88)",
+    "Criar métricas e alertas da progressão contábil (#87)",
     "fix: impedir parser fiscal desatualizado no modal",
     "fix: importar servico prestado sem razao social",
     "feat: adicionar conciliacao detalhada segura",
     "feat: aprimorar progressao com acompanhamento",
-    "feat: adicionar progressao contabil gerencial",
-    "test: homologar servicos prestados genericos",
-    "test: formalizar evidencias reais de layouts"
+    "feat: adicionar progressao contabil gerencial"
   ]
 }

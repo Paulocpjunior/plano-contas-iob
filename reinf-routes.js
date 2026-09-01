@@ -19,6 +19,7 @@ const { loadCertificado, salvarCertificadoUpload } = require('./reinf/cert-loade
 const { enviarLote, consultarLote } = require('./reinf/transmissor');
 const { transmissorAtivo, enviarLoteViaGateway, consultarLoteViaGateway } = require('./reinf/gateway-client');
 const { apurarRetencoesPJ } = require('./reinf/retencao-pj-apuracao');
+const { ajustarRetencaoNoCfi } = require('./reinf/cfi-notas-client');
 const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarServicosTomadosNoCfi, buscarResponsavelNoCfi, buscarCertificadoNoCfi } = require('./reinf/cfi-notas-client');
 const { resumirResponsavel, avisosDoResponsavel } = require('./reinf/responsavel-escritorio');
 const { conferirCertificado } = require('./reinf/certificado-conferencia');
@@ -1509,6 +1510,55 @@ function registrarRotasReinf(app, { db } = {}) {
         ressalvasDaFonte: doCfi.ressalvas,
         resumoDaFonte: doCfi.resumo,
       });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // POST /api/reinf/retencoes-pj/:cnpj/:competencia/ajuste
+  //
+  // ✍️ 31/08, Paulo: *"preciso ter a opção de ajustar as retenções para
+  // entregar com o valor correto, com o novo layout estão emitindo errado"*.
+  //
+  // Caso ELEVADORES ATLAS SCHINDLER: a NFS-e paulistana traz nos campos de PIS
+  // e COFINS o tributo da OPERAÇÃO do prestador (1,65% e 7,60%), não retenção
+  // — e declarar aqueles valores manda 315,73 no lugar de 158,72.
+  //
+  // 🚨 O AJUSTE NÃO É GRAVADO AQUI: quem responde "quanto esta nota reteve" é
+  // o CFI. Guardar deste lado faria o SPED e a EFD-Reinf declararem números
+  // diferentes sobre a mesma nota.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.post('/retencoes-pj/:cnpj/:competencia/ajuste', async (req, res) => {
+    try {
+      const cnpj = limparCnpj(req.params.cnpj);
+      const competencia = String(req.params.competencia || '').trim();
+      const auth = String(req.headers.authorization || '');
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      const corpo = req.body || {};
+
+      // ⚠️ O AUTOR sai do usuário LOGADO, nunca do corpo da requisição: autor
+      // que o próprio cliente escolhe não é autoria, é digitação — e é este
+      // nome que fica gravado explicando por que o número mudou.
+      const autor = (req.user && (req.user.email || req.user.uid)) || '';
+      if (!autor) {
+        return res.status(401).json({
+          ok: false,
+          erro: 'Sessão sem usuário identificado. Faça login de novo — ajuste de retenção fica gravado com quem o fez.',
+        });
+      }
+
+      const r = await ajustarRetencaoNoCfi({
+        cnpj, competencia, token, autor,
+        chave: corpo.chave,
+        motivo: corpo.motivo,
+        remover: !!corpo.remover,
+        valores: {
+          ir: corpo.ir, pis: corpo.pis, cofins: corpo.cofins,
+          csll: corpo.csll, inss: corpo.inss, base: corpo.base,
+        },
+      });
+      res.json({ ok: true, ...r });
     } catch (err) {
       respostaErro(res, 400, err);
     }
