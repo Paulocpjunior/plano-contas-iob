@@ -10,8 +10,35 @@
   </style>
 </head>
 <body>
-  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 19/08/2026</span></div></section>
+  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 01/09/2026</span></div></section>
   <main class="wrap content">
+    <article class="release">
+      <div class="tag">Leia esta parte primeiro</div>
+      <header><h2>✍️ R-4020: dá para ajustar a retenção, e o resumo mostra os quatro tributos</h2><span class="date">01/09/2026 · v3.4.232</span></header>
+      <ul>
+        <li><strong>O problema:</strong> a NFS-e de São Paulo tem campos de PIS e COFINS que muitos prestadores preenchem com o <strong>tributo da operação deles</strong>, não com a retenção — e a própria nota costuma avisar isso em “Outras Informações”. Declarar aqueles valores <strong>infla a retenção</strong>.</li>
+        <li><strong>Caso real:</strong> ELEVADORES ATLAS SCHINDLER, serviço de R$ 3.413,24. Os campos traziam PIS 56,32 e COFINS 259,41 (soma <strong>315,73</strong>), enquanto a retenção de verdade está em <em>Contribuições Sociais - Retidas</em>: <strong>158,72</strong>. Quase o dobro.</li>
+        <li><strong>O que mudou:</strong> a busca no Consultor Fiscal agora devolve <strong>PIS 22,19 · COFINS 102,40 · CSLL 34,13</strong> — os 4,65% separados pelas alíquotas legais (Lei 10.833/2003), e a soma fecha ao centavo com o que a nota declara.</li>
+        <li><strong>Onde:</strong> EFD-Reinf → <strong>Retenções de PJ para o R-4020</strong> → <em>Buscar no Consultor Fiscal</em>.</li>
+        <li><strong>E onde o app não consegue derivar</strong>, a linha vem marcada com um botão <strong>✍️ Ajustar</strong> na própria nota: você informa o valor certo, <strong>com autor e motivo escrito</strong>, e ele passa a valer para aquela nota — nunca para o fornecedor inteiro.</li>
+        <li><strong>O resumo mostra os QUATRO tributos.</strong> Ele dizia só <em>IRRF · CSLL</em>, com PIS e COFINS na tabela logo abaixo — e isso se lia como “vai subir só a CSLL”. Agora a linha traz IRRF, PIS, COFINS e CSLL.</li>
+      </ul>
+      <div class="status"><strong>Atenção:</strong> o ajuste é uma <strong>declaração</strong> — fica gravado quem fez, quando e por quê, e o motivo tem de ser escrito (mínimo de 15 caracteres). Ele muda <strong>a retenção</strong>, nunca a base: a base é o que a nota diz.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Também entrou desde 19/08</div>
+      <header><h2>Outras entregas do período</h2><span class="date">19/08 a 01/09/2026 · v3.4.167 a v3.4.231</span></header>
+      <ul>
+        <li><strong>Progressão contábil</strong>: acompanhamento gerencial da evolução por empresa, com métricas e alertas — e a correção do cálculo do progresso, que agora também exibe as solicitações ao colaborador.</li>
+        <li><strong>Conciliação detalhada</strong> na conciliação bancária.</li>
+        <li><strong>Fila de layouts</strong>: toda a fila voltou a ficar acessível, as rejeições passaram a ser agrupadas <strong>por caso</strong> e dá para atribuir casos <strong>em lote</strong>.</li>
+        <li><strong>Serviço prestado sem razão social</strong> passou a importar, em vez de recusar o arquivo.</li>
+        <li><strong>Parser fiscal desatualizado</strong> não entra mais pelo modal de movimento fiscal.</li>
+        <li><strong>Automação restrita ao ADMIN</strong> — colaborador não dispara rotina automática.</li>
+        <li>Evidências reais de layout e homologação de serviços prestados entraram nos testes permanentes.</li>
+      </ul>
+      <div class="status"><strong>Se algo aqui mudou o seu dia a dia e não está claro,</strong> fale com o responsável do escritório antes de refazer trabalho — várias dessas entregas mexem em fila e em atribuição, não no valor dos lançamentos.</div>
+    </article>
     <article class="release">
       <div class="tag">Balanço do dia</div>
       <header><h2>Evolução e pendências oficiais atualizadas</h2><span class="date">19/08/2026 · v3.4.166</span></header>
