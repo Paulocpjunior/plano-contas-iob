@@ -1,9 +1,16 @@
 {
-  "version": "3.4.234",
-  "build_date": "2026-09-01T17:39:05Z",
+  "version": "3.4.236",
+  "build_date": "2026-09-01T18:11:33Z",
   "release_notes": [
-    "Vetar importação fiscal quando o CNPJ da origem divergir da empresa ativa",
-    "Bloquear repetição do mesmo movimento fiscal para CNPJ e competência já importados",
-    "Conferir novamente CNPJ, competência e movimento imediatamente antes da gravação"
+    "Vetar importação fiscal por CNPJ, competência e movimento (#97)",
+    "Sincronizar movimento fiscal direto do CFI (#96)",
+    "📣 Catorze dias de entrega sem uma linha de novidade — e a trava cobria a metade errada (#95)",
+    "🚨 R-4020: o resumo escondia PIS e COFINS — \"como se fosse subir só a CSLL\" (#94)",
+    "Corrigir progresso e exibir solicitações ao colaborador (#93)",
+    "✍️ R-4020: ajustar a retenção — e parar de recalcular o que o CFI respondeu (#91)",
+    "Restringir automação ao ADMIN e estabilizar deploy (#90)",
+    "Autenticar agendador interno dos alertas (#89)",
+    "Corrigir materialização da candidata no deploy (#88)",
+    "Criar métricas e alertas da progressão contábil (#87)"
   ]
 }

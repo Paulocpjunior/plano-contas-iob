@@ -63,16 +63,23 @@ assert.ok(/<vlrBruto>[0-9]+,[0-9]{2}<\/vlrBruto>/.test(xml), 'valor com VÍRGULA
 assert.ok(xml.includes('<natRend>17099</natRend>'), '17099 é natureza válida e precisa passar');
 
 // ─── A RECUSA QUE PROTEGE A DECLARAÇÃO ──────────────────────────────────────
-// O arquivo de referência tem bruto ZERADO e nenhum bloco de retenção. Onde
-// entram IR/CSLL/PIS/COFINS não está provado — e um R-4020 sem a retenção não
-// é incompleto, é um evento que DECLARA que não houve retenção.
-const comRetencao = { ...real, pagamentos: [{ ...real.pagamentos[0], vlrBruto: 1000, vlrIR: 15 }] };
-assert.throws(() => gerarR4020(comRetencao), /ainda não pode ser gerado/,
-  'com retenção informada o gerador BLOQUEIA em vez de chutar o campo');
+// 📌 ESTE BLOCO MUDOU EM 01/09, e a fixture antiga foi TROCADA pelo motivo
+// certo: ela travava `vlrIR` como exemplo de "retenção não provada" e afirmava
+// que NENHUMA retenção podia sair. Um segundo R-4020 **aceito em produção**
+// (perApur 2026-06) provou o bloco `<retencoes>` com `vlrBaseAgreg`/`vlrAgreg`
+// — então a retenção AGREGADA passou a sair, e o teste que exigia o contrário
+// descrevia um mundo que a produção não vive mais.
+//
+// O que continua sem prova continua bloqueado: os campos SEPARADOS por tributo
+// e o IRRF (o arquivo aceito tem IRRF zero). A cobertura da retenção agregada
+// está em `scripts/test-reinf-r4020-retencao.js`.
+const comRetencao = { ...real, pagamentos: [{ ...real.pagamentos[0], vlrBruto: 1000, vlrCsll: 15 }] };
+assert.throws(() => gerarR4020(comRetencao), /R-4020 inválido/,
+  'retenção SEPARADA por tributo continua bloqueando em vez de chutar o campo');
 const errosRet = validarEntradaR4020(comRetencao);
-assert.ok(errosRet.some((x) => x.includes('vlrIR')), 'o erro diz QUAL campo travou');
+assert.ok(errosRet.some((x) => x.includes('vlrCsll')), 'o erro diz QUAL campo travou');
 assert.ok(MOTIVO_RETENCAO_BLOQUEADA.includes('XSD') && MOTIVO_RETENCAO_BLOQUEADA.includes('retenção'),
-  'e diz o que destrava: um R-4020 com valores, ou o XSD');
+  'e diz o que destrava: um R-4020 aceito com IRRF, ou o XSD');
 
 // ─── Ausência não vira zero, e CPF não vira PJ ──────────────────────────────
 const semValor = validarEntradaR4020({ ...real, pagamentos: [{ natRend: '17099', dtFG: '2023-10-25' }] });

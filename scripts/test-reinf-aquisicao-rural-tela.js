@@ -53,9 +53,23 @@ assert.ok(index.includes("reinfAqRuralTabela').style.display = 'none'"),
   'em erro a tabela some e a mensagem aparece');
 assert.ok(/Nenhuma aquisição nesta competência/.test(index), 'e vazio sai com tom de alerta, não de sucesso');
 
-// ─── O XML continua bloqueado, e a tela diz por quê ─────────────────────────
-assert.ok(index.includes('Por que ainda não há botão de gerar o XML'),
-  'a ausência do botão é explicada — senão a pessoa acha que a tela quebrou');
+// ─── 🐛 ESTA ASSERÇÃO ESTAVA VERDE PELO MOTIVO ERRADO (achado em 01/09) ─────
+//
+// Ela prendia o texto 'Por que ainda não há botão de gerar o XML' — que existia
+// UMA vez no arquivo inteiro, e no painel do **R-4020**, não neste. Ou seja:
+// o teste do aquisição rural passava lendo a frase do painel VIZINHO.
+//
+// E a asserção estava obsoleta por cima disso: o R-2055 é TRANSMITIDO pelo app
+// desde 11/08 — não há bloqueio nenhum aqui para explicar. Ela sobreviveu
+// porque `index.html` é um arquivo só, e âncora frouxa acha qualquer coisa.
+//
+// 📌 REGRA: asserção de tela ancora em algo que só existe NAQUELE painel.
+// O que importa aqui é o contrário do que ela dizia — que a transmissão
+// EXISTE, e que ela PERGUNTA antes, porque entrega em produção não se desfaz.
+assert.ok(/Transmitir o R-2055 em PRODUÇÃO para a Receita\? A entrega não se desfaz/.test(index),
+  'produção confirma antes — entrega à Receita não volta atrás');
+assert.ok(index.includes('reinfTransmitirAquisicaoRural'),
+  'e a transmissão do R-2055 está ligada nesta tela');
 assert.ok(!/gerarR2055Reinf\(/.test(index), 'nenhum gerador de R-2055 pode existir ainda');
 
 // ─── As duas telas não se misturam ──────────────────────────────────────────
