@@ -1,5 +1,24 @@
 const LAYOUT_QUALITY_CASES = [
   {
+    id: 'mercado-pago-lav-2026-04',
+    banco: 'MP',
+    nomeBanco: 'Mercado Pago Instituicao de Pagamento',
+    layout: 'Mercado Pago - Extrato de Conta',
+    parser: 'parsearPDF_MercadoPago_ExtratoConta',
+    arquivo: '04.2026 - MERCADO PAGO LAV.pdf',
+    empresa: '1244 - LAV COM. DE AUTO PECAS LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    esperado: {
+      total_lancamentos: 1038,
+      total_credito: 204485.15,
+      total_debito: 185752.58
+    },
+    status: 'Aprovado',
+    validado_em: '2026-09-02T13:50:00-04:00',
+    observacao: 'Extrato textual Mercado Pago conciliado movimento a movimento. Preserva o sinal negativo impresso, inclusive Dinheiro retido de R$ -1.091,26, e fecha saldo inicial de R$ 9.982,05 no saldo final de R$ 28.714,62.'
+  },
+  {
     id: 'santander-ra-carpetes-2025-05',
     banco: '033',
     nomeBanco: 'Santander',
