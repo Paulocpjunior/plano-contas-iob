@@ -81,9 +81,47 @@ function testarOCRPosicionalPeriodo() {
   assert.ok(resultado.lancamentos.some((l) => l.valor === -25.5 && /BOLETO PAGO FORNECEDOR/i.test(l.descricao)));
 }
 
+function testarOCRImagemGiLoschiavio() {
+  const values = [-6.13, 1224.04, 0.07, -886.56, 0.13, -319.79, -546.58, 3102.96, -18.07, 0.41, -616.14, -3193.28, 0.12, -236.35, -1060, 0.02, -300, -206.95, 0.04, -328.33, 3098.28, -13.95, 0.04, -750, 0.15, 1244.12, -6848];
+  const days = [31, 29, 22, 22, 20, 20, 20, 17, 15, 15, 15, 15, 10, 10, 10, 7, 7, 6, 6, 6, 3, 2, 2, 2, 1, 1, 1];
+  const words = [
+    ...linhaOCRPosicional(20, [['EMPRESA TESTE', 30], ['Agência', 430], ['2937', 470], ['Conta', 500], ['0016873-6', 530]]),
+    ...linhaOCRPosicional(40, [['Lançamentos do período:', 30], ['01/07/2026', 180], ['até', 270], ['31/07/2026', 300]]),
+    ...linhaOCRPosicional(60, [['Data', 30], ['Lançamentos', 110], ['Razão Social', 240], ['CNPJ/CPF', 350], ['Valor(R$)', 470], ['Saldo (R$)', 530]]),
+    ...linhaOCRPosicional(80, [['31/07/2026', 30], ['SALDO TOTAL DISPONÍVEL DIA', 110], ['653418', 530]])
+  ];
+  values.forEach((valor, idx) => {
+    const valorOCR = idx === 3
+      ? '-B86,56'
+      : (idx === 4 ? '013' : valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    words.push(...linhaOCRPosicional(100 + idx * 20, [
+      [String(days[idx]).padStart(2, '0') + '/07/2026', 30],
+      ['MOVIMENTO TESTE ' + (idx + 1), 110],
+      [valorOCR, 480]
+    ]));
+  });
+  words.push(...linhaOCRPosicional(700, [['30/06/2026', 30], ['SALDO ANTERIOR', 110], ['13.193,93', 530]]));
+
+  const lines = itau.__test__.linhasDePalavrasOCR(words, 1, 595);
+  const textoCompleto = lines.map((l) => l.text).join('\n');
+  assert.match(textoCompleto, /Agência 2937 Conta 0016873-6/, 'agência no cabeçalho não pode ser convertida em 29,37');
+  const resultado = itau.__test__.parseItauLancamentosPeriodo(lines, textoCompleto);
+
+  assert.ok(resultado && resultado.detectado, 'OCR do extrato mensal Itaú por período deve ser reconhecido');
+  assert.strictEqual(resultado.conta_detectada, 'AG-2937/CC-0016873-6');
+  assert.strictEqual(resultado.lancamentos.length, 27);
+  assert.strictEqual(Number(resultado.total_credito.toFixed(2)), 8670.38);
+  assert.strictEqual(Number(resultado.total_debito.toFixed(2)), 15330.13);
+  assert.strictEqual(resultado.saldo_anterior, 13193.93);
+  assert.strictEqual(resultado.saldo_final, 6534.18);
+  assert.strictEqual(resultado.saldos_conciliados, true);
+  assert.ok(resultado.lancamentos.some((l) => l.valor === -886.56), 'OCR B86,56 deve ser corrigido somente na coluna monetária');
+}
+
 async function main() {
   testarOCRPosicionalPeriodo();
   testarOCRImagemLancamentosPeriodo();
+  testarOCRImagemGiLoschiavio();
 
   const maioImagem = '/Users/paulocesarpereirajunior/Downloads/E - Extrato Itaú Maio 2026.pdf';
   assert.ok(fs.existsSync(maioImagem), `Arquivo de regressao nao encontrado: ${maioImagem}`);
@@ -95,10 +133,13 @@ async function main() {
   );
   const parserSource = fs.readFileSync(path.join(__dirname, '..', 'parser-itau-extrato-mensal.js'), 'utf8');
   const indexSource = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const adminSource = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
   assert.ok(parserSource.includes('pdf.numPages <= 3 ? [2.8, 4.0] : [2.8]'), 'OCR Itaú curto deve repetir em alta resolução quando a conciliação falhar');
   assert.ok(indexSource.includes("['237', '341'].includes(normalizarCodigoBancoLayout(bancoResolvido))"), 'PDF Itaú identificado não pode cair no Gemini após falha de integridade');
   assert.ok(indexSource.includes("processPDFComLayoutDoBanco(buf, bancoResolvido, f.name, 'parsearPDF_Itau_LancamentosPeriodo')"), 'PDF Itaú em imagem deve priorizar o layout Lançamentos por Período');
   assert.ok(indexSource.includes('O serviço de IA está temporariamente indisponível.'), 'erro técnico de cobrança do provedor não deve ser exposto ao colaborador');
+  assert.ok(adminSource.includes("bancoSelecionado === 'GEN'"), 'Central de Qualidade deve inferir o banco pelo nome do arquivo quando Todos os bancos estiver selecionado');
+  assert.ok(adminSource.includes("inspecao.textual ? 'PDF textual' : 'PDF imagem / OCR'"), 'cadastro deve corrigir automaticamente o formato factual do PDF');
 
   const lancamentosPeriodo = '/Users/paulocesarpereirajunior/Downloads/E - EXTRATO ITAÚ ABRIL 2026 (1).pdf';
   assert.ok(fs.existsSync(lancamentosPeriodo), `Arquivo de regressao nao encontrado: ${lancamentosPeriodo}`);

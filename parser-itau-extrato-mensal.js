@@ -71,9 +71,14 @@
     if (!raw || Number(x || 0) < 400) return raw;
     // Nesse layout, valor e saldo ficam à direita. O OCR pode trocar o sinal
     // por "=" ou apagar a vírgula fina dos centavos (271,77 -> 27177).
+    // A agência também pode aparecer à direita no cabeçalho. Por isso, a
+    // inserção de centavos sem sinal não vale na faixa do cabeçalho onde fica
+    // a agência (x 460-479); números como a agência 2937 devem permanecer inteiros.
     raw = raw.replace(/^[=_~]+(?=\d)/, '-').replace(/,$/, '');
+    if (Number(x || 0) >= 480) raw = raw.replace(/[Bb](?=\d)/g, '8');
     const semSinal = raw.replace(/^-/, '');
-    if (/^\d{3,9}$/.test(semSinal)) {
+    const colunaPermiteCentavos = Number(x || 0) < 460 || Number(x || 0) >= 480;
+    if (/^\d{3,9}$/.test(semSinal) && (raw.startsWith('-') || colunaPermiteCentavos)) {
       raw = (raw.startsWith('-') ? '-' : '') + semSinal.slice(0, -2) + ',' + semSinal.slice(-2);
     }
     return raw;
@@ -141,6 +146,7 @@
   }
 
   function parseItauLancamentosPeriodo(lines, textoCompleto) {
+    const origemOCR = Array.isArray(lines) && lines.some(function(line) { return line && line.origem_ocr === true; });
     const modeloPeriodoNaFrase = /Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto)
       && /Data\s+Lan[cç]amentos\s+Raz[aã]o Social\s+CNPJ\/CPF\s+Valor/i.test(textoCompleto)
       && /Ag[eê]ncia\s+\d+\s+Conta\s+\d+/i.test(textoCompleto);
@@ -165,6 +171,14 @@
         .replace(/\uFFFE/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+    }
+
+    function ehDescricaoSaldo(text) {
+      const chave = normalizarLinha(text)
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z]/g, '');
+      return chave.startsWith('saldototaldisponiveldia') || chave.startsWith('saldoanterior');
     }
 
     function ignorarLinha(text) {
@@ -244,7 +258,7 @@
     function adicionarLancamento(data, desc, valor) {
       const descricao = limparDescricao(desc);
       if (!data || !descricao || !valor || Math.abs(valor) === 0) return false;
-      if (/SALDO TOTAL DISPON[IÍ]VEL DIA/i.test(descricao) || /SALDO ANTERIOR/i.test(descricao)) return false;
+      if (ehDescricaoSaldo(descricao)) return false;
 
       const chave = [data, descricao.toLowerCase(), valor.toFixed(2)].join('|');
       if (!modeloPeriodoSeparado && vistos.has(chave)) return false;
@@ -276,7 +290,7 @@
         return;
       }
       const desc = limparDescricao(pendente.text.slice(0, value.index));
-      if (!desc || /SALDO TOTAL DISPON[IÍ]VEL DIA/i.test(desc) || /SALDO ANTERIOR/i.test(desc)) {
+      if (!desc || ehDescricaoSaldo(desc)) {
         pendente = null;
         return;
       }
@@ -363,8 +377,16 @@
     const saldoAnteriorMatch = textoCompleto.match(/SALDO ANTERIOR\s+(-?[\d.]+,\d{2})/i);
     const saldosFinais = Array.from(textoCompleto.matchAll(/SALDO TOTAL DISPON[IÍ]VEL DIA\s+(-?[\d.]+,\d{2})/gi));
     const saldoAnterior = saldoAnteriorMatch ? parseValorBR(saldoAnteriorMatch[1]) : null;
-    const saldoFinal = saldosFinais.length ? parseValorBR(saldosFinais[saldosFinais.length - 1][1]) : null;
-    const conciliacaoCentavos = !modeloPeriodoSeparado || saldoAnterior === null || saldoFinal === null
+    const dataFinalBR = periodo.fim ? periodo.fim.slice(8, 10) + '/' + periodo.fim.slice(5, 7) + '/' + periodo.fim.slice(0, 4) : '';
+    const linhaSaldoFinal = dataFinalBR && lines.find(function(line) {
+      const text = normalizarLinha(line && line.text);
+      return text.startsWith(dataFinalBR) && /SALDO\s*TOTAL DISPON[IÍ]VEL DIA/i.test(text);
+    });
+    const valorSaldoFinal = linhaSaldoFinal ? extrairValorFinal(linhaSaldoFinal.text, linhaSaldoFinal) : null;
+    const saldoFinal = valorSaldoFinal
+      ? valorSaldoFinal.valor
+      : (modeloPeriodoSeparado && saldosFinais.length ? parseValorBR(saldosFinais[saldosFinais.length - 1][1]) : null);
+    const conciliacaoCentavos = (!modeloPeriodoSeparado && !origemOCR) || saldoAnterior === null || saldoFinal === null
       ? null
       : Math.round((saldoAnterior + totalCredito - totalDebito - saldoFinal) * 100);
     if (conciliacaoCentavos !== null && conciliacaoCentavos !== 0) {
@@ -437,7 +459,7 @@
         return { x: x, s: normalizarTokenMonetarioPosicionalOCR(w.text, x) };
       });
       const text = cleanLineText(items);
-      return text ? { page: pageNum, y: Math.round(g.y), items: items, text: text } : null;
+      return text ? { page: pageNum, y: Math.round(g.y), items: items, text: text, origem_ocr: true } : null;
     }).filter(Boolean);
   }
 

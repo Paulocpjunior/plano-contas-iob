@@ -1,7 +1,8 @@
 {
-  "version": "3.4.242",
-  "build_date": "2026-09-02T16:39:25Z",
+  "version": "3.4.243",
+  "build_date": "2026-09-02T17:19:57Z",
   "release_notes": [
+    "Corrigir OCR e homologacao do extrato mensal Itau Empresas",
     "fix: concluir fluxo de parametrizacao de layouts",
     "Corrigir exibição das regras da memória da empresa (#102)",
     "🚧 Sintaxe do JS embutido e marcador de conflito entram no gate (#101)",
@@ -10,7 +11,6 @@
     "✅ R-4020: a retenção destravou — e ela é AGREGADA, não separada (#98)",
     "Vetar importação fiscal por CNPJ, competência e movimento (#97)",
     "Sincronizar movimento fiscal direto do CFI (#96)",
-    "📣 Catorze dias de entrega sem uma linha de novidade — e a trava cobria a metade errada (#95)",
-    "🚨 R-4020: o resumo escondia PIS e COFINS — \"como se fosse subir só a CSLL\" (#94)"
+    "📣 Catorze dias de entrega sem uma linha de novidade — e a trava cobria a metade errada (#95)"
   ]
 }

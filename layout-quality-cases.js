@@ -769,6 +769,21 @@ const LAYOUT_QUALITY_CASES = [
     validado_em: '2026-08-19T00:00:00-03:00',
     observacao: 'PDF imagem sem camada textual. OCR local em alta resolucao recupera sinal e centavos pela coluna monetaria; saldo anterior R$ 65,12 e final R$ 7.113,72 conciliados sem Gemini.'
   },
+  {
+    id: 'itau-extrato-mensal-gi-loschiavio-2026-07',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 1 - Extrato Mensal',
+    parser: 'parsearPDF_Itau_ExtratoMensal',
+    arquivo: 'Extrato conta corrente ITAU - Gi Loschiavio 1.pdf',
+    empresa: 'GI LOSCHIAVO VIAGENS LTDA ME',
+    periodo_inicio: '2026-07-01',
+    periodo_fim: '2026-07-31',
+    esperado: { total_lancamentos: 27, total_credito: 8670.38, total_debito: 15330.13 },
+    status: 'Aprovado',
+    validado_em: '2026-09-02T00:00:00-03:00',
+    observacao: 'PDF imagem Itaú Empresas. OCR preserva agencia 2937, corrige artefatos somente na coluna monetaria e concilia saldo anterior R$ 13.193,93 com saldo final R$ 6.534,18.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_CASES };
