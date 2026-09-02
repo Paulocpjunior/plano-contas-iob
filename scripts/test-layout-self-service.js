@@ -49,6 +49,8 @@ assert(server.includes("tipo: 'rascunho_ativado_em_teste'"), 'ativacao deve regi
 assert(admin.includes('arquivo_base64: await arquivoComoDataUrl'), 'painel deve enviar a amostra analisada');
 assert(admin.includes('Enviar para parametrização'), 'painel deve distinguir parametrizacao de ativacao em teste');
 assert(admin.includes('Reenvie o mesmo arquivo no formulário acima.'), 'rascunhos antigos devem mostrar a recuperacao necessaria');
+assert(admin.includes('reanalisarRascunhoLayout'), 'rascunho com amostra privada deve poder ser reanalisado sem novo upload manual');
+assert(admin.includes('Reanalisar agora'), 'painel deve oferecer a reanalise direta da amostra privada');
 assert(admin.includes('A aprovação ampla continuará bloqueada'), 'ativacao em teste nao pode se apresentar como aprovacao');
 assert(workflow.includes('CCI_LAYOUT_SAMPLE_BUCKET'), 'deploy deve configurar o bucket privado de amostras');
 

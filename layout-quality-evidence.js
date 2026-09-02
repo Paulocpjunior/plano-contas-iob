@@ -795,6 +795,20 @@ const LAYOUT_QUALITY_EVIDENCE = [
     status: 'Regressao aprovada',
     observacao: 'PDF real protegido por SHA-256. Validado com 961 notas, credito total de R$ 961.282,04 e total oficial conciliado.'
   },
+  {
+    id: 'itau-extrato-mensal-gi-loschiavio-2026-07',
+    banco: '341',
+    nomeBanco: 'Itau Unibanco',
+    layout: 'Itau 1 - Extrato Mensal',
+    parser: 'parsearPDF_Itau_ExtratoMensal',
+    arquivo: 'Extrato conta corrente ITAU - Gi Loschiavio 1.pdf',
+    empresa: 'GI LOSCHIAVO VIAGENS LTDA ME',
+    periodo_inicio: '2026-07-01',
+    periodo_fim: '2026-07-31',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF imagem real protegido por SHA-256. OCR local validado com 27 movimentos, credito de R$ 8.670,38, debito de R$ 15.330,13 e saldos de R$ 13.193,93 a R$ 6.534,18 conciliados.'
+  },
 ];
 
 module.exports = { LAYOUT_QUALITY_EVIDENCE };
