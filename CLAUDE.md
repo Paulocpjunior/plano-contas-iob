@@ -44,6 +44,49 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **🚨 "JÁ ESTÁ INFORMADO DESDE O MÊS PASSADO" — a tela mandava fazer o que já
+  estava feito, e o CFI já tinha resolvido a pendência de verdade** (02/09,
+  Paulo, VINCENZO GUERRA BANANAS · 08/2026: *"vou entregar esse REINF R-2055,
+  tá falando que tem que informar o indicador de operação, mas já está
+  informado desde o mês passado, quando fizemos o teste dela"*).
+  📖 O print dele mostra as DUAS leituras discordando **na mesma tela**: a
+  coluna INDAQUIS com **`1` · badge verde "informado"**, e o resumo dizendo
+  *"1 pendente(s) — Informe o indicador da aquisição dos pendentes e busque de
+  novo"*.
+  🔴 **A PENDÊNCIA REAL ERA OUTRA**: ANTONIO DIAS DA SILVA aparece com **CNPJ**
+  (08.507.490/0001-29) e `apurarAquisicaoRural` o barrava por *"falta o
+  tpInscProd"*. **Só que o CFI JÁ TINHA RESOLVIDO ISSO** — e dizia, num
+  parágrafo da MESMA tela: *"o CPF do titular foi confirmado no CADESP e gravado
+  no cadastro do produtor"*. O payload vem com **`tipoInscricao: 'cpf'`**,
+  `cpfProdutor` preenchido e **`origemDoCpf: 'cadastro-do-produtor'`** (a régua
+  de 12/08, que nasceu justamente para este produtor).
+  🚨 **E ESTA CASCA IGNORAVA OS TRÊS CAMPOS E RECONTAVA DÍGITOS**
+  (`doc.length === 14 ⇒ pendente`) — a **segunda cópia julgando natureza**, que
+  é exatamente o que aquele dia proibiu (*"a casca NÃO julga natureza: nota que
+  entrou no FUNRURAL já teve a sub-rogação decidida lá"*). Quem responde
+  *"quem este evento identifica"* é o **CFI**; a contagem de dígitos aqui é
+  RESERVA, nunca juiz.
+  ✂️ **A CHAVE DO INDICADOR ACEITA OS DOIS DOCUMENTOS, e isso não é detalhe**:
+  ele foi informado na tela com o **CNPJ da nota**. Trocar a chave para o CPF
+  faria o indicador **já gravado SUMIR** — trocar um defeito por outro, em
+  silêncio, que é o pior desfecho possível.
+  ⚠️ **A PENDÊNCIA CONTINUA REAL SEM O CPF CONFIRMADO** — sem ele o produtor
+  segue bloqueado, com a frase do CADESP. Afrouxar declararia em nome de quem
+  ninguém confirmou, e declaração não se desfaz.
+  🚨 **E A FRASE DA AÇÃO ERA FIXA — o achado 18 (21/08) na forma mais cara.**
+  A tela dizia *"informe o indicador"* sempre que houvesse pendente, qualquer
+  que fosse a causa. **Ele fez o que estava escrito, nada mudou, e a conclusão
+  natural é que o app está quebrado.** Agora a ação sai de `acaoDosPendentes`,
+  derivada da pendência REAL, com as causas SEPARADAS — indicador na tela,
+  CADESP no cadastro do CFI, divergência nas notas, base zerada na captura são
+  ações **diferentes e em lugares diferentes**; uma frase só para todas é "vá
+  procurar" com mais passos.
+  📌 **REGRA QUE FICA: quando o app irmão DECLARA um fato em campo próprio, a
+  casca honra a declaração — não recalcula o fato a partir da forma do dado.**
+  Recontar dígitos sobre um `tipoInscricao` que já veio decidido é a armadilha
+  das duas formas com a roupa de fronteira entre dois apps: os dois "funcionam",
+  e só o cliente vê a contradição.
+
 - **🚨 EU RODEI O GATE ERRADO — e o certo estava escrito no aviso do próprio
   deploy** (02/09, run 121 vermelho logo depois do #105).
   🔴 **Duas falhas, as duas minhas.** (1) `package.json` em **3.4.243** contra

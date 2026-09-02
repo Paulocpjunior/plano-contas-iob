@@ -60,6 +60,46 @@ function docDoProdutor(p) {
 }
 
 /**
+ * QUEM O EVENTO IDENTIFICA — e quem responde isso é o CFI, não a contagem de
+ * dígitos daqui.
+ *
+ * 🚨 O CASO (02/09, VINCENZO GUERRA · 08/2026): a tela mostrava o indicador da
+ * aquisição **informado** (badge verde, `1`) e mandava *"informe o indicador da
+ * aquisição dos pendentes"*. Ele já tinha informado no mês do teste — e nada
+ * mudava. A pendência real era OUTRA: ANTONIO DIAS DA SILVA aparece com CNPJ
+ * (08.507.490/0001-29) e esta apuração o barrava por *"falta o tpInscProd"*.
+ *
+ * 🔴 **Só que o CFI JÁ TINHA RESOLVIDO ISSO — e dizia, na mesma tela**: o CPF
+ * do titular foi confirmado no CADESP e gravado no cadastro do produtor, então
+ * o payload vem com `tipoInscricao: 'cpf'`, `cpfProdutor` preenchido e
+ * `origemDoCpf: 'cadastro-do-produtor'` (régua de 12/08). Esta casca ignorava
+ * os três e **recontava dígitos** — a segunda cópia julgando natureza, que é
+ * exatamente o que aquele dia proibiu ("a casca NÃO julga natureza").
+ *
+ * Resultado: DUAS leituras do mesmo fato na mesma tela, e a que mandava era a
+ * que BLOQUEIA.
+ */
+function identificacaoDoProdutor(p) {
+  const doc = docDoProdutor(p);
+  const cpf = soDigitos(p && p.cpfProdutor);
+  // O CFI DECLARA o tipo. Só se ele não declarar é que a forma do documento
+  // responde — e aí ela é reserva, não juiz.
+  const declarado = p && p.tipoInscricao;
+  const ehCpf = cpf.length === 11 && (declarado === 'cpf' || doc.length === 11);
+  return {
+    doc,
+    cpf: ehCpf ? cpf : null,
+    ehCpf,
+    ehCnpj: !ehCpf && doc.length === 14,
+    // ⚠️ Os DOIS documentos servem de chave do indicador: ele foi informado na
+    // tela com o CNPJ da nota, e trocar a chave para o CPF faria o indicador
+    // que já está gravado SUMIR — trocar um defeito por outro, em silêncio.
+    chaves: [doc, cpf].filter((d) => d.length === 11 || d.length === 14),
+    cpfDoCadastro: p && p.origemDoCpf === 'cadastro-do-produtor' ? cpf : null,
+  };
+}
+
+/**
  * Indicadores de aquisição conhecidos, por DOCUMENTO do produtor.
  *
  * Vem do cadastro (o que a pessoa informou), nunca de dedução. Formato de 1 a 2
@@ -94,9 +134,8 @@ function apurarAquisicaoRural({ competencia, produtores, indicadores = {}, marca
   const informados = mapaIndicadores(indicadores);
 
   const linhas = (produtores || []).map((p) => {
-    const doc = docDoProdutor(p);
-    const ehCpf = doc.length === 11;
-    const ehCnpj = doc.length === 14;
+    const ident = identificacaoDoProdutor(p);
+    const { doc, ehCpf, ehCnpj } = ident;
     const pendencias = [];
 
     if (ehCnpj) {
@@ -117,7 +156,8 @@ function apurarAquisicaoRural({ competencia, produtores, indicadores = {}, marca
       pendencias.push('CPF/CNPJ do produtor inválido ou ausente — sem ele o evento não identifica o produtor.');
     }
 
-    const indAquis = informados.get(doc) || null;
+    // Aceita o indicador gravado por QUALQUER um dos dois documentos.
+    const indAquis = ident.chaves.map((k) => informados.get(k)).find(Boolean) || null;
     if (!indAquis) {
       pendencias.push(
         'Indicador da natureza da aquisição (indAquis) não definido. Ele vem de tabela oficial da '
@@ -148,7 +188,10 @@ function apurarAquisicaoRural({ competencia, produtores, indicadores = {}, marca
       tipoInscricao: ehCpf ? 'cpf' : (ehCnpj ? 'cnpj' : null),
       // Só CPF sai no campo chamado "cpf" — nome que mente faz o outro lado
       // escrever no lugar errado achando que conferiu (lição do csllOuTotal).
-      cpfProdutor: ehCpf ? doc : null,
+      cpfProdutor: ident.cpf,
+      // A ORIGEM viaja: declarar em nome da pessoa errada não se desfaz, então
+      // quem conferir precisa saber que o CPF veio do CADASTRO, não da nota.
+      origemDoCpf: (p && p.origemDoCpf) || (ehCpf ? 'nota' : null),
       nome: (p && p.nome) || null,
       uf: (p && p.uf) || null,
       seguradoEspecial: !!(p && p.seguradoEspecial),
@@ -176,6 +219,9 @@ function apurarAquisicaoRural({ competencia, produtores, indicadores = {}, marca
       produtores: linhas.length,
       prontos: prontos.length,
       pendentes: linhas.length - prontos.length,
+      // A ação REAL dos pendentes — a tela mostrava uma frase fixa que mandava
+      // fazer o que já estava feito.
+      acaoPendentes: acaoDosPendentes(linhas),
       seguradoEspecial: linhas.filter((l) => l.seguradoEspecial).length,
       comCnpj: linhas.filter((l) => l.tipoInscricao === 'cnpj').length,
       base: r2(linhas.reduce((t, l) => t + l.base, 0)),
@@ -186,6 +232,43 @@ function apurarAquisicaoRural({ competencia, produtores, indicadores = {}, marca
     },
     avisos: avisosDaApuracao(linhas, marcadoComoComprador),
   };
+}
+
+/**
+ * A AÇÃO sai da pendência REAL, nunca de uma frase fixa.
+ *
+ * 🚨 (02/09, VINCENZO GUERRA) A tela dizia sempre *"informe o indicador da
+ * aquisição dos pendentes e busque de novo"* — bastava haver pendente. O
+ * indicador do único produtor estava informado; a pendência era outra. Ele
+ * informou de novo, e nada mudou.
+ *
+ * É o achado 18 (21/08) na forma mais cara: **aviso que aponta um lugar que não
+ * resolve**. A pessoa faz o que está escrito, não muda nada, e conclui que o
+ * app está quebrado.
+ *
+ * ⚠️ Causas DIFERENTES ficam separadas porque as ações são diferentes e em
+ * lugares diferentes (tela do indicador × CADESP × captura do CFI). Uma frase
+ * só para todas é "vá procurar" com mais passos.
+ */
+function acaoDosPendentes(linhas) {
+  const pendentes = (linhas || []).filter((l) => !l.pronto);
+  if (!pendentes.length) return null;
+  const acoes = [];
+  if (pendentes.some((l) => !l.indAquis)) {
+    acoes.push('informe o indicador da aquisição (indAquis) na coluna INDAQUIS e busque de novo');
+  }
+  if (pendentes.some((l) => l.tipoInscricao === 'cnpj')) {
+    acoes.push('confirme no CADESP o CPF do titular dos produtores com CNPJ e grave no cadastro do '
+      + 'produtor no Consultor Fiscal — o tpInscProd não se deduz');
+  }
+  if (pendentes.some((l) => (l.pendencias || []).some((t) => /diverg/i.test(t)))) {
+    acoes.push('confira as notas em que o FUNRURAL declarado difere do apurado');
+  }
+  if (pendentes.some((l) => !(Number(l.base) > 0))) {
+    acoes.push('há aquisição sem base de cálculo — confira a captura no Consultor Fiscal');
+  }
+  if (!acoes.length) return 'Veja a pendência de cada produtor na linha dele.';
+  return `${acoes.join('; ')}.`;
 }
 
 function avisosDaApuracao(linhas, marcadoComoComprador) {
@@ -230,4 +313,4 @@ function avisosDaApuracao(linhas, marcadoComoComprador) {
   return avisos;
 }
 
-module.exports = { apurarAquisicaoRural, mapaIndicadores };
+module.exports = { apurarAquisicaoRural, mapaIndicadores, acaoDosPendentes };
