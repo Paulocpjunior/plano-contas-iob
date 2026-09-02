@@ -44,6 +44,64 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **🚨 GRAVAR UM CAMPO APAGAVA OS OUTROS DOIS — "informo os campos e não
+  assume"** (02/09, Paulo, no R-2010: *"Fui entregar a Reinf R-2010, porém
+  mesmo eu informando os campos não está assumindo"*, com o prestador em
+  **PENDENTE** e `0 pronto(s)` depois de ele digitar o `tpServico` e escolher
+  o `indObra`).
+  🔴 **A CAUSA É A COMBINAÇÃO, não uma linha errada.** A tela grava **um campo
+  por vez** — cada `onchange` manda só o seu (`{ tpServico }`, `{ indObra }`,
+  `{ indCPRB }`, `{ baseNota }`) — e a rota montava o documento com os **TRÊS**,
+  pondo `null` no que não veio:
+  `tpServico: tpServico || null` · `indObra: indObra === '' ? null : Number(...)`.
+  🚨 **`merge: true` NÃO PROTEGE DISSO**: ele funde no nível do DOCUMENTO, e
+  campo que você **mandou** como `null` é gravado como `null`. Ou seja: digitar
+  o `tpServico` **apagava** o `indObra` já informado; escolher o `indObra`
+  apagava o `tpServico`; e informar a **BASE** apagava os três de uma vez. Os
+  três **nunca coexistiam**, então o prestador ficava pendente **para sempre**.
+  📌 **É a família do ✕ do FUNRURAL (30/08, no CFI): gravação que apaga o que
+  ninguém mandou apagar.** E o sintoma é o pior possível — **nada falha, nada
+  avisa**: a tela diz "salvo" e recarrega **pela regra do backend** (que é o
+  desenho CERTO, e foi ele que expôs o defeito em vez de escondê-lo). Para quem
+  usa, isso é indistinguível de *"o campo não foi aceito"*, e a única saída que
+  sobra é digitar de novo — foi o que ele fez, com `100000001` e depois
+  `000000000`.
+  ✂️ **A RÉGUA: `undefined` não é valor, é AUSÊNCIA — e ausência não escreve.**
+  `patchCadastroPrestador` só devolve o campo que VEIO na requisição. ⚠️ String
+  **vazia continua apagando**, de propósito: é a pessoa escolhendo a opção em
+  branco ("limpei e salvei", a regra do CCM-SP #311) — e `0` é VALOR, não vazio
+  (confundir os dois faria *"não é obra"*, que é o caso comum, nunca ser
+  gravado).
+  ⚠️ **E ELA MORA NO MÓDULO PURO, não na rota**: dentro do `reinf-routes.js`
+  (express + firebase-admin) seria inexercitável por teste — **régua dentro de
+  rota é régua sem prova**. A trava exige que a rota CHAME o dono e proíbe a
+  volta da montagem antiga; provada reintroduzindo o defeito.
+  🔎 **E A CLASSE FOI MEDIDA, não suposta**: varrendo o `index.html` atrás de
+  `onchange` que grava UM campo, só o R-2010 faz isso hoje — as outras telas
+  mandam o formulário inteiro, e ali escrever todos os campos é o certo. Trava
+  larga acusaria essas e seria desligada.
+  🚩 **O QUE ISTO NÃO FECHA**: nenhuma transmissão real foi feita. O que se
+  prova aqui é que os três campos passam a coexistir e o prestador chega a
+  PRONTO — não que a Receita aceitou o evento.
+
+- **📅 O `dtFG` DO R-4020 CHEGAVA MALFORMADO — e a correção era do outro lado**
+  (02/09, print: *"Nenhum beneficiário pôde ser convertido em evento ·
+  ELEVADORES ATLAS SCHINDLER LTDA. — R-4020 inválido: `pagamentos[0].dtFG deve
+  ser AAAA-MM-DD`"*).
+  ✅ **ESTE LADO ESTAVA CERTO, e vale registrar por quê**: o gerador RECUSOU em
+  vez de carimbar uma data, e o beneficiário recusado **não derrubou o lote** —
+  ele saiu NOMEADO em `bloqueados`. É o desenho que a casa quer.
+  📌 **A causa mora no CFI**: o `dhEmi` chega em TRÊS formas lá
+  (`2026-08-14T08:35:36-03:00` do XML ABRASF, `11/05/2026 14:31:31` do portal de
+  SP, e Timestamp do Firestore) e o túnel mandava o TEXTO CRU. Corrigido no CFI
+  (PR #1147), que passou a normalizar no DONO — e o mesmo defeito estava no
+  **R-2010** (`dtEmissao`), no **R-2055** e na **NFTS**.
+  ⚠️ **REGRA QUE FICA para este repo: campo que chega do CFI e não passa no
+  validador do gerador é PERGUNTA sobre o túnel, não motivo para afrouxar o
+  validador.** Aceitar `11/05/2026` aqui teria declarado o fato gerador em
+  **novembro** — evento ACEITO na competência errada, que é o desfecho que não
+  volta atrás.
+
 - **🚨 950 KB DE JAVASCRIPT SERVIDOS SEM NENHUMA CHECAGEM DE SINTAXE — e o
   sintoma disso é "a atualização não subiu"** (01/09, achado enquanto eu
   procurava a causa de um relato do Paulo).
