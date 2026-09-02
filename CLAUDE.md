@@ -125,9 +125,25 @@ ver "Ligação com o CFI".
   `onchange` que grava UM campo, só o R-2010 faz isso hoje — as outras telas
   mandam o formulário inteiro, e ali escrever todos os campos é o certo. Trava
   larga acusaria essas e seria desligada.
-  🚩 **O QUE ISTO NÃO FECHA**: nenhuma transmissão real foi feita. O que se
-  prova aqui é que os três campos passam a coexistir e o prestador chega a
-  PRONTO — não que a Receita aceitou o evento.
+  ✅ **FECHADO EM PRODUÇÃO NO MESMO DIA** (02/09, Paulo: *"registro R-2010 deu
+  certo!!!"*). É a **PRIMEIRA transmissão de R-2010 pelo app** — o evento saiu
+  com `tpServico`, `indObra` e `indCPRB` juntos, que era exatamente o que nunca
+  coexistia.
+  📌 **E É ISSO QUE FECHA O CASO, não o teste verde.** A ressalva que estava
+  aqui dizia, com razão, *"nenhuma transmissão real foi feita — o que se prova
+  é que os três campos coexistem, não que a Receita aceitou"*. **Quem responde
+  é o RESULTADO**, e ele veio: é a primeira regra permanente desta casa, e a
+  única prova que ela aceita.
+  📌 **REGRA QUE FICA: ressalva de "não foi transmitido" tem PRAZO — ela se
+  carimba quando a transmissão acontece.** Deixá-la de pé depois da prova faz a
+  próxima sessão ler como pendente o que já fechou, e a fila envelhece com
+  trabalho que não existe (o vício do *"0/388"*, que foi repetido como fato por
+  semanas).
+  🚩 **O que continua ABERTO, e vai dito**: o R-2010 fechou para ESTE prestador
+  e esta competência. Prestador cuja retenção não bate 11% continua pedindo a
+  **BASE informada** (a dedução de material/insumo da IN RFB 971 não vem na
+  NFS-e), e `indCPRB` divergente entre notas do mesmo prestador continua sendo
+  PERGUNTA — o app não escolhe por ordem de chegada.
 
 - **📅 O `dtFG` DO R-4020 CHEGAVA MALFORMADO — e a correção era do outro lado**
   (02/09, print: *"Nenhum beneficiário pôde ser convertido em evento ·
