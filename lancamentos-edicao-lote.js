@@ -92,6 +92,69 @@
         estado.auditoriaLancamentos = auditoria;
     }
 
+    function valorEmCentavos(valor) {
+        if (typeof valor === 'number') return Number.isFinite(valor) ? Math.round(Math.abs(valor) * 100) : 0;
+        let texto = String(valor == null ? '' : valor).trim().replace(/\s/g, '');
+        if (!texto) return 0;
+        if (texto.includes(',') && texto.includes('.')) texto = texto.replace(/\./g, '').replace(',', '.');
+        else if (texto.includes(',')) texto = texto.replace(',', '.');
+        const numero = Number(texto);
+        return Number.isFinite(numero) ? Math.round(Math.abs(numero) * 100) : 0;
+    }
+
+    function normalizarPartidas(partidas, rotulo) {
+        const lado = rotulo || 'partida';
+        const lista = (partidas || []).map(function (partida) {
+            return {
+                conta: String(partida && partida.conta || '').trim(),
+                centavos: valorEmCentavos(partida && partida.valor)
+            };
+        });
+        if (!lista.length) throw new Error('Inclua ao menos uma conta em ' + lado + '.');
+        lista.forEach(function (partida, indice) {
+            if (!partida.conta) throw new Error('Informe a conta da partida ' + (indice + 1) + ' em ' + lado + '.');
+            if (partida.centavos <= 0) throw new Error('Informe um valor maior que zero na partida ' + (indice + 1) + ' em ' + lado + '.');
+        });
+        return lista;
+    }
+
+    function montarPartidasBalanceadas(debitos, creditos) {
+        const debitosNorm = normalizarPartidas(debitos, 'Débitos');
+        const creditosNorm = normalizarPartidas(creditos, 'Créditos');
+        const totalDebitos = debitosNorm.reduce(function (total, item) { return total + item.centavos; }, 0);
+        const totalCreditos = creditosNorm.reduce(function (total, item) { return total + item.centavos; }, 0);
+        if (totalDebitos !== totalCreditos) {
+            const erro = new Error('O total dos débitos deve ser igual ao total dos créditos. Diferença: R$ ' + (Math.abs(totalDebitos - totalCreditos) / 100).toFixed(2).replace('.', ',') + '.');
+            erro.code = 'LANCAMENTO_NAO_BALANCEADO';
+            throw erro;
+        }
+
+        const linhas = [];
+        let indiceDebito = 0;
+        let indiceCredito = 0;
+        let saldoDebito = debitosNorm[0].centavos;
+        let saldoCredito = creditosNorm[0].centavos;
+        while (indiceDebito < debitosNorm.length && indiceCredito < creditosNorm.length) {
+            const centavos = Math.min(saldoDebito, saldoCredito);
+            linhas.push({
+                contaDebito: debitosNorm[indiceDebito].conta,
+                contaCredito: creditosNorm[indiceCredito].conta,
+                valor: centavos / 100
+            });
+            saldoDebito -= centavos;
+            saldoCredito -= centavos;
+            if (saldoDebito === 0) {
+                indiceDebito += 1;
+                saldoDebito = indiceDebito < debitosNorm.length ? debitosNorm[indiceDebito].centavos : 0;
+            }
+            if (saldoCredito === 0) {
+                indiceCredito += 1;
+                saldoCredito = indiceCredito < creditosNorm.length ? creditosNorm[indiceCredito].centavos : 0;
+            }
+        }
+        return { linhas: linhas, total: totalDebitos / 100 };
+    }
+
     function textoObrigatorio(valor, rotulo) {
         const texto = String(valor == null ? '' : valor).trim();
         if (!texto) throw new Error('Informe ' + rotulo + ' para aplicar nos lançamentos selecionados.');
@@ -180,6 +243,9 @@
         garantirPeriodosAbertos: garantirPeriodosAbertos,
         executarComRollback: executarComRollback,
         aplicarEdicaoIndividual: aplicarEdicaoIndividual,
-        registrarExclusao: registrarExclusao
+        registrarExclusao: registrarExclusao,
+        valorEmCentavos: valorEmCentavos,
+        normalizarPartidas: normalizarPartidas,
+        montarPartidasBalanceadas: montarPartidasBalanceadas
     };
 });

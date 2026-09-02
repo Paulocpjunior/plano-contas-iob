@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.247",
+  "version": "3.4.248",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -16,7 +16,7 @@
     "test:fiscal-payments": "node scripts/test-fiscal-payments-contract.js",
     "test:folha-acesso": "node scripts/test-folha-acesso-colaboradores.js",
     "test:folha-sage": "node scripts/test-sage-folha-fpimp.js",
-    "test:lancamentos-lote": "node scripts/test-lancamentos-edicao-lote.js && node scripts/test-lancamentos-protecao-classificacao.js",
+    "test:lancamentos-lote": "node scripts/test-lancamentos-edicao-lote.js && node scripts/test-lancamentos-protecao-classificacao.js && node scripts/test-lancamento-manual-multiplo.js",
     "test:implantacao-contabil": "node scripts/test-implantacao-contabil.js && node scripts/test-ciclo-contabil.js",
     "test:parametrizacao-regime": "node scripts/test-parametrizacao-regime.js",
     "test:prontidao-contabil": "node scripts/test-prontidao-contabil.js",
