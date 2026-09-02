@@ -1,7 +1,7 @@
 {
-  "version": "3.4.246",
-  "build_date": "2026-09-02T18:13:16Z",
+  "version": "3.4.247",
+  "build_date": "2026-09-02T18:27:00Z",
   "release_notes": [
-    "Melhorias internas e correcoes"
+    "Mercado Pago: resumo mensal nao contamina a descricao do primeiro lancamento"
   ]
 }

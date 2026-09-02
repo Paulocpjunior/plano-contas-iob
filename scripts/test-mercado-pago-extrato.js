@@ -44,6 +44,13 @@ async function extrairPaginas(buffer) {
   assert.strictEqual(resultado.saldo_anterior, 9982.05);
   assert.strictEqual(resultado.saldo_final, 28714.62);
   assert.strictEqual(resultado.saldos_conciliados, true);
+  assert.strictEqual(
+    resultado.lancamentos[0].descricao,
+    'Liberação de dinheiro',
+    'Saldo inicial, Entradas e Saidas do resumo nao podem contaminar o primeiro movimento'
+  );
+  assert.strictEqual(resultado.lancamentos[0].valor, 133.04);
+  assert(!resultado.lancamentos.some((lancamento) => /Saldo inicial:|Entradas:|Sa[ií]das:/i.test(lancamento.descricao)), 'resumo mensal nao pode virar descricao de lancamento');
 
   const retencao = resultado.lancamentos.find((lancamento) =>
     lancamento.data === '2026-04-01'

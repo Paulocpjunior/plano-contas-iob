@@ -82,15 +82,19 @@
   }
 
   function descricoesDaPagina(items, movimentos, pendentePaginaAnterior) {
+    const cabecalhoDescricao = items.find(function(item) {
+      return item.x >= 80 && item.x < 190 && /^Descri[cç][aã]o$/i.test(item.str);
+    });
+    const topoTabela = cabecalhoDescricao ? cabecalhoDescricao.y - 2 : 570;
     const descricoes = items.filter(function(item) {
-      return item.x >= 80 && item.x < 190 && item.y > 80 && item.y < 570
+      return item.x >= 80 && item.x < 190 && item.y > 80 && item.y < topoTabela
         && !/^(Descri[cç][aã]o|DETALHE DOS MOVIMENTOS)$/i.test(item.str);
     });
     const pendenteProximaPagina = [];
     movimentos.forEach(function(movimento, indice) {
       const anterior = movimentos[indice - 1];
       const proximo = movimentos[indice + 1];
-      const limiteSuperior = anterior ? (anterior.y + movimento.y) / 2 : 570;
+      const limiteSuperior = anterior ? (anterior.y + movimento.y) / 2 : topoTabela;
       let limiteInferior = proximo ? (movimento.y + proximo.y) / 2 : 80;
       if (!proximo) limiteInferior = Math.max(limiteInferior, movimento.y - 19);
       const linhas = descricoes
