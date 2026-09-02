@@ -6,31 +6,31 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.241"></script>
+<script src="/saas-brand-theme.js?v=3.4.242"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.241"></script>
-<script src="/parser-ofx.js?v=3.4.241"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.241"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.241"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.241"></script>
-<script src="/parser-safra-extrato.js?v=3.4.241"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.241"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.241"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.241"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.241"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.241"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.241"></script>
-<script src="/parser-btg-pactual.js?v=3.4.241"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.241"></script>
-<script src="/parser-abc-extrato.js?v=3.4.241"></script>
-<script src="/parser-inter-extrato.js?v=3.4.241"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.241"></script>
-<script src="/parser-stone-extrato.js?v=3.4.241"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.241"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.241"></script>
+<script src="/api-adapter.js?v=3.4.242"></script>
+<script src="/parser-ofx.js?v=3.4.242"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.242"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.242"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.242"></script>
+<script src="/parser-safra-extrato.js?v=3.4.242"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.242"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.242"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.242"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.242"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.242"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.242"></script>
+<script src="/parser-btg-pactual.js?v=3.4.242"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.242"></script>
+<script src="/parser-abc-extrato.js?v=3.4.242"></script>
+<script src="/parser-inter-extrato.js?v=3.4.242"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.242"></script>
+<script src="/parser-stone-extrato.js?v=3.4.242"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.242"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.242"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -406,8 +406,8 @@
         </div>
         <div class="layout-intake-actions">
           <button class="btn" type="button" onclick="analisarNovoLayoutBancario()">Analisar arquivo</button>
-          <button class="btn" type="button" id="saveLayoutDraftBtn" style="background:#059669" onclick="salvarRascunhoLayoutBancario()" disabled>Salvar rascunho em teste</button>
-          <span class="layout-intake-note">Privacidade: o PDF não é gravado; ficam apenas nome, tamanho, páginas, hash SHA-256 e resultado técnico.</span>
+          <button class="btn" type="button" id="saveLayoutDraftBtn" style="background:#059669" onclick="salvarRascunhoLayoutBancario()" disabled>Enviar para parametrização</button>
+          <span class="layout-intake-note">Parametrização: a amostra é armazenada em área privada por até 30 dias, acessível somente ao Admin. Nenhum layout é aprovado automaticamente.</span>
         </div>
         <div id="newLayoutAnalysis" class="quality-result"></div>
       </div>
@@ -566,6 +566,7 @@ let currentLogs = [];
 let currentLayoutsBancarios = null;
 let currentLayoutDrafts = [];
 let novoLayoutAnaliseAtual = null;
+let novoLayoutArquivoAtual = null;
 let currentLayoutQuality = null;
 let layoutCaseFilters = { estado: 'abertos', categoria: '', parser: '', banco: '', pagina: 0 };
 let currentExclusaoPreview = null;
@@ -939,6 +940,7 @@ function normalizarCodigoBancoInput(valor) {
 
 function limparAnaliseNovoLayout() {
   novoLayoutAnaliseAtual = null;
+  novoLayoutArquivoAtual = null;
   const resultado = document.getElementById('newLayoutAnalysis');
   const salvar = document.getElementById('saveLayoutDraftBtn');
   if (resultado) { resultado.className = 'quality-result'; resultado.innerHTML = ''; }
@@ -955,6 +957,15 @@ function setNovoLayoutResult(tipo, html) {
 async function sha256Arquivo(buffer) {
   const hash = await crypto.subtle.digest('SHA-256', buffer.slice(0));
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function arquivoComoDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Falha ao ler o arquivo-modelo.'));
+    reader.readAsDataURL(file);
+  });
 }
 
 async function inspecionarPdfNovoLayout(buffer) {
@@ -1035,6 +1046,7 @@ async function analisarNovoLayoutBancario() {
       layout_detectado: reconhecido ? reconhecido.layout : '',
       resultado_teste: reconhecido || null
     };
+    novoLayoutArquivoAtual = file;
     const detalhePdf = inspecao.paginas
       ? `<br><strong>PDF:</strong> ${inspecao.paginas} página(s), ${inspecao.textual ? 'texto extraível' : 'possível imagem/OCR'}`
       : '';
@@ -1050,13 +1062,14 @@ async function analisarNovoLayoutBancario() {
     document.getElementById('saveLayoutDraftBtn').disabled = false;
   } catch (e) {
     novoLayoutAnaliseAtual = null;
+    novoLayoutArquivoAtual = null;
     document.getElementById('saveLayoutDraftBtn').disabled = true;
     setNovoLayoutResult('error', 'Não foi possível analisar o arquivo: ' + escapeHtml(e.message || e));
   }
 }
 
 async function salvarRascunhoLayoutBancario() {
-  if (!novoLayoutAnaliseAtual) {
+  if (!novoLayoutAnaliseAtual || !novoLayoutArquivoAtual) {
     setNovoLayoutResult('error', 'Analise o arquivo antes de salvar o rascunho.');
     return;
   }
@@ -1064,19 +1077,26 @@ async function salvarRascunhoLayoutBancario() {
   btn.disabled = true;
   setNovoLayoutResult('ok', 'Salvando rascunho controlado…');
   try {
+    const payload = {
+      ...novoLayoutAnaliseAtual,
+      arquivo_base64: await arquivoComoDataUrl(novoLayoutArquivoAtual)
+    };
     const r = await window.API.apiFetch('/api/layouts-bancarios/rascunhos', {
       method: 'POST',
-      body: JSON.stringify(novoLayoutAnaliseAtual)
+      body: JSON.stringify(payload)
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.erro || ('HTTP ' + r.status));
     setNovoLayoutResult('ok',
-      `<strong>Rascunho ${escapeHtml(data.id)} criado.</strong> Status: ${escapeHtml(data.status || 'em_teste')}. ` +
-      'O arquivo bruto não foi armazenado e o layout continuará fora do extrator até a homologação técnica.'
+      `<strong>Rascunho ${escapeHtml(data.id)} ${data.duplicado ? 'atualizado' : 'criado'}.</strong> Status: ${escapeHtml(data.status || 'em_teste')}. ` +
+      (data.proximo_passo === 'ativar_em_teste'
+        ? 'O parser reconheceu a amostra. Use “Ativar em teste” na fila e depois execute a conferência de qualidade.'
+        : 'A amostra foi recebida na fila privada. O próximo passo é criar o parser e a regressão; a aprovação continua bloqueada até essas provas existirem.')
     );
     await carregarRascunhosLayoutsAdmin();
     renderRascunhosLayoutsAdmin();
     novoLayoutAnaliseAtual = null;
+    novoLayoutArquivoAtual = null;
   } catch (e) {
     btn.disabled = false;
     setNovoLayoutResult('error', 'Erro ao salvar rascunho: ' + escapeHtml(e.message || e));
@@ -1102,18 +1122,69 @@ function renderRascunhosLayoutsAdmin() {
     el.innerHTML = '<div class="empty" style="padding:22px">Nenhum rascunho enviado.</div>';
     return;
   }
-  let html = '<div class="table-scroll"><table><thead><tr><th>Banco</th><th>Layout solicitado</th><th>Arquivo-modelo</th><th>Análise</th><th>Status</th><th>Criado por</th></tr></thead><tbody>';
+  let html = '<div class="table-scroll"><table><thead><tr><th>Banco</th><th>Layout solicitado</th><th>Arquivo-modelo</th><th>Análise</th><th>Próximo passo</th><th>Status</th><th>Criado por</th><th>Ações</th></tr></thead><tbody>';
   currentLayoutDrafts.forEach(item => {
+    const amostraDisponivel = item.amostra_disponivel === true;
+    const parserDisponivel = !!item.parser_detectado;
+    const ativado = item.status === 'ativado_em_teste';
+    const proximoPasso = !amostraDisponivel
+      ? '<strong style="color:#b91c1c">Reenvie o mesmo arquivo no formulário acima.</strong><br>O cadastro antigo guardou apenas o hash e não permite parametrização.'
+      : (!parserDisponivel
+        ? '<strong style="color:#b45309">Parametrização técnica.</strong><br>Baixar amostra, criar parser e regressão; depois reanalisar o mesmo arquivo.'
+        : (ativado
+          ? '<strong style="color:#047857">Conferência e qualidade.</strong><br>Teste os totais e só aprove com caso + evidência de regressão.'
+          : '<strong style="color:#1d4ed8">Ativar em teste.</strong><br>Depois confira totais e registre as provas de qualidade.'));
+    const botoes = [
+      amostraDisponivel ? `<button class="btn-sm" onclick="baixarAmostraRascunho('${escapeHtml(item.id)}')">Baixar amostra</button>` : '',
+      parserDisponivel && !ativado ? `<button class="btn-sm btn-promote" onclick="ativarRascunhoLayout('${escapeHtml(item.id)}')">Ativar em teste</button>` : ''
+    ].filter(Boolean).join(' ');
     html += `<tr>
       <td><strong>${escapeHtml(item.banco)}</strong><br>${escapeHtml(item.nomeBanco || '')}</td>
       <td>${escapeHtml(item.nome || '')}<br><span style="font-size:11px;color:#64748b">${escapeHtml(item.formato || '')}</span></td>
-      <td>${escapeHtml(item.arquivo || '')}<br><span class="text-mono" style="font-size:10px;color:#64748b">${escapeHtml(String(item.sha256 || '').slice(0, 16))}…</span></td>
+      <td>${escapeHtml(item.arquivo || '')}<br><span class="text-mono" style="font-size:10px;color:#64748b">${escapeHtml(String(item.sha256 || '').slice(0, 16))}…</span><br>${amostraDisponivel ? '<span class="badge badge-ok">Amostra privada · retenção 30 dias</span>' : '<span class="badge badge-logout">Amostra ausente</span>'}</td>
       <td>${item.parser_detectado ? '<span class="badge badge-ok">Parser reconhecido</span><br>' + escapeHtml(item.parser_detectado) : '<span class="badge badge-warn">Parametrização pendente</span>'}<br><span style="font-size:11px;color:#64748b">${escapeHtml(item.paginas || 0)} pág. · ${escapeHtml(item.tamanho || 0)} bytes</span></td>
+      <td style="font-size:12px;min-width:220px;color:#475569">${proximoPasso}</td>
       <td><span class="badge badge-info">${escapeHtml(item.status || 'rascunho')}</span></td>
       <td>${escapeHtml(item.criado_por_email || '')}<br><span style="font-size:11px;color:#64748b">${escapeHtml(fmtDate(item.criado_em))}</span></td>
+      <td style="min-width:170px">${botoes || '<span style="font-size:11px;color:#64748b">Aguardando reenvio</span>'}</td>
     </tr>`;
   });
   el.innerHTML = html + '</tbody></table></div>';
+}
+
+async function baixarAmostraRascunho(id) {
+  try {
+    const r = await window.API.apiFetch('/api/layouts-bancarios/rascunhos/' + encodeURIComponent(id) + '/arquivo');
+    if (!r.ok) {
+      const erro = await r.json().catch(() => ({}));
+      throw new Error(erro.erro || ('HTTP ' + r.status));
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const item = currentLayoutDrafts.find(rascunho => rascunho.id === id);
+    link.download = item && item.arquivo || 'arquivo-modelo';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    alert('Erro ao baixar amostra: ' + (e.message || e));
+  }
+}
+
+async function ativarRascunhoLayout(id) {
+  if (!confirm('Ativar este layout somente para teste? A aprovação ampla continuará bloqueada até existir caso validado e evidência de regressão.')) return;
+  try {
+    const r = await window.API.apiFetch('/api/layouts-bancarios/rascunhos/' + encodeURIComponent(id) + '/ativar', { method: 'POST' });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.erro || ('HTTP ' + r.status));
+    alert('Layout ativado em teste. Agora execute a conferência dos totais na Central de Qualidade.');
+    await renderLayouts();
+  } catch (e) {
+    alert('Erro ao ativar layout: ' + (e.message || e));
+  }
 }
 
 async function renderLayouts() {

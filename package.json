@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.241",
+  "version": "3.4.242",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -65,6 +65,7 @@
     "test:product-quality": "node scripts/test-product-quality-features.js",
     "test:version-popup": "node scripts/test-version-popup.js",
     "test:quality-gate": "node scripts/test-import-quality-gate.js",
+    "test:layout-self-service": "node scripts/test-layout-self-service.js",
     "test:session-import-version": "node scripts/test-session-import-version-guard.js",
     "test:session-codec": "node scripts/test-session-state-codec.js",
     "test:session-revision": "node scripts/test-session-revision-guard.js",
