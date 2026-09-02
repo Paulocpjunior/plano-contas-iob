@@ -1,5 +1,20 @@
 const LAYOUT_QUALITY_EVIDENCE = [
   {
+    id: 'mercado-pago-lav-2026-04',
+    banco: 'MP',
+    nomeBanco: 'Mercado Pago Instituicao de Pagamento',
+    layout: 'Mercado Pago - Extrato de Conta',
+    parser: 'parsearPDF_MercadoPago_ExtratoConta',
+    arquivo: '04.2026 - MERCADO PAGO LAV.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/04.2026 - MERCADO PAGO LAV.pdf',
+    empresa: '1244 - LAV COM. DE AUTO PECAS LTDA',
+    periodo_inicio: '2026-04-01',
+    periodo_fim: '2026-04-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF real de 76 paginas: 1.038 movimentos, entradas de R$ 204.485,15, saidas de R$ 185.752,58 e saldo final de R$ 28.714,62. O hash SHA-256 protege a evidencia usada no teste.'
+  },
+  {
     id: 'bb-conta-atual-waldesa-2026-01',
     banco: '001',
     nomeBanco: 'Banco do Brasil',

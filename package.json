@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.243",
+  "version": "3.4.244",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -97,7 +97,7 @@
     "test:validador-defis": "node scripts/test-validador-defis.js",
     "test:ecdecf-igreja": "node scripts/test-ecdecf-igreja-consolidada.js",
     "test:igrejas-caixa": "node scripts/test-igrejas-conferencia-caixa.js",
-    "test:mercadopago": "node scripts/test-mercado-pago-integration.js",
+    "test:mercadopago": "node scripts/test-mercado-pago-integration.js && node scripts/test-mercado-pago-extrato.js",
     "test:xlsx-bank-isolation": "node scripts/test-xlsx-bank-layout-isolation.js",
     "test:extrato-conciliado": "node scripts/test-extrato-conciliado-xlsx.js",
     "test:admin-exclusao": "node scripts/test-admin-exclusao-lancamentos.js && node scripts/test-admin-exclusao-routes.js && node scripts/test-admin-audit-trail.js",
