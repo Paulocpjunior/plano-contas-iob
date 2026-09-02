@@ -21,6 +21,7 @@ function paginaValida() {
       item('Entradas:', 178, 526), item('R$ 50,00', 210, 526),
       item('Saidas:', 178, 512), item('R$ -20,00', 203, 512),
       item('Saldo final:', 318, 518), item('R$ 130,00', 355, 518),
+      item('Descrição', 89, 443),
       item('ID da operação', 197, 443),
       item('01-04-2026', 41, 413), item('Entrada teste', 89, 414),
       item('111111111111', 197, 413), item('R$ 50,00', 300, 413), item('R$ 150,00', 365, 413),
@@ -35,6 +36,7 @@ const resultado = parser.__test__.parsearPaginasMercadoPago(paginaValida());
 assert.strictEqual(resultado.detectado, true);
 assert.strictEqual(resultado.lancamentos.length, 2);
 assert.strictEqual(resultado.lancamentos[0].valor, 50);
+assert.strictEqual(resultado.lancamentos[0].descricao, 'Entrada teste', 'resumo mensal nao pode contaminar o primeiro movimento');
 assert.strictEqual(resultado.lancamentos[1].valor, -20);
 assert.strictEqual(resultado.lancamentos[1].tipo, 'D');
 assert.strictEqual(resultado.total_credito, 50);
