@@ -1,16 +1,7 @@
 {
-  "version": "3.4.244",
-  "build_date": "2026-09-02T17:19:57Z",
+  "version": "3.4.245",
+  "build_date": "2026-09-02T17:54:35Z",
   "release_notes": [
-    "🛠️ R-2010: gravar um campo apagava os outros dois (#103)",
-    "Corrigir OCR e homologacao do extrato mensal Itau Empresas",
-    "fix: concluir fluxo de parametrizacao de layouts",
-    "Corrigir exibição das regras da memória da empresa (#102)",
-    "🚧 Sintaxe do JS embutido e marcador de conflito entram no gate (#101)",
-    "Corrigir abertura da Vinatex e atualização do painel (#100)",
-    "🚀 R-4020: transmite pelo app — o \"gerador sem rota\" fechou (#99)",
-    "✅ R-4020: a retenção destravou — e ela é AGREGADA, não separada (#98)",
-    "Vetar importação fiscal por CNPJ, competência e movimento (#97)",
-    "Sincronizar movimento fiscal direto do CFI (#96)"
+    "Melhorias internas e correcoes"
   ]
 }

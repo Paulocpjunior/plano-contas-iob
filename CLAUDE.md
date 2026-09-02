@@ -44,6 +44,51 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **🚨 EU RODEI O GATE ERRADO — e o certo estava escrito no aviso do próprio
+  deploy** (02/09, run 121 vermelho logo depois do #105).
+  🔴 **Duas falhas, as duas minhas.** (1) `package.json` em **3.4.243** contra
+  `version.json` em **3.4.244** — eu editei o `version.json` **à mão**, e o
+  aviso do workflow diz, literal: *"rode `./scripts/bump-version.sh`, que
+  propaga a versão para os quatro arquivos sozinho. **Não edite à mão**"*.
+  (2) o cache-buster do `index.html` ficou para trás, que é consequência da
+  mesma coisa.
+  📌 **E O GATE QUE EU RODEI NÃO PEGAVA NENHUMA DAS DUAS.** Este repo tem
+  **DOIS**: o `npm run check` (completo, exige PDFs de evidência que só existem
+  no Mac do Paulo — ele falha aqui por FALTA DE ARQUIVO) e o **`npm run
+  check:ci`**, que é o que o deploy roda e que **PULA** os testes sem evidência
+  dizendo isso na cara (*"⊘ evidência não está nesta máquina"*). Eu rodei o
+  `check`, vi falhar em `/Users/paulocesarpereirajunior/Downloads/...`,
+  conferi que era pré-existente — e **parei ali**, sem rodar o que o CI roda.
+  ⚠️ **CONFERIR QUE UMA FALHA É PRÉ-EXISTENTE NÃO É RODAR O GATE.** As duas
+  falhas reais estavam a um `check:ci` de distância, e o `check` nem chega nelas
+  porque morre antes.
+  ✂️ **REGRA QUE FICA: neste repo o gate é o `npm run check:ci`.** O `check`
+  completo é a rede de quem tem as evidências; quem não as tem roda o `check:ci`
+  e diz que a cobertura foi PARCIAL — que é exatamente o que o próprio runner
+  imprime no resumo.
+
+- **🚨 TEXTO DE COMMIT VIRANDO CÓDIGO NO WORKFLOW — dentro do passo que existe
+  para AVISAR** (02/09, o mesmo run 121).
+  🔴 O log do passo *"Deploy falhou — abrir/atualizar issue"* traz
+  `null: command not found`, `merge:: command not found` e
+  `reinf/servicos-tomados-apuracao.js: **Permission denied**`. **Não é erro do
+  deploy: são as CRASES da minha mensagem de commit sendo EXECUTADAS.**
+  📌 **A causa é a mesma de 13/08 no CFI**: `${{ ... }}` é substituído pelo
+  Actions **ANTES de o bash existir**, então a mensagem entrava CRUA no
+  heredoc. Além de mutilar o corpo da issue (`| Mensagem |  e  e  |`), era
+  **vetor de injeção**: quem escreve a mensagem escrevia comando no runner.
+  ✂️ **A régua: dado de fora entra por `env:` e sai por `$VAR`** — expansão de
+  variável **não reavalia crases** —, e o corpo vai por **`--body-file`**, nunca
+  por argumento. E só a **PRIMEIRA LINHA** da mensagem: corpo de squash é muro
+  de texto, e a issue precisa dizer QUAL commit, não repetir o PR.
+  ⚠️ **A trava PROVA com a mensagem real que quebrou o run 121** e foi validada
+  revertendo: o heredoc antigo reproduz os três erros exatos e devolve o corpo
+  mutilado. ⚠️ Ela **não** prova que o GitHub abre a issue — só o próximo deploy
+  quebrado prova isso; o que ela prova é que a mensagem não vira comando.
+  📌 **E o passo AVISOU mesmo assim (issue #106), por sorte**: os comandos
+  falharam DENTRO de `$( )`, onde o `bash -e` não aborta. A trava existia e
+  funcionou; o que estava quebrado era o CONTEÚDO dela.
+
 - **🚨 GRAVAR UM CAMPO APAGAVA OS OUTROS DOIS — "informo os campos e não
   assume"** (02/09, Paulo, no R-2010: *"Fui entregar a Reinf R-2010, porém
   mesmo eu informando os campos não está assumindo"*, com o prestador em
