@@ -66,7 +66,7 @@ assertContains('admin.html', 'testarLayoutAdmin', 'teste manual de layout no adm
 assertContains('admin.html', 'Novo layout bancário', 'entrada de novo layout bancario no admin');
 assertContains('admin.html', 'analisarNovoLayoutBancario', 'analise local do arquivo-modelo no admin');
 assertContains('admin.html', 'salvarRascunhoLayoutBancario', 'salvamento controlado do rascunho no admin');
-assertContains('admin.html', 'Privacidade: o PDF não é gravado', 'aviso de privacidade do arquivo-modelo');
+assertContains('admin.html', 'a amostra é armazenada em área privada por até 30 dias', 'aviso de privacidade e retencao do arquivo-modelo');
 assertContains('admin.html', 'class="table-scroll"', 'tabela de layouts com rolagem responsiva');
 assertContains('admin.html', 'parser-stone-extrato.js', 'admin carrega o parser Stone');
 assertContains('admin.html', 'qualityTestFile', 'upload de teste de layout no admin');

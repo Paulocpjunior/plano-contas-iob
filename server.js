@@ -54,6 +54,13 @@ const {
 const { criarObservabilidadeHttp } = require('./observability');
 const { carregarRuntimeConfig, identidadePublica } = require('./runtime-config');
 const { montarEventoAuditoriaAdmin, registrarAuditoriaAdmin } = require('./admin-audit-trail');
+const {
+  RETENCAO_AMOSTRA_DIAS,
+  nomeArquivoSeguro,
+  extrairAmostraLayout,
+  caminhoAmostraLayout,
+  expiraEm,
+} = require('./layout-sample-storage');
 
 const app = express();
 app.set('trust proxy', true);
@@ -72,6 +79,42 @@ const firestorePorProjeto = new Map();
 admin.initializeApp({ projectId: runtimeConfig.authProjectId });
 const adminAuth = admin.auth();
 const DOMAIN = '@spassessoriacontabil.com.br';
+const LAYOUT_SAMPLE_BUCKET = String(process.env.CCI_LAYOUT_SAMPLE_BUCKET || '').trim();
+
+function bucketAmostrasLayout() {
+  if (!LAYOUT_SAMPLE_BUCKET) {
+    const erro = new Error('Armazenamento privado de amostras nao configurado. O rascunho nao foi salvo sem o arquivo necessario para parametrizacao.');
+    erro.status = 503;
+    erro.codigo = 'LAYOUT_SAMPLE_BUCKET_NAO_CONFIGURADO';
+    throw erro;
+  }
+  return admin.storage().bucket(LAYOUT_SAMPLE_BUCKET);
+}
+
+async function salvarAmostraLayout(id, body, amostra) {
+  const caminho = caminhoAmostraLayout(id, amostra.sha256, amostra.arquivo);
+  const arquivo = bucketAmostrasLayout().file(caminho);
+  await arquivo.save(amostra.buffer, {
+    resumable: false,
+    validation: 'crc32c',
+    metadata: {
+      contentType: amostra.mimeType,
+      cacheControl: 'private, no-store, max-age=0',
+      metadata: {
+        rascunho_id: id,
+        sha256: amostra.sha256,
+        retencao_dias: String(RETENCAO_AMOSTRA_DIAS),
+      },
+    },
+  });
+  return {
+    arquivo_bruto_armazenado: true,
+    arquivo_storage_bucket: LAYOUT_SAMPLE_BUCKET,
+    arquivo_storage_path: caminho,
+    arquivo_armazenado_em: new Date(),
+    arquivo_expira_em: expiraEm(),
+  };
+}
 
 app.use(aplicarHeadersSeguranca);
 app.use(criarObservabilidadeHttp());
@@ -4997,7 +5040,18 @@ app.get('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => {
       .orderBy('criado_em', 'desc')
       .limit(limite)
       .get();
-    const rascunhos = snap.docs.map(doc => ({ id: doc.id, ...(doc.data() || {}) }));
+    const agora = Date.now();
+    const rascunhos = snap.docs.map(doc => {
+      const dados = doc.data() || {};
+      const expira = dados.arquivo_expira_em && typeof dados.arquivo_expira_em.toMillis === 'function'
+        ? dados.arquivo_expira_em.toMillis()
+        : new Date(dados.arquivo_expira_em || 0).getTime();
+      return {
+        id: doc.id,
+        ...dados,
+        amostra_disponivel: dados.arquivo_bruto_armazenado === true && (!expira || expira > agora)
+      };
+    });
     res.set('Cache-Control', 'no-store');
     res.json({ rascunhos });
   } catch (err) {
@@ -5026,12 +5080,7 @@ app.post('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => 
       return res.status(400).json({ erro: 'sha256 do arquivo-modelo invalido' });
     }
     if (!tamanho) return res.status(400).json({ erro: 'tamanho do arquivo-modelo invalido' });
-
-    const duplicado = await db.collection('layouts_bancarios_rascunhos').where('sha256', '==', sha256).limit(1).get();
-    if (!duplicado.empty) {
-      const existente = duplicado.docs[0];
-      return res.json({ ok: true, id: existente.id, status: (existente.data() || {}).status || 'rascunho', duplicado: true });
-    }
+    const amostra = extrairAmostraLayout(body);
 
     const parserSolicitado = String(body.parser_detectado || '').trim().slice(0, 120);
     const layoutOficial = LAYOUTS_BANCARIOS_PADRAO.find(layout => {
@@ -5047,6 +5096,65 @@ app.post('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => 
       periodo_fim: String(resultadoRaw.periodo_fim || '').slice(0, 10)
     } : null;
     const status = parserDetectado ? 'em_teste' : 'rascunho';
+    if (!parserDetectado && !amostra) {
+      return res.status(422).json({
+        erro: 'Nenhum parser reconheceu o modelo. Reenvie o arquivo para a fila privada de parametrizacao; sem a amostra nao e possivel criar nem homologar o layout.',
+        codigo: 'AMOSTRA_OBRIGATORIA_PARA_PARAMETRIZACAO',
+        proximo_passo: 'Enviar o mesmo arquivo-modelo. A amostra fica privada, acessivel somente ao Admin e e eliminada pela retencao automatica.'
+      });
+    }
+
+    const duplicado = await db.collection('layouts_bancarios_rascunhos').where('sha256', '==', sha256).limit(1).get();
+    if (!duplicado.empty) {
+      const existente = duplicado.docs[0];
+      const dadosExistentes = existente.data() || {};
+      let patchAmostra = {};
+      if (!dadosExistentes.arquivo_bruto_armazenado && amostra) {
+        patchAmostra = await salvarAmostraLayout(existente.id, body, amostra);
+      }
+      const patch = {
+        ...patchAmostra,
+        banco,
+        nomeBanco,
+        nome,
+        formato,
+        observacao: String(body.observacao || '').trim().slice(0, 600),
+        paginas,
+        caracteres_texto: caracteresTexto,
+        pdf_textual: body.pdf_textual === true,
+        parser_detectado: parserDetectado || dadosExistentes.parser_detectado || '',
+        layout_detectado: layoutOficial ? layoutOficial.nome : (dadosExistentes.layout_detectado || ''),
+        resultado_teste: resultadoTeste || dadosExistentes.resultado_teste || null,
+        status: parserDetectado ? 'em_teste' : (dadosExistentes.status || 'rascunho'),
+        atualizado_em: new Date(),
+        atualizado_por_uid: req.user.uid,
+        atualizado_por_email: req.user.email,
+      };
+      await existente.ref.set(patch, { merge: true });
+      if (patchAmostra.arquivo_bruto_armazenado) {
+        await db.collection('layout_events').add({
+          tipo: 'amostra_parametrizacao_recebida',
+          rascunho_id: existente.id,
+          banco,
+          arquivo,
+          sha256,
+          criado_em: new Date(),
+          criado_por_uid: req.user.uid,
+          criado_por_email: req.user.email
+        });
+      }
+      return res.json({
+        ok: true,
+        id: existente.id,
+        status: patch.status,
+        duplicado: true,
+        arquivo_bruto_armazenado: dadosExistentes.arquivo_bruto_armazenado === true || patchAmostra.arquivo_bruto_armazenado === true,
+        proximo_passo: parserDetectado ? 'ativar_em_teste' : 'parametrizacao_tecnica'
+      });
+    }
+
+    const ref = db.collection('layouts_bancarios_rascunhos').doc();
+    const patchAmostra = amostra ? await salvarAmostraLayout(ref.id, body, amostra) : {};
     const documento = {
       banco,
       nomeBanco,
@@ -5064,6 +5172,7 @@ app.post('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => 
       layout_detectado: layoutOficial ? layoutOficial.nome : '',
       resultado_teste: resultadoTeste,
       arquivo_bruto_armazenado: false,
+      ...patchAmostra,
       status,
       origem: 'admin_novo_layout',
       criado_em: new Date(),
@@ -5071,7 +5180,7 @@ app.post('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => 
       criado_por_email: req.user.email,
       atualizado_em: new Date()
     };
-    const ref = await db.collection('layouts_bancarios_rascunhos').add(documento);
+    await ref.set(documento);
     await db.collection('layout_events').add({
       tipo: 'rascunho_criado',
       rascunho_id: ref.id,
@@ -5086,10 +5195,124 @@ app.post('/api/layouts-bancarios/rascunhos', adminRequired, async (req, res) => 
       criado_por_uid: req.user.uid,
       criado_por_email: req.user.email
     });
-    res.status(201).json({ ok: true, id: ref.id, status, arquivo_bruto_armazenado: false });
+    res.status(201).json({
+      ok: true,
+      id: ref.id,
+      status,
+      arquivo_bruto_armazenado: patchAmostra.arquivo_bruto_armazenado === true,
+      proximo_passo: parserDetectado ? 'ativar_em_teste' : 'parametrizacao_tecnica'
+    });
   } catch (err) {
     console.error('layouts-bancarios rascunhos POST erro:', err);
-    res.status(500).json({ erro: err.message });
+    res.status(err.status || 500).json({ erro: err.message, codigo: err.codigo || 'ERRO_RASCUNHO_LAYOUT' });
+  }
+});
+
+app.get('/api/layouts-bancarios/rascunhos/:id/arquivo', adminRequired, async (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ erro: 'id obrigatorio' });
+    const doc = await db.collection('layouts_bancarios_rascunhos').doc(id).get();
+    if (!doc.exists) return res.status(404).json({ erro: 'rascunho nao encontrado' });
+    const rascunho = doc.data() || {};
+    if (!rascunho.arquivo_bruto_armazenado || !rascunho.arquivo_storage_path) {
+      return res.status(409).json({
+        erro: 'Este rascunho antigo nao possui amostra armazenada. Reenvie o mesmo arquivo no formulario para completar a fila de parametrizacao.',
+        codigo: 'AMOSTRA_NAO_ARMAZENADA'
+      });
+    }
+    const prefixoPermitido = `layouts-bancarios/rascunhos/${id}/`;
+    const caminho = String(rascunho.arquivo_storage_path || '');
+    if (!caminho.startsWith(prefixoPermitido)) {
+      return res.status(409).json({ erro: 'Caminho da amostra inconsistente.', codigo: 'AMOSTRA_CAMINHO_INVALIDO' });
+    }
+    const arquivoStorage = bucketAmostrasLayout().file(caminho);
+    const [existe] = await arquivoStorage.exists();
+    if (!existe) {
+      return res.status(410).json({
+        erro: 'A retencao da amostra terminou. Reenvie o arquivo para continuar a parametrizacao.',
+        codigo: 'AMOSTRA_EXPIRADA'
+      });
+    }
+    const [buffer] = await arquivoStorage.download();
+    res.set('Cache-Control', 'private, no-store, max-age=0');
+    res.set('Content-Type', String(rascunho.mime_type || 'application/octet-stream'));
+    res.set('Content-Disposition', `attachment; filename="${nomeArquivoSeguro(rascunho.arquivo)}"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error('layouts-bancarios amostra GET erro:', err);
+    res.status(err.status || 500).json({ erro: err.message, codigo: err.codigo || 'ERRO_AMOSTRA_LAYOUT' });
+  }
+});
+
+app.post('/api/layouts-bancarios/rascunhos/:id/ativar', adminRequired, async (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ erro: 'id obrigatorio' });
+    const rascunhoRef = db.collection('layouts_bancarios_rascunhos').doc(id);
+    const doc = await rascunhoRef.get();
+    if (!doc.exists) return res.status(404).json({ erro: 'rascunho nao encontrado' });
+    const rascunho = doc.data() || {};
+    const banco = normalizarBancoLayout(rascunho.banco);
+    const parser = String(rascunho.parser_detectado || '').trim();
+    if (!parser) {
+      return res.status(409).json({
+        erro: 'O layout ainda nao possui parser. Baixe a amostra, implemente a parametrizacao e a regressao e reanalise o mesmo arquivo antes de ativar.',
+        codigo: 'PARSER_LAYOUT_PENDENTE',
+        proximo_passo: 'parametrizacao_tecnica'
+      });
+    }
+    const layoutOficial = LAYOUTS_BANCARIOS_PADRAO.find(layout => {
+      return normalizarBancoLayout(layout.banco) === banco && layout.parser === parser;
+    });
+    if (!layoutOficial) {
+      return res.status(409).json({
+        erro: 'O parser detectado nao pertence ao catalogo publicado. Publique o parser e a regressao antes de ativar o rascunho.',
+        codigo: 'PARSER_FORA_DO_CATALOGO'
+      });
+    }
+    const layoutId = layoutBancoId(layoutOficial);
+    const layoutRef = db.collection('layouts_bancarios').doc(layoutId);
+    const layoutDoc = await layoutRef.get();
+    const layoutAtual = layoutDoc.exists ? (layoutDoc.data() || {}) : {};
+    const homologacaoAtual = String(layoutAtual.homologacao_status || layoutOficial.homologacao_status || 'em_teste');
+    await layoutRef.set({
+      ...layoutOficial,
+      ativo: true,
+      origem: layoutAtual.origem || 'padrao_sistema',
+      homologacao_status: homologacaoAtual === 'aprovado' ? 'aprovado' : 'em_teste',
+      homologacao_observacao: layoutAtual.homologacao_observacao || 'Rascunho vinculado ao parser publicado; aguardando conferencia e provas de regressao.',
+      rascunho_origem_id: id,
+      atualizado_em: new Date()
+    }, { merge: true });
+    await rascunhoRef.set({
+      status: 'ativado_em_teste',
+      layout_id: layoutId,
+      ativado_em: new Date(),
+      ativado_por_uid: req.user.uid,
+      ativado_por_email: req.user.email,
+      atualizado_em: new Date()
+    }, { merge: true });
+    await db.collection('layout_events').add({
+      tipo: 'rascunho_ativado_em_teste',
+      rascunho_id: id,
+      layout_id: layoutId,
+      banco,
+      parser,
+      criado_em: new Date(),
+      criado_por_uid: req.user.uid,
+      criado_por_email: req.user.email
+    });
+    res.json({
+      ok: true,
+      id,
+      layout_id: layoutId,
+      status: 'ativado_em_teste',
+      homologacao_status: homologacaoAtual === 'aprovado' ? 'aprovado' : 'em_teste'
+    });
+  } catch (err) {
+    console.error('layouts-bancarios ativar rascunho erro:', err);
+    res.status(err.status || 500).json({ erro: err.message, codigo: err.codigo || 'ERRO_ATIVAR_RASCUNHO' });
   }
 });
 
