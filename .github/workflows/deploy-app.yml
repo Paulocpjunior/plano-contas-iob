@@ -451,27 +451,49 @@ jobs:
       # ── A trava ───────────────────────────────────────────────────────────
       # `if: failure()` cobre QUALQUER passo acima. O que importa não é onde
       # quebrou: é que a main tem código que não está no ar.
+      # 🚨 TEXTO DE COMMIT NÃO PODE VIRAR CÓDIGO (02/09)
+      #
+      # `${{ ... }}` é substituído pelo Actions ANTES de o bash existir: a
+      # mensagem do commit entrava CRUA no heredoc, e crases viravam
+      # substituição de comando. Aconteceu de verdade no #105 — o log mostra
+      # `null: command not found`, `merge:: command not found` e
+      # `reinf/servicos-tomados-apuracao.js: Permission denied`, que são as
+      # crases da mensagem sendo EXECUTADAS. Além de corromper o corpo, era
+      # vetor de injeção: quem escreve a mensagem escrevia comando no runner.
+      #
+      # A régua (a mesma que o CFI aplicou em 13/08): dado de fora entra por
+      # `env:` e sai por `$VAR` — expansão de variável NÃO reavalia crases —, e
+      # o corpo vai por `--body-file`, nunca por argumento.
+      #
+      # ⚠️ E só a PRIMEIRA LINHA da mensagem: corpo de squash é muro de texto,
+      # e a issue precisa dizer QUAL commit, não repetir o PR inteiro.
       - name: Deploy falhou — abrir/atualizar issue
         if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           TITULO="🚨 Deploy do Consultor Contábil FALHOU — a main não está no ar"
-          CORPO=$(cat <<-CORPO_ISSUE
+          PRIMEIRA_LINHA=$(printf '%s' "$COMMIT_MSG" | head -1)
+          cat > /tmp/corpo-issue.md <<CORPO_ISSUE
           O deploy da \`main\` falhou. **O que está mesclado NÃO está publicado** —
           quem testar agora vai ver a versão anterior, e um print dessa tela
           parece defeito de código.
 
           | | |
           | --- | --- |
-          | Commit | \`${{ github.sha }}\` |
-          | Mensagem | ${{ github.event.head_commit.message }} |
-          | Run | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
+          | Commit | \`$COMMIT_SHA\` |
+          | Mensagem | $PRIMEIRA_LINHA |
+          | Run | $RUN_URL |
 
           **O que fazer**
           1. Abrir o run e ver QUAL passo caiu (o log diz).
           2. Se for a porta de qualidade: rodar \`npm run check:ci\` na máquina,
-             corrigir e mesclar de novo.
+             corrigir e mesclar de novo. ⚠️ É o \`check:ci\` — o \`check\` completo
+             exige arquivos de evidência que só existem na máquina do Paulo, e
+             rodar o errado dá confiança falsa.
           3. Se a falha for de **cache-buster de versão**, é o caso conhecido de
              12/08: rode \`./scripts/bump-version.sh\`, que propaga a versão para
              os quatro arquivos sozinho. Não edite à mão.
@@ -481,13 +503,12 @@ jobs:
 
           _Esta issue é fechada à mão quando o deploy voltar a passar._
           CORPO_ISSUE
-          )
           EXISTE=$(gh issue list --search "$TITULO in:title" --state open --json number --jq '.[0].number // empty')
           if [ -n "$EXISTE" ]; then
             # Uma issue por incidente: falhar de novo COMENTA. Enxurrada de
             # issues iguais vira ruído que se ignora — o efeito oposto ao que
             # esta trava existe pra produzir.
-            gh issue comment "$EXISTE" --body "$CORPO"
+            gh issue comment "$EXISTE" --body-file /tmp/corpo-issue.md
           else
-            gh issue create --title "$TITULO" --body "$CORPO"
+            gh issue create --title "$TITULO" --body-file /tmp/corpo-issue.md
           fi
