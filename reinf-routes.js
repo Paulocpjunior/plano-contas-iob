@@ -24,7 +24,7 @@ const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarServicosToma
 const { resumirResponsavel, avisosDoResponsavel } = require('./reinf/responsavel-escritorio');
 const { conferirCertificado } = require('./reinf/certificado-conferencia');
 const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
-const { apurarServicosTomados } = require('./reinf/servicos-tomados-apuracao');
+const { apurarServicosTomados, patchCadastroPrestador } = require('./reinf/servicos-tomados-apuracao');
 const { gerarEventosR2055 } = require('./reinf/gerar-r2055');
 const { gerarR4020 } = require('./reinf/gerar-r4020');
 const { gerarEventosR2010 } = require('./reinf/gerar-r2010');
@@ -2068,30 +2068,23 @@ function registrarRotasReinf(app, { db } = {}) {
         }
       }
 
-      const tpServico = String(p.tpServico == null ? '' : p.tpServico).trim();
-      const indObra = String(p.indObra == null ? '' : p.indObra).trim();
-      const indCPRB = String(p.indCPRB == null ? '' : p.indCPRB).trim();
-      // FORMA, não conteúdo: se o código existe na tabela 06 ninguém aqui pode
-      // afirmar — por isso ele fica registrado como "informado", nunca como
-      // "conferido".
-      if (tpServico && !/^[0-9]{9}$/.test(tpServico)) {
-        throw new Error('tpServico deve ter 9 dígitos (tabela 06 da EFD-Reinf).');
-      }
-      if (indObra && !/^[012]$/.test(indObra)) {
-        throw new Error('indObra deve ser 0 (não é obra), 1 (obra com CNO) ou 2 (empreitada total).');
-      }
-      if (indCPRB && !/^[01]$/.test(indCPRB)) {
-        throw new Error('indCPRB deve ser 0 (retenção de 11%) ou 1 (prestador desonerado).');
-      }
+      // 🚨 SÓ SE GRAVA O CAMPO QUE VEIO — quem decide é o DONO da régua.
+      //
+      // A tela grava UM campo por vez (cada `onchange` manda só o seu), e esta
+      // rota montava o documento com os TRÊS, pondo `null` no que não veio.
+      // `merge: true` não protege disso: campo mandado como `null` é gravado
+      // como `null`. Digitar o `tpServico` APAGAVA o `indObra` já informado, e
+      // vice-versa — os três nunca coexistiam, o prestador ficava pendente para
+      // sempre, e a tela dizia "salvo" (Paulo, 02/09: *"mesmo eu informando os
+      // campos não está assumindo"*).
+      const { campos: camposInformados } = patchCadastroPrestador(p);
 
       await db.collection('reinf_servicos_tomados_prestadores')
         .doc(cnpjTomador + '_' + cnpjPrestador)
         .set({
           cnpjTomador,
           cnpjPrestador,
-          tpServico: tpServico || null,
-          indObra: indObra === '' ? null : Number(indObra),
-          indCPRB: indCPRB === '' ? null : Number(indCPRB),
+          ...camposInformados,
           informadoPor: (req.user && (req.user.email || req.user.uid)) || 'desconhecido',
           informadoEm: Date.now(),
         }, { merge: true });

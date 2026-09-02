@@ -298,4 +298,92 @@ function avisosDaApuracao(linhas) {
   return avisos;
 }
 
-module.exports = { apurarServicosTomados, mapaCadastroPrestadores, consensoIndCPRB };
+// ============================================================================
+// 🚨 GRAVAR UM CAMPO APAGAVA OS OUTROS DOIS — "informo os campos e não assume"
+//
+// 02/09, Paulo: *"Fui entregar a Reinf R-2010, porém mesmo eu informando os
+// campos não está assumindo"* — ele digitou o `tpServico`, escolheu o
+// `indObra`, e o prestador continuava PENDENTE com `0 pronto(s)`.
+//
+// 🔴 A CAUSA: a tela grava **um campo por vez** (cada `onchange` manda só o
+// seu — `{ tpServico }`, `{ indObra }`, `{ indCPRB }`, `{ baseNota }`), e a
+// rota montava o documento com os TRÊS, pondo **`null`** no que não veio:
+//
+//     tpServico: tpServico || null,
+//     indObra:   indObra === '' ? null : Number(indObra),
+//     indCPRB:   indCPRB === '' ? null : Number(indCPRB),
+//
+// Com `merge: true` isso NÃO protege: `merge` funde no nível do DOCUMENTO, e
+// campo que você mandou como `null` é gravado como `null`. Ou seja, digitar o
+// `tpServico` **apagava** o `indObra` que já estava lá, e escolher o `indObra`
+// apagava o `tpServico`. Os três nunca coexistiam, então o prestador ficava
+// pendente **para sempre** — e informar a BASE apagava os três de uma vez.
+//
+// 📌 É a família do ✕ do FUNRURAL (30/08): **gravação que apaga o que ninguém
+// mandou apagar**. E o sintoma é o pior possível — nada falha, nada avisa: a
+// tela diz "salvo", recarrega pela regra do backend (que é o desenho CERTO) e
+// mostra a pendência de novo. Para quem usa, isso é indistinguível de "o campo
+// não foi aceito", e a única saída que sobra é digitar de novo.
+//
+// ✂️ A RÉGUA: só se grava o campo que VEIO na requisição. `undefined` não é
+// valor — é ausência, e ausência não escreve. String vazia CONTINUA apagando,
+// porque é a pessoa escolhendo a opção em branco ("limpei e salvei").
+//
+// ⚠️ E ela mora AQUI, não na rota: dentro do `reinf-routes.js` (que puxa
+// express e firebase-admin) ela seria inexercitável por teste — régua dentro de
+// rota é régua sem prova.
+// ============================================================================
+
+/**
+ * O patch de cadastro do prestador, a partir do corpo da requisição.
+ *
+ * @param {object} corpo  o `req.body` — só os campos que a tela mandou
+ * @returns {{campos: object, apagou: string[]}}  `campos` vai no `set/merge`
+ * @throws {Error} com a mensagem que a tela mostra, quando a FORMA não confere
+ */
+function patchCadastroPrestador(corpo) {
+  const p = corpo || {};
+  const campos = {};
+  const apagou = [];
+
+  // FORMA, não conteúdo: se o código existe na tabela 06 ninguém aqui pode
+  // afirmar — por isso ele é registrado como "informado", nunca "conferido".
+  const REGRAS = {
+    tpServico: {
+      forma: /^[0-9]{9}$/,
+      erro: 'tpServico deve ter 9 dígitos (tabela 06 da EFD-Reinf).',
+      valor: (v) => v,
+    },
+    indObra: {
+      forma: /^[012]$/,
+      erro: 'indObra deve ser 0 (não é obra), 1 (obra com CNO) ou 2 (empreitada total).',
+      valor: (v) => Number(v),
+    },
+    indCPRB: {
+      forma: /^[01]$/,
+      erro: 'indCPRB deve ser 0 (retenção de 11%) ou 1 (prestador desonerado).',
+      valor: (v) => Number(v),
+    },
+  };
+
+  Object.keys(REGRAS).forEach((campo) => {
+    // 🚨 AUSÊNCIA NÃO ESCREVE. `undefined` é "a tela não mandou este campo";
+    // gravar `null` aqui apagaria o que outra pessoa informou.
+    if (p[campo] === undefined) return;
+    const bruto = String(p[campo] == null ? '' : p[campo]).trim();
+    if (bruto === '') {
+      // ⚠️ Vazio APAGA, de propósito: é a pessoa escolhendo a opção em branco.
+      campos[campo] = null;
+      apagou.push(campo);
+      return;
+    }
+    if (!REGRAS[campo].forma.test(bruto)) throw new Error(REGRAS[campo].erro);
+    campos[campo] = REGRAS[campo].valor(bruto);
+  });
+
+  return { campos, apagou };
+}
+
+module.exports = {
+  apurarServicosTomados, mapaCadastroPrestadores, consensoIndCPRB, patchCadastroPrestador,
+};

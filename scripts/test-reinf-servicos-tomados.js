@@ -10,7 +10,9 @@
 // e a base é 4.604,43 — a `obs` da nota diz "INSUMOS".
 // ============================================================================
 const assert = require('assert');
-const { apurarServicosTomados, mapaCadastroPrestadores, consensoIndCPRB } = require('../reinf/servicos-tomados-apuracao');
+const {
+  apurarServicosTomados, mapaCadastroPrestadores, consensoIndCPRB, patchCadastroPrestador,
+} = require('../reinf/servicos-tomados-apuracao');
 
 /** Prestador como o CFI entrega, com a base PROVADA pela alíquota (11%). */
 const prestador = (over = {}) => ({
@@ -307,3 +309,82 @@ assert.strictEqual(zerada.prestadores[0].pronto, false,
   'base zero é descartada — zero seria "declarei que não há base", outra afirmação');
 
 console.log('✓ base informada pelo prestador: pendência tem caminho, e por NOTA');
+
+// ============================================================================
+// 🚨 GRAVAR UM CAMPO APAGAVA OS OUTROS DOIS (02/09)
+//
+// Paulo: *"Fui entregar a Reinf R-2010, porém mesmo eu informando os campos não
+// está assumindo"* — `tpServico` digitado, `indObra` escolhido, e o prestador
+// continuava PENDENTE com `0 pronto(s)`.
+//
+// A tela grava UM campo por vez (cada `onchange` manda só o seu) e a rota
+// montava o documento com os TRÊS, pondo `null` no que não veio. `merge: true`
+// não protege: campo mandado como `null` é gravado como `null`. Os três nunca
+// coexistiam.
+//
+// É a família do ✕ do FUNRURAL (30/08): gravação que apaga o que ninguém
+// mandou apagar — e o sintoma é o pior possível, porque nada falha.
+// ============================================================================
+
+// O caso REAL, tecla a tecla: ele digita o tpServico…
+const soTp = patchCadastroPrestador({ tpServico: '100000001' });
+assert.deepStrictEqual(soTp.campos, { tpServico: '100000001' },
+  'gravar o tpServico não pode ESCREVER indObra/indCPRB — ausência não escreve');
+
+// …depois escolhe o indObra. Se este patch trouxesse `tpServico: null`, ele
+// apagaria o que acabou de ser gravado — que é exatamente o que acontecia.
+const soObra = patchCadastroPrestador({ indObra: '0' });
+assert.deepStrictEqual(soObra.campos, { indObra: 0 },
+  'gravar o indObra não pode apagar o tpServico já informado');
+assert.ok(!('tpServico' in soObra.campos), 'tpServico ausente NÃO vira null');
+
+const soCprb = patchCadastroPrestador({ indCPRB: '1' });
+assert.deepStrictEqual(soCprb.campos, { indCPRB: 1 });
+
+// E informar a BASE apagava os TRÊS de uma vez.
+const soBase = patchCadastroPrestador({ baseNota: { numero: '30405', valor: '4604,43' } });
+assert.deepStrictEqual(soBase.campos, {},
+  'informar a base não toca o cadastro do prestador');
+
+// ⚠️ VAZIO CONTINUA APAGANDO — é a pessoa escolhendo a opção em branco
+// ("limpei e salvei"), que é outra coisa de "não mandei este campo".
+const limpou = patchCadastroPrestador({ indObra: '' });
+assert.deepStrictEqual(limpou.campos, { indObra: null }, 'vazio APAGA');
+assert.deepStrictEqual(limpou.apagou, ['indObra'], 'e o apagamento é dito');
+
+// indObra `0` é VALOR, não vazio — confundir os dois faria "não é obra"
+// (o caso comum) nunca ser gravado.
+assert.strictEqual(patchCadastroPrestador({ indObra: '0' }).campos.indObra, 0);
+assert.strictEqual(patchCadastroPrestador({ indCPRB: '0' }).campos.indCPRB, 0);
+
+// A FORMA continua sendo recusada com a mensagem da tela.
+assert.throws(() => patchCadastroPrestador({ tpServico: '123' }), /9 dígitos/);
+assert.throws(() => patchCadastroPrestador({ indObra: '9' }), /indObra deve ser 0/);
+assert.throws(() => patchCadastroPrestador({ indCPRB: '2' }), /indCPRB deve ser 0/);
+
+// E o ciclo que ele viveu, agora fechando: três gravações separadas somam.
+const acumulado = Object.assign({},
+  patchCadastroPrestador({ tpServico: '100000001' }).campos,
+  patchCadastroPrestador({ indObra: '0' }).campos,
+  patchCadastroPrestador({ indCPRB: '0' }).campos);
+const depoisDosTresCliques = apurarServicosTomados({
+  competencia: '2026-07',
+  prestadores: [prestador()],
+  cadastro: { '03222111000130': {
+    tpServico: acumulado.tpServico,
+    indObra: String(acumulado.indObra),
+    indCPRB: String(acumulado.indCPRB),
+  } },
+});
+assert.strictEqual(depoisDosTresCliques.prestadores[0].pronto, true,
+  'depois dos três cliques o prestador fica PRONTO — era isso que não acontecia');
+
+// 🔒 A RÉGUA MORA NO DONO, não na rota: dentro do reinf-routes.js (express +
+// firebase-admin) ela seria inexercitável por teste.
+const fonteRota = require('fs').readFileSync(require('path').join(__dirname, '..', 'reinf-routes.js'), 'utf8');
+assert.ok(/patchCadastroPrestador\(p\)/.test(fonteRota),
+  'a rota chama o dono da régua');
+assert.ok(!/tpServico:\s*tpServico\s*\|\|\s*null/.test(fonteRota),
+  'e não volta a montar o documento com os três campos, pondo null no que não veio');
+
+console.log('✓ R-2010: gravar um campo não apaga os outros — ausência não escreve');
