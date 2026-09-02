@@ -163,3 +163,73 @@ assert.strictEqual(
 );
 
 console.log('✅ R-2055: conteúdo apurado sem refazer a conta, e o indAquis que falta é pendência de primeira classe');
+
+// ============================================================================
+// 🚨 "JÁ ESTÁ INFORMADO DESDE O MÊS PASSADO" — a tela mandava fazer o que já
+// estava feito (02/09, VINCENZO GUERRA BANANAS · 08/2026)
+//
+// Paulo: *"tá falando que tem que informar o indicador de operação, mas já está
+// informado desde o mês passado, quando fizemos o teste dela"*. E estava: o
+// badge da coluna INDAQUIS mostrava `1 · informado`.
+//
+// A pendência era OUTRA — ANTONIO DIAS DA SILVA aparece com CNPJ e a apuração
+// o barrava por "falta o tpInscProd". Só que o CFI JÁ tinha resolvido isso: o
+// CPF do titular foi confirmado no CADESP e gravado, e o payload vem com
+// `tipoInscricao: 'cpf'` + `origemDoCpf: 'cadastro-do-produtor'` (12/08).
+//
+// Esta casca ignorava os três campos e RECONTAVA DÍGITOS — a segunda cópia
+// julgando natureza, que é o que aquele dia proibiu.
+// ============================================================================
+{
+  const { apurarAquisicaoRural, acaoDosPendentes } = require('../reinf/aquisicao-rural-apuracao.js');
+
+  // O produtor do caso, como o CFI manda hoje.
+  const antonio = {
+    docProdutor: '08507490000129',
+    tipoInscricao: 'cpf',
+    cpfProdutor: '01786816873',
+    origemDoCpf: 'cadastro-do-produtor',
+    nome: 'ANTONIO DIAS DA SILVA',
+    uf: 'SP',
+    base: 17000, inss: 224.4, gilrat: 18.7, senar: 34, total: 277.1,
+    aquisicoes: [{}, {}, {}],
+    comDivergencia: 0,
+  };
+
+  // 🚨 O CPF confirmado no cadastro RESOLVE o tpInscProd: o produtor fica PRONTO.
+  const r = apurarAquisicaoRural({
+    competencia: '2026-08',
+    produtores: [antonio],
+    // ⚠️ O indicador foi informado com o CNPJ da NOTA — trocar a chave para o
+    // CPF faria o que já está gravado SUMIR, em silêncio.
+    indicadores: { '08507490000129': '1' },
+  });
+  assert.strictEqual(r.produtores[0].pronto, true, 'CPF do cadastro resolve o tpInscProd');
+  assert.strictEqual(r.produtores[0].cpfProdutor, '01786816873');
+  assert.strictEqual(r.produtores[0].origemDoCpf, 'cadastro-do-produtor', 'a ORIGEM viaja');
+  assert.strictEqual(r.resumo.prontos, 1);
+  assert.strictEqual(r.resumo.totalPronto, 277.1, 'o valor entra no que pode declarar');
+
+  // ⚠️ SEM o CPF no cadastro, a pendência do tpInscProd CONTINUA — ela é real,
+  // e afrouxá-la declararia em nome de quem ninguém confirmou.
+  const semCpf = apurarAquisicaoRural({
+    competencia: '2026-08',
+    produtores: [{ ...antonio, tipoInscricao: 'cnpj', cpfProdutor: null, origemDoCpf: null }],
+    indicadores: { '08507490000129': '1' },
+  });
+  assert.strictEqual(semCpf.produtores[0].pronto, false, 'sem CPF confirmado continua pendente');
+  assert.ok(/tpInscProd/.test(semCpf.produtores[0].pendencias.join(' ')));
+
+  // 🚨 A AÇÃO SAI DA PENDÊNCIA REAL, nunca de uma frase fixa: aqui o indicador
+  // está informado, então mandar informá-lo de novo é o achado 18.
+  const acao = acaoDosPendentes(semCpf.produtores);
+  assert.ok(/CADESP/.test(acao), 'a ação nomeia o CADESP');
+  assert.ok(!/indicador da aquisição/.test(acao), 'não manda informar o que já está informado');
+  assert.strictEqual(semCpf.resumo.acaoPendentes, acao, 'a tela lê a ação do núcleo');
+
+  // E quando o indicador REALMENTE falta, a ação volta a nomeá-lo.
+  const semInd = apurarAquisicaoRural({ competencia: '2026-08', produtores: [antonio], indicadores: {} });
+  assert.ok(/indicador da aquisição/.test(semInd.resumo.acaoPendentes));
+
+  console.log('✓ CPF do cadastro resolve o tpInscProd e a ação nomeia a pendência REAL');
+}

@@ -1,7 +1,7 @@
 {
-  "version": "3.4.248",
-  "build_date": "2026-09-02T18:31:31Z",
+  "version": "3.4.249",
+  "build_date": "2026-09-02T19:34:30Z",
   "release_notes": [
-    "Lancamento manual permite varias contas a debito e credito com balanceamento obrigatorio"
+    "Melhorias internas e correcoes"
   ]
 }
