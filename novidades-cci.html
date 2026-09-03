@@ -10,10 +10,23 @@
   </style>
 </head>
 <body>
-  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 02/09/2026</span></div></section>
+  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 03/09/2026</span></div></section>
   <main class="wrap content">
     <article class="release">
       <div class="tag">Leia esta parte primeiro</div>
+      <header><h2>🧾 R-4020: a retenção separada por tributo destravou — e a tela avisa antes do clique</h2><span class="date">03/09/2026 · v3.4.251</span></header>
+      <ul>
+        <li><strong>O que acontecia:</strong> a tela dizia <em>“1 beneficiário · 1 pronto · 0 pendente”</em>, o botão <strong>Transmitir em PRODUÇÃO</strong> aparecia verde — e só <strong>depois do clique</strong> vinha <em>“Nenhum beneficiário pôde ser convertido em evento”</em>. Duas leituras do mesmo fato na mesma tela, e a errada era justamente a que decide se você clica.</li>
+        <li><strong>Agora a linha do beneficiário diz antes:</strong> quem não vira evento aparece com o selo <strong>não vira evento</strong> e o motivo escrito embaixo, e o contador do topo mostra quantos são. O botão só aparece para quem de fato vai subir.</li>
+        <li><strong>E a retenção SEPARADA passou a ser gerada</strong>, a partir de um R-4020 <strong>aceito em produção</strong> que o Paulo mandou: beneficiário que retém <strong>PIS e COFINS sem CSLL</strong> agora transmite normalmente, com IRRF junto.</li>
+        <li><strong>O nome do campo do PIS não era o que a gente teria escrito:</strong> no leiaute ele é <code>vlrPP</code>, não <code>vlrPis</code>. É por isso que o app se recusa a chutar nome de campo — o palpite passaria em qualquer teste nosso e seria recusado (ou, pior, aceito declarando retenção zero).</li>
+        <li><strong>Beneficiário só com PIS e COFINS deixou de virar pendência:</strong> antes a tela dizia <em>“não consegui separar a CSLL”</em>. Quando o documento traz PIS e COFINS nas alíquotas legais e o campo de contribuições vem zerado, ele está dizendo que <strong>não houve CSLL</strong> — e o evento sai sem esse par, que é a forma do arquivo aceito.</li>
+        <li><strong>Onde:</strong> EFD-Reinf → <strong>Retenções de PJ para o R-4020</strong> → <em>Buscar no Consultor Fiscal</em>.</li>
+      </ul>
+      <div class="status"><strong>O que ainda NÃO é gerado, e continua saindo nomeado:</strong> a <strong>CSLL separada</strong> (nenhum evento aceito mostra o nome desse campo), o <strong>IRRF junto da retenção agregada</strong> no mesmo bloco (os dois eventos aceitos usam uma forma ou a outra, nunca as duas) e a nota cuja <strong>base do IR tem dedução</strong> — caso das cooperativas, em que a base é menor que o bruto e o Consultor Fiscal entrega o valor do serviço, não a base do IR.<br><br><strong>Como destravar:</strong> entregue esses beneficiários pelo e-CAC e mande o XML aceito — é ele que prova a forma. Um único R-4020 aceito com CSLL retida fecha o primeiro caso.</div>
+    </article>
+    <article class="release">
+      <div class="tag">Também entrou</div>
       <header><h2>🛠️ R-2010: informar o tipo de serviço passou a valer — antes um campo apagava o outro</h2><span class="date">02/09/2026 · v3.4.244</span></header>
       <ul>
         <li><strong>O que acontecia:</strong> você digitava o <strong>tpServico</strong>, escolhia o <strong>indObra</strong>, e o prestador continuava <strong>pendente</strong> com <em>0 pronto(s)</em>. Não era a sua digitação: cada campo que você gravava <strong>apagava o anterior</strong>, então os três nunca ficavam preenchidos ao mesmo tempo.</li>

@@ -66,7 +66,12 @@ const r = apurarRetencoesPJ({
       naturezaInformada: '15026', dataFatoGerador: '2026-07-06' },
     { numero: '90795', prestadorCnpj: '05.823.840/0001-78', prestadorNome: 'ELEVADORES ORION LTDA.',
       base: 230.00, pis: 1.50, cofins: 6.90, csllOuTotal: 10.70, ir: 0,
-      discriminacao: 'MANUTENCAO|15044 - REMUNERACAO DE SERVICOS DE CONSERVACAO / MANUTENCAO' },
+      // ⚠️ FIXTURE CORRIGIDA (03/09): ela não tinha `dataFatoGerador`, e ainda
+      // assim o beneficiário contava como PRONTO — descrevendo o mundo em que a
+      // tela libera o clique e a transmissão devolve "pagamentos[0].dtFG deve
+      // ser AAAA-MM-DD" (a recusa real de 02/09).
+      discriminacao: 'MANUTENCAO|15044 - REMUNERACAO DE SERVICOS DE CONSERVACAO / MANUTENCAO',
+      dataFatoGerador: '2026-07-10' },
     // Sem natureza e sem correlação: NÃO entra no evento.
     { numero: '999', prestadorCnpj: '11.111.111/0001-91', prestadorNome: 'SEM NATUREZA LTDA',
       base: 1000, pis: 6.5, cofins: 30, csllOuTotal: 10 },

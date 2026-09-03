@@ -61,14 +61,56 @@
 // 📌 É a régua da casa outra vez: **arquivo ACEITO vale mais que leiaute
 // deduzido**. Quatro campos inventados teriam passado em qualquer teste nosso.
 //
+// ═══ E O IRRF DESTRAVOU COM UM TERCEIRO ARQUIVO ACEITO (03/09) ══════════════
+//
+// Paulo mandou um R-4020 **aceito em PRODUÇÃO** (`tpAmb 1`, perApur 2026-07,
+// evento ID1628278600000002026080611342200001, verProc 3.46.0000) com a
+// retenção **SEPARADA por tributo** — a forma que este módulo bloqueava:
+//
+//   <retencoes>
+//     <vlrBaseIR>15371,80</vlrBaseIR>
+//     <vlrIR>230,58</vlrIR>
+//     <vlrBaseCofins>21708,16</vlrBaseCofins>
+//     <vlrCofins>651,24</vlrCofins>
+//     <vlrBasePP>21708,16</vlrBasePP>
+//     <vlrPP>141,10</vlrPP>
+//   </retencoes>
+//
+// 🚨 E ELE DESMENTE O NOME QUE A ANALOGIA TERIA ESCRITO: o PIS/PASEP é
+// **`vlrBasePP`/`vlrPP`**, não `vlrPis`. Este módulo listava `vlrPis` como
+// campo "não mapeado" — o nome nunca existiu. É a régua da casa outra vez:
+// **arquivo ACEITO vale mais que leiaute deduzido**, e chutar o nome produz
+// evento recusado ou, pior, aceito declarando retenção ZERO.
+//
+// 📖 O que mais ele prova, e vale campo a campo:
+//   · a ORDEM dentro de `<retencoes>`: IR → COFINS → PP;
+//   · **a CSLL pode ser OMITIDA** — Paulo, na mesma mensagem: *"esse
+//     beneficiário ATESA não tem retenção de CSLL, apenas PIS/COFINS"*. Bloco
+//     de tributo que não houve simplesmente não sai;
+//   · **`vlrBaseIR` pode ser MENOR que o `vlrBruto`** (15.371,80 × 21.708,16):
+//     a base do IR admite dedução. 230,58 sobre 21.708,16 daria 1,06%, não os
+//     1,5% da lei — ou seja, a base ali NÃO é o bruto.
+//   · o namespace do leiaute é **v2_01_02**.
+//
 // ═══ O QUE CONTINUA SEM PROVA, e por isso continua BLOQUEADO ════════════════
 //
-// O arquivo tem retenção AGREGADA e **IRRF zero**. Ele não mostra onde entra o
-// IRRF, nem se existe forma de declarar PIS/COFINS/CSLL separados. Então:
+// Sobram DOIS buracos, e os dois são de NOME/COMBINAÇÃO, não de conta:
 //
-//   · **CSRF agregada** (a que o CFI decompõe pela Lei 10.833/2003) → SAI, em
-//     `vlrBaseAgreg`/`vlrAgreg`, com o valor SOMADO de volta;
-//   · **IRRF > 0** ou pedido de retenção separada → **BLOQUEIA**, com o motivo.
+//   1. **a CSLL separada** — nenhum arquivo aceito a mostra. `vlrCsll` é
+//      palpite: o do PIS/PASEP já provou que o palpite erra (`vlrPP`).
+//   2. **IR junto de retenção AGREGADA** no mesmo `<retencoes>` — um arquivo
+//      usa só a agregada, o outro usa só a separada; que os dois convivam
+//      ninguém mostrou, e a ORDEM entre eles muito menos.
+//
+// Então a régua fica assim, e cada ramo tem a prova do lado:
+//
+//   · **CSRF completa** (PIS+COFINS+CSLL, a que o CFI decompõe pela Lei
+//     10.833/2003) → **AGREGADA** em `vlrBaseAgreg`/`vlrAgreg` (arquivo aceito
+//     de 06/2026), com o valor SOMADO de volta;
+//   · **sem CSLL** (IR e/ou COFINS e/ou PIS) → **SEPARADA**, nos nomes provados
+//     pelo arquivo de 07/2026;
+//   · **CSLL separada** ou **IR + agregada** → **BLOQUEIA**, com o motivo — e
+//     um R-4020 aceito que tenha CSLL retida destrava o primeiro.
 //
 // ⚠️ E a decomposição do CFI (PIS 0,65% · COFINS 3% · CSLL 1%) continua valendo
 // onde ela é necessária — o EFD-Contribuições e o Relatório de Retenções pedem
@@ -88,11 +130,30 @@ const NS_R4020 =
 /**
  * Campos de retenção que NENHUM arquivo aceito mostra até hoje.
  *
- * `vlrBaseAgreg` e `vlrAgreg` SAÍRAM desta lista em 01/09 — o segundo arquivo
- * aceito os prova. O que sobra são os campos SEPARADOS por tributo e o IRRF:
- * pedir qualquer um deles continua bloqueando, porque continuam sem prova.
+ * A lista só encolhe com PROVA: `vlrBaseAgreg`/`vlrAgreg` saíram em 01/09 e
+ * `vlrBaseIR`/`vlrIR`/`vlrBaseCofins`/`vlrCofins`/`vlrBasePP`/`vlrPP` saíram em
+ * 03/09, cada um com o arquivo aceito citado no cabeçalho.
+ *
+ * ⚠️ `vlrPis`/`vlrBasePis` FICAM na lista porque esses nomes **não existem** —
+ * o arquivo aceito escreve `vlrPP`. Quem mandar o nome palpitado é barrado, em
+ * vez de gerar um evento que a Receita recusa.
  */
-const RETENCOES_NAO_MAPEADAS = ['vlrIR', 'vlrCsll', 'vlrPis', 'vlrCofins', 'vlrBaseIR'];
+const RETENCOES_NAO_MAPEADAS = ['vlrCsll', 'vlrBaseCsll', 'vlrPis', 'vlrBasePis'];
+
+/**
+ * A retenção SEPARADA, na ORDEM que o arquivo aceito de 07/2026 mostra.
+ *
+ * A ordem é dado, não estilo: o leiaute é `xs:sequence`, e trocar dois irmãos
+ * de lugar derruba o evento (foi o que derrubou o R-2099 três vezes).
+ */
+const RETENCOES_SEPARADAS = [
+    ['vlrBaseIR', 'vlrIR'],
+    ['vlrBaseCofins', 'vlrCofins'],
+    ['vlrBasePP', 'vlrPP'],
+];
+
+/** Alíquotas legais do IRRF sobre serviços — Lei 7.713/88 art. 52 e Dec. 9.580/2018. */
+const ALIQ_IRRF = [1.5, 1.0];
 
 /** Alíquota legal da CSRF somada (Lei 10.833/2003 art. 30: 1% + 3% + 0,65%). */
 const ALIQ_CSRF = 4.65;
@@ -107,25 +168,26 @@ const escXml = (v) => String(v == null ? '' : v)
  * exceção, na tela e em qualquer lugar que perguntar "por que não gera?".
  */
 const MOTIVO_RETENCAO_BLOQUEADA =
-  'A retenção AGREGADA (CSRF de 4,65%) já sai: ela é declarada em <retencoes> com '
-  + 'vlrBaseAgreg/vlrAgreg, provado por arquivo aceito em produção (perApur 2026-06). '
-  + 'O que continua bloqueado é a retenção SEPARADA por tributo (vlrIR, vlrCsll, vlrPis, '
-  + 'vlrCofins, vlrBaseIR): nenhum arquivo aceito mostra esses campos, e chutar o nome ou a '
-  + 'posição produz evento recusado — ou, pior, aceito declarando retenção ZERO. PARA '
-  + 'DESTRAVAR: um R-4020 aceito de uma competência com IRRF, ou o XSD v2_01_02 do SPED.';
+  'A retenção sai em duas formas, as duas provadas por arquivo ACEITO em produção: AGREGADA '
+  + '(vlrBaseAgreg/vlrAgreg, CSRF de 4,65%, perApur 2026-06) quando há CSLL, e SEPARADA '
+  + '(vlrBaseIR/vlrIR · vlrBaseCofins/vlrCofins · vlrBasePP/vlrPP, perApur 2026-07) quando não há. '
+  + 'O que continua SEM PROVA é a CSLL SEPARADA: nenhum arquivo aceito mostra o nome desse campo, e '
+  + 'chutar produz evento recusado — ou, pior, aceito declarando retenção ZERO (o PIS provou o risco: '
+  + 'o nome real é vlrPP, não vlrPis). PARA DESTRAVAR: um R-4020 aceito que tenha CSLL retida, ou o '
+  + 'XSD v2_01_02 do SPED.';
 
-/**
- * Motivo próprio do IRRF — separado de propósito.
- *
- * ⚠️ Dizer "retenção não mapeada" sobre uma nota que só tem IRRF mandaria a
- * pessoa procurar problema em PIS/COFINS/CSLL, que estão certos. Alarme que
- * nomeia a falha errada manda procurar no lugar errado (a régua de 31/08).
- */
-const MOTIVO_IRRF_BLOQUEADO =
-  'Esta nota tem IRRF retido, e o R-4020 aceito de referência traz IRRF ZERO — então onde o '
-  + 'IRRF entra no bloco <retencoes> não está provado. O evento NÃO é gerado: sairia declarando '
-  + 'à Receita uma retenção de IR que não é a que houve. Entregue esta competência pelo e-CAC e '
-  + 'mande o XML dela depois — é ele que destrava.';
+const MOTIVO_IR_COM_AGREGADA =
+  'Esta nota tem IRRF retido E a CSRF completa (PIS+COFINS+CSLL). A CSRF vai AGREGADA e o IR vai '
+  + 'SEPARADO — mas nenhum arquivo aceito mostra os dois no MESMO <retencoes>, nem em que ORDEM. O '
+  + 'evento NÃO é gerado: o leiaute é uma sequência, e irmão fora de ordem derruba o evento. Entregue '
+  + 'esta competência pelo e-CAC e mande o XML dela depois — é ele que destrava.';
+
+const MOTIVO_BASE_IR_DESCONHECIDA =
+  'Esta nota tem IRRF retido e o valor NÃO fecha com 1,5% nem 1% do bruto — ou seja, a base do IR '
+  + 'tem dedução (é o caso das cooperativas: o arquivo aceito de 07/2026 traz vlrBaseIR 15.371,80 '
+  + 'sobre um bruto de 21.708,16). O app NÃO tem essa base: o Consultor Fiscal entrega o valor do '
+  + 'serviço, não a base do IR. Carimbar o bruto ali declararia base A MAIOR. Entregue esta nota pelo '
+  + 'e-CAC, ou informe o ajuste da retenção com a base correta.';
 
 /**
  * Gera UM evento R-4020 (um beneficiário PJ por evento).
@@ -223,27 +285,136 @@ ${idePgtoXml}
 }
 
 /**
- * O bloco `<retencoes>` — só sai quando há retenção agregada.
+ * O bloco `<retencoes>` — nas DUAS formas que arquivo aceito prova.
  *
- * ⚠️ SEM RETENÇÃO O BLOCO NÃO SAI, e isso é decisão: emitir `<retencoes>` com
- * `vlrAgreg` 0,00 é a AFIRMAÇÃO de que a nota não teve retenção. Quando de fato
- * não houve, a ausência do bloco é a resposta certa — e é assim que o primeiro
- * arquivo de referência (sem retenção) foi aceito.
+ * · **SEPARADA** por tributo (`vlrBaseIR`/`vlrIR` · `vlrBaseCofins`/`vlrCofins`
+ *   · `vlrBasePP`/`vlrPP`), na ORDEM do arquivo de 07/2026;
+ * · **AGREGADA** (`vlrBaseAgreg`/`vlrAgreg`), a CSRF de 4,65% do arquivo de
+ *   06/2026.
  *
- * ⚠️ E a base sai do CAMPO PRÓPRIO, nunca do `vlrBruto`: no arquivo aceito os
- * dois coincidem porque não houve dedução, mas nota com dedução de base tem
- * `vlrBaseAgreg` MENOR que o bruto. Carimbar o bruto ali declararia base a
- * maior no dia em que aparecer a primeira nota com dedução.
+ * ⚠️ As duas NÃO saem juntas hoje — que elas convivam, e em que ordem, nenhum
+ * arquivo mostra. Quem barra é `validarPagamentoR4020`; aqui a função só emite
+ * o que recebeu, porque decidir em dois lugares é como os dois divergem.
  */
 function blocoRetencoes(p) {
-  if (p.vlrAgreg === undefined || p.vlrAgreg === null || p.vlrAgreg === '') return '';
-  const base = (p.vlrBaseAgreg === undefined || p.vlrBaseAgreg === null || p.vlrBaseAgreg === '')
-    ? p.vlrBruto
-    : p.vlrBaseAgreg;
-  return '          <retencoes>\n'
-    + `            <vlrBaseAgreg>${fmtValorReinf(base)}</vlrBaseAgreg>\n`
-    + `            <vlrAgreg>${fmtValorReinf(p.vlrAgreg)}</vlrAgreg>\n`
-    + '          </retencoes>\n';
+    const tem = (k) => p[k] !== undefined && p[k] !== null && p[k] !== '';
+    // ⚠️ ZERO É "NÃO HOUVE", e o par simplesmente não sai — é o que o arquivo
+    // aceito de 07/2026 faz com a CSLL. Emitir `<vlrCsll>0,00</vlrCsll>` seria
+    // AFIRMAR uma retenção de zero.
+    const houve = (k) => tem(k) && Number(String(p[k]).replace(',', '.')) > 0;
+    const linhas = [];
+
+    // ── SEPARADA — a forma do arquivo aceito de 07/2026, na ORDEM dele ──────
+    // ⚠️ Tributo que não houve NÃO sai: o próprio arquivo omite a CSLL (*"esse
+    // beneficiário não tem retenção de CSLL, apenas PIS/COFINS"*). Emitir o
+    // par zerado seria AFIRMAR que houve retenção de zero.
+    for (const [campoBase, campoValor] of RETENCOES_SEPARADAS) {
+        if (!houve(campoValor)) continue;
+        // A base sai do campo PRÓPRIO: no arquivo aceito a do IR é MENOR que o
+        // bruto (dedução da cooperativa). Carimbar o bruto declararia a maior.
+        linhas.push(`            <${campoBase}>${fmtValorReinf(p[campoBase])}</${campoBase}>`);
+        linhas.push(`            <${campoValor}>${fmtValorReinf(p[campoValor])}</${campoValor}>`);
+    }
+
+    // ── AGREGADA — a forma do arquivo aceito de 06/2026 (CSRF de 4,65%) ─────
+    if (tem('vlrAgreg')) {
+        const base = tem('vlrBaseAgreg') ? p.vlrBaseAgreg : p.vlrBruto;
+        linhas.push(`            <vlrBaseAgreg>${fmtValorReinf(base)}</vlrBaseAgreg>`);
+        linhas.push(`            <vlrAgreg>${fmtValorReinf(p.vlrAgreg)}</vlrAgreg>`);
+    }
+
+    // ⚠️ SEM RETENÇÃO O BLOCO NÃO SAI: `<retencoes>` com zero é a AFIRMAÇÃO de
+    // que não houve retenção. Quando de fato não houve, a ausência do bloco é a
+    // resposta certa — e é assim que o primeiro arquivo de referência foi aceito.
+    if (!linhas.length) return '';
+    return `          <retencoes>\n${linhas.join('\n')}\n          </retencoes>\n`;
+}
+
+/**
+ * Confere UM pagamento — o dono da pergunta *"isto vira evento?"*.
+ *
+ * 🚨 Ela existe como função PRÓPRIA (03/09) porque a TELA precisa da MESMA
+ * resposta ANTES do clique. Até aqui só o gerador sabia: a apuração dizia
+ * *"1 pronto(s) · 0 pendente(s)"*, o botão "Transmitir em PRODUÇÃO" nascia
+ * verde, e só DEPOIS do clique vinha *"Nenhum beneficiário pôde ser convertido
+ * em evento"* (Paulo, 03/09, com o print). Duas leituras do mesmo fato na mesma
+ * tela — e a errada era a que decide se a pessoa clica.
+ *
+ * @returns {string[]} motivos, já prefixados para caber em `pagamentos[i]…`
+ */
+function validarPagamentoR4020(p) {
+  const e = [];
+  const num = (v) => Number(String(v == null ? '' : v).replace(',', '.'));
+  const tem = (k) => p && p[k] !== undefined && p[k] !== null && p[k] !== '';
+
+  if (!/^[0-9]{5}$/.test(String((p && p.natRend) || ''))) {
+    e.push('.natRend deve ter 5 dígitos (Tabela 01)');
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String((p && p.dtFG) || ''))) {
+    e.push('.dtFG deve ser AAAA-MM-DD');
+  }
+  // Ausência NÃO vira zero: valor de declaração não tem default.
+  if (!tem('vlrBruto')) e.push('.vlrBruto é obrigatório (ausente ≠ zero)');
+
+  // ── Campo cujo NOME nenhum arquivo aceito mostra ────────────────────────
+  const naoMapeados = RETENCOES_NAO_MAPEADAS.filter((k) => tem(k));
+  if (naoMapeados.length) e.push(` traz ${naoMapeados.join('/')}. ${MOTIVO_RETENCAO_BLOQUEADA}`);
+
+  // ── As duas formas no MESMO bloco: combinação sem prova ─────────────────
+  const temSeparada = RETENCOES_SEPARADAS.some(([, v]) => tem(v) && num(p[v]) > 0);
+  if (temSeparada && tem('vlrAgreg') && num(p.vlrAgreg) > 0) e.push(`: ${MOTIVO_IR_COM_AGREGADA}`);
+
+  // ── Separada: base e valor andam JUNTOS ────────────────────────────────
+  // ⚠️ ZERO É "NÃO HOUVE" e não se acusa: o arquivo aceito OMITE a CSLL porque
+  // não houve. Acusar aqui seria alarme sobre a forma certa.
+  const houve = (k) => tem(k) && num(p[k]) > 0;
+  for (const [campoBase, campoValor] of RETENCOES_SEPARADAS) {
+    if (!houve(campoValor)) {
+      if (tem(campoValor) && num(p[campoValor]) < 0) e.push(`.${campoValor} inválido`);
+      continue;
+    }
+    if (!tem(campoBase)) {
+      // ⚠️ O IR tem motivo PRÓPRIO — dizer "falta a base" sobre a nota da
+      // cooperativa manda procurar erro de digitação onde o problema é que o
+      // app não TEM a base (a régua de 31/08: alarme que nomeia a falha errada).
+      e.push(campoValor === 'vlrIR' ? `: ${MOTIVO_BASE_IR_DESCONHECIDA}`
+        : ` tem ${campoValor} sem ${campoBase}: valor de retenção sem base não se declara`);
+      continue;
+    }
+    if (!Number.isFinite(num(p[campoValor]))) e.push(`.${campoValor} inválido`);
+  }
+
+  // ── Agregada: o que o arquivo aceito de 06/2026 prova ───────────────────
+  if (!tem('vlrAgreg') && tem('vlrBaseAgreg')) {
+    e.push(' tem vlrBaseAgreg sem vlrAgreg: base sem retenção não se declara');
+  }
+  if (tem('vlrAgreg')) {
+    const vAgreg = num(p.vlrAgreg);
+    if (!Number.isFinite(vAgreg) || vAgreg < 0) {
+      e.push('.vlrAgreg inválido');
+    } else if (vAgreg === 0) {
+      e.push('.vlrAgreg é 0,00. Nota sem retenção NÃO leva o bloco <retencoes>: '
+        + 'declarar zero é AFIRMAR que não houve retenção. Omita o campo.');
+    } else {
+      // 🚨 CONFERÊNCIA DA ALÍQUOTA — a mesma assinatura que o CFI usa para
+      // reconhecer a CSRF. O arquivo aceito fecha ao centavo:
+      // 3.210,96 × 4,65% = 149,31.
+      //
+      // ⚠️ Ela ACUSA, não corrige: retenção parcial e base com dedução existem,
+      // e recalcular aqui faria o evento e a apuração declararem números
+      // diferentes sobre a mesma nota (a régua do R-2055).
+      const base = num(tem('vlrBaseAgreg') ? p.vlrBaseAgreg : p.vlrBruto);
+      if (Number.isFinite(base) && base > 0) {
+        const esperado = Math.round(base * ALIQ_CSRF) / 100;
+        if (Math.abs(esperado - vAgreg) > 0.02) {
+          e.push(`: vlrAgreg ${vAgreg.toFixed(2)} não fecha com ${ALIQ_CSRF}% da base `
+            + `${base.toFixed(2)} (esperado ${esperado.toFixed(2)}). O R-4020 declara a CSRF `
+            + 'AGREGADA; confira se a base ou o valor está certo.');
+        }
+      }
+    }
+  }
+  return e;
 }
 
 /** Pré-condições. Devolve lista de erros (vazia = ok). */
@@ -278,73 +449,83 @@ function validarEntradaR4020(ev) {
     e.push('pagamentos deve ter ao menos 1 item');
   } else {
     pagamentos.forEach((p, i) => {
-      if (!/^[0-9]{5}$/.test(String((p && p.natRend) || ''))) {
-        e.push(`pagamentos[${i}].natRend deve ter 5 dígitos (Tabela 01)`);
-      }
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(String((p && p.dtFG) || ''))) {
-        e.push(`pagamentos[${i}].dtFG deve ser AAAA-MM-DD`);
-      }
-      // Ausência NÃO vira zero: valor de declaração não tem default.
-      if (p == null || p.vlrBruto === undefined || p.vlrBruto === null || p.vlrBruto === '') {
-        e.push(`pagamentos[${i}].vlrBruto é obrigatório (ausente ≠ zero)`);
-      }
-      // 🚩 IRRF tem motivo PRÓPRIO — dizer "campo não mapeado" sobre uma nota
-      // que só tem IRRF manda procurar erro em PIS/COFINS/CSLL, que estão
-      // certos (a régua de 31/08: alarme que nomeia a falha errada).
-      if (p && p.vlrIR !== undefined && p.vlrIR !== null && Number(p.vlrIR) > 0) {
-        e.push(`pagamentos[${i}]: ${MOTIVO_IRRF_BLOQUEADO}`);
-      }
-      const comRetencao = RETENCOES_NAO_MAPEADAS.filter((k) => p && p[k] !== undefined && p[k] !== null
-        && !(k === 'vlrIR' && Number(p[k]) === 0));
-      if (comRetencao.length) {
-        e.push(`pagamentos[${i}] traz ${comRetencao.join('/')}. ${MOTIVO_RETENCAO_BLOQUEADA}`);
-      }
-
-      // ── Retenção agregada: o que o arquivo aceito prova ──────────────────
-      const temAgreg = p && p.vlrAgreg !== undefined && p.vlrAgreg !== null && p.vlrAgreg !== '';
-      if (p && !temAgreg && p.vlrBaseAgreg !== undefined && p.vlrBaseAgreg !== null && p.vlrBaseAgreg !== '') {
-        // Base sem valor declararia a base de uma retenção que não existe.
-        e.push(`pagamentos[${i}] tem vlrBaseAgreg sem vlrAgreg: base sem retenção não se declara`);
-      }
-      if (temAgreg) {
-        const vAgreg = Number(String(p.vlrAgreg).replace(',', '.'));
-        if (!Number.isFinite(vAgreg) || vAgreg < 0) {
-          e.push(`pagamentos[${i}].vlrAgreg inválido`);
-        } else if (vAgreg === 0) {
-          // ⚠️ Zero AQUI é afirmação, não ausência: `<vlrAgreg>0,00</vlrAgreg>`
-          // diz à Receita que não houve retenção. Quem não reteve não manda o
-          // bloco — é assim que o arquivo sem retenção foi aceito.
-          e.push(`pagamentos[${i}].vlrAgreg é 0,00. Nota sem retenção NÃO leva o bloco `
-            + `<retencoes>: declarar zero é AFIRMAR que não houve retenção. Omita o campo.`);
-        } else {
-          // 🚨 CONFERÊNCIA DA ALÍQUOTA — a mesma assinatura que o CFI usa para
-          // reconhecer a CSRF. O arquivo aceito fecha ao centavo:
-          // 3.210,96 × 4,65% = 149,31.
-          //
-          // ⚠️ Ela ACUSA, não corrige: retenção parcial e base com dedução
-          // existem, e recalcular aqui faria o evento e a apuração declararem
-          // números diferentes sobre a mesma nota (a régua do R-2055).
-          const base = Number(String(
-            (p.vlrBaseAgreg === undefined || p.vlrBaseAgreg === null || p.vlrBaseAgreg === '')
-              ? p.vlrBruto : p.vlrBaseAgreg,
-          ).replace(',', '.'));
-          if (Number.isFinite(base) && base > 0) {
-            const esperado = Math.round(base * ALIQ_CSRF) / 100;
-            if (Math.abs(esperado - vAgreg) > 0.02) {
-              e.push(`pagamentos[${i}]: vlrAgreg ${vAgreg.toFixed(2)} não fecha com `
-                + `${ALIQ_CSRF}% da base ${base.toFixed(2)} (esperado ${esperado.toFixed(2)}). `
-                + `O R-4020 declara a CSRF AGREGADA; confira se a base ou o valor está certo.`);
-            }
-          }
-        }
-      }
+      validarPagamentoR4020(p).forEach((m) => e.push(`pagamentos[${i}]${m}`));
     });
   }
   return e;
 }
 
+
+/**
+ * A TRADUÇÃO beneficiário → pagamento do R-4020 — dono único.
+ *
+ * 🚨 Ela morava DENTRO da rota, e por isso a TELA não tinha como saber o que o
+ * gerador receberia: era assim que *"1 pronto"* convivia com *"nenhum evento
+ * gerado"* na mesma tela (Paulo, 03/09).
+ *
+ * 📌 QUAL FORMA SAI, e cada ramo tem a prova do lado:
+ *   · **com CSLL** ⇒ a CSRF vai **AGREGADA** (arquivo aceito de 06/2026). A
+ *     apuração separa PIS/COFINS/CSLL porque o EFD-Contribuições e o Relatório
+ *     de Retenções pedem assim; o R-4020 declara o TOTAL, a partir do MESMO
+ *     número — somar de volta não é recalcular.
+ *   · **sem CSLL** ⇒ vai **SEPARADA** (arquivo aceito de 07/2026), que é o caso
+ *     do beneficiário que retém só PIS e COFINS.
+ *
+ * ⚠️ E o `vlrBaseIR` só sai quando o IR FECHA na alíquota legal sobre o bruto —
+ * é isso que PROVA que a base é o bruto. Quando não fecha (cooperativa, base
+ * com dedução: o arquivo aceito traz 15.371,80 sobre bruto de 21.708,16), o
+ * valor sai SEM a base e `validarPagamentoR4020` bloqueia dizendo por quê.
+ * Carimbar o bruto ali declararia base A MAIOR, em silêncio.
+ */
+function pagamentoR4020DoBeneficiario(b) {
+  const n = (v) => Number(v || 0);
+  const bruto = n(b && b.bruto);
+  const ir = n(b && b.ir);
+  const csll = n(b && b.csll);
+  const pis = n(b && b.pis);
+  const cofins = n(b && b.cofins);
+
+  const p = {
+    natRend: b && b.natureza,
+    // A data do fato gerador sai da NOTA. Sem ela o gerador recusa — carimbar
+    // "o último dia do mês" seria inventar a data que decide a competência do IR.
+    dtFG: b && b.dataFatoGerador,
+    vlrBruto: b && b.bruto,
+    indJud: 'N',
+  };
+
+  if (ir > 0) {
+    p.vlrIR = ir;
+    const fecha = bruto > 0 && ALIQ_IRRF.some((a) => Math.abs(Math.round(bruto * a) / 100 - ir) <= 0.02);
+    if (fecha) p.vlrBaseIR = b.bruto;
+  }
+
+  if (csll > 0) {
+    const agregado = Math.round((pis + cofins + csll) * 100) / 100;
+    if (agregado > 0) { p.vlrBaseAgreg = b.bruto; p.vlrAgreg = agregado; }
+  } else {
+    if (cofins > 0) { p.vlrBaseCofins = b.bruto; p.vlrCofins = cofins; }
+    if (pis > 0) { p.vlrBasePP = b.bruto; p.vlrPP = pis; }
+  }
+  return p;
+}
+
+/**
+ * O beneficiário vira evento? — a resposta que a TELA mostra ANTES do clique.
+ *
+ * @returns {string|null} o motivo do bloqueio, ou null
+ */
+function bloqueioDoR4020(beneficiario) {
+  const motivos = validarPagamentoR4020(pagamentoR4020DoBeneficiario(beneficiario));
+  if (!motivos.length) return null;
+  // Os prefixos existem para a mensagem de CAMPO (`pagamentos[0].natRend…`);
+  // aqui a frase é do beneficiário, então eles saem.
+  return motivos.map((m) => m.replace(/^[.:]\s*/, '').replace(/^\s+/, '')).join(' · ');
+}
+
 module.exports = {
-  NS_R4020, gerarR4020, validarEntradaR4020,
-  MOTIVO_RETENCAO_BLOQUEADA, MOTIVO_IRRF_BLOQUEADO,
+  NS_R4020, gerarR4020, validarEntradaR4020, validarPagamentoR4020,
+  pagamentoR4020DoBeneficiario, bloqueioDoR4020, RETENCOES_SEPARADAS,
+  MOTIVO_RETENCAO_BLOQUEADA, MOTIVO_IR_COM_AGREGADA, MOTIVO_BASE_IR_DESCONHECIDA,
   RETENCOES_NAO_MAPEADAS, ALIQ_CSRF,
 };

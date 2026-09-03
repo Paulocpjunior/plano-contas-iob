@@ -26,7 +26,7 @@ const { conferirCertificado } = require('./reinf/certificado-conferencia');
 const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
 const { apurarServicosTomados, patchCadastroPrestador } = require('./reinf/servicos-tomados-apuracao');
 const { gerarEventosR2055 } = require('./reinf/gerar-r2055');
-const { gerarR4020 } = require('./reinf/gerar-r4020');
+const { gerarR4020, pagamentoR4020DoBeneficiario } = require('./reinf/gerar-r4020');
 const { gerarEventosR2010 } = require('./reinf/gerar-r2010');
 const { gerarR2099, podeTransmitirR2099 } = require('./reinf/gerar-r2099');
 const { derivarGruposDoLog, resumoDoFechamento } = require('./reinf/fechamento-2000-grupos');
@@ -1588,7 +1588,6 @@ function registrarRotasReinf(app, { db } = {}) {
       const eventos = [];
       const bloqueados = [];
       prontos.forEach((b, i) => {
-        const agregado = Math.round((Number(b.pis || 0) + Number(b.cofins || 0) + Number(b.csll || 0)) * 100) / 100;
         try {
           eventos.push(gerarR4020({
             contribuinte: { tpInsc: 1, nrInsc: cnpj },
@@ -1597,19 +1596,12 @@ function registrarRotasReinf(app, { db } = {}) {
             tpAmb,
             seq: i + 1,
             beneficiario: { cnpj: b.prestadorCnpj },
-            pagamentos: [{
-              natRend: b.natureza,
-              // ⚠️ A data do fato gerador sai da NOTA. Sem ela o gerador
-              // recusa — carimbar "o último dia do mês" seria inventar a data
-              // de um fato gerador, que é o que decide a competência do IR.
-              dtFG: b.dataFatoGerador,
-              vlrBruto: b.bruto,
-              indJud: 'N',
-              // O IRRF viaja para o gerador BLOQUEAR quando houver: onde o IR
-              // entra no <retencoes> não está provado por arquivo aceito.
-              ...(Number(b.ir || 0) > 0 ? { vlrIR: Number(b.ir) } : {}),
-              ...(agregado > 0 ? { vlrBaseAgreg: b.bruto, vlrAgreg: agregado } : {}),
-            }],
+            // 🚨 A TRADUÇÃO É DO DONO (03/09): ela morava AQUI, e por isso a
+            // tela não tinha como saber o que o gerador receberia — era assim
+            // que "1 pronto" convivia com "nenhum evento gerado" na mesma tela.
+            // Qual forma a retenção toma (agregada × separada) é decisão dele,
+            // com o arquivo aceito citado do lado.
+            pagamentos: [pagamentoR4020DoBeneficiario(b)],
           }));
         } catch (err) {
           // 🚩 BENEFICIÁRIO QUE O GERADOR RECUSA NÃO DERRUBA O LOTE INTEIRO —
