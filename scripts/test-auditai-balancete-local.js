@@ -8,6 +8,8 @@ const { extractAccountingPdf } = require('../auditai/pdf-contabil-extractor');
 
 const fixture = '/Users/paulocesarpereirajunior/Downloads/898 - R2 CONSULTORIA Balancete_012026_a_072026.pdf';
 const expectedSha256 = '08ff551945f2018927eb66d51a58fcc0adc5abda0b307a9ec102a25fd8963b4d';
+const dreFixture = '/Users/paulocesarpereirajunior/Downloads/FLANACAR-Demonstracao_2025_12 2.pdf';
+const dreExpectedSha256 = 'e0a32c8df9e5a9d5c390662b22a5f49b187f3099bbb82437c98ecb73cdfb3997';
 
 (async () => {
   assert(fs.existsSync(fixture), `Fixture real não encontrada: ${fixture}`);
@@ -50,6 +52,32 @@ const expectedSha256 = '08ff551945f2018927eb66d51a58fcc0adc5abda0b307a9ec102a25f
   assert(result.lines.includes('OFFICIAL_PASSIVO_NAO_CIRCULANTE | Passivo Não Circulante | 59934.49'));
   assert(result.lines.includes('OFFICIAL_RESULTADO_EXERCICIO | Resultado no Exercício | 276189.49'));
 
+  assert(fs.existsSync(dreFixture), `Fixture real não encontrada: ${dreFixture}`);
+  const dreBuffer = fs.readFileSync(dreFixture);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(dreBuffer).digest('hex'),
+    dreExpectedSha256,
+    'A DRE real mudou; revalidar o layout antes de atualizar a regressão.',
+  );
+  const dre = await extractAccountingPdf(dreBuffer);
+  const dreRow = code => dre.rows.find(row => row.code === code);
+  assert.strictEqual(dre.docType, 'DRE');
+  assert.strictEqual(dre.period, 'Encerrado em 31/12/2025');
+  assert.strictEqual(dre.pages, 4);
+  assert.strictEqual(dre.rows.length, 136, 'A estrutura integral da DRE deve ser preservada.');
+  assert.strictEqual(dre.rows.filter(row => row.analytical).length, 98, 'As 98 contas analíticas devem ser preservadas.');
+  assert.deepStrictEqual({ name: dreRow('3').name, final: dreRow('3').final, side: dreRow('3').side }, { name: 'RECEITAS', final: 76154120.95, side: 'C' });
+  assert.deepStrictEqual({ name: dreRow('4').name, final: dreRow('4').final, side: dreRow('4').side }, { name: 'CUSTOS', final: 32635306.76, side: 'D' });
+  assert.deepStrictEqual({ name: dreRow('5').name, final: dreRow('5').final, side: dreRow('5').side }, { name: 'DESPESAS', final: 22179789.83, side: 'D' });
+  assert.strictEqual(dreRow('3.1').name, 'RECEITA OPERACIONAL BRUTA');
+  assert.strictEqual(dreRow('3.1.1').name, 'RECEITA BRUTA');
+  assert.strictEqual(dreRow('3.1.1.01').final, 86650198.27);
+  assert.strictEqual(dreRow('3.1.1.01.0002').analytical, true);
+  assert(dre.lines.includes('OFFICIAL_TOTAL_RECEITAS | Total Receitas | 76154120.95'));
+  assert(dre.lines.includes('OFFICIAL_TOTAL_CUSTOS | Total Custos | 32635306.76'));
+  assert(dre.lines.includes('OFFICIAL_TOTAL_DESPESAS | Total Despesas | 22179789.83'));
+  assert(dre.lines.includes('OFFICIAL_RESULTADO_EXERCICIO | Resultado no Exercício | 21339024.36'));
+
   const bundle = fs.readFileSync(path.join(__dirname, '../auditai/assets/index-DREfix3266.js'), 'utf8');
   const server = fs.readFileSync(path.join(__dirname, '../server.js'), 'utf8');
   assert(bundle.includes('/api/auditai/extrair-pdf-contabil'), 'Bundle deve chamar o extrator local antes da IA.');
@@ -59,10 +87,14 @@ const expectedSha256 = '08ff551945f2018927eb66d51a58fcc0adc5abda0b307a9ec102a25f
   assert(bundle.includes('ae.ac=xe.ativoCirculante??ae.ac'), 'Subtotais ausentes não podem apagar valores calculados do balanço.');
   assert(bundle.includes('ae.totalAtivo=xe.totalAtivo??ae.ac+ae.anc'), 'Cabeçalho do Ativo deve usar o total oficial.');
   assert(bundle.includes('Parecer de IA temporariamente indisponível'), 'Falha de cota da IA não pode deixar o parecer em branco.');
+  assert(bundle.includes('return n.some(u=>l===u)'), 'Total consolidado deve aceitar apenas nome exato, nunca subtotal por trecho do nome.');
+  assert(!bundle.includes('return n.some(u=>l===u||l.includes(u))'), 'Subtotal parcial não pode substituir total oficial.');
+  assert(bundle.includes('Object.prototype.hasOwnProperty.call(i,"resultadoExercicio")'), 'Resultado oficial deve preceder a fórmula consolidada.');
+  assert(bundle.includes('PRESERVE THE FULL PRINTED ACCOUNT HIERARCHY'), 'OCR de contingência também deve preservar títulos e contas analíticas.');
   assert(bundle.includes('children:"Tentar novamente"'), 'Colaborador deve conseguir repetir a geração do parecer de IA.');
   assert(server.includes("app.post('/api/auditai/extrair-pdf-contabil'"), 'Servidor deve expor a rota autenticada do extrator.');
 
-  console.log('OK: balancete real da R2 é extraído integralmente no AuditAI sem créditos do Gemini.');
+  console.log('OK: balancete da R2 e DRE da FLANACAR preservam estrutura e totais oficiais no AuditAI.');
 })().catch(error => {
   console.error(error);
   process.exit(1);

@@ -276,7 +276,8 @@ assertContains('auditai/assets/index-DREfix3266.js', 'auditaiGroupDisplayCode=e=
 assertContains('auditai/assets/index-DREfix3266.js', 'auditaiGroupReducedCode(e.account_name)?"":/^\\d+(?:\\.\\d+)+$/', 'AuditAI Grupo nao mistura conta reduzida com chave hierarquica');
 assertContains('auditai/assets/index-DREfix3266.js', 'auditaiGroupHierSortCode=e=>', 'AuditAI Grupo diferencia codigo hierarquico de codigo reduzido na ordenacao');
 assertContains('auditai/assets/index-DREfix3266.js', 'n?"0:"+auditaiGroupPathSort(n)+".999:"+String(i).padStart(14,"0")', 'AuditAI Grupo ordena contas analiticas inferidas dentro do grupo contabil correto');
-assertContains('auditai/assets/index-DREfix3266.js', 'if(Math.abs(t)+Math.abs(r)+Math.abs(n)>0)return t-Math.abs(r)-Math.abs(n)', 'AuditAI Grupo calcula resultado do trimestre por receitas custos e despesas antes do resultado oficial do balanco');
+assertContains('auditai/assets/index-DREfix3266.js', 'Object.prototype.hasOwnProperty.call(i,"resultadoExercicio")', 'AuditAI Grupo preserva o resultado oficial antes de qualquer formula consolidada');
+assertContains('auditai/assets/index-DREfix3266.js', 'return n.some(u=>l===u)', 'AuditAI Grupo nao confunde subtotais parciais com totais oficiais por trecho do nome');
 assertContains('auditai/assets/index-DREfix3266.js', 'AuditAIRolReports.exportIndividualPdf', 'AuditAI integra relatorio ROL individual em PDF');
 assertContains('auditai/assets/index-DREfix3266.js', 'AuditAIRolReports.exportGroupPdf', 'AuditAI integra relatorio ROL agregado em PDF');
 assertContains('auditai/assets/index-DREfix3266.js', 'PDF Executivo BIG4', 'AuditAI integra opcao executiva BIG4 sem substituir as demais');

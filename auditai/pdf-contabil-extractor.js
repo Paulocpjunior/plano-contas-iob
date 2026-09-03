@@ -110,6 +110,8 @@ function findPeriod(groups) {
     const joined = group.items.map(item => item.text).join(' ');
     const match = joined.match(/PER[IÍ]ODO:\s*(\d{2}\/\d{4})\s+A\s+(\d{2}\/\d{4})/i);
     if (match) return `${match[1]} a ${match[2]}`;
+    const closing = joined.match(/ENCERRADO EM:\s*(\d{2}\/\d{2}\/\d{4})/i);
+    if (closing) return `Encerrado em ${closing[1]}`;
   }
   return '';
 }
@@ -126,8 +128,8 @@ function findHeader(groups) {
 
 function findPrintedResult(groups) {
   for (const group of groups) {
-    if (!group.items.some(item => /Total de Lucros do Per[ií]odo/i.test(item.text))) continue;
-    const valueItem = group.items.find(item => item.x >= 190 && item.x < 300 && MONEY_RE.test(item.text));
+    if (!group.items.some(item => /Total (?:de|do) Lucro(?:s)? do Per[ií]odo/i.test(item.text))) continue;
+    const valueItem = group.items.find(item => item.x >= 190 && MONEY_RE.test(item.text));
     const sideItem = group.items.find(item => item.x >= 270 && item.x < 310 && /^[DC]$/i.test(item.text));
     if (!valueItem) continue;
     const value = parseMoney(valueItem.text);
@@ -135,6 +137,110 @@ function findPrintedResult(groups) {
     return side === 'D' ? -Math.abs(value) : Math.abs(value);
   }
   return null;
+}
+
+function normalizeAccountName(value) {
+  return normalizeSpace(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z0-9]+/gi, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+function defaultDreSide(code, name) {
+  const top = String(code || '').split('.')[0];
+  if (top === '4' || top === '5') return 'D';
+  if (/PREJU[IÍ]ZO/i.test(name || '')) return 'D';
+  return 'C';
+}
+
+function dreRow(code, name, value, side, analytical, sourceOrder) {
+  const amount = Number.isFinite(value) ? Math.abs(value) : 0;
+  const balanceSide = side || defaultDreSide(code, name);
+  return {
+    line: [code, name, amount.toFixed(2), balanceSide].filter(Boolean).join(' | '),
+    code,
+    name,
+    initial: 0,
+    debit: balanceSide === 'D' ? amount : 0,
+    credit: balanceSide === 'C' ? amount : 0,
+    final: amount,
+    side: balanceSide,
+    analytical,
+    sourceOrder,
+  };
+}
+
+function extractDreRows(groups) {
+  const coded = [];
+  const printed = [];
+
+  groups.forEach((group, sourceOrder) => {
+    const descriptorItem = group.items.find(item => /^\d+(?:\.\d+)*\s*-\s*.+/.test(item.text));
+    const moneyItem = group.items.find(item => item.x >= 450 && MONEY_RE.test(item.text));
+    if (descriptorItem) {
+      const match = descriptorItem.text.match(/^(\d+(?:\.\d+)*)\s*-\s*(.+)$/);
+      if (!match) return;
+      const value = moneyItem ? parseMoney(moneyItem.text) : 0;
+      const side = moneyItem ? sideOf(moneyItem.text) : defaultDreSide(match[1], match[2]);
+      coded.push(dreRow(
+        match[1],
+        match[2],
+        value,
+        side,
+        match[1].split('.').length >= 5,
+        sourceOrder,
+      ));
+      return;
+    }
+
+    if (!moneyItem) return;
+    const label = normalizeSpace(group.items
+      .filter(item => item !== moneyItem && item.x < 450 && !/^[DC]$/i.test(item.text))
+      .map(item => item.text)
+      .join(' '));
+    if (!label || /^(FOLHA|CNPJ|ENCERRADO EM)/i.test(label)) return;
+    printed.push({
+      name: label,
+      value: parseMoney(moneyItem.text),
+      side: sideOf(moneyItem.text),
+      sourceOrder,
+    });
+  });
+
+  const byName = new Map();
+  coded.forEach(row => {
+    const key = normalizeAccountName(row.name);
+    if (!byName.has(key)) byName.set(key, []);
+    byName.get(key).push(row);
+  });
+  const byCode = new Map(coded.map(row => [row.code, row]));
+  const resultRows = [];
+
+  printed.forEach(item => {
+    const normalized = normalizeAccountName(item.name);
+    const totalCode = normalized === 'TOTAL DE RECEITAS' ? '3'
+      : normalized === 'TOTAL DE CUSTOS' ? '4'
+        : normalized === 'TOTAL DE DESPESAS' ? '5'
+          : '';
+    const candidates = totalCode ? [byCode.get(totalCode)].filter(Boolean) : (byName.get(normalized) || []);
+    const target = [...candidates].reverse().find(row => row.sourceOrder <= item.sourceOrder) || candidates[0];
+    if (target) {
+      target.final = Math.abs(item.value);
+      target.side = item.side || defaultDreSide(target.code, target.name);
+      target.debit = target.side === 'D' ? target.final : 0;
+      target.credit = target.side === 'C' ? target.final : 0;
+      target.line = [target.code, target.name, target.final.toFixed(2), target.side].join(' | ');
+      return;
+    }
+
+    if (/^\(=\)|TOTAL (?:DE|DO) LUCRO|TOTAL (?:DE|DO) PREJU[IÍ]ZO/i.test(item.name)) {
+      resultRows.push(dreRow('', item.name, item.value, item.side, false, item.sourceOrder));
+    }
+  });
+
+  return [...coded, ...resultRows].sort((a, b) => a.sourceOrder - b.sourceOrder);
 }
 
 async function extractAccountingPdf(buffer) {
@@ -151,13 +257,16 @@ async function extractAccountingPdf(buffer) {
     groups.map(toPipeLine).filter(Boolean).forEach(row => rows.push(row));
   }
 
-  if (rows.length < 5) {
+  const isDre = allGroups.some(group => group.items.some(item => /DEMONSTRA[CÇ][AÃ]O DO RESULTADO|\bDRE\b/i.test(item.text)));
+  const extractedRows = isDre ? extractDreRows(allGroups) : rows;
+
+  if (extractedRows.length < 5) {
     const error = new Error('O PDF não possui texto contábil estruturado suficiente para extração local.');
     error.code = 'PDF_SEM_TEXTO_ESTRUTURADO';
     throw error;
   }
 
-  const byCode = code => rows.find(row => row.code === code);
+  const byCode = code => extractedRows.find(row => row.code === code);
   const printedResult = findPrintedResult(allGroups);
   const official = [
     officialLine('OFFICIAL_TOTAL_ATIVO', 'Total Ativo', byCode('1')),
@@ -177,9 +286,9 @@ async function extractAccountingPdf(buffer) {
 
   const header = findHeader(allGroups);
   return {
-    lines: [...rows.map(row => row.line), ...official],
-    rows,
-    docType: 'Balancete',
+    lines: [...extractedRows.map(row => row.line), ...official],
+    rows: extractedRows,
+    docType: isDre ? 'DRE' : 'Balancete',
     period: findPeriod(allGroups),
     pages: document.numPages,
     company: header.company,
@@ -192,4 +301,5 @@ module.exports = {
   extractAccountingPdf,
   groupItemsByLine,
   toPipeLine,
+  extractDreRows,
 };

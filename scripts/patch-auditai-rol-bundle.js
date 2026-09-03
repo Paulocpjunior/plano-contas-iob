@@ -258,5 +258,17 @@ replaceIfPresent(
   '',
 );
 
+replaceIfPresent(
+  'totais consolidados exigem conta exata',
+  'auditaiGroupAccountValue=(e,t)=>{const r=(e&&Array.isArray(e.accounts)?e.accounts:[]),n=(t.names||[]).map(auditaiGroupNorm),a=String(t.code||"");let i=null;if(a)i=r.find(s=>String(s.account_code||"").trim()===a)||r.find(s=>String(s.account_code||"").replace(/[^0-9]/g,"")===a&&auditaiGroupNorm(s.account_name).includes(t.nameHint||""));return i||(i=r.find(s=>{const l=auditaiGroupNorm(s.account_name);return n.some(u=>l===u||l.includes(u))})),i?auditaiGroupNumber(i.final_balance):0}',
+  'auditaiGroupAccountValue=(e,t)=>{const r=(e&&Array.isArray(e.accounts)?e.accounts:[]),n=(t.names||[]).map(auditaiGroupNorm),a=String(t.code||"");let i=null;if(a)i=r.find(s=>String(s.account_code||"").trim()===a&&(!t.nameHint||auditaiGroupNorm(s.account_name).includes(t.nameHint)))||r.find(s=>String(s.account_code||"").replace(/[^0-9]/g,"")===a&&auditaiGroupNorm(s.account_name).includes(t.nameHint||""));return i||(i=r.find(s=>{const l=auditaiGroupNorm(s.account_name);return n.some(u=>l===u)})),i?auditaiGroupNumber(i.final_balance):0}',
+);
+
+replaceIfPresent(
+  'resultado oficial precede fórmula consolidada',
+  'auditaiGroupPeriodResult=e=>{const a=e&&e.summary||{},t=auditaiGroupAccountValue(e,{code:"3",names:["TOTAL DE RECEITAS","RECEITAS"],nameHint:"RECEIT"}),r=auditaiGroupAccountValue(e,{code:"4",names:["TOTAL DE CUSTOS","CUSTOS"],nameHint:"CUST"}),n=auditaiGroupAccountValue(e,{code:"5",names:["TOTAL DE DESPESAS","DESPESAS"],nameHint:"DESP"});if(Math.abs(t)+Math.abs(r)+Math.abs(n)>0)return t-Math.abs(r)-Math.abs(n);const i=Number(a.specific_result_value),s=Number(auditaiGroupOfficialValue(e,"resultadoExercicio"));return Number.isFinite(i)&&(Math.abs(i)>0||a.specific_result_label)?i:Number.isFinite(s)&&Math.abs(s)>0?s:0}',
+  'auditaiGroupPeriodResult=e=>{const a=e&&e.summary||{},i=a.officialTotals||{},s=Number(i.resultadoExercicio),l=Number(a.specific_result_value);if(Object.prototype.hasOwnProperty.call(i,"resultadoExercicio")&&Number.isFinite(s))return s;if(Number.isFinite(l)&&a.specific_result_label)return l;const t=auditaiGroupAccountValue(e,{code:"3",names:["TOTAL DE RECEITAS","RECEITAS"],nameHint:"RECEIT"}),r=auditaiGroupAccountValue(e,{code:"4",names:["TOTAL DE CUSTOS","CUSTOS"],nameHint:"CUST"}),n=auditaiGroupAccountValue(e,{code:"5",names:["TOTAL DE DESPESAS","DESPESAS"],nameHint:"DESP"});return Math.abs(t)+Math.abs(r)+Math.abs(n)>0?t-Math.abs(r)-Math.abs(n):0}',
+);
+
 fs.writeFileSync(bundlePath, source);
 console.log('OK - integração R.O.L. aplicada ao bundle AuditAI.');
