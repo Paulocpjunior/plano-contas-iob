@@ -186,5 +186,39 @@ assert.strictEqual(bloqueioDoR4020({
   natureza: '15099', dataFatoGerador: '2026-07-23',
 }), null, 'o caso provado não bloqueia');
 
+// ─── 8. O BLOQUEIO NOMEIA AS DUAS SAÍDAS, e elas têm custos diferentes ─────
+//
+// 🚨 03/09, print do Paulo na PEC PRONTA ENTREGA (SCHROEDER: bruto 6.136,91 ·
+// IRRF 92,05 · PIS 39,89 · COFINS 184,11 · CSLL 61,37 · "não vira evento"). A
+// mensagem mandava SÓ pelo e-CAC — entrega à mão, competência a competência,
+// esperando um arquivo aceito que talvez demore. E o buraco aqui **não é de
+// conta, é de NOME e de ORDEM**: quem responde isso numa leitura é o XSD, que
+// é uma `xs:sequence` e portanto DECLARA o campo e a posição dele.
+//
+// ⚠️ A saída de HOJE continua sendo o e-CAC — a competência vence. O que não
+// pode é a frase esconder a saída que destrava PARA SEMPRE: aviso que nomeia
+// uma saída só, existindo duas com custos diferentes, manda pelo caminho caro.
+assert.ok(/e-CAC/.test(MOTIVO_IR_COM_AGREGADA), 'a saída de hoje (e-CAC) continua na frase');
+assert.ok(/XSD/.test(MOTIVO_IR_COM_AGREGADA), 'e a saída definitiva (o XSD) também');
+assert.ok(/sequence/i.test(MOTIVO_IR_COM_AGREGADA),
+  'e diz POR QUE o XSD resolve: ele declara a ordem dos irmãos');
+// 📌 E DIZ O QUANTO FALTA — três dos quatro nomes já estão provados. Sem esse
+// número, "não vira evento" se lê como buraco grande, e não como um campo.
+for (const provado of ['vlrBaseIR', 'vlrCofins', 'vlrPP']) {
+  assert.ok(MOTIVO_IR_COM_AGREGADA.includes(provado),
+    `a frase nomeia o que JÁ está provado (${provado})`);
+}
+
+// 🔗 A LIGAÇÃO: a tela do R-4020 também oferece o atalho. Régua certa com a
+// tela calada devolve o colaborador ao caminho caro sem nada acusar.
+{
+  const html = require('fs').readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
+  const bloco = html.slice(html.indexOf('O que ainda NÃO é gerado'));
+  const caixa = bloco.slice(0, bloco.indexOf("+ '</div>'"));
+  assert.ok(/XSD v2_01_02/.test(caixa), 'a caixa amarela oferece o XSD');
+  assert.ok(/evt4020PagtoBeneficiarioPJ/.test(caixa), 'e nomeia QUAL schema');
+  assert.ok(/e-CAC/.test(caixa), 'sem perder a saída de hoje');
+}
+
 console.log('✓ R-4020: retenção SEPARADA provada por arquivo aceito (vlrPP, não vlrPis), '
   + 'e o bloqueio aparece ANTES do clique');

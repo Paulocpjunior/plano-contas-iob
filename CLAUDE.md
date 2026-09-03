@@ -44,6 +44,44 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **🚨 O AVISO NOMEAVA UMA SAÍDA SÓ, E ERA A CARA — o XSD estava fora da
+  frase** (03/09, print do Paulo na PEC PRONTA ENTREGA 55.070.577/0001-61 ·
+  08/2026, beneficiário SCHROEDER 13.178.324/0001-95, com o motivo e o selo
+  circulados em vermelho).
+  📖 A linha: `bruto 6.136,91 · IRRF 92,05 · PIS 39,89 · COFINS 184,11 · CSLL
+  61,37 · natureza 15004 · **não vira evento**`. As quatro alíquotas fecham
+  (1,5% · 0,65% · 3% · 1%), ou seja é IRRF **mais** a CSRF completa — a
+  combinação que este módulo bloqueia porque a agregada e a separada nunca
+  apareceram no MESMO `<retencoes>`.
+  📌 **O BLOQUEIO ESTÁ CERTO E FICA**: chutar aqui não arrisca só a recusa —
+  arrisca o evento sair **ACEITO declarando retenção diferente da que houve**,
+  e recusa se conserta, declaração errada só aparece na malha. O `vlrPis` que
+  nunca existiu (o nome real é `vlrPP`) é a prova do custo do palpite.
+  🔴 **O QUE ESTAVA ERRADO ERA A FRASE**: ela mandava só *"entregue esta
+  competência pelo e-CAC e mande o XML dela depois"* — entrega à mão,
+  competência a competência, esperando **um arquivo aceito de cada
+  combinação**. E o buraco aqui **não é de CONTA, é de NOME e de ORDEM**: quem
+  responde isso numa leitura é o **XSD**, que é `xs:sequence` e portanto
+  DECLARA o campo e a posição dele.
+  ✂️ **E ELE FECHA OS DOIS BURACOS DE UMA VEZ** — o nome da CSLL separada (o
+  único dos quatro tributos sem prova: IR, COFINS e PP saíram no aceito de
+  07/2026) e a coexistência agregada+IR. É o caminho que já funcionou na casa:
+  os XSD da **DeRE** chegaram por ZIP em 02/09 e **confirmaram** o módulo em vez
+  de derrubá-lo.
+  ⚠️ **NÃO É "peça o XSD EM VEZ de entregar"**: a competência vence, então a
+  entrega pelo e-CAC continua sendo o que destrava HOJE. As duas saídas ficam na
+  frase, com o CUSTO de cada uma dito.
+  📌 **E A FRASE PASSOU A DIZER O QUANTO FALTA** (`vlrBaseIR` · `vlrCofins` ·
+  `vlrPP` já provados): sem esse número, *"não vira evento"* se lê como buraco
+  grande, quando é **um campo**. Causa junto do número vale para o BLOQUEIO
+  também.
+  📌 **REGRA QUE FICA: aviso que nomeia UMA saída, existindo duas com custos
+  diferentes, manda pelo caminho caro** — é o achado 18 (21/08) com outra roupa.
+  Onde a trava depende de uma PROVA que não temos, a frase lista todas as
+  fontes que serviriam, não só a que eu lembrei. Travado por teste (a frase tem
+  de citar e-CAC **e** XSD **e** dizer por que a sequence resolve) mais a
+  ligação com a tela, provado tirando a saída nova: o teste cai.
+
 - **🚨 A RETENÇÃO SEPARADA DESTRAVOU — e o nome do PIS era `vlrPP`, não
   `vlrPis`** (03/09, Paulo mandou um R-4020 **aceito em PRODUÇÃO**: tpAmb 1,
   perApur 2026-07, evento `ID1628278600000002026080611342200001`, verProc

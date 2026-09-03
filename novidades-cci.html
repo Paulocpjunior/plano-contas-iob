@@ -14,6 +14,19 @@
   <main class="wrap content">
     <article class="release">
       <div class="tag">Leia esta parte primeiro</div>
+      <header><h2>📐 R-4020 travado em “não vira evento”: existe um atalho, e ele estava escondido</h2><span class="date">03/09/2026 · v3.4.252</span></header>
+      <ul>
+        <li><strong>O caso:</strong> beneficiário com <strong>IRRF retido E a CSRF completa</strong> (PIS + COFINS + CSLL) ficava com o selo <strong>não vira evento</strong>, e o motivo mandava <em>“entregue esta competência pelo e-CAC e mande o XML dela depois”</em>. Está certo — mas era a saída <strong>cara</strong>: entrega à mão, competência a competência, esperando um arquivo aceito de cada combinação.</li>
+        <li><strong>O que falta é POUCO, e a tela passou a dizer:</strong> dos quatro tributos, <strong>IRRF, COFINS e PIS/PASEP já têm o nome provado</strong> (<code>vlrBaseIR</code>/<code>vlrIR</code> · <code>vlrBaseCofins</code>/<code>vlrCofins</code> · <code>vlrBasePP</code>/<code>vlrPP</code>). Falta o nome da <strong>CSLL separada</strong> e a <strong>ordem</strong> entre os campos.</li>
+        <li><strong>O atalho:</strong> se você tiver o <strong>XSD v2_01_02 do EFD-Reinf</strong> (o schema do <code>evt4020PagtoBeneficiarioPJ</code>, igual aos XSD da DeRE que já entraram no CFI), <strong>mande</strong>. Ele é uma <code>sequence</code>: declara o nome de cada campo e a posição de cada um — e destrava <strong>todos esses casos de uma vez</strong>, sem esperar um arquivo aceito de cada combinação.</li>
+        <li><strong>A entrega de hoje não muda:</strong> a competência vence, então esses beneficiários continuam saindo pelo <strong>e-CAC</strong>, nomeados na coluna Situação (os outros transmitem normalmente). O que mudou é a mensagem parar de esconder o caminho que resolve de vez.</li>
+        <li><strong>Por que o app não chuta o nome:</strong> o PIS provou o risco — o campo real é <code>vlrPP</code>, e <code>vlrPis</code> nunca existiu. Chutar não arrisca só a recusa: arrisca o evento sair <strong>ACEITO declarando uma retenção diferente da que houve</strong>, e isso só aparece na malha.</li>
+        <li><strong>Onde:</strong> EFD-Reinf → <strong>Retenções de PJ para o R-4020</strong> — na linha do beneficiário e na caixa amarela abaixo da lista.</li>
+      </ul>
+    </article>
+
+    <article class="release">
+      <div class="tag">Anterior</div>
       <header><h2>🧾 R-4020: a retenção separada por tributo destravou — e a tela avisa antes do clique</h2><span class="date">03/09/2026 · v3.4.251</span></header>
       <ul>
         <li><strong>O que acontecia:</strong> a tela dizia <em>“1 beneficiário · 1 pronto · 0 pendente”</em>, o botão <strong>Transmitir em PRODUÇÃO</strong> aparecia verde — e só <strong>depois do clique</strong> vinha <em>“Nenhum beneficiário pôde ser convertido em evento”</em>. Duas leituras do mesmo fato na mesma tela, e a errada era justamente a que decide se você clica.</li>

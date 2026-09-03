@@ -176,11 +176,38 @@ const MOTIVO_RETENCAO_BLOQUEADA =
   + 'o nome real é vlrPP, não vlrPis). PARA DESTRAVAR: um R-4020 aceito que tenha CSLL retida, ou o '
   + 'XSD v2_01_02 do SPED.';
 
+// 🚨 A MENSAGEM MANDAVA SÓ PELO CAMINHO CARO — e o barato existe (03/09, print
+// do Paulo na PEC PRONTA ENTREGA, beneficiário SCHROEDER: bruto 6.136,91 · IRRF
+// 92,05 · PIS 39,89 · COFINS 184,11 · CSLL 61,37, situação "não vira evento").
+//
+// Ela dizia só *"entregue pelo e-CAC e mande o XML depois"* — entrega à mão,
+// competência a competência, esperando um arquivo aceito que talvez demore. Só
+// que o buraco aqui **não é de conta, é de NOME e de ORDEM**, e quem responde
+// isso numa leitura é o **XSD** do próprio leiaute: `xs:sequence` DECLARA que
+// campos existem e em que ordem os irmãos entram.
+//
+// 📌 E ELE FECHA OS DOIS BURACOS DE UMA VEZ: o nome da CSLL separada (o único
+// dos quatro tributos sem prova — IR, COFINS e PP saíram no aceito de 07/2026)
+// e a coexistência agregada+IR. É o caminho que já funcionou nesta casa: os XSD
+// da DeRE chegaram por PDF/ZIP em 02/09 e confirmaram o módulo em vez de
+// derrubá-lo.
+//
+// ⚠️ NÃO É "peça o XSD em vez de entregar": a competência vence, então a
+// entrega pelo e-CAC continua sendo o que destrava HOJE. O que mudou é a
+// mensagem parar de esconder o caminho que destrava PARA SEMPRE — aviso que
+// nomeia uma saída só, quando existem duas com custos diferentes, é o achado 18
+// com outra roupa.
 const MOTIVO_IR_COM_AGREGADA =
   'Esta nota tem IRRF retido E a CSRF completa (PIS+COFINS+CSLL). A CSRF vai AGREGADA e o IR vai '
   + 'SEPARADO — mas nenhum arquivo aceito mostra os dois no MESMO <retencoes>, nem em que ORDEM. O '
-  + 'evento NÃO é gerado: o leiaute é uma sequência, e irmão fora de ordem derruba o evento. Entregue '
-  + 'esta competência pelo e-CAC e mande o XML dela depois — é ele que destrava.';
+  + 'evento NÃO é gerado: o leiaute é uma sequência, e irmão fora de ordem derruba o evento. '
+  + 'O QUE FALTA É POUCO: dos quatro tributos, IR, COFINS e PIS/PASEP já têm o nome PROVADO '
+  + '(vlrBaseIR/vlrIR · vlrBaseCofins/vlrCofins · vlrBasePP/vlrPP, aceito de 07/2026) — falta o nome '
+  + 'da CSLL separada e a ordem entre os irmãos. DUAS SAÍDAS, e elas têm custos diferentes: '
+  + '(1) HOJE, entregue esta competência pelo e-CAC e mande o XML dela depois; '
+  + '(2) DE VEZ, mande o XSD v2_01_02 do EFD-Reinf (evt4020PagtoBeneficiarioPJ) — ele é uma '
+  + 'xs:sequence, então DECLARA o nome do campo e a ordem, e destrava esta trava e a da CSLL '
+  + 'separada numa leitura só, sem esperar arquivo aceito de cada combinação.';
 
 const MOTIVO_BASE_IR_DESCONHECIDA =
   'Esta nota tem IRRF retido e o valor NÃO fecha com 1,5% nem 1% do bruto — ou seja, a base do IR '
