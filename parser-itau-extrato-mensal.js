@@ -196,13 +196,18 @@
         const moneyItems = line.items
           .map(function(item) {
             const raw = String(item && item.s || '').trim();
-            return moneyToken(raw) ? { raw: raw, x: Number(item.x || 0), valor: parseValorBR(raw) } : null;
+            if (!moneyToken(raw)) return null;
+            let valor = parseValorBR(raw);
+            const naturezaCor = String(item.naturezaCor || '').toUpperCase();
+            if (naturezaCor === 'D') valor = -Math.abs(valor);
+            if (naturezaCor === 'C') valor = Math.abs(valor);
+            return { raw: raw, x: Number(item.x || 0), valor: valor, naturezaCor: naturezaCor };
           })
           .filter(Boolean);
-        if (moneyItems.length >= 2 && /^\d{2}\/\d{2}\/\d{4}\b/.test(source)) {
-          const valueItem = moneyItems[moneyItems.length - 2];
+        if (moneyItems.length >= 1 && /^\d{2}\/\d{2}\/\d{4}\b/.test(source)) {
+          const valueItem = moneyItems.length >= 2 ? moneyItems[moneyItems.length - 2] : moneyItems[moneyItems.length - 1];
           const valoresTexto = Array.from(source.matchAll(/-?\d{1,3}(?:\.\d{3})*,\d{2}\b|-?\d+,\d{2}\b/g));
-          const valueMatch = valoresTexto.length >= 2 ? valoresTexto[valoresTexto.length - 2] : null;
+          const valueMatch = valoresTexto.length >= 2 ? valoresTexto[valoresTexto.length - 2] : valoresTexto[valoresTexto.length - 1];
           const idx = valueMatch ? valueMatch.index : source.lastIndexOf(valueItem.raw);
           return {
             raw: valueItem.raw,
@@ -342,7 +347,7 @@
     // linhas textuais diferentes das linhas posicionais do pdf.js. Rodamos uma
     // segunda passada pelo texto completo para recuperar casos como Redecard e
     // Rendimentos; a chave `vistos` evita duplicidade.
-    if (!temLinhasComValorESaldo && !modeloPeriodoSeparado) {
+    if (!temLinhasComValorESaldo && !modeloPeriodoSeparado && !origemOCR) {
       pendente = null;
       String(textoCompleto || '').split(/\n+/).forEach(processarLinhaTexto);
       flush();
@@ -425,6 +430,23 @@
     return null;
   }
 
+  function naturezaCorPixelsOCR(pixels) {
+    let vermelhos = 0;
+    let verdes = 0;
+    for (let i = 0; i < (pixels || []).length; i += 4) {
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+      const a = pixels[i + 3];
+      if (a < 80) continue;
+      if (r >= 75 && r > g * 1.22 && r > b * 1.22) vermelhos++;
+      if (g >= 55 && g > r * 1.18 && g > b * 1.12) verdes++;
+    }
+    if (vermelhos >= 3 && vermelhos > verdes * 1.5) return 'D';
+    if (verdes >= 3 && verdes > vermelhos * 1.5) return 'C';
+    return '';
+  }
+
   function linhasDePalavrasOCR(words, pageNum, pageWidth) {
     const validas = (words || []).map(function(w) {
       const text = itemTextoOCR(w);
@@ -433,8 +455,10 @@
       return {
         text: text,
         x: Number(bbox.x0 || 0),
+        x1: Number(bbox.x1 || bbox.x0 || 0),
         y: Number((Number(bbox.y0 || 0) + Number(bbox.y1 || 0)) / 2),
-        h: Math.max(8, Math.abs(Number(bbox.y1 || 0) - Number(bbox.y0 || 0)))
+        h: Math.max(8, Math.abs(Number(bbox.y1 || 0) - Number(bbox.y0 || 0))),
+        naturezaCor: w.naturezaCor || ''
       };
     }).filter(Boolean);
     if (!validas.length) return [];
@@ -456,7 +480,12 @@
     return grupos.map(function(g) {
       const items = g.words.sort(function(a,b){ return a.x - b.x; }).map(function(w) {
         const x = Math.round(w.x * scaleX);
-        return { x: x, s: normalizarTokenMonetarioPosicionalOCR(w.text, x) };
+        return {
+          x: x,
+          x1: Math.round(w.x1 * scaleX),
+          s: normalizarTokenMonetarioPosicionalOCR(w.text, x),
+          naturezaCor: w.naturezaCor || ''
+        };
       });
       const text = cleanLineText(items);
       return text ? { page: pageNum, y: Math.round(g.y), items: items, text: text, origem_ocr: true } : null;
@@ -483,6 +512,21 @@
         logger: m => console.log('[itau-ocr]', m.status, m.progress)
       });
       const words = result && result.data && result.data.words ? result.data.words : [];
+      words.forEach(function(word) {
+        const bbox = bboxOCR(word);
+        if (!bbox || !/[\dOoSsIl|][\dOoSsIl|.,]*\d/.test(itemTextoOCR(word))) return;
+        const x0 = Math.max(0, Math.floor(Number(bbox.x0 || 0)) - 2);
+        const y0 = Math.max(0, Math.floor(Number(bbox.y0 || 0)) - 2);
+        const x1 = Math.min(canvas.width, Math.ceil(Number(bbox.x1 || 0)) + 2);
+        const y1 = Math.min(canvas.height, Math.ceil(Number(bbox.y1 || 0)) + 2);
+        if (x1 <= x0 || y1 <= y0) return;
+        try {
+          const pixels = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
+          word.naturezaCor = naturezaCorPixelsOCR(pixels);
+        } catch (_) {
+          // Mantem o fallback textual/posicional quando o canvas nao permite leitura.
+        }
+      });
       let linhasPagina = linhasDePalavrasOCR(words, p, viewport.width);
       if (!linhasPagina.length && result && result.data && result.data.text) {
         linhasPagina = String(result.data.text).split(/\r?\n/).map(function(text, idx) {
@@ -618,7 +662,10 @@
         if (x >= 455) return;
         if (x < 320) return;
         let valor = v.valor;
-        if (x >= 388 && valor > 0) valor = -Math.abs(valor);
+        const naturezaCor = String(item.naturezaCor || '').toUpperCase();
+        if (naturezaCor === 'D') valor = -Math.abs(valor);
+        else if (naturezaCor === 'C') valor = Math.abs(valor);
+        else if (x >= 388 && valor > 0) valor = -Math.abs(valor);
         candidatos.push({
           raw: v.raw,
           valor: valor,
@@ -958,7 +1005,9 @@
       linhasDePalavrasOCR: linhasDePalavrasOCR,
       ignorarLancamentoTecnicoExtratoMensal: ignorarLancamentoTecnicoExtratoMensal,
       tipoMovimentoAplicacaoAutomatica: tipoMovimentoAplicacaoAutomatica,
-      normalizarTokenMonetarioPosicionalOCR: normalizarTokenMonetarioPosicionalOCR
+      normalizarTokenMonetarioPosicionalOCR: normalizarTokenMonetarioPosicionalOCR,
+      naturezaCorPixelsOCR: naturezaCorPixelsOCR,
+      valorMovimentoOCR: valorMovimentoOCR
     }
   };
 

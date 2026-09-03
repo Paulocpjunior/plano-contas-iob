@@ -28,6 +28,49 @@ function linhaOCRPosicional(y, partes) {
   return partes.map(([text, x]) => palavra(text, x, y, x + Math.max(18, String(text).length * 7), y + 12));
 }
 
+function palavraOCRColorida(text, x, y, naturezaCor) {
+  return Object.assign(
+    palavra(text, x, y, x + Math.max(18, String(text).length * 7), y + 12),
+    { naturezaCor }
+  );
+}
+
+function testarNaturezaPelaCorNoExtratoValueProjetos() {
+  assert.strictEqual(itau.__test__.naturezaCorPixelsOCR(new Uint8ClampedArray([
+    180, 20, 20, 255, 170, 10, 10, 255, 160, 0, 0, 255
+  ])), 'D', 'pixels vermelhos do valor devem representar débito');
+  assert.strictEqual(itau.__test__.naturezaCorPixelsOCR(new Uint8ClampedArray([
+    10, 120, 20, 255, 0, 110, 10, 255, 5, 100, 15, 255
+  ])), 'C', 'pixels verdes do valor devem representar crédito');
+  assert.strictEqual(itau.__test__.naturezaCorPixelsOCR(new Uint8ClampedArray([
+    30, 30, 30, 255, 20, 20, 20, 255, 10, 10, 10, 255
+  ])), '', 'texto neutro não deve inventar natureza');
+
+  const words = [
+    ...linhaOCRPosicional(20, [['Agência 8515 Conta 0099874-1', 30]]),
+    ...linhaOCRPosicional(40, [['Lançamentos do período: 01/01/2026 até 31/01/2026', 30]]),
+    ...linhaOCRPosicional(60, [['Data', 30], ['Lançamentos', 110], ['Razão Social', 240], ['CNPJ/CPF', 350], ['Valor(RS)', 430], ['Saldo (R$)', 510]]),
+    ...linhaOCRPosicional(80, [['31/12/2025', 30], ['SALDO ANTERIOR', 110], ['10000', 510]]),
+    ...linhaOCRPosicional(100, [['05/01/2026', 30], ['IOF', 110]]),
+    palavraOCRColorida('843', 430, 100, 'D'),
+    ...linhaOCRPosicional(120, [['05/01/2026', 30], ['TAR/CUSTAS COBRANCA', 110]]),
+    palavraOCRColorida('1632', 430, 120, 'D'),
+    ...linhaOCRPosicional(140, [['05/01/2026', 30], ['RECEBIMENTO CLIENTE', 110]]),
+    palavraOCRColorida('2475', 430, 140, 'C'),
+    ...linhaOCRPosicional(160, [['31/01/2026', 30], ['SALDO TOTAL DISPONÍVEL DIA', 110], ['10000', 510]])
+  ];
+  const lines = itau.__test__.linhasDePalavrasOCR(words, 1, 595);
+  const textoCompleto = lines.map((l) => l.text).join('\n');
+  const resultado = itau.__test__.parseItauLancamentosPeriodo(lines, textoCompleto);
+
+  assert.ok(resultado && resultado.detectado, 'extrato OCR da VALUE PROJETOS deve ser reconhecido');
+  assert.strictEqual(resultado.lancamentos.length, 3);
+  assert.ok(resultado.lancamentos.some((l) => l.descricao === 'IOF' && l.valor === -8.43), 'IOF vermelho continua débito quando o OCR apaga sinal e vírgula');
+  assert.ok(resultado.lancamentos.some((l) => /TAR\/CUSTAS/.test(l.descricao) && l.valor === -16.32), 'tarifa vermelha continua débito quando o OCR apaga sinal e vírgula');
+  assert.ok(resultado.lancamentos.some((l) => /RECEBIMENTO/.test(l.descricao) && l.valor === 24.75), 'recebimento verde continua crédito');
+  assert.strictEqual(resultado.saldos_conciliados, true);
+}
+
 function testarOCRImagemLancamentosPeriodo() {
   const words = [
     ...linhaOCRPosicional(20, [['Agência:', 80], ['0534', 145]]),
@@ -119,6 +162,7 @@ function testarOCRImagemGiLoschiavio() {
 }
 
 async function main() {
+  testarNaturezaPelaCorNoExtratoValueProjetos();
   testarOCRPosicionalPeriodo();
   testarOCRImagemLancamentosPeriodo();
   testarOCRImagemGiLoschiavio();
