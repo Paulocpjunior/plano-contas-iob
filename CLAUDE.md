@@ -44,6 +44,75 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **🚨 A RETENÇÃO SEPARADA DESTRAVOU — e o nome do PIS era `vlrPP`, não
+  `vlrPis`** (03/09, Paulo mandou um R-4020 **aceito em PRODUÇÃO**: tpAmb 1,
+  perApur 2026-07, evento `ID1628278600000002026080611342200001`, verProc
+  3.46.0000).
+  📖 O bloco, literal: `<vlrBaseIR>15371,80</vlrBaseIR><vlrIR>230,58</vlrIR>
+  <vlrBaseCofins>21708,16</vlrBaseCofins><vlrCofins>651,24</vlrCofins>
+  <vlrBasePP>21708,16</vlrBasePP><vlrPP>141,10</vlrPP>`.
+  🚨 **ELE DESMENTE O NOME QUE A ANALOGIA TERIA ESCRITO**: este módulo listava
+  **`vlrPis`** como campo "não mapeado" — o nome **nunca existiu**. É a régua da
+  casa pela terceira vez no mesmo gerador (**arquivo ACEITO vale mais que
+  leiaute deduzido**), e agora com a prova do risco: o palpite passaria em
+  qualquer teste nosso e seria recusado — ou, pior, aceito declarando retenção
+  ZERO. `vlrPis`/`vlrBasePis` FICAM na lista de bloqueados justamente por isso.
+  📖 **E ELE PROVA MAIS TRÊS COISAS**: a **ORDEM** dentro de `<retencoes>` (IR →
+  COFINS → PP — `xs:sequence`, e irmão fora de ordem derruba o evento, como o
+  `evtAquis` do R-2099 já derrubou três vezes); que a **CSLL pode ser OMITIDA**
+  (*"esse beneficiário ATESA não tem retenção de CSLL, apenas PIS/COFINS"*) —
+  tributo que não houve simplesmente não leva o par, e emitir `0,00` seria
+  AFIRMAR retenção de zero; e que o **`vlrBaseIR` pode ser MENOR que o
+  `vlrBruto`** (15.371,80 × 21.708,16: base com dedução, o caso da cooperativa).
+  ✂️ **A RÉGUA FICOU COM DOIS RAMOS, cada um com o arquivo aceito do lado**:
+  **com CSLL** ⇒ CSRF **AGREGADA** (`vlrBaseAgreg`/`vlrAgreg`, perApur 2026-06);
+  **sem CSLL** ⇒ **SEPARADA** (perApur 2026-07). O que continua bloqueado é a
+  **CSLL separada** (nome sem prova), o **IR junto da agregada** (os dois
+  arquivos usam uma forma OU a outra — que convivam, e em que ordem, ninguém
+  mostrou) e a **base do IR com dedução** (o CFI entrega o valor do serviço, não
+  a base do IR; carimbar o bruto declararia base A MAIOR).
+  ⚠️ **O `vlrBaseIR` SÓ SAI QUANDO O IR FECHA NA ALÍQUOTA LEGAL** sobre o bruto
+  — é isso que PROVA que a base é o bruto. Não fechando, o bloqueio diz que a
+  base tem dedução, em vez de inventar o número.
+  🚨 **E A TELA PASSOU A SABER ANTES DO CLIQUE** (print do Paulo, mesmo dia): a
+  linha dizia **"1 beneficiário(s) PJ · 1 pronto(s) · 0 pendente(s)"**, o botão
+  **Transmitir em PRODUÇÃO** nascia verde, e só DEPOIS do clique vinha *"Nenhum
+  beneficiário pôde ser convertido em evento"*. **Duas leituras do mesmo fato na
+  mesma tela — e a errada era a que decide se a pessoa clica.** A causa: `pronto`
+  respondia *"a apuração fechou?"* (natureza + pendências) e **nada perguntava ao
+  gerador**. Agora a apuração chama o DONO (`bloqueioDoR4020`), e a tradução
+  beneficiário → pagamento saiu da ROTA para o gerador — era ela que a tela não
+  tinha como enxergar.
+  ⚠️ **TRÊS ESTADOS, porque as AÇÕES são diferentes**: `pronto` · `pendente` (a
+  PESSOA resolve na tela) · **`não vira evento`** (depende de um XML aceito ou do
+  XSD — entrega pelo e-CAC). Fundir os dois últimos num "pendente" mandaria
+  procurar na tela o que não está na tela.
+  ⚠️ **E A PENDÊNCIA DA PESSOA VEM PRIMEIRO**: quem ainda não tem natureza já tem
+  ação ali, e o gerador reclamaria do MESMO campo (`natRend`) com outra frase —
+  duas mensagens para a mesma falta faz procurar dois problemas onde há um.
+  🐛 **E A TROCA DE FIXTURE FOI O RETRATO DO DEFEITO**: um teste tinha uma nota
+  **sem `dataFatoGerador`** contando como PRONTA — ou seja, ele descrevia o mundo
+  em que a tela libera o clique e a transmissão devolve *"pagamentos[0].dtFG deve
+  ser AAAA-MM-DD"*, que é a recusa REAL de 02/09.
+  📌 **REGRA QUE FICA: "pronto" tem de querer dizer "VIRA EVENTO".** Todo painel
+  que tem botão de transmitir pergunta ao GERADOR antes de pintar de verde —
+  status da apuração não é resultado da geração, e a diferença só aparece depois
+  do clique, que é o pior lugar.
+
+- **🚨 "SEM CSLL" NÃO É "NÃO CONSEGUI SEPARAR A CSLL"** (03/09, mesmo caso —
+  ATESA). A régua da decomposição assumia que o campo do portal de SP é SEMPRE o
+  TOTAL das três contribuições; quando ele vem **ZERO** com PIS e COFINS já
+  separados e **fechando nas alíquotas legais** (0,65% e 3%), não há o que
+  separar: o documento está dizendo que **a CSLL não foi retida**. O
+  beneficiário virava pendência (*"as alíquotas não fecham"*) sobre uma nota
+  correta — e o R-4020 aceito de 07/2026 confirma a forma, omitindo a CSLL.
+  ⚠️ **SÓ VALE COM AS DUAS ALÍQUOTAS FECHANDO**: PIS **1,65%** + COFINS **7,60%**
+  é o tributo da **OPERAÇÃO** do prestador (o caso ATLAS), e lê-lo como retenção
+  declararia à Receita o que ninguém reteve. É a mesma assinatura de alíquota que
+  o CFI usa, e ela é a trava que separa os dois casos.
+  📌 É a régua de 02/09 (**campo que o documento traz ZERADO é uma AFIRMAÇÃO da
+  fonte**) do lado do Contábil.
+
 - **🚨 "JÁ ESTÁ INFORMADO DESDE O MÊS PASSADO" — a tela mandava fazer o que já
   estava feito, e o CFI já tinha resolvido a pendência de verdade** (02/09,
   Paulo, VINCENZO GUERRA BANANAS · 08/2026: *"vou entregar esse REINF R-2055,

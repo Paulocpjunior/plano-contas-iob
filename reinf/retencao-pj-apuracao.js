@@ -33,6 +33,7 @@
 //    nota vira pendência. Valor derivado sai sempre CARIMBADO.
 // ═══════════════════════════════════════════════════════════════════════════
 
+const { bloqueioDoR4020 } = require('./gerar-r4020');
 const { buscarNatureza, sugerirPorLc116 } = require('./natureza-rendimento');
 
 const ALIQ = { pis: 0.65, cofins: 3.00, csll: 1.00 };
@@ -149,6 +150,31 @@ function resolverRetencoes(nota) {
     }
   }
 
+  // 🚨 PIS E COFINS NAS ALÍQUOTAS LEGAIS E A CSLL ZERADA = NÃO HOUVE CSLL
+  //
+  // 03/09, Paulo: *"esse beneficiário ATESA não tem retenção de CSLL, apenas
+  // PIS/COFINS"*. A régua acima assume que o campo do portal é SEMPRE o total
+  // das três — e quando ele vem ZERO com PIS e COFINS já separados e fechando,
+  // não há o que separar: o documento está dizendo que a CSLL não foi retida.
+  // O R-4020 aceito de 07/2026 confirma a forma: ele declara IR, COFINS e PP e
+  // **omite a CSLL**.
+  //
+  // ⚠️ Só vale com AS DUAS alíquotas fechando — é isso que prova que os campos
+  // são RETENÇÃO. PIS 1,65% + COFINS 7,60% é o tributo da OPERAÇÃO do prestador
+  // (o caso ATLAS), e lê-lo como retenção declararia o que ninguém reteve.
+  if (bate(pis, base, ALIQ.pis) && bate(cofins, base, ALIQ.cofins) && !campoCsll) {
+    return {
+      pis: r2(pis), cofins: r2(cofins), csll: 0,
+      csllOrigem: 'nao-houve',
+      total: r2((pis || 0) + (cofins || 0)),
+      pendencia: null,
+      conferencia: `PIS ${r2(pis)} (${ALIQ.pis}%) e COFINS ${r2(cofins)} (${ALIQ.cofins}%) fecham com as `
+        + 'alíquotas legais e o campo de contribuições sociais veio ZERADO: o documento declara que NÃO '
+        + 'houve retenção de CSLL. O R-4020 sai com a retenção SEPARADA, sem o par da CSLL — é a forma '
+        + 'do arquivo aceito de 07/2026.',
+    };
+  }
+
   // Não fechou por nenhum lado: NÃO inventa. Vira pendência com o motivo.
   return {
     pis: r2(pis), cofins: r2(cofins), csll: 0, csllOrigem: null,
@@ -258,20 +284,47 @@ function apurarRetencoesPJ({ competencia, notas } = {}) {
           : 'Natureza do rendimento não definida e sem correlação automática — enquadre pela descrição do serviço.',
       );
     }
-    return { ...b, pronto: b.pendencias.length === 0 && !!b.natureza };
+    // 🚨 "PRONTO" TEM DE QUERER DIZER "VIRA EVENTO" (03/09, print do Paulo):
+    // a tela dizia "1 pronto(s) · 0 pendente(s)", o botão "Transmitir em
+    // PRODUÇÃO" nascia verde, e só DEPOIS do clique vinha "Nenhum beneficiário
+    // pôde ser convertido em evento". Duas leituras do mesmo fato na mesma
+    // tela, e a errada era a que decide se a pessoa clica.
+    //
+    // ⚠️ Quem responde é o DONO do gerador — reimplementar a régua aqui faria a
+    // tela liberar o que o gerador recusa no primeiro campo novo.
+    // ⚠️ A PENDÊNCIA DA PESSOA VEM PRIMEIRO: quem ainda não tem natureza já
+    // tem ação NA TELA, e o gerador reclamaria do mesmo campo (`natRend`) com
+    // outra frase. Duas mensagens para a mesma falta é o que faz a pessoa
+    // procurar dois problemas onde há um.
+    const apurado = b.pendencias.length === 0 && !!b.natureza;
+    const bloqueio = apurado ? bloqueioDoR4020({ ...b, pendencias: undefined }) : null;
+    return {
+      ...b,
+      // 🚩 NÃO É PENDÊNCIA: pendência a PESSOA resolve na tela (informar a
+      // natureza, ajustar a retenção). Isto é o gerador dizendo que o evento
+      // não sai — ou por falta de prova de leiaute, ou por dado do documento
+      // (o `dtFG`, que foi a recusa de 02/09). Ações diferentes não se fundem
+      // num contador só, e o NOME não afirma a causa: quem a diz é o motivo.
+      bloqueioDoEvento: bloqueio,
+      pronto: apurado && !bloqueio,
+    };
   });
 
   beneficiarios.sort((a, b) => Number(a.pronto) - Number(b.pronto)
     || String(a.prestadorNome).localeCompare(String(b.prestadorNome), 'pt-BR'));
 
   const prontos = beneficiarios.filter((b) => b.pronto);
+  const bloqueados = beneficiarios.filter((b) => b.bloqueioDoEvento);
   return {
     competencia: competencia || null,
     beneficiarios,
     resumo: {
       beneficiarios: beneficiarios.length,
       prontos: prontos.length,
-      pendentes: beneficiarios.length - prontos.length,
+      // Pendente = falta AÇÃO DA PESSOA. O bloqueado por leiaute é contado à
+      // parte porque a ação é outra (entregar pelo e-CAC e mandar o XML).
+      pendentes: beneficiarios.filter((b) => !b.pronto && !b.bloqueioDoEvento).length,
+      naoViramEvento: bloqueados.length,
       comCsllDerivada: beneficiarios.filter((b) => b.csllDerivada).length,
       totalIr: r2(beneficiarios.reduce((t, b) => t + b.ir, 0)),
       totalCsll: r2(beneficiarios.reduce((t, b) => t + b.csll, 0)),
@@ -284,7 +337,16 @@ function apurarRetencoesPJ({ competencia, notas } = {}) {
 
 function avisosDaApuracao(bs) {
   const avisos = [];
-  const pendentes = bs.filter((b) => !b.pronto).length;
+  const pendentes = bs.filter((b) => !b.pronto && !b.bloqueioDoEvento).length;
+  const bloqueados = bs.filter((b) => b.bloqueioDoEvento);
+  if (bloqueados.length) {
+    avisos.push(
+      `${bloqueados.length} beneficiário(s) NÃO viram evento — e isso NÃO é pendência de cadastro: é o `
+      + 'gerador dizendo que o R-4020 não sai com o que existe hoje. Cada um traz o motivo na linha; '
+      + 'onde ele diz que a forma não está provada por arquivo aceito, entregue pelo e-CAC e mande o '
+      + `XML depois — é ele que destrava. ${bloqueados.map((b) => b.prestadorNome || b.prestadorCnpj).join(', ')}.`,
+    );
+  }
   const derivadas = bs.filter((b) => b.csllDerivada).length;
   if (pendentes) {
     avisos.push(

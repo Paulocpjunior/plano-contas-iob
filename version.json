@@ -1,16 +1,7 @@
 {
-  "version": "3.4.250",
-  "build_date": "2026-09-03T14:18:06Z",
+  "version": "3.4.251",
+  "build_date": "2026-09-03T19:30:42Z",
   "release_notes": [
-    "fix: preservar natureza no OCR do extrato Itau",
-    "🚨 \"já está informado desde o mês passado\" — a tela mandava fazer o que já estava feito (#112)",
-    "Permite lançamento manual com múltiplas partidas (#111)",
-    "Impede resumo Mercado Pago de contaminar lançamento (#110)",
-    "R-2010 transmitido: a ressalva de \"nao foi transmitido\" tem prazo (#109)",
-    "Main verde: rodei o gate errado, e o certo estava no aviso do deploy (#108)",
-    "Corrige sinal de saídas no PDF Mercado Pago (#107)",
-    "🛠️ R-2010: gravar um campo apagava os outros dois (#105)",
-    "Corrigir OCR do extrato Itaú Empresas (#104)",
-    "Corrigir fluxo de parametrização de layouts bancários (#103)"
+    "Melhorias internas e correcoes"
   ]
 }

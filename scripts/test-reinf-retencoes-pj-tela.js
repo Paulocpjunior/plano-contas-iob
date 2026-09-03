@@ -76,7 +76,10 @@ assert.ok(index.includes('>informada</span>') && index.includes('>da nota</span>
 // O que ela tem de garantir é a INTENÇÃO, nos dois sentidos: dizer que a
 // retenção agregada SAI, e continuar nomeando o que NÃO sai — senão some a
 // razão de alguém não confiar num evento com IRRF.
-assert.ok(/retenção agregada já é gerada/i.test(index),
+// ⚠️ ASSERÇÃO TROCADA PELA INTENÇÃO (03/09): o texto mudou porque a SEPARADA
+// destravou com o arquivo aceito de 07/2026. A intenção — dizer que a agregada
+// SAI e continuar nomeando o que NÃO sai — segue travada aqui e abaixo.
+assert.ok(/CSRF de 4,65%/.test(index) && /agregada/i.test(index),
   'a tela diz que a retenção agregada (CSRF 4,65%) é gerada');
 assert.ok(/O que ainda NÃO é gerado/.test(index) && /IRRF/.test(index),
   'e continua nomeando o que segue bloqueado, com o tributo pelo nome');
@@ -90,7 +93,10 @@ assert.ok(!/ainda não há botão de gerar o XML/.test(index),
 // 🐛 A âncora fica DENTRO de um literal só: o texto da tela é montado por
 // concatenação, então um regex que atravesse o `' + '` nunca casa — é a mesma
 // mordida do <strong> partindo o nó de texto (22/08).
-assert.ok(/retenção de IR que não é a/.test(index),
+// ⚠️ ASSERÇÃO TROCADA PELA INTENÇÃO (03/09): ela prendia *"retenção de IR que
+// não é a"*, e o IRRF DESTRAVOU — o caso bloqueado hoje é outro. A intenção
+// segue idêntica: o risco tem de estar escrito.
+assert.ok(/retenção que não é a que houve/.test(index),
   'a tela diz o risco real do caso bloqueado, não só "seria recusado"');
 assert.ok(/mande o XML depois/.test(index), 'e o que destrava');
 

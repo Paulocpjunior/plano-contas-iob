@@ -33,7 +33,9 @@ const path = require('path');
 
 const {
   gerarR4020, validarEntradaR4020,
-  MOTIVO_IRRF_BLOQUEADO, RETENCOES_NAO_MAPEADAS, ALIQ_CSRF,
+  MOTIVO_IR_COM_AGREGADA, MOTIVO_BASE_IR_DESCONHECIDA,
+  RETENCOES_NAO_MAPEADAS, ALIQ_CSRF, RETENCOES_SEPARADAS,
+  pagamentoR4020DoBeneficiario, bloqueioDoR4020,
 } = require('../reinf/gerar-r4020');
 
 /** O evento do arquivo aceito, campo a campo. */
@@ -97,12 +99,17 @@ const errosBaseSolta = validarEntradaR4020(base({
 assert.ok(errosBaseSolta.some((x) => /base sem retenção não se declara/.test(x)));
 
 // ─── 3. O QUE CONTINUA SEM PROVA CONTINUA BLOQUEADO ─────────────────────────
-// O arquivo aceito tem IRRF ZERO: onde o IR entra no bloco não está provado.
-const errosIr = validarEntradaR4020(base({
-  pagamentos: [Object.assign({}, base().pagamentos[0], { vlrIR: 120.5 })],
+//
+// ⚠️ ASSERÇÃO TROCADA (03/09): ela exigia que **todo** IRRF bloqueasse, e o
+// terceiro arquivo aceito (perApur 2026-07) mostra o IR declarado em
+// `vlrBaseIR`/`vlrIR`. Travar o bloqueio antigo impediria a correção que a
+// prova manda fazer. O que sobra bloqueado é a COMBINAÇÃO (IR junto de
+// agregada) e a CSLL SEPARADA, cujo nome nenhum arquivo mostra.
+const errosIrComAgregada = validarEntradaR4020(base({
+  pagamentos: [Object.assign({}, base().pagamentos[0], { vlrIR: 120.5, vlrBaseIR: 3210.96 })],
 }));
-assert.ok(errosIr.some((x) => x.includes(MOTIVO_IRRF_BLOQUEADO)),
-  'IRRF > 0 tem de bloquear com o motivo PRÓPRIO dele');
+assert.ok(errosIrComAgregada.some((x) => x.includes(MOTIVO_IR_COM_AGREGADA)),
+  'IR junto de retenção AGREGADA continua sem prova e tem de bloquear');
 
 // ⚠️ IRRF ZERO não bloqueia — é o caso comum (a ATLAS tem IR 0,00), e barrar
 // ali seria alarme sobre nota correta.
@@ -111,16 +118,19 @@ assert.deepStrictEqual(
     pagamentos: [Object.assign({}, base().pagamentos[0], { vlrIR: 0 })],
   })), [], 'IRRF zero é o caso comum e não pode bloquear');
 
-// Os campos SEPARADOS por tributo seguem sem prova nenhuma.
-for (const campo of ['vlrCsll', 'vlrPis', 'vlrCofins', 'vlrBaseIR']) {
+// A CSLL SEPARADA segue sem prova — e `vlrPis` é NOME QUE NÃO EXISTE (o
+// arquivo aceito escreve `vlrPP`): quem mandar o palpite é barrado.
+for (const campo of ['vlrCsll', 'vlrBaseCsll', 'vlrPis', 'vlrBasePis']) {
   const erros = validarEntradaR4020(base({
     pagamentos: [Object.assign({}, base().pagamentos[0], { [campo]: 10 })],
   }));
   assert.ok(erros.length, `${campo} não está provado e tem de bloquear`);
 }
 // E os provados SAÍRAM da lista de bloqueados.
-assert.ok(!RETENCOES_NAO_MAPEADAS.includes('vlrBaseAgreg'));
-assert.ok(!RETENCOES_NAO_MAPEADAS.includes('vlrAgreg'));
+for (const campo of ['vlrBaseAgreg', 'vlrAgreg', 'vlrBaseIR', 'vlrIR',
+  'vlrBaseCofins', 'vlrCofins', 'vlrBasePP', 'vlrPP']) {
+  assert.ok(!RETENCOES_NAO_MAPEADAS.includes(campo), `${campo} está provado e não pode bloquear`);
+}
 
 // ─── 4. A CONFERÊNCIA DA ALÍQUOTA ───────────────────────────────────────────
 // 🚨 Ela ACUSA, nunca corrige: recalcular aqui faria o evento e a apuração
@@ -165,7 +175,11 @@ assert.strictEqual(
 const tela = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 assert.ok(!/ainda não há botão de gerar o XML/.test(tela),
   'a tela não pode afirmar um bloqueio que o gerador não tem mais');
-assert.ok(/retenção agregada já é gerada/i.test(tela),
+// ⚠️ ASSERÇÃO TROCADA PELA INTENÇÃO (03/09): ela prendia o TEXTO *"retenção
+// agregada já é gerada"*, e a frase mudou por PROVA — o arquivo aceito de
+// 07/2026 destravou também a SEPARADA, então a tela passou a dizer as DUAS
+// formas. O que ela protege continua: a tela tem de dizer que a agregada sai.
+assert.ok(/agregada/i.test(tela) && /vlrBaseAgreg/.test(tela),
   'a tela tem de dizer que a retenção agregada sai');
 // ⚠️ E tem de continuar dizendo o que NÃO sai — some o aviso, some a razão de
 // alguém não confiar num evento com IRRF.
