@@ -44,6 +44,65 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **✅ O XSD DESTRAVOU O QUE DOIS ARQUIVOS ACEITOS NÃO TINHAM DESTRAVADO — e
+  ele NÃO contradisse a produção: EXPLICOU** (04/09, Paulo na PEC PRONTA
+  ENTREGA · 08/2026, beneficiário SCHROEDER: *"aqui já está tudo certo para
+  transmitir, mas está com essa mensagem e nem está aparecendo o botão"*).
+  📖 A linha: `bruto 6.136,91 · IRRF 92,05 · PIS 39,89 · COFINS 184,11 · CSLL
+  61,37 · **não vira evento**`, com `0 pronto(s)` e o botão de transmitir
+  sumido — ou seja, o módulo estava certo em não oferecer clique, mas o mês não
+  saía.
+  📌 **DE MANHÃ EU PEDI O XSD A ELE; À TARDE EU FUI BUSCAR.** A régua de 02/09
+  (*"antes de pedir um arquivo ao dono, perguntar se o APP não tem a
+  resposta"*) tem uma metade que eu não estava usando: **antes de pedir, ver se
+  a resposta é PÚBLICA**. Medi primeiro que o repo não tinha XSD nenhum; o
+  `sped.rfb.gov.br` responde **403** por esta rede (o precedente do CONFAZ e do
+  SERPRO), mas `raw.githubusercontent.com` abre — e o `ACBr`, projeto que meia
+  indústria usa, publica os schemas do Reinf. **Um `curl` respondeu o que uma
+  semana de espera por arquivo aceito não responderia.**
+  📖 **A SEQUENCE, LITERAL** (todos `minOccurs="0"`): `vlrBaseIR · vlrIR ·
+  vlrBaseAgreg · vlrAgreg · vlrBaseCSLL · vlrCSLL · vlrBaseCofins · vlrCofins ·
+  vlrBasePP · vlrPP`.
+  🚨 **ELA FECHA OS DOIS BURACOS DE UMA VEZ**: (1) **IR e AGREGADA convivem**,
+  com o IR ANTES — era esse o bloqueio da SCHROEDER; (2) **o nome da CSLL é
+  `vlrCSLL`/`vlrBaseCSLL`, em MAIÚSCULAS** — o módulo listava `vlrCsll` como
+  "não mapeado", e esse nome **nunca existiu**. É o `vlrPis` de novo: *o
+  palpite não erra o campo, erra a CAIXA das letras.*
+  ✅ **E É ISSO QUE AUTORIZA USÁ-LO — ele EXPLICA os dois arquivos aceitos**: o
+  de 06/2026 usa as posições 3-4 (agregada) e o de 07/2026 as posições 1, 2, 7,
+  8, 9 e 10, na ordem. Schema de mirror que bate campo a campo com DUAS provas
+  de produção é **corroboração**, não dedução — a mesma disciplina que fixou a
+  versão do CT-e em 19/08.
+  ✂️ **E O GERADOR MUDOU DE FORMA, não só de trava**: eram DOIS blocos (os
+  separados, depois a agregada), o que com os dois presentes emitiria `IR →
+  Cofins → PP → Agreg` — e o XSD manda a agregada ANTES do Cofins. Virou **UM
+  laço sobre a tabela do XSD**, então a ordem sai certa **por construção**, em
+  qualquer combinação. `xs:sequence` com irmão fora de ordem derruba o evento —
+  foi o que derrubou o R-2099 três vezes.
+  ⚠️ **A TABELA É PROVADA CONTRA O ARQUIVO**, nunca digitada (a régua da
+  `XSD_DERE`): o teste lê `docs/reinf/xsd/`, confere o `targetNamespace`, extrai
+  a sequence e exige que a tabela do módulo seja ela, na mesma ordem.
+  ⚠️ **A POLÍTICA NÃO MUDOU JUNTO, de propósito**: com CSLL a CSRF continua
+  saindo **AGREGADA** — é o que o arquivo aceito de 06/2026 prova. O XSD diz o
+  que é ESTRUTURALMENTE válido; ele não diz o que é semanticamente certo, e
+  trocar uma forma provada por produção com base só no schema seria afrouxar
+  pelo lado errado. O `vlrCSLL` fica disponível para quem o informar.
+  📌 **CINCO ASSERÇÕES FORAM TROCADAS PELA INTENÇÃO, e é o retrato do dia**:
+  elas diziam *"IR + agregada continua sem prova"*, *"a CSLL separada não tem
+  nome"* e — a mais direta — `assert(schroeder.pronto === false)`. **Elas
+  descreviam o mundo anterior à fonte.** O que cada uma protegia continua
+  travado: nome palpitado não passa (agora com o nome CERTO na mensagem), a
+  ordem é conferida no XML gerado, e a TELA continua sabendo antes do clique.
+  📌 **REGRA QUE FICA: quando a trava depende de uma PROVA que não temos, a
+  pergunta antes de esperar é "essa prova é pública?".** Leiaute, schema e
+  tabela oficial quase sempre são — e um mirror que bate com o que já foi
+  aceito em produção vale mais que meses de espera. O que continua proibido é o
+  contrário: usar o schema para inventar o que ele **não** declara.
+  🚩 **O QUE CONTINUA FORA, e vai dito**: a nota cuja **base do IR tem
+  dedução** (a cooperativa do aceito de 07/2026 — 230,58 sobre 21.708,16). O
+  XSD não resolve isso: é DADO que o CFI não tem, porque ele entrega o valor do
+  serviço, não a base do IR. Continua saindo pelo e-CAC, nomeada na tela.
+
 - **🚨 O AVISO NOMEAVA UMA SAÍDA SÓ, E ERA A CARA — o XSD estava fora da
   frase** (03/09, print do Paulo na PEC PRONTA ENTREGA 55.070.577/0001-61 ·
   08/2026, beneficiário SCHROEDER 13.178.324/0001-95, com o motivo e o selo

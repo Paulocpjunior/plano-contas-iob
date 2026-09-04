@@ -105,11 +105,26 @@ assert.ok(errosBaseSolta.some((x) => /base sem retenção não se declara/.test(
 // `vlrBaseIR`/`vlrIR`. Travar o bloqueio antigo impediria a correção que a
 // prova manda fazer. O que sobra bloqueado é a COMBINAÇÃO (IR junto de
 // agregada) e a CSLL SEPARADA, cujo nome nenhum arquivo mostra.
-const errosIrComAgregada = validarEntradaR4020(base({
+// 🚨 ASSERÇÃO TROCADA PELA INTENÇÃO (04/09) — ela descrevia o mundo ANTES do
+// XSD. Dizia *"IR junto de agregada continua sem prova e tem de bloquear"*, e
+// era isso que segurava a SCHROEDER em "não vira evento", com o botão de
+// transmitir sumido. O XSD `evt4020PagtoBeneficiarioPJ-v2_01_02` declara os
+// dez campos na MESMA sequence, com `vlrBaseIR`/`vlrIR` ANTES de
+// `vlrBaseAgreg`/`vlrAgreg`: conviver é válido, e a ORDEM está no schema.
+//
+// A intenção que ela protegia continua travada, e agora pela FORMA: os dois
+// saem, na ordem que o XSD manda. Travar o bloqueio antigo impediria a
+// correção que a fonte manda fazer.
+const irComAgregada = base({
   pagamentos: [Object.assign({}, base().pagamentos[0], { vlrIR: 120.5, vlrBaseIR: 3210.96 })],
-}));
-assert.ok(errosIrComAgregada.some((x) => x.includes(MOTIVO_IR_COM_AGREGADA)),
-  'IR junto de retenção AGREGADA continua sem prova e tem de bloquear');
+});
+assert.deepStrictEqual(validarEntradaR4020(irComAgregada), [],
+  'IR junto de retenção AGREGADA é válido — o XSD declara os dois na mesma sequence');
+{
+  const bloco = gerarR4020(irComAgregada).xml.match(/<retencoes>[\s\S]*?<\/retencoes>/)[0];
+  assert.ok(bloco.indexOf('<vlrBaseIR>') < bloco.indexOf('<vlrBaseAgreg>'),
+    'e o IR sai ANTES da agregada, como a sequence do XSD manda');
+}
 
 // ⚠️ IRRF ZERO não bloqueia — é o caso comum (a ATLAS tem IR 0,00), e barrar
 // ali seria alarme sobre nota correta.

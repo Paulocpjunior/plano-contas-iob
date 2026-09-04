@@ -141,16 +141,59 @@ const NS_R4020 =
 const RETENCOES_NAO_MAPEADAS = ['vlrCsll', 'vlrBaseCsll', 'vlrPis', 'vlrBasePis'];
 
 /**
- * A retenção SEPARADA, na ORDEM que o arquivo aceito de 07/2026 mostra.
+ * ⚠️ A LISTA ACIMA MUDOU DE SIGNIFICADO em 04/09, e isso é o ponto.
  *
- * A ordem é dado, não estilo: o leiaute é `xs:sequence`, e trocar dois irmãos
- * de lugar derruba o evento (foi o que derrubou o R-2099 três vezes).
+ * Ela era "campos cujo nome nenhum arquivo aceito mostra". Com o XSD no repo,
+ * **os dez nomes são conhecidos** — e os quatro que sobraram na lista são
+ * NOMES QUE NÃO EXISTEM: o XSD escreve `vlrCSLL`/`vlrBaseCSLL` (maiúsculas) e
+ * `vlrPP`/`vlrBasePP`. Quem mandar `vlrCsll` ou `vlrPis` continua barrado — e
+ * agora a mensagem diz o nome CERTO, em vez de dizer que o campo é impossível.
  */
-const RETENCOES_SEPARADAS = [
+const NOME_CERTO_DO_CAMPO = {
+    vlrCsll: 'vlrCSLL', vlrBaseCsll: 'vlrBaseCSLL',
+    vlrPis: 'vlrPP', vlrBasePis: 'vlrBasePP',
+};
+
+/**
+ * A SEQUÊNCIA de `<retencoes>`, LIDA DO XSD — não deduzida.
+ *
+ * 🚨 04/09: o XSD `evt4020PagtoBeneficiarioPJ-v2_01_02` entrou no repo
+ * (`docs/reinf/xsd/`) e respondeu de uma vez as DUAS perguntas que travavam o
+ * módulo. Ele declara, nesta ordem e todos com `minOccurs="0"`:
+ *
+ *   vlrBaseIR · vlrIR · vlrBaseAgreg · vlrAgreg · vlrBaseCSLL · vlrCSLL ·
+ *   vlrBaseCofins · vlrCofins · vlrBasePP · vlrPP
+ *
+ * 📌 O QUE ISSO DESTRAVA:
+ *   1. **IR e AGREGADA convivem** no mesmo bloco, e a ordem está declarada (o
+ *      IR ANTES). Era o bloqueio da SCHROEDER (IRRF + CSRF completa).
+ *   2. **O nome da CSLL é `vlrBaseCSLL`/`vlrCSLL`, em MAIÚSCULAS** — este
+ *      módulo listava `vlrCsll`/`vlrBaseCsll` como "não mapeados", e esses
+ *      nomes NÃO EXISTEM. É o `vlrPis` de novo: o palpite erra a caixa.
+ *
+ * ✅ E ELE NÃO CONTRADIZ NADA — ao contrário, EXPLICA os dois arquivos aceitos
+ * campo a campo: o de 06/2026 usa as posições 3-4 (agregada) e o de 07/2026 as
+ * posições 1, 2, 7, 8, 9 e 10, na ordem. Schema que bate com duas provas de
+ * produção é corroboração, não dedução.
+ *
+ * ⚠️ A tabela é PROVADA contra o arquivo XSD por teste (a régua da `XSD_DERE`
+ * do CFI): tabela digitada de memória é a segunda cópia, e ela envelhece em
+ * silêncio quando o leiaute muda.
+ */
+const RETENCOES_XSD = [
     ['vlrBaseIR', 'vlrIR'],
+    ['vlrBaseAgreg', 'vlrAgreg'],
+    ['vlrBaseCSLL', 'vlrCSLL'],
     ['vlrBaseCofins', 'vlrCofins'],
     ['vlrBasePP', 'vlrPP'],
 ];
+
+/**
+ * Os pares SEPARADOS por tributo — a tabela do XSD sem o par agregado.
+ *
+ * (Nome mantido: a apuração e os testes falam dele desde 03/09.)
+ */
+const RETENCOES_SEPARADAS = RETENCOES_XSD.filter(([b]) => b !== 'vlrBaseAgreg');
 
 /** Alíquotas legais do IRRF sobre serviços — Lei 7.713/88 art. 52 e Dec. 9.580/2018. */
 const ALIQ_IRRF = [1.5, 1.0];
@@ -168,13 +211,10 @@ const escXml = (v) => String(v == null ? '' : v)
  * exceção, na tela e em qualquer lugar que perguntar "por que não gera?".
  */
 const MOTIVO_RETENCAO_BLOQUEADA =
-  'A retenção sai em duas formas, as duas provadas por arquivo ACEITO em produção: AGREGADA '
-  + '(vlrBaseAgreg/vlrAgreg, CSRF de 4,65%, perApur 2026-06) quando há CSLL, e SEPARADA '
-  + '(vlrBaseIR/vlrIR · vlrBaseCofins/vlrCofins · vlrBasePP/vlrPP, perApur 2026-07) quando não há. '
-  + 'O que continua SEM PROVA é a CSLL SEPARADA: nenhum arquivo aceito mostra o nome desse campo, e '
-  + 'chutar produz evento recusado — ou, pior, aceito declarando retenção ZERO (o PIS provou o risco: '
-  + 'o nome real é vlrPP, não vlrPis). PARA DESTRAVAR: um R-4020 aceito que tenha CSLL retida, ou o '
-  + 'XSD v2_01_02 do SPED.';
+  'O nome do campo está com a CAIXA errada. O XSD v2_01_02 (em docs/reinf/xsd/) declara os DEZ '
+  + 'campos de <retencoes> nesta ordem: vlrBaseIR · vlrIR · vlrBaseAgreg · vlrAgreg · vlrBaseCSLL · '
+  + 'vlrCSLL · vlrBaseCofins · vlrCofins · vlrBasePP · vlrPP. Use o nome como está lá — a caixa das '
+  + 'letras importa, e o palpite já errou uma vez (o PIS/PASEP é vlrPP, nunca vlrPis).';
 
 // 🚨 A MENSAGEM MANDAVA SÓ PELO CAMINHO CARO — e o barato existe (03/09, print
 // do Paulo na PEC PRONTA ENTREGA, beneficiário SCHROEDER: bruto 6.136,91 · IRRF
@@ -326,28 +366,28 @@ ${idePgtoXml}
 function blocoRetencoes(p) {
     const tem = (k) => p[k] !== undefined && p[k] !== null && p[k] !== '';
     // ⚠️ ZERO É "NÃO HOUVE", e o par simplesmente não sai — é o que o arquivo
-    // aceito de 07/2026 faz com a CSLL. Emitir `<vlrCsll>0,00</vlrCsll>` seria
+    // aceito de 07/2026 faz com a CSLL. Emitir `<vlrCSLL>0,00</vlrCSLL>` seria
     // AFIRMAR uma retenção de zero.
     const houve = (k) => tem(k) && Number(String(p[k]).replace(',', '.')) > 0;
     const linhas = [];
 
-    // ── SEPARADA — a forma do arquivo aceito de 07/2026, na ORDEM dele ──────
-    // ⚠️ Tributo que não houve NÃO sai: o próprio arquivo omite a CSLL (*"esse
-    // beneficiário não tem retenção de CSLL, apenas PIS/COFINS"*). Emitir o
-    // par zerado seria AFIRMAR que houve retenção de zero.
-    for (const [campoBase, campoValor] of RETENCOES_SEPARADAS) {
+    // 🚨 UM LAÇO SÓ, NA ORDEM DO XSD — e é isso que destrava a SCHROEDER.
+    //
+    // Antes eram DOIS blocos: os separados primeiro, a agregada depois. Com os
+    // dois presentes isso emitiria IR → Cofins → PP → Agreg, e o XSD manda
+    // Agreg ANTES de Cofins: `xs:sequence`, irmão fora de ordem derruba o
+    // evento (foi o que derrubou o R-2099 três vezes). Percorrer a tabela do
+    // XSD faz a ordem sair certa por CONSTRUÇÃO, em qualquer combinação.
+    for (const [campoBase, campoValor] of RETENCOES_XSD) {
         if (!houve(campoValor)) continue;
         // A base sai do campo PRÓPRIO: no arquivo aceito a do IR é MENOR que o
         // bruto (dedução da cooperativa). Carimbar o bruto declararia a maior.
-        linhas.push(`            <${campoBase}>${fmtValorReinf(p[campoBase])}</${campoBase}>`);
+        // Só a AGREGADA cai no bruto — é o que o arquivo de 06/2026 mostra.
+        const base = tem(campoBase) ? p[campoBase]
+            : (campoBase === 'vlrBaseAgreg' ? p.vlrBruto : null);
+        if (base === null || base === undefined) continue;
+        linhas.push(`            <${campoBase}>${fmtValorReinf(base)}</${campoBase}>`);
         linhas.push(`            <${campoValor}>${fmtValorReinf(p[campoValor])}</${campoValor}>`);
-    }
-
-    // ── AGREGADA — a forma do arquivo aceito de 06/2026 (CSRF de 4,65%) ─────
-    if (tem('vlrAgreg')) {
-        const base = tem('vlrBaseAgreg') ? p.vlrBaseAgreg : p.vlrBruto;
-        linhas.push(`            <vlrBaseAgreg>${fmtValorReinf(base)}</vlrBaseAgreg>`);
-        linhas.push(`            <vlrAgreg>${fmtValorReinf(p.vlrAgreg)}</vlrAgreg>`);
     }
 
     // ⚠️ SEM RETENÇÃO O BLOCO NÃO SAI: `<retencoes>` com zero é a AFIRMAÇÃO de
@@ -385,11 +425,30 @@ function validarPagamentoR4020(p) {
 
   // ── Campo cujo NOME nenhum arquivo aceito mostra ────────────────────────
   const naoMapeados = RETENCOES_NAO_MAPEADAS.filter((k) => tem(k));
-  if (naoMapeados.length) e.push(` traz ${naoMapeados.join('/')}. ${MOTIVO_RETENCAO_BLOQUEADA}`);
+  if (naoMapeados.length) {
+    // 🚨 A MENSAGEM MUDOU DE NATUREZA com o XSD no repo: antes ela dizia que o
+    // campo era impossível ("nenhum arquivo aceito mostra o nome"). Agora o
+    // nome é CONHECIDO e o que está errado é a CAIXA das letras — então ela
+    // diz o nome certo, em vez de mandar esperar um arquivo aceito.
+    const comCerto = naoMapeados.map((k) => `${k} (o nome no leiaute é ${NOME_CERTO_DO_CAMPO[k]})`);
+    e.push(` traz ${comCerto.join(' e ')}. ${MOTIVO_RETENCAO_BLOQUEADA}`);
+  }
 
-  // ── As duas formas no MESMO bloco: combinação sem prova ─────────────────
-  const temSeparada = RETENCOES_SEPARADAS.some(([, v]) => tem(v) && num(p[v]) > 0);
-  if (temSeparada && tem('vlrAgreg') && num(p.vlrAgreg) > 0) e.push(`: ${MOTIVO_IR_COM_AGREGADA}`);
+  // ── AS DUAS FORMAS NO MESMO BLOCO: DESTRAVADO PELO XSD (04/09) ─────────
+  //
+  // 🚨 Isto BLOQUEAVA — *"nenhum arquivo aceito mostra os dois no MESMO
+  // <retencoes>, nem em que ORDEM"* —, e era o que segurava a SCHROEDER
+  // (IRRF + CSRF completa) em "não vira evento", com o botão de transmitir
+  // sumido: 1 beneficiário, 0 prontos, nada para enviar.
+  //
+  // O XSD respondeu: os dez campos são `minOccurs="0"` na MESMA sequence, com
+  // `vlrBaseIR`/`vlrIR` ANTES de `vlrBaseAgreg`/`vlrAgreg`. Conviver é válido,
+  // e a ORDEM está declarada — que era exatamente o que faltava. Quem monta na
+  // ordem certa é `blocoRetencoes`, percorrendo `RETENCOES_XSD`.
+  //
+  // ⚠️ E ISSO NÃO AFROUXA NADA: continua sem inventar nome nem valor. O que
+  // sai é a soma de duas coisas provadas por arquivo ACEITO — o IR separado
+  // (07/2026) e a CSRF agregada (06/2026) — na ordem que o schema manda.
 
   // ── Separada: base e valor andam JUNTOS ────────────────────────────────
   // ⚠️ ZERO É "NÃO HOUVE" e não se acusa: o arquivo aceito OMITE a CSLL porque
@@ -553,6 +612,9 @@ function bloqueioDoR4020(beneficiario) {
 module.exports = {
   NS_R4020, gerarR4020, validarEntradaR4020, validarPagamentoR4020,
   pagamentoR4020DoBeneficiario, bloqueioDoR4020, RETENCOES_SEPARADAS,
+  // A sequence LIDA do XSD e o de-para dos nomes com a caixa errada — o teste
+  // prova os dois contra o arquivo em docs/reinf/xsd/.
+  RETENCOES_XSD, NOME_CERTO_DO_CAMPO,
   MOTIVO_RETENCAO_BLOQUEADA, MOTIVO_IR_COM_AGREGADA, MOTIVO_BASE_IR_DESCONHECIDA,
   RETENCOES_NAO_MAPEADAS, ALIQ_CSRF,
 };

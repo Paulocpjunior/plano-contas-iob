@@ -1,16 +1,7 @@
 {
-  "version": "3.4.253",
-  "build_date": "2026-09-03T20:29:39Z",
+  "version": "3.4.254",
+  "build_date": "2026-09-04T11:46:42Z",
   "release_notes": [
-    "📐 R-4020 travado: o aviso nomeava só a saída CARA — o XSD entrou na frase (#115)",
-    "🧾 R-4020: retenção SEPARADA destravou, e o bloqueio aparece ANTES do clique (#114)",
-    "Corrigir natureza no OCR do extrato Itaú da VALUE Projetos (#113)",
-    "fix: preservar natureza no OCR do extrato Itau",
-    "🚨 \"já está informado desde o mês passado\" — a tela mandava fazer o que já estava feito (#112)",
-    "Permite lançamento manual com múltiplas partidas (#111)",
-    "Impede resumo Mercado Pago de contaminar lançamento (#110)",
-    "R-2010 transmitido: a ressalva de \"nao foi transmitido\" tem prazo (#109)",
-    "Main verde: rodei o gate errado, e o certo estava no aviso do deploy (#108)",
-    "Corrige sinal de saídas no PDF Mercado Pago (#107)"
+    "Melhorias internas e correcoes"
   ]
 }
