@@ -128,13 +128,14 @@ function findHeader(groups) {
 
 function findPrintedResult(groups) {
   for (const group of groups) {
-    if (!group.items.some(item => /Total (?:de|do) Lucro(?:s)? do Per[ií]odo/i.test(item.text))) continue;
+    const resultLabel = group.items.find(item => /Total (?:de|do) (?:Lucro(?:s)?|Preju[ií]zo(?:s)?) do Per[ií]odo/i.test(item.text));
+    if (!resultLabel) continue;
     const valueItem = group.items.find(item => item.x >= 190 && MONEY_RE.test(item.text));
     const sideItem = group.items.find(item => item.x >= 270 && item.x < 310 && /^[DC]$/i.test(item.text));
     if (!valueItem) continue;
     const value = parseMoney(valueItem.text);
     const side = sideItem ? sideItem.text.toUpperCase() : sideOf(valueItem.text);
-    return side === 'D' ? -Math.abs(value) : Math.abs(value);
+    return side === 'D' || /Preju[ií]zo/i.test(resultLabel.text) ? -Math.abs(value) : Math.abs(value);
   }
   return null;
 }

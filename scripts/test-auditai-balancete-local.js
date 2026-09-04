@@ -10,6 +10,8 @@ const fixture = '/Users/paulocesarpereirajunior/Downloads/898 - R2 CONSULTORIA B
 const expectedSha256 = '08ff551945f2018927eb66d51a58fcc0adc5abda0b307a9ec102a25fd8963b4d';
 const dreFixture = '/Users/paulocesarpereirajunior/Downloads/FLANACAR-Demonstracao_2025_12 2.pdf';
 const dreExpectedSha256 = 'e0a32c8df9e5a9d5c390662b22a5f49b187f3099bbb82437c98ecb73cdfb3997';
+const dreLossFixture = '/Users/paulocesarpereirajunior/Downloads/LAV COMÉRCIO- Demonstracao_2025_12 2.pdf';
+const dreLossExpectedSha256 = 'dc0a786ba1829d03d50cbc696619b0b29d5cbeefd5e030473df5aa52f05afeef';
 
 (async () => {
   assert(fs.existsSync(fixture), `Fixture real não encontrada: ${fixture}`);
@@ -78,6 +80,24 @@ const dreExpectedSha256 = 'e0a32c8df9e5a9d5c390662b22a5f49b187f3099bbb82437c98ec
   assert(dre.lines.includes('OFFICIAL_TOTAL_DESPESAS | Total Despesas | 22179789.83'));
   assert(dre.lines.includes('OFFICIAL_RESULTADO_EXERCICIO | Resultado no Exercício | 21339024.36'));
 
+  assert(fs.existsSync(dreLossFixture), `Fixture real não encontrada: ${dreLossFixture}`);
+  const dreLossBuffer = fs.readFileSync(dreLossFixture);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(dreLossBuffer).digest('hex'),
+    dreLossExpectedSha256,
+    'A DRE de prejuízo real mudou; revalidar o layout antes de atualizar a regressão.',
+  );
+  const dreLoss = await extractAccountingPdf(dreLossBuffer);
+  const dreLossRow = code => dreLoss.rows.find(row => row.code === code);
+  assert.strictEqual(dreLoss.docType, 'DRE');
+  assert.strictEqual(dreLoss.pages, 3);
+  assert.strictEqual(dreLoss.rows.length, 83, 'A estrutura integral da DRE de prejuízo deve ser preservada.');
+  assert.strictEqual(dreLossRow('3').final, 2594402.66);
+  assert.strictEqual(dreLossRow('4').final, 1450310.00);
+  assert.strictEqual(dreLossRow('5').final, 1904774.81);
+  assert(Math.abs(dreLossRow('3').final - dreLossRow('4').final - dreLossRow('5').final + 760682.15) < 0.01);
+  assert(dreLoss.lines.includes('OFFICIAL_RESULTADO_EXERCICIO | Resultado no Exercício | -760682.15'));
+
   const bundle = fs.readFileSync(path.join(__dirname, '../auditai/assets/index-DREfix3266.js'), 'utf8');
   const server = fs.readFileSync(path.join(__dirname, '../server.js'), 'utf8');
   assert(bundle.includes('/api/auditai/extrair-pdf-contabil'), 'Bundle deve chamar o extrator local antes da IA.');
@@ -94,7 +114,7 @@ const dreExpectedSha256 = 'e0a32c8df9e5a9d5c390662b22a5f49b187f3099bbb82437c98ec
   assert(bundle.includes('children:"Tentar novamente"'), 'Colaborador deve conseguir repetir a geração do parecer de IA.');
   assert(server.includes("app.post('/api/auditai/extrair-pdf-contabil'"), 'Servidor deve expor a rota autenticada do extrator.');
 
-  console.log('OK: balancete da R2 e DRE da FLANACAR preservam estrutura e totais oficiais no AuditAI.');
+  console.log('OK: balancete da R2 e DREs de lucro/prejuízo preservam estrutura e resultado oficial no AuditAI.');
 })().catch(error => {
   console.error(error);
   process.exit(1);
