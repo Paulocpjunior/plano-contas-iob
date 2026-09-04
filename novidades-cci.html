@@ -10,10 +10,23 @@
   </style>
 </head>
 <body>
-  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 03/09/2026</span></div></section>
+  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 04/09/2026</span></div></section>
   <main class="wrap content">
     <article class="release">
       <div class="tag">Leia esta parte primeiro</div>
+      <header><h2>✅ R-4020: “não vira evento” com IRRF + PIS/COFINS/CSLL — destravado</h2><span class="date">04/09/2026 · v3.4.254</span></header>
+      <ul>
+        <li><strong>O caso:</strong> beneficiário com <strong>IRRF retido E a CSRF completa</strong> (PIS + COFINS + CSLL) ficava com o selo <strong>não vira evento</strong> e o botão de transmitir <strong>nem aparecia</strong> — mesmo com todos os valores certos.</li>
+        <li><strong>Por que travava:</strong> o IRRF vai num campo e a CSRF em outro, no <em>mesmo</em> bloco do XML — e nenhum arquivo aceito mostrava os dois juntos, nem em que <strong>ordem</strong>. No leiaute a ordem é obrigatória: campo fora de lugar derruba o evento inteiro.</li>
+        <li><strong>O que destravou:</strong> o <strong>XSD do leiaute</strong> (o schema oficial do R-4020) entrou no repositório e declara os dez campos e a ordem entre eles. <strong>Não foi palpite</strong> — e ele bate campo a campo com os dois eventos que a Receita já aceitou.</li>
+        <li><strong>Um nome também estava errado:</strong> a CSLL separada é <code>vlrCSLL</code>, em <strong>maiúsculas</strong>. É o mesmo caso do PIS (<code>vlrPP</code>, não <code>vlrPis</code>) — por isso o app se recusa a chutar nome de campo.</li>
+        <li><strong>Onde:</strong> EFD-Reinf → <strong>Retenções de PJ para o R-4020</strong> → <em>Buscar no Consultor Fiscal</em>. Esses beneficiários passam a contar como <strong>prontos</strong> e o botão de transmitir volta a aparecer.</li>
+        <li><strong>O que CONTINUA fora:</strong> a nota cuja <strong>base do IR tem dedução</strong> (cooperativas). O Consultor Fiscal entrega o valor do serviço, não a base do IR — e carimbar o bruto declararia base a maior. Essa continua saindo pelo e-CAC, nomeada na coluna Situação.</li>
+      </ul>
+    </article>
+
+    <article class="release">
+      <div class="tag">Anterior</div>
       <header><h2>📐 R-4020 travado em “não vira evento”: existe um atalho, e ele estava escondido</h2><span class="date">03/09/2026 · v3.4.252</span></header>
       <ul>
         <li><strong>O caso:</strong> beneficiário com <strong>IRRF retido E a CSRF completa</strong> (PIS + COFINS + CSLL) ficava com o selo <strong>não vira evento</strong>, e o motivo mandava <em>“entregue esta competência pelo e-CAC e mande o XML dela depois”</em>. Está certo — mas era a saída <strong>cara</strong>: entrega à mão, competência a competência, esperando um arquivo aceito de cada combinação.</li>

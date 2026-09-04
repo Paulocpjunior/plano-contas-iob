@@ -78,8 +78,15 @@ assert.throws(() => gerarR4020(comRetencao), /R-4020 inválido/,
   'retenção SEPARADA por tributo continua bloqueando em vez de chutar o campo');
 const errosRet = validarEntradaR4020(comRetencao);
 assert.ok(errosRet.some((x) => x.includes('vlrCsll')), 'o erro diz QUAL campo travou');
-assert.ok(MOTIVO_RETENCAO_BLOQUEADA.includes('XSD') && MOTIVO_RETENCAO_BLOQUEADA.includes('retenção'),
-  'e diz o que destrava: um R-4020 aceito com IRRF, ou o XSD');
+// 🚨 ASSERÇÃO TROCADA PELA INTENÇÃO (04/09): ela cobrava a frase que mandava
+// ESPERAR — *"um R-4020 aceito com IRRF, ou o XSD"*. O XSD chegou, então a
+// frase deixou de pedir prova e passou a DAR a resposta: o nome certo do campo
+// e a ordem inteira. A intenção continua a mesma — quem é barrado tem de sair
+// sabendo o que fazer —, e agora o que fazer é corrigir a caixa das letras.
+assert.ok(MOTIVO_RETENCAO_BLOQUEADA.includes('XSD')
+  && MOTIVO_RETENCAO_BLOQUEADA.includes('vlrCSLL')
+  && MOTIVO_RETENCAO_BLOQUEADA.includes('vlrPP'),
+  'a frase diz o NOME CERTO do campo, não manda mais esperar arquivo aceito');
 
 // ─── Ausência não vira zero, e CPF não vira PJ ──────────────────────────────
 const semValor = validarEntradaR4020({ ...real, pagamentos: [{ natRend: '17099', dtFG: '2023-10-25' }] });

@@ -76,22 +76,35 @@ assert.ok(soCofins.includes('<vlrCofins>300,00</vlrCofins>'));
 assert.ok(!soCofins.includes('<vlrPP>'), 'PIS zero não leva o par');
 assert.ok(!soCofins.includes('<vlrIR>'), 'IR zero não leva o par');
 
-// ─── 3. O QUE CONTINUA SEM PROVA ────────────────────────────────────────────
-// A CSLL separada: nenhum arquivo aceito mostra o nome desse campo.
-assert.ok(validarPagamentoR4020({
-  natRend: '15099', dtFG: '2026-07-23', vlrBruto: 10000, vlrCsll: 100,
-}).some((m) => /CSLL SEPARADA/.test(m)), 'CSLL separada tem de bloquear');
+// ─── 3. O NOME COM A CAIXA ERRADA CONTINUA BARRADO ──────────────────────────
+// 🚨 ASSERÇÃO TROCADA PELA INTENÇÃO (04/09): ela dizia *"a CSLL separada não
+// tem prova de NOME"*, e o XSD respondeu — o nome é `vlrCSLL`/`vlrBaseCSLL`,
+// em MAIÚSCULAS. `vlrCsll` nunca existiu, exatamente como `vlrPis`.
+//
+// O que a asserção protegia continua de pé: nome palpitado NÃO passa. O que
+// mudou é a mensagem, que agora diz o nome CERTO em vez de mandar esperar um
+// arquivo aceito de um campo cujo nome já se conhece.
+{
+  const erros = validarPagamentoR4020({
+    natRend: '15099', dtFG: '2026-07-23', vlrBruto: 10000, vlrCsll: 100,
+  });
+  assert.ok(erros.some((m) => m.includes('vlrCsll') && m.includes('vlrCSLL')),
+    'o nome com a caixa errada bloqueia, dizendo o certo');
+}
 
 // `vlrPis` é NOME QUE NÃO EXISTE — quem mandar o palpite é barrado.
 assert.ok(validarPagamentoR4020({
   natRend: '15099', dtFG: '2026-07-23', vlrBruto: 10000, vlrPis: 65,
 }).some((m) => /vlrPis/.test(m)), 'o nome palpitado tem de bloquear');
 
-// As duas formas no MESMO bloco: combinação que nenhum arquivo mostra.
-assert.ok(validarPagamentoR4020({
+// 🚨 AS DUAS FORMAS NO MESMO BLOCO: DESTRAVADO PELO XSD (04/09).
+// Esta asserção dizia *"combinação que nenhum arquivo mostra"* — e era ela que
+// segurava a SCHROEDER (IRRF + CSRF completa) sem botão de transmitir. O XSD
+// declara os dez campos na MESMA sequence, com o IR ANTES da agregada.
+assert.deepStrictEqual(validarPagamentoR4020({
   natRend: '15099', dtFG: '2026-07-23', vlrBruto: 10000,
   vlrBaseIR: 10000, vlrIR: 150, vlrBaseAgreg: 10000, vlrAgreg: 465,
-}).some((m) => m.includes(MOTIVO_IR_COM_AGREGADA)), 'IR + agregada continua bloqueado');
+}), [], 'IR + agregada é válido: o XSD declara os dois na mesma sequence');
 
 // ─── 4. A TRADUÇÃO ESCOLHE A FORMA, com a prova de cada ramo ────────────────
 // Sem CSLL ⇒ SEPARADA (arquivo de 07/2026).
@@ -135,13 +148,28 @@ const schroeder = apurarRetencoesPJ({
     naturezaInformada: '15004', dataFatoGerador: '2026-08-20',
   }],
 });
-assert.strictEqual(schroeder.beneficiarios[0].pronto, false, 'CSRF + IRRF não vira evento');
-assert.ok(schroeder.beneficiarios[0].bloqueioDoEvento.includes('IRRF retido E a CSRF completa'));
-assert.strictEqual(schroeder.resumo.prontos, 0);
-assert.strictEqual(schroeder.resumo.naoViramEvento, 1);
-// ⚠️ E NÃO é contado como "pendente": pendência a pessoa resolve na tela; isto
-// depende de um arquivo aceito. Ações diferentes, contadores diferentes.
+// 🚨 ASSERÇÃO TROCADA PELA INTENÇÃO (04/09) — e é a própria SCHROEDER.
+//
+// Ela exigia `pronto: false` com o motivo *"IRRF retido E a CSRF completa"*, e
+// era EXATAMENTE isso que Paulo viu: *"aqui já está tudo certo para
+// transmitir, mas está com essa mensagem e nem está aparecendo o botão"*. O
+// bloqueio era honesto enquanto a ORDEM entre o IR e a agregada não estava
+// provada — e o XSD provou.
+//
+// A INTENÇÃO que esta seção protege é outra, e continua travada: a TELA sabe
+// ANTES do clique. O que mudou é a resposta, porque a fonte respondeu.
+assert.strictEqual(schroeder.beneficiarios[0].pronto, true,
+  'CSRF + IRRF vira evento: o XSD declara o IR e a agregada na mesma sequence');
+assert.ok(!schroeder.beneficiarios[0].bloqueioDoEvento);
+assert.strictEqual(schroeder.resumo.prontos, 1);
+assert.strictEqual(schroeder.resumo.naoViramEvento, 0);
 assert.strictEqual(schroeder.resumo.pendentes, 0);
+// E os números do print saem no evento, na ordem do schema.
+{
+  const p = pagamentoR4020DoBeneficiario(schroeder.beneficiarios[0]);
+  assert.strictEqual(p.vlrIR, 92.05);
+  assert.strictEqual(p.vlrAgreg, 285.37, '39,89 + 184,11 + 61,37 = a CSRF de 4,65%');
+}
 
 // ─── 6. O CASO ATESA: PIS e COFINS sem CSLL ────────────────────────────────
 // 🚨 Paulo, 03/09: *"esse beneficiário ATESA não tem retenção de CSLL, apenas
@@ -175,9 +203,14 @@ const operacao = apurarRetencoesPJ({
 assert.strictEqual(operacao.beneficiarios[0].pronto, false,
   'alíquota da operação NÃO pode passar por retenção');
 
-// ─── 7. A ORDEM É DADO, e a tabela é a fonte ───────────────────────────────
+// ─── 7. A ORDEM É DADO, e a fonte agora é o XSD ────────────────────────────
+// ⚠️ A tabela ganhou a CSLL (`vlrBaseCSLL`/`vlrCSLL`, o nome que o XSD declara)
+// — ela existia e este módulo a chamava de "não mapeada" com a caixa errada.
+// Quem PROVA a tabela contra o arquivo é `test-reinf-r4020-xsd.js`; aqui só se
+// trava que a ordem dos três já provados por arquivo aceito não mudou.
 assert.deepStrictEqual(RETENCOES_SEPARADAS, [
   ['vlrBaseIR', 'vlrIR'],
+  ['vlrBaseCSLL', 'vlrCSLL'],
   ['vlrBaseCofins', 'vlrCofins'],
   ['vlrBasePP', 'vlrPP'],
 ]);
@@ -198,26 +231,28 @@ assert.strictEqual(bloqueioDoR4020({
 // ⚠️ A saída de HOJE continua sendo o e-CAC — a competência vence. O que não
 // pode é a frase esconder a saída que destrava PARA SEMPRE: aviso que nomeia
 // uma saída só, existindo duas com custos diferentes, manda pelo caminho caro.
-assert.ok(/e-CAC/.test(MOTIVO_IR_COM_AGREGADA), 'a saída de hoje (e-CAC) continua na frase');
-assert.ok(/XSD/.test(MOTIVO_IR_COM_AGREGADA), 'e a saída definitiva (o XSD) também');
-assert.ok(/sequence/i.test(MOTIVO_IR_COM_AGREGADA),
-  'e diz POR QUE o XSD resolve: ele declara a ordem dos irmãos');
-// 📌 E DIZ O QUANTO FALTA — três dos quatro nomes já estão provados. Sem esse
-// número, "não vira evento" se lê como buraco grande, e não como um campo.
-for (const provado of ['vlrBaseIR', 'vlrCofins', 'vlrPP']) {
-  assert.ok(MOTIVO_IR_COM_AGREGADA.includes(provado),
-    `a frase nomeia o que JÁ está provado (${provado})`);
-}
+// ✅ E O XSD CHEGOU NO MESMO DIA — estas asserções cobravam a FRASE que pedia
+// a prova, e a prova entrou no repo (`docs/reinf/xsd/`). O bloqueio saiu, e o
+// que fica travado é o estado NOVO: o motivo não é mais usado, e a tela DIZ
+// que destravou, em vez de continuar pedindo o schema.
+assert.ok(bloqueioDoR4020({
+  bruto: 6136.91, ir: 92.05, pis: 39.89, cofins: 184.11, csll: 61.37,
+  natureza: '15004', dataFatoGerador: '2026-08-20',
+}) === null, 'IRRF + CSRF completa não bloqueia mais');
 
-// 🔗 A LIGAÇÃO: a tela do R-4020 também oferece o atalho. Régua certa com a
-// tela calada devolve o colaborador ao caminho caro sem nada acusar.
+// 🔗 A LIGAÇÃO: a tela não pode continuar prometendo um bloqueio que caiu —
+// frase que sobrevive à correção manda o colaborador ao e-CAC à toa.
 {
   const html = require('fs').readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
   const bloco = html.slice(html.indexOf('O que ainda NÃO é gerado'));
   const caixa = bloco.slice(0, bloco.indexOf("+ '</div>'"));
-  assert.ok(/XSD v2_01_02/.test(caixa), 'a caixa amarela oferece o XSD');
-  assert.ok(/evt4020PagtoBeneficiarioPJ/.test(caixa), 'e nomeia QUAL schema');
-  assert.ok(/e-CAC/.test(caixa), 'sem perder a saída de hoje');
+  assert.ok(/Destravado/.test(caixa), 'a caixa amarela diz o que destravou');
+  assert.ok(/vlrCSLL/.test(caixa), 'e nomeia o campo cujo nome o XSD entregou');
+  assert.ok(!/CSLL separada \(nenhum evento aceito/.test(caixa),
+    'e não repete que o nome da CSLL é desconhecido');
+  // ⚠️ O que CONTINUA bloqueado segue dito: a base do IR com dedução, que o
+  // XSD não resolve (é dado que o Consultor Fiscal não tem).
+  assert.ok(/base do IR tem dedução/.test(caixa), 'o bloqueio que sobrou continua na tela');
 }
 
 console.log('✓ R-4020: retenção SEPARADA provada por arquivo aceito (vlrPP, não vlrPis), '
