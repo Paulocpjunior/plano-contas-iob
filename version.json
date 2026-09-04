@@ -1,7 +1,9 @@
 {
-  "version": "3.4.255",
-  "build_date": "2026-09-04T13:13:39Z",
+  "version": "3.4.256",
+  "build_date": "2026-09-04T18:09:05Z",
   "release_notes": [
+    "Corrigir OCR do Extrato Unificado Itaú da Técnica Denardo",
+    "Preservar prejuízo oficial da DRE da LAV (#117)",
     "R-4020: o XSD destravou IRRF + CSRF agregada, e o nome da CSLL era vlrCSLL (#116)",
     "Corrigir estrutura e totais da DRE consolidada",
     "📐 R-4020 travado: o aviso nomeava só a saída CARA — o XSD entrou na frase (#115)",
@@ -9,8 +11,6 @@
     "Corrigir natureza no OCR do extrato Itaú da VALUE Projetos (#113)",
     "fix: preservar natureza no OCR do extrato Itau",
     "🚨 \"já está informado desde o mês passado\" — a tela mandava fazer o que já estava feito (#112)",
-    "Permite lançamento manual com múltiplas partidas (#111)",
-    "Impede resumo Mercado Pago de contaminar lançamento (#110)",
-    "R-2010 transmitido: a ressalva de \"nao foi transmitido\" tem prazo (#109)"
+    "Permite lançamento manual com múltiplas partidas (#111)"
   ]
 }

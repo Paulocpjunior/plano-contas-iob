@@ -178,7 +178,12 @@
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .replace(/[^a-z]/g, '');
-      return chave.startsWith('saldototaldisponiveldia') || chave.startsWith('saldoanterior');
+      // O Extrato Unificado imprime, depois de cada dia, três linhas técnicas:
+      // saldo total, saldo da movimentação e saldo da aplicação automática.
+      // Em PDFs escaneados o OCR pode abreviar "SALDO" para "SDO" e posicionar
+      // esses valores na mesma coluna dos créditos. Nenhuma dessas linhas é um
+      // lançamento bancário.
+      return chave.startsWith('saldo') || chave.startsWith('sdo');
     }
 
     function ignorarLinha(text) {
@@ -263,6 +268,8 @@
     function adicionarLancamento(data, desc, valor) {
       const descricao = limparDescricao(desc);
       if (!data || !descricao || !valor || Math.abs(valor) === 0) return false;
+      if (periodo.inicio && data < periodo.inicio) return false;
+      if (periodo.fim && data > periodo.fim) return false;
       if (ehDescricaoSaldo(descricao)) return false;
 
       const chave = [data, descricao.toLowerCase(), valor.toFixed(2)].join('|');

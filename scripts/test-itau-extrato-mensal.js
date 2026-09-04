@@ -161,11 +161,56 @@ function testarOCRImagemGiLoschiavio() {
   assert.ok(resultado.lancamentos.some((l) => l.valor === -886.56), 'OCR B86,56 deve ser corrigido somente na coluna monetária');
 }
 
+function testarExtratoUnificadoTecnicaDenardo() {
+  const arquivo = '/Users/paulocesarpereirajunior/Downloads/EXTRATO ITAU.pdf';
+  assert.ok(fs.existsSync(arquivo), `Arquivo de regressao nao encontrado: ${arquivo}`);
+  const buffer = fs.readFileSync(arquivo);
+  assert.strictEqual(
+    crypto.createHash('sha256').update(buffer).digest('hex'),
+    '59b322deac3537e82c7544aa8fbfbafcbf3197f88bbe55bf56a7fbf2b28386e5',
+    'fixture Itau Extrato Unificado da Tecnica Denardo deve ser o PDF real validado'
+  );
+
+  // Recorte fiel do contrato posicional observado no PDF real. As linhas de
+  // saldo diário usam a mesma coluna monetária verde dos créditos e não podem
+  // compor os lançamentos; a linha futura de setembro também fica fora do mês.
+  const words = [
+    ...linhaOCRPosicional(20, [['TECNICA DENARDO COMERCIAL LTDA EPP', 30], ['CNPJ 58.402.777/0001-62', 300], ['Agência 8105 Conta 0010497-3', 430]]),
+    ...linhaOCRPosicional(40, [['Lançamentos do período: 01/08/2026 até 31/08/2026', 30]]),
+    ...linhaOCRPosicional(60, [['Data', 30], ['Lançamentos', 110], ['Razão Social', 240], ['CNPJ/CPF', 350], ['Valor(R$)', 430], ['Saldo (R$)', 510]]),
+    ...linhaOCRPosicional(80, [['31/07/2026', 30], ['SALDO ANTERIOR', 110], ['16121142', 510]]),
+    ...linhaOCRPosicional(100, [['03/08/2026', 30], ['RECEBIMENTOS CLIENTES', 110]]),
+    palavraOCRColorida('35090218', 430, 100, 'C'),
+    ...linhaOCRPosicional(120, [['31/08/2026', 30], ['PAGAMENTOS FORNECEDORES', 110]]),
+    palavraOCRColorida('31201783', 430, 120, 'D'),
+    ...linhaOCRPosicional(140, [['31/08/2026', 30], ['SALDO TOTAL DISPONÍVEL DIA', 110], ['20009577', 510]]),
+    ...linhaOCRPosicional(160, [['31/08/2026', 30], ['SALDO MOVIMENTAÇÃO CONTA', 110], ['100', 510]]),
+    ...linhaOCRPosicional(180, [['31/08/2026', 30], ['SDO APLIC AUT MAIS AP', 110], ['20009477', 510]]),
+    ...linhaOCRPosicional(200, [['08/09/2026', 30], ['DEB AUTORIZADO FUTURO', 110]]),
+    palavraOCRColorida('24804', 430, 200, 'D')
+  ];
+  const lines = itau.__test__.linhasDePalavrasOCR(words, 1, 595);
+  const textoCompleto = lines.map((l) => l.text).join('\n');
+  const resultado = itau.__test__.parseItauLancamentosPeriodo(lines, textoCompleto);
+
+  assert.ok(resultado && resultado.detectado, 'Extrato Unificado Itaú deve ser reconhecido');
+  assert.strictEqual(resultado.conta_detectada, 'AG-8105/CC-0010497-3');
+  assert.strictEqual(resultado.lancamentos.length, 2, 'saldos diários e lançamentos futuros não podem ser importados');
+  assert.strictEqual(Number(resultado.total_credito.toFixed(2)), 350902.18);
+  assert.strictEqual(Number(resultado.total_debito.toFixed(2)), 312017.83);
+  assert.strictEqual(resultado.saldo_anterior, 161211.42);
+  assert.strictEqual(resultado.saldo_final, 200095.77);
+  assert.strictEqual(resultado.saldos_conciliados, true);
+  assert.ok(!resultado.lancamentos.some((l) => /SALDO|SDO APLIC/i.test(l.descricao)));
+  assert.ok(resultado.lancamentos.every((l) => l.data >= '2026-08-01' && l.data <= '2026-08-31'));
+}
+
 async function main() {
   testarNaturezaPelaCorNoExtratoValueProjetos();
   testarOCRPosicionalPeriodo();
   testarOCRImagemLancamentosPeriodo();
   testarOCRImagemGiLoschiavio();
+  testarExtratoUnificadoTecnicaDenardo();
 
   const maioImagem = '/Users/paulocesarpereirajunior/Downloads/E - Extrato Itaú Maio 2026.pdf';
   assert.ok(fs.existsSync(maioImagem), `Arquivo de regressao nao encontrado: ${maioImagem}`);
