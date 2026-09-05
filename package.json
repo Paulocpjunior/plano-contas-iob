@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.256",
+  "version": "3.4.257",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -132,5 +132,9 @@
   },
   "devDependencies": {
     "tailwindcss": "^3.4.17"
+  },
+  "overrides": {
+    "qs": "6.16.0",
+    "uuid": "11.1.1"
   }
 }

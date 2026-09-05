@@ -1,0 +1,11 @@
+node_modules
+.git
+backups
+output
+*.md
+sessao-recuperada-*.json
+.env*
+*.pem
+*.p12
+*.pfx
+*.log

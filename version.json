@@ -1,16 +1,16 @@
 {
-  "version": "3.4.256",
-  "build_date": "2026-09-04T18:09:05Z",
+  "version": "3.4.257",
+  "build_date": "2026-09-05T10:42:12Z",
   "release_notes": [
+    "Preservar lançamentos ao salvar e trocar de empresa ou modo contábil",
+    "Gestor define responsável e apoio; combinar edições em lançamentos diferentes",
+    "Proteger planos de contas, gravações concorrentes e arquivos internos",
     "Corrigir OCR do Extrato Unificado Itaú da Técnica Denardo",
     "Preservar prejuízo oficial da DRE da LAV (#117)",
     "R-4020: o XSD destravou IRRF + CSRF agregada, e o nome da CSLL era vlrCSLL (#116)",
     "Corrigir estrutura e totais da DRE consolidada",
     "📐 R-4020 travado: o aviso nomeava só a saída CARA — o XSD entrou na frase (#115)",
     "🧾 R-4020: retenção SEPARADA destravou, e o bloqueio aparece ANTES do clique (#114)",
-    "Corrigir natureza no OCR do extrato Itaú da VALUE Projetos (#113)",
-    "fix: preservar natureza no OCR do extrato Itau",
-    "🚨 \"já está informado desde o mês passado\" — a tela mandava fazer o que já estava feito (#112)",
-    "Permite lançamento manual com múltiplas partidas (#111)"
+    "Corrigir natureza no OCR do extrato Itaú da VALUE Projetos (#113)"
   ]
 }
