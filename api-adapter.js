@@ -2,6 +2,8 @@
   'use strict';
   const API_BASE = window.location.origin;
   const sessaoRevisoes = new Map();
+  const sessaoBases = new Map();
+  function guardarBaseSessao(cnpj, estado) { sessaoBases.clear(); sessaoBases.set(cnpj, estado); }
 
   async function getToken() {
     try {
@@ -266,7 +268,7 @@
     }
   }
 
-  async function salvarSessaoEmpresa(cnpj, state_json, resumo) {
+  async function salvarSessaoEmpresa(cnpj, state_json, resumo, tentativa) {
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
     const statePayload = await compactarStateParaTransporte(state_json);
     const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao', {
@@ -280,19 +282,36 @@
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok || data.erro) {
+      if (tentativa === 'combinar' && data.codigo === 'SESSAO_CONCORRENTE' && sessaoBases.has(cnpjLimpo) && window.CCISessionMerge) {
+        const remoto = await carregarSessaoEmpresa(cnpjLimpo, { semAdotar: true });
+        if (remoto.encontrada && remoto.state_json) {
+          const combinado = window.CCISessionMerge.combinar(sessaoBases.get(cnpjLimpo), JSON.parse(state_json), JSON.parse(remoto.state_json));
+          if (combinado.ok) {
+            const revisaoAnterior = sessaoRevisoes.get(cnpjLimpo);
+            sessaoRevisoes.set(cnpjLimpo, remoto.session_revision);
+            try {
+              const salvo = await salvarSessaoEmpresa(cnpjLimpo, JSON.stringify(combinado.state), { ...resumo, total_lancamentos: combinado.state.entries.length }, true);
+              return { ...salvo, estado_combinado: combinado.state };
+            } catch (erro) { sessaoRevisoes.set(cnpjLimpo, revisaoAnterior); throw erro; }
+          }
+          data.erro = 'Há alterações de outra pessoa nos mesmos dados (' + combinado.conflitos.slice(0,3).join(', ') + '). Suas alterações continuam nesta tela; exporte uma cópia antes de recarregar.';
+        }
+      }
       const erro = new Error(data.erro || ('Erro HTTP ' + r.status + ' ao salvar sessão'));
       erro.status = r.status;
       erro.code = data.codigo || '';
       throw erro;
     }
     if (data.session_revision) sessaoRevisoes.set(cnpjLimpo, data.session_revision);
+    guardarBaseSessao(cnpjLimpo, JSON.parse(state_json));
     return data;
   }
 
-  async function carregarSessaoEmpresa(cnpj) {
+  async function carregarSessaoEmpresa(cnpj, opcoes) {
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
     const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao');
-    if (r.status === 403 || r.status === 404) return { encontrada: false };
+    if (r.status === 403) throw new Error('Sem acesso à empresa. Peça ao gestor sua inclusão como responsável ou apoio.');
+    if (r.status === 404) return { encontrada: false };
     const textoResposta = await r.text();
     let data = null;
     try {
@@ -318,9 +337,21 @@
         throw new Error('A sessão compactada está inválida ou incompleta. Nenhuma alteração foi realizada.');
       }
     }
-    if (data && data.encontrada && data.session_revision) sessaoRevisoes.set(cnpjLimpo, data.session_revision);
-    else if (data && !data.encontrada) sessaoRevisoes.delete(cnpjLimpo);
+    if (!(opcoes && opcoes.semAdotar)) {
+      if (data && data.encontrada && data.session_revision) {
+        sessaoRevisoes.set(cnpjLimpo, data.session_revision);
+        if (data.state_json) guardarBaseSessao(cnpjLimpo, JSON.parse(data.state_json));
+      } else if (data && !data.encontrada) { sessaoRevisoes.delete(cnpjLimpo); sessaoBases.delete(cnpjLimpo); }
+    }
     return data;
+  }
+
+  function adotarSessaoEmpresa(cnpj, data) {
+    const chave = String(cnpj || '').replace(/\D/g, '');
+    if (data && data.state_json && data.session_revision) {
+      guardarBaseSessao(chave, JSON.parse(data.state_json));
+      sessaoRevisoes.set(chave, data.session_revision);
+    }
   }
 
   function getSessaoRevision(cnpj) {
@@ -964,7 +995,7 @@
     return await r.json();
   }
 
-  window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, consultarEstruturaMatrizFilial, sincronizarRegimeCfi, consultarParametrizacaoRegime, salvarParametrizacaoRegime, validarRegimeCnaeIA, aprovarSaldosAbertura, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarPeriodosContabeis, consultarHomologacaoPiloto, avaliarConciliacaoBancaria, aprovarConciliacaoBancaria, avaliarConciliacaoDetalhada, aprovarConciliacaoDetalhada, listarAtivosImobilizados, salvarAtivoImobilizado, baixarAtivoImobilizado, previaDepreciacaoAtivo, aprovarDepreciacaoAtivo, previaEventoAtivo, aprovarEventoAtivo, enviarRelatorioContabilEmail, fecharPeriodoContabil, reabrirPeriodoContabil, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalFechamentosCfi, fiscalImportarFechamentoCfi, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAjustarRetencao, reinfTransmitirRetencoesPJ, reinfAquisicaoRural,
+  window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, consultarEstruturaMatrizFilial, sincronizarRegimeCfi, consultarParametrizacaoRegime, salvarParametrizacaoRegime, validarRegimeCnaeIA, aprovarSaldosAbertura, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, adotarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarPeriodosContabeis, consultarHomologacaoPiloto, avaliarConciliacaoBancaria, aprovarConciliacaoBancaria, avaliarConciliacaoDetalhada, aprovarConciliacaoDetalhada, listarAtivosImobilizados, salvarAtivoImobilizado, baixarAtivoImobilizado, previaDepreciacaoAtivo, aprovarDepreciacaoAtivo, previaEventoAtivo, aprovarEventoAtivo, enviarRelatorioContabilEmail, fecharPeriodoContabil, reabrirPeriodoContabil, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalFechamentosCfi, fiscalImportarFechamentoCfi, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAjustarRetencao, reinfTransmitirRetencoesPJ, reinfAquisicaoRural,
     reinfServicosTomados,
     reinfServicoTomadoPrestador,
     reinfServicosTomadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };

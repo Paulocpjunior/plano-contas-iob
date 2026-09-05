@@ -68,7 +68,16 @@ function usuarioEstaNaCarteira(empresa, usuario) {
   return normalizarResponsaveis(empresa.responsaveis).some(function(item) { return item.uid === uid; });
 }
 
+function definirEquipe(principal, apoio, auditoria) {
+  if (!principal || !principal.uid) throw Object.assign(new Error('Selecione o responsável principal.'), { status: 400 });
+  if (apoio && apoio.uid === principal.uid) throw Object.assign(new Error('Responsável e apoio devem ser pessoas diferentes.'), { status: 400 });
+  let equipe = atribuirResponsavel([], principal, 'principal', auditoria);
+  if (apoio) equipe = atribuirResponsavel(equipe, apoio, 'apoio', auditoria);
+  return equipe;
+}
+
 module.exports = {
+  definirEquipe,
   atribuirResponsavel,
   camposCarteira,
   normalizarResponsaveis,

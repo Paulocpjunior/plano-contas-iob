@@ -14,7 +14,7 @@ const {
 const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 assert(server.includes("app.disable('x-powered-by')"), 'backend não deve divulgar Express no header');
 assert(server.includes('app.use(aplicarHeadersSeguranca)'), 'headers precisam estar ligados ao Express');
-assert(server.includes("express.json({ limit: '100mb', verify: verificarTamanhoJson })"), 'parser JSON precisa aplicar limite dinâmico');
+assert(server.includes("express.json({ limit: limiteCorpoPara(req), verify: verificarTamanhoJson })"), 'parser JSON precisa aplicar limite dinâmico');
 assert(server.includes("app.use('/api/empresas/:cnpj/sessao', criarLimitador"), 'autosave precisa de throttling próprio');
 assert(server.includes("app.use('/api/gemini', criarLimitador"), 'Gemini precisa de throttling próprio');
 assert(server.includes("app.use('/api/admin/empresas/:cnpj/migracao-sage', criarLimitador"), 'migração administrativa precisa de throttling próprio');

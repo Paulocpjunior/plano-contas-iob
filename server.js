@@ -1,4 +1,5 @@
 const express = require('express');
+const { colecaoContas, publicarContas } = require('./planos-versionados');
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
 const { validarVersaoParaNovaImportacao } = require('./session-import-version-guard');
 const { avaliarRevisaoSessao } = require('./session-revision-guard');
@@ -25,7 +26,7 @@ const { avaliarProgressaoEmpresa, resumirProgressao, usuarioAtribuido } = requir
 const { sanitizarAcompanhamento } = require('./acompanhamento-contabil');
 const ProgressaoAlertas = require('./progressao-alertas');
 const { avaliarParametrizacaoRegime, sanitizarParametrizacaoRegime } = require('./parametrizacao-regime');
-const { atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
+const { definirEquipe, atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
 const AtivoImobilizado = require('./ativo-imobilizado');
 const AtivoImobilizadoContabil = require('./ativo-imobilizado-contabil');
@@ -48,6 +49,7 @@ const {
 } = require('./session-state-codec');
 const {
   verificarTamanhoJson,
+  limiteCorpoPara,
   aplicarHeadersSeguranca,
   criarLimitador,
 } = require('./http-hardening');
@@ -63,7 +65,7 @@ const {
 } = require('./layout-sample-storage');
 
 const app = express();
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 app.set('etag', false);
 app.disable('x-powered-by');
 const PORT = process.env.PORT || 8080;
@@ -123,8 +125,6 @@ app.use('/api', criarLimitador({
   maximo: 3000,
   chave: (req) => req.ip || req.socket?.remoteAddress || 'ip-desconhecido',
 }));
-app.use(express.json({ limit: '100mb', verify: verificarTamanhoJson }));
-
 // === Endpoint de versao (consumido pelo frontend para detectar atualizacoes) ===
 const VERSION_FILE_PATH = require('path').join(__dirname, 'version.json');
 let CACHED_VERSION = null;
@@ -219,6 +219,9 @@ app.use('/api/gemini', criarLimitador({
   aplicar: (req) => req.method === 'POST',
   chave: (req) => req.user && req.user.uid || req.ip || 'usuario-desconhecido',
 }));
+
+// Autenticação e quotas são verificadas antes de alocar o corpo.
+app.use('/api', (req, res, next) => express.json({ limit: limiteCorpoPara(req), verify: verificarTamanhoJson })(req, res, next));
 
 app.post('/api/auditai/extrair-pdf-contabil', adminRequired, async (req, res) => {
   const base64 = String((req.body && req.body.data) || '').replace(/^data:application\/pdf;base64,/, '');
@@ -336,7 +339,7 @@ async function garantirLayoutsBancariosPadrao() {
 
 // ============================================================================
 //  FOLHA DE PAGAMENTO IOB — Fase 1 — endpoints
-//  Colar logo após `app.use('/api', authRequired);` (linha 41 do server.js)
+//  Endpoints autenticados de folha de pagamento.
 //  Tudo dentro de /api/ herda o middleware authRequired automaticamente.
 // ============================================================================
 
@@ -653,7 +656,8 @@ app.post('/api/validar', async (req, res) => {
       const logId = await registrarLog(cnpjLimpo, conta_cod, false, 'Empresa inativa', req.user, valor);
       return res.json({ aprovado: false, motivo: 'Empresa inativa', log_id: logId });
     }
-    const contasRef = db.collection('planos').doc(empresa.plano_id).collection('contas');
+    const planoRefContas = db.collection('planos').doc(empresa.plano_id);
+    const contasRef = colecaoContas(planoRefContas, (await planoRefContas.get()).data());
     const contaSnap = await contasRef.where('cod', '==', conta_cod).limit(1).get();
     if (contaSnap.empty) {
       const logId = await registrarLog(cnpjLimpo, conta_cod, false, 'Conta nao pertence ao plano ' + empresa.plano_id, req.user, valor);
@@ -680,7 +684,7 @@ app.get('/api/planos', async (req, res) => {
   catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-app.post('/api/planos', async (req, res) => {
+app.post('/api/planos', adminRequired, async (req, res) => {
   try {
     const { id, codigo, nome, tipo, base } = req.body;
     if (!id || !codigo || !nome) return res.status(400).json({ erro: 'id, codigo, nome obrigatorios' });
@@ -695,68 +699,28 @@ app.get('/api/planos/:id/contas', async (req, res) => {
   try {
     const planoDoc = await db.collection('planos').doc(req.params.id).get();
     if (!planoDoc.exists) return res.status(404).json({ erro: 'Plano nao encontrado' });
-    const snap = await db.collection('planos').doc(req.params.id).collection('contas').orderBy('cod').get();
+    const snap = await colecaoContas(db.collection('planos').doc(req.params.id), planoDoc.data()).orderBy('cod').get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-app.post('/api/planos/:id/contas', async (req, res) => {
+app.post('/api/planos/:id/contas', adminRequired, async (req, res) => {
   try {
     const { cod, desc, analitica, ref_rfb } = req.body;
     if (!cod || !desc) return res.status(400).json({ erro: 'cod e desc obrigatorios' });
-    const ref = await db.collection('planos').doc(req.params.id).collection('contas').add({ cod, desc, analitica: analitica !== false, ref_rfb: ref_rfb || null, created_by: req.user.uid });
-    res.status(201).json({ id: ref.id, cod, desc });
+    const planoRef = db.collection('planos').doc(req.params.id);
+    const plano = await planoRef.get();
+    if (!plano.exists) return res.status(404).json({ erro: 'Plano não encontrado' });
+    const contas = await colecaoContas(planoRef, plano.data()).get();
+    await publicarContas(db, planoRef, [...contas.docs.map(d => d.data()), { cod, desc, analitica, ref_rfb }], req.user, plano);
+    res.status(201).json({ cod, desc });
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
 // Fase Zero+: substituir array completo de contas (upsert)
-app.put('/api/planos/:id/contas', async (req, res) => {
-  try {
-    const { contas } = req.body;
-    if (!Array.isArray(contas)) return res.status(400).json({ erro: 'contas[] obrigatorio' });
-    const planoRef = db.collection('planos').doc(req.params.id);
-    const planoDoc = await planoRef.get();
-    if (!planoDoc.exists) return res.status(404).json({ erro: 'Plano nao encontrado' });
-    
-    const subRef = planoRef.collection('contas');
-    
-    // 1. Deletar contas atuais em batch (max 500 por batch do Firestore)
-    const atuais = await subRef.get();
-    let deletadas = 0;
-    for (let i = 0; i < atuais.docs.length; i += 400) {
-      const chunk = atuais.docs.slice(i, i + 400);
-      const batchDel = db.batch();
-      chunk.forEach(d => batchDel.delete(d.ref));
-      await batchDel.commit();
-      deletadas += chunk.length;
-    }
-    
-    // 2. Escrever novas em batch
-    let inseridas = 0;
-    for (let i = 0; i < contas.length; i += 400) {
-      const chunk = contas.slice(i, i + 400);
-      const batchAdd = db.batch();
-      chunk.forEach(c => {
-        const ref = subRef.doc();
-        batchAdd.set(ref, {
-          cod: c.codigo || c.cod || '',
-          desc: c.descricao || c.desc || '',
-          reduzido: c.reduzido || '',
-          ref_rfb: c.reduzido || c.ref_rfb || null,
-          analitica: c.analitica !== false,
-          created_by: req.user.uid,
-          created_at: new Date()
-        });
-      });
-      await batchAdd.commit();
-      inseridas += chunk.length;
-    }
-    
-    res.json({ ok: true, deletadas, inseridas, plano_id: req.params.id });
-  } catch (err) {
-    console.error('[PUT contas] erro:', err);
-    res.status(500).json({ erro: err.message });
-  }
+app.put('/api/planos/:id/contas', adminRequired, async (req, res) => {
+  try { res.json(await publicarContas(db, db.collection('planos').doc(req.params.id), (req.body || {}).contas, req.user)); }
+  catch (err) { res.status(err.status || 500).json({ erro: err.message }); }
 });
 
 // === Fase 5a: Memoria de classificacao por CNPJ ===
@@ -1212,7 +1176,7 @@ app.get('/api/empresas/:cnpj/plano-contexto', async (req, res) => {
     const planoRef = db.collection('planos').doc(empresa.plano_id);
     const [planoDoc, contasSnap] = await Promise.all([
       planoRef.get(),
-      planoRef.collection('contas').orderBy('cod').get()
+      planoRef.get().then(doc => colecaoContas(planoRef, doc.data()).orderBy('cod').get())
     ]);
     if (!planoDoc.exists) return res.status(409).json({ erro: 'Plano vinculado nao encontrado' });
     const plano = planoDoc.data() || {};
@@ -1275,13 +1239,13 @@ app.post('/api/empresas', async (req, res) => {
     if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const planoDoc = await db.collection('planos').doc(plano_id).get();
     if (!planoDoc.exists) return res.status(400).json({ erro: 'Plano ' + plano_id + ' nao existe' });
-    await db.collection('empresas').doc(cnpjLimpo).set({ ...cadastro.campos, razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
+    await db.collection('empresas').doc(cnpjLimpo).create({ ...cadastro.campos, razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
     let regimeCfi = null;
     let regimeAviso = null;
     try { regimeCfi = await sincronizarRegimeTributarioCfi(cnpjLimpo, req); }
     catch (e) { regimeAviso = e.message; console.warn('[empresa] regime CFI pendente:', e.message); }
     res.status(201).json({ cnpj: cnpjLimpo, razao_social, plano_id, ...cadastro.campos, regime_cfi: regimeCfi && regimeCfi.cadastro || null, regime_aviso: regimeAviso });
-  } catch (err) { res.status(500).json({ erro: err.message }); }
+  } catch (err) { res.status(err.code === 6 || /already exists/.test(err.message) ? 409 : 500).json({ erro: err.code === 6 || /already exists/.test(err.message) ? 'Empresa já cadastrada. Peça ao gestor o acesso como responsável ou apoio.' : err.message }); }
 });
 
 app.post('/api/empresas/:cnpj/ativar', async (req, res) => {
@@ -1649,6 +1613,30 @@ app.get('/api/admin/carteira-responsaveis', adminRequired, async (req, res) => {
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
+app.put('/api/admin/empresas/:cnpj/equipe', adminRequired, async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const principal = String(req.body.principal_uid || '').trim();
+    const apoio = String(req.body.apoio_uid || '').trim();
+    if (cnpj.length !== 14 || !principal || [principal, apoio].some(uid => uid.includes('/'))) return res.status(400).json({ erro: 'Empresa e responsável válidos são obrigatórios.' });
+    const ref = db.collection('empresas').doc(cnpj);
+    const responsaveis = await db.runTransaction(async tx => {
+      const docs = await tx.getAll(ref, db.collection('users').doc(principal), ...(apoio ? [db.collection('users').doc(apoio)] : []));
+      if (docs.some(doc => !doc.exists)) throw Object.assign(new Error('Empresa ou colaborador não encontrado.'), { status: 404 });
+      const usuario = (doc) => {
+        const d = doc.data(); const email = String(d.last_email || d.email || '').toLowerCase();
+        if (!email.endsWith(DOMAIN)) throw Object.assign(new Error('Colaborador sem e-mail corporativo válido.'), { status: 400 });
+        return { uid: doc.id, nome: d.last_name || d.name || email, email };
+      };
+      const equipe = definirEquipe(usuario(docs[1]), apoio ? usuario(docs[2]) : null, { ...req.user, quando: new Date() });
+      tx.set(ref, { ...camposCarteira(equipe), carteira_atualizada_em: new Date(), carteira_atualizada_por_uid: req.user.uid, carteira_atualizada_por_email: req.user.email }, { merge: true });
+      tx.create(ref.collection('auditoria_contabil').doc(), { tipo: 'EQUIPE_ATUALIZADA', anteriores: normalizarResponsaveis(docs[0].data().responsaveis), responsaveis: equipe, quando: new Date(), por_uid: req.user.uid });
+      return equipe;
+    });
+    res.json({ ok: true, responsaveis });
+  } catch (e) { res.status(e.status || 500).json({ erro: e.message }); }
+});
+
 app.post('/api/admin/empresas/:cnpj/responsaveis', adminRequired, async (req, res) => {
   try {
     const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
@@ -1771,7 +1759,7 @@ async function sincronizarPlanoSessaoEmpresa(cnpj, planoId, planoNome, user, opc
       atualizada.stateJson,
       resumo,
       user,
-      { exigirRevisao: true }
+      { exigirRevisao: true, tokenTrava }
     );
     tokenTrava = null;
     return {
@@ -1963,16 +1951,8 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     const isAdmin = !!(req.user && req.user.is_admin);
     const adminOverride = opts.adminOverride === true;
 
-    if (!isAdmin && !adminOverride && empresaAtual) {
-      const ownerUid = empresaAtual.owner_uid || '';
-      const planoAtual = empresaAtual.plano_id || '';
-      const usuarioEhOwner = ownerUid && ownerUid === req.user.uid;
-      const empresaSemDono = !ownerUid;
-      const empresaSemPlano = !planoAtual;
-      const mesmoPlano = planoAtual && planoAtual === plano_id;
-      if (!usuarioEhOwner && !empresaSemDono && !empresaSemPlano && !mesmoPlano) {
-        return res.status(403).json({ erro: 'Sem permissao para trocar o plano desta empresa. Solicite ao administrador.' });
-      }
+    if (!isAdmin && !adminOverride && empresaAtual && !usuarioPodeAcessarEmpresa(empresaAtual, req.user)) {
+      return res.status(403).json({ erro: 'Solicite ao gestor sua inclusão como responsável ou colaborador de apoio desta empresa.' });
     }
 
     const dados = {
@@ -1981,15 +1961,20 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
       plano_nome: planoData.nome || planoData.name || plano_id,
       ativo: true,
       updated_at: new Date(),
-      vinculado_por_uid: req.user.uid,
-      vinculado_por_email: req.user.email,
+      vinculado_por_uid: empresaAtual ? (empresaAtual.vinculado_por_uid || empresaAtual.owner_uid || '') : req.user.uid,
+      vinculado_por_email: empresaAtual ? (empresaAtual.vinculado_por_email || empresaAtual.created_by_email || '') : req.user.email,
       vinculado_em: new Date(),
-      acesso_uids: FieldValue.arrayUnion(req.user.uid),
-      acesso_emails: FieldValue.arrayUnion(req.user.email)
+      ...(!empresaAtual ? { acesso_uids: FieldValue.arrayUnion(req.user.uid), acesso_emails: FieldValue.arrayUnion(req.user.email) } : {})
     };
     if (razao_social) dados.razao_social = razao_social;
     if (!empresaDoc.exists) { dados.created_at = new Date(); dados.created_by = req.user.uid; dados.created_by_email = req.user.email; dados.owner_uid = req.user.uid; }
-    await empresaRef.set(dados, { merge: true });
+    await db.runTransaction(async transacao => {
+      const atual = await transacao.get(empresaRef);
+      if (atual.exists !== empresaDoc.exists || (atual.exists && !atual.updateTime.isEqual(empresaDoc.updateTime))) {
+        throw Object.assign(new Error('O cadastro mudou durante o vínculo. Reabra a empresa e tente novamente.'), { status: 409 });
+      }
+      transacao.set(empresaRef, dados, { merge: true });
+    });
     let sincronizacaoSessao = { sincronizada: false };
     try {
       sincronizacaoSessao = await sincronizarPlanoSessaoEmpresa(
@@ -2130,7 +2115,8 @@ function lerEstadoContabil(stateJson) {
 async function carregarContasContabeisEmpresa(empresa) {
   const planoId = String(empresa && empresa.plano_id || '').trim();
   if (!planoId) return [];
-  const snap = await db.collection('planos').doc(planoId).collection('contas').get();
+  const planoRef = db.collection('planos').doc(planoId);
+  const snap = await colecaoContas(planoRef, (await planoRef.get()).data()).get();
   return snap.docs.map(function (doc) {
     const conta = doc.data() || {};
     return {
@@ -2915,7 +2901,7 @@ async function gravarPartes(colecaoRef, partes, geracao) {
   let operacoes = 0;
   for (let idx = 0; idx < partes.length; idx++) {
     const id = `${geracao}_${String(idx).padStart(4, '0')}`;
-    batch.set(colecaoRef.doc(id), { geracao, idx, parte: partes[idx] });
+    batch.set(colecaoRef.doc(id), { geracao, idx, parte: partes[idx], criado_em: new Date() });
     operacoes++;
     if (operacoes >= 450) {
       await batch.commit();
@@ -2942,10 +2928,13 @@ async function excluirDocumentosEmLotes(documentos) {
 }
 
 async function limparChunksAntigos(sessaoRef, geracaoAtual) {
-  const chunks = await sessaoRef.collection('chunks').get();
+  const chunks = await sessaoRef.collection('chunks').where('criado_em', '<', new Date(Date.now() - 24 * 60 * 60 * 1000)).get();
   const antigos = chunks.docs.filter(documento => {
-    if (!geracaoAtual) return true;
-    return String(documento.data().geracao || '') !== String(geracaoAtual);
+    const dados = documento.data() || {};
+    const criado = millisTimestamp(dados.criado_em);
+    // Preserva gerações em preparação e leitores que ainda usam a versão anterior.
+    return criado > 0 && criado < Date.now() - 24 * 60 * 60 * 1000
+      && String(dados.geracao || '') !== String(geracaoAtual || '');
   });
   if (antigos.length) await excluirDocumentosEmLotes(antigos);
 }
@@ -2958,8 +2947,9 @@ async function carregarSessaoArmazenadaPorRef(sessaoRef) {
     ? dados.state_payload
     : (typeof dados.state_json === 'string' ? dados.state_json : '');
   if (dados.state_chunked) {
-    const chunks = await sessaoRef.collection('chunks').get();
     const geracao = String(dados.state_generation || '');
+    const colecao = sessaoRef.collection('chunks');
+    const chunks = await (geracao ? colecao.where('geracao', '==', geracao) : colecao).get();
     const partes = chunks.docs
       .map(documento => documento.data() || {})
       .filter(parte => !geracao || String(parte.geracao || '') === geracao)
@@ -3046,6 +3036,11 @@ async function gravarDocumentoJson(ref, stateJson, metadados) {
 
 async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes) {
   const opts = opcoes || {};
+  const antes = await sessaoRef.get();
+  const trava = antes.exists && antes.data().session_write_lock;
+  if (!trava || !opts.tokenTrava || trava.token !== opts.tokenTrava || trava.uid !== user.uid || millisTimestamp(trava.expires_at) <= Date.now()) {
+    throw erroSessao('A reserva de gravação expirou. Tente salvar novamente.', 409, 'SESSAO_EM_ATUALIZACAO');
+  }
   const codificado = codificarStateJson(stateJson);
   const partes = dividirTexto(codificado.payload, LIMITE_CHUNK_SESSAO);
   const chunked = codificado.payload.length > LIMITE_CHUNK_SESSAO;
@@ -3067,19 +3062,22 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
     state_generation: geracao,
     session_revision: revisao,
     require_session_revision: opts.exigirRevisao === true,
-    session_write_lock: admin.firestore.FieldValue.delete(),
   };
-  if (opts.empresaRef && opts.atualizacaoEmpresa) {
-    const batch = db.batch();
-    batch.set(sessaoRef, dadosSessao, { merge: true });
-    batch.set(opts.empresaRef, opts.atualizacaoEmpresa, { merge: true });
-    await batch.commit();
-  } else {
-    await sessaoRef.set(dadosSessao, { merge: true });
-  }
-  if (chunked || opts.limparChunksAntigos !== false) {
-    await limparChunksAntigos(sessaoRef, geracao).catch(erro => console.warn('[sessao] limpeza de chunks antigos falhou:', erro.message || erro));
-  }
+  await db.runTransaction(async transacao => {
+    const atual = await transacao.get(sessaoRef);
+    const ativa = atual.exists && atual.data().session_write_lock;
+    if (!ativa || ativa.token !== trava.token || millisTimestamp(ativa.expires_at) <= Date.now()) {
+      throw erroSessao('Outra gravação assumiu a sessão. Confira e tente novamente.', 409, 'SESSAO_CONCORRENTE');
+    }
+    transacao.set(sessaoRef, dadosSessao, { merge: true });
+    if (opts.empresaRef && opts.atualizacaoEmpresa) transacao.set(opts.empresaRef, opts.atualizacaoEmpresa, { merge: true });
+    if (opts.gravarRelacionados) opts.gravarRelacionados(transacao, revisao);
+  });
+  try {
+    if (chunked || opts.limparChunksAntigos !== false) {
+      await limparChunksAntigos(sessaoRef, geracao).catch(erro => console.warn('[sessao] limpeza de chunks antigos falhou:', erro.message || erro));
+    }
+  } finally { await liberarTravaSessao(sessaoRef, trava.token); }
   return {
     revisao,
     chunked,
@@ -3177,6 +3175,11 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     temposPersistencia.acesso = Date.now() - inicioPersistencia;
     const { resumo, session_revision, client_version } = req.body || {};
     const state_json = stateJsonDoBody(req.body || {});
+    const recebido = JSON.parse(state_json);
+    if (!Array.isArray(recebido.entries) || recebido.semLancamentosLocal || (resumo && resumo.snapshot_leve)) {
+      throw erroSessao('Os lançamentos não foram enviados integralmente. A sessão anterior foi preservada.', 413, 'SESSAO_INCOMPLETA');
+    }
+    if (resumo) resumo.total_lancamentos = recebido.entries.length;
     const empresaRef = db.collection('empresas').doc(cnpjLimpo);
     sessaoRef = empresaRef.collection('sessoes').doc('current');
     tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'autosave');
@@ -3187,7 +3190,7 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
       empresaRef.collection('transportes_saldos').where('status', '==', 'vigente').get(),
     ]);
     temposPersistencia.leituras = Date.now() - inicioPersistencia - temposPersistencia.acesso - temposPersistencia.trava;
-    const exigirRevisao = !!(atual.dados && atual.dados.require_session_revision);
+    const exigirRevisao = !!(atual.dados && atual.dados.session_revision);
     const resultadoRevisao = avaliarRevisaoSessao({
       revisaoAtual: atual.dados && atual.dados.session_revision,
       revisaoCliente: session_revision,
@@ -3221,8 +3224,9 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     }
 
     // Rede de segurança anterior: ao zerar uma sessão com lançamentos, mantém uma cópia de um nível.
-    const qtdNova = resumo ? Number(resumo.total_lancamentos || 0) : 0;
-    const qtdAtual = atual.dados && atual.dados.resumo ? Number(atual.dados.resumo.total_lancamentos || 0) : 0;
+    const qtdNova = recebido.entries.length;
+    const qtdAtual = atual.stateJson ? (JSON.parse(atual.stateJson).entries || []).length : 0;
+    if (!qtdNova && qtdAtual > 0 && !(resumo && resumo.zerada === true)) throw erroSessao('Uma sessão vazia não pode substituir lançamentos existentes. Reabra a empresa ou use a exclusão explícita.', 409, 'SESSAO_VAZIA_BLOQUEADA');
     if (!qtdNova && qtdAtual > 0 && atual.stateJson) {
       try {
         const anteriorRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('anterior');
@@ -3234,7 +3238,7 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
           backup_por_email: req.user.email,
         });
       } catch (erroBackup) {
-        console.warn('[sessao] backup pre-sobrescrita falhou:', erroBackup.message || erroBackup);
+        throw erroSessao('Não foi possível preservar a sessão anterior. A exclusão foi cancelada.', 503, 'BACKUP_SESSAO_FALHOU');
       }
     }
 
@@ -3255,6 +3259,7 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     }
     const resultado = await gravarSessaoBloqueada(sessaoRef, state_json, resumo, req.user, {
       exigirRevisao,
+      tokenTrava,
       empresaRef,
       atualizacaoEmpresa,
       limparChunksAntigos: !!(atual.dados && atual.dados.state_chunked),
@@ -3548,7 +3553,7 @@ app.post('/api/admin/empresas/:cnpj/migracao-sage/:loteId/aplicar', adminRequire
     await impedirAlteracaoPeriodosFechados(cnpjLimpo, sessao.stateJson, novoStateJson);
     const resumo = { ...(sessao.dados.resumo || {}), total_lancamentos: estado.entries.length, ultima_migracao_sage_lote: loteId };
     let resultadoSessao = null;
-    if (!aplicacao.idempotente) resultadoSessao = await gravarSessaoBloqueada(sessaoRef, novoStateJson, resumo, req.user, { exigirRevisao: true });
+    if (!aplicacao.idempotente) resultadoSessao = await gravarSessaoBloqueada(sessaoRef, novoStateJson, resumo, req.user, { exigirRevisao: true, tokenTrava });
     else await liberarTravaSessao(sessaoRef, tokenTrava);
     tokenTrava = null;
     const hashDepois = hashSessao(novoStateJson);
@@ -3615,7 +3620,7 @@ app.post('/api/admin/empresas/:cnpj/migracao-sage/:loteId/reverter', adminRequir
     const estadoRevertidoJson = JSON.stringify(estado);
     await impedirAlteracaoPeriodosFechados(cnpjLimpo, sessao.stateJson, estadoRevertidoJson);
     const resumo = { ...(sessao.dados.resumo || {}), total_lancamentos: estado.entries.length, ultima_migracao_sage_revertida: loteId };
-    const resultado = await gravarSessaoBloqueada(sessaoRef, estadoRevertidoJson, resumo, req.user, { exigirRevisao: true });
+    const resultado = await gravarSessaoBloqueada(sessaoRef, estadoRevertidoJson, resumo, req.user, { exigirRevisao: true, tokenTrava });
     tokenTrava = null;
     const hashDepoisReversao = hashSessao(estadoRevertidoJson);
     await loteRef.set({
@@ -3739,7 +3744,7 @@ app.post('/api/admin/exclusao-lancamentos/executar', adminRequired, async (req, 
 
     let resultado;
     try {
-      resultado = await gravarSessaoBloqueada(sessaoRef, novoStateJson, novoResumo, req.user, { exigirRevisao: true });
+      resultado = await gravarSessaoBloqueada(sessaoRef, novoStateJson, novoResumo, req.user, { exigirRevisao: true, tokenTrava });
       tokenTrava = null;
     } catch (erroAplicacao) {
       await backupRef.set({ status: 'backup_pronto_falha_aplicacao', falha_aplicacao: String(erroAplicacao.message || erroAplicacao).slice(0, 500) }, { merge: true });
@@ -3940,19 +3945,19 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/eventos/aprovar', async (r
     const validacao = RelatoriosContabeis.validar(state.entries, previa.periodo, contas);
     if (!validacao.ok) throw erroSessao(validacao.erros[0].mensagem, 409, 'LANCAMENTOS_ATIVO_INVALIDOS');
     const resumo = { ...(sessao.dados && sessao.dados.resumo || {}), total_lancamentos: state.entries.length };
-    const resultado = await gravarSessaoBloqueada(sessaoRef, JSON.stringify(state), resumo, req.user, { exigirRevisao: true });
+    const gravarRelacionados = (batch, revisao) => {
+      previa.lancamentos.forEach(function (lancamento) {
+        const id = cryptoAdmin.createHash('sha256').update(lancamento.chave).digest('hex');
+        batch.create(empresaRef.collection('ativos_lancamentos').doc(id), { ...lancamento, periodo: previa.periodo, aprovado_em: new Date(), aprovado_por_uid: req.user.uid, aprovado_por_email: req.user.email, session_revision: revisao });
+      });
+      const mutacao = { ...(previa.mutacao_bem || {}), atualizado_em: new Date(), atualizado_por_uid: req.user.uid, atualizado_por_email: req.user.email };
+      if (tipo === 'aquisicao') mutacao.aquisicao_contabilizada_em = new Date();
+      if (tipo === 'baixa') { mutacao.baixa_em = new Date(); mutacao.baixa_por_uid = req.user.uid; mutacao.baixa_por_email = req.user.email; }
+      batch.set(empresaRef.collection('ativos_imobilizados').doc(bemId), mutacao, { merge: true });
+      batch.create(empresaRef.collection('auditoria_contabil').doc(), { tipo: 'ATIVO_' + tipo.toUpperCase() + '_APROVADO', periodo: previa.periodo, bem_id: bemId, quantidade: previa.lancamentos.length, total: previa.total, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
+    };
+    const resultado = await gravarSessaoBloqueada(sessaoRef, JSON.stringify(state), resumo, req.user, { exigirRevisao: true, gravarRelacionados, tokenTrava });
     tokenTrava = null;
-    const batch = db.batch();
-    previa.lancamentos.forEach(function (lancamento) {
-      const id = cryptoAdmin.createHash('sha256').update(lancamento.chave).digest('hex');
-      batch.create(empresaRef.collection('ativos_lancamentos').doc(id), { ...lancamento, periodo: previa.periodo, aprovado_em: new Date(), aprovado_por_uid: req.user.uid, aprovado_por_email: req.user.email, session_revision: resultado.revisao });
-    });
-    const mutacao = { ...(previa.mutacao_bem || {}), atualizado_em: new Date(), atualizado_por_uid: req.user.uid, atualizado_por_email: req.user.email };
-    if (tipo === 'aquisicao') mutacao.aquisicao_contabilizada_em = new Date();
-    if (tipo === 'baixa') { mutacao.baixa_em = new Date(); mutacao.baixa_por_uid = req.user.uid; mutacao.baixa_por_email = req.user.email; }
-    batch.set(empresaRef.collection('ativos_imobilizados').doc(bemId), mutacao, { merge: true });
-    batch.create(empresaRef.collection('auditoria_contabil').doc(), { tipo: 'ATIVO_' + tipo.toUpperCase() + '_APROVADO', periodo: previa.periodo, bem_id: bemId, quantidade: previa.lancamentos.length, total: previa.total, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
-    await batch.commit();
     res.status(201).json({ ok: true, tipo, periodo: previa.periodo, quantidade: previa.lancamentos.length, total: previa.total, session_revision: resultado.revisao });
   } catch (e) {
     if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
@@ -3994,10 +3999,10 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/aprovar', async (r
     const chk = await checarAcessoEmpresa(cnpj, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
     const empresaRef = db.collection('empresas').doc(cnpj);
-    const periodoDoc = await empresaRef.collection('periodos_contabeis').doc(periodo).get();
-    if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') return res.status(409).json({ erro: 'Reabra a competência antes de gerar lançamentos do ativo.', codigo: 'PERIODO_CONTABIL_FECHADO' });
     sessaoRef = empresaRef.collection('sessoes').doc('current');
     tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'ativo_imobilizado');
+    const periodoDoc = await empresaRef.collection('periodos_contabeis').doc(periodo).get();
+    if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') throw erroSessao('Reabra a competência antes de gerar lançamentos do ativo.', 409, 'PERIODO_CONTABIL_FECHADO');
     const sessao = await carregarSessaoAtualPorRef(sessaoRef);
     if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Sessão contábil não encontrada.', 409, 'SESSAO_NAO_ENCONTRADA');
     const [bensSnap, geradosSnap] = await Promise.all([
@@ -4030,15 +4035,16 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/aprovar', async (r
     const validacao = RelatoriosContabeis.validar(state.entries, periodo, contas);
     if (!validacao.ok) throw erroSessao(validacao.erros[0].mensagem, 409, 'LANCAMENTOS_ATIVO_INVALIDOS');
     const resumo = { ...(sessao.dados && sessao.dados.resumo || {}), total_lancamentos: state.entries.length };
-    const resultado = await gravarSessaoBloqueada(sessaoRef, JSON.stringify(state), resumo, req.user, { exigirRevisao: true });
+    const gravarRelacionados = (batch, revisao) => {
+      previa.lancamentos.forEach(function (lancamento) {
+        const id = cryptoAdmin.createHash('sha256').update(lancamento.chave).digest('hex');
+        batch.create(empresaRef.collection('ativos_lancamentos').doc(id), { ...lancamento, periodo, chave: lancamento.chave, aprovado_em: new Date(), aprovado_por_uid: req.user.uid, aprovado_por_email: req.user.email, session_revision: revisao });
+      });
+      batch.create(empresaRef.collection('auditoria_contabil').doc(), { tipo: 'DEPRECIACAO_APROVADA', periodo, quantidade: previa.lancamentos.length, total: previa.total, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
+    };
+    const resultado = await gravarSessaoBloqueada(sessaoRef, JSON.stringify(state), resumo, req.user, { exigirRevisao: true, gravarRelacionados, tokenTrava });
     tokenTrava = null;
-    const batch = db.batch();
-    previa.lancamentos.forEach(function (lancamento) {
-      const id = cryptoAdmin.createHash('sha256').update(lancamento.chave).digest('hex');
-      batch.create(empresaRef.collection('ativos_lancamentos').doc(id), { ...lancamento, periodo, chave: lancamento.chave, aprovado_em: new Date(), aprovado_por_uid: req.user.uid, aprovado_por_email: req.user.email, session_revision: resultado.revisao });
-    });
-    await batch.commit();
-    await empresaRef.collection('auditoria_contabil').add({ tipo: 'DEPRECIACAO_APROVADA', periodo, quantidade: previa.lancamentos.length, total: previa.total, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
+
     res.status(201).json({ ok: true, periodo, quantidade: previa.lancamentos.length, total: previa.total, session_revision: resultado.revisao });
   } catch (e) {
     if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
@@ -6328,6 +6334,16 @@ app.use('/api', (req, res) => {
 // mas não podem ser expostos diretamente pelo express.static.
 app.use('/downloads', (req, res) => {
   res.status(404).send('Arquivo não encontrado. Acesse o Manual Operacional após fazer login no CCI.');
+});
+
+// Somente assets de navegador explicitamente publicados podem alcançar express.static.
+const publicAssets = new Set(require('./public-assets.json'));
+app.use((req, res, next) => {
+  let caminho;
+  try { caminho = decodeURIComponent(req.path); } catch (_) { return res.sendStatus(400); }
+  const vendor = /^\/vendor\/(?:xlsx\/xlsx\.full\.min\.js|jspdf\/jspdf\.umd\.min\.js|jspdf-autotable\/jspdf\.plugin\.autotable\.min\.js)$/.test(caminho);
+  if (publicAssets.has(caminho) || vendor || /^\/auditai(?:\/[A-Za-z0-9_-]+)*\/?$/.test(caminho)) return next();
+  return res.status(404).send('Arquivo não encontrado.');
 });
 
 app.use('/vendor/xlsx', express.static(path.join(__dirname, 'node_modules', 'xlsx', 'dist'), {
