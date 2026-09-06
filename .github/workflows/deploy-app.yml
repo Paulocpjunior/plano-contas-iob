@@ -276,7 +276,7 @@ jobs:
               --region "$REGION" \
               --project "$PROJECT_ID" \
               --service-account "$CCI_RUNTIME_SERVICE_ACCOUNT" \
-              --update-env-vars=CCI_RUNTIME_PROJECT_ID="$PROJECT_ID",CCI_DATA_PROJECT_ID="$CCI_DATA_PROJECT_ID",CCI_DATA_DATABASE_ID="$CCI_DATA_DATABASE_ID",CCI_AUTH_PROJECT_ID="$CCI_AUTH_PROJECT_ID",CCI_BACKUP_PROJECT_ID="$CCI_BACKUP_PROJECT_ID",CCI_BACKUP_BUCKET="$CCI_BACKUP_BUCKET",CCI_LAYOUT_SAMPLE_BUCKET="$CCI_LAYOUT_SAMPLE_BUCKET",MERCADO_PAGO_OAUTH_ENABLED=false,DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_MODEL=gemini-3.7-flash,GEMINI_FLASH_MODEL=gemini-3.7-flash,GEMINI_CHAT_MODEL=gemini-3.7-flash,GEMINI_ALLOW_CLIENT_MODEL=false \
+              --update-env-vars=CCI_RUNTIME_PROJECT_ID="$PROJECT_ID",CCI_DATA_PROJECT_ID="$CCI_DATA_PROJECT_ID",CCI_DATA_DATABASE_ID="$CCI_DATA_DATABASE_ID",CCI_AUTH_PROJECT_ID="$CCI_AUTH_PROJECT_ID",CCI_BACKUP_PROJECT_ID="$CCI_BACKUP_PROJECT_ID",CCI_BACKUP_BUCKET="$CCI_BACKUP_BUCKET",CCI_LAYOUT_SAMPLE_BUCKET="$CCI_LAYOUT_SAMPLE_BUCKET",MERCADO_PAGO_OAUTH_ENABLED=false,DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_MODEL=gemini-3.8-flash,GEMINI_FLASH_MODEL=gemini-3.8-flash,GEMINI_CHAT_MODEL=gemini-3.8-flash,GEMINI_ALLOW_CLIENT_MODEL=false \
               --remove-env-vars=MERCADO_PAGO_CLIENT_ID,MERCADO_PAGO_CLIENT_SECRET \
               --no-traffic --tag candidate \
               --quiet; then
@@ -354,10 +354,21 @@ jobs:
           fi
 
           HEALTH_MODEL=$(jq -r '.gemini_model // empty' /tmp/health.json)
-          if [ "$HEALTH_MODEL" != "gemini-3.7-flash" ]; then
-            echo "::error::Candidata iniciou com motor $HEALTH_MODEL; esperado gemini-3.7-flash."
+          if [ "$HEALTH_MODEL" != "gemini-3.8-flash" ]; then
+            echo "::error::Candidata iniciou com motor $HEALTH_MODEL; esperado gemini-3.8-flash."
             exit 1
           fi
+          # O nome certo é STATUS; se a conta TEM esse modelo é RESULTADO — e é
+          # o servidor que pergunta à Google (gemini_model_conferido). Nome que a
+          # conta não tem derrubaria a IA calada no deploy. Indeterminado LIBERA
+          # (rede que piscou não é veredito), mas vai dito no log.
+          MODEL_CONFERIDO=$(jq -r '.gemini_model_conferido // "indeterminado"' /tmp/health.json)
+          MODEL_DETALHE=$(jq -r '.gemini_model_detalhe // empty' /tmp/health.json)
+          case "$MODEL_CONFERIDO" in
+            confirmado) echo "✓ a conta lista $HEALTH_MODEL ($MODEL_DETALHE)" ;;
+            nao-encontrado) echo "::error::A Google respondeu que $HEALTH_MODEL NÃO existe para esta chave ($MODEL_DETALHE) — tráfego não roteado. Corrija GEMINI_MODEL no deploy-app.yml."; exit 1 ;;
+            *) echo "::warning::Não deu para confirmar $HEALTH_MODEL na conta ($MODEL_DETALHE) — seguindo; confira /api/health depois." ;;
+          esac
           jq -e --arg runtime "$PROJECT_ID" --arg data "$CCI_DATA_PROJECT_ID" --arg database "$CCI_DATA_DATABASE_ID" --arg auth "$CCI_AUTH_PROJECT_ID" --arg backup "$CCI_BACKUP_PROJECT_ID" \
             '.projects == {runtime:$runtime,data:$data,database:$database,auth:$auth,backup:$backup}' /tmp/health.json >/dev/null || {
             echo "::error::Topologia de projetos da candidata diverge da configuração explícita."; exit 1;
@@ -416,8 +427,8 @@ jobs:
           curl -sSf "$URL/api/health" > /tmp/production-health.json || { echo "::error::Health final falhou."; exit 1; }
           cat /tmp/production-health.json
           HEALTH_MODEL=$(jq -r '.gemini_model // empty' /tmp/production-health.json)
-          if [ "$HEALTH_MODEL" != "gemini-3.7-flash" ]; then
-            echo "::error::Produção iniciou com motor $HEALTH_MODEL; esperado gemini-3.7-flash."; exit 1
+          if [ "$HEALTH_MODEL" != "gemini-3.8-flash" ]; then
+            echo "::error::Produção iniciou com motor $HEALTH_MODEL; esperado gemini-3.8-flash."; exit 1
           fi
           jq -e --arg runtime "$PROJECT_ID" --arg data "$CCI_DATA_PROJECT_ID" --arg database "$CCI_DATA_DATABASE_ID" --arg auth "$CCI_AUTH_PROJECT_ID" --arg backup "$CCI_BACKUP_PROJECT_ID" \
             '.projects == {runtime:$runtime,data:$data,database:$database,auth:$auth,backup:$backup}' /tmp/production-health.json >/dev/null || {

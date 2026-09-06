@@ -6,6 +6,30 @@ retoma. Criado em 07/08/2026, quando o projeto passou do CODEX para o Claude
 (Paulo: *"o CODEX estava tocando este projeto, você consegue administrar? para
 que não fique mais confuso?"*).
 
+- **🤖 O MOTOR SUBIU PARA `gemini-3.8-flash` — e o deploy passou a CONFERIR se
+  o modelo existe, em vez de ecoar o env** (06/09, Paulo: *"precisamos alterar
+  nosso motor em todos os apps, do gemini, 3.7 para 3.8 em todos"*).
+  🔴 O nome estava CRAVADO em quatro lugares (`server.js`, `index.html` ×3,
+  `deploy-app.yml` ×7, `scripts/test-gemini-model-version.js`) e o health do
+  deploy conferia `gemini_model` — que era o próprio env ecoado — contra a
+  string esperada: **STATUS lido como RESULTADO**, a primeira regra do CFI.
+  Nome pinado à mão que a conta não tem derruba a IA **calada** (a lição do CFI
+  de 15/08, que por isso pina PERGUNTANDO à conta).
+  ✂️ `/api/health` ganhou `gemini_model_conferido` (`confirmado` ·
+  `nao-encontrado` · `indeterminado`) + `gemini_model_detalhe`: o servidor faz
+  um GET no metadado do modelo pinado (sem gerar nada) no boot, e repete se
+  ficou indeterminado há mais de 1 min. O deploy **recusa tráfego** em
+  `nao-encontrado` e **libera dizendo** em `indeterminado` — rede que piscou
+  não é veredito (a régua do gate de departamento).
+  ⚠️ **O que NÃO está provado, e vai dito**: eu não alcanço a API daqui. Quem
+  prova que `gemini-3.8-flash` existe é o **primeiro deploy** — e se a Google
+  responder 404 o run fica vermelho com a frase, nunca a IA quebrada em
+  produção. O `test-gemini-model-version.js` agora proíbe `gemini-3.7-flash`
+  nos três arquivos e exige a sonda + o gate no workflow.
+  📌 **REGRA QUE FICA: nome de modelo é da família do ID de tabela oficial —
+  vem da FONTE (a resposta da Google), nunca da memória.** O deploy é o lugar
+  que pergunta, porque é o único que tem a chave.
+
 ## O que é este app
 
 Contábil: conciliação bancária, plano de contas, ECD/ECF, e o módulo
