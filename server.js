@@ -69,7 +69,10 @@ app.set('trust proxy', 1);
 app.set('etag', false);
 app.disable('x-powered-by');
 const PORT = process.env.PORT || 8080;
-const GEMINI_DEFAULT_MODEL = process.env.GEMINI_MODEL || process.env.GEMINI_FLASH_MODEL || 'gemini-3.7-flash';
+// Paulo, 06/09: *"precisamos alterar nosso motor em todos os apps, do gemini,
+// 3.7 para 3.8 em todos"*. O ID vem do env do deploy (deploy-app.yml) e este é
+// só o fallback — os dois andam juntos (scripts/test-gemini-model-version.js).
+const GEMINI_DEFAULT_MODEL = process.env.GEMINI_MODEL || process.env.GEMINI_FLASH_MODEL || 'gemini-3.8-flash';
 const GEMINI_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || process.env.GEMINI_PRO_MODEL || GEMINI_DEFAULT_MODEL;
 const GEMINI_ALLOW_CLIENT_MODEL = String(process.env.GEMINI_ALLOW_CLIENT_MODEL || '').toLowerCase() === 'true';
 const runtimeConfig = carregarRuntimeConfig(process.env);
@@ -152,10 +155,62 @@ app.get('/api/version', (req, res) => {
 });
 
 
+// ─── O MODELO PINADO EXISTE NESTA CONTA? — RESULTADO, não STATUS ─────────────
+// `gemini_model` no /api/health dizia só qual nome o env pediu. Nome pinado à
+// mão que a conta não tem faz a IA cair CALADA no deploy (a lição do CFI,
+// 15/08) — e o deploy conferia o nome contra si mesmo, que é status. Esta
+// sonda PERGUNTA à Google se o modelo existe (GET no metadado, sem gerar nada)
+// e o deploy só roteia tráfego se a resposta não for "não existe".
+//   confirmado     → a API devolveu o modelo
+//   nao-encontrado → a API respondeu 404: o nome não existe para esta chave
+//   indeterminado  → sem chave, rede piscou, ou ainda não respondeu (LIBERA,
+//                    dito — trancar o deploy porque a listagem piscou é o dano
+//                    maior; o CFI usa a mesma régua nos gates de departamento)
+const geminiModeloConferido = { situacao: 'indeterminado', detalhe: 'ainda não perguntei à Google', em: null, modelo: GEMINI_DEFAULT_MODEL };
+let geminiConferindo = null;
+function conferirModeloGeminiNaConta() {
+  if (geminiConferindo) return geminiConferindo;
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    Object.assign(geminiModeloConferido, { situacao: 'indeterminado', detalhe: 'GEMINI_API_KEY ausente — não dá para perguntar', em: new Date().toISOString() });
+    return Promise.resolve(geminiModeloConferido);
+  }
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(GEMINI_DEFAULT_MODEL) + '?key=' + encodeURIComponent(key);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
+  geminiConferindo = fetch(url, { signal: ctrl.signal })
+    .then(async (r) => {
+      const body = await r.text().catch(() => '');
+      if (r.ok) return { situacao: 'confirmado', detalhe: 'a conta lista ' + GEMINI_DEFAULT_MODEL };
+      if (r.status === 404) return { situacao: 'nao-encontrado', detalhe: 'HTTP 404 — o modelo ' + GEMINI_DEFAULT_MODEL + ' não existe para esta chave: ' + body.slice(0, 160) };
+      return { situacao: 'indeterminado', detalhe: 'HTTP ' + r.status + ' ao perguntar pelo modelo: ' + body.slice(0, 160) };
+    })
+    .catch((e) => ({ situacao: 'indeterminado', detalhe: 'não consegui perguntar à Google: ' + (e && e.message ? e.message : String(e)) }))
+    .then((r) => {
+      Object.assign(geminiModeloConferido, r, { em: new Date().toISOString() });
+      console.log('[gemini] modelo ' + GEMINI_DEFAULT_MODEL + ': ' + r.situacao + ' — ' + r.detalhe);
+      return geminiModeloConferido;
+    })
+    .finally(() => { clearTimeout(timer); geminiConferindo = null; });
+  return geminiConferindo;
+}
+// Fire-and-forget no boot: o processo não espera a Google para subir.
+conferirModeloGeminiNaConta().catch(() => {});
+
 app.get('/api/health', async (req, res) => {
   try {
     const test = await db.collection('planos').limit(1).get();
-    res.json({ status: 'ok', versao: lerVersao().version || 'dev', firestore: 'connected', planos_existem: test.size > 0, gemini_model: GEMINI_DEFAULT_MODEL, projects: identidadePublica(runtimeConfig) });
+    // Indeterminado há mais de 1 min (rede piscou no boot) → pergunta de novo,
+    // sem segurar a resposta: o health continua rápido e o próximo já vê.
+    const idade = geminiModeloConferido.em ? Date.now() - Date.parse(geminiModeloConferido.em) : Infinity;
+    if (geminiModeloConferido.situacao === 'indeterminado' && idade > 60000) conferirModeloGeminiNaConta().catch(() => {});
+    res.json({
+      status: 'ok', versao: lerVersao().version || 'dev', firestore: 'connected', planos_existem: test.size > 0,
+      gemini_model: GEMINI_DEFAULT_MODEL,
+      gemini_model_conferido: geminiModeloConferido.situacao,
+      gemini_model_detalhe: geminiModeloConferido.detalhe,
+      projects: identidadePublica(runtimeConfig),
+    });
   } catch (err) { res.status(500).json({ status: 'erro', erro: err.message }); }
 });
 

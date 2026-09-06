@@ -10,10 +10,21 @@
   </style>
 </head>
 <body>
-  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 04/09/2026</span></div></section>
+  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 06/09/2026</span></div></section>
   <main class="wrap content">
     <article class="release">
       <div class="tag">Leia esta parte primeiro</div>
+      <header><h2>🤖 Motor de IA na família Gemini 3.8 — e o deploy agora confere se o modelo existe</h2><span class="date">06/09/2026 · v3.4.258</span></header>
+      <ul>
+        <li><strong>O que mudou:</strong> o CCI passou a pedir o <strong>Gemini 3.8 Flash</strong> (estava no 3.7). É o motor que lê os PDFs de extrato e balancete e responde no chat do AuditAI. A mesma troca foi feita no Consultor Fiscal, no Legalização, no DP/Folha e no Financeiro — pedido do Paulo em 06/09.</li>
+        <li><strong>O que NÃO muda para você:</strong> nenhum botão novo, nenhum cadastro. Se uma leitura de PDF vier diferente do que vinha, mande o print com a versão (menu <em>Sobre</em>).</li>
+        <li><strong>Onde:</strong> menu <strong>Sobre</strong> → linha <em>Motor IA</em> mostra a versão; a tela de importação diz <em>PDFs processados com IA Gemini 3.8</em>.</li>
+        <li><strong>Por trás:</strong> antes o deploy só conferia o <em>nome</em> do modelo contra ele mesmo. Agora o servidor <strong>pergunta à Google</strong> se o modelo existe na conta e o deploy <strong>não libera</strong> uma versão cujo motor a Google diz que não existe — um nome errado derrubaria a IA em silêncio.</li>
+      </ul>
+    </article>
+
+    <article class="release">
+      <div class="tag">Anterior</div>
       <header><h2>✅ R-4020: “não vira evento” com IRRF + PIS/COFINS/CSLL — destravado</h2><span class="date">04/09/2026 · v3.4.254</span></header>
       <ul>
         <li><strong>O caso:</strong> beneficiário com <strong>IRRF retido E a CSRF completa</strong> (PIS + COFINS + CSLL) ficava com o selo <strong>não vira evento</strong> e o botão de transmitir <strong>nem aparecia</strong> — mesmo com todos os valores certos.</li>
