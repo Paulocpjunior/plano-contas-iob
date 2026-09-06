@@ -177,7 +177,10 @@ function conferirModeloGeminiNaConta() {
   }
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(GEMINI_DEFAULT_MODEL) + '?key=' + encodeURIComponent(key);
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 10000);
+  // 25s, não 10: no deploy 138 (06/09) a sonda do boot estourou 10s num
+  // contêiner frio ("This operation was aborted") e o deploy passou por
+  // "indeterminado" — sem a prova que ele existia para dar.
+  const timer = setTimeout(() => ctrl.abort(), 25000);
   geminiConferindo = fetch(url, { signal: ctrl.signal })
     .then(async (r) => {
       const body = await r.text().catch(() => '');
@@ -200,10 +203,11 @@ conferirModeloGeminiNaConta().catch(() => {});
 app.get('/api/health', async (req, res) => {
   try {
     const test = await db.collection('planos').limit(1).get();
-    // Indeterminado há mais de 1 min (rede piscou no boot) → pergunta de novo,
-    // sem segurar a resposta: o health continua rápido e o próximo já vê.
+    // Indeterminado há mais de 15s (rede piscou no boot) → pergunta de novo,
+    // sem segurar a resposta: o health continua rápido e o próximo já vê. É o
+    // deploy que insiste (ele chama o health de novo enquanto for indeterminado).
     const idade = geminiModeloConferido.em ? Date.now() - Date.parse(geminiModeloConferido.em) : Infinity;
-    if (geminiModeloConferido.situacao === 'indeterminado' && idade > 60000) conferirModeloGeminiNaConta().catch(() => {});
+    if (geminiModeloConferido.situacao === 'indeterminado' && idade > 15000) conferirModeloGeminiNaConta().catch(() => {});
     res.json({
       status: 'ok', versao: lerVersao().version || 'dev', firestore: 'connected', planos_existem: test.size > 0,
       gemini_model: GEMINI_DEFAULT_MODEL,

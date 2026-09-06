@@ -26,9 +26,20 @@ que não fique mais confuso?"*).
   responder 404 o run fica vermelho com a frase, nunca a IA quebrada em
   produção. O `test-gemini-model-version.js` agora proíbe `gemini-3.7-flash`
   nos três arquivos e exige a sonda + o gate no workflow.
+  🐛 **E A PRIMEIRA RODADA DA SONDA NÃO PROVOU NADA — deploy 138, mesmo dia**:
+  o health veio `indeterminado · "não consegui perguntar à Google: This
+  operation was aborted"`. Dois defeitos meus somados: 10s de sonda num
+  contêiner FRIO estoura, e o health final é lido 14s depois do boot — antes
+  da repergunta, que só disparava após 1 min. O deploy passou pelo caminho
+  "indeterminado LIBERA" (certo), mas a prova que a sonda existia para dar
+  nunca chegou ao log. ✂️ Sonda com 25s, repergunta a partir de 15s, e o
+  deploy **ESPERA** (até 5×20s) enquanto for indeterminado antes de julgar.
+  ⚠️ E este ambiente não alcança o Cloud Run (CONNECT 403), então não dá para
+  chamar o health daqui: **o log do deploy é o único instrumento**.
   📌 **REGRA QUE FICA: nome de modelo é da família do ID de tabela oficial —
   vem da FONTE (a resposta da Google), nunca da memória.** O deploy é o lugar
-  que pergunta, porque é o único que tem a chave.
+  que pergunta, porque é o único que tem a chave — e uma sonda que o deploy
+  não espera é status com outra roupa.
 
 ## O que é este app
 
