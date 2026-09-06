@@ -32,5 +32,11 @@ assert(server.includes("gemini_model_conferido: geminiModeloConferido.situacao")
 assert(server.includes("v1beta/models/' + encodeURIComponent(GEMINI_DEFAULT_MODEL) + '?key='"), 'a sonda pergunta à Google pelo PRÓPRIO modelo pinado, nunca por outro nome');
 assert(workflow.includes('nao-encontrado)') && workflow.includes('exit 1'), 'deploy deve recusar tráfego quando a Google diz que o modelo NÃO existe');
 assert(workflow.includes('::warning::Não deu para confirmar'), 'indeterminado LIBERA e vai dito — rede que piscou não é veredito');
+// Deploy 138 (06/09): a sonda do boot estourou 10s e o health foi lido 14s
+// depois do boot — "indeterminado" sem chance de resposta. O deploy espera a
+// sonda antes de julgar; sem isso a prova nunca chega ao log.
+assert(workflow.includes('esperando a sonda do modelo'), 'o deploy deve ESPERAR a sonda enquanto for indeterminado, senão a prova nunca chega ao log');
+assert(server.includes('ctrl.abort(), 25000'), 'a sonda do boot precisa de folga para contêiner frio (10s estourou no deploy 138)');
+assert(server.includes("idade > 15000) conferirModeloGeminiNaConta()"), 'health reperguntando a partir de 15s — é o deploy que insiste');
 
 console.log('OK: CCI fixado no Gemini 3.8 Flash no servidor, frontend e deploy.');

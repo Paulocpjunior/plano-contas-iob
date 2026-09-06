@@ -364,6 +364,18 @@ jobs:
           # (rede que piscou não é veredito), mas vai dito no log.
           MODEL_CONFERIDO=$(jq -r '.gemini_model_conferido // "indeterminado"' /tmp/health.json)
           MODEL_DETALHE=$(jq -r '.gemini_model_detalhe // empty' /tmp/health.json)
+          # No deploy 138 a sonda do boot estourou o tempo e o health foi lido
+          # 14s depois do boot: "indeterminado" sem chance de resposta. A prova
+          # é a razão desta sonda existir — então espera-se por ela (o servidor
+          # repergunta a cada health quando o resultado tem mais de 15s).
+          for espera in 1 2 3 4 5; do
+            [ "$MODEL_CONFERIDO" != "indeterminado" ] && break
+            echo "esperando a sonda do modelo ($espera/5): $MODEL_DETALHE"
+            sleep 20
+            curl -sSf "$CANDIDATE_URL/api/health" > /tmp/health.json || continue
+            MODEL_CONFERIDO=$(jq -r '.gemini_model_conferido // "indeterminado"' /tmp/health.json)
+            MODEL_DETALHE=$(jq -r '.gemini_model_detalhe // empty' /tmp/health.json)
+          done
           case "$MODEL_CONFERIDO" in
             confirmado) echo "✓ a conta lista $HEALTH_MODEL ($MODEL_DETALHE)" ;;
             nao-encontrado) echo "::error::A Google respondeu que $HEALTH_MODEL NÃO existe para esta chave ($MODEL_DETALHE) — tráfego não roteado. Corrija GEMINI_MODEL no deploy-app.yml."; exit 1 ;;
@@ -430,6 +442,7 @@ jobs:
           if [ "$HEALTH_MODEL" != "gemini-3.8-flash" ]; then
             echo "::error::Produção iniciou com motor $HEALTH_MODEL; esperado gemini-3.8-flash."; exit 1
           fi
+          echo "sonda do modelo em produção: $(jq -r '.gemini_model_conferido // "indeterminado"' /tmp/production-health.json) — $(jq -r '.gemini_model_detalhe // empty' /tmp/production-health.json)"
           jq -e --arg runtime "$PROJECT_ID" --arg data "$CCI_DATA_PROJECT_ID" --arg database "$CCI_DATA_DATABASE_ID" --arg auth "$CCI_AUTH_PROJECT_ID" --arg backup "$CCI_BACKUP_PROJECT_ID" \
             '.projects == {runtime:$runtime,data:$data,database:$database,auth:$auth,backup:$backup}' /tmp/production-health.json >/dev/null || {
             echo "::error::Topologia de projetos da produção diverge da configuração explícita."; exit 1;
