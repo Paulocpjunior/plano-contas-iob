@@ -180,20 +180,31 @@
         });
       });
       const issRetido = r2(nota.issRetido);
-      if (prestado && issRetido > 0) {
+      // 🚨 ISS RETIDO SÓ NASCIA EM PRESTADOS (08/09, CLUDE · tomados 08/2026):
+      // duas notas com "ISS Retido: Sim" (5,56 e 7,00) chegavam e nada era
+      // lançado — e o resumo mandava "marque a opção acima", que é a do ISS
+      // DESTACADO de prestados e não se aplica a tomados. Em TOMADOS a
+      // retenção é obrigação do tomador (ISS a recolher): entra com o mesmo
+      // desenho das retenções federais de tomados — valor POSITIVO reduzindo
+      // o que se paga ao prestador, componente IMPOSTO_RETIDO_SERVICO_TOMADO.
+      if (issRetido > 0) {
         lancamentos.push({
           ...base,
-          descricao: 'ISS RETIDO - NF ' + nota.numero + (documentoParte ? ' - tomador ' + documentoParte : ''),
-          valor: -issRetido,
-          categoriaFiscal: 'RETENCAO_SERVICO_PRESTADO',
+          descricao: 'ISS RETIDO - NF ' + nota.numero + (documentoParte ? (prestado ? ' - tomador ' : ' - prestador ') + documentoParte : ''),
+          valor: prestado ? -issRetido : issRetido,
+          categoriaFiscal: prestado ? 'RETENCAO_SERVICO_PRESTADO' : 'RETENCAO_SERVICO_TOMADO',
           categoria: 'Impostos Retidos',
-          componenteFiscal: 'IMPOSTO_RETIDO',
+          componenteFiscal: prestado ? 'IMPOSTO_RETIDO' : 'IMPOSTO_RETIDO_SERVICO_TOMADO',
           tributoRetido: 'ISS',
           valorTributoRetido: issRetido,
+          valorContabil: issRetido,
+          valorImpostoFiscal: issRetido,
+          impostoFiscalTipo: 'ISS',
+          cfiIssRetidoOrigem: nota.issRetidoOrigem || null,
           cfiLancamentoId: nota.idOrigem + ':ISS',
           historico: 'ISS RETIDO NF ' + nota.numero,
-          conta: 'Fiscal ' + codigo + ' - ISS Retido em Servicos',
-          nome_conta: 'Fiscal ' + codigo + ' - ISS Retido em Servicos'
+          conta: 'Fiscal ' + codigo + ' - ' + (prestado ? 'ISS Retido em Servicos' : 'ISS Retido a Recolher'),
+          nome_conta: 'Fiscal ' + codigo + ' - ' + (prestado ? 'ISS Retido em Servicos' : 'ISS Retido a Recolher')
         });
       }
     });
@@ -207,7 +218,14 @@
       total_iss_destacado_cfi: notas.every((nota) => nota.valorIss != null && nota.valorIss !== '' && typeof nota.valorIss !== 'boolean' && Number.isFinite(Number(nota.valorIss)) && Number(nota.valorIss) >= 0)
         ? r2(notas.reduce((soma, nota) => soma + r2(nota.valorIss), 0)) : null,
       importar_iss_destacado: movimento === 'servicos_prestados' && opts.importarIssDestacado === true,
+      // ISS DESTACADO só existe em PRESTADOS: em tomados o ISS do prestador
+      // está dentro do preço — o que entra é o RETIDO. A tela lê isto para
+      // não mandar "marcar a opção acima" num movimento em que ela não vale.
+      iss_destacado_aplicavel: movimento === 'servicos_prestados',
       total_iss_retido: totalIssRetido,
+      // Quantas retenções o CFI DERIVOU do ISS da nota (portal de SP declara
+      // "Retido: Sim" sem valor separado) — vai dito, nunca escondido.
+      total_iss_retido_derivadas: Number((body.resumo && body.resumo.issRetidoPeloIssDaNota) || 0),
       detectado: true,
       contrato: body.contrato,
       direcao_fiscal: movimento,
@@ -217,7 +235,7 @@
       empresa_codigo_detectado: codigo,
       periodo_inicio: inicio,
       periodo_fim: fim,
-      total_credito: movimento === 'servicos_prestados' ? totalCalculado : totalFederal,
+      total_credito: movimento === 'servicos_prestados' ? totalCalculado : r2(totalFederal + totalIssRetido),
       total_debito: movimento === 'servicos_tomados' ? totalCalculado : r2(totalIssRetido + totalIssDestacado + totalFederal),
       total_liquido: r2(totalCalculado - totalIssRetido - (movimento === 'servicos_tomados' ? totalFederal : 0)),
       total_notas_fiscais: notas.length,

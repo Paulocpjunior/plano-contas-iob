@@ -53,6 +53,35 @@ const payload = {
   console.log('OK: movimento fiscal direto do CFI validado por contrato, CNPJ, competencia, identidade e total.');
 })().catch((e) => { console.error(e); process.exitCode = 1; });
 
+// ============================================================================
+// 🚨 ISS RETIDO EM SERVIÇOS TOMADOS NÃO ERA LANÇADO (08/09, CLUDE · 08/2026):
+// duas notas do portal com "ISS Retido: Sim" (5,56 e 7,00) chegavam e o
+// resumo dizia "ISS retido: R$ 0,00" — a linha só nascia em PRESTADOS, e a
+// frase mandava marcar a opção do ISS DESTACADO, que não se aplica a tomados.
+// ============================================================================
+const tomadosRetido = { ...payload, movimento: 'servicos_tomados', notas: [
+  { idOrigem: 'n10353', numero: '10353', data: '2026-06-01', participanteNome: 'PRESENCA TECNOLOGIA', participanteDocumento: '11222333000181',
+    valor: 278.03, baseCalculoIss: 278.03, valorIss: 5.56, issRetido: 5.56, issRetidoOrigem: 'declarado-iss-integral' },
+  { idOrigem: 'n8370', numero: '8370', data: '2026-06-04', participanteNome: 'MAX 2 COPIAS', participanteDocumento: '44555666000172',
+    valor: 75.4, baseCalculoIss: 75.4, valorIss: 0, issRetido: 0, issRetidoOrigem: null },
+], resumo: { notas: 2, total: 353.43, issRetidoTotal: 5.56, issRetidoPeloIssDaNota: 1 } };
+const tomadoRet = normalizarMovimentoFiscalCfi(tomadosRetido, { cnpj: payload.cnpjEmpresa, competencia: payload.competencia, movimento: 'servicos_tomados', importarIssDestacado: true });
+assert.deepStrictEqual(tomadoRet.lancamentos.map((l) => l.cfiLancamentoId), ['n10353:BRUTO', 'n10353:ISS', 'n8370:BRUTO']);
+const linhaIss = tomadoRet.lancamentos[1];
+assert.strictEqual(linhaIss.valor, 5.56, 'em tomados o retido reduz o que se paga ao prestador — valor POSITIVO');
+assert.strictEqual(linhaIss.componenteFiscal, 'IMPOSTO_RETIDO_SERVICO_TOMADO');
+assert.strictEqual(linhaIss.tributoRetido, 'ISS');
+assert.strictEqual(linhaIss.cfiIssRetidoOrigem, 'declarado-iss-integral', 'o carimbo do CFI viaja para o lancamento');
+assert.strictEqual(tomadoRet.total_iss_retido, 5.56);
+assert.strictEqual(tomadoRet.total_credito, 5.56);
+assert.strictEqual(tomadoRet.total_debito, 353.43);
+assert.strictEqual(tomadoRet.total_liquido, 347.87);
+assert.strictEqual(tomadoRet.iss_destacado_aplicavel, false, 'ISS destacado NAO se aplica a tomados, mesmo com a opcao marcada');
+assert.strictEqual(tomadoRet.importar_iss_destacado, false);
+assert.strictEqual(tomadoRet.total_iss_retido_derivadas, 1);
+assert.strictEqual(normalizarMovimentoFiscalCfi(payload, { cnpj: payload.cnpjEmpresa, competencia: payload.competencia, movimento: 'servicos_prestados' }).iss_destacado_aplicavel, true);
+console.log('OK: ISS retido em servicos tomados vira linha propria (a recolher), com a origem do CFI carimbada.');
+
 // Caso sintetico com os totais informados para HS; nao representa consulta real.
 const hs = { ...payload, notas: Array.from({ length: 11 }, (_, i) => ({
   idOrigem: 'hs-' + i, numero: String(i + 1), data: '2026-06-03',
