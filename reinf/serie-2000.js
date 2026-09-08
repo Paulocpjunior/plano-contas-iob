@@ -63,11 +63,15 @@ const SERIE_2000 = Object.freeze([
     periodicidade: 'mensal',
     cobertura: 'a-homologar',
     falta: [
-      'O mesmo código de tipo de serviço do R-2010.',
-      'Confirmar com o Paulo se algum cliente PRESTA serviço com cessão de mão de obra — se nenhum '
-      + 'presta, este evento não entra em onda nenhuma.',
+      'O código de tipo de serviço (tpServico) e o indicador de obra — cadastrados por TOMADOR na tela, '
+      + 'porque nenhum dos dois está na nota.',
+      'Uma transmissão pelo NOSSO gerador aceita em produção restrita: o leiaute foi provado com um '
+      + 'evento aceito do REINF.Web (08/09), mas o gerador daqui ainda não transmitiu.',
     ],
-    gancho: null,
+    // Confirmado em 08/09: há cliente que PRESTA com cessão de mão de obra e
+    // sofre a retenção — o Paulo mandou o evento aceito dele.
+    gancho: 'As notas PRESTADAS com INSS retido já estão capturadas no CFI, que as entrega por tomador e '
+      + 'honra o INSS informado à mão (ajuste declarado). A tela existe desde 08/09.',
   },
   {
     codigo: 'R-2030', tag: 'evtAssocDespRec',

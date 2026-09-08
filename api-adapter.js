@@ -817,6 +817,33 @@
     return await r.json();
   }
 
+  // R-2020 — serviços PRESTADOS com retenção previdenciária sofrida. A leitura
+  // da nota (e o ajuste declarado) vem do CFI; este lado só apura o que falta.
+  async function reinfServicosPrestados(cnpj, competencia) {
+    const c = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/reinf/servicos-prestados/' + c + '/' + encodeURIComponent(competencia || ''));
+    return await r.json();
+  }
+
+  // tpServico e indObra são do TOMADOR (o contrato com ele), não da nota.
+  async function reinfServicoPrestadoTomador(payload) {
+    const r = await apiFetch(API_BASE + '/api/reinf/servicos-prestados/tomador', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+    });
+    return await r.json();
+  }
+
+  async function reinfServicosPrestadosTransmitir(payload) {
+    const r = await apiFetch(API_BASE + '/api/reinf/servicos-prestados/transmitir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+    });
+    return await r.json();
+  }
+
   // R-2099 — fechamento da série R-2000. Sem ele os eventos do mês ficam
   // recebidos e NÃO viram totalizador nem DARF.
   async function reinfFechamento2000(cnpj, competencia) {
@@ -998,7 +1025,10 @@
   window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, consultarEstruturaMatrizFilial, sincronizarRegimeCfi, consultarParametrizacaoRegime, salvarParametrizacaoRegime, validarRegimeCnaeIA, aprovarSaldosAbertura, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, adotarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarPeriodosContabeis, consultarHomologacaoPiloto, avaliarConciliacaoBancaria, aprovarConciliacaoBancaria, avaliarConciliacaoDetalhada, aprovarConciliacaoDetalhada, listarAtivosImobilizados, salvarAtivoImobilizado, baixarAtivoImobilizado, previaDepreciacaoAtivo, aprovarDepreciacaoAtivo, previaEventoAtivo, aprovarEventoAtivo, enviarRelatorioContabilEmail, fecharPeriodoContabil, reabrirPeriodoContabil, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalFechamentosCfi, fiscalImportarFechamentoCfi, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAjustarRetencao, reinfTransmitirRetencoesPJ, reinfAquisicaoRural,
     reinfServicosTomados,
     reinfServicoTomadoPrestador,
-    reinfServicosTomadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
+    reinfServicosTomadosTransmitir,
+    reinfServicosPrestados,
+    reinfServicoPrestadoTomador,
+    reinfServicosPrestadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
   window.API.getAdminProgressaoContabil = getAdminProgressaoContabil;
   window.API.getMinhasPendenciasContabeis = getMinhasPendenciasContabeis;
   window.API.salvarAdminAcompanhamentoContabil = salvarAdminAcompanhamentoContabil;

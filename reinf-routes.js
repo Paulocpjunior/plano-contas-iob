@@ -20,7 +20,7 @@ const { enviarLote, consultarLote } = require('./reinf/transmissor');
 const { transmissorAtivo, enviarLoteViaGateway, consultarLoteViaGateway } = require('./reinf/gateway-client');
 const { apurarRetencoesPJ } = require('./reinf/retencao-pj-apuracao');
 const { ajustarRetencaoNoCfi } = require('./reinf/cfi-notas-client');
-const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarServicosTomadosNoCfi, buscarResponsavelNoCfi, buscarCertificadoNoCfi } = require('./reinf/cfi-notas-client');
+const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarServicosTomadosNoCfi, buscarServicosPrestadosNoCfi, buscarResponsavelNoCfi, buscarCertificadoNoCfi } = require('./reinf/cfi-notas-client');
 const { resumirResponsavel, avisosDoResponsavel } = require('./reinf/responsavel-escritorio');
 const { conferirCertificado } = require('./reinf/certificado-conferencia');
 const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
@@ -28,6 +28,8 @@ const { apurarServicosTomados, patchCadastroPrestador } = require('./reinf/servi
 const { gerarEventosR2055 } = require('./reinf/gerar-r2055');
 const { gerarR4020, pagamentoR4020DoBeneficiario } = require('./reinf/gerar-r4020');
 const { gerarEventosR2010 } = require('./reinf/gerar-r2010');
+const { gerarEventosR2020 } = require('./reinf/gerar-r2020');
+const { apurarServicosPrestados, patchCadastroTomador } = require('./reinf/servicos-prestados-apuracao');
 const { gerarR2099, podeTransmitirR2099 } = require('./reinf/gerar-r2099');
 const { derivarGruposDoLog, resumoDoFechamento } = require('./reinf/fechamento-2000-grupos');
 const {
@@ -1926,6 +1928,238 @@ function registrarRotasReinf(app, { db } = {}) {
         sondaLeiaute: maxProdutores ? { produtoresEnviados: prontos.length, deUmTotalDe: todosProntos.length } : null,
         declarados: prontos.map((l) => ({ doc: l.docProdutor, nome: l.nome, base: l.base, total: l.total, indAquis: l.indAquis })),
         naoDeclarados: pendentes.map((l) => ({ doc: l.docProdutor, tipoInscricao: l.tipoInscricao, nome: l.nome, pendencias: l.pendencias })),
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // R-2020 — retenção previdenciária SOFRIDA em serviços PRESTADOS. Quem
+  // declara é o PRESTADOR (o cliente); o eixo do evento é o TOMADOR.
+  //
+  // Calibrado contra um `evtServPrest` ACEITO em produção (07/2026, 08/09).
+  // A leitura do documento e o ajuste declarado vêm do CFI; aqui só se decide
+  // quem PODE entrar no evento. Cadastro por TOMADOR em
+  // `reinf_servicos_prestados_tomadores` (tpServico, indObra, basesPorNota).
+  // ══════════════════════════════════════════════════════════════════════════
+  async function lerCadastroTomadoresR2020(banco, cnpjPrestador) {
+    try {
+      const snap = await banco.collection('reinf_servicos_prestados_tomadores')
+        .where('cnpjPrestador', '==', limparCnpj(cnpjPrestador))
+        .get();
+      const out = {};
+      snap.forEach((d) => {
+        const v = d.data() || {};
+        if (v.cnpjTomador) out[v.cnpjTomador] = {
+          tpServico: v.tpServico || null,
+          indObra: v.indObra === 0 || v.indObra ? String(v.indObra) : null,
+          basesPorNota: v.basesPorNota || {},
+        };
+      });
+      return out;
+    } catch (err) {
+      // {} significa "não informado", que BLOQUEIA — nunca "informado com o
+      // valor padrão".
+      console.warn('[reinf/r2020] cadastro de tomadores indisponível:', err.message);
+      return {};
+    }
+  }
+
+  // GET /api/reinf/servicos-prestados/:cnpj/:competencia
+  router.get('/servicos-prestados/:cnpj/:competencia', async (req, res) => {
+    try {
+      const cnpj = limparCnpj(req.params.cnpj);
+      const competencia = String(req.params.competencia || '').trim();
+      const auth = String(req.headers.authorization || '');
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+
+      const doCfi = await buscarServicosPrestadosNoCfi({ cnpj, competencia, token });
+      const apuracao = apurarServicosPrestados({
+        competencia,
+        tomadores: doCfi.tomadores,
+        cadastro: await lerCadastroTomadoresR2020(db, cnpj),
+      });
+
+      res.json({
+        ok: true,
+        origem: 'cfi',
+        empresa: doCfi.empresa,
+        competencia,
+        ...apuracao,
+        ressalvasDaFonte: doCfi.ressalvas,
+        resumoDaFonte: doCfi.resumo,
+      });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // POST /api/reinf/servicos-prestados/tomador — o cadastro por tomador.
+  //
+  // A MESMA régua do R-2010 (02/09): só se grava o campo que VEIO. A base
+  // informada vai por caminho pontilhado, uma nota por vez.
+  router.post('/servicos-prestados/tomador', async (req, res) => {
+    try {
+      const p = req.body || {};
+      const cnpjPrestador = limparCnpj(p.cnpjPrestador);
+      const cnpjTomador = limparCnpj(p.cnpjTomador);
+      if (cnpjPrestador.length !== 14) throw new Error('Informe o CNPJ do prestador com 14 dígitos.');
+      if (cnpjTomador.length !== 14) throw new Error('Informe o CNPJ do tomador com 14 dígitos.');
+
+      let patchBase = null;
+      if (p.baseNota && String(p.baseNota.numero || '').trim()) {
+        const numero = String(p.baseNota.numero).trim();
+        const bruto = String(p.baseNota.valor == null ? '' : p.baseNota.valor).trim();
+        if (!bruto) {
+          patchBase = { [`basesPorNota.${numero}`]: FieldValue.delete() };
+        } else {
+          const v = Number(bruto.replace(/\./g, '').replace(',', '.'));
+          if (!Number.isFinite(v) || v <= 0) {
+            throw new Error(`Base da nota ${numero} inválida ("${bruto}"). Informe o valor da base `
+              + 'de retenção que consta da nota — maior que zero. Para REMOVER a base informada, '
+              + 'deixe o campo vazio.');
+          }
+          patchBase = { [`basesPorNota.${numero}`]: Math.round(v * 100) / 100 };
+        }
+      }
+
+      const { campos: camposInformados } = patchCadastroTomador(p);
+      const docRef = db.collection('reinf_servicos_prestados_tomadores').doc(cnpjPrestador + '_' + cnpjTomador);
+      await docRef.set({
+        cnpjPrestador,
+        cnpjTomador,
+        ...camposInformados,
+        informadoPor: (req.user && (req.user.email || req.user.uid)) || 'desconhecido',
+        informadoEm: Date.now(),
+      }, { merge: true });
+      if (patchBase) await docRef.update(patchBase);
+
+      res.json({ ok: true, cnpjTomador });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // POST /api/reinf/servicos-prestados/transmitir
+  //
+  // Só os tomadores PRONTOS entram; pendente fica de fora NOMEADO. UM TOMADOR
+  // POR EVENTO (a régua MS0030 do R-2055).
+  router.post('/servicos-prestados/transmitir', async (req, res) => {
+    try {
+      const p = req.body || {};
+      const cnpj = limparCnpj(p.cnpj);
+      const competencia = String(p.competencia || '').trim();
+      const tpAmb = Number(p.tpAmb || 2);
+      const auth = String(req.headers.authorization || '');
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+
+      if (cnpj.length !== 14) throw new Error('Informe o CNPJ do prestador com 14 dígitos — é ele quem declara o R-2020.');
+      if (!/^\d{4}-\d{2}$/.test(competencia)) throw new Error('Competência deve ser AAAA-MM.');
+      if (Number(tpAmb) === 1 && p.confirmoProducao !== true) {
+        throw new Error('Transmissão em PRODUÇÃO exige confirmação explícita (confirmoProducao=true). Sem ela, use produção restrita (tpAmb=2).');
+      }
+
+      const doCfi = await buscarServicosPrestadosNoCfi({ cnpj, competencia, token });
+      const apuracao = apurarServicosPrestados({
+        competencia,
+        tomadores: doCfi.tomadores,
+        cadastro: await lerCadastroTomadoresR2020(db, cnpj),
+      });
+
+      const prontos = apuracao.tomadores.filter((l) => l.pronto);
+      const pendentes = apuracao.tomadores.filter((l) => !l.pronto);
+      if (!prontos.length) {
+        return res.json({
+          ok: false,
+          etapa: 'apuracao',
+          motivo: 'Nenhum tomador PRONTO para declarar nesta competência. Resolva as pendências '
+            + '(tipo de serviço, indicador de obra ou base de retenção) antes de transmitir.',
+          naoDeclarados: pendentes.map((l) => ({ cnpj: l.cnpjTomador, nome: l.nome, pendencias: l.pendencias })),
+        });
+      }
+
+      // A base de cada nota é a FINAL da apuração (provada pela alíquota ou
+      // informada) — nunca a derivada.
+      const eventos = gerarEventosR2020({
+        contribuinte: { tpInsc: 1, nrInsc: cnpj },
+        estab: { tpInscEstabPrest: 1, nrInscEstabPrest: cnpj },
+        perApur: competencia,
+        tpAmb,
+        seq: 1,
+        tomadores: prontos.map((l) => {
+          const basePorNumero = {};
+          (l.basesDasNotas || []).forEach((b) => { basePorNumero[String(b.numero)] = b.base; });
+          return {
+            cnpjTomador: l.cnpjTomador,
+            indObra: l.indObra,
+            notas: l.notas.map((n) => ({
+              // A NFS-e de prefeitura própria (ABRASF) não tem série e o CFI a
+              // grava vazia. O grupo `nfs` é o MESMO tipo do R-2010, e lá o
+              // evento aceito de 06/2026 levou `serie 0` — é o único valor
+              // provado para "não há série"; o gerador recusa a vazia.
+              serie: n.serie || '0',
+              numDocto: n.numero,
+              dtEmissaoNF: String(n.dtEmissao || '').slice(0, 10),
+              vlrBruto: n.vlrBruto,
+              servicos: [{
+                tpServico: l.tpServico,
+                vlrBaseRet: basePorNumero[String(n.numero)],
+                vlrRetencao: n.inssRetido,
+              }],
+            })),
+          };
+        }),
+      });
+
+      const cert = transmissorAtivo() === 'gateway' ? null : await loadCertificado();
+      const loteContrib = normalizarContribuinteLote({ tpInsc: 1, nrInsc: cnpj });
+      const envio = await assinarEEnviarLote(eventos.map((e) => e.xml), cert, loteContrib, tpAmb, req);
+      const info = parseRetornoReinf(envio);
+      const recibo = info.protocolo
+        ? await consultarLoteAteProcessar(info.protocolo, tpAmb, { req })
+        : { httpStatus: envio.status, ...info };
+
+      const ocorrencias = extrairOcorrenciasReinf((recibo && recibo.xml) || info.xml);
+      // `transmitir_r2020` é o que o fechamento R-2099 lê para saber que o
+      // grupo existe na competência (fechamento-2000-grupos.js).
+      await registrarLog(db, req, 'transmitir_r2020', {
+        contribuinte: cnpj,
+        tpAmb,
+        competencia,
+        protocolo: info.protocolo || null,
+        httpStatus: envio.status,
+        cdResposta: (recibo && recibo.cdResposta) || info.cdResposta || null,
+        tomadoresDeclarados: prontos.length,
+        eventosEnviados: eventos.length,
+        tomadoresPendentes: pendentes.length,
+        ocorrencias: ocorrencias.map((o) => ({ codigo: o.codigo, descricao: o.descricao })),
+      });
+
+      const retornoFinal = recibo && recibo.cdResposta ? recibo : info;
+      const comErro = retornoReinfComErro(retornoFinal) || ocorrencias.length > 0;
+      const pendente = retornoReinfPendente(retornoFinal);
+
+      res.json({
+        ok: envio.status === 201 && !comErro && !pendente,
+        eventosRecusados: comErro,
+        aguardandoProcessamento: pendente,
+        ocorrencias,
+        etapa: 'r2020',
+        id: eventos[0] && eventos[0].id,
+        eventosEnviados: eventos.length,
+        tpAmb,
+        httpStatus: envio.status,
+        protocolo: info.protocolo,
+        cdResposta: (recibo && recibo.cdResposta) || info.cdResposta,
+        descResposta: (recibo && recibo.descResposta) || info.descResposta,
+        dhRecepcao: recibo && recibo.dhRecepcao,
+        xmlRetorno: retornoCruReinf((recibo && recibo.xml) || info.xml),
+        declarados: prontos.map((l) => ({
+          cnpj: l.cnpjTomador, nome: l.nome, tpServico: l.tpServico,
+          bruto: l.vlrTotalBruto, base: l.vlrTotalBaseRet, retencao: l.vlrTotalRetPrinc,
+        })),
+        naoDeclarados: pendentes.map((l) => ({ cnpj: l.cnpjTomador, nome: l.nome, pendencias: l.pendencias })),
       });
     } catch (err) {
       respostaErro(res, 400, err);

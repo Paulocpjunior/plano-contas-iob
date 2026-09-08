@@ -6,6 +6,43 @@ retoma. Criado em 07/08/2026, quando o projeto passou do CODEX para o Claude
 (Paulo: *"o CODEX estava tocando este projeto, você consegue administrar? para
 que não fique mais confuso?"*).
 
+- **🛠️ O R-2020 SAIU DO "A HOMOLOGAR" — calibrado no `evtServPrest` ACEITO,
+  não no R-2010 espelhado de memória** (08/09, Paulo: *"preciso gerar a REINF
+  de INSS de serviços prestados e não está habilitado, pode liberar"*, com o
+  print do card e o XML de 07/2026 transmitido pelo REINF.Web e aceito em
+  produção).
+  📖 **O QUE O ARQUIVO PROVOU**: `evtPrestadorServicos/v2_01_02` ·
+  `infoServPrest > ideEstabPrest(tpInscEstabPrest, nrInscEstabPrest) >
+  ideTomador(tpInscTomador, nrInscTomador, indObra, vlrTotalBruto,
+  vlrTotalBaseRet, vlrTotalRetPrinc, vlrTotalRetAdic, vlrTotalNRetPrinc,
+  vlrTotalNRetAdic, nfs*)` · `nfs(serie, numDocto, dtEmissaoNF, vlrBruto,
+  infoTpServ(tpServico, vlrBaseRet, vlrRetencao))` · bruto = base = 9.105,95,
+  retenção 1.001,65 (11%) · série `E`.
+  🚨 **O QUE ELE DESMENTIU DO ESPELHO INGÊNUO — e é por isso que o teste
+  reproduz o aceito, não o irmão**: **não existe `indCPRB`** (a desoneração do
+  prestador é do R-1000, `indDesoneracao`); o `infoTpServ` traz **só três
+  campos**, sem os sete zeros que o R-2010 emite; `obs` não aparece. O gerador
+  RECUSA `indCPRB` com o motivo e não emite tag não provada.
+  ✂️ `gerar-r2020.js` (um TOMADOR por evento — a régua MS0030 do R-2055; o
+  `indObra` viaja com o tomador), `servicos-prestados-apuracao.js` (cadastro
+  por TOMADOR em `reinf_servicos_prestados_tomadores`: tpServico, indObra,
+  base por nota; patch que só grava o campo que VEIO — a lição de 02/09),
+  rotas `/servicos-prestados/*` (o log grava `transmitir_r2020`, que o
+  fechamento R-2099 já mapeava desde 13/08), tela na série R-2000, card
+  **"Tela no ar"**. O CFI entrega por tomador e honra o INSS informado à mão
+  (ajuste declarado), que a tela carimba com o autor.
+  ⚠️ **SÉRIE VAZIA**: a NFS-e ABRASF não tem série e o CFI a grava vazia. O
+  grupo `nfs` é o MESMO tipo do R-2010, cujo aceito levou `serie 0` — é o
+  único valor provado para "não há série", e a rota o usa; o gerador recusa a
+  vazia. Os CNPJs do teste são FICTÍCIOS: dado de cliente não entra no repo.
+  🚩 **O QUE NÃO ESTÁ PROVADO, e vai dito na tela e na tabela da série**: uma
+  transmissão pelo NOSSO gerador aceita. O aceito é do REINF.Web. O caminho é
+  🧪 produção restrita primeiro; `resumoDaSerie().homologados` continua 0 de
+  propósito até o recibo do nosso lote.
+  📌 **REGRA QUE FICA: evento-espelho se calibra no arquivo aceito do PRÓPRIO
+  evento.** Espelhar o R-2010 teria emitido `indCPRB` e sete zeros — XML que o
+  XSD recusa, ou pior, aceita declarando campo que o evento não possui.
+
 - **🤖 O MOTOR SUBIU PARA `gemini-3.8-flash` — e o deploy passou a CONFERIR se
   o modelo existe, em vez de ecoar o env** (06/09, Paulo: *"precisamos alterar
   nosso motor em todos os apps, do gemini, 3.7 para 3.8 em todos"*).

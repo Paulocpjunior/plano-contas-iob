@@ -14,6 +14,20 @@
   <main class="wrap content">
     <article class="release">
       <div class="tag">Leia esta parte primeiro</div>
+      <header><h2>🛠️ R-2020 liberado: a retenção de INSS SOFRIDA em serviços PRESTADOS agora gera e transmite</h2><span class="date">08/09/2026 · v3.4.266</span></header>
+      <ul>
+        <li><strong>O caso:</strong> o card do <strong>R-2020</strong> dizia <em>“A homologar”</em> e não havia como gerar o evento de quem <strong>presta</strong> serviço com cessão de mão de obra e sofre a retenção dos 11%. O leiaute foi homologado com um evento <strong>aceito em produção</strong> (07/2026, transmitido pelo REINF.Web) e reproduzido campo a campo.</li>
+        <li><strong>Onde:</strong> EFD-Reinf → série <strong>R-2000</strong> → caixa <strong>R-2020 · Retenção previdenciária — serviços prestados</strong> → informe o CNPJ do <strong>prestador</strong> (o cliente) e a competência → <em>Buscar no Consultor Fiscal</em>. A lista vem por <strong>tomador</strong> — é o eixo do evento.</li>
+        <li><strong>O que você preenche, uma vez por tomador:</strong> o <strong>tpServico</strong> (tabela 06, 9 dígitos) e o <strong>indObra</strong> (0 não é obra · 1 obra com CNO · 2 empreitada total). Nenhum dos dois está na nota, e ficam salvos para os próximos meses. Não existe coluna de <em>indCPRB</em>: o R-2020 não tem esse campo (a desoneração é do R-1000).</li>
+        <li><strong>A base:</strong> só entra sozinha quando a retenção é 11% do bruto (o caso do evento aceito: 9.105,95 × 11% = 1.001,65). Retenção menor é dedução de material/insumo — a nota não traz a base separada, então ela aparece como <em>“a provar”</em> com um campo por nota para você informar.</li>
+        <li><strong>O INSS informado à mão entra:</strong> quando o cliente esqueceu de informar a retenção na nota e ela foi declarada no Consultor Fiscal (Relatórios → Retenções → ajuste, com autor e motivo), o valor declarado é o que vai ao evento — e a linha diz <em>“✍️ nº … informado por …”</em>.</li>
+        <li><strong>Transmissão:</strong> 🧪 produção restrita primeiro, 🚀 produção com confirmação. Um evento por tomador; pendente fica de fora e nomeado. O R-2099 (fechamento) passa a enxergar o R-2020 transmitido.</li>
+        <li><strong>O que ainda não está provado:</strong> uma transmissão pelo <strong>nosso</strong> gerador aceita — o evento aceito é do REINF.Web. Por isso o primeiro envio é em produção restrita, e o retorno da Receita sobe inteiro na tela.</li>
+      </ul>
+    </article>
+
+    <article class="release">
+      <div class="tag">Anterior</div>
       <header><h2>🧾 Serviços tomados: o ISS retido passou a entrar — e o resumo parou de mandar marcar a opção errada</h2><span class="date">08/09/2026 · v3.4.265</span></header>
       <ul>
         <li><strong>O caso:</strong> na sincronização direta do CFI, modelo <strong>Serviços tomados</strong>, duas notas com <strong>ISS retido</strong> (5,56 e 7,00) chegavam e o resumo dizia <em>ISS retido: R$ 0,00</em> — nenhuma linha de ISS era lançada. E a frase mandava <em>“marque a opção acima e consulte novamente”</em>, que é a opção <strong>Importar ISS destacado — serviços prestados</strong>: ela não vale para tomados, e marcar não mudava nada.</li>

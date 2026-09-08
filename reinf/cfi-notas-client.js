@@ -154,6 +154,10 @@ function interpretarRespostaCfi({ status, corpo, url }) {
     empresa: body.empresa || null,
     notas: Array.isArray(body.notas) ? body.notas.map(preservarPrestador) : [],
     prestadores: Array.isArray(body.prestadores) ? body.prestadores.map(preservarPrestador) : [],
+    // R-2020: o eixo é o TOMADOR. Chave própria — reaproveitar `prestadores`
+    // faria a tela do R-2010 e a do R-2020 lerem a mesma lista como se fosse
+    // a delas.
+    tomadores: Array.isArray(body.tomadores) ? body.tomadores : [],
     produtores: Array.isArray(body.produtores) ? body.produtores : [],
     resumo: body.resumo || null,
     ressalvas: Array.isArray(body.ressalvas) ? body.ressalvas : [],
@@ -289,6 +293,16 @@ const buscarAquisicoesRuraisNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'a
  */
 const buscarServicosTomadosNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'servicos-tomados' }, deps);
 
+/**
+ * R-2020: as NFS-e PRESTADAS com RETENÇÃO PREVIDENCIÁRIA SOFRIDA (11%, art. 31
+ * da Lei 8.212/91), agrupadas por TOMADOR — o eixo do evento.
+ *
+ * O CFI decide a BASE pela mesma assinatura de alíquota do R-2010 e honra o
+ * ajuste declarado (o INSS que o cliente informou à mão), carimbado. Aqui o
+ * `cnpj` é o do PRESTADOR — o cliente que declara.
+ */
+const buscarServicosPrestadosNoCfi = (p, deps) => buscarNoCfi({ ...p, recurso: 'servicos-prestados' }, deps);
+
 /** Movimento fiscal de servicos, direto da base normalizada do CFI. */
 async function buscarMovimentoFiscalNoCfi({ cnpj, competencia, movimento, token }, deps = {}) {
   const doFetch = deps.fetch || globalThis.fetch;
@@ -409,5 +423,6 @@ module.exports = {
   buscarFechamentosNoCfi,
   buscarMovimentoFiscalNoCfi,
   buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarServicosTomadosNoCfi,
+  buscarServicosPrestadosNoCfi,
   buscarResponsavelNoCfi, buscarCertificadoNoCfi, buscarAcessoModuloNoCfi,
 };
