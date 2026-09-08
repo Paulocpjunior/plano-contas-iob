@@ -81,3 +81,31 @@ assert.strictEqual(semSelecaoIss.importar_iss_destacado, false);
 assert.strictEqual(hsResult.total_iss_destacado_cfi, 2380);
 assert.strictEqual(hsResult.importar_iss_destacado, true);
 assert.strictEqual(normalizarMovimentoFiscalCfi(payload, { ...optsIss, importarIssDestacado: false }).total_iss_destacado_cfi, null);
+
+const federal = { ...payload, notas: [{ ...payload.notas[0], valor: 1000, valorIss: 50,
+  pisRetido: 6.5, cofinsRetido: 30, csllOuTotalRetido: 46.5, irRetido: 15, inssRetido: 110,
+}], resumo: { total: 1000 } };
+const federalOpts = { ...optsIss, importarIssDestacado: false,
+  tributosFederais: { contribuicoes: 'pcc', ir: true, inss: true } };
+const saidaFederal = normalizarMovimentoFiscalCfi(federal, federalOpts);
+assert.deepStrictEqual(saidaFederal.totais_federais_importar, { PCC: 46.5, IRRF: 15, INSS: 110 });
+assert.strictEqual(saidaFederal.total_debito, 171.5);
+assert.strictEqual(saidaFederal.total_credito, 1000);
+assert.deepStrictEqual(saidaFederal.lancamentos.slice(1).map(l => l.valor), [-46.5, -15, -110]);
+assert.strictEqual(saidaFederal.lancamentos.filter(l => ['PIS', 'COFINS', 'CSLL'].includes(l.impostoFiscalTipo)).length, 0);
+const entradaFederal = normalizarMovimentoFiscalCfi({ ...federal, movimento: 'servicos_tomados' }, { ...federalOpts, movimento: 'servicos_tomados' });
+assert.strictEqual(entradaFederal.total_debito, 1000);
+assert.strictEqual(entradaFederal.total_credito, 171.5);
+assert.deepStrictEqual(entradaFederal.lancamentos.slice(1).map(l => l.valor), [46.5, 15, 110]);
+assert.ok(entradaFederal.lancamentos.slice(1).every(l => l.componenteFiscal === 'IMPOSTO_RETIDO_SERVICO_TOMADO'));
+assert.strictEqual(normalizarMovimentoFiscalCfi(federal, { ...federalOpts, tributosFederais: {} }).lancamentos.length, 1);
+const individual = normalizarMovimentoFiscalCfi({ ...federal, notas: [{ ...federal.notas[0], csllOuTotalRetido: 10 }] }, { ...federalOpts, tributosFederais: { contribuicoes: 'individual' } });
+assert.deepStrictEqual(individual.totais_federais_importar, { PIS: 6.5, COFINS: 30, CSLL: 10 });
+assert.strictEqual(individual.total_debito, 46.5);
+assert.throws(() => normalizarMovimentoFiscalCfi({ ...federal, notas: [{ ...federal.notas[0], csllOuTotalRetido: 0 }] }, federalOpts), /PCC agregado zerado/);
+assert.throws(() => normalizarMovimentoFiscalCfi({ ...federal, notas: [{ ...federal.notas[0], irRetido: null }] }, federalOpts), /valor federal ausente/);
+assert.strictEqual(new Set(saidaFederal.lancamentos.map(l => l.cfiLancamentoId)).size, saidaFederal.lancamentos.length);
+console.log('OK: federais opcionais, PCC sem duplicacao, individuais, sentidos prestados/tomados e valores invalidos.');
+
+assert.strictEqual(entradaFederal.total_liquido, 828.5);
+assert.strictEqual(saidaFederal.total_liquido, 1000);

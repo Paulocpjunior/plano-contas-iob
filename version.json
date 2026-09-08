@@ -1,8 +1,9 @@
 {
-  "version": "3.4.261",
-  "build_date": "2026-09-08T12:51:07Z",
+  "version": "3.4.262",
+  "build_date": "2026-09-08T13:56:43Z",
   "release_notes": [
-    "fix(fiscal): mostrar ISS recebido mesmo sem selecionar importacao",
+    "feat(fiscal): parametrizar tributos federais das notas CFI",
+    "Corrigir ISS zerado na conferência quando opção está desmarcada (#123)",
     "Importar ISS destacado do CFI com parâmetro no movimento fiscal (#122)",
     "🔎 A sonda do modelo precisa de tempo — o deploy 138 passou sem a prova que ela existia para dar (#121)",
     "🤖 Motor no gemini-3.8-flash — e o deploy pergunta à Google se o modelo existe (#120)",
@@ -10,7 +11,6 @@
     "Corrigir OCR do Extrato Unificado Itaú da Técnica Denardo (#118)",
     "Preservar prejuízo oficial da DRE da LAV (#117)",
     "R-4020: o XSD destravou IRRF + CSRF agregada, e o nome da CSLL era vlrCSLL (#116)",
-    "Corrigir estrutura e totais da DRE consolidada",
-    "📐 R-4020 travado: o aviso nomeava só a saída CARA — o XSD entrou na frase (#115)"
+    "Corrigir estrutura e totais da DRE consolidada"
   ]
 }
