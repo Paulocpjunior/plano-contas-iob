@@ -4295,7 +4295,7 @@
                     <input id="movFiscalCompetencia" type="month" onchange="invalidarValidacaoMovimentoFiscal()">
                 </div>
                 <div id="movFiscalIssGrupo">
-                    <label><input id="movFiscalImportarIss" type="checkbox" onchange="invalidarValidacaoMovimentoFiscal()"> Importar ISS destacado — serviços prestados</label>
+                    <label style="display:flex;align-items:center;gap:8px"><input style="width:auto;margin:0" id="movFiscalImportarIss" type="checkbox" onchange="invalidarValidacaoMovimentoFiscal()"> Importar ISS destacado — serviços prestados</label>
                     <small>Gera lançamento separado com o valor informado pelo CFI. Parametrize as contas de ISS na revisão. Retenções continuam separadas.</small>
                 </div>
                 <div id="movFiscalArquivoGrupo" style="display:none">
@@ -16471,7 +16471,8 @@
                         : ((resultado.total_credito || 0) + (resultado.total_debito || 0))
                 );
                 if (origem === 'cfi') document.getElementById('movFiscalVendas').textContent +=
-                    ' | ISS destacado: ' + formatarMoedaBR(resultado.total_iss_destacado || 0) +
+                    ' | ISS no CFI: ' + (resultado.total_iss_destacado_cfi == null ? 'não informado' : formatarMoedaBR(resultado.total_iss_destacado_cfi)) +
+                    ' | ISS a importar: ' + (resultado.importar_iss_destacado ? formatarMoedaBR(resultado.total_iss_destacado || 0) : 'não selecionado — marque a opção acima e consulte novamente') +
                     ' | ISS retido: ' + formatarMoedaBR(resultado.total_iss_retido || 0);
                 document.getElementById('movFiscalValidation').classList.add('show');
                 movimentoFiscalStatus(

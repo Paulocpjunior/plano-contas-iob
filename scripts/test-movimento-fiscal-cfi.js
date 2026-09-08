@@ -73,3 +73,11 @@ assert.strictEqual(normalizarMovimentoFiscalCfi({ ...hs, movimento: 'servicos_to
 for (const valorIss of [undefined, -1, 'invalido', true]) {
   assert.throws(() => normalizarMovimentoFiscalCfi({ ...hs, notas: [{ ...hs.notas[0], valor: 47600, valorIss }] }, optsIss), /ISS destacado valido/);
 }
+
+const semSelecaoIss = normalizarMovimentoFiscalCfi(hs, { ...optsIss, importarIssDestacado: false });
+assert.strictEqual(semSelecaoIss.total_iss_destacado_cfi, 2380);
+assert.strictEqual(semSelecaoIss.total_iss_destacado, 0);
+assert.strictEqual(semSelecaoIss.importar_iss_destacado, false);
+assert.strictEqual(hsResult.total_iss_destacado_cfi, 2380);
+assert.strictEqual(hsResult.importar_iss_destacado, true);
+assert.strictEqual(normalizarMovimentoFiscalCfi(payload, { ...optsIss, importarIssDestacado: false }).total_iss_destacado_cfi, null);
