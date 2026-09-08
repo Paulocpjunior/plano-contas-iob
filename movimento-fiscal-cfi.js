@@ -147,6 +147,9 @@
     const totalIssDestacado = r2(lancamentos.filter((l) => l.componenteFiscal === 'IMPOSTO_DESTACADO').reduce((soma, l) => soma + l.valorImpostoFiscal, 0));
     return {
       total_iss_destacado: totalIssDestacado,
+      total_iss_destacado_cfi: notas.every((nota) => nota.valorIss != null && nota.valorIss !== '' && typeof nota.valorIss !== 'boolean' && Number.isFinite(Number(nota.valorIss)) && Number(nota.valorIss) >= 0)
+        ? r2(notas.reduce((soma, nota) => soma + r2(nota.valorIss), 0)) : null,
+      importar_iss_destacado: movimento === 'servicos_prestados' && opts.importarIssDestacado === true,
       total_iss_retido: totalIssRetido,
       detectado: true,
       contrato: body.contrato,
