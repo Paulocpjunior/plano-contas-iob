@@ -1,8 +1,9 @@
 {
-  "version": "3.4.263",
-  "build_date": "2026-09-08T17:12:58Z",
+  "version": "3.4.264",
+  "build_date": "2026-09-08T19:54:17Z",
   "release_notes": [
-    "fix(fiscal): usar retencoes do relatorio CFI e unificar PCC sem duplicar",
+    "fix: publicar contas de novos planos em lote atomico",
+    "Corrigir retenções da EMBRATOP e PCC unificado sem duplicação (#125)",
     "Parametrizar tributos federais das notas CFI em prestados e tomados (#124)",
     "Corrigir ISS zerado na conferência quando opção está desmarcada (#123)",
     "Importar ISS destacado do CFI com parâmetro no movimento fiscal (#122)",
@@ -10,7 +11,6 @@
     "🤖 Motor no gemini-3.8-flash — e o deploy pergunta à Google se o modelo existe (#120)",
     "Preservar lançamentos e colaboração por empresa (#119)",
     "Corrigir OCR do Extrato Unificado Itaú da Técnica Denardo (#118)",
-    "Preservar prejuízo oficial da DRE da LAV (#117)",
-    "R-4020: o XSD destravou IRRF + CSRF agregada, e o nome da CSLL era vlrCSLL (#116)"
+    "Preservar prejuízo oficial da DRE da LAV (#117)"
   ]
 }
