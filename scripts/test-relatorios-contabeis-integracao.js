@@ -95,7 +95,7 @@ assert(server.includes('analitica: conta.analitica !== false'), 'API não entreg
 assert(adapter.includes('analitica: c.analitica !== false'), 'adaptador não preserva a natureza sintética/analítica da conta');
 assert(index.includes('Contas sinteticas formam a arvore usada no Balancete, Balanco e DRE.'), 'importação não preserva contas sintéticas do plano completo');
 assert(index.includes("niveis >= 5 && !/\\.0+$/.test(codigo)"), 'importação deve reconhecer os zeros estruturais das contas sintéticas IOB/SAGE');
-assert(index.includes('analitica: c.analitica !== false'), 'cadastro do plano ainda força todas as contas como analíticas');
+require('./test-cadastro-plano-lote'); // Verifica o payload real, incluindo contas sinteticas e analiticas.
 assert(index.includes('body: JSON.stringify({ contas: contas })'), 'sobrescrita do plano não usa o conjunto recebido');
 assert.strictEqual(estruturaFastweld.length, 77, 'estrutura sintética extraída do balancete de referência está incompleta');
 assert.strictEqual(new Set(estruturaFastweld.map(item => item[0])).size, 77, 'estrutura sintética possui códigos duplicados');

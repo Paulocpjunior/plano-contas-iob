@@ -4,7 +4,7 @@ const fs = require('fs');
 const vm = require('vm');
 const html = fs.readFileSync(require('path').join(__dirname, '../index.html'), 'utf8');
 const source = html.slice(html.indexOf('async function cadastrarPlanoComCNPJ('), html.indexOf('// Abrir diálogo de cadastro de plano'));
-const contas = Array.from({ length: 534 }, (_, i) => ({ codigo: '1.1.' + i, descricao: 'Conta ' + i, reduzido: String(i).padStart(10, '0'), analitica: true }));
+const contas = Array.from({ length: 534 }, (_, i) => ({ codigo: '1.1.' + i, descricao: 'Conta ' + i, reduzido: String(i).padStart(10, '0'), analitica: i % 5 !== 0 }));
 const calls = [];
 let failure = true;
 let wrongCount = false;
