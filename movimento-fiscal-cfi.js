@@ -58,13 +58,6 @@
     const modoPcc = federais.contribuicoes || '';
     if (!['', 'pcc', 'individual'].includes(modoPcc)) throw new Error('Selecione PCC agregado ou contribuicoes individuais conforme o relatorio do CFI.');
     const totaisFederais = {};
-    function valorFederal(nota, campo) {
-      const v = nota[campo];
-      if (v == null || v === '' || typeof v === 'boolean' || !Number.isFinite(Number(v)) || Number(v) < 0) {
-        throw new Error('NF ' + nota.numero + ': valor federal ausente ou invalido (' + campo + '). Confira o CFI.');
-      }
-      return r2(v);
-    }
     notas.forEach(function(nota) {
       const participante = String(nota.participanteNome || 'CONTRAPARTE NAO INFORMADA NO CFI').trim();
       const documentoParte = String(nota.participanteDocumento || '').trim();
@@ -136,19 +129,30 @@
         });
       }
       const componentes = [];
-      if (modoPcc === 'pcc') {
-        const pcc = valorFederal(nota, 'csllOuTotalRetido');
-        const pis = valorFederal(nota, 'pisRetido');
-        const cofins = valorFederal(nota, 'cofinsRetido');
-        if (pcc === 0 && (pis > 0 || cofins > 0)) {
-          throw new Error('NF ' + nota.numero + ': PCC agregado zerado com PIS/COFINS informados. Confira se sao tributos da operacao ou retencoes e separe o movimento antes de importar.');
+      if (modoPcc || federais.ir === true || federais.inss === true) {
+        const f = nota.federaisRelatorio;
+        if (!f || !['relatorio-cfi', 'ajuste-declarado'].includes(f.origem) || typeof f.contribuicoesAgregadas !== 'boolean') {
+          throw new Error('NF ' + nota.numero + ': o CFI ainda nao enviou os tributos conferidos pelo relatorio. Atualize a consulta; os campos brutos nao serao usados.');
         }
-        componentes.push(['PCC', pcc]);
-      } else if (modoPcc === 'individual') {
-        componentes.push(['PIS', valorFederal(nota, 'pisRetido')], ['COFINS', valorFederal(nota, 'cofinsRetido')], ['CSLL', valorFederal(nota, 'csllOuTotalRetido')]);
+        for (const campo of ['pis', 'cofins', 'csll', 'ir', 'inss', 'pccAgregado']) {
+          if (typeof f[campo] !== 'number' || !Number.isFinite(f[campo]) || f[campo] < 0) {
+            throw new Error('NF ' + nota.numero + ': valor federal invalido no relatorio CFI (' + campo + ').');
+          }
+        }
+        if (modoPcc) {
+          if (f.contribuicoesAgregadas) {
+            // PIS/COFINS visiveis no relatorio ja integram este agregado.
+            componentes.push(['PCC', r2(f.pccAgregado)]);
+          } else if (modoPcc === 'pcc') {
+            // Somente valores individuais reconhecidos pelo relatorio.
+            componentes.push(['PCC', r2(f.pis + f.cofins + f.csll)]);
+          } else {
+            componentes.push(['PIS', r2(f.pis)], ['COFINS', r2(f.cofins)], ['CSLL', r2(f.csll)]);
+          }
+        }
+        if (federais.ir === true) componentes.push(['IRRF', r2(f.ir)]);
+        if (federais.inss === true) componentes.push(['INSS', r2(f.inss)]);
       }
-      if (federais.ir === true) componentes.push(['IRRF', valorFederal(nota, 'irRetido')]);
-      if (federais.inss === true) componentes.push(['INSS', valorFederal(nota, 'inssRetido')]);
       componentes.forEach(function([tributo, valor]) {
         if (!valor) return;
         totaisFederais[tributo] = r2((totaisFederais[tributo] || 0) + valor);
@@ -167,6 +171,8 @@
           componenteFiscal: prestado ? 'TRIBUTO_DESTACADO_SERVICO_PRESTADO' : 'IMPOSTO_RETIDO_SERVICO_TOMADO',
           categoriaFiscal: rotulo + (prestado ? ' SERVICO_PRESTADO' : ' SERVICO_TOMADO'),
           categoria: rotulo + (prestado ? ' em servicos prestados' : ' em servicos tomados'),
+          cfiFederaisOrigem: nota.federaisRelatorio.origem,
+          cfiFederaisSituacao: nota.federaisRelatorio.situacao,
           cfiLancamentoId: nota.idOrigem + ':FEDERAL:' + tributo,
           codigoHistorico: '', historico: '', contaDebito: '', contaCredito: '',
           conta: 'Fiscal ' + codigo + ' - ' + rotulo,

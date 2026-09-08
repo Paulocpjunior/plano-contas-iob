@@ -4302,12 +4302,12 @@
                     <label for="movFiscalContribuicoes">PIS / COFINS / CSLL destacados ou retidos</label>
                     <select id="movFiscalContribuicoes" onchange="invalidarValidacaoMovimentoFiscal()">
                         <option value="">Não importar contribuições federais</option>
-                        <option value="pcc">PCC agregado — valor total no campo CSLL/PCC</option>
-                        <option value="individual">PIS, COFINS e CSLL individuais — conferidos no relatório</option>
+                        <option value="pcc">PCC unificado — PIS + COFINS + CSLL do relatório CFI</option>
+                        <option value="individual">Individuais quando disponíveis; PCC quando agregado</option>
                     </select>
-                    <small>Escolha conforme as notas: PCC agregado gera uma única linha, sem somar PIS/COFINS. Use individuais somente quando CSLL for exclusiva. Movimentos com formatos misturados precisam ser conferidos separadamente.</small>
-                    <label style="display:flex;align-items:center;gap:8px"><input style="width:auto;margin:0" id="movFiscalImportarIr" type="checkbox" onchange="invalidarValidacaoMovimentoFiscal()"> Importar IR informado na nota</label>
-                    <label style="display:flex;align-items:center;gap:8px"><input style="width:auto;margin:0" id="movFiscalImportarInss" type="checkbox" onchange="invalidarValidacaoMovimentoFiscal()"> Importar INSS informado na nota</label>
+                    <small>Usa os tributos reconhecidos pelo relatório CFI. PCC unificado gera uma linha por nota. Se o CFI identificar um agregado, PIS/COFINS não são somados novamente, mesmo na opção individual.</small>
+                    <label style="display:flex;align-items:center;gap:8px"><input style="width:auto;margin:0" id="movFiscalImportarIr" type="checkbox" onchange="invalidarValidacaoMovimentoFiscal()"> Importar IR reconhecido no relatório CFI</label>
+                    <label style="display:flex;align-items:center;gap:8px"><input style="width:auto;margin:0" id="movFiscalImportarInss" type="checkbox" onchange="invalidarValidacaoMovimentoFiscal()"> Importar INSS reconhecido no relatório CFI</label>
                     <small>Prestados: valores destacados. Tomados: retenções. Defina débito, crédito e histórico por tributo na revisão, conforme a natureza da nota.</small>
                 </div>
                 <div id="movFiscalArquivoGrupo" style="display:none">
@@ -6805,7 +6805,7 @@
                 'baseCalculoIss','aliquotaIss','valorIss','issRetido',
                 'modeloNotaFiscal','serieSubserie','cnpj_cpf_tomador','componenteFiscal',
                 'tributoRetido','valorTributoRetido','impostoFiscalTipo','valorImpostoFiscal','baseImpostoFiscal',
-                'cfiDocumentoId','cfiLancamentoId','cfiOrigemDocumento','origemDadosFiscal',
+                'cfiDocumentoId','cfiLancamentoId','cfiOrigemDocumento','origemDadosFiscal','cfiFederaisOrigem','cfiFederaisSituacao',
                 'seguridadeSocialRetida','dataPagamento','dataPagamentoCreditoIrrf',
                 'codigoRetencaoPis','codigoRetencaoCofins','codigoRetencaoCsll',
                 'codigoRetencaoIrrf','codigoRetencaoSeguridadeSocial','codigoRetencaoFonte',
