@@ -10,10 +10,22 @@
   </style>
 </head>
 <body>
-  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 06/09/2026</span></div></section>
+  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 08/09/2026</span></div></section>
   <main class="wrap content">
     <article class="release">
       <div class="tag">Leia esta parte primeiro</div>
+      <header><h2>🧾 Serviços tomados: o ISS retido passou a entrar — e o resumo parou de mandar marcar a opção errada</h2><span class="date">08/09/2026 · v3.4.265</span></header>
+      <ul>
+        <li><strong>O caso:</strong> na sincronização direta do CFI, modelo <strong>Serviços tomados</strong>, duas notas com <strong>ISS retido</strong> (5,56 e 7,00) chegavam e o resumo dizia <em>ISS retido: R$ 0,00</em> — nenhuma linha de ISS era lançada. E a frase mandava <em>“marque a opção acima e consulte novamente”</em>, que é a opção <strong>Importar ISS destacado — serviços prestados</strong>: ela não vale para tomados, e marcar não mudava nada.</li>
+        <li><strong>Duas causas, uma em cada app:</strong> o Consultor Fiscal mandava <em>retido = 0</em> para nota do portal de SP (o portal grava só a marca “Retido: Sim” e o ISS da nota, sem um valor retido separado); e o CCI só criava a linha de ISS retido em serviços <strong>prestados</strong>.</li>
+        <li><strong>O que mudou:</strong> em tomados, cada nota com ISS retido gera a linha <strong>ISS RETIDO — a recolher</strong> (valor positivo, mesmo desenho das retenções federais de tomados, conta <em>Fiscal … - ISS Retido a Recolher</em>), e o resumo passa a dizer <em>ISS destacado: não se aplica a serviços tomados</em> em vez de mandar marcar a opção.</li>
+        <li><strong>Onde:</strong> Importações → Movimento Fiscal → <em>Sincronização direta do CFI — sem PDF</em> → modelo <strong>Serviços tomados</strong> → <em>Consultar CFI</em>. Basta consultar de novo: o resumo mostra <em>ISS retido: R$ 12,56 (2 nota(s) com o retido = ISS da nota…)</em> e a revisão traz as duas linhas para parametrizar a conta.</li>
+        <li><strong>Atenção ao carimbo:</strong> quando o retido vem do ISS da nota (portal de SP declara “Retido: Sim” sem valor separado), o resumo diz quantas notas são assim. Na NFS-e paulistana a retenção é integral, então o valor é o ISS da nota — mas é derivado, e por isso vai dito.</li>
+      </ul>
+    </article>
+
+    <article class="release">
+      <div class="tag">Anterior</div>
       <header><h2>🤖 Motor de IA na família Gemini 3.8 — e o deploy agora confere se o modelo existe</h2><span class="date">06/09/2026 · v3.4.258</span></header>
       <ul>
         <li><strong>O que mudou:</strong> o CCI passou a pedir o <strong>Gemini 3.8 Flash</strong> (estava no 3.7). É o motor que lê os PDFs de extrato e balancete e responde no chat do AuditAI. A mesma troca foi feita no Consultor Fiscal, no Legalização, no DP/Folha e no Financeiro — pedido do Paulo em 06/09.</li>

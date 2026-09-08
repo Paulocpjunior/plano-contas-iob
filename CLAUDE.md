@@ -79,6 +79,35 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **🚨 ISS RETIDO EM SERVIÇOS TOMADOS NÃO ERA LANÇADO — e o resumo mandava
+  marcar a opção de PRESTADOS** (08/09, Paulo, CLUDE · 08/2026: *"estou
+  subindo os serviços tomados e não está indo o ISS, já deixei selecionado a
+  opção… o 'importar ISS destacado' é só para prestados e não tem para
+  tomados, e tenho 2 notas com retenção de ISS"* — resumo do modal:
+  `ISS no CFI: R$ 12,56 · ISS a importar: não selecionado — marque a opção
+  acima · ISS retido: R$ 0,00`).
+  🔴 **DUAS CAUSAS, UMA EM CADA APP**: (1) o CFI mandava `issRetido: 0` para
+  nota do portal de SP, que grava o retido como BOOLEANO e o ISS em `valorIss`
+  (corrigido lá: `issRetidoEfetivoDoc`, retido = ISS da nota **carimbado**
+  `declarado-iss-integral`, mais `resumo.issRetidoPeloIssDaNota`); (2) aqui a
+  linha de ISS retido só nascia com `if (prestado && issRetido > 0)`. Em
+  TOMADOS a retenção é OBRIGAÇÃO do tomador (ISS a recolher) — a linha entra
+  com o mesmo desenho das retenções federais de tomados (valor POSITIVO,
+  `IMPOSTO_RETIDO_SERVICO_TOMADO`, conta *ISS Retido a Recolher*), e
+  `total_credito` de tomados passa a somá-la.
+  🚨 **E A FRASE APONTAVA UM LUGAR QUE NÃO RESOLVE** (achado 18 do CFI): o
+  *"marque a opção acima"* é o **Importar ISS DESTACADO — serviços prestados**,
+  que em tomados não se aplica (o ISS do prestador está no PREÇO). Ele marcou,
+  consultou de novo, nada mudou. `iss_destacado_aplicavel` sai do núcleo e a
+  tela DIZ *"não se aplica a serviços tomados"*; `importar_iss_destacado`
+  continua false em tomados mesmo com a opção marcada.
+  📌 **O CARIMBO DO CFI VIAJA** (`cfiIssRetidoOrigem` no lançamento e
+  `total_iss_retido_derivadas` no resumo): número derivado do ISS da nota não
+  se apresenta como lido — quem parametriza a conta precisa saber.
+  📌 **REGRA QUE FICA: retenção é de quem RETÉM.** Prestado = a menos a
+  receber; tomado = a recolher. Régua que só conhece um lado deixa o outro
+  chegar com "R$ 0,00" — e zero atravessando o túnel parece conferido.
+
 - **✅ O XSD DESTRAVOU O QUE DOIS ARQUIVOS ACEITOS NÃO TINHAM DESTRAVADO — e
   ele NÃO contradisse a produção: EXPLICOU** (04/09, Paulo na PEC PRONTA
   ENTREGA · 08/2026, beneficiário SCHROEDER: *"aqui já está tudo certo para
