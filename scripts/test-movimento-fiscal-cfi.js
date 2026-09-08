@@ -52,3 +52,24 @@ const payload = {
 
   console.log('OK: movimento fiscal direto do CFI validado por contrato, CNPJ, competencia, identidade e total.');
 })().catch((e) => { console.error(e); process.exitCode = 1; });
+
+// Caso sintetico com os totais informados para HS; nao representa consulta real.
+const hs = { ...payload, notas: Array.from({ length: 11 }, (_, i) => ({
+  idOrigem: 'hs-' + i, numero: String(i + 1), data: '2026-06-03',
+  valor: i === 10 ? 7600 : 4000, valorIss: i === 10 ? 380 : 200, issRetido: 0,
+})), resumo: { total: 47600 } };
+const optsIss = { cnpj: payload.cnpjEmpresa, competencia: payload.competencia, movimento: payload.movimento, importarIssDestacado: true };
+const hsResult = normalizarMovimentoFiscalCfi(hs, optsIss);
+assert.strictEqual(hsResult.total_credito, 47600);
+assert.strictEqual(hsResult.total_iss_destacado, 2380);
+assert.strictEqual(hsResult.total_debito, 2380);
+assert.strictEqual(hsResult.lancamentos.length, 22);
+assert.strictEqual(normalizarMovimentoFiscalCfi(hs, { ...optsIss, importarIssDestacado: false }).lancamentos.length, 11);
+const retencao = { ...hs, notas: [{ ...hs.notas[0], valor: 47600, valorIss: 2380, issRetido: 2380 }] };
+const separado = normalizarMovimentoFiscalCfi(retencao, optsIss);
+assert.deepStrictEqual(separado.lancamentos.map(l => l.cfiLancamentoId), ['hs-0:BRUTO', 'hs-0:ISS_DESTACADO', 'hs-0:ISS']);
+assert.strictEqual(separado.total_liquido, 45220); // Retencao reduz recebivel; destacado nao altera bruto/liquido da NF.
+assert.strictEqual(normalizarMovimentoFiscalCfi({ ...hs, movimento: 'servicos_tomados' }, { ...optsIss, movimento: 'servicos_tomados' }).lancamentos.length, 11);
+for (const valorIss of [undefined, -1, 'invalido', true]) {
+  assert.throws(() => normalizarMovimentoFiscalCfi({ ...hs, notas: [{ ...hs.notas[0], valor: 47600, valorIss }] }, optsIss), /ISS destacado valido/);
+}

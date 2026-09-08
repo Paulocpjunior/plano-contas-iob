@@ -96,6 +96,34 @@
         origemDadosFiscal: 'CFI_API'
       };
       lancamentos.push(base);
+      if (prestado && opts.importarIssDestacado === true) {
+        if (nota.valorIss == null || nota.valorIss === '' || typeof nota.valorIss === 'boolean' || !Number.isFinite(Number(nota.valorIss)) || Number(nota.valorIss) < 0) {
+          throw new Error('Nota ' + nota.numero + ' sem valor de ISS destacado valido no CFI. Confira a origem antes de importar.');
+        }
+        const iss = r2(nota.valorIss);
+        if (iss > 0) lancamentos.push({
+          ...base,
+          descricao: 'ISS DESTACADO - NF ' + nota.numero + ' - ' + participante,
+          descricao_memoria: 'ISS DESTACADO - ' + participante,
+          memoriaDescricoes: ['ISS', 'Imposto destacado fiscal', participante, 'NF ' + nota.numero],
+          valor: -iss,
+          valorContabil: iss,
+          valorImpostoFiscal: iss,
+          baseImpostoFiscal: base.baseCalculoIss,
+          impostoFiscalTipo: 'ISS',
+          categoriaFiscal: 'ISS destacado sobre servicos prestados',
+          categoria: 'ISS destacado sobre servicos prestados',
+          componenteFiscal: 'IMPOSTO_DESTACADO',
+          naturezaLancamento: 'saida_fiscal_imposto_destacado',
+          cfiLancamentoId: nota.idOrigem + ':ISS_DESTACADO',
+          codigoHistorico: '',
+          historico: '',
+          contaDebito: '',
+          contaCredito: '',
+          conta: 'Fiscal ' + codigo + ' - ISS Destacado em Servicos',
+          nome_conta: 'Fiscal ' + codigo + ' - ISS Destacado em Servicos'
+        });
+      }
       const issRetido = r2(nota.issRetido);
       if (prestado && issRetido > 0) {
         lancamentos.push({
@@ -116,7 +144,10 @@
     });
 
     const totalIssRetido = r2(notas.reduce(function(soma, nota) { return soma + r2(nota.issRetido); }, 0));
+    const totalIssDestacado = r2(lancamentos.filter((l) => l.componenteFiscal === 'IMPOSTO_DESTACADO').reduce((soma, l) => soma + l.valorImpostoFiscal, 0));
     return {
+      total_iss_destacado: totalIssDestacado,
+      total_iss_retido: totalIssRetido,
       detectado: true,
       contrato: body.contrato,
       direcao_fiscal: movimento,
@@ -127,7 +158,7 @@
       periodo_inicio: inicio,
       periodo_fim: fim,
       total_credito: movimento === 'servicos_prestados' ? totalCalculado : 0,
-      total_debito: movimento === 'servicos_tomados' ? totalCalculado : totalIssRetido,
+      total_debito: movimento === 'servicos_tomados' ? totalCalculado : r2(totalIssRetido + totalIssDestacado),
       total_liquido: r2(totalCalculado - totalIssRetido),
       total_notas_fiscais: notas.length,
       total_lancamentos_fiscais: lancamentos.length,

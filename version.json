@@ -1,7 +1,16 @@
 {
-  "version": "3.4.259",
-  "build_date": "2026-09-06T22:01:42Z",
+  "version": "3.4.260",
+  "build_date": "2026-09-08T12:34:39Z",
   "release_notes": [
-    "Melhorias internas e correcoes"
+    "fix(fiscal): permitir importar ISS destacado do CFI separadamente",
+    "🔎 A sonda do modelo precisa de tempo — o deploy 138 passou sem a prova que ela existia para dar (#121)",
+    "🤖 Motor no gemini-3.8-flash — e o deploy pergunta à Google se o modelo existe (#120)",
+    "Preservar lançamentos e colaboração por empresa (#119)",
+    "Corrigir OCR do Extrato Unificado Itaú da Técnica Denardo (#118)",
+    "Preservar prejuízo oficial da DRE da LAV (#117)",
+    "R-4020: o XSD destravou IRRF + CSRF agregada, e o nome da CSLL era vlrCSLL (#116)",
+    "Corrigir estrutura e totais da DRE consolidada",
+    "📐 R-4020 travado: o aviso nomeava só a saída CARA — o XSD entrou na frase (#115)",
+    "🧾 R-4020: retenção SEPARADA destravou, e o bloqueio aparece ANTES do clique (#114)"
   ]
 }
