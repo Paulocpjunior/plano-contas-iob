@@ -84,6 +84,8 @@ assert.strictEqual(normalizarMovimentoFiscalCfi(payload, { ...optsIss, importarI
 
 const federal = { ...payload, notas: [{ ...payload.notas[0], valor: 1000, valorIss: 50,
   pisRetido: 6.5, cofinsRetido: 30, csllOuTotalRetido: 46.5, irRetido: 15, inssRetido: 110,
+  federaisRelatorio: { pis: 6.5, cofins: 30, csll: 0, pccAgregado: 46.5, ir: 15, inss: 110,
+    contribuicoesAgregadas: true, origem: 'relatorio-cfi', situacao: 'csll-e-o-total' },
 }], resumo: { total: 1000 } };
 const federalOpts = { ...optsIss, importarIssDestacado: false,
   tributosFederais: { contribuicoes: 'pcc', ir: true, inss: true } };
@@ -99,13 +101,30 @@ assert.strictEqual(entradaFederal.total_credito, 171.5);
 assert.deepStrictEqual(entradaFederal.lancamentos.slice(1).map(l => l.valor), [46.5, 15, 110]);
 assert.ok(entradaFederal.lancamentos.slice(1).every(l => l.componenteFiscal === 'IMPOSTO_RETIDO_SERVICO_TOMADO'));
 assert.strictEqual(normalizarMovimentoFiscalCfi(federal, { ...federalOpts, tributosFederais: {} }).lancamentos.length, 1);
-const individual = normalizarMovimentoFiscalCfi({ ...federal, notas: [{ ...federal.notas[0], csllOuTotalRetido: 10 }] }, { ...federalOpts, tributosFederais: { contribuicoes: 'individual' } });
+const individual = normalizarMovimentoFiscalCfi({ ...federal, notas: [{ ...federal.notas[0], csllOuTotalRetido: 10, federaisRelatorio: { ...federal.notas[0].federaisRelatorio, csll: 10, pccAgregado: 0, contribuicoesAgregadas: false } }] }, { ...federalOpts, tributosFederais: { contribuicoes: 'individual' } });
 assert.deepStrictEqual(individual.totais_federais_importar, { PIS: 6.5, COFINS: 30, CSLL: 10 });
 assert.strictEqual(individual.total_debito, 46.5);
-assert.throws(() => normalizarMovimentoFiscalCfi({ ...federal, notas: [{ ...federal.notas[0], csllOuTotalRetido: 0 }] }, federalOpts), /PCC agregado zerado/);
-assert.throws(() => normalizarMovimentoFiscalCfi({ ...federal, notas: [{ ...federal.notas[0], irRetido: null }] }, federalOpts), /valor federal ausente/);
+assert.strictEqual(normalizarMovimentoFiscalCfi({ ...federal, notas: [{ ...federal.notas[0], csllOuTotalRetido: 0 }] }, federalOpts).totais_federais_importar.PCC, 46.5);
+assert.throws(() => normalizarMovimentoFiscalCfi({ ...federal, notas: [{ ...federal.notas[0], federaisRelatorio: null }] }, federalOpts), /tributos conferidos pelo relatorio/);
 assert.strictEqual(new Set(saidaFederal.lancamentos.map(l => l.cfiLancamentoId)).size, saidaFederal.lancamentos.length);
 console.log('OK: federais opcionais, PCC sem duplicacao, individuais, sentidos prestados/tomados e valores invalidos.');
 
 assert.strictEqual(entradaFederal.total_liquido, 828.5);
 assert.strictEqual(saidaFederal.total_liquido, 1000);
+
+// Mesmo com modo individual antigo, agregado identificado pelo CFI entra uma vez.
+const agregadoModoIndividual = normalizarMovimentoFiscalCfi(federal, { ...federalOpts, tributosFederais: { contribuicoes: 'individual' } });
+assert.deepStrictEqual(agregadoModoIndividual.totais_federais_importar, { PCC: 46.5 });
+const embratop = { ...federal.notas[0], idOrigem: '22243', numero: '22243', valor: 140,
+  pisRetido: 2.31, cofinsRetido: 10.64, csllOuTotalRetido: 0,
+  federaisRelatorio: { pis: 0, cofins: 0, csll: 0, ir: 0, inss: 0, pccAgregado: 0,
+    contribuicoesAgregadas: true, origem: 'relatorio-cfi', situacao: 'campos-sao-totais-da-operacao' } };
+const presenca = { ...embratop, idOrigem: '10353', numero: '10353', valor: 278.03,
+  federaisRelatorio: { ...embratop.federaisRelatorio, pis: 1.81, cofins: 8.34, csll: 2.78, contribuicoesAgregadas: false } };
+const tomado = { ...federal, movimento: 'servicos_tomados', notas: [embratop, presenca], resumo: { total: 418.03 } };
+for (const modo of ['pcc', 'individual']) {
+  const resultado = normalizarMovimentoFiscalCfi(tomado, { ...federalOpts, movimento: 'servicos_tomados', tributosFederais: { contribuicoes: modo } });
+  assert.strictEqual(resultado.lancamentos.filter(l => l.cfiDocumentoId === '22243').length, 1);
+  assert.strictEqual(resultado.total_credito, 12.93);
+  assert.deepStrictEqual(resultado.totais_federais_importar, modo === 'pcc' ? { PCC: 12.93 } : { PIS: 1.81, COFINS: 8.34, CSLL: 2.78 });
+}
