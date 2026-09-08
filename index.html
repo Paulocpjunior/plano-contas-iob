@@ -4298,6 +4298,18 @@
                     <label style="display:flex;align-items:center;gap:8px"><input style="width:auto;margin:0" id="movFiscalImportarIss" type="checkbox" onchange="invalidarValidacaoMovimentoFiscal()"> Importar ISS destacado — serviços prestados</label>
                     <small>Gera lançamento separado com o valor informado pelo CFI. Parametrize as contas de ISS na revisão. Retenções continuam separadas.</small>
                 </div>
+                <div id="movFiscalFederaisGrupo">
+                    <label for="movFiscalContribuicoes">PIS / COFINS / CSLL destacados ou retidos</label>
+                    <select id="movFiscalContribuicoes" onchange="invalidarValidacaoMovimentoFiscal()">
+                        <option value="">Não importar contribuições federais</option>
+                        <option value="pcc">PCC agregado — valor total no campo CSLL/PCC</option>
+                        <option value="individual">PIS, COFINS e CSLL individuais — conferidos no relatório</option>
+                    </select>
+                    <small>Escolha conforme as notas: PCC agregado gera uma única linha, sem somar PIS/COFINS. Use individuais somente quando CSLL for exclusiva. Movimentos com formatos misturados precisam ser conferidos separadamente.</small>
+                    <label style="display:flex;align-items:center;gap:8px"><input style="width:auto;margin:0" id="movFiscalImportarIr" type="checkbox" onchange="invalidarValidacaoMovimentoFiscal()"> Importar IR informado na nota</label>
+                    <label style="display:flex;align-items:center;gap:8px"><input style="width:auto;margin:0" id="movFiscalImportarInss" type="checkbox" onchange="invalidarValidacaoMovimentoFiscal()"> Importar INSS informado na nota</label>
+                    <small>Prestados: valores destacados. Tomados: retenções. Defina débito, crédito e histórico por tributo na revisão, conforme a natureza da nota.</small>
+                </div>
                 <div id="movFiscalArquivoGrupo" style="display:none">
                     <label for="movFiscalArquivo">Arquivo da SAGE / E-Fiscal</label>
                     <input id="movFiscalArquivo" type="file" accept=".csv,.txt,.pdf" onchange="invalidarValidacaoMovimentoFiscal()">
@@ -16256,6 +16268,8 @@
             const arquivo = document.getElementById('movFiscalArquivoGrupo');
             const competencia = document.getElementById('movFiscalCompetenciaGrupo');
             const validar = document.getElementById('movFiscalValidarBtn');
+            const federaisGrupo = document.getElementById('movFiscalFederaisGrupo');
+            if (federaisGrupo) federaisGrupo.style.display = direto ? '' : 'none';
             const issGrupo = document.getElementById('movFiscalIssGrupo');
             if (issGrupo) issGrupo.style.display = direto ? '' : 'none';
             if (arquivo) arquivo.style.display = direto ? 'none' : '';
@@ -16277,7 +16291,7 @@
             const resp = await window.API.apiFetch('/api/fiscal/movimento-cfi?' + qs.toString());
             const body = await resp.json().catch(function() { return {}; });
             if (!resp.ok) throw new Error(body.erro || body.error || ('Falha ao consultar o CFI (HTTP ' + resp.status + ').'));
-            return window.normalizarMovimentoFiscalCfi(body, { cnpj, competencia, movimento: layout.movimento, importarIssDestacado: !!document.getElementById('movFiscalImportarIss')?.checked });
+            return window.normalizarMovimentoFiscalCfi(body, { cnpj, competencia, movimento: layout.movimento, importarIssDestacado: !!document.getElementById('movFiscalImportarIss')?.checked, tributosFederais: { contribuicoes: document.getElementById('movFiscalContribuicoes')?.value || '', ir: !!document.getElementById('movFiscalImportarIr')?.checked, inss: !!document.getElementById('movFiscalImportarInss')?.checked } });
         }
 
         function validarEscopoFiscalAntesDeGravar(resultado, vinculo, layout, cnpjAtivo) {
@@ -16473,7 +16487,8 @@
                 if (origem === 'cfi') document.getElementById('movFiscalVendas').textContent +=
                     ' | ISS no CFI: ' + (resultado.total_iss_destacado_cfi == null ? 'não informado' : formatarMoedaBR(resultado.total_iss_destacado_cfi)) +
                     ' | ISS a importar: ' + (resultado.importar_iss_destacado ? formatarMoedaBR(resultado.total_iss_destacado || 0) : 'não selecionado — marque a opção acima e consulte novamente') +
-                    ' | ISS retido: ' + formatarMoedaBR(resultado.total_iss_retido || 0);
+                    ' | ISS retido: ' + formatarMoedaBR(resultado.total_iss_retido || 0) +
+                    ' | Federais a importar: ' + (Object.entries(resultado.totais_federais_importar || {}).map(function([tributo, valor]) { return tributo + ': ' + formatarMoedaBR(valor); }).join('; ') || 'nenhum');
                 document.getElementById('movFiscalValidation').classList.add('show');
                 movimentoFiscalStatus(
                     'ok',
