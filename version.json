@@ -1,8 +1,9 @@
 {
-  "version": "3.4.262",
-  "build_date": "2026-09-08T13:56:43Z",
+  "version": "3.4.263",
+  "build_date": "2026-09-08T17:12:58Z",
   "release_notes": [
-    "feat(fiscal): parametrizar tributos federais das notas CFI",
+    "fix(fiscal): usar retencoes do relatorio CFI e unificar PCC sem duplicar",
+    "Parametrizar tributos federais das notas CFI em prestados e tomados (#124)",
     "Corrigir ISS zerado na conferência quando opção está desmarcada (#123)",
     "Importar ISS destacado do CFI com parâmetro no movimento fiscal (#122)",
     "🔎 A sonda do modelo precisa de tempo — o deploy 138 passou sem a prova que ela existia para dar (#121)",
@@ -10,7 +11,6 @@
     "Preservar lançamentos e colaboração por empresa (#119)",
     "Corrigir OCR do Extrato Unificado Itaú da Técnica Denardo (#118)",
     "Preservar prejuízo oficial da DRE da LAV (#117)",
-    "R-4020: o XSD destravou IRRF + CSRF agregada, e o nome da CSLL era vlrCSLL (#116)",
-    "Corrigir estrutura e totais da DRE consolidada"
+    "R-4020: o XSD destravou IRRF + CSRF agregada, e o nome da CSLL era vlrCSLL (#116)"
   ]
 }
