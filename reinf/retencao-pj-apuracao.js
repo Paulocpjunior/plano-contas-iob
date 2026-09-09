@@ -260,11 +260,21 @@ function apurarRetencoesPJ({ competencia, notas } = {}) {
       // tem o que mandar ao CFI, e o ajuste é da NOTA, nunca do prestador
       // (dois serviços do mesmo fornecedor podem reter diferente).
       notasParaAjuste: [],
+      // 🚨 AS NOTAS QUE RETIVERAM IR — a base do IR se confere NOTA A NOTA, e
+      // é a soma das bases DESTAS, nunca o bruto do beneficiário (09/09, BOA
+      // VISTA SERVIÇOS: uma nota abaixo do piso de dispensa fazia a alíquota
+      // do conjunto dar 1,235% e reprovava uma retenção de 1,50% exatos).
+      // Quem confere é `baseIrDoBeneficiario`, no gerador — aqui só se
+      // transporta o fato, senão a régua nasceria em dois lugares.
+      notasComIr: [],
     };
 
     acc.notas += 1;
     acc.bruto = r2(acc.bruto + (num(n.base) || 0));
     acc.ir = r2(acc.ir + ir);
+    if (ir > 0) {
+      acc.notasComIr.push({ numero: n.numero || null, base: r2(num(n.base) || 0), ir });
+    }
     acc.pis = r2(acc.pis + ret.pis);
     acc.cofins = r2(acc.cofins + ret.cofins);
     acc.csll = r2(acc.csll + ret.csll);

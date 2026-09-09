@@ -250,11 +250,12 @@ const MOTIVO_IR_COM_AGREGADA =
   + 'separada numa leitura só, sem esperar arquivo aceito de cada combinação.';
 
 const MOTIVO_BASE_IR_DESCONHECIDA =
-  'Esta nota tem IRRF retido e o valor NÃO fecha com 1,5% nem 1% do bruto — ou seja, a base do IR '
+  'Há nota com IRRF retido cujo valor NÃO fecha com 1,5% nem 1% da base DELA — ou seja, a base do IR '
   + 'tem dedução (é o caso das cooperativas: o arquivo aceito de 07/2026 traz vlrBaseIR 15.371,80 '
-  + 'sobre um bruto de 21.708,16). O app NÃO tem essa base: o Consultor Fiscal entrega o valor do '
-  + 'serviço, não a base do IR. Carimbar o bruto ali declararia base A MAIOR. Entregue esta nota pelo '
-  + 'e-CAC, ou informe o ajuste da retenção com a base correta.';
+  + 'sobre um bruto de 21.708,16). A conferência é NOTA A NOTA, então não é o total do beneficiário '
+  + 'que está em jogo: procure a nota cujo IR não fecha na alíquota legal. O app NÃO tem essa base: o '
+  + 'Consultor Fiscal entrega o valor do serviço, não a base do IR. Carimbar o bruto ali declararia '
+  + 'base A MAIOR. Entregue esta nota pelo e-CAC, ou informe o ajuste da retenção com a base correta.';
 
 /**
  * Gera UM evento R-4020 (um beneficiário PJ por evento).
@@ -543,6 +544,74 @@ function validarEntradaR4020(ev) {
 
 
 /**
+ * O IR desta nota fecha na alíquota legal sobre a base DELA?
+ *
+ * Lei 7.713/88 art. 52 e Dec. 9.580/2018: 1,5% no caso geral, 1% em alguns
+ * serviços. Tolerância de dois centavos, que é o arredondamento do emitente.
+ */
+function irFechaNaAliquotaLegal(base, ir) {
+  const bs = Number(base || 0);
+  const v = Number(ir || 0);
+  if (!(bs > 0) || !(v > 0)) return false;
+  return ALIQ_IRRF.some((a) => Math.abs(Math.round(bs * a) / 100 - v) <= 0.02);
+}
+
+/**
+ * A BASE DO IR DO BENEFICIÁRIO — conferida NOTA A NOTA, somada só do que reteve.
+ *
+ * 🚨 ELA CONFERIA O BENEFICIÁRIO SOMADO, e por isso reprovava nota CERTA
+ * (09/09, Paulo, J.N. VINATEX · 08/2026, BOA VISTA SERVIÇOS): duas notas —
+ * 1004413 (base 346,15 · **IR 0,00**, o valor não alcança a retenção) e
+ * 1008360 (base 1.615,84 · **IR 24,24**). No agregado, 24,24 ÷ 1.961,99 =
+ * **1,235%**, que não fecha com 1,5% nem 1%, e o beneficiário caía em "não
+ * vira evento". Nota a nota, 24,24 ÷ 1.615,84 = **1,50% EXATO**: a retenção
+ * estava perfeita, e o que não fechava era a CONTA que a régua fazia.
+ *
+ * 📖 E A MESMA MEDIÇÃO ENTREGA A BASE CERTA: quem retém IR é a nota 1008360, e
+ * a base do IR é a soma das bases das notas QUE RETIVERAM — 1.615,84, não o
+ * bruto de 1.961,99. É por isso que `vlrBaseIR` pode ser MENOR que `vlrBruto`,
+ * como no arquivo aceito de 07/2026 (15.371,80 sobre 21.708,16): declarar o
+ * bruto ali seria base A MAIOR num evento que a Receita ACEITA.
+ *
+ * ⚠️ NOTA COM IR ZERO NÃO É CONFERIDA — zero é resposta legítima (a dispensa
+ * de recolhimento por valor mínimo), e cobrar alíquota dela seria alarme sobre
+ * nota correta. Ela também não entra na base: não houve IR sobre ela.
+ *
+ * ⚠️ E A CONFERÊNCIA CONTINUA EXISTINDO, só mudou de EIXO: nota individual que
+ * não fecha (cooperativa, base com dedução) segue SEM base provada, e o
+ * bloqueio é o de sempre. O que ela deixou de fazer é acusar o conjunto por
+ * causa da soma.
+ *
+ * ⚠️ SEM A LISTA, cai no fato que existe — o agregado. Chamador antigo continua
+ * respondendo como respondia; quem monta a lista é a apuração, e a varredura de
+ * `test-reinf-r4020-retencao.js` exige que ela monte.
+ *
+ * @returns {{base:number|null, naoFecham:Array}}
+ */
+function baseIrDoBeneficiario(b) {
+  const n = (v) => Number(v || 0);
+  const bruto = n(b && b.bruto);
+  const notas = Array.isArray(b && b.notasComIr) ? b.notasComIr : null;
+
+  if (!notas) {
+    return { base: irFechaNaAliquotaLegal(bruto, n(b && b.ir)) ? bruto : null, naoFecham: [] };
+  }
+
+  const comIr = notas.filter((x) => n(x && x.ir) > 0);
+  if (!comIr.length) return { base: null, naoFecham: [] };
+
+  const naoFecham = comIr.filter((x) => !irFechaNaAliquotaLegal(x.base, x.ir));
+  if (naoFecham.length) return { base: null, naoFecham };
+
+  const soma = Math.round(comIr.reduce((t, x) => t + n(x.base), 0) * 100) / 100;
+  // ⚠️ A base do IR é um RECORTE do bruto — nunca maior. Se a soma passar dele
+  // (nota fora do beneficiário, base duplicada), o app NÃO declara: base a
+  // maior é o erro que a Receita aceita e ninguém confere depois.
+  if (!(soma > 0) || soma - bruto > 0.02) return { base: null, naoFecham: [] };
+  return { base: soma, naoFecham: [] };
+}
+
+/**
  * A TRADUÇÃO beneficiário → pagamento do R-4020 — dono único.
  *
  * 🚨 Ela morava DENTRO da rota, e por isso a TELA não tinha como saber o que o
@@ -557,11 +626,10 @@ function validarEntradaR4020(ev) {
  *   · **sem CSLL** ⇒ vai **SEPARADA** (arquivo aceito de 07/2026), que é o caso
  *     do beneficiário que retém só PIS e COFINS.
  *
- * ⚠️ E o `vlrBaseIR` só sai quando o IR FECHA na alíquota legal sobre o bruto —
- * é isso que PROVA que a base é o bruto. Quando não fecha (cooperativa, base
- * com dedução: o arquivo aceito traz 15.371,80 sobre bruto de 21.708,16), o
- * valor sai SEM a base e `validarPagamentoR4020` bloqueia dizendo por quê.
- * Carimbar o bruto ali declararia base A MAIOR, em silêncio.
+ * ⚠️ E o `vlrBaseIR` vem de `baseIrDoBeneficiario`, que confere NOTA A NOTA —
+ * ver o bloco de comentário dela. Quando ela não prova a base, o valor sai SEM
+ * a base e `validarPagamentoR4020` bloqueia dizendo por quê. Carimbar o bruto
+ * ali declararia base A MAIOR, em silêncio.
  */
 function pagamentoR4020DoBeneficiario(b) {
   const n = (v) => Number(v || 0);
@@ -582,8 +650,8 @@ function pagamentoR4020DoBeneficiario(b) {
 
   if (ir > 0) {
     p.vlrIR = ir;
-    const fecha = bruto > 0 && ALIQ_IRRF.some((a) => Math.abs(Math.round(bruto * a) / 100 - ir) <= 0.02);
-    if (fecha) p.vlrBaseIR = b.bruto;
+    const { base } = baseIrDoBeneficiario(b);
+    if (base != null) p.vlrBaseIR = base;
   }
 
   if (csll > 0) {
@@ -612,6 +680,7 @@ function bloqueioDoR4020(beneficiario) {
 module.exports = {
   NS_R4020, gerarR4020, validarEntradaR4020, validarPagamentoR4020,
   pagamentoR4020DoBeneficiario, bloqueioDoR4020, RETENCOES_SEPARADAS,
+  baseIrDoBeneficiario, irFechaNaAliquotaLegal,
   // A sequence LIDA do XSD e o de-para dos nomes com a caixa errada — o teste
   // prova os dois contra o arquivo em docs/reinf/xsd/.
   RETENCOES_XSD, NOME_CERTO_DO_CAMPO,

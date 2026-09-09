@@ -136,6 +136,102 @@ assert.strictEqual(comDeducao.vlrBaseIR, undefined, 'base do IR não se carimba 
 assert.ok(validarPagamentoR4020(comDeducao).some((m) => m.includes(MOTIVO_BASE_IR_DESCONHECIDA)),
   'e o bloqueio diz que a base do IR tem dedução');
 
+// ─── 4-B. A BASE DO IR É NOTA A NOTA, NUNCA O BENEFICIÁRIO SOMADO ──────────
+// 🚨 09/09, Paulo, no painel do R-4020 (J.N. VINATEX · 08/2026): *"puxou a
+// retenção de IR certinho, porém está dando essa mensagem, ele está falando da
+// base como está as duas notas somada"*. Ele nomeou a causa.
+//
+// BOA VISTA SERVIÇOS, duas notas — uma abaixo do piso de dispensa do IRRF:
+//   · base   346,15 · IR  0,00  (o valor não alcança a retenção)
+//   · base 1.615,84 · IR 24,24
+// No agregado: 24,24 ÷ 1.961,99 = 1,235% ⇒ não fecha ⇒ "não vira evento".
+// Nota a nota: 24,24 ÷ 1.615,84 = 1,50% EXATO ⇒ a retenção está perfeita.
+//
+// 📌 E a mesma medição entrega a BASE certa: 1.615,84, que é MENOR que o bruto
+// — exatamente a forma do arquivo aceito de 07/2026 (15.371,80 × 21.708,16).
+// (CNPJ fictício: dado de cliente não entra no repositório.)
+{
+  const boaVista = apurarRetencoesPJ({
+    competencia: '2026-08',
+    notas: [
+      {
+        numero: '1004413', prestadorCnpj: '11111111000191', prestadorNome: 'PRESTADOR TESTE',
+        base: 346.15, ir: 0, pis: 2.25, cofins: 10.38, csllOuTotal: 3.46,
+        naturezaInformada: '15004', dataFatoGerador: '2026-08-20',
+      },
+      {
+        numero: '1008360', prestadorCnpj: '11111111000191', prestadorNome: 'PRESTADOR TESTE',
+        base: 1615.84, ir: 24.24, pis: 10.50, cofins: 48.48, csllOuTotal: 16.16,
+        naturezaInformada: '15004', dataFatoGerador: '2026-08-20',
+      },
+    ],
+  });
+  const b = boaVista.beneficiarios[0];
+  assert.strictEqual(b.bruto, 1961.99, 'o bruto do beneficiário soma as DUAS notas');
+  assert.strictEqual(b.ir, 24.24);
+
+  // A apuração TRANSPORTA as notas que retiveram — sem isso a régua nasceria
+  // sem quem a alimenta (a "régua que só escreve", 04/09), e o beneficiário
+  // voltaria a ser conferido pela soma em silêncio.
+  assert.ok(Array.isArray(b.notasComIr), 'a apuração entrega as notas com IR');
+  assert.strictEqual(b.notasComIr.length, 1, 'só a nota que reteve entra — zero não é retenção');
+  assert.strictEqual(b.notasComIr[0].numero, '1008360');
+
+  assert.strictEqual(b.bloqueioDoEvento, null, 'a nota fecha em 1,5%: o evento sai');
+  assert.strictEqual(b.pronto, true);
+
+  const pg = pagamentoR4020DoBeneficiario(b);
+  assert.strictEqual(pg.vlrIR, 24.24);
+  assert.strictEqual(pg.vlrBaseIR, 1615.84,
+    'a base do IR é a da nota que reteve, NUNCA o bruto de 1.961,99');
+  assert.strictEqual(pg.vlrBruto, 1961.99, 'e o bruto continua sendo o do beneficiário');
+}
+
+// ⚠️ E A CONFERÊNCIA CONTINUA EXISTINDO — ela só mudou de EIXO. Nota individual
+// cujo IR não fecha na alíquota legal (cooperativa, base com dedução) segue sem
+// base provada, e o bloqueio é o de sempre.
+{
+  const comDeducaoNaNota = pagamentoR4020DoBeneficiario({
+    bruto: 21708.16, ir: 230.58, pis: 141.10, cofins: 651.24, csll: 0,
+    natureza: '15099', dataFatoGerador: '2026-07-23',
+    notasComIr: [{ numero: '1', base: 21708.16, ir: 230.58 }],
+  });
+  assert.strictEqual(comDeducaoNaNota.vlrBaseIR, undefined,
+    'nota que não fecha na alíquota legal não prova a base');
+  assert.ok(validarPagamentoR4020(comDeducaoNaNota).some((m) => m.includes(MOTIVO_BASE_IR_DESCONHECIDA)));
+}
+
+// ⚠️ E UMA NOTA TORTA NÃO PASSA DE CARONA NA OUTRA: com duas notas retendo, as
+// DUAS têm de fechar. Somar as bases das que fecham e ignorar a que não fecha
+// declararia base a MENOS num evento que a Receita aceita.
+{
+  const umaTorta = pagamentoR4020DoBeneficiario({
+    bruto: 11000, ir: 180, pis: 0, cofins: 0, csll: 0,
+    natureza: '15099', dataFatoGerador: '2026-07-23',
+    notasComIr: [
+      { numero: '1', base: 10000, ir: 150 },   // 1,5% — fecha
+      { numero: '2', base: 1000, ir: 30 },     // 3,0% — não fecha
+    ],
+  });
+  assert.strictEqual(umaTorta.vlrBaseIR, undefined, 'basta uma nota não fechar para a base não sair');
+}
+
+// ⚠️ ALÍQUOTAS DIFERENTES NO MESMO BENEFICIÁRIO CONTINUAM VALENDO — 1,5% num
+// serviço e 1% no outro é caso legítimo, e a soma (2.500 × ?) não fecharia em
+// alíquota nenhuma. É por isso que a conferência é por nota.
+{
+  const duasAliquotas = pagamentoR4020DoBeneficiario({
+    bruto: 3000, ir: 25, pis: 0, cofins: 0, csll: 0,
+    natureza: '15099', dataFatoGerador: '2026-07-23',
+    notasComIr: [
+      { numero: '1', base: 1000, ir: 15 },   // 1,5%
+      { numero: '2', base: 1000, ir: 10 },   // 1,0%
+    ],
+  });
+  assert.strictEqual(duasAliquotas.vlrBaseIR, 2000,
+    'as duas fecham nas alíquotas da lei: a base é a soma delas');
+}
+
 // ─── 5. A TELA SABE ANTES DO CLIQUE ─────────────────────────────────────────
 // 🚨 03/09, print do Paulo: "1 beneficiário(s) PJ · 1 pronto(s) · 0
 // pendente(s)", botão verde — e só DEPOIS do clique vinha "Nenhum beneficiário
