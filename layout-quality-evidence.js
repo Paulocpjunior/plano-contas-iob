@@ -1,4 +1,19 @@
 const LAYOUT_QUALITY_EVIDENCE = [
+{
+  "id": "brb-alaia-2026-02",
+  "banco": "070",
+  "nomeBanco": "BRB Banco de Brasilia",
+  "layout": "BRB - Extrato Mensal",
+  "parser": "parsearPDF_BRB_Extrato",
+  "arquivo": "Extrato ALAIA.pdf",
+  "empresa": "ALAIA EQUIPAMENTOS LTDA",
+  "periodo_inicio": "2026-02-01",
+  "periodo_fim": "2026-02-28",
+  "caminho_local": "/Users/paulocesarpereirajunior/Downloads/Extrato ALAIA.pdf",
+  "etapa": "regressao_aprovada",
+  "status": "Regressao aprovada",
+  "observacao": "scripts/test-brb-extrato.js: 13 movimentos, sinal Unicode, complementos e saldo excluido."
+},
   {
     id: 'mercado-pago-lav-2026-04',
     banco: 'MP',
