@@ -6,6 +6,57 @@ retoma. Criado em 07/08/2026, quando o projeto passou do CODEX para o Claude
 (Paulo: *"o CODEX estava tocando este projeto, você consegue administrar? para
 que não fique mais confuso?"*).
 
+- **🚨 O IRRF AJUSTADO NUNCA CHEGAVA AO R-4020 — o dono respondia CINCO
+  tributos e este leitor pegava TRÊS** (09/09, Paulo, J.N. VINATEX · 08/2026:
+  *"estou entregando essa REINF, porém percebi que o IR não subiu e mesmo
+  estando informado na nota, são duas notas 1 com retenção e outra que o valor
+  não alcança a retenção de IR"*, com o print desta tela e o do Relatório de
+  Retenções do CFI lado a lado).
+  📖 **OS DOIS PRINTS FECHAM A CONTA AO CENTAVO**: beneficiário BOA VISTA
+  SERVIÇOS, 2 notas — a 1004413 (base 346,15 · PIS 2,25 · COFINS 10,38 · CSLL
+  3,46 · **IR 0,00**, o valor não alcança a retenção) e a 1008360 (base
+  1.615,84 · PIS 10,50 · COFINS 48,48 · CSLL 16,16 · **IR 24,24**, que é 1,5%).
+  O relatório do CFI totaliza **IR 113,93**; este painel dizia **IRRF R$
+  89,69** — a diferença é EXATAMENTE os 24,24. E PIS (12,75), COFINS (58,86) e
+  CSLL (19,62) batiam ao centavo nas duas telas, que é o que fazia o defeito
+  parecer de captura.
+  🔴 **A CAUSA É DE LEITURA, e ela é fina**: `resolverRetencoes` já consome o
+  bloco `retencao` do CFI desde 31/08 — o comentário dela diz, palavra por
+  palavra, *"o CFI já respondeu, e recalcular aqui é criar a divergência"* — e
+  devolve **três** tributos. O **IR era lido FORA dela**, do campo CRU
+  (`const ir = r2(num(n.ir))`). Os 24,24 foram **informados à mão** (ajuste
+  declarado, com autor e motivo), então só existem no bloco efetivo: o campo
+  cru é o do DOCUMENTO, e o documento não trouxe IR nenhum.
+  🚨 **E O CUSTO É O PIOR DOS DOIS**: o evento é **ACEITO** declarando IRRF a
+  MENOS — a Receita não recusa, e a diferença só aparece no cruzamento. É a
+  "meia ligação" de sempre: o dono responde cinco, o leitor pega três, e o que
+  sobra some em SILÊNCIO.
+  ✂️ O IR passou a sair do MESMO dono (`resolverRetencoes` devolve `ir`), e o
+  laço lê `ret.ir` — ler `n.ir` ali era a segunda leitura do mesmo fato.
+  ⚠️ **AUSENTE ≠ ZERO**: bloco antigo do CFI sem `ir` NÃO zera o IR do
+  documento — devolveria *"não houve retenção"* sobre nota que reteve. E nota
+  sem o bloco (resposta ANTIGA do CFI) segue pelo documento: nada regride.
+  🚦 **A TRAVA É POR VARREDURA**: `num(n.ir)` só pode aparecer **uma vez** no
+  módulo, em `doDocumento` — que é o que a nota DIZ, mostrado para a pessoa
+  conferir antes de digitar o ajuste. Corrigir a linha fecha a INSTÂNCIA; a
+  varredura fecha a CLASSE. Provada revertendo: ela acusa `0` contra `24,24`,
+  exatamente o número do print.
+  📌 **E O RESUMO DO CFI TINHA O MESMO DEFEITO, do outro lado do túnel**: o
+  `totalIr` somava `n.ir` (o documento) enquanto o `totalRetencaoDeclarada`,
+  duas linhas abaixo, já somava o bloco efetivo — **o resumo desmentia as
+  linhas que ele resume**. Corrigido lá no mesmo dia, com o total do DOCUMENTO
+  saindo à parte (`totalIrDoDocumento`), que é contra o que se confere.
+  🚩 **O QUE ISTO NÃO ALCANÇA, e vai dito**: o **R-2010** (serviços tomados)
+  continua sem ler os ajustes — a rota `/servicos-tomados` do CFI não carrega
+  a coleção `reinf_retencoes_ajustadas` (só o R-4020 e o R-2020 carregam).
+  Então **INSS informado à mão não chega ao R-2010**. É a mesma classe, no
+  evento vizinho, e ela fica NOMEADA em vez de corrigida de carona: mexer em
+  valor de evento sem caso real é o que este projeto persegue.
+  📌 **REGRA QUE FICA: quando um dono responde N campos, o leitor lê os N — e
+  a lista se MEDE, não se lembra.** O bloco `retencao` carrega ir, pis, cofins,
+  csll e inss; este módulo lia três e ninguém percebeu por nove dias, porque os
+  três que ele lia batiam.
+
 - **🛠️ O R-2020 SAIU DO "A HOMOLOGAR" — calibrado no `evtServPrest` ACEITO,
   não no R-2010 espelhado de memória** (08/09, Paulo: *"preciso gerar a REINF
   de INSS de serviços prestados e não está habilitado, pode liberar"*, com o

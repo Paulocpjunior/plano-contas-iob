@@ -83,6 +83,19 @@ function naturezaNaDiscriminacao(texto) {
  * @returns {{pis, cofins, csll, csllOrigem, total, pendencia}}
  */
 function resolverRetencoes(nota) {
+  // 🚨 O IR TAMBÉM É DECISÃO DO CFI — e ler o campo CRU foi o defeito de 09/09
+  // (J.N. VINATEX 08/2026, BOA VISTA SERVIÇOS): o Relatório de Retenções do
+  // CFI mostrava **IR 24,24** na nota 1008360 e este painel somava **0,00** no
+  // beneficiário, com PIS, COFINS e CSLL batendo ao centavo entre as duas
+  // telas. A causa: esta função já lia o bloco `retencao` (o que a nota reteve
+  // DE VERDADE, com a ORIGEM carimbada) para TRÊS tributos, e o IR era lido
+  // fora dela, do campo cru do documento — então a retenção informada à mão
+  // nunca chegava ao R-4020. É a "meia ligação" de sempre: o dono responde
+  // cinco, o leitor pega três, e o que sobra some em SILÊNCIO.
+  //
+  // ⚠️ Ausente ≠ zero: bloco antigo do CFI que não traga `ir` NÃO zera o IR do
+  // documento — devolveria "não houve retenção" sobre uma nota que reteve.
+  const irDoDocumento = r2(num(nota && nota.ir) || 0);
   // ═══ O CFI JÁ RESPONDEU — e recalcular aqui é criar a divergência ═════════
   //
   // 31/08. O CFI passou a devolver, em cada nota, o bloco `retencao` com o que
@@ -103,7 +116,9 @@ function resolverRetencoes(nota) {
     const pis = r2(num(doCfi.pis) || 0);
     const cofins = r2(num(doCfi.cofins) || 0);
     const csll = r2(num(doCfi.csll) || 0);
+    const irDoCfi = num(doCfi.ir);
     return {
+      ir: irDoCfi === undefined ? irDoDocumento : r2(irDoCfi),
       pis, cofins, csll,
       csllOrigem: doCfi.origem === 'documento' ? 'informada' : doCfi.origem,
       total: r2(pis + cofins + csll),
@@ -123,12 +138,13 @@ function resolverRetencoes(nota) {
   const campoCsll = num(nota.csllOuTotal);
 
   if (!base || (!pis && !cofins && !campoCsll)) {
-    return { pis: 0, cofins: 0, csll: 0, csllOrigem: null, total: 0, pendencia: null };
+    return { ir: irDoDocumento, pis: 0, cofins: 0, csll: 0, csllOrigem: null, total: 0, pendencia: null };
   }
 
   // Caso limpo: o campo já é a CSLL (bate 1% da base).
   if (bate(campoCsll, base, ALIQ.csll)) {
     return {
+      ir: irDoDocumento,
       pis: r2(pis), cofins: r2(cofins), csll: r2(campoCsll),
       csllOrigem: 'informada', total: r2((pis || 0) + (cofins || 0) + campoCsll), pendencia: null,
     };
@@ -140,6 +156,7 @@ function resolverRetencoes(nota) {
     const derivada = r2(campoCsll - pis - cofins);
     if (bate(derivada, base, ALIQ.csll) && derivada > 0) {
       return {
+        ir: irDoDocumento,
         pis: r2(pis), cofins: r2(cofins), csll: derivada,
         csllOrigem: 'derivada-do-total',
         total: r2(campoCsll),
@@ -164,6 +181,7 @@ function resolverRetencoes(nota) {
   // (o caso ATLAS), e lê-lo como retenção declararia o que ninguém reteve.
   if (bate(pis, base, ALIQ.pis) && bate(cofins, base, ALIQ.cofins) && !campoCsll) {
     return {
+      ir: irDoDocumento,
       pis: r2(pis), cofins: r2(cofins), csll: 0,
       csllOrigem: 'nao-houve',
       total: r2((pis || 0) + (cofins || 0)),
@@ -177,6 +195,7 @@ function resolverRetencoes(nota) {
 
   // Não fechou por nenhum lado: NÃO inventa. Vira pendência com o motivo.
   return {
+    ir: irDoDocumento,
     pis: r2(pis), cofins: r2(cofins), csll: 0, csllOrigem: null,
     total: r2(campoCsll),
     pendencia: 'Não consegui separar a CSLL das outras contribuições: as alíquotas não fecham '
@@ -201,7 +220,10 @@ function apurarRetencoesPJ({ competencia, notas } = {}) {
     const cnpj = soDigitos(n.prestadorCnpj);
     if (cnpj.length !== 14) continue;                 // PJ só: CPF é R-4010
     const ret = resolverRetencoes(n);
-    const ir = r2(num(n.ir));
+    // O IR sai do MESMO dono que decide PIS/COFINS/CSLL — ler `n.ir` aqui era
+    // a segunda leitura do mesmo fato, e foi ela que engoliu a retenção
+    // ajustada à mão (ver o bloco no topo de `resolverRetencoes`).
+    const ir = r2(num(ret.ir) || 0);
     if (!ret.pis && !ret.cofins && !ret.csll && !ir && !ret.total) continue; // sem retenção, fora do R-4020
 
     // NATUREZA: o que a pessoa informou vence tudo; depois a fonte (a nota);

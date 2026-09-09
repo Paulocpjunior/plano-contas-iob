@@ -10,10 +10,24 @@
   </style>
 </head>
 <body>
-  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 08/09/2026</span></div></section>
+  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 09/09/2026</span></div></section>
   <main class="wrap content">
     <article class="release">
       <div class="tag">Leia esta parte primeiro</div>
+      <header><h2>🚨 O IRRF informado à mão agora sobe no R-4020 — ele estava ficando de fora</h2><span class="date">09/09/2026 · v3.4.269</span></header>
+      <ul>
+        <li><strong>O caso (J.N. VINATEX · 08/2026):</strong> o beneficiário <strong>BOA VISTA SERVIÇOS</strong> tinha duas notas — uma cujo valor não alcança a retenção de IR e outra com <strong>IRRF de R$ 24,24</strong>. O Relatório de Retenções do Consultor Fiscal imprimia os 24,24; esta tela somava <strong>IRRF R$ 0,00</strong> no beneficiário e no cabeçalho.</li>
+        <li><strong>O que enganava:</strong> PIS, COFINS e CSLL batiam ao centavo entre as duas telas. Só o IR divergia — e o total da competência saía R$ 24,24 a menos.</li>
+        <li><strong>A causa:</strong> a retenção <strong>informada à mão</strong> (ajuste declarado, com autor e motivo) chegava aqui para PIS, COFINS e CSLL, e o <strong>IR era lido do documento</strong>. Como o documento não trazia o IR, ele entrava zerado — em silêncio, sem nenhum aviso.</li>
+        <li><strong>O que muda:</strong> o IR passa a sair do mesmo lugar que os outros três — o valor <strong>declarado</strong> vence o documento, como já valia para as contribuições. O evento deixa de ser transmitido com IRRF a menos.</li>
+        <li><strong>Onde:</strong> EFD-Reinf → série <strong>R-4000</strong> → <strong>R-4020 · Retenções de PJ</strong> → informe o CNPJ do cliente e a competência → <em>Buscar no Consultor Fiscal</em>. A coluna <strong>IRRF</strong> da linha do beneficiário e o resumo do topo passam a mostrar o valor informado.</li>
+        <li><strong>O que você precisa fazer:</strong> nada de novo. Se você entregou alguma competência com IRRF a menos por causa disto, o caminho é o de sempre — <strong>retificar o evento</strong> depois de conferir a linha aqui contra o Relatório de Retenções do Consultor Fiscal.</li>
+        <li><strong>Conferência:</strong> as duas telas passam a dizer o mesmo número. Se ainda divergirem, é achado — mande o print das duas.</li>
+      </ul>
+    </article>
+
+    <article class="release">
+      <div class="tag">Anterior</div>
       <header><h2>🛠️ R-2020 liberado: a retenção de INSS SOFRIDA em serviços PRESTADOS agora gera e transmite</h2><span class="date">08/09/2026 · v3.4.266</span></header>
       <ul>
         <li><strong>O caso:</strong> o card do <strong>R-2020</strong> dizia <em>“A homologar”</em> e não havia como gerar o evento de quem <strong>presta</strong> serviço com cessão de mão de obra e sofre a retenção dos 11%. O leiaute foi homologado com um evento <strong>aceito em produção</strong> (07/2026, transmitido pelo REINF.Web) e reproduzido campo a campo.</li>
