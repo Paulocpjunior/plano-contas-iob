@@ -1,4 +1,23 @@
 const LAYOUT_QUALITY_CASES = [
+{
+  "id": "brb-alaia-2026-02",
+  "banco": "070",
+  "nomeBanco": "BRB Banco de Brasilia",
+  "layout": "BRB - Extrato Mensal",
+  "parser": "parsearPDF_BRB_Extrato",
+  "arquivo": "Extrato ALAIA.pdf",
+  "empresa": "ALAIA EQUIPAMENTOS LTDA",
+  "periodo_inicio": "2026-02-01",
+  "periodo_fim": "2026-02-28",
+  "esperado": {
+    "total_lancamentos": 13,
+    "total_credito": 15000,
+    "total_debito": 68577.7
+  },
+  "status": "Aprovado",
+  "validado_em": "2026-09-09T19:00:00Z",
+  "observacao": "Regressao com itens posicionais do PDF; sem saldo inicial impresso, saldo atual nao e fechamento mensal."
+},
   {
     id: 'mercado-pago-lav-2026-04',
     banco: 'MP',
