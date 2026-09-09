@@ -141,5 +141,79 @@ assert.strictEqual(semChave.beneficiarios[0].notasParaAjuste.length, 0, 'sem cha
   assert.ok(/const autor = \(req\.user &&/.test(rotas), 'o autor vem do usuário logado');
   assert.ok(!/autor: corpo\.autor/.test(rotas), 'e NUNCA do corpo da requisição');
 
-  console.log('✍️ ajuste de retenção do R-4020: o número vem do CFI, o ajuste é por NOTA, e a tela tem o caminho');
+  // ─── 7. 🚨 O IR AJUSTADO TAMBÉM SOBE — o defeito de 09/09 ─────────────────
+  //
+  // J.N. VINATEX · 08/2026, beneficiário BOA VISTA SERVIÇOS: duas notas, e a
+  // segunda com IRRF de 24,24 (1,5% de 1.615,84) informado à mão. O Relatório
+  // de Retenções do CFI imprimia 24,24; ESTE painel somava **IRRF 0,00** no
+  // beneficiário e no cabeçalho — com PIS, COFINS e CSLL batendo ao centavo
+  // entre as duas telas, que é o que fazia o defeito parecer de captura.
+  //
+  // A causa era de LEITURA: `resolverRetencoes` já consumia o bloco `retencao`
+  // do CFI para PIS/COFINS/CSLL, e o IR era lido do campo CRU do documento.
+  // Ou seja: o dono respondia cinco tributos e o leitor pegava três.
+  //
+  // ⚠️ E o custo é o pior: o evento é ACEITO declarando IRRF a MENOS — a
+  // Receita não recusa, e a diferença só aparece no cruzamento.
+  const boaVista = (over) => Object.assign({
+    chave: null, prestadorCnpj: '11111111000191', prestadorNome: 'PRESTADOR TESTE LTDA',
+    naturezaInformada: '15043',
+  }, over);
+
+  const vinatex = apurarRetencoesPJ({
+    competencia: '2026-08',
+    notas: [
+      // Nota cujo valor não alcança a retenção de IR: o documento diz 0,00.
+      boaVista({
+        numero: '1004413', base: 346.15, pis: 2.25, cofins: 10.38, csllOuTotal: 3.46, ir: 0,
+        retencao: { ir: 0, pis: 2.25, cofins: 10.38, csll: 3.46, origem: 'documento', exigeAjuste: false },
+      }),
+      // Nota com o IRRF INFORMADO à mão — o documento não o trouxe.
+      boaVista({
+        numero: '1008360', base: 1615.84, pis: 10.50, cofins: 48.48, csllOuTotal: 16.16, ir: 0,
+        retencao: {
+          ir: 24.24, pis: 10.50, cofins: 48.48, csll: 16.16,
+          origem: 'ajuste-declarado', exigeAjuste: false, ajustadoPor: 'paulo@',
+        },
+      }),
+    ],
+  });
+  const bv = vinatex.beneficiarios[0];
+  assert.strictEqual(bv.notas, 2, 'as duas notas do mesmo beneficiário somam numa linha só');
+  assert.strictEqual(bv.ir, 24.24, 'o IRRF AJUSTADO sobe — era 0,00 antes de 09/09');
+  assert.strictEqual(vinatex.resumo.totalIr, 24.24, 'e o cabeçalho diz o mesmo que a linha');
+  // ⚠️ O que já funcionava não pode regredir: os outros três continuam iguais.
+  assert.strictEqual(bv.pis, 12.75);
+  assert.strictEqual(bv.cofins, 58.86);
+  assert.strictEqual(bv.csll, 19.62);
+
+  // ⚠️ AUSENTE ≠ ZERO: bloco antigo do CFI (sem `ir`) NÃO zera o IR do
+  // documento — devolveria "não houve retenção" sobre nota que reteve.
+  const blocoSemIr = resolverRetencoes({
+    base: 1000, pis: 6.5, cofins: 30, csllOuTotal: 10, ir: 15,
+    retencao: { pis: 6.5, cofins: 30, csll: 10, origem: 'documento' },
+  });
+  assert.strictEqual(blocoSemIr.ir, 15, 'sem `ir` no bloco, vale o do documento');
+
+  // Sem bloco nenhum (resposta ANTIGA do CFI), o IR do documento continua valendo.
+  const semBlocoIr = apurarRetencoesPJ({
+    competencia: '2026-08',
+    notas: [boaVista({ numero: '9', base: 1000, pis: 6.5, cofins: 30, csllOuTotal: 10, ir: 15 })],
+  });
+  assert.strictEqual(semBlocoIr.beneficiarios[0].ir, 15, 'nada regride para quem não tem o bloco');
+
+  // ─── 8. A TRAVA: o IR se lê pelo DONO, nunca do campo cru ─────────────────
+  //
+  // Corrigir a linha fecha a INSTÂNCIA; a varredura fecha a CLASSE. `n.ir` só
+  // pode aparecer em `doDocumento` — que é o que a nota DIZ, mostrado para a
+  // pessoa conferir antes de digitar o ajuste.
+  const fonte = fs.readFileSync(path.join(__dirname, '..', 'reinf', 'retencao-pj-apuracao.js'), 'utf8');
+  const semComentario = fonte.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+  const leiturasCruas = (semComentario.match(/num\(n\.ir\)/g) || []).length;
+  assert.strictEqual(leiturasCruas, 1,
+    'o campo cru `n.ir` só pode ser lido em `doDocumento` — o valor que se DECLARA sai do bloco `retencao`');
+  assert.ok(/doDocumento: \{\s*\n?\s*ir: r2\(num\(n\.ir\)\)/.test(semComentario),
+    'e a única leitura crua é justamente a de conferência');
+
+  console.log('✍️ ajuste de retenção do R-4020: o número vem do CFI (IR inclusive), o ajuste é por NOTA, e a tela tem o caminho');
 })();
