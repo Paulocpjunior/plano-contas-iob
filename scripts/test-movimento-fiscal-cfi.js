@@ -141,9 +141,17 @@ console.log('OK: federais opcionais, PCC sem duplicacao, individuais, sentidos p
 assert.strictEqual(entradaFederal.total_liquido, 828.5);
 assert.strictEqual(saidaFederal.total_liquido, 1000);
 
-// Mesmo com modo individual antigo, agregado identificado pelo CFI entra uma vez.
+// Prestados individuais reconciliam CSLL residual; tomados preservam agregado.
 const agregadoModoIndividual = normalizarMovimentoFiscalCfi(federal, { ...federalOpts, tributosFederais: { contribuicoes: 'individual' } });
-assert.deepStrictEqual(agregadoModoIndividual.totais_federais_importar, { PCC: 46.5 });
+assert.deepStrictEqual(agregadoModoIndividual.totais_federais_importar, { PIS: 6.5, COFINS: 30, CSLL: 10 });
+assert.deepStrictEqual(agregadoModoIndividual.lancamentos.slice(1).map(l => l.valor), [-6.5, -30, -10]);
+const tomadosAgregados = normalizarMovimentoFiscalCfi({...federal,movimento:'servicos_tomados'}, {...federalOpts,movimento:'servicos_tomados',tributosFederais:{contribuicoes:'individual'}});
+assert.deepStrictEqual(tomadosAgregados.totais_federais_importar, {PCC:46.5});
+for (const mudanca of [{pis:0}, {pccAgregado:20}, {csll:46.5}]) {
+  assert.throws(() => normalizarMovimentoFiscalCfi({...federal,notas:[{...federal.notas[0],federaisRelatorio:{...federal.notas[0].federaisRelatorio,...mudanca}}]}, {...federalOpts,tributosFederais:{contribuicoes:'individual'}}), /composicao individual/);
+}
+const realHs = normalizarMovimentoFiscalCfi({...federal,notas:[{...federal.notas[0],federaisRelatorio:{...federal.notas[0].federaisRelatorio,pis:11.7,cofins:54,pccAgregado:83.7}}]}, {...federalOpts,tributosFederais:{contribuicoes:'individual'}});
+assert.deepStrictEqual(realHs.totais_federais_importar,{PIS:11.7,COFINS:54,CSLL:18});
 const embratop = { ...federal.notas[0], idOrigem: '22243', numero: '22243', valor: 140,
   pisRetido: 2.31, cofinsRetido: 10.64, csllOuTotalRetido: 0,
   federaisRelatorio: { pis: 0, cofins: 0, csll: 0, ir: 0, inss: 0, pccAgregado: 0,

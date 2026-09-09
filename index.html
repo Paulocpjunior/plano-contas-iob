@@ -4321,9 +4321,9 @@
                     <select id="movFiscalContribuicoes" onchange="invalidarValidacaoMovimentoFiscal()">
                         <option value="">Não importar contribuições federais</option>
                         <option value="pcc">PCC unificado — PIS + COFINS + CSLL do relatório CFI</option>
-                        <option value="individual">Individuais quando disponíveis; PCC quando agregado</option>
+                        <option value="individual">Individuais — prestados separados; tomados conforme CFI</option>
                     </select>
-                    <small>Usa os tributos reconhecidos pelo relatório CFI. PCC unificado gera uma linha por nota. Se o CFI identificar um agregado, PIS/COFINS não são somados novamente, mesmo na opção individual.</small>
+                    <small>Usa os tributos reconhecidos pelo relatório CFI. Nos prestados, a opção individual separa PIS e COFINS e confere a CSLL pela diferença do PCC total. Nos tomados, o agregado permanece unificado. O total nunca é somado novamente aos componentes.</small>
                     <label style="display:flex;align-items:center;gap:8px"><input style="width:auto;margin:0" id="movFiscalImportarIr" type="checkbox" onchange="invalidarValidacaoMovimentoFiscal()"> Importar IR reconhecido no relatório CFI</label>
                     <label style="display:flex;align-items:center;gap:8px"><input style="width:auto;margin:0" id="movFiscalImportarInss" type="checkbox" onchange="invalidarValidacaoMovimentoFiscal()"> Importar INSS reconhecido no relatório CFI</label>
                     <small>Prestados: valores destacados. Tomados: retenções. Defina débito, crédito e histórico por tributo na revisão, conforme a natureza da nota.</small>

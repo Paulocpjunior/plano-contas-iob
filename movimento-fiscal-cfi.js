@@ -140,7 +140,16 @@
           }
         }
         if (modoPcc) {
-          if (f.contribuicoesAgregadas) {
+          if (f.contribuicoesAgregadas && prestado && modoPcc === 'individual') {
+            const pisCent = Math.round(f.pis * 100);
+            const cofinsCent = Math.round(f.cofins * 100);
+            const pccCent = Math.round(f.pccAgregado * 100);
+            const csllCent = pccCent - pisCent - cofinsCent;
+            if (csllCent < 0 || (pccCent > 0 && (!pisCent || !cofinsCent)) || (f.csll > 0 && Math.round(f.csll * 100) !== csllCent)) {
+              throw new Error('NF ' + nota.numero + ': PCC sem composicao individual conferivel no CFI. Confira PIS, COFINS e CSLL na origem antes de importar separadamente.');
+            }
+            componentes.push(['PIS', pisCent / 100], ['COFINS', cofinsCent / 100], ['CSLL', csllCent / 100]);
+          } else if (f.contribuicoesAgregadas) {
             // PIS/COFINS visiveis no relatorio ja integram este agregado.
             componentes.push(['PCC', r2(f.pccAgregado)]);
           } else if (modoPcc === 'pcc') {
