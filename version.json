@@ -1,7 +1,16 @@
 {
-  "version": "3.4.266",
-  "build_date": "2026-09-08T21:27:26Z",
+  "version": "3.4.267",
+  "build_date": "2026-09-09T12:38:26Z",
   "release_notes": [
-    "Melhorias internas e correcoes"
+    "fix: mostrar motivo real das falhas de memorizacao",
+    "🛠️ R-2020 serviços prestados: gerador calibrado no evtServPrest ACEITO, cadastro por tomador e tela no ar (#130)",
+    "🧾 Serviços tomados: ISS retido vira linha a recolher — e o resumo diz que destacado não se aplica (#129)",
+    "test: validar natureza das contas no cadastro em lote (#128)",
+    "Corrigir gravacao parcial de novos planos padrao (#126)",
+    "Corrigir retenções da EMBRATOP e PCC unificado sem duplicação (#125)",
+    "Parametrizar tributos federais das notas CFI em prestados e tomados (#124)",
+    "Corrigir ISS zerado na conferência quando opção está desmarcada (#123)",
+    "Importar ISS destacado do CFI com parâmetro no movimento fiscal (#122)",
+    "🔎 A sonda do modelo precisa de tempo — o deploy 138 passou sem a prova que ela existia para dar (#121)"
   ]
 }
