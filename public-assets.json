@@ -51,6 +51,7 @@
   "/parser-nubank-extrato.js",
   "/parser-ofx.js",
   "/parser-safra-extrato.js",
+  "/parser-brb-extrato.js",
   "/parser-sage-folha-fpimp.js",
   "/parser-santander-empresas-ocr.js",
   "/parser-stone-extrato.js",
