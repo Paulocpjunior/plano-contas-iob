@@ -1,8 +1,7 @@
 {
-  "version": "3.4.269",
-  "build_date": "2026-09-09T19:30:20Z",
+  "version": "3.4.270",
+  "build_date": "2026-09-09T20:42:47Z",
   "release_notes": [
-    "fix: o IRRF informado a mao (ajuste declarado) agora sobe no R-4020 - era lido do documento e entrava zerado",
-    "trava: o campo cru n.ir so pode ser lido em doDocumento; o valor que se declara sai do bloco retencao"
+    "Melhorias internas e correcoes"
   ]
 }

@@ -6,6 +6,51 @@ retoma. Criado em 07/08/2026, quando o projeto passou do CODEX para o Claude
 (Paulo: *"o CODEX estava tocando este projeto, você consegue administrar? para
 que não fique mais confuso?"*).
 
+- **🚨 A BASE DO IR ERA CONFERIDA PELO BENEFICIÁRIO SOMADO — e reprovava nota
+  CERTA** (09/09, Paulo, no painel do R-4020 da J.N. VINATEX · 08/2026, horas
+  depois de o IRRF ajustado subir: *"puxou a retenção de IR certinho, porém
+  está dando essa mensagem, ele está falando da base como está as duas notas
+  somada"*). Ele nomeou a causa na própria frase.
+  📖 **A ARITMÉTICA FECHA A QUESTÃO, com os números do print**: BOA VISTA
+  SERVIÇOS, duas notas — **1004413** (base 346,15 · **IR 0,00**, o valor não
+  alcança a retenção) e **1008360** (base 1.615,84 · **IR 24,24**). No
+  AGREGADO, 24,24 ÷ 1.961,99 = **1,235%**, que não fecha com 1,5% nem 1% ⇒ o
+  beneficiário caía em *"não vira evento"* e era empurrado ao e-CAC. **Nota a
+  nota, 24,24 ÷ 1.615,84 = 1,50% EXATO**: a retenção estava perfeita, e o que
+  não fechava era a CONTA que a régua fazia.
+  🔴 **A CAUSA É DE EIXO, não de fórmula**: `pagamentoR4020DoBeneficiario`
+  conferia `bruto`/`ir` do beneficiário já SOMADO. Basta UMA nota abaixo do
+  piso de dispensa do IRRF no mesmo mês — que é o caso comum — para a alíquota
+  do conjunto deixar de fechar. É a classe *"quando o núcleo separa dois
+  números de propósito, a tela NÃO os soma"* (03/09) com o somador dentro da
+  PRÓPRIA régua.
+  📌 **E A MESMA MEDIÇÃO ENTREGA A BASE CERTA, que o app declarava errada**: a
+  base do IR é a soma das bases das notas **QUE RETIVERAM** — 1.615,84, nunca o
+  bruto de 1.961,99. É exatamente a forma do arquivo ACEITO de 07/2026
+  (`vlrBaseIR` 15.371,80 sobre `vlrBruto` 21.708,16): **`vlrBaseIR` pode ser
+  MENOR que o bruto**, e carimbar o bruto ali é base A MAIOR num evento que a
+  Receita ACEITA.
+  ✂️ `baseIrDoBeneficiario` (no gerador, o dono da régua) confere NOTA A NOTA e
+  soma só o que reteve; a apuração **transporta** `notasComIr` e não
+  reimplementa nada — régua em dois lugares diverge no primeiro caso novo.
+  ⚠️ **NOTA COM IR ZERO NÃO É CONFERIDA e não entra na base**: zero é resposta
+  legítima (a dispensa por valor mínimo), e cobrar alíquota dela seria alarme
+  sobre nota correta.
+  ⚠️ **E A CONFERÊNCIA CONTINUA DE PÉ — ela só mudou de EIXO**: nota individual
+  que não fecha (cooperativa, base com dedução) segue SEM base provada, com o
+  bloqueio de sempre; **uma nota torta não passa de carona na outra** (com duas
+  retendo, as DUAS têm de fechar, senão a base sairia a MENOS); e **alíquotas
+  diferentes no mesmo beneficiário** (1,5% num serviço, 1% no outro) passam a
+  funcionar — na soma elas não fechariam em alíquota nenhuma.
+  ⚠️ **A BASE NUNCA EXCEDE O BRUTO**: ela é um RECORTE dele, e soma maior (nota
+  fora do beneficiário, base duplicada) NÃO declara — base a maior é o erro que
+  a Receita aceita e ninguém confere depois.
+  📌 **REGRA QUE FICA: régua de ALÍQUOTA se aplica no nível do FATO — a nota —,
+  nunca no total que a tela agrupa.** O agrupamento por beneficiário existe
+  porque o EVENTO é por beneficiário; a retenção, não. E o sintoma desta classe
+  nunca é erro: é uma nota perfeita saindo do evento, com o app mandando
+  entregar à mão o que ele já sabia declarar.
+
 - **🚨 O IRRF AJUSTADO NUNCA CHEGAVA AO R-4020 — o dono respondia CINCO
   tributos e este leitor pegava TRÊS** (09/09, Paulo, J.N. VINATEX · 08/2026:
   *"estou entregando essa REINF, porém percebi que o IR não subiu e mesmo
