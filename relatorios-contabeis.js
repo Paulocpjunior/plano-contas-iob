@@ -114,6 +114,7 @@
       if (!mapa.has(alias) || mapa.get(alias) === registro) mapa.set(alias, registro);
       else mapa.set(alias, null);
     }
+    const legados = [];
     (contas || []).forEach(function (conta) {
       const codigoOriginal = normalizarConta(conta.codigo || conta.cod);
       const codigo = codigoEstruturalConta(conta);
@@ -124,7 +125,14 @@
       registrar(codigoOriginal, registro);
       registrar(codigo, registro);
       registrar(reduzido, registro);
-      if (/^\d{1,14}$/.test(idLegado)) registrar(idLegado, registro);
+      if (/^\d{1,14}$/.test(idLegado)) legados.push({ chave: idLegado, registro });
+    });
+    // IDs do armazenamento sao apenas fallback. Nunca disputam os codigos
+    // contabeis oficiais, inclusive quando ha zeros a esquerda.
+    const oficiais = new Set(mapa.keys());
+    legados.forEach(function (item) {
+      const alias = aliasNumericoConta(item.chave);
+      if (!oficiais.has(item.chave) && !oficiais.has(alias)) registrar(item.chave, item.registro);
     });
     return mapa;
   }

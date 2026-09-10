@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.276",
+  "version": "3.4.277",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -102,7 +102,7 @@
     "test:xlsx-bank-isolation": "node scripts/test-xlsx-bank-layout-isolation.js",
     "test:extrato-conciliado": "node scripts/test-extrato-conciliado-xlsx.js",
     "test:admin-exclusao": "node scripts/test-admin-exclusao-lancamentos.js && node scripts/test-admin-exclusao-routes.js && node scripts/test-admin-audit-trail.js",
-    "test:relatorios-contabeis": "node scripts/test-relatorios-contabeis.js && node scripts/test-relatorios-contabeis-integracao.js && node scripts/test-relatorios-analise-periodo.js && node scripts/test-auditai-estilos-locais.js",
+    "test:relatorios-contabeis": "node scripts/test-relatorios-contabeis.js && node scripts/test-relatorios-contabeis-integracao.js && node scripts/test-relatorios-analise-periodo.js && node scripts/test-auditai-estilos-locais.js && node scripts/test-contas-id-reduzido.js",
     "test:ativo-imobilizado": "node scripts/test-ativo-imobilizado.js && node scripts/test-ativo-imobilizado-integracao.js",
     "test:memoria-cobranca-login": "node scripts/test-memoria-cobranca-login.js",
     "test:migracao-sage": "node scripts/test-migracao-sage-cci.js && node scripts/test-migracao-sage-ui.js && node scripts/test-migracao-sage-executor.js && node scripts/test-migracao-sage-routes.js",
