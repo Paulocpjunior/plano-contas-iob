@@ -114,16 +114,35 @@ const opcional = (o, campo) => fmtValorReinf(temValor(o && o[campo]) ? Number(o[
 // vizinho já custou caro nesta casa (o 1010 tem sete campos num arquivo e nove
 // no outro).
 //
-// O único tamanho PROVADO é **35** — o `obs` do evento aceito de 06/2026. O
-// teto abaixo é o dobro dele com folga, e fica bem abaixo dos 200 do vizinho de
-// propósito: os dois erros custam diferente. Errar para BAIXO omite uma
-// observação informativa, e nenhum valor do evento depende dela. Errar para
-// CIMA devolve o MS0030 e o lote inteiro volta recusado, com a competência sem
-// entrega.
+// 📏 O PISO É PROVADO POR ARQUIVO ACEITO, e ele subiu de 35 para 97 (10/09): o
+// `evtServTom` de 07/2026 da MESMA empresa, MESMO prestador e MESMO namespace
+// (evtTomadorServicos/v2_01_02), transmitido em PRODUÇÃO (`tpAmb 1`) pelo
+// REINF.Web (`verProc 3.46.0000`), traz um `obs` de **97 caracteres** (98 bytes
+// UTF-8) e foi ACEITO. Ou seja: a Receita aceita ao menos 97 neste campo — é a
+// régua de sempre, arquivo ACEITO vence leiaute DEDUZIDO.
+//
+// ⚠️ E 97 CONTINUA SENDO PISO, NUNCA TETO: aquele `obs` é a MESMA discriminação
+// da nota, COMPRIMIDA pelo outro sistema (rótulos suprimidos, valores colados —
+// "…ALIMP8HS CDESCR 1587688 FALTAS R    34930601 INSUMOS"). Ele prova o que
+// PASSOU, não onde o campo estoura. Subir acima de 97 é dedução, e dedução aqui
+// devolve o MS0030 com o lote inteiro.
+//
+// 📌 A UNIDADE É A MESMA DOS DOIS LADOS, e isso não é coincidência a mexer: o
+// validador da Receita é .NET (a recusa vem em inglês, "The actual length is
+// greater than the MaxLength value") e `MaxLength` ali conta unidades UTF-16 —
+// exatamente o que `String.prototype.length` conta abaixo. Trocar por bytes
+// mediria outra coisa que a Receita não confere. E mesmo na leitura mais
+// pessimista a folga fica: 97 caracteres todos acentuados dariam ~194 bytes,
+// ainda abaixo dos 200 do campo irmão.
+//
+// Os dois erros continuam custando diferente, e é isso que fixa o número no
+// piso em vez de num palpite maior. Errar para BAIXO omite uma observação
+// informativa, e nenhum valor do evento depende dela. Errar para CIMA devolve o
+// MS0030 e o lote inteiro volta recusado, com a competência sem entrega.
 //
 // 📌 Quando o XSD do evtTomadorServicos entrar em docs/reinf/xsd (do mesmo
 // jeito que o do R-4020 entrou), este número vira o do leiaute.
-const OBS_MAX_APP = 80;
+const OBS_MAX_APP = 97;
 
 // O que o app se permite mandar no `obs`. Devolve o texto ou `null` + o motivo,
 // nunca um texto CORTADO: recortar a discriminação de terceiro produz frase
