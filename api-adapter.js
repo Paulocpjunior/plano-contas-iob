@@ -808,6 +808,18 @@
     return await r.json();
   }
 
+  // O recibo do evento anterior — lido na FONTE (e-CAC / REINF.Web) e digitado.
+  // Sem ele não há retificação, e sem retificação a Receita responde MS1028
+  // para sempre na competência que já foi entregue.
+  async function reinfServicoTomadoRecibo(payload) {
+    const r = await apiFetch(API_BASE + '/api/reinf/servicos-tomados/recibo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+    });
+    return await r.json();
+  }
+
   async function reinfServicosTomadosTransmitir(payload) {
     const r = await apiFetch(API_BASE + '/api/reinf/servicos-tomados/transmitir', {
       method: 'POST',
@@ -1026,6 +1038,7 @@
     reinfServicosTomados,
     reinfServicoTomadoPrestador,
     reinfServicosTomadosTransmitir,
+    reinfServicoTomadoRecibo,
     reinfServicosPrestados,
     reinfServicoPrestadoTomador,
     reinfServicosPrestadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };

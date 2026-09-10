@@ -68,6 +68,76 @@ que não fique mais confuso?"*).
   apostando que ninguém vai escrever demais — e essa aposta não falha no
   desenvolvimento, falha na competência do cliente, com o lote inteiro voltando.
 
+- **🚨 O RECIBO DA RECEITA CHEGAVA E ERA JOGADO FORA — a competência ENTREGUE
+  ficava trancada dentro do app** (10/09, Paulo, J.N. VINATEX · 08/2026, minutos
+  depois de o `obs` ser corrigido e a competência retransmitida:
+  *"retornou com o erro MS1028"*).
+  📖 **A RECEITA DISSE O QUE ERA, por extenso**: *"Não é permitido o envio de
+  mais de um evento para o mesmo contribuinte, num mesmo período de apuração
+  para um mesmo estabelecimento e prestador, **exceto se for para retificação de
+  um evento enviado anteriormente ou se o evento anterior tiver sido
+  excluído**"*.
+  🚨 **MS1028 NÃO DIZ QUE O EVENTO ESTÁ ERRADO — DIZ QUE ELE JÁ EXISTE**, e essa
+  é a leitura mais cara do dia: a tela respondia *"o lote foi recebido, mas há
+  EVENTOS RECUSADOS — **nada foi aceito**"*, frase que se lê como *"a competência
+  está sem entrega"*. Quem lê aquilo transmite de novo — e a Receita devolve
+  exatamente o MESMO MS1028, para sempre. **A competência pode já estar
+  ENTREGUE**, e a única frase honesta é mandar conferir o recibo no e-CAC.
+  🔴 **A CAUSA É DE LEITURA, e ela é a "régua que só escreve" ao contrário**: a
+  rota de transmissão sempre mandou `indRetif=1` (original) e **nunca guardou o
+  `nrRecArqBase`** que o retorno entrega em TODO evento aceito. O recibo é o
+  ÚNICO caminho de volta (retificar exige o recibo do evento anterior) — ele
+  chegava, e o app descartava. Do segundo envio em diante, a competência ficava
+  trancada por dentro: original recusado, retificação impossível.
+  ✅ **E O CAMPO NÃO É DEDUÇÃO**: `nrRecArqBase` é o MESMO que o caminho do
+  R-4010 deste repo já grava e já usa para retificar (`registrarRetornoLoteReinf`
+  → `nrRecibo` → `indRetif: 2`), e lá a retificação funciona. Reusar o campo
+  PROVADO é a régua de sempre — retorno REAL vence leiaute deduzido.
+  ⚠️ **A CHAVE É A QUE A RECEITA NOMEIA NO PRÓPRIO MS1028**: contribuinte +
+  competência + **ESTABELECIMENTO** + prestador, mais o **AMBIENTE**. Chavear por
+  menos faria o recibo de uma filial retificar o evento de outra, ou o de
+  produção restrita retificar o de produção — e evento retificado contra o
+  recibo ERRADO é **ACEITO**, que é o pior desfecho, porque não volta recusa
+  nenhuma avisando.
+  ⚠️ **`indRetif`/`nrRecibo` SÃO DO PRESTADOR, nunca do lote** — pelo MESMO
+  motivo do `indObra` (14/08, "o primeiro decide pelos outros"): o lote mistura
+  prestador já entregue com prestador que nunca saiu, e marcar retificação no
+  lote faria o novo retificar um evento inexistente e o antigo sair com o recibo
+  do vizinho.
+  🚦 **E `indRetif=2` SEM `nrRecibo` SAÍA CALADO**: a linha do recibo
+  simplesmente não era escrita (`if (indRetif === 2 && nrRecibo)`) e o evento ia
+  declarando retificação de coisa nenhuma. Virou RECUSA com o motivo.
+  🚪 **A SAÍDA NASCE ONDE A TRAVA APARECE**: a competência entregue ANTES desta
+  correção (ou pelo REINF.Web) tem o recibo só na Receita, então o MS1028 sem
+  recibo guardado abre o campo **"Informar o recibo do evento anterior"** ali
+  mesmo, com o prestador escolhido numa lista. **O app não deduz o número** —
+  alguém lê no e-CAC e digita, e fica gravado QUEM digitou, carimbado
+  `origem: 'informado'` × `'retorno'`. É o desenho do `cpfTitular` do produtor
+  rural e o do código 9 do ISS fixo.
+  ⚠️ **E DÁ PARA APAGAR**: recibo digitado errado é PIOR que recibo nenhum — ele
+  retifica em cima do evento de outro. Salvar em branco remove.
+  ⚠️ **O FORMATO AVISA E NÃO BLOQUEIA**: o recibo carrega o tipo do evento
+  (`…-2010-…`), e o app diz quando o número não parece de um R-2010 — mas não
+  recusa: o formato é da Receita e já mudou antes neste projeto, e recusar por
+  formato deduzido recusaria recibo VÁLIDO, que é o erro caro aqui.
+  ⚠️ **FALHA AO LER OS RECIBOS RECUSA A TRANSMISSÃO**, e é decisão: sem eles o
+  app não distingue *"não tem recibo"* (original, certo) de *"não consegui ler"*
+  (original por acidente). Original e retificação são declarações de naturezas
+  DIFERENTES. Falha ao GRAVAR não desfaz o que já foi transmitido, mas vai DITO.
+  🐛 **E O "ONDE" DA OCORRÊNCIA NUNCA APARECIA NA TELA DO R-2010**: o backend
+  extrai `localErroAviso` de propósito desde 12/08 (*"era ela que faltava"*) e a
+  tela lia `o.local`, campo que não existe. O dado chegava e ninguém lia — na
+  tela feita para mostrá-lo.
+  🚩 **O QUE ISTO NÃO RESPONDE, e vai dito**: **qual** evento a Receita tem
+  registrado de 08/2026. O app não guardou recibo nenhum até hoje, e o registro
+  anterior aqui dizia *"o lote foi RECEBIDO e NADA foi aceito"* — o MS1028
+  contradiz isso, então a premissa se **RE-MEDE no e-CAC**, não se herda. Só o
+  recibo lá diz se a competência já está entregue e com quais valores.
+  📌 **REGRA QUE FICA: retorno de órgão que carrega o caminho de volta se GUARDA
+  no mesmo PR em que se transmite.** O recibo não é comprovante para arquivar —
+  é a CHAVE da retificação. Descartá-lo transforma "entregue" em "trancado", e o
+  sintoma chega como recusa que se lê ao contrário do que ela diz.
+
 - **🚨 A BASE DO IR ERA CONFERIDA PELO BENEFICIÁRIO SOMADO — e reprovava nota
   CERTA** (09/09, Paulo, no painel do R-4020 da J.N. VINATEX · 08/2026, horas
   depois de o IRRF ajustado subir: *"puxou a retenção de IR certinho, porém
