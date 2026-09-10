@@ -253,6 +253,49 @@ const doLote = gerarEventosR2010({
 });
 assert.strictEqual(doLote[0].avisos.length, 1, 'gerarEventosR2010 propaga o aviso de cada evento');
 
+// ── 14b. O PISO DO CAMPO É PROVADO POR ARQUIVO ACEITO — 97 CARACTERES ───
+//
+// O `evtServTom` de 07/2026 da MESMA empresa, MESMO prestador e MESMO namespace
+// foi ACEITO em PRODUÇÃO (`tpAmb 1`, REINF.Web `verProc 3.46.0000`) com um `obs`
+// de 97 caracteres. Ou seja: a Receita aceita ao menos isso no campo, e o teto
+// do app não pode ficar ABAIXO do que já se provou passar — senão ele omite
+// observação que o leiaute recebe. É a régua de sempre: arquivo ACEITO vence
+// leiaute DEDUZIDO.
+//
+// O texto abaixo é FICTÍCIO e reproduz só a FORMA e o TAMANHO do aceito (a
+// discriminação comprimida, com rótulos suprimidos e valores colados): dado de
+// cliente não entra no repositório.
+//
+// ⚠️ E ELE CARREGA UM ACENTO DE PROPÓSITO: são 97 caracteres em 98 bytes. O
+// `MaxLength` do validador da Receita conta unidades UTF-16, que é o que o
+// `String.length` do gerador conta — quem trocar a medição por BYTES faz esta
+// linha, que a Receita aceitou, passar a ser omitida, e o teste cai.
+const OBS_DO_ACEITO_97 = 'SERVIÇOS PRESTADOS EM JULHO 0000      00 0 EXEMPLO0HS CDESCR '
+  + '0000000 FALTAS R    00000000 INSUMOS';
+assert.strictEqual(OBS_DO_ACEITO_97.length, 97, 'a fixture reproduz o TAMANHO do obs aceito em produção');
+assert.strictEqual(Buffer.byteLength(OBS_DO_ACEITO_97, 'utf8'), 98, 'e ela tem acento: caractere ≠ byte');
+assert.ok(OBS_MAX_APP >= 97, 'o teto do app nunca fica abaixo do que a Receita JÁ ACEITOU');
+
+const noPiso = base();
+noPiso.prestador.notas[0].obs = OBS_DO_ACEITO_97;
+const geradoNoPiso = gerarR2010(noPiso);
+assert.ok(geradoNoPiso.xml.includes(`<obs>${OBS_DO_ACEITO_97}</obs>`),
+  'obs do tamanho já aceito em produção vai INTEIRA ao evento');
+assert.deepStrictEqual(geradoNoPiso.avisos, [], 'e não gera aviso — ela cabe');
+
+// A FRONTEIRA É `<=`: exatamente no teto ainda cabe, um caractere acima fica de
+// fora NOMEADO. Acima do provado o MS0030 volta com o LOTE INTEIRO, e o app
+// continua sem recortar declaração de terceiro.
+const noTeto = base();
+noTeto.prestador.notas[0].obs = 'X'.repeat(OBS_MAX_APP);
+assert.ok(gerarR2010(noTeto).xml.includes('<obs>'), 'exatamente no teto ainda vai');
+
+const umAcima = base();
+umAcima.prestador.notas[0].obs = 'X'.repeat(OBS_MAX_APP + 1);
+const geradoUmAcima = gerarR2010(umAcima);
+assert.ok(!geradoUmAcima.xml.includes('<obs>'), 'um caractere acima do teto não vai');
+assert.strictEqual(geradoUmAcima.avisos.length, 1, 'e a omissão sai nomeada');
+
 // ── 15. O LEIAUTE TEM UM DONO — a rota não decide o que cabe no campo ───────
 //
 // A rota é quem monta as notas a partir do que o CFI entrega. Se ela recortar

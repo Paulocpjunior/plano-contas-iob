@@ -1,7 +1,7 @@
 {
-  "version": "3.4.272",
-  "build_date": "2026-09-10T11:08:58Z",
+  "version": "3.4.273",
+  "build_date": "2026-09-10T12:38:31Z",
   "release_notes": [
-    "R-2010: observacao da nota que nao cabe no leiaute nao derruba mais o lote (MS0030)"
+    "Melhorias internas e correcoes"
   ]
 }

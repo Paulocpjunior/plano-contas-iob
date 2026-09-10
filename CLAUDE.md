@@ -42,12 +42,27 @@ que não fique mais confuso?"*).
   `docs/reinf/xsd` — nele o campo IRMÃO `observ` é `maxLength 200`, o que
   CORROBORA a ordem de grandeza e **não é o número do 2010** (o 1010 tem sete
   campos num arquivo e nove no outro; leiaute de vizinho já custou caro aqui).
-  O único tamanho PROVADO é **35**, o do evento aceito — por isso o teto do app
-  é **80**, deliberadamente baixo: **errar para baixo omite uma observação
-  informativa; errar para cima devolve o MS0030 e o lote inteiro.**
+  📏 **E O PISO SUBIU DE 35 PARA 97 NO DIA SEGUINTE, por ARQUIVO ACEITO** (10/09,
+  Paulo mandou o `evtServTom` de **07/2026** da MESMA empresa e do MESMO
+  prestador, `tpAmb 1` — PRODUÇÃO — pelo REINF.Web `verProc 3.46.0000`): o `obs`
+  dele tem **97 caracteres** e a Receita ACEITOU. O teto do app nasceu **80**,
+  ou seja **abaixo do que já passava** — ele omitiria observação que o leiaute
+  recebe. Subiu para **97**, que é o piso PROVADO, e não um palpite maior.
+  ⚠️ **97 É PISO, NUNCA TETO — e o próprio arquivo diz por quê**: aquele `obs` é
+  a MESMA discriminação, **COMPRIMIDA** pelo outro sistema (rótulos suprimidos,
+  valores colados). Ou seja, o REINF.Web resolve o mesmo problema **recortando**;
+  aqui a régua continua sendo **omitir e NOMEAR**, porque meia declaração de
+  terceiro é dado com cara de declaração. O que ele prova é o que PASSOU, não
+  onde o campo estoura — acima de 97 volta a ser dedução, e dedução aqui devolve
+  o MS0030 com o lote.
+  📌 **A UNIDADE É A MESMA DOS DOIS LADOS**: o validador da Receita é .NET e
+  `MaxLength` conta unidades UTF-16 — o mesmo que `String.length`. A fixture do
+  teste tem **97 caracteres em 98 bytes** de propósito: quem trocar a medição
+  para BYTES faz o teste cair. Provado por reversão nas duas direções (teto de
+  volta a 80 · medição por byte).
   📌 **FILA DO PAULO**: mandar o **XSD do `evtTomadorServicos v2_01_02`** (do
-  mesmo jeito que o do R-4020 entrou no repo). Com ele, o teto do app vira o do
-  leiaute e o comentário morre.
+  mesmo jeito que o do R-4020 entrou no repo). O XML aceito eleva o PISO e **não
+  fecha essa pendência** — só o XSD fixa o número do leiaute.
   📌 **REGRA QUE FICA: campo de leiaute com MaxLength não recebe texto que um
   TERCEIRO digita.** Ou o app conhece o teto e decide o que cabe, ou está
   apostando que ninguém vai escrever demais — e essa aposta não falha no
