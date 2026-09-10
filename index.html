@@ -6176,7 +6176,9 @@
                     map.set(e.importacaoId, e.importacaoTitulo || '(sem titulo)');
                 }
             });
-            const v = sel.value;
+            const cnpjFiltro = String((state.info && state.info.cnpj) || '').replace(/\D/g, '');
+            const v = sel.dataset.empresaCnpj === cnpjFiltro && map.has(sel.value) ? sel.value : '';
+            sel.dataset.empresaCnpj = cnpjFiltro;
             const opts = Array.from(map.entries())
                 .map(([id, titulo]) => `<option value="${id}">${titulo}</option>`)
                 .join('');
@@ -18268,6 +18270,7 @@
         }
 
         function renderLancamentos() {
+            popularFiltroImportacoes();
             const edicaoAtiva = capturarEdicaoAtivaLancamentos();
             const c = document.getElementById('lancamentosTable');
             popularDatalistHistoricos();  // Fase 1

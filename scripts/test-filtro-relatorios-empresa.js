@@ -1,0 +1,17 @@
+const assert=require('assert');
+const fs=require('fs');
+const vm=require('vm');
+const html=fs.readFileSync(require('path').join(__dirname,'../index.html'),'utf8');
+const start=html.indexOf('function popularFiltroImportacoes()');
+const end=html.indexOf("if (document.readyState",start);
+const sel={value:'folha',innerHTML:'',dataset:{empresaCnpj:'1086'}};
+const state={info:{cnpj:'1086'},entries:[{importacaoId:'folha',importacaoTitulo:'FPIMP1086.01'}]};
+const c=vm.createContext({state,document:{getElementById:()=>sel}});
+vm.runInContext(html.slice(start,end),c);
+c.popularFiltroImportacoes();assert.equal(sel.value,'folha');assert(sel.innerHTML.includes('1086'));
+state.info={cnpj:'0803'};state.entries=[{importacaoId:'folha',importacaoTitulo:'FPIMP0803.01'}];
+c.popularFiltroImportacoes();assert.equal(sel.value,'');assert(!sel.innerHTML.includes('1086'));assert(sel.innerHTML.includes('0803'));
+sel.value='folha';c.popularFiltroImportacoes();assert.equal(sel.value,'folha');
+state.entries=[];c.popularFiltroImportacoes();assert.equal(sel.value,'');assert(!sel.innerHTML.includes('0803'));
+assert(/function renderLancamentos\(\)\s*\{\s*popularFiltroImportacoes\(\)/.test(html));
+console.log('OK: relatorios acompanham empresa ativa, preservam filtro na mesma empresa e limpam lista sem lancamentos.');
