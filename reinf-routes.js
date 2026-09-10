@@ -2452,6 +2452,9 @@ function registrarRotasReinf(app, { db } = {}) {
           bruto: l.vlrTotalBruto, base: l.vlrTotalBaseRet, retencao: l.vlrTotalRetPrinc,
         })),
         naoDeclarados: pendentes.map((l) => ({ cnpj: l.cnpjPrestador, nome: l.nome, pendencias: l.pendencias })),
+        // O que o gerador deixou de fora do evento (hoje: observação de nota
+        // que não cabe no campo do leiaute). Vazio no caso normal.
+        avisosDoEvento: eventos.flatMap((e) => e.avisos || []),
       });
     } catch (err) {
       respostaErro(res, 400, err);

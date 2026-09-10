@@ -1,16 +1,7 @@
 {
-  "version": "3.4.271",
-  "build_date": "2026-09-09T21:00:05Z",
+  "version": "3.4.272",
+  "build_date": "2026-09-10T11:08:58Z",
   "release_notes": [
-    "fix: reconhecer extrato mensal BRB com sinais e historicos completos",
-    "🚨 A base do IR do R-4020 se confere NOTA A NOTA, não pelo beneficiário somado (#135)",
-    "🚨 O IRRF informado à mão sobe no R-4020 — era lido do documento (#134)",
-    "Segregar PCC de servicos prestados na opcao individual (#133)",
-    "Exibir motivo real de falha ao memorizar lancamentos (#131)",
-    "🛠️ R-2020 serviços prestados: gerador calibrado no evtServPrest ACEITO, cadastro por tomador e tela no ar (#130)",
-    "🧾 Serviços tomados: ISS retido vira linha a recolher — e o resumo diz que destacado não se aplica (#129)",
-    "test: validar natureza das contas no cadastro em lote (#128)",
-    "Corrigir gravacao parcial de novos planos padrao (#126)",
-    "Corrigir retenções da EMBRATOP e PCC unificado sem duplicação (#125)"
+    "R-2010: observacao da nota que nao cabe no leiaute nao derruba mais o lote (MS0030)"
   ]
 }
