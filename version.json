@@ -1,8 +1,7 @@
 {
-  "version": "3.4.274",
-  "build_date": "2026-09-10T12:41:27Z",
+  "version": "3.4.275",
+  "build_date": "2026-09-10T14:21:22Z",
   "release_notes": [
-    "Corrigir lista de relatorios ao trocar empresa",
     "Melhorias internas e correcoes"
   ]
 }

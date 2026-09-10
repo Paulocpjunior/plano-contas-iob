@@ -28,6 +28,9 @@ const { apurarServicosTomados, patchCadastroPrestador } = require('./reinf/servi
 const { gerarEventosR2055 } = require('./reinf/gerar-r2055');
 const { gerarR4020, pagamentoR4020DoBeneficiario } = require('./reinf/gerar-r4020');
 const { gerarEventosR2010 } = require('./reinf/gerar-r2010');
+const {
+  idReciboR2010, recibosDoRetornoR2010, duplicidadeR2010, retificacaoDoPrestador,
+} = require('./reinf/recibo-r2010');
 const { gerarEventosR2020 } = require('./reinf/gerar-r2020');
 const { apurarServicosPrestados, patchCadastroTomador } = require('./reinf/servicos-prestados-apuracao');
 const { gerarR2099, podeTransmitirR2099 } = require('./reinf/gerar-r2099');
@@ -2174,6 +2177,62 @@ function registrarRotasReinf(app, { db } = {}) {
    * que BLOQUEIA. Nunca "informado com o valor padrão": indObra chutado em 0
    * declararia obra que não é obra.
    */
+  // ──────────────────────────────────────────────────────────────────────────
+  // RECIBOS DO R-2010 — o caminho de volta que não existia (10/09, MS1028).
+  //
+  // Retificar exige o recibo do evento anterior. O retorno da Receita entrega
+  // esse recibo (`nrRecArqBase`) em TODO evento aceito, e a transmissão do
+  // R-2010 o descartava: a competência entregue ficava trancada, porque o app
+  // só sabia mandar ORIGINAL e a Receita responde MS1028 a partir do segundo.
+  //
+  // ⚠️ FALHA DE LEITURA **RECUSA A TRANSMISSÃO**, e isso é decisão: sem os
+  // recibos o app não distingue "não tem recibo" (manda original, certo) de
+  // "não consegui ler" (manda original por acidente). Original e retificação
+  // são declarações de naturezas diferentes; escolher por causa de um banco que
+  // piscou é o app decidindo no escuro. Recusa custa um clique.
+  // ──────────────────────────────────────────────────────────────────────────
+  async function lerRecibosR2010(banco, { tpAmb, perApur, cnpjContribuinte }) {
+    const snap = await banco.collection('reinf_recibos_r2010')
+      .where('tpAmb', '==', Number(tpAmb))
+      .where('perApur', '==', String(perApur))
+      .where('cnpjContribuinte', '==', limparCnpj(cnpjContribuinte))
+      .get();
+    const out = new Map();
+    snap.forEach((d) => {
+      const v = d.data() || {};
+      if (v.nrRecibo) out.set(d.id, v);
+    });
+    return out;
+  }
+
+  async function gravarRecibosR2010(banco, { tpAmb, perApur, cnpjContribuinte, protocolo, aceitos }) {
+    if (!banco || !Array.isArray(aceitos) || !aceitos.length) return 0;
+    const batch = banco.batch();
+    aceitos.forEach((a) => {
+      const id = idReciboR2010({
+        tpAmb, perApur, cnpjContribuinte,
+        cnpjEstab: a.cnpjEstab, cnpjPrestador: a.cnpjPrestador,
+      });
+      batch.set(banco.collection('reinf_recibos_r2010').doc(id), {
+        nrRecibo: a.nrRecibo,
+        // A ORIGEM viaja carimbada: recibo lido do retorno é FATO da Receita;
+        // recibo digitado é DECLARAÇÃO de quem digitou, e quem confere daqui a
+        // três meses precisa saber de qual dos dois veio o número.
+        origem: 'retorno',
+        idEv: a.idEv,
+        protocolo: protocolo || null,
+        tpAmb: Number(tpAmb),
+        perApur: String(perApur),
+        cnpjContribuinte: limparCnpj(cnpjContribuinte),
+        cnpjEstab: limparCnpj(a.cnpjEstab),
+        cnpjPrestador: limparCnpj(a.cnpjPrestador),
+        atualizado_em: new Date(),
+      }, { merge: true });
+    });
+    await batch.commit();
+    return aceitos.length;
+  }
+
   async function lerCadastroPrestadoresR2010(banco, cnpjTomador) {
     try {
       const snap = await banco.collection('reinf_servicos_tomados_prestadores')
@@ -2330,6 +2389,86 @@ function registrarRotasReinf(app, { db } = {}) {
   });
 
   // ──────────────────────────────────────────────────────────────────────────
+  // POST /api/reinf/servicos-tomados/recibo
+  //
+  // O RECIBO INFORMADO À MÃO — a porta que destrava a competência antiga.
+  //
+  // A partir de agora o app guarda sozinho o recibo de todo evento aceito. Mas
+  // a competência que já foi entregue ANTES disto (ou pelo REINF.Web) tem o
+  // recibo só na Receita — e sem ele não há retificação possível, então o app
+  // fica repetindo original e colecionando MS1028.
+  //
+  // O desenho é o do `cpfTitular` do produtor rural e o do código 9 do ISS
+  // fixo: **o app não deduz o número, alguém lê na FONTE e digita**, e fica
+  // gravado QUEM digitou. Recibo é a chave que decide sobre qual evento a
+  // retificação vai escrever — inventá-lo é declarar em cima do evento errado,
+  // e a Receita ACEITA, porque a forma está certa.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.post('/servicos-tomados/recibo', async (req, res) => {
+    try {
+      const p = req.body || {};
+      const cnpj = limparCnpj(p.cnpj);
+      const cnpjPrestador = limparCnpj(p.cnpjPrestador);
+      const cnpjEstab = limparCnpj(p.cnpjEstab) || cnpj;
+      const competencia = String(p.competencia || '').trim();
+      const tpAmb = Number(p.tpAmb || 2);
+      const nrRecibo = String(p.nrRecibo == null ? '' : p.nrRecibo).trim();
+
+      if (cnpj.length !== 14) throw new Error('Informe o CNPJ do tomador com 14 dígitos.');
+      if (cnpjPrestador.length !== 14) throw new Error('Informe o CNPJ do prestador com 14 dígitos.');
+      if (!/^\d{4}-\d{2}$/.test(competencia)) throw new Error('Competência deve ser AAAA-MM.');
+      if (![1, 2].includes(tpAmb)) throw new Error('tpAmb deve ser 1 (produção) ou 2 (produção restrita).');
+
+      const id = idReciboR2010({
+        tpAmb, perApur: competencia, cnpjContribuinte: cnpj, cnpjEstab, cnpjPrestador,
+      });
+      const ref = db.collection('reinf_recibos_r2010').doc(id);
+
+      // APAGAR É CAMINHO LEGÍTIMO, e precisa existir: recibo digitado errado é
+      // PIOR que recibo nenhum — ele retifica em cima do evento de outro. Sem
+      // esta saída, o engano viraria transmissão errada com o app obedecendo.
+      if (!nrRecibo) {
+        await ref.delete().catch(() => {});
+        await registrarLog(db, req, 'recibo_r2010_removido', { contribuinte: cnpj, cnpjPrestador, competencia, tpAmb });
+        return res.json({ ok: true, removido: true, id });
+      }
+
+      if (/\s/.test(nrRecibo) || nrRecibo.length < 8) {
+        throw new Error('Recibo em branco ou incompleto. Ele vem do recibo de entrega da EFD-Reinf '
+          + '(e-CAC ou REINF.Web) — copie o número inteiro, sem espaços.');
+      }
+      // O tipo do evento aparece no próprio recibo (`…-2010-…` no R-2010,
+      // `…-2099-…` no fechamento). Isso AVISA e não BLOQUEIA: o formato do
+      // recibo é da Receita e já mudou antes neste projeto — recusar por
+      // formato deduzido recusaria recibo VÁLIDO, que é o erro caro aqui.
+      const avisos = [];
+      if (!nrRecibo.includes('-2010-')) {
+        avisos.push('Este número não tem o "-2010-" que aparece no recibo de um R-2010. Confira se '
+          + 'não é o recibo de outro evento (o R-2099 do fechamento, por exemplo) — retificar contra '
+          + 'o recibo errado é ACEITO pela Receita e escreve em cima do evento errado.');
+      }
+
+      await ref.set({
+        nrRecibo,
+        origem: 'informado',
+        tpAmb, perApur: competencia,
+        cnpjContribuinte: cnpj, cnpjEstab, cnpjPrestador,
+        informadoPorEmail: (req.user && req.user.email) || null,
+        informadoPorUid: (req.user && req.user.uid) || null,
+        atualizado_em: new Date(),
+      }, { merge: true });
+
+      await registrarLog(db, req, 'recibo_r2010_informado', {
+        contribuinte: cnpj, cnpjPrestador, cnpjEstab, competencia, tpAmb, nrRecibo,
+      });
+
+      res.json({ ok: true, id, nrRecibo, avisos });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
   // POST /api/reinf/servicos-tomados/transmitir
   //
   // Só os prestadores PRONTOS entram. Prestador pendente fica de fora e volta
@@ -2374,6 +2513,24 @@ function registrarRotasReinf(app, { db } = {}) {
         });
       }
 
+      // O RECIBO DECIDE ORIGINAL × RETIFICAÇÃO, prestador a prestador. Sem
+      // isto o app só sabia mandar original, e a Receita responde MS1028 a
+      // partir do segundo envio da MESMA competência — a competência entregue
+      // ficava trancada dentro do próprio app (caso VINATEX 08/2026).
+      let recibos;
+      try {
+        recibos = await lerRecibosR2010(db, { tpAmb, perApur: competencia, cnpjContribuinte: cnpj });
+      } catch (err) {
+        return res.json({
+          ok: false,
+          etapa: 'recibos',
+          motivo: 'Não foi possível ler os recibos já entregues desta competência, e sem eles o app '
+            + 'não sabe se o evento sai como ORIGINAL ou como RETIFICAÇÃO — são declarações de '
+            + 'naturezas diferentes, e escolher no escuro é o que não pode. Tente de novo em '
+            + 'instantes. Detalhe: ' + (err.message || err),
+        });
+      }
+
       // `indObra` NÃO entra no estabelecimento do lote: ele é cadastrado por
       // PRESTADOR e viaja com ele. Repetir aqui o do primeiro pronto declarava
       // a natureza do primeiro contrato dentro do evento de todos os outros —
@@ -2389,6 +2546,14 @@ function registrarRotasReinf(app, { db } = {}) {
           indObra: l.indObra,
           nrInscEstab: l.nrInscEstab || cnpj,
           indCPRB: l.indCPRB,
+          // A chave é a que a Receita nomeia no MS1028: contribuinte +
+          // competência + ESTABELECIMENTO + prestador. O estabelecimento é o
+          // mesmo que vai no evento (`nrInscEstab`), nunca o CNPJ do lote —
+          // senão o recibo de uma filial retificaria o evento de outra.
+          ...retificacaoDoPrestador(recibos, {
+            tpAmb, perApur: competencia, cnpjContribuinte: cnpj,
+            cnpjEstab: l.nrInscEstab || cnpj, cnpjPrestador: l.cnpjPrestador,
+          }),
           notas: l.notas.map((n) => ({
             serie: n.serie || '0',
             numDocto: n.numero,
@@ -2413,6 +2578,36 @@ function registrarRotasReinf(app, { db } = {}) {
         : { httpStatus: envio.status, ...info };
 
       const ocorrencias = extrairOcorrenciasReinf((recibo && recibo.xml) || info.xml);
+
+      // O RECIBO CHEGA AQUI E ERA JOGADO FORA. Ele é o único caminho de volta:
+      // sem ele guardado, a próxima transmissão desta competência sai como
+      // original e a Receita devolve MS1028. Gravar falhando NÃO derruba a
+      // transmissão que já aconteceu — mas vai DITO, senão o recibo some em
+      // silêncio e a competência tranca de novo no mês seguinte.
+      const doRetorno = recibosDoRetornoR2010(
+        parseRetornoEventos((recibo && recibo.xml) || info.xml), eventos,
+      );
+      let recibosGravados = 0;
+      let falhaAoGravarRecibo = null;
+      try {
+        recibosGravados = await gravarRecibosR2010(db, {
+          tpAmb, perApur: competencia, cnpjContribuinte: cnpj,
+          protocolo: info.protocolo || null, aceitos: doRetorno.aceitos,
+        });
+      } catch (err) {
+        falhaAoGravarRecibo = 'Os eventos foram transmitidos, mas o app não conseguiu guardar o '
+          + 'recibo devolvido pela Receita. Sem ele, a próxima transmissão desta competência sai '
+          + 'como ORIGINAL e volta recusada por duplicidade (MS1028). Detalhe: ' + (err.message || err);
+      }
+
+      // MS1028 tem leitura PRÓPRIA: ele não diz que o evento está errado, diz
+      // que ele JÁ EXISTE — e a competência pode já estar entregue.
+      const retificadosAgora = prontos.filter((l) => retificacaoDoPrestador(recibos, {
+        tpAmb, perApur: competencia, cnpjContribuinte: cnpj,
+        cnpjEstab: l.nrInscEstab || cnpj, cnpjPrestador: l.cnpjPrestador,
+      }).indRetif === 2);
+      const duplicidade = duplicidadeR2010(ocorrencias, { tinhaRecibo: retificadosAgora.length > 0 });
+
       await registrarLog(db, req, 'transmitir_r2010', {
         contribuinte: cnpj,
         tpAmb,
@@ -2423,6 +2618,9 @@ function registrarRotasReinf(app, { db } = {}) {
         prestadoresDeclarados: prontos.length,
         eventosEnviados: eventos.length,
         prestadoresPendentes: pendentes.length,
+        retificados: retificadosAgora.length,
+        recibosGravados,
+        duplicidade: duplicidade ? duplicidade.quantidade : 0,
         ocorrencias: ocorrencias.map((o) => ({ codigo: o.codigo, descricao: o.descricao })),
       });
 
@@ -2455,6 +2653,13 @@ function registrarRotasReinf(app, { db } = {}) {
         // O que o gerador deixou de fora do evento (hoje: observação de nota
         // que não cabe no campo do leiaute). Vazio no caso normal.
         avisosDoEvento: eventos.flatMap((e) => e.avisos || []),
+        // MS1028 — "já existe" não é "está errado", e a tela precisa dizer isso.
+        duplicidade,
+        // Quem saiu como RETIFICAÇÃO sai NOMEADO: retificar é declarar por cima
+        // de um evento que já vale, e quem confere tem de saber que aconteceu.
+        retificados: retificadosAgora.map((l) => ({ cnpj: l.cnpjPrestador, nome: l.nome })),
+        recibosGravados,
+        falhaAoGravarRecibo,
       });
     } catch (err) {
       respostaErro(res, 400, err);

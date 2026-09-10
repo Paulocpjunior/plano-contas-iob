@@ -300,6 +300,12 @@ ${idePrestServXml}
  * "O primeiro decide pelos outros" é a forma silenciosa desse defeito; por isso
  * cada prestador resolve o SEU estabelecimento aqui.
  *
+ * ⚠️ **`indRetif`/`nrRecibo` SÃO DO PRESTADOR PELA MESMA RAZÃO** (10/09, caso
+ * MS1028): cada evento tem o SEU recibo, e o lote mistura prestador já entregue
+ * com prestador que nunca saiu. Marcar retificação no LOTE faria o prestador
+ * novo sair retificando um evento que não existe — e o antigo sair com o recibo
+ * do vizinho, que a Receita ACEITA, porque a forma está certa.
+ *
  * @returns {Array<{ id, cnpjTomador, cnpjPrestador, xml, avisos }>}
  */
 function gerarEventosR2010(ev) {
@@ -310,9 +316,29 @@ function gerarEventosR2010(ev) {
     ...ev,
     estab: estabDoPrestador(ev.estab, p),
     seq: seqBase + i,
+    ...retificacaoDoPrestador(ev, p),
     prestador: p,
     prestadores: undefined,
   }));
+}
+
+/**
+ * O `indRetif`/`nrRecibo` DAQUELE prestador.
+ *
+ * O que o prestador traz vence o padrão do lote; sem nada dele, o lote continua
+ * mandando (é assim que o caminho de UM prestador só segue funcionando). O
+ * recibo NÃO se herda de outro prestador: sem recibo próprio, o evento sai como
+ * ORIGINAL — retificar contra o recibo do vizinho é ACEITO pela Receita e
+ * declara em cima do evento errado.
+ */
+function retificacaoDoPrestador(ev, prestador) {
+  const p = prestador || {};
+  const temProprio = Number(p.indRetif) === 2 || String(p.nrRecibo || '').trim();
+  if (!temProprio) return {};
+  return {
+    indRetif: Number(p.indRetif) === 2 ? 2 : 1,
+    nrRecibo: String(p.nrRecibo || '').trim() || undefined,
+  };
 }
 
 /**
@@ -367,6 +393,17 @@ function validarEntradaR2010(ev) {
     // não aceita — e indObra errado muda a natureza do que se declara.
     e.push('estab.indObra não informado — 0 (não é obra), 1 (obra com CNO próprio) ou 2 (empreitada total). '
       + 'Não está na nota e não se deduz: é informado por prestador na tela.');
+  }
+
+  // MATA-BURRO (10/09, MS1028): `indRetif=2` sem `nrRecibo` saía CALADO — a
+  // linha do recibo simplesmente não era escrita e o evento ia declarando
+  // retificação de coisa nenhuma. Campo de declaração sem resposta BLOQUEIA.
+  if (Number(ev.indRetif) === 2 && !String(ev.nrRecibo || '').trim()) {
+    e.push('indRetif=2 (retificação) exige nrRecibo do evento anterior. O número vem do recibo da '
+      + 'Receita (e-CAC da EFD-Reinf ou o retorno do próprio envio) — nunca se deduz.');
+  }
+  if (![undefined, null, '', 1, 2, '1', '2'].includes(ev.indRetif)) {
+    e.push('indRetif deve ser 1 (original) ou 2 (retificação)');
   }
 
   if (!/^\d{4}-\d{2}$/.test(String(perApur || ''))) e.push('perApur deve ser AAAA-MM');
@@ -430,6 +467,6 @@ function validarEntradaR2010(ev) {
 }
 
 module.exports = {
-  gerarR2010, gerarEventosR2010, estabDoPrestador, validarEntradaR2010,
+  gerarR2010, gerarEventosR2010, estabDoPrestador, retificacaoDoPrestador, validarEntradaR2010,
   obsQueCabe, OBS_MAX_APP, NS_R2010,
 };

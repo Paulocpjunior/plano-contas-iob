@@ -296,6 +296,33 @@ const geradoUmAcima = gerarR2010(umAcima);
 assert.ok(!geradoUmAcima.xml.includes('<obs>'), 'um caractere acima do teto não vai');
 assert.strictEqual(geradoUmAcima.avisos.length, 1, 'e a omissão sai nomeada');
 
+// ── 14c. ORIGINAL × RETIFICAÇÃO É DO PRESTADOR, NUNCA DO LOTE (MS1028) ─────
+// 10/09: retificar exige o recibo do evento anterior, e cada prestador tem o
+// SEU. Marcar retificação no LOTE faria o prestador novo sair retificando um
+// evento que não existe — e o antigo sair com o recibo do vizinho, que a
+// Receita ACEITA porque a forma está certa. É o `indObra` do "primeiro decide
+// pelos outros" com outra roupa.
+const dois = gerarEventosR2010({
+  ...base(), prestador: undefined,
+  prestadores: [
+    { ...base().prestador, indRetif: 2, nrRecibo: '6258005-01-2010-2606-6258005' },
+    { ...base().prestador, cnpjPrestador: '03222111000211' },
+  ],
+});
+assert.ok(/<indRetif>2<\/indRetif>\s*<nrRecibo>6258005-01-2010-2606-6258005<\/nrRecibo>/.test(dois[0].xml),
+  'o prestador com recibo sai como RETIFICAÇÃO');
+assert.ok(/<indRetif>1<\/indRetif>/.test(dois[1].xml) && !/<nrRecibo>/.test(dois[1].xml),
+  'e o prestador SEM recibo sai como ORIGINAL — recibo não se herda do vizinho');
+
+// MATA-BURRO: `indRetif=2` sem recibo saía CALADO (a linha do nrRecibo
+// simplesmente não era escrita) e o evento declarava retificação de coisa
+// nenhuma. Campo de declaração sem resposta BLOQUEIA.
+assert.throws(
+  () => gerarR2010({ ...base(), indRetif: 2 }),
+  /indRetif=2 \(retificação\) exige nrRecibo/,
+  'retificação sem recibo é RECUSA, não linha omitida em silêncio',
+);
+
 // ── 15. O LEIAUTE TEM UM DONO — a rota não decide o que cabe no campo ───────
 //
 // A rota é quem monta as notas a partir do que o CFI entrega. Se ela recortar

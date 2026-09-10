@@ -14,6 +14,19 @@
   <main class="wrap content">
     <article class="release">
       <div class="tag">Leia esta parte primeiro</div>
+      <header><h2>🚨 "MS1028" no R-2010 não quer dizer que deu errado — quer dizer que a competência JÁ FOI ENTREGUE</h2><span class="date">10/09/2026 · v3.4.275</span></header>
+      <ul>
+        <li><strong>O que a Receita responde:</strong> <em>"Não é permitido o envio de mais de um evento para o mesmo contribuinte, num mesmo período de apuração para um mesmo estabelecimento e prestador, exceto se for para retificação…"</em>. Ou seja: <strong>aquele evento já existe lá</strong>. A tela antes dizia <em>"nada foi aceito"</em>, que se lê como competência sem entrega — e quem lia transmitia de novo, recebendo exatamente o mesmo MS1028.</li>
+        <li><strong>A primeira coisa a fazer:</strong> <strong>conferir o recibo no e-CAC</strong> (EFD-Reinf). Se os valores entregues estão certos, não há nada a fazer — a competência está entregue.</li>
+        <li><strong>Se precisa mudar valor, é RETIFICAÇÃO:</strong> o app passou a guardar sozinho o recibo de todo evento aceito, então a partir de agora basta transmitir de novo — ele manda a retificação em vez de um evento novo, e diz na tela quais prestadores saíram assim.</li>
+        <li><strong>Competência antiga:</strong> o que foi entregue antes desta versão (ou pelo REINF.Web) tem o recibo só na Receita. Nesse caso a tela abre o campo <strong>"Informar o recibo do evento anterior"</strong>: escolha o prestador, cole o número do recibo do e-CAC e salve — depois transmita normalmente.</li>
+        <li><strong>Recibo digitado errado apaga:</strong> salve com o campo em branco. Recibo errado é pior que recibo nenhum, porque ele reescreve em cima do evento de outro prestador.</li>
+        <li><strong>Onde:</strong> EFD-Reinf → série <strong>R-2000</strong> → <strong>R-2010 · Serviços tomados</strong>, no resultado da transmissão.</li>
+      </ul>
+    </article>
+
+    <article class="release">
+      <div class="tag">Leia esta parte primeiro</div>
       <header><h2>🚨 R-2010 recusado pela Receita por causa do TEXTO da nota — o lote inteiro voltava</h2><span class="date">10/09/2026 · v3.4.272</span></header>
       <ul>
         <li><strong>O caso (J.N. VINATEX · 08/2026):</strong> a transmissão do R-2010 voltou com <strong>MS0030</strong> — <em>"a estrutura do arquivo XML está em desconformidade com o esquema XSD"</em> — e nada foi aceito. Lendo a mensagem até o fim, a Receita dizia o campo: a <strong>observação da nota</strong> era maior que o tamanho máximo permitido.</li>
