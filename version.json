@@ -1,7 +1,8 @@
 {
-  "version": "3.4.275",
-  "build_date": "2026-09-10T14:21:22Z",
+  "version": "3.4.276",
+  "build_date": "2026-09-10T17:04:48Z",
   "release_notes": [
+    "Corrigir sinais de proventos na folha SAGE",
     "Melhorias internas e correcoes"
   ]
 }
