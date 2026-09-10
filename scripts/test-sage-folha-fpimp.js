@@ -92,3 +92,12 @@ assert(index.includes('totalAcumulado: folhasAcumuladas.length'), 'Retorno da im
 assert(index.includes('Number(lancamento.valor_operacional)'), 'Importacao deve preservar a natureza operacional de proventos e descontos da folha.');
 
 console.log('OK: SAGE Folha FPIMP valida empresa, competência, campos fixos e importação direta no CCI.');
+
+// Arquivo real: contas cruzadas por salario/faltas e arredondamentos nao invertem proventos.
+const folha0028 = parseSageFolhaFpimp(fs.readFileSync(path.join(__dirname,'fixtures/FPIMP0028.01')), {nomeArquivo:'FPIMP0028.01',codigoEmpresa:'0028'});
+assert.strictEqual(folha0028.lancamentos.length,20);
+assert.deepStrictEqual(folha0028.lancamentos.map(l=>l.valor_operacional), [13296.84,281.86,93.95,0.58,2.83,10000,-345.23,-2050,-149.02,-56.34,-149.02,-0.58,-1.74,-797.82,-136.71,-309.41,-30.58,-1100,-994.32,1040.67]);
+assert.strictEqual(folha0028.lancamentos[0].contaDebito,'0000000361');
+assert.strictEqual(folha0028.lancamentos[0].contaCredito,'0000000802');
+assert(folha0028.lancamentos.every(l=>l.valor>0));
+console.log('OK: FPIMP0028.01 preserva partidas e separa proventos de descontos.');

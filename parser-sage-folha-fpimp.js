@@ -77,11 +77,8 @@ function parseLinha(linha, numero) {
 }
 
 function aplicarNaturezaOperacional(lancamentos) {
-  // Na folha, proventos/encargos debitam uma despesa e creditam uma conta de
-  // provisao. Os descontos fazem o caminho seguinte: debitam essa mesma conta
-  // de provisao e creditam a obrigacao correspondente. Assim a natureza pode
-  // ser obtida das partidas do proprio arquivo, sem depender do nome da rubrica
-  // nem de contas especificas de uma empresa.
+  // O mesmo par de contas pode aparecer invertido em arredondamentos,
+  // faltas e provisoes. Rubricas explicitas prevalecem sobre esse cruzamento.
   const contasCreditadas = new Set(lancamentos.map(function(lancamento) {
     return String(lancamento.contaCredito || '').trim();
   }).filter(Boolean));
@@ -92,7 +89,11 @@ function aplicarNaturezaOperacional(lancamentos) {
     // INSS. É encargo da folha e deve compor os débitos operacionais, ainda que
     // sua conta de despesa não apareça antes como conta creditada no arquivo.
     const inssEmpresa = String(lancamento.codigoHistorico || '').trim() === '0308';
-    const debitoOperacional = desconto || inssEmpresa;
+    const descricao = String(lancamento.descricao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    const rubrica = descricao.replace(/^.*?OCOR\.:\s*\d+\s*-\s*/, '').replace(/\s+/g, ' ').trim();
+    const proventoExplicito = /^(SALARIO|FERIAS GOZADAS\s*\/\s*RECEBIDAS|1\/3 FERIAS RECEBIDAS|ARREDONDAMENTO ATUAL|CONTRIB\. INDIVIDUAL-PRO LABOR(?:E)?)$/.test(rubrica);
+    const descontoExplicito = /^(DESC\. DE FERIAS RECEBIDAS|ADIANTAMENTO \(VALE\)|FALTAS \(DIAS\)|DSR S\/FALTAS EM HORAS|DSR SOBRE FALTAS|ARREDONDAMENTO ANTERIOR|VALE TRANSPORTE|CONTRIB\. CONFEDERATIVA|FALTAS E ATRASOS \(T\/H\)|INSS S\/FERIAS|I\.N\.S\.S\.)$/.test(rubrica);
+    const debitoOperacional = inssEmpresa || (!proventoExplicito && (descontoExplicito || desconto));
     lancamento.natureza_operacional = debitoOperacional ? 'debito' : 'credito';
     lancamento.valor_operacional = debitoOperacional ? -Math.abs(lancamento.valor) : Math.abs(lancamento.valor);
   });
