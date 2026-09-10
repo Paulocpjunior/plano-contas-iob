@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.273",
+  "version": "3.4.274",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -46,7 +46,7 @@
     "test:sage-retidos": "node scripts/test-sage-impostos-retidos-servicos.js",
     "test:sage-retidos-tomados": "node scripts/test-sage-impostos-retidos-servicos-tomados.js",
     "test:flanacar-bank": "node scripts/test-flanacar-bank-combobox.js",
-    "test:empresa-plano": "node scripts/test-empresa-plano-vinculo.js && node scripts/test-carteira-contabil.js && node scripts/test-cadastro-plano-lote.js",
+    "test:empresa-plano": "node scripts/test-empresa-plano-vinculo.js && node scripts/test-carteira-contabil.js && node scripts/test-cadastro-plano-lote.js && node scripts/test-filtro-relatorios-empresa.js",
     "test:empresa-cadastro-whatsapp": "node scripts/test-empresa-cadastro-whatsapp.js",
     "test:cadastro-matriz-filial": "node scripts/test-cadastro-matriz-filial.js",
     "test:gemini-model": "node scripts/test-gemini-model-version.js",
