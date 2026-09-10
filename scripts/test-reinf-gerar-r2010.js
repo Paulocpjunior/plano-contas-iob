@@ -9,7 +9,8 @@
 // mudar, ele quebra — que é exatamente o que se quer de um leiaute PROVADO.
 // ============================================================================
 const assert = require('assert');
-const { gerarR2010, gerarEventosR2010, validarEntradaR2010 } = require('../reinf/gerar-r2010');
+const fs = require('fs');
+const { gerarR2010, gerarEventosR2010, validarEntradaR2010, obsQueCabe, OBS_MAX_APP } = require('../reinf/gerar-r2010');
 
 // ── O evento real, como entrada ─────────────────────────────────────────────
 const base = () => ({
@@ -202,5 +203,71 @@ const herdado = gerarEventosR2010({
 assert.ok(herdado[0].xml.includes('<indObra>0</indObra>'),
   'prestador sem indObra próprio usa o do lote — o CNPJ do tomador é o mesmo para todos');
 
+// ── 14. `obs` NÃO ESTOURA O CAMPO DO LEIAUTE (MS0030, VINATEX 08/2026) ──────
+//
+// A `obs` recebe a DISCRIMINAÇÃO da NFS-e — texto que o PRESTADOR digita. Em
+// 06/2026 ela tinha 35 caracteres e o evento foi ACEITO (é a fixture acima);
+// em 08/2026 o MESMO prestador escreveu o serviço item a item, com valores e
+// vencimento, e a Receita recusou o LOTE INTEIRO:
+//   MS0030 — "…:obs … The actual length is greater than the MaxLength value."
+//
+// O texto abaixo é FICTÍCIO e reproduz só a FORMA do caso real (linhas
+// separadas por `|`): dado de cliente não entra no repositório.
+const DISCRIMINACAO_LONGA = 'SERVICOS PRESTADOS EM AGOSTO 2026|011 SERVICO CONTINUADO 08 HS R$ 0.000,00'
+  + '|01 INSUMOS R$ 000,00|2%ISS R$ 00,00|RETENCAO SEG.SOCIAL R$ 000,00-|1XIR R$ 00,00-'
+  + '|1,00%CSLL R$ 00,00-|0,65%PIS R$ 00,00-|3,00%COFINS R$ 000,00-|VALOR A RECEBER R$ 0.000,00'
+  + '|DATA VENCTO 00/00/0000 - PEDIDO 000000000 EMPRESA 00000 PED000 SUF000000000 EXEMPLO LTDA';
+assert.ok(DISCRIMINACAO_LONGA.length > OBS_MAX_APP, 'a fixture precisa estourar o teto para provar algo');
+
+const longa = base();
+longa.prestador.notas[0].obs = DISCRIMINACAO_LONGA;
+const gerado = gerarR2010(longa);
+
+// O evento SAI — o campo é informativo e a retenção não depende dele. O que
+// não pode é o lote inteiro voltar recusado por causa de um texto de terceiro.
+assert.ok(!gerado.xml.includes('<obs>'), 'observação que não cabe no leiaute não vai ao evento');
+assert.ok(gerado.xml.includes('<vlrRetencao>506,49</vlrRetencao>'), 'a retenção continua declarada');
+
+// E NÃO SAI CALADA: omissão silenciosa faz quem confere procurar buraco de
+// captura numa nota que está inteira.
+assert.strictEqual(gerado.avisos.length, 1, 'a omissão sai nomeada');
+assert.strictEqual(gerado.avisos[0].numDocto, '30349', 'o aviso diz QUAL nota');
+assert.strictEqual(gerado.avisos[0].campo, 'obs');
+assert.match(gerado.avisos[0].motivo, /caracteres/, 'o aviso diz o tamanho que não coube');
+
+// NUNCA RECORTA: metade de uma declaração de terceiro é dado com cara de
+// declaração ("…RETENCAO SEG.SOCI"). Ou cabe inteira, ou não vai.
+assert.ok(!gerado.xml.includes('SERVICOS PRESTADOS EM AGOSTO'), 'não manda pedaço da discriminação');
+
+// O caso normal continua mudo — aviso em cima de evento correto é o jeito
+// conhecido de a equipe parar de ler os avisos que importam.
+assert.deepStrictEqual(gerarR2010(base()).avisos, [], 'obs que cabe não gera aviso');
+assert.deepStrictEqual(obsQueCabe('  '), { obs: null, motivo: null }, 'obs vazia não é omissão a nomear');
+assert.strictEqual(obsQueCabe(' INSUMOS ').obs, 'INSUMOS', 'obs curta passa, sem espaço de sobra');
+
+// E o aviso ATRAVESSA o lote: um evento por prestador, cada um com o seu.
+const doLote = gerarEventosR2010({
+  ...base(),
+  prestador: undefined,
+  prestadores: [{ ...base().prestador, notas: [{ ...base().prestador.notas[0], obs: DISCRIMINACAO_LONGA }] }],
+});
+assert.strictEqual(doLote[0].avisos.length, 1, 'gerarEventosR2010 propaga o aviso de cada evento');
+
+// ── 15. O LEIAUTE TEM UM DONO — a rota não decide o que cabe no campo ───────
+//
+// A rota é quem monta as notas a partir do que o CFI entrega. Se ela recortar
+// ou filtrar o texto, passam a existir duas réguas para o mesmo campo e elas
+// divergem no primeiro ajuste — foi assim que o `obs` estourou: quem montava o
+// payload não conhecia o limite do leiaute, e quem conhece o leiaute não via o
+// texto. Quem responde "isto cabe no evento?" é o gerador.
+const rotas = fs.readFileSync(require('path').join(__dirname, '..', 'reinf-routes.js'), 'utf8');
+assert.ok(!/<obs>/.test(rotas), 'a rota não monta a tag obs — quem escreve o XML é o gerador');
+assert.ok(!/obs:[^,\n]*slice\(/.test(rotas), 'a rota não recorta a observação: o teto é do leiaute, e o dono dele é o gerador');
+assert.ok(/avisosDoEvento/.test(rotas), 'a rota devolve o que ficou de fora do evento — omissão calada não existe aqui');
+
+const tela = fs.readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
+assert.ok(/avisosDoEvento/.test(tela), 'a tela mostra o que ficou de fora do evento');
+
 console.log('✅ R-2010: reproduz o evtServTom ACEITO (forma+ordem+valores), soma os totais das notas, '
-  + 'e bloqueia tpServico/indObra/indCPRB/base ausentes — base NUNCA derivada do bruto.');
+  + 'e bloqueia tpServico/indObra/indCPRB/base ausentes — base NUNCA derivada do bruto. '
+  + 'A observação que não cabe no leiaute fica de fora, NOMEADA, em vez de derrubar o lote (MS0030).');

@@ -93,6 +93,53 @@ const SERVICO_OPCIONAIS = ['vlrRetSub', 'vlrNRetPrinc', 'vlrServicos15', 'vlrSer
 
 const opcional = (o, campo) => fmtValorReinf(temValor(o && o[campo]) ? Number(o[campo]) : 0);
 
+// ═══ `obs` É CAMPO DE LEIAUTE COM MaxLength, E A DISCRIMINAÇÃO É TEXTO LIVRE ═
+//
+// A `obs` do `nfs` recebe a DISCRIMINAÇÃO da NFS-e — texto que o PRESTADOR
+// digita, sem teto nenhum. No evento aceito de 06/2026 ela tinha 35 caracteres
+// e passou; em 08/2026 o mesmo prestador escreveu 340 (o serviço item a item,
+// com valores e vencimento) e a Receita RECUSOU o lote inteiro:
+//
+//   MS0030 — "the '…/evtTomadorServicos/v2_01_02:obs' element is invalid …
+//             The actual length is greater than the MaxLength value."
+//
+// Não é caso raro: é a garantia de estourar no dia em que o prestador escrever
+// mais. Campo de leiaute com MaxLength não recebe texto de terceiro sem teto.
+//
+// ⚠️ O MaxLength do XSD NÃO ESTÁ MEDIDO, e o número abaixo é do APP, não do
+// leiaute. O portal SPED é bloqueado por esta rede e só o XSD do R-4020 está no
+// repo (docs/reinf/xsd); nele o campo IRMÃO `observ` (documentation
+// "Observacoes") é `maxLength 200`, nas duas vezes em que aparece — o que
+// CORROBORA a ordem de grandeza e **não é o número do 2010**: leiaute de evento
+// vizinho já custou caro nesta casa (o 1010 tem sete campos num arquivo e nove
+// no outro).
+//
+// O único tamanho PROVADO é **35** — o `obs` do evento aceito de 06/2026. O
+// teto abaixo é o dobro dele com folga, e fica bem abaixo dos 200 do vizinho de
+// propósito: os dois erros custam diferente. Errar para BAIXO omite uma
+// observação informativa, e nenhum valor do evento depende dela. Errar para
+// CIMA devolve o MS0030 e o lote inteiro volta recusado, com a competência sem
+// entrega.
+//
+// 📌 Quando o XSD do evtTomadorServicos entrar em docs/reinf/xsd (do mesmo
+// jeito que o do R-4020 entrou), este número vira o do leiaute.
+const OBS_MAX_APP = 80;
+
+// O que o app se permite mandar no `obs`. Devolve o texto ou `null` + o motivo,
+// nunca um texto CORTADO: recortar a discriminação de terceiro produz frase
+// picada no meio ("…RETENCAO SEG.SOCI"), que é dado com cara de declaração.
+function obsQueCabe(bruto) {
+  const texto = String(bruto == null ? '' : bruto).trim();
+  if (!texto) return { obs: null, motivo: null };
+  if (texto.length <= OBS_MAX_APP) return { obs: texto, motivo: null };
+  return {
+    obs: null,
+    motivo: `observação da nota com ${texto.length} caracteres não foi enviada: o campo obs do `
+      + `leiaute tem tamanho máximo e o app não recorta texto de declaração (teto do app: `
+      + `${OBS_MAX_APP}). O campo é informativo — o evento e a retenção não dependem dele.`,
+  };
+}
+
 /**
  * Gera UM evento R-2010 (evtServTom) — um estabelecimento, UM prestador.
  *
@@ -133,18 +180,26 @@ function gerarR2010(ev) {
     + '            </infoTpServ>'
   );
 
-  const nfsXml = (n) => (
-    '          <nfs>\n'
-    + `            <serie>${escXml(n.serie)}</serie>\n`
-    + `            <numDocto>${escXml(n.numDocto)}</numDocto>\n`
-    + `            <dtEmissaoNF>${escXml(n.dtEmissaoNF)}</dtEmissaoNF>\n`
-    + `            <vlrBruto>${fmtValorReinf(n.vlrBruto)}</vlrBruto>\n`
-    // `obs` é o campo que, no evento aceito, DENUNCIA a dedução ("INSUMOS").
-    // Só sai quando existe — tag vazia não é informação.
-    + (String(n.obs || '').trim() ? `            <obs>${escXml(n.obs)}</obs>\n` : '')
-    + n.servicos.map(infoTpServXml).join('\n') + '\n'
-    + '          </nfs>'
-  );
+  // O que ficou de FORA do evento sai NOMEADO — omissão calada faz quem
+  // confere procurar buraco de captura numa nota que está inteira.
+  const avisos = [];
+
+  const nfsXml = (n) => {
+    // `obs` é o campo que, no evento aceito, descreve o serviço da nota. Só sai
+    // quando existe (tag vazia não é informação) E quando cabe no leiaute.
+    const { obs, motivo } = obsQueCabe(n.obs);
+    if (motivo) avisos.push({ numDocto: String(n.numDocto), campo: 'obs', motivo });
+    return (
+      '          <nfs>\n'
+      + `            <serie>${escXml(n.serie)}</serie>\n`
+      + `            <numDocto>${escXml(n.numDocto)}</numDocto>\n`
+      + `            <dtEmissaoNF>${escXml(n.dtEmissaoNF)}</dtEmissaoNF>\n`
+      + `            <vlrBruto>${fmtValorReinf(n.vlrBruto)}</vlrBruto>\n`
+      + (obs ? `            <obs>${escXml(obs)}</obs>\n` : '')
+      + n.servicos.map(infoTpServXml).join('\n') + '\n'
+      + '          </nfs>'
+    );
+  };
 
   // Os totais do prestador vêm SOMADOS das notas — é o que o evento aceito
   // mostra (5.755,54 / 4.604,43 / 506,49 com uma nota só). Somar aqui, e não
@@ -204,6 +259,9 @@ ${idePrestServXml}
     cnpjTomador: soDigitos(estab.nrInscEstab),
     cnpjPrestador: soDigitos(prestador.cnpjPrestador),
     xml,
+    // Vazio no caso normal. Quem transmite mostra na tela — o que ficou de fora
+    // do evento tem de aparecer para quem confere.
+    avisos,
   };
 }
 
@@ -223,7 +281,7 @@ ${idePrestServXml}
  * "O primeiro decide pelos outros" é a forma silenciosa desse defeito; por isso
  * cada prestador resolve o SEU estabelecimento aqui.
  *
- * @returns {Array<{ id, cnpjTomador, cnpjPrestador, xml }>}
+ * @returns {Array<{ id, cnpjTomador, cnpjPrestador, xml, avisos }>}
  */
 function gerarEventosR2010(ev) {
   const prestadores = Array.isArray(ev && ev.prestadores) ? ev.prestadores : [];
@@ -352,4 +410,7 @@ function validarEntradaR2010(ev) {
   return e;
 }
 
-module.exports = { gerarR2010, gerarEventosR2010, estabDoPrestador, validarEntradaR2010, NS_R2010 };
+module.exports = {
+  gerarR2010, gerarEventosR2010, estabDoPrestador, validarEntradaR2010,
+  obsQueCabe, OBS_MAX_APP, NS_R2010,
+};

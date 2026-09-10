@@ -10,10 +10,25 @@
   </style>
 </head>
 <body>
-  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 09/09/2026</span></div></section>
+  <section class="hero"><div class="wrap"><div class="eyebrow">Consultor Contábil Inteligente</div><h1>Novidades do CCI</h1><p>Acompanhe o que foi liberado, o que mudou no trabalho diário e os próximos passos da evolução do sistema.</p><span class="updated">Atualizado em 10/09/2026</span></div></section>
   <main class="wrap content">
     <article class="release">
       <div class="tag">Leia esta parte primeiro</div>
+      <header><h2>🚨 R-2010 recusado pela Receita por causa do TEXTO da nota — o lote inteiro voltava</h2><span class="date">10/09/2026 · v3.4.272</span></header>
+      <ul>
+        <li><strong>O caso (J.N. VINATEX · 08/2026):</strong> a transmissão do R-2010 voltou com <strong>MS0030</strong> — <em>"a estrutura do arquivo XML está em desconformidade com o esquema XSD"</em> — e nada foi aceito. Lendo a mensagem até o fim, a Receita dizia o campo: a <strong>observação da nota</strong> era maior que o tamanho máximo permitido.</li>
+        <li><strong>A causa:</strong> o evento levava a <strong>discriminação inteira do serviço</strong>, que é o texto que o <strong>prestador</strong> digita na nota. Naquela nota ele detalhou item, horas, insumos, ISS, cada retenção, valor a receber e vencimento: 340 caracteres. Em junho o mesmo prestador tinha escrito uma linha só, e por isso nunca tinha dado problema.</li>
+        <li><strong>O que muda:</strong> quando a observação não cabe no campo do leiaute, ela <strong>não vai</strong> — e o evento sai normalmente. A observação é informativa: <strong>nenhum valor depende dela</strong> (bruto, base retida e retenção continuam exatamente como estão na nota).</li>
+        <li><strong>E não some calada:</strong> a tela diz <em>"nota 30349: observação com N caracteres não foi enviada"</em> logo abaixo do resultado da transmissão, para ninguém procurar problema numa nota que está completa.</li>
+        <li><strong>O texto NÃO é cortado pela metade:</strong> mandar meio texto (<em>"…RETENCAO SEG.SOCI"</em>) seria enviar um pedaço de declaração do prestador. Ou cabe inteiro, ou fica de fora.</li>
+        <li><strong>Onde:</strong> EFD-Reinf → série <strong>R-2000</strong> → <strong>R-2010 · Serviços tomados</strong>, no resultado da transmissão.</li>
+        <li><strong>O que você precisa fazer:</strong> nada — transmita de novo. Se a competência já tinha voltado com MS0030, ela <strong>não foi entregue</strong>: o lote é recebido e os eventos são recusados dentro dele, então é preciso transmitir outra vez.</li>
+        <li><strong>Conferência:</strong> depois de transmitir, confira o retorno. <em>"R-2010 aceito"</em> é o que vale; <em>"eventos recusados"</em> significa que a competência continua em aberto.</li>
+      </ul>
+    </article>
+
+    <article class="release">
+      <div class="tag">Anterior</div>
       <header><h2>🚨 Nota certa saía do R-4020 dizendo que a base do IR não fecha — a conferência era pelo total</h2><span class="date">09/09/2026 · v3.4.270</span></header>
       <ul>
         <li><strong>O caso (J.N. VINATEX · 08/2026):</strong> corrigido o IRRF, o beneficiário <strong>BOA VISTA SERVIÇOS</strong> passou a mostrar os R$ 24,24 — e caiu em <em>"não vira evento"</em>, com a mensagem de que a base do IR tem dedução.</li>

@@ -6,6 +6,53 @@ retoma. Criado em 07/08/2026, quando o projeto passou do CODEX para o Claude
 (Paulo: *"o CODEX estava tocando este projeto, você consegue administrar? para
 que não fique mais confuso?"*).
 
+- **🚨 O R-2010 MANDAVA A DISCRIMINAÇÃO INTEIRA DA NOTA NUM CAMPO COM TAMANHO
+  MÁXIMO — e o lote inteiro voltou RECUSADO** (10/09, Paulo, J.N. VINATEX ·
+  08/2026, logo depois de o IRRF subir: *"O IR deu certo, assumiu e já subi,
+  daí fui transmitir o R-2010 deu esse erro"*).
+  📖 **A RECEITA DISSE O CAMPO E O MOTIVO, por extenso**: `MS0030 — a estrutura
+  do arquivo XML está em desconformidade com o esquema XSD. The
+  '…/evtTomadorServicos/v2_01_02:obs' element is invalid … **The actual length
+  is greater than the MaxLength value**`, com o texto inteiro citado na
+  mensagem (a discriminação do serviço da A7, ~340 caracteres: item, horas,
+  insumos, ISS, cada retenção, valor a receber, vencimento, pedido).
+  🔴 **A CAUSA É DE DESENHO, e ela estava lá desde o começo**: a rota fazia
+  `obs: n.discriminacao || ''` — ou seja, jogava num campo de LEIAUTE com
+  MaxLength um texto que **quem digita é o PRESTADOR**, sem teto nenhum. Não é
+  caso raro que estourou: é a garantia de estourar no dia em que ele escrever
+  mais. No evento ACEITO de 06/2026 a mesma discriminação tinha **35
+  caracteres** e passou; em 08/2026 o MESMO prestador detalhou o serviço e
+  foram 340.
+  🚨 **E O CUSTO É O MÁXIMO: o lote é RECEBIDO e nada é ACEITO** — a
+  competência fica sem entrega, e o motivo chega como erro de schema, que se lê
+  como defeito de estrutura do evento (não como "o texto de uma nota é longo").
+  ✂️ **O DONO DO LIMITE É O GERADOR, nunca a rota**: `obsQueCabe` decide, e a
+  rota parou de conhecer tamanho de campo — duas réguas para o mesmo campo
+  divergem no primeiro ajuste, e foi exatamente esse buraco que produziu o
+  defeito (quem montava o payload não conhecia o leiaute, e quem conhece o
+  leiaute não via o texto).
+  ⚠️ **NÃO RECORTA, OMITE — e omite NOMEADO**: metade de uma declaração de
+  terceiro (*"…RETENCAO SEG.SOCI"*) é dado com cara de declaração. O `obs` é
+  **informativo** e nenhum valor do evento depende dele, então a nota vai
+  inteira, a retenção vai inteira, e o que ficou de fora aparece na tela com o
+  número da nota — omissão calada faz quem confere procurar buraco de captura
+  numa nota que está completa.
+  ⚠️ **O MaxLength NÃO ESTÁ MEDIDO, e o número que está no código é do APP**:
+  o portal SPED é bloqueado por esta rede e só o XSD do **R-4020** está em
+  `docs/reinf/xsd` — nele o campo IRMÃO `observ` é `maxLength 200`, o que
+  CORROBORA a ordem de grandeza e **não é o número do 2010** (o 1010 tem sete
+  campos num arquivo e nove no outro; leiaute de vizinho já custou caro aqui).
+  O único tamanho PROVADO é **35**, o do evento aceito — por isso o teto do app
+  é **80**, deliberadamente baixo: **errar para baixo omite uma observação
+  informativa; errar para cima devolve o MS0030 e o lote inteiro.**
+  📌 **FILA DO PAULO**: mandar o **XSD do `evtTomadorServicos v2_01_02`** (do
+  mesmo jeito que o do R-4020 entrou no repo). Com ele, o teto do app vira o do
+  leiaute e o comentário morre.
+  📌 **REGRA QUE FICA: campo de leiaute com MaxLength não recebe texto que um
+  TERCEIRO digita.** Ou o app conhece o teto e decide o que cabe, ou está
+  apostando que ninguém vai escrever demais — e essa aposta não falha no
+  desenvolvimento, falha na competência do cliente, com o lote inteiro voltando.
+
 - **🚨 A BASE DO IR ERA CONFERIDA PELO BENEFICIÁRIO SOMADO — e reprovava nota
   CERTA** (09/09, Paulo, no painel do R-4020 da J.N. VINATEX · 08/2026, horas
   depois de o IRRF ajustado subir: *"puxou a retenção de IR certinho, porém
