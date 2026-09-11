@@ -115,3 +115,52 @@ assert.strictEqual(vazio.resumo.beneficiarios, 0);
 assert.deepStrictEqual(vazio.avisos, [], 'sem nota, sem aviso');
 
 console.log('✓ retenção PJ (R-4020): CSLL derivada só com a conta fechando, natureza da fonte, pendente não vira evento');
+
+// ═══ NATUREZA POR NOTA (11/09, WALDESA × SERASA) ════════════════════════════
+// Paulo: *"a Natureza de rendimento está errada pois são duas NF com serviços
+// diferentes"*. A natureza por PRESTADOR vale para todas as notas dele; duas
+// notas do mesmo prestador com serviços diferentes precisam de uma cada — e
+// a da NOTA vence. CNPJs fictícios: dado de cliente não entra no repo.
+{
+  const { chaveDaNota, mapaNaturezasInformadas, naturezaInformadaDaNota, chaveDeNaturezaInformada } = require('../reinf/retencao-pj-apuracao');
+  const P = '44555666000177';
+  const notaA = { prestadorCnpj: P, prestadorNome: 'PRESTADORA TESTE', numero: '1303309', base: 10223.97, pis: 66.46, cofins: 306.72, csllOuTotal: 102.24, ir: 153.36 };
+  const notaB = { prestadorCnpj: P, prestadorNome: 'PRESTADORA TESTE', numero: '1336030', base: 311.95, pis: 2.03, cofins: 9.36, csllOuTotal: 3.12, ir: 0 };
+
+  // A identidade é a MESMA do ajuste de retenção do CFI: chave; senão CNPJ-número.
+  assert.strictEqual(chaveDaNota(notaA), `${P}-1303309`, 'sem chave do documento, a identidade é prestador + número');
+  assert.strictEqual(chaveDaNota({ ...notaA, chave: '35260800000000000000550010000000011000000015' }), '35260800000000000000550010000000011000000015', 'com chave, é a chave');
+  assert.strictEqual(chaveDaNota({ numero: '1' }), '', 'sem prestador legível não há identidade');
+
+  // O mapa aceita prestador (14 dígitos) e nota (CNPJ-número), com máscara ou sem.
+  const mapa = mapaNaturezasInformadas(`${P}:15006,44.555.666/0001-77-1336030:15010,lixo:99999,${P}-1303309:abc`);
+  assert.strictEqual(mapa.get(P), '15006', 'natureza do prestador');
+  assert.strictEqual(mapa.get(`${P}-1336030`), '15010', 'natureza da NOTA, com o CNPJ mascarado normalizado');
+  assert.strictEqual(mapa.size, 2, 'chave ilegível e código fora do formato não entram');
+  assert.strictEqual(chaveDeNaturezaInformada('44.555.666/0001-77'), P, 'chave do mapa normaliza o CNPJ');
+  assert.strictEqual(chaveDeNaturezaInformada('44.555.666/0001-77-1336030'), `${P}-1336030`, 'e mantém o número da nota');
+  assert.strictEqual(chaveDeNaturezaInformada('abc'), '', 'lixo não vira chave');
+
+  // A da nota VENCE a do prestador; sem a da nota, vale a do prestador.
+  assert.strictEqual(naturezaInformadaDaNota(mapa, notaB), '15010', 'a natureza da NOTA vence a do prestador');
+  assert.strictEqual(naturezaInformadaDaNota(mapa, notaA), '15006', 'nota sem natureza própria herda a do prestador');
+  assert.strictEqual(naturezaInformadaDaNota(new Map(), notaA), null, 'sem mapa não há natureza informada');
+
+  // Na apuração, duas naturezas do MESMO prestador viram DOIS beneficiários
+  // (dois idePgto no evento) — e cada um sabe quais notas carrega.
+  const notas = [notaA, notaB].map((n) => ({ ...n, naturezaInformada: naturezaInformadaDaNota(mapa, n) }));
+  const ap = apurarRetencoesPJ({ competencia: '2026-08', notas });
+  assert.strictEqual(ap.beneficiarios.length, 2, 'uma linha por natureza, mesmo prestador');
+  const porNat = Object.fromEntries(ap.beneficiarios.map((b) => [b.natureza, b]));
+  assert.strictEqual(porNat['15006'].notas, 1);
+  assert.strictEqual(porNat['15010'].notas, 1);
+  assert.deepStrictEqual(porNat['15010'].notasDoBeneficiario.map((n) => n.chave), [`${P}-1336030`], 'a linha carrega a CHAVE da nota para a tela informar por nota');
+  assert.strictEqual(porNat['15010'].notasDoBeneficiario[0].origemNatureza, 'informada');
+
+  // Só a do prestador ⇒ UMA linha com as duas notas (o caso que estava errado
+  // para a WALDESA: a segunda nota saía com a natureza da primeira).
+  const soPrestador = apurarRetencoesPJ({ competencia: '2026-08', notas: [notaA, notaB].map((n) => ({ ...n, naturezaInformada: '15006' })) });
+  assert.strictEqual(soPrestador.beneficiarios.length, 1);
+  assert.strictEqual(soPrestador.beneficiarios[0].notasDoBeneficiario.length, 2, 'as duas notas ficam listadas, com chave, para a pessoa separar');
+}
+console.log('✓ natureza por NOTA: chave, mapa, precedência e apuração');

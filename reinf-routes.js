@@ -18,7 +18,9 @@ const { assinarEventoReinf } = require('./reinf/assinador');
 const { loadCertificado, salvarCertificadoUpload } = require('./reinf/cert-loader');
 const { enviarLote, consultarLote } = require('./reinf/transmissor');
 const { transmissorAtivo, enviarLoteViaGateway, consultarLoteViaGateway } = require('./reinf/gateway-client');
-const { apurarRetencoesPJ } = require('./reinf/retencao-pj-apuracao');
+const {
+  apurarRetencoesPJ, mapaNaturezasInformadas, naturezaInformadaDaNota, chaveDeNaturezaInformada,
+} = require('./reinf/retencao-pj-apuracao');
 const { ajustarRetencaoNoCfi } = require('./reinf/cfi-notas-client');
 const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarServicosTomadosNoCfi, buscarServicosPrestadosNoCfi, buscarResponsavelNoCfi, buscarCertificadoNoCfi } = require('./reinf/cfi-notas-client');
 const { resumirResponsavel, avisosDoResponsavel } = require('./reinf/responsavel-escritorio');
@@ -662,13 +664,6 @@ async function registrarLog(db, req, acao, detalhes) {
 }
 
 /**
- * `?naturezas=CNPJ:codigo,CNPJ:codigo` → Map(cnpj → codigo).
- *
- * Só o FORMATO é conferido aqui; se o código existe na Tabela 01 quem decide é
- * `buscarNatureza` na apuração — código fora da tabela é RECUSADO lá, e o
- * beneficiário continua pendente em vez de entrar no evento com número torto.
- */
-/**
  * `?indAquis=CPF:codigo,CPF:codigo` → objeto { cpf: codigo }.
  *
  * Só o FORMATO é conferido. Se o código existe na tabela oficial da EFD-Reinf,
@@ -689,16 +684,8 @@ function mapaIndAquisInformados(valor) {
   return out;
 }
 
-function mapaNaturezasInformadas(valor) {
-  const out = new Map();
-  String(valor || '').split(',').forEach((par) => {
-    const [cnpj, codigo] = String(par || '').split(':');
-    const c = limparCnpj(cnpj);
-    const cod = String(codigo || '').trim();
-    if (c.length === 14 && /^[0-9]{5}$/.test(cod)) out.set(c, cod);
-  });
-  return out;
-}
+// `mapaNaturezasInformadas` mora no dono (`reinf/retencao-pj-apuracao.js`) desde
+// 11/09: a natureza passou a ser POR NOTA, e a régua da chave é a mesma do ajuste.
 
 function registrarRotasReinf(app, { db } = {}) {
   const router = express.Router();
@@ -1494,11 +1481,11 @@ function registrarRotasReinf(app, { db } = {}) {
       // A natureza que a pessoa informou na tela volta por aqui pra ser
       // VALIDADA contra a Tabela 01 no servidor — a tabela não existe no
       // navegador, e código digitado que ninguém confere é código inventado.
-      // Formato: `?naturezas=CNPJ:codigo,CNPJ:codigo` (mesmo desenho do `?iva=`
-      // do DIFAL no CFI).
+      // Formato: `?naturezas=CHAVE:codigo,…` — a chave é o prestador (vale
+      // para todas as notas dele) ou a NOTA (`CNPJ-número`), e a da nota VENCE.
       const informadas = mapaNaturezasInformadas(req.query.naturezas);
       const notas = doCfi.notas.map((n) => {
-        const cod = informadas.get(limparCnpj(n.prestadorCnpj));
+        const cod = naturezaInformadaDaNota(informadas, n);
         return cod ? { ...n, naturezaInformada: cod } : n;
       });
       const apuracao = apurarRetencoesPJ({ competencia, notas });
@@ -1562,7 +1549,7 @@ function registrarRotasReinf(app, { db } = {}) {
       const doCfi = await buscarNotasTomadasNoCfi({ cnpj, competencia, token });
       const informadas = mapaNaturezasInformadas(p.naturezas);
       const notas = doCfi.notas.map((n) => {
-        const cod = informadas.get(limparCnpj(n.prestadorCnpj));
+        const cod = naturezaInformadaDaNota(informadas, n);
         return cod ? { ...n, naturezaInformada: cod } : n;
       });
       const apuracao = apurarRetencoesPJ({ competencia, notas });
@@ -2713,7 +2700,18 @@ function registrarRotasReinf(app, { db } = {}) {
         return out;
       };
       const patch = { atualizadoEm: new Date().toISOString(), atualizadoPor: (req.user && req.user.email) || null };
-      if (naturezas) patch.naturezas = limpo(naturezas, 11, 5);
+      // A chave da natureza pode ser a NOTA (`CNPJ-número`): o `limpo` acima
+      // tiraria o hífen e a chave viraria outra — o salvo nunca casaria de
+      // volta, e a natureza por nota se perderia calada a cada visita.
+      if (naturezas) {
+        const out = {};
+        for (const [k, v] of Object.entries(naturezas || {})) {
+          const ck = chaveDeNaturezaInformada(k);
+          const cv = String(v || '').replace(/\D/g, '');
+          if (ck && cv.length >= 1 && cv.length <= 5) out[ck] = cv;
+        }
+        patch.naturezas = out;
+      }
       if (indAquis) patch.indAquis = limpo(indAquis, 11, 2);
       if (formulario) {
         // Whitelist explícita (lição #382 do CFI): campo desconhecido é

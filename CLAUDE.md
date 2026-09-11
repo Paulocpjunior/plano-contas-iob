@@ -344,6 +344,36 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **✍️ "A NATUREZA DE RENDIMENTO ESTÁ ERRADA POIS SÃO DUAS NF COM SERVIÇOS
+  DIFERENTES" — a natureza era POR PRESTADOR, e a segunda nota herdava a da
+  primeira** (11/09, Paulo, WALDESA · 08/2026, duas NFS-e da SERASA tomadas com
+  retenção informada à mão; print do R-4020 com `15006 informada` numa linha só
+  para as duas notas).
+  🔴 **A APURAÇÃO JÁ ERA POR NOTA — quem era por prestador era a PORTA**: o
+  `?naturezas=CNPJ:codigo` da tela e a preferência salva aplicavam o MESMO
+  código a toda nota do prestador (`informadas.get(cnpj)` nos DOIS consumidores,
+  tela e transmissão). Com serviços diferentes o evento sairia **ACEITO
+  declarando a natureza errada** — a Receita não devolve isso.
+  ✂️ A régua do mapa MUDOU DE CASA para o dono (`reinf/retencao-pj-apuracao.js`):
+  `chaveDaNota` (a MESMA identidade do ajuste de retenção do CFI — chave do
+  documento, senão `CNPJ-número`), `mapaNaturezasInformadas` aceitando prestador
+  E nota, e `naturezaInformadaDaNota`, em que **a da NOTA vence a do
+  prestador**. A tela lista as notas do beneficiário (`notasDoBeneficiario`,
+  com a chave) e oferece um campo por nota quando há 2+; a apuração já separava
+  por `cnpj|natureza`, então cada natureza vira uma linha (um `idePgto` por
+  natureza no evento).
+  ⚠️ **A PREFERÊNCIA SALVA MANTÉM O HÍFEN DA CHAVE**: o `limpo` das preferências
+  tirava tudo que não é dígito — a chave `CNPJ-número` viraria outra e o salvo
+  nunca casaria de volta, calado. É a família do `idDoFechamento` (CFI, 26/08).
+  📌 **UMA ASSERÇÃO FOI TROCADA PELA INTENÇÃO**: ela prendia o TEXTO `function
+  mapaNaturezasInformadas` DENTRO da rota, e a régua mudou de casa. O que ela
+  protege (a rota lê as naturezas e resolve pela régua única) continua travado,
+  mais a contagem: os DOIS consumidores resolvem por nota.
+  📌 **REGRA QUE FICA: campo que se declara por NOTA não pode ter porta por
+  PRESTADOR.** O R-4020 já agrupa por natureza; o que faltava era a tela e a
+  preferência conhecerem a nota — e o sintoma nunca é erro: é um evento aceito
+  com o rendimento certo na natureza errada.
+
 - **🚨 ISS RETIDO EM SERVIÇOS TOMADOS NÃO ERA LANÇADO — e o resumo mandava
   marcar a opção de PRESTADOS** (08/09, Paulo, CLUDE · 08/2026: *"estou
   subindo os serviços tomados e não está indo o ISS, já deixei selecionado a

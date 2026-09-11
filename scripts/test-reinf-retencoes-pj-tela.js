@@ -40,7 +40,12 @@ assert.ok(index.includes('reinfRetencoesPJ(cnpj, comp, pares)'),
 // ─── A NATUREZA É CONFERIDA NO SERVIDOR ─────────────────────────────────────
 // A Tabela 01 não existe no navegador. Código digitado que ninguém confere é
 // código inventado — e o pior caso não é ser recusado, é ser ACEITO errado.
-assert.ok(rotas.includes('function mapaNaturezasInformadas'), 'a rota lê as naturezas informadas');
+// ⚠️ ASSERÇÃO TROCADA PELA INTENÇÃO (11/09): ela prendia o TEXTO
+// `function mapaNaturezasInformadas` DENTRO da rota — e a régua mudou de casa
+// para o dono (`reinf/retencao-pj-apuracao.js`) quando a natureza passou a ser
+// por NOTA. O que ela protege é que a rota LÊ as naturezas informadas e as
+// resolve pela régua única, nunca por leitura própria.
+assert.ok(rotas.includes('mapaNaturezasInformadas(req.query.naturezas)'), 'a rota lê as naturezas informadas pela régua do dono');
 assert.ok(/req\.query\.naturezas/.test(rotas), 'pela query');
 assert.ok(rotas.includes('naturezaInformada'), 'e aplica na apuração, que valida contra a Tabela 01');
 
@@ -129,3 +134,22 @@ console.log('✅ tela do R-4020: busca no CFI, natureza no servidor, e a tela di
   assert.ok(rotas.includes("router.post('/preferencias-retencao'"), 'rota de gravação existe');
   console.log('OK: preferências de retenção persistem — digitado > salvo > nota.');
 }
+
+// ─── NATUREZA POR NOTA (11/09, WALDESA × SERASA) ────────────────────────────
+// A régua do mapa saiu da rota e foi para o dono; a rota resolve a natureza
+// de CADA nota (a da nota vence a do prestador) nos DOIS consumidores — a
+// tela e a transmissão. Um que ficasse para trás declararia natureza
+// diferente da que a tela mostrou.
+assert.ok(!/^function mapaNaturezasInformadas/m.test(rotas), 'a rota não tem mais cópia própria do mapa de naturezas');
+assert.ok(rotas.includes("mapaNaturezasInformadas, naturezaInformadaDaNota, chaveDeNaturezaInformada,"),
+  'a rota importa a régua do dono (reinf/retencao-pj-apuracao.js)');
+assert.strictEqual((rotas.match(/naturezaInformadaDaNota\(informadas, n\)/g) || []).length, 2,
+  'os DOIS consumidores (tela e transmissão) resolvem a natureza por NOTA');
+assert.ok(!/informadas\.get\(limparCnpj\(n\.prestadorCnpj\)\)/.test(rotas),
+  'ninguém mais lê a natureza só pelo prestador');
+assert.ok(rotas.includes('chaveDeNaturezaInformada(k)'),
+  'as preferências salvas mantêm a chave da NOTA (o hífen) — senão o salvo nunca casaria de volta');
+assert.ok(index.includes('function naturezaPorNotaRetPj('), 'a tela oferece a natureza por nota');
+assert.ok(index.includes('naturezaPorNotaRetPj(b)'), 'dentro da célula da natureza do beneficiário');
+assert.ok(index.includes('notasDoBeneficiario'), 'lendo as notas que a apuração entrega com a chave');
+console.log('✓ natureza por NOTA: rota resolve por nota nos dois consumidores e a tela oferece o campo');
