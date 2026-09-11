@@ -205,6 +205,67 @@ function resolverRetencoes(nota) {
 }
 
 /**
+ * A IDENTIDADE da nota para tudo que se declara POR NOTA — o ajuste de
+ * retenção e a natureza do rendimento. É a MESMA fórmula do `chaveDoAjuste`
+ * do CFI (chave; senão prestador + número): duas identidades para a mesma nota
+ * fariam a natureza de uma cair na outra.
+ */
+function chaveDaNota(n) {
+  const c = String((n && n.chave) || '').trim();
+  if (c) return c;
+  const cnpj = soDigitos(n && n.prestadorCnpj);
+  const numero = String((n && n.numero) || '').trim();
+  return cnpj.length === 14 && numero ? `${cnpj}-${numero}` : '';
+}
+
+/**
+ * `?naturezas=CHAVE:codigo,CHAVE:codigo` → Map(chave → codigo).
+ *
+ * A chave é o PRESTADOR (14 dígitos — vale para todas as notas dele) ou a
+ * NOTA (`chave` do documento, ou `CNPJ-número`). 🚨 11/09 (WALDESA × SERASA):
+ * duas NFS-e do MESMO prestador com serviços DIFERENTES não cabem numa
+ * natureza por prestador — a segunda saía com a natureza da primeira, e o
+ * evento ia ACEITO declarando o rendimento errado.
+ *
+ * Só o FORMATO é conferido aqui; se o código existe na Tabela 01 quem decide é
+ * `buscarNatureza` na apuração — código fora da tabela é RECUSADO lá.
+ */
+function mapaNaturezasInformadas(valor) {
+  const out = new Map();
+  String(valor || '').split(',').forEach((par) => {
+    const i = String(par || '').lastIndexOf(':');
+    if (i < 0) return;
+    const chaveBruta = String(par).slice(0, i).trim();
+    const cod = String(par).slice(i + 1).trim();
+    if (!/^[0-9]{5}$/.test(cod)) return;
+    const chave = chaveDeNaturezaInformada(chaveBruta);
+    if (chave) out.set(chave, cod);
+  });
+  return out;
+}
+
+/** A forma canônica da chave do mapa: CNPJ (14 dígitos) ou nota (`CNPJ-número` / chave do documento). */
+function chaveDeNaturezaInformada(bruta) {
+  const s = String(bruta || '').trim();
+  if (/^[0-9]{11,}$/.test(s)) return s;                 // CNPJ do prestador, ou chave do documento
+  const m = s.match(/^([0-9.\/-]+)-([0-9A-Za-z]+)$/);
+  if (m) {
+    const cnpj = soDigitos(m[1]);
+    if (cnpj.length === 14) return `${cnpj}-${m[2]}`;
+  }
+  const digitos = soDigitos(s);
+  return digitos.length === 14 ? digitos : '';
+}
+
+/** A natureza que vale para ESTA nota: a informada por NOTA vence a do prestador. */
+function naturezaInformadaDaNota(mapa, n) {
+  if (!mapa || !mapa.get) return null;
+  const daNota = mapa.get(chaveDaNota(n));
+  if (daNota) return daNota;
+  return mapa.get(soDigitos(n && n.prestadorCnpj)) || null;
+}
+
+/**
  * Apura as retenções de PJ por BENEFICIÁRIO na competência.
  *
  * @param {object} p
@@ -267,9 +328,17 @@ function apurarRetencoesPJ({ competencia, notas } = {}) {
       // Quem confere é `baseIrDoBeneficiario`, no gerador — aqui só se
       // transporta o fato, senão a régua nasceria em dois lugares.
       notasComIr: [],
+      // 🚨 AS NOTAS DO BENEFICIÁRIO, com a CHAVE — é por ela que a tela deixa
+      // informar a natureza POR NOTA (11/09, WALDESA × SERASA: dois serviços
+      // diferentes do mesmo prestador, uma natureza cada).
+      notasDoBeneficiario: [],
     };
 
     acc.notas += 1;
+    acc.notasDoBeneficiario.push({
+      chave: chaveDaNota(n), numero: n.numero || null, base: r2(num(n.base) || 0),
+      natureza, origemNatureza,
+    });
     acc.bruto = r2(acc.bruto + (num(n.base) || 0));
     acc.ir = r2(acc.ir + ir);
     if (ir > 0) {
@@ -282,8 +351,7 @@ function apurarRetencoesPJ({ competencia, notas } = {}) {
     if (ret.conferencia) acc.conferencias.push(ret.conferencia);
     if (ret.pendencia) {
       acc.pendencias.push(`Nota ${n.numero || '(s/nº)'}: ${ret.pendencia}`);
-      const chave = String(n.chave || '').trim()
-        || (soDigitos(n.prestadorCnpj) && n.numero ? `${soDigitos(n.prestadorCnpj)}-${n.numero}` : '');
+      const chave = chaveDaNota(n);
       // ⚠️ Sem chave não se ajusta: mudar o valor de uma declaração sem poder
       // dizer QUAL nota mudou é o ajuste que ninguém confere depois.
       if (chave) {
@@ -396,4 +464,7 @@ function avisosDaApuracao(bs) {
   return avisos;
 }
 
-module.exports = { apurarRetencoesPJ, resolverRetencoes, naturezaNaDiscriminacao };
+module.exports = {
+  apurarRetencoesPJ, resolverRetencoes, naturezaNaDiscriminacao,
+  chaveDaNota, mapaNaturezasInformadas, naturezaInformadaDaNota, chaveDeNaturezaInformada,
+};
