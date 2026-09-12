@@ -344,6 +344,56 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **🚨 A NATUREZA POR NOTA FOI INFORMADA, SALVA — E O EVENTO SUBIU EM PRODUÇÃO
+  COM A DO PRESTADOR** (12/09, Paulo, WALDESA COMERCIO · SERASA · 08/2026:
+  *"salvei as naturezas de rendimentos de cada serviço, busquei no consultor
+  fiscal e depois transmiti, porém quando olhei no ecac, subiu a natureza 15006
+  mas não é essa natureza, pois são serviços diferentes. E no consultor do
+  contábil não está salvando essas naturezas"* — print do e-CAC com o R-4020
+  ACEITO em produção, natureza 15006, recibo `…-03-4020-2608-…`; e a tela com
+  *"por nota (2) … 1303309 → 15008 · 1336030 → 15032"* sobre uma linha só).
+  🔴 **A CAUSA É A CHAVE DO MAPA, e ela era MINHA, de 11/09**:
+  `chaveDeNaturezaInformada` só aceitava CNPJ e `CNPJ-número`. A chave da NFS-e
+  do portal de SP que o CFI grava é `inscrição-número-códigoVerificação` (e a
+  digitada é `nfsesp-…`) — e `chaveDaNota` devolve a chave do documento COMO
+  VEIO. Ou seja: a tela mandava `chave:15008`, o servidor descartava a chave em
+  silêncio (na busca, no 💾 Salvar e na transmissão), a nota herdava o 15006 do
+  prestador e o evento saiu ACEITO com a natureza errada. **Provado por
+  reversão** (as três formas reais viram '' na régua antiga).
+  ✂️ A régua da chave passou a ser a do DONO da identidade: o que `chaveDaNota`
+  produz é chave, como veio; só se normaliza forma conhecida (CNPJ mascarado,
+  `CNPJ-número`); lixo é vazio/espaço/`:`/`,`. ⚠️ **Fixture trocada com
+  motivo**: o teste exigia que `lixo` fosse descartado — era essa recusa que
+  descartava a chave real.
+  🔴 **E HAVIA UM SEGUNDO DEFEITO ESPERANDO A CORREÇÃO DO PRIMEIRO**: a
+  transmissão fazia um evento por LINHA da apuração (`cnpj|natureza`) — com a
+  chave certa, a SERASA viraria DOIS eventos com o mesmo `cnpjBenef` na mesma
+  competência, e o segundo é duplicidade. O leiaute resolve DENTRO do evento:
+  um `idePgto` por natureza no mesmo `ideBenef` (`gerarR4020` já montava assim
+  a partir de `pagamentos`). `agruparPorBeneficiario` + `pagamentosR4020DoBeneficiario`
+  no gerador; a rota gera UM evento por CNPJ, e a tela diz quantos eventos saem.
+  ✂️ **E O EVENTO ERRADO JÁ ESTÁ NA RECEITA — corrigir é RETIFICAR, e a rota
+  só sabia ORIGINAL.** Nasceu `reinf/recibo-r4020.js` (PURO), o desenho do
+  `recibo-r2010.js` campo a campo, chaveado por **BENEFICIÁRIO** (contribuinte
+  + competência + estabelecimento + beneficiário + AMBIENTE): a transmissão
+  grava o `nrRecArqBase` de todo evento aceito em `reinf_recibos_r4020`, lê os
+  recibos antes de montar (quem tem recibo sai `indRetif=2`), e a rota
+  `POST /retencoes-pj/:cnpj/:competencia/recibo` recebe o recibo LIDO NO e-CAC
+  para o evento entregue antes de o app guardar (vazio APAGA; sem `-4020-`
+  AVISA, não bloqueia). A tela ganhou a caixa *"Informar o recibo do R-4020 já
+  entregue"*, o selo *↻ retificação* na linha, e o resultado do envio diz por
+  beneficiário as naturezas, original × retificação e os recibos guardados.
+  MS1028 ganhou a leitura própria (`duplicidadeR4020`): *o evento já existe*,
+  nunca *"nada foi aceito"*.
+  🚩 **PENDÊNCIA DO PAULO (WALDESA 08/2026)**: colar o recibo
+  `62212777-03-4020-2608-62212777` na caixa (beneficiário SERASA, PRODUÇÃO),
+  Buscar (a linha mostra ↻ retificação e as duas naturezas), transmitir em
+  produção e conferir no e-CAC que o evento retificado traz 15008 e 15032.
+  📌 **REGRA QUE FICA: identidade que UM módulo produz não se REVALIDA por
+  forma em outro** — quem canoniza a chave é o dono dela; o mapa recebe o que
+  ele devolve. E régua que muda "uma linha ⇒ um evento" para "uma linha ⇒ um
+  pagamento" se prova no XML (dois `idePgto`), nunca na contagem de linhas.
+
 - **✍️ "A NATUREZA DE RENDIMENTO ESTÁ ERRADA POIS SÃO DUAS NF COM SERVIÇOS
   DIFERENTES" — a natureza era POR PRESTADOR, e a segunda nota herdava a da
   primeira** (11/09, Paulo, WALDESA · 08/2026, duas NFS-e da SERASA tomadas com

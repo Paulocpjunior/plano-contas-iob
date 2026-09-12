@@ -28,11 +28,16 @@ const { conferirCertificado } = require('./reinf/certificado-conferencia');
 const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
 const { apurarServicosTomados, patchCadastroPrestador } = require('./reinf/servicos-tomados-apuracao');
 const { gerarEventosR2055 } = require('./reinf/gerar-r2055');
-const { gerarR4020, pagamentoR4020DoBeneficiario } = require('./reinf/gerar-r4020');
+const {
+  gerarR4020, pagamentoR4020DoBeneficiario, agruparPorBeneficiario, pagamentosR4020DoBeneficiario,
+} = require('./reinf/gerar-r4020');
 const { gerarEventosR2010 } = require('./reinf/gerar-r2010');
 const {
   idReciboR2010, recibosDoRetornoR2010, duplicidadeR2010, retificacaoDoPrestador,
 } = require('./reinf/recibo-r2010');
+const {
+  idReciboR4020, recibosDoRetornoR4020, duplicidadeR4020, retificacaoDoBeneficiario,
+} = require('./reinf/recibo-r4020');
 const { gerarEventosR2020 } = require('./reinf/gerar-r2020');
 const { apurarServicosPrestados, patchCadastroTomador } = require('./reinf/servicos-prestados-apuracao');
 const { gerarR2099, podeTransmitirR2099 } = require('./reinf/gerar-r2099');
@@ -1490,6 +1495,32 @@ function registrarRotasReinf(app, { db } = {}) {
       });
       const apuracao = apurarRetencoesPJ({ competencia, notas });
 
+      // OS RECIBOS CONHECIDOS VÃO NA LINHA: é o que diz, ANTES do clique, que
+      // o próximo envio deste beneficiário sai como RETIFICAÇÃO (e em qual
+      // ambiente). Falha ao ler NÃO derruba a apuração — vai dita.
+      let recibosAviso = null;
+      const recibosPorCnpj = {};
+      try {
+        for (const amb of [1, 2]) {
+          const mapa = await lerRecibosR4020(db, { tpAmb: amb, perApur: competencia, cnpjContribuinte: cnpj });
+          mapa.forEach((v) => {
+            const ben = limparCnpj(v.cnpjBeneficiario);
+            if (!recibosPorCnpj[ben]) recibosPorCnpj[ben] = {};
+            recibosPorCnpj[ben][amb] = { nrRecibo: v.nrRecibo, origem: v.origem || null };
+          });
+        }
+      } catch (err) {
+        recibosAviso = 'Não consegui ler os recibos já guardados dos R-4020 desta competência: '
+          + (err.message || err) + '. A transmissão pode sair como ORIGINAL onde deveria ser retificação.';
+      }
+      apuracao.beneficiarios = apuracao.beneficiarios.map((b) => ({
+        ...b, recibos: recibosPorCnpj[limparCnpj(b.prestadorCnpj)] || null,
+      }));
+      // O evento é do BENEFICIÁRIO: duas naturezas do mesmo CNPJ são duas linhas
+      // e UM evento (dois idePgto). A tela mostra quantos eventos vão sair.
+      apuracao.resumo = { ...(apuracao.resumo || {}), eventosR4020: agruparPorBeneficiario(apuracao.beneficiarios.filter((b) => b.pronto)).length };
+      if (recibosAviso) apuracao.avisos = [...(apuracao.avisos || []), recibosAviso];
+
       res.json({
         ok: true,
         origem: 'cfi',
@@ -1568,40 +1599,63 @@ function registrarRotasReinf(app, { db } = {}) {
         });
       }
 
-      // ── UM EVENTO POR BENEFICIÁRIO, no MESMO lote ───────────────────────
-      // O arquivo aceito traz UM `ideBenef`, e empilhar foi exatamente o que
+      // ── UM EVENTO POR BENEFICIÁRIO (CNPJ), no MESMO lote ────────────────
+      // O arquivo aceito traz UM `ideBenef`, e empilhar beneficiários foi o que
       // derrubou o R-2055 três vezes com MS0030. O lote já aceita vários
       // eventos; quem não pode empilhar é o evento.
+      //
+      // 🚨 12/09 (WALDESA × SERASA): a apuração separa por `cnpj|natureza`, e
+      // aqui saía um evento por LINHA — duas naturezas do MESMO prestador
+      // seriam DOIS eventos com o mesmo beneficiário na mesma competência, e
+      // o segundo é duplicidade. O leiaute resolve DENTRO do evento: um
+      // `idePgto` por natureza (`agruparPorBeneficiario`).
       //
       // 🚨 E AQUI ESTÁ A TRADUÇÃO QUE O EVENTO PEDE: a retenção vai AGREGADA.
       // A apuração separa PIS/COFINS/CSLL porque o EFD-Contribuições e o
       // Relatório de Retenções precisam assim; o R-4020 declara o TOTAL, a
       // partir do MESMO número — não é recalcular, é somar de volta.
+      //
+      // 📌 RETIFICAÇÃO PELO RECIBO, POR BENEFICIÁRIO: quem já tem recibo nesta
+      // competência/ambiente sai `indRetif=2` com o recibo — é o único caminho
+      // para corrigir um evento já ACEITO (a natureza errada da WALDESA).
+      // Falha ao ler os recibos PARA a transmissão: mandar original por cima
+      // de evento entregue volta MS1028, e mandar retificação sem saber contra
+      // o quê é pior.
+      const recibos = await lerRecibosR4020(db, { tpAmb, perApur: competencia, cnpjContribuinte: cnpj });
+      const grupos = agruparPorBeneficiario(prontos);
       const eventos = [];
       const bloqueados = [];
-      prontos.forEach((b, i) => {
+      grupos.forEach((g, i) => {
         try {
-          eventos.push(gerarR4020({
+          const retif = retificacaoDoBeneficiario(recibos, {
+            tpAmb, perApur: competencia, cnpjContribuinte: cnpj, cnpjEstab: cnpj, cnpjBeneficiario: g.cnpj,
+          });
+          const ev = gerarR4020({
             contribuinte: { tpInsc: 1, nrInsc: cnpj },
             estabelecimento: { tpInscEstab: 1, nrInscEstab: cnpj },
             perApur: competencia,
             tpAmb,
             seq: i + 1,
-            beneficiario: { cnpj: b.prestadorCnpj },
-            // 🚨 A TRADUÇÃO É DO DONO (03/09): ela morava AQUI, e por isso a
-            // tela não tinha como saber o que o gerador receberia — era assim
-            // que "1 pronto" convivia com "nenhum evento gerado" na mesma tela.
-            // Qual forma a retenção toma (agregada × separada) é decisão dele,
-            // com o arquivo aceito citado do lado.
-            pagamentos: [pagamentoR4020DoBeneficiario(b)],
-          }));
+            ...retif,
+            beneficiario: { cnpj: g.cnpj },
+            // 🚨 A TRADUÇÃO É DO DONO (03/09): qual forma a retenção toma
+            // (agregada × separada) é decisão dele, com o arquivo aceito citado
+            // do lado — e agora uma linha da apuração ⇒ um pagamento, na
+            // natureza DELA.
+            pagamentos: pagamentosR4020DoBeneficiario(g),
+          });
+          eventos.push({
+            ...ev, cnpjBeneficiario: g.cnpj, cnpjEstab: cnpj, nome: g.nome,
+            naturezas: g.linhas.map((b) => b.natureza),
+            indRetif: retif.indRetif, nrRecibo: retif.nrRecibo || null,
+          });
         } catch (err) {
           // 🚩 BENEFICIÁRIO QUE O GERADOR RECUSA NÃO DERRUBA O LOTE INTEIRO —
           // ele fica FORA, com o motivo. Uma nota com IRRF não pode impedir a
           // entrega das outras; e um lote que some por causa de uma linha é a
           // trava sem caminho que a equipe contorna.
           bloqueados.push({
-            cnpj: b.prestadorCnpj, nome: b.prestadorNome,
+            cnpj: g.cnpj, nome: g.nome,
             motivo: String((err && err.message) || err),
           });
         }
@@ -1628,7 +1682,34 @@ function registrarRotasReinf(app, { db } = {}) {
         : { httpStatus: envio.status, ...info };
 
       const ocorrencias = extrairOcorrenciasReinf((recibo && recibo.xml) || info.xml);
+
+      // O RECIBO CHEGA AQUI E ERA JOGADO FORA — o mesmo defeito do R-2010
+      // (10/09). Sem ele guardado, a próxima transmissão desta competência sai
+      // como ORIGINAL e a Receita devolve MS1028; e corrigir a natureza de um
+      // evento aceito exige exatamente este número. Gravar falhando NÃO
+      // derruba a transmissão que já aconteceu — mas vai DITO.
+      const doRetorno = recibosDoRetornoR4020(
+        parseRetornoEventos((recibo && recibo.xml) || info.xml), eventos,
+      );
+      let recibosGravados = 0;
+      let falhaAoGravarRecibo = null;
+      try {
+        recibosGravados = await gravarRecibosR4020(db, {
+          tpAmb, perApur: competencia, cnpjContribuinte: cnpj,
+          protocolo: info.protocolo || null, aceitos: doRetorno.aceitos,
+        });
+      } catch (err) {
+        falhaAoGravarRecibo = 'Os eventos foram transmitidos, mas o app não conseguiu guardar o '
+          + 'recibo devolvido pela Receita. Sem ele, a próxima transmissão desta competência sai '
+          + 'como ORIGINAL e volta recusada por duplicidade (MS1028). Detalhe: ' + (err.message || err);
+      }
+      const retificadosAgora = eventos.filter((e) => e.indRetif === 2);
+      const duplicidade = duplicidadeR4020(ocorrencias, { tinhaRecibo: retificadosAgora.length > 0 });
+
       await registrarLog(db, req, 'transmitir_r4020', {
+        retificados: retificadosAgora.length,
+        recibosGravados,
+        duplicidade: duplicidade ? duplicidade.quantidade : 0,
         contribuinte: cnpj,
         tpAmb,
         competencia,
@@ -1665,13 +1746,25 @@ function registrarRotasReinf(app, { db } = {}) {
         descResposta: (recibo && recibo.descResposta) || info.descResposta,
         dhRecepcao: recibo && recibo.dhRecepcao,
         xmlRetorno: retornoCruReinf((recibo && recibo.xml) || info.xml),
-        declarados: prontos
-          .filter((b) => !bloqueados.some((x) => x.cnpj === b.prestadorCnpj))
-          .map((b) => ({
-            cnpj: b.prestadorCnpj, nome: b.prestadorNome, natureza: b.natureza,
-            bruto: b.bruto,
-            agregado: Math.round((Number(b.pis || 0) + Number(b.cofins || 0) + Number(b.csll || 0)) * 100) / 100,
-          })),
+        // Um por EVENTO (beneficiário): as naturezas vão listadas — é isso
+        // que a pessoa confere contra o e-CAC (o caso WALDESA: 15008 e 15032
+        // no MESMO evento, não 15006 para as duas).
+        declarados: eventos.map((e) => {
+          const linhas = prontos.filter((b) => limparCnpj(b.prestadorCnpj) === e.cnpjBeneficiario);
+          const soma = (k) => Math.round(linhas.reduce((acc, b) => acc + Number(b[k] || 0), 0) * 100) / 100;
+          return {
+            cnpj: e.cnpjBeneficiario, nome: e.nome,
+            naturezas: e.naturezas, natureza: e.naturezas.join(' + '),
+            bruto: soma('bruto'),
+            agregado: Math.round((soma('pis') + soma('cofins') + soma('csll')) * 100) / 100,
+            indRetif: e.indRetif, nrRecibo: e.nrRecibo,
+          };
+        }),
+        retificados: retificadosAgora.map((e) => ({ cnpj: e.cnpjBeneficiario, nome: e.nome, nrRecibo: e.nrRecibo })),
+        recibosGravados,
+        recibosDevolvidos: doRetorno.aceitos.map((a) => ({ cnpj: a.cnpjBeneficiario, nrRecibo: a.nrRecibo })),
+        falhaAoGravarRecibo,
+        duplicidade,
         // Os dois grupos que NÃO foram: separados, porque as ações são
         // diferentes — pendente resolve na tela, bloqueado vai ao e-CAC.
         bloqueados,
@@ -1679,6 +1772,74 @@ function registrarRotasReinf(app, { db } = {}) {
           cnpj: b.prestadorCnpj, nome: b.prestadorNome, pendencias: b.pendencias,
         })),
       });
+    } catch (err) {
+      respostaErro(res, 400, err);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // POST /api/reinf/retencoes-pj/:cnpj/:competencia/recibo
+  //
+  // O RECIBO DO R-4020 INFORMADO À MÃO — a porta que destrava o evento já
+  // entregue ANTES de o app guardar recibo (o caso WALDESA × SERASA, 12/09: o
+  // R-4020 saiu em produção com a natureza 15006 para dois serviços diferentes,
+  // e corrigir é RETIFICAR aquele evento). O recibo está no e-CAC; o app não
+  // deduz o número, alguém lê na FONTE e digita, e fica gravado quem foi.
+  //
+  // É o mesmo desenho do /servicos-tomados/recibo (R-2010), por BENEFICIÁRIO.
+  // ──────────────────────────────────────────────────────────────────────────
+  router.post('/retencoes-pj/:cnpj/:competencia/recibo', async (req, res) => {
+    try {
+      const cnpj = limparCnpj(req.params.cnpj);
+      const competencia = String(req.params.competencia || '').trim();
+      const p = req.body || {};
+      const cnpjBeneficiario = limparCnpj(p.cnpjBeneficiario);
+      const cnpjEstab = limparCnpj(p.cnpjEstab) || cnpj;
+      const tpAmb = Number(p.tpAmb || 1);
+      const nrRecibo = String(p.nrRecibo == null ? '' : p.nrRecibo).trim();
+
+      if (cnpj.length !== 14) throw new Error('Informe o CNPJ do contribuinte (tomador) com 14 dígitos.');
+      if (cnpjBeneficiario.length !== 14) throw new Error('Informe o CNPJ do beneficiário com 14 dígitos.');
+      if (!/^\d{4}-\d{2}$/.test(competencia)) throw new Error('Competência deve ser AAAA-MM.');
+      if (![1, 2].includes(tpAmb)) throw new Error('tpAmb deve ser 1 (produção) ou 2 (produção restrita).');
+
+      const id = idReciboR4020({ tpAmb, perApur: competencia, cnpjContribuinte: cnpj, cnpjEstab, cnpjBeneficiario });
+      const ref = db.collection('reinf_recibos_r4020').doc(id);
+
+      // APAGAR É CAMINHO LEGÍTIMO: recibo digitado errado é PIOR que recibo
+      // nenhum — ele retifica em cima do evento de outro.
+      if (!nrRecibo) {
+        await ref.delete().catch(() => {});
+        await registrarLog(db, req, 'recibo_r4020_removido', { contribuinte: cnpj, cnpjBeneficiario, competencia, tpAmb });
+        return res.json({ ok: true, removido: true, id });
+      }
+      if (/\s/.test(nrRecibo) || nrRecibo.length < 8) {
+        throw new Error('Recibo em branco ou incompleto. Ele vem do recibo de entrega da EFD-Reinf '
+          + '(e-CAC) — copie o número inteiro, sem espaços.');
+      }
+      // O tipo do evento aparece no próprio recibo (`…-4020-…`). AVISA e não
+      // BLOQUEIA: o formato é da Receita e já mudou antes neste projeto —
+      // recusar por formato deduzido recusaria recibo VÁLIDO.
+      const avisos = [];
+      if (!nrRecibo.includes('-4020-')) {
+        avisos.push('Este número não tem o "-4020-" que aparece no recibo de um R-4020. Confira se '
+          + 'não é o recibo de outro evento (R-2010, R-4010 ou o R-4099 do fechamento) — retificar '
+          + 'contra o recibo errado é ACEITO pela Receita e escreve em cima do evento errado.');
+      }
+
+      await ref.set({
+        nrRecibo,
+        origem: 'informado',
+        tpAmb, perApur: competencia,
+        cnpjContribuinte: cnpj, cnpjEstab, cnpjBeneficiario,
+        informadoPorEmail: (req.user && req.user.email) || null,
+        informadoPorUid: (req.user && req.user.uid) || null,
+        atualizado_em: new Date(),
+      }, { merge: true });
+      await registrarLog(db, req, 'recibo_r4020_informado', {
+        contribuinte: cnpj, cnpjBeneficiario, cnpjEstab, competencia, tpAmb, nrRecibo,
+      });
+      res.json({ ok: true, id, nrRecibo, avisos });
     } catch (err) {
       respostaErro(res, 400, err);
     }
@@ -2213,6 +2374,48 @@ function registrarRotasReinf(app, { db } = {}) {
         cnpjContribuinte: limparCnpj(cnpjContribuinte),
         cnpjEstab: limparCnpj(a.cnpjEstab),
         cnpjPrestador: limparCnpj(a.cnpjPrestador),
+        atualizado_em: new Date(),
+      }, { merge: true });
+    });
+    await batch.commit();
+    return aceitos.length;
+  }
+
+  // ── RECIBOS DO R-4020 — o mesmo desenho do R-2010, chaveado por BENEFICIÁRIO ──
+  async function lerRecibosR4020(banco, { tpAmb, perApur, cnpjContribuinte }) {
+    const snap = await banco.collection('reinf_recibos_r4020')
+      .where('tpAmb', '==', Number(tpAmb))
+      .where('perApur', '==', String(perApur))
+      .where('cnpjContribuinte', '==', limparCnpj(cnpjContribuinte))
+      .get();
+    const out = new Map();
+    snap.forEach((d) => {
+      const v = d.data() || {};
+      if (v.nrRecibo) out.set(d.id, v);
+    });
+    return out;
+  }
+
+  async function gravarRecibosR4020(banco, { tpAmb, perApur, cnpjContribuinte, protocolo, aceitos }) {
+    if (!banco || !Array.isArray(aceitos) || !aceitos.length) return 0;
+    const batch = banco.batch();
+    aceitos.forEach((a) => {
+      const id = idReciboR4020({
+        tpAmb, perApur, cnpjContribuinte,
+        cnpjEstab: a.cnpjEstab, cnpjBeneficiario: a.cnpjBeneficiario,
+      });
+      batch.set(banco.collection('reinf_recibos_r4020').doc(id), {
+        nrRecibo: a.nrRecibo,
+        // A ORIGEM viaja carimbada: recibo lido do retorno é FATO da Receita;
+        // recibo digitado é DECLARAÇÃO de quem digitou.
+        origem: 'retorno',
+        idEv: a.idEv,
+        protocolo: protocolo || null,
+        tpAmb: Number(tpAmb),
+        perApur: String(perApur),
+        cnpjContribuinte: limparCnpj(cnpjContribuinte),
+        cnpjEstab: limparCnpj(a.cnpjEstab),
+        cnpjBeneficiario: limparCnpj(a.cnpjBeneficiario),
         atualizado_em: new Date(),
       }, { merge: true });
     });

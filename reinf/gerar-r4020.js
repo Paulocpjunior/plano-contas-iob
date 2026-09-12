@@ -665,6 +665,39 @@ function pagamentoR4020DoBeneficiario(b) {
 }
 
 /**
+ * UM EVENTO POR BENEFICIÁRIO (CNPJ), com uma linha de apuração por NATUREZA.
+ *
+ * 🚨 12/09 (WALDESA × SERASA): a apuração separa por `cnpj|natureza`, e a
+ * transmissão fazia um evento por LINHA — duas naturezas do MESMO prestador
+ * sairiam como DOIS eventos com o mesmo `cnpjBenef` na mesma competência, e o
+ * segundo é duplicidade para a Receita (MS1028). O leiaute já resolve isso
+ * DENTRO do evento: um `idePgto` por natureza no mesmo `ideBenef` (é o que
+ * `gerarR4020` monta a partir de `pagamentos`). O evento é do BENEFICIÁRIO;
+ * a natureza é do PAGAMENTO.
+ *
+ * A ordem é a da primeira ocorrência de cada CNPJ — estável, para o `seq` do
+ * lote não mudar entre a tela e a transmissão.
+ *
+ * @param {Array} linhas beneficiários da apuração (`cnpj|natureza`)
+ * @returns {Array<{ cnpj: string, nome: string, linhas: Array }>}
+ */
+function agruparPorBeneficiario(linhas) {
+  const grupos = new Map();
+  for (const b of (Array.isArray(linhas) ? linhas : [])) {
+    const cnpj = soDigitos(b && b.prestadorCnpj);
+    if (cnpj.length !== 14) continue;
+    if (!grupos.has(cnpj)) grupos.set(cnpj, { cnpj, nome: (b && b.prestadorNome) || '', linhas: [] });
+    grupos.get(cnpj).linhas.push(b);
+  }
+  return [...grupos.values()];
+}
+
+/** Os pagamentos de UM evento: uma linha da apuração ⇒ um pagamento, na natureza dela. */
+function pagamentosR4020DoBeneficiario(grupo) {
+  return (grupo && Array.isArray(grupo.linhas) ? grupo.linhas : []).map(pagamentoR4020DoBeneficiario);
+}
+
+/**
  * O beneficiário vira evento? — a resposta que a TELA mostra ANTES do clique.
  *
  * @returns {string|null} o motivo do bloqueio, ou null
@@ -680,6 +713,7 @@ function bloqueioDoR4020(beneficiario) {
 module.exports = {
   NS_R4020, gerarR4020, validarEntradaR4020, validarPagamentoR4020,
   pagamentoR4020DoBeneficiario, bloqueioDoR4020, RETENCOES_SEPARADAS,
+  agruparPorBeneficiario, pagamentosR4020DoBeneficiario,
   baseIrDoBeneficiario, irFechaNaAliquotaLegal,
   // A sequence LIDA do XSD e o de-para dos nomes com a caixa errada — o teste
   // prova os dois contra o arquivo em docs/reinf/xsd/.

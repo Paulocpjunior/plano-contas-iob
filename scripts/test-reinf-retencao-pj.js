@@ -133,13 +133,31 @@ console.log('✓ retenção PJ (R-4020): CSLL derivada só com a conta fechando,
   assert.strictEqual(chaveDaNota({ numero: '1' }), '', 'sem prestador legível não há identidade');
 
   // O mapa aceita prestador (14 dígitos) e nota (CNPJ-número), com máscara ou sem.
-  const mapa = mapaNaturezasInformadas(`${P}:15006,44.555.666/0001-77-1336030:15010,lixo:99999,${P}-1303309:abc`);
+  // ⚠️ FIXTURE TROCADA (12/09): ela tinha `lixo:99999` esperando que a chave
+  // fosse DESCARTADA — e era exatamente essa recusa que descartava a chave
+  // REAL da NFS-e do portal de SP (`inscrição-número-códigoVerificação`),
+  // deixando a natureza por nota cair na do prestador. O que não é chave é o
+  // que não PODE ser chave: vazio, espaço ou os separadores do próprio mapa.
+  const mapa = mapaNaturezasInformadas(`${P}:15006,44.555.666/0001-77-1336030:15010,:99999,${P}-1303309:abc`);
   assert.strictEqual(mapa.get(P), '15006', 'natureza do prestador');
   assert.strictEqual(mapa.get(`${P}-1336030`), '15010', 'natureza da NOTA, com o CNPJ mascarado normalizado');
-  assert.strictEqual(mapa.size, 2, 'chave ilegível e código fora do formato não entram');
+  assert.strictEqual(mapa.size, 2, 'chave vazia e código fora do formato não entram');
   assert.strictEqual(chaveDeNaturezaInformada('44.555.666/0001-77'), P, 'chave do mapa normaliza o CNPJ');
   assert.strictEqual(chaveDeNaturezaInformada('44.555.666/0001-77-1336030'), `${P}-1336030`, 'e mantém o número da nota');
-  assert.strictEqual(chaveDeNaturezaInformada('abc'), '', 'lixo não vira chave');
+  assert.strictEqual(chaveDeNaturezaInformada(''), '', 'vazio não vira chave');
+  assert.strictEqual(chaveDeNaturezaInformada('a b'), '', 'espaço não vira chave');
+  assert.strictEqual(chaveDeNaturezaInformada('x:y'), '', 'separador do mapa não vira chave');
+
+  // 🚨 O CASO WALDESA × SERASA (12/09): a chave do documento como o CFI a grava
+  // — o WS do portal de SP (`inscrição-número-códigoVerificação`), a digitada
+  // (`nfsesp-…`) e a chave nacional de 50 dígitos — TEM de sobreviver ao mapa,
+  // senão a natureza por nota se perde calada e o evento sai com a do prestador.
+  for (const chaveReal of ['12345678-1303309-ABCD1234', 'nfsesp-11111111000191-44555666000177-1303309', '3550308144555666000177000000000130330912345678901234']) {
+    assert.strictEqual(chaveDeNaturezaInformada(chaveReal), chaveReal, 'a chave do documento sai COMO VEIO: ' + chaveReal);
+    const m2 = mapaNaturezasInformadas(`${P}:15006,${chaveReal}:15008`);
+    assert.strictEqual(naturezaInformadaDaNota(m2, { ...notaA, chave: chaveReal }), '15008', 'a natureza da nota com chave real VENCE a do prestador');
+    assert.strictEqual(naturezaInformadaDaNota(m2, { ...notaB }), '15006', 'a outra nota do prestador continua com a dele');
+  }
 
   // A da nota VENCE a do prestador; sem a da nota, vale a do prestador.
   assert.strictEqual(naturezaInformadaDaNota(mapa, notaB), '15010', 'a natureza da NOTA vence a do prestador');

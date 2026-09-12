@@ -244,17 +244,33 @@ function mapaNaturezasInformadas(valor) {
   return out;
 }
 
-/** A forma canônica da chave do mapa: CNPJ (14 dígitos) ou nota (`CNPJ-número` / chave do documento). */
+/**
+ * A forma canônica da chave do mapa: CNPJ (14 dígitos), nota (`CNPJ-número`)
+ * — ou QUALQUER chave de documento que `chaveDaNota` produza.
+ *
+ * 🚨 12/09 (WALDESA × SERASA, o evento foi ACEITO com a natureza errada): a
+ * versão de 11/09 só aceitava CNPJ e `CNPJ-número`, e a chave que o CFI grava
+ * na NFS-e do portal de SP é `inscrição-número-códigoVerificação` (e a
+ * digitada é `nfsesp-…`). A natureza por nota era DESCARTADA em silêncio —
+ * na busca, na preferência salva e na transmissão — e a nota herdava a do
+ * prestador. A tela mostrava 15008/15032 nos campos e o evento saiu 15006.
+ *
+ * A régua passa a ser a do dono da identidade: o que `chaveDaNota` devolve é
+ * chave, COMO VEIO. Só se normaliza o que tem forma conhecida (CNPJ mascarado,
+ * `CNPJ-número` mascarado). Lixo de verdade é o que não pode ser chave: vazio,
+ * ou com espaço/`:`/`,` (os separadores do próprio mapa).
+ */
 function chaveDeNaturezaInformada(bruta) {
   const s = String(bruta || '').trim();
+  if (!s || /[\s:,]/.test(s)) return '';
   if (/^[0-9]{11,}$/.test(s)) return s;                 // CNPJ do prestador, ou chave do documento
   const m = s.match(/^([0-9.\/-]+)-([0-9A-Za-z]+)$/);
   if (m) {
     const cnpj = soDigitos(m[1]);
     if (cnpj.length === 14) return `${cnpj}-${m[2]}`;
   }
-  const digitos = soDigitos(s);
-  return digitos.length === 14 ? digitos : '';
+  if (/^[0-9.\/-]+$/.test(s) && soDigitos(s).length === 14) return soDigitos(s); // CNPJ mascarado
+  return s;                                              // a chave do documento, como o CFI a grava
 }
 
 /** A natureza que vale para ESTA nota: a informada por NOTA vence a do prestador. */

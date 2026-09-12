@@ -245,7 +245,14 @@ assert.ok(/CONFIRA no e-CAC se o lote chegou antes de transmitir de novo/.test(t
   'falha de rede manda CONFERIR antes de repetir — reenviar às cegas duplica evento');
 
 // 📌 E a soma agregada é feita na ROTA a partir da apuração, sem recalcular.
-assert.ok(/Number\(b\.pis \|\| 0\) \+ Number\(b\.cofins \|\| 0\) \+ Number\(b\.csll \|\| 0\)/.test(rotas),
+// ⚠️ ASSERÇÃO TROCADA PELA INTENÇÃO (12/09): ela prendia o TEXTO
+// `Number(b.pis || 0) + Number(b.cofins || 0) + Number(b.csll || 0)` — e o
+// evento passou a ser por BENEFICIÁRIO, somando as LINHAS da apuração daquele
+// CNPJ. O que ela protege (a agregada é SOMA do apurado, nunca base × alíquota)
+// continua travado: a soma lê os três tributos da apuração e não há alíquota.
+assert.ok(/soma\('pis'\) \+ soma\('cofins'\) \+ soma\('csll'\)/.test(rotas),
   'a retenção agregada é a SOMA do que a apuração já decidiu, não uma conta nova');
+assert.ok(/const soma = \(k\) => Math\.round\(linhas\.reduce\(\(acc, b\) => acc \+ Number\(b\[k\] \|\| 0\), 0\)/.test(rotas),
+  'e a soma percorre as LINHAS da apuração do beneficiário — sem alíquota, sem conta nova');
 
 console.log('✓ R-4020: retenção AGREGADA provada por arquivo aceito, e a transmissão ligada ponta a ponta');

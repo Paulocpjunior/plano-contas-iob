@@ -811,6 +811,19 @@
   // O recibo do evento anterior — lido na FONTE (e-CAC / REINF.Web) e digitado.
   // Sem ele não há retificação, e sem retificação a Receita responde MS1028
   // para sempre na competência que já foi entregue.
+  /**
+   * O RECIBO DO R-4020 informado à mão (por beneficiário) — a porta da
+   * RETIFICAÇÃO de um evento já aceito (12/09, WALDESA × SERASA). Vazio APAGA.
+   */
+  async function reinfRetencaoPjRecibo(cnpj, competencia, payload) {
+    const c = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(
+      API_BASE + '/api/reinf/retencoes-pj/' + c + '/' + encodeURIComponent(competencia || '') + '/recibo',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload || {}) },
+    );
+    return await r.json();
+  }
+
   async function reinfServicoTomadoRecibo(payload) {
     const r = await apiFetch(API_BASE + '/api/reinf/servicos-tomados/recibo', {
       method: 'POST',
@@ -1039,6 +1052,7 @@
     reinfServicoTomadoPrestador,
     reinfServicosTomadosTransmitir,
     reinfServicoTomadoRecibo,
+    reinfRetencaoPjRecibo,
     reinfServicosPrestados,
     reinfServicoPrestadoTomador,
     reinfServicosPrestadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar };
