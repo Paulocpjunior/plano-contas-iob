@@ -1,7 +1,8 @@
 {
-  "version": "3.4.279",
-  "build_date": "2026-09-12T10:22:48Z",
+  "version": "3.4.280",
+  "build_date": "2026-09-14T12:58:57Z",
   "release_notes": [
-    "Melhorias internas e correcoes"
+    "Reinf de aluguel: validação da data de pagamento e competência antes do envio.",
+    "Retorno da Receita por evento, com recibos, ocorrências e identificação de aceitação parcial."
   ]
 }
