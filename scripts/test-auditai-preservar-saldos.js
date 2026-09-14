@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('assert'),fs=require('fs'),vm=require('vm');
+const source=fs.readFileSync(require('path').join(__dirname,'../auditai/assets/index-DREfix3266.js'),'utf8');
+const start=source.indexOf('function J2('),end=source.indexOf('async function ',source.indexOf('function H$('));
+const context={};vm.createContext(context);vm.runInContext(source.slice(start,end),context);
+let r=context.H$(['2.4.7.01 | RESULTADO DO EXERCICIO EM CURSO | 24.561,37 | 24.561,37 | 0,00 | 0,00 | C','3 | RECEITAS | 0,00 | 635.254,59 | 3.313.793,87 | 2.678.539,28 | C','5 | DESPESAS | 0,00 | 150,00 | 50,00 | 100,00 | D','OFFICIAL_PATRIMONIO_LIQUIDO | PL | -75.00'],'Balancete');
+const get=code=>r.accounts.find(a=>a.account_code===code);
+assert.equal(get('2.4.7.01').final_balance,0,'Saldo encerrado não pode ser recriado pelo movimento');
+assert.equal(get('3').final_balance,2678539.28);assert.equal(get('3').debit_value,635254.59);assert.equal(get('3').credit_value,3313793.87);
+assert.equal(r.summary.officialTotals.patrimonioLiquido,-75);
+assert.throws(()=>context.H$(['3 | RECEITAS | MISSING'],'Balancete'),/ilegíveis/);
+assert(source.includes('BALANCETE columns SDO. ANTERIOR'));assert(!source.includes('ae.pl=Q-(ae.pc+ae.pnc)'));
+console.log('OK: colunas impressas, saldo zero encerrado, PL devedor e extração incompleta.');
