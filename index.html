@@ -13120,7 +13120,9 @@
         }
 
         function reinfOcorrenciasDoXml(xml) {
-            const blocos = String(xml || '').match(/<(?:\w+:)?ocorrencia\b[^>]*>[\s\S]*?<\/(?:\w+:)?ocorrencia>/gi) || [];
+            const texto = String(xml || '');
+            const blocos = texto.match(/<(?:\w+:)?ocorrencia\b[^>]*>[\s\S]*?<\/(?:\w+:)?ocorrencia>/gi)
+                || texto.match(/<(?:\w+:)?regOcorrs\b[^>]*>[\s\S]*?<\/(?:\w+:)?regOcorrs>/gi) || [];
             return blocos.map(bloco => ({
                 codigo: reinfExtrairTagXml(bloco, 'codResp'),
                 descricao: reinfExtrairTagXml(bloco, 'dscResp'),
