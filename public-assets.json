@@ -69,5 +69,6 @@
   "/vendor/firebase/firebase-firestore-compat.js",
   "/version.json",
   "/vincular-empresa.js",
-  "/vincular-folha-pagamento.js"
+  "/vincular-folha-pagamento.js",
+  "/auditai/auth-client.js"
 ]

@@ -1,8 +1,7 @@
 {
-  "version": "3.4.280",
-  "build_date": "2026-09-14T12:58:57Z",
+  "version": "3.4.281",
+  "build_date": "2026-09-14T16:56:29Z",
   "release_notes": [
-    "Reinf de aluguel: validação da data de pagamento e competência antes do envio.",
-    "Retorno da Receita por evento, com recibos, ocorrências e identificação de aceitação parcial."
+    "AuditAI: sessão real do CCI e renovação automática após rejeição do token, preservando o arquivo selecionado."
   ]
 }
