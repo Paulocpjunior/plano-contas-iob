@@ -1,7 +1,7 @@
 {
-  "version": "3.4.283",
-  "build_date": "2026-09-14T18:20:53Z",
+  "version": "3.4.284",
+  "build_date": "2026-09-14T21:33:36Z",
   "release_notes": [
-    "AuditAI: preservar quatro colunas e D/C no OCR de balancetes, saldos zerados e PL devedor, sem ajuste automático por diferença."
+    "AuditAI: cartão de receita bruta prioriza o subtotal impresso de Receita Operacional Bruta, sem somar outras receitas."
   ]
 }
