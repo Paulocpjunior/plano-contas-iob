@@ -311,8 +311,8 @@ async function buscarMovimentoFiscalNoCfi({ cnpj, competencia, movimento, token 
   const limpo = String(cnpj || '').replace(/\D/g, '');
   if (limpo.length !== 14) throw new Error('Informe o CNPJ com 14 digitos.');
   if (!/^\d{4}-\d{2}$/.test(String(competencia || ''))) throw new Error('Informe a competencia no formato AAAA-MM.');
-  if (!['servicos_prestados', 'servicos_tomados'].includes(String(movimento || ''))) {
-    throw new Error('O CFI direto atende servicos prestados ou tomados neste fluxo.');
+  if (!['servicos_prestados', 'servicos_tomados', 'entrada', 'saida'].includes(String(movimento || ''))) {
+    throw new Error('Selecione serviços prestados/tomados ou NF-e de entrada/saída.');
   }
   if (!token) throw new Error('Sessao sem token. Faca login novamente.');
   const qs = new URLSearchParams({ cnpj: limpo, competencia, movimento });

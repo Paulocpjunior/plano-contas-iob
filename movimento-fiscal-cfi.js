@@ -13,6 +13,47 @@
     return /^\d{4}-\d{2}-\d{2}$/.test(String(data || '')) && String(data).slice(0, 7) === competencia;
   }
 
+  function normalizarNfe(body, opts, notas, total) {
+    const cnpj = digitos(opts.cnpj), movimento = opts.movimento, saida = movimento === 'saida';
+    const inicio = opts.competencia + '-01';
+    const fim = opts.competencia + '-' + new Date(Number(opts.competencia.slice(0,4)), Number(opts.competencia.slice(5,7)), 0).getDate();
+    const lancamentos = [], chaves = new Set(), emitentes = new Set();
+    for (const nota of notas) {
+      const chave = digitos(nota.chave);
+      let soma = 0, peso = 2;
+      for (let i = 42; i >= 0; i--) { soma += Number(chave[i]) * peso; peso = peso === 9 ? 2 : peso + 1; }
+      const dv = 11 - soma % 11;
+      if (chave.length !== 44 || Number(chave[43]) !== (dv >= 10 ? 0 : dv) || chaves.has(chave)) throw new Error('Chave NF-e inválida ou repetida na origem CFI.');
+      chaves.add(chave); emitentes.add(chave.slice(6,20));
+      if (saida && chave.slice(6,20) !== cnpj) throw new Error('Emitente da NF-e difere da empresa ativa.');
+      const grupos = nota.gruposCfop;
+      if (!Array.isArray(grupos) || !grupos.length || new Set(grupos.map(g => g.cfop)).size !== grupos.length) throw new Error('NF ' + nota.numero + ' sem grupos CFOP válidos.');
+      if (grupos.some(g => !(saida ? /^[567]\d{3}$/ : /^[123]\d{3}$/).test(String(g.cfop)) || !Number.isFinite(Number(g.valor)) || !(Number(g.valor) > 0))
+          || grupos.reduce((s,g) => s + Math.round(Number(g.valor)*100),0) !== Math.round(nota.valor*100)) throw new Error('NF ' + nota.numero + ': CFOP/valores divergem do total da nota.');
+      grupos.forEach(g => {
+        const participante = nota.participanteNome || 'CONTRAPARTE NÃO INFORMADA NO CFI';
+        lancamentos.push({ data: nota.data, valor: (saida ? 1 : -1) * r2(g.valor), valorContabil: r2(g.valor), valorNota: nota.valor,
+          descricao: (saida ? 'Saída' : 'Entrada') + ' - NF ' + nota.numero + ' - CFOP ' + g.cfop + ' - ' + participante,
+          descricao_memoria: participante, memoriaDescricoes: [participante, 'CFOP ' + g.cfop],
+          documento: nota.numero, numero_nf: nota.numero, chave_nfe: chave, cfop: g.cfop, cfops: [g.cfop], cfopsNota: grupos.map(g => g.cfop),
+          categoria: saida ? 'Saídas de Mercadorias' : 'Entradas de Mercadorias', categoriaFiscal: saida ? 'SAIDA_MERCADORIAS' : 'ENTRADA_MERCADORIAS',
+          tipoDocumentoFiscal: (nota.modelo === '65' ? 'NFCE_' : 'NFE_') + (saida ? 'SAIDA' : 'ENTRADA'), direcaoFiscal: movimento,
+          cnpj_tomador: saida ? nota.participanteDocumento : '', cnpj_fornecedor: saida ? '' : nota.participanteDocumento,
+          empresaCnpjFiscal: cnpj, empresaNomeFiscal: body.empresa?.nome || '', periodo_inicio: inicio, periodo_fim: fim,
+          cfiDocumentoId: nota.idOrigem, cfiLancamentoId: nota.idOrigem + ':CFOP:' + g.cfop,
+          cfiOrigemDocumento: nota.origemDocumento || 'CFI', origemDadosFiscal: 'CFI_API',
+          conta: 'Fiscal CFI - ' + movimento, nome_conta: 'Fiscal CFI - ' + movimento
+        });
+      });
+    }
+    return { detectado: true, contrato: body.contrato, direcao_fiscal: movimento, cnpj_detectado: cnpj, cnpj_empresa_detectado: cnpj,
+      cnpjs_empresa_detectados: saida ? [...emitentes] : [cnpj], chaves_nfe_validas: chaves.size, chaves_nfe_invalidas: 0,
+      periodo_inicio: inicio, periodo_fim: fim, empresa_codigo_detectado: '', nome_banco_detectado: body.empresa?.nome || 'CFI',
+      total_credito: saida ? total : 0, total_debito: saida ? 0 : total, total_oficial: total, total_oficial_detectado: true,
+      total_divergente: false, total_notas_fiscais: notas.length, total_nfe: notas.filter(n => n.modelo !== '65').length, total_nfce: notas.filter(n => n.modelo === '65').length, total_lancamentos_fiscais: lancamentos.length,
+      documentos_lidos_cfi: body.documentosLidos || 0, ressalvas_cfi: body.ressalvas || [], lancamentos };
+  }
+
   function normalizarMovimentoFiscalCfi(payload, esperado) {
     const body = payload || {};
     const opts = esperado || {};
@@ -25,9 +66,12 @@
     if (digitos(body.cnpjEmpresa) !== cnpj) throw new Error('O CNPJ devolvido pelo CFI difere da empresa ativa.');
     if (body.competencia !== competencia) throw new Error('A competencia devolvida pelo CFI difere da solicitada.');
     if (body.movimento !== movimento) throw new Error('O tipo de movimento devolvido pelo CFI difere do modelo selecionado.');
+    if (['entrada', 'saida'].includes(movimento) && (body.bloqueado || Number(body.resumo?.foraPorLacuna) > 0 || body.pendencias?.length)) {
+      throw new Error('O CFI encontrou ' + (body.pendencias?.length || body.resumo?.foraPorLacuna || '') + ' nota(s) com pendências. Nenhuma será importada parcialmente. ' + (body.pendencias || []).slice(0,5).map(p => 'NF ' + (p.numero || p.chave || p.id) + ': ' + p.motivo).join('; '));
+    }
     if (!Array.isArray(body.notas)) throw new Error('O CFI devolveu uma lista de notas invalida.');
     if (!body.notas.length) {
-      throw new Error('O CFI nao encontrou NFS-e deste tipo na competencia. Isso nao prova ausencia de movimento: confira a captura no CFI.');
+      throw new Error('O CFI nao encontrou notas deste tipo na competencia. Isso nao prova ausencia de movimento: confira a captura no CFI.');
     }
 
     const vistos = new Set();
@@ -48,6 +92,8 @@
     if (Math.round(totalCalculado * 100) !== Math.round(totalInformado * 100)) {
       throw new Error('O total das notas diverge do resumo devolvido pelo CFI. A importacao permanece bloqueada.');
     }
+
+    if (['entrada', 'saida'].includes(movimento)) return normalizarNfe(body, opts, notas, totalCalculado);
 
     const codigo = String((body.empresa && body.empresa.empresaId) || 'CFI');
     const empresaNome = String((body.empresa && body.empresa.nome) || 'Consultor Fiscal Inteligente');
