@@ -1,7 +1,7 @@
 {
-  "version": "3.4.282",
-  "build_date": "2026-09-14T18:07:57Z",
+  "version": "3.4.283",
+  "build_date": "2026-09-14T18:20:53Z",
   "release_notes": [
-    "Movimento fiscal: sincronização direta de entradas e saídas do CFI, com conferência de CNPJ, competência, chaves e valores por CFOP."
+    "AuditAI: preservar quatro colunas e D/C no OCR de balancetes, saldos zerados e PL devedor, sem ajuste automático por diferença."
   ]
 }
