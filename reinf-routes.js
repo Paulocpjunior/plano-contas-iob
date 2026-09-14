@@ -88,7 +88,7 @@ function extrairTagsXml(xml, tag) {
  * OCORRÊNCIAS POR EVENTO no retorno da Receita.
  *
  * "Lote processado com sucesso – Possui um ou mais eventos com ocorrências de
- * erro" NÃO é sucesso: o lote chegou, os eventos foram RECUSADOS. Quem diz o
+ * erro" não confirma todos os eventos: o lote pode ter aceitação parcial. Quem diz o
  * quê são os pares codResp/dscResp de cada evento — e eles nunca subiam pra
  * tela, então a colaboradora via 8 valores, um ✓ verde e nenhuma explicação
  * (caso EDUARDO GUERRA, 12/08/2026).
@@ -169,6 +169,7 @@ function parseRetornoEventos(xml) {
     descRetorno: extrairTagXml(bloco, 'descRetorno'),
     codResp: extrairTagsXml(bloco, 'codResp').filter(Boolean),
     dscResp: extrairTagsXml(bloco, 'dscResp').filter(Boolean),
+    ocorrencias: extrairOcorrenciasReinf(bloco),
   }));
 }
 
@@ -256,7 +257,7 @@ async function registrarRetornoLoteReinf(db, protocolo, tpAmb, xml) {
       retorno_at: new Date(),
     }, { merge: true });
     if (ret.codResp.includes('MS1254')) duplicidades++;
-    if (ret.tpEv === '4010' && ret.nrRecArqBase && meta.cnpjFonte && meta.reciboDocId) {
+    if (ret.tpEv === '4010' && ret.cdRetorno === '0' && !ret.ocorrencias.some(o => o.tipo !== '2') && ret.nrRecArqBase && meta.cnpjFonte && meta.reciboDocId) {
       await db.collection('empresas').doc(meta.cnpjFonte).collection('reinf_eventos').doc(meta.reciboDocId).set({
         nrRecibo: ret.nrRecArqBase,
         protocolo,

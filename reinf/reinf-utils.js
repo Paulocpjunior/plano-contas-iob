@@ -213,6 +213,10 @@ function validarEntradaR4010(ev) {
       e.push(`pagamentos[${i}].natRend deve ter 5 dígitos`);
     if (!/^20[1-9][0-9]-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(String(p?.dtFG || '')))
       e.push(`pagamentos[${i}].dtFG deve estar no formato AAAA-MM-DD`);
+    else if (new Date(p.dtFG + 'T00:00:00Z').toISOString().slice(0, 10) !== p.dtFG)
+      e.push(`pagamentos[${i}].dtFG deve ser uma data válida`);
+    else if (String(p.natRend) === '13002' && p.dtFG.slice(0, 7) !== perApur)
+      e.push(`Aluguel: data de pagamento ${p.dtFG} fora da competência ${perApur} (dtFG/perApur), beneficiário ${beneficiario?.cpf || ''}. Confira a data real do pagamento e a competência antes de transmitir.`);
   });
   return e;
 }
