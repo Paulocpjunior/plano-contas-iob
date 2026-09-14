@@ -278,6 +278,9 @@ async function extractAccountingPdf(buffer) {
     officialLine('OFFICIAL_PASSIVO_NAO_CIRCULANTE', 'Passivo Não Circulante', byCode('2.2')),
     officialLine('OFFICIAL_PATRIMONIO_LIQUIDO', 'Patrimônio Líquido', byCode('2.4'), true),
     officialLine('OFFICIAL_TOTAL_RECEITAS', 'Total Receitas', byCode('3')),
+    officialLine('OFFICIAL_RECEITA_OPERACIONAL_BRUTA', 'Receita Operacional Bruta',
+      extractedRows.find(row => normalizeAccountName(row.name) === 'RECEITA OPERACIONAL BRUTA')
+      || extractedRows.find(row => normalizeAccountName(row.name) === 'RECEITA BRUTA')),
     officialLine('OFFICIAL_TOTAL_CUSTOS', 'Total Custos', byCode('4')),
     officialLine('OFFICIAL_TOTAL_DESPESAS', 'Total Despesas', byCode('5')),
     Number.isFinite(printedResult)
