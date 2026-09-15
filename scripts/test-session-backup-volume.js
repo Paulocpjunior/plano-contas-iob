@@ -1,0 +1,20 @@
+'use strict';
+const assert=require('assert'),fs=require('fs'),vm=require('vm');
+const codec=require('../session-state-codec');
+const server=fs.readFileSync(require('path').join(__dirname,'../server.js'),'utf8');
+const docs=new Map(),batches=[];
+const col={doc:id=>({id}),get:async()=>({docs:[...docs.values()].map(x=>({data:()=>x}))})};
+const db={batch:()=>{const rows=[];return{set:(ref,data)=>rows.push([ref,data]),commit:async()=>{batches.push(rows);for(const [ref,data] of rows)docs.set(ref.id,data)}}}};
+const c={db,Buffer,Date,...codec,dividirTexto:codec.dividirPayload,novaRevisaoSessao:()=> 'test',erroSessao:msg=>Error(msg)};vm.createContext(c);
+for(const [a,b] of [['async function gravarPartes(', 'async function excluirDocumentosEmLotes('],['async function gravarTextoBackup(', 'async function prepararBackupMetadadosImportacao(']])vm.runInContext(server.slice(server.indexOf(a),server.indexOf(b)),c);
+(async()=>{
+ await c.gravarPartes(col,Array.from({length:100},()=> 'á'.repeat(350000)),'volume');
+ assert(batches.length>1);for(const batch of batches)assert(batch.reduce((n,[,d])=>n+Buffer.byteLength(d.parte)+1024,0)<=4*1024*1024);
+ docs.clear();const text=JSON.stringify({entries:Array.from({length:30000},(_,id)=>({id,historico:'teste recuperavel '.repeat(100)}))});
+ const ref={collection:()=>col};const meta=await c.gravarTextoBackup(ref,'backup',text);
+ assert.equal(meta.encoding,'gzip-base64');assert(meta.stored_bytes<Buffer.byteLength(text)/5);
+ assert.equal(await c.carregarTextoBackup(ref,'backup',meta),text);
+ docs.clear();docs.set('old',{geracao:'old',idx:0,parte:'{"entries":[]}'});
+ assert.equal(await c.carregarTextoBackup(ref,'backup',{geracao:'old',partes:1}),' {"entries":[]}'.trim());
+ console.log('OK: backup de 30 mil registros restaurado integralmente; lotes limitados por bytes; legado preservado.');
+})().catch(e=>{console.error(e);process.exitCode=1});

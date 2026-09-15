@@ -278,6 +278,7 @@ jobs:
               --service-account "$CCI_RUNTIME_SERVICE_ACCOUNT" \
               --update-env-vars=CCI_RUNTIME_PROJECT_ID="$PROJECT_ID",CCI_DATA_PROJECT_ID="$CCI_DATA_PROJECT_ID",CCI_DATA_DATABASE_ID="$CCI_DATA_DATABASE_ID",CCI_AUTH_PROJECT_ID="$CCI_AUTH_PROJECT_ID",CCI_BACKUP_PROJECT_ID="$CCI_BACKUP_PROJECT_ID",CCI_BACKUP_BUCKET="$CCI_BACKUP_BUCKET",CCI_LAYOUT_SAMPLE_BUCKET="$CCI_LAYOUT_SAMPLE_BUCKET",MERCADO_PAGO_OAUTH_ENABLED=false,DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_MODEL=gemini-3.8-flash,GEMINI_FLASH_MODEL=gemini-3.8-flash,GEMINI_CHAT_MODEL=gemini-3.8-flash,GEMINI_ALLOW_CLIENT_MODEL=false \
               --remove-env-vars=MERCADO_PAGO_CLIENT_ID,MERCADO_PAGO_CLIENT_SECRET \
+              --memory=2Gi --concurrency=2 \
               --no-traffic --tag candidate \
               --quiet; then
               DEPLOYED_RUNTIME_SA=$(gcloud run services describe "$SERVICE_NAME" \
