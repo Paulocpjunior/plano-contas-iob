@@ -1,7 +1,7 @@
 {
-  "version": "3.4.284",
-  "build_date": "2026-09-14T21:33:36Z",
+  "version": "3.4.285",
+  "build_date": "2026-09-15T14:30:25Z",
   "release_notes": [
-    "AuditAI: cartão de receita bruta prioriza o subtotal impresso de Receita Operacional Bruta, sem somar outras receitas."
+    "Exclusão administrativa: backup compactado recuperável, lotes limitados por tamanho e preservação da prévia durante salvamento concorrente."
   ]
 }

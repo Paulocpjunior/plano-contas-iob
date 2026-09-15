@@ -6,33 +6,33 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.284"></script>
+<script src="/saas-brand-theme.js?v=3.4.285"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.284"></script>
-<script src="/parser-ofx.js?v=3.4.284"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.284"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.284"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.284"></script>
-<script src="/parser-safra-extrato.js?v=3.4.284"></script>
-<script src="/parser-brb-extrato.js?v=3.4.284"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.284"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.284"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.284"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.284"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.284"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.284"></script>
-<script src="/parser-btg-pactual.js?v=3.4.284"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.284"></script>
-<script src="/parser-abc-extrato.js?v=3.4.284"></script>
-<script src="/parser-inter-extrato.js?v=3.4.284"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.284"></script>
-<script src="/parser-stone-extrato.js?v=3.4.284"></script>
-<script src="/parser-mercado-pago-extrato.js?v=3.4.284"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.284"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.284"></script>
+<script src="/api-adapter.js?v=3.4.285"></script>
+<script src="/parser-ofx.js?v=3.4.285"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.285"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.285"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.285"></script>
+<script src="/parser-safra-extrato.js?v=3.4.285"></script>
+<script src="/parser-brb-extrato.js?v=3.4.285"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.285"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.285"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.285"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.285"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.285"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.285"></script>
+<script src="/parser-btg-pactual.js?v=3.4.285"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.285"></script>
+<script src="/parser-abc-extrato.js?v=3.4.285"></script>
+<script src="/parser-inter-extrato.js?v=3.4.285"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.285"></script>
+<script src="/parser-stone-extrato.js?v=3.4.285"></script>
+<script src="/parser-mercado-pago-extrato.js?v=3.4.285"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.285"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.285"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1551,8 +1551,9 @@ async function executarExclusaoAdmin() {
     const avisos = Array.isArray(resultado.avisos) && resultado.avisos.length ? '<br><strong>Aviso:</strong> ' + escapeHtml(resultado.avisos.join(' ')) : '';
     setExclusaoStatus('ok', `<strong>Exclusão concluída.</strong> ${resumo.quantidadeRemovida || 0} lançamento(s) removido(s), ${resumo.quantidadeDepois || 0} preservado(s), ${resultado.importacoesLiberadas || 0} marcador(es) de importação liberado(s). Backup recuperável: <span class="text-mono">${escapeHtml(resultado.backupId || '-')}</span>.${avisos}`);
   } catch (e) {
-    setExclusaoStatus('error', escapeHtml(e.message || e) + ((e && e.status === 409) ? ' Gere uma nova prévia antes de tentar novamente.' : ''));
-    if (e && e.status === 409) invalidarPreviaExclusao();
+    const emAtualizacao = e && e.code === 'SESSAO_EM_ATUALIZACAO';
+    setExclusaoStatus('error', escapeHtml(e.message || e) + (emAtualizacao ? ' Aguarde a conclusão do salvamento e tente novamente. A prévia e a seleção foram mantidas; serão revalidadas antes da exclusão.' : ((e && e.status === 409) ? ' Gere uma nova prévia antes de tentar novamente.' : '')));
+    if (e && e.status === 409 && !emAtualizacao) invalidarPreviaExclusao();
     else atualizarBotaoExclusao();
   }
 }

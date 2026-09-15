@@ -2958,15 +2958,19 @@ function dividirTexto(texto, limite) {
 async function gravarPartes(colecaoRef, partes, geracao) {
   let batch = db.batch();
   let operacoes = 0;
+  let bytes = 0;
   for (let idx = 0; idx < partes.length; idx++) {
-    const id = `${geracao}_${String(idx).padStart(4, '0')}`;
-    batch.set(colecaoRef.doc(id), { geracao, idx, parte: partes[idx], criado_em: new Date() });
-    operacoes++;
-    if (operacoes >= 450) {
+    const tamanho = Buffer.byteLength(String(partes[idx]), 'utf8') + 1024;
+    if (operacoes && (operacoes >= 450 || bytes + tamanho > 4 * 1024 * 1024)) {
       await batch.commit();
       batch = db.batch();
       operacoes = 0;
+      bytes = 0;
     }
+    const id = `${geracao}_${String(idx).padStart(4, '0')}`;
+    batch.set(colecaoRef.doc(id), { geracao, idx, parte: partes[idx], criado_em: new Date() });
+    operacoes++;
+    bytes += tamanho;
   }
   if (operacoes) await batch.commit();
 }
@@ -3148,10 +3152,12 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
 }
 
 async function gravarTextoBackup(backupRef, subcolecao, texto) {
-  const partes = dividirTexto(texto, LIMITE_CHUNK_SESSAO);
+  const codificado = codificarStateJson(texto);
+  const partes = dividirTexto(codificado.payload, LIMITE_CHUNK_SESSAO);
   const geracao = novaRevisaoSessao();
   if (partes.length) await gravarPartes(backupRef.collection(subcolecao), partes, geracao);
-  return { geracao, partes: partes.length, bytes: String(texto || '').length };
+  return { geracao, partes: partes.length, bytes: String(texto || '').length,
+    encoding: codificado.encoding, stored_bytes: codificado.bytesArmazenados };
 }
 
 async function carregarTextoBackup(backupRef, subcolecao, metadados) {
@@ -3169,7 +3175,7 @@ async function carregarTextoBackup(backupRef, subcolecao, metadados) {
   if (partes.length !== esperado) {
     throw erroSessao('O backup do lote de migração está incompleto.', 409, 'BACKUP_MIGRACAO_INCOMPLETO');
   }
-  return partes.map(item => String(item.parte || '')).join('');
+  return decodificarPayload(partes.map(item => String(item.parte || '')).join(''), meta.encoding || ENCODING_PLAIN);
 }
 
 async function prepararBackupMetadadosImportacao(cnpj, fingerprints, backupRef) {
