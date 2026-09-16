@@ -245,7 +245,7 @@
       if (issRetido > 0) {
         lancamentos.push({
           ...base,
-          descricao: 'ISS RETIDO - NF ' + nota.numero + (documentoParte ? (prestado ? ' - tomador ' : ' - prestador ') + documentoParte : ''),
+          descricao: 'ISS RETIDO - NF ' + nota.numero + ' - ' + participante + (documentoParte ? ' - ' + documentoParte : ''),
           valor: prestado ? -issRetido : issRetido,
           categoriaFiscal: prestado ? 'RETENCAO_SERVICO_PRESTADO' : 'RETENCAO_SERVICO_TOMADO',
           categoria: 'Impostos Retidos',
