@@ -1,5 +1,24 @@
 const LAYOUT_QUALITY_CASES = [
 {
+  "id": "btg-investimento-orale-2026-08",
+  "banco": "208",
+  "nomeBanco": "Banco BTG Pactual",
+  "layout": "BTG Pactual - Extrato Conta Corrente Wealth",
+  "parser": "parsearPDF_BTG_Wealth",
+  "arquivo": "conta invest agosto.pdf",
+  "empresa": "STUDIO ORALE ODONTOLOGIA LTDA",
+  "periodo_inicio": "2026-08-01",
+  "periodo_fim": "2026-08-31",
+  "esperado": {
+    "total_lancamentos": 4,
+    "total_credito": 4722.88,
+    "total_debito": 4537.28
+  },
+  "status": "Aprovado",
+  "validado_em": "2026-09-16T19:17:41.633953+00:00",
+  "observacao": "Conta Investimento: colunas de debito/credito, totais e saldo final 185,60 conferidos no PDF."
+},
+{
   "id": "caixa-sbe-2026-01",
   "banco": "104",
   "nomeBanco": "Caixa Economica Federal",

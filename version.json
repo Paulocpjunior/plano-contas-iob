@@ -1,7 +1,8 @@
 {
-  "version": "3.4.291",
-  "build_date": "2026-09-16T18:56:24Z",
+  "version": "3.4.292",
+  "build_date": "2026-09-16T19:17:41Z",
   "release_notes": [
+    "BTG: reconhecer Conta Investimento e conferir totais e saldos do extrato.",
     "Caixa: reconhecer extrato multilinha com Data Efetiva e conferir saldos por movimento.",
     "C6: preservar descrição integral e reconhecer devolução de saldo credor como movimentação.",
     "ISS retido: incluir razão social da contraparte na descrição da importação CFI.",
