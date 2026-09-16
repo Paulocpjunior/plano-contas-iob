@@ -143,7 +143,10 @@
       && /Banco\s+Ag[eê]ncia\s+Conta/i.test(textoCompleto)
       && /\b208\b/.test(textoCompleto)
       && /(BTG Pactual|Remunera\+|Conta Remunerada)/i.test(textoCompleto);
-    const ehWealth = /Extrato de\s*\n?\s*Conta Corrente/i.test(textoCompleto)
+    const ehInvestimento = /Extrato de\s*Conta\s*Investimento/i.test(textoCompleto)
+      && /Movimenta[cç][aã]o\s*-\s*Conta Investimento/i.test(textoCompleto)
+      && /Banco:\s*208\s*BTG\s*PACTUAL/i.test(textoCompleto);
+    const ehWealth = ehInvestimento || /Extrato de\s*\n?\s*Conta Corrente/i.test(textoCompleto)
       && /Movimenta[cç][aã]o\s*-\s*Conta Corrente/i.test(textoCompleto)
       && /Banco:\s*208\s*BTG\s*PACTUAL/i.test(textoCompleto);
     if (!ehContaPJ && !ehWealth) return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
@@ -159,7 +162,7 @@
     let conta = headerLine ? textByRange(headerLine, 710, 820) : '';
     let cnpj = headerLine ? textByRange(headerLine, 410, 560).replace(/\D/g, '') : '';
     if (ehWealth) {
-      const contaMatch = textoCompleto.match(/Conta Corrente:\s*(\d+)/i);
+      const contaMatch = textoCompleto.match(/Conta (?:Corrente|Investimento):\s*(\d+)/i);
       const agenciaMatch = textoCompleto.match(/Ag[eê]ncia:\s*(\d+)/i);
       const cnpjMatch = textoCompleto.match(/CNPJ:\s*([\d./-]+)/i);
       const linhasTexto = textoCompleto.split(/\n/).map(function(s){ return s.trim(); }).filter(Boolean);
@@ -221,11 +224,47 @@
       });
     });
 
+    if (ehInvestimento) {
+      const cent = v => Math.round(v * 100);
+      const total = label => {
+        const linha = flexibleLines.find(l => normalize(l.text).includes(label));
+        const item = linha && linha.items.find(i => moneyToken(i.s));
+        if (!item) throw new Error('BTG Investimento: total impresso ausente.');
+        return cent(parseValorBR(item.s));
+      };
+      if (lancamentos.reduce((s,l)=>s+Math.max(cent(l.valor),0),0) !== total('Total de Creditos') ||
+          lancamentos.reduce((s,l)=>s+Math.max(-cent(l.valor),0),0) !== total('Total de Debitos')) {
+        throw new Error('BTG Investimento: movimentacoes divergem dos totais impressos.');
+      }
+      let saldo;
+      let quantidade = 0;
+      for (const linha of flexibleLines) {
+        if (/Saldo Inicial/i.test(linha.text)) {
+          const item = linha.items.find(i=>i.x>=515 && moneyToken(i.s));
+          if (item) saldo=cent(parseValorBR(item.s));
+          continue;
+        }
+        if (/Saldo Final/i.test(linha.text)) {
+          const item = linha.items.find(i=>i.x>=515 && moneyToken(i.s));
+          if (!item || saldo !== cent(parseValorBR(item.s))) throw new Error('BTG Investimento: saldo final divergente.');
+          continue;
+        }
+        const itemData = linha.items.find(i=>i.x<90 && /^\d{2}\/\d{2}\/\d{4}$/.test(i.s.trim()));
+        if (!itemData) continue;
+        const mov = parseValueLineWealth(linha);
+        if (!mov || saldo == null || cent(mov.saldo) !== saldo + cent(mov.valor)) throw new Error('BTG Investimento: movimento incompleto ou saldo divergente.');
+        if (mov.data < periodo.inicio || mov.data > periodo.fim) throw new Error('BTG Investimento: data fora do periodo.');
+        saldo = cent(mov.saldo);
+        quantidade++;
+      }
+      if (quantidade !== lancamentos.length) throw new Error('BTG Investimento: quantidade de movimentos divergente.');
+    }
+
     return {
       detectado: true,
       lancamentos: lancamentos,
       textoCompleto: textoCompleto,
-      fingerprint: ehWealth ? 'btg-pactual-wealth-conta-corrente-v1' : 'btg-pactual-conta-corrente-pj-v1',
+      fingerprint: ehInvestimento ? 'btg-pactual-conta-investimento-v1' : ehWealth ? 'btg-pactual-wealth-conta-corrente-v1' : 'btg-pactual-conta-corrente-pj-v1',
       banco_detectado: 'BTG PACTUAL',
       conta_detectada: ['AG-' + agencia, 'CC-' + conta].filter(Boolean).join('/'),
       nome_conta_detectado: razao || 'CONTA CORRENTE BTG PACTUAL',

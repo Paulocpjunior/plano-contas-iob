@@ -1,0 +1,24 @@
+const assert=require('assert');
+const pages=require('./fixtures/btg-investimento-items.json');
+const {parsearPDF_BTG_Wealth,parsearPDF_BTG_Pactual}=require('../parser-btg-pactual');
+const setPages=p=>global.pdfjsLib={getDocument:()=>({promise:Promise.resolve({numPages:p.length,getPage:async n=>({getTextContent:async()=>({items:p[n-1]})})})})};
+(async()=>{
+ setPages(pages);
+ const r=await parsearPDF_BTG_Wealth(new Uint8Array());
+ assert.equal(r.lancamentos.length,4);
+ assert.equal(r.total_credito,4722.88);
+ assert.equal(r.total_debito,4537.28);
+ assert.equal(r.cnpj_detectado,'26173144000133');
+ assert.equal(r.conta_detectada,'AG-0001/CC-005870920');
+ assert.equal(r.periodo_inicio,'2026-08-01');
+ assert.equal(r.periodo_fim,'2026-08-31');
+ assert.deepEqual(r.lancamentos.map(l=>l.valor),[722.88,-37.28,4000,-4500]);
+ assert(!r.lancamentos.some(l=>/Saldo Inicial|Saldo Final/.test(l.descricao)));
+ assert.equal((await parsearPDF_BTG_Pactual(new Uint8Array())).detectado,false);
+ const corrupt=structuredClone(pages);
+ corrupt[1].find(i=>i.str==='37,28').str='37,29';setPages(corrupt);
+ await assert.rejects(()=>parsearPDF_BTG_Wealth(new Uint8Array()),/divergem/);
+ const saldo=structuredClone(pages);saldo[1].find(i=>i.str==='685,60').str='685,61';setPages(saldo);
+ await assert.rejects(()=>parsearPDF_BTG_Wealth(new Uint8Array()),/saldo divergente/);
+ console.log('OK: BTG investimento: colunas, totais e saldos conferidos.');
+})().catch(e=>{console.error(e);process.exitCode=1;});
