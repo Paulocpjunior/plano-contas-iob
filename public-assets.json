@@ -70,5 +70,6 @@
   "/version.json",
   "/vincular-empresa.js",
   "/vincular-folha-pagamento.js",
-  "/auditai/auth-client.js"
+  "/auditai/auth-client.js",
+  "/plano-consulta.js"
 ]
