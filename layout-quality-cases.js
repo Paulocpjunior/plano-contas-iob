@@ -1,5 +1,24 @@
 const LAYOUT_QUALITY_CASES = [
 {
+  "id": "caixa-sbe-2026-01",
+  "banco": "104",
+  "nomeBanco": "Caixa Economica Federal",
+  "layout": "Caixa - Extrato por Periodo Gerenciador",
+  "parser": "parsearPDF_Caixa_Extrato",
+  "arquivo": "CEF SBE - JANEIRO.pdf",
+  "empresa": "SBE EDICOES E PRODUCOES LTDA ME",
+  "periodo_inicio": "2026-01-01",
+  "periodo_fim": "2026-02-02",
+  "esperado": {
+    "total_lancamentos": 32,
+    "total_credito": 1884822.07,
+    "total_debito": 1902891.5
+  },
+  "status": "Aprovado",
+  "validado_em": "2026-09-16T18:56:24.974486+00:00",
+  "observacao": "32 movimentos conferidos por saldo a cada linha. O arquivo solicitado para janeiro inclui dois movimentos datados de 02/02, preservados. Saldo final devedor 18069,43."
+},
+{
   "id": "brb-alaia-2026-02",
   "banco": "070",
   "nomeBanco": "BRB Banco de Brasilia",

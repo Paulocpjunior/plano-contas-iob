@@ -165,14 +165,64 @@
     };
   }
 
+  // Variante com Data/Data Efetiva e historicos multilinha: a posicao define
+  // cada coluna, pois a ordem textual mistura valor, sinal e saldo.
+  function parsearPaginasCaixaModerno(paginas) {
+    const texto = paginas.flat().map(i => i.str).join('');
+    const compacto = texto.replace(/\s+/g, '');
+    if (!/Saldoanterioraoper[ií]odosolicitado/i.test(compacto) || !/DataEfetiva/i.test(compacto) || !/CAIXA/i.test(texto)) return { detectado: false, lancamentos: [] };
+    const periodo = compacto.match(/Extratonoper[ií]odode(\d{2}\/\d{2}\/\d{4})[àa](\d{2}\/\d{2}\/\d{4})/i);
+    const inicial = compacto.match(/Saldoanterioraoper[ií]odosolicitadoR\$([\d.]+,\d{2})([CD])/i);
+    if (!periodo || !periodo[1] || !inicial) throw new Error('CAIXA: periodo ou saldo inicial ilegivel.');
+    const centavos = s => Math.round(parseValorBR(s) * 100);
+    let saldoCent = centavos(inicial[1]) * (inicial[2] === 'D' ? -1 : 1);
+    const saldoInicial = saldoCent / 100;
+    const lancamentos = [];
+    for (const itens of paginas) {
+      const cab = nome => itens.find(i => i.str.trim() === nome);
+      const docCab = cab('Documento'), histCab = cab('Histórico'), valorCab = cab('Valor'), saldoCab = cab('Saldo');
+      if (!docCab || !histCab || !valorCab || !saldoCab) throw new Error('CAIXA: colunas nao reconhecidas.');
+      const dx=docCab.transform[4], hx=histCab.transform[4], vx=valorCab.transform[4], sx=saldoCab.transform[4];
+      const limiteValor = hx + (vx-hx)*0.75, limiteSaldo = (vx+sx)/2;
+      const juntar = arr => arr.sort((a,b) => Math.abs(a.transform[5]-b.transform[5])>2 ? b.transform[5]-a.transform[5] : a.transform[4]-b.transform[4]).map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
+      const docs = itens.filter(i => Math.abs(i.transform[4]-dx)<3 && /^\d{6}$/.test(i.str.trim())).sort((a,b)=>b.transform[5]-a.transform[5]);
+      const datasPagina = itens.filter(i => i.transform[4]<dx-10 && /^\d{2}\/\d{2}\/\d{4}$/.test(i.str.trim()));
+      const saldosDia = itens.filter(i => /^SALDO DIA$/.test(i.str.trim()));
+      if (datasPagina.length !== docs.length + saldosDia.length) throw new Error('CAIXA: quantidade de movimentos incompleta.');
+      for (const doc of docs) {
+        const y = doc.transform[5];
+        const faixa = itens.filter(i => Math.abs(i.transform[5]-y)<22);
+        const dataItem = faixa.find(i => i.transform[4]<dx-10 && /^\d{2}\/\d{2}\/\d{4}$/.test(i.str.trim()) && Math.abs(i.transform[5]-y)<9);
+        const descricao = juntar(faixa.filter(i=>i.transform[4]>=hx-2 && i.transform[4]<limiteValor));
+        const valorRaw = juntar(faixa.filter(i=>i.transform[4]>=limiteValor && i.transform[4]<limiteSaldo)).replace(/\s/g,'');
+        const saldoRaw = juntar(faixa.filter(i=>i.transform[4]>=limiteSaldo)).replace(/\s/g,'');
+        const valorMatch = valorRaw.match(/^(-?)R\$([\d.]+,\d{2})$/), saldoMatch=saldoRaw.match(/^R\$([\d.]+,\d{2})([CD])$/);
+        if (!dataItem || !descricao || !valorMatch || !saldoMatch) throw new Error('CAIXA: movimento incompleto no documento '+doc.str+'.');
+        const valorCent = centavos(valorMatch[2]) * (valorMatch[1] ? -1 : 1);
+        const proximoSaldo = centavos(saldoMatch[1]) * (saldoMatch[2]==='D'?-1:1);
+        if (saldoCent + valorCent !== proximoSaldo) throw new Error('CAIXA: movimento diverge do saldo no documento '+doc.str+'.');
+        saldoCent=proximoSaldo;
+        const tipo=valorCent<0?'D':'C';
+        lancamentos.push({id:uuid(),data:parseDataBR(dataItem.str.trim()),documento:doc.str.trim(),descricao,valor:valorCent/100,tipo,saldo:saldoCent/100,historico:historicoCaixaPorDescricao(descricao,tipo),contaDebito:'',contaCredito:'',codigoHistorico:'',categoria:'Nao categorizado',incomum:false,origem:'pdf-caixa-extrato'});
+      }
+    }
+    if (!lancamentos.length) throw new Error('CAIXA: nenhum movimento reconhecido.');
+    const inicio=parseDataBR(periodo[1]), fim=parseDataBR(periodo[2]);
+    const datas=lancamentos.map(l=>l.data).sort();
+    const conta = paginas.flat().map(i => i.str).join(' ').match(/Ag[eê]ncia:\s*(\d+)\s*Conta:\s*([\d-]+)/i);
+    return {detectado:true,lancamentos,textoCompleto:texto,fingerprint:'caixa-extrato-multilinha-v1',banco_detectado:'104',cnpj_detectado:(texto.match(/CNPJ:\s*([\d./-]+)/i)||[])[1]||'',conta_detectada:conta?'AG-'+conta[1]+'/CC-'+conta[2]:'',nome_conta_detectado:conta?'AG-'+conta[1]+'/CC-'+conta[2]:'CAIXA',periodo_inicio:inicio<datas[0]?inicio:datas[0],periodo_fim:fim>datas[datas.length-1]?fim:datas[datas.length-1],periodo_solicitado_inicio:inicio,periodo_solicitado_fim:fim,saldo_inicial:saldoInicial,saldo_final:saldoCent/100,total_credito:lancamentos.reduce((s,l)=>s+Math.max(Math.round(l.valor*100),0),0)/100,total_debito:lancamentos.reduce((s,l)=>s+Math.max(-Math.round(l.valor*100),0),0)/100};
+  }
+
   async function parsearPDF_Caixa_Extrato(arrayBuffer) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let textoCompleto = '';
+    const paginas = [];
 
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const tc = await page.getTextContent();
+      paginas.push(tc.items);
       const byY = {};
       tc.items.forEach(function(it) {
         const y = Math.round(it.transform[5]);
@@ -190,12 +240,14 @@
       });
     }
 
-    return parsearTextoCaixaExtrato(textoCompleto);
+    const moderno = parsearPaginasCaixaModerno(paginas);
+    return moderno.detectado ? moderno : parsearTextoCaixaExtrato(textoCompleto);
   }
 
   const api = {
     parsearPDF_Caixa_Extrato: parsearPDF_Caixa_Extrato,
     __test__: {
+      parsearPaginasCaixaModerno,
       parseValorBR: parseValorBR,
       parseDataBR: parseDataBR,
       parseLinhaCaixa: parseLinhaCaixa,
