@@ -125,13 +125,15 @@
 
   function criarLancamentoC6(data, tipoRaw, descricaoRaw, valorRaw, ano) {
     const descricaoLimpa = limparDescricaoC6(descricaoRaw);
-    if (!data || deveIgnorarDescricaoC6(descricaoLimpa)) return null;
+    // Uma linha com datas, tipo e valor ja identificados pode mencionar saldo
+    // na descricao (ex.: devolucao de saldo credor). Nao e um saldo de rodape.
+    if (!data || !descricaoLimpa) return null;
 
     const valorLido = parseValorBR_C6(valorRaw);
     if (!valorLido) return null;
 
     const tipoTexto = normalizarTextoC6(tipoRaw).toUpperCase();
-    const ehSaida = /\bSAIDA\b|\bPAGAMENTO\b/.test(tipoTexto) || valorLido < 0;
+    const ehSaida = /\bSAIDAS?\b|\bPAGAMENTO\b/.test(tipoTexto) || valorLido < 0;
     const tipo = ehSaida ? 'D' : 'C';
     const valor = tipo === 'D' ? -Math.abs(valorLido) : Math.abs(valorLido);
     const descricao = limparDescricaoC6((tipoRaw ? tipoRaw + ' - ' : '') + descricaoLimpa);
@@ -153,7 +155,7 @@
   }
 
   function parsearLinhaInlineC6(linha, ano) {
-    const re = /^(\d{2}\/\d{2})\s+(\d{2}\/\d{2})\s+((?:Entradas?|Saidas?|Saídas?|Pagamento)(?:\s+[A-ZÇ]+)?)\s+(.+?)\s+(-?\s*R\$\s*[\d.]+,\d{2}-?)\s*$/i;
+    const re = /^(\d{2}\/\d{2})\s+(\d{2}\/\d{2})\s+((?:Entradas?|Saidas?|Saídas?|Pagamento)(?:\s+PIX)?)\s+(.+?)\s+(-?\s*R\$\s*[\d.]+,\d{2}-?)\s*$/i;
     const m = normalizarTextoC6(linha).match(re);
     if (!m) return null;
     return criarLancamentoC6(m[2] || m[1], m[3], m[4], m[5], ano);

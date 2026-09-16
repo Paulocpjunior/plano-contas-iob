@@ -98,3 +98,33 @@ Valor
 assert.equal(__test__.parsearTextoC6BankExtrato(repetido).lancamentos.length, 2);
 assert.equal(__test__.parsearTextoC6BankExtrato(repetido).total_debito, 430);
 console.log('OK: C6 preserva ocorrencias reais iguais e reconcilia maio.');
+
+const junho = fs.readFileSync(require('path').join(__dirname, 'fixtures/c6-consolidado-junho-2026.txt'), 'utf8');
+const realJunho = __test__.parsearTextoC6BankExtrato(junho);
+assert.equal(realJunho.lancamentos.length, 14);
+assert.equal(realJunho.total_credito, 45963.20);
+assert.equal(realJunho.total_debito, 44509.06);
+assert.equal(realJunho.lancamentos.find(l => l.data === '2026-06-26').descricao, 'Entradas - DEV SALDO CREDOR FAT');
+assert.equal(realJunho.lancamentos.find(l => l.data === '2026-06-26').valor, 8963.20);
+assert.equal(realJunho.lancamentos[0].descricao, 'Pagamento - AMIL ASSISTENCIA ME');
+assert(!realJunho.lancamentos.some(l => /Saldo do dia|Cheque Especial/i.test(l.descricao)));
+assert.throws(() => __test__.parsearTextoC6BankExtrato(junho.replace('R$ 8.963,20\nSaldo do dia 26', 'R$ 8.963,21\nSaldo do dia 26')), /divergem/);
+// Variacoes de calendario sao sinteticas: mesma estrutura, todos os meses e outro ano.
+const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+for (const ano of [2026, 2027]) for (let m = 1; m <= 12; m++) {
+  const mm = String(m).padStart(2, '0');
+  const texto = `C6 BANK Extrato
+Periodo - 1 de ${meses[m - 1]} de ${ano} ate 28 de ${meses[m - 1]} de ${ano}
+(01/${mm}/${ano} - 28/${mm}/${ano}) Entradas: R$ 30,00 • Saidas: R$ 5,00
+02/${mm} 02/${mm} Entradas DEV SALDO CREDOR FAT R$ 10,00
+02/${mm} 02/${mm} Entradas SALDO CREDOR DEVOLVIDO R$ 20,00
+03/${mm} 03/${mm} Saídas PAGAMENTO FORNECEDOR R$ 5,00
+Saldo do dia 03/${mm}/${String(ano).slice(2)} R$ 25,00`;
+  const r = __test__.parsearTextoC6BankExtrato(texto);
+  assert.equal(r.lancamentos.length, 3);
+  assert.equal(r.total_credito, 30);
+  assert.equal(r.total_debito, 5);
+  assert.equal(r.periodo_inicio, `${ano}-${mm}-01`);
+  assert.equal(r.lancamentos[0].data, `${ano}-${mm}-02`);
+}
+console.log('OK: junho completo; estrutura preservada nos 12 meses, sem confundir descricao com saldo.');
