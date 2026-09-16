@@ -1,7 +1,8 @@
 {
-  "version": "3.4.288",
-  "build_date": "2026-09-16T14:40:55Z",
+  "version": "3.4.289",
+  "build_date": "2026-09-16T14:45:32Z",
   "release_notes": [
+    "ISS retido: incluir razão social da contraparte na descrição da importação CFI.",
     "C6: preservar pagamentos iguais em ocorrências distintas e conferir janeiro e maio.",
     "Reconhecer entradas e conferir totais do extrato consolidado C6",
     "Plano de contas: preservar descrições iniciadas por número, como 13º salário; consulta completa com busca e inclusão por administradores."

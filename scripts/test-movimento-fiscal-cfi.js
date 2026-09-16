@@ -165,3 +165,13 @@ for (const modo of ['pcc', 'individual']) {
   assert.strictEqual(resultado.total_credito, 12.93);
   assert.deepStrictEqual(resultado.totais_federais_importar, modo === 'pcc' ? { PCC: 12.93 } : { PIS: 1.81, COFINS: 8.34, CSLL: 2.78 });
 }
+
+// ISS identifica a mesma contraparte da nota, preservando o documento fiscal.
+assert.strictEqual(linhaIss.descricao, 'ISS RETIDO - NF 10353 - PRESENCA TECNOLOGIA - 11222333000181');
+for (const movimento of ['servicos_tomados', 'servicos_prestados']) {
+  const fonte = { ...tomadosRetido, movimento };
+  const resultado = normalizarMovimentoFiscalCfi(fonte, { cnpj: payload.cnpjEmpresa, competencia: payload.competencia, movimento });
+  assert.ok(resultado.lancamentos.find(l => l.tributoRetido === 'ISS').descricao.includes('PRESENCA TECNOLOGIA'));
+  const semNome = { ...fonte, notas: fonte.notas.map(n => ({ ...n, participanteNome: '' })) };
+  assert.ok(normalizarMovimentoFiscalCfi(semNome, { cnpj: payload.cnpjEmpresa, competencia: payload.competencia, movimento }).lancamentos.find(l => l.tributoRetido === 'ISS').descricao.includes('CONTRAPARTE NAO INFORMADA NO CFI'));
+}
