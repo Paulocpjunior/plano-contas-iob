@@ -66,3 +66,35 @@ assert.equal(realConsolidado.lancamentos.filter(l=>l.tipo==='C').length,4);
 assert(!realConsolidado.lancamentos.some(l=>/saldo|cheque/i.test(l.descricao)));
 assert.throws(()=>__test__.parsearTextoC6BankExtrato(consolidado.replace('R$ 3.750,00','R$ 3.750,01')),/divergem/);
 console.log('OK: C6 consolidado reconhece Entradas e reconcilia totais impressos.');
+
+const maio = fs.readFileSync(require('path').join(__dirname, 'fixtures/c6-consolidado-maio-2026.txt'), 'utf8');
+const realMaio = __test__.parsearTextoC6BankExtrato(maio);
+assert.equal(realMaio.lancamentos.length, 17);
+assert.equal(realMaio.total_credito, 54618.94);
+assert.equal(realMaio.total_debito, 34529.26);
+assert.equal(realMaio.periodo_inicio, '2026-05-01');
+assert.equal(realMaio.periodo_fim, '2026-05-31');
+const pagamentosIguais = realMaio.lancamentos.filter(l => l.data === '2026-05-12' && l.valor === -215);
+assert.equal(pagamentosIguais.length, 2);
+assert.notEqual(pagamentosIguais[0].id, pagamentosIguais[1].id);
+assert.throws(() => __test__.parsearTextoC6BankExtrato(maio.replace('-R$ 215,00', '-R$ 215,01')), /divergem/);
+// Duas ocorrencias reais em ambas as estrategias: preservar duas, nunca uma ou quatro.
+const repetido = `C6 BANK Extrato
+Periodo - 1 de maio de 2026 ate 31 de maio de 2026
+12/05 12/05 Saida PIX Favorecido -R$ 215,00
+12/05 12/05 Saida PIX Favorecido -R$ 215,00
+Data Data
+12/05 12/05
+12/05 12/05
+Tipo
+Saida PIX
+Saida PIX
+Descricao
+Favorecido
+Favorecido
+Valor
+-R$ 215,00
+-R$ 215,00`;
+assert.equal(__test__.parsearTextoC6BankExtrato(repetido).lancamentos.length, 2);
+assert.equal(__test__.parsearTextoC6BankExtrato(repetido).total_debito, 430);
+console.log('OK: C6 preserva ocorrencias reais iguais e reconcilia maio.');
