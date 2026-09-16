@@ -102,13 +102,13 @@
   }
 
   function extrairContaC6(texto) {
-    const m = normalizarTextoC6(texto).match(/Agencia:\s*(\d+)\s*(?:\+|\-|\|)?\s*Conta:\s*(\d+)/i);
+    const m = normalizarTextoC6(texto).match(/Agencia:\s*(\d+)\s*(?:\+|\-|\||•)?\s*Conta:\s*(\d+)/i);
     return m ? ('AG-' + m[1] + '/CC-' + m[2]) : '';
   }
 
   function extrairPeriodoC6(texto) {
-    const re = /Per[ií]odo\s*[-–]\s*(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})\s+at[eé]\s+(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})/i;
-    const m = String(texto || '').match(re);
+    const re = /Per[ií]odo\s*[-–•]\s*(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})\s+at[eé]\s+(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})/i;
+    const m = normalizarTextoC6(texto).match(re);
     if (!m) return { inicio: '', fim: '' };
     const mi = mesNumeroC6(m[2]);
     const mf = mesNumeroC6(m[5]);
@@ -153,7 +153,7 @@
   }
 
   function parsearLinhaInlineC6(linha, ano) {
-    const re = /^(\d{2}\/\d{2})\s+(\d{2}\/\d{2})\s+((?:Entrada|Saida|Saída|Pagamento)(?:\s+[A-ZÇ]+)?)\s+(.+?)\s+(-?\s*R\$\s*[\d.]+,\d{2}-?)\s*$/i;
+    const re = /^(\d{2}\/\d{2})\s+(\d{2}\/\d{2})\s+((?:Entradas?|Saidas?|Saídas?|Pagamento)(?:\s+[A-ZÇ]+)?)\s+(.+?)\s+(-?\s*R\$\s*[\d.]+,\d{2}-?)\s*$/i;
     const m = normalizarTextoC6(linha).match(re);
     if (!m) return null;
     return criarLancamentoC6(m[2] || m[1], m[3], m[4], m[5], ano);
@@ -209,7 +209,18 @@
 
     const periodo = extrairPeriodoC6(texto);
     const anoPadrao = periodo.fim ? Number(periodo.fim.slice(0, 4)) : new Date().getFullYear();
-    const linhas = texto.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+    const tokens = texto.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+    const linhas = [];
+    for (let i = 0; i < tokens.length; i++) {
+      if (/^\d{2}\/\d{2}$/.test(tokens[i]) && /^\d{2}\/\d{2}$/.test(tokens[i + 1] || '')) {
+        let fim = i + 2;
+        while (fim < tokens.length && fim < i + 15 && !/R\$/.test(tokens[fim]) && !/^\d{2}\/\d{2}$/.test(tokens[fim])) fim++;
+        if (fim < tokens.length && /^-?\s*R\$\s*[\d.]+,\d{2}$/.test(tokens[fim])) {
+          linhas.push(tokens.slice(i, fim + 1).join(' ')); i = fim; continue;
+        }
+      }
+      linhas.push(tokens[i]);
+    }
     const lancamentos = [];
     let anoAtual = anoPadrao;
 
@@ -235,6 +246,11 @@
 
     const totalCredito = unicos.filter(function(l) { return l.tipo === 'C'; }).reduce(function(s, l) { return s + Math.abs(l.valor); }, 0);
     const totalDebito = unicos.filter(function(l) { return l.tipo === 'D'; }).reduce(function(s, l) { return s + Math.abs(l.valor); }, 0);
+
+    const resumoMensal = textoNorm.match(/\(\s*\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}\s*\)\s*Entradas:\s*R\$\s*([\d.]+,\d{2})\s*•?\s*Saidas:\s*R\$\s*([\d.]+,\d{2})/i);
+    if (resumoMensal && (Math.round(totalCredito * 100) !== Math.round(parseValorBR_C6(resumoMensal[1]) * 100) || Math.round(totalDebito * 100) !== Math.round(parseValorBR_C6(resumoMensal[2]) * 100))) {
+      throw new Error('C6: entradas ou saidas lidas divergem do resumo mensal. Importacao incompleta; confira o arquivo.');
+    }
 
     return {
       detectado: true,

@@ -53,3 +53,16 @@ if (fs.existsSync(ocrPath)) {
 }
 
 console.log('OK C6 BANK Extrato Conta Corrente');
+
+const consolidado = fs.readFileSync(require('path').join(__dirname,'fixtures/c6-consolidado-janeiro-2026.txt'),'utf8');
+const realConsolidado=__test__.parsearTextoC6BankExtrato(consolidado);
+assert.equal(realConsolidado.lancamentos.length,10);
+assert.equal(realConsolidado.total_credito,34924.92);
+assert.equal(realConsolidado.total_debito,23236.56);
+assert.equal(realConsolidado.periodo_inicio,'2026-01-01');
+assert.equal(realConsolidado.periodo_fim,'2026-01-31');
+assert.equal(realConsolidado.nome_conta_detectado,'AG-1/CC-369170024');
+assert.equal(realConsolidado.lancamentos.filter(l=>l.tipo==='C').length,4);
+assert(!realConsolidado.lancamentos.some(l=>/saldo|cheque/i.test(l.descricao)));
+assert.throws(()=>__test__.parsearTextoC6BankExtrato(consolidado.replace('R$ 3.750,00','R$ 3.750,01')),/divergem/);
+console.log('OK: C6 consolidado reconhece Entradas e reconcilia totais impressos.');
