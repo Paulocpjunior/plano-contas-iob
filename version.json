@@ -1,7 +1,7 @@
 {
-  "version": "3.4.285",
-  "build_date": "2026-09-15T14:30:25Z",
+  "version": "3.4.286",
+  "build_date": "2026-09-16T11:12:09Z",
   "release_notes": [
-    "Exclusão administrativa: backup compactado recuperável, lotes limitados por tamanho e preservação da prévia durante salvamento concorrente."
+    "Plano de contas: preservar descrições iniciadas por número, como 13º salário; consulta completa com busca e inclusão por administradores."
   ]
 }

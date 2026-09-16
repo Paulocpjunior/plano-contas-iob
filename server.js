@@ -771,9 +771,16 @@ app.post('/api/planos/:id/contas', adminRequired, async (req, res) => {
     const plano = await planoRef.get();
     if (!plano.exists) return res.status(404).json({ erro: 'Plano não encontrado' });
     const contas = await colecaoContas(planoRef, plano.data()).get();
-    await publicarContas(db, planoRef, [...contas.docs.map(d => d.data()), { cod, desc, analitica, ref_rfb }], req.user, plano);
+    const reduzido = String(ref_rfb || '').trim();
+    if (reduzido && !/^\d{1,14}$/.test(reduzido)) return res.status(400).json({ erro: 'Reduzido deve conter de 1 a 14 dígitos.' });
+    const aliasReduzido = valor => String(valor || '').trim().replace(/^0+(?=\d)/, '');
+    if (reduzido && contas.docs.some(d => {
+      const c = d.data();
+      return aliasReduzido(c.reduzido || c.ref_rfb) === aliasReduzido(reduzido);
+    })) return res.status(409).json({ erro: 'Já existe uma conta com esse reduzido no plano. Consulte-a antes de criar outra.' });
+    await publicarContas(db, planoRef, [...contas.docs.map(d => d.data()), { cod, desc, analitica, ref_rfb: reduzido || null }], req.user, plano);
     res.status(201).json({ cod, desc });
-  } catch (err) { res.status(500).json({ erro: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ erro: err.message }); }
 });
 
 // Fase Zero+: substituir array completo de contas (upsert)
