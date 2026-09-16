@@ -1,7 +1,8 @@
 {
-  "version": "3.4.286",
-  "build_date": "2026-09-16T11:12:09Z",
+  "version": "3.4.287",
+  "build_date": "2026-09-16T13:33:42Z",
   "release_notes": [
+    "Reconhecer entradas e conferir totais do extrato consolidado C6",
     "Plano de contas: preservar descrições iniciadas por número, como 13º salário; consulta completa com busca e inclusão por administradores."
   ]
 }
