@@ -230,15 +230,23 @@
       if (lanc) lancamentos.push(lanc);
     });
 
-    parsearBlocosColunadosC6(linhas, anoPadrao).forEach(function(lanc) { lancamentos.push(lanc); });
-
-    const vistos = new Set();
-    const unicos = lancamentos.filter(function(lanc) {
-      const chave = [lanc.data, lanc.tipo, lanc.valor.toFixed(2), normalizarTextoC6(lanc.descricao).toUpperCase()].join('|');
-      if (vistos.has(chave)) return false;
-      vistos.add(chave);
-      return true;
-    }).sort(function(a, b) {
+    // Preserve movimentos iguais da mesma fonte. Apenas sobreposicoes entre
+    // as duas estrategias de leitura sao conciliadas, por numero de ocorrencias.
+    const chaveLancamento = function(lanc) {
+      return [lanc.data, lanc.tipo, lanc.valor.toFixed(2), normalizarTextoC6(lanc.descricao).toUpperCase()].join('|');
+    };
+    const ocorrenciasInline = new Map();
+    lancamentos.forEach(function(lanc) {
+      const chave = chaveLancamento(lanc);
+      ocorrenciasInline.set(chave, (ocorrenciasInline.get(chave) || 0) + 1);
+    });
+    parsearBlocosColunadosC6(linhas, anoPadrao).forEach(function(lanc) {
+      const chave = chaveLancamento(lanc);
+      const restantes = ocorrenciasInline.get(chave) || 0;
+      if (restantes) ocorrenciasInline.set(chave, restantes - 1);
+      else lancamentos.push(lanc);
+    });
+    const unicos = lancamentos.sort(function(a, b) {
       return String(a.data).localeCompare(String(b.data)) || Math.abs(a.valor) - Math.abs(b.valor);
     });
 
