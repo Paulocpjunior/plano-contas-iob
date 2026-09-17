@@ -1,7 +1,8 @@
 {
-  "version": "3.4.292",
-  "build_date": "2026-09-16T19:17:41Z",
+  "version": "3.4.293",
+  "build_date": "2026-09-17T18:57:14Z",
   "release_notes": [
+    "Caixa: reconhecer extrato com duas datas e sinal de valor em linha separada.",
     "BTG: reconhecer Conta Investimento e conferir totais e saldos do extrato.",
     "Caixa: reconhecer extrato multilinha com Data Efetiva e conferir saldos por movimento.",
     "C6: preservar descrição integral e reconhecer devolução de saldo credor como movimentação.",

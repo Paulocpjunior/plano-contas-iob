@@ -213,6 +213,52 @@
     return {detectado:true,lancamentos,textoCompleto:texto,fingerprint:'caixa-extrato-multilinha-v1',banco_detectado:'104',cnpj_detectado:(texto.match(/CNPJ:\s*([\d./-]+)/i)||[])[1]||'',conta_detectada:conta?'AG-'+conta[1]+'/CC-'+conta[2]:'',nome_conta_detectado:conta?'AG-'+conta[1]+'/CC-'+conta[2]:'CAIXA',periodo_inicio:inicio<datas[0]?inicio:datas[0],periodo_fim:fim>datas[datas.length-1]?fim:datas[datas.length-1],periodo_solicitado_inicio:inicio,periodo_solicitado_fim:fim,saldo_inicial:saldoInicial,saldo_final:saldoCent/100,total_credito:lancamentos.reduce((s,l)=>s+Math.max(Math.round(l.valor*100),0),0)/100,total_debito:lancamentos.reduce((s,l)=>s+Math.max(-Math.round(l.valor*100),0),0)/100};
   }
 
+  function parsearPaginasCaixaDuasDatas(paginas) {
+    const texto=paginas.flat().map(i=>i.str).join(' ').replace(/\s+/g,' ');
+    const periodo=texto.match(/Lan[cç]amentos de (\d{2}\/\d{2}\/\d{4}) [àa] (\d{2}\/\d{2}\/\d{4})/i);
+    if (!periodo || !/CAIXA/i.test(texto) || !/Produto:\s*\d+/.test(texto)) return {detectado:false,lancamentos:[]};
+    const lancamentos=[];
+    let saldosPossiveis=null;
+    for(const itens of paginas) {
+      const coluna=n=>itens.find(i=>i.str.trim()===n)?.transform[4];
+      const dx=coluna('Documento'), hx=coluna('Histórico'), vx=coluna('Valor'), sx=coluna('Saldo');
+      if ([dx,hx,vx,sx].some(x=>x==null)) throw new Error('CAIXA: colunas de lancamentos nao reconhecidas.');
+      const datas=itens.filter(i=>i.transform[4]<dx && /^\d{2}\/\d{2}\/\d{4}$/.test(i.str.trim()));
+      const docs=itens.filter(i=>Math.abs(i.transform[4]-dx)<3 && /^\d+$/.test(i.str.trim()) && datas.some(d=>Math.abs(d.transform[5]-i.transform[5])<3)).sort((a,b)=>b.transform[5]-a.transform[5]);
+      if(datas.length!==docs.length*2) throw new Error('CAIXA: quantidade de movimentos incompleta.');
+      for(const doc of docs) {
+        const y=doc.transform[5];
+        const faixa=itens.filter(i=>Math.abs(i.transform[5]-y)<12);
+        const juntar=a=>a.sort((a,b)=>Math.abs(a.transform[5]-b.transform[5])>2?b.transform[5]-a.transform[5]:a.transform[4]-b.transform[4]).map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
+        const ds=faixa.filter(i=>i.transform[4]<dx && /^\d{2}\/\d{2}\/\d{4}$/.test(i.str.trim())).sort((a,b)=>a.transform[4]-b.transform[4]);
+        const descricao=juntar(faixa.filter(i=>i.transform[4]>=hx-2 && i.transform[4]<vx-2));
+        const v=juntar(faixa.filter(i=>i.transform[4]>=vx-2 && i.transform[4]<sx-2)).replace(/\s/g,'');
+        const saldo=juntar(faixa.filter(i=>i.transform[4]>=sx-2)).replace(/\s/g,'');
+        if(ds.length!==2 || !descricao || !/^-?[\d.]+,\d{2}$/.test(v) || !/^R\$[\d.]+,\d{2}$/.test(saldo)) throw new Error('CAIXA: linha incompleta no documento '+doc.str+'.');
+        const valorCent=Math.round(parseValorBR(v)*100), saldoAbs=Math.round(parseValorBR(saldo.replace('R$',''))*100);
+        // O PDF nao imprime natureza do saldo: conferir possibilidades, sem
+        // transformar um saldo sem sinal em lancamento ou saldo afirmado.
+        const candidatos=[saldoAbs,-saldoAbs];
+        if(saldosPossiveis!==null) {
+          const validos=candidatos.filter(s=>saldosPossiveis.some(anterior=>anterior+valorCent===s));
+          if(!validos.length) throw new Error('CAIXA: movimento diverge do saldo no documento '+doc.str+'.');
+          saldosPossiveis=validos;
+        } else saldosPossiveis=candidatos;
+        if(/^SALDO DIA$/i.test(descricao)) {
+          if(valorCent!==0) throw new Error('CAIXA: saldo informativo com valor de movimento.');
+          continue;
+        }
+        const tipo=valorCent<0?'D':'C';
+        lancamentos.push({id:uuid(),data:parseDataBR(ds[0].str.trim()),data_movimento:parseDataBR(ds[1].str.trim()),documento:doc.str.trim(),descricao,valor:valorCent/100,tipo,historico:historicoCaixaPorDescricao(descricao,tipo),contaDebito:'',contaCredito:'',codigoHistorico:'',categoria:'Nao categorizado',incomum:false,origem:'pdf-caixa-extrato'});
+      }
+    }
+    if(!lancamentos.length) throw new Error('CAIXA: nenhum movimento reconhecido.');
+    const inicio=parseDataBR(periodo[1]),fim=parseDataBR(periodo[2]),datas=lancamentos.map(l=>l.data).sort();
+    const ag=texto.match(/Ag[eê]ncia:\s*(\d+)/i),conta=texto.match(/Conta:\s*([\d-]+)/i);
+    const contaNome=ag&&conta?'AG-'+ag[1]+'/CC-'+conta[1]:'CAIXA';
+    return {detectado:true,lancamentos,textoCompleto:texto,fingerprint:'caixa-extrato-duas-datas-v1',banco_detectado:'104',cnpj_detectado:(texto.match(/CNPJ:\s*([\d./-]+)/i)||[])[1]||'',conta_detectada:contaNome,nome_conta_detectado:contaNome,periodo_inicio:inicio<datas[0]?inicio:datas[0],periodo_fim:fim>datas[datas.length-1]?fim:datas[datas.length-1],periodo_solicitado_inicio:inicio,periodo_solicitado_fim:fim,total_credito:lancamentos.reduce((s,l)=>s+Math.max(Math.round(l.valor*100),0),0)/100,total_debito:lancamentos.reduce((s,l)=>s+Math.max(-Math.round(l.valor*100),0),0)/100};
+  }
+
   async function parsearPDF_Caixa_Extrato(arrayBuffer) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -240,6 +286,8 @@
       });
     }
 
+    const duasDatas = parsearPaginasCaixaDuasDatas(paginas);
+    if (duasDatas.detectado) return duasDatas;
     const moderno = parsearPaginasCaixaModerno(paginas);
     return moderno.detectado ? moderno : parsearTextoCaixaExtrato(textoCompleto);
   }
@@ -248,6 +296,7 @@
     parsearPDF_Caixa_Extrato: parsearPDF_Caixa_Extrato,
     __test__: {
       parsearPaginasCaixaModerno,
+      parsearPaginasCaixaDuasDatas,
       parseValorBR: parseValorBR,
       parseDataBR: parseDataBR,
       parseLinhaCaixa: parseLinhaCaixa,
