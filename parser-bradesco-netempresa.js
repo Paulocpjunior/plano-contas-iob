@@ -240,7 +240,9 @@
     if (!saldoInfo) return null;
     const antesSaldo = raw.slice(0, saldoInfo.inicio);
     let info = splitDocumentoValorBradesco(antesSaldo);
-    let valor = coerente ? coerente.valor : (info ? info.valor : 0);
+    // Um saldo ou uma descricao numerica isolada nao constitui movimento.
+    if (!coerente && !info) return null;
+    let valor = coerente ? coerente.valor : info.valor;
     if (!coerente && Number.isFinite(saldoAnterior)) {
       valor = arredondarCentavos(saldoInfo.valor - saldoAnterior);
     }
