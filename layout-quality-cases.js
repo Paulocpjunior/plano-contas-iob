@@ -1,5 +1,24 @@
 const LAYOUT_QUALITY_CASES = [
 {
+  "id": "caixa-sbe-2026-02",
+  "banco": "104",
+  "nomeBanco": "Caixa Economica Federal",
+  "layout": "Caixa - Extrato por Periodo Gerenciador",
+  "parser": "parsearPDF_Caixa_Extrato",
+  "arquivo": "CEF SBE - FEVEREIRO.pdf",
+  "empresa": "SBE EDICOES E PRODUCOES LTDA ME",
+  "periodo_inicio": "2026-02-01",
+  "periodo_fim": "2026-03-02",
+  "esperado": {
+    "total_lancamentos": 16,
+    "total_credito": 100182.64,
+    "total_debito": 85850.12
+  },
+  "status": "Aprovado",
+  "validado_em": "2026-09-17T18:57:14.480454+00:00",
+  "observacao": "Duas colunas de data e valor com sinal separado. Confere transicoes de saldos sem presumir natureza do saldo. Preserva 02/03 impresso no arquivo de fevereiro."
+},
+{
   "id": "btg-investimento-orale-2026-08",
   "banco": "208",
   "nomeBanco": "Banco BTG Pactual",
