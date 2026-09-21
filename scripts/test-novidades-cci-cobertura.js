@@ -62,7 +62,7 @@ const ordem = (dm) => {
  * seja simples e visível em vez de esperta e errada.
  */
 function ultimaEntregaNoClaudeMd() {
-  const md = fs.readFileSync(path.join(RAIZ, 'CLAUDE.md'), 'utf8');
+  const md = fs.readFileSync(path.join(RAIZ, 'docs', 'historico-claude.md'), 'utf8');
   const datas = [...md.matchAll(/\((\d{2}\/\d{2})(?![/\d])/g)]
     .map((m) => m[1])
     .filter((dm) => {
@@ -86,7 +86,7 @@ assert.match(novidades, /^\d{2}\/\d{2}$/, 'a página tem de declarar a data em q
 // 🚨 Guarda contra o silêncio falso: se o regex quebrar, a trava passaria
 // VERDE sem ler nada — que é o defeito que ela existe para acabar.
 const entrega = ultimaEntregaNoClaudeMd();
-assert.match(entrega, /^\d{2}\/\d{2}$/, 'o CLAUDE.md tem de ter datas legíveis');
+assert.match(entrega, /^\d{2}\/\d{2}$/, 'o docs/historico-claude.md tem de ter datas legíveis');
 
 // ─── 2. A última entrega chegou às Novidades ────────────────────────────────
 if (ordem(entrega) > ordem(novidades) && !DATAS_SEM_EFEITO_PARA_QUEM_USA[entrega]) {
