@@ -1,5 +1,26 @@
 const LAYOUT_QUALITY_EVIDENCE = [
 {
+  "id": "itau-bba-ferrante-2026-08",
+  "banco": "184",
+  "nomeBanco": "Itau BBA",
+  "layout": "Itau BBA - Lancamentos por Periodo",
+  "parser": "parsearPDF_Itau_ExtratoMensal",
+  "arquivo": "ITAU MOVEIS 996655.pdf",
+  "empresa": "FERRANTE",
+  "periodo_inicio": "2026-08-01",
+  "periodo_fim": "2026-08-31",
+  "esperado": {
+    "total_lancamentos": 119,
+    "total_credito": 429033.55,
+    "total_debito": 428756.77
+  },
+  "status": "Regressao aprovada",
+  "validado_em": "2026-09-21T12:24:37.055843+00:00",
+  "observacao": "PDF em imagem, OCR executado no navegador. Agencia 0056, conta 0099665-5. Saldo 27,98 + 429033,55 - 428756,77 = 304,76.",
+  "etapa": "regressao_aprovada",
+  "caminho_local": "/Users/paulocesarpereirajunior/Downloads/ITAU MOVEIS 996655.pdf"
+},
+{
   "id": "caixa-sbe-2026-02",
   "banco": "104",
   "nomeBanco": "Caixa Economica Federal",

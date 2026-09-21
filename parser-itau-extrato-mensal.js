@@ -66,7 +66,7 @@
     return items.map(function(i){ return i.s; }).join(' ').replace(/\s+/g, ' ').trim();
   }
 
-  function normalizarTokenMonetarioPosicionalOCR(text, x) {
+  function normalizarTokenMonetarioPosicionalOCR(text, x, naturezaCor) {
     let raw = String(text || '').trim();
     if (!raw || Number(x || 0) < 400) return raw;
     // Nesse layout, valor e saldo ficam à direita. O OCR pode trocar o sinal
@@ -77,7 +77,9 @@
     raw = raw.replace(/^[=_~]+(?=\d)/, '-').replace(/,$/, '');
     if (Number(x || 0) >= 480) raw = raw.replace(/[Bb](?=\d)/g, '8');
     const semSinal = raw.replace(/^-/, '');
-    const colunaPermiteCentavos = Number(x || 0) < 460 || Number(x || 0) >= 480;
+    // Separador de milhar lido como virgula: 5,133,79 -> 5.133,79.
+    raw = raw.replace(/^(\-?\d{1,3}),(\d{3}),(\d{2})$/, '$1.$2,$3');
+    const colunaPermiteCentavos = !!naturezaCor || Number(x || 0) < 460 || Number(x || 0) >= 480;
     if (/^\d{3,9}$/.test(semSinal) && (raw.startsWith('-') || colunaPermiteCentavos)) {
       raw = (raw.startsWith('-') ? '-' : '') + semSinal.slice(0, -2) + ',' + semSinal.slice(-2);
     }
@@ -145,7 +147,7 @@
     return '';
   }
 
-  function parseItauLancamentosPeriodo(lines, textoCompleto) {
+  function parseItauLancamentosPeriodo(lines, textoCompleto, apenasDiagnostico) {
     const origemOCR = Array.isArray(lines) && lines.some(function(line) { return line && line.origem_ocr === true; });
     const modeloPeriodoNaFrase = /Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto)
       && /Data\s+Lan[cç]amentos\s+Raz[aã]o Social\s+CNPJ\/CPF\s+Valor/i.test(textoCompleto)
@@ -164,6 +166,7 @@
     const contaMatch = agenciaMatch && numeroContaMatch ? [null, agenciaMatch[1], numeroContaMatch[1]] : null;
     const lancamentos = [];
     const vistos = new Set();
+    const movimentosPorLinha = new Map();
     let pendente = null;
 
     function normalizarLinha(text) {
@@ -325,7 +328,9 @@
         const valueLine = extrairValorFinal(text, line);
         if (valueLine) {
           const desc = limparDescricao(text.slice(10, valueLine.index));
-          adicionarLancamento(pendente.data, desc, valueLine.valor);
+          if (adicionarLancamento(pendente.data, desc, valueLine.valor) && line) {
+            movimentosPorLinha.set(line, lancamentos[lancamentos.length - 1]);
+          }
           pendente = null;
         } else if (extrairValorFinal(pendente.text)) {
           flush();
@@ -381,7 +386,13 @@
       if (posterior && posterior.page === line.page && linhaVizinhaUtil(posterior.text) && Math.abs((posterior.y || 0) - (line.y || 0)) <= 18) {
         desc = limparDescricao(desc + ' ' + posterior.text);
       }
-      adicionarLancamento(data, desc, value.valor);
+      const existente = movimentosPorLinha.get(line);
+      if (existente) {
+        existente.descricao = desc;
+        existente.historico = desc;
+      } else {
+        adicionarLancamento(data, desc, value.valor);
+      }
     });
 
     const totalCredito = lancamentos.filter(function(l){ return l.valor > 0; }).reduce(function(a,l){ return a + l.valor; }, 0);
@@ -401,7 +412,7 @@
     const conciliacaoCentavos = (!modeloPeriodoSeparado && !origemOCR) || saldoAnterior === null || saldoFinal === null
       ? null
       : Math.round((saldoAnterior + totalCredito - totalDebito - saldoFinal) * 100);
-    if (conciliacaoCentavos !== null && conciliacaoCentavos !== 0) {
+    if (!apenasDiagnostico && conciliacaoCentavos !== null && conciliacaoCentavos !== 0) {
       throw new Error('Extrato Itau nao conciliou com os saldos impressos (anterior=' + saldoAnterior.toFixed(2)
         + ', creditos=' + totalCredito.toFixed(2) + ', debitos=' + totalDebito.toFixed(2)
         + ', final=' + saldoFinal.toFixed(2) + '). Importe somente apos parametrizacao do layout.');
@@ -419,7 +430,7 @@
       total_debito: totalDebito,
       saldo_anterior: saldoAnterior,
       saldo_final: saldoFinal,
-      saldos_conciliados: conciliacaoCentavos === null ? null : true,
+      saldos_conciliados: conciliacaoCentavos === null ? null : conciliacaoCentavos === 0,
       layout_modelo: modeloPeriodoSeparado ? 'lancamentos-periodo-separado' : 'lancamentos-do-periodo',
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim
@@ -485,12 +496,13 @@
 
     const scaleX = pageWidth ? 595 / pageWidth : 1;
     return grupos.map(function(g) {
+      const cabecalhoConta = g.words.some(function(w) { return /^Ag[eê]ncia:?$/i.test(w.text); });
       const items = g.words.sort(function(a,b){ return a.x - b.x; }).map(function(w) {
         const x = Math.round(w.x * scaleX);
         return {
           x: x,
           x1: Math.round(w.x1 * scaleX),
-          s: normalizarTokenMonetarioPosicionalOCR(w.text, x),
+          s: cabecalhoConta ? w.text : normalizarTokenMonetarioPosicionalOCR(w.text, x, w.naturezaCor),
           naturezaCor: w.naturezaCor || ''
         };
       });
@@ -822,6 +834,47 @@
     };
   }
 
+  // Combina somente dias completos efetivamente lidos, sem calcular valores ausentes.
+  // Uma unica composicao deve fechar com os saldos originais; ambiguidade bloqueia.
+  function conciliarLeiturasOCR(leituras) {
+    const rs = leituras.map(function(o) { return parseItauLancamentosPeriodo(o.lines, o.textoCompleto, true); });
+    const base = rs[0];
+    if (!base || base.saldo_anterior === null || base.saldo_final === null) return null;
+    if (rs.some(function(r) { return !r || r.conta_detectada !== base.conta_detectada || r.periodo_inicio !== base.periodo_inicio || r.periodo_fim !== base.periodo_fim || r.saldo_anterior !== base.saldo_anterior || r.saldo_final !== base.saldo_final; })) return null;
+    const datas = Array.from(new Set(rs.flatMap(function(r) { return r.lancamentos.map(function(l) { return l.data; }); }))).sort();
+    let estados = [{ saldo: Math.round(base.saldo_anterior * 100), lancamentos: [] }];
+    for (const data of datas) {
+      const variantes = rs.map(function(r) { return r.lancamentos.filter(function(l) { return l.data === data; }); });
+      const maximo = Math.max.apply(null, variantes.map(function(v) { return v.length; }));
+      const unicas = new Map();
+      variantes.filter(function(v) { return v.length === maximo; }).forEach(function(v) {
+        const chave = v.map(function(l) { return Math.round(l.valor * 100); }).sort(function(a,b) { return a-b; }).join(',');
+        if (!unicas.has(chave)) unicas.set(chave, v);
+      });
+      estados = estados.flatMap(function(e) { return Array.from(unicas.values()).map(function(v) {
+        return { saldo: e.saldo + v.reduce(function(n,l) { return n + Math.round(l.valor * 100); }, 0), lancamentos: e.lancamentos.concat(v) };
+      }); });
+      const dataBR = data.split('-').reverse().join('/');
+      const saldosLidos = leituras.flatMap(function(o) { return o.lines.filter(function(l) {
+        return l.text.startsWith(dataBR) && /SALDO TOTAL DISPON[IÍ]VEL DIA/i.test(l.text);
+      }).map(function(l) {
+        const m = l.text.match(/(-?[\d.]+,\d{2})\s*$/);
+        return m ? Math.round(parseValorBR(m[1])*100) : null;
+      }); });
+      const conferidos = estados.filter(function(e) { return saldosLidos.includes(e.saldo); });
+      if (conferidos.length) estados = conferidos;
+      if (estados.length > 256) return null;
+    }
+    const fechados = estados.filter(function(e) { return e.saldo === Math.round(base.saldo_final * 100); });
+    if (fechados.length !== 1) return null;
+    const lancamentos = fechados[0].lancamentos;
+    lancamentos.forEach(function(l) { l.origem = 'pdf-itau-lancamentos-periodo-ocr'; });
+    return Object.assign({}, base, { lancamentos: lancamentos,
+      total_credito: lancamentos.reduce(function(n,l) { return n + Math.max(0,Math.round(l.valor*100)); },0)/100,
+      total_debito: lancamentos.reduce(function(n,l) { return n - Math.min(0,Math.round(l.valor*100)); },0)/100,
+      saldos_conciliados: true, origem_ocr: true, leituras_ocr_conciliadas: leituras.length });
+  }
+
   async function parsearPDF_Itau_ExtratoMensal(arrayBuffer, opcoes) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -859,7 +912,7 @@
 
     if (!ehItau) {
       const periodo = parseItauLancamentosPeriodo(lines, textoCompleto);
-      if (opcoes && opcoes.somenteLancamentosPeriodoSeparado) {
+      if (periodo && opcoes && opcoes.somenteLancamentosPeriodoSeparado) {
         return periodo && periodo.layout_modelo === 'lancamentos-periodo-separado'
           ? periodo
           : { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
@@ -876,10 +929,12 @@
         || (/Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto) && !(periodo && periodo.detectado));
       if (precisaOCR) {
         let ultimoErroOCR = null;
-        const escalasOCR = pdf.numPages <= 3 ? [2.8, 4.0] : [2.8];
+        const leiturasOCR = [];
+        const escalasOCR = [2.8, 4.0];
         for (let tentativa = 0; tentativa < escalasOCR.length; tentativa++) {
           try {
             const ocr = await linhasItauComOCR(pdf, escalasOCR[tentativa]);
+            leiturasOCR.push(ocr);
             const periodoOCR = parseItauLancamentosPeriodo(ocr.lines, ocr.textoCompleto);
             if (periodoOCR && periodoOCR.detectado && periodoOCR.lancamentos && periodoOCR.lancamentos.length) {
               periodoOCR.origem_ocr = true;
@@ -893,6 +948,10 @@
             ultimoErroOCR = eOCR;
             console.warn('[itau-ocr] tentativa ' + (tentativa + 1) + ' falhou:', eOCR.message || eOCR);
           }
+        }
+        if (leiturasOCR.length > 1) {
+          const conciliado = conciliarLeiturasOCR(leiturasOCR);
+          if (conciliado) return conciliado;
         }
         if (ultimoErroOCR) throw ultimoErroOCR;
       }
@@ -1004,6 +1063,7 @@
     parsearPDF_Itau_ExtratoMensal: parsearPDF_Itau_ExtratoMensal,
     parsearPDF_Itau_LancamentosPeriodo: parsearPDF_Itau_LancamentosPeriodo,
     __test__: {
+      conciliarLeiturasOCR: conciliarLeiturasOCR,
       parseValorBR: parseValorBR,
       moneyToken: moneyToken,
       periodoLancamentosItau: periodoLancamentosItau,
