@@ -156,7 +156,7 @@
   const MONEY_FIELDS = [
     'valorContabil', 'valorFrete', 'baseIcms', 'valorIcms', 'isentasIcms', 'outrasIcms',
     'baseIcmsSt', 'valorIcmsSt', 'baseIpi', 'valorIpi', 'isentasIpi', 'outrasIpi',
-    'valorPis', 'valorCofins'
+    'valorPis', 'valorCofins', 'ufDestino'
   ];
 
   const COLUMN_GROUPS = {
@@ -171,7 +171,7 @@
     baseIcmsSt: 'ICMS ST', valorIcmsSt: 'ICMS ST',
     baseIpi: 'IPI', aliquotaIpi: 'IPI', valorIpi: 'IPI', isentasIpi: 'IPI', outrasIpi: 'IPI',
     valorPis: 'PIS e COFINS', valorCofins: 'PIS e COFINS',
-    observacao: 'Complementares', ufDestino: 'Complementares', ufRemetente: 'Complementares'
+    observacao: 'Complementares', ufDestino: 'ICMS DIFAL', ufRemetente: 'Complementares'
   };
 
   function removerAcentos(valor) {
@@ -536,7 +536,7 @@
       chaveCteSubstituido: valorColuna(row, mapa, 'chaveCteSubstituido'),
       situacaoDocumento: valorColuna(row, mapa, 'situacaoDocumento'),
       observacao: valorColuna(row, mapa, 'observacao'),
-      ufDestino: valorColuna(row, mapa, 'ufDestino'),
+      ufDestino: 0,
       ufRemetente: valorColuna(row, mapa, 'ufRemetente'),
       ci: valorColuna(row, mapa, 'ci'),
       valorContabil: 0,
@@ -681,7 +681,7 @@
       serie: draft.serie,
       subserie: draft.subserie,
       observacao: draft.observacao,
-      ufDestino: draft.ufDestino,
+      ufDestino: fiscal.ufDestino,
       ufRemetente: draft.ufRemetente,
       codigoHistorico: '',
       historico: '',
@@ -716,6 +716,7 @@
   const IMPOSTOS_DESTACADOS = [
     { campo: 'valorIcms', base: 'baseIcms', tipo: 'ICMS' },
     { campo: 'valorIcmsSt', base: 'baseIcmsSt', tipo: 'ICMS ST' },
+    { campo: 'ufDestino', base: '', tipo: 'ICMS DIFAL UF DESTINO' },
     { campo: 'valorIpi', base: 'baseIpi', tipo: 'IPI' },
     { campo: 'valorPis', base: '', tipo: 'PIS' },
     { campo: 'valorCofins', base: '', tipo: 'COFINS' }

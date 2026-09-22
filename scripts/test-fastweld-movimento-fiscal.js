@@ -33,9 +33,13 @@ assert.strictEqual(resultado.origem_cnpj_empresa, 'chave_nfe_emitente');
 assert.strictEqual(resultado.total_notas_fiscais, 106);
 assert.strictEqual(resultado.chaves_nfe_validas, 106);
 assert.strictEqual(resultado.chaves_nfe_invalidas, 0);
-assert.strictEqual(resultado.lancamentos.length, 514);
+assert.strictEqual(resultado.lancamentos.length, 520);
 assert.strictEqual(notas.length, 119);
-assert.strictEqual(impostos.length, 395);
+assert.strictEqual(impostos.length, 401);
+const difal = impostos.filter(item => item.impostoFiscalTipo === 'ICMS DIFAL UF DESTINO');
+assert.strictEqual(difal.length, 6);
+assert.strictEqual(difal.reduce((s,l) => s + Math.round(Math.abs(l.valor)*100),0), 692690);
+assert.strictEqual(impostos.filter(item => item.impostoFiscalTipo !== 'ICMS DIFAL UF DESTINO').length,395);
 assert.strictEqual(resultado.total_lancamentos_cfop, 119);
 assert.strictEqual(notas.filter(item => item.cfop === '5102').length, 8, 'todas as linhas CFOP 5102 devem gerar lancamento');
 assert.strictEqual(notas.filter(item => item.cfop === '6102').length, 2, 'todas as linhas CFOP 6102 devem gerar lancamento');
@@ -45,7 +49,7 @@ assert.strictEqual(resultado.linhas_complementares_agregadas, 16);
 assert.strictEqual(resultado.periodo_inicio, '2026-04-01');
 assert.strictEqual(resultado.periodo_fim, '2026-04-30');
 assert.strictEqual(Math.round(resultado.total_credito * 100), 175752252);
-assert.strictEqual(Math.round(resultado.total_debito * 100), 23222253);
+assert.strictEqual(Math.round(resultado.total_debito * 100), 23914943);
 assert.strictEqual(notas[0].layoutParser, 'parsearCSV_FastweldRegistroSaidas');
 assert.strictEqual(notas[0].bancoId, '0109');
 assert.strictEqual(notas[0].cnpjEmpresaFiscalDetectado, '02942184000134');
@@ -115,4 +119,4 @@ assert.strictEqual(validarVinculoCnpjFiscal(apenasEstruturais, {
   arquivoNome: path.basename(arquivo)
 }).valido, true, 'segunda validacao deve permanecer valida apos limpar opcionais');
 
-console.log('OK: FASTWELD 0109 validada com 106 NF-e, 119 lancamentos por CFOP, 395 impostos por CFOP e travas de empresa/layout/arquivo.');
+console.log('OK: FASTWELD 0109 validada com 106 NF-e, 119 lancamentos por CFOP, 401 impostos por CFOP (incluindo 6 DIFAL) e travas de empresa/layout/arquivo.');
