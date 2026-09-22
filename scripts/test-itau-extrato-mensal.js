@@ -108,6 +108,8 @@ function testarOCRPosicionalPeriodo() {
     ...linhaOCR(40, ['Agência 1666 Conta 0099394-2']),
     ...linhaOCR(60, ['Lançamentos do período: 01/01/2025 até 01/12/2025']),
     ...linhaOCR(90, ['Data', 'Lançamentos', 'Razão Social', 'CNPJ/CPF', 'Valor(RS)', 'Saldo (R$)']),
+    ...linhaOCR(105, ['31/12/2024', 'SALDO ANTERIOR', '0,00']),
+    ...linhaOCR(180, ['15/05/2025', 'SALDO TOTAL DISPONIVEL DIA', '-15,50']),
     ...linhaOCR(120, ['14/05/2025', 'PIX RECEBIDO', 'LANCHONETE JO-BRAS LTDA', '58.579.529/0001-91', '10,00', '10,00']),
     ...linhaOCR(150, ['15/05/2025', 'BOLETO PAGO FORNECEDOR', 'FORNECEDOR TESTE LTDA', '11.222.333/0001-44', '-25,50', '-15,50'])
   ];

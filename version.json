@@ -1,7 +1,8 @@
 {
-  "version": "3.4.296",
-  "build_date": "2026-09-22T12:26:57Z",
+  "version": "3.4.297",
+  "build_date": "2026-09-22T17:57:46Z",
   "release_notes": [
+    "Itaú OCR: preservar sinais negativos impressos e exigir conferência pelo último saldo datado do período.",
     "Fiscal CSV: importar ICMS DIFAL da coluna UF de Destino, respeitando seleção e separação por CFOP.",
     "Itaú BBA: OCR preserva agência, evita transferências duplicadas e confere leituras com saldos impressos.",
     "Bradesco: impedir lançamento fictício por descrição numérica e distinguir divergência de layout não reconhecido.",

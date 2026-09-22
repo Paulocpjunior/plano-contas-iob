@@ -398,17 +398,25 @@
     const totalCredito = lancamentos.filter(function(l){ return l.valor > 0; }).reduce(function(a,l){ return a + l.valor; }, 0);
     const totalDebito = lancamentos.filter(function(l){ return l.valor < 0; }).reduce(function(a,l){ return a + Math.abs(l.valor); }, 0);
     const saldoAnteriorMatch = textoCompleto.match(/SALDO ANTERIOR\s+(-?[\d.]+,\d{2})/i);
-    const saldosFinais = Array.from(textoCompleto.matchAll(/SALDO TOTAL DISPON[IÍ]VEL DIA\s+(-?[\d.]+,\d{2})/gi));
     const saldoAnterior = saldoAnteriorMatch ? parseValorBR(saldoAnteriorMatch[1]) : null;
-    const dataFinalBR = periodo.fim ? periodo.fim.slice(8, 10) + '/' + periodo.fim.slice(5, 7) + '/' + periodo.fim.slice(0, 4) : '';
-    const linhaSaldoFinal = dataFinalBR && lines.find(function(line) {
+    // O fechamento e o ultimo saldo datado dentro do periodo, mesmo em ordem
+    // decrescente ou quando o ultimo dia do mes nao tem movimentacao.
+    const linhasSaldo = lines.map(function(line) {
       const text = normalizarLinha(line && line.text);
-      return text.startsWith(dataFinalBR) && /SALDO\s*TOTAL DISPON[IÍ]VEL DIA/i.test(text);
-    });
+      const m = text.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+      const data = m ? m[3]+'-'+m[2]+'-'+m[1] : '';
+      return { line: line, data: data };
+    }).filter(function(item) {
+      return item.data && (!periodo.inicio || item.data >= periodo.inicio)
+        && (!periodo.fim || item.data <= periodo.fim)
+        && /SALDO\s*TOTAL DISPON[IÍ]VEL DIA/i.test(item.line.text);
+    }).sort(function(a,b) { return b.data.localeCompare(a.data); });
+    const linhaSaldoFinal = linhasSaldo.length ? linhasSaldo[0].line : null;
     const valorSaldoFinal = linhaSaldoFinal ? extrairValorFinal(linhaSaldoFinal.text, linhaSaldoFinal) : null;
-    const saldoFinal = valorSaldoFinal
-      ? valorSaldoFinal.valor
-      : (modeloPeriodoSeparado && saldosFinais.length ? parseValorBR(saldosFinais[saldosFinais.length - 1][1]) : null);
+    const saldoFinal = valorSaldoFinal ? valorSaldoFinal.valor : null;
+    if (origemOCR && !apenasDiagnostico && (saldoAnterior === null || saldoFinal === null)) {
+      throw new Error('Extrato Itau: OCR nao reconheceu os saldos de abertura e fechamento. Importacao bloqueada para conferencia.');
+    }
     const conciliacaoCentavos = (!modeloPeriodoSeparado && !origemOCR) || saldoAnterior === null || saldoFinal === null
       ? null
       : Math.round((saldoAnterior + totalCredito - totalDebito - saldoFinal) * 100);
@@ -430,6 +438,7 @@
       total_debito: totalDebito,
       saldo_anterior: saldoAnterior,
       saldo_final: saldoFinal,
+      totais_calculados: true,
       saldos_conciliados: conciliacaoCentavos === null ? null : conciliacaoCentavos === 0,
       layout_modelo: modeloPeriodoSeparado ? 'lancamentos-periodo-separado' : 'lancamentos-do-periodo',
       periodo_inicio: periodo.inicio,
@@ -511,6 +520,27 @@
     }).filter(Boolean);
   }
 
+  function possuiMenosImpresso(pixels, width, height, alturaFonte) {
+    const vistos = new Uint8Array(width * height);
+    const escuro = function(i) { return pixels[i*4+3] > 128 && Math.max(pixels[i*4],pixels[i*4+1],pixels[i*4+2]) < 150; };
+    for (let i=0;i<vistos.length;i++) {
+      if (vistos[i] || !escuro(i)) continue;
+      const fila=[i]; vistos[i]=1; let minX=width,maxX=0,minY=height,maxY=0,n=0;
+      while(fila.length) {
+        const q=fila.pop(),x=q%width,y=Math.floor(q/width); n++;
+        minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
+        for(const j of [x>0?q-1:-1,x+1<width?q+1:-1,y>0?q-width:-1,y+1<height?q+width:-1]) {
+          if(j>=0&&!vistos[j]&&escuro(j)){vistos[j]=1;fila.push(j);}
+        }
+      }
+      const w=maxX-minX+1,h=maxY-minY+1,cy=(minY+maxY)/2;
+      if(minX>0 && maxX<width-1 && minY>0 && maxY<height-1
+        && w>=alturaFonte*.22 && w<=alturaFonte*.8 && h<=alturaFonte*.3
+        && w>=h*2 && n/(w*h)>.6 && cy>height*.3 && cy<height*.8) return true;
+    }
+    return false;
+  }
+
   async function linhasItauComOCR(pdf, escala) {
     if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js nao carregado para OCR Itau');
     if (typeof document === 'undefined') throw new Error('OCR Itau indisponivel fora do navegador');
@@ -542,6 +572,17 @@
         try {
           const pixels = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
           word.naturezaCor = naturezaCorPixelsOCR(pixels);
+          const textoValor = itemTextoOCR(word);
+          if (!word.naturezaCor && bbox.x0 / canvas.width > .70 && /^\d[\d.,]*$/.test(textoValor)) {
+            const h = bbox.y1-bbox.y0;
+            const sx = Math.max(0,Math.floor(bbox.x0-h*.6));
+            const sy = Math.max(0,Math.floor(bbox.y0)-2);
+            const sw = Math.min(canvas.width-sx,Math.ceil(h*1.5));
+            const sh = Math.min(canvas.height-sy,Math.ceil(h)+4);
+            if(possuiMenosImpresso(ctx.getImageData(sx,sy,sw,sh).data,sw,sh,h)) {
+              word.text = '-' + textoValor;
+            }
+          }
         } catch (_) {
           // Mantem o fallback textual/posicional quando o canvas nao permite leitura.
         }
@@ -1063,6 +1104,7 @@
     parsearPDF_Itau_ExtratoMensal: parsearPDF_Itau_ExtratoMensal,
     parsearPDF_Itau_LancamentosPeriodo: parsearPDF_Itau_LancamentosPeriodo,
     __test__: {
+      possuiMenosImpresso: possuiMenosImpresso,
       conciliarLeiturasOCR: conciliarLeiturasOCR,
       parseValorBR: parseValorBR,
       moneyToken: moneyToken,
