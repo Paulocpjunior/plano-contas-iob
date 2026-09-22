@@ -1,7 +1,8 @@
 {
-  "version": "3.4.297",
-  "build_date": "2026-09-22T17:57:46Z",
+  "version": "3.4.298",
+  "build_date": "2026-09-22T20:04:59Z",
   "release_notes": [
+    "Itaú mensal em imagem: leitura por colunas com conferência de resumo, saldos e aplicações automáticas; progresso e limite de tempo no OCR.",
     "Itaú OCR: preservar sinais negativos impressos e exigir conferência pelo último saldo datado do período.",
     "Fiscal CSV: importar ICMS DIFAL da coluna UF de Destino, respeitando seleção e separação por CFOP.",
     "Itaú BBA: OCR preserva agência, evita transferências duplicadas e confere leituras com saldos impressos.",

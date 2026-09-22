@@ -6,33 +6,33 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.297"></script>
+<script src="/saas-brand-theme.js?v=3.4.298"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.297"></script>
-<script src="/parser-ofx.js?v=3.4.297"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.297"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.297"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.297"></script>
-<script src="/parser-safra-extrato.js?v=3.4.297"></script>
-<script src="/parser-brb-extrato.js?v=3.4.297"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.297"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.297"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.297"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.297"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.297"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.297"></script>
-<script src="/parser-btg-pactual.js?v=3.4.297"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.297"></script>
-<script src="/parser-abc-extrato.js?v=3.4.297"></script>
-<script src="/parser-inter-extrato.js?v=3.4.297"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.297"></script>
-<script src="/parser-stone-extrato.js?v=3.4.297"></script>
-<script src="/parser-mercado-pago-extrato.js?v=3.4.297"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.297"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.297"></script>
+<script src="/api-adapter.js?v=3.4.298"></script>
+<script src="/parser-ofx.js?v=3.4.298"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.298"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.298"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.298"></script>
+<script src="/parser-safra-extrato.js?v=3.4.298"></script>
+<script src="/parser-brb-extrato.js?v=3.4.298"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.298"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.298"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.298"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.298"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.298"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.298"></script>
+<script src="/parser-btg-pactual.js?v=3.4.298"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.298"></script>
+<script src="/parser-abc-extrato.js?v=3.4.298"></script>
+<script src="/parser-inter-extrato.js?v=3.4.298"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.298"></script>
+<script src="/parser-stone-extrato.js?v=3.4.298"></script>
+<script src="/parser-mercado-pago-extrato.js?v=3.4.298"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.298"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.298"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -407,7 +407,7 @@
           </div>
         </div>
         <div class="layout-intake-actions">
-          <button class="btn" type="button" onclick="analisarNovoLayoutBancario()">Analisar arquivo</button>
+          <button class="btn" type="button" id="analyzeLayoutBtn" onclick="analisarNovoLayoutBancario()">Analisar arquivo</button>
           <button class="btn" type="button" id="saveLayoutDraftBtn" style="background:#059669" onclick="salvarRascunhoLayoutBancario()" disabled>Enviar para parametrização</button>
           <span class="layout-intake-note">Parametrização: a amostra é armazenada em área privada por até 30 dias, acessível somente ao Admin. Nenhum layout é aprovado automaticamente.</span>
         </div>
@@ -996,6 +996,12 @@ async function analisarNovoLayoutBancario() {
     setNovoLayoutResult('error', 'O arquivo-modelo deve ter no máximo 25 MB.');
     return;
   }
+  const analyzeBtn = document.getElementById('analyzeLayoutBtn');
+  if (analyzeBtn.disabled) return;
+  analyzeBtn.disabled = true;
+  document.getElementById('saveLayoutDraftBtn').disabled = true;
+  novoLayoutAnaliseAtual = null;
+  novoLayoutArquivoAtual = null;
   document.getElementById('newLayoutBanco').value = banco;
   setNovoLayoutResult('ok', 'Analisando estrutura, impressão digital e parsers disponíveis…');
   try {
@@ -1019,7 +1025,7 @@ async function analisarNovoLayoutBancario() {
         const entrada = /\.(csv|txt)$/i.test(file.name)
           ? await qualityPayloadArquivo(file)
           : buffer.slice(0);
-        const resultado = await fn(entrada);
+        const resultado = await fn(entrada, { onProgress: mensagem => setNovoLayoutResult('ok', escapeHtml(mensagem)) });
         if (resultado && resultado.detectado && Array.isArray(resultado.lancamentos) && resultado.lancamentos.length) {
           reconhecido = {
             parser: layout.parser,
@@ -1033,6 +1039,7 @@ async function analisarNovoLayoutBancario() {
           break;
         }
       } catch (erroParser) {
+        if (erroParser.code === 'ITAU_OCR_TIMEOUT') throw erroParser;
         console.warn('[novo layout] parser rejeitou o modelo:', layout.parser, erroParser);
       }
     }
@@ -1072,6 +1079,8 @@ async function analisarNovoLayoutBancario() {
     novoLayoutArquivoAtual = null;
     document.getElementById('saveLayoutDraftBtn').disabled = true;
     setNovoLayoutResult('error', 'Não foi possível analisar o arquivo: ' + escapeHtml(e.message || e));
+  } finally {
+    analyzeBtn.disabled = false;
   }
 }
 

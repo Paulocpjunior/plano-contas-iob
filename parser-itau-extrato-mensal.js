@@ -541,7 +541,32 @@
     return false;
   }
 
-  async function linhasItauComOCR(pdf, escala) {
+  async function reconhecerPaginaItau(canvas, onProgress) {
+    let worker, timer, encerrado = false;
+    const trabalho = (async function() {
+      worker = await Tesseract.createWorker('por', 1, { logger: function(m) {
+        if (!encerrado && onProgress && m.status === 'recognizing text') onProgress(Math.round(m.progress * 100));
+      } });
+      if (encerrado) { await worker.terminate(); return; }
+      await worker.setParameters({ tessedit_pageseg_mode: '6' });
+      return worker.recognize(canvas);
+    })();
+    try {
+      return await Promise.race([trabalho, new Promise(function(_, reject) {
+        timer = setTimeout(function() {
+          const erro = new Error('A leitura OCR do Itaú excedeu 90 segundos nesta página. Tente novamente; nenhum lançamento foi importado.');
+          erro.code = 'ITAU_OCR_TIMEOUT';
+          reject(erro);
+        }, 90000);
+      })]);
+    } finally {
+      encerrado = true;
+      clearTimeout(timer);
+      if (worker) worker.terminate().catch(function() {});
+    }
+  }
+
+  async function linhasItauComOCR(pdf, escala, opcoes) {
     if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js nao carregado para OCR Itau');
     if (typeof document === 'undefined') throw new Error('OCR Itau indisponivel fora do navegador');
     const canvas = document.createElement('canvas');
@@ -550,15 +575,15 @@
     let textoCompleto = '';
     for (let p = 1; p <= pdf.numPages; p++) {
       if (typeof showToast === 'function') showToast('OCR Itau pagina ' + p + '/' + pdf.numPages + '...', 'success');
+      if (opcoes && opcoes.onProgress) opcoes.onProgress('Lendo Itaú: página ' + p + '/' + pdf.numPages + ' (OCR)...');
       const page = await pdf.getPage(p);
       const viewport = page.getViewport({ scale: Number(escala || 2.8) });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-      const result = await Tesseract.recognize(canvas, 'por', {
-        tessedit_pageseg_mode: '6',
-        logger: m => console.log('[itau-ocr]', m.status, m.progress)
+      const result = await reconhecerPaginaItau(canvas, function(percentual) {
+        if (opcoes && opcoes.onProgress) opcoes.onProgress('Lendo Itaú: página ' + p + '/' + pdf.numPages + ' — ' + percentual + '%');
       });
       const words = result && result.data && result.data.words ? result.data.words : [];
       words.forEach(function(word) {
@@ -875,6 +900,91 @@
     };
   }
 
+  // Modelo mensal em imagem: as colunas impressas definem a natureza, nunca a descrição.
+  function parseItauMensalImagem(lines, texto) {
+    if (!ehItauExtratoMensalOCRScaneado(texto)) return null;
+    const ref = anoMesDoCabecalho(texto);
+    const conta = texto.match(/Minha\s+conta\s+(\d+-\d)/i);
+    const agencia = texto.match(/Minha\s+ag[eê]ncia\s+(\d+)/i);
+    const lancamentos = [];
+    const resumo = {};
+    let grupo = '', colunas = null, data = '', iniciado = false, finalizado = false;
+    let saldoInicial = null, saldoFinal = null, automaticosOficiais = null;
+    const valores = items => items.flatMap(i => extrairValoresOCRToken(i.s).map(v => ({ x: i.x, valor: Math.abs(v.valor) })));
+    for (const line of lines) {
+      const items = line.items || [];
+      const t = normalizarTextoOCR(line.text);
+      if (!iniciado) {
+        if (/^entradas\s*\(creditos\)/.test(t)) grupo = 'credito';
+        if (/^saidas\s*\(debitos\)/.test(t)) grupo = 'debito';
+        if (/^total\s/.test(t) && grupo) {
+          const v = valores(items.filter(i => i.x > 300));
+          if (v.length === 1) resumo[grupo] = v[0].valor;
+        }
+      }
+      const entrada = items.find(i => /^entradas$/i.test(i.s));
+      const saida = items.find(i => /^sa[ií]das$/i.test(i.s));
+      const desc = items.find(i => /^descri[cç][aã]o$/i.test(i.s));
+      const saldo = items.find(i => /^saldo$/i.test(i.s));
+      if (!finalizado && entrada && saida && desc && saldo) {
+        colunas = { descricao: desc.x - 3, credito: entrada.x - 8, debito: saida.x - 8, saldo: saldo.x - 8 };
+        iniciado = true;
+        continue;
+      }
+      if (!colunas) continue;
+      const descricao = items.filter(i => i.x >= colunas.descricao && i.x < colunas.credito).map(i => i.s).join(' ').trim();
+      const d = normalizarTextoOCR(descricao);
+      if (finalizado) {
+        if (/^na conta corrente/.test(d)) {
+          const v = valores(items.filter(i => i.x >= colunas.credito));
+          if (v.length === 2) automaticosOficiais = { credito: v[0].valor, debito: v[1].valor };
+        }
+        continue;
+      }
+      const saldos = valores(items.filter(i => i.x >= colunas.saldo));
+      if (/^saldo anterior/.test(d)) { saldoInicial = saldos.length === 1 ? saldos[0].valor : null; continue; }
+      if (/^saldo final/.test(d)) { saldoFinal = saldos.length === 1 ? saldos[0].valor : null; finalizado = true; continue; }
+      const curta = dataCurtaLinhaOCR(line);
+      if (curta) data = parseDataCurta(curta, ref);
+      if (!descricao || /^saldo\b/.test(d)) continue;
+      const v = valores(items.filter(i => i.x >= colunas.credito && i.x < colunas.saldo));
+      if (!v.length) continue;
+      if (v.length !== 1 || !data || !data.startsWith(ref.ano + '-' + ref.mes + '-')) {
+        throw new Error('Itau mensal: linha de movimentacao ambigua; confira o PDF completo.');
+      }
+      const valor = v[0].valor * (v[0].x >= colunas.debito ? -1 : 1);
+      if (!valor) continue;
+      const natureza = tipoMovimentoAplicacaoAutomatica(descricao);
+      lancamentos.push({ id: uuid(), data, descricao, documento: '', valor, tipo: valor < 0 ? 'D' : 'C',
+        empresa: '', cnpj: '', contaDebito: '', contaCredito: '', historico: descricao, incomum: false,
+        categoria: natureza === 'APLICACAO_AUTOMATICA' ? 'Aplicação automática' : natureza === 'RESGATE_AUTOMATICO' ? 'Resgate automático' : 'Nao categorizado',
+        naturezaLancamento: natureza, movimentoAplicacaoAutomatica: !!natureza, origem: 'pdf-itau-extrato-mensal-ocr' });
+    }
+    const centavos = n => Math.round(n * 100);
+    const somar = (ls, credito) => ls.filter(l => credito ? l.valor > 0 : l.valor < 0).reduce((a,l) => a + Math.abs(centavos(l.valor)), 0);
+    const economicos = lancamentos.filter(l => !l.movimentoAplicacaoAutomatica);
+    const automaticos = lancamentos.filter(l => l.movimentoAplicacaoAutomatica);
+    if (!conta || !agencia || !finalizado || saldoInicial === null || saldoFinal === null || resumo.credito === undefined || resumo.debito === undefined) {
+      throw new Error('Itau mensal: faltam identificacao, resumo ou saldos para conferir o extrato. Envie o PDF completo.');
+    }
+    if (somar(economicos, true) !== centavos(resumo.credito) || somar(economicos, false) !== centavos(resumo.debito) ||
+        centavos(saldoInicial) + somar(economicos, true) - somar(economicos, false) !== centavos(saldoFinal)) {
+      throw new Error('Itau mensal: entradas, saidas ou saldo divergem do resumo impresso. Importacao bloqueada para evitar leitura parcial.');
+    }
+    if (automaticos.length && (!automaticosOficiais || somar(automaticos, true) !== centavos(automaticosOficiais.credito) || somar(automaticos, false) !== centavos(automaticosOficiais.debito))) {
+      throw new Error('Itau mensal: aplicacoes ou resgates divergem do totalizador impresso.');
+    }
+    return { detectado: true, layout_modelo: 'extrato-mensal', lancamentos, textoCompleto: texto, banco_detectado: 'ITAU',
+      conta_detectada: 'AG-' + agencia[1] + '/CC-' + conta[1], nome_conta_detectado: 'CONTA CORRENTE ITAU',
+      fingerprint: 'itau-mensal-ocr-' + agencia[1] + '-' + conta[1] + '-' + ref.ano + ref.mes,
+      total_credito: somar(lancamentos, true) / 100, total_debito: somar(lancamentos, false) / 100,
+      total_credito_oficial_resumo: resumo.credito, total_debito_oficial_resumo: resumo.debito,
+      totais_oficiais_excluem_aplicacoes_automaticas: automaticos.length > 0,
+      saldo_inicial: saldoInicial, saldo_final: saldoFinal, saldos_conciliados: true, origem_ocr: true,
+      periodo_inicio: ref.ano + '-' + ref.mes + '-01', periodo_fim: new Date(Number(ref.ano), Number(ref.mes), 0).toISOString().slice(0,10),
+      observacao_importacao: 'Resumo e saldo conciliados. Aplicações e resgates automáticos conferidos separadamente com o totalizador impresso.' };
+  }
+
   // Combina somente dias completos efetivamente lidos, sem calcular valores ausentes.
   // Uma unica composicao deve fechar com os saldos originais; ambiguidade bloqueia.
   function conciliarLeiturasOCR(leituras) {
@@ -974,8 +1084,10 @@
         const escalasOCR = [2.8, 4.0];
         for (let tentativa = 0; tentativa < escalasOCR.length; tentativa++) {
           try {
-            const ocr = await linhasItauComOCR(pdf, escalasOCR[tentativa]);
+            const ocr = await linhasItauComOCR(pdf, escalasOCR[tentativa], opcoes);
             leiturasOCR.push(ocr);
+            const mensalOCR = parseItauMensalImagem(ocr.lines, ocr.textoCompleto);
+            if (mensalOCR) return mensalOCR;
             const periodoOCR = parseItauLancamentosPeriodo(ocr.lines, ocr.textoCompleto);
             if (periodoOCR && periodoOCR.detectado && periodoOCR.lancamentos && periodoOCR.lancamentos.length) {
               periodoOCR.origem_ocr = true;
@@ -986,6 +1098,7 @@
               return periodoOCR;
             }
           } catch (eOCR) {
+            if (eOCR.code === 'ITAU_OCR_TIMEOUT') throw eOCR;
             ultimoErroOCR = eOCR;
             console.warn('[itau-ocr] tentativa ' + (tentativa + 1) + ' falhou:', eOCR.message || eOCR);
           }
@@ -1096,14 +1209,16 @@
     };
   }
 
-  async function parsearPDF_Itau_LancamentosPeriodo(arrayBuffer) {
-    return parsearPDF_Itau_ExtratoMensal(arrayBuffer, { somenteLancamentosPeriodoSeparado: true });
+  async function parsearPDF_Itau_LancamentosPeriodo(arrayBuffer, opcoes) {
+    return parsearPDF_Itau_ExtratoMensal(arrayBuffer, Object.assign({}, opcoes, { somenteLancamentosPeriodoSeparado: true }));
   }
 
   const api = {
     parsearPDF_Itau_ExtratoMensal: parsearPDF_Itau_ExtratoMensal,
     parsearPDF_Itau_LancamentosPeriodo: parsearPDF_Itau_LancamentosPeriodo,
     __test__: {
+      reconhecerPaginaItau: reconhecerPaginaItau,
+      parseItauMensalImagem: parseItauMensalImagem,
       possuiMenosImpresso: possuiMenosImpresso,
       conciliarLeiturasOCR: conciliarLeiturasOCR,
       parseValorBR: parseValorBR,
