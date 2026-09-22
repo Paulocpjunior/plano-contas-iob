@@ -1,7 +1,8 @@
 {
-  "version": "3.4.295",
-  "build_date": "2026-09-21T12:23:43Z",
+  "version": "3.4.296",
+  "build_date": "2026-09-22T12:26:57Z",
   "release_notes": [
+    "Fiscal CSV: importar ICMS DIFAL da coluna UF de Destino, respeitando seleção e separação por CFOP.",
     "Itaú BBA: OCR preserva agência, evita transferências duplicadas e confere leituras com saldos impressos.",
     "Bradesco: impedir lançamento fictício por descrição numérica e distinguir divergência de layout não reconhecido.",
     "Caixa: reconhecer extrato com duas datas e sinal de valor em linha separada.",
