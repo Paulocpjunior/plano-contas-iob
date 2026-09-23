@@ -71,5 +71,7 @@
   "/vincular-empresa.js",
   "/vincular-folha-pagamento.js",
   "/auditai/auth-client.js",
-  "/plano-consulta.js"
+  "/plano-consulta.js",
+  "/reinf/reinf-alugueis-planilha.js",
+  "/reinf/alugueis-planilha-modal.js"
 ]
