@@ -310,6 +310,7 @@ app.post('/api/auditai/extrair-pdf-contabil', adminRequired, async (req, res) =>
 // estiverem preenchidos no Gerenciar Usuários do CFI.
 require('./departamento-gate').registrarGateDepartamento(app);
 registrarRotasReinf(app, { db });
+require('./reinf-alugueis-routes')(app, { db, checarAcessoEmpresa });
 registrarRotasMercadoPago(app, { db, adminRequired });
 
 function chaveLayoutQualidade(banco, parser) {

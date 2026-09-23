@@ -1,7 +1,8 @@
 {
-  "version": "3.4.298",
-  "build_date": "2026-09-22T20:04:59Z",
+  "version": "3.4.299",
+  "build_date": "2026-09-23T18:51:55Z",
   "release_notes": [
+    "EFD-Reinf: modal Aluguéis por planilha com conferência por imóvel, proprietários, Carnê-Leão e preparação de R-4010 por fonte pagadora.",
     "Itaú mensal em imagem: leitura por colunas com conferência de resumo, saldos e aplicações automáticas; progresso e limite de tempo no OCR.",
     "Itaú OCR: preservar sinais negativos impressos e exigir conferência pelo último saldo datado do período.",
     "Fiscal CSV: importar ICMS DIFAL da coluna UF de Destino, respeitando seleção e separação por CFOP.",
