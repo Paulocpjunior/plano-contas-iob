@@ -1,6 +1,7 @@
 const express = require('express');
 const { validarProprietarios, digits } = require('./reinf/reinf-alugueis-planilha');
 module.exports = function registrarAlugueis(app, { db, checarAcessoEmpresa }) {
+  const consultarTabela = require('./reinf-tabela-ir').criarServico({db});
   const router = express.Router();
   router.use('/:cnpj', async (req,res,next) => {
     try {
@@ -15,6 +16,10 @@ module.exports = function registrarAlugueis(app, { db, checarAcessoEmpresa }) {
   router.get('/:cnpj', async(req,res)=>{
     try {const s=await req.alugueisRef.get();res.json({ok:true,perfil:s.data().reinfAlugueisPlanilha||null});}
     catch(e){res.status(500).json({erro:'Não foi possível carregar o perfil.'});}
+  });
+  router.get('/:cnpj/tabela-ir/:competencia', async(req,res)=>{
+    try {res.json({ok:true,tabela:await consultarTabela(req.params.competencia)});}
+    catch(e){res.status(503).json({erro:e.message});}
   });
   router.put('/:cnpj', async(req,res)=>{
     if(req.user?.is_admin!==true) return res.status(403).json({erro:'Somente administrador pode parametrizar os proprietários.'});
