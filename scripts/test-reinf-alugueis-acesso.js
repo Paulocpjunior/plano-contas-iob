@@ -10,6 +10,8 @@ const registrar=require('../reinf-alugueis-routes');
  const base='http://127.0.0.1:'+srv.address().port+'/api/reinf/alugueis-planilha/';
  try{
   assert.equal((await fetch(base+'29834479000143')).status,403);
+  assert.equal((await fetch(base+'29834479000143/tabela-ir/2026-08')).status,403);
+  assert.equal((await fetch(base+'07363181000160/tabela-ir/invalida')).status,503);
   const body=JSON.stringify({proprietarios:[{nome:'Proprietário',percentual:100,cpf:'52998224725'}]});
   assert.equal((await fetch(base+'07363181000160',{method:'PUT',headers:{'Content-Type':'application/json'},body})).status,403);
   assert.equal(writes,0);
