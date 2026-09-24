@@ -693,8 +693,20 @@ function mapaIndAquisInformados(valor) {
 // `mapaNaturezasInformadas` mora no dono (`reinf/retencao-pj-apuracao.js`) desde
 // 11/09: a natureza passou a ser POR NOTA, e a régua da chave é a mesma do ajuste.
 
-function registrarRotasReinf(app, { db } = {}) {
+function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmailMicrosoft365 } = {}) {
   const router = express.Router();
+  router.use('/dividendos', async(req,res,next)=>{
+    if(req.path==='/microsoft365/status')return next();
+    try{
+      const cnpj=limparCnpj(req.path.startsWith('/empresa/')?req.path.split('/')[2]:(req.body?.cnpj||req.body?.cnpjFonte||req.body?.cnpjEmpresa||req.body?.cnpjs?.[0]));
+      if(cnpj.length!==14)return res.status(400).json({ok:false,erro:'Selecione explicitamente a empresa dos dividendos.'});
+      const snap=await db.collection('empresas').doc(cnpj).get();
+      if(!snap.exists)return res.status(404).json({ok:false,erro:'Empresa não encontrada.'});
+      if(!require('./empresa-plano-vinculo').usuarioPodeAcessarEmpresa(snap.data(),req.user))return res.status(403).json({ok:false,erro:'Sem acesso à empresa dos dividendos.'});
+      if(req.body?.cnpjFonte&&limparCnpj(req.body.cnpjFonte)!==cnpj)return res.status(400).json({ok:false,erro:'CNPJ da fonte diverge da empresa dos dividendos.'});
+      next();
+    }catch(e){res.status(400).json({ok:false,erro:'Não foi possível validar a empresa dos dividendos.'});}
+  });
 
   router.get('/versao', (req, res) => {
     res.json({
@@ -958,7 +970,7 @@ function registrarRotasReinf(app, { db } = {}) {
       const resultado = calcularDividendos({
         ...body,
         cnpj,
-        socios: Array.isArray(body.socios) && body.socios.length ? body.socios : cadastro.socios,
+        socios: Array.isArray(body.socios) ? body.socios : cadastro.socios,
         ataValorTotal: body.ataValorTotal != null ? body.ataValorTotal : reinfFromCents(cadastro.ataValorTotalCentavos),
         ataSaldoAnterior: body.ataSaldoAnterior != null ? body.ataSaldoAnterior : (body.ataSaldo != null ? body.ataSaldo : reinfFromCents(cadastro.ataSaldoCentavos)),
         ataAprovadaAte2025: body.ataAprovadaAte2025 != null ? body.ataAprovadaAte2025 : cadastro.ataAprovadaAte2025,
@@ -1012,45 +1024,27 @@ function registrarRotasReinf(app, { db } = {}) {
       if (!db) throw new Error('Banco de dados indisponível para disparo de solicitações.');
       const body = req.body || {};
       const competenciaReferencia = String(body.competenciaReferencia || '').trim();
-      const cnpjs = Array.isArray(body.cnpjs) ? body.cnpjs.map(limparCnpj).filter((c) => c.length === 14) : [];
-      const empresas = [];
-      if (cnpjs.length) {
-        for (const cnpj of cnpjs) {
-          const snap = await db.collection('empresas').doc(cnpj).get();
-          if (snap.exists) empresas.push({ cnpj, ...snap.data() });
-        }
-      } else {
-        const snap = await db.collection('empresas').get();
-        snap.forEach((doc) => empresas.push({ cnpj: doc.id, ...doc.data() }));
-      }
-
-      const enviados = [];
-      const ignorados = [];
-      for (const empresa of empresas) {
-        const div = empresa.reinfDividendos || {};
-        const email = String(div.emailSolicitacaoReinf || empresa.email_reinf || empresa.email || '').trim();
-        if (!reinfEmailValido(email)) {
-          ignorados.push({ cnpj: empresa.cnpj, motivo: 'sem e-mail Reinf válido' });
-          continue;
-        }
-        const modelo = emailSolicitacaoDividendos({ empresa, competenciaReferencia });
-        const envio = await reinfEnviarEmailMicrosoft365({
-          to: email,
-          subject: modelo.assunto,
-          html: modelo.html,
-          text: modelo.texto,
-        });
-        enviados.push({ cnpj: empresa.cnpj, email, sender: envio.sender });
-        await db.collection('empresas').doc(limparCnpj(empresa.cnpj)).collection('reinf_emails').add({
-          tipo: 'solicitacao_dividendos',
-          competenciaReferencia,
-          email,
-          assunto: modelo.assunto,
-          enviado_em: new Date(),
-          enviado_por_uid: req.user && req.user.uid || null,
-          enviado_por_email: req.user && req.user.email || null,
-        });
-      }
+      const cnpjs = Array.isArray(body.cnpjs) ? body.cnpjs.map(limparCnpj) : [];
+      if(cnpjs.length!==1||cnpjs[0].length!==14)throw new Error('Selecione uma única empresa para esta solicitação. Envio em massa não é permitido neste botão.');
+      if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(competenciaReferencia))throw new Error('Competência da solicitação inválida.');
+      const cnpj=cnpjs[0];
+      const snap=await db.collection('empresas').doc(cnpj).get();
+      if(!snap.exists)throw new Error('Empresa não encontrada.');
+      const empresa={...snap.data(),cnpj};
+      const div=empresa.reinfDividendos||{};
+      const email=String(body.emailDestino!==undefined?body.emailDestino:(div.emailSolicitacaoReinf||empresa.email_reinf||empresa.email||'')).trim();
+      if(!reinfEmailValido(email))throw new Error('Informe um e-mail válido para esta solicitação.');
+      const modelo=emailSolicitacaoDividendos({empresa,competenciaReferencia});
+      const previa={cnpj,empresa:empresa.razao_social||empresa.empresa||empresa.nome||cnpj,email,competencia:competenciaReferencia,...modelo};
+      const confirmacao=require('node:crypto').createHash('sha256').update(JSON.stringify(previa)).digest('hex');
+      if(body.previsualizar===true)return res.json({ok:true,previa:{...previa,confirmacao}});
+      if(body.confirmacao!==confirmacao)return res.status(409).json({ok:false,erro:'Confira a prévia da empresa, destinatário e competência antes do envio.'});
+      const envio=await enviarEmailDividendos({to:email,subject:modelo.assunto,html:modelo.html,text:modelo.texto});
+      const enviados=[{cnpj,email,sender:envio.sender}],ignorados=[];
+      await db.collection('empresas').doc(cnpj).collection('reinf_emails').add({
+        tipo:'solicitacao_dividendos',competenciaReferencia,email,assunto:modelo.assunto,
+        enviado_em:new Date(),enviado_por_uid:req.user?.uid||null,enviado_por_email:req.user?.email||null,
+      });
       await registrarLog(db, req, 'dividendos_solicitar_email', {
         competenciaReferencia,
         enviados: enviados.length,
