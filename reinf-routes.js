@@ -25,6 +25,9 @@ const { ajustarRetencaoNoCfi } = require('./reinf/cfi-notas-client');
 const { buscarNotasTomadasNoCfi, buscarAquisicoesRuraisNoCfi, buscarServicosTomadosNoCfi, buscarServicosPrestadosNoCfi, buscarResponsavelNoCfi, buscarCertificadoNoCfi } = require('./reinf/cfi-notas-client');
 const { resumirResponsavel, avisosDoResponsavel } = require('./reinf/responsavel-escritorio');
 const { conferirCertificado } = require('./reinf/certificado-conferencia');
+const GraphEmail = require('./graph-email-provider');
+const GraphRemetente = require('./graph-remetente');
+const EmailLayout = require('./email-layout');
 const { apurarAquisicaoRural } = require('./reinf/aquisicao-rural-apuracao');
 const { apurarServicosTomados, patchCadastroPrestador } = require('./reinf/servicos-tomados-apuracao');
 const { gerarEventosR2055 } = require('./reinf/gerar-r2055');
@@ -468,67 +471,42 @@ function reinfAplicacoesResumo(itens) {
   };
 }
 
+// O que a tela de dividendos pergunta: está configurado, e qual é a caixa
+// institucional de fallback. Quem envia decide o remetente real (abaixo).
 function reinfMicrosoft365Config() {
-  const cfg = {
-    tenantId: process.env.MS365_TENANT_ID || process.env.MICROSOFT_365_TENANT_ID || process.env.GRAPH_TENANT_ID || '',
-    clientId: process.env.MS365_CLIENT_ID || process.env.MICROSOFT_365_CLIENT_ID || process.env.GRAPH_CLIENT_ID || '',
-    clientSecret: process.env.MS365_CLIENT_SECRET || process.env.MICROSOFT_365_CLIENT_SECRET || process.env.GRAPH_CLIENT_SECRET || '',
-    sender: process.env.MS365_SENDER_EMAIL || process.env.MICROSOFT_365_SENDER_EMAIL || process.env.GRAPH_REMETENTE || process.env.NOTIF_REMETENTE_EMAIL || '',
-  };
-  return { ...cfg, configured: !!(cfg.tenantId && cfg.clientId && cfg.clientSecret && cfg.sender) };
+  const sender = GraphRemetente.remetentePadrao();
+  return { sender, configured: GraphEmail.configurado() && Boolean(sender) };
 }
 
-async function reinfObterTokenMicrosoft365() {
-  const cfg = reinfMicrosoft365Config();
-  if (!cfg.configured) {
+// E-mail ao cliente pelo Microsoft 365: casca da casa (email-layout.js) e
+// remetente = o colaborador logado (graph-remetente.js), como no CFI e no
+// resto deste app (Paulo, 24/09). Cai na institucional só se a caixa do
+// colaborador não existir — e o retorno DIZ (fonteRemetente/motivoRemetente).
+async function reinfEnviarEmailMicrosoft365({ to, subject, html, text, de, empresa, competencia }) {
+  if (!reinfEmailValido(to)) throw new Error(`E-mail inválido para envio Microsoft 365: ${to || '(vazio)'}`);
+  if (!GraphEmail.configurado()) {
     const err = new Error('Microsoft 365 não configurado. Use as mesmas variáveis do Consultor Fiscal: GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET e GRAPH_REMETENTE/NOTIF_REMETENTE_EMAIL.');
     err.statusCode = 503;
     throw err;
   }
-  const params = new URLSearchParams();
-  params.set('client_id', cfg.clientId);
-  params.set('client_secret', cfg.clientSecret);
-  params.set('scope', 'https://graph.microsoft.com/.default');
-  params.set('grant_type', 'client_credentials');
-  const resp = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(cfg.tenantId)}/oauth2/v2.0/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString(),
+  const corpo = EmailLayout.montarEmailSolicitacao({
+    titulo: subject,
+    empresaNome: empresa,
+    competencia,
+    conteudoHtml: html || EmailLayout.textoParaHtml(text),
+    enviadoPor: de,
   });
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok || !data.access_token) {
-    const err = new Error(data.error_description || data.error || 'Falha ao autenticar no Microsoft 365 Graph.');
+  const envio = await GraphRemetente.enviarComoColaborador({
+    enviar: GraphEmail.enviarEmail,
+    emailColaborador: de,
+    mensagem: { para: to, assunto: subject, html: corpo, anexos: EmailLayout.anexoLogo() },
+  });
+  if (!envio.ok) {
+    const err = new Error(`Microsoft 365 recusou o envio para ${to}: ${envio.error}`);
     err.statusCode = 502;
     throw err;
   }
-  return { token: data.access_token, sender: cfg.sender };
-}
-
-async function reinfEnviarEmailMicrosoft365({ to, subject, html, text }) {
-  if (!reinfEmailValido(to)) throw new Error(`E-mail inválido para envio Microsoft 365: ${to || '(vazio)'}`);
-  const { token, sender } = await reinfObterTokenMicrosoft365();
-  const resp = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(sender)}/sendMail`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      message: {
-        subject,
-        body: { contentType: 'HTML', content: html || String(text || '').replace(/\n/g, '<br>') },
-        toRecipients: [{ emailAddress: { address: to } }],
-      },
-      saveToSentItems: true,
-    }),
-  });
-  if (!resp.ok) {
-    const detalhe = await resp.text().catch(() => '');
-    const err = new Error(`Microsoft 365 recusou o envio para ${to}: HTTP ${resp.status}${detalhe ? ' - ' + detalhe.slice(0, 400) : ''}`);
-    err.statusCode = 502;
-    throw err;
-  }
-  return { ok: true, to, sender };
+  return { ok: true, to, sender: envio.remetente, fonteRemetente: envio.fonteRemetente, motivoRemetente: envio.motivoRemetente };
 }
 
 function reinfSaldoDocId({ cnpjFonte, cnpjEstab, natRend, cpf }) {
@@ -871,8 +849,8 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
           competencia,
           prazo: body.prazo,
         });
-        const envio = await reinfEnviarEmailMicrosoft365({ to: email, subject: modelo.assunto, html: modelo.html, text: modelo.texto });
-        enviados.push({ cnpj, email, sender: envio.sender });
+        const envio = await reinfEnviarEmailMicrosoft365({ to: email, subject: modelo.assunto, html: modelo.html, text: modelo.texto, de: req.user && req.user.email, empresa: empresa.razao_social || empresa.empresa || empresa.nome || cnpj, competencia });
+        enviados.push({ cnpj, email, sender: envio.sender, fonteRemetente: envio.fonteRemetente });
         await db.collection('empresas').doc(cnpj).collection('reinf_emails').add({
           tipo: 'solicitacao_extratos_aplicacoes',
           competencia,
@@ -1039,8 +1017,8 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
       const confirmacao=require('node:crypto').createHash('sha256').update(JSON.stringify(previa)).digest('hex');
       if(body.previsualizar===true)return res.json({ok:true,previa:{...previa,confirmacao}});
       if(body.confirmacao!==confirmacao)return res.status(409).json({ok:false,erro:'Confira a prévia da empresa, destinatário e competência antes do envio.'});
-      const envio=await enviarEmailDividendos({to:email,subject:modelo.assunto,html:modelo.html,text:modelo.texto});
-      const enviados=[{cnpj,email,sender:envio.sender}],ignorados=[];
+      const envio=await enviarEmailDividendos({to:email,subject:modelo.assunto,html:modelo.html,text:modelo.texto,de:req.user?.email,empresa:previa.empresa,competencia:competenciaReferencia});
+      const enviados=[{cnpj,email,sender:envio.sender,fonteRemetente:envio.fonteRemetente}],ignorados=[];
       await db.collection('empresas').doc(cnpj).collection('reinf_emails').add({
         tipo:'solicitacao_dividendos',competenciaReferencia,email,assunto:modelo.assunto,
         enviado_em:new Date(),enviado_por_uid:req.user?.uid||null,enviado_por_email:req.user?.email||null,

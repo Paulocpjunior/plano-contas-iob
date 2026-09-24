@@ -1,25 +1,7 @@
 {
-  "version": "3.4.302",
-  "build_date": "2026-09-24T17:32:34.868Z",
+  "version": "3.4.303",
+  "build_date": "2026-09-24T19:19:20Z",
   "release_notes": [
-    "Aluguéis por planilha: reconhecer o modelo das igrejas, separar fontes e proprietários PF/PJ e conferir datas, bases e divergências sem substituir o IRRF informado.",
-    "Dividendos: informar pagamentos por sócio sem alterar a participação societária; excluir pagamentos zero do R-4010.",
-    "E-mail de dividendos restrito à empresa ativa, com prévia do destinatário e bloqueio de envio geral implícito.",
-    "Aluguéis: conferência de fórmulas, arredondamentos e datas de repasse nas prestações de contas.",
-    "Conferência mensal de IR com consulta automática à tabela oficial da Receita, vigência e versão identificadas.",
-    "EFD-Reinf: modal Aluguéis por planilha com conferência por imóvel, proprietários, Carnê-Leão e preparação de R-4010 por fonte pagadora.",
-    "Itaú mensal em imagem: leitura por colunas com conferência de resumo, saldos e aplicações automáticas; progresso e limite de tempo no OCR.",
-    "Itaú OCR: preservar sinais negativos impressos e exigir conferência pelo último saldo datado do período.",
-    "Fiscal CSV: importar ICMS DIFAL da coluna UF de Destino, respeitando seleção e separação por CFOP.",
-    "Itaú BBA: OCR preserva agência, evita transferências duplicadas e confere leituras com saldos impressos.",
-    "Bradesco: impedir lançamento fictício por descrição numérica e distinguir divergência de layout não reconhecido.",
-    "Caixa: reconhecer extrato com duas datas e sinal de valor em linha separada.",
-    "BTG: reconhecer Conta Investimento e conferir totais e saldos do extrato.",
-    "Caixa: reconhecer extrato multilinha com Data Efetiva e conferir saldos por movimento.",
-    "C6: preservar descrição integral e reconhecer devolução de saldo credor como movimentação.",
-    "ISS retido: incluir razão social da contraparte na descrição da importação CFI.",
-    "C6: preservar pagamentos iguais em ocorrências distintas e conferir janeiro e maio.",
-    "Reconhecer entradas e conferir totais do extrato consolidado C6",
-    "Plano de contas: preservar descrições iniciadas por número, como 13º salário; consulta completa com busca e inclusão por administradores."
+    "Melhorias internas e correcoes"
   ]
 }

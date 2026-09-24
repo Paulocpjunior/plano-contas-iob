@@ -34,6 +34,9 @@ const ConciliacaoContabil = require('./conciliacao-contabil');
 const ConciliacaoDetalhada = require('./conciliacao-detalhada');
 const HomologacaoPiloto = require('./homologacao-piloto');
 const GraphEmail = require('./graph-email-provider');
+const EmailLayout = require('./email-layout');
+const GraphRemetente = require('./graph-remetente');
+const { registrarRotasCredencialEmail } = require('./graph-credencial-routes');
 const { ACOES_ADMIN_CCI, textoBaseAjuda, parecePerguntaAdministrativa, buscarOrientacaoAjuda } = require('./ajuda-cci-base');
 const { conteudo: MANUAL_CCI } = require('./manual-cci-base');
 const { extractAccountingPdf } = require('./auditai/pdf-contabil-extractor');
@@ -309,6 +312,8 @@ app.post('/api/auditai/extrair-pdf-contabil', adminRequired, async (req, res) =>
 // bloqueio pela env DEPARTAMENTO_GATE_MODO=bloqueio quando os vínculos
 // estiverem preenchidos no Gerenciar Usuários do CFI.
 require('./departamento-gate').registrarGateDepartamento(app);
+// 🛡️ Mata-burro da credencial do e-mail (24/09): vigia + teste + e-mail de prova.
+registrarRotasCredencialEmail(app, { db, provider: GraphEmail, layout: EmailLayout, remetente: GraphRemetente });
 registrarRotasReinf(app, { db });
 require('./reinf-alugueis-routes')(app, { db, checarAcessoEmpresa });
 registrarRotasMercadoPago(app, { db, adminRequired });
@@ -4480,38 +4485,27 @@ app.post('/api/empresas/:cnpj/contabilidade/relatorios/enviar-email', async (req
     const nomeEmpresa = String(chk.empresa.razao_social || chk.empresa.empresa || chk.empresa.nome || 'Empresa').trim();
     const assunto = String(entrada.assunto || `${tiposPermitidos[tipo]} — ${nomeEmpresa} — ${periodo}`).trim().slice(0, 180);
     const mensagem = String(entrada.mensagem || 'Segue, em anexo, o relatório contábil solicitado.').trim().slice(0, 3000);
-    const escapar = (valor) => String(valor || '').replace(/[&<>"']/g, (caractere) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[caractere]);
-    const html = `
-      <div style="margin:0;padding:24px;background:#f3f6fb;font-family:Arial,sans-serif;color:#14213d">
-        <div style="max-width:680px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #dbe4f0">
-          <div style="padding:24px 28px;background:linear-gradient(135deg,#07152f,#2454d7);color:#fff">
-            <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#bcd3ff">Departamento Contábil</div>
-            <h1 style="margin:8px 0 0;font-size:24px">${escapar(tiposPermitidos[tipo])}</h1>
-          </div>
-          <div style="padding:28px">
-            <p style="margin:0 0 16px;line-height:1.6">${escapar(mensagem).replace(/\n/g, '<br>')}</p>
-            <table style="width:100%;border-collapse:collapse;background:#f7f9fc;border-radius:8px">
-              <tr><td style="padding:10px 12px;color:#667085">Empresa</td><td style="padding:10px 12px;font-weight:700">${escapar(nomeEmpresa)}</td></tr>
-              <tr><td style="padding:10px 12px;color:#667085">CNPJ</td><td style="padding:10px 12px;font-weight:700">${escapar(cnpjLimpo)}</td></tr>
-              <tr><td style="padding:10px 12px;color:#667085">Competência</td><td style="padding:10px 12px;font-weight:700">${escapar(periodo)}</td></tr>
-            </table>
-            <p style="margin:20px 0 0;color:#667085;font-size:13px">O relatório contábil está anexado em formato PDF.</p>
-          </div>
-          <div style="padding:16px 28px;background:#07152f;color:#bcd3ff;font-size:12px;text-align:center">Desenvolvido by SP Assessoria Contábil. Todos os direitos reservados.</div>
-        </div>
-      </div>`;
-
-    const remetente = process.env.GRAPH_REMETENTE || process.env.NOTIF_REMETENTE_EMAIL;
-    if (!GraphEmail.configurado() || !remetente) return res.status(503).json({ erro: 'Envio de e-mail temporariamente indisponível.' });
-    const nomeArquivo = String(entrada.nome_arquivo || `CCI_${tipo}_${periodo}_${cnpjLimpo}.pdf`).replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 150);
-    const envio = await GraphEmail.enviarEmail({
-      remetente,
-      para: destinatario,
-      assunto,
-      html,
-      anexos: [{ name: nomeArquivo, contentType: 'application/pdf', contentBytes: base64Limpo }]
+    // Casca da casa (email-layout.js) e remetente = o colaborador logado
+    // (graph-remetente.js): a resposta do cliente volta para quem enviou.
+    // Cai na institucional só se a caixa do colaborador não existir — e a
+    // resposta DIZ. (Paulo, 24/09.)
+    const html = EmailLayout.montarEmailRelatorio({
+      tipo: tiposPermitidos[tipo], empresaNome: nomeEmpresa, cnpj: cnpjLimpo, competencia: periodo,
+      mensagem, temPdf: true, enviadoPor: req.user.email,
     });
-    if (!envio.ok) return res.status(502).json({ erro: envio.error || 'Não foi possível enviar o e-mail.' });
+    if (!GraphEmail.configurado() || (!GraphRemetente.remetentePadrao() && !req.user.email)) return res.status(503).json({ erro: 'Envio de e-mail temporariamente indisponível.' });
+    const nomeArquivo = String(entrada.nome_arquivo || `CCI_${tipo}_${periodo}_${cnpjLimpo}.pdf`).replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 150);
+    const envio = await GraphRemetente.enviarComoColaborador({
+      enviar: GraphEmail.enviarEmail,
+      emailColaborador: req.user.email,
+      mensagem: {
+        para: destinatario,
+        assunto,
+        html,
+        anexos: [{ name: nomeArquivo, contentType: 'application/pdf', contentBytes: base64Limpo }, ...EmailLayout.anexoLogo()]
+      }
+    });
+    if (!envio.ok) return res.status(502).json({ erro: envio.error || 'Não foi possível enviar o e-mail.', remetente: envio.remetente, fonteRemetente: envio.fonteRemetente });
 
     try {
       await db.collection('empresas').doc(cnpjLimpo).collection('relatorios_contabeis_envios').add({
@@ -4525,12 +4519,15 @@ app.post('/api/empresas/:cnpj/contabilidade/relatorios/enviar-email', async (req
         tamanho_bytes: pdfBuffer.length,
         enviado_em: new Date(),
         enviado_por_uid: req.user.uid,
-        enviado_por_email: req.user.email
+        enviado_por_email: req.user.email,
+        remetente: envio.remetente,
+        fonte_remetente: envio.fonteRemetente,
+        motivo_remetente: envio.motivoRemetente || null
       });
     } catch (erroAuditoria) {
       console.error('auditoria do envio de relatorio contabil falhou:', erroAuditoria);
     }
-    res.json({ ok: true, destinatario, tipo, periodo });
+    res.json({ ok: true, destinatario, tipo, periodo, remetente: envio.remetente, fonteRemetente: envio.fonteRemetente, motivoRemetente: envio.motivoRemetente || null, refeitoPelaInstitucional: envio.refeitoPelaInstitucional });
   } catch (e) {
     console.error('enviar relatorio contabil por email erro:', e);
     res.status(500).json({ erro: e.message || 'Falha ao enviar relatório por e-mail.' });
@@ -4994,7 +4991,7 @@ app.put('/api/admin/progressao-contabil/:cnpj/:competencia/acompanhamento', admi
   }
 });
 
-async function processarAlertasProgressao(competencia, cnpjAlvo) {
+async function processarAlertasProgressao(competencia, cnpjAlvo, emailColaborador = '') {
   if (!RelatoriosContabeis.periodoValido(competencia)) {
     const erro = new Error('Competência inválida. Use AAAA-MM.');
     erro.status = 400;
@@ -5014,7 +5011,17 @@ async function processarAlertasProgressao(competencia, cnpjAlvo) {
       const envio = await ProgressaoAlertas.enviar(avaliacao, {
         remetente,
         teamsWebhookUrl,
-        enviarEmail: GraphEmail.enviarEmail
+        // Casca da casa + remetente = quem disparou (admin logado); o agendador
+        // interno não tem sessão e sai pela institucional.
+        enviarEmail: (msg) => GraphRemetente.enviarComoColaborador({
+          enviar: GraphEmail.enviarEmail,
+          emailColaborador,
+          mensagem: {
+            ...msg,
+            html: EmailLayout.montarEmailInterno({ titulo: msg.assunto, corpoHtml: String(msg.html || '').replace(/^<h2>[\s\S]*?<\/h2>/, ''), farol: 'atencao' }),
+            anexos: EmailLayout.anexoLogo()
+          }
+        })
       });
       const sucessos = envio.resultados.filter(function (item) { return item.ok; }).length;
       const registro = {
@@ -5058,7 +5065,7 @@ app.post('/api/admin/progressao-contabil/processar-alertas', adminRequired, asyn
     const competencia = String(req.body && req.body.competencia || '').trim();
     const cnpj = String(req.body && req.body.cnpj || '').replace(/\D/g, '');
     if (cnpj && cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ inválido.' });
-    const resultado = await processarAlertasProgressao(competencia, cnpj || '');
+    const resultado = await processarAlertasProgressao(competencia, cnpj || '', req.user && req.user.email || '');
     res.json({ ok: true, ...resultado });
   } catch (erro) {
     res.status(erro.status || 500).json({ erro: erro.message, codigo: 'ERRO_ALERTAS_PROGRESSAO' });
@@ -6137,21 +6144,24 @@ async function notificarSugestaoAjudaCci(registro, protocolo) {
   if (!GraphEmail.configurado() || !remetente || !destinatario) {
     return { ok: false, status: 'fila_admin', detalhe: 'E-mail não configurado; sugestão disponível no banco administrativo.' };
   }
-  const html = `<div style="font-family:Arial,sans-serif;color:#14213d;line-height:1.55">
-    <h2>Nova sugestão da Ajuda CCI</h2>
-    <p><strong>Protocolo:</strong> ${escaparHtmlAjudaCci(protocolo)}</p>
-    <p><strong>Pergunta:</strong><br>${escaparHtmlAjudaCci(registro.pergunta)}</p>
-    <p><strong>Usuário:</strong> ${escaparHtmlAjudaCci(registro.usuario_email)}<br>
-    <strong>Empresa:</strong> ${escaparHtmlAjudaCci(registro.cnpj || 'não informada')}<br>
-    <strong>Tela:</strong> ${escaparHtmlAjudaCci(registro.pagina || 'não informada')}<br>
-    <strong>Versão:</strong> ${escaparHtmlAjudaCci(registro.versao || 'não informada')}</p>
-    <p>A dúvida ficou pendente de curadoria. Revise antes de incluir qualquer orientação na base oficial.</p>
-  </div>`;
+  const html = EmailLayout.montarEmailInterno({
+    titulo: 'Nova sugestão da Ajuda CCI',
+    corpoHtml: `<p style="margin:0 0 12px 0;"><strong>Pergunta:</strong><br>${escaparHtmlAjudaCci(registro.pergunta)}</p>`
+      + '<p style="margin:0;">A dúvida ficou pendente de curadoria. Revise antes de incluir qualquer orientação na base oficial.</p>',
+    linhas: [
+      { rotulo: 'Protocolo', valor: protocolo },
+      { rotulo: 'Usuário', valor: registro.usuario_email },
+      { rotulo: 'Empresa', valor: registro.cnpj || 'não informada' },
+      { rotulo: 'Tela', valor: registro.pagina || 'não informada' },
+      { rotulo: 'Versão', valor: registro.versao || 'não informada' },
+    ],
+  });
   const envio = await GraphEmail.enviarEmail({
     remetente,
     para: destinatario,
     assunto: `[CCI] Sugestão de ajuda ${protocolo}`,
-    html
+    html,
+    anexos: EmailLayout.anexoLogo()
   });
   return { ok: envio.ok === true, status: envio.ok ? 'email_enviado' : 'fila_admin', detalhe: envio.error || '' };
 }
