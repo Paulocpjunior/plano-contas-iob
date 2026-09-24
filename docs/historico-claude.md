@@ -344,6 +344,14 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **🖼️ LOGO GIGANTE NO E-MAIL DE PROVA — width="52" não basta** (24/09, print
+  do Paulo: o leitor de e-mail ignorou o atributo e mostrou o PNG de 226×320 no
+  tamanho natural). Régua tripla em `email-layout.js`: atributo `width`+`height`,
+  CSS inline `width:52px;height:74px`, e a PRÓPRIA imagem pequena
+  (`sp-logo-email-2x.png`, 104×147, 2× para retina — arquivo NOVO; o
+  `sp-logo-email.png` antigo ficou sem uso). `test-email-layout.js` lê o IHDR do
+  PNG e confere a proporção. O CFI recebeu a mesma correção no mesmo dia.
+
 - **✉️ E-MAIL PELO COLABORADOR LOGADO, COM A CASCA DO CFI — E O MATA-BURRO DA
   CREDENCIAL** (24/09, Paulo: *"implementar esta configuração dos e-mails no app
   irmão CCI, parametrizando o mesmo layout e ativando sempre que o remetente do

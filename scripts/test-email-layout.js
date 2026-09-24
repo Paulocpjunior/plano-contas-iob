@@ -52,6 +52,26 @@ assert.strictEqual(logo.length, 1, 'o sp-logo-email.png tem de existir no reposi
 assert.strictEqual(logo[0].contentId, L.MARCA.logoCid, 'o cid do anexo é o que o HTML referencia');
 assert.ok(logo[0].contentBytes.length > 1000 && logo[0].contentBytes.length < 60000, 'logo otimizado para e-mail (não o de 100 KB do app)');
 
+// ─── logo em TAMANHO: atributo + CSS + imagem pequena ───────────────────────
+// 24/09, e-mail de prova do Paulo: o cliente de e-mail ignorou o width="52"
+// e mostrou o PNG no tamanho natural (226×320) — um logo gigante. A régua é
+// tripla, porque cada cliente ignora uma das três: atributo width/height,
+// CSS inline, e a PRÓPRIA imagem pequena (2× de 52 px para tela retina).
+const img = /<img [^>]*cid:sp-logo[^>]*>/.exec(comPdf)[0];
+assert.ok(/\swidth="52"/.test(img) && /\sheight="\d+"/.test(img), 'largura E altura por atributo');
+assert.ok(/width:52px/.test(img) && /height:\d+px/.test(img), 'largura E altura por CSS inline');
+{
+  const fs = require('fs');
+  const path = require('path');
+  const png = fs.readFileSync(path.join(__dirname, '..', 'sp-logo-email-2x.png'));
+  const largura = png.readUInt32BE(16);
+  const altura = png.readUInt32BE(20);
+  assert.ok(largura <= 120 && altura <= 160, `o PNG tem de ser pequeno (2× do exibido): veio ${largura}×${altura}`);
+  const proporcao = altura / largura;
+  const exibida = Number(/height="(\d+)"/.exec(img)[1]) / 52;
+  assert.ok(Math.abs(proporcao - exibida) < 0.05, 'a altura declarada respeita a proporção da imagem (não distorce)');
+}
+
 // ─── links de rodapé: só http(s) ────────────────────────────────────────────
 const comLinks = L.montarLayoutEmail({ titulo: 't', conteudoHtml: '', marca: { siteUrl: 'https://sp.com.br', instagramUrl: 'javascript:alert(1)' } });
 assert.ok(comLinks.includes('https://sp.com.br'));
