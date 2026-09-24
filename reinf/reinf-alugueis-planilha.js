@@ -108,6 +108,23 @@
     if(abas.some(a=>['IRPFXPJ','IRPFXPF','IRPJXPJ'].includes(norm(a.nome))))throw Error('Separe os modelos PEC e igrejas em arquivos diferentes para conferir todas as linhas.');
     return {versao:1,modelo:'igrejas',competencia:competencias.size===1?[...competencias][0]:'',proprietarios:[],registros,avisos:['A coluna Apuração não informa a data efetiva do pagamento. Informe a data na conferência. O IRRF informado será preservado.']};
   }
+  const TIPOS_DEDUCAO_ALUGUEL={1:'Previdência oficial',5:'Pensão alimentícia',7:'Dependentes',8:'Desconto simplificado mensal'};
+  function conferirDeducoes(deducoes,rendimentoTrib,baseIrrf) {
+    if(!Array.isArray(deducoes)||deducoes.length>4)throw Error('Informe as deduções por tipo (1, 5, 7 ou 8).');
+    const vistos=new Set();let legais=0,simplificado=0;
+    const lista=deducoes.map(d=>{
+      const tipo=Number(d.indTpDeducao),valor=cents(d.vlrDeducao);
+      if(!TIPOS_DEDUCAO_ALUGUEL[tipo]||vistos.has(tipo))throw Error('Tipo de dedução inválido ou repetido para aluguel.');
+      if(!Number.isSafeInteger(valor)||valor<=0)throw Error('O valor da dedução deve ser maior que zero.');
+      if([5,7].includes(tipo)&&d.semDetalhamento!==true)throw Error('Confirme a ausência de detalhamento de dependentes/alimentandos; este fluxo informa o total.');
+      vistos.add(tipo);if(tipo===8)simplificado=valor;else legais+=valor;
+      return {indTpDeducao:tipo,vlrDeducao:valor/100,...([5,7].includes(tipo)?{semDetalhamento:true}:{})};
+    });
+    if(simplificado&&legais>simplificado)throw Error('As deduções legais superam o desconto simplificado. Revise a opção pelo tipo 8.');
+    const tributavel=cents(rendimentoTrib),base=cents(baseIrrf),aplicada=simplificado||legais;
+    if(tributavel===null||tributavel<0||base===null||base<0||base!==Math.max(0,tributavel-aplicada))throw Error('A base após deduções deve corresponder ao rendimento tributável menos a dedução aplicada.');
+    return {deducoes:lista,rendimentoTrib:tributavel/100,baseIrrf:base/100,deducaoAplicada:aplicada/100};
+  }
   function prepararIgrejas(analise,revisoes,cnpjFonte,competencia) {
     const fonte=digits(cnpjFonte);
     if(!documentoValido(fonte,14))throw Error('Selecione uma fonte pagadora com CNPJ válido.');
@@ -120,9 +137,11 @@
       if(!documentoValido(r.beneficiario,11)||!r.nomeBenef||r.codigo!=='3208'||r.competencia!==competencia)throw Error('Corrija a identificação na linha '+r.linha+'.');
       const data=date(rev.data);
       if(!data||data.slice(0,7)!==competencia)throw Error('Informe a data real do pagamento na competência: linha '+r.linha+'.');
+      const ded=rev.rendimentoTrib!=null||rev.deducoes?.length?conferirDeducoes((rev.deducoes||[]).map(d=>({indTpDeducao:d.indTpDeducao,vlrDeducao:d.valor==null?null:d.valor/100,semDetalhamento:d.semDetalhamento})),rev.rendimentoTrib==null?null:rev.rendimentoTrib/100,rev.base==null?null:rev.base/100):null;
+      if(ded&&cents(ded.rendimentoTrib)>r.aluguel)throw Error('Rendimento tributável maior que o bruto na linha '+r.linha+'.');
       if([r.aluguel,r.irrf,r.liquido,rev.base].some(v=>!Number.isSafeInteger(v)||v<0)||r.aluguel<=0||rev.base>r.aluguel||r.irrf>rev.base)throw Error('Confira bruto, base e IRRF na linha '+r.linha+'.');
       if(r.pendencias.length&&!String(rev.justificativa||'').trim())throw Error('Registre a conferência da divergência na linha '+r.linha+'.');
-      return {cpfBenef:r.beneficiario,nomeBenef:r.nomeBenef,valorBruto:r.aluguel/100,baseIrrf:rev.base/100,valorIrrf:r.irrf/100,cnpjFonte:fonte,cnpjEstab:fonte,competencia,dtPagamento:data,codigoReceita:'3208',origemIrrf:'informado',origemAluguelPlanilha:[fonte,competencia,norm(r.endereco),data,r.beneficiario].join('|'),observacao:'Igrejas: '+r.aba+' linha '+r.linha+'; '+r.endereco+(rev.justificativa?' | '+rev.justificativa:'')};
+      return {...(ded?{deducoes:ded.deducoes,rendimentoTrib:ded.rendimentoTrib}:{}),cpfBenef:r.beneficiario,nomeBenef:r.nomeBenef,valorBruto:r.aluguel/100,baseIrrf:rev.base/100,valorIrrf:r.irrf/100,cnpjFonte:fonte,cnpjEstab:fonte,competencia,dtPagamento:data,codigoReceita:'3208',origemIrrf:'informado',origemAluguelPlanilha:[fonte,competencia,norm(r.endereco),data,r.beneficiario].join('|'),observacao:'Igrejas: '+r.aba+' linha '+r.linha+'; '+r.endereco+(rev.justificativa?' | '+rev.justificativa:'')};
     });
     if(new Set(out.map(b=>b.origemAluguelPlanilha)).size!==out.length)throw Error('Pagamentos repetidos: confira localidade, data e proprietário.');
     return out;
@@ -178,5 +197,5 @@
     if(new Set(out.map(b=>b.origemAluguelPlanilha)).size!==out.length) throw Error('Pagamentos repetidos: confira imóvel, data e proprietário.');
     return out;
   }
-  return {analisar,preparar,ratear,validarProprietarios,documentoValido,cents,date,norm,digits};
+  return {TIPOS_DEDUCAO_ALUGUEL,conferirDeducoes,analisar,preparar,ratear,validarProprietarios,documentoValido,cents,date,norm,digits};
 });

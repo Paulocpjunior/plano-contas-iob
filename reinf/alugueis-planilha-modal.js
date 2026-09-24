@@ -40,10 +40,11 @@
     $('rapFonte').onchange=()=>renderReviews();
     $('rapTabs').onclick=e=>{if(!e.target.dataset.tipo)return;filtro=e.target.dataset.tipo;render();};
     $('rapOwners').addEventListener('change',e=>{const i=e.target.dataset.owner;if(i==null)return;proprietarios[Number(i)].cpf=e.target.value;Object.values(revisoes).forEach(r=>r.conferido=false);renderReviews();});
+    $('rapReviews').addEventListener('click',e=>{const b=e.target.closest('[data-ded-action]');if(!b)return;const rev=revisoes[b.dataset.row];if(!rev)return;rev.deducoes=rev.deducoes||[];if(b.dataset.dedAction==='add')rev.deducoes.push({indTpDeducao:'',valor:null});else rev.deducoes.splice(Number(b.dataset.ded),1);rev.conferido=false;atualizarBase(rev);renderIgrejasReviews();});
     $('rapReviews').addEventListener('change',e=>{
       const id=e.target.dataset.row;if(!id||!revisoes[id])return;const rev=revisoes[id];
       if(e.target.dataset.field==='conferido') rev.conferido=e.target.checked;
-      else if(analise?.modelo==='igrejas'){const field=e.target.dataset.field;rev[field]=field==='base'?U.cents(e.target.value):e.target.value;rev.conferido=false;}
+      else if(analise?.modelo==='igrejas'){alterarIgreja(e.target,rev);return;}
       else if(e.target.dataset.field==='justificativa'){rev.justificativa=e.target.value;rev.conferido=false;}
       else {rev.partes[Number(e.target.dataset.owner)][e.target.dataset.field]=U.cents(e.target.value);rev.conferido=false;}
       if(e.target.dataset.field!=='conferido') {const cb=[...$('rapReviews').querySelectorAll('input[data-field=conferido]')].find(n=>n.dataset.row===id);if(cb)cb.checked=false;}
@@ -86,11 +87,41 @@
   }
   function renderIgrejasReviews() {
     const rs=analise.registros.filter(r=>r.tipo==='reinf'&&r.documento===$('rapFonte').value);
+    const abertos=new Set([...$('rapReviews').querySelectorAll('details[open]')].map(e=>e.dataset.id));
     $('rapReviews').innerHTML=filtro!=='reinf'?'':rs.map(r=>{
-      const rev=revisoes[r.id]||(revisoes[r.id]={conferido:false,data:'',base:null,justificativa:''});
-      return `<details class="rap-review"><summary>${esc(r.nomeBenef)} — ${esc(r.endereco)} — bruto ${money(r.aluguel)}</summary><p class="rap-note">CPF ${esc(r.beneficiario)} · IRRF informado ${money(r.irrf)}. Confira a base tributável considerando as deduções aplicáveis. A conferência de IR mensal acima permite comparar o desconto simplificado sem substituir a retenção da planilha.</p><div class="rap-tools"><label>Data real do pagamento<input type="date" data-row="${esc(r.id)}" data-field="data" value="${esc(rev.data)}"></label><label>Base tributável conferida<input type="number" min="0" step="0.01" data-row="${esc(r.id)}" data-field="base" value="${rev.base==null?'':(rev.base/100).toFixed(2)}"></label></div>${r.pendencias.length?'<div class="rap-alert">'+esc(r.pendencias.join('; '))+'</div>':''}<label>Observação da conferência<input type="text" data-row="${esc(r.id)}" data-field="justificativa" value="${esc(rev.justificativa)}"></label><p><label><input type="checkbox" data-row="${esc(r.id)}" data-field="conferido" ${rev.conferido?'checked':''}> Conferi o pagamento, a base, o IRRF e a residência do proprietário no Brasil.</label></p></details>`;
+      const rev=revisoes[r.id]||(revisoes[r.id]={conferido:false,data:'',rendimentoTrib:r.aluguel,base:r.aluguel,deducoes:[],justificativa:''});
+      return `<details class="rap-review" data-id="${esc(r.id)}" ${abertos.has(r.id)?'open':''}><summary>${esc(r.nomeBenef)} — ${esc(r.endereco)} — bruto ${money(r.aluguel)}</summary><p class="rap-note">CPF ${esc(r.beneficiario)} · IRRF informado ${money(r.irrf)}. Informe o rendimento tributável antes das deduções. O tipo 8 substitui as deduções legais no cálculo; elas continuam declaradas. O IRRF informado permanece preservado.</p><div class="rap-tools"><label>Data real do pagamento<input type="date" data-row="${esc(r.id)}" data-field="data" value="${esc(rev.data)}"></label><label>Rendimento tributável antes das deduções<input type="number" min="0" step="0.01" data-row="${esc(r.id)}" data-field="rendimentoTrib" value="${rev.rendimentoTrib==null?'':(rev.rendimentoTrib/100).toFixed(2)}"></label><label>Base após deduções<input type="number" step="0.01" readonly data-row="${esc(r.id)}" data-field="base" value="${rev.base==null?'':(rev.base/100).toFixed(2)}"></label></div>${renderDeducoes(r,rev)}${r.pendencias.length?'<div class="rap-alert">'+esc(r.pendencias.join('; '))+'</div>':''}<label>Observação da conferência<input type="text" data-row="${esc(r.id)}" data-field="justificativa" value="${esc(rev.justificativa)}"></label><p><label><input type="checkbox" data-row="${esc(r.id)}" data-field="conferido" ${rev.conferido?'checked':''}> Conferi o pagamento, a base, o IRRF e a residência do proprietário no Brasil.</label></p></details>`;
     }).join('');
     $('rapPrepare').disabled=!rs.length||ocupada||filtro!=='reinf';
+  }
+  function atualizarBase(rev) {
+    const ds=rev.deducoes||[],sim=ds.find(d=>Number(d.indTpDeducao)===8);
+    const aplicada=sim?sim.valor:ds.reduce((s,d)=>s+(d.valor||0),0);
+    rev.base=rev.rendimentoTrib==null||ds.some(d=>!d.indTpDeducao||d.valor==null||d.carregando)?null:Math.max(0,rev.rendimentoTrib-(aplicada||0));
+  }
+  function renderDeducoes(r,rev) {
+    return `<h4>Deduções da base tributável</h4>${(rev.deducoes||[]).map((d,i)=>`<div class="rap-review"><div class="rap-tools"><label>Tipo de dedução<select data-row="${esc(r.id)}" data-ded="${i}" data-field="tipoDeducao"><option value="">Selecione</option>${Object.entries(U.TIPOS_DEDUCAO_ALUGUEL).map(([tipo,nome])=>`<option value="${tipo}" ${String(d.indTpDeducao)===tipo?'selected':''}>${tipo} — ${esc(nome)}</option>`).join('')}</select></label><label>Valor da dedução<input type="number" min="0.01" step="0.01" data-row="${esc(r.id)}" data-ded="${i}" data-field="valorDeducao" ${Number(d.indTpDeducao)===8?'readonly':''} value="${d.valor==null?'':(d.valor/100).toFixed(2)}"></label><button type="button" data-row="${esc(r.id)}" data-ded="${i}" data-ded-action="remove">Remover dedução</button></div>${[5,7].includes(Number(d.indTpDeducao))?`<label><input type="checkbox" data-row="${esc(r.id)}" data-ded="${i}" data-field="semDetalhamento" ${d.semDetalhamento?'checked':''}> Não possuo o detalhamento individual de dependentes/alimentandos; informar o total.</label>`:''}<small>${esc(d.carregando?'Consultando desconto vigente na Receita...':d.erro||d.fonteTexto||'')}</small></div>`).join('')}<button type="button" data-row="${esc(r.id)}" data-ded-action="add" ${(rev.deducoes||[]).length>=4?'disabled':''}>Adicionar dedução</button><p class="rap-note">Tipos permitidos para aluguel (13002): 1, 5, 7 e 8. Confira os pagamentos do mesmo CPF e fonte no mês para não repetir o desconto mensal. A base após deduções é usada no cálculo; o R-4010 leva o rendimento antes das deduções e cada dedução separadamente.</p>`;
+  }
+  async function alterarIgreja(input,rev) {
+    rev.conferido=false;
+    const field=input.dataset.field;
+    if(input.dataset.ded!=null) {
+      const d=rev.deducoes[Number(input.dataset.ded)];if(!d)return;
+      if(field==='tipoDeducao') {
+        d.indTpDeducao=input.value;d.valor=null;d.erro='';d.fonteTexto='';d.semDetalhamento=false;d.carregando=false;
+        if(Number(input.value)===8) {
+          const turno=session,request={};d.request=request;d.carregando=true;atualizarBase(rev);renderIgrejasReviews();
+          try{vigente();const resposta=await api(ctx.cnpj+'/tabela-ir/'+analise.competencia);if(turno!==session||d.request!==request||Number(d.indTpDeducao)!==8)return;vigente();
+            const t=resposta.tabela;if(!t||analise.competencia<t.inicio||analise.competencia>t.fim||!(t.descontoSimplificado>0))throw Error('Tabela vigente indisponível.');
+            d.valor=U.cents(t.descontoSimplificado);d.fonteTexto='Receita Federal • vigência '+t.inicio+' a '+t.fim+' • consulta '+t.consultadaEm;
+          }catch(e){if(turno===session&&d.request===request)d.erro=e.message;}
+          finally{if(turno===session&&d.request===request){d.carregando=false;rev.conferido=false;atualizarBase(rev);renderIgrejasReviews();}}
+          return;
+        }
+      } else if(field==='valorDeducao')d.valor=U.cents(input.value);
+      else if(field==='semDetalhamento')d.semDetalhamento=input.checked;
+    } else rev[field]=field==='rendimentoTrib'?U.cents(input.value):input.value;
+    atualizarBase(rev);renderIgrejasReviews();
   }
   async function ler(e) {
     const f=e.target.files?.[0];if(!f)return;const turno=++session;

@@ -693,7 +693,18 @@ function mapaIndAquisInformados(valor) {
 // `mapaNaturezasInformadas` mora no dono (`reinf/retencao-pj-apuracao.js`) desde
 // 11/09: a natureza passou a ser POR NOTA, e a régua da chave é a mesma do ajuste.
 
-function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmailMicrosoft365 } = {}) {
+function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmailMicrosoft365, consultarTabelaIR } = {}) {
+  const tabelaIR = consultarTabelaIR || require('./reinf-tabela-ir').criarServico({db});
+  async function validarDeducoesAluguel(payload) {
+    const locadores=payload.locadores||[];
+    if(!locadores.some(l=>l.deducoes!=null && (!Array.isArray(l.deducoes)||l.deducoes.length)))return;
+    gerarEventosR4010DaPlanilha(payload); // Validate before any certificate or fiscal transmission.
+    const simplificados=locadores.flatMap(l=>l.deducoes||[]).filter(d=>Number(d.indTpDeducao)===8);
+    if(simplificados.length) {
+      const t=await tabelaIR(payload.perApur);
+      if(simplificados.some(d=>reinfToCents(d.vlrDeducao)!==reinfToCents(t.descontoSimplificado)))throw Error('Desconto simplificado difere da tabela vigente. Reabra a conferência e consulte o valor atualizado.');
+    }
+  }
   const router = express.Router();
   router.use('/dividendos', async(req,res,next)=>{
     if(req.path==='/microsoft365/status')return next();
@@ -1113,6 +1124,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
   router.post('/r4010', async (req, res) => {
     try {
       const body = req.body || {};
+      await validarDeducoesAluguel(body);
       const tpAmb = Number(body.tpAmb || 2);
       const recibosR4010 = await buscarRecibosR4010(db, body, tpAmb);
       const eventos = gerarEventosR4010DaPlanilha({
@@ -1228,6 +1240,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
   router.post('/transmitir', async (req, res) => {
     try {
       const p = req.body || {};
+      await validarDeducoesAluguel(p);
       const tpAmb = Number(p.tpAmb || 2);
       // Em modo gateway o A1 local NEM É CARREGADO: é o que permite apagar o
       // reinf-cert-a1 deste projeto quando o gateway estiver provado — se a
