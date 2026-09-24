@@ -1,7 +1,8 @@
 {
-  "version": "3.4.302",
-  "build_date": "2026-09-24T17:32:34.868Z",
+  "version": "3.4.303",
+  "build_date": "2026-09-24T19:17:31.907Z",
   "release_notes": [
+    "Aluguéis de igrejas: informar deduções por pagamento, consultar desconto simplificado vigente e levar tipo e valor ao R-4010, com conferência da base e preservação do IRRF.",
     "Aluguéis por planilha: reconhecer o modelo das igrejas, separar fontes e proprietários PF/PJ e conferir datas, bases e divergências sem substituir o IRRF informado.",
     "Dividendos: informar pagamentos por sócio sem alterar a participação societária; excluir pagamentos zero do R-4010.",
     "E-mail de dividendos restrito à empresa ativa, com prévia do destinatário e bloqueio de envio geral implícito.",

@@ -19,6 +19,7 @@
 // Trocar de versão = editar SÓ esta linha. O monitor de leiaute (a construir)
 // compara esta constante com o arquivo publicado no portal SPED.
 // ─────────────────────────────────────────────────────────────────────────
+const { conferirDeducoes } = require('./reinf-alugueis-planilha');
 const LEIAUTE_REINF = 'v2_01_02';            // versão do leiaute 2.1.2
 const REVISAO_XSD_R4010 = 'v2_01_02g';       // revisão atual do XSD R-4010
 const NS_R4010 =
@@ -140,6 +141,7 @@ function gerarR4010(ev) {
         linhas.push(`        <vlrRendTrib>${fmtValorReinf(p.vlrRendTrib)}</vlrRendTrib>`);
       if (p.vlrIR != null)
         linhas.push(`        <vlrIR>${fmtValorReinf(p.vlrIR)}</vlrIR>`);
+      for (const d of p.deducoes || []) linhas.push(`        <detDed><indTpDeducao>${Number(d.indTpDeducao)}</indTpDeducao><vlrDeducao>${fmtValorReinf(d.vlrDeducao)}</vlrDeducao></detDed>`);
       return `      <infoPgto>\n${linhas.join('\n')}\n      </infoPgto>`;
     }).join('\n');
     return `    <idePgto>\n      <natRend>${natRend}</natRend>\n${infoPgtos}\n    </idePgto>`;
@@ -209,6 +211,14 @@ function validarEntradaR4010(ev) {
   if (!Array.isArray(pagamentos) || pagamentos.length === 0)
     e.push('pagamentos deve ser uma lista não vazia');
   else pagamentos.forEach((p, i) => {
+    if(p.deducoes!=null && !Array.isArray(p.deducoes))e.push('Deduções devem ser uma lista.');
+    if(p.deducoes?.length) {
+      try {
+        if(String(p.natRend)!=='13002')throw Error('Deduções deste fluxo são exclusivas de aluguéis (13002).');
+        conferirDeducoes(p.deducoes,p.vlrRendTrib,p.baseIrrf);
+        if(Number(p.vlrRendTrib)>Number(p.vlrRendBruto))throw Error('Rendimento tributável não pode superar o bruto.');
+      } catch(err){e.push(err.message);}
+    }
     if (!/^[0-9]{5}$/.test(String(p?.natRend || '')))
       e.push(`pagamentos[${i}].natRend deve ter 5 dígitos`);
     if (!/^20[1-9][0-9]-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(String(p?.dtFG || '')))
@@ -243,6 +253,7 @@ function gerarEventosR4010DaPlanilha({
     throw new Error('Lista de locadores vazia.');
   }
   const grupos = new Map();
+  const simplificados = new Set();
   for (const loc of locadores) {
     const contribuinteLocador = loc.contribuinte || {
       ...contribuinte,
@@ -259,6 +270,7 @@ function gerarEventosR4010DaPlanilha({
       String(loc.ideEvtAdic || 'padrao'),
       String(loc.nrRecibo || loc.nrReciboR4010 || ''),
     ].join('|');
+    if(loc.deducoes!=null&&!Array.isArray(loc.deducoes))throw Error('Deduções devem ser uma lista.');
     const bruto = Number(loc.bruto) || 0;
     const irrf = Number(loc.irrf) || 0;
     const baseInformada = loc.baseIrrf != null ? Number(loc.baseIrrf) : bruto;
@@ -281,7 +293,17 @@ function gerarEventosR4010DaPlanilha({
       dtFG: loc.dtPagamento || loc.dtFG || dtPagamento,
       vlrRendBruto: bruto,
     };
-    if (baseIrrf > 0 || irrf > 0) pagamento.vlrRendTrib = baseIrrf;
+    if (loc.deducoes?.length) {
+      const ded=conferirDeducoes(loc.deducoes,loc.rendimentoTrib,loc.baseIrrf);
+      pagamento.vlrRendTrib=ded.rendimentoTrib;
+      pagamento.baseIrrf=ded.baseIrrf;
+      pagamento.deducoes=ded.deducoes;
+      if(ded.deducoes.some(d=>d.indTpDeducao===8)) {
+        const mensal=[soDigitos(contribuinteLocador.nrInsc),soDigitos(loc.cpf),perApur].join('|');
+        if(simplificados.has(mensal))throw Error('Desconto simplificado repetido para o mesmo CPF, fonte e mês. Confira os pagamentos acumulados.');
+        simplificados.add(mensal);
+      }
+    } else if (baseIrrf > 0 || irrf > 0) pagamento.vlrRendTrib = baseIrrf;
     if (irrf > 0) pagamento.vlrIR = irrf;
     grupo.pagamentos.push(pagamento);
   }
