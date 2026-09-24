@@ -30,6 +30,8 @@
     return calcular(d.slice(0,-2))===Number(d.at(-2)) && calcular(d.slice(0,-1))===Number(d.at(-1));
   }
   function analisar(abas) {
+    const igrejas=analisarIgrejas(abas);
+    if(igrejas) return igrejas;
     const registros=[], proprietarios=[], avisos=[], competencias=new Set();
     const tipos={IRPFXPJ:'reinf',IRPFXPF:'carne_leao',IRPJXPJ:'locador_pj'};
     const meses=['JANEIRO','FEVEREIRO','MARCO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
@@ -73,6 +75,58 @@
     for(const r of registros) if(r.data && competencia && r.data.slice(0,7)!==competencia) r.pendencias.push('Recebimento fora da competência de pagamento');
     return {versao:1,competencia,proprietarios,registros,avisos};
   }
+  // Church workbooks identify each beneficiary directly; no shared ownership rateio.
+  function analisarIgrejas(abas) {
+    const registros=[], competencias=new Set();
+    for(const aba of abas) {
+      let ix=null;
+      aba.rows.forEach((row,index)=>{
+        const h=row.map(norm);
+        if(h.includes('NOMEPROPRIETARIO')&&h.includes('CNPJPROPRIETARIO')&&h.includes('BRUTO')) {
+          ix={nome:h.indexOf('NOMEPROPRIETARIO'),doc:h.indexOf('CNPJPROPRIETARIO'),fonte:h.indexOf('CNPJ'),local:h.indexOf('LOCALIDADE'),codigo:h.indexOf('CODIGOCDG'),mes:h.indexOf('APURACAO'),bruto:h.indexOf('BRUTO'),irrf:h.indexOf('IRRF'),liquido:h.indexOf('LIQUIDO')};
+          if(Object.values(ix).some(i=>i<0)) throw Error('Faltam colunas do modelo de igrejas na aba '+aba.nome+'.');
+          return;
+        }
+        if(!ix)return;
+        if(![ix.nome,ix.doc,ix.fonte,ix.local,ix.codigo,ix.mes].some(i=>String(row[i]??'').trim()))return;
+        const documento=digits(row[ix.fonte]), beneficiario=digits(row[ix.doc]);
+        const apuracao=date(row[ix.mes]);
+        const competencia=apuracao?apuracao.slice(0,7):String(row[ix.mes]??'').match(/^(\d{4}-\d{2})$/)?.[1]||'';
+        if(competencia)competencias.add(competencia);
+        const r={id:aba.nome+':'+(index+1),aba:aba.nome,linha:index+1,tipo:beneficiario.length===14?'locador_pj':'reinf',endereco:String(row[ix.local]||''),locatario:aba.nome,documento,beneficiario,nomeBenef:String(row[ix.nome]||'').trim(),competencia,codigo:digits(row[ix.codigo]),aluguel:cents(row[ix.bruto]),irrf:cents(row[ix.irrf]),liquido:cents(row[ix.liquido]),recebido:cents(row[ix.liquido]),iptuRecebido:null,data:'',dataOriginal:'',observacao:'Apuração: '+competencia,naoPago:false,pendencias:[]};
+        if(!documentoValido(documento,14))r.pendencias.push('CNPJ da fonte inválido');
+        if(!documentoValido(beneficiario,r.tipo==='reinf'?11:14))r.pendencias.push('CPF/CNPJ do proprietário inválido');
+        if(!r.nomeBenef)r.pendencias.push('Nome do proprietário ausente');
+        if(!competencia)r.pendencias.push('Apuração ausente ou inválida');
+        if(r.tipo==='reinf'&&r.codigo!=='3208')r.pendencias.push('Código de receita diferente de 3208');
+        if([r.aluguel,r.irrf,r.liquido].some(v=>v===null||v<0))r.pendencias.push('Valor ausente, inválido ou erro de fórmula');
+        if([r.aluguel,r.irrf,r.liquido].every(v=>v!==null)&&r.aluguel-r.irrf!==r.liquido)r.pendencias.push('Bruto menos IRRF difere do líquido');
+        registros.push(r);
+      });
+    }
+    if(!registros.length)return null;
+    if(abas.some(a=>['IRPFXPJ','IRPFXPF','IRPJXPJ'].includes(norm(a.nome))))throw Error('Separe os modelos PEC e igrejas em arquivos diferentes para conferir todas as linhas.');
+    return {versao:1,modelo:'igrejas',competencia:competencias.size===1?[...competencias][0]:'',proprietarios:[],registros,avisos:['A coluna Apuração não informa a data efetiva do pagamento. Informe a data na conferência. O IRRF informado será preservado.']};
+  }
+  function prepararIgrejas(analise,revisoes,cnpjFonte,competencia) {
+    const fonte=digits(cnpjFonte);
+    if(!documentoValido(fonte,14))throw Error('Selecione uma fonte pagadora com CNPJ válido.');
+    if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(competencia)||competencia!==analise.competencia)throw Error('Confira a competência da planilha.');
+    const rs=analise.registros.filter(r=>r.tipo==='reinf'&&r.documento===fonte);
+    if(!rs.length)throw Error('Nenhum proprietário PF desta fonte.');
+    const out=rs.map(r=>{
+      const rev=revisoes[r.id];
+      if(!rev?.conferido)throw Error('Confira o pagamento de '+r.nomeBenef+' (linha '+r.linha+').');
+      if(!documentoValido(r.beneficiario,11)||!r.nomeBenef||r.codigo!=='3208'||r.competencia!==competencia)throw Error('Corrija a identificação na linha '+r.linha+'.');
+      const data=date(rev.data);
+      if(!data||data.slice(0,7)!==competencia)throw Error('Informe a data real do pagamento na competência: linha '+r.linha+'.');
+      if([r.aluguel,r.irrf,r.liquido,rev.base].some(v=>!Number.isSafeInteger(v)||v<0)||r.aluguel<=0||rev.base>r.aluguel||r.irrf>rev.base)throw Error('Confira bruto, base e IRRF na linha '+r.linha+'.');
+      if(r.pendencias.length&&!String(rev.justificativa||'').trim())throw Error('Registre a conferência da divergência na linha '+r.linha+'.');
+      return {cpfBenef:r.beneficiario,nomeBenef:r.nomeBenef,valorBruto:r.aluguel/100,baseIrrf:rev.base/100,valorIrrf:r.irrf/100,cnpjFonte:fonte,cnpjEstab:fonte,competencia,dtPagamento:data,codigoReceita:'3208',origemIrrf:'informado',origemAluguelPlanilha:[fonte,competencia,norm(r.endereco),data,r.beneficiario].join('|'),observacao:'Igrejas: '+r.aba+' linha '+r.linha+'; '+r.endereco+(rev.justificativa?' | '+rev.justificativa:'')};
+    });
+    if(new Set(out.map(b=>b.origemAluguelPlanilha)).size!==out.length)throw Error('Pagamentos repetidos: confira localidade, data e proprietário.');
+    return out;
+  }
   function validarProprietarios(lista, completo=true) {
     if(!Array.isArray(lista)||!lista.length||lista.length>50) throw Error('Informe os proprietários e suas participações.');
     const seen=new Set();let soma=0;
@@ -94,6 +148,7 @@
     return partes.map(p=>p.valor);
   }
   function preparar(analise, proprietarios, revisoes, cnpjFonte, competencia) {
+    if(analise.modelo==='igrejas')return prepararIgrejas(analise,revisoes,cnpjFonte,competencia);
     validarProprietarios(proprietarios);
     const fonte=digits(cnpjFonte);
     if(!documentoValido(fonte,14)) throw Error('Selecione uma fonte pagadora com CNPJ válido.');

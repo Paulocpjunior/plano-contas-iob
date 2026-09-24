@@ -43,6 +43,7 @@
     $('rapReviews').addEventListener('change',e=>{
       const id=e.target.dataset.row;if(!id||!revisoes[id])return;const rev=revisoes[id];
       if(e.target.dataset.field==='conferido') rev.conferido=e.target.checked;
+      else if(analise?.modelo==='igrejas'){const field=e.target.dataset.field;rev[field]=field==='base'?U.cents(e.target.value):e.target.value;rev.conferido=false;}
       else if(e.target.dataset.field==='justificativa'){rev.justificativa=e.target.value;rev.conferido=false;}
       else {rev.partes[Number(e.target.dataset.owner)][e.target.dataset.field]=U.cents(e.target.value);rev.conferido=false;}
       if(e.target.dataset.field!=='conferido') {const cb=[...$('rapReviews').querySelectorAll('input[data-field=conferido]')].find(n=>n.dataset.row===id);if(cb)cb.checked=false;}
@@ -54,6 +55,8 @@
   function render() {
     $('rapTabs').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tipo===filtro)));
     if(!analise){$('rapRows').innerHTML='Selecione a planilha para iniciar.';$('rapReviews').innerHTML='';return;}
+    $('rapCadastro').hidden=analise.modelo==='igrejas';
+    if(analise.modelo==='igrejas'){renderIgrejas();return;}
     const rs=analise.registros.filter(r=>r.tipo===filtro);
     $('rapExplica').textContent=filtro==='reinf'?'Confira a fonte pagadora, o bruto, a base tributável e o IRRF individual. IPTU e taxa de administração não são deduzidos automaticamente.':filtro==='carne_leao'?'Conferência dos recebimentos de pessoas físicas. Não pagos, datas múltiplas e diferenças permanecem destacados. A previsão de imposto da planilha não é recalculada nem transmitida.':'Conferência do imóvel de proprietário PJ. Não gera beneficiários PF no R-4010.';
     $('rapResumo').textContent=analise.registros.length+' imóveis/linhas • '+analise.registros.filter(r=>r.naoPago).length+' não pagos • '+analise.registros.filter(r=>r.pendencias.length).length+' com pontos de conferência.';
@@ -62,6 +65,7 @@
   }
   function renderReviews() {
     if(!analise)return;
+    if(analise.modelo==='igrejas'){renderIgrejasReviews();return;}
     const fonte=$('rapFonte').value;
     const rs=analise.registros.filter(r=>r.tipo==='reinf'&&r.documento===fonte&&!r.naoPago);
     $('rapReviews').innerHTML=filtro!=='reinf'?'':rs.map(r=>{
@@ -73,27 +77,43 @@
     }).join('');
     $('rapPrepare').disabled=!rs.length||ocupada;
   }
+  function renderIgrejas() {
+    const rs=analise.registros.filter(r=>r.tipo===filtro);
+    $('rapResumo').textContent='Modelo igrejas • '+analise.registros.length+' pagamentos • '+new Set(analise.registros.map(r=>r.documento)).size+' fontes pagadoras • '+analise.registros.filter(r=>r.pendencias.length).length+' linhas com divergências.';
+    $('rapExplica').textContent='Valores individuais por proprietário, sem rateio. IRRF informado preservado. Apuração é a competência; a data real e a base tributável devem ser conferidas antes da preparação.';
+    $('rapRows').innerHTML='<table class="rap-table"><thead><tr><th>Localidade / origem</th><th>Fonte pagadora</th><th>Proprietário / documento</th><th>Bruto</th><th>IRRF informado</th><th>Líquido</th><th>Conferência</th></tr></thead><tbody>'+rs.map(r=>`<tr><td>${esc(r.endereco)}<small>${esc(r.aba)} · linha ${r.linha}</small></td><td>${esc(r.documento)}</td><td>${esc(r.nomeBenef)}<small>${esc(r.beneficiario)}</small></td><td>${money(r.aluguel)}</td><td>${money(r.irrf)}</td><td>${money(r.liquido)}</td><td>${esc(r.pendencias.join('; ')||'Valores conciliados')}</td></tr>`).join('')+'</tbody></table>';
+    renderIgrejasReviews();
+  }
+  function renderIgrejasReviews() {
+    const rs=analise.registros.filter(r=>r.tipo==='reinf'&&r.documento===$('rapFonte').value);
+    $('rapReviews').innerHTML=filtro!=='reinf'?'':rs.map(r=>{
+      const rev=revisoes[r.id]||(revisoes[r.id]={conferido:false,data:'',base:null,justificativa:''});
+      return `<details class="rap-review"><summary>${esc(r.nomeBenef)} — ${esc(r.endereco)} — bruto ${money(r.aluguel)}</summary><p class="rap-note">CPF ${esc(r.beneficiario)} · IRRF informado ${money(r.irrf)}. Confira a base tributável considerando as deduções aplicáveis. A conferência de IR mensal acima permite comparar o desconto simplificado sem substituir a retenção da planilha.</p><div class="rap-tools"><label>Data real do pagamento<input type="date" data-row="${esc(r.id)}" data-field="data" value="${esc(rev.data)}"></label><label>Base tributável conferida<input type="number" min="0" step="0.01" data-row="${esc(r.id)}" data-field="base" value="${rev.base==null?'':(rev.base/100).toFixed(2)}"></label></div>${r.pendencias.length?'<div class="rap-alert">'+esc(r.pendencias.join('; '))+'</div>':''}<label>Observação da conferência<input type="text" data-row="${esc(r.id)}" data-field="justificativa" value="${esc(rev.justificativa)}"></label><p><label><input type="checkbox" data-row="${esc(r.id)}" data-field="conferido" ${rev.conferido?'checked':''}> Conferi o pagamento, a base, o IRRF e a residência do proprietário no Brasil.</label></p></details>`;
+    }).join('');
+    $('rapPrepare').disabled=!rs.length||ocupada||filtro!=='reinf';
+  }
   async function ler(e) {
     const f=e.target.files?.[0];if(!f)return;const turno=++session;
+    analise=null;revisoes={};proprietarios=[];$('rapResumo').textContent='';$('rapExport').disabled=true;render();
     try {
       vigente();if(f.size>15*1024*1024)throw Error('Arquivo acima de 15 MB.');ocupada=true;$('rapPrepare').disabled=true;
       status('Lendo abas e conferindo os recebimentos...');
       const buffer=await f.arrayBuffer();if(turno!==session)return;vigente();
       const wb=root.XLSX.read(buffer,{type:'array',cellDates:true});
       const result=U.analisar(wb.SheetNames.map(nome=>({nome,rows:root.XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1,raw:true,defval:'',range:0})})));
-      const perfil=await api(ctx.cnpj);if(turno!==session)return;vigente();
+      const perfil=result.modelo==='igrejas'?{}:await api(ctx.cnpj);if(turno!==session)return;vigente();
       analise=result;arquivo=f.name;revisoes={};$('rapFileName').textContent=arquivo;
       proprietarios=result.proprietarios.map(p=>({...p,cpf:(perfil.perfil?.proprietarios||[]).find(s=>U.norm(s.nome)===U.norm(p.nome))?.cpf||''}));
       $('rapCompetencia').value=result.competencia;
       const fontes=[...new Map(result.registros.filter(r=>r.tipo==='reinf').map(r=>[r.documento,r])).values()];
       $('rapFonte').innerHTML='<option value="">Selecione a fonte pagadora</option>'+fontes.map(r=>`<option value="${esc(r.documento)}">${esc(r.locatario)} — ${esc(r.documento)}</option>`).join('');
       $('rapExport').disabled=false;renderOwners();render();
-      status('Planilha lida. Complete os CPFs e confira cada pagamento antes de preparar o R-4010.'+(result.avisos.length?' '+result.avisos.join(' '):''));
+      status((result.modelo==='igrejas'?'Planilha de igrejas reconhecida. Selecione a fonte e confira os pagamentos.':'Planilha lida. Complete os CPFs e confira cada pagamento antes de preparar o R-4010.')+(result.avisos.length?' '+result.avisos.join(' '):''));
     }catch(err){if(turno!==session)return;analise=null;revisoes={};$('rapPrepare').disabled=true;$('rapExport').disabled=true;render();status(err.message,true);}
     finally{if(turno===session){ocupada=false;renderReviews();}e.target.value='';}
   }
   async function salvar() {
-    try{vigente();$('rapSave').disabled=true;await api(ctx.cnpj,{method:'PUT',body:JSON.stringify({proprietarios})});status('Parametrização salva para esta empresa. Os CPFs serão reutilizados pela identificação dos proprietários.');}
+    try{vigente();if(analise?.modelo==='igrejas')throw Error('O modelo de igrejas usa os proprietários de cada linha, sem cadastro de participações.');$('rapSave').disabled=true;await api(ctx.cnpj,{method:'PUT',body:JSON.stringify({proprietarios})});status('Parametrização salva para esta empresa. Os CPFs serão reutilizados pela identificação dos proprietários.');}
     catch(e){status(e.message,true);}finally{$('rapSave').disabled=false;}
   }
   async function preparar() {
@@ -106,7 +126,7 @@
   }
   function exportar() {
     try{vigente();if(!analise)return;const cell=v=>'"'+String(v??'').replace(/^[=+@-]/,"'").replace(/"/g,'""')+'"';
-      const linhas=[['Aba','Linha','Imóvel','Locatário','Documento','Data recebimento','Aluguel previsto','IPTU recebido','IRRF informado','Total recebido','Status','Observação'],...analise.registros.map(r=>[r.aba,r.linha,r.endereco,r.locatario,r.documento,r.dataOriginal,...[r.aluguel,r.iptuRecebido,r.irrf,r.recebido].map(v=>v==null?'':(v/100).toFixed(2).replace('.',',')),r.naoPago?'Não pagou':r.pendencias.join('; '),r.observacao])];
+      const linhas=[['Aba','Linha','Imóvel','Locatário','Documento','Data recebimento','Aluguel previsto','IPTU recebido','IRRF informado','Total recebido','Status','Observação','Proprietário','CPF/CNPJ proprietário'],...analise.registros.map(r=>[r.aba,r.linha,r.endereco,r.locatario,r.documento,r.dataOriginal,...[r.aluguel,r.iptuRecebido,r.irrf,r.recebido].map(v=>v==null?'':(v/100).toFixed(2).replace('.',',')),r.naoPago?'Não pagou':r.pendencias.join('; '),r.observacao,r.nomeBenef||'',r.beneficiario||''])];
       const url=URL.createObjectURL(new Blob(['\uFEFF'+linhas.map(r=>r.map(cell).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='conferencia-alugueis-'+analise.competencia+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     }catch(e){status(e.message,true);}
   }
