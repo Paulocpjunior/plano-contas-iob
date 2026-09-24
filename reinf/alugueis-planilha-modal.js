@@ -8,7 +8,11 @@
   const status=(s,erro=false)=>{$('rapStatus').textContent=s;$('rapStatus').className=erro?'rap-alert':'rap-status';};
   const api=async(path,options)=>{
     const r=await root.API.apiFetch('/api/reinf/alugueis-planilha/'+path,options);
-    if(!r||r.erro||r.ok===false) throw Error(r?.erro||'Falha ao acessar cadastro.');return r;
+    if(!r||typeof r.json!=='function')throw Error('Resposta inválida do serviço de aluguéis.');
+    let dados;
+    try{dados=await r.json();}catch(_){throw Error('O serviço de aluguéis retornou uma resposta inválida. Tente novamente.');}
+    if(!r.ok||!dados||dados.erro||dados.ok===false)throw Error(dados?.erro||'Falha ao acessar o serviço de aluguéis (HTTP '+r.status+').');
+    return dados;
   };
   function vigente() {
     if(!ctx||ctx.cnpj!==ctx.cnpjAtual()) throw Error('A empresa ativa mudou. Feche e abra novamente o modal.');
@@ -40,7 +44,7 @@
     $('rapFonte').onchange=()=>renderReviews();
     $('rapTabs').onclick=e=>{if(!e.target.dataset.tipo)return;filtro=e.target.dataset.tipo;render();};
     $('rapOwners').addEventListener('change',e=>{const i=e.target.dataset.owner;if(i==null)return;proprietarios[Number(i)].cpf=e.target.value;Object.values(revisoes).forEach(r=>r.conferido=false);renderReviews();});
-    $('rapReviews').addEventListener('click',e=>{const b=e.target.closest('[data-ded-action]');if(!b)return;const rev=revisoes[b.dataset.row];if(!rev)return;rev.deducoes=rev.deducoes||[];if(b.dataset.dedAction==='add')rev.deducoes.push({indTpDeducao:'',valor:null});else rev.deducoes.splice(Number(b.dataset.ded),1);rev.conferido=false;atualizarBase(rev);renderIgrejasReviews();});
+    $('rapReviews').addEventListener('click',e=>{const retry=e.target.closest('[data-ded-retry]');if(retry){const rev=revisoes[retry.dataset.row];if(rev)alterarIgreja({dataset:{row:retry.dataset.row,ded:retry.dataset.ded,field:'tipoDeducao'},value:'8'},rev);return;}const b=e.target.closest('[data-ded-action]');if(!b)return;const rev=revisoes[b.dataset.row];if(!rev)return;rev.deducoes=rev.deducoes||[];if(b.dataset.dedAction==='add')rev.deducoes.push({indTpDeducao:'',valor:null});else rev.deducoes.splice(Number(b.dataset.ded),1);rev.conferido=false;atualizarBase(rev);renderIgrejasReviews();});
     $('rapReviews').addEventListener('change',e=>{
       const id=e.target.dataset.row;if(!id||!revisoes[id])return;const rev=revisoes[id];
       if(e.target.dataset.field==='conferido') rev.conferido=e.target.checked;
@@ -100,7 +104,7 @@
     rev.base=rev.rendimentoTrib==null||ds.some(d=>!d.indTpDeducao||d.valor==null||d.carregando)?null:Math.max(0,rev.rendimentoTrib-(aplicada||0));
   }
   function renderDeducoes(r,rev) {
-    return `<h4>Deduções da base tributável</h4>${(rev.deducoes||[]).map((d,i)=>`<div class="rap-review"><div class="rap-tools"><label>Tipo de dedução<select data-row="${esc(r.id)}" data-ded="${i}" data-field="tipoDeducao"><option value="">Selecione</option>${Object.entries(U.TIPOS_DEDUCAO_ALUGUEL).map(([tipo,nome])=>`<option value="${tipo}" ${String(d.indTpDeducao)===tipo?'selected':''}>${tipo} — ${esc(nome)}</option>`).join('')}</select></label><label>Valor da dedução<input type="number" min="0.01" step="0.01" data-row="${esc(r.id)}" data-ded="${i}" data-field="valorDeducao" ${Number(d.indTpDeducao)===8?'readonly':''} value="${d.valor==null?'':(d.valor/100).toFixed(2)}"></label><button type="button" data-row="${esc(r.id)}" data-ded="${i}" data-ded-action="remove">Remover dedução</button></div>${[5,7].includes(Number(d.indTpDeducao))?`<label><input type="checkbox" data-row="${esc(r.id)}" data-ded="${i}" data-field="semDetalhamento" ${d.semDetalhamento?'checked':''}> Não possuo o detalhamento individual de dependentes/alimentandos; informar o total.</label>`:''}<small>${esc(d.carregando?'Consultando desconto vigente na Receita...':d.erro||d.fonteTexto||'')}</small></div>`).join('')}<button type="button" data-row="${esc(r.id)}" data-ded-action="add" ${(rev.deducoes||[]).length>=4?'disabled':''}>Adicionar dedução</button><p class="rap-note">Tipos permitidos para aluguel (13002): 1, 5, 7 e 8. Confira os pagamentos do mesmo CPF e fonte no mês para não repetir o desconto mensal. A base após deduções é usada no cálculo; o R-4010 leva o rendimento antes das deduções e cada dedução separadamente.</p>`;
+    return `<h4>Deduções da base tributável</h4>${(rev.deducoes||[]).map((d,i)=>`<div class="rap-review"><div class="rap-tools"><label>Tipo de dedução<select data-row="${esc(r.id)}" data-ded="${i}" data-field="tipoDeducao"><option value="">Selecione</option>${Object.entries(U.TIPOS_DEDUCAO_ALUGUEL).map(([tipo,nome])=>`<option value="${tipo}" ${String(d.indTpDeducao)===tipo?'selected':''}>${tipo} — ${esc(nome)}</option>`).join('')}</select></label><label>Valor da dedução<input type="number" min="0.01" step="0.01" data-row="${esc(r.id)}" data-ded="${i}" data-field="valorDeducao" ${Number(d.indTpDeducao)===8?'readonly':''} value="${d.valor==null?'':(d.valor/100).toFixed(2)}"></label><button type="button" data-row="${esc(r.id)}" data-ded="${i}" data-ded-action="remove">Remover dedução</button></div>${[5,7].includes(Number(d.indTpDeducao))?`<label><input type="checkbox" data-row="${esc(r.id)}" data-ded="${i}" data-field="semDetalhamento" ${d.semDetalhamento?'checked':''}> Não possuo o detalhamento individual de dependentes/alimentandos; informar o total.</label>`:''}<small>${esc(d.carregando?'Consultando desconto vigente na Receita...':d.erro||d.fonteTexto||'')}</small>${d.erro&&Number(d.indTpDeducao)===8?`<button type="button" data-row="${esc(r.id)}" data-ded="${i}" data-ded-retry>Consultar tabela novamente</button>`:''}</div>`).join('')}<button type="button" data-row="${esc(r.id)}" data-ded-action="add" ${(rev.deducoes||[]).length>=4?'disabled':''}>Adicionar dedução</button><p class="rap-note">Tipos permitidos para aluguel (13002): 1, 5, 7 e 8. Confira os pagamentos do mesmo CPF e fonte no mês para não repetir o desconto mensal. A base após deduções é usada no cálculo; o R-4010 leva o rendimento antes das deduções e cada dedução separadamente.</p>`;
   }
   async function alterarIgreja(input,rev) {
     rev.conferido=false;
