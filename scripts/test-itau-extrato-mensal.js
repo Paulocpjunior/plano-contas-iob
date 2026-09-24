@@ -173,7 +173,7 @@ function testarExtratoUnificadoTecnicaDenardo() {
     'fixture Itau Extrato Unificado da Tecnica Denardo deve ser o PDF real validado'
   );
 
-  // Recorte fiel do contrato posicional observado no PDF real. As linhas de
+  // Recorte estrutural do contrato posicional observado no PDF real. As linhas de
   // saldo diário usam a mesma coluna monetária verde dos créditos e não podem
   // compor os lançamentos; a linha futura de setembro também fica fora do mês.
   const words = [
@@ -181,7 +181,7 @@ function testarExtratoUnificadoTecnicaDenardo() {
     ...linhaOCRPosicional(40, [['Lançamentos do período: 01/08/2026 até 31/08/2026', 30]]),
     ...linhaOCRPosicional(60, [['Data', 30], ['Lançamentos', 110], ['Razão Social', 240], ['CNPJ/CPF', 350], ['Valor(R$)', 430], ['Saldo (R$)', 510]]),
     ...linhaOCRPosicional(80, [['31/07/2026', 30], ['SALDO ANTERIOR', 110], ['16121142', 510]]),
-    ...linhaOCRPosicional(100, [['03/08/2026', 30], ['RECEBIMENTOS CLIENTES', 110]]),
+    ...linhaOCRPosicional(100, [['31/08/2026', 30], ['RECEBIMENTOS CLIENTES', 110]]),
     palavraOCRColorida('35090218', 430, 100, 'C'),
     ...linhaOCRPosicional(120, [['31/08/2026', 30], ['PAGAMENTOS FORNECEDORES', 110]]),
     palavraOCRColorida('31201783', 430, 120, 'D'),
