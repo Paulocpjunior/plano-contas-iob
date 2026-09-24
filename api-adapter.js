@@ -217,6 +217,28 @@
     return body;
   }
 
+  // 🛡️ Credencial do e-mail (24/09): vigia, teste e e-mail de prova.
+  async function vigiaEmail() {
+    const r = await apiFetch(API_BASE + '/api/email/vigia', { method: 'GET' });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
+  async function testarCredencialEmail() {
+    const r = await apiFetch(API_BASE + '/api/email/credencial/testar', { method: 'POST', body: '{}' });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
+  async function enviarEmailProva() {
+    const r = await apiFetch(API_BASE + '/api/email/prova', { method: 'POST', body: '{}' });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
   async function vincularEmpresaPlano(cnpj, razao_social, plano_id, cadastro) {
     const r = await apiFetch(API_BASE + '/api/vincular-empresa-plano', { method: 'POST', body: JSON.stringify(Object.assign({ cnpj, razao_social, plano_id }, cadastro || {})) });
     const body = await r.json().catch(() => ({}));
@@ -1060,6 +1082,9 @@
   window.API.getMinhasPendenciasContabeis = getMinhasPendenciasContabeis;
   window.API.salvarAdminAcompanhamentoContabil = salvarAdminAcompanhamentoContabil;
   window.API.processarAdminAlertasProgressao = processarAdminAlertasProgressao;
+  window.API.vigiaEmail = vigiaEmail;
+  window.API.testarCredencialEmail = testarCredencialEmail;
+  window.API.enviarEmailProva = enviarEmailProva;
   console.log('[API Adapter v3] carregado');
 })();
 

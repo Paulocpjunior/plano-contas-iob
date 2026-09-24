@@ -344,6 +344,37 @@ ver "Ligação com o CFI".
 
 ## Regras permanentes de operação
 
+- **✉️ E-MAIL PELO COLABORADOR LOGADO, COM A CASCA DO CFI — E O MATA-BURRO DA
+  CREDENCIAL** (24/09, Paulo: *"implementar esta configuração dos e-mails no app
+  irmão CCI, parametrizando o mesmo layout e ativando sempre que o remetente do
+  e-mail é sempre o colaborador logado, devendo observar que se trata do
+  departamento contábil"* — depois de a credencial do Graph do CFI ter ficado
+  morta por dias com o Secret ID gravado no lugar do Value: *"isso não pode
+  voltar a acontecer"*). Aqui TODO envio saía da caixa institucional
+  (`GRAPH_REMETENTE`) com HTML solto por rota, e o Reinf tinha um segundo
+  cliente Graph próprio dentro de `reinf-routes.js`. Entregue: `email-layout.js`
+  (casca portada de `sefaz-backend/email-layout.js` do CFI; ÚNICA diferença
+  `MARCA.departamento = 'Departamento Contábil'` e assinatura do CCI; logo
+  inline `sp-logo-email.png`), `graph-remetente.js` (remetente = `req.user.email`
+  se for caixa do domínio do escritório, senão institucional COM motivo; caixa
+  inexistente → refaz pela institucional e a resposta DIZ; qualquer outro erro
+  NÃO repete), `graph-email-provider.js` (cc/bcc, anexo inline, `getGraphToken`
+  e `invalidarTokenGraph`), `graph-credencial.js` + `graph-credencial-routes.js`
+  (forma do segredo sem expor o valor; veredito com ONDE gravar; `GET
+  /api/email/vigia` sonda a cada 24 h disparada por quem abre o app e grava em
+  `health_alertas/graph-email`; `POST /api/email/credencial/testar` e `POST
+  /api/email/prova` só admin). Pontos rewired: relatório contábil, sugestão da
+  Ajuda (institucional, sem sessão), alertas de progressão (admin = quem clicou;
+  agendador = institucional), aplicações e dividendos do Reinf. Tela: faixa
+  vermelha em `index.html` após o login; card "✉️ E-mail do escritório" no
+  Admin. Trava `test-email-remetente-colaborador.js` fecha a classe por
+  VARREDURA: chamada direta ao provedor só com motivo escrito em `SEM_SESSAO`.
+  ⚠️ Operação: o Cloud Run do CCI é OUTRO projeto (`gen-lang-client-0569062468`);
+  o segredo do app Notificacoes mora em `consultorfiscalapp`. Ou se dá
+  `secretmanager.secretAccessor` à conta de serviço do CCI e referencia
+  `projects/consultorfiscalapp/secrets/graph-notificacoes-secret:latest`, ou se
+  cria o segredo no projeto do CCI. Nunca `--set-env-vars`.
+
 - **🚨 A NATUREZA POR NOTA FOI INFORMADA, SALVA — E O EVENTO SUBIU EM PRODUÇÃO
   COM A DO PRESTADOR** (12/09, Paulo, WALDESA COMERCIO · SERASA · 08/2026:
   *"salvei as naturezas de rendimentos de cada serviço, busquei no consultor

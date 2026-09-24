@@ -234,8 +234,14 @@ assertContains('reinf-routes.js', "router.post('/recibos-r4010'", 'backend Reinf
 assertContains('reinf-routes.js', 'aplicarRecibosLocadores(body, tpAmb, recibosR4010)', 'previa R-4010 aplica recibos persistidos antes de gerar XML');
 assertContains('reinf-routes.js', "router.post('/dividendos/calcular'", 'backend Reinf calcula dividendos por socios e ATA');
 assertContains('reinf-routes.js', "router.post('/dividendos/solicitar'", 'backend Reinf dispara solicitacao real de dividendos por Microsoft 365');
-assertContains('reinf-routes.js', 'process.env.GRAPH_TENANT_ID', 'Reinf reutiliza tenant Microsoft Graph do Consultor Fiscal');
-assertContains('reinf-routes.js', 'process.env.GRAPH_REMETENTE', 'Reinf reutiliza remetente Microsoft Graph do Consultor Fiscal');
+// 24/09: o Reinf deixou de ter um cliente Graph próprio — envia pelo MESMO
+// provedor do app (que lê o tenant do Consultor Fiscal) e escolhe o remetente
+// pela regra da casa (colaborador logado; GRAPH_REMETENTE é a institucional).
+// A trava cobra o FATO onde ele mora agora, não a redação antiga.
+assertContains('reinf-routes.js', "require('./graph-email-provider')", 'Reinf envia pelo provedor Graph compartilhado do app');
+assertContains('graph-email-provider.js', 'process.env.GRAPH_TENANT_ID', 'o provedor Graph reutiliza o tenant do Consultor Fiscal');
+assertContains('reinf-routes.js', "require('./graph-remetente')", 'Reinf escolhe o remetente pela regra da casa (colaborador logado)');
+assertContains('graph-remetente.js', 'GRAPH_REMETENTE', 'a caixa institucional continua vindo de GRAPH_REMETENTE, como no Consultor Fiscal');
 assertContains('reinf/reinf-dividendos-utils.js', 'LIMITE_MENSAL_DIVIDENDOS_CENTAVOS = 5000000', 'regra dividendos aplica limite mensal de R$ 50 mil');
 assertContains('reinf/reinf-dividendos-utils.js', 'ALIQUOTA_IRRF_DIVIDENDOS = 0.10', 'regra dividendos aplica aliquota IRRF 10%');
 assertContains('index.html', 'Próximo prazo', 'contador de prazo no validador de obrigacoes');

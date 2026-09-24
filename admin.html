@@ -6,33 +6,33 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.303"></script>
+<script src="/saas-brand-theme.js?v=3.4.304"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.303"></script>
-<script src="/parser-ofx.js?v=3.4.303"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.303"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.303"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.303"></script>
-<script src="/parser-safra-extrato.js?v=3.4.303"></script>
-<script src="/parser-brb-extrato.js?v=3.4.303"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.303"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.303"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.303"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.303"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.303"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.303"></script>
-<script src="/parser-btg-pactual.js?v=3.4.303"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.303"></script>
-<script src="/parser-abc-extrato.js?v=3.4.303"></script>
-<script src="/parser-inter-extrato.js?v=3.4.303"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.303"></script>
-<script src="/parser-stone-extrato.js?v=3.4.303"></script>
-<script src="/parser-mercado-pago-extrato.js?v=3.4.303"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.303"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.303"></script>
+<script src="/api-adapter.js?v=3.4.304"></script>
+<script src="/parser-ofx.js?v=3.4.304"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.304"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.304"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.304"></script>
+<script src="/parser-safra-extrato.js?v=3.4.304"></script>
+<script src="/parser-brb-extrato.js?v=3.4.304"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.304"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.304"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.304"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.304"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.304"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.304"></script>
+<script src="/parser-btg-pactual.js?v=3.4.304"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.304"></script>
+<script src="/parser-abc-extrato.js?v=3.4.304"></script>
+<script src="/parser-inter-extrato.js?v=3.4.304"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.304"></script>
+<script src="/parser-stone-extrato.js?v=3.4.304"></script>
+<script src="/parser-mercado-pago-extrato.js?v=3.4.304"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.304"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.304"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -309,6 +309,15 @@
   <div id="tab-resumo" class="tab-content active">
     <div class="card">
       <div id="summaryContent" class="loading">Carregando…</div>
+    </div>
+    <div class="card">
+      <h2 style="font-size:18px;margin-bottom:4px">✉️ E-mail do escritório (Microsoft 365)</h2>
+      <p style="font-size:13px;color:#6b7280;margin-bottom:10px">Todo e-mail do CCI sai com o layout do Departamento Contábil e <strong>pelo colaborador logado</strong> (a resposta do cliente volta para quem enviou). O vigia sonda a credencial da Microsoft a cada 24 h e, se ela for recusada, uma faixa vermelha aparece para todos no app.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="testarCredencialEmail()">🔑 Testar credencial do e-mail</button>
+        <button class="btn" style="background:#059669" onclick="enviarEmailProva()">📨 Enviar e-mail de prova para mim</button>
+      </div>
+      <div id="emailCredencialResultado" style="margin-top:10px;font-size:13px;line-height:1.5"></div>
     </div>
   </div>
 
@@ -808,6 +817,48 @@ document.addEventListener('visibilitychange', function () {
   const aba = document.getElementById('tab-progressao');
   if (!document.hidden && aba && aba.classList.contains('active')) loadProgressaoContabil(true);
 });
+
+// 🛡️ Credencial do e-mail (24/09): sonda ≠ envio. O teste pede o token à
+// Microsoft e mostra a resposta; a prova manda um e-mail de verdade para a
+// própria caixa, como o colaborador logado, com o layout da casa.
+function mostrarResultadoEmail(html, cor) {
+  const el = document.getElementById('emailCredencialResultado');
+  if (!el) return;
+  el.style.color = cor || '#1b2340';
+  el.innerHTML = html;
+}
+function escaparTextoAdmin(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+async function testarCredencialEmail() {
+  mostrarResultadoEmail('Pedindo o token à Microsoft…', '#6b7280');
+  try {
+    const r = await window.API.testarCredencialEmail();
+    const v = r.veredito || {};
+    const ok = v.situacao === 'ok';
+    let html = '<strong>' + escaparTextoAdmin(v.titulo || '') + '</strong><br>' + escaparTextoAdmin(v.detalhe || '');
+    if (!ok && v.onde) html += '<br><strong>Onde corrigir:</strong> ' + escaparTextoAdmin(v.onde);
+    if (v.forma && v.forma.ehProblema) html += '<br><strong>Forma do segredo gravado:</strong> ' + escaparTextoAdmin(v.forma.diagnostico);
+    if (v.respostaMicrosoft) html += '<br><span style="color:#6b7280">Resposta da Microsoft: ' + escaparTextoAdmin(v.respostaMicrosoft) + '</span>';
+    html += '<br><span style="color:#6b7280">Sondado em ' + escaparTextoAdmin(v.testadoEm ? new Date(v.testadoEm).toLocaleString('pt-BR') : '—') + '</span>';
+    mostrarResultadoEmail(html, ok ? '#166534' : '#991B1B');
+  } catch (erro) {
+    mostrarResultadoEmail('Não foi possível testar: ' + escaparTextoAdmin(erro.message || erro), '#991B1B');
+  }
+}
+async function enviarEmailProva() {
+  mostrarResultadoEmail('Enviando o e-mail de prova para a sua caixa…', '#6b7280');
+  try {
+    const r = await window.API.enviarEmailProva();
+    let html = '✓ E-mail de prova enviado para <strong>' + escaparTextoAdmin(r.para) + '</strong>, saindo de <strong>' + escaparTextoAdmin(r.remetente) + '</strong>'
+      + (r.fonteRemetente === 'colaborador' ? ' (a sua caixa)' : ' (caixa institucional)') + '.';
+    if (r.motivoRemetente) html += '<br>' + escaparTextoAdmin(r.motivoRemetente);
+    html += '<br>Confira na caixa de entrada: logo, faixa azul e rodapé "Departamento Contábil".';
+    mostrarResultadoEmail(html, '#166534');
+  } catch (erro) {
+    mostrarResultadoEmail('O e-mail de prova NÃO saiu: ' + escaparTextoAdmin(erro.message || erro), '#991B1B');
+  }
+}
 
 async function processarAlertasProgressao() {
   const competenciaEl = document.getElementById('progressaoCompetencia');

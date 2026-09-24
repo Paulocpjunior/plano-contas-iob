@@ -78,6 +78,7 @@ function main() {
         'igrejas-conferencia-caixa.js', 'layouts-bancarios-padrao.js',
         'layout-quality-cases.js', 'layout-quality-evidence.js',
         'mercadopago-integration.js', 'reinf-routes.js',
+        'email-layout.js', 'graph-remetente.js', 'graph-email-provider.js', 'graph-credencial.js', 'graph-credencial-routes.js',
         'migracao-sage-executor.js',
         'vincular-empresa.js', 'vincular-folha-pagamento.js',
     ].filter((f) => fs.existsSync(path.join(RAIZ, f)));
