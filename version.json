@@ -1,7 +1,9 @@
 {
-  "version": "3.4.300",
-  "build_date": "2026-09-23T20:09:41.952Z",
+  "version": "3.4.301",
+  "build_date": "2026-09-24T09:48:33.649Z",
   "release_notes": [
+    "Dividendos: informar pagamentos por sócio sem alterar a participação societária; excluir pagamentos zero do R-4010.",
+    "E-mail de dividendos restrito à empresa ativa, com prévia do destinatário e bloqueio de envio geral implícito.",
     "Aluguéis: conferência de fórmulas, arredondamentos e datas de repasse nas prestações de contas.",
     "Conferência mensal de IR com consulta automática à tabela oficial da Receita, vigência e versão identificadas.",
     "EFD-Reinf: modal Aluguéis por planilha com conferência por imóvel, proprietários, Carnê-Leão e preparação de R-4010 por fonte pagadora.",

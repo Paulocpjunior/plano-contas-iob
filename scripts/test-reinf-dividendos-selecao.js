@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict');
+const {calcularDividendos,locadoresDividendosParaR4010}=require('../reinf/reinf-dividendos-utils');
+const base={cnpj:'12345678000190',competencia:'2026-04',valorDistribuido:400000,ataValorTotal:5966714.79,ataSaldoAnterior:5966714.79,ataAprovadaAte2025:true,ataValidaAte2028:true,socios:[{cpf:'11111111111',nome:'Sócio A',percentual:99.13},{cpf:'22222222222',nome:'Sócia B',percentual:0.87}],modoDistribuicao:'valores',pagamentos:[{cpf:'11111111111',valor:400000},{cpf:'22222222222',valor:0}]};
+const r=calcularDividendos(base);
+assert.equal(r.socios.length,1);assert.equal(r.socios[0].valorBruto,400000);assert.equal(r.socios[0].percentual,99.13);assert.equal(r.ataSaldoApos,5566714.79);assert.equal(base.socios.length,2);
+const loc=locadoresDividendosParaR4010(r,{dtPagamento:'2026-04-15'});assert.equal(loc.length,1);assert.equal(loc[0].cpf,'11111111111');assert.equal(loc[0].dtPagamento,'2026-04-15');
+const normal=calcularDividendos({...base,modoDistribuicao:'percentuais'});assert.deepEqual(normal.socios.map(s=>s.valorBruto),[396520,3480]);
+for(const pagamentos of [[],[{cpf:'11111111111',valor:300000}],[{cpf:'33333333333',valor:400000}],[{cpf:'11111111111',valor:400000},{cpf:'11111111111',valor:0}],[{cpf:'11111111111',valor:-400000}],[{cpf:'11111111111',valor:null}]])assert.throws(()=>calcularDividendos({...base,pagamentos}));
+assert.throws(()=>calcularDividendos({...base,socios:[base.socios[0]]}),/100%/);
+assert.equal(calcularDividendos({...base,pagamentos:[{cpf:'22222222222',valor:400000}]}).socios[0].cpf,'22222222222');
+console.log('OK: cadastro completo preservado; pagamentos reais, sócio único, soma, duplicidade e beneficiário desconhecido.');

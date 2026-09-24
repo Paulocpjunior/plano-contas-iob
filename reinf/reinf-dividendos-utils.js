@@ -53,6 +53,7 @@ function normalizarSocios(socios) {
 
   if (limpos.length === 1 && limpos[0].percentual <= 0) limpos[0].percentual = 100;
   const erros = [];
+  if(new Set(limpos.map(s=>s.cpf)).size!==limpos.length) erros.push('Sócio repetido no cadastro.');
   limpos.forEach((s, idx) => {
     if (s.cpf.length !== 11) erros.push(`Sócio ${idx + 1}: CPF deve ter 11 dígitos.`);
     if (!s.nome) erros.push(`Sócio ${idx + 1}: nome obrigatório.`);
@@ -99,7 +100,7 @@ function calcularDividendos(params = {}) {
   const normalizados = normalizarSocios(params.socios);
   const erros = [...normalizados.erros];
   if (cnpj.length !== 14) erros.push('CNPJ da empresa deve ter 14 dígitos.');
-  if (!/^\d{4}-\d{2}$/.test(competencia)) erros.push('Competência deve estar no formato AAAA-MM.');
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(competencia)) erros.push('Competência deve estar no formato AAAA-MM.');
   if (valorDistribuidoCentavos <= 0) erros.push('Valor distribuído no mês deve ser maior que zero.');
   if (!normalizados.socios.length) erros.push('Informe ao menos um sócio pessoa física.');
   if (erros.length) {
@@ -108,9 +109,24 @@ function calcularDividendos(params = {}) {
     throw err;
   }
 
-  const socios = normalizados.socios;
-  const pesos = socios.map((s) => s.percentual);
-  const brutos = ratearCentavos(valorDistribuidoCentavos, pesos);
+  let socios = normalizados.socios;
+  let brutos;
+  if(params.modoDistribuicao==='valores'){
+    if(!Array.isArray(params.pagamentos)||!params.pagamentos.length)throw Error('Informe os valores efetivamente pagos aos sócios.');
+    const pagamentos=new Map();
+    for(const p of params.pagamentos){
+      const cpf=digits(p.cpf),n=typeof p.valor==='number'?p.valor:Number(String(p.valor??'').replace(',','.'));
+      if(!socios.some(s=>s.cpf===cpf)||pagamentos.has(cpf))throw Error('Beneficiário desconhecido ou repetido no pagamento.');
+      if(p.valor==null||p.valor===''||!Number.isFinite(n)||n<0||!Number.isSafeInteger(Math.round(n*100)))throw Error('Valor do pagamento inválido.');
+      pagamentos.set(cpf,toCents(n));
+    }
+    if([...pagamentos.values()].reduce((a,b)=>a+b,0)!==valorDistribuidoCentavos)throw Error('A soma dos pagamentos aos sócios deve coincidir com o total distribuído no mês.');
+    socios=socios.filter(s=>(pagamentos.get(s.cpf)||0)>0);
+    brutos=socios.map(s=>pagamentos.get(s.cpf));
+  }else{
+    if(params.modoDistribuicao&&params.modoDistribuicao!=='percentuais')throw Error('Modo de distribuição inválido.');
+    brutos=ratearCentavos(valorDistribuidoCentavos,socios.map(s=>s.percentual));
+  }
   const ataAplicavel = ataAprovadaAte2025 && ataValidaAte2028;
   const ataUsadoCentavos = ataAplicavel
     ? Math.min(Math.max(0, ataSaldoAnteriorCentavos), valorDistribuidoCentavos)
@@ -169,7 +185,7 @@ function locadoresDividendosParaR4010(resultado, extras = {}) {
   const cnpjFonte = digits(extras.cnpjFonte || resultado.cnpj);
   const cnpjEstab = digits(extras.cnpjEstab || extras.cnpjFonte || resultado.cnpj);
   const dtPagamento = String(extras.dtPagamento || '').trim();
-  return (resultado.socios || []).map((s) => ({
+  return (resultado.socios || []).filter(s=>s.valorBruto>0).map((s) => ({
     cpf: s.cpf,
     nome: s.nome,
     bruto: s.valorBruto,
@@ -195,7 +211,7 @@ function emailSolicitacaoDividendos({ empresa = {}, competenciaReferencia = '' }
     ``,
     `Por favor, responder este e-mail informando:`,
     `1. Valor total distribuído no mês pela empresa ${nome}.`,
-    `2. Nome, CPF e percentual de participação de cada sócio beneficiário pessoa física.`,
+    `2. Nome, CPF e valor efetivamente pago a cada sócio beneficiário pessoa física, com a data do pagamento. Informe também a participação societária, sem presumir que o pagamento seguiu esse percentual.`,
     `3. Se algum sócio recebeu mais de R$ 50.000,00 no mês pela mesma empresa.`,
     `4. Se o pagamento utilizou valores de lucros/dividendos aprovados em ATA até 31/12/2025, com pagamento até 2028.`,
     `5. Cópia ou valor aprovado em ATA e saldo ainda disponível, quando aplicável.`,
@@ -205,7 +221,8 @@ function emailSolicitacaoDividendos({ empresa = {}, competenciaReferencia = '' }
     `Atenciosamente,`,
     `SP Assessoria Contábil`,
   ].join('\n');
-  const html = texto.split('\n').map((linha) => linha ? `<p>${linha}</p>` : '<br>').join('');
+  const escapar=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const html = texto.split('\n').map((linha) => linha ? `<p>${escapar(linha)}</p>` : '<br>').join('');
   return { assunto, texto, html };
 }
 
