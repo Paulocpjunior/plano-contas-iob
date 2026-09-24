@@ -96,7 +96,7 @@ function registrarRotasCredencialEmail(app, { db, provider, layout, remetente, e
       const geradoEm = new Date(agora()).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
       const html = layout.montarEmailInterno({
         titulo: 'E-mail de prova do Consultor Contábil Inteligente',
-        corpoHtml: '<p style="margin:0 0 12px 0;">Se este e-mail chegou com o logo, a faixa azul e o rodapé do escritório, o caminho inteiro está de pé: '
+        corpoHtml: '<p style="margin:0 0 12px 0;">Se este e-mail chegou com o logo pequeno no topo, a faixa verde e o rodapé do escritório, o caminho inteiro está de pé: '
           + 'credencial da Microsoft, caixa do remetente e layout.</p>',
         linhas: [{ rotulo: 'Pedido por', valor: para }, { rotulo: 'Quando', valor: geradoEm }],
         farol: 'sucesso',
