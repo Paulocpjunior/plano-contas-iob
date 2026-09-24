@@ -43,3 +43,16 @@ O mesmo modal reconhece o cabeçalho Localidade, CNPJ, Código (CDG), Nome (Prop
 Selecione o XLSX, escolha a fonte pagadora e confira cada pagamento PF: data real, base tributável e retenção preservada. Apuração define apenas a competência. Divergências de bruto/IRRF/líquido exigem justificativa; valores ausentes e documentos inválidos devem ser corrigidos na origem. Proprietários PJ ficam em aba de conferência. O CNPJ da empresa aberta nunca substitui o CNPJ da planilha; a preparação valida acesso à fonte escolhida. Nenhum evento é transmitido pela importação.
 
 Regressão de agosto: 88 linhas, 70 PF e 18 PJ, cinco fontes, bruto R$ 545.130,77 e IRRF informado R$ 24.757,41. Dez linhas apresentam diferença entre bruto menos IRRF e líquido; outras 14 têm IRRF vazio. Fixture com nomes, locais e documentos dos beneficiários anonimizados. Testes também verificam outro mês, ausência de data/base, isolamento por fonte e preservação do modelo PEC.
+
+## Deduções na conferência das igrejas
+
+Em cada pagamento PF, **Adicionar dedução** permite tipo 1 (previdência oficial), 5 (pensão alimentícia), 7 (dependentes) ou 8 (desconto simplificado mensal), conforme Tabela 01 para natureza 13002. Para 5/7, o fluxo declara o total somente quando o usuário confirma não possuir detalhamento individual. O tipo 8 consulta a tabela vigente, sem valor fixado no navegador; o servidor revalida o valor antes da prévia e antes de qualquer transmissão. Falhas de consulta impedem preparar essa dedução.
+
+O rendimento tributável é informado **antes** das deduções, e a base após deduções é calculada separadamente. Exemplo: rendimento R$ 5.250,00, tipo 8 R$ 607,20, base R$ 4.642,80 e IRRF informado R$ 89,53 preservado. No XML, `vlrRendTrib` recebe 5250,00 e `detDed` recebe `indTpDeducao=8` e `vlrDeducao=607,20`: não enviar a base já reduzida junto com a mesma dedução. As deduções legais declaradas junto com o tipo 8 não são somadas ao desconto simplificado. Mais de uma dedução simplificada no mesmo CPF/fonte/mês dentro do lote é bloqueada para conferência; o fluxo não certifica valores enviados anteriormente em outros lotes.
+
+Fontes verificadas em 24/09/2026:
+- Receita, pergunta 2.13.5: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/perguntas-frequentes/sped/efd-reinf/efdr/2-eventos-da-efd-reinf/2-13-5-como-a-opcao
+- Leiautes 2.1.2b, página 42, e Tabela 01, página 6: https://www.gov.br/sped/pt-br/assuntos/escrituracoes-digitais/efd-reinf/documento-tecnicos/versao-atual/leiautes/v-2-1.2b/versao-2-1-2b/@@download/file
+- XSD R-4010 arquivado em `docs/reinf/xsd/evt4010PagtoBeneficiarioPF-v2_01_02.xsd`, obtido do pacote oficial: https://www.gov.br/sped/pt-br/assuntos/escrituracoes-digitais/efd-reinf/documento-tecnicos/versao-atual/esquemas-xsd/xsd-2.1.2/@@download/file
+
+Validação local do XML sem assinatura contra o XSD oficial, tornando apenas a assinatura opcional na cópia de teste. Nenhuma assinatura real nem transmissão foi executada. Testes cobrem o exemplo, a passagem pela tela/payload/backend, tipos inválidos, valores ausentes, dedução duplicada e bloqueio de valor divergente da tabela antes de carregar certificado.

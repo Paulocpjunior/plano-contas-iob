@@ -13164,6 +13164,8 @@
                     nome: b.nomeBenef,
                     bruto: reinfValor(b.valorBruto),
                     irrf: reinfValor(b.valorIrrf),
+                    deducoes: b.deducoes || [],
+                    rendimentoTrib: b.rendimentoTrib,
                     baseIrrf: b.baseIrrf != null ? reinfValor(b.baseIrrf) : reinfValor(b.valorBruto),
                     cnpjFonte: reinfDigits(b.cnpjFonte || cnpjFonte),
                     cnpjEstab: reinfDigits(b.cnpjEstab || cnpjEstab),
