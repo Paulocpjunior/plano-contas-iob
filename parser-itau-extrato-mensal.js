@@ -76,6 +76,8 @@
     // a agência (x 460-479); números como a agência 2937 devem permanecer inteiros.
     raw = raw.replace(/^[=_~]+(?=\d)/, '-').replace(/,$/, '');
     if (Number(x || 0) >= 480) raw = raw.replace(/[Bb](?=\d)/g, '8');
+    // Vírgula apagada após o milhar, somente em valor colorido da coluna monetária.
+    if (naturezaCor) raw = raw.replace(/^(-?\d{1,3}(?:\.\d{3})*)(\d{2})$/, '$1,$2');
     const semSinal = raw.replace(/^-/, '');
     // Separador de milhar lido como virgula: 5,133,79 -> 5.133,79.
     raw = raw.replace(/^(\-?\d{1,3}),(\d{3}),(\d{2})$/, '$1.$2,$3');
@@ -142,9 +144,40 @@
 
   function tipoMovimentoAplicacaoAutomatica(desc) {
     const d = String(desc || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
-    if (/^apl\s+aplic\s+aut\s+mais\b/.test(d)) return 'APLICACAO_AUTOMATICA';
-    if (/^res\s+aplic\s+aut\s+mais\b/.test(d)) return 'RESGATE_AUTOMATICO';
+    if (/^aplaplicautmais(?:ap)?$/.test(d.replace(/[^a-z]/g, '')) || /^apl\s+aplic\s+aut\s+mais\b/.test(d)) return 'APLICACAO_AUTOMATICA';
+    if (/^resaplicautmais(?:ap)?$/.test(d.replace(/[^a-z]/g, '')) || /^res\s+aplic\s+aut\s+mais\b/.test(d)) return 'RESGATE_AUTOMATICO';
     return '';
+  }
+
+  function conferirSaldosDiariosItau(lines, lancamentos, saldoAnterior) {
+    // Este contrato vale para o extrato que imprime saldo consolidado e saldo
+    // da conta corrente separadamente. Não se aplica aos outros modelos Itaú.
+    if (!lines.some(l => /SALDO MOVIMENTA[CÇ][AÃ]O CONTA/i.test(l.text))) return null;
+    const saldos = new Map();
+    for (const line of lines) {
+      const m = line.text.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+.*?(SALDO TOTAL DISPON[IÍ]VEL DIA|SALDO MOVIMENTA[CÇ][AÃ]O CONTA)\s+(-?[\d.]+,\d{2})\s*$/i);
+      if (!m) continue;
+      const data = m[3] + '-' + m[2] + '-' + m[1];
+      const tipo = /TOTAL/i.test(m[4]) ? 'total' : 'conta';
+      const valor = Math.round(parseValorBR(m[5]) * 100);
+      const dia = saldos.get(data) || {};
+      if (dia[tipo] !== undefined && dia[tipo] !== valor) return { valido: false, data };
+      dia[tipo] = valor;
+      saldos.set(data, dia);
+    }
+    const datas = Array.from(new Set(lancamentos.map(l => l.data).concat(Array.from(saldos.keys())))).sort();
+    let anterior = Math.round(saldoAnterior * 100), contaAnterior = null;
+    for (const data of datas) {
+      const saldo = saldos.get(data);
+      const movimentos = lancamentos.filter(l => l.data === data);
+      const fluxo = movimentos.filter(l => !l.movimentoAplicacaoAutomatica).reduce((n,l) => n + Math.round(l.valor * 100), 0);
+      const fluxoConta = movimentos.reduce((n,l) => n + Math.round(l.valor * 100), 0);
+      if (!saldo || saldo.total === undefined || saldo.conta === undefined || anterior + fluxo !== saldo.total
+          || (contaAnterior !== null && contaAnterior + fluxoConta !== saldo.conta)) return { valido: false, data };
+      anterior = saldo.total;
+      contaAnterior = saldo.conta;
+    }
+    return { valido: saldoAnterior !== null && datas.length > 0, dias: datas.length };
   }
 
   function parseItauLancamentosPeriodo(lines, textoCompleto, apenasDiagnostico) {
@@ -292,6 +325,8 @@
         contaCredito: '',
         historico: descricao,
         incomum: false,
+        naturezaLancamento: tipoMovimentoAplicacaoAutomatica(descricao),
+        movimentoAplicacaoAutomatica: !!tipoMovimentoAplicacaoAutomatica(descricao),
         origem: 'pdf-itau-lancamentos-periodo'
       });
       return true;
@@ -395,8 +430,8 @@
       }
     });
 
-    const totalCredito = lancamentos.filter(function(l){ return l.valor > 0; }).reduce(function(a,l){ return a + l.valor; }, 0);
-    const totalDebito = lancamentos.filter(function(l){ return l.valor < 0; }).reduce(function(a,l){ return a + Math.abs(l.valor); }, 0);
+    const totalCredito = lancamentos.filter(function(l){ return l.valor > 0; }).reduce(function(a,l){ return a + Math.round(l.valor * 100); }, 0) / 100;
+    const totalDebito = lancamentos.filter(function(l){ return l.valor < 0; }).reduce(function(a,l){ return a + Math.abs(Math.round(l.valor * 100)); }, 0) / 100;
     const saldoAnteriorMatch = textoCompleto.match(/SALDO ANTERIOR\s+(-?[\d.]+,\d{2})/i);
     const saldoAnterior = saldoAnteriorMatch ? parseValorBR(saldoAnteriorMatch[1]) : null;
     // O fechamento e o ultimo saldo datado dentro do periodo, mesmo em ordem
@@ -417,9 +452,17 @@
     if (origemOCR && !apenasDiagnostico && (saldoAnterior === null || saldoFinal === null)) {
       throw new Error('Extrato Itau: OCR nao reconheceu os saldos de abertura e fechamento. Importacao bloqueada para conferencia.');
     }
+    // SALDO TOTAL inclui a aplicação: transferências internas não alteram esse saldo.
+    const saldoConsolidado = lines.some(l => /SALDO MOVIMENTA[CÇ][AÃ]O CONTA/i.test(l.text));
+    const fluxoConsolidado = lancamentos.filter(function(l) { return !saldoConsolidado || !l.movimentoAplicacaoAutomatica; })
+      .reduce(function(n, l) { return n + Math.round(l.valor * 100); }, 0);
     const conciliacaoCentavos = (!modeloPeriodoSeparado && !origemOCR) || saldoAnterior === null || saldoFinal === null
       ? null
-      : Math.round((saldoAnterior + totalCredito - totalDebito - saldoFinal) * 100);
+      : Math.round(saldoAnterior * 100) + fluxoConsolidado - Math.round(saldoFinal * 100);
+    const conferenciaDiaria = conferirSaldosDiariosItau(lines, lancamentos, saldoAnterior);
+    if (!apenasDiagnostico && conferenciaDiaria && !conferenciaDiaria.valido) {
+      throw new Error('Extrato Itau nao conciliou com os saldos diarios da conta e das aplicacoes em ' + (conferenciaDiaria.data || 'data nao reconhecida') + '. Importacao bloqueada para evitar leitura parcial.');
+    }
     if (!apenasDiagnostico && conciliacaoCentavos !== null && conciliacaoCentavos !== 0) {
       throw new Error('Extrato Itau nao conciliou com os saldos impressos (anterior=' + saldoAnterior.toFixed(2)
         + ', creditos=' + totalCredito.toFixed(2) + ', debitos=' + totalDebito.toFixed(2)
@@ -439,7 +482,9 @@
       saldo_anterior: saldoAnterior,
       saldo_final: saldoFinal,
       totais_calculados: true,
-      saldos_conciliados: conciliacaoCentavos === null ? null : conciliacaoCentavos === 0,
+      saldos_conciliados: conciliacaoCentavos === null ? null : conciliacaoCentavos === 0 && (!conferenciaDiaria || conferenciaDiaria.valido),
+      dias_conciliados: conferenciaDiaria && conferenciaDiaria.valido ? conferenciaDiaria.dias : 0,
+      observacao_importacao: conferenciaDiaria && conferenciaDiaria.valido ? 'Saldos diários conferidos. Aplicações e resgates automáticos preservados como transferências internas.' : '',
       layout_modelo: modeloPeriodoSeparado ? 'lancamentos-periodo-separado' : 'lancamentos-do-periodo',
       periodo_inicio: periodo.inicio,
       periodo_fim: periodo.fim
@@ -541,14 +586,14 @@
     return false;
   }
 
-  async function reconhecerPaginaItau(canvas, onProgress) {
+  async function reconhecerPaginaItau(canvas, onProgress, modoSegmentacao) {
     let worker, timer, encerrado = false;
     const trabalho = (async function() {
       worker = await Tesseract.createWorker('por', 1, { logger: function(m) {
         if (!encerrado && onProgress && m.status === 'recognizing text') onProgress(Math.round(m.progress * 100));
       } });
       if (encerrado) { await worker.terminate(); return; }
-      await worker.setParameters({ tessedit_pageseg_mode: '6' });
+      await worker.setParameters({ tessedit_pageseg_mode: String(modoSegmentacao || '6') });
       return worker.recognize(canvas);
     })();
     try {
@@ -566,7 +611,7 @@
     }
   }
 
-  async function linhasItauComOCR(pdf, escala, opcoes) {
+  async function linhasItauComOCR(pdf, escala, opcoes, modoSegmentacao) {
     if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js nao carregado para OCR Itau');
     if (typeof document === 'undefined') throw new Error('OCR Itau indisponivel fora do navegador');
     const canvas = document.createElement('canvas');
@@ -584,7 +629,7 @@
       await page.render({ canvasContext: ctx, viewport: viewport }).promise;
       const result = await reconhecerPaginaItau(canvas, function(percentual) {
         if (opcoes && opcoes.onProgress) opcoes.onProgress('Lendo Itaú: página ' + p + '/' + pdf.numPages + ' — ' + percentual + '%');
-      });
+      }, modoSegmentacao);
       const words = result && result.data && result.data.words ? result.data.words : [];
       words.forEach(function(word) {
         const bbox = bboxOCR(word);
@@ -990,6 +1035,9 @@
   function conciliarLeiturasOCR(leituras) {
     const rs = leituras.map(function(o) { return parseItauLancamentosPeriodo(o.lines, o.textoCompleto, true); });
     const base = rs[0];
+    // As variantes desse modelo precisam também conferir o saldo da conta por dia.
+    // Nunca liberar uma leitura parcial só pelo fechamento consolidado do mês.
+    if (leituras.some(o => /SALDO MOVIMENTA[CÇ][AÃ]O CONTA/i.test(o.textoCompleto))) return null;
     if (!base || base.saldo_anterior === null || base.saldo_final === null) return null;
     if (rs.some(function(r) { return !r || r.conta_detectada !== base.conta_detectada || r.periodo_inicio !== base.periodo_inicio || r.periodo_fim !== base.periodo_fim || r.saldo_anterior !== base.saldo_anterior || r.saldo_final !== base.saldo_final; })) return null;
     const datas = Array.from(new Set(rs.flatMap(function(r) { return r.lancamentos.map(function(l) { return l.data; }); }))).sort();
@@ -1082,10 +1130,17 @@
         let ultimoErroOCR = null;
         const leiturasOCR = [];
         const escalasOCR = [2.8, 4.0];
+        const modosOCR = ['6', '6'];
         for (let tentativa = 0; tentativa < escalasOCR.length; tentativa++) {
           try {
-            const ocr = await linhasItauComOCR(pdf, escalasOCR[tentativa], opcoes);
+            const ocr = await linhasItauComOCR(pdf, escalasOCR[tentativa], opcoes, modosOCR[tentativa]);
             leiturasOCR.push(ocr);
+            // Células com descrições em duas linhas exigem segmentação esparsa.
+            if (tentativa === 0 && /SALDO MOVIMENTA[CÇ][AÃ]O CONTA/i.test(ocr.textoCompleto)
+                && /(?:APL|RES)\s*APLIC\s*AUT\s*MAIS/i.test(ocr.textoCompleto)) {
+              escalasOCR.splice(1, 0, 2.8);
+              modosOCR.splice(1, 0, '11');
+            }
             const mensalOCR = parseItauMensalImagem(ocr.lines, ocr.textoCompleto);
             if (mensalOCR) return mensalOCR;
             const periodoOCR = parseItauLancamentosPeriodo(ocr.lines, ocr.textoCompleto);
@@ -1225,6 +1280,7 @@
       moneyToken: moneyToken,
       periodoLancamentosItau: periodoLancamentosItau,
       parseItauLancamentosPeriodo: parseItauLancamentosPeriodo,
+      conferirSaldosDiariosItau: conferirSaldosDiariosItau,
       parseItauExtratoMensalOCRScaneado: parseItauExtratoMensalOCRScaneado,
       linhasDePalavrasOCR: linhasDePalavrasOCR,
       ignorarLancamentoTecnicoExtratoMensal: ignorarLancamentoTecnicoExtratoMensal,
