@@ -48,7 +48,7 @@ assert.ok(interno.includes(L.CORES_FAROL.atencao.de), 'a paleta do farol é a pe
 
 // ─── logo: existe no repo e vai como anexo inline ───────────────────────────
 const logo = L.anexoLogo();
-assert.strictEqual(logo.length, 1, 'o sp-logo-email.png tem de existir no repositório');
+assert.strictEqual(logo.length, 1, 'o sp-logo-email-2x.png tem de existir no repositório');
 assert.strictEqual(logo[0].contentId, L.MARCA.logoCid, 'o cid do anexo é o que o HTML referencia');
 assert.ok(logo[0].contentBytes.length > 1000 && logo[0].contentBytes.length < 60000, 'logo otimizado para e-mail (não o de 100 KB do app)');
 
