@@ -1,7 +1,8 @@
 {
-  "version": "3.4.309",
-  "build_date": "2026-09-25T09:24:39.741Z",
+  "version": "3.4.310",
+  "build_date": "2026-09-25T11:41:59.433659Z",
   "release_notes": [
+    "Dividendos: conferir a parcela isenta do tipo 12 por pagamento e incluí-la no R-4010 preservando o rendimento bruto integral.",
     "Aluguéis: identificar os locatários PF como fontes pagadoras no Carnê-Leão e restringir o seletor de CNPJ e a preparação de R-4010 à aba Reinf.",
     "Ativo imobilizado: identificar a conta redutora de depreciação, impedir valores em reais nos códigos de conta e validar o plano ativo antes da aprovação.",
     "Itaú: reconhecer extratos com descrições em múltiplas linhas e conferir saldos diários da conta e das aplicações automáticas.",

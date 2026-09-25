@@ -56,6 +56,7 @@
   "/parser-santander-empresas-ocr.js",
   "/parser-stone-extrato.js",
   "/reinf/reinf-aluguel-utils.js",
+  "/reinf/reinf-isencoes-dividendos.js",
   "/reinf/reinf-aplicacoes-utils.js",
   "/reinf/reinf-import-xml-utils.js",
   "/relatorios-contabeis-ui.js",
