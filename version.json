@@ -1,7 +1,8 @@
 {
-  "version": "3.4.314",
-  "build_date": "2026-09-25T14:45:38.666950Z",
+  "version": "3.4.315",
+  "build_date": "2026-09-25T17:39:02.432008Z",
   "release_notes": [
+    "Itaú: reler a célula de valores incompletos no OCR e tratar ruído no separador de milhar, mantendo a conciliação diária e as regressões de fevereiro, março e abril.",
     "Itaú por período: reconhecer vírgula lida como barra em valores do OCR e preservar a conferência diária da conta e das aplicações automáticas.",
     "Carnê-Leão: preparar aluguéis por proprietário, conferir recebimentos e exclusões, calcular o IR mensal e exportar CSV para análise no portal da Receita.",
     "Dividendos: campos individuais dos sócios, saldos da ATA e baixa por evento R-4010 aceito em produção, com controle de repetição e retificação.",
