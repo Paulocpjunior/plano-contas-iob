@@ -76,6 +76,9 @@
     // a agência (x 460-479); números como a agência 2937 devem permanecer inteiros.
     raw = raw.replace(/^[=_~]+(?=\d)/, '-').replace(/,$/, '');
     if (Number(x || 0) >= 480) raw = raw.replace(/[Bb](?=\d)/g, '8');
+    // Vírgula reconhecida como barra (3,19 -> 3/19). Só corrigir valores
+    // coloridos na coluna monetária; datas e documentos permanecem intactos.
+    if (naturezaCor && Number(x || 0) >= 480) raw = raw.replace(/^(-?\d{1,3}(?:\.\d{3})*)\/(\d{2})$/, '$1,$2');
     // Vírgula apagada após o milhar, somente em valor colorido da coluna monetária.
     if (naturezaCor) raw = raw.replace(/^(-?\d{1,3}(?:\.\d{3})*)(\d{2})$/, '$1,$2');
     const semSinal = raw.replace(/^-/, '');
