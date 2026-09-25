@@ -155,9 +155,11 @@
   }
 
   function conferirSaldosDiariosItau(lines, lancamentos, saldoAnterior) {
-    // Este contrato vale para o extrato que imprime saldo consolidado e saldo
-    // da conta corrente separadamente. Não se aplica aos outros modelos Itaú.
-    if (!lines.some(l => /SALDO MOVIMENTA[CÇ][AÃ]O CONTA/i.test(l.text))) return null;
+    // Confira cada saldo consolidado; quando o modelo também imprime a conta
+    // corrente separadamente, exija as duas conciliações em todos os dias.
+    const temSaldoConta = lines.some(l => /SALDO MOVIMENTA[CÇ][AÃ]O CONTA/i.test(l.text));
+    const diasComSaldo = lines.filter(l => /^\d{2}\/\d{2}\/\d{4}.*SALDO TOTAL DISPON[IÍ]VEL DIA/i.test(l.text));
+    if (!temSaldoConta && (diasComSaldo.length < 2 || !lines.some(l => l.origem_ocr === true))) return null;
     const saldos = new Map();
     for (const line of lines) {
       const m = line.text.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+.*?(SALDO TOTAL DISPON[IÍ]VEL DIA|SALDO MOVIMENTA[CÇ][AÃ]O CONTA)\s+(-?[\d.]+,\d{2})\s*$/i);
@@ -177,8 +179,8 @@
       const movimentos = lancamentos.filter(l => l.data === data);
       const fluxo = movimentos.filter(l => !l.movimentoAplicacaoAutomatica).reduce((n,l) => n + Math.round(l.valor * 100), 0);
       const fluxoConta = movimentos.reduce((n,l) => n + Math.round(l.valor * 100), 0);
-      if (!saldo || saldo.total === undefined || saldo.conta === undefined || anterior + fluxo !== saldo.total
-          || (contaAnterior !== null && contaAnterior + fluxoConta !== saldo.conta)) return { valido: false, data };
+      if (!saldo || saldo.total === undefined || (temSaldoConta && saldo.conta === undefined) || anterior + fluxo !== saldo.total
+          || (temSaldoConta && contaAnterior !== null && contaAnterior + fluxoConta !== saldo.conta)) return { valido: false, data };
       anterior = saldo.total;
       contaAnterior = saldo.conta;
     }
@@ -314,8 +316,10 @@
       if (ehDescricaoSaldo(descricao)) return false;
 
       const chave = [data, descricao.toLowerCase(), valor.toFixed(2)].join('|');
-      if (!modeloPeriodoSeparado && vistos.has(chave)) return false;
-      if (!modeloPeriodoSeparado) vistos.add(chave);
+      // O OCR percorre cada linha física uma única vez. Pagamentos iguais
+      // em linhas distintas são legítimos e entram na conciliação diária.
+      if (!modeloPeriodoSeparado && !origemOCR && vistos.has(chave)) return false;
+      if (!modeloPeriodoSeparado && !origemOCR) vistos.add(chave);
       lancamentos.push({
         id: uuid(),
         data: data,
@@ -616,6 +620,53 @@
     }
   }
 
+  // Último recurso para uma célula cujo OCR suprimiu caracteres (ex.: 1,11).
+  // A vírgula precisa existir na imagem, abaixo da linha dos dígitos, com
+  // exatamente dois glifos à direita. Cada dígito é relido, nunca inferido do saldo.
+  async function relerDigitosComVirgulaItau(canvas) {
+    const w=canvas.width, h=canvas.height;
+    const pixels=canvas.getContext('2d').getImageData(0,0,w,h).data;
+    const seen=new Uint8Array(w*h), partes=[];
+    const tinta=i=>Math.min(pixels[i*4],pixels[i*4+1],pixels[i*4+2])<180;
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++) {
+      const inicio=y*w+x;
+      if(seen[inicio]||!tinta(inicio)) continue;
+      const fila=[inicio];seen[inicio]=1;
+      let x0=x,x1=x,y0=y,y1=y;
+      for(let j=0;j<fila.length;j++) {
+        const pos=fila[j],px=pos%w,py=Math.floor(pos/w);
+        x0=Math.min(x0,px);x1=Math.max(x1,px);y0=Math.min(y0,py);y1=Math.max(y1,py);
+        for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) {
+          const nx=px+dx,ny=py+dy,k=ny*w+nx;
+          if(nx>=0&&ny>=0&&nx<w&&ny<h&&!seen[k]&&tinta(k)){seen[k]=1;fila.push(k);}
+        }
+      }
+      if(fila.length>2) partes.push({x:x0,y:y0,w:x1-x0+1,h:y1-y0+1});
+    }
+    partes.sort((a,b)=>a.x-b.x);
+    if(partes.length<4||partes.length>12) return '';
+    const altura=Math.max(...partes.map(p=>p.h));
+    const digitos=partes.filter(p=>p.h>=altura*.7);
+    if(digitos.length!==partes.length-1) return '';
+    const base=Math.max(...digitos.map(p=>p.y+p.h));
+    const indice=partes.findIndex(p=>p.h<altura*.7);
+    const virgula=partes[indice];
+    if(indice<1||indice!==partes.length-3||virgula.h>altura*.6
+        ||virgula.y<base-altura*.3||virgula.y+virgula.h<=base) return '';
+    let numero='';
+    for(let i=0;i<partes.length;i++) {
+      if(i===indice){numero+=',';continue;}
+      const p=partes[i],c=document.createElement('canvas');c.width=p.w+20;c.height=p.h+20;
+      const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+      ctx.drawImage(canvas,p.x,p.y,p.w,p.h,10,10,p.w,p.h);
+      const r=await reconhecerPaginaItau(c,null,'10');
+      const d=String(r?.data?.text||'').trim();
+      if(!/^\d$/.test(d)) return '';
+      numero+=d;
+    }
+    return numero;
+  }
+
   async function linhasItauComOCR(pdf, escala, opcoes, modoSegmentacao) {
     if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js nao carregado para OCR Itau');
     if (typeof document === 'undefined') throw new Error('OCR Itau indisponivel fora do navegador');
@@ -671,18 +722,26 @@
           const x = bbox.x0 * 595 / viewport.width;
           if (x < 450 || x > 520) continue;
           const normalizado = normalizarTokenMonetarioPosicionalOCR(raw, x, word.naturezaCor);
-          if (/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(normalizado)) continue;
+          if (/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(normalizado)
+              && !(word.naturezaCor === 'D' && !/^-/.test(normalizado))) continue;
           const altura = bbox.y1 - bbox.y0;
           const sx = Math.floor(450 * viewport.width / 595);
           const sy = Math.max(0, Math.floor(bbox.y0 - altura * .25));
           const sw = Math.ceil(65 * viewport.width / 595);
           const sh = Math.min(canvas.height - sy, Math.ceil(altura * 1.5));
-          const celula = document.createElement('canvas');celula.width=sw;celula.height=sh;
-          celula.getContext('2d').drawImage(canvas,sx,sy,sw,sh,0,0,sw,sh);
+          const celula = document.createElement('canvas');celula.width=sw*2+40;celula.height=sh*2+40;
+          const cc=celula.getContext('2d');cc.fillStyle='#fff';cc.fillRect(0,0,celula.width,celula.height);
+          cc.drawImage(canvas,sx,sy,sw,sh,20,20,sw*2,sh*2);
           if (opcoes && opcoes.onProgress) opcoes.onProgress('Conferindo valor ilegível na página '+p+'/'+pdf.numPages+'...');
           const releitura = await reconhecerPaginaItau(celula, null, '7');
           const numero = String(releitura?.data?.text || '').replace(/\s+/g,'').replace(/^[−–—-]+(?=\d)/,'-').trim();
-          const corrigido = normalizarTokenMonetarioPosicionalOCR(numero, x, word.naturezaCor);
+          let corrigido = normalizarTokenMonetarioPosicionalOCR(numero, x, word.naturezaCor);
+          if (!/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(corrigido)) {
+            // Uma releitura opcional ilegível não invalida um token completo
+            // da primeira leitura; ele ainda precisa conciliar em cada dia.
+            corrigido = /^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(normalizado)
+              ? normalizado : (await relerDigitosComVirgulaItau(celula) || corrigido);
+          }
           if (!/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(corrigido)) throw new Error('Extrato Itau: valor ilegível na página '+p+'. Importação bloqueada para conferência.');
           word.text=corrigido;
         }
@@ -1166,8 +1225,7 @@
             const ocr = await linhasItauComOCR(pdf, escalasOCR[tentativa], opcoes, modosOCR[tentativa]);
             leiturasOCR.push(ocr);
             // Células com descrições em duas linhas exigem segmentação esparsa.
-            if (tentativa === 0 && /SALDO MOVIMENTA[CÇ][AÃ]O CONTA/i.test(ocr.textoCompleto)
-                && /(?:APL|RES)\s*APLIC\s*AUT\s*MAIS/i.test(ocr.textoCompleto)) {
+            if (tentativa === 0 && /Lan[cç]amentos do per[ií]odo:/i.test(ocr.textoCompleto)) {
               escalasOCR.splice(1, 0, 2.8);
               modosOCR.splice(1, 0, '11');
             }
