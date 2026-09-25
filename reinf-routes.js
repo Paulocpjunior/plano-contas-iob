@@ -671,7 +671,7 @@ function mapaIndAquisInformados(valor) {
 // `mapaNaturezasInformadas` mora no dono (`reinf/retencao-pj-apuracao.js`) desde
 // 11/09: a natureza passou a ser POR NOTA, e a régua da chave é a mesma do ajuste.
 
-function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmailMicrosoft365, consultarTabelaIR } = {}) {
+function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmailMicrosoft365, enviarEmailAplicacoes = reinfEnviarEmailMicrosoft365, consultarTabelaIR } = {}) {
   const tabelaIR = consultarTabelaIR || require('./reinf-tabela-ir').criarServico({db});
   async function validarDeducoesAluguel(payload) {
     const locadores=payload.locadores||[];
@@ -835,6 +835,10 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
       if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(competencia)) throw new Error('Competência inválida para solicitação.');
       if (!cnpjs.length) throw new Error('Informe ao menos uma empresa para enviar a solicitação. O envio em massa não é presumido automaticamente.');
       if (cnpjs.length > 100) throw new Error('Limite de 100 empresas por solicitação.');
+      const destinoInformado = Object.prototype.hasOwnProperty.call(body, 'emailDestino');
+      const emailDestino = String(body.emailDestino || '').trim();
+      if (destinoInformado && cnpjs.length !== 1) throw new Error('Destinatário informado exige uma única empresa por solicitação.');
+      if (destinoInformado && !reinfEmailValido(emailDestino)) throw new Error('Informe um e-mail válido para a solicitação de extratos.');
       const enviados = [];
       const ignorados = [];
       for (const cnpj of cnpjs) {
@@ -845,7 +849,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         }
         const empresa = snap.data() || {};
         const cadastro = empresa.reinfAplicacoes || {};
-        const email = String(cadastro.emailSolicitacao || empresa.email_reinf || empresa.email || '').trim();
+        const email = destinoInformado ? emailDestino : String(cadastro.emailSolicitacao || empresa.email_reinf || empresa.email || '').trim();
         if (cadastro.solicitarMensalmente === false) {
           ignorados.push({ cnpj, motivo: 'solicitação mensal desativada' });
           continue;
@@ -856,11 +860,11 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         }
         const modelo = emailSolicitacaoAplicacoes({
           empresa: empresa.razao_social || empresa.empresa || empresa.nome || cnpj,
-          responsavel: cadastro.responsavel,
+          responsavel: destinoInformado ? String(body.responsavel || '').trim() : cadastro.responsavel,
           competencia,
           prazo: body.prazo,
         });
-        const envio = await reinfEnviarEmailMicrosoft365({ to: email, subject: modelo.assunto, html: modelo.html, text: modelo.texto, de: req.user && req.user.email, empresa: empresa.razao_social || empresa.empresa || empresa.nome || cnpj, competencia });
+        const envio = await enviarEmailAplicacoes({ to: email, subject: modelo.assunto, html: modelo.html, text: modelo.texto, de: req.user && req.user.email, empresa: empresa.razao_social || empresa.empresa || empresa.nome || cnpj, competencia });
         enviados.push({ cnpj, email, sender: envio.sender, fonteRemetente: envio.fonteRemetente });
         await db.collection('empresas').doc(cnpj).collection('reinf_emails').add({
           tipo: 'solicitacao_extratos_aplicacoes',
