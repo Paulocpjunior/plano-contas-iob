@@ -4,7 +4,7 @@ const fixture=require('./fixtures/reinf-alugueis-nicolellis-agosto.json');
 const analise=U.analisar(fixture.abas),elements=new Map();
 const tabs=['reinf','carne_leao','locador_pj'].map(tipo=>({dataset:{tipo},setAttribute(){}}));
 function element(id){if(!elements.has(id))elements.set(id,{value:'',innerHTML:'',textContent:'',hidden:false,disabled:false,querySelectorAll:()=>id==='rapTabs'?tabs:[]});return elements.get(id)}
-const sandbox={window:{ReinfAlugueisPlanilha:U},document:{getElementById:element},console};
+const sandbox={window:{ReinfAlugueisPlanilha:U,montarPreparacaoCarneLeao:(el,ctx)=>{el.contextoCarne=ctx;}},document:{getElementById:element},console};
 vm.createContext(sandbox);
 const source=fs.readFileSync('reinf/alugueis-planilha-modal.js','utf8').replace('})(window);',`root.teste={render,preparar,set(d){analise=d.analise;filtro=d.filtro;ctx=d.ctx;proprietarios=d.analise?.proprietarios||[];}};})(window);`);
 vm.runInContext(source,sandbox);
@@ -18,6 +18,8 @@ element('rapFonte').value=analise.registros.find(r=>r.tipo==='reinf').documento;
   assert.equal(element('rapPrepare').disabled,true);
   assert.equal(element('rapFonte').disabled,true);
   if(filtro==='carne_leao'){
+   assert.equal(element('rapCarne').hidden,false);
+   assert.equal(element('rapCarne').contextoCarne.analise,analise);
    assert(element('rapRows').innerHTML.includes('Fonte pagadora · locatário / CPF'));
    const pf=analise.registros.find(r=>r.tipo==='carne_leao');
    assert(element('rapRows').innerHTML.includes(pf.documento));
@@ -26,6 +28,7 @@ element('rapFonte').value=analise.registros.find(r=>r.tipo==='reinf').documento;
   await t.preparar();assert.equal(chamadas,0);
  }
  t.set({analise,filtro:'reinf',ctx});t.render();
+ assert.equal(element('rapCarne').hidden,true);
  assert.equal(element('rapReinfFooter').hidden,false);
  assert.equal(element('rapPrepare').disabled,false);
  assert.equal(element('rapFonte').disabled,false);
