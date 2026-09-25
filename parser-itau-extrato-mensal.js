@@ -81,6 +81,8 @@
     if (naturezaCor && Number(x || 0) >= 480) raw = raw.replace(/^(-?\d{1,3}(?:\.\d{3})*)\/(\d{2})$/, '$1,$2');
     // Vírgula apagada após o milhar, somente em valor colorido da coluna monetária.
     if (naturezaCor) raw = raw.replace(/^(-?\d{1,3}(?:\.\d{3})*)(\d{2})$/, '$1,$2');
+    // Ruído junto ao separador de milhar (-4,.900,00 -> -4.900,00).
+    if (naturezaCor) raw = raw.replace(/^(-?\d{1,3}),\.(\d{3}(?:\.\d{3})*,\d{2})$/, '$1.$2');
     const semSinal = raw.replace(/^-/, '');
     // Separador de milhar lido como virgula: 5,133,79 -> 5.133,79.
     raw = raw.replace(/^(\-?\d{1,3}),(\d{3}),(\d{2})$/, '$1.$2,$3');
@@ -660,6 +662,31 @@
           // Mantem o fallback textual/posicional quando o canvas nao permite leitura.
         }
       });
+      // Releia a célula inteira quando a segmentação perdeu parte do número.
+      // Não recuperar dígitos por diferença de saldo nem aceitar apenas um sufixo.
+      if (String(modoSegmentacao) === '11') {
+        for (const word of words) {
+          const bbox = bboxOCR(word), raw = itemTextoOCR(word);
+          if (!bbox || !word.naturezaCor) continue;
+          const x = bbox.x0 * 595 / viewport.width;
+          if (x < 450 || x > 520) continue;
+          const normalizado = normalizarTokenMonetarioPosicionalOCR(raw, x, word.naturezaCor);
+          if (/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(normalizado)) continue;
+          const altura = bbox.y1 - bbox.y0;
+          const sx = Math.floor(450 * viewport.width / 595);
+          const sy = Math.max(0, Math.floor(bbox.y0 - altura * .25));
+          const sw = Math.ceil(65 * viewport.width / 595);
+          const sh = Math.min(canvas.height - sy, Math.ceil(altura * 1.5));
+          const celula = document.createElement('canvas');celula.width=sw;celula.height=sh;
+          celula.getContext('2d').drawImage(canvas,sx,sy,sw,sh,0,0,sw,sh);
+          if (opcoes && opcoes.onProgress) opcoes.onProgress('Conferindo valor ilegível na página '+p+'/'+pdf.numPages+'...');
+          const releitura = await reconhecerPaginaItau(celula, null, '7');
+          const numero = String(releitura?.data?.text || '').replace(/\s+/g,'').replace(/^[−–—-]+(?=\d)/,'-').trim();
+          const corrigido = normalizarTokenMonetarioPosicionalOCR(numero, x, word.naturezaCor);
+          if (!/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(corrigido)) throw new Error('Extrato Itau: valor ilegível na página '+p+'. Importação bloqueada para conferência.');
+          word.text=corrigido;
+        }
+      }
       let linhasPagina = linhasDePalavrasOCR(words, p, viewport.width);
       if (!linhasPagina.length && result && result.data && result.data.text) {
         linhasPagina = String(result.data.text).split(/\r?\n/).map(function(text, idx) {
