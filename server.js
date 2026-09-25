@@ -4061,7 +4061,8 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/previa', async (re
     const bens = bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; });
     const chavesSessao = sessao.encontrada && sessao.stateJson ? parsearStateJson(sessao.stateJson).entries.map(function (item) { return String(item.chave || ''); }).filter(Boolean) : [];
     const jaGerados = geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao);
-    const previa = AtivoImobilizadoContabil.previaDepreciacao(bens, periodo, jaGerados);
+    const contas = await carregarContasContabeisEmpresa(chk.empresa);
+    const previa = AtivoImobilizadoContabil.previaDepreciacao(bens, periodo, jaGerados, contas);
     res.json({ ...previa, hash_previa: hashSessao(JSON.stringify(previa.lancamentos)) });
   } catch (e) { res.status(e.status || 500).json({ erro: e.message }); }
 });
@@ -4091,7 +4092,8 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/aprovar', async (r
     const previa = AtivoImobilizadoContabil.previaDepreciacao(
       bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; }),
       periodo,
-      geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao)
+      geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao),
+      await carregarContasContabeisEmpresa(chk.empresa)
     );
     if (!previa.ok) throw erroSessao(previa.erros[0] || 'Nenhuma depreciação pendente nesta competência.', 409, 'ATIVO_SEM_LANCAMENTOS');
     const hashAtual = hashSessao(JSON.stringify(previa.lancamentos));

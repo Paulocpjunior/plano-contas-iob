@@ -38,8 +38,15 @@
     return CLASSES_FISCAIS.find(function (c) { return c.id === id; }) || CLASSES_FISCAIS[CLASSES_FISCAIS.length - 1];
   }
 
+  function validarContas(bem) {
+    const campos = { conta_ativo: 'Conta do ativo', conta_contrapartida_aquisicao: 'Contrapartida da aquisição', conta_depreciacao_acumulada: 'Conta de depreciação acumulada (crédito)', conta_despesa_depreciacao: 'Conta de despesa de depreciação (débito)' };
+    return Object.keys(campos).filter(function (campo) { return /R\$|,/.test(String((bem || {})[campo] || '')); }).map(function (campo) {
+      return campos[campo] + ': informe o código da conta no plano ativo, não um valor em reais.';
+    });
+  }
+
   function validar(bem) {
-    const erros = [];
+    const erros = validarContas(bem);
     const avisos = [];
     const custo = numero(bem && bem.custo);
     const residual = numero(bem && bem.valor_residual);
@@ -126,5 +133,5 @@
     return linhas;
   }
 
-  return { CLASSES_FISCAIS, numero, dataISO, classeFiscal, validar, vidaFiscalUsadoMeses, calcular, cronograma };
+  return { CLASSES_FISCAIS, numero, dataISO, classeFiscal, validarContas, validar, vidaFiscalUsadoMeses, calcular, cronograma };
 });
