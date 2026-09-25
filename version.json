@@ -1,7 +1,8 @@
 {
-  "version": "3.4.307",
-  "build_date": "2026-09-24T20:25:35.841Z",
+  "version": "3.4.308",
+  "build_date": "2026-09-25T09:15:33.015Z",
   "release_notes": [
+    "Ativo imobilizado: identificar a conta redutora de depreciação, impedir valores em reais nos códigos de conta e validar o plano ativo antes da aprovação.",
     "Itaú: reconhecer extratos com descrições em múltiplas linhas e conferir saldos diários da conta e das aplicações automáticas.",
     "Aluguéis: corrigir leitura da resposta da tabela de IR para preencher o desconto simplificado e permitir nova consulta após indisponibilidade.",
     "Melhorias internas e correcoes"

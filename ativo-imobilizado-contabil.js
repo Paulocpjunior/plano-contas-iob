@@ -1,6 +1,7 @@
 'use strict';
 
 const Ativo = require('./ativo-imobilizado');
+const Relatorios = require('./relatorios-contabeis');
 
 function ultimoDia(periodo) {
   const partes = String(periodo || '').split('-').map(Number);
@@ -106,7 +107,7 @@ function previaEvento(bem, tipo, dados, jaGerados) {
   return { ok: erros.length === 0 && lancamentos.length > 0, tipo, periodo, lancamentos, total: arredondar(lancamentos.reduce(function (soma, item) { return soma + item.valor; }, 0)), erros, mutacao_bem: mutacaoBem };
 }
 
-function previaDepreciacao(bens, periodo, jaGerados) {
+function previaDepreciacao(bens, periodo, jaGerados, contas) {
   const gerados = new Set(jaGerados || []);
   const erros = [];
   const lancamentos = [];
@@ -116,6 +117,8 @@ function previaDepreciacao(bens, periodo, jaGerados) {
     if (dataLimite && String(dataLimite).slice(0, 7) < periodo) return;
     const chave = periodo + ':' + bem.id + ':depreciacao';
     if (gerados.has(chave)) return;
+    const errosContas = Ativo.validarContas(bem);
+    if (errosContas.length) { erros.push(...errosContas.map(e => 'Bem ' + (bem.patrimonio || bem.descricao || bem.id) + ': ' + e)); return; }
     const quota = quotaDoPeriodo(bem, periodo);
     if (!(quota > 0)) return;
     if (!bem.conta_despesa_depreciacao || !bem.conta_depreciacao_acumulada) {
@@ -138,6 +141,10 @@ function previaDepreciacao(bens, periodo, jaGerados) {
       tipo_evento: 'depreciacao'
     });
   });
+  if (contas !== undefined && lancamentos.length) {
+    if (!Array.isArray(contas) || !contas.length) erros.push('Vincule um plano de contas ativo antes de integrar a depreciação.');
+    else erros.push(...Relatorios.validar(lancamentos, periodo, contas).erros.map(e => e.mensagem));
+  }
   return {
     ok: erros.length === 0 && lancamentos.length > 0,
     periodo,

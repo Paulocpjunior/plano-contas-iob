@@ -52,17 +52,19 @@
           <div class="ai-field" id="aiPrimeiroUsoBox" style="display:none"><label>Primeiro uso do bem usado</label><input type="date" id="aiPrimeiroUso"></div>
           <div class="ai-field"><label>Status</label><select id="aiStatus"><option value="ativo">Ativo</option><option value="em_construcao">Em construção</option><option value="mantido_venda">Mantido para venda</option></select></div>
           <div class="ai-field" id="aiMantidoVendaBox" style="display:none"><label>Data mantido para venda</label><input type="date" id="aiMantidoVenda"></div>
-          <div class="ai-field"><label>Conta do ativo</label><input id="aiContaAtivo"></div>
-          <div class="ai-field"><label>Contrapartida da aquisição</label><input id="aiContaContrapartida" placeholder="Fornecedor, banco ou obrigação"></div>
-          <div class="ai-field"><label>Depreciação acumulada</label><input id="aiContaAcumulada"></div>
-          <div class="ai-field"><label>Despesa de depreciação</label><input id="aiContaDespesa"></div>
-          <div class="ai-field"><label>Centro de custo</label><input id="aiCentro"></div>
+          <div class="ai-field"><label for="aiContaAtivo">Conta do ativo</label><input id="aiContaAtivo" list="aiContasPlano" placeholder="Código da conta no plano ativo"></div>
+          <div class="ai-field"><label for="aiContaContrapartida">Contrapartida da aquisição</label><input id="aiContaContrapartida" list="aiContasPlano" placeholder="Conta do fornecedor, banco ou obrigação"></div>
+          <div class="ai-field"><label for="aiContaAcumulada">Conta de depreciação acumulada (crédito)</label><input id="aiContaAcumulada" list="aiContasPlano" placeholder="Código da conta redutora do ativo" aria-describedby="aiContaAcumuladaAjuda"><small id="aiContaAcumuladaAjuda">Informe a conta contábil, não o saldo em R$. O valor acumulado é apresentado na memória de cálculo.</small></div>
+          <div class="ai-field"><label for="aiContaDespesa">Conta de despesa de depreciação (débito)</label><input id="aiContaDespesa" list="aiContasPlano" placeholder="Código da conta de despesa"></div>
+          <datalist id="aiContasPlano"></datalist><div class="ai-field"><label>Centro de custo</label><input id="aiCentro"></div>
           <div class="ai-field ai-span-2"><label>Fundamento para taxa diferente / laudo</label><textarea id="aiFundamento"></textarea></div>
           <div class="ai-field ai-span-2"><label>Observações</label><textarea id="aiObservacoes"></textarea></div>
           <div class="ai-span-4 ai-actions"><button class="ai-btn ai-primary" id="aiSalvar">Salvar bem</button><button class="ai-btn ai-light" id="aiCancelar">Limpar</button><button class="ai-btn ai-light" id="aiCalcular">Prévia da depreciação</button></div>
         </div><div id="aiValidacao" style="margin-top:12px"></div><div id="aiCronograma" class="ai-schedule" style="margin-top:12px"></div></section>
         <section class="card" style="padding:20px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Bens cadastrados</h3><button class="ai-btn ai-light" id="aiAtualizar">Atualizar</button></div><div class="ai-table-wrap" style="margin-top:12px"><table class="ai-table"><thead><tr><th>Patrimônio</th><th>Bem</th><th>Classe</th><th>Disponível</th><th>Custo</th><th>Depreciação acumulada</th><th>Valor contábil</th><th>Status</th><th>Ações</th></tr></thead><tbody id="aiBody"></tbody></table></div></section>
       </div>`;
+    campo('aiPeriodoContabil').addEventListener('change', invalidarPrevia);
+    campo('ativoImobilizadoRoot').querySelector('.ai-form').addEventListener('input', invalidarPrevia);
     campo('aiClasse').addEventListener('change', aplicarReferencia);
     campo('aiCondicao').addEventListener('change', atualizarCondicao);
     campo('aiStatus').addEventListener('change', atualizarStatus);
@@ -76,6 +78,20 @@
     atualizarCondicao();
     atualizarStatus();
     aplicarReferencia();
+  }
+
+  function invalidarPrevia() {
+    previaContabil = null;
+    campo('aiAprovarContabil').disabled = true;
+    campo('aiPreviaContabilResultado').innerHTML = '';
+  }
+
+  function atualizarContasPlano() {
+    const ctx = contexto();
+    campo('aiContasPlano').innerHTML = ((ctx && ctx.contas) || []).map(function (c) {
+      const codigo = c.classificacao || c.codigo || c.cod || c.reduzido;
+      return codigo ? '<option value="' + esc(codigo) + '">' + esc(c.descricao || c.desc || c.nome || '') + '</option>' : '';
+    }).join('');
   }
 
   function dadosFormulario() {
@@ -116,6 +132,7 @@
     try {
       campo('aiSalvar').disabled = true;
       await window.API.salvarAtivoImobilizado(ctx.empresa.cnpj, dados, editandoId || null);
+      invalidarPrevia();
       window.showToast(editandoId ? 'Bem atualizado.' : 'Bem cadastrado.', 'success');
       limpar();
       await carregar();
@@ -132,6 +149,7 @@
   function editar(id) {
     const bem = itens.find(function (i) { return i.id === id; });
     if (!bem) return;
+    invalidarPrevia();
     editandoId = id;
     const mapa = { aiDescricao:'descricao', aiPatrimonio:'patrimonio', aiClasse:'classe_fiscal', aiAquisicao:'data_aquisicao', aiDisponivel:'data_disponivel_uso', aiPrimeiroUso:'data_primeiro_uso', aiMantidoVenda:'data_mantido_venda', aiCusto:'custo', aiResidual:'valor_residual', aiVida:'vida_util_meses', aiTaxa:'taxa_fiscal_anual', aiCondicao:'condicao', aiStatus:'status', aiContaAtivo:'conta_ativo', aiContaContrapartida:'conta_contrapartida_aquisicao', aiContaAcumulada:'conta_depreciacao_acumulada', aiContaDespesa:'conta_despesa_depreciacao', aiCentro:'centro_custo', aiFundamento:'fundamento_taxa', aiObservacoes:'observacoes' };
     Object.keys(mapa).forEach(function (idCampo) { if (campo(idCampo)) campo(idCampo).value = bem[mapa[idCampo]] == null ? '' : bem[mapa[idCampo]]; });
@@ -186,6 +204,7 @@
   }
 
   async function gerarPreviaContabil() {
+    invalidarPrevia();
     const ctx = contexto();
     try {
       previaContabil = await window.API.previaDepreciacaoAtivo(ctx.empresa.cnpj, campo('aiPeriodoContabil').value);
@@ -225,6 +244,6 @@
     catch (e) { campo('aiBody').innerHTML = '<tr><td colspan="9">' + esc(e.message || String(e)) + '</td></tr>'; }
   }
 
-  async function abrir() { if (!inicializado) montar(); await carregar(); }
+  async function abrir() { if (!inicializado) montar(); invalidarPrevia(); atualizarContasPlano(); await carregar(); }
   window.CCIAtivoImobilizadoUI = { abrir };
 })();
