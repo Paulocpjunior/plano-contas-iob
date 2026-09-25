@@ -190,6 +190,7 @@ function locadoresDividendosParaR4010(resultado, extras = {}) {
     nome: s.nome,
     bruto: s.valorBruto,
     baseIrrf: s.valorTributavel,
+    rendimentosIsentos: s.valorAtaIsento > 0 ? [{ tpIsencao: 12, vlrIsento: s.valorAtaIsento }] : [],
     irrf: s.irrf,
     cnpjFonte,
     cnpjEstab,

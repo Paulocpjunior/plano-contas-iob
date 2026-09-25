@@ -19,6 +19,7 @@
 // Trocar de versão = editar SÓ esta linha. O monitor de leiaute (a construir)
 // compara esta constante com o arquivo publicado no portal SPED.
 // ─────────────────────────────────────────────────────────────────────────
+const IsencoesDividendos = require('./reinf-isencoes-dividendos');
 const { conferirDeducoes } = require('./reinf-alugueis-planilha');
 const LEIAUTE_REINF = 'v2_01_02';            // versão do leiaute 2.1.2
 const REVISAO_XSD_R4010 = 'v2_01_02g';       // revisão atual do XSD R-4010
@@ -142,6 +143,7 @@ function gerarR4010(ev) {
       if (p.vlrIR != null)
         linhas.push(`        <vlrIR>${fmtValorReinf(p.vlrIR)}</vlrIR>`);
       for (const d of p.deducoes || []) linhas.push(`        <detDed><indTpDeducao>${Number(d.indTpDeducao)}</indTpDeducao><vlrDeducao>${fmtValorReinf(d.vlrDeducao)}</vlrDeducao></detDed>`);
+      for (const r of p.rendimentosIsentos || []) linhas.push(`        <rendIsento><tpIsencao>${Number(r.tpIsencao)}</tpIsencao><vlrIsento>${fmtValorReinf(r.vlrIsento)}</vlrIsento></rendIsento>`);
       return `      <infoPgto>\n${linhas.join('\n')}\n      </infoPgto>`;
     }).join('\n');
     return `    <idePgto>\n      <natRend>${natRend}</natRend>\n${infoPgtos}\n    </idePgto>`;
@@ -211,6 +213,7 @@ function validarEntradaR4010(ev) {
   if (!Array.isArray(pagamentos) || pagamentos.length === 0)
     e.push('pagamentos deve ser uma lista não vazia');
   else pagamentos.forEach((p, i) => {
+    try { IsencoesDividendos.conferir(p.rendimentosIsentos, {natRend:p.natRend,perApur,tpInsc:contribuinte?.tpInsc,bruto:p.vlrRendBruto,tributavel:p.vlrRendTrib}); } catch(err) { e.push(err.message); }
     if(p.deducoes!=null && !Array.isArray(p.deducoes))e.push('Deduções devem ser uma lista.');
     if(p.deducoes?.length) {
       try {
@@ -304,6 +307,7 @@ function gerarEventosR4010DaPlanilha({
         simplificados.add(mensal);
       }
     } else if (baseIrrf > 0 || irrf > 0) pagamento.vlrRendTrib = baseIrrf;
+    pagamento.rendimentosIsentos = IsencoesDividendos.conferir(loc.rendimentosIsentos, {natRend,perApur,tpInsc:contribuinteLocador.tpInsc,bruto,tributavel:pagamento.vlrRendTrib});
     if (irrf > 0) pagamento.vlrIR = irrf;
     grupo.pagamentos.push(pagamento);
   }
