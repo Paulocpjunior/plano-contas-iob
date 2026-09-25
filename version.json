@@ -1,7 +1,8 @@
 {
-  "version": "3.4.315",
-  "build_date": "2026-09-25T17:39:02.432008Z",
+  "version": "3.4.316",
+  "build_date": "2026-09-25T18:20:51.955526Z",
   "release_notes": [
+    "Carnê-Leão: sugerir IPTU e taxa de administração da planilha por proprietário, mostrar a base após exclusões e refletir os valores no cálculo e CSV.",
     "Itaú: reler a célula de valores incompletos no OCR e tratar ruído no separador de milhar, mantendo a conciliação diária e as regressões de fevereiro, março e abril.",
     "Itaú por período: reconhecer vírgula lida como barra em valores do OCR e preservar a conferência diária da conta e das aplicações automáticas.",
     "Carnê-Leão: preparar aluguéis por proprietário, conferir recebimentos e exclusões, calcular o IR mensal e exportar CSV para análise no portal da Receita.",

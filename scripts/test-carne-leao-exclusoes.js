@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict'),U=require('../reinf/reinf-alugueis-planilha'),P=require('../reinf/carne-leao-preparacao');
+const fixture=require('./fixtures/reinf-alugueis-nicolellis-agosto.json'),a=U.analisar(fixture.abas),r=a.registros.find(r=>r.tipo==='carne_leao');
+assert.equal(r.taxaAdministracaoPercentual,20);
+const ps=a.proprietarios,i=ps.findIndex(p=>p.percentual===12.5);ps[i].cpf='03562049870';
+const bruto=U.ratear(r.recebido,ps)[i],iptu=U.ratear(r.iptuRecebido,ps)[i],taxa=U.ratear(Math.round((r.recebido-r.iptuRecebido)*.2),ps)[i];
+assert.deepEqual({bruto,iptu,taxa,base:bruto-iptu-taxa},{bruto:467226,iptu:44951,taxa:84455,base:337820});
+const t=require('../reinf-tabela-ir').extrair(require('fs').readFileSync(require('path').join(__dirname,'fixtures/receita-ir-mensal-2026.html'),'utf8'),2026);
+const rev={[r.id]:{conferido:true,justificativa:'Repasse IPTU e administração comprovados',pagamentos:[{data:r.data,bruto,iptu,taxa,exclusoes:0}]}};
+const out=P.preparar({...a,registros:[r]},ps,i,rev,{outros:0,deducoes:0,simplificado:true},t);
+assert.equal(out.rendimento,337820);assert.equal(out.pagamentos[0].exclusoes,129406);assert(P.csv(out).includes(';4672,26;1294,06;'));assert.equal(out.calculo.deducao,607.2);
+rev[r.id].pagamentos[0].taxa=null;assert.throws(()=>P.preparar({...a,registros:[r]},ps,i,rev,{outros:0,deducoes:0,simplificado:true},t),/Taxa de administração/);
+const sem=structuredClone(fixture.abas);sem.find(a=>U.norm(a.nome)==='IRPFXPF').rows[0][15]=null;assert.equal(U.analisar(sem).registros.find(r=>r.tipo==='carne_leao').taxaAdministracaoPercentual,null);
+console.log('OK Carnê-Leão: IPTU e administração reduzem base e CSV; taxa identificada na planilha, sem percentual presumido.');
