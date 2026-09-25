@@ -1,7 +1,8 @@
 {
-  "version": "3.4.311",
-  "build_date": "2026-09-25T11:48:49.116229Z",
+  "version": "3.4.312",
+  "build_date": "2026-09-25T12:38:52.980151Z",
   "release_notes": [
+    "Dividendos: campos individuais dos sócios, saldos da ATA e baixa por evento R-4010 aceito em produção, com controle de repetição e retificação.",
     "Aplicações financeiras: usar o e-mail preenchido na tela ao solicitar extratos e mostrar o destinatário na confirmação.",
     "Dividendos: conferir a parcela isenta do tipo 12 por pagamento e incluí-la no R-4010 preservando o rendimento bruto integral.",
     "Aluguéis: identificar os locatários PF como fontes pagadoras no Carnê-Leão e restringir o seletor de CNPJ e a preparação de R-4010 à aba Reinf.",

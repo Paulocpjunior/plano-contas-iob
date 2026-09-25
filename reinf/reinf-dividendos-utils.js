@@ -128,10 +128,13 @@ function calcularDividendos(params = {}) {
     brutos=ratearCentavos(valorDistribuidoCentavos,socios.map(s=>s.percentual));
   }
   const ataAplicavel = ataAprovadaAte2025 && ataValidaAte2028;
-  const ataUsadoCentavos = ataAplicavel
+  let ataUsadoCentavos = ataAplicavel
     ? Math.min(Math.max(0, ataSaldoAnteriorCentavos), valorDistribuidoCentavos)
     : 0;
-  const ataPorSocio = ratearCentavos(ataUsadoCentavos, brutos);
+  const individuais = new Map((params.socios || []).filter(s => s.ataSaldo != null && s.ataSaldo !== '').map(s => [digits(s.cpf || s.cpfBenef), toCents(s.ataSaldo)]));
+  if (individuais.size && (individuais.size !== normalizados.socios.length || [...individuais.values()].some(v=>v<0) || [...individuais.values()].reduce((a,b)=>a+b,0)!==ataSaldoAnteriorCentavos)) throw Error('Confira os saldos individuais: a soma deve coincidir com o saldo da ATA.');
+  const ataPorSocio = individuais.size ? socios.map((s,i)=>ataAplicavel ? Math.min(brutos[i],individuais.get(s.cpf)) : 0) : ratearCentavos(ataUsadoCentavos, brutos);
+  ataUsadoCentavos = ataPorSocio.reduce((a,b)=>a+b,0);
 
   let totalBaseTributavelCentavos = 0;
   let totalIrrfCentavos = 0;
@@ -177,6 +180,12 @@ function calcularDividendos(params = {}) {
     alertaAta: calcularAlertaAta(ataSaldoAnteriorCentavos, ataSaldoAposCentavos),
     totalBaseTributavel: fromCents(totalBaseTributavelCentavos),
     totalIrrf: fromCents(totalIrrfCentavos),
+    saldosAta: normalizados.socios.map(s => {
+      const anterior = individuais.get(s.cpf);
+      const usado = sociosCalculados.find(p=>p.cpf===s.cpf)?.valorAtaIsento || 0;
+      const saldo = anterior == null ? null : anterior - toCents(usado);
+      return {cpf:s.cpf,nome:s.nome,percentual:s.percentual,saldoAnterior:anterior == null ? null : fromCents(anterior),ataUsada:usado,saldoApos:saldo == null ? null : fromCents(saldo),percentualSaldo:saldo == null ? null : (ataSaldoAposCentavos ? Math.round(saldo/ataSaldoAposCentavos*10000)/100 : 0)};
+    }),
     socios: sociosCalculados,
   };
 }
