@@ -4,6 +4,7 @@
 // porque e registrada abaixo de /api no server.js.
 // ============================================================================
 const express = require('express');
+const SaldoAta = require('./reinf/dividendos-saldo-ata');
 // FieldValue.delete() — remover a base informada de UMA nota sem tocar nas outras.
 const { FieldValue } = require('@google-cloud/firestore');
 const {
@@ -47,6 +48,7 @@ const { gerarR2099, podeTransmitirR2099 } = require('./reinf/gerar-r2099');
 const { derivarGruposDoLog, resumoDoFechamento } = require('./reinf/fechamento-2000-grupos');
 const {
   calcularDividendos,
+  normalizarSocios,
   locadoresDividendosParaR4010,
   emailSolicitacaoDividendos,
 } = require('./reinf/reinf-dividendos-utils');
@@ -231,6 +233,7 @@ async function registrarLoteReinfPendente(db, req, protocolo, eventos, p, tpAmb)
     const cnpjEstab = limparCnpj(ev && ev.cnpjEstab) || cnpjEstabPadrao;
     batch.set(loteRef.collection('eventos').doc(ev.id), {
       id: ev.id,
+      ata: SaldoAta.extrairAta(ev.xml),
       tpEv: ev.cpf ? '4010' : '4099',
       cpf,
       nome: ev.nome || null,
@@ -249,6 +252,7 @@ async function registrarRetornoLoteReinf(db, protocolo, tpAmb, xml) {
   if (!db || !protocolo || !xml) return { eventos: [], recibosGravados: 0, duplicidades: 0 };
   const loteRef = db.collection('reinf_lotes').doc(String(protocolo));
   const eventos = parseRetornoEventos(xml);
+  const saldosAta = [];
   let recibosGravados = 0;
   let duplicidades = 0;
   for (const ret of eventos) {
@@ -273,9 +277,10 @@ async function registrarRetornoLoteReinf(db, protocolo, tpAmb, xml) {
         atualizado_em: new Date(),
       }, { merge: true });
       recibosGravados++;
+      if (meta.ata != null && Number(meta.tpAmb) === 1 && Number(tpAmb) === 1) saldosAta.push(await SaldoAta.aplicarAceite(db, meta, ret, protocolo));
     }
   }
-  return { eventos, recibosGravados, duplicidades };
+  return { eventos, recibosGravados, duplicidades, saldosAta };
 }
 
 function parseRetornoReinf(retorno) {
@@ -905,6 +910,8 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         responsavelDividendos: div.responsavelDividendos || '',
         ataValorTotal: reinfFromCents(Number(div.ataValorTotalCentavos || 0)),
         ataSaldo: reinfFromCents(Number(div.ataSaldoCentavos || 0)),
+        ataRevisao: Number(div.ataRevisao || 0),
+        controleAtaIndividual: div.controleAtaIndividual === true,
         ataAprovadaAte2025: div.ataAprovadaAte2025 === true,
         ataValidaAte2028: div.ataValidaAte2028 !== false,
         socios: Array.isArray(div.socios) ? div.socios : [],
@@ -922,12 +929,17 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
       const body = req.body || {};
       const email = String(body.emailSolicitacaoReinf || '').trim();
       if (email && !reinfEmailValido(email)) throw new Error('E-mail de solicitação inválido.');
+      const monetarios = [body.ataValorTotal, body.ataSaldo, ...(body.socios || []).map(s=>s.ataSaldo)].filter(v=>v!=null && v!=='');
+      if(monetarios.some(v=>typeof v !== 'number' || !Number.isFinite(v) || v<0 || !Number.isSafeInteger(Math.round(v*100)))) throw Error('Informe valores monetários válidos e não negativos para a ATA.');
       const socios = Array.isArray(body.socios) ? body.socios.map((s) => ({
         cpf: limparCnpj(s.cpf || s.cpfBenef),
         nome: String(s.nome || s.nomeBenef || '').trim(),
         email: String(s.email || '').trim(),
         percentual: Number(String(s.percentual || 0).replace(',', '.')) || 0,
+        ...(s.ataSaldo != null && s.ataSaldo !== '' ? {ataSaldoCentavos: reinfToCents(s.ataSaldo)} : {}),
       })).filter((s) => s.cpf || s.nome || s.percentual) : [];
+      const validacaoSocios = normalizarSocios(socios);
+      if (validacaoSocios.erros.length) throw Error(validacaoSocios.erros.join(' '));
       const update = {
         email_reinf: email || null,
         reinfDividendos: {
@@ -943,9 +955,21 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
           atualizado_por_email: req.user && req.user.email || null,
         },
       };
-      await db.collection('empresas').doc(cnpj).set(update, { merge: true });
+      const ref = db.collection('empresas').doc(cnpj);
+      const ataRevisao = await db.runTransaction(async tx => {
+        const snap = await tx.get(ref);
+        const anterior = (snap.data() || {}).reinfDividendos || {};
+        if (Number(body.ataRevisao || 0) !== Number(anterior.ataRevisao || 0)) throw Error('O saldo da ATA foi atualizado. Carregue novamente o cadastro antes de salvar.');
+        const individual = socios.some(s => s.ataSaldoCentavos != null);
+        if (individual && (socios.some(s => !Number.isSafeInteger(s.ataSaldoCentavos) || s.ataSaldoCentavos < 0) || socios.reduce((a,s)=>a+s.ataSaldoCentavos,0) !== update.reinfDividendos.ataSaldoCentavos)) throw Error('Informe os saldos de todos os sócios; a soma deve coincidir com o saldo disponível da ATA.');
+        if (anterior.controleAtaIndividual && !individual) throw Error('Mantenha o controle individual de saldo da ATA.');
+        update.reinfDividendos.controleAtaIndividual = individual;
+        update.reinfDividendos.ataRevisao = Number(anterior.ataRevisao || 0) + 1;
+        tx.set(ref, update, {merge:true});
+        return update.reinfDividendos.ataRevisao;
+      });
       await registrarLog(db, req, 'dividendos_salvar_cadastro', { cnpj, socios: socios.length, email: !!email });
-      res.json({ ok: true, cnpj, socios: socios.length });
+      res.json({ ok: true, cnpj, socios: socios.length, ataRevisao });
     } catch (err) {
       respostaErro(res, 400, err);
     }
@@ -963,7 +987,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
       const resultado = calcularDividendos({
         ...body,
         cnpj,
-        socios: Array.isArray(body.socios) ? body.socios : cadastro.socios,
+        socios: Array.isArray(body.socios) ? body.socios : (cadastro.socios || []).map(s=>({...s,ataSaldo:s.ataSaldoCentavos == null ? null : reinfFromCents(s.ataSaldoCentavos)})),
         ataValorTotal: body.ataValorTotal != null ? body.ataValorTotal : reinfFromCents(cadastro.ataValorTotalCentavos),
         ataSaldoAnterior: body.ataSaldoAnterior != null ? body.ataSaldoAnterior : (body.ataSaldo != null ? body.ataSaldo : reinfFromCents(cadastro.ataSaldoCentavos)),
         ataAprovadaAte2025: body.ataAprovadaAte2025 != null ? body.ataAprovadaAte2025 : cadastro.ataAprovadaAte2025,
@@ -980,36 +1004,8 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     }
   });
 
-  router.post('/dividendos/registrar', adminReinfCadastroRequired, async (req, res) => {
-    try {
-      if (!db) throw new Error('Banco de dados indisponível para registrar dividendos.');
-      const body = req.body || {};
-      const resultado = calcularDividendos(body);
-      const cnpj = limparCnpj(resultado.cnpj);
-      const docId = String(resultado.competencia || '').replace(/\D/g, '');
-      await db.collection('empresas').doc(cnpj).collection('reinf_dividendos').doc(docId).set({
-        ...resultado,
-        registrado_em: new Date(),
-        registrado_por_uid: req.user && req.user.uid || null,
-        registrado_por_email: req.user && req.user.email || null,
-      }, { merge: true });
-      await db.collection('empresas').doc(cnpj).set({
-        reinfDividendos: {
-          ataSaldoCentavos: reinfToCents(resultado.ataSaldoApos),
-          atualizado_em: new Date(),
-          atualizado_por_email: req.user && req.user.email || null,
-        },
-      }, { merge: true });
-      await registrarLog(db, req, 'dividendos_registrar_competencia', {
-        cnpj,
-        competencia: resultado.competencia,
-        totalIrrf: resultado.totalIrrf,
-        ataSaldoApos: resultado.ataSaldoApos,
-      });
-      res.json({ ok: true, resultado });
-    } catch (err) {
-      respostaErro(res, 400, err);
-    }
+  router.post('/dividendos/registrar', adminReinfCadastroRequired, (req, res) => {
+    res.status(409).json({ok:false,erro:'A baixa da ATA ocorre após o aceite do R-4010 em produção, na consulta do lote. Calcular ou registrar uma prévia não consome saldo.'});
   });
 
   router.post('/dividendos/solicitar', adminReinfCadastroRequired, async (req, res) => {
@@ -1432,6 +1428,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         tpAmb,
         httpStatus: retorno.status,
         cdResposta: infoRetorno.cdResposta || null,
+        saldosAta: persistencia.saldosAta || [],
         eventosRetorno: persistencia.eventos.length,
         recibosGravados: persistencia.recibosGravados,
         duplicidades: persistencia.duplicidades,
@@ -1444,6 +1441,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         protocolo: infoRetorno.protocolo || req.params.protocolo,
         dhRecepcao: infoRetorno.dhRecepcao,
         versaoAplicativoRecepcao: infoRetorno.versaoAplicativoRecepcao,
+        saldosAta: persistencia.saldosAta || [],
         eventosRetorno: persistencia.eventos.length,
         recibosGravados: persistencia.recibosGravados,
         duplicidades: persistencia.duplicidades,
