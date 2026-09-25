@@ -18,12 +18,12 @@
       if(!Array.isArray(rev.pagamentos)||!rev.pagamentos.length)throw Error('Discrimine os pagamentos de '+r.locatario+'.');
       let soma=0;
       for(const item of rev.pagamentos){
-        const data=U.date(item.data),bruto=valor(item.bruto,'Valor recebido'),exclusoes=valor(item.exclusoes,'Exclusões');
+        const data=U.date(item.data),bruto=valor(item.bruto,'Valor recebido'),iptu=valor(item.iptu??0,'IPTU'),taxa=valor(item.taxa===undefined?0:item.taxa,'Taxa de administração'),outras=valor(item.exclusoes,'Outras exclusões'),exclusoes=iptu+taxa+outras;
         if(!data||data.slice(0,7)!==analise.competencia)throw Error('Data inválida ou fora da competência: '+r.locatario+'.');
         if(bruto<=0||exclusoes>bruto)throw Error('Valor ou exclusões inválidos: '+r.locatario+'.');
         soma+=bruto;
         if((exclusoes>0||(r.pendencias||[]).length)&&!String(rev.justificativa||'').trim())throw Error('Justifique as exclusões/divergências de '+r.locatario+'.');
-        pagamentos.push({origem:r.id,data,bruto,exclusoes,tributavel:bruto-exclusoes,locatario:r.locatario,cpf:U.digits(r.documento),imovel:r.endereco,justificativa:String(rev.justificativa||'').trim()});
+        pagamentos.push({origem:r.id,data,bruto,iptu,taxa,outras,exclusoes,tributavel:bruto-exclusoes,locatario:r.locatario,cpf:U.digits(r.documento),imovel:r.endereco,justificativa:String(rev.justificativa||'').trim()});
       }
       if(soma!==esperado)throw Error('A soma dos recebimentos de '+r.locatario+' deve corresponder à participação do proprietário: R$ '+(esperado/100).toFixed(2)+'.');
     }

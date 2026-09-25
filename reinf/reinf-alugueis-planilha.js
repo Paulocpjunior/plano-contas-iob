@@ -41,6 +41,8 @@
       const rows=aba.rows;
       const h=rows.findIndex(r=>r.some(c=>norm(c)==='ENDERECO')&&r.some(c=>norm(c)==='DATARECEBIMENTO'));
       if(h<0) throw Error('Cabeçalho não reconhecido na aba '+aba.nome+'.');
+      const taxas=(rows[h+1]||[]).flatMap((v,c)=>norm(v)==='TAXA'?rows.slice(0,h).map(row=>row[c]).filter(v=>typeof v==='number'&&v>0&&v<=1):[]);
+      const taxaAdministracaoPercentual=tipo==='carne_leao'&&new Set(taxas).size===1?taxas[0]*100:null;
       const headers=rows[h].map(norm);
       const col=aliases=>headers.findIndex(c=>aliases.includes(c));
       const ix={endereco:col(['ENDERECO']),nome:col(['LOCATARIOA','LOCATARIO']),aluguel:col(['VALORALUGUEL']),iptu:col(['VALORIPTU','IPTU']),irrf:col(['IRRETIDOFONTE','IRRETIDONAFONTE']),previsto:col(['TOTALARECEBER']),recebido:col(['VALORRECEBIDO']),data:col(['DATARECEBIMENTO']),liquido:col(['ALUGUELLIQUIDORECEBIDO','VALORALUGUELLIQUIDO']),iptuRecebido:col(['IPTURECEBIDO']),documento:col(['CPFCNPJLOCATARIOS','CPFCNPJLOCATARIO']),obs:col(['OBSERVACOES'])};
@@ -59,6 +61,7 @@
         const registro={id:aba.nome.trim()+':'+linha,aba:aba.nome,linha,tipo,endereco:String(r[ix.endereco]).trim(),locatario:String(r[ix.nome]).trim(),documento:digits(r[ix.documento]),
           aluguel:cents(r[ix.aluguel]),iptu:cents(r[ix.iptu]),irrf:irrf===null && (r[ix.irrf]==null||r[ix.irrf]==='')?(tipo==='reinf'?null:0):irrf,
           previsto:cents(r[ix.previsto]),recebido,liquido:cents(r[ix.liquido]),iptuRecebido:cents(r[ix.iptuRecebido]),data:date(r[ix.data]),dataOriginal:String(r[ix.data]||''),observacao:String(r[ix.obs]||''),naoPago,pendencias:[]};
+        if(tipo==='carne_leao')registro.taxaAdministracaoPercentual=taxaAdministracaoPercentual;
         if(!documentoValido(registro.documento,tipo==='carne_leao'?11:14)) registro.pendencias.push('CPF/CNPJ do locatário inválido');
         if(!naoPago) {
           if(!registro.data) registro.pendencias.push('Data de recebimento ausente ou múltipla: '+registro.dataOriginal);
