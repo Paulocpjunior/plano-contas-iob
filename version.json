@@ -1,7 +1,8 @@
 {
-  "version": "3.4.316",
-  "build_date": "2026-09-25T18:20:51.955526Z",
+  "version": "3.4.317",
+  "build_date": "2026-09-25T18:56:25.309Z",
   "release_notes": [
+    "Itaú: corrigir a leitura dos extratos de maio a agosto, preservar recebimentos repetidos legítimos e conferir os saldos diários antes de liberar a importação.",
     "Carnê-Leão: sugerir IPTU e taxa de administração da planilha por proprietário, mostrar a base após exclusões e refletir os valores no cálculo e CSV.",
     "Itaú: reler a célula de valores incompletos no OCR e tratar ruído no separador de milhar, mantendo a conciliação diária e as regressões de fevereiro, março e abril.",
     "Itaú por período: reconhecer vírgula lida como barra em valores do OCR e preservar a conferência diária da conta e das aplicações automáticas.",
