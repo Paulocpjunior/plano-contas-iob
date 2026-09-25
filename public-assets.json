@@ -76,5 +76,7 @@
   "/reinf/reinf-alugueis-planilha.js",
   "/reinf/alugueis-conferencia.js",
   "/reinf/alugueis-conferencia-ui.js",
-  "/reinf/alugueis-planilha-modal.js"
+  "/reinf/alugueis-planilha-modal.js",
+  "/reinf/carne-leao-preparacao.js",
+  "/reinf/carne-leao-preparacao-ui.js"
 ]

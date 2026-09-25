@@ -31,7 +31,7 @@
       <div id="rapStatus" role="status" aria-live="polite"></div><div id="rapConferencia"></div><div id="rapResumo"></div>
       <details id="rapCadastro"><summary>Proprietários e participações</summary><p class="rap-note">Os nomes e percentuais vêm da planilha. Complete os CPFs e salve o cadastro para os próximos meses. O IRRF de cada proprietário deve ser informado pelo demonstrativo de retenção.</p><div id="rapOwners" class="rap-scroll"></div><button id="rapSave">Salvar parametrização</button></details>
       <div class="rap-tabs" id="rapTabs"><button data-tipo="reinf" aria-pressed="true">PJ paga a PF · Reinf</button><button data-tipo="carne_leao" aria-pressed="false">PF paga a PF · Carnê-Leão</button><button data-tipo="locador_pj" aria-pressed="false">Proprietário PJ</button></div>
-      <p id="rapExplica" class="rap-note"></p><div id="rapRows" class="rap-scroll"></div><div id="rapReviews"></div>
+      <p id="rapExplica" class="rap-note"></p><div id="rapCarne" hidden></div><div id="rapRows" class="rap-scroll"></div><div id="rapReviews"></div>
       <p id="rapReferenciaReinf" class="rap-note">Referência: <a href="https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/perguntas-frequentes/sped/efd-reinf/efdr/2-eventos-da-efd-reinf/2-13-9-e-necessario-informar" target="_blank" rel="noopener">Receita Federal — aluguéis na EFD-Reinf</a>. Este fluxo prepara pagamentos PJ para proprietários PF residentes no Brasil. Valores de Carnê-Leão permanecem na conferência; não geram R-4010.</p>
       </div><footer class="rap-foot" id="rapReinfFooter"><label>Fonte pagadora PJ (CNPJ) <select id="rapFonte"><option value="">Selecione após ler a planilha</option></select></label><button id="rapPrepare" class="rap-primary" disabled>Preparar R-4010 da fonte selecionada</button></footer></section>`;
     document.body.appendChild(el);
@@ -43,7 +43,7 @@
     $('rapPrepare').onclick=preparar;
     $('rapFonte').onchange=()=>renderReviews();
     $('rapTabs').onclick=e=>{if(!e.target.dataset.tipo)return;filtro=e.target.dataset.tipo;render();};
-    $('rapOwners').addEventListener('change',e=>{const i=e.target.dataset.owner;if(i==null)return;proprietarios[Number(i)].cpf=e.target.value;Object.values(revisoes).forEach(r=>r.conferido=false);renderReviews();});
+    $('rapOwners').addEventListener('change',e=>{const i=e.target.dataset.owner;if(i==null)return;proprietarios[Number(i)].cpf=e.target.value;Object.values(revisoes).forEach(r=>r.conferido=false);renderReviews();renderCarne();});
     $('rapReviews').addEventListener('click',e=>{const retry=e.target.closest('[data-ded-retry]');if(retry){const rev=revisoes[retry.dataset.row];if(rev)alterarIgreja({dataset:{row:retry.dataset.row,ded:retry.dataset.ded,field:'tipoDeducao'},value:'8'},rev);return;}const b=e.target.closest('[data-ded-action]');if(!b)return;const rev=revisoes[b.dataset.row];if(!rev)return;rev.deducoes=rev.deducoes||[];if(b.dataset.dedAction==='add')rev.deducoes.push({indTpDeducao:'',valor:null});else rev.deducoes.splice(Number(b.dataset.ded),1);rev.conferido=false;atualizarBase(rev);renderIgrejasReviews();});
     $('rapReviews').addEventListener('change',e=>{
       const id=e.target.dataset.row;if(!id||!revisoes[id])return;const rev=revisoes[id];
@@ -63,14 +63,20 @@
     $('rapReferenciaReinf').hidden=filtro!=='reinf';
     $('rapFonte').disabled=filtro!=='reinf'||!analise;
     $('rapPrepare').disabled=true;
+    renderCarne();
     if(!analise){$('rapRows').innerHTML='Selecione a planilha para iniciar.';$('rapReviews').innerHTML='';return;}
     $('rapCadastro').hidden=analise.modelo==='igrejas';
     if(analise.modelo==='igrejas'){renderIgrejas();return;}
     const rs=analise.registros.filter(r=>r.tipo===filtro);
-    $('rapExplica').textContent=filtro==='reinf'?'Confira a fonte pagadora, o bruto, a base tributável e o IRRF individual. IPTU e taxa de administração não são deduzidos automaticamente.':filtro==='carne_leao'?'As fontes pagadoras são os locatários pessoas físicas, identificados pelo CPF na tabela. A administradora apenas intermedeia os recebimentos. Não pagos, datas múltiplas e diferenças permanecem destacados. Esta aba é de conferência: não transmite Carnê-Leão nem prepara R-4010.':'Conferência do imóvel de proprietário PJ. Não gera beneficiários PF no R-4010.';
+    $('rapExplica').textContent=filtro==='reinf'?'Confira a fonte pagadora, o bruto, a base tributável e o IRRF individual. IPTU e taxa de administração não são deduzidos automaticamente.':filtro==='carne_leao'?'As fontes pagadoras são os locatários pessoas físicas, identificados pelo CPF na tabela. A administradora apenas intermedeia os recebimentos. Não pagos, datas múltiplas e diferenças permanecem destacados. Use Preparar Carnê-Leão abaixo para revisar e exportar os aluguéis por proprietário.':'Conferência do imóvel de proprietário PJ. Não gera beneficiários PF no R-4010.';
     $('rapResumo').textContent=analise.registros.length+' imóveis/linhas • '+analise.registros.filter(r=>r.naoPago).length+' não pagos • '+analise.registros.filter(r=>r.pendencias.length).length+' com pontos de conferência.';
     $('rapRows').innerHTML='<table class="rap-table"><thead><tr><th>Imóvel / origem</th><th>'+(filtro==='carne_leao'?'Fonte pagadora · locatário / CPF':'Locatário / documento')+'</th><th>Recebimento</th><th>Aluguel previsto</th><th>IPTU recebido</th><th>IRRF informado</th><th>Total recebido</th><th>Conferência</th></tr></thead><tbody>'+rs.map(r=>`<tr><td>${esc(r.endereco)}<small>${esc(r.aba)} · linha ${r.linha}</small></td><td>${esc(r.locatario)}<small>${esc(r.documento)}</small></td><td>${esc(r.dataOriginal)||'—'}</td><td class="rap-num">${money(r.aluguel)}</td><td class="rap-num">${money(r.iptuRecebido)}</td><td class="rap-num">${money(r.irrf)}</td><td class="rap-num">${r.naoPago?'Não pagou':money(r.recebido)}</td><td>${esc(r.naoPago?'Não incluir como pagamento':r.pendencias.join('; ')||'Valores conciliados')}${r.observacao?'<small>'+esc(r.observacao)+'</small>':''}</td></tr>`).join('')+'</tbody></table>';
     renderReviews();
+  }
+  function renderCarne() {
+    const el=$('rapCarne');el.hidden=filtro!=='carne_leao'||!analise||analise.modelo==='igrejas';
+    el.innerHTML='';
+    if(!el.hidden){const turno=session;root.montarPreparacaoCarneLeao(el,{analise,proprietarios,arquivo,cnpj:ctx.cnpj,api,vigente(){vigente();if(turno!==session||filtro!=='carne_leao'||el.hidden)throw Error('Reabra a aba Carnê-Leão e prepare novamente.');}});}
   }
   function renderReviews() {
     if(!analise)return;
