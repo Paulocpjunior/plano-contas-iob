@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict');
+const h=require('../parser-itau-extrato-mensal').__test__;
+const fixture=require('./fixtures/itau-denardo-marco-ocr.json');
+function normalizar(leitura){const o=structuredClone(leitura);for(const l of o.lines){for(const i of l.items)i.s=h.normalizarTokenMonetarioPosicionalOCR(i.s,i.x,i.naturezaCor);l.text=l.items.map(i=>i.s).join(' ').replace(/\s+/g,' ').trim();}o.textoCompleto=o.lines.map(l=>l.text).join('\n');return o;}
+const parse=o=>h.parseItauLancamentosPeriodo(o.lines,o.textoCompleto);
+assert.throws(()=>parse(fixture.leitura),/nao conciliou/);
+assert.equal(h.normalizarTokenMonetarioPosicionalOCR('3/19',493,'C'),'3,19');
+assert.equal(h.normalizarTokenMonetarioPosicionalOCR('-3/19',493,'D'),'-3,19');
+assert.equal(h.normalizarTokenMonetarioPosicionalOCR('3/19',493,''),'3/19');
+assert.equal(h.normalizarTokenMonetarioPosicionalOCR('3/19',100,'C'),'3/19');
+assert.equal(h.normalizarTokenMonetarioPosicionalOCR('19/03/2026',493,'C'),'19/03/2026');
+assert.equal(h.normalizarTokenMonetarioPosicionalOCR('54.461.763/0001-69',493,'C'),'54.461.763/0001-69');
+const o=normalizar(fixture.leitura),r=parse(o);
+assert.equal(r.lancamentos.length,231);assert.equal(r.dias_conciliados,22);assert.equal(r.saldos_conciliados,true);
+assert.equal(r.periodo_inicio,'2026-03-01');assert.equal(r.periodo_fim,'2026-03-31');assert.equal(r.conta_detectada,'AG-8105/CC-0010497-3');
+assert.equal(r.saldo_anterior,68740.33);assert.equal(r.saldo_final,154882.07);assert.equal(r.total_credito,419348.22);assert.equal(r.total_debito,419348.22);
+assert(r.lancamentos.some(l=>l.data==='2026-03-19'&&l.valor===3.19&&/RENDIMENTOS REND PAGO APLIC AUT MAIS/.test(l.descricao)));
+assert.equal(r.lancamentos.filter(l=>l.data==='2026-03-11').length,17);
+assert(!r.lancamentos.some(l=>/^SALDO|^SDO/.test(l.descricao)));
+const bad=structuredClone(o);bad.lines=bad.lines.filter(l=>!(l.page===5&&l.text==='19/03/2026 3,19'));bad.textoCompleto=bad.lines.map(l=>l.text).join('\n');assert.throws(()=>parse(bad),/nao conciliou/);
+const economic=r.lancamentos.filter(l=>!l.movimentoAplicacaoAutomatica).reduce((n,l)=>n+Math.round(l.valor*100),0);assert.equal(6874033+economic,15488207);
+console.log('OK Itaú março: OCR real, 231 movimentos, 22 dias conciliados, rendimento de R$ 3,19 recuperado sem alterar datas/documentos ou liberar leitura parcial.');
