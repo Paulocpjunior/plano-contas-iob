@@ -215,6 +215,12 @@ function preferenciasImpressao(ctx, sobrescritas) {
           <details class="rc-settings" id="rcSaldosDetalhes" open style="margin-top:14px"><summary>Informar saldos por conta analítica</summary><div class="rc-opening-grid"><div><div class="rc-opening-guide"><strong>Como preencher</strong><ol><li>Use somente contas analíticas do plano ativo.</li><li>Informe uma linha no formato <strong>conta;valor</strong>.</li><li>Saldo devedor é positivo; saldo credor é negativo.</li><li>Débitos e créditos devem ter o mesmo total.</li></ol></div><div class="rc-field" style="margin-top:12px"><label>Saldos anteriores</label><textarea id="rcSaldos" placeholder="111;1500,00&#10;211;-1500,00"></textarea></div><div class="rc-actions" style="margin-top:10px"><button class="rc-btn primary" id="rcSalvarSaldos">Salvar saldos anteriores</button></div></div><aside class="rc-opening-summary"><div class="rc-kpi"><small>Contas informadas</small><strong id="rcSaldosQuantidade">0</strong></div><div class="rc-kpi"><small>Total devedor</small><strong id="rcSaldosDebitos">R$ 0,00</strong></div><div class="rc-kpi"><small>Total credor</small><strong id="rcSaldosCreditos">R$ 0,00</strong></div><div class="rc-opening-balance" id="rcSaldosDiferenca">Diferença: R$ 0,00</div></aside></div></details>
           <div id="rcHistorico" class="rc-history" style="margin-top:14px"></div>
         </section>
+        <section class="card" style="padding:20px">
+          <h3>Contas para encerramento do resultado</h3>
+          <p>Informe as contas analíticas do plano ativo. Lucros e prejuízos devem ser classificados no patrimônio líquido. A prévia será apresentada antes da confirmação.</p>
+          <div class="rc-controls">${[['apuracao','Conta de apuração do resultado'],['lucro','Conta de lucros acumulados'],['prejuizo','Conta de prejuízos acumulados']].map(function(item) { return '<div class="rc-field"><label for="rcFechamento_' + item[0] + '">' + item[1] + '</label><input id="rcFechamento_' + item[0] + '" placeholder="Código da conta no plano ativo" value="' + esc(((ctx.config || {}).configFechamento || {})[item[0]] || '') + '"></div>'; }).join('')}</div>
+          <button class="rc-btn light" id="rcSalvarFechamento" type="button">Salvar contas de encerramento</button>
+        </section>
         <section class="card" id="rcHomologacaoPiloto" style="padding:20px">
           <div class="rc-pilot-head"><div><small style="font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#2563eb">Substituição da SAGE</small><h3 style="margin:4px 0">🧭 Roteiro da empresa-piloto</h3><p class="rc-history" style="margin:0">O percentual usa evidências gravadas no CCI; nenhuma etapa é aprovada manualmente por esta tela.</p></div><div class="rc-pilot-progress"><strong id="rcPilotoStatus">Carregando…</strong><div class="rc-pilot-bar"><span id="rcPilotoBarra" style="width:0%"></span></div></div></div>
           <div class="rc-pilot-grid" id="rcPilotoEtapas"></div><div class="rc-pilot-next" id="rcPilotoProxima">Consultando a próxima ação segura.</div>
@@ -247,6 +253,10 @@ function preferenciasImpressao(ctx, sobrescritas) {
           <div class="rc-modal-actions"><button class="rc-btn light" id="rcImpressaoCancelar" type="button">Cancelar</button><button class="rc-btn primary" id="rcImpressaoAtualizar" type="button">Atualizar prévia</button><button class="rc-btn success" id="rcImpressaoExportar" type="button">Exportar PDF</button></div>
         </div>
       </div>`;
+    document.getElementById('rcSalvarFechamento').addEventListener('click', async function () {
+      try { await salvarConfigFechamento(); window.showToast('Contas de encerramento salvas.', 'success'); }
+      catch(e) { window.showToast(e.message, 'error'); }
+    });
     document.getElementById('rcPeriodo').addEventListener('change', function () { invalidarConciliacaoDetalhada(); preencherSaldos(); atualizarTudo(); });
     document.getElementById('rcAno').addEventListener('change', render);
     document.getElementById('rcUsarIntervalo').addEventListener('change', function () { atualizarModoPeriodo(); preencherSaldos(); atualizarTudo(); });
@@ -307,7 +317,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
       balanceteAnual: Core.balanceteAnual(ctx.entries, ano, ctx.contas, saldosDoAno(ctx, ano)),
       razao: Core.razao(ctx.entries, filtro, ctx.contas, saldos, (document.getElementById('rcConta') || {}).value || ''),
       diario: Core.diario(ctx.entries, filtro, ctx.contas),
-      dre: Core.dre(balancete),
+      dre: Core.dre(Core.balancete(Core.lancamentosOperacionais(ctx.entries), filtro, ctx.contas, {})),
       balanco: Core.balanco(balancete),
       analise: Core.analiseEconomica(balancete, ctx.contas, (((ctx || {}).config || {}).mapeamentoAnaliseEconomica || {}))
     };
@@ -389,12 +399,12 @@ function preferenciasImpressao(ctx, sobrescritas) {
         ? ['Conta', 'Descrição', 'Débito', 'Crédito', 'Sdo. atual']
         : ['Conta', 'Descrição', 'Sdo. anterior', 'Débito', 'Crédito', 'Sdo. atual'];
     document.getElementById('rcHead').innerHTML = '<tr>' + colunas.map(function (c, i) { return '<th class="' + (i > 1 ? 'num' : '') + '">' + c + '</th>'; }).join('') + '</tr>';
-    const linhas = dados.balancete.filter(function (l) { return buscaAceita([l.conta, l.descricao]); });
+    const linhas = dados.balancete.filter(function (l) { return buscaAceita([l.conta, l.descricao]); }).concat(resumoDoBalancete(dados).map(function(l) { return Object.assign({ analitica: false, nivel: 1 }, l); }));
     document.getElementById('rcBody').innerHTML = linhas.map(function (l) {
       let valores;
       if (formato === '2') valores = [saldoComNatureza(l.saldoAtual)];
-      else if (formato === '4') valores = [moeda(l.debitos), moeda(l.creditos), saldoComNatureza(l.saldoAtual)];
-      else valores = [saldoComNatureza(l.saldoAnterior), moeda(l.debitos), moeda(l.creditos), saldoComNatureza(l.saldoAtual)];
+      else if (formato === '4') valores = [moeda(l.debitos || 0), moeda(l.creditos || 0), saldoComNatureza(l.saldoAtual)];
+      else valores = [saldoComNatureza(l.saldoAnterior), moeda(l.debitos || 0), moeda(l.creditos || 0), saldoComNatureza(l.saldoAtual)];
       const conta = identificacaoBalancete(l);
       const nivel = Math.max(1, Number(l.nivel) || 1);
       const classe = l.analitica === false ? ' class="rc-synthetic-row rc-level-' + nivel + '"' : '';
@@ -402,6 +412,8 @@ function preferenciasImpressao(ctx, sobrescritas) {
       return '<tr' + classe + '><td><strong>' + esc(conta) + '</strong></td><td style="padding-left:' + (10 + recuo) + 'px">' + esc(l.descricao || 'Conta sem descrição no plano') + '</td>' + valores.map(function (valor) { return '<td class="num">' + valor + '</td>'; }).join('') + '</tr>';
     }).join('') || '<tr><td colspan="' + colunas.length + '">Nenhuma conta encontrada.</td></tr>';
   }
+
+  function resumoDoBalancete(dados) { return Core.resumoBalancete(dados.balancete, dados.dre.resultado, dados.ctx.contas, (dados.ctx.config || {}).configFechamento); }
 
   function identificacaoBalancete(linha) {
     if (linha && linha.analitica === false) return linha.codigoCompleto || linha.conta;
@@ -824,18 +836,43 @@ function preferenciasImpressao(ctx, sobrescritas) {
     renderHomologacaoPiloto();
   }
 
+  async function salvarConfigFechamento() {
+    const ctx = contexto();
+    const cfg = {};
+    ['apuracao', 'lucro', 'prejuizo'].forEach(function(k) { cfg[k] = document.getElementById('rcFechamento_' + k).value.trim(); });
+    ctx.salvarConfiguracaoFechamento(cfg);
+    const salvo = await ctx.flush();
+    if (!salvo || !salvo.ok) throw new Error('Não foi possível salvar a configuração e os lançamentos. Confira o salvamento antes de encerrar.');
+  }
+
+  function confirmarPreviaEncerramento(previa) {
+    return new Promise(function(resolve) {
+      const modal = document.createElement('div');
+      modal.className = 'rc-modal';
+      modal.innerHTML = '<div class="rc-modal-panel wide" role="dialog" aria-modal="true" aria-label="Prévia do encerramento"><h3>Prévia do encerramento — ' + esc(previa.periodo) + '</h3><p>Resultado a transferir: <strong>' + moeda(Math.abs(previa.resultado)) + ' (' + (previa.resultado > 0 ? 'lucro' : previa.resultado < 0 ? 'prejuízo' : 'equilíbrio') + ')</strong>. Inclui saldos anteriores das contas de resultado. A DRE do período será preservada.</p><table class="rc-table"><thead><tr><th>Descrição</th><th>Débito</th><th>Crédito</th><th>Valor</th></tr></thead><tbody>' + previa.lancamentos.map(function(l) { return '<tr><td>' + esc(l.descricao) + '</td><td>' + esc(l.contaDebito) + '</td><td>' + esc(l.contaCredito) + '</td><td>' + moeda(l.valor) + '</td></tr>'; }).join('') + '</tbody></table><p>Ao aprovar, os lançamentos acima serão incluídos e a competência ficará bloqueada.</p><div class="rc-modal-actions"><button class="rc-btn light" data-cancelar>Cancelar</button><button class="rc-btn primary" data-aprovar>Aprovar e encerrar período</button></div></div>';
+      document.body.appendChild(modal);
+      modal.querySelector('[data-cancelar]').onclick = function() { modal.remove(); resolve(false); };
+      modal.querySelector('[data-aprovar]').onclick = function() { modal.remove(); resolve(true); };
+    });
+  }
+
   async function fecharPeriodo() {
     const dados = dadosAtuais();
     if (typeof dados.filtro !== 'string') return window.showToast('O encerramento é feito por competência, não por intervalo.', 'warn');
     if (!dados.validacao.ok) return window.showToast('Corrija os erros contábeis antes de encerrar o período.', 'error');
     if (!dados.validacao.quantidade) return window.showToast('Não há lançamentos para encerrar nesta competência.', 'warn');
-    if (!confirm('Encerrar ' + dados.periodo + '? Os lançamentos ficarão bloqueados até uma reabertura administrativa.')) return;
+    const botao = document.getElementById('rcFechar');
+    botao.disabled = true;
     try {
-      await dados.ctx.flush();
-      const resp = await window.API.fecharPeriodoContabil(dados.ctx.empresa.cnpj, dados.periodo);
-      window.showToast('Período encerrado. Hash ' + resp.hash + '.', 'success');
+      await salvarConfigFechamento();
+      const previa = await window.API.fecharPeriodoContabil(dados.ctx.empresa.cnpj, dados.periodo, { previa: true });
+      if (!await confirmarPreviaEncerramento(previa.previa)) return;
+      const resp = await window.API.fecharPeriodoContabil(dados.ctx.empresa.cnpj, dados.periodo, { hashPrevia: previa.hashPrevia });
+      await dados.ctx.recarregar();
+      window.showToast('Período encerrado com apuração do resultado. Hash ' + resp.hash + '.', 'success');
       await atualizarTudo();
     } catch (e) { window.showToast(e.message || String(e), 'error'); }
+    finally { botao.disabled = false; }
   }
 
   async function reabrirPeriodo() {
@@ -844,7 +881,10 @@ function preferenciasImpressao(ctx, sobrescritas) {
     if (motivo == null) return;
     if (motivo.trim().length < 10) return window.showToast('Informe um motivo com pelo menos 10 caracteres.', 'error');
     try {
+      const salvo = await dados.ctx.flush();
+      if (!salvo || !salvo.ok) throw new Error('Salve as alterações pendentes antes de reabrir o período.');
       await window.API.reabrirPeriodoContabil(dados.ctx.empresa.cnpj, dados.periodo, motivo.trim());
+      await dados.ctx.recarregar();
       window.showToast('Período reaberto. O fechamento anterior foi preservado.', 'success');
       await atualizarTudo();
     } catch (e) { window.showToast(e.message || String(e), 'error'); }
@@ -853,7 +893,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
   function linhasExportacao(dados) {
     if (tipoAtual === 'analise') return dados.analise.indicadores.map(function (i) { return [i.id, i.titulo, i.calculavel ? i.valor : 'N.D.', i.percentual ? '%' : (i.monetario ? 'R$' : 'índice'), i.interpretacao]; });
     if (tipoAtual === 'balancete_anual') return dados.balanceteAnual.linhas.map(function (l) { return [rotuloContaHierarquica(l)].concat(l.saldosMensais); }).concat([['RESUMO']]).concat(dados.balanceteAnual.resumo.map(function (l) { return [l.descricao].concat(l.saldosMensais); }));
-    if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [identificacaoBalancete(l), l.descricao, l.saldoAnterior, l.debitos, l.creditos, l.saldoAtual]; });
+    if (tipoAtual === 'balancete') return dados.balancete.concat(resumoDoBalancete(dados)).map(function (l) { return [identificacaoBalancete(l), l.descricao, l.saldoAnterior == null ? '' : l.saldoAnterior, l.debitos == null ? '' : l.debitos, l.creditos == null ? '' : l.creditos, l.saldoAtual]; });
     if (tipoAtual === 'dre') return dados.dre.linhas.map(function (l) { return [identificacaoBalancete(l), l.descricao, l.valorDemonstracao]; }).concat([['', 'RESULTADO LÍQUIDO DO PERÍODO', dados.dre.resultado]]);
     if (tipoAtual === 'balanco') return dados.balanco.linhas.map(function (l) { return [identificacaoBalancete(l), l.descricao, l.saldoAtual]; }).concat([['RESULTADO', 'Resultado acumulado nas contas de resultado', dados.balanco.resultadoAcumulado], ['', 'TOTAL DO ATIVO', dados.balanco.totalAtivo], ['', 'TOTAL DO PASSIVO + PATRIMÔNIO LÍQUIDO', dados.balanco.totalPassivoPatrimonio]]);
     if (tipoAtual === 'diario') return dados.diario.map(function (l) { return [l.numero, dataBR(l.data), l.debito, l.credito, l.historico, l.documento, l.valor]; });
@@ -865,7 +905,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
   function linhasExportacaoPDF(dados) {
     if (tipoAtual === 'analise') return dados.analise.indicadores.map(function (i) { return [i.id, i.titulo, i.calculavel ? (i.monetario ? moedaPDF(i.valor) : moeda(i.valor) + (i.percentual ? '%' : '')) : 'N.D.', i.interpretacao]; });
     if (tipoAtual === 'balancete_anual') return dados.balanceteAnual.linhas.map(function (l) { return [rotuloContaHierarquica(l)].concat(l.saldosMensais.map(saldoComNatureza)); }).concat([['RESUMO']]).concat(dados.balanceteAnual.resumo.map(function (l) { return [l.descricao].concat(l.saldosMensais.map(saldoComNatureza)); }));
-    if (tipoAtual === 'balancete') return dados.balancete.map(function (l) { return [identificacaoBalancete(l), Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao, saldoPDFComNatureza(l.saldoAnterior), moedaPDF(l.debitos), moedaPDF(l.creditos), saldoPDFComNatureza(l.saldoAtual)]; });
+    if (tipoAtual === 'balancete') return dados.balancete.concat(resumoDoBalancete(dados)).map(function (l) { return [identificacaoBalancete(l), Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao, l.saldoAnterior == null ? '' : saldoPDFComNatureza(l.saldoAnterior), l.debitos == null ? '' : moedaPDF(l.debitos), l.creditos == null ? '' : moedaPDF(l.creditos), saldoPDFComNatureza(l.saldoAtual)]; });
     if (tipoAtual === 'dre') return dados.dre.linhas.map(function (l) { return [identificacaoBalancete(l), Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao, moedaPDF(l.valorDemonstracao)]; }).concat([['', 'RESULTADO LÍQUIDO DO PERÍODO', moedaPDF(dados.dre.resultado)]]);
     if (tipoAtual === 'balanco') return dados.balanco.linhas.map(function (l) { return [identificacaoBalancete(l), Array(Math.max(0, Number(l.nivel || 1) - 1)).fill('  ').join('') + l.descricao, saldoPDFComNatureza(l.saldoAtual)]; }).concat([['RESULTADO', 'Resultado acumulado nas contas de resultado', saldoPDFComNatureza(-dados.balanco.resultadoAcumulado)], ['', 'TOTAL DO ATIVO', moedaPDF(dados.balanco.totalAtivo)], ['', 'TOTAL DO PASSIVO + PATRIMÔNIO LÍQUIDO', moedaPDF(dados.balanco.totalPassivoPatrimonio)]]);
     if (tipoAtual === 'diario') return dados.diario.map(function (l) { return [l.numero, dataBR(l.data), l.debito, l.credito, l.historico, l.documento, moedaPDF(l.valor)]; });
@@ -991,6 +1031,15 @@ function preferenciasImpressao(ctx, sobrescritas) {
       startY: 41,
       head: [tipoAtual === 'analise' ? ['Nº', 'Indicador', 'Resultado', 'Interpretação'] : cabecalhoExportacao()],
       body: linhasExportacaoPDF(dados),
+      didParseCell: function(cell) {
+        if (tipoAtual !== 'balancete' || cell.section !== 'body') return;
+        const linha = dados.balancete[cell.row.index];
+        if (linha && cell.column.index === 1) cell.cell.styles.cellPadding = { top: 1.5, bottom: 1.5, right: 1.5, left: 1.5 + Math.max(0, (linha.nivel || 1) - 1) * 2 };
+        if (!linha || linha.analitica === false) {
+          cell.cell.styles.fontStyle = 'bold';
+          cell.cell.styles.fillColor = !linha ? [219, 234, 254] : [235, 240, 247];
+        }
+      },
       styles: { fontSize: 6.5, cellPadding: 1.5 },
       headStyles: { fillColor: [30, 64, 175] },
       margin: { bottom: 42 }

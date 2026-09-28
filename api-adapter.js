@@ -554,11 +554,11 @@
     return body;
   }
 
-  async function fecharPeriodoContabil(cnpj, periodo) {
+  async function fecharPeriodoContabil(cnpj, periodo, opcoes) {
     const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
     const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/contabilidade/fechar', {
       method: 'POST',
-      body: JSON.stringify({ periodo: periodo })
+      body: JSON.stringify({ periodo: periodo, previa: !!(opcoes && opcoes.previa), hashPrevia: opcoes && opcoes.hashPrevia })
     });
     const body = await r.json().catch(() => ({}));
     if (!r.ok) {
