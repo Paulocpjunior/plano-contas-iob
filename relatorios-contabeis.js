@@ -194,8 +194,8 @@
   function contaAnaliticaPlano(conta) {
     const codigo = normalizarConta((conta || {}).codigo || (conta || {}).cod);
     const reduzido = normalizarConta((conta || {}).reduzido || (conta || {}).ref_rfb || (conta || {}).refRfb || (conta || {}).ref || (conta || {}).codigo_reduzido || (conta || {}).codigoReduzido);
-    if (reduzido) return true;
     if ((conta || {}).analitica === false) return false;
+    if (reduzido) return true;
     const partes = codigo.split('.').filter(Boolean);
     // O plano IOB/SAGE grava todos os níveis em cinco segmentos. Os zeros à
     // direita são marcadores da conta sintética, não uma conta movimentável.
@@ -326,6 +326,19 @@
     });
 
     const sinteticas = registrosPlano(contas).filter(function (conta) { return conta.analitica === false; });
+    // Planos importados podem conter apenas analíticas. Complete os níveis
+    // estruturais sem inventar contas movimentáveis nem duplicar a soma das sintéticas.
+    const existentes = new Set(sinteticas.map(function(c) { return c.codigo; }));
+    analiticas.forEach(function(l) {
+      const partes = String(l.codigoCompleto || '').split('.');
+      for (let n = 1; n < partes.length; n += 1) {
+        const codigo = partes.slice(0, n).join('.');
+        if (existentes.has(codigo)) continue;
+        existentes.add(codigo);
+        const meta = resolverConta(codigo, mapa);
+        sinteticas.push({ codigo, descricao: meta && meta.descricao || ({ '1': 'ATIVO', '2': 'PASSIVO E PATRIMÔNIO LÍQUIDO', '3': 'RECEITAS', '4': 'CUSTOS', '5': 'DESPESAS' }[codigo] || 'Grupo ' + codigo), analitica: false });
+      }
+    });
     const consolidadas = new Map();
     sinteticas.forEach(function (sintetica) {
       const descendentes = analiticas.filter(function (linha) {
@@ -464,7 +477,7 @@
         g.saldoCentavos += parte[1] - parte[2];
         g.movimentos.push({
           id: texto(lancamento.id), data: dataISO(lancamento.data), descricao: complementoLancamento(lancamento),
-          documento: texto(lancamento.documento || lancamento.numero_nf), contrapartida: parte[3],
+          encerramentoContabil: lancamento.encerramentoContabil || null, documento: texto(lancamento.documento || lancamento.numero_nf), contrapartida: parte[3],
           debito: deCentavos(parte[1]), credito: deCentavos(parte[2]), saldo: deCentavos(g.saldoCentavos),
           origem: texto(lancamento.importacaoTitulo || lancamento.layoutNome || lancamento.bancoNome || lancamento.status_origem)
         });
@@ -494,7 +507,7 @@
         credito: contaCanonica(lancamento.contaCredito, mapa),
         valor: Math.abs(dinheiroNumero(lancamento.valor)),
         historico: complementoLancamento(lancamento),
-        documento: texto(lancamento.documento || lancamento.numero_nf),
+        encerramentoContabil: lancamento.encerramentoContabil || null, documento: texto(lancamento.documento || lancamento.numero_nf),
         origem: texto(lancamento.importacaoTitulo || lancamento.layoutNome || lancamento.bancoNome || lancamento.status_origem)
       };
     });
@@ -637,6 +650,61 @@
     return { bases, fontes, indicadores, pendencias: chaves.filter(function (chave) { return !fontes[chave].length; }) };
   }
 
+  function lancamentosOperacionais(lancamentos) {
+    return (lancamentos || []).filter(function (l) { return !l.encerramentoContabil; });
+  }
+
+  function previaEncerramento(lancamentos, periodo, contas, saldos, config) {
+    if (!periodoValido(periodo)) throw new Error('Competência inválida.');
+    if (lancamentosDoPeriodo(lancamentos, periodo).some(function (l) { return !!l.encerramentoContabil; })) throw new Error('Já existem lançamentos de encerramento nesta competência. Reabra o período antes de encerrar novamente.');
+    const mapa = mapaContas(contas);
+    const cfg = config || {};
+    const nomes = { apuracao: 'Apuração do resultado', lucro: 'Lucros acumulados', prejuizo: 'Prejuízos acumulados' };
+    const destinos = {};
+    Object.keys(nomes).forEach(function (chave) {
+      const registro = resolverConta(cfg[chave], mapa);
+      if (!registro || !registro.analitica) throw new Error('Configure uma conta analítica válida para ' + nomes[chave] + '.');
+      if (chave !== 'apuracao' && !/^2\./.test(registro.codigo)) throw new Error(nomes[chave] + ' deve pertencer ao grupo 2 do plano. Confira sua classificação no patrimônio líquido.');
+      destinos[chave] = contaCanonica(cfg[chave], mapa);
+    });
+    if (new Set(Object.values(destinos)).size !== 3) throw new Error('As contas de apuração, lucro e prejuízo devem ser diferentes.');
+    const linhas = balancete(lancamentos, periodo, contas, saldos).filter(function (l) { return l.analitica; });
+    const are = linhas.find(function (l) { return l.conta === destinos.apuracao; });
+    if (are && centavos(are.saldoAtual)) throw new Error('A conta de apuração deve estar zerada antes do encerramento. Confira os lançamentos existentes.');
+    const data = periodo + '-' + String(new Date(Number(periodo.slice(0, 4)), Number(periodo.slice(5, 7)), 0).getDate()).padStart(2, '0');
+    const gerados = [];
+    let resultadoCentavos = 0;
+    linhas.filter(function (l) { return /^[345]\./.test(l.codigoCompleto) && l.conta !== destinos.apuracao; }).forEach(function (l) {
+      const saldo = centavos(l.saldoAtual);
+      if (!saldo) return;
+      resultadoCentavos -= saldo;
+      gerados.push({ data, valor: deCentavos(Math.abs(saldo)), contaDebito: saldo < 0 ? l.conta : destinos.apuracao, contaCredito: saldo < 0 ? destinos.apuracao : l.conta, descricao: 'Encerramento de resultado — ' + l.descricao, historico: 'Apuração do resultado de ' + periodo, encerramentoContabil: { periodo, etapa: 'zeragem' } });
+    });
+    if (resultadoCentavos) gerados.push({ data, valor: deCentavos(Math.abs(resultadoCentavos)), contaDebito: resultadoCentavos > 0 ? destinos.apuracao : destinos.prejuizo, contaCredito: resultadoCentavos > 0 ? destinos.lucro : destinos.apuracao, descricao: 'Transferência de ' + (resultadoCentavos > 0 ? 'lucro' : 'prejuízo') + ' — ' + periodo, historico: 'Resultado apurado em ' + periodo, encerramentoContabil: { periodo, etapa: 'transferencia' } });
+    return { periodo, contas: destinos, resultado: deCentavos(resultadoCentavos), lancamentos: gerados, dre: dre(balancete(lancamentosOperacionais(lancamentos), periodo, contas, {})) };
+  }
+
+  function resumoBalancete(linhas, resultadoPeriodo, contas, config) {
+    const analiticas = (linhas || []).filter(function (l) { return l.analitica !== false; });
+    const grupos = ['Ativo', 'Passivo e patrimônio líquido', 'Receitas', 'Custos', 'Despesas'].map(function (nome, i) {
+      const itens = analiticas.filter(function (l) { return String(l.codigoCompleto || l.conta).split('.')[0] === String(i + 1); });
+      const total = { descricao: 'Total de ' + nome };
+      ['saldoAnterior', 'debitos', 'creditos', 'saldoAtual'].forEach(function (campo) { total[campo] = deCentavos(itens.reduce(function (v, l) { return v + centavos(l[campo]); }, 0)); });
+      return total;
+    });
+    const total = { descricao: 'Somatória das contas analíticas' };
+    ['saldoAnterior', 'debitos', 'creditos', 'saldoAtual'].forEach(function (campo) { total[campo] = deCentavos(analiticas.reduce(function (v, l) { return v + centavos(l[campo]); }, 0)); });
+    const acumulados = [];
+    const mapa = mapaContas(contas);
+    ['lucro', 'prejuizo'].forEach(function(k) {
+      if (!(config || {})[k]) return;
+      const codigo = contaCanonica(config[k], mapa);
+      const linha = analiticas.find(function(l) { return l.conta === codigo; });
+      acumulados.push({ descricao: k === 'lucro' ? 'Saldo da conta de lucros acumulados' : 'Saldo da conta de prejuízos acumulados', saldoAtual: linha ? linha.saldoAtual : 0 });
+    });
+    return grupos.concat([total, { descricao: 'Diferença entre débitos e créditos do período', saldoAtual: deCentavos(centavos(total.debitos) - centavos(total.creditos)) }, { descricao: 'Resultado do período (antes do encerramento)', saldoAtual: -resultadoPeriodo }], acumulados);
+  }
+
   function hashTexto(valor) {
     let hash = 2166136261;
     const s = String(valor || '');
@@ -653,11 +721,12 @@
       return {
         id: texto(lancamento.id), data: dataISO(lancamento.data), descricao: texto(lancamento.descricao), historico: texto(lancamento.historico),
         valor: Math.abs(dinheiroNumero(lancamento.valor)), contaDebito: normalizarConta(lancamento.contaDebito), contaCredito: normalizarConta(lancamento.contaCredito),
-        documento: texto(lancamento.documento || lancamento.numero_nf), origem: texto(lancamento.importacaoTitulo || lancamento.layoutNome || lancamento.bancoNome || lancamento.status_origem)
+        encerramentoContabil: lancamento.encerramentoContabil || null, documento: texto(lancamento.documento || lancamento.numero_nf), origem: texto(lancamento.importacaoTitulo || lancamento.layoutNome || lancamento.bancoNome || lancamento.status_origem)
       };
     }).sort(function (a, b) { return a.data.localeCompare(b.data) || a.id.localeCompare(b.id, 'pt-BR', { numeric: true }); });
     const base = {
-      schema: 1,
+      schema: 2,
+      dre: dre(balancete(lancamentosOperacionais(lancamentos), periodo, dados && dados.contas, {})),
       periodo,
       empresa: dados && dados.empresa || null,
       lancamentos,
@@ -679,6 +748,6 @@
 
   return {
     dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao, complementoLancamento,
-    validar, balancete, balanceteAnual, razao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
+    lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, balanceteAnual, razao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
   };
 });

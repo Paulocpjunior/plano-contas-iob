@@ -30,8 +30,8 @@ assert.deepStrictEqual(balancete.find(l => l.conta === '111'), {
   conta: '111', codigoCompleto: '1.1.1', reduzido: '0111', descricao: 'Banco', saldoAnterior: 100, debitos: 1000, creditos: 250,
   saldoAtual: 850, saldoDevedor: 850, saldoCredor: 0, analitica: true, nivel: 3
 });
-assert.strictEqual(balancete.reduce((s, l) => s + l.debitos, 0), 1250);
-assert.strictEqual(balancete.reduce((s, l) => s + l.creditos, 0), 1250);
+assert.strictEqual(balancete.filter(l => l.analitica).reduce((s, l) => s + l.debitos, 0), 1250);
+assert.strictEqual(balancete.filter(l => l.analitica).reduce((s, l) => s + l.creditos, 0), 1250);
 
 const razao = core.razao(lancamentos, '2026-01', contas, { 111: 100 }, '111');
 assert.strictEqual(razao.length, 1);
@@ -165,7 +165,7 @@ const movimentosDemonstracoes = [
 const balanceteDemonstracoes = core.balancete(movimentosDemonstracoes, '2026-01', planoDemonstracoes, {});
 const dre = core.dre(balanceteDemonstracoes);
 assert.deepStrictEqual({ receitas: dre.receitas, custos: dre.custos, despesas: dre.despesas, resultado: dre.resultado, natureza: dre.natureza }, { receitas: 1000, custos: 300, despesas: 100, resultado: 600, natureza: 'lucro' });
-assert.deepStrictEqual(dre.linhas.map(l => l.codigoCompleto), ['3', '3.1.1.01.0001', '4', '4.1.1.01.0001', '5', '5.1.1.01.0001']);
+assert.deepStrictEqual(dre.linhas.filter(l => l.analitica || l.nivel === 1).map(l => l.codigoCompleto), ['3', '3.1.1.01.0001', '4', '4.1.1.01.0001', '5', '5.1.1.01.0001']);
 const balanco = core.balanco(balanceteDemonstracoes);
 assert.strictEqual(balanco.totalAtivo, 600);
 assert.strictEqual(balanco.resultadoAcumulado, 600);

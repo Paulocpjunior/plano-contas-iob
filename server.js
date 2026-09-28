@@ -3284,6 +3284,10 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
         resultadoRevisao.codigo
       );
     }
+    const marcadoresEncerramento = json => (lerEstadoContabil(json).entries || []).filter(l => l.encerramentoContabil).map(l => [String(l.id), l.encerramentoContabil]).sort((a, b) => a[0].localeCompare(b[0]));
+    if (JSON.stringify(marcadoresEncerramento(atual.stateJson)) !== JSON.stringify(marcadoresEncerramento(state_json))) {
+      throw erroSessao('Lançamentos de encerramento só podem ser incluídos ou removidos pelo fechamento ou pela reabertura administrativa.', 409, 'ENCERRAMENTO_PROTEGIDO');
+    }
     await impedirAlteracaoPeriodosFechados(cnpjLimpo, atual.stateJson, state_json, periodosContabeis);
     await impedirSobrescritaSaldosTransportados(cnpjLimpo, state_json, transportesSaldos);
     const versaoServidor = lerVersao().version || '';
@@ -4575,11 +4579,13 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
     tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'fechamento_contabil');
     const sessao = await carregarSessaoAtualPorRef(sessaoRef);
     if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Nenhuma sessão contábil encontrada para a empresa.', 409, 'SESSAO_NAO_ENCONTRADA');
-    const estado = lerEstadoContabil(sessao.stateJson);
+    const estado = parsearStateJson(sessao.stateJson);
+    const periodoSobTrava = await periodoRef.get();
+    if (periodoSobTrava.exists && periodoSobTrava.data().status === 'fechado') throw erroSessao('Esta competência já está encerrada.', 409, 'PERIODO_CONTABIL_FECHADO');
     const contas = await carregarContasContabeisEmpresa(chk.empresa);
     const aberturaContabil = await saldosIniciaisContabeis(empresaRef, estado, periodo);
     const saldosIniciais = aberturaContabil.saldos;
-    const validacao = RelatoriosContabeis.validar(estado.entries, periodo, contas);
+    let validacao = RelatoriosContabeis.validar(estado.entries, periodo, contas);
     if (!validacao.quantidade) throw erroSessao('Não há lançamentos contábeis nesta competência.', 409, 'SEM_MOVIMENTO_CONTABIL');
     if (!validacao.ok) throw erroSessao('O período possui inconsistências e não pode ser encerrado.', 409, 'VALIDACAO_CONTABIL_FALHOU');
     const contasBancarias = Array.isArray(chk.empresa.contas_bancarias_conciliacao) ? chk.empresa.contas_bancarias_conciliacao.map(String).filter(Boolean) : [];
@@ -4593,6 +4599,17 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
       });
       if (pendentes.length) throw erroSessao('Concilie novamente as contas bancárias antes do fechamento: ' + pendentes.join(', ') + '.', 409, 'CONCILIACAO_BANCARIA_PENDENTE');
     }
+    let previa;
+    try { previa = RelatoriosContabeis.previaEncerramento(estado.entries, periodo, contas, saldosIniciais, (estado.relatoriosContabeis || {}).configFechamento); }
+    catch (erro) { throw erroSessao(erro.message, 422, 'CONFIGURACAO_ENCERRAMENTO_INVALIDA'); }
+    const hashPrevia = hashSessao(JSON.stringify({ periodo, entradas: estado.entries, saldosIniciais, contas, previa }));
+    if (req.body.previa === true) {
+      await liberarTravaSessao(sessaoRef, tokenTrava); tokenTrava = null;
+      return res.json({ ok: true, previa, hashPrevia });
+    }
+    if (req.body.hashPrevia !== hashPrevia) throw erroSessao('Gere novamente a prévia do encerramento: os dados ou a configuração foram alterados.', 409, 'PREVIA_ENCERRAMENTO_DESATUALIZADA');
+    const fechamentoRef = empresaRef.collection('fechamentos_contabeis').doc();
+    estado.entries.push(...previa.lancamentos.map((l, i) => ({ ...l, id: 'encerramento-' + fechamentoRef.id + '-' + i, empresa: chk.empresa.razao_social || '', cnpj: cnpjLimpo, importacaoId: 'encerramento-' + fechamentoRef.id, importacaoTitulo: 'Encerramento contábil — ' + periodo, criadoAutomaticoEm: new Date().toISOString(), aprovadoPorEmail: req.user.email, encerramentoContabil: { ...l.encerramentoContabil, fechamentoId: fechamentoRef.id } })));
     const fotografia = RelatoriosContabeis.snapshot({
       periodo,
       lancamentos: estado.entries,
@@ -4600,17 +4617,21 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
       saldosIniciais,
       empresa: { cnpj: cnpjLimpo, razao_social: chk.empresa.razao_social || '', codigo_empresa: codigoEmpresaDe(chk.empresa), plano_id: chk.empresa.plano_id || null }
     });
+    validacao = fotografia.validacao;
+    if (!validacao.ok) throw erroSessao('Os lançamentos de encerramento falharam na validação.', 422, 'ENCERRAMENTO_INVALIDO');
+    fotografia.apuracao = previa;
     const fotografiaSemHash = { ...fotografia };
     delete fotografiaSemHash.hash;
     fotografia.hash = hashSessao(JSON.stringify(fotografiaSemHash));
     const proximo = proximoPeriodo(periodo);
+    const posterior = await empresaRef.collection('periodos_contabeis').doc(proximo).get();
+    if (posterior.exists && posterior.data().status === 'fechado') throw erroSessao('Reabra primeiro a competência posterior ' + proximo + '.', 409, 'PERIODO_POSTERIOR_FECHADO');
     const saldosTransportados = saldosParaTransporte(fotografia.balancete);
     const transporteRef = empresaRef.collection('transportes_saldos').doc(proximo);
     const transporteAtual = await transporteRef.get();
     if (transporteAtual.exists && String((transporteAtual.data() || {}).status || 'vigente') === 'vigente' && String((transporteAtual.data() || {}).origem_hash || '') !== fotografia.hash) {
       throw erroSessao('Já existe um transporte diferente para ' + proximo + '. Reabra a sequência contábil antes de substituir.', 409, 'TRANSPORTE_SALDOS_CONFLITANTE');
     }
-    const fechamentoRef = empresaRef.collection('fechamentos_contabeis').doc();
     await gravarDocumentoJson(fechamentoRef, JSON.stringify(fotografia), {
       periodo,
       hash: fotografia.hash,
@@ -4621,45 +4642,45 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
       fechado_por_uid: req.user.uid,
       fechado_por_email: req.user.email
     });
-    const fechamentoBatch = db.batch();
-    fechamentoBatch.set(periodoRef, {
-      status: 'fechado',
-      fechamento_id: fechamentoRef.id,
-      hash: fotografia.hash,
-      resumo: validacao,
-      fechado_em: new Date(),
-      fechado_por_uid: req.user.uid,
-      fechado_por_email: req.user.email,
-      reaberto_em: FieldValue.delete(),
-      reaberto_por_uid: FieldValue.delete(),
-      reaberto_por_email: FieldValue.delete(),
-      motivo_reabertura: FieldValue.delete()
-    }, { merge: true });
-    fechamentoBatch.set(transporteRef, {
-      status: 'vigente', periodo_origem: periodo, periodo_destino: proximo,
-      origem_fechamento_id: fechamentoRef.id, origem_hash: fotografia.hash,
-      saldos: saldosTransportados, quantidade_contas: Object.keys(saldosTransportados).length,
-      gerado_em: new Date(), gerado_por_uid: req.user.uid, gerado_por_email: req.user.email
-    });
-    fechamentoBatch.create(db.collection('admin_audit_logs').doc(), montarEventoAuditoriaAdmin({
-      evento: 'periodo_contabil_fechado',
-      categoria: 'fechamento',
-      acao: 'fechar_competencia',
-      resultado: { status: 'sucesso', httpStatus: 201 },
-      cnpj: cnpjLimpo,
-      escopo: { recurso: 'periodos_contabeis', recursoId: periodo, periodo, loteId: fechamentoRef.id },
-      detalhes: {
+    const gravarRelacionados = (fechamentoBatch) => {
+      fechamentoBatch.set(periodoRef, {
+        status: 'fechado',
+        fechamento_id: fechamentoRef.id,
         hash: fotografia.hash,
-        quantidade_lancamentos: validacao.quantidade,
-        quantidade_contas_transportadas: Object.keys(saldosTransportados).length,
-        periodo_destino: proximo,
-      },
-      user: req.user,
-    }));
-    await fechamentoBatch.commit();
-    await empresaRef.collection('auditoria_contabil').add({ tipo: 'SALDOS_TRANSPORTADOS', periodo_origem: periodo, periodo_destino: proximo, origem_hash: fotografia.hash, quantidade_contas: Object.keys(saldosTransportados).length, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email });
-    await liberarTravaSessao(sessaoRef, tokenTrava);
+        resumo: validacao,
+        fechado_em: new Date(),
+        fechado_por_uid: req.user.uid,
+        fechado_por_email: req.user.email,
+        reaberto_em: FieldValue.delete(),
+        reaberto_por_uid: FieldValue.delete(),
+        reaberto_por_email: FieldValue.delete(),
+        motivo_reabertura: FieldValue.delete()
+      }, { merge: true });
+      fechamentoBatch.set(transporteRef, {
+        status: 'vigente', periodo_origem: periodo, periodo_destino: proximo,
+        origem_fechamento_id: fechamentoRef.id, origem_hash: fotografia.hash,
+        saldos: saldosTransportados, quantidade_contas: Object.keys(saldosTransportados).length,
+        gerado_em: new Date(), gerado_por_uid: req.user.uid, gerado_por_email: req.user.email
+      });
+      fechamentoBatch.create(db.collection('admin_audit_logs').doc(), montarEventoAuditoriaAdmin({
+        evento: 'periodo_contabil_fechado',
+        categoria: 'fechamento',
+        acao: 'fechar_competencia',
+        resultado: { status: 'sucesso', httpStatus: 201 },
+        cnpj: cnpjLimpo,
+        escopo: { recurso: 'periodos_contabeis', recursoId: periodo, periodo, loteId: fechamentoRef.id },
+        detalhes: {
+          hash: fotografia.hash,
+          quantidade_lancamentos: validacao.quantidade,
+          quantidade_contas_transportadas: Object.keys(saldosTransportados).length,
+          periodo_destino: proximo,
+        },
+        user: req.user,
+      }));
+    };
+    await gravarSessaoBloqueada(sessaoRef, JSON.stringify(estado), { ...(sessao.dados.resumo || {}), total_lancamentos: estado.entries.length }, req.user, { tokenTrava, exigirRevisao: true, gravarRelacionados });
     tokenTrava = null;
+    await empresaRef.collection('auditoria_contabil').add({ tipo: 'SALDOS_TRANSPORTADOS', periodo_origem: periodo, periodo_destino: proximo, origem_hash: fotografia.hash, quantidade_contas: Object.keys(saldosTransportados).length, quando: new Date(), por_uid: req.user.uid, por_email: req.user.email }).catch(e => console.warn('auditoria transporte:', e.message));
     res.status(201).json({ ok: true, periodo, status: 'fechado', fechamento_id: fechamentoRef.id, hash: fotografia.hash, resumo: validacao, transporte: { periodo: proximo, quantidade_contas: Object.keys(saldosTransportados).length } });
   } catch (e) {
     if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
@@ -4669,6 +4690,8 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
 });
 
 app.post('/api/empresas/:cnpj/contabilidade/reabrir', adminRequired, async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
   try {
     const cnpjLimpo = String(req.params.cnpj || '').replace(/\D/g, '');
     const periodo = String(req.body && req.body.periodo || '').trim();
@@ -4679,42 +4702,50 @@ app.post('/api/empresas/:cnpj/contabilidade/reabrir', adminRequired, async (req,
     const chk = await checarAcessoEmpresa(cnpjLimpo, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
     const periodoRef = db.collection('empresas').doc(cnpjLimpo).collection('periodos_contabeis').doc(periodo);
+    sessaoRef = db.collection('empresas').doc(cnpjLimpo).collection('sessoes').doc('current');
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'reabertura_contabil');
     const atual = await periodoRef.get();
     if (!atual.exists || String((atual.data() || {}).status) !== 'fechado') {
-      return res.status(409).json({ erro: 'A competência não está encerrada.', codigo: 'PERIODO_NAO_FECHADO' });
+      throw erroSessao('A competência não está encerrada.', 409, 'PERIODO_NAO_FECHADO');
     }
     const empresaRef = db.collection('empresas').doc(cnpjLimpo);
     const proximo = proximoPeriodo(periodo);
     const proximoDoc = await empresaRef.collection('periodos_contabeis').doc(proximo).get();
     if (proximoDoc.exists && String((proximoDoc.data() || {}).status) === 'fechado') {
-      return res.status(409).json({ erro: 'Reabra primeiro a competência posterior ' + proximo + ' para preservar a cadeia de saldos.', codigo: 'PERIODO_POSTERIOR_FECHADO' });
+      throw erroSessao('Reabra primeiro a competência posterior ' + proximo + ' para preservar a cadeia de saldos.', 409, 'PERIODO_POSTERIOR_FECHADO');
     }
-    const reaberturaBatch = db.batch();
-    reaberturaBatch.set(periodoRef, {
-      status: 'reaberto',
-      reaberto_em: new Date(),
-      reaberto_por_uid: req.user.uid,
-      reaberto_por_email: req.user.email,
-      motivo_reabertura: motivo
-    }, { merge: true });
-    reaberturaBatch.set(empresaRef.collection('transportes_saldos').doc(proximo), {
-      status: 'invalidado', invalidado_em: new Date(), invalidado_por_uid: req.user.uid,
-      invalidado_por_email: req.user.email, motivo_invalidacao: 'Reabertura da competência de origem ' + periodo
-    }, { merge: true });
-    reaberturaBatch.create(db.collection('admin_audit_logs').doc(), montarEventoAuditoriaAdmin({
-      evento: 'periodo_contabil_reaberto',
-      categoria: 'fechamento',
-      acao: 'reabrir_competencia',
-      resultado: { status: 'sucesso', httpStatus: 200 },
-      cnpj: cnpjLimpo,
-      escopo: { recurso: 'periodos_contabeis', recursoId: periodo, periodo },
-      detalhes: { motivo, periodo_transporte_invalidado: proximo },
-      user: req.user,
-    }));
-    await reaberturaBatch.commit();
-    await periodoRef.collection('eventos').add({ tipo: 'reabertura', motivo, timestamp: new Date(), uid: req.user.uid, email: req.user.email });
+    const sessao = await carregarSessaoAtualPorRef(sessaoRef);
+    const estado = parsearStateJson(sessao.stateJson);
+    estado.entries = estado.entries.filter(l => !(l.encerramentoContabil && l.encerramentoContabil.periodo === periodo && l.encerramentoContabil.fechamentoId === atual.data().fechamento_id));
+    const gravarRelacionados = (reaberturaBatch) => {
+      reaberturaBatch.set(periodoRef, {
+        status: 'reaberto',
+        reaberto_em: new Date(),
+        reaberto_por_uid: req.user.uid,
+        reaberto_por_email: req.user.email,
+        motivo_reabertura: motivo
+      }, { merge: true });
+      reaberturaBatch.set(empresaRef.collection('transportes_saldos').doc(proximo), {
+        status: 'invalidado', invalidado_em: new Date(), invalidado_por_uid: req.user.uid,
+        invalidado_por_email: req.user.email, motivo_invalidacao: 'Reabertura da competência de origem ' + periodo
+      }, { merge: true });
+      reaberturaBatch.create(db.collection('admin_audit_logs').doc(), montarEventoAuditoriaAdmin({
+        evento: 'periodo_contabil_reaberto',
+        categoria: 'fechamento',
+        acao: 'reabrir_competencia',
+        resultado: { status: 'sucesso', httpStatus: 200 },
+        cnpj: cnpjLimpo,
+        escopo: { recurso: 'periodos_contabeis', recursoId: periodo, periodo },
+        detalhes: { motivo, periodo_transporte_invalidado: proximo },
+        user: req.user,
+      }));
+    };
+    await gravarSessaoBloqueada(sessaoRef, JSON.stringify(estado), { ...(sessao.dados.resumo || {}), total_lancamentos: estado.entries.length }, req.user, { tokenTrava, exigirRevisao: true, gravarRelacionados });
+    tokenTrava = null;
+    await periodoRef.collection('eventos').add({ tipo: 'reabertura', motivo, timestamp: new Date(), uid: req.user.uid, email: req.user.email }).catch(e => console.warn('evento reabertura:', e.message));
     res.json({ ok: true, periodo, status: 'reaberto' });
   } catch (e) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
     console.error('reabrir periodo contabil erro:', e);
     res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_REABRIR_PERIODO' });
   }
