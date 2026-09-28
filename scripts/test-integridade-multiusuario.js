@@ -300,6 +300,15 @@ async function main() {
       'sessão vazia acidental bloqueada'
     );
     assert.equal((await save(a, 'r0')).status, 200);
+    const historico = await sessao.collection('historico').get();
+    assert.equal(historico.size, 1, 'uma revisão financeira preserva a sessão anterior');
+    const registro = historico.docs[0];
+    context.historicoRef = registro.ref;
+    context.armazenamentoHistorico = registro.data().armazenamento;
+    const recuperado = await vm.runInContext("carregarTextoBackup(historicoRef,'chunks',armazenamentoHistorico)", context);
+    assert.deepEqual(JSON.parse(recuperado), base, 'backup recupera integralmente os lançamentos anteriores');
+    assert.equal((await sessao.get()).data().resumo.zerada, false);
+
     assert.equal(
       (await save(b, 'r0')).status,
       409,

@@ -380,26 +380,50 @@
     { numero: '11', nome: 'Novembro' }, { numero: '12', nome: 'Dezembro' }
   ];
 
+  // Cada saldo informado substitui o histórico anterior daquela conta, sem
+  // duplicar movimentos já incluídos nem zerar contas não informadas.
+  function saldosAnteriores(lancamentos, inicio, contas, aberturas) {
+    const data = dataISO(String(inicio).length === 7 ? inicio + '-01' : inicio);
+    if (!data) return {};
+    const mapa = mapaContas(contas), saldos = {}, ancoras = {};
+    Object.keys(aberturas || {}).filter(function (p) { return periodoValido(p) && p + '-01' <= data; }).sort().forEach(function (p) {
+      Object.keys(aberturas[p] || {}).forEach(function (codigo) {
+        const conta = contaCanonica(codigo, mapa);
+        if (conta) { saldos[conta] = centavos(aberturas[p][codigo]); ancoras[conta] = p + '-01'; }
+      });
+    });
+    (lancamentos || []).forEach(function (l) {
+      const d = dataISO(l.data);
+      if (!d || d >= data) return;
+      [['contaDebito', 1], ['contaCredito', -1]].forEach(function (parte) {
+        const conta = contaCanonica(l[parte[0]], mapa);
+        if (conta && (!ancoras[conta] || d >= ancoras[conta])) saldos[conta] = (saldos[conta] || 0) + parte[1] * Math.abs(centavos(l.valor));
+      });
+    });
+    Object.keys(saldos).forEach(function (conta) { saldos[conta] = deCentavos(saldos[conta]); });
+    return saldos;
+  }
+
   function balanceteAnual(lancamentos, ano, contas, saldosIniciaisPorPeriodo) {
     const anoNormalizado = texto(ano);
     if (!/^\d{4}$/.test(anoNormalizado)) {
       return { ano: anoNormalizado, meses: MESES_BALANCETE_ANUAL.slice(), linhas: [], resumo: [], periodosComMovimento: 0 };
     }
     const saldosConfigurados = saldosIniciaisPorPeriodo && typeof saldosIniciaisPorPeriodo === 'object' ? saldosIniciaisPorPeriodo : {};
-    let transportados = {};
+    const ultimoPeriodo = (lancamentos || []).map(function (l) { return periodoDaData(l.data); }).concat(Object.keys(saldosConfigurados)).filter(function (p) { return periodoValido(p) && p.slice(0, 4) === anoNormalizado; }).sort().pop() || '';
     const linhasPorChave = new Map();
     let periodosComMovimento = 0;
 
     MESES_BALANCETE_ANUAL.forEach(function (mes, indice) {
       const periodo = anoNormalizado + '-' + mes.numero;
+      if (!ultimoPeriodo || periodo > ultimoPeriodo) return;
       const explicitos = saldosConfigurados[periodo] && typeof saldosConfigurados[periodo] === 'object' ? saldosConfigurados[periodo] : {};
       const movimento = lancamentosDoPeriodo(lancamentos, periodo);
-      const periodoComEvidencia = movimento.length > 0 || Object.keys(explicitos).length > 0;
+      const periodoComEvidencia = movimento.length > 0 || Object.keys(explicitos).length > 0 || Object.values(saldosAnteriores(lancamentos, periodo, contas, saldosConfigurados)).some(function (v) { return centavos(v) !== 0; });
       if (!periodoComEvidencia) {
-        transportados = {};
         return;
       }
-      const abertura = Object.assign({}, transportados, explicitos);
+      const abertura = saldosAnteriores(lancamentos, periodo, contas, saldosConfigurados);
       if (movimento.length) periodosComMovimento += 1;
       const mensal = balancete(lancamentos, periodo, contas, abertura);
 
@@ -411,10 +435,6 @@
         linhasPorChave.get(chave).saldosMensais[indice] = deCentavos(centavos(linha.saldoAtual));
       });
 
-      transportados = {};
-      mensal.filter(function (linha) { return linha.analitica !== false; }).forEach(function (linha) {
-        transportados[linha.conta] = deCentavos(centavos(linha.saldoAtual));
-      });
     });
 
     const linhas = Array.from(linhasPorChave.values()).sort(function (a, b) {
@@ -748,6 +768,6 @@
 
   return {
     dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao, complementoLancamento,
-    lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, balanceteAnual, razao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
+    lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, saldosAnteriores, balanceteAnual, razao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
   };
 });

@@ -3117,6 +3117,25 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
   if (!trava || !opts.tokenTrava || trava.token !== opts.tokenTrava || trava.uid !== user.uid || millisTimestamp(trava.expires_at) <= Date.now()) {
     throw erroSessao('A reserva de gravação expirou. Tente salvar novamente.', 409, 'SESSAO_EM_ATUALIZACAO');
   }
+  // Preserva uma cópia independente antes de qualquer alteração dos lançamentos
+  // ou dos saldos. A referência só é publicada na mesma transação da nova sessão.
+  const anterior = await carregarSessaoAtualPorRef(sessaoRef);
+  const estadoNovo = JSON.parse(stateJson);
+  const estadoAntes = anterior.stateJson ? JSON.parse(anterior.stateJson) : {};
+  const financeiro = e => JSON.stringify({ entries: e.entries || [], saldos: (e.relatoriosContabeis || {}).saldosIniciais || {} });
+  let historicoRef = null, historico = null;
+  if (anterior.stateJson && financeiro(estadoAntes) !== financeiro(estadoNovo)) {
+    historicoRef = sessaoRef.collection('historico').doc();
+    const armazenamento = await gravarTextoBackup(historicoRef, 'chunks', anterior.stateJson);
+    historico = { criado_em: new Date(), por_uid: user.uid, por_email: user.email || '',
+      tipo: trava.tipo || 'sessao', revisao_anterior: anterior.dados.session_revision || null,
+      quantidade_anterior: (estadoAntes.entries || []).length, quantidade_nova: (estadoNovo.entries || []).length,
+      sha256: cryptoAdmin.createHash('sha256').update(anterior.stateJson).digest('hex'), armazenamento };
+  }
+  const datas = (estadoNovo.entries || []).map(e => RelatoriosContabeis.dataISO(e.data)).filter(Boolean).sort();
+  const resumoAtual = { ...(resumo || {}), total_lancamentos: (estadoNovo.entries || []).length,
+    periodo: datas.length ? datas[0] + ' a ' + datas[datas.length - 1] : '', zerada: !(estadoNovo.entries || []).length };
+  delete resumoAtual.exclusao_pontual;
   const codificado = codificarStateJson(stateJson);
   const partes = dividirTexto(codificado.payload, LIMITE_CHUNK_SESSAO);
   const chunked = codificado.payload.length > LIMITE_CHUNK_SESSAO;
@@ -3124,7 +3143,7 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
   if (chunked) await gravarPartes(sessaoRef.collection('chunks'), partes, geracao);
   const revisao = novaRevisaoSessao();
   const dadosSessao = {
-    resumo: resumo || null,
+    resumo: resumoAtual,
     updated_at: new Date(),
     updated_by_uid: user.uid,
     updated_by_email: user.email,
@@ -3145,7 +3164,8 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
     if (!ativa || ativa.token !== trava.token || millisTimestamp(ativa.expires_at) <= Date.now()) {
       throw erroSessao('Outra gravação assumiu a sessão. Confira e tente novamente.', 409, 'SESSAO_CONCORRENTE');
     }
-    transacao.set(sessaoRef, dadosSessao, { merge: true });
+    if (historicoRef) transacao.create(historicoRef, { ...historico, revisao_nova: revisao });
+    transacao.update(sessaoRef, dadosSessao);
     if (opts.empresaRef && opts.atualizacaoEmpresa) transacao.set(opts.empresaRef, opts.atualizacaoEmpresa, { merge: true });
     if (opts.gravarRelacionados) opts.gravarRelacionados(transacao, revisao);
   });
@@ -4248,15 +4268,17 @@ app.get('/api/empresas/:cnpj/contabilidade/homologacao-piloto', async (req, res)
 });
 
 async function saldosIniciaisContabeis(empresaRef, estado, periodo) {
-  const explicitos = estado.relatoriosContabeis && estado.relatoriosContabeis.saldosIniciais
-    ? estado.relatoriosContabeis.saldosIniciais[periodo] || null
-    : null;
-  if (explicitos && Object.keys(explicitos).length) return { saldos: explicitos, origem: 'informado' };
-  const transporte = await empresaRef.collection('transportes_saldos').doc(periodo).get();
-  if (transporte.exists && String((transporte.data() || {}).status || 'vigente') === 'vigente') {
-    return { saldos: (transporte.data() || {}).saldos || {}, origem: 'transporte', transporte: transporte.data() || {} };
-  }
-  return { saldos: {}, origem: 'ausente' };
+  const aberturas = { ...((estado.relatoriosContabeis || {}).saldosIniciais || {}) };
+  const transportes = await empresaRef.collection('transportes_saldos').get();
+  transportes.docs.forEach(doc => {
+    const t = doc.data();
+    const p = t.periodo_destino || doc.id;
+    if (p <= periodo && String(t.status || 'vigente') === 'vigente' && !Object.keys(aberturas[p] || {}).length) aberturas[p] = t.saldos || {};
+  });
+  const empresa = await empresaRef.get();
+  const contas = await carregarContasContabeisEmpresa(empresa.data() || {});
+  const saldos = RelatoriosContabeis.saldosAnteriores(estado.entries, periodo, contas, aberturas);
+  return { saldos, origem: Object.keys(saldos).length ? 'historico' : 'ausente' };
 }
 
 async function avaliarConciliacaoDetalhadaDaRequisicao(cnpj, entrada, usuario) {

@@ -134,16 +134,18 @@ function preferenciasImpressao(ctx, sobrescritas) {
   }
 
   function saldosDoFiltro(ctx, filtro) {
-    const base = saldosDoPeriodo(ctx, chaveSaldoInicial(filtro));
-    if (typeof filtro === 'string' || !filtro.inicio || filtro.inicio.slice(8, 10) === '01') return base;
-    const partes = filtro.inicio.split('-').map(Number);
-    const anterior = new Date(partes[0], partes[1] - 1, partes[2] - 1);
-    const fimAnterior = anterior.getFullYear() + '-' + String(anterior.getMonth() + 1).padStart(2, '0') + '-' + String(anterior.getDate()).padStart(2, '0');
-    const inicioMes = filtro.inicio.slice(0, 7) + '-01';
-    const acumulado = Core.balancete(ctx.entries, { inicio: inicioMes, fim: fimAnterior }, ctx.contas, base);
-    const saldos = {};
-    acumulado.forEach(function (linha) { saldos[linha.conta] = linha.saldoAtual; });
-    return saldos;
+    const aberturas = Object.assign({}, (((ctx || {}).config || {}).saldosIniciais || {}));
+    ((statusAtual && statusAtual.transportes) || []).forEach(function (t) {
+      if (t.status === 'vigente' && !Object.keys(aberturas[t.periodo_destino] || {}).length) aberturas[t.periodo_destino] = t.saldos || {};
+    });
+    return Core.saldosAnteriores(ctx.entries, typeof filtro === 'string' ? filtro : filtro.inicio, ctx.contas, aberturas);
+  }
+
+  async function sincronizarDadosRelatorio() {
+    const ctx = contexto();
+    if (ctx && ctx.sincronizarRelatorios) await ctx.sincronizarRelatorios();
+    await carregarStatus(true);
+    if (String(contexto().empresa.cnpj) !== String(ctx.empresa.cnpj)) throw new Error('A empresa mudou durante a consulta. Reabra o relatório.');
   }
 
   function saldosDoAno(ctx, ano) {
@@ -151,7 +153,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     if (!statusAtual || !Array.isArray(statusAtual.transportes)) return configurados;
     statusAtual.transportes.forEach(function (item) {
       const periodo = String((item || {}).periodo_destino || '');
-      if (item && item.status === 'vigente' && periodo.slice(0, 4) === String(ano) && item.saldos && typeof item.saldos === 'object') {
+      if (item && item.status === 'vigente' && periodo.slice(0, 4) <= String(ano) && item.saldos && typeof item.saldos === 'object') {
         configurados[periodo] = item.saldos;
       }
     });
@@ -584,12 +586,13 @@ function preferenciasImpressao(ctx, sobrescritas) {
     } catch (e) { window.showToast(e.message || String(e), 'error'); return false; }
   }
 
-  async function carregarStatus() {
+  async function carregarStatus(estrito) {
     const ctx = contexto();
     if (!ctx || !ctx.empresa || !ctx.empresa.cnpj || !window.API || !window.API.listarPeriodosContabeis) return;
     try { statusAtual = await window.API.listarPeriodosContabeis(ctx.empresa.cnpj); }
     catch (e) {
       statusAtual = { periodos: [], is_admin: !!(window.CURRENT_USER && window.CURRENT_USER.is_admin) };
+      if (estrito) throw new Error('Não foi possível conferir os saldos de abertura e fechamentos. Atualize novamente o relatório.');
     }
     try { homologacaoAtual = window.API.consultarHomologacaoPiloto ? await window.API.consultarHomologacaoPiloto(ctx.empresa.cnpj) : null; }
     catch (e) { homologacaoAtual = null; }
@@ -830,10 +833,16 @@ function preferenciasImpressao(ctx, sobrescritas) {
   }
 
   async function atualizarTudo() {
-    await carregarStatus();
-    preencherSaldos();
-    render();
-    renderHomologacaoPiloto();
+    try {
+      await sincronizarDadosRelatorio();
+      preencherSaldos();
+      render();
+      renderHomologacaoPiloto();
+    } catch (e) {
+      const corpo = document.getElementById('rcBody');
+      if (corpo) corpo.innerHTML = '<tr><td colspan="10">' + esc(e.message) + '</td></tr>';
+      window.showToast(e.message || String(e), 'error');
+    }
   }
 
   async function salvarConfigFechamento() {
@@ -928,8 +937,9 @@ function preferenciasImpressao(ctx, sobrescritas) {
     return 'CCI_' + tipoAtual + '_' + dados.periodo + '_' + String(dados.ctx.empresa.cnpj || '').replace(/\D/g, '') + '.' + ext;
   }
 
-  function exportarExcel() {
+  async function exportarExcel() {
     try {
+      await sincronizarDadosRelatorio();
       if (!window.XLSX) throw new Error('Biblioteca Excel indisponível. Recarregue a página.');
       const dados = dadosAtuais();
       const ws = XLSX.utils.aoa_to_sheet([cabecalhoExportacao()].concat(linhasExportacao(dados)));
@@ -1017,8 +1027,10 @@ function preferenciasImpressao(ctx, sobrescritas) {
   }
 
   async function criarDocumentoPDF(opcoes) {
+    await sincronizarDadosRelatorio();
     const jsPDF = await garantirBibliotecasPDF();
     const dados = dadosAtuais();
+    if ((tipoAtual === 'razao' && !dados.razao.length) || (tipoAtual === 'diario' && !dados.diario.length)) throw new Error('Não há lançamentos para este relatório após atualizar os dados. Confira o período, a conta selecionada e a classificação dos lançamentos.');
     const preferencias = preferenciasImpressao(dados.ctx, opcoes);
     if (tipoAtual === 'balancete_anual') return criarBalanceteAnualPDF(jsPDF, dados, preferencias);
     const doc = new jsPDF({ orientation: preferencias.orientacao, unit: 'mm', format: 'a4' });
@@ -1160,9 +1172,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     try {
       const preferencias = valoresFormularioImpressao();
       salvarPreferenciasImpressao(preferencias);
-      const resultado = documentoPreviaImpressao && JSON.stringify(documentoPreviaImpressao.preferencias) === JSON.stringify(preferencias)
-        ? documentoPreviaImpressao
-        : await criarDocumentoPDF(preferencias);
+      const resultado = await criarDocumentoPDF(preferencias);
       resultado.doc.save(resultado.arquivo);
     } catch (e) { window.showToast(e.message || String(e), 'error'); }
   }
