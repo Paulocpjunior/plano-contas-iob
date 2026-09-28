@@ -34,7 +34,7 @@ assert.throws(function () { Cfi.interpretarRegimeCfi(404, { error: 'Empresa ause
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 assert.match(html, /CCI como sistema único/);
-assert.match(html, /exportação para a SAGE está bloqueada/);
+assert.doesNotMatch(html, /exportação para a SAGE está bloqueada/);
 assert.match(html, /empSincronizarRegimeCfi/);
 
 const relatorios = fs.readFileSync(path.join(__dirname, '..', 'relatorios-contabeis-ui.js'), 'utf8');

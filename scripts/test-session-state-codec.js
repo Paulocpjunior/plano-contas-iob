@@ -49,7 +49,7 @@ assert(server.includes("require('./session-state-codec')"), 'servidor deve usar 
 assert(server.includes('const state_json = stateJsonDoBody(req.body || {})'), 'rota deve aceitar transporte compacto sem mudar validações contábeis');
 assert(server.includes('state_stored_bytes: codificado.bytesArmazenados'), 'telemetria deve registrar tamanho armazenado');
 assert(server.includes('const [atual, periodosContabeis, transportesSaldos] = await Promise.all(['), 'leituras independentes do autosave devem ocorrer em paralelo');
-assert(server.includes('transacao.set(sessaoRef, dadosSessao, { merge: true })'), 'sessão deve compartilhar o mesmo commit da atualização da empresa');
+assert(server.includes('transacao.update(sessaoRef, dadosSessao)'), 'sessão deve compartilhar o mesmo commit da atualização da empresa');
 assert(server.includes('transacao.set(opts.empresaRef, opts.atualizacaoEmpresa, { merge: true })'), 'metadados da empresa devem ser atômicos com a sessão');
 assert(server.includes('limparChunksAntigos: !!(atual.dados && atual.dados.state_chunked)'), 'autosave comum não deve consultar chunks inexistentes a cada edição');
 assert(server.includes("console.info('[sessao-perf]'"), 'autosave deve registrar telemetria de latência sem identificar a empresa');

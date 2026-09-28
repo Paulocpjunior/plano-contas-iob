@@ -136,11 +136,11 @@ const anual = core.balanceteAnual([
 ], '2026', planoHierarquico, { '2026-01': { 10: 100 }, '2026-04': { 10: 200 } });
 assert.strictEqual(anual.meses.length, 12, 'balancete anual deve conter janeiro a dezembro');
 assert.strictEqual(anual.periodosComMovimento, 2, 'meses com movimento devem ser contabilizados sem inventar períodos');
-assert.deepStrictEqual(anual.linhas.find(l => l.conta === '10').saldosMensais.slice(0, 5), [1100, 0, 0, 200, 0], 'mês sem evidência não pode receber projeção automática do saldo anterior');
-assert.deepStrictEqual(anual.linhas.find(l => l.conta === '14').saldosMensais.slice(0, 5), [0, 0, 250, 250, 0], 'saldo só avança entre competências consecutivas com evidência contábil');
-assert.strictEqual(anual.resumo.find(l => l.codigo === '1').saldosMensais[2], 250, 'resumo do ativo deve usar apenas a competência efetivamente escriturada');
-assert.strictEqual(anual.resumo.find(l => l.codigo === '2').saldosMensais[2], -250, 'resumo do passivo deve preservar natureza credora sem projetar janeiro');
-assert.strictEqual(anual.resumo.find(l => l.codigo === 'DIFERENCA').saldosMensais[2], 0, 'diferença deve comparar apenas os saldos do mês efetivamente escriturado');
+assert.deepStrictEqual(anual.linhas.find(l => l.conta === '10').saldosMensais.slice(0, 5), [1100, 1100, 1100, 200, 0], 'meses intermediários preservam o saldo; meses futuros sem evidência permanecem vazios');
+assert.deepStrictEqual(anual.linhas.find(l => l.conta === '14').saldosMensais.slice(0, 5), [0, 0, 250, 250, 0], 'saldo acumulado permanece nas contas não substituídas por abertura explícita');
+assert.strictEqual(anual.resumo.find(l => l.codigo === '1').saldosMensais[2], 1350, 'resumo do ativo deve usar apenas a competência efetivamente escriturada');
+assert.strictEqual(anual.resumo.find(l => l.codigo === '2').saldosMensais[2], -1250, 'resumo do passivo deve preservar natureza credora sem projetar janeiro');
+assert.strictEqual(anual.resumo.find(l => l.codigo === 'DIFERENCA').saldosMensais[2], 100, 'diferença deve comparar apenas os saldos do mês efetivamente escriturado');
 const anualSomenteJaneiro = core.balanceteAnual([
   { id: 'j1', data: '31/01/2026', valor: 1000, contaDebito: '10', contaCredito: '300' }
 ], '2026', planoHierarquico, {});

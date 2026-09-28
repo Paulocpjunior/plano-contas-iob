@@ -1,7 +1,8 @@
 {
-  "version": "3.4.324",
-  "build_date": "2026-09-28T15:27:14.750Z",
+  "version": "3.4.325",
+  "build_date": "2026-09-28T16:52:04.040509Z",
   "release_notes": [
+    "Contabilidade: preservar histórico recuperável dos lançamentos e saldos, acumular períodos anteriores nos relatórios sem duplicar aberturas e atualizar a sessão antes de emitir demonstrativos. Exportação SAGE disponível nos dois modos.",
     "Extrato Conciliado: reconhecer XLSX do SIGAFIN com colunas espaçadas, preservar movimentos repetidos e conferir saldos por linha e totais antes da importação.",
     "Itaú: reler células ilegíveis diretamente do PDF em maior resolução antes de bloquear a importação, mantendo a conciliação dos saldos e o cancelamento.",
     "Importação: manter aviso de falha visível, preservar arquivo selecionado e permitir copiar diagnóstico com última etapa, versão, empresa e horário.",
