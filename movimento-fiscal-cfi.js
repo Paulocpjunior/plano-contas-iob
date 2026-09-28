@@ -176,7 +176,7 @@
       }
       const componentes = [];
       if (modoPcc || federais.ir === true || federais.inss === true) {
-        const f = nota.federaisRelatorio;
+        let f = nota.federaisRelatorio;
         if (!f || !['relatorio-cfi', 'ajuste-declarado'].includes(f.origem) || typeof f.contribuicoesAgregadas !== 'boolean') {
           throw new Error('NF ' + nota.numero + ': o CFI ainda nao enviou os tributos conferidos pelo relatorio. Atualize a consulta; os campos brutos nao serao usados.');
         }
@@ -185,11 +185,32 @@
             throw new Error('NF ' + nota.numero + ': valor federal invalido no relatorio CFI (' + campo + ').');
           }
         }
+        // Compatibilidade com o exportador legado do CFI: o importador
+        // nfse-sp-csv-importer grava contribSociaisRetidas em valorCsll.
+        // A origem prova que o campo é agregado; a alíquota, sozinha, não.
+        const portalSp = nota.origemDocumento === 'csv-portal-sp' && f.origem === 'relatorio-cfi';
+        if (portalSp && !f.contribuicoesAgregadas && !f.pis && !f.cofins && !f.pccAgregado && f.csll > 0) {
+          f = { ...f, csll: 0, pccAgregado: f.csll, contribuicoesAgregadas: true };
+        }
         if (modoPcc) {
           if (f.contribuicoesAgregadas && prestado && modoPcc === 'individual') {
-            const pisCent = Math.round(f.pis * 100);
-            const cofinsCent = Math.round(f.cofins * 100);
+            let pisCent = Math.round(f.pis * 100);
+            let cofinsCent = Math.round(f.cofins * 100);
             const pccCent = Math.round(f.pccAgregado * 100);
+            if (portalSp && !pisCent && !cofinsCent && pccCent > 0) {
+              const basePcc = Number(nota.baseCalculoIss);
+              // Lei 10.833/2003, art. 31. Não ratear retenção parcial,
+              // isenção ou base desconhecida. Preservar o total em centavos.
+              if (!(basePcc > 0) || nota.data.slice(0,4) > '2026'
+                  || Math.abs(pccCent - Math.round(basePcc * 4.65)) > 2) {
+                throw new Error('NF ' + nota.numero + ': o portal informou PCC agregado sem componentes. A base nao permite separar com seguranca; confira a composicao na origem.');
+              }
+              pisCent = Math.round(basePcc * .65);
+              cofinsCent = Math.round(basePcc * 3);
+              base.composicaoPcc = { origem: 'calculada-do-pcc-portal-sp', base: basePcc,
+                total: pccCent / 100, pis: pisCent / 100, cofins: cofinsCent / 100,
+                csll: (pccCent - pisCent - cofinsCent) / 100 };
+            }
             const csllCent = pccCent - pisCent - cofinsCent;
             if (csllCent < 0 || (pccCent > 0 && (!pisCent || !cofinsCent)) || (f.csll > 0 && Math.round(f.csll * 100) !== csllCent)) {
               throw new Error('NF ' + nota.numero + ': PCC sem composicao individual conferivel no CFI. Confira PIS, COFINS e CSLL na origem antes de importar separadamente.');

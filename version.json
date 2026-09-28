@@ -1,7 +1,8 @@
 {
-  "version": "3.4.326",
-  "build_date": "2026-09-28T18:48:29.870Z",
+  "version": "3.4.327",
+  "build_date": "2026-09-28T19:27:25.934Z",
   "release_notes": [
+    "Serviços prestados: reconhecer PCC do portal SP guardado no campo CSLL e separar PIS, COFINS e CSLL na opção individual somente com base e total conferidos, preservando o total informado.",
     "Itaú: permitir OCR lento enquanto houver avanço real, detectar 90 segundos sem progresso e manter cancelamento e limites máximos de leitura.",
     "Contabilidade: preservar histórico recuperável dos lançamentos e saldos, acumular períodos anteriores nos relatórios sem duplicar aberturas e atualizar a sessão antes de emitir demonstrativos. Exportação SAGE disponível nos dois modos.",
     "Extrato Conciliado: reconhecer XLSX do SIGAFIN com colunas espaçadas, preservar movimentos repetidos e conferir saldos por linha e totais antes da importação.",
