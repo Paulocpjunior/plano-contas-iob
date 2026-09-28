@@ -439,6 +439,29 @@
       }
     });
 
+    // Zero movimentos é um resultado válido apenas com a tabela completa e
+    // saldos explícitos iguais. Não use texto sobre lançamentos FUTUROS como prova.
+    if (!origemOCR && !lancamentos.length && contaMatch && periodo.inicio && periodo.fim) {
+      const cab = lines.findIndex(l => /^Data\s+Lan[cç]amentos\s+Raz[aã]o Social\s+CNPJ\/CPF\s+Valor/i.test(l.text));
+      const fim = lines.findIndex((l,i) => i>cab && /^Saldo da conta corrente$/i.test(l.text));
+      const futuro = lines.findIndex((l,i) => i>fim && /^Lan[cç]amentos futuros do per[ií]odo:/i.test(l.text));
+      const tabela = cab>=0 && fim>cab ? lines.slice(cab+1,fim).map(l=>l.text.trim()).filter(Boolean) : [];
+      const resumo = fim>=0 && futuro>fim ? lines.slice(fim+1,futuro).map(l=>l.text.trim()).filter(Boolean) : [];
+      const abertura = tabela.length===1 && tabela[0].match(/^(\d{2})\/(\d{2})\/(\d{4})\s+SALDO ANTERIOR\s+(-?[\d.]+,\d{2})$/i);
+      const fechamento = resumo.length===2 && /^Descri[cç][aã]o\s+Valor/.test(resumo[0])
+        && resumo[1].match(/^SALDO DISPON[IÍ]VEL SEM INVESTIMENTOS AUTOM[AÁ]TICOS\s+(-?[\d.]+,\d{2})$/i);
+      if (abertura && fechamento && abertura[3]+'-'+abertura[2]+'-'+abertura[1]<periodo.inicio
+          && Math.round(parseValorBR(abertura[4])*100)===Math.round(parseValorBR(fechamento[1])*100)) {
+        return { detectado:true, sem_movimento:true, lancamentos:[], textoCompleto,
+          banco_detectado:'ITAU', conta_detectada:'AG-'+contaMatch[1]+'/CC-'+contaMatch[2],
+          nome_conta_detectado:'CONTA CORRENTE ITAU', layout_modelo:'lancamentos-do-periodo',
+          periodo_inicio:periodo.inicio, periodo_fim:periodo.fim,
+          saldo_anterior:parseValorBR(abertura[4]), saldo_final:parseValorBR(fechamento[1]),
+          total_credito:0, total_debito:0, saldos_conciliados:true,
+          observacao_importacao:'Extrato reconhecido, sem movimentação no período. Não há lançamentos para importar.' };
+      }
+    }
+
     const totalCredito = lancamentos.filter(function(l){ return l.valor > 0; }).reduce(function(a,l){ return a + Math.round(l.valor * 100); }, 0) / 100;
     const totalDebito = lancamentos.filter(function(l){ return l.valor < 0; }).reduce(function(a,l){ return a + Math.abs(Math.round(l.valor * 100)); }, 0) / 100;
     const saldoAnteriorMatch = textoCompleto.match(/SALDO ANTERIOR\s+(-?[\d.]+,\d{2})/i);
@@ -1208,7 +1231,7 @@
       if (periodo && periodo.layout_modelo === 'lancamentos-periodo-separado') {
         return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
       }
-      if (periodo && periodo.detectado && periodo.lancamentos && periodo.lancamentos.length) return periodo;
+      if (periodo && periodo.detectado) return periodo;
 
       const ocrScan = parseItauExtratoMensalOCRScaneado(lines, textoCompleto);
       if (ocrScan && ocrScan.detectado && ocrScan.lancamentos && ocrScan.lancamentos.length) return ocrScan;
