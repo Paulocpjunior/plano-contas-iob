@@ -117,7 +117,7 @@ function previaDepreciacao(bens, periodo, jaGerados, contas) {
     if (dataLimite && String(dataLimite).slice(0, 7) < periodo) return;
     const chave = periodo + ':' + bem.id + ':depreciacao';
     if (gerados.has(chave)) return;
-    const errosContas = Ativo.validarContas(bem);
+    const errosContas = Ativo.validarContas(bem).concat(Ativo.validarHistoricoDepreciacao(bem));
     if (errosContas.length) { erros.push(...errosContas.map(e => 'Bem ' + (bem.patrimonio || bem.descricao || bem.id) + ': ' + e)); return; }
     const quota = quotaDoPeriodo(bem, periodo);
     if (!(quota > 0)) return;
@@ -132,7 +132,9 @@ function previaDepreciacao(bens, periodo, jaGerados, contas) {
       descricao_bem: bem.descricao || '',
       data: ultimoDia(periodo),
       descricao: 'Depreciação mensal - ' + (bem.patrimonio || bem.descricao || bem.id),
-      historico: 'DEPRECIAÇÃO DO ATIVO IMOBILIZADO - ' + (bem.descricao || bem.patrimonio || bem.id),
+      codigoHistorico: Ativo.historicoDepreciacao(bem).codigoHistorico.padStart(4, '0'),
+      historicoPadraoDescricao: Ativo.historicoDepreciacao(bem).historicoPadraoDescricao,
+      historico: Ativo.historicoDepreciacao(bem).historicoPadraoDescricao,
       valor: quota,
       contaDebito: String(bem.conta_despesa_depreciacao),
       contaCredito: String(bem.conta_depreciacao_acumulada),

@@ -1,7 +1,8 @@
 {
-  "version": "3.4.318",
-  "build_date": "2026-09-28T11:23:54.404Z",
+  "version": "3.4.319",
+  "build_date": "2026-09-28T12:34:00.573Z",
   "release_notes": [
+    "Depreciação: configurar código IOB e histórico padrão por bem, com sugestão 1494, preservando os dados na prévia e no lançamento aprovado.",
     "Extratos bancários: reconhecer Itaú sem movimentação, mostrar conta, período e saldos e evitar solicitação indevida de novo layout.",
     "Itaú: corrigir a leitura dos extratos de maio a agosto, preservar recebimentos repetidos legítimos e conferir os saldos diários antes de liberar a importação.",
     "Carnê-Leão: sugerir IPTU e taxa de administração da planilha por proprietário, mostrar a base após exclusões e refletir os valores no cálculo e CSV.",

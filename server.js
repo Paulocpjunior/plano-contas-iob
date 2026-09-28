@@ -3892,6 +3892,8 @@ function normalizarBemAtivo(body) {
     conta_ativo: String(b.conta_ativo || '').trim().slice(0, 40),
     conta_depreciacao_acumulada: String(b.conta_depreciacao_acumulada || '').trim().slice(0, 40),
     conta_despesa_depreciacao: String(b.conta_despesa_depreciacao || '').trim().slice(0, 40),
+    codigo_historico_depreciacao: AtivoImobilizado.historicoDepreciacao(b).codigoHistorico,
+    historico_depreciacao: AtivoImobilizado.historicoDepreciacao(b).historicoPadraoDescricao,
     conta_contrapartida_aquisicao: String(b.conta_contrapartida_aquisicao || '').trim().slice(0, 40),
     centro_custo: String(b.centro_custo || '').trim().slice(0, 80),
     localizacao: String(b.localizacao || '').trim().slice(0, 120),
@@ -4104,7 +4106,7 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/aprovar', async (r
       state.entries.push({
         ...lancamento,
         id: 'ativo-' + periodo.replace('-', '') + '-' + cryptoAdmin.createHash('sha1').update(lancamento.chave).digest('hex').slice(0, 12),
-        codigoHistorico: '', historicoPadraoDescricao: '', incomum: false,
+        incomum: false,
         empresa: chk.empresa.razao_social || '', cnpj,
         categoria: 'Ativo imobilizado', importacaoId: 'ativo-' + periodo,
         importacaoTitulo: 'Ativo imobilizado - ' + periodo,

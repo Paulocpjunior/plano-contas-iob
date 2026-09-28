@@ -56,6 +56,8 @@
           <div class="ai-field"><label for="aiContaContrapartida">Contrapartida da aquisição</label><input id="aiContaContrapartida" list="aiContasPlano" placeholder="Conta do fornecedor, banco ou obrigação"></div>
           <div class="ai-field"><label for="aiContaAcumulada">Conta de depreciação acumulada (crédito)</label><input id="aiContaAcumulada" list="aiContasPlano" placeholder="Código da conta redutora do ativo" aria-describedby="aiContaAcumuladaAjuda"><small id="aiContaAcumuladaAjuda">Informe a conta contábil, não o saldo em R$. O valor acumulado é apresentado na memória de cálculo.</small></div>
           <div class="ai-field"><label for="aiContaDespesa">Conta de despesa de depreciação (débito)</label><input id="aiContaDespesa" list="aiContasPlano" placeholder="Código da conta de despesa"></div>
+          <div class="ai-field"><label for="aiCodigoHistorico">Código IOB do histórico da depreciação</label><input id="aiCodigoHistorico" inputmode="numeric" maxlength="4" value="1494"></div>
+          <div class="ai-field ai-span-2"><label for="aiHistorico">Histórico padrão da depreciação</label><input id="aiHistorico" maxlength="300" value="VR. DEPRECIAÇÃO NO MÊS"><small>Salvo por bem e utilizado nos próximos lançamentos mensais.</small></div>
           <datalist id="aiContasPlano"></datalist><div class="ai-field"><label>Centro de custo</label><input id="aiCentro"></div>
           <div class="ai-field ai-span-2"><label>Fundamento para taxa diferente / laudo</label><textarea id="aiFundamento"></textarea></div>
           <div class="ai-field ai-span-2"><label>Observações</label><textarea id="aiObservacoes"></textarea></div>
@@ -95,7 +97,7 @@
   }
 
   function dadosFormulario() {
-    return { descricao: campo('aiDescricao').value, patrimonio: campo('aiPatrimonio').value, classe_fiscal: campo('aiClasse').value, data_aquisicao: campo('aiAquisicao').value, data_disponivel_uso: campo('aiDisponivel').value, data_primeiro_uso: campo('aiPrimeiroUso').value, data_mantido_venda: campo('aiMantidoVenda').value, custo: campo('aiCusto').value, valor_residual: campo('aiResidual').value, vida_util_meses: campo('aiVida').value, taxa_fiscal_anual: campo('aiTaxa').value, metodo: 'linear', condicao: campo('aiCondicao').value, status: campo('aiStatus').value, conta_ativo: campo('aiContaAtivo').value, conta_contrapartida_aquisicao: campo('aiContaContrapartida').value, conta_depreciacao_acumulada: campo('aiContaAcumulada').value, conta_despesa_depreciacao: campo('aiContaDespesa').value, centro_custo: campo('aiCentro').value, fundamento_taxa: campo('aiFundamento').value, observacoes: campo('aiObservacoes').value };
+    return { descricao: campo('aiDescricao').value, patrimonio: campo('aiPatrimonio').value, classe_fiscal: campo('aiClasse').value, data_aquisicao: campo('aiAquisicao').value, data_disponivel_uso: campo('aiDisponivel').value, data_primeiro_uso: campo('aiPrimeiroUso').value, data_mantido_venda: campo('aiMantidoVenda').value, custo: campo('aiCusto').value, valor_residual: campo('aiResidual').value, vida_util_meses: campo('aiVida').value, taxa_fiscal_anual: campo('aiTaxa').value, metodo: 'linear', condicao: campo('aiCondicao').value, status: campo('aiStatus').value, conta_ativo: campo('aiContaAtivo').value, conta_contrapartida_aquisicao: campo('aiContaContrapartida').value, conta_depreciacao_acumulada: campo('aiContaAcumulada').value, conta_despesa_depreciacao: campo('aiContaDespesa').value, codigo_historico_depreciacao: campo('aiCodigoHistorico').value, historico_depreciacao: campo('aiHistorico').value, centro_custo: campo('aiCentro').value, fundamento_taxa: campo('aiFundamento').value, observacoes: campo('aiObservacoes').value };
   }
 
   function atualizarCondicao() {
@@ -143,6 +145,7 @@
   function limpar() {
     editandoId = '';
     ['aiDescricao','aiPatrimonio','aiAquisicao','aiDisponivel','aiPrimeiroUso','aiMantidoVenda','aiCusto','aiVida','aiTaxa','aiContaAtivo','aiContaContrapartida','aiContaAcumulada','aiContaDespesa','aiCentro','aiFundamento','aiObservacoes'].forEach(function (id) { campo(id).value = ''; });
+    campo('aiCodigoHistorico').value = '1494'; campo('aiHistorico').value = 'VR. DEPRECIAÇÃO NO MÊS';
     campo('aiResidual').value = '0,00'; campo('aiClasse').value = referencias[0] ? referencias[0].id : 'edificacoes'; campo('aiCondicao').value = 'novo'; campo('aiStatus').value = 'ativo'; campo('aiFormTitulo').textContent = 'Cadastrar bem'; campo('aiValidacao').innerHTML = ''; campo('aiCronograma').innerHTML = ''; atualizarCondicao(); atualizarStatus(); aplicarReferencia();
   }
 
@@ -153,6 +156,9 @@
     editandoId = id;
     const mapa = { aiDescricao:'descricao', aiPatrimonio:'patrimonio', aiClasse:'classe_fiscal', aiAquisicao:'data_aquisicao', aiDisponivel:'data_disponivel_uso', aiPrimeiroUso:'data_primeiro_uso', aiMantidoVenda:'data_mantido_venda', aiCusto:'custo', aiResidual:'valor_residual', aiVida:'vida_util_meses', aiTaxa:'taxa_fiscal_anual', aiCondicao:'condicao', aiStatus:'status', aiContaAtivo:'conta_ativo', aiContaContrapartida:'conta_contrapartida_aquisicao', aiContaAcumulada:'conta_depreciacao_acumulada', aiContaDespesa:'conta_despesa_depreciacao', aiCentro:'centro_custo', aiFundamento:'fundamento_taxa', aiObservacoes:'observacoes' };
     Object.keys(mapa).forEach(function (idCampo) { if (campo(idCampo)) campo(idCampo).value = bem[mapa[idCampo]] == null ? '' : bem[mapa[idCampo]]; });
+    const historico = Core.historicoDepreciacao(bem);
+    campo('aiCodigoHistorico').value = historico.codigoHistorico;
+    campo('aiHistorico').value = historico.historicoPadraoDescricao;
     campo('aiFormTitulo').textContent = 'Editar bem - ' + (bem.patrimonio || bem.descricao);
     atualizarCondicao();
     atualizarStatus();
@@ -209,7 +215,7 @@
     try {
       previaContabil = await window.API.previaDepreciacaoAtivo(ctx.empresa.cnpj, campo('aiPeriodoContabil').value);
       campo('aiAprovarContabil').disabled = !previaContabil.ok;
-      campo('aiPreviaContabilResultado').innerHTML = (previaContabil.erros || []).map(function (erro) { return '<div class="ai-note">' + esc(erro) + '</div>'; }).join('') + (previaContabil.lancamentos || []).map(function (l) { return '<div class="ai-note"><strong>' + esc(l.descricao) + '</strong> — ' + moeda(l.valor) + '<br>Débito ' + esc(l.contaDebito) + ' · Crédito ' + esc(l.contaCredito) + '</div>'; }).join('') + (previaContabil.lancamentos && previaContabil.lancamentos.length ? '<div style="margin-top:10px;font-weight:900">Total: ' + moeda(previaContabil.total) + '</div>' : '');
+      campo('aiPreviaContabilResultado').innerHTML = (previaContabil.erros || []).map(function (erro) { return '<div class="ai-note">' + esc(erro) + '</div>'; }).join('') + (previaContabil.lancamentos || []).map(function (l) { return '<div class="ai-note"><strong>' + esc(l.descricao) + '</strong> — ' + moeda(l.valor) + '<br>Débito ' + esc(l.contaDebito) + ' · Crédito ' + esc(l.contaCredito) + '<br>Histórico ' + esc(l.codigoHistorico || '') + ' · ' + esc(l.historico) + '</div>'; }).join('') + (previaContabil.lancamentos && previaContabil.lancamentos.length ? '<div style="margin-top:10px;font-weight:900">Total: ' + moeda(previaContabil.total) + '</div>' : '');
     } catch (e) { previaContabil = null; campo('aiAprovarContabil').disabled = true; window.showToast(e.message || String(e), 'error'); }
   }
 
