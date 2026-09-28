@@ -706,6 +706,39 @@
     return numero;
   }
 
+  // Renderiza novamente do PDF: ampliar o bitmap anterior não recupera detalhes
+  // perdidos. As alternativas só fornecem candidatos; a conciliação continua obrigatória.
+  async function relerCelulaAltaResolucaoItau(page, viewportAnterior, bbox, x, natureza, controle) {
+    const viewport = page.getViewport({ scale: 4.0 });
+    const fator = viewport.width / viewportAnterior.width;
+    const altura = (bbox.y1 - bbox.y0) * fator;
+    const sx = Math.floor(450 * viewport.width / 595);
+    const sy = Math.max(0, Math.floor(bbox.y0 * fator - altura * .25));
+    const recorte = document.createElement('canvas');
+    recorte.width = Math.ceil(65 * viewport.width / 595);
+    recorte.height = Math.ceil(altura * 1.5);
+    const celula = document.createElement('canvas');
+    celula.width = recorte.width + 40;
+    celula.height = recorte.height + 40;
+    try {
+      await page.render({ canvasContext: recorte.getContext('2d'), viewport,
+        transform: [1, 0, 0, 1, -sx, -sy], background: '#ffffff' }).promise;
+      const cc = celula.getContext('2d');
+      cc.fillStyle = '#ffffff';
+      cc.fillRect(0, 0, celula.width, celula.height);
+      cc.drawImage(recorte, 20, 20);
+      for (const modo of ['7', '13']) {
+        const leitura = await reconhecerPaginaItau(celula, null, modo, controle);
+        const texto = String(leitura?.data?.text || '').replace(/\s+/g, '').replace(/^[−–—-]+(?=\d)/, '-');
+        const valor = normalizarTokenMonetarioPosicionalOCR(texto, x, natureza);
+        if (/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(valor)) return valor;
+      }
+      return '';
+    } finally {
+      celula.width = celula.height = recorte.width = recorte.height = 0;
+    }
+  }
+
   async function linhasItauComOCR(pdf, escala, opcoes, modoSegmentacao) {
     if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js nao carregado para OCR Itau');
     if (typeof document === 'undefined') throw new Error('OCR Itau indisponivel fora do navegador');
@@ -785,7 +818,11 @@
             corrigido = /^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(normalizado)
               ? normalizado : (await relerDigitosComVirgulaItau(celula, controle) || corrigido);
           }
-          if (!/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(corrigido)) throw new Error('Extrato Itau: valor ilegível na página '+p+'. Importação bloqueada para conferência.');
+          if (!/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(corrigido)) {
+            if (opcoes && opcoes.onProgress) opcoes.onProgress('Relendo valor da página '+p+'/'+pdf.numPages+' em alta resolução...');
+            corrigido = await relerCelulaAltaResolucaoItau(page, viewport, bbox, x, word.naturezaCor, controle);
+          }
+          if (!corrigido) throw Object.assign(new Error('Extrato Itau: valor ilegível na página '+p+'. Importação bloqueada para conferência.'), { code: 'ITAU_OCR_VALOR_ILEGIVEL', pagina: p });
           word.text=corrigido;
         }
       }
@@ -1421,6 +1458,7 @@
     parsearPDF_Itau_LancamentosPeriodo: parsearPDF_Itau_LancamentosPeriodo,
     __test__: {
       reconhecerPaginaItau: reconhecerPaginaItau,
+      relerCelulaAltaResolucaoItau: relerCelulaAltaResolucaoItau,
       parseItauMensalImagem: parseItauMensalImagem,
       possuiMenosImpresso: possuiMenosImpresso,
       conciliarLeiturasOCR: conciliarLeiturasOCR,
