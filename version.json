@@ -1,7 +1,8 @@
 {
-  "version": "3.4.328",
-  "build_date": "2026-09-28T19:36:56.188Z",
+  "version": "3.4.329",
+  "build_date": "2026-09-28T20:11:41.182Z",
   "release_notes": [
+    "Empresas: carregar os lançamentos online automaticamente, sem solicitar retomada ou restauração ao colaborador, e preservar a tela quando a consulta falhar ou vier incompleta.",
     "Itaú: reler células ilegíveis em três resoluções diretamente do PDF e preservar o diagnóstico de OCR, sem confundir falha de leitura com cadastro de layout.",
     "Serviços prestados: reconhecer PCC do portal SP guardado no campo CSLL e separar PIS, COFINS e CSLL na opção individual somente com base e total conferidos, preservando o total informado.",
     "Itaú: permitir OCR lento enquanto houver avanço real, detectar 90 segundos sem progresso e manter cancelamento e limites máximos de leitura.",

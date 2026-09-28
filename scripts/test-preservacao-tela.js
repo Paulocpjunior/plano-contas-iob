@@ -79,7 +79,7 @@ async function main() {
     1,
     'não abre outra empresa descartando alterações pendentes'
   );
-  // Cancelar a retomada não envia exclusão nem substitui o estado local.
+  // A abertura automática também preserva a empresa quando o salvamento falha.
   const sess = {
     encontrada: true,
     state_json: JSON.stringify(state),
@@ -94,6 +94,13 @@ async function main() {
   vm.runInContext(html.slice(inicio, fim).trim(), ctx);
   await ctx.oferecerRetomadaSessaoCNPJ('00112233000144');
   assert.equal(state.entries.length, 1);
+  ctx.preservarSessaoAntesDeNavegar = async () => {};
+  ctx.empBuscarCadastroOficial = async () => ({ cnpj: '00112233000144' });
+  for (const invalida of [null, {}, { encontrada: true }, { encontrada: true, state_json: '{}' }]) {
+    ctx.window.API.carregarSessaoEmpresa = async () => invalida;
+    await ctx.empAbrir('00112233000144');
+    assert.equal(state.entries[0].valor, 123, 'resposta incompleta não esvazia a empresa');
+  }
   console.log(
     'OK: ações reais de salvar cadastro, mudar para ponte e abrir empresa preservam estado e aguardam confirmação.'
   );

@@ -164,7 +164,7 @@ async function restaurar(dados) {
   await sessaoRef.set(payload, { merge: false });
   console.log('✅ Sessão restaurada em empresas/' + CNPJ + '/sessoes/current (' + (resumo && resumo.total_lancamentos) + ' lançamentos).');
   console.log('   A versão anterior ficou em sessoes/backup_pre_restauracao.');
-  console.log('   Agora basta abrir o Consultor, selecionar a empresa e aceitar o popup "Carregar versão do servidor?".');
+  console.log('   Agora basta abrir o Consultor e selecionar a empresa: os lançamentos online são carregados automaticamente.');
 }
 
 function lerSessaoDeArquivo(caminho) {
