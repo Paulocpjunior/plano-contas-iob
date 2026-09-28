@@ -734,34 +734,39 @@
   // Renderiza novamente do PDF: ampliar o bitmap anterior não recupera detalhes
   // perdidos. As alternativas só fornecem candidatos; a conciliação continua obrigatória.
   async function relerCelulaAltaResolucaoItau(page, viewportAnterior, bbox, x, natureza, controle) {
-    const viewport = page.getViewport({ scale: 4.0 });
-    const fator = viewport.width / viewportAnterior.width;
-    const altura = (bbox.y1 - bbox.y0) * fator;
-    const sx = Math.floor(450 * viewport.width / 595);
-    const sy = Math.max(0, Math.floor(bbox.y0 * fator - altura * .25));
-    const recorte = document.createElement('canvas');
-    recorte.width = Math.ceil(65 * viewport.width / 595);
-    recorte.height = Math.ceil(altura * 1.5);
-    const celula = document.createElement('canvas');
-    celula.width = recorte.width + 40;
-    celula.height = recorte.height + 40;
-    try {
-      await page.render({ canvasContext: recorte.getContext('2d'), viewport,
-        transform: [1, 0, 0, 1, -sx, -sy], background: '#ffffff' }).promise;
-      const cc = celula.getContext('2d');
-      cc.fillStyle = '#ffffff';
-      cc.fillRect(0, 0, celula.width, celula.height);
-      cc.drawImage(recorte, 20, 20);
-      for (const modo of ['7', '13']) {
-        const leitura = await reconhecerPaginaItau(celula, null, modo, controle);
-        const texto = String(leitura?.data?.text || '').replace(/\s+/g, '').replace(/^[−–—-]+(?=\d)/, '-');
-        const valor = normalizarTokenMonetarioPosicionalOCR(texto, x, natureza);
-        if (/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(valor)) return valor;
+    // Rasterizadores de navegador podem perder glifos pequenos de modos
+    // diferentes. Cada tentativa abaixo renderiza o PDF, não amplia pixels.
+    for (const escala of [4.0, 6.0, 8.0]) {
+      if (controle && controle.signal && controle.signal.aborted) throw controle.signal.reason;
+      const viewport = page.getViewport({ scale: escala });
+      const fator = viewport.width / viewportAnterior.width;
+      const altura = (bbox.y1 - bbox.y0) * fator;
+      const sx = Math.floor(450 * viewport.width / 595);
+      const sy = Math.max(0, Math.floor(bbox.y0 * fator - altura * .25));
+      const recorte = document.createElement('canvas');
+      recorte.width = Math.ceil(65 * viewport.width / 595);
+      recorte.height = Math.ceil(altura * 1.5);
+      const celula = document.createElement('canvas');
+      celula.width = recorte.width + 40;
+      celula.height = recorte.height + 40;
+      try {
+        await page.render({ canvasContext: recorte.getContext('2d'), viewport,
+          transform: [1, 0, 0, 1, -sx, -sy], background: '#ffffff' }).promise;
+        const cc = celula.getContext('2d');
+        cc.fillStyle = '#ffffff';
+        cc.fillRect(0, 0, celula.width, celula.height);
+        cc.drawImage(recorte, 20, 20);
+        for (const modo of ['7', '13']) {
+          const leitura = await reconhecerPaginaItau(celula, null, modo, controle);
+          const texto = String(leitura?.data?.text || '').replace(/\s+/g, '').replace(/^[−–—-]+(?=\d)/, '-');
+          const valor = normalizarTokenMonetarioPosicionalOCR(texto, x, natureza);
+          if (/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(valor)) return valor;
+        }
+      } finally {
+        celula.width = celula.height = recorte.width = recorte.height = 0;
       }
-      return '';
-    } finally {
-      celula.width = celula.height = recorte.width = recorte.height = 0;
     }
+    return '';
   }
 
   async function linhasItauComOCR(pdf, escala, opcoes, modoSegmentacao) {
@@ -847,7 +852,7 @@
             if (opcoes && opcoes.onProgress) opcoes.onProgress('Relendo valor da página '+p+'/'+pdf.numPages+' em alta resolução...');
             corrigido = await relerCelulaAltaResolucaoItau(page, viewport, bbox, x, word.naturezaCor, controle);
           }
-          if (!corrigido) throw Object.assign(new Error('Extrato Itau: valor ilegível na página '+p+'. Importação bloqueada para conferência.'), { code: 'ITAU_OCR_VALOR_ILEGIVEL', pagina: p });
+          if (!corrigido) throw Object.assign(new Error('Extrato Itau: valor ilegível na página '+p+'. Importação bloqueada para conferência.'), { code: 'ITAU_OCR_VALOR_ILEGIVEL', pagina: p, trechoOCR: String(raw).slice(0,80), posicaoOCR: { x: Math.round(bbox.x0), y: Math.round(bbox.y0), larguraPagina: canvas.width, alturaPagina: canvas.height } });
           word.text=corrigido;
         }
       }
