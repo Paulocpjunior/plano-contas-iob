@@ -1,7 +1,8 @@
 {
-  "version": "3.4.323",
-  "build_date": "2026-09-28T14:21:05.443Z",
+  "version": "3.4.324",
+  "build_date": "2026-09-28T15:27:14.750Z",
   "release_notes": [
+    "Extrato Conciliado: reconhecer XLSX do SIGAFIN com colunas espaçadas, preservar movimentos repetidos e conferir saldos por linha e totais antes da importação.",
     "Itaú: reler células ilegíveis diretamente do PDF em maior resolução antes de bloquear a importação, mantendo a conciliação dos saldos e o cancelamento.",
     "Importação: manter aviso de falha visível, preservar arquivo selecionado e permitir copiar diagnóstico com última etapa, versão, empresa e horário.",
     "Importação de PDF: progresso por página, tempo decorrido, cancelamento e limite de espera com descarte de resultados tardios. OCR Itaú reutiliza o leitor e libera recursos ao concluir ou cancelar.",
