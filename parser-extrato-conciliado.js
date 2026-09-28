@@ -170,9 +170,87 @@
     };
   }
 
+  // SIGAFIN exporta títulos e valores em posições diferentes dentro da mesma faixa.
+  // Cada faixa é delimitada pelo próximo título, nunca por uma coluna fixa do banco.
+  function parsearXLSX_SIGAFIN(wb, XLSX, bancoSelecionado) {
+    const todos = [];
+    let reconhecido = false;
+    const norm = normalizarHeader;
+    const preenchido = v => v !== '' && v !== null && v !== undefined;
+    const monetario = v => typeof v === 'number' ? Number.isFinite(v) : /^-?(?:\d{1,3}(?:\.\d{3})*|\d+)(?:,\d{2})?$/.test(String(v).trim());
+    const cent = v => Math.round(parseValor(v) * 100);
+    function dataISO(v) {
+      if (v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+      if (typeof v === 'number') { const d=XLSX.SSF.parse_date_code(v); return d ? d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0') : ''; }
+      return parseData(v);
+    }
+    for (const aba of wb.SheetNames) {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[aba], {header:1,raw:true,defval:''});
+      if (!rows.slice(0,25).some(r => r.some(v => /sigafin\s*-\s*extrato bancario/.test(norm(v))))) continue;
+      reconhecido = true;
+      const falha = msg => { throw new Error('Extrato SIGAFIN — '+aba+': '+msg); };
+      const h = rows.findIndex(r => ['data','operacao','documento','entradas','saidas','saldo atual'].every(v => r.map(norm).includes(v)));
+      if (h < 0) falha('cabeçalho incompleto.');
+      const cab = rows[h].map(norm), indices = ['data','operacao','documento','entradas','saidas','saldo atual'].map(v=>cab.indexOf(v));
+      if (indices.some((v,i)=>i && v<=indices[i-1])) falha('ordem de colunas não reconhecida.');
+      const valores = (r,inicio,fim) => r.slice(inicio,fim).filter(preenchido);
+      const numeroFaixa = (r,inicio,fim,linha) => {
+        const vs=valores(r,inicio,fim);
+        if(vs.length!==1 || !monetario(vs[0])) falha('valor ausente ou ambíguo na linha '+linha+'.');
+        return cent(vs[0]);
+      };
+      function metadado(nome) {
+        for (const r of rows.slice(0,h)) {
+          const i=r.findIndex(v=>norm(v).replace(/:$/,'')===nome);
+          if(i>=0) return r.slice(i+1).find(preenchido);
+        }
+        return undefined;
+      }
+      const banco=String(metadado('banco') || '').padStart(3,'0');
+      if(!/^\d{3}$/.test(banco)) falha('código do banco ausente.');
+      if(bancoSelecionado && String(bancoSelecionado).padStart(3,'0')!==banco) falha('banco do arquivo difere do banco selecionado.');
+      const inicial=metadado('saldo inicial');
+      if(!preenchido(inicial)||!monetario(inicial)) falha('saldo inicial ausente.');
+      let saldo=cent(inicial),entradas=0,saidas=0,count=0;
+      for(let i=h+1;i<rows.length;i++) {
+        const r=rows[i],data=dataISO(r[indices[0]]);
+        const operacao=valores(r,indices[1],indices[2]).join(' ').trim();
+        if(!data || !operacao) continue;
+        const entrada=numeroFaixa(r,indices[3],indices[4],i+1),saida=numeroFaixa(r,indices[4],indices[5],i+1);
+        // Depois do saldo, o SIGAFIN pode trazer a marca de conciliação "X".
+        const saldoValores=r.slice(indices[5]).filter(v=>preenchido(v)&&norm(v)!=='x');
+        const atual=numeroFaixa(saldoValores,0,saldoValores.length,i+1);
+        if(entrada<0||saida<0||(entrada&&saida)) falha('entrada/saída ambígua na linha '+(i+1)+'.');
+        if(saldo+entrada-saida!==atual) falha('saldo não confere na linha '+(i+1)+'.');
+        saldo=atual;entradas+=entrada;saidas+=saida;
+        if(!entrada&&!saida) continue;
+        const documento=valores(r,indices[2],indices[3]).join(' ').trim();
+        const descricao=[operacao,documento].filter(Boolean).join(' - ');
+        todos.push({data,descricao,documento,valor:(entrada-saida)/100,saldo_atual:saldo/100,
+          aba_origem:aba,linha_origem:i+1,layoutNome:'Extrato Conciliado',layoutParser:'parsearArquivoXLSXExtratoConciliado',
+          layoutBanco:banco,bancoLayout:banco,origem:'xlsx-sigafin',
+          conta:'AG-'+metadado('agencia')+'/CC-'+metadado('conta corrente'),nome_conta:'Extrato SIGAFIN',historico:descricao});
+        count++;
+      }
+      for(const [rotulo,esperado] of [['entradas no periodo',entradas],['saidas no periodo',saidas],['saldo atual',saldo]]) {
+        const r=rows.slice(h+1).find(r=>r.some(v=>norm(v).replace(/:$/,'')===rotulo));
+        if(!r) falha('total de '+rotulo+' ausente.');
+        const vs=r.filter(v=>preenchido(v)&&monetario(v));
+        if(!vs.length||cent(vs[vs.length-1])!==esperado) falha('total de '+rotulo+' não confere.');
+      }
+      if(!count) falha('nenhum movimento identificado.');
+    }
+    if(!reconhecido) return null;
+    const datas=todos.map(t=>t.data).sort();
+    todos.forEach(t=>{t.periodo_inicio=datas[0];t.periodo_fim=datas[datas.length-1];});
+    return todos;
+  }
+
+  root.parsearXLSX_SIGAFIN = parsearXLSX_SIGAFIN;
   root.parsearCSV_ExtratoConciliado = parsearCSV_ExtratoConciliado;
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+      parsearXLSX_SIGAFIN: parsearXLSX_SIGAFIN,
       parsearCSV_ExtratoConciliado: parsearCSV_ExtratoConciliado,
       __test__: { parseValor: parseValor, parseData: parseData, separarLinhaCSV: separarLinhaCSV, localizarCabecalho: localizarCabecalho }
     };
