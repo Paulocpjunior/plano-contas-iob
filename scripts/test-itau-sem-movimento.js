@@ -25,7 +25,7 @@ const itau=require('../parser-itau-extrato-mensal');
  const ctx={console,crypto:require('node:crypto'),window:{parsearPDF_Itau_ExtratoMensal:itau.parsearPDF_Itau_ExtratoMensal},
   document:{getElementById:id=>elementos[id]},selectedFile:{name:'extrato.pdf'},state:{entries:[{id:'existente'}],info:{}},
   layoutsPDFCadastradosPorBancoAsync:async()=>[{nome:'Itaú',parser:'parsearPDF_Itau_ExtratoMensal',formato:'PDF'}],
-  nomeBanco:()=> 'Itaú',layoutPdfUploadSelecionado:()=>null,showProcessing(){},hideProcessing(){},
+  aguardarLeituraPDF:p=>p, nomeBanco:()=> 'Itaú',layoutPdfUploadSelecionado:()=>null,showProcessing(){},hideProcessing(){},
   showToast:(...a)=>toast.push(a),formatarDataBR:v=>v,formatarMoedaBR:v=>String(v),saveState:()=>gravacoes++,registrarArquivoRejeitado:()=>rejeicoes++};
  vm.createContext(ctx);
  vm.runInContext(source('async function processPDFComLayoutDoBanco(', '// PDF Processing'),ctx);

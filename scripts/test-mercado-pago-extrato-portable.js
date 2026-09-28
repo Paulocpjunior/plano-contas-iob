@@ -56,7 +56,7 @@ const index = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
 const admin = fs.readFileSync(path.join(raiz, 'admin.html'), 'utf8');
 const layouts = fs.readFileSync(path.join(raiz, 'layouts-bancarios-padrao.js'), 'utf8');
 assert(index.includes('/parser-mercado-pago-extrato.js'), 'tela operacional deve carregar o parser');
-assert(index.includes("processPDFComLayoutDoBanco(buf, 'MP', f.name, 'parsearPDF_MercadoPago_ExtratoConta')"), 'deteccao deve ocorrer antes do banco herdado');
+assert(index.includes("executarLayoutPDF(buf, 'MP', f.name, 'parsearPDF_MercadoPago_ExtratoConta')"), 'deteccao deve ocorrer antes do banco herdado');
 assert(admin.includes('/parser-mercado-pago-extrato.js'), 'Central de Qualidade deve carregar o parser');
 assert(layouts.includes("parser: 'parsearPDF_MercadoPago_ExtratoConta'"), 'layout oficial deve estar cadastrado');
 

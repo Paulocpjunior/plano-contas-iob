@@ -227,7 +227,7 @@ async function main() {
   const adminSource = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
   assert.ok(parserSource.includes('const escalasOCR = [2.8, 4.0]'), 'OCR Itaú deve repetir em alta resolução quando a conciliação falhar');
   assert.ok(indexSource.includes("['237', '341', '184'].includes(normalizarCodigoBancoLayout(bancoResolvido))"), 'PDF Itaú identificado não pode cair no Gemini após falha de integridade');
-  assert.ok(indexSource.includes("processPDFComLayoutDoBanco(buf, bancoResolvido, f.name, 'parsearPDF_Itau_LancamentosPeriodo')"), 'PDF Itaú em imagem deve priorizar o layout Lançamentos por Período');
+  assert.ok(indexSource.includes("executarLayoutPDF(buf, bancoResolvido, f.name, 'parsearPDF_Itau_LancamentosPeriodo')"), 'PDF Itaú em imagem deve priorizar o layout Lançamentos por Período');
   assert.ok(indexSource.includes('O serviço de IA está temporariamente indisponível.'), 'erro técnico de cobrança do provedor não deve ser exposto ao colaborador');
   assert.ok(adminSource.includes("bancoSelecionado === 'GEN'"), 'Central de Qualidade deve inferir o banco pelo nome do arquivo quando Todos os bancos estiver selecionado');
   assert.ok(adminSource.includes("inspecao.textual ? 'PDF textual' : 'PDF imagem / OCR'"), 'cadastro deve corrigir automaticamente o formato factual do PDF');
