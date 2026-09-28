@@ -16,11 +16,14 @@ async function fluxo(){
  resolver([{id:'tardio'}]);await Promise.resolve();assert.equal(ctx.state.entries.length,1,'resultado tardio não é importado');
  const segunda=ctx.processFile();assert.equal(chamadas,2,'nova tentativa liberada');assert.equal(ctx.window.__leituraPDF.signal.aborted,false);
  timers.at(-1).fn();await segunda;assert(mensagens.some(m=>/45 minutos/.test(m)));assert.equal(ctx.state.entries.length,1);assert.equal(ctx.window.__uploadEmAndamento,false);
- ctx.processPDF=async()=>{throw Object.assign(new Error('Falha de leitura <arquivo>'),{code:'OCR_FALHOU'})};
+ ctx.processPDF=async()=>{throw Object.assign(new Error('Falha de leitura <arquivo>'),{code:'OCR_FALHOU',pagina:13,trechoOCR:'1.8?',posicaoOCR:{x:1332,y:265}})};
  await ctx.processFile();
  assert.equal(elementos.uploadFalhaPersistente.hidden,false,'falha imediata deixa aviso fixo');
  assert.equal(elementos.uploadFalhaMensagem.textContent,'Falha de leitura <arquivo>');
  assert.match(elementos.uploadFalhaDiagnostico.textContent,/OCR_FALHOU/);
+ assert.match(elementos.uploadFalhaDiagnostico.textContent,/Página OCR: 13/);
+ assert.match(elementos.uploadFalhaDiagnostico.textContent,/Trecho OCR: 1.8/);
+ assert.match(elementos.uploadFalhaDiagnostico.textContent,/1332/);
  assert.equal(ctx.selectedFile.name,'teste.pdf','arquivo preservado para nova tentativa');
  assert.equal(ctx.state.entries.length,1);
 }
