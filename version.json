@@ -1,7 +1,8 @@
 {
-  "version": "3.4.325",
-  "build_date": "2026-09-28T16:52:04.040509Z",
+  "version": "3.4.326",
+  "build_date": "2026-09-28T18:48:29.870Z",
   "release_notes": [
+    "Itaú: permitir OCR lento enquanto houver avanço real, detectar 90 segundos sem progresso e manter cancelamento e limites máximos de leitura.",
     "Contabilidade: preservar histórico recuperável dos lançamentos e saldos, acumular períodos anteriores nos relatórios sem duplicar aberturas e atualizar a sessão antes de emitir demonstrativos. Exportação SAGE disponível nos dois modos.",
     "Extrato Conciliado: reconhecer XLSX do SIGAFIN com colunas espaçadas, preservar movimentos repetidos e conferir saldos por linha e totais antes da importação.",
     "Itaú: reler células ilegíveis diretamente do PDF em maior resolução antes de bloquear a importação, mantendo a conciliação dos saldos e o cancelamento.",

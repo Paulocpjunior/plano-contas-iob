@@ -15,7 +15,7 @@ async function fluxo(){
  assert.match(elementos.uploadFalhaDiagnostico.textContent,/teste.pdf/);
  resolver([{id:'tardio'}]);await Promise.resolve();assert.equal(ctx.state.entries.length,1,'resultado tardio não é importado');
  const segunda=ctx.processFile();assert.equal(chamadas,2,'nova tentativa liberada');assert.equal(ctx.window.__leituraPDF.signal.aborted,false);
- timers.at(-1).fn();await segunda;assert(mensagens.some(m=>/15 minutos/.test(m)));assert.equal(ctx.state.entries.length,1);assert.equal(ctx.window.__uploadEmAndamento,false);
+ timers.at(-1).fn();await segunda;assert(mensagens.some(m=>/45 minutos/.test(m)));assert.equal(ctx.state.entries.length,1);assert.equal(ctx.window.__uploadEmAndamento,false);
  ctx.processPDF=async()=>{throw Object.assign(new Error('Falha de leitura <arquivo>'),{code:'OCR_FALHOU'})};
  await ctx.processFile();
  assert.equal(elementos.uploadFalhaPersistente.hidden,false,'falha imediata deixa aviso fixo');

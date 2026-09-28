@@ -622,11 +622,41 @@
     const signal = opcoes && opcoes.signal;
     const sessao = opcoes && opcoes.sessao || {};
     const propria = !(opcoes && opcoes.sessao);
-    let timer, abortar;
+    let timer, limiteTotal, abortar, rejeitar;
+    const progressoPorEtapa = new Map();
+    const expirar = function(total) {
+      const erro = new Error(total
+        ? 'A leitura OCR do Itaú atingiu o limite de 5 minutos nesta etapa. Nenhum lançamento foi importado.'
+        : 'A leitura OCR do Itaú ficou 90 segundos sem avanço nesta etapa. Verifique a conexão e tente novamente; nenhum lançamento foi importado.');
+      erro.code = 'ITAU_OCR_TIMEOUT';
+      if (rejeitar) rejeitar(erro);
+    };
+    const renovar = function() {
+      clearTimeout(timer);
+      timer = setTimeout(function() { expirar(false); }, 90000);
+    };
     if (signal && signal.aborted) throw signal.reason || Object.assign(new Error('Leitura cancelada.'), { code: 'UPLOAD_CANCELADO' });
     sessao.onProgress = onProgress;
+    sessao.onAvanco = function(m) {
+      const etapa = String(m.status || '');
+      const progresso = Number(m.progress);
+      if (!etapa || !Number.isFinite(progresso)) return;
+      // Notificações repetidas não prolongam um worker parado.
+      if (!progressoPorEtapa.has(etapa) || progresso > progressoPorEtapa.get(etapa)) {
+        progressoPorEtapa.set(etapa, progresso);
+        renovar();
+      }
+    };
+    const vigilancia = new Promise(function(_, reject) {
+      rejeitar = reject;
+      abortar = function() { reject(signal.reason || Object.assign(new Error('Leitura cancelada.'), { code: 'UPLOAD_CANCELADO' })); };
+      if (signal) signal.addEventListener('abort', abortar, { once: true });
+      renovar();
+      limiteTotal = setTimeout(function() { expirar(true); }, 300000);
+    });
     const trabalho = (async function() {
       if (!sessao.promessa) sessao.promessa = Tesseract.createWorker('por', 1, { logger: function(m) {
+        if (!sessao.encerrado && sessao.onAvanco) sessao.onAvanco(m);
         if (!sessao.encerrado && sessao.onProgress && m.status === 'recognizing text') sessao.onProgress(Math.round(m.progress * 100));
       } }).then(function(worker) {
         sessao.worker = worker;
@@ -638,19 +668,14 @@
       return worker.recognize(canvas);
     })();
     try {
-      return await Promise.race([trabalho, new Promise(function(_, reject) {
-        abortar = function() { reject(signal.reason || Object.assign(new Error('Leitura cancelada.'), { code: 'UPLOAD_CANCELADO' })); };
-        if (signal) signal.addEventListener('abort', abortar, { once: true });
-        timer = setTimeout(function() {
-          const erro = new Error('A leitura OCR do Itaú excedeu 90 segundos nesta página. Tente novamente; nenhum lançamento foi importado.');
-          erro.code = 'ITAU_OCR_TIMEOUT'; reject(erro);
-        }, 90000);
-      })]);
+      return await Promise.race([trabalho, vigilancia]);
     } catch (erro) {
       sessao.encerrado = true;
       throw erro;
     } finally {
       clearTimeout(timer);
+      clearTimeout(limiteTotal);
+      sessao.onAvanco = null;
       if (signal && abortar) signal.removeEventListener('abort', abortar);
       if (propria || sessao.encerrado) {
         sessao.encerrado = true;
