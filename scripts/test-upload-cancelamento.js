@@ -6,15 +6,25 @@ async function fluxo(){
  const mensagens=[],timers=[];let resolver,chamadas=0,rejeicoes=0;
  const ctx={console:{error(){},warn(){}},crypto:require('crypto'),window:{},AbortController,Date,
  setTimeout:(fn,ms)=>{timers.push({fn,ms});return timers.length},clearTimeout(){},setInterval:()=>1,clearInterval(){},
- document:{getElementById:id=>elementos[id]||(elementos[id]={style:{},classList:{add(){},remove(){}}})},
+ document:{getElementById:id=>elementos[id]||(elementos[id]={style:{},scrollIntoView(){},focus(){},classList:{add(){},remove(){}}})},
  selectedFile:{name:'teste.pdf'},state:{entries:[{id:'preservado'}],info:{}},nomeBanco:()=> 'Itaú',layoutPdfUploadSelecionado:()=>null,showToast:m=>mensagens.push(m),registrarArquivoRejeitado:()=>rejeicoes++,processPDF:()=>{chamadas++;return new Promise(r=>resolver=r)}};
- vm.createContext(ctx);vm.runInContext(extract('function aguardarLeituraPDF(', 'function showSuccess('),ctx);vm.runInContext(extract('async function processFile() {','function escaparHtmlImportacao('),ctx);
+ vm.createContext(ctx);vm.runInContext(extract('function mostrarFalhaUpload(', 'function showSuccess('),ctx);vm.runInContext(extract('async function processFile() {','function escaparHtmlImportacao('),ctx);
  const p=ctx.processFile();await ctx.processFile();assert.equal(chamadas,1,'duplo clique bloqueado');
  ctx.cancelarLeituraPDF();await p;assert.equal(ctx.window.__uploadEmAndamento,false);assert.equal(rejeicoes,0,'cancelamento não cria rejeição de layout');assert.equal(ctx.state.entries.length,1);
+ assert.equal(elementos.uploadFalhaPersistente.hidden,false,'aviso de cancelamento permanece visível');
+ assert.match(elementos.uploadFalhaDiagnostico.textContent,/teste.pdf/);
  resolver([{id:'tardio'}]);await Promise.resolve();assert.equal(ctx.state.entries.length,1,'resultado tardio não é importado');
  const segunda=ctx.processFile();assert.equal(chamadas,2,'nova tentativa liberada');assert.equal(ctx.window.__leituraPDF.signal.aborted,false);
  timers.at(-1).fn();await segunda;assert(mensagens.some(m=>/15 minutos/.test(m)));assert.equal(ctx.state.entries.length,1);assert.equal(ctx.window.__uploadEmAndamento,false);
+ ctx.processPDF=async()=>{throw Object.assign(new Error('Falha de leitura <arquivo>'),{code:'OCR_FALHOU'})};
+ await ctx.processFile();
+ assert.equal(elementos.uploadFalhaPersistente.hidden,false,'falha imediata deixa aviso fixo');
+ assert.equal(elementos.uploadFalhaMensagem.textContent,'Falha de leitura <arquivo>');
+ assert.match(elementos.uploadFalhaDiagnostico.textContent,/OCR_FALHOU/);
+ assert.equal(ctx.selectedFile.name,'teste.pdf','arquivo preservado para nova tentativa');
+ assert.equal(ctx.state.entries.length,1);
 }
+
 async function worker(){
  let criados=0,terminados=0;
  const ctx={module:{exports:{}},console,setTimeout,clearTimeout,Tesseract:{createWorker:async()=>{criados++;return {setParameters:async()=>{},recognize:async()=>({data:{text:'teste'}}),terminate:async()=>{terminados++}}}}};
