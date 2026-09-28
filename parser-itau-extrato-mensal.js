@@ -618,35 +618,51 @@
     return false;
   }
 
-  async function reconhecerPaginaItau(canvas, onProgress, modoSegmentacao) {
-    let worker, timer, encerrado = false;
+  async function reconhecerPaginaItau(canvas, onProgress, modoSegmentacao, opcoes) {
+    const signal = opcoes && opcoes.signal;
+    const sessao = opcoes && opcoes.sessao || {};
+    const propria = !(opcoes && opcoes.sessao);
+    let timer, abortar;
+    if (signal && signal.aborted) throw signal.reason || Object.assign(new Error('Leitura cancelada.'), { code: 'UPLOAD_CANCELADO' });
+    sessao.onProgress = onProgress;
     const trabalho = (async function() {
-      worker = await Tesseract.createWorker('por', 1, { logger: function(m) {
-        if (!encerrado && onProgress && m.status === 'recognizing text') onProgress(Math.round(m.progress * 100));
-      } });
-      if (encerrado) { await worker.terminate(); return; }
+      if (!sessao.promessa) sessao.promessa = Tesseract.createWorker('por', 1, { logger: function(m) {
+        if (!sessao.encerrado && sessao.onProgress && m.status === 'recognizing text') sessao.onProgress(Math.round(m.progress * 100));
+      } }).then(function(worker) {
+        sessao.worker = worker;
+        if (sessao.encerrado) { worker.terminate().catch(function() {}); throw new Error('Leitura encerrada.'); }
+        return worker;
+      });
+      const worker = await sessao.promessa;
       await worker.setParameters({ tessedit_pageseg_mode: String(modoSegmentacao || '6') });
       return worker.recognize(canvas);
     })();
     try {
       return await Promise.race([trabalho, new Promise(function(_, reject) {
+        abortar = function() { reject(signal.reason || Object.assign(new Error('Leitura cancelada.'), { code: 'UPLOAD_CANCELADO' })); };
+        if (signal) signal.addEventListener('abort', abortar, { once: true });
         timer = setTimeout(function() {
           const erro = new Error('A leitura OCR do Itaú excedeu 90 segundos nesta página. Tente novamente; nenhum lançamento foi importado.');
-          erro.code = 'ITAU_OCR_TIMEOUT';
-          reject(erro);
+          erro.code = 'ITAU_OCR_TIMEOUT'; reject(erro);
         }, 90000);
       })]);
+    } catch (erro) {
+      sessao.encerrado = true;
+      throw erro;
     } finally {
-      encerrado = true;
       clearTimeout(timer);
-      if (worker) worker.terminate().catch(function() {});
+      if (signal && abortar) signal.removeEventListener('abort', abortar);
+      if (propria || sessao.encerrado) {
+        sessao.encerrado = true;
+        if (sessao.worker) sessao.worker.terminate().catch(function() {});
+      }
     }
   }
 
   // Último recurso para uma célula cujo OCR suprimiu caracteres (ex.: 1,11).
   // A vírgula precisa existir na imagem, abaixo da linha dos dígitos, com
   // exatamente dois glifos à direita. Cada dígito é relido, nunca inferido do saldo.
-  async function relerDigitosComVirgulaItau(canvas) {
+  async function relerDigitosComVirgulaItau(canvas, opcoes) {
     const w=canvas.width, h=canvas.height;
     const pixels=canvas.getContext('2d').getImageData(0,0,w,h).data;
     const seen=new Uint8Array(w*h), partes=[];
@@ -682,7 +698,7 @@
       const p=partes[i],c=document.createElement('canvas');c.width=p.w+20;c.height=p.h+20;
       const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
       ctx.drawImage(canvas,p.x,p.y,p.w,p.h,10,10,p.w,p.h);
-      const r=await reconhecerPaginaItau(c,null,'10');
+      const r=await reconhecerPaginaItau(c,null,'10',opcoes);
       const d=String(r?.data?.text||'').trim();
       if(!/^\d$/.test(d)) return '';
       numero+=d;
@@ -694,10 +710,14 @@
     if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js nao carregado para OCR Itau');
     if (typeof document === 'undefined') throw new Error('OCR Itau indisponivel fora do navegador');
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const sessao = {};
+    const controle = { sessao, signal: opcoes && opcoes.signal };
     const lines = [];
     let textoCompleto = '';
+    try {
     for (let p = 1; p <= pdf.numPages; p++) {
+      if (controle.signal && controle.signal.aborted) throw controle.signal.reason;
       if (typeof showToast === 'function') showToast('OCR Itau pagina ' + p + '/' + pdf.numPages + '...', 'success');
       if (opcoes && opcoes.onProgress) opcoes.onProgress('Lendo Itaú: página ' + p + '/' + pdf.numPages + ' (OCR)...');
       const page = await pdf.getPage(p);
@@ -707,8 +727,8 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvasContext: ctx, viewport: viewport }).promise;
       const result = await reconhecerPaginaItau(canvas, function(percentual) {
-        if (opcoes && opcoes.onProgress) opcoes.onProgress('Lendo Itaú: página ' + p + '/' + pdf.numPages + ' — ' + percentual + '%');
-      }, modoSegmentacao);
+        if (opcoes && opcoes.onProgress) opcoes.onProgress('Lendo Itaú: página ' + p + '/' + pdf.numPages + ' — ' + percentual + '% da página');
+      }, modoSegmentacao, controle);
       const words = result && result.data && result.data.words ? result.data.words : [];
       words.forEach(function(word) {
         const bbox = bboxOCR(word);
@@ -756,14 +776,14 @@
           const cc=celula.getContext('2d');cc.fillStyle='#fff';cc.fillRect(0,0,celula.width,celula.height);
           cc.drawImage(canvas,sx,sy,sw,sh,20,20,sw*2,sh*2);
           if (opcoes && opcoes.onProgress) opcoes.onProgress('Conferindo valor ilegível na página '+p+'/'+pdf.numPages+'...');
-          const releitura = await reconhecerPaginaItau(celula, null, '7');
+          const releitura = await reconhecerPaginaItau(celula, null, '7', controle);
           const numero = String(releitura?.data?.text || '').replace(/\s+/g,'').replace(/^[−–—-]+(?=\d)/,'-').trim();
           let corrigido = normalizarTokenMonetarioPosicionalOCR(numero, x, word.naturezaCor);
           if (!/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(corrigido)) {
             // Uma releitura opcional ilegível não invalida um token completo
             // da primeira leitura; ele ainda precisa conciliar em cada dia.
             corrigido = /^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(normalizado)
-              ? normalizado : (await relerDigitosComVirgulaItau(celula) || corrigido);
+              ? normalizado : (await relerDigitosComVirgulaItau(celula, controle) || corrigido);
           }
           if (!/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(corrigido)) throw new Error('Extrato Itau: valor ilegível na página '+p+'. Importação bloqueada para conferência.');
           word.text=corrigido;
@@ -776,12 +796,18 @@
           return t ? { page: p, y: idx, items: [{ x: 0, s: t }], text: t } : null;
         }).filter(Boolean);
       }
+      page.cleanup();
       linhasPagina.forEach(function(line) {
         lines.push(line);
         textoCompleto += line.text + '\n';
       });
     }
     return { lines: lines, textoCompleto: textoCompleto };
+    } finally {
+      sessao.encerrado = true;
+      if (sessao.worker) sessao.worker.terminate().catch(function() {});
+      canvas.width = canvas.height = 0;
+    }
   }
 
   function normalizarTextoOCR(s) {
@@ -1188,7 +1214,13 @@
 
   async function parsearPDF_Itau_ExtratoMensal(arrayBuffer, opcoes) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const signal = opcoes && opcoes.signal;
+    if (signal && signal.aborted) throw signal.reason;
+    const carregamento = pdfjsLib.getDocument({ data: arrayBuffer });
+    const cancelar = function() { if (typeof carregamento.destroy === 'function') Promise.resolve(carregamento.destroy()).catch(function() {}); };
+    if (signal) signal.addEventListener('abort', cancelar, { once: true });
+    try {
+    const pdf = await carregamento.promise;
     const lines = [];
     let textoCompleto = '';
 
@@ -1245,6 +1277,7 @@
         const modosOCR = ['6', '6'];
         for (let tentativa = 0; tentativa < escalasOCR.length; tentativa++) {
           try {
+            if (opcoes && opcoes.onProgress) opcoes.onProgress('Leitura Itaú: tentativa ' + (tentativa + 1) + '/' + escalasOCR.length + '. Conferindo todas as páginas.');
             const ocr = await linhasItauComOCR(pdf, escalasOCR[tentativa], opcoes, modosOCR[tentativa]);
             leiturasOCR.push(ocr);
             // Células com descrições em duas linhas exigem segmentação esparsa.
@@ -1264,7 +1297,7 @@
               return periodoOCR;
             }
           } catch (eOCR) {
-            if (eOCR.code === 'ITAU_OCR_TIMEOUT') throw eOCR;
+            if (['ITAU_OCR_TIMEOUT', 'UPLOAD_CANCELADO', 'UPLOAD_TIMEOUT'].includes(eOCR.code)) throw eOCR;
             ultimoErroOCR = eOCR;
             console.warn('[itau-ocr] tentativa ' + (tentativa + 1) + ' falhou:', eOCR.message || eOCR);
           }
@@ -1373,6 +1406,10 @@
       periodo_inicio: ref.mes ? (ref.ano + '-' + ref.mes + '-01') : '',
       periodo_fim: ref.mes ? new Date(Number(ref.ano), Number(ref.mes), 0).toISOString().slice(0, 10) : ''
     };
+    } finally {
+      if (signal) signal.removeEventListener('abort', cancelar);
+      cancelar();
+    }
   }
 
   async function parsearPDF_Itau_LancamentosPeriodo(arrayBuffer, opcoes) {

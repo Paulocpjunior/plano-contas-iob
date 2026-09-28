@@ -82,7 +82,7 @@ async function extrairPaginas(buffer) {
   const admin = fs.readFileSync(require('path').join(__dirname, '..', 'admin.html'), 'utf8');
   const layouts = fs.readFileSync(require('path').join(__dirname, '..', 'layouts-bancarios-padrao.js'), 'utf8');
   assert(index.includes('/parser-mercado-pago-extrato.js'), 'tela operacional deve carregar o parser Mercado Pago');
-  assert(index.includes("processPDFComLayoutDoBanco(buf, 'MP', f.name, 'parsearPDF_MercadoPago_ExtratoConta')"), 'PDF Mercado Pago deve ser detectado antes do banco herdado');
+  assert(index.includes("executarLayoutPDF(buf, 'MP', f.name, 'parsearPDF_MercadoPago_ExtratoConta')"), 'PDF Mercado Pago deve ser detectado antes do banco herdado');
   assert(admin.includes('/parser-mercado-pago-extrato.js'), 'Central de Qualidade deve carregar o parser Mercado Pago');
   assert(layouts.includes("homologacao_status: 'aprovado'"), 'layout Mercado Pago deve estar homologado no catalogo oficial');
 

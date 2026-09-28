@@ -1,7 +1,8 @@
 {
-  "version": "3.4.320",
-  "build_date": "2026-09-28T12:51:51.338Z",
+  "version": "3.4.321",
+  "build_date": "2026-09-28T13:08:40.367Z",
   "release_notes": [
+    "Importação de PDF: progresso por página, tempo decorrido, cancelamento e limite de espera com descarte de resultados tardios. OCR Itaú reutiliza o leitor e libera recursos ao concluir ou cancelar.",
     "Fechamento contábil: configurar contas de apuração, lucros e prejuízos, revisar a prévia e encerrar com zeragem do resultado. Balancete com hierarquia, totais e resultado do período; DRE preservada e reabertura com reversão controlada.",
     "Depreciação: configurar código IOB e histórico padrão por bem, com sugestão 1494, preservando os dados na prévia e no lançamento aprovado.",
     "Extratos bancários: reconhecer Itaú sem movimentação, mostrar conta, período e saldos e evitar solicitação indevida de novo layout.",
