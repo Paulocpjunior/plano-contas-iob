@@ -333,7 +333,7 @@
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
     const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao');
     if (r.status === 403) throw new Error('Sem acesso à empresa. Peça ao gestor sua inclusão como responsável ou apoio.');
-    if (r.status === 404) return { encontrada: false };
+    if (r.status === 404) throw new Error('Empresa não encontrada ou consulta indisponível. Nenhum lançamento foi substituído.');
     const textoResposta = await r.text();
     let data = null;
     try {

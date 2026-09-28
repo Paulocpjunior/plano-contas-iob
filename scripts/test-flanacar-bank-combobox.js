@@ -76,7 +76,7 @@ assert.strictEqual(
   'campo visivel deve trocar o rotulo antigo pelo atual'
 );
 
-assert(source.includes("banco: valorComboboxBanco('infoBanco')"), 'confirmacao deve ler o valor sincronizado do combobox');
+assert(source.includes("banco: tipoImportacao === 'bancaria' ? valorComboboxBanco('infoBanco') : ''"), 'confirmacao deve ler o valor sincronizado do combobox');
 assert(source.includes("sincronizarComboboxBanco('infoBanco', state.info.banco)"), 'edicao deve sincronizar campo oculto e texto visivel');
 assert(source.includes("const BANCOS_BACEN_CACHE_KEY = 'bancos_bacen_v3'"), 'cache antigo deve ser invalidado');
 
