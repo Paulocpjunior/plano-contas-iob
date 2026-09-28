@@ -45,8 +45,23 @@
     });
   }
 
+  function historicoDepreciacao(bem) {
+    const b = bem || {};
+    return {
+      codigoHistorico: String(b.codigo_historico_depreciacao == null ? '1494' : b.codigo_historico_depreciacao).trim(),
+      historicoPadraoDescricao: String(b.historico_depreciacao == null ? 'VR. DEPRECIAÇÃO NO MÊS' : b.historico_depreciacao).trim()
+    };
+  }
+
+  function validarHistoricoDepreciacao(bem) {
+    const h = historicoDepreciacao(bem), erros = [];
+    if (!/^\d{1,4}$/.test(h.codigoHistorico)) erros.push('Informe um código de histórico da depreciação com 1 a 4 dígitos.');
+    if (!h.historicoPadraoDescricao || h.historicoPadraoDescricao.length > 300) erros.push('Informe o histórico padrão da depreciação com até 300 caracteres.');
+    return erros;
+  }
+
   function validar(bem) {
-    const erros = validarContas(bem);
+    const erros = validarContas(bem).concat(validarHistoricoDepreciacao(bem));
     const avisos = [];
     const custo = numero(bem && bem.custo);
     const residual = numero(bem && bem.valor_residual);
@@ -133,5 +148,5 @@
     return linhas;
   }
 
-  return { CLASSES_FISCAIS, numero, dataISO, classeFiscal, validarContas, validar, vidaFiscalUsadoMeses, calcular, cronograma };
+  return { CLASSES_FISCAIS, numero, dataISO, classeFiscal, validarContas, historicoDepreciacao, validarHistoricoDepreciacao, validar, vidaFiscalUsadoMeses, calcular, cronograma };
 });
