@@ -53,7 +53,7 @@ async function carregar(ref,cadastro,competencia){
 }
 function dadosConferidos(dados,cadastro,ctx){
  if(!cadastro.controleAtaIndividual)throw Error('Salve e confira o cadastro e os saldos individuais da ATA antes de emitir o extrato mensal.');
- if(toCents(dados.ataSaldoAnterior)!==toCents(ctx.saldoAbertura)||toCents(dados.ataValorTotal)!==Number(cadastro.ataValorTotalCentavos||0))throw Error('O saldo da ATA difere do controle online. Clique em Carregar mês para atualizar.');
+ if(toCents(dados.ataSaldoAnterior)!==toCents(ctx.saldoAbertura)||toCents(dados.ataValorTotal)!==Number(cadastro.ataValorTotalCentavos||0))throw Error('O saldo informado difere da abertura online de '+ctx.competencia+' (R$ '+ctx.saldoAbertura.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'). Alterar o formulário não altera o cadastro online. Se está cadastrando o saldo inicial, confira os saldos por sócio e use Salvar cadastro; depois Carregar mês / saldo online. Saldos já controlados por aceites exigem conciliação, sem nova dedução manual.');
  const by=new Map(ctx.socios.map(s=>[s.cpf,s]));
  if(!Array.isArray(dados.socios)||dados.socios.length!==by.size||dados.socios.some(s=>!by.has(s.cpf)||toCents(s.ataSaldo)!==toCents(by.get(s.cpf).ataSaldo)))throw Error('Os saldos por sócio diferem do controle online. Clique em Carregar mês.');
  return {...dados,ataSaldoAnterior:ctx.saldoAbertura,ataValorTotal:ctx.ataValorTotal,socios:ctx.socios,ataAprovadaAte2025:cadastro.ataAprovadaAte2025===true,ataValidaAte2028:cadastro.ataValidaAte2028!==false};
