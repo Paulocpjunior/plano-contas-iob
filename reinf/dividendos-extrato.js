@@ -1,7 +1,7 @@
 'use strict';
 const { calcularDividendos, moneyBR, toCents, fromCents } = require('./reinf-dividendos-utils');
 const escape = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function montarExtrato(empresa, dados) {
+function montarExtrato(empresa, dados, contexto = {}) {
   const r = calcularDividendos(dados);
   const data = String(dados.dtPagamento || '');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || data.slice(0,7) !== r.competencia || new Date(data+'T12:00:00Z').toISOString().slice(0,10)!==data) throw Error('Informe uma data de pagamento válida dentro da competência do extrato.');
@@ -32,13 +32,10 @@ function montarExtrato(empresa, dados) {
     'Emitir ou enviar este extrato não baixa a ATA. Os saldos abaixo são projeções; a atualização do controle depende do R-4010 aceito em produção.',
     r.alertaAta?.mensagem||''
   ];
-  const tabela=(titulos,rows)=>'<table><thead><tr>'+titulos.map(t=>'<th>'+escape(t)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(v=>'<td>'+escape(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
   const pagamentos=socios.map(s=>[s.nome,s.cpf,pct(s.percentual),moeda(s.valorBruto),moeda(s.valorAtaIsento),moeda(s.valorTributavel),moeda(s.irrf),moeda(s.liquido)]);
   const saldos=socios.map(s=>[s.nome,moeda(s.saldoAnterior),moeda(s.ataUsada),moeda(s.saldoApos),pct(s.percentualSaldo)]);
   const texto=linhas.join('\n')+'\n\nPor sócio — Nome | CPF | Participação | Bruto | ATA | Base | IRRF | Líquido\n'+pagamentos.map(r=>r.join(' | ')).join('\n')+'\n\nSaldo ATA — Nome | Anterior | Utilizado | Projetado | % do saldo\n'+saldos.map(r=>r.join(' | ')).join('\n');
-  const corpo='<h1>Extrato mensal de lucros e dividendos</h1>'+linhas.slice(1).map(l=>'<p>'+escape(l)+'</p>').join('')+'<h2>Distribuição por sócio</h2>'+tabela(['Sócio','CPF','Participação','Bruto','ATA utilizada','Base IRRF','IRRF','Líquido'],pagamentos)+'<h2>Controle da ATA por sócio</h2>'+tabela(['Sócio','Saldo anterior','Utilizado','Saldo projetado','% do saldo'],saldos)+'<p>SP Assessoria Contábil</p>';
-  const html='<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Extrato de dividendos '+escape(r.competencia)+'</title><style>body{font:13px Arial,sans-serif;color:#17314c;margin:28px}h1{font-size:23px;color:#173b71}h2{font-size:16px;margin-top:24px}p{line-height:1.45;margin:7px 0}table{border-collapse:collapse;width:100%;font-size:11px}th{background:#eaf0f8;text-align:left}td,th{padding:7px;border:1px solid #d8e1eb}tr{break-inside:avoid}thead{display:table-header-group}@page{size:A4 landscape;margin:12mm}@media print{body{margin:0}}</style><body>'+corpo+'</body></html>';
-  const htmlEmail='<div style="font-family:Arial,sans-serif;color:#17314c">'+corpo.replace(/<table>/g,'<table style="border-collapse:collapse;width:100%;font-size:12px">').replace(/<th>/g,'<th style="background:#eaf0f8;text-align:left;padding:7px;border:1px solid #d8e1eb">').replace(/<td>/g,'<td style="padding:7px;border:1px solid #d8e1eb">')+'</div>';
-  return {assunto:'Extrato de lucros e dividendos — '+nome+' — '+r.competencia,html,htmlEmail,texto,resultado:r,empresa:nome,cnpj:r.cnpj,competencia:r.competencia,totalLiquido};
+  const visual=require('./dividendos-relatorio-layout').render({resultado:r,empresa:nome,totalLiquido},dados,contexto);
+  return {assunto:'Extrato de lucros e dividendos — '+nome+' — '+r.competencia,html:visual.html,htmlEmail:'<h2 style="color:#091D8D">Extrato mensal de lucros e dividendos</h2><p><b>'+escape(nome)+'</b> · '+escape(r.competencia)+'</p><table style="width:100%;background:#f2f5fa;padding:18px"><tr><td>Distribuição<br><b>'+moeda(r.valorDistribuido)+'</b></td><td>IRRF<br><b>'+moeda(r.totalIrrf)+'</b></td><td>Líquido<br><b>'+moeda(totalLiquido)+'</b></td></tr></table><p>'+escape(visual.status)+'</p><p>O relatório completo está anexado em HTML, com gráficos e detalhamento por sócio. Abra no navegador para conferir ou imprimir/salvar como PDF.</p><p>'+visual.alertas.map(escape).join('<br>')+'</p><p>Emitir ou enviar este extrato não baixa a ATA.</p>',texto:texto+visual.textoHistorico,alertas:visual.alertas,status:visual.status,resultado:r,empresa:nome,cnpj:r.cnpj,competencia:r.competencia,totalLiquido};
 }
 module.exports={montarExtrato};

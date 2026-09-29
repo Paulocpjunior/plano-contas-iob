@@ -1,7 +1,8 @@
 {
-  "version": "3.4.333",
-  "build_date": "2026-09-29T12:23:00.295876+00:00",
+  "version": "3.4.334",
+  "build_date": "2026-09-29T14:06:53.839464+00:00",
   "release_notes": [
+    "Dividendos: relatório executivo SP com gráficos, preparação mensal online, saldo de abertura por competência, histórico de aceites Reinf e alertas acumulados da ATA sem duplicar retificações.",
     "Balancete: corrigida colisão entre reduzido do Caixa e grupo Ativo; hierarquia e totais preservam os saldos históricos.",
     "Dividendos: extrato mensal com memória de cálculo, distribuição e saldo da ATA por sócio, prévia para imprimir/salvar PDF e envio confirmado por Microsoft 365 com cópia online.",
     "Itaú: corrigir recorte de valores alinhados à direita na releitura OCR, incluindo a célula de 107,45 da página 13 do extrato Ferrante, sem cortar os centavos ou alterar a conciliação.",

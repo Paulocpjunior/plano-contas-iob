@@ -31,10 +31,10 @@ async function aplicarAceite(db,meta,ret,protocolo){
   if(saldo<0||total<0)return {status:'pendente',motivo:'Parcela aceita supera o saldo da ATA. Confira os saldos individuais.'};
   socio.ataSaldoCentavos=saldo;
   const revisao=Number(cadastro.ataRevisao||0)+1;
-  tx.set(empresaRef,{reinfDividendos:{...cadastro,socios,ataSaldoCentavos:total,ataRevisao:revisao,atualizado_em:new Date()}},{merge:true});
+  tx.set(empresaRef,{reinfDividendos:{...cadastro,socios,ataControleReinf:true,ataSaldoCentavos:total,ataRevisao:revisao,atualizado_em:new Date()}},{merge:true});
   tx.set(posicaoRef,{recibo:ret.nrRecArqBase,centavos:meta.ata.centavos,cpf:meta.cpf,perApur:meta.perApur});
   tx.set(movimentoRef,{recibo:ret.nrRecArqBase,reciboAnterior:meta.ata.reciboAnterior||null,cpf:meta.cpf,protocolo,perApur:meta.perApur,deltaCentavos:delta,saldoAposCentavos:saldo,totalAposCentavos:total,registrado_em:new Date()});
   return {status:'atualizado',cnpj:meta.cnpjFonte,cpf:meta.cpf,saldo:total/100,revisao};
  });
 }
-module.exports={extrairAta,aplicarAceite};
+module.exports={extrairAta,aplicarAceite,registrarDistribuicaoAceita:require('./dividendos-historico').registrarAceite};

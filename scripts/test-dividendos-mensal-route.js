@@ -1,0 +1,14 @@
+'use strict';
+const assert=require('node:assert/strict'),express=require('express'),{MemoryFirestore}=require('./helpers/memory-firestore'),registrar=require('../reinf-routes');
+(async()=>{const db=new MemoryFirestore(),cnpj='12345678000190',cpf='12345678901',ref=db.collection('empresas').doc(cnpj);await ref.set({owner_uid:'dono',reinfDividendos:{controleAtaIndividual:true,ataValorTotalCentavos:10000000,ataSaldoCentavos:10000000,ataRevisao:1,ataAprovadaAte2025:true,ataValidaAte2028:true,socios:[{cpf,nome:'Sócio',percentual:100,ataSaldoCentavos:10000000}]}});
+const app=express();app.use(express.json());app.use((q,s,n)=>{q.user={uid:q.headers['x-uid']||'dono',is_admin:false};n();});registrar(app,{db});const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));const base='http://127.0.0.1:'+server.address().port+'/api/reinf/dividendos';
+const call=async(path,body,uid='dono')=>{const res=await fetch(base+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','x-uid':uid},...(body?{body:JSON.stringify(body)}:{})});return {status:res.status,...await res.json()};};
+try{let mes=await call('/mensal/'+cnpj+'/2026-09');assert.equal(mes.saldoAbertura,100000);assert.equal((await call('/mensal/'+cnpj+'/2026-09',null,'outro')).status,403);
+const dados={cnpj,competencia:'2026-09',dtPagamento:'2026-09-20',valorDistribuido:30000,ataValorTotal:100000,ataSaldoAnterior:100000,modoDistribuicao:'valores',socios:mes.socios,pagamentos:[{cpf,valor:30000}],revisaoMes:0};
+assert.equal((await call('/mensal',dados)).revisaoMes,1);assert.equal((await call('/mensal',dados)).status,400);mes=await call('/mensal/'+cnpj+'/2026-09');assert.equal(mes.registro.resultado.ataSaldoApos,70000);assert.equal(mes.saldoAtual,100000,'Preparação não consome ATA');assert.equal((await call('/mensal/'+cnpj+'/2026-10')).anterioresPendentes[0],'2026-09');
+assert.equal((await call('/calcular',{...dados,controleMensal:true,ataSaldoAnterior:70000})).status,400);
+await ref.collection('reinf_dividendos_confirmados').doc('r').set({cpf,perApur:'2026-09',ataCentavos:3000000,recibo:'R',baixa:'atualizado',distribuicao:{brutoCentavos:3000000,irrfCentavos:0,datas:['2026-09-20']}});
+assert.equal((await call('/mensal',{...dados,revisaoMes:1})).status,400,'Não regrava preparação aceita');
+assert.equal((await ref.collection('reinf_dividendos_meses').doc('2026-09').collection('versoes').get()).docs.length,1);
+console.log('OK: mês online, isolamento, revisões concorrentes, sem consumo na preparação, alerta de pendência, saldo desatualizado e histórico aceito preservado.');
+}finally{server.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
