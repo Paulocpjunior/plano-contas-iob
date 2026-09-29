@@ -1,0 +1,14 @@
+'use strict';
+const assert=require('assert'),express=require('express'),registrar=require('../reinf-routes');
+(async()=>{const docs=new Map(),emails=[];const empresa={razao_social:'Empresa teste',owner_uid:'dono',reinfDividendos:{emailSolicitacaoReinf:'cliente@example.com'}};
+const ref=path=>({get:async()=>({exists:path==='empresas/12345678000190'||docs.has(path),data:()=>path==='empresas/12345678000190'?empresa:docs.get(path)}),collection:n=>col(path+'/'+n),create:async d=>{if(docs.has(path))throw Object.assign(Error('existe'),{code:6});docs.set(path,d);},set:async d=>docs.set(path,{...docs.get(path),...d})});const col=path=>({doc:id=>ref(path+'/'+id),add:async d=>docs.set(path+'/'+docs.size,d)});const db={collection:col};
+const app=express();app.use(express.json());app.use((q,s,n)=>{q.user={uid:q.headers['x-uid']||'dono',email:'operador@example.com',is_admin:q.headers['x-admin']==='1'};n();});registrar(app,{db,enviarEmailDividendos:async e=>{emails.push(e);return {sender:'mock'}}});
+const srv=app.listen(0,'127.0.0.1');await new Promise(r=>srv.once('listening',r));
+const dados={cnpj:'12345678000190',competencia:'2026-09',dtPagamento:'2026-09-29',valorDistribuido:60000,ataValorTotal:0,ataSaldoAnterior:0,ataAprovadaAte2025:false,ataValidaAte2028:false,modoDistribuicao:'valores',socios:[{cpf:'12345678901',nome:'Sócio',percentual:100,ataSaldo:0}],pagamentos:[{cpf:'12345678901',valor:60000}]};
+const post=async(d,admin=false,uid='dono')=>{const r=await fetch('http://127.0.0.1:'+srv.address().port+'/api/reinf/dividendos/extrato',{method:'POST',headers:{'Content-Type':'application/json','x-admin':admin?'1':'0','x-uid':uid},body:JSON.stringify(d)});return {status:r.status,body:await r.json()}};
+try{const p=await post(dados);assert.equal(p.status,200);assert.equal(emails.length,0);assert.equal(docs.size,0);
+assert.equal((await post(dados,false,'outro')).status,403);
+assert.equal((await post({...dados,enviar:true,confirmacao:p.body.previa.confirmacao})).status,403);
+assert.equal((await post({...dados,enviar:true,emailDestino:'outro@example.com',confirmacao:p.body.previa.confirmacao},true)).status,409);
+const send={...dados,enviar:true,confirmacao:p.body.previa.confirmacao};assert.equal((await post(send,true)).status,200);assert.equal(emails.length,1);assert(emails[0].html.includes('54.000,00'));assert.equal([...docs.values()][0].status,'enviado');assert.equal(empresa.reinfDividendos.emailSolicitacaoReinf,'cliente@example.com');assert.equal((await post(send,true)).status,409);assert.equal(emails.length,1);
+console.log('OK: prévia sem envio, isolamento, permissão, confirmação, cópia online e bloqueio de envio duplicado; nenhum e-mail real.');}finally{srv.close();}})().catch(e=>{console.error(e);process.exitCode=1});

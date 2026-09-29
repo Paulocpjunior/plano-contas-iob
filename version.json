@@ -1,7 +1,8 @@
 {
-  "version": "3.4.331",
-  "build_date": "2026-09-29T10:58:01.356Z",
+  "version": "3.4.332",
+  "build_date": "2026-09-29T12:12:42.591Z",
   "release_notes": [
+    "Dividendos: extrato mensal com memória de cálculo, distribuição e saldo da ATA por sócio, prévia para imprimir/salvar PDF e envio confirmado por Microsoft 365 com cópia online.",
     "Itaú: corrigir recorte de valores alinhados à direita na releitura OCR, incluindo a célula de 107,45 da página 13 do extrato Ferrante, sem cortar os centavos ou alterar a conciliação.",
     "Persistência: bloquear perda parcial de lançamentos sem exclusão auditada e restringir zeramento integral a administradores, preservando o histórico online.",
     "Empresas: carregar os lançamentos online automaticamente, sem solicitar retomada ou restauração ao colaborador, e preservar a tela quando a consulta falhar ou vier incompleta.",
