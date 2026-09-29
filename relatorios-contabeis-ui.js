@@ -853,17 +853,21 @@ function preferenciasImpressao(ctx, sobrescritas) {
     }
   }
 
+  let consultaRelatorioAtual = 0;
   async function atualizarTudo() {
+    const consulta = ++consultaRelatorioAtual;
     statusAtual = null; statusEmpresa = null;
     document.getElementById('rcFechar').style.display = 'none';
     document.getElementById('rcReabrir').style.display = 'none';
     document.getElementById('rcStatusPeriodo').textContent = 'Consultando situação do período…';
     try {
       await sincronizarDadosRelatorio();
+      if (consulta !== consultaRelatorioAtual) return;
       preencherSaldos();
       render();
       renderHomologacaoPiloto();
     } catch (e) {
+      if (consulta !== consultaRelatorioAtual) return;
       document.getElementById('rcStatusPeriodo').textContent = '⚠️ Situação do período não conferida';
       homologacaoAtual = null; renderHomologacaoPiloto();
       const corpo = document.getElementById('rcBody');
