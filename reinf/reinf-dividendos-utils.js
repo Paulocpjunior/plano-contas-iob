@@ -177,7 +177,7 @@ function calcularDividendos(params = {}) {
     ataAplicavel,
     ataUsado: fromCents(ataUsadoCentavos),
     ataSaldoApos: fromCents(ataSaldoAposCentavos),
-    alertaAta: calcularAlertaAta(ataSaldoAnteriorCentavos, ataSaldoAposCentavos),
+    alertaAta: calcularAlertaAta(ataValorTotalCentavos || ataSaldoAnteriorCentavos, ataSaldoAposCentavos),
     totalBaseTributavel: fromCents(totalBaseTributavelCentavos),
     totalIrrf: fromCents(totalIrrfCentavos),
     saldosAta: normalizados.socios.map(s => {

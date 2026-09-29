@@ -5,6 +5,7 @@
 // ============================================================================
 const express = require('express');
 const SaldoAta = require('./reinf/dividendos-saldo-ata');
+const DividendosHistorico = require('./reinf/dividendos-historico');
 // FieldValue.delete() — remover a base informada de UMA nota sem tocar nas outras.
 const { FieldValue } = require('@google-cloud/firestore');
 const {
@@ -234,6 +235,7 @@ async function registrarLoteReinfPendente(db, req, protocolo, eventos, p, tpAmb)
     batch.set(loteRef.collection('eventos').doc(ev.id), {
       id: ev.id,
       ata: SaldoAta.extrairAta(ev.xml),
+      dividendos: DividendosHistorico.extrairDistribuicao(ev.xml),
       tpEv: ev.cpf ? '4010' : '4099',
       cpf,
       nome: ev.nome || null,
@@ -277,7 +279,11 @@ async function registrarRetornoLoteReinf(db, protocolo, tpAmb, xml) {
         atualizado_em: new Date(),
       }, { merge: true });
       recibosGravados++;
-      if (meta.ata != null && Number(meta.tpAmb) === 1 && Number(tpAmb) === 1) saldosAta.push(await SaldoAta.aplicarAceite(db, meta, ret, protocolo));
+      if (meta.ata != null && Number(meta.tpAmb) === 1 && Number(tpAmb) === 1) {
+        const baixa=await SaldoAta.aplicarAceite(db, meta, ret, protocolo);
+        saldosAta.push(baixa);
+        await SaldoAta.registrarDistribuicaoAceita(db,meta,ret,protocolo,baixa);
+      }
     }
   }
   return { eventos, recibosGravados, duplicidades, saldosAta };
@@ -487,7 +493,7 @@ function reinfMicrosoft365Config() {
 // remetente = o colaborador logado (graph-remetente.js), como no CFI e no
 // resto deste app (Paulo, 24/09). Cai na institucional só se a caixa do
 // colaborador não existir — e o retorno DIZ (fonteRemetente/motivoRemetente).
-async function reinfEnviarEmailMicrosoft365({ to, subject, html, text, de, empresa, competencia }) {
+async function reinfEnviarEmailMicrosoft365({ to, subject, html, text, de, empresa, competencia, anexos = [] }) {
   if (!reinfEmailValido(to)) throw new Error(`E-mail inválido para envio Microsoft 365: ${to || '(vazio)'}`);
   if (!GraphEmail.configurado()) {
     const err = new Error('Microsoft 365 não configurado. Use as mesmas variáveis do Consultor Fiscal: GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET e GRAPH_REMETENTE/NOTIF_REMETENTE_EMAIL.');
@@ -504,7 +510,7 @@ async function reinfEnviarEmailMicrosoft365({ to, subject, html, text, de, empre
   const envio = await GraphRemetente.enviarComoColaborador({
     enviar: GraphEmail.enviarEmail,
     emailColaborador: de,
-    mensagem: { para: to, assunto: subject, html: corpo, anexos: EmailLayout.anexoLogo() },
+    mensagem: { para: to, assunto: subject, html: corpo, anexos: [...EmailLayout.anexoLogo(), ...anexos] },
   });
   if (!envio.ok) {
     const err = new Error(`Microsoft 365 recusou o envio para ${to}: ${envio.error}`);
@@ -692,7 +698,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
   router.use('/dividendos', async(req,res,next)=>{
     if(req.path==='/microsoft365/status')return next();
     try{
-      const cnpj=limparCnpj(req.path.startsWith('/empresa/')?req.path.split('/')[2]:(req.body?.cnpj||req.body?.cnpjFonte||req.body?.cnpjEmpresa||req.body?.cnpjs?.[0]));
+      const cnpj=limparCnpj((req.path.startsWith('/empresa/')||req.path.startsWith('/mensal/'))?req.path.split('/')[2]:(req.body?.cnpj||req.body?.cnpjFonte||req.body?.cnpjEmpresa||req.body?.cnpjs?.[0]));
       if(cnpj.length!==14)return res.status(400).json({ok:false,erro:'Selecione explicitamente a empresa dos dividendos.'});
       const snap=await db.collection('empresas').doc(cnpj).get();
       if(!snap.exists)return res.status(404).json({ok:false,erro:'Empresa não encontrada.'});
@@ -960,6 +966,9 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         const snap = await tx.get(ref);
         const anterior = (snap.data() || {}).reinfDividendos || {};
         if (Number(body.ataRevisao || 0) !== Number(anterior.ataRevisao || 0)) throw Error('O saldo da ATA foi atualizado. Carregue novamente o cadastro antes de salvar.');
+        const temMovimentos=anterior.ataControleReinf || (await tx.get(ref.collection('reinf_ata_movimentos').limit(1))).size>0;
+        if(temMovimentos && (update.reinfDividendos.ataSaldoCentavos!==anterior.ataSaldoCentavos || socios.length!==(anterior.socios||[]).length || socios.some(s=>s.ataSaldoCentavos!==(anterior.socios||[]).find(a=>a.cpf===s.cpf)?.ataSaldoCentavos))) throw Error('O saldo já é controlado pelos aceites da Reinf. Não substitua a posição online por saldos de outro mês.');
+        update.reinfDividendos.ataControleReinf=temMovimentos;
         const individual = socios.some(s => s.ataSaldoCentavos != null);
         if (individual && (socios.some(s => !Number.isSafeInteger(s.ataSaldoCentavos) || s.ataSaldoCentavos < 0) || socios.reduce((a,s)=>a+s.ataSaldoCentavos,0) !== update.reinfDividendos.ataSaldoCentavos)) throw Error('Informe os saldos de todos os sócios; a soma deve coincidir com o saldo disponível da ATA.');
         if (anterior.controleAtaIndividual && !individual) throw Error('Mantenha o controle individual de saldo da ATA.');
@@ -984,6 +993,10 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         const snap = await db.collection('empresas').doc(cnpj).get();
         cadastro = snap.exists ? ((snap.data() || {}).reinfDividendos || {}) : {};
       }
+      if(body.controleMensal===true){
+        const contexto=await DividendosHistorico.carregar(db.collection('empresas').doc(cnpj),cadastro,body.competencia);
+        Object.assign(body,DividendosHistorico.dadosConferidos(body,cadastro,contexto));
+      }
       const resultado = calcularDividendos({
         ...body,
         cnpj,
@@ -1004,6 +1017,33 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     }
   });
 
+  router.get('/dividendos/mensal/:cnpj/:competencia', async (req,res)=>{
+    try {
+      const ref=db.collection('empresas').doc(limparCnpj(req.params.cnpj)),snap=await ref.get();
+      if(!snap.exists)return res.status(404).json({ok:false,erro:'Empresa não encontrada.'});
+      res.json({ok:true,...await DividendosHistorico.carregar(ref,snap.data().reinfDividendos||{},req.params.competencia)});
+    }catch(e){respostaErro(res,400,e);}
+  });
+  router.post('/dividendos/mensal', async (req,res)=>{
+    try {
+      const body=req.body||{},cnpj=limparCnpj(body.cnpj),ref=db.collection('empresas').doc(cnpj),snap=await ref.get();
+      if(!snap.exists)return res.status(404).json({ok:false,erro:'Empresa não encontrada.'});
+      const cadastro=snap.data().reinfDividendos||{},ctx=await DividendosHistorico.carregar(ref,cadastro,body.competencia);
+      if(ctx.confirmados.length)throw Error('Esta competência já tem aceite na Reinf. O histórico confirmado é preservado; ajustes devem seguir a retificação do R-4010.');
+      const dados=DividendosHistorico.dadosConferidos(body,cadastro,ctx);
+      const modelo=require('./reinf/dividendos-extrato').montarExtrato(snap.data(),dados,ctx);
+      const mesRef=ref.collection('reinf_dividendos_meses').doc(body.competencia);
+      await db.runTransaction(async tx=>{
+        const [atual,mes]=await Promise.all([tx.get(ref),tx.get(mesRef)]);
+        if(Number(atual.data().reinfDividendos?.ataRevisao||0)!==ctx.ataRevisao)throw Error('A ATA mudou. Carregue o mês novamente.');
+        if(Number(mes.data()?.revisao||0)!==Number(body.revisaoMes||0))throw Error('O mês foi atualizado por outro usuário. Carregue novamente.');
+        const versao={competencia:body.competencia,dados,resultado:modelo.resultado,revisao:Number(body.revisaoMes||0)+1,por_uid:req.user.uid,salvo_em:new Date(),status:'preparado'};
+        tx.set(mesRef,versao);tx.set(mesRef.collection('versoes').doc(String(versao.revisao)),versao);
+      });
+      res.json({ok:true,revisaoMes:Number(body.revisaoMes||0)+1});
+    }catch(e){respostaErro(res,400,e);}
+  });
+
   router.post('/dividendos/extrato', async (req, res) => {
     try {
       const body = req.body || {};
@@ -1013,9 +1053,11 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
       const snap = await ref.get();
       if (!snap.exists) return res.status(404).json({ok:false,erro:'Empresa não encontrada.'});
       const empresa = snap.data();
-      const modelo = require('./reinf/dividendos-extrato').montarExtrato(empresa, {...body,cnpj});
+      const contexto = await DividendosHistorico.carregar(ref,empresa.reinfDividendos||{},body.competencia);
+      const dados = DividendosHistorico.dadosConferidos({...body,cnpj},empresa.reinfDividendos||{},contexto);
+      const modelo = require('./reinf/dividendos-extrato').montarExtrato(empresa, dados, contexto);
       const email = String(body.emailDestino || empresa.reinfDividendos?.emailSolicitacaoReinf || '').trim();
-      const confirmacao = require('node:crypto').createHash('sha256').update(JSON.stringify({cnpj,email,texto:modelo.texto})).digest('hex');
+      const confirmacao = require('node:crypto').createHash('sha256').update(JSON.stringify({cnpj,email,texto:modelo.texto,controle:contexto.assinatura})).digest('hex');
       if (body.enviar !== true) return res.json({ok:true,previa:{...modelo,email,confirmacao}});
       if (!reinfEmailValido(email)) throw Error('Informe um e-mail válido para o extrato.');
       if (body.confirmacao !== confirmacao) return res.status(409).json({ok:false,erro:'Os dados ou destinatário mudaram. Gere e confira uma nova prévia antes de enviar.'});
@@ -1028,7 +1070,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         throw e;
       }
       try {
-        await enviarEmailDividendos({to:email,subject:modelo.assunto,html:modelo.htmlEmail,text:modelo.texto,de:req.user.email,empresa:modelo.empresa,competencia:modelo.competencia});
+        await enviarEmailDividendos({to:email,subject:modelo.assunto,html:modelo.htmlEmail,text:modelo.texto,anexos:[{name:"Extrato-dividendos-"+modelo.competencia+".html",contentType:"text/html",contentBytes:Buffer.from(modelo.html).toString("base64")}],de:req.user.email,empresa:modelo.empresa,competencia:modelo.competencia});
       } catch (e) {
         await envioRef.set({status:'verificar_envio',erro:String(e.message||e).slice(0,500)},{merge:true});
         throw Error('Não foi possível confirmar o envio. A tentativa foi registrada; confira o Microsoft 365 antes de repetir.');
