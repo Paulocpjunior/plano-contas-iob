@@ -1004,6 +1004,40 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     }
   });
 
+  router.post('/dividendos/extrato', async (req, res) => {
+    try {
+      const body = req.body || {};
+      if (body.enviar === true && !req.user?.is_admin) return res.status(403).json({ok:false,erro:'O envio por e-mail exige administrador, como nas solicitações de dividendos.'});
+      const cnpj = limparCnpj(body.cnpj || body.cnpjFonte);
+      const ref = db.collection('empresas').doc(cnpj);
+      const snap = await ref.get();
+      if (!snap.exists) return res.status(404).json({ok:false,erro:'Empresa não encontrada.'});
+      const empresa = snap.data();
+      const modelo = require('./reinf/dividendos-extrato').montarExtrato(empresa, {...body,cnpj});
+      const email = String(body.emailDestino || empresa.reinfDividendos?.emailSolicitacaoReinf || '').trim();
+      const confirmacao = require('node:crypto').createHash('sha256').update(JSON.stringify({cnpj,email,texto:modelo.texto})).digest('hex');
+      if (body.enviar !== true) return res.json({ok:true,previa:{...modelo,email,confirmacao}});
+      if (!reinfEmailValido(email)) throw Error('Informe um e-mail válido para o extrato.');
+      if (body.confirmacao !== confirmacao) return res.status(409).json({ok:false,erro:'Os dados ou destinatário mudaram. Gere e confira uma nova prévia antes de enviar.'});
+      const envioRef = ref.collection('reinf_extratos_dividendos').doc(confirmacao);
+      // Reservar a versão antes do envio impede cliques/requisições duplicadas.
+      try {
+        await envioRef.create({tipo:'extrato_dividendos',competencia:modelo.competencia,email,assunto:modelo.assunto,texto:modelo.texto,html:modelo.html,resultado:modelo.resultado,status:'enviando',criado_em:new Date(),por_uid:req.user.uid,por_email:req.user.email||null});
+      } catch (e) {
+        if (e.code === 6 || e.code === 'already-exists') return res.status(409).json({ok:false,erro:'Este extrato já possui uma tentativa de envio registrada. Confira o envio antes de repetir.'});
+        throw e;
+      }
+      try {
+        await enviarEmailDividendos({to:email,subject:modelo.assunto,html:modelo.htmlEmail,text:modelo.texto,de:req.user.email,empresa:modelo.empresa,competencia:modelo.competencia});
+      } catch (e) {
+        await envioRef.set({status:'verificar_envio',erro:String(e.message||e).slice(0,500)},{merge:true});
+        throw Error('Não foi possível confirmar o envio. A tentativa foi registrada; confira o Microsoft 365 antes de repetir.');
+      }
+      await envioRef.set({status:'enviado',enviado_em:new Date()},{merge:true});
+      res.json({ok:true,email,id:confirmacao});
+    } catch (e) { respostaErro(res, e.statusCode || 400, e); }
+  });
+
   router.post('/dividendos/registrar', adminReinfCadastroRequired, (req, res) => {
     res.status(409).json({ok:false,erro:'A baixa da ATA ocorre após o aceite do R-4010 em produção, na consulta do lote. Calcular ou registrar uma prévia não consome saldo.'});
   });

@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('assert'),{montarExtrato}=require('../reinf/dividendos-extrato');
+const dados={cnpj:'12345678000190',competencia:'2026-09',dtPagamento:'2026-09-29',valorDistribuido:120000,ataValorTotal:100000,ataSaldoAnterior:50000,ataAprovadaAte2025:true,ataValidaAte2028:true,modoDistribuicao:'valores',socios:[{cpf:'12345678901',nome:'Sócio <script>',percentual:60,ataSaldo:30000},{cpf:'98765432100',nome:'Sócio sem pagamento',percentual:40,ataSaldo:20000}],pagamentos:[{cpf:'12345678901',valor:120000},{cpf:'98765432100',valor:0}]};
+const r=montarExtrato({razao_social:'Empresa & Filhos'},dados);
+assert.equal(r.resultado.ataUsado,30000);assert.equal(r.resultado.totalIrrf,9000);assert.equal(r.totalLiquido,111000);
+assert(r.html.includes('Sócio &lt;script&gt;'));assert(!r.html.includes('<script>'));
+assert(r.texto.includes('Sócio sem pagamento'));assert(r.texto.includes('20.000,00'));assert(r.texto.includes('não baixa a ATA'));
+assert.throws(()=>montarExtrato({}, {...dados,dtPagamento:'2026-08-01'}));
+assert.throws(()=>montarExtrato({}, {...dados,dtPagamento:'2026-09-31'}));
+assert.throws(()=>montarExtrato({}, {...dados,pagamentos:[{cpf:'12345678901',valor:1}]}));
+require('fs').writeFileSync('/tmp/dividendos-extrato-preview.html',r.html);
+const vm=require('vm'),html=require('fs').readFileSync(require('path').join(__dirname,'../index.html'),'utf8');for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(m[1].trim())new vm.Script(m[1]);
+console.log('OK: extrato usa cálculo existente, mostra sócio sem pagamento, saldo, líquido, valida data, escapa HTML e scripts da tela válidos.');
