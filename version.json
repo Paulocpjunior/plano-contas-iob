@@ -1,7 +1,8 @@
 {
-  "version": "3.4.329",
-  "build_date": "2026-09-28T20:11:41.182Z",
+  "version": "3.4.330",
+  "build_date": "2026-09-29T09:14:19.292Z",
   "release_notes": [
+    "Persistência: bloquear perda parcial de lançamentos sem exclusão auditada e restringir zeramento integral a administradores, preservando o histórico online.",
     "Empresas: carregar os lançamentos online automaticamente, sem solicitar retomada ou restauração ao colaborador, e preservar a tela quando a consulta falhar ou vier incompleta.",
     "Itaú: reler células ilegíveis em três resoluções diretamente do PDF e preservar o diagnóstico de OCR, sem confundir falha de leitura com cadastro de layout.",
     "Serviços prestados: reconhecer PCC do portal SP guardado no campo CSLL e separar PIS, COFINS e CSLL na opção individual somente com base e total conferidos, preservando o total informado.",

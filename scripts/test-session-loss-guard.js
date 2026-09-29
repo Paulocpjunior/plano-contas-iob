@@ -1,0 +1,18 @@
+'use strict';
+const assert=require('assert'),fs=require('fs');
+const {validarPerdaLancamentos:check}=require('../session-loss-guard');
+const a={id:'a',valor:10},b={id:'b',valor:20},old={entries:[a,b]};
+assert(check(old,{entries:[a,b,{id:'c'}]}).ok);
+assert(check(old,{entries:[{...a,valor:11},b]}).ok);
+assert(!check(old,{entries:[a]}).ok);
+assert(!check(old,{entries:[a,{id:'c'}]}).ok,'mesma quantidade também pode perder ID');
+assert(!check(old,{entries:[]},{zerada:true},{is_admin:false}).ok);
+assert(check(old,{entries:[]},{zerada:true},{is_admin:true}).ok);
+const event={tipo:'exclusao_lancamento',em:'agora',lancamento:b};
+assert(check(old,{entries:[a],auditoriaLancamentos:[event]}).ok);
+assert(!check({...old,auditoriaLancamentos:[event]},{entries:[a],auditoriaLancamentos:[event]}).ok,'evento antigo não autoriza nova perda');
+assert(!check(old,{entries:[a],auditoriaLancamentos:[{...event,lancamento:{...b,valor:21}}]}).ok);
+assert(!check({entries:[{valor:1},{valor:1}]},{entries:[{valor:1}]}).ok);
+const server=fs.readFileSync(require('path').join(__dirname,'../server.js'),'utf8');
+assert(server.includes('const perda = validarPerdaLancamentos('));
+console.log('OK: perda parcial, total, mesma contagem e repetição de exclusão bloqueadas; edição e exclusão auditada preservadas.');
