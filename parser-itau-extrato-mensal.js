@@ -744,7 +744,10 @@
       const sx = Math.floor(450 * viewport.width / 595);
       const sy = Math.max(0, Math.floor(bbox.y0 * fator - altura * .25));
       const recorte = document.createElement('canvas');
-      recorte.width = Math.ceil(65 * viewport.width / 595);
+      // A tabela de lançamentos futuros alinha valores mais à direita.
+      // Nunca cortar a caixa que o OCR identificou, mesmo fora da coluna principal.
+      recorte.width = Math.ceil(Math.max(65 * viewport.width / 595,
+        Number(bbox.x1 || 0) * fator + 6 * viewport.width / 595 - sx));
       recorte.height = Math.ceil(altura * 1.5);
       const celula = document.createElement('canvas');
       celula.width = recorte.width + 40;
@@ -833,7 +836,8 @@
           const altura = bbox.y1 - bbox.y0;
           const sx = Math.floor(450 * viewport.width / 595);
           const sy = Math.max(0, Math.floor(bbox.y0 - altura * .25));
-          const sw = Math.ceil(65 * viewport.width / 595);
+          const sw = Math.min(canvas.width - sx, Math.ceil(Math.max(65 * viewport.width / 595,
+            Number(bbox.x1 || 0) + 6 * viewport.width / 595 - sx)));
           const sh = Math.min(canvas.height - sy, Math.ceil(altura * 1.5));
           const celula = document.createElement('canvas');celula.width=sw*2+40;celula.height=sh*2+40;
           const cc=celula.getContext('2d');cc.fillStyle='#fff';cc.fillRect(0,0,celula.width,celula.height);
