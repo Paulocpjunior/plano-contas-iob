@@ -3,6 +3,7 @@
   const Core = window.CCIRelatoriosContabeis;
   let tipoAtual = 'balancete';
   let statusAtual = null;
+  let statusEmpresa = null;
   let homologacaoAtual = null;
   let conciliacaoAtual = null;
   let conciliacaoDetalhadaAtual = null;
@@ -209,7 +210,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
             <div class="rc-field"><label>Pesquisar</label><input id="rcBusca" placeholder="Conta, histórico ou documento"></div>
           </div>
           <div class="rc-tabs" style="margin-top:16px"><button class="rc-tab active" data-rc-tipo="balancete">Balancete</button><button class="rc-tab" data-rc-tipo="balancete_anual">Balancete Anual</button><button class="rc-tab" data-rc-tipo="razao">Razão Analítico</button><button class="rc-tab" data-rc-tipo="diario">Livro Diário</button><button class="rc-tab" data-rc-tipo="dre">DRE</button><button class="rc-tab" data-rc-tipo="balanco">Balanço Patrimonial</button><button class="rc-tab" data-rc-tipo="analise">Análise Econômico-Financeira</button></div>
-        <div class="rc-actions" style="margin-top:16px"><button class="rc-btn primary" id="rcAtualizar">Atualizar prévia</button><button class="rc-btn light" id="rcImprimir">Visualizar impressão</button><button class="rc-btn light" id="rcPdf">Exportar PDF</button><button class="rc-btn success" id="rcExcel">Exportar Excel</button><button class="rc-btn email" id="rcEmail">✉️ Enviar PDF por e-mail</button><button class="rc-btn whatsapp" id="rcWhatsapp">💬 Enviar PDF no WhatsApp</button><button class="rc-btn warn" id="rcFechar">Encerrar período</button><button class="rc-btn danger" id="rcReabrir" style="display:none">Reabrir período</button></div>
+        <div class="rc-actions" style="margin-top:16px"><button class="rc-btn primary" id="rcAtualizar">Atualizar prévia</button><button class="rc-btn light" id="rcImprimir">Visualizar impressão</button><button class="rc-btn light" id="rcPdf">Exportar PDF</button><button class="rc-btn success" id="rcExcel">Exportar Excel</button><button class="rc-btn email" id="rcEmail">✉️ Enviar PDF por e-mail</button><button class="rc-btn whatsapp" id="rcWhatsapp">💬 Enviar PDF no WhatsApp</button><button class="rc-btn warn" id="rcFechar" style="display:none">Encerrar período</button><button class="rc-btn danger" id="rcReabrir" style="display:none">Reabrir período</button></div>
         </section>
         <section class="card rc-opening-card" id="rcSaldosAberturaSecao" style="padding:20px">
           <div class="rc-opening-head"><div><small style="font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#2563eb">Implantação contábil</small><h3>📥 Saldos anteriores / de abertura</h3><p class="rc-history" id="rcSaldosContexto" style="margin:0">Cadastre a posição patrimonial anterior à primeira competência escriturada no CCI.</p></div><button class="rc-btn light" type="button" id="rcIrCadastroEmpresa">Conferir início da escrituração</button></div>
@@ -349,9 +350,10 @@ function preferenciasImpressao(ctx, sobrescritas) {
     const anual = tipoAtual === 'balancete_anual';
     const emIntervalo = !anual && typeof dados.filtro !== 'string';
     const periodoStatus = emIntervalo || anual ? null : statusDoPeriodo(dados.periodo);
-    const fechado = periodoStatus && periodoStatus.status === 'fechado';
-    document.getElementById('rcStatusPeriodo').textContent = anual ? '📅 Visão anual ' + dados.ano : (emIntervalo ? '📅 Intervalo personalizado' : (fechado ? '🔒 Período encerrado' : (periodoStatus && periodoStatus.status === 'reaberto' ? '🔓 Período reaberto' : '🟢 Período aberto')));
-    document.getElementById('rcFechar').style.display = anual || emIntervalo || fechado ? 'none' : '';
+    const statusConferido = statusAtual && statusEmpresa === String(contexto().empresa.cnpj);
+    const fechado = statusConferido && periodoStatus && periodoStatus.status === 'fechado';
+    document.getElementById('rcStatusPeriodo').textContent = anual ? '📅 Visão anual ' + dados.ano : (emIntervalo ? '📅 Intervalo personalizado' : (!statusConferido ? '⚠️ Situação do período não conferida' : fechado ? '🔒 Período encerrado' : (periodoStatus && periodoStatus.status === 'reaberto' ? '🔓 Período reaberto' : '🟢 Período aberto')));
+    document.getElementById('rcFechar').style.display = anual || emIntervalo || fechado || !statusConferido ? 'none' : '';
     const podeReabrir = fechado && statusAtual && statusAtual.is_admin;
     document.getElementById('rcReabrir').style.display = podeReabrir ? '' : 'none';
     document.getElementById('rcResumo').innerHTML = `
@@ -589,9 +591,14 @@ function preferenciasImpressao(ctx, sobrescritas) {
   async function carregarStatus(estrito) {
     const ctx = contexto();
     if (!ctx || !ctx.empresa || !ctx.empresa.cnpj || !window.API || !window.API.listarPeriodosContabeis) return;
-    try { statusAtual = await window.API.listarPeriodosContabeis(ctx.empresa.cnpj); }
+    try {
+      const resposta = await window.API.listarPeriodosContabeis(ctx.empresa.cnpj);
+      if (String(contexto().empresa.cnpj) !== String(ctx.empresa.cnpj)) throw new Error('Empresa alterada durante a consulta.');
+      if (!resposta || !Array.isArray(resposta.periodos)) throw new Error('Resposta de períodos incompleta.');
+      statusAtual = resposta; statusEmpresa = String(ctx.empresa.cnpj);
+    }
     catch (e) {
-      statusAtual = { periodos: [], is_admin: !!(window.CURRENT_USER && window.CURRENT_USER.is_admin) };
+      statusAtual = null; statusEmpresa = null;
       if (estrito) throw new Error('Não foi possível conferir os saldos de abertura e fechamentos. Atualize novamente o relatório.');
     }
     try { homologacaoAtual = window.API.consultarHomologacaoPiloto ? await window.API.consultarHomologacaoPiloto(ctx.empresa.cnpj) : null; }
@@ -833,12 +840,18 @@ function preferenciasImpressao(ctx, sobrescritas) {
   }
 
   async function atualizarTudo() {
+    statusAtual = null; statusEmpresa = null;
+    document.getElementById('rcFechar').style.display = 'none';
+    document.getElementById('rcReabrir').style.display = 'none';
+    document.getElementById('rcStatusPeriodo').textContent = 'Consultando situação do período…';
     try {
       await sincronizarDadosRelatorio();
       preencherSaldos();
       render();
       renderHomologacaoPiloto();
     } catch (e) {
+      document.getElementById('rcStatusPeriodo').textContent = '⚠️ Situação do período não conferida';
+      homologacaoAtual = null; renderHomologacaoPiloto();
       const corpo = document.getElementById('rcBody');
       if (corpo) corpo.innerHTML = '<tr><td colspan="10">' + esc(e.message) + '</td></tr>';
       window.showToast(e.message || String(e), 'error');

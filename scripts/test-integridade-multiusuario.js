@@ -376,6 +376,7 @@ async function main() {
       };
       const navegadorContext = {
         window: janela,
+        AbortController, setTimeout, clearTimeout,
         fetch: (u, o) => fetch(new URL(u, url), o),
         console,
         Map,
