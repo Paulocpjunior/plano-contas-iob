@@ -78,5 +78,6 @@
   "/reinf/alugueis-conferencia-ui.js",
   "/reinf/alugueis-planilha-modal.js",
   "/reinf/carne-leao-preparacao.js",
-  "/reinf/carne-leao-preparacao-ui.js"
+  "/reinf/carne-leao-preparacao-ui.js",
+  "/server-monitor-ui.js"
 ]

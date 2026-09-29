@@ -4835,6 +4835,12 @@ app.get('/api/admin/access-logs', adminRequired, async (req, res) => {
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
+const serverMonitor = require('./server-monitor').createMonitor({project: runtimeConfig.runtimeProjectId, service: process.env.K_SERVICE || 'plano-contas-iob'});
+app.get('/api/admin/server-monitor', adminRequired, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try { res.json(await serverMonitor()); } catch (_) { res.status(503).json({erro:'Monitoramento temporariamente indisponível.'}); }
+});
+
 app.get('/api/admin/summary', adminRequired, async (req, res) => {
   try {
     const [users, logs] = await Promise.all([

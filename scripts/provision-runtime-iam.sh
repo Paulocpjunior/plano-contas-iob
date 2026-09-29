@@ -18,6 +18,9 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --condition=None \
   --quiet >/dev/null
 
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member "$MEMBER" --role roles/monitoring.viewer --condition=None --quiet >/dev/null
+
 for SECRET_NAME in GEMINI_API_KEY fiscal-gateway-token graph-client-secret reinf-cert-a1 reinf-cert-password; do
   gcloud secrets add-iam-policy-binding "$SECRET_NAME" \
     --project "$PROJECT_ID" \

@@ -1,6 +1,6 @@
 {
   "name": "plano-contas-iob",
-  "version": "3.4.337",
+  "version": "3.4.338",
   "description": "API multi-tenant CNPJ x Plano de Contas - IOB SAGE",
   "main": "server.js",
   "scripts": {
@@ -123,6 +123,7 @@
     "@google/genai": "^1.50.1",
     "express": "^4.19.2",
     "firebase-admin": "^12.7.0",
+    "google-auth-library": "^10.9.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "multer": "^2.3.0",
