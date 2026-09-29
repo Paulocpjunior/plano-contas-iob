@@ -105,14 +105,20 @@
 
   function mapaContas(contas) {
     const mapa = new Map();
+    function registrarChave(chave, registro) {
+      if (!mapa.has(chave) || mapa.get(chave) === registro) { mapa.set(chave, registro); return; }
+      const anterior = mapa.get(chave);
+      // Um reduzido movimentável (0001) pode coincidir com o grupo (1).
+      // Movimentos resolvem a analítica; os grupos usam registrosPlano.
+      if (anterior && anterior.analitica !== registro.analitica) {
+        mapa.set(chave, anterior.analitica ? anterior : registro);
+      } else mapa.set(chave, null);
+    }
     function registrar(chave, registro) {
       if (!chave) return;
-      if (!mapa.has(chave) || mapa.get(chave) === registro) mapa.set(chave, registro);
-      else mapa.set(chave, null);
+      registrarChave(chave, registro);
       const alias = aliasNumericoConta(chave);
-      if (!alias || alias === chave) return;
-      if (!mapa.has(alias) || mapa.get(alias) === registro) mapa.set(alias, registro);
-      else mapa.set(alias, null);
+      if (alias && alias !== chave) registrarChave(alias, registro);
     }
     const legados = [];
     (contas || []).forEach(function (conta) {
@@ -336,7 +342,7 @@
         if (existentes.has(codigo)) continue;
         existentes.add(codigo);
         const meta = resolverConta(codigo, mapa);
-        sinteticas.push({ codigo, descricao: meta && meta.descricao || ({ '1': 'ATIVO', '2': 'PASSIVO E PATRIMÔNIO LÍQUIDO', '3': 'RECEITAS', '4': 'CUSTOS', '5': 'DESPESAS' }[codigo] || 'Grupo ' + codigo), analitica: false });
+        sinteticas.push({ codigo, descricao: meta && meta.analitica === false && meta.descricao || ({ '1': 'ATIVO', '2': 'PASSIVO E PATRIMÔNIO LÍQUIDO', '3': 'RECEITAS', '4': 'CUSTOS', '5': 'DESPESAS' }[codigo] || 'Grupo ' + codigo), analitica: false });
       }
     });
     const consolidadas = new Map();
