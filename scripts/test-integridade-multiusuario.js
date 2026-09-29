@@ -406,6 +406,10 @@ async function main() {
     const abertaB = JSON.parse(
       (await bia.carregarSessaoEmpresa('00112233000144')).state_json
     );
+    const revisaoSemMudanca = ana.getSessaoRevision('00112233000144');
+    const repetido = await ana.salvarSessaoEmpresa('00112233000144', JSON.stringify({ ...abertaA, atualizadoEm: new Date().toISOString() }), { total_lancamentos: 2 }, 'combinar');
+    assert.equal(repetido.sem_alteracoes, true);
+    assert.equal(repetido.session_revision, revisaoSemMudanca, 'reenvio idêntico preserva revisão');
     abertaA.entries[0].valor = 30;
     abertaB.entries[1].valor = 40;
     await ana.salvarSessaoEmpresa(

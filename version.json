@@ -1,7 +1,9 @@
 {
-  "version": "3.4.335",
-  "build_date": "2026-09-29T16:22:10.307Z",
+  "version": "3.4.336",
+  "build_date": "2026-09-29T16:48:51.031Z",
   "release_notes": [
+    "Prévias e PDF: calcular apenas a demonstração solicitada, impedir geração simultânea e apresentar andamento e falhas na janela.",
+    "Desempenho: evitar gravações idênticas e preferências de impressão sem mudanças; painel auxiliar deixa de bloquear relatórios.",
     "Salvamento online preserva integralmente os lançamentos, encerramentos e informações de auditoria.",
     "Falhas de salvamento respeitam intervalo de repetição e proteções interrompem tentativas automáticas.",
     "Relatórios só mostram período aberto ou encerrado após confirmação do servidor.",
