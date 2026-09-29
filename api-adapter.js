@@ -5,12 +5,31 @@
   const sessaoBases = new Map();
   function guardarBaseSessao(cnpj, estado) { sessaoBases.clear(); sessaoBases.set(cnpj, estado); }
 
+  function comPrazo(operacao, ms, aoExpirar) {
+    let timer;
+    return Promise.race([Promise.resolve().then(operacao), new Promise(function(_, reject) {
+      timer = setTimeout(function() {
+        if (aoExpirar) aoExpirar();
+        reject(Object.assign(new Error('A consulta ou gravação excedeu o tempo de espera. A confirmação do servidor ainda é necessária; mantenha esta tela aberta.'), { code: 'API_TIMEOUT' }));
+      }, ms);
+    })]).finally(function() { clearTimeout(timer); });
+  }
+
+  async function respostaComPrazo(url, options, formato) {
+    const ctrl = new AbortController();
+    return comPrazo(async function() {
+      const r = await apiFetch(url, Object.assign({}, options || {}, { signal: ctrl.signal }));
+      const body = formato === 'text' ? await r.text() : await r.json();
+      return { r, body };
+    }, 120000, function() { ctrl.abort(); });
+  }
+
   async function getToken() {
     try {
       if (typeof firebase === 'undefined' || !firebase.auth) return null;
       const user = firebase.auth().currentUser;
       if (!user) return null;
-      let token = await user.getIdToken();
+      let token = await comPrazo(function() { return user.getIdToken(); }, 20000);
       // getIdToken() devolve o token em CACHE por até 1h. Se ele ainda diz
       // e-mail não verificado, o CFI recusa o túnel mesmo DEPOIS da pessoa
       // verificar (09/08: 401 persistiu com o e-mail já verificado). Só
@@ -19,8 +38,8 @@
       try {
         const claims = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
         if (claims.email_verified !== true) {
-          await user.reload();
-          if (user.emailVerified) token = await user.getIdToken(true);
+          await comPrazo(function() { return user.reload(); }, 20000);
+          if (user.emailVerified) token = await comPrazo(function() { return user.getIdToken(true); }, 20000);
         }
       } catch (e) { /* claim ilegível não derruba a chamada */ }
       return token;
@@ -292,8 +311,8 @@
 
   async function salvarSessaoEmpresa(cnpj, state_json, resumo, tentativa) {
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
-    const statePayload = await compactarStateParaTransporte(state_json);
-    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao', {
+    const statePayload = await comPrazo(function() { return compactarStateParaTransporte(state_json); }, 30000);
+    const { r, body: data } = await respostaComPrazo(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao', {
       method: 'POST',
       body: JSON.stringify({
         ...statePayload,
@@ -302,7 +321,6 @@
         client_version: window.__PLANO_CONTAS_IOB_BUILD__ || null
       })
     });
-    const data = await r.json().catch(() => ({}));
     if (!r.ok || data.erro) {
       if (tentativa === 'combinar' && data.codigo === 'SESSAO_CONCORRENTE' && sessaoBases.has(cnpjLimpo) && window.CCISessionMerge) {
         const remoto = await carregarSessaoEmpresa(cnpjLimpo, { semAdotar: true });
@@ -331,10 +349,9 @@
 
   async function carregarSessaoEmpresa(cnpj, opcoes) {
     const cnpjLimpo = (cnpj || '').replace(/\D/g, '');
-    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao');
+    const { r, body: textoResposta } = await respostaComPrazo(API_BASE + '/api/empresas/' + cnpjLimpo + '/sessao', {}, 'text');
     if (r.status === 403) throw new Error('Sem acesso à empresa. Peça ao gestor sua inclusão como responsável ou apoio.');
     if (r.status === 404) throw new Error('Empresa não encontrada ou consulta indisponível. Nenhum lançamento foi substituído.');
-    const textoResposta = await r.text();
     let data = null;
     try {
       data = textoResposta ? JSON.parse(textoResposta) : null;
@@ -432,16 +449,14 @@
 
   async function listarPeriodosContabeis(cnpj) {
     const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
-    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/contabilidade/periodos');
-    const body = await r.json().catch(() => ({}));
+    const { r, body } = await respostaComPrazo(API_BASE + '/api/empresas/' + cnpjLimpo + '/contabilidade/periodos');
     if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
     return body;
   }
 
   async function consultarHomologacaoPiloto(cnpj) {
     const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
-    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/contabilidade/homologacao-piloto');
-    const body = await r.json().catch(() => ({}));
+    const { r, body } = await respostaComPrazo(API_BASE + '/api/empresas/' + cnpjLimpo + '/contabilidade/homologacao-piloto');
     if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
     return body;
   }
