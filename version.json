@@ -1,7 +1,8 @@
 {
-  "version": "3.4.330",
-  "build_date": "2026-09-29T09:14:19.292Z",
+  "version": "3.4.331",
+  "build_date": "2026-09-29T10:58:01.356Z",
   "release_notes": [
+    "Itaú: corrigir recorte de valores alinhados à direita na releitura OCR, incluindo a célula de 107,45 da página 13 do extrato Ferrante, sem cortar os centavos ou alterar a conciliação.",
     "Persistência: bloquear perda parcial de lançamentos sem exclusão auditada e restringir zeramento integral a administradores, preservando o histórico online.",
     "Empresas: carregar os lançamentos online automaticamente, sem solicitar retomada ou restauração ao colaborador, e preservar a tela quando a consulta falhar ou vier incompleta.",
     "Itaú: reler células ilegíveis em três resoluções diretamente do PDF e preservar o diagnóstico de OCR, sem confundir falha de leitura com cadastro de layout.",
