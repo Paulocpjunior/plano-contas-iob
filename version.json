@@ -1,7 +1,8 @@
 {
-  "version": "3.4.337",
-  "build_date": "2026-09-29T17:10:01.037Z",
+  "version": "3.4.338",
+  "build_date": "2026-09-29T17:28:04.451Z",
   "release_notes": [
+    "Servidor BETA: painel administrativo com métricas reais do Cloud Run, gráficos da última hora e atualização automática.",
     "Consulta contábil: abrir lançamentos e trocar competências não altera históricos, descrições, identificadores ou valores salvos.",
     "Avisos de gravação identificam a competência bloqueada; respostas antigas não substituem o relatório selecionado.",
     "Prévias e PDF: calcular apenas a demonstração solicitada, impedir geração simultânea e apresentar andamento e falhas na janela.",

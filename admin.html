@@ -6,33 +6,33 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.337"></script>
+<script src="/saas-brand-theme.js?v=3.4.338"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.337"></script>
-<script src="/parser-ofx.js?v=3.4.337"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.337"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.337"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.337"></script>
-<script src="/parser-safra-extrato.js?v=3.4.337"></script>
-<script src="/parser-brb-extrato.js?v=3.4.337"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.337"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.337"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.337"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.337"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.337"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.337"></script>
-<script src="/parser-btg-pactual.js?v=3.4.337"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.337"></script>
-<script src="/parser-abc-extrato.js?v=3.4.337"></script>
-<script src="/parser-inter-extrato.js?v=3.4.337"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.337"></script>
-<script src="/parser-stone-extrato.js?v=3.4.337"></script>
-<script src="/parser-mercado-pago-extrato.js?v=3.4.337"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.337"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.337"></script>
+<script src="/api-adapter.js?v=3.4.338"></script>
+<script src="/parser-ofx.js?v=3.4.338"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.338"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.338"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.338"></script>
+<script src="/parser-safra-extrato.js?v=3.4.338"></script>
+<script src="/parser-brb-extrato.js?v=3.4.338"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.338"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.338"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.338"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.338"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.338"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.338"></script>
+<script src="/parser-btg-pactual.js?v=3.4.338"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.338"></script>
+<script src="/parser-abc-extrato.js?v=3.4.338"></script>
+<script src="/parser-inter-extrato.js?v=3.4.338"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.338"></script>
+<script src="/parser-stone-extrato.js?v=3.4.338"></script>
+<script src="/parser-mercado-pago-extrato.js?v=3.4.338"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.338"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.338"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -233,6 +233,16 @@
     .progress-form { grid-template-columns:1fr; }
     .progress-form .wide { grid-column:span 1; }
   }
+  #monitor-cards { grid-template-columns:repeat(3,minmax(0,1fr)); margin:20px 0; }
+  #monitor-cards .summary-card { background:var(--surface);color:var(--text);border:1px solid var(--border);box-shadow:none; }
+  #monitor-cards h3 { font-size:14px;min-height:38px;color:var(--muted); }
+  #monitor-cards h2 { font-size:30px;margin:10px 0; }
+  #monitor-cards p,#monitor-cards small {font-size:12px;color:var(--muted);}
+  #tab-servidor .card>p {line-height:1.6;margin:12px 0;color:var(--muted);}
+  #monitor-refresh {padding:10px 18px;background:var(--accent);color:white;border:0;border-radius:8px;cursor:pointer;}
+  #monitor-refresh:disabled {opacity:.6;cursor:wait;}
+  @media(max-width:800px){#monitor-cards{grid-template-columns:repeat(2,minmax(0,1fr));}}
+  @media(max-width:500px){#monitor-cards{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -271,9 +281,19 @@
     <button onclick="showTab('qualidade')">✅ Qualidade de Layouts</button>
     <button onclick="showTab('exclusao', this)">🗑️ Exclusão de Lançamentos</button>
     <button onclick="showTab('usuarios')">👥 Usuários</button>
+    <button onclick="showTab('servidor', this)">🖥️ Servidor BETA</button>
     <button onclick="showTab('logs')">📜 Log de Acesso</button>
   </div>
 
+  <div id="tab-servidor" class="tab-content">
+    <div class="card"><h2>Saúde do servidor <small> BETA</small></h2>
+    <p>Consumo e desempenho do CCI · última hora · Google Cloud Monitoring</p>
+    <p>Atualização automática a cada 60 segundos enquanto esta aba estiver visível. As métricas podem levar alguns minutos para chegar. Sem amostra não significa consumo zero.</p>
+    <button id="monitor-refresh" type="button">Atualizar agora</button>
+    <p id="monitor-status" role="status">Abra esta aba para consultar.</p>
+    <div id="monitor-cards" class="summary-grid"></div>
+    <p>CPU e memória: percentual dos recursos alocados. A latência inclui a resposta do Cloud Run. Este painel não mede processamento local de OCR no navegador, não audita saldos e não representa custos financeiros.</p></div>
+  </div>
   <div id="tab-qualidade" class="tab-content">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
@@ -662,6 +682,7 @@ function showTab(tab, sourceButton) {
   const btn = sourceButton || (typeof event !== 'undefined' && event && event.target) || document.querySelector('.tabs button[onclick*="' + tab + '"]');
   if (btn) btn.classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
+  if (window.CCIMonitor) window.CCIMonitor.activate(tab === 'servidor');
   if (tab === 'layouts') renderLayouts();
   if (tab === 'qualidade') loadLayoutQuality();
   if (tab === 'exclusao') loadExclusaoEmpresas();
@@ -2346,5 +2367,6 @@ function exportLogsCSV() {
   a.click();
 }
 </script>
+<script src="server-monitor-ui.js?v=3.4.338"></script>
 </body>
 </html>
