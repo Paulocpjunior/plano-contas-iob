@@ -1,0 +1,12 @@
+'use strict';
+const assert=require('assert'),fs=require('fs'),vm=require('vm');
+const source=fs.readFileSync('index.html','utf8');
+const fields=Object.fromEntries(['reinfCompetencia','reinfDividendosCompetenciaEmail','reinfDataPagamento','reinfDividendosDataPagamento','reinfDividendosEmail','reinfDividendosResponsavel'].map(id=>[id,{value:'',focus(){this.focused=true;}}]));
+const ctx={document:{getElementById:id=>fields[id]},reinfDividendosPayloadBase:()=>({competencia:fields.reinfCompetencia.value,dtPagamento:fields.reinfDataPagamento.value})};vm.createContext(ctx);
+vm.runInContext(source.slice(source.indexOf('        function sincronizarPeriodoDividendos('),source.indexOf("        document.addEventListener('input', function(e) {\n            const id=e.target.id||'';")),ctx);
+vm.runInContext(source.slice(source.indexOf('        function dadosExtratoDividendos('),source.indexOf('        async function abrirExtratoDividendos(')),ctx);
+fields.reinfDividendosCompetenciaEmail.value='2026-04';ctx.sincronizarPeriodoDividendos('reinfDividendosCompetenciaEmail');assert.equal(fields.reinfCompetencia.value,'2026-04');
+fields.reinfDividendosDataPagamento.value='2026-04-20';ctx.sincronizarPeriodoDividendos('reinfDividendosDataPagamento');assert.equal(ctx.dadosExtratoDividendos().dtPagamento,'2026-04-20');
+fields.reinfCompetencia.value='2026-09';ctx.sincronizarPeriodoDividendos('reinfCompetencia');assert.equal(fields.reinfDividendosCompetenciaEmail.value,'2026-09');assert.throws(()=>ctx.dadosExtratoDividendos(),/data real/);assert(fields.reinfDividendosDataPagamento.focused);
+fields.reinfDataPagamento.value='2026-09-25';ctx.sincronizarPeriodoDividendos('reinfDataPagamento');assert.equal(fields.reinfDividendosDataPagamento.value,'2026-09-25');assert.equal(ctx.dadosExtratoDividendos().competencia,'2026-09');
+console.log('OK: competência retroativa e data sincronizadas nos dois sentidos; extrato bloqueia data de outro mês com foco no campo.');
