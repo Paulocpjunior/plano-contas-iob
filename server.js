@@ -3112,6 +3112,8 @@ async function gravarDocumentoJson(ref, stateJson, metadados) {
 
 async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes) {
   const opts = opcoes || {};
+  const inicioGravacao = Date.now();
+  const etapas = {};
   const antes = await sessaoRef.get();
   const trava = antes.exists && antes.data().session_write_lock;
   if (!trava || !opts.tokenTrava || trava.token !== opts.tokenTrava || trava.uid !== user.uid || millisTimestamp(trava.expires_at) <= Date.now()) {
@@ -3125,13 +3127,22 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
   const estadoAntes = anterior.stateJson ? JSON.parse(anterior.stateJson) : {};
   const financeiro = e => JSON.stringify({ entries: e.entries || [], saldos: (e.relatoriosContabeis || {}).saldosIniciais || {} });
   let historicoRef = null, historico = null;
+  let prepararHistorico = async () => {};
   if (anterior.stateJson && financeiro(estadoAntes) !== financeiro(estadoNovo)) {
     historicoRef = sessaoRef.collection('historico').doc();
-    const armazenamento = await gravarTextoBackup(historicoRef, 'chunks', anterior.stateJson);
-    historico = { criado_em: new Date(), por_uid: user.uid, por_email: user.email || '',
-      tipo: trava.tipo || 'sessao', revisao_anterior: anterior.dados.session_revision || null,
-      quantidade_anterior: (estadoAntes.entries || []).length, quantidade_nova: (estadoNovo.entries || []).length,
-      sha256: cryptoAdmin.createHash('sha256').update(anterior.stateJson).digest('hex'), armazenamento };
+    prepararHistorico = async () => {
+      const inicio = Date.now();
+      // A carga anterior já foi decodificada e validada sob a trava. Copia os bytes
+      // para chunks independentes, sem referências à geração que será substituída.
+      const codificadoAnterior = anterior.dados.state_encoding === ENCODING_GZIP_BASE64 && typeof anterior.payload === 'string' && anterior.payload
+        ? { payload: anterior.payload, encoding: anterior.dados.state_encoding || ENCODING_PLAIN, bytesArmazenados: Buffer.byteLength(anterior.payload, 'utf8') } : null;
+      const armazenamento = await gravarTextoBackup(historicoRef, 'chunks', anterior.stateJson, codificadoAnterior);
+      etapas.backup_ms = Date.now() - inicio;
+      historico = { criado_em: new Date(), por_uid: user.uid, por_email: user.email || '',
+        tipo: trava.tipo || 'sessao', revisao_anterior: anterior.dados.session_revision || null,
+        quantidade_anterior: (estadoAntes.entries || []).length, quantidade_nova: (estadoNovo.entries || []).length,
+        sha256: cryptoAdmin.createHash('sha256').update(anterior.stateJson).digest('hex'), armazenamento };
+    };
   }
   const datas = (estadoNovo.entries || []).map(e => RelatoriosContabeis.dataISO(e.data)).filter(Boolean).sort();
   const resumoAtual = { ...(resumo || {}), total_lancamentos: (estadoNovo.entries || []).length,
@@ -3141,9 +3152,17 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
   const partes = dividirTexto(codificado.payload, LIMITE_CHUNK_SESSAO);
   const chunked = codificado.payload.length > LIMITE_CHUNK_SESSAO;
   const geracao = chunked ? novaRevisaoSessao() : null;
-  if (chunked) await gravarPartes(sessaoRef.collection('chunks'), partes, geracao);
+  etapas.preparacao_ms = Date.now() - inicioGravacao;
+  const preparacoes = await Promise.allSettled([prepararHistorico(), (async () => {
+    const inicio = Date.now();
+    if (chunked) await gravarPartes(sessaoRef.collection('chunks'), partes, geracao);
+    etapas.chunks_ms = Date.now() - inicio;
+  })()]);
+  const falhaPreparacao = preparacoes.find(r => r.status === 'rejected');
+  if (falhaPreparacao) throw falhaPreparacao.reason;
   const revisao = novaRevisaoSessao();
   const dadosSessao = {
+    session_write_lock: admin.firestore.FieldValue.delete(),
     resumo: resumoAtual,
     updated_at: new Date(),
     updated_by_uid: user.uid,
@@ -3159,6 +3178,7 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
     session_revision: revisao,
     require_session_revision: opts.exigirRevisao === true,
   };
+  const inicioPublicacao = Date.now();
   await db.runTransaction(async transacao => {
     const atual = await transacao.get(sessaoRef);
     const ativa = atual.exists && atual.data().session_write_lock;
@@ -3166,16 +3186,19 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
       throw erroSessao('Outra gravação assumiu a sessão. Confira e tente novamente.', 409, 'SESSAO_CONCORRENTE');
     }
     if (historicoRef) transacao.create(historicoRef, { ...historico, revisao_nova: revisao });
+    // Publicação e liberação são atômicas: não há uma segunda transação de desbloqueio.
     transacao.update(sessaoRef, dadosSessao);
     if (opts.empresaRef && opts.atualizacaoEmpresa) transacao.set(opts.empresaRef, opts.atualizacaoEmpresa, { merge: true });
     if (opts.gravarRelacionados) opts.gravarRelacionados(transacao, revisao);
   });
-  try {
-    if (chunked || opts.limparChunksAntigos !== false) {
-      await limparChunksAntigos(sessaoRef, geracao).catch(erro => console.warn('[sessao] limpeza de chunks antigos falhou:', erro.message || erro));
-    }
-  } finally { await liberarTravaSessao(sessaoRef, trava.token); }
+  etapas.publicacao_ms = Date.now() - inicioPublicacao;
+  const inicioFinalizacao = Date.now();
+  if (chunked || opts.limparChunksAntigos !== false) {
+    await limparChunksAntigos(sessaoRef, geracao).catch(erro => console.warn('[sessao] limpeza de chunks antigos falhou:', erro.message || erro));
+  }
+  etapas.finalizacao_ms = Date.now() - inicioFinalizacao;
   return {
+    etapas,
     revisao,
     chunked,
     chunks: chunked ? partes.length : 0,
@@ -3185,8 +3208,8 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
   };
 }
 
-async function gravarTextoBackup(backupRef, subcolecao, texto) {
-  const codificado = codificarStateJson(texto);
+async function gravarTextoBackup(backupRef, subcolecao, texto, codificadoValidado) {
+  const codificado = codificadoValidado || codificarStateJson(texto);
   const partes = dividirTexto(codificado.payload, LIMITE_CHUNK_SESSAO);
   const geracao = novaRevisaoSessao();
   if (partes.length) await gravarPartes(backupRef.collection(subcolecao), partes, geracao);
@@ -3404,6 +3427,7 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
       ...temposPersistencia,
       state_bytes: resultado.stateBytes,
       stored_bytes: resultado.storedBytes,
+      etapas_gravacao: resultado.etapas,
       chunked: resultado.chunked,
     }));
     res.json({

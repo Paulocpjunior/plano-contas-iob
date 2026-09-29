@@ -1,7 +1,8 @@
 {
-  "version": "3.4.338",
-  "build_date": "2026-09-29T17:28:04.451Z",
+  "version": "3.4.339",
+  "build_date": "2026-09-29T17:54:58.315Z",
   "release_notes": [
+    "Salvamento online: reutiliza a compactação do backup, prepara cópias independentes em paralelo e libera a trava na mesma transação de publicação.",
     "Servidor BETA: painel administrativo com métricas reais do Cloud Run, gráficos da última hora e atualização automática.",
     "Consulta contábil: abrir lançamentos e trocar competências não altera históricos, descrições, identificadores ou valores salvos.",
     "Avisos de gravação identificam a competência bloqueada; respostas antigas não substituem o relatório selecionado.",
