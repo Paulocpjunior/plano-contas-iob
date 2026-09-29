@@ -300,6 +300,7 @@ async function main() {
       'sessão vazia acidental bloqueada'
     );
     assert.equal((await save(a, 'r0')).status, 200);
+    assert.equal((await sessao.get()).data().session_write_lock, undefined, 'publicação libera trava atomicamente');
     const historico = await sessao.collection('historico').get();
     assert.equal(historico.size, 1, 'uma revisão financeira preserva a sessão anterior');
     const registro = historico.docs[0];
