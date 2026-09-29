@@ -3260,6 +3260,8 @@ function parsearStateJson(stateJson) {
   }
 }
 
+const { validarPerdaLancamentos } = require('./session-loss-guard');
+
 app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
   let sessaoRef = null;
   let tokenTrava = null;
@@ -3304,6 +3306,8 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
         resultadoRevisao.codigo
       );
     }
+    const perda = validarPerdaLancamentos(atual.stateJson ? JSON.parse(atual.stateJson) : {}, recebido, resumo, req.user);
+    if (!perda.ok) throw erroSessao(perda.erro, perda.codigo === 'ADMIN_REQUIRED' ? 403 : 409, perda.codigo);
     const marcadoresEncerramento = json => (lerEstadoContabil(json).entries || []).filter(l => l.encerramentoContabil).map(l => [String(l.id), l.encerramentoContabil]).sort((a, b) => a[0].localeCompare(b[0]));
     if (JSON.stringify(marcadoresEncerramento(atual.stateJson)) !== JSON.stringify(marcadoresEncerramento(state_json))) {
       throw erroSessao('Lançamentos de encerramento só podem ser incluídos ou removidos pelo fechamento ou pela reabertura administrativa.', 409, 'ENCERRAMENTO_PROTEGIDO');
