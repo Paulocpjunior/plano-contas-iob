@@ -3119,7 +3119,8 @@ async function gravarSessaoBloqueada(sessaoRef, stateJson, resumo, user, opcoes)
   }
   // Preserva uma cópia independente antes de qualquer alteração dos lançamentos
   // ou dos saldos. A referência só é publicada na mesma transação da nova sessão.
-  const anterior = await carregarSessaoAtualPorRef(sessaoRef);
+  const anterior = opts.sessaoAnterior && opts.sessaoAnterior.dados && opts.sessaoAnterior.dados.session_revision === antes.data().session_revision
+    ? opts.sessaoAnterior : await carregarSessaoAtualPorRef(sessaoRef);
   const estadoNovo = JSON.parse(stateJson);
   const estadoAntes = anterior.stateJson ? JSON.parse(anterior.stateJson) : {};
   const financeiro = e => JSON.stringify({ entries: e.entries || [], saldos: (e.relatoriosContabeis || {}).saldosIniciais || {} });
@@ -3348,6 +3349,22 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
       }
     }
 
+    // A revisão já foi conferida sob trava. Reenvio sem mudança não precisa
+    // recomprimir, gravar chunks ou criar uma nova revisão/histórico.
+    const conteudoPersistente = estado => {
+      const copia = { ...estado };
+      delete copia.atualizadoEm;
+      delete copia.compactado;
+      delete copia.semLancamentosLocal;
+      return copia;
+    };
+    if (atual.stateJson && require('node:util').isDeepStrictEqual(
+      conteudoPersistente(JSON.parse(atual.stateJson)), conteudoPersistente(recebido))) {
+      await liberarTravaSessao(sessaoRef, tokenTrava);
+      tokenTrava = null;
+      return res.json({ ok: true, sem_alteracoes: true, session_revision: atual.dados.session_revision });
+    }
+
     const atualizacaoEmpresa = { last_session_at: new Date(), last_session_by_email: req.user.email };
     if (chk.empresa.modo_contabil === 'cci_exclusivo' && chk.empresa.saldo_abertura_status === 'aprovado') {
       const periodoInicial = periodoInicialEmpresa(chk.empresa);
@@ -3366,6 +3383,7 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
     const resultado = await gravarSessaoBloqueada(sessaoRef, state_json, resumo, req.user, {
       exigirRevisao,
       tokenTrava,
+      sessaoAnterior: atual,
       empresaRef,
       atualizacaoEmpresa,
       limparChunksAntigos: !!(atual.dados && atual.dados.state_chunked),

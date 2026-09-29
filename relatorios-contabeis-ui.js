@@ -144,8 +144,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   async function sincronizarDadosRelatorio() {
     const ctx = contexto();
-    if (ctx && ctx.sincronizarRelatorios) await ctx.sincronizarRelatorios();
-    await carregarStatus(true);
+    await Promise.all([ctx && ctx.sincronizarRelatorios ? ctx.sincronizarRelatorios() : Promise.resolve(), carregarStatus(true)]);
     if (String(contexto().empresa.cnpj) !== String(ctx.empresa.cnpj)) throw new Error('A empresa mudou durante a consulta. Reabra o relatório.');
   }
 
@@ -252,7 +251,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
             <div class="rc-field"><label>CPF do contador</label><input id="rcCPFContador" inputmode="numeric" autocomplete="off"></div>
             <div class="rc-field"><label>CRC do contador</label><input id="rcCRCContador"></div>
           </div>
-          <div class="rc-print-preview"><iframe id="rcQuadroPreviaImpressao" title="Prévia do relatório para impressão"></iframe></div>
+          <p id="rcImpressaoStatus" role="status" aria-live="polite"></p><div class="rc-print-preview"><iframe id="rcQuadroPreviaImpressao" title="Prévia do relatório para impressão"></iframe></div>
           <div class="rc-modal-actions"><button class="rc-btn light" id="rcImpressaoCancelar" type="button">Cancelar</button><button class="rc-btn primary" id="rcImpressaoAtualizar" type="button">Atualizar prévia</button><button class="rc-btn success" id="rcImpressaoExportar" type="button">Exportar PDF</button></div>
         </div>
       </div>`;
@@ -308,7 +307,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     const saldos = saldosDoFiltro(ctx, filtro);
     const balancete = Core.balancete(ctx.entries, filtro, ctx.contas, saldos);
     const filtroValidacao = tipoAtual === 'balancete_anual' ? { inicio: ano + '-01-01', fim: ano + '-12-31' } : filtro;
-    return {
+    const dados = {
       ctx,
       periodo: tipoAtual === 'balancete_anual' ? ano : periodo,
       ano,
@@ -317,13 +316,23 @@ function preferenciasImpressao(ctx, sobrescritas) {
       saldos,
       validacao: Core.validar(ctx.entries, filtroValidacao, ctx.contas),
       balancete,
-      balanceteAnual: Core.balanceteAnual(ctx.entries, ano, ctx.contas, saldosDoAno(ctx, ano)),
-      razao: Core.razao(ctx.entries, filtro, ctx.contas, saldos, (document.getElementById('rcConta') || {}).value || ''),
-      diario: Core.diario(ctx.entries, filtro, ctx.contas),
-      dre: Core.dre(Core.balancete(Core.lancamentosOperacionais(ctx.entries), filtro, ctx.contas, {})),
-      balanco: Core.balanco(balancete),
-      analise: Core.analiseEconomica(balancete, ctx.contas, (((ctx || {}).config || {}).mapeamentoAnaliseEconomica || {}))
     };
+    const calculos = {
+      balanceteAnual: function() { return Core.balanceteAnual(ctx.entries, ano, ctx.contas, saldosDoAno(ctx, ano)); },
+      razao: function() { return Core.razao(ctx.entries, filtro, ctx.contas, saldos, (document.getElementById('rcConta') || {}).value || ''); },
+      diario: function() { return Core.diario(ctx.entries, filtro, ctx.contas); },
+      dre: function() { return Core.dre(Core.balancete(Core.lancamentosOperacionais(ctx.entries), filtro, ctx.contas, {})); },
+      balanco: function() { return Core.balanco(balancete); },
+      analise: function() { return Core.analiseEconomica(balancete, ctx.contas, (((ctx || {}).config || {}).mapeamentoAnaliseEconomica || {})); }
+    };
+    Object.keys(calculos).forEach(function(k) {
+      Object.defineProperty(dados, k, { configurable: true, get: function() {
+        const valor = calculos[k]();
+        Object.defineProperty(dados, k, { value: valor, enumerable: true });
+        return valor;
+      } });
+    });
+    return dados;
   }
 
   function atualizarModoPeriodo() {
@@ -601,8 +610,13 @@ function preferenciasImpressao(ctx, sobrescritas) {
       statusAtual = null; statusEmpresa = null;
       if (estrito) throw new Error('Não foi possível conferir os saldos de abertura e fechamentos. Atualize novamente o relatório.');
     }
-    try { homologacaoAtual = window.API.consultarHomologacaoPiloto ? await window.API.consultarHomologacaoPiloto(ctx.empresa.cnpj) : null; }
-    catch (e) { homologacaoAtual = null; }
+    homologacaoAtual = null;
+    if (window.API.consultarHomologacaoPiloto) {
+      window.API.consultarHomologacaoPiloto(ctx.empresa.cnpj).then(function(r) {
+        if (String(contexto().empresa.cnpj) !== String(ctx.empresa.cnpj)) return;
+        homologacaoAtual = r; renderHomologacaoPiloto();
+      }).catch(function() { if (String(contexto().empresa.cnpj) === String(ctx.empresa.cnpj)) { homologacaoAtual = null; renderHomologacaoPiloto(); } });
+    }
   }
 
   function renderHomologacaoPiloto() {
@@ -971,8 +985,9 @@ function preferenciasImpressao(ctx, sobrescritas) {
       script.src = src;
       script.async = true;
       script.dataset.cciPdf = src;
-      script.onload = function () { script.dataset.carregado = 'true'; resolve(); };
-      script.onerror = function () { delete bibliotecasPDF[src]; reject(new Error('Não foi possível carregar a biblioteca PDF local.')); };
+      const timer = setTimeout(function() { delete bibliotecasPDF[src]; script.remove(); reject(new Error('O carregamento da biblioteca PDF excedeu 30 segundos. Tente atualizar a prévia.')); }, 30000);
+      script.onload = function () { clearTimeout(timer); script.dataset.carregado = 'true'; resolve(); };
+      script.onerror = function () { clearTimeout(timer); delete bibliotecasPDF[src]; script.remove(); reject(new Error('Não foi possível carregar a biblioteca PDF local.')); };
       if (!existente) document.head.appendChild(script);
     });
     return bibliotecasPDF[src];
@@ -1139,7 +1154,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   function salvarPreferenciasImpressao(preferencias) {
     const ctx = contexto();
-    if (ctx && typeof ctx.salvarPreferenciasImpressao === 'function') ctx.salvarPreferenciasImpressao(preferencias);
+    if (ctx && typeof ctx.salvarPreferenciasImpressao === 'function' && JSON.stringify(preferenciasImpressao(ctx)) !== JSON.stringify(preferenciasImpressao(ctx, preferencias))) ctx.salvarPreferenciasImpressao(preferencias);
   }
 
   function preencherFormularioImpressao() {
@@ -1153,17 +1168,39 @@ function preferenciasImpressao(ctx, sobrescritas) {
     document.getElementById('rcCRCContador').value = preferencias.crcContador;
   }
 
-  async function atualizarPreviaImpressao() {
+  let geracaoPreviaEmAndamento = false;
+  async function gerarPreviaImpressao(exportar) {
+    if (geracaoPreviaEmAndamento) return;
+    geracaoPreviaEmAndamento = true;
+    const status = document.getElementById('rcImpressaoStatus');
+    const quadro = document.getElementById('rcQuadroPreviaImpressao');
+    const botoes = ['rcImpressaoAtualizar', 'rcImpressaoExportar'].map(function(id) { return document.getElementById(id); });
+    botoes.forEach(function(b) { b.disabled = true; });
+    status.textContent = 'Conferindo os dados online e gerando o PDF…';
+    quadro.removeAttribute('src');
+    documentoPreviaImpressao = null;
     try {
+      await new Promise(function(resolve) { setTimeout(resolve, 0); });
       const preferencias = valoresFormularioImpressao();
       salvarPreferenciasImpressao(preferencias);
       const resultado = await criarDocumentoPDF(preferencias);
       documentoPreviaImpressao = resultado;
       if (urlPreviaImpressao) URL.revokeObjectURL(urlPreviaImpressao);
       urlPreviaImpressao = URL.createObjectURL(resultado.doc.output('blob'));
-      document.getElementById('rcQuadroPreviaImpressao').src = urlPreviaImpressao;
-    } catch (e) { window.showToast(e.message || String(e), 'error'); }
+      quadro.src = urlPreviaImpressao;
+      status.textContent = 'PDF gerado. Se o visualizador do navegador não abrir, utilize Exportar PDF.';
+      if (exportar) resultado.doc.save(resultado.arquivo);
+      return resultado;
+    } catch (e) {
+      status.textContent = 'Não foi possível gerar o PDF: ' + (e.message || String(e));
+      window.showToast(e.message || String(e), 'error');
+    } finally {
+      geracaoPreviaEmAndamento = false;
+      botoes.forEach(function(b) { b.disabled = false; });
+    }
   }
+
+  async function atualizarPreviaImpressao() { return gerarPreviaImpressao(false); }
 
   async function abrirModalImpressao() {
     preencherFormularioImpressao();
@@ -1181,14 +1218,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     documentoPreviaImpressao = null;
   }
 
-  async function exportarPreviaImpressao() {
-    try {
-      const preferencias = valoresFormularioImpressao();
-      salvarPreferenciasImpressao(preferencias);
-      const resultado = await criarDocumentoPDF(preferencias);
-      resultado.doc.save(resultado.arquivo);
-    } catch (e) { window.showToast(e.message || String(e), 'error'); }
-  }
+  async function exportarPreviaImpressao() { return gerarPreviaImpressao(true); }
 
   async function enviarPDFEmail() {
     const email = String(document.getElementById('rcEmailDestinatario').value || '').trim();
