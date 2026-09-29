@@ -1,7 +1,9 @@
 {
-  "version": "3.4.336",
-  "build_date": "2026-09-29T16:48:51.031Z",
+  "version": "3.4.337",
+  "build_date": "2026-09-29T17:10:01.037Z",
   "release_notes": [
+    "Consulta contábil: abrir lançamentos e trocar competências não altera históricos, descrições, identificadores ou valores salvos.",
+    "Avisos de gravação identificam a competência bloqueada; respostas antigas não substituem o relatório selecionado.",
     "Prévias e PDF: calcular apenas a demonstração solicitada, impedir geração simultânea e apresentar andamento e falhas na janela.",
     "Desempenho: evitar gravações idênticas e preferências de impressão sem mudanças; painel auxiliar deixa de bloquear relatórios.",
     "Salvamento online preserva integralmente os lançamentos, encerramentos e informações de auditoria.",
