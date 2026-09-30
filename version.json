@@ -1,7 +1,8 @@
 {
-  "version": "3.4.345",
-  "build_date": "2026-09-30T18:47:26.112776+00:00",
+  "version": "3.4.346",
+  "build_date": "2026-09-30T19:59:10.444809+00:00",
   "release_notes": [
+    "Admin: modal Backup / Restore com datas, inventários reais CCI/CFI, agenda, estados de réplicas, execução manual e restauração em banco separado auditada.",
     "AuditAI: reconhecer cabeçalhos, saldo anterior e totais SAGE separados em linhas pelo PDF.js do navegador; impedir confusão entre histórico e tipo de relatório.",
     "AuditAI: lê o razão exportado pelo CCI, separa débitos, créditos e saldos e confere evolução por conta para comparação com o SAGE.",
     "Serviços prestados SAGE: lê modelo 51/53 com clientes CPF, sem razão social ou não informados; preserva pendências e confere total oficial.",

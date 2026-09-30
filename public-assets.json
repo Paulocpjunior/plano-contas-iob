@@ -79,5 +79,6 @@
   "/reinf/alugueis-planilha-modal.js",
   "/reinf/carne-leao-preparacao.js",
   "/reinf/carne-leao-preparacao-ui.js",
-  "/server-monitor-ui.js"
+  "/server-monitor-ui.js",
+  "/admin-backups-ui.js"
 ]

@@ -6,33 +6,33 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.345"></script>
+<script src="/saas-brand-theme.js?v=3.4.346"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.345"></script>
-<script src="/parser-ofx.js?v=3.4.345"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.345"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.345"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.345"></script>
-<script src="/parser-safra-extrato.js?v=3.4.345"></script>
-<script src="/parser-brb-extrato.js?v=3.4.345"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.345"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.345"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.345"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.345"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.345"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.345"></script>
-<script src="/parser-btg-pactual.js?v=3.4.345"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.345"></script>
-<script src="/parser-abc-extrato.js?v=3.4.345"></script>
-<script src="/parser-inter-extrato.js?v=3.4.345"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.345"></script>
-<script src="/parser-stone-extrato.js?v=3.4.345"></script>
-<script src="/parser-mercado-pago-extrato.js?v=3.4.345"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.345"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.345"></script>
+<script src="/api-adapter.js?v=3.4.346"></script>
+<script src="/parser-ofx.js?v=3.4.346"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.346"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.346"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.346"></script>
+<script src="/parser-safra-extrato.js?v=3.4.346"></script>
+<script src="/parser-brb-extrato.js?v=3.4.346"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.346"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.346"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.346"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.346"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.346"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.346"></script>
+<script src="/parser-btg-pactual.js?v=3.4.346"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.346"></script>
+<script src="/parser-abc-extrato.js?v=3.4.346"></script>
+<script src="/parser-inter-extrato.js?v=3.4.346"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.346"></script>
+<script src="/parser-stone-extrato.js?v=3.4.346"></script>
+<script src="/parser-mercado-pago-extrato.js?v=3.4.346"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.346"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.346"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -243,6 +243,9 @@
   #monitor-refresh:disabled {opacity:.6;cursor:wait;}
   @media(max-width:800px){#monitor-cards{grid-template-columns:repeat(2,minmax(0,1fr));}}
   @media(max-width:500px){#monitor-cards{grid-template-columns:1fr;}}
+#tab-backups p, #backup-dialog p { margin: 10px 0; line-height: 1.5; }
+#backup-dialog::backdrop { background: rgba(15,23,42,.65); }
+#tab-backups button, #backup-dialog button { cursor:pointer; }
 </style>
 </head>
 <body>
@@ -281,10 +284,19 @@
     <button onclick="showTab('qualidade')">✅ Qualidade de Layouts</button>
     <button onclick="showTab('exclusao', this)">🗑️ Exclusão de Lançamentos</button>
     <button onclick="showTab('usuarios')">👥 Usuários</button>
+    <button onclick="showTab('backups', this)">💾 Backup / Restore</button>
     <button onclick="showTab('servidor', this)">🖥️ Servidor BETA</button>
     <button onclick="showTab('logs')">📜 Log de Acesso</button>
   </div>
 
+  <div id="tab-backups" class="tab-content">
+    <div class="card"><h2>Backup / Restore — CCI e CFI</h2><p>Controle administrativo online. Datas no horário de Brasília. Exportação, réplica e validação são acompanhadas separadamente.</p>
+    <button id="backup-refresh" class="btn" type="button">Atualizar histórico</button><p id="backup-status" role="status">Abra esta aba para consultar.</p></div>
+    <div id="backup-results"></div>
+    <dialog id="backup-dialog" style="width:min(1100px,90vw);max-height:85vh;overflow:auto;background:var(--surface,#fff);color:var(--text,#111827);border:1px solid #94a3b8;border-radius:16px;padding:24px">
+      <button type="button" id="backup-dialog-close" class="btn" style="float:right">Fechar</button><h2 id="backup-dialog-title"></h2><div id="backup-dialog-content"></div>
+    </dialog>
+  </div>
   <div id="tab-servidor" class="tab-content">
     <div class="card"><h2>Saúde do servidor <small> BETA</small></h2>
     <p>Consumo e desempenho do CCI · última hora · Google Cloud Monitoring</p>
@@ -682,6 +694,7 @@ function showTab(tab, sourceButton) {
   const btn = sourceButton || (typeof event !== 'undefined' && event && event.target) || document.querySelector('.tabs button[onclick*="' + tab + '"]');
   if (btn) btn.classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
+  if (window.CCIBackups) window.CCIBackups.activate(tab === 'backups');
   if (window.CCIMonitor) window.CCIMonitor.activate(tab === 'servidor');
   if (tab === 'layouts') renderLayouts();
   if (tab === 'qualidade') loadLayoutQuality();
@@ -2367,6 +2380,7 @@ function exportLogsCSV() {
   a.click();
 }
 </script>
-<script src="server-monitor-ui.js?v=3.4.345"></script>
+<script src="admin-backups-ui.js?v=3.4.346"></script>
+<script src="server-monitor-ui.js?v=3.4.346"></script>
 </body>
 </html>
