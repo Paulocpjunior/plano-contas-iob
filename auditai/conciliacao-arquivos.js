@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.4.344';
+  const AUDITAI_MOTOR_VERSION = '3.4.345';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.344';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.345';
 
   const STATE = {
     files: { a: null, b: null },
@@ -406,7 +406,12 @@
   function parseAccountingText(text) {
     const clean=String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
     if(!/BALANCETE|RAZAO\s+ANALITICO/.test(clean)||!/SALDO|SDO\.?/.test(clean))return null;
-    const lines=String(text).split(/\r?\n/),moneyRE=/[\d.]+,\d{2}\s*[DC]?/g;
+    const normalizedText=String(text)
+      .replace(/(Conta Analisada\s*-)[ \t]*\r?\n[ \t]*(?=\d+\.)/gi, '$1 ')
+      .replace(/^([DC])\s*\r?\n\s*([\d.]+,\d{2})\s*\r?\n\s*(Saldo Anterior\s*:)\s*$/gmi, '$3 $2 $1')
+      .replace(/^([\d.]+,\d{2}\s*[DC]?)\s*\r?\n\s*(Saldo Anterior\s*:)\s*$/gmi, '$2 $1')
+      .replace(/^([\d.]+,\d{2}\s+[\d.]+,\d{2}\s+[\d.]+,\d{2}\s*[DC]?)\s*\r?\n\s*(Saldo Geral:)\s*$/gmi, '$2 $1');
+    const lines=normalizedText.split(/\r?\n/),moneyRE=/[\d.]+,\d{2}\s*[DC]?/g;
     const nums=line=>(line.match(moneyRE)||[]).map(v=>({cents:Math.round(Number(v.replace(/[DC\s]/g,'').replace(/\./g,'').replace(',','.'))*100)*(v.trim().endsWith('C')?-1:1),raw:v}));
     if(/CONTA COMPLETA\s+REDUZIDO/.test(clean)&&/RAZAO\s+ANALITICO/.test(clean)){
       const grouped=new Map();let current=null,block=[];
@@ -414,7 +419,7 @@
       for(const line of lines){const m=line.match(/^\s*(\d+\.\d+\.\d+\.\d{2}\.\d{4})\s+(\d+)\s+(.*)$/);if(m){finish();current={key:m[2].replace(/^0+/,'')||'0',code:m[1],description:m[3].split(/\d{2}\/\d{2}\/\d{4}/)[0].trim()};block=[m[3]];}else if(current&&!/^(?:Conta completa|SP ASSESSORIA|Razão Analítico|Período:|Gerado em:|Responsável|Contador|CPF:|CRC:)/i.test(line.trim()))block.push(line);}
       finish();if(!grouped.size)throw Error('Razão CCI sem movimentos reconhecidos.');const result=[...grouped.values()];result.accounting=true;const company=String(text).match(/CNPJ\s*:?\s*([\d.\/-]+)/i);result.cnpj=company?company[1].replace(/\D/g,''):'';const period=String(text).match(/Per[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*(?:a|A)\s*(\d{2}\/\d{2}\/\d{4})/);result.periods=period?[period[1]+' a '+period[2]]:[];return result;
     }
-    const isBalancete=/BALANCETE/.test(clean);
+    const isBalancete=/BALANCETE/.test(clean)&&!/RAZAO\s+ANALITICO/.test(clean);
     const rows=[],seen=new Set(),openings=new Map();let account=null,period='',opening=null;const periods=new Set();
     for(const line of lines){
       const pm=line.match(/PER[IÍ]ODO:\s*(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})\s*A\s*(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/i);if(pm){period=pm[1]+' a '+pm[2];periods.add(period);}
