@@ -127,7 +127,10 @@ function calcularDividendos(params = {}) {
     if(params.modoDistribuicao&&params.modoDistribuicao!=='percentuais')throw Error('Modo de distribuição inválido.');
     brutos=ratearCentavos(valorDistribuidoCentavos,socios.map(s=>s.percentual));
   }
-  const ataAplicavel = ataAprovadaAte2025 && ataValidaAte2028;
+  // Registros anteriores sem origem conservam o cálculo histórico.
+  const origemDividendos = params.origemDividendos || 'ata_2025';
+  if (!['ata_2025', 'lucros_posteriores'].includes(origemDividendos)) throw Error('Origem dos dividendos inválida.');
+  const ataAplicavel = origemDividendos === 'ata_2025' && ataAprovadaAte2025 && ataValidaAte2028;
   let ataUsadoCentavos = ataAplicavel
     ? Math.min(Math.max(0, ataSaldoAnteriorCentavos), valorDistribuidoCentavos)
     : 0;
@@ -174,6 +177,7 @@ function calcularDividendos(params = {}) {
     valorDistribuido: fromCents(valorDistribuidoCentavos),
     ataValorTotal: fromCents(ataValorTotalCentavos),
     ataSaldoAnterior: fromCents(ataSaldoAnteriorCentavos),
+    origemDividendos,
     ataAplicavel,
     ataUsado: fromCents(ataUsadoCentavos),
     ataSaldoApos: fromCents(ataSaldoAposCentavos),
