@@ -1,7 +1,8 @@
 {
-  "version": "3.4.343",
-  "build_date": "2026-09-30T17:47:42.972388+00:00",
+  "version": "3.4.344",
+  "build_date": "2026-09-30T18:21:35.851323+00:00",
   "release_notes": [
+    "AuditAI: lê o razão exportado pelo CCI, separa débitos, créditos e saldos e confere evolução por conta para comparação com o SAGE.",
     "Serviços prestados SAGE: lê modelo 51/53 com clientes CPF, sem razão social ou não informados; preserva pendências e confere total oficial.",
     "AuditAI: confronto contábil por conta e colunas, sem tratar saldos acumulados como movimentos; evidencia divergências e leitura não conferida.",
     "Dividendos: origem mensal explícita; lucros posteriores preservam o saldo da ATA e a identificação consta do extrato.",
