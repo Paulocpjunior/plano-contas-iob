@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.4.343';
+  const AUDITAI_MOTOR_VERSION = '3.4.344';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.343';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.344';
 
   const STATE = {
     files: { a: null, b: null },
@@ -408,6 +408,12 @@
     if(!/BALANCETE|RAZAO\s+ANALITICO/.test(clean)||!/SALDO|SDO\.?/.test(clean))return null;
     const lines=String(text).split(/\r?\n/),moneyRE=/[\d.]+,\d{2}\s*[DC]?/g;
     const nums=line=>(line.match(moneyRE)||[]).map(v=>({cents:Math.round(Number(v.replace(/[DC\s]/g,'').replace(/\./g,'').replace(',','.'))*100)*(v.trim().endsWith('C')?-1:1),raw:v}));
+    if(/CONTA COMPLETA\s+REDUZIDO/.test(clean)&&/RAZAO\s+ANALITICO/.test(clean)){
+      const grouped=new Map();let current=null,block=[];
+      const finish=()=>{if(!current)return;const body=block.join(' '),values=nums(body),date=body.match(/\b\d{2}\/\d{2}\/\d{4}\b/);if(!date||values.length<3)throw Error('Razão CCI: linha incompleta na conta '+current.key);const v=values.slice(-3),debit=Math.abs(v[0].cents),credit=Math.abs(v[1].cents),closing=v[2].cents,opening=closing-debit+credit;const a=grouped.get(current.key);if(a){if(a.closing!==opening)throw Error('Razão CCI: evolução do saldo não confere na conta '+current.key);a.debit+=debit;a.credit+=credit;a.closing=closing;}else grouped.set(current.key,{...current,opening,debit,credit,closing});};
+      for(const line of lines){const m=line.match(/^\s*(\d+\.\d+\.\d+\.\d{2}\.\d{4})\s+(\d+)\s+(.*)$/);if(m){finish();current={key:m[2].replace(/^0+/,'')||'0',code:m[1],description:m[3].split(/\d{2}\/\d{2}\/\d{4}/)[0].trim()};block=[m[3]];}else if(current&&!/^(?:Conta completa|SP ASSESSORIA|Razão Analítico|Período:|Gerado em:|Responsável|Contador|CPF:|CRC:)/i.test(line.trim()))block.push(line);}
+      finish();if(!grouped.size)throw Error('Razão CCI sem movimentos reconhecidos.');const result=[...grouped.values()];result.accounting=true;const company=String(text).match(/CNPJ\s*:?\s*([\d.\/-]+)/i);result.cnpj=company?company[1].replace(/\D/g,''):'';const period=String(text).match(/Per[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*(?:a|A)\s*(\d{2}\/\d{2}\/\d{4})/);result.periods=period?[period[1]+' a '+period[2]]:[];return result;
+    }
     const isBalancete=/BALANCETE/.test(clean);
     const rows=[],seen=new Set(),openings=new Map();let account=null,period='',opening=null;const periods=new Set();
     for(const line of lines){
@@ -430,7 +436,7 @@
     }
     if(!rows.length)throw Error('Relatório contábil reconhecido, mas sem colunas completas. Resultado não validado; saldos não serão tratados como movimentos.');
     const grouped=new Map();rows.forEach(r=>{const a=grouped.get(r.key);if(!a)grouped.set(r.key,{...r});else{if(a.closing!==r.opening){a.coverageWarning='Aberturas entre intervalos não contínuas; conferir saldos na fonte.';a.opening=null;}a.debit+=r.debit;a.credit+=r.credit;a.closing=r.closing;if(a.coverageWarning)a.closing=null;}});
-    const result=[...grouped.values()];result.accounting=true;const company=String(text).match(/CNPJ:\s*([\d.\/-]+)/i);result.cnpj=company?company[1].replace(/\D/g,''):'';result.periods=[...periods];return result;
+    const result=[...grouped.values()];result.accounting=true;const company=String(text).match(/CNPJ\s*:?\s*([\d.\/-]+)/i);result.cnpj=company?company[1].replace(/\D/g,''):'';result.periods=[...periods];return result;
   }
   function compareAccounting(a,b){
     if(!a.accounting||!b.accounting)throw Error('Compare dois relatórios contábeis; não misture com extrato financeiro.');
