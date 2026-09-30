@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.4.346';
+  const AUDITAI_MOTOR_VERSION = '3.4.347';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.346';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.347';
 
   const STATE = {
     files: { a: null, b: null },
@@ -413,10 +413,22 @@
       .replace(/^([\d.]+,\d{2}\s+[\d.]+,\d{2}\s+[\d.]+,\d{2}\s*[DC]?)\s*\r?\n\s*(Saldo Geral:)\s*$/gmi, '$2 $1');
     const lines=normalizedText.split(/\r?\n/),moneyRE=/[\d.]+,\d{2}\s*[DC]?/g;
     const nums=line=>(line.match(moneyRE)||[]).map(v=>({cents:Math.round(Number(v.replace(/[DC\s]/g,'').replace(/\./g,'').replace(',','.'))*100)*(v.trim().endsWith('C')?-1:1),raw:v}));
+    if(/^CONTA\s+DESCRICAO DA CONTA\s+DATA\b/m.test(clean)&&/RAZAO\s+ANALITICO/.test(clean)){
+      const grouped=new Map();let account=null,block=[];
+      function finishLegacy(){
+        if(!account)return;const body=block.join(' '),tail=body.match(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*$/);
+        if(!tail)throw Error('Razão CCI antigo: três colunas numéricas não reconhecidas na conta '+account.key);
+        const debit=Math.round(Number(tail[1])*100),credit=Math.round(Number(tail[2])*100),closing=Math.round(Number(tail[3])*100),opening=closing-debit+credit;
+        if(debit<0||credit<0)throw Error('Razão CCI antigo: movimento negativo exige conferência.');
+        const previous=grouped.get(account.key);if(previous){if(previous.closing!==opening)throw Error('Razão CCI antigo: evolução do saldo divergente na conta '+account.key);previous.debit+=debit;previous.credit+=credit;previous.closing=closing;}else grouped.set(account.key,{...account,opening,debit,credit,closing});
+      }
+      for(const line of lines){const row=line.match(/^\s*(\d+)\s+(.+?)\s+(\d{2}\/\d{2}\/\d{4})\b(.*)$/);if(row){finishLegacy();account={key:row[1].replace(/^0+/,'')||'0',code:row[1],description:row[2]};block=[row[4]];}else if(account&&!/^(?:Conta |SP ASSESSORIA|Razão Analítico|Período:|Gerado (?:em:|pelo)|Responsável|Contador|CPF:|CRC:)/i.test(line.trim()))block.push(line);}
+      finishLegacy();if(!grouped.size)throw Error('Razão CCI antigo sem movimentos reconhecidos.');const result=[...grouped.values()];result.accounting=true;const company=String(text).match(/CNPJ\s*:?\s*([\d.\/-]+)/i);result.cnpj=company?company[1].replace(/\D/g,''):'';const period=String(text).match(/Raz[aã]o Anal[ií]tico\s*[—-]\s*(\d{4})-(\d{2})/i);result.periods=period?['01/'+period[2]+'/'+period[1]+' a '+String(new Date(Number(period[1]),Number(period[2]),0).getDate()).padStart(2,'0')+'/'+period[2]+'/'+period[1]]:[];return result;
+    }
     if(/CONTA COMPLETA\s+REDUZIDO/.test(clean)&&/RAZAO\s+ANALITICO/.test(clean)){
       const grouped=new Map();let current=null,block=[];
       const finish=()=>{if(!current)return;const body=block.join(' '),values=nums(body),date=body.match(/\b\d{2}\/\d{2}\/\d{4}\b/);if(!date||values.length<3)throw Error('Razão CCI: linha incompleta na conta '+current.key);const v=values.slice(-3),debit=Math.abs(v[0].cents),credit=Math.abs(v[1].cents),closing=v[2].cents,opening=closing-debit+credit;const a=grouped.get(current.key);if(a){if(a.closing!==opening)throw Error('Razão CCI: evolução do saldo não confere na conta '+current.key);a.debit+=debit;a.credit+=credit;a.closing=closing;}else grouped.set(current.key,{...current,opening,debit,credit,closing});};
-      for(const line of lines){const m=line.match(/^\s*(\d+\.\d+\.\d+\.\d{2}\.\d{4})\s+(\d+)\s+(.*)$/);if(m){finish();current={key:m[2].replace(/^0+/,'')||'0',code:m[1],description:m[3].split(/\d{2}\/\d{2}\/\d{4}/)[0].trim()};block=[m[3]];}else if(current&&!/^(?:Conta completa|SP ASSESSORIA|Razão Analítico|Período:|Gerado em:|Responsável|Contador|CPF:|CRC:)/i.test(line.trim()))block.push(line);}
+      for(const line of lines){const m=line.match(/^\s*(\d+\.\d+\.\d+\.\d{2}\.\d{4})\s+(\d+)\s+(.*)$/);if(m){finish();current={key:m[2].replace(/^0+/,'')||'0',code:m[1],description:m[3].split(/\d{2}\/\d{2}\/\d{4}/)[0].trim()};block=[m[3]];}else if(current&&!/^(?:Conta completa|SP ASSESSORIA|Razão Analítico|Período:|Gerado (?:em:|pelo)|Responsável|Contador|CPF:|CRC:)/i.test(line.trim()))block.push(line);}
       finish();if(!grouped.size)throw Error('Razão CCI sem movimentos reconhecidos.');const result=[...grouped.values()];result.accounting=true;const company=String(text).match(/CNPJ\s*:?\s*([\d.\/-]+)/i);result.cnpj=company?company[1].replace(/\D/g,''):'';const period=String(text).match(/Per[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*(?:a|A)\s*(\d{2}\/\d{2}\/\d{4})/);result.periods=period?[period[1]+' a '+period[2]]:[];return result;
     }
     const isBalancete=/BALANCETE/.test(clean)&&!/RAZAO\s+ANALITICO/.test(clean);
@@ -1726,8 +1738,8 @@
     btn.textContent = 'Analisando...';
     status.textContent = 'Extraindo dados dos arquivos...';
     try {
-      STATE.rows.a = await parseFile(STATE.files.a);
-      STATE.rows.b = await parseFile(STATE.files.b);
+      try { STATE.rows.a = await parseFile(STATE.files.a); } catch(e) { throw Error('Arquivo A ('+STATE.files.a.name+'): '+e.message); }
+      try { STATE.rows.b = await parseFile(STATE.files.b); } catch(e) { throw Error('Arquivo B ('+STATE.files.b.name+'): '+e.message); }
       status.textContent = 'Arquivo A: ' + STATE.rows.a.length + ' linhas úteis · Arquivo B: ' + STATE.rows.b.length + ' linhas úteis.';
       if(STATE.rows.a.accounting||STATE.rows.b.accounting){
         const accounts=compareAccounting(STATE.rows.a,STATE.rows.b);

@@ -257,6 +257,7 @@ function adminRequired(req, res, next) {
   next();
 }
 
+require('./backup-notifications').register({app,db,email:GraphEmail,express});
 app.use('/api', authRequired);
 app.use('/api', criarLimitador({
   janelaMs: 60 * 1000,
@@ -4875,7 +4876,8 @@ app.get('/api/admin/backups', adminRequired, async (req, res) => {
     }
     return event;
   }));
-  res.json({generatedAt:new Date().toISOString(),systems,history});
+  const notificationSnapshot=await db.collection('backup_notifications').orderBy('createdAt','desc').limit(30).get();
+  res.json({generatedAt:new Date().toISOString(),systems,history,notifications:notificationSnapshot.docs.map(d=>({id:d.id,...d.data()}))});
   } catch (_) { res.status(503).json({erro:'Consulta de backups indisponível.'}); }
 });
 app.get('/api/admin/backups/:app/:run/manifest', adminRequired, async (req,res) => {
