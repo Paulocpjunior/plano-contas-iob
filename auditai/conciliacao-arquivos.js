@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.4.341';
+  const AUDITAI_MOTOR_VERSION = '3.4.342';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.341';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.342';
 
   const STATE = {
     files: { a: null, b: null },
@@ -403,7 +403,49 @@
     return rows.length ? rows : rowsFromText(text);
   }
 
+  function parseAccountingText(text) {
+    const clean=String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+    if(!/BALANCETE|RAZAO\s+ANALITICO/.test(clean)||!/SALDO|SDO\.?/.test(clean))return null;
+    const lines=String(text).split(/\r?\n/),moneyRE=/[\d.]+,\d{2}\s*[DC]?/g;
+    const nums=line=>(line.match(moneyRE)||[]).map(v=>({cents:Math.round(Number(v.replace(/[DC\s]/g,'').replace(/\./g,'').replace(',','.'))*100)*(v.trim().endsWith('C')?-1:1),raw:v}));
+    const isBalancete=/BALANCETE/.test(clean);
+    const rows=[],seen=new Set(),openings=new Map();let account=null,period='',opening=null;const periods=new Set();
+    for(const line of lines){
+      const pm=line.match(/PER[IÍ]ODO:\s*(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})\s*A\s*(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/i);if(pm){period=pm[1]+' a '+pm[2];periods.add(period);}
+      const ah=line.match(/Conta Analisada\s*-\s*([\d.]+)\s*-\s*(\d+)\s*-\s*(.+)/i);
+      if(ah){const k=ah[2].replace(/^0+/,'')||'0';account={key:k,code:ah[1],description:ah[3]};opening=openings.has(k+'|'+period)?openings.get(k+'|'+period):null;continue;}
+      if(account&&/Saldo Anterior/i.test(line)&&opening===null){const v=nums(line);if(!v.length&&/Saldo Anterior\s*:\s*[DC]?\s*$/i.test(line))v.push({cents:0});if(v.length===1){const k=account.key+'|'+period;if(!openings.has(k))openings.set(k,v[0].cents);opening=openings.get(k);}continue;}
+      if(account&&/Saldo Geral/i.test(line)){
+        const v=nums(line);if(v.length!==3||opening===null)throw Error('Razão: totais ou abertura não reconhecidos para conta '+account.key);
+        const k=account.key+'|'+period;if(seen.has(k))throw Error('Razão: conta e intervalo repetidos; confira arquivos concatenados.');seen.add(k);
+        if(opening+Math.abs(v[0].cents)-Math.abs(v[1].cents)!==v[2].cents)throw Error('Razão: evolução do saldo divergente na conta '+account.key);
+        rows.push({...account,period,opening,debit:Math.abs(v[0].cents),credit:Math.abs(v[1].cents),closing:v[2].cents});account=null;continue;
+      }
+      if(isBalancete){
+        const ar=line.match(/^\s*\((\d+)\)\s+\d{4}\s*-\s*(.+)/)||line.match(/^\s*([\d.]+)\s*\/\s*(\d+)\s+(.+)/);
+        if(!ar)continue;const sage=line.trim().startsWith('('),body=sage?ar[2]:ar[3],key=(sage?ar[1]:ar[2]).replace(/^0+/,'')||'0',v=nums(body);if(v.length!==4)throw Error('Balancete: quatro colunas não reconhecidas na conta '+key);
+        if(seen.has(key))throw Error('Balancete: conta repetida '+key);seen.add(key);
+        rows.push({key,description:body.slice(0,body.indexOf(v[0].raw)).replace(/R\$\s*$/,'').trim(),period,opening:v[0].cents,debit:Math.abs(v[1].cents),credit:Math.abs(v[2].cents),closing:v[3].cents});
+      }
+    }
+    if(!rows.length)throw Error('Relatório contábil reconhecido, mas sem colunas completas. Resultado não validado; saldos não serão tratados como movimentos.');
+    const grouped=new Map();rows.forEach(r=>{const a=grouped.get(r.key);if(!a)grouped.set(r.key,{...r});else{if(a.closing!==r.opening){a.coverageWarning='Aberturas entre intervalos não contínuas; conferir saldos na fonte.';a.opening=null;}a.debit+=r.debit;a.credit+=r.credit;a.closing=r.closing;if(a.coverageWarning)a.closing=null;}});
+    const result=[...grouped.values()];result.accounting=true;const company=String(text).match(/CNPJ:\s*([\d.\/-]+)/i);result.cnpj=company?company[1].replace(/\D/g,''):'';result.periods=[...periods];return result;
+  }
+  function compareAccounting(a,b){
+    if(!a.accounting||!b.accounting)throw Error('Compare dois relatórios contábeis; não misture com extrato financeiro.');
+    if(a.cnpj&&b.cnpj&&a.cnpj!==b.cnpj)throw Error('CNPJ diferente entre os relatórios.');
+    const monthSet=rows=>[...new Set((rows.periods||[]).flatMap(p=>p.match(/\d{2}\/\d{4}/g)||[]))].sort().join('|');
+    if(monthSet(a)&&monthSet(b)&&monthSet(a)!==monthSet(b))throw Error('Períodos diferentes entre os relatórios.');
+    const am=new Map(a.map(r=>[r.key,r])),bm=new Map(b.map(r=>[r.key,r]));
+    return [...new Set([...am.keys(),...bm.keys()])].map(key=>{const left=am.get(key),right=bm.get(key);return {key,left,right,different:!left||!right||left.coverageWarning||right.coverageWarning||['opening','debit','credit','closing'].some(k=>left[k]!==right[k])};});
+  }
+  function renderAccounting(rows){
+    return '<div class="bg-white rounded-2xl p-5"><h2 class="font-bold">Confronto contábil por conta — valores A / B / diferença</h2><p>'+rows.filter(r=>r.different).length+' conta(s) divergente(s) ou sem contraparte. Contas ausentes não são consideradas conciliadas. Saldo acumulado não é movimento.</p><div class="overflow-auto"><table class="w-full text-xs"><thead><tr><th>Conta / descrição</th><th>Saldo anterior</th><th>Débitos</th><th>Créditos</th><th>Saldo final</th></tr></thead><tbody>'+rows.map(r=>'<tr class="border-t '+(r.different?'bg-amber-50':'')+'"><td>'+escapeHtml(r.key+' — '+(r.left||r.right).description)+(r.left&&r.right?'':' — AUSENTE EM '+(r.left?'B':'A'))+((r.left?.coverageWarning||r.right?.coverageWarning)?' — SALDOS NÃO CONFERIDOS':'')+'</td>'+['opening','debit','credit','closing'].map(k=>'<td class="p-2">'+(r.left?(r.left[k]==null?'Não conferido':money(r.left[k]/100)):'Ausente')+' / '+(r.right?(r.right[k]==null?'Não conferido':money(r.right[k]/100)):'Ausente')+'<br><b>'+(r.left&&r.right&&r.left[k]!=null&&r.right[k]!=null?money((r.left[k]-r.right[k])/100):'Não comparável')+'</b></td>').join('')+'</tr>').join('')+'</tbody></table></div></div>';
+  }
+
   function rowsFromText(text) {
+    const accounting=parseAccountingText(text);if(accounting)return accounting;
     const itauDetailed = parseItauDetailedTextRows(text);
     if (itauDetailed.length) return itauDetailed;
     const itauMonthly = parseItauMonthlyTextRows(text);
@@ -774,6 +816,7 @@
       });
     }
     const allText = lines.map(function (line) { return line.text; }).join('\n');
+    const accounting=parseAccountingText(allText);if(accounting)return accounting;
     const itauDetailed = parseItauDetailedLines(lines, allText);
     if (itauDetailed.length) return itauDetailed;
     const itauMonthly = parseItauMonthlyLines(lines, allText);
@@ -1636,6 +1679,7 @@
   function exportCsv() {
     if (!STATE.result) return;
     const rows = [['tipo', 'data_a', 'descricao_a', 'valor_a', 'data_b', 'descricao_b', 'valor_b', 'confianca', 'motivo']];
+    if(STATE.result.accounting){const csv=[['conta','coluna','valor_a','valor_b','diferenca'],...STATE.result.accounts.flatMap(r=>['opening','debit','credit','closing'].map(k=>[r.key,k,r.left&&r.left[k]!=null?r.left[k]/100:'Nao conferido',r.right&&r.right[k]!=null?r.right[k]/100:'Nao conferido',r.left&&r.right&&r.left[k]!=null&&r.right[k]!=null?(r.left[k]-r.right[k])/100:'Nao comparavel']))].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='confronto-contabil.csv';a.click();URL.revokeObjectURL(url);return;}
     STATE.result.matches.forEach(function (m) { rows.push(['conciliado', m.a.date, m.a.description, m.a.amount, m.b.date, m.b.description, m.b.amount, m.score, m.reason || '']); });
     (STATE.result.ambiguous || []).forEach(function (m) {
       const left = (m.aRows || []).map(function (r) { return [r.date, r.description, r.amount].join(' | '); }).join(' || ');
@@ -1674,9 +1718,15 @@
       STATE.rows.a = await parseFile(STATE.files.a);
       STATE.rows.b = await parseFile(STATE.files.b);
       status.textContent = 'Arquivo A: ' + STATE.rows.a.length + ' linhas úteis · Arquivo B: ' + STATE.rows.b.length + ' linhas úteis.';
+      if(STATE.rows.a.accounting||STATE.rows.b.accounting){
+        const accounts=compareAccounting(STATE.rows.a,STATE.rows.b);
+        STATE.result={accounting:true,accounts};
+        document.getElementById('sp-conciliacao-result').innerHTML=renderAccounting(accounts);return;
+      }
       STATE.result = reconcileRows(STATE.rows.a, STATE.rows.b);
       renderResult();
     } catch (err) {
+      STATE.result=null;document.getElementById('sp-conciliacao-result').innerHTML='';
       console.error(err);
       status.textContent = 'Erro ao analisar: ' + (err.message || err);
     } finally {
@@ -1807,6 +1857,8 @@
     rowsFromMatrix: rowsFromMatrix,
     rowsFromDelimitedText: rowsFromDelimitedText,
     rowsFromText: rowsFromText,
+    parseAccountingText: parseAccountingText,
+    compareAccounting: compareAccounting,
     parseMoney: parseMoney
   };
 

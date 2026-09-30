@@ -1,7 +1,8 @@
 {
-  "version": "3.4.341",
-  "build_date": "2026-09-30T15:00:00.000Z",
+  "version": "3.4.342",
+  "build_date": "2026-09-30T17:38:29.505820+00:00",
   "release_notes": [
+    "AuditAI: confronto contábil por conta e colunas, sem tratar saldos acumulados como movimentos; evidencia divergências e leitura não conferida.",
     "Dividendos: origem mensal explícita; lucros posteriores preservam o saldo da ATA e a identificação consta do extrato.",
     "Dividendos: competência sincronizada com a Reinf, data de pagamento visível no bloco e orientação para conferir saldo inicial online.",
     "Salvamento online: reutiliza a compactação do backup, prepara cópias independentes em paralelo e libera a trava na mesma transação de publicação.",
