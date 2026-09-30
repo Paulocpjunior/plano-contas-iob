@@ -688,6 +688,20 @@
     const cpfCnpj = /(?:\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/;
     const money = /(?<![\d.,])([0-9]{1,3}(?:\.\d{3})*,\d{2}|[0-9]+,\d{2})(?![\d.,])/g;
 
+    // Modelo 51/53 com data, serviço, nota e série em colunas, inclusive cliente não identificado.
+    const tabulares=[];
+    for(const linha of linhas){
+      const m=linha.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d{4})\s+(\d{7})\s+(\d{3})\s+(.+)$/);
+      if(!m)continue;
+      const valores=[...m[5].matchAll(money)];if(valores.length<4||valores.length>5)continue;
+      const cliente=m[5].slice(0,valores[0].index).trim(),doc=(cliente.match(cpfCnpj)||[])[0]||'';
+      if(!doc&&!/^N[ÃA]O INFORMADO$/i.test(cliente))continue;
+      const nome=doc?cliente.replace(doc,'').trim():'';
+      const lanc=criarLancamentoServicoPrestado({cnpj:doc,tomador:nome||'TOMADOR NAO INFORMADO NO RELATORIO',valor:parseMoneyBR(valores[0][1]),documento:m[3],data:parseDateBR(m[1]),periodo,metaEmpresa,servico:m[2],baseCalculoIss:parseMoneyBR(valores[1][1]),aliquotaIss:parseMoneyBR(valores[2][1]),valorIss:parseMoneyBR(valores[3][1]),issRetido:valores[4]?parseMoneyBR(valores[4][1]):0});
+      if(lanc){lanc.identificacaoTomadorPendente=!doc||!nome;if(lanc.identificacaoTomadorPendente){lanc.incomum=true;lanc.ressalvaFiscal='Cliente sem documento ou nome na fonte; conferir cadastro, sem identificação presumida.';}lanc.documentoTomadorTipo=doc?(somenteDigitos(doc).length===11?'CPF':'CNPJ'):null;tabulares.push(lanc);}
+    }
+    if(tabulares.length)return tabulares;
+
     for (let i = 0; i < linhas.length; i++) {
       if (!cpfCnpj.test(linhas[i])) continue;
       if (ehTrechoCabecalhoServicoPrestado(linhas[i])) continue;
