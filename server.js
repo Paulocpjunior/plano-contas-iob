@@ -4859,6 +4859,50 @@ app.get('/api/admin/access-logs', adminRequired, async (req, res) => {
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
+const backupAdmin = require('./admin-backups').createBackups();
+app.get('/api/admin/backups', adminRequired, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+  const systems = await Promise.all(['CCI','CFI'].map(app => backupAdmin.catalog(app)));
+  const events = await db.collection('backup_admin_events').orderBy('createdAt','desc').limit(30).get();
+  const history = await Promise.all(events.docs.map(async doc => {
+    const event = {id:doc.id,...doc.data()};
+    if(event.operation && event.status === 'running') {
+      try { const operation = await backupAdmin.operation(event.app,event.operation);
+        event.status = operation.done ? (operation.error ? 'failed' : 'completed') : 'running';
+        event.error = operation.error ? 'A operação de nuvem falhou. Consulte os detalhes administrativos.' : null;
+      } catch (_) { event.status = 'unknown'; }
+    }
+    return event;
+  }));
+  res.json({generatedAt:new Date().toISOString(),systems,history});
+  } catch (_) { res.status(503).json({erro:'Consulta de backups indisponível.'}); }
+});
+app.get('/api/admin/backups/:app/:run/manifest', adminRequired, async (req,res) => {
+  res.set('Cache-Control','no-store');
+  try { res.json(await backupAdmin.manifest(req.params.app,req.params.run)); }
+  catch (_) { res.status(409).json({erro:'Manifesto indisponível ou não conferido.'}); }
+});
+app.post('/api/admin/backups/action', adminRequired, async (req,res) => {
+  const {app,action,backup,confirmation,requestId}=req.body||{};
+  if(!['CCI','CFI'].includes(app)||!['backup','restore-test'].includes(action))return res.status(400).json({erro:'Ação inválida.'});
+  if(confirmation !== (action==='backup'?'EXECUTAR BACKUP':'RESTAURAR EM TESTE'))return res.status(400).json({erro:'Confirmação obrigatória.'});
+  // Nunca recebe banco de destino, URI de exportação ou projeto fornecido pelo cliente.
+  if(!/^[a-f0-9-]{36}$/.test(requestId||''))return res.status(400).json({erro:'Identificador de solicitação inválido.'});
+  const ref = db.collection('backup_admin_events').doc(requestId);
+  try { await ref.create({app,action,backup:backup||null,status:'requested',createdAt:new Date().toISOString(),uid:req.user.uid,email:req.user.email}); }
+  catch(e) { if(e.code===6){const previous=await ref.get();return res.json({id:ref.id,...previous.data()});}return res.status(503).json({erro:'Não foi possível registrar a solicitação.'}); }
+  try {
+    const result = action==='backup' ? await backupAdmin.start(app) : await backupAdmin.restore(app,backup);
+    const event = {status:'running',operation:result.operation||result.name||null,databaseId:result.databaseId||null};
+    await ref.set(event,{merge:true});res.json({id:ref.id,...event});
+  } catch(e) {
+    const unknown = !e.response && !/inválido|fora|indisponível/.test(e.message||'');
+    await ref.set({status:unknown?'unknown':'failed',error:unknown?'Resultado não confirmado; confira a operação na nuvem.':'Não foi possível iniciar a operação.'},{merge:true});
+    res.status(409).json({erro:unknown?'Resultado não confirmado. Confira a operação na nuvem antes de solicitar novamente.':'Não foi possível iniciar. Confira a origem, o estado do backup e as permissões de nuvem.'});
+  }
+});
+
 const serverMonitor = require('./server-monitor').createMonitor({project: runtimeConfig.runtimeProjectId, service: process.env.K_SERVICE || 'plano-contas-iob'});
 app.get('/api/admin/server-monitor', adminRequired, async (req, res) => {
   res.set('Cache-Control', 'no-store');
