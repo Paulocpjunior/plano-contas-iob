@@ -1,7 +1,8 @@
 {
-  "version": "3.4.340",
-  "build_date": "2026-09-29T18:36:43.025Z",
+  "version": "3.4.341",
+  "build_date": "2026-09-30T15:00:00.000Z",
   "release_notes": [
+    "Dividendos: origem mensal explícita; lucros posteriores preservam o saldo da ATA e a identificação consta do extrato.",
     "Dividendos: competência sincronizada com a Reinf, data de pagamento visível no bloco e orientação para conferir saldo inicial online.",
     "Salvamento online: reutiliza a compactação do backup, prepara cópias independentes em paralelo e libera a trava na mesma transação de publicação.",
     "Servidor BETA: painel administrativo com métricas reais do Cloud Run, gráficos da última hora e atualização automática.",

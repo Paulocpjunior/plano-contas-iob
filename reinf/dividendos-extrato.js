@@ -20,6 +20,7 @@ function montarExtrato(empresa, dados, contexto = {}) {
     'Competência: '+r.competencia+' | Data do pagamento informada: '+data.split('-').reverse().join('/'),
     'Responsável: '+(dados.responsavel||empresa.reinfDividendos?.responsavelDividendos||'Não informado'),
     'Situação: demonstrativo do cálculo informado. Não comprova pagamento, transmissão ou aceite da Receita.',
+    'Origem: '+(dados.origemDividendos==='lucros_posteriores'?'lucros posteriores, sem consumo da ATA':'lucros previstos na ATA de 2025'),
     'Distribuição: '+(dados.modoDistribuicao==='valores'?'valores informados por sócio':'rateio pela participação societária'),
     'Bruto: '+moeda(r.valorDistribuido)+' | IRRF: '+moeda(r.totalIrrf)+' | Líquido calculado: '+moeda(totalLiquido),
     'ATA registrada: '+moeda(r.ataValorTotal)+' | Saldo anterior informado: '+moeda(r.ataSaldoAnterior),
