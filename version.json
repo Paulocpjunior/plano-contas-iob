@@ -1,7 +1,8 @@
 {
-  "version": "3.4.353",
-  "build_date": "2026-10-01T18:29:35Z",
+  "version": "3.4.354",
+  "build_date": "2026-10-01T18:34:34Z",
   "release_notes": [
+    "AuditAI: aplicar natureza devedora/credora ao resultado de exercício; saldo de prejuízo não pode ser apresentado como lucro, preservando débitos, créditos e saldo impresso.",
     "AuditAI: corrigir Exportar PDF da Auditoria, permitindo avanço e paginação do relatório até o download do arquivo.",
     "Planos de contas: gerenciar planos por empresa/CNPJ sem trocar a empresa ativa, identificar nomes repetidos e arquivar/restaurar planos sem vínculo preservando contas e histórico.",
     "AuditAI: detalhar lançamentos sem correspondência entre razões CCI/SAGE, com data, documento, histórico, valores e página; conferir soma contra os totais e exportar detalhes em CSV.",
