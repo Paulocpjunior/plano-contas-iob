@@ -785,7 +785,11 @@ app.post('/api/planos/:id/contas', adminRequired, async (req, res) => {
       const c = d.data();
       return aliasReduzido(c.reduzido || c.ref_rfb) === aliasReduzido(reduzido);
     })) return res.status(409).json({ erro: 'Já existe uma conta com esse reduzido no plano. Consulte-a antes de criar outra.' });
-    await publicarContas(db, planoRef, [...contas.docs.map(d => d.data()), { cod, desc, analitica, ref_rfb: reduzido || null }], req.user, plano);
+    let novaConta;
+    try {
+      novaConta = require('./plano-consulta').validarNovaConta(contas.docs.map(d => d.data()), req.body);
+    } catch (err) { return res.status(400).json({ erro: err.message }); }
+    await publicarContas(db, planoRef, [...contas.docs.map(d => d.data()), { ...novaConta, ref_rfb: reduzido || null }], req.user, plano);
     res.status(201).json({ cod, desc });
   } catch (err) { res.status(err.status || 500).json({ erro: err.message }); }
 });

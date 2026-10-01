@@ -1,7 +1,8 @@
 {
-  "version": "3.4.347",
-  "build_date": "2026-09-30T20:39:57.960702+00:00",
+  "version": "3.4.348",
+  "build_date": "2026-10-01T15:14:05Z",
   "release_notes": [
+    "Plano de contas: cadastrar nova conta contábil com referência ao mesmo grupo, máscara, grau e tipo, sugestão de código e validação de duplicidades.",
     "Backup CCI/CFI: notificações administrativas por e-mail com resultado comprovado, etapas pendentes e histórico de envio.",
     "AuditAI: ler razão CCI antigo com conta reduzida e valores decimais; identificar arquivo que falhou.",
     "Admin: modal Backup / Restore com datas, inventários reais CCI/CFI, agenda, estados de réplicas, execução manual e restauração em banco separado auditada.",
