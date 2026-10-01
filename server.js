@@ -4356,6 +4356,8 @@ async function avaliarConciliacaoDetalhadaDaRequisicao(cnpj, entrada, usuario) {
   return { avaliacao, empresaRef, sessao };
 }
 
+require('./conciliacao-manual')(app, db, checarAcessoEmpresa, carregarSessaoAtualPorRef, lerEstadoContabil, carregarContasContabeisEmpresa);
+
 app.post('/api/empresas/:cnpj/contabilidade/conciliacoes/movimentos/avaliar', async (req, res) => {
   try {
     const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
