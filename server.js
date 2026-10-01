@@ -746,6 +746,7 @@ async function registrarLog(cnpj, conta_cod, aprovado, motivo, user, valor) {
 
 // PLANOS - COLABORATIVO (todos veem, todos criam/editam, so admin deleta)
 require('./planos-gerenciamento')(app, db, adminRequired, listarEmpresasAcessiveis);
+require('./plano-conta-exclusao')(app, db, adminRequired, carregarSessaoAtualPorRef);
 app.get('/api/planos', async (req, res) => {
   try { const snap = await db.collection('planos').get(); res.json(snap.docs.filter(d => d.data().ativo !== false).map(d => ({ id: d.id, ...d.data() }))); }
   catch (err) { res.status(500).json({ erro: err.message }); }

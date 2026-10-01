@@ -37,7 +37,7 @@ function normalizarContas(contas) {
     };
   });
 }
-async function publicarContas(db, ref, contas, user, snapshotAnterior) {
+async function publicarContas(db, ref, contas, user, snapshotAnterior, verificarUso, auditoria) {
   const novas = normalizarContas(contas);
   const anterior = snapshotAnterior || (await ref.get());
   if (!anterior.exists)
@@ -66,7 +66,9 @@ async function publicarContas(db, ref, contas, user, snapshotAnterior) {
         ),
         { status: 409 }
       );
+    if (verificarUso) await verificarUso(tx);
     tx.set(destino, {
+      ...(auditoria ? { auditoria } : {}),
       quantidade: novas.length,
       publicado_em: new Date(),
       por_uid: user.uid,
