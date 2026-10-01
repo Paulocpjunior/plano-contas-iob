@@ -1,7 +1,8 @@
 {
-  "version": "3.4.348",
-  "build_date": "2026-10-01T15:14:05Z",
+  "version": "3.4.349",
+  "build_date": "2026-10-01T17:11:30Z",
   "release_notes": [
+    "AuditAI: preservar células e colunas do razão PDF CCI, mesmo com códigos e históricos quebrados; conferir movimentos e evolução do saldo sem incorporar valores do histórico.",
     "Plano de contas: cadastrar nova conta contábil com referência ao mesmo grupo, máscara, grau e tipo, sugestão de código e validação de duplicidades.",
     "Backup CCI/CFI: notificações administrativas por e-mail com resultado comprovado, etapas pendentes e histórico de envio.",
     "AuditAI: ler razão CCI antigo com conta reduzida e valores decimais; identificar arquivo que falhou.",

@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.4.348';
+  const AUDITAI_MOTOR_VERSION = '3.4.349';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.348';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.349';
 
   const STATE = {
     files: { a: null, b: null },
@@ -403,6 +403,47 @@
     return rows.length ? rows : rowsFromText(text);
   }
 
+  // Preserve table cells before flattening PDF text: autoTable wraps each column independently.
+  function parseAccountingLines(lines, text) {
+    const fold=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+    if(!/RAZAO\s+ANALITICO/.test(fold(text)))return null;
+    const labels=['CONTA COMPLETA','REDUZIDO','DESCRICAO','DATA','DOCUMENTO','HISTORICO','CONTRAPARTIDA','DEBITO','CREDITO','SALDO'];
+    let columns=null, row=null;const output=[];
+    function finish(){
+      if(!row)return;
+      const cells=row.map(parts=>parts.join(' ').trim());
+      const code=cells[0].replace(/\s/g,''),key=cells[1].replace(/\s/g,'');
+      if(!/^\d+(?:\.\d+)+$/.test(code)||!/^\d+$/.test(key)||!/^\d{2}\/\d{2}\/\d{4}$/.test(cells[3]))throw Error('Razão CCI: identificação ou data incompleta nas células do PDF.');
+      for(let c=7;c<=9;c++)if(!/^-?\s*(?:R\$\s*)?[\d.]+,\d{2}\s*[DC]?$/.test(cells[c]))throw Error('Razão CCI: coluna '+labels[c]+' incompleta na conta '+key+'.');
+      output.push(code+' '+key+' '+cells[2]+' '+cells[3]+' '+cells.slice(7).join(' '));row=null;
+    }
+    for(let n=0;n<lines.length;n++){
+      const line=lines[n],items=line.items||[];
+      if(items.some(i=>fold(i.s)==='CONTA COMPLETA'||fold(i.s)==='CONTA')){
+        const candidates=lines.slice(n,n+4).filter(l=>l.page===line.page).flatMap(l=>l.items||[]);
+        const found=labels.map(label=>candidates.find(i=>fold(i.s)===label||fold(i.s).startsWith(label+' ')));
+        // A split "Conta completa" header starts with Conta; other columns delimit its cell.
+        if(!found[0])found[0]=items.find(i=>fold(i.s)==='CONTA');
+        if(found.every(Boolean)&&found.every((i,k)=>!k||i.x>found[k-1].x)){
+          columns=found.map(i=>i.x);continue;
+        }
+      }
+      if(!columns||/^(?:SP ASSESSORIA|Razão Analítico|Período:|Gerado |Responsável|Contador|CPF:|CRC:)/i.test(line.text))continue;
+      const cells=labels.map(()=>[]);
+      for(const item of items){let c=0;while(c<9&&item.x>=columns[c+1]-1)c++;if(item.s.trim())cells[c].push(item.s);}
+      if(cells[0].join(' ').match(/^\d+\./)&&cells[1].join('').match(/^\d+$/)){finish();row=labels.map(()=>[]);}
+      if(!row)continue;
+      // Repeated wrapped column headers and signatures are not transaction cells.
+      if(items.some(i=>['DEBITO','CREDITO','SALDO','REDUZIDO','COMPLETA','DA CONTA'].includes(fold(i.s))))continue;
+      if(cells[0].length&&!/^[\d.\s]+$/.test(cells[0].join(' '))){finish();continue;}
+      cells.forEach((parts,c)=>row[c].push(...parts));
+    }
+    finish();if(!columns)return null;
+    if(!output.length)throw Error('Razão CCI: nenhuma linha contábil completa encontrada nas colunas do PDF.');
+    const company=String(text).match(/CNPJ\s*:?\s*([\d.\/-]+)/i),period=String(text).match(/Per[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*a\s*(\d{2}\/\d{2}\/\d{4})/i);
+    return parseAccountingText('Razão Analítico\nConta completa Reduzido Descrição da conta Data Documento Histórico Contrapartida Débito Crédito Saldo\n'+(company?'CNPJ '+company[1]+'\n':'')+(period?'Período: '+period[1]+' a '+period[2]+'\n':'')+output.join('\n'));
+  }
+
   function parseAccountingText(text) {
     const clean=String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
     if(!/BALANCETE|RAZAO\s+ANALITICO/.test(clean)||!/SALDO|SDO\.?/.test(clean))return null;
@@ -428,7 +469,7 @@
     if(/CONTA COMPLETA\s+REDUZIDO/.test(clean)&&/RAZAO\s+ANALITICO/.test(clean)){
       const grouped=new Map();let current=null,block=[];
       const finish=()=>{if(!current)return;const body=block.join(' '),values=nums(body),date=body.match(/\b\d{2}\/\d{2}\/\d{4}\b/);if(!date||values.length<3)throw Error('Razão CCI: linha incompleta na conta '+current.key);const v=values.slice(-3),debit=Math.abs(v[0].cents),credit=Math.abs(v[1].cents),closing=v[2].cents,opening=closing-debit+credit;const a=grouped.get(current.key);if(a){if(a.closing!==opening)throw Error('Razão CCI: evolução do saldo não confere na conta '+current.key);a.debit+=debit;a.credit+=credit;a.closing=closing;}else grouped.set(current.key,{...current,opening,debit,credit,closing});};
-      for(const line of lines){const m=line.match(/^\s*(\d+\.\d+\.\d+\.\d{2}\.\d{4})\s+(\d+)\s+(.*)$/);if(m){finish();current={key:m[2].replace(/^0+/,'')||'0',code:m[1],description:m[3].split(/\d{2}\/\d{2}\/\d{4}/)[0].trim()};block=[m[3]];}else if(current&&!/^(?:Conta completa|SP ASSESSORIA|Razão Analítico|Período:|Gerado (?:em:|pelo)|Responsável|Contador|CPF:|CRC:)/i.test(line.trim()))block.push(line);}
+      for(const line of lines){const m=line.match(/^\s*(\d+(?:\.\d+)+)\s+(\d+)\s+(.*)$/);if(m){finish();current={key:m[2].replace(/^0+/,'')||'0',code:m[1],description:m[3].split(/\d{2}\/\d{2}\/\d{4}/)[0].trim()};block=[m[3]];}else if(current&&!/^(?:Conta completa|SP ASSESSORIA|Razão Analítico|Período:|Gerado (?:em:|pelo)|Responsável|Contador|CPF:|CRC:)/i.test(line.trim()))block.push(line);}
       finish();if(!grouped.size)throw Error('Razão CCI sem movimentos reconhecidos.');const result=[...grouped.values()];result.accounting=true;const company=String(text).match(/CNPJ\s*:?\s*([\d.\/-]+)/i);result.cnpj=company?company[1].replace(/\D/g,''):'';const period=String(text).match(/Per[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*(?:a|A)\s*(\d{2}\/\d{2}\/\d{4})/);result.periods=period?[period[1]+' a '+period[2]]:[];return result;
     }
     const isBalancete=/BALANCETE/.test(clean)&&!/RAZAO\s+ANALITICO/.test(clean);
@@ -839,7 +880,7 @@
       });
     }
     const allText = lines.map(function (line) { return line.text; }).join('\n');
-    const accounting=parseAccountingText(allText);if(accounting)return accounting;
+    const accounting=parseAccountingLines(lines,allText)||parseAccountingText(allText);if(accounting)return accounting;
     const itauDetailed = parseItauDetailedLines(lines, allText);
     if (itauDetailed.length) return itauDetailed;
     const itauMonthly = parseItauMonthlyLines(lines, allText);
@@ -1881,6 +1922,8 @@
     rowsFromDelimitedText: rowsFromDelimitedText,
     rowsFromText: rowsFromText,
     parseAccountingText: parseAccountingText,
+    parseAccountingLines: parseAccountingLines,
+    parsePdf: parsePdf,
     compareAccounting: compareAccounting,
     parseMoney: parseMoney
   };
