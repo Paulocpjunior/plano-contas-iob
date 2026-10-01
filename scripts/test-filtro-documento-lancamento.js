@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),fs=require('fs'),vm=require('vm');
+const html=fs.readFileSync('index.html','utf8');
+const inicio=html.indexOf('        function normalizarNumeroDocumento('),fim=html.indexOf('        function tipoLancamento(',inicio);
+const values={};const entries=[{id:'a',numeroLancamento:12,documento:'0000051537',data:'2026-04-01',valor:-9702.45},{id:'b',numeroLancamento:51537,documento:'51538',data:'2026-04-01',valor:1},{id:'c',numeroLancamento:13,documento:'515370',data:'2026-04-01',valor:2},{id:'d',numeroLancamento:14,numero_nf:'51537',data:'2026-05-01',valor:3}];
+const c={state:{entries},document:{getElementById:id=>({value:values[id]||''})},filtroFiscalEstaAtivo:()=>false};vm.createContext(c);vm.runInContext(html.slice(inicio,fim),c);
+values.filterDocumentoLancamento='51537';assert.equal(c.obterEntriesFiltrados().map(e=>e.id).join(','),'a,d');assert(c.existeFiltroAtivo());
+values.filterDocumentoLancamento='0000051537';assert.equal(c.obterEntriesFiltrados().length,2);
+values.filterDataFim='2026-04-30';assert.equal(c.obterEntriesFiltrados()[0].id,'a');assert.equal(c.obterEntriesFiltrados().length,1);
+values.filterDocumentoLancamento='';values.filterNumeroLancamento='00051537';assert.equal(c.obterEntriesFiltrados()[0].id,'b');
+assert.equal(c.normalizarNumeroDocumento('NF-001'),'NF-001');assert.equal(entries[0].documento,'0000051537');
+console.log('OK: documento exato sem zeros, número interno independente, filtros combinados e dados intactos.');
