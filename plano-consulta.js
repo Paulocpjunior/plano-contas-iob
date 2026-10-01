@@ -45,7 +45,8 @@
     const dialog = document.createElement('dialog');
     dialog.id = 'consultaPlanoDialog';
     dialog.style.cssText = 'width:min(1100px,94vw);max-height:90vh;border:1px solid #cbd5e1;border-radius:14px;padding:24px;background:var(--bg-card,#fff);color:var(--text-primary,#172033)';
-    dialog.innerHTML = `<h2>Plano de contas — ${esc(nome)}</h2><p>CNPJ: ${esc(plano.cnpj)} • Consulta da versão publicada</p><button type="button" data-close>Fechar</button><p data-status role="status">Carregando contas…</p><input data-search type="search" aria-label="Buscar contas" placeholder="Buscar código, reduzido ou descrição" style="width:100%;margin:12px 0;padding:10px"><div style="max-height:50vh;overflow:auto"><table class="data-table"><thead><tr><th>Código</th><th>Reduzido</th><th>Descrição</th><th>Tipo</th></tr></thead><tbody></tbody></table></div>${window.CURRENT_USER?.is_admin && plano.plano_id && plano.ativo !== false ? '<details><summary style="padding:16px;cursor:pointer">Cadastrar nova conta contábil</summary><p>A conta será incluída no plano vinculado. Se o plano for compartilhado, ficará disponível para todas as empresas que o utilizam.</p><form style="display:grid;gap:12px;margin-top:12px"><label>Conta de referência <select name="conta_referencia" required style="display:block;width:100%;padding:8px"><option value="">Selecione uma conta do mesmo grupo e grau</option></select></label><p data-estrutura role="status"></p><label>Código estrutural <input name="cod" required maxlength="80"></label><label> Reduzido <input name="ref_rfb" pattern="[0-9]{1,14}" maxlength="14"></label><label> Descrição <input name="desc" required maxlength="200"></label><label> Tipo <select name="analitica" disabled><option value="true">Analítica</option><option value="false">Sintética</option></select></label><button type="submit" disabled>Cadastrar conta</button></form></details>' : '<p>Criação de contas disponível para administradores.</p>'}`;
+    const podeExcluir = window.CURRENT_USER?.is_admin && plano.plano_id && plano.ativo !== false;
+    dialog.innerHTML = `<h2>Plano de contas — ${esc(nome)}</h2><p>CNPJ: ${esc(plano.cnpj)} • Consulta da versão publicada</p><button type="button" data-close>Fechar</button><p data-status role="status">Carregando contas…</p><input data-search type="search" aria-label="Buscar contas" placeholder="Buscar código, reduzido ou descrição" style="width:100%;margin:12px 0;padding:10px"><div style="max-height:50vh;overflow:auto"><table class="data-table"><thead><tr><th>Código</th><th>Reduzido</th><th>Descrição</th><th>Tipo</th>${podeExcluir ? '<th>Ações</th>' : ''}</tr></thead><tbody></tbody></table></div>${window.CURRENT_USER?.is_admin && plano.plano_id && plano.ativo !== false ? '<details><summary style="padding:16px;cursor:pointer">Cadastrar nova conta contábil</summary><p>A conta será incluída no plano vinculado. Se o plano for compartilhado, ficará disponível para todas as empresas que o utilizam.</p><form style="display:grid;gap:12px;margin-top:12px"><label>Conta de referência <select name="conta_referencia" required style="display:block;width:100%;padding:8px"><option value="">Selecione uma conta do mesmo grupo e grau</option></select></label><p data-estrutura role="status"></p><label>Código estrutural <input name="cod" required maxlength="80"></label><label> Reduzido <input name="ref_rfb" pattern="[0-9]{1,14}" maxlength="14"></label><label> Descrição <input name="desc" required maxlength="200"></label><label> Tipo <select name="analitica" disabled><option value="true">Analítica</option><option value="false">Sintética</option></select></label><button type="submit" disabled>Cadastrar conta</button></form></details>' : '<p>Criação de contas disponível para administradores.</p>'}`;
     document.body.appendChild(dialog);dialog.showModal();
     dialog.querySelector('[data-close]').onclick = () => dialog.close();
     const status = dialog.querySelector('[data-status]');
@@ -54,8 +55,20 @@
       const q = normalizar(dialog.querySelector('[data-search]').value);
       const rows = contas.filter(c => normalizar([c.codigo || c.cod,c.reduzido || c.ref_rfb,c.descricao || c.desc].join(' ')).includes(q));
       status.textContent = `${rows.length} de ${contas.length} contas`;
-      dialog.querySelector('tbody').innerHTML = rows.map(c => `<tr><td>${esc(c.codigo || c.cod)}</td><td>${esc(c.reduzido || c.ref_rfb)}</td><td>${esc(c.descricao || c.desc)}</td><td>${c.analitica === false ? 'Sintética' : 'Analítica'}</td></tr>`).join('');
+      dialog.querySelector('tbody').innerHTML = rows.map(c => `<tr><td>${esc(c.codigo || c.cod)}</td><td>${esc(c.reduzido || c.ref_rfb)}</td><td>${esc(c.descricao || c.desc)}</td><td>${c.analitica === false ? 'Sintética' : 'Analítica'}</td>${podeExcluir ? `<td><button type="button" data-excluir="${esc(c.id)}" aria-label="Excluir conta ${esc(codigo(c))}" style="color:#b91c1c">🗑 Excluir conta</button></td>` : ''}</tr>`).join('');
     }
+    dialog.querySelector('tbody').onclick = async event => {
+      const button = event.target.closest('[data-excluir]');
+      if (!button || !podeExcluir) return;
+      const conta = contas.find(c => String(c.id) === button.dataset.excluir);
+      if (!conta || !window.confirm(`Excluir a conta ${codigo(conta)} — ${conta.desc || conta.descricao}?\nA alteração afeta todas as empresas vinculadas a este plano. O histórico será preservado. Contas em uso não podem ser excluídas.`)) return;
+      button.disabled = true;status.textContent = 'Conferindo vínculos e lançamentos antes de excluir…';
+      try {
+        const r = await window.API.apiFetch('/api/planos/'+encodeURIComponent(plano.plano_id)+'/contas/'+encodeURIComponent(conta.id), {method:'DELETE',body:JSON.stringify({codigo:codigo(conta),descricao:conta.desc || conta.descricao})});
+        const data = await r.json();if(!r.ok)throw Error(data.erro || 'Não foi possível excluir a conta.');
+        await carregar();if(atualizar)await atualizar();status.textContent='Conta excluída da versão atual. Histórico preservado.';
+      }catch(e){status.textContent=e.message;button.disabled=false;}
+    };
     const form = dialog.querySelector('form');
     function selecionarReferencia() {
       if (!form) return;
