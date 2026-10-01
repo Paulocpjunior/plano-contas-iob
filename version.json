@@ -1,7 +1,8 @@
 {
-  "version": "3.4.350",
-  "build_date": "2026-10-01T17:24:45Z",
+  "version": "3.4.351",
+  "build_date": "2026-10-01T17:45:07Z",
   "release_notes": [
+    "AuditAI: detalhar lançamentos sem correspondência entre razões CCI/SAGE, com data, documento, histórico, valores e página; conferir soma contra os totais e exportar detalhes em CSV.",
     "Importação XLSX: ler a planilha no momento da seleção e reutilizar os bytes durante o processamento; orientar nova seleção quando o navegador perder acesso ao arquivo.",
     "AuditAI: preservar células e colunas do razão PDF CCI, mesmo com códigos e históricos quebrados; conferir movimentos e evolução do saldo sem incorporar valores do histórico.",
     "Plano de contas: cadastrar nova conta contábil com referência ao mesmo grupo, máscara, grau e tipo, sugestão de código e validação de duplicidades.",
