@@ -73,6 +73,7 @@
   "/vincular-folha-pagamento.js",
   "/auditai/auth-client.js",
   "/plano-consulta.js",
+  "/planos-gerenciamento-ui.js",
   "/reinf/reinf-alugueis-planilha.js",
   "/reinf/alugueis-conferencia.js",
   "/reinf/alugueis-conferencia-ui.js",

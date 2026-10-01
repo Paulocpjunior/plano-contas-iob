@@ -745,8 +745,9 @@ async function registrarLog(cnpj, conta_cod, aprovado, motivo, user, valor) {
 }
 
 // PLANOS - COLABORATIVO (todos veem, todos criam/editam, so admin deleta)
+require('./planos-gerenciamento')(app, db, adminRequired, listarEmpresasAcessiveis);
 app.get('/api/planos', async (req, res) => {
-  try { const snap = await db.collection('planos').get(); res.json(snap.docs.map(d => ({ id: d.id, ...d.data() }))); }
+  try { const snap = await db.collection('planos').get(); res.json(snap.docs.filter(d => d.data().ativo !== false).map(d => ({ id: d.id, ...d.data() }))); }
   catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
@@ -777,6 +778,7 @@ app.post('/api/planos/:id/contas', adminRequired, async (req, res) => {
     const planoRef = db.collection('planos').doc(req.params.id);
     const plano = await planoRef.get();
     if (!plano.exists) return res.status(404).json({ erro: 'Plano não encontrado' });
+    if (plano.data().ativo === false) return res.status(409).json({ erro: 'Restaure o plano antes de cadastrar contas.' });
     const contas = await colecaoContas(planoRef, plano.data()).get();
     const reduzido = String(ref_rfb || '').trim();
     if (reduzido && !/^\d{1,14}$/.test(reduzido)) return res.status(400).json({ erro: 'Reduzido deve conter de 1 a 14 dígitos.' });
@@ -975,20 +977,6 @@ app.delete('/api/empresas/:cnpj/aprendizado/:hash', adminRequired, async (req, r
     console.error('[DELETE aprendizado] erro:', err);
     res.status(500).json({ erro: err.message });
   }
-});
-
-app.delete('/api/planos/:id', adminRequired, async (req, res) => {
-  try {
-    const planoRef = db.collection('planos').doc(req.params.id);
-    const planoDoc = await planoRef.get();
-    if (!planoDoc.exists) return res.status(404).json({ erro: 'Plano nao encontrado' });
-    const contasSnap = await planoRef.collection('contas').get();
-    const batch = db.batch();
-    contasSnap.docs.forEach(d => batch.delete(d.ref));
-    batch.delete(planoRef);
-    await batch.commit();
-    res.json({ deleted: req.params.id, contas_removidas: contasSnap.size });
-  } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
 async function listarEmpresasAcessiveis(user, opcoes) {
@@ -1316,6 +1304,7 @@ app.post('/api/empresas', async (req, res) => {
     if (!codigoUnico.ok) return res.status(409).json({ erro: codigoUnico.erro });
     const planoDoc = await db.collection('planos').doc(plano_id).get();
     if (!planoDoc.exists) return res.status(400).json({ erro: 'Plano ' + plano_id + ' nao existe' });
+    if (planoDoc.data().ativo === false) return res.status(409).json({ erro: 'Restaure o plano arquivado antes de vincular uma empresa.' });
     await db.collection('empresas').doc(cnpjLimpo).create({ ...cadastro.campos, razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
     let regimeCfi = null;
     let regimeAviso = null;
@@ -1867,6 +1856,7 @@ app.post('/api/admin/trocar-plano-empresa', adminRequired, async (req, res) => {
     const novoPlanoDoc = await novoPlanoRef.get();
     if (!novoPlanoDoc.exists) return res.status(404).json({ erro: 'Plano novo nao encontrado' });
     const novoPlanoData = novoPlanoDoc.data();
+    if (novoPlanoData.ativo === false) return res.status(409).json({ erro: 'Restaure o plano arquivado antes de vincular uma empresa.' });
 
     let planoAnteriorNome = '';
     if (empresaData.plano_id) {
@@ -2012,6 +2002,7 @@ async function vincularEmpresaPlanoHandler(req, res, opts = {}) {
     const planoDoc = await db.collection('planos').doc(plano_id).get();
     if (!planoDoc.exists) return res.status(404).json({ erro: 'Plano nao encontrado' });
     const planoData = planoDoc.data() || {};
+    if (planoData.ativo === false) return res.status(409).json({ erro: 'Restaure o plano arquivado antes de vincular uma empresa.' });
     const empresaRef = db.collection('empresas').doc(cnpjLimpo);
     const empresaDoc = await empresaRef.get();
     const empresaAtual = empresaDoc.exists ? (empresaDoc.data() || {}) : null;
