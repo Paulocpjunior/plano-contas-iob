@@ -1,7 +1,8 @@
 {
-  "version": "3.4.356",
-  "build_date": "2026-10-01T19:10:19Z",
+  "version": "3.4.357",
+  "build_date": "2026-10-01T20:15:02Z",
   "release_notes": [
+    "Conciliação manual por conta: provisões e pagamentos com S/N, seleção balanceada, auditoria e desfazer grupo; Trocar plano abre imediatamente sem carregar todas as contas.",
     "Lançamentos: filtro por documento de origem com busca exata ignorando zeros à esquerda, separado do número interno do CCI e documento visível na linha.",
     "Plano de contas: excluir conta individual pelo administrador, com confirmação, conferência de uso e publicação versionada que preserva histórico.",
     "AuditAI: aplicar natureza devedora/credora ao resultado de exercício; saldo de prejuízo não pode ser apresentado como lucro, preservando débitos, créditos e saldo impresso.",
