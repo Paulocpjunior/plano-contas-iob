@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.4.350';
+  const AUDITAI_MOTOR_VERSION = '3.4.351';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.350';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.351';
 
   const STATE = {
     files: { a: null, b: null },
@@ -408,14 +408,17 @@
     const fold=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
     if(!/RAZAO\s+ANALITICO/.test(fold(text)))return null;
     const labels=['CONTA COMPLETA','REDUZIDO','DESCRICAO','DATA','DOCUMENTO','HISTORICO','CONTRAPARTIDA','DEBITO','CREDITO','SALDO'];
-    let columns=null, row=null;const output=[];
+    let columns=null, row=null, rowPage=0;const output=[], movements=new Map();
     function finish(){
       if(!row)return;
       const cells=row.map(parts=>parts.join(' ').trim());
       const code=cells[0].replace(/\s/g,''),key=cells[1].replace(/\s/g,'');
       if(!/^\d+(?:\.\d+)+$/.test(code)||!/^\d+$/.test(key)||!/^\d{2}\/\d{2}\/\d{4}$/.test(cells[3]))throw Error('Razão CCI: identificação ou data incompleta nas células do PDF.');
       for(let c=7;c<=9;c++)if(!/^-?\s*(?:R\$\s*)?[\d.]+,\d{2}\s*[DC]?$/.test(cells[c]))throw Error('Razão CCI: coluna '+labels[c]+' incompleta na conta '+key+'.');
-      output.push(code+' '+key+' '+cells[2]+' '+cells[3]+' '+cells.slice(7).join(' '));row=null;
+      output.push(code+' '+key+' '+cells[2]+' '+cells[3]+' '+cells.slice(7).join(' '));
+      const accountKey=key.replace(/^0+/,'')||'0';
+      if(!movements.has(accountKey))movements.set(accountKey,[]);
+      movements.get(accountKey).push({date:cells[3],document:cells[4],description:cells[5],counterpart:cells[6],debit:accountingCents(cells[7]),credit:accountingCents(cells[8]),page:rowPage});row=null;
     }
     for(let n=0;n<lines.length;n++){
       const line=lines[n],items=line.items||[];
@@ -431,7 +434,7 @@
       if(!columns||/^(?:SP ASSESSORIA|Razão Analítico|Período:|Gerado |Responsável|Contador|CPF:|CRC:)/i.test(line.text))continue;
       const cells=labels.map(()=>[]);
       for(const item of items){let c=0;while(c<9&&item.x>=columns[c+1]-1)c++;if(item.s.trim())cells[c].push(item.s);}
-      if(cells[0].join(' ').match(/^\d+\./)&&cells[1].join('').match(/^\d+$/)){finish();row=labels.map(()=>[]);}
+      if(cells[0].join(' ').match(/^\d+\./)&&cells[1].join('').match(/^\d+$/)){finish();row=labels.map(()=>[]);rowPage=line.page;}
       if(!row)continue;
       // Repeated wrapped column headers and signatures are not transaction cells.
       if(items.some(i=>['DEBITO','CREDITO','SALDO','REDUZIDO','COMPLETA','DA CONTA'].includes(fold(i.s))))continue;
@@ -441,7 +444,8 @@
     finish();if(!columns)return null;
     if(!output.length)throw Error('Razão CCI: nenhuma linha contábil completa encontrada nas colunas do PDF.');
     const company=String(text).match(/CNPJ\s*:?\s*([\d.\/-]+)/i),period=String(text).match(/Per[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*a\s*(\d{2}\/\d{2}\/\d{4})/i);
-    return parseAccountingText('Razão Analítico\nConta completa Reduzido Descrição da conta Data Documento Histórico Contrapartida Débito Crédito Saldo\n'+(company?'CNPJ '+company[1]+'\n':'')+(period?'Período: '+period[1]+' a '+period[2]+'\n':'')+output.join('\n'));
+    const result=parseAccountingText('Razão Analítico\nConta completa Reduzido Descrição da conta Data Documento Histórico Contrapartida Débito Crédito Saldo\n'+(company?'CNPJ '+company[1]+'\n':'')+(period?'Período: '+period[1]+' a '+period[2]+'\n':'')+output.join('\n'));
+    return attachAccountingMovements(result,movements);
   }
 
   function parseAccountingText(text) {
@@ -496,13 +500,89 @@
     const grouped=new Map();rows.forEach(r=>{const a=grouped.get(r.key);if(!a)grouped.set(r.key,{...r});else{if(a.closing!==r.opening){a.coverageWarning='Aberturas entre intervalos não contínuas; conferir saldos na fonte.';a.opening=null;}a.debit+=r.debit;a.credit+=r.credit;a.closing=r.closing;if(a.coverageWarning)a.closing=null;}});
     const result=[...grouped.values()];result.accounting=true;const company=String(text).match(/CNPJ\s*:?\s*([\d.\/-]+)/i);result.cnpj=company?company[1].replace(/\D/g,''):'';result.periods=[...periods];return result;
   }
+  function accountingCents(value) {
+    const match=String(value).match(/[\d.]+,\d{2}/);
+    return match?Math.round(Number(match[0].replace(/\./g,'').replace(',','.'))*100):0;
+  }
+  function attachAccountingMovements(accounts, grouped) {
+    accounts.forEach(account=>{
+      const movements=grouped.get(account.key)||[];
+      account.movements=movements;
+      account.movementsVerified=movements.length>0&&['debit','credit'].every(k=>movements.reduce((sum,m)=>sum+m[k],0)===account[k]);
+    });return accounts;
+  }
+  function readSageMovements(lines, accounts) {
+    let account=null,current=null,ends=null;const grouped=new Map();
+    function finish(){if(current){if(!grouped.has(account))grouped.set(account,[]);grouped.get(account).push(current);current=null;}}
+    for(let lineIndex=0;lineIndex<lines.length;lineIndex++){
+      const line=lines[lineIndex];
+      const text=line.text,items=(line.items||[]).filter(i=>i.s.trim());
+      const header=text.match(/^(?:Conta Analisada\s*-\s*)?(\d+(?:\.\d+)+)\s*-\s*(\d+)\s*-\s*(.+)$/i);
+      if(header){const key=header[2].replace(/^0+/,'')||'0';if(key!==account||current&&(current.debit||current.credit))finish();account=key;continue;}
+      if(/Data\s+Lancto\s+Contrapartida/i.test(text)){
+        const labels=['Débito','Crédito','Saldo'];const found=labels.map(t=>items.find(i=>i.s===t));
+        if(found.every(Boolean))ends=found.map(i=>i.x+(i.w||0));continue;
+      }
+      if(!account||!ends)continue;
+      if(/^[\d.,\sDC]+$/.test(text)&&/^Saldo (?:Anterior|Atual|Geral)\s*:\s*$/i.test(lines[lineIndex+1]?.text||'')){if(current&&(current.debit||current.credit))finish();continue;}
+      if(/Saldo (?:Anterior|Atual|Geral)/i.test(text)){if(/Saldo Geral/i.test(text)||current&&(current.debit||current.credit))finish();continue;}
+      if(/FOLHA:|RAZÃO ANALÍTICO|CNPJ:|Conta Analisada|DATA:.*\d{2}\//i.test(text))continue;
+      const start=text.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+(\d+)\s*/);
+      if(start){finish();current={date:start[1],document:start[2],counterpart:start[3],description:'',debit:0,credit:0,page:line.page};}
+      if(!current)continue;
+      const history=[];
+      for(const item of items){
+        const right=item.x+(item.w||0);
+        const column=ends.findIndex(end=>Math.abs(right-end)<=8);
+        if(column>=0&&/^[\d.]+,\d{2}$/.test(item.s.trim())){if(column<2)current[column===0?'debit':'credit']+=accountingCents(item.s);}
+        else if(item.x>175&&item.x<ends[0]-55)history.push(item.s);
+      }
+      if(history.length)current.description+=(current.description?' ':'')+history.join(' ');
+    }
+    finish();return attachAccountingMovements(accounts,grouped);
+  }
+  function compareAccountingMovements(left,right) {
+    if(!left?.movementsVerified||!right?.movementsVerified)return {verified:false,items:[]};
+    const a=left.movements,b=right.movements,usedA=new Set(),usedB=new Set();
+    const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    const base=m=>[m.date,m.debit,m.credit].join('|');
+    // Match occurrences, not a set: an extra repeated transaction must remain visible.
+    for(const identity of [m=>norm(m.document).replace(/^0+/,''),m=>norm(m.description)]){
+      const buckets=new Map();b.forEach((m,i)=>{if(!usedB.has(i)&&identity(m)){const key=base(m)+'|'+identity(m);if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(i);}});
+      a.forEach((m,i)=>{if(usedA.has(i)||!identity(m))return;const list=buckets.get(base(m)+'|'+identity(m));if(list?.length){usedA.add(i);usedB.add(list.pop());}});
+    }
+    const items=[...a.flatMap((m,i)=>usedA.has(i)?[]:[{...m,source:'A'}]),...b.flatMap((m,i)=>usedB.has(i)?[]:[{...m,source:'B'}])];
+    const documentKey=m=>m.date+'|'+norm(m.document).replace(/^0+/,'');
+    const index=list=>({exact:new Set(list.map(m=>base(m)+'|'+norm(m.document).replace(/^0+/,''))),documents:new Set(list.filter(m=>norm(m.document)).map(documentKey))});
+    const indices={A:index(a),B:index(b)};
+    items.forEach(m=>{
+      const other=indices[m.source==='A'?'B':'A'];
+      m.reason=other.exact.has(base(m)+'|'+norm(m.document).replace(/^0+/,''))?'Ocorrência excedente; conferir repetição':other.documents.has(documentKey(m))?'Conferir valor: mesmo documento e data':'Sem correspondência confirmada';
+    });
+    items.sort((x,y)=>x.date.split('/').reverse().join('-').localeCompare(y.date.split('/').reverse().join('-'))||String(x.document).localeCompare(String(y.document))||x.source.localeCompare(y.source));
+    return {verified:true,matched:usedA.size,items,debit:items.reduce((s,m)=>s+(m.source==='A'?1:-1)*m.debit,0),credit:items.reduce((s,m)=>s+(m.source==='A'?1:-1)*m.credit,0)};
+  }
+  function accountingCsvRows(accounts){
+    const rows=[['conta','coluna','valor_a','valor_b','diferenca','arquivo','data','documento','historico','contrapartida','debito','credito','pagina','conferencia']];
+    accounts.forEach(r=>{
+      ['opening','debit','credit','closing'].forEach(k=>rows.push([r.key,k,r.left?.[k]!=null?r.left[k]/100:'Nao conferido',r.right?.[k]!=null?r.right[k]/100:'Nao conferido',r.left?.[k]!=null&&r.right?.[k]!=null?(r.left[k]-r.right[k])/100:'Nao comparavel']));
+      if(r.details?.verified)r.details.items.forEach(m=>rows.push([r.key,'lancamento_sem_correspondencia','','','',m.source,m.date,m.document,m.description,m.counterpart,m.debit/100,m.credit/100,m.page,m.reason]));
+    });return rows;
+  }
+  function renderAccountingMovements(rows){
+    return rows.filter(r=>r.different||r.details?.items.length).map(r=>{
+      const d=r.details;if(!d.verified)return '<p class="p-3">Conta '+escapeHtml(r.key)+': detalhamento não conferido. É necessário um razão com lançamentos cujos totais coincidam com os totais da conta.</p>';
+      return '<details open class="bg-white rounded-2xl p-5 mt-4"><summary class="font-bold">Conta '+escapeHtml(r.key)+' — '+d.items.length+(d.items.length===1?' lançamento':' lançamentos')+' para conferir</summary><p>'+d.matched+' pares correspondentes. Sem correspondência por data, valor e documento ou histórico: confira os itens abaixo. Diferença explicada: débitos '+money(d.debit/100)+'; créditos '+money(d.credit/100)+'.</p><div class="overflow-auto"><table class="w-full text-xs"><thead><tr><th>Arquivo</th><th>Data</th><th>Documento</th><th>Histórico</th><th>Contrapartida</th><th>Débito</th><th>Crédito</th><th>Página</th><th>Conferência</th></tr></thead><tbody>'+d.items.map(m=>'<tr class="border-t">'+[m.source,m.date,m.document,m.description,m.counterpart,money(m.debit/100),money(m.credit/100),m.page,m.reason].map(v=>'<td class="p-2">'+escapeHtml(String(v??''))+'</td>').join('')+'</tr>').join('')+'</tbody></table></div></details>';
+    }).join('');
+  }
+
   function compareAccounting(a,b){
     if(!a.accounting||!b.accounting)throw Error('Compare dois relatórios contábeis; não misture com extrato financeiro.');
     if(a.cnpj&&b.cnpj&&a.cnpj!==b.cnpj)throw Error('CNPJ diferente entre os relatórios.');
     const monthSet=rows=>[...new Set((rows.periods||[]).flatMap(p=>p.match(/\d{2}\/\d{4}/g)||[]))].sort().join('|');
     if(monthSet(a)&&monthSet(b)&&monthSet(a)!==monthSet(b))throw Error('Períodos diferentes entre os relatórios.');
     const am=new Map(a.map(r=>[r.key,r])),bm=new Map(b.map(r=>[r.key,r]));
-    return [...new Set([...am.keys(),...bm.keys()])].map(key=>{const left=am.get(key),right=bm.get(key);return {key,left,right,different:!left||!right||left.coverageWarning||right.coverageWarning||['opening','debit','credit','closing'].some(k=>left[k]!==right[k])};});
+    return [...new Set([...am.keys(),...bm.keys()])].map(key=>{const left=am.get(key),right=bm.get(key);return {key,left,right,details:compareAccountingMovements(left,right),different:!left||!right||left.coverageWarning||right.coverageWarning||['opening','debit','credit','closing'].some(k=>left[k]!==right[k])};});
   }
   function renderAccounting(rows){
     return '<div class="bg-white rounded-2xl p-5"><h2 class="font-bold">Confronto contábil por conta — valores A / B / diferença</h2><p>'+rows.filter(r=>r.different).length+' conta(s) divergente(s) ou sem contraparte. Contas ausentes não são consideradas conciliadas. Saldo acumulado não é movimento.</p><div class="overflow-auto"><table class="w-full text-xs"><thead><tr><th>Conta / descrição</th><th>Saldo anterior</th><th>Débitos</th><th>Créditos</th><th>Saldo final</th></tr></thead><tbody>'+rows.map(r=>'<tr class="border-t '+(r.different?'bg-amber-50':'')+'"><td>'+escapeHtml(r.key+' — '+(r.left||r.right).description)+(r.left&&r.right?'':' — AUSENTE EM '+(r.left?'B':'A'))+((r.left?.coverageWarning||r.right?.coverageWarning)?' — SALDOS NÃO CONFERIDOS':'')+'</td>'+['opening','debit','credit','closing'].map(k=>'<td class="p-2">'+(r.left?(r.left[k]==null?'Não conferido':money(r.left[k]/100)):'Ausente')+' / '+(r.right?(r.right[k]==null?'Não conferido':money(r.right[k]/100)):'Ausente')+'<br><b>'+(r.left&&r.right&&r.left[k]!=null&&r.right[k]!=null?money((r.left[k]-r.right[k])/100):'Não comparável')+'</b></td>').join('')+'</tr>').join('')+'</tbody></table></div></div>';
@@ -871,7 +951,7 @@
       content.items.forEach(function (item) {
         const y = Math.round(item.transform[5]);
         if (!byY[y]) byY[y] = [];
-        byY[y].push({ x: Math.round(item.transform[4]), s: item.str });
+        byY[y].push({ x: Math.round(item.transform[4]), s: item.str, w: item.width });
       });
       Object.keys(byY).map(Number).sort(function (a, b) { return b - a; }).forEach(function (y) {
         const items = byY[y].sort(function (a, b) { return a.x - b.x; });
@@ -880,7 +960,7 @@
       });
     }
     const allText = lines.map(function (line) { return line.text; }).join('\n');
-    const accounting=parseAccountingLines(lines,allText)||parseAccountingText(allText);if(accounting)return accounting;
+    const accounting=parseAccountingLines(lines,allText)||parseAccountingText(allText);if(accounting){if(/Conta Analisada/i.test(allText))readSageMovements(lines,accounting);return accounting;}
     const itauDetailed = parseItauDetailedLines(lines, allText);
     if (itauDetailed.length) return itauDetailed;
     const itauMonthly = parseItauMonthlyLines(lines, allText);
@@ -1743,7 +1823,7 @@
   function exportCsv() {
     if (!STATE.result) return;
     const rows = [['tipo', 'data_a', 'descricao_a', 'valor_a', 'data_b', 'descricao_b', 'valor_b', 'confianca', 'motivo']];
-    if(STATE.result.accounting){const csv=[['conta','coluna','valor_a','valor_b','diferenca'],...STATE.result.accounts.flatMap(r=>['opening','debit','credit','closing'].map(k=>[r.key,k,r.left&&r.left[k]!=null?r.left[k]/100:'Nao conferido',r.right&&r.right[k]!=null?r.right[k]/100:'Nao conferido',r.left&&r.right&&r.left[k]!=null&&r.right[k]!=null?(r.left[k]-r.right[k])/100:'Nao comparavel']))].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='confronto-contabil.csv';a.click();URL.revokeObjectURL(url);return;}
+    if(STATE.result.accounting){const csv=accountingCsvRows(STATE.result.accounts).map(r=>r.map(v=>'"'+String(typeof v==='string'&&/^[=+@-]/.test(v)?"'"+v:v).replace(/"/g,'""')+'"').join(';')).join('\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='confronto-contabil.csv';a.click();URL.revokeObjectURL(url);return;}
     STATE.result.matches.forEach(function (m) { rows.push(['conciliado', m.a.date, m.a.description, m.a.amount, m.b.date, m.b.description, m.b.amount, m.score, m.reason || '']); });
     (STATE.result.ambiguous || []).forEach(function (m) {
       const left = (m.aRows || []).map(function (r) { return [r.date, r.description, r.amount].join(' | '); }).join(' || ');
@@ -1784,8 +1864,9 @@
       status.textContent = 'Arquivo A: ' + STATE.rows.a.length + ' linhas úteis · Arquivo B: ' + STATE.rows.b.length + ' linhas úteis.';
       if(STATE.rows.a.accounting||STATE.rows.b.accounting){
         const accounts=compareAccounting(STATE.rows.a,STATE.rows.b);
+        status.textContent=['a','b'].map(side=>'Arquivo '+side.toUpperCase()+': '+STATE.rows[side].length+' conta(s), '+STATE.rows[side].reduce((sum,r)=>sum+(r.movements?.length||0),0)+' lançamentos detalhados').join(' · ');
         STATE.result={accounting:true,accounts};
-        document.getElementById('sp-conciliacao-result').innerHTML=renderAccounting(accounts);return;
+        document.getElementById('sp-conciliacao-result').innerHTML=renderAccounting(accounts)+renderAccountingMovements(accounts);return;
       }
       STATE.result = reconcileRows(STATE.rows.a, STATE.rows.b);
       renderResult();
@@ -1925,6 +2006,10 @@
     parseAccountingLines: parseAccountingLines,
     parsePdf: parsePdf,
     compareAccounting: compareAccounting,
+    compareAccountingMovements: compareAccountingMovements,
+    accountingCsvRows: accountingCsvRows,
+    renderAccountingMovements: renderAccountingMovements,
+    readSageMovements: readSageMovements,
     parseMoney: parseMoney
   };
 

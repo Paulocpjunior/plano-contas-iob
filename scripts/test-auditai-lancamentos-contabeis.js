@@ -1,0 +1,23 @@
+'use strict';
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const box={console,window:{},document:{readyState:'loading',addEventListener(){}},localStorage:{getItem(){return null}},location:{pathname:'/'},URLSearchParams,MutationObserver:function(){}};
+vm.runInNewContext(fs.readFileSync('auditai/conciliacao-arquivos.js','utf8'),box);const api=box.window.SP_AuditAIConciliacaoTest;
+const m=(document,credit=100,description='Recebimento')=>({date:'01/04/2026',document,description,debit:0,credit,page:1,counterpart:'11'});
+const account=movements=>({movements,movementsVerified:true});
+let d=api.compareAccountingMovements(account([m('1'),m('1'),m('2',300)]),account([m('1'),m('2',200)]));assert.equal(d.matched,1);assert.equal(d.items.length,3);assert.equal(d.credit,200);assert.equal(d.items.filter(x=>x.document==='1').length,1,'duplicata extra preservada');
+d=api.compareAccountingMovements(account([m('00001')]),account([m('1')]));assert.equal(d.items.length,0);
+d=api.compareAccountingMovements(account([m('1',100,'Texto <script>')]),account([m('2',100,'Texto <script>')]));assert.equal(d.items.length,0,'histórico idêntico admite documentos distintos');
+d=api.compareAccountingMovements(account([m('1')]),{movements:[m('1')],movementsVerified:false});assert.equal(d.verified,false);
+const lines=[];const add=(text,items=[],page=1)=>lines.push({text,items,page});
+add('RAZÃO ANALÍTICO');add('Conta Analisada - 1.1.2.01.0001 - 0000000061 - CLIENTES');
+add('Data Lancto Contrapartida Complemento Débito Crédito Saldo',[{x:386,w:25,s:'Débito'},{x:460,w:28,s:'Crédito'},{x:551,w:22,s:'Saldo'}]);
+add('01/04/2026 000001 000011 Recebimento',[{x:199,w:60,s:'Recebimento'}]);
+add('Saldo Atual : 90,00');add('Conta Analisada - 1.1.2.01.0001 - 0000000061 - CLIENTES',[],2);add('Saldo Anterior : 90,00',[],2);
+add('001-123-A 10,00 90,00 D',[{x:199,w:50,s:'001-123-A'},{x:470,w:20,s:'10,00'},{x:553,w:20,s:'90,00'}],2);
+add('0,00 10,00 90,00 D',[{x:393,w:20,s:'0,00'},{x:470,w:20,s:'10,00'},{x:553,w:20,s:'90,00'}],2);add('Saldo Geral:',[],2);
+const a=api.readSageMovements(lines,[{key:'61',debit:0,credit:1000}])[0];assert(a.movementsVerified);assert.equal(a.movements.length,1);assert.equal(a.movements[0].credit,1000);assert.equal(a.movements[0].page,1);assert(a.movements[0].description.includes('001-123-A'));
+const rows=[{key:'61',different:true,left:{credit:313445739},right:{credit:0},details:{verified:true,matched:0,debit:0,credit:313445739,items:[{...m('NF',313445739,'<script>'),source:'A'}]}}];
+assert(api.renderAccountingMovements(rows).includes('&lt;script&gt;'));assert(!api.renderAccountingMovements(rows).includes('<script>'));
+assert(api.accountingCsvRows(rows).some(r=>r[1]==='lancamento_sem_correspondencia'&&r[11]===3134457.39));
+for(const path of process.argv.slice(2)){const r=JSON.parse(fs.readFileSync(path));assert(r.every(a=>a.movementsVerified));const x=r.find(a=>a.key==='61');assert.equal(x.movements.length,3084);assert.equal(x.movements.reduce((s,m)=>s+m.credit,0),813670355);}
+console.log('OK: duplicatas, valores diferentes, identidade, páginas continuadas, totais fora dos movimentos, CSV e escape HTML.');
