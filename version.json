@@ -1,7 +1,8 @@
 {
-  "version": "3.4.352",
-  "build_date": "2026-10-01T18:03:53Z",
+  "version": "3.4.353",
+  "build_date": "2026-10-01T18:29:35Z",
   "release_notes": [
+    "AuditAI: corrigir Exportar PDF da Auditoria, permitindo avanço e paginação do relatório até o download do arquivo.",
     "Planos de contas: gerenciar planos por empresa/CNPJ sem trocar a empresa ativa, identificar nomes repetidos e arquivar/restaurar planos sem vínculo preservando contas e histórico.",
     "AuditAI: detalhar lançamentos sem correspondência entre razões CCI/SAGE, com data, documento, histórico, valores e página; conferir soma contra os totais e exportar detalhes em CSV.",
     "Importação XLSX: ler a planilha no momento da seleção e reutilizar os bytes durante o processamento; orientar nova seleção quando o navegador perder acesso ao arquivo.",
