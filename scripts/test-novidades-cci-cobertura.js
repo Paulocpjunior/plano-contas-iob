@@ -133,3 +133,13 @@ assert.strictEqual(`${v[3]}/${v[2]}`, novidades,
   'a versão do selo e o "Atualizado em" da página têm de ser o mesmo dia');
 
 console.log('✓ as Novidades do CCI cobrem as entregas registradas no CLAUDE.md');
+
+// A versão efetiva é a referência: o histórico editorial pode ficar atrasado.
+const release = require('../version.json');
+assert.ok(topo.includes('v' + release.version),
+  'Novidades deve documentar a versão atual no primeiro artigo.');
+const badge = frontend.match(/NOVIDADES_VERSAO = '([^']+)'/)[1];
+assert.strictEqual(badge.split('.').pop(), release.version.split('.').pop(),
+  'Renove o indicador NOVO para cada versão publicada.');
+assert.ok(topo.replace(/<[^>]*>/g, '').trim().length > 180,
+  'A versão deve incluir uma explicação de uso, não apenas o número.');
