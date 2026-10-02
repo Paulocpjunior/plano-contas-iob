@@ -1,7 +1,8 @@
 {
-  "version": "3.4.362",
-  "build_date": "2026-10-02T16:57:46Z",
+  "version": "3.4.363",
+  "build_date": "2026-10-02T17:29:54Z",
   "release_notes": [
+    "Conciliação: botão Marcar S — conciliado em cada linha e confirmação centralizada, visível sem rolar até o rodapé.",
     "Conciliação S/N: confirmação visível na tela, observação opcional e verificação online do status salvo; filtro mostra os lançamentos conciliados após confirmação.",
     "Conciliação: marcar S por conferência manual individual com motivo e auditoria, desfazer S e editar lançamento diretamente na consulta, mantendo compensação balanceada e proteção de competência.",
     "Memória fiscal: impedir aplicação de regras de classificação entre CFOPs diferentes ou sem CFOP comprovado, preservando memória bancária.",
