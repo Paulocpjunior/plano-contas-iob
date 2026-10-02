@@ -1,7 +1,8 @@
 {
-  "version": "3.4.359",
-  "build_date": "2026-10-02T11:53:54Z",
+  "version": "3.4.360",
+  "build_date": "2026-10-02T13:59:00Z",
   "release_notes": [
+    "Memória fiscal: impedir aplicação de regras de classificação entre CFOPs diferentes ou sem CFOP comprovado, preservando memória bancária.",
     "Segurança: remover node-forge da produção, atualizar Firebase Admin e ler certificados A1 com OpenSSL, preservando conferência e assinatura.",
     "Novidades: atualizar entregas recentes, renovar indicador NOVO e exigir cobertura da versão publicada no controle de qualidade.",
     "Conciliação manual por conta: provisões e pagamentos com S/N, seleção balanceada, auditoria e desfazer grupo; Trocar plano abre imediatamente sem carregar todas as contas.",
