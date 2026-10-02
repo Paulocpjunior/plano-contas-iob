@@ -57,7 +57,7 @@ const modulo = fs.readFileSync(path.join(__dirname, '..', 'lancamentos-edicao-lo
 assert(html.includes('id="filterNumeroLancamento"'), 'Lançamentos deve ter localizador por número.');
 assert(html.includes('function chaveSelecaoLancamento'), 'seleção múltipla deve normalizar IDs entre estado e DOM');
 assert(/async function abrirModalEditarLancamento[\s\S]*?abrirModalAlterarSelecionados/.test(html), 'lápis deve abrir o lote quando duas ou mais linhas marcadas incluem a linha atual');
-assert(html.includes('function abrirModalEditarLancamento(idx)'), 'Lançamento existente deve abrir modal de edição.');
+assert(html.includes('function abrirModalEditarLancamento(idx, opcoes)'), 'Lançamento existente deve abrir modal de edição.');
 assert(html.includes('aplicarEdicaoIndividual(entry, alteracao'), 'Edição direta deve usar a trilha auditável centralizada.');
 assert(html.includes('persistirMutacaoLancamentos'), 'Edição deve possuir rollback quando a persistência falhar.');
 assert(html.includes('enfileirarMutacaoModalLancamento'), 'Modal deve liberar a tela e enfileirar a persistência sem perder o rollback.');

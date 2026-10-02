@@ -23,8 +23,8 @@ function movimentos(entries,conta,contas){
 function marcar(rows,grupos){
  const map=new Map(rows.map(r=>[r.id,r]));
  const ativos=grupos.filter(g=>g.ativo!==false&&g.itens.every(i=>map.get(i.id)?.fingerprint===i.fingerprint));
- const vinculos=new Map();ativos.forEach(g=>g.itens.forEach(i=>vinculos.set(i.id,g.id)));
- return rows.map(r=>({...r,conciliado:vinculos.has(r.id),grupo:vinculos.get(r.id)||''}));
+ const vinculos=new Map();ativos.forEach(g=>g.itens.forEach(i=>vinculos.set(i.id,g)));
+ return rows.map(r=>({...r,conciliado:vinculos.has(r.id),grupo:vinculos.get(r.id)?.id||'',modo:vinculos.get(r.id)?.modo||'compensacao',justificativa:vinculos.get(r.id)?.justificativa||''}));
 }
 module.exports=function registrar(app,db,acesso,carregar,ler,contasEmpresa){
  async function contexto(req){
@@ -40,13 +40,17 @@ module.exports=function registrar(app,db,acesso,carregar,ler,contasEmpresa){
  app.get('/api/empresas/:cnpj/contabilidade/conciliacao-manual',async(req,res)=>{try{const c=await contexto(req);res.json({...c.dados,rows:c.rows});}catch(e){res.status(e.status||500).json({erro:e.message});}});
  app.post('/api/empresas/:cnpj/contabilidade/conciliacao-manual',async(req,res)=>{
   try{
-   const c=await contexto(req),desfazer=req.body.acao==='desfazer';
+   if(!['conciliar','conferir','desfazer'].includes(req.body.acao))throw erro('Ação de conciliação inválida.');
+   const c=await contexto(req),desfazer=req.body.acao==='desfazer',manual=req.body.acao==='conferir';
+   const justificativa=String(req.body.justificativa||'').trim();
+   if(manual&&(justificativa.length<3||justificativa.length>500))throw erro('Informe o motivo da conferência manual (3 a 500 caracteres).');
    const ids=req.body.ids;if(!Array.isArray(ids)||ids.length<1||ids.length>200||new Set(ids).size!==ids.length)throw erro('Selecione de 1 a 200 lançamentos distintos.');
    const selected=c.rows.filter(r=>ids.includes(r.id));if(selected.length!==ids.length)throw erro('Os lançamentos mudaram. Atualize a tela.');
    if(selected.some(r=>req.body.fingerprints?.[r.id]!==r.fingerprint))throw erro('Os lançamentos mudaram. Atualize a tela.');
    const grupo=desfazer?c.grupos.find(g=>g.id===req.body.grupo&&g.ativo!==false):null;
    if(desfazer&&(!grupo||grupo.itens.some(i=>!ids.includes(i.id))||grupo.itens.length!==ids.length))throw erro('Selecione todos os lançamentos do grupo para desfazer.');
-   if(!desfazer&&(selected.length<2||selected.some(r=>r.conciliado||r.dc==='D/C'||r.valor===0)||!selected.some(r=>r.dc==='D')||!selected.some(r=>r.dc==='C')||selected.reduce((s,r)=>s+r.liquido,0)!==0))throw erro('Selecione débitos e créditos pendentes com diferença de R$ 0,00.');
+   if(!desfazer&&selected.some(r=>r.conciliado))throw erro('Selecione apenas lançamentos pendentes.');
+   if(!desfazer&&!manual&&(selected.length<2||selected.some(r=>r.conciliado||r.dc==='D/C'||r.valor===0)||!selected.some(r=>r.dc==='D')||!selected.some(r=>r.dc==='C')||selected.reduce((s,r)=>s+r.liquido,0)!==0))throw erro('Selecione débitos e créditos pendentes com diferença de R$ 0,00.');
    const destino=c.ref.collection('conciliacoes_manuais').doc(desfazer?grupo.id:crypto.randomUUID());
    await db.runTransaction(async tx=>{
     const atual=await tx.get(c.sessao.doc.ref);if(!atual.exists||!atual.updateTime.isEqual(c.sessao.doc.updateTime)||atual.data().session_write_lock)throw erro('A sessão está sendo alterada. Atualize a tela.');
@@ -54,8 +58,12 @@ module.exports=function registrar(app,db,acesso,carregar,ler,contasEmpresa){
     if(!desfazer&&vigentes.some(r=>ids.includes(r.id)&&r.conciliado))throw erro('Um lançamento já foi conciliado por outro usuário.');
     if(desfazer&&!grupos.docs.some(d=>d.id===grupo.id&&d.data().ativo!==false))throw erro('A conciliação já foi desfeita. Atualize a tela.');
     for(const periodo of new Set(selected.map(r=>String(r.data).slice(0,7)))){if(!/^\d{4}-\d{2}$/.test(periodo))throw erro('Há data inválida na seleção.');const p=await tx.get(c.ref.collection('periodos_contabeis').doc(periodo));if(p.exists&&p.data().status==='fechado')throw erro('Competência '+periodo+' encerrada. Solicite reabertura administrativa.');}
-    const evento={acao:desfazer?'desconciliar':'conciliar',conta:c.dados.conta,itens:selected.map(r=>({id:r.id,fingerprint:r.fingerprint})),uid:req.user.uid,em:new Date()};
-    tx.set(destino,{...evento,ativo:!desfazer},{merge:true});tx.set(c.ref.collection('auditoria_contabil').doc(),{...evento,grupo:destino.id});
+    const evento={modo:manual?'manual':desfazer?(grupo.modo||'compensacao'):'compensacao',justificativa:manual?justificativa:desfazer?(grupo.justificativa||''):'',acao:desfazer?'desconciliar':manual?'conferir':'conciliar',conta:c.dados.conta,itens:selected.map(r=>({id:r.id,fingerprint:r.fingerprint})),uid:req.user.uid,em:new Date()};
+    const gruposGravados=[];
+    if(manual){
+     // Conferências independentes: desfazer uma linha não desfaz as demais.
+     for(const item of evento.itens){const destinoItem=c.ref.collection('conciliacoes_manuais').doc();gruposGravados.push(destinoItem.id);tx.set(destinoItem,{...evento,itens:[item],ativo:true});}
+    }else tx.set(destino,{...evento,ativo:!desfazer},{merge:true});tx.set(c.ref.collection('auditoria_contabil').doc(),{...evento,grupo:manual?'':destino.id,grupos:manual?gruposGravados:[destino.id]});
    });res.json({ok:true});
   }catch(e){res.status(e.status||500).json({erro:e.message});}
  });
