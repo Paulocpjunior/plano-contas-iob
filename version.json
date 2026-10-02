@@ -1,7 +1,8 @@
 {
-  "version": "3.4.360",
-  "build_date": "2026-10-02T13:59:00Z",
+  "version": "3.4.361",
+  "build_date": "2026-10-02T14:39:40Z",
   "release_notes": [
+    "Conciliação: marcar S por conferência manual individual com motivo e auditoria, desfazer S e editar lançamento diretamente na consulta, mantendo compensação balanceada e proteção de competência.",
     "Memória fiscal: impedir aplicação de regras de classificação entre CFOPs diferentes ou sem CFOP comprovado, preservando memória bancária.",
     "Segurança: remover node-forge da produção, atualizar Firebase Admin e ler certificados A1 com OpenSSL, preservando conferência e assinatura.",
     "Novidades: atualizar entregas recentes, renovar indicador NOVO e exigir cobertura da versão publicada no controle de qualidade.",
