@@ -119,7 +119,11 @@ function normalizarFiltrosExclusao(filtrosOuDataInicial, dataFinalLegada) {
   if (lancamentoInicial !== null && lancamentoFinal !== null && lancamentoInicial > lancamentoFinal) {
     throw new Error('O lançamento inicial não pode ser maior que o lançamento final.');
   }
+  const situacao = String(entrada.situacao || 'todos').toLowerCase();
+  if (!['todos','s','n'].includes(situacao)) throw new Error('Situação de conciliação inválida.');
+  if (situacao !== 'todos' && !normalizarConta(entrada.conta)) throw new Error('Informe a conta para filtrar S/N. A conciliação é por conta.');
   return {
+    situacao,
     dataInicial: periodo.inicio,
     dataFinal: periodo.fim,
     tipoMovimento,
@@ -131,17 +135,22 @@ function normalizarFiltrosExclusao(filtrosOuDataInicial, dataFinalLegada) {
   };
 }
 
-function lancamentoCorrespondeFiltros(item, filtros, dataNormalizada) {
+function lancamentoCorrespondeFiltros(item, filtros, dataNormalizada, contexto = {}) {
   const data = dataNormalizada || normalizarDataLancamento(item && item.data);
   if (!data || data < filtros.dataInicial || data > filtros.dataFinal) return false;
   if (filtros.tipoMovimento !== 'todos' && tipoMovimentoLancamento(item) !== filtros.tipoMovimento) return false;
+  if (filtros.situacao !== 'todos') {
+    if (!contexto.situacoes) throw new Error('Conciliação não consultada. Gere uma nova prévia.');
+    if (contexto.situacoes.get(String(item.id)) !== (filtros.situacao === 's')) return false;
+  }
   const numeroLancamento = Number(item && item.numeroLancamento);
   if (filtros.lancamentoInicial !== null && (!Number.isFinite(numeroLancamento) || numeroLancamento < filtros.lancamentoInicial)) return false;
   if (filtros.lancamentoFinal !== null && (!Number.isFinite(numeroLancamento) || numeroLancamento > filtros.lancamentoFinal)) return false;
   if (filtros.conta) {
     const debito = normalizarConta(item && item.contaDebito);
     const credito = normalizarConta(item && item.contaCredito);
-    if (debito !== filtros.conta && credito !== filtros.conta) return false;
+    const aliases = contexto.aliases || new Set([filtros.conta]);
+    if (!aliases.has(debito) && !aliases.has(credito)) return false;
   }
   if (filtros.historico) {
     const texto = normalizarTexto([
@@ -158,6 +167,8 @@ function lancamentoCorrespondeFiltros(item, filtros, dataNormalizada) {
 
 function montarPreviaExclusao(entries, filtrosOuDataInicial, dataFinalLegada) {
   const filtros = normalizarFiltrosExclusao(filtrosOuDataInicial, dataFinalLegada);
+  const contexto = typeof dataFinalLegada === 'object' ? dataFinalLegada : {};
+  const lancamentos = [];
   const lista = Array.isArray(entries) ? entries : [];
   const totaisImportacao = new Map();
   lista.forEach(item => {
@@ -173,7 +184,8 @@ function montarPreviaExclusao(entries, filtrosOuDataInicial, dataFinalLegada) {
       datasInvalidas++;
       return;
     }
-    if (!lancamentoCorrespondeFiltros(item, filtros, data)) return;
+    if (!lancamentoCorrespondeFiltros(item, filtros, data, contexto)) return;
+    lancamentos.push({ id:String(item.id || ''), numero:item.numeroLancamento || '', data, documento:item.documento || item.numero_nf || '', descricao:item.descricao || item.historico || '', debito:item.contaDebito || '', credito:item.contaCredito || '', valor:numero(item.valor), importacao:chaveImportacao(item), situacao:contexto.situacoes ? (contexto.situacoes.get(String(item.id)) ? 'S' : 'N') : '—' });
     const chave = chaveImportacao(item);
     if (!grupos.has(chave)) {
       grupos.set(chave, {
@@ -213,6 +225,8 @@ function montarPreviaExclusao(entries, filtrosOuDataInicial, dataFinalLegada) {
     dataInicial: filtros.dataInicial,
     dataFinal: filtros.dataFinal,
     filtros,
+    lancamentos: lancamentos.slice(0, 1000),
+    limiteExibicao: 1000,
     totalSessao: lista.length,
     totalPeriodo: importacoes.reduce((s, grupo) => s + grupo.quantidadePeriodo, 0),
     datasInvalidas,
@@ -224,6 +238,11 @@ function aplicarExclusao(entries, filtrosOuDataInicial, dataFinalOuChaves, chave
   const usandoFiltros = filtrosOuDataInicial && typeof filtrosOuDataInicial === 'object';
   const filtros = normalizarFiltrosExclusao(filtrosOuDataInicial, usandoFiltros ? undefined : dataFinalOuChaves);
   const chavesSelecionadas = usandoFiltros ? dataFinalOuChaves : chavesSelecionadasLegadas;
+  const contexto = usandoFiltros && chavesSelecionadasLegadas && typeof chavesSelecionadasLegadas === 'object' ? chavesSelecionadasLegadas : {};
+  const ids = contexto.idsSelecionados;
+  if (ids !== undefined && (!Array.isArray(ids) || !ids.length || new Set(ids).size !== ids.length)) throw new Error('Selecione lançamentos distintos.');
+  const idsSet = ids === undefined ? null : new Set(ids.map(String));
+  if (idsSet && entries.filter(e=>idsSet.has(String(e.id))).length !== idsSet.size) throw new Error('Identificadores ausentes ou duplicados. Gere nova prévia.');
   const selecionadas = new Set((Array.isArray(chavesSelecionadas) ? chavesSelecionadas : []).map(String).filter(Boolean));
   if (!selecionadas.size) throw new Error('Selecione ao menos uma importação para excluir.');
   const lista = Array.isArray(entries) ? entries : [];
@@ -231,12 +250,13 @@ function aplicarExclusao(entries, filtrosOuDataInicial, dataFinalOuChaves, chave
   const mantidos = [];
   lista.forEach(item => {
     const data = normalizarDataLancamento(item && item.data);
-    const corresponde = lancamentoCorrespondeFiltros(item, filtros, data);
-    if (corresponde && selecionadas.has(chaveImportacao(item))) removidos.push(item);
+    const corresponde = lancamentoCorrespondeFiltros(item, filtros, data, contexto);
+    if (corresponde && selecionadas.has(chaveImportacao(item)) && (!idsSet || idsSet.has(String(item.id)))) removidos.push(item);
     else mantidos.push(item);
   });
+  if (idsSet && removidos.length !== idsSet.size) throw new Error('Seleção fora dos filtros da prévia.');
   if (!removidos.length) throw new Error('Nenhum lançamento corresponde à seleção e ao período informados.');
-  const previaRemovidos = montarPreviaExclusao(removidos, filtros);
+  const previaRemovidos = montarPreviaExclusao(removidos, filtros, contexto);
   return {
     mantidos,
     removidos,
@@ -255,6 +275,7 @@ function aplicarExclusao(entries, filtrosOuDataInicial, dataFinalOuChaves, chave
 }
 
 module.exports = {
+  normalizarConta,
   CHAVE_SEM_IMPORTACAO,
   dataIsoValida,
   normalizarDataLancamento,

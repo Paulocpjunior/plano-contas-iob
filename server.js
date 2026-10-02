@@ -3788,6 +3788,13 @@ app.post('/api/admin/empresas/:cnpj/migracao-sage/:loteId/reverter', adminRequir
   }
 });
 
+async function contextoExclusaoConciliacao(cnpj, empresa, entries, filtros) {
+  if (!filtros.conta) return { assinatura: 'sem-conta' };
+  const contas = await carregarContasContabeisEmpresa(empresa);
+  const snap = await db.collection('empresas').doc(cnpj).collection('conciliacoes_manuais').get();
+  return require('./exclusao-conciliacao').contextoConciliacao(entries, filtros.conta, contas, snap.docs.map(d=>({...d.data(),id:d.id})));
+}
+
 app.post('/api/admin/exclusao-lancamentos/preview', adminRequired, async (req, res) => {
   try {
     const cnpjLimpo = String(req.body && req.body.cnpj || '').replace(/\D/g, '');
@@ -3798,12 +3805,13 @@ app.post('/api/admin/exclusao-lancamentos/preview', adminRequired, async (req, r
     const sessao = await carregarSessaoAtualPorRef(sessaoRef);
     if (!sessao.encontrada || !sessao.stateJson) return res.status(404).json({ erro: 'A empresa não possui uma sessão de lançamentos salva.' });
     const state = parsearStateJson(sessao.stateJson);
-    const previa = montarPreviaExclusao(state.entries, req.body.filtros || req.body);
+    const contexto = await contextoExclusaoConciliacao(cnpjLimpo, chk.empresa, state.entries, req.body.filtros || req.body);
+    const previa = montarPreviaExclusao(state.entries, req.body.filtros || req.body, contexto);
     res.json({
       ok: true,
       empresa: { cnpj: cnpjLimpo, razao_social: chk.empresa.razao_social || chk.empresa.nome || cnpjLimpo },
       previa,
-      previewToken: tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, previa.filtros),
+      previewToken: tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, { ...previa.filtros, conciliacao: contexto.assinatura }),
       sessaoAtualizadaEm: sessao.dados.updated_at || null,
     });
   } catch (e) {
@@ -3834,20 +3842,25 @@ app.post('/api/admin/exclusao-lancamentos/executar', adminRequired, async (req, 
     const sessao = await carregarSessaoAtualPorRef(sessaoRef);
     if (!sessao.encontrada || !sessao.stateJson) return res.status(404).json({ erro: 'A empresa não possui uma sessão de lançamentos salva.' });
     const state = parsearStateJson(sessao.stateJson);
-    const exclusao = aplicarExclusao(state.entries, body.filtros || body, chavesSelecionadas);
-    if (tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, exclusao.resumo.filtros) !== body.previewToken) {
-      throw erroSessao('A sessão ou os filtros mudaram depois da prévia. Gere uma nova prévia antes de excluir.', 409, 'PREVIA_DESATUALIZADA');
+    if (!Array.isArray(body.idsSelecionados) || !body.idsSelecionados.length || body.idsSelecionados.length > 1000 || body.idsSelecionados.some(id=>typeof id!=='string'||!id||id.length>500)) throw erroSessao('Selecione os lançamentos individualmente na nova prévia.', 400, 'SELECAO_INVALIDA');
+    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'exclusao_admin', sessao.updateMillis);
+    const contexto = await contextoExclusaoConciliacao(cnpjLimpo, chk.empresa, state.entries, body.filtros || body);
+    const exibidos = new Set(montarPreviaExclusao(state.entries, body.filtros || body, contexto).lancamentos.map(l=>l.id));
+    if (body.idsSelecionados.some(id=>!exibidos.has(id))) throw erroSessao('Seleção fora da prévia exibida.', 409, 'SELECAO_INVALIDA');
+    const exclusao = aplicarExclusao(state.entries, body.filtros || body, chavesSelecionadas, { ...contexto, idsSelecionados: body.idsSelecionados });
+    if (tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, { ...exclusao.resumo.filtros, conciliacao: contexto.assinatura }) !== body.previewToken) {
+      throw erroSessao('A sessão, os filtros ou a conciliação mudaram depois da prévia. Gere uma nova prévia antes de excluir.', 409, 'PREVIA_DESATUALIZADA');
     }
     if (exclusao.resumo.quantidadeRemovida !== quantidadeEsperada) {
       throw erroSessao('A quantidade de lançamentos mudou. Gere uma nova prévia antes de excluir.', 409, 'QUANTIDADE_DIVERGENTE');
     }
 
-    tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'exclusao_admin', sessao.updateMillis);
     const estadoAnteriorHash = hashSessao(sessao.stateJson);
     const removidosJson = JSON.stringify(exclusao.removidos);
     const fingerprintsLiberados = fingerprintsImportacaoLiberados(exclusao.mantidos, exclusao.removidos);
     state.entries = exclusao.mantidos;
     const novoStateJson = JSON.stringify(state);
+    await impedirAlteracaoPeriodosFechados(cnpjLimpo, sessao.stateJson, novoStateJson);
     const novoResumo = {
       ...(sessao.dados.resumo || {}),
       total_lancamentos: exclusao.resumo.quantidadeDepois,
@@ -3864,6 +3877,8 @@ app.post('/api/admin/exclusao-lancamentos/executar', adminRequired, async (req, 
       data_final: exclusao.resumo.dataFinal,
       filtros: exclusao.resumo.filtros,
       chaves_importacao: chavesSelecionadas,
+      ids_selecionados: body.idsSelecionados,
+      conciliacao_assinatura: contexto.assinatura,
       quantidade_antes: exclusao.resumo.quantidadeAntes,
       quantidade_removida: exclusao.resumo.quantidadeRemovida,
       quantidade_depois: exclusao.resumo.quantidadeDepois,
