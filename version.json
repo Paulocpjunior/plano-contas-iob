@@ -1,7 +1,8 @@
 {
-  "version": "3.4.364",
-  "build_date": "2026-10-02T18:51:47Z",
+  "version": "3.4.365",
+  "build_date": "2026-10-03T10:25:41Z",
   "release_notes": [
+    "AuditAI: leitura contábil do razão XLS/XLSX estruturado, preservando partidas, datas, documentos e sinais; comparação pelo código completo e validação dos saldos.",
     "Exclusão administrativa: filtrar S/N por conta e selecionar lançamentos individuais na prévia, revalidando conciliação, preservando backup e bloqueando competências encerradas.",
     "Conciliação: botão Marcar S — conciliado em cada linha e confirmação centralizada, visível sem rolar até o rodapé.",
     "Conciliação S/N: confirmação visível na tela, observação opcional e verificação online do status salvo; filtro mostra os lançamentos conciliados após confirmação.",
