@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.4.364';
+  const AUDITAI_MOTOR_VERSION = '3.4.365';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.364';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.365';
 
   const STATE = {
     files: { a: null, b: null },
@@ -299,6 +299,82 @@
     return -1;
   }
 
+  // Razão exportado em tabela: cada linha é uma partida na conta, não uma
+  // operação bancária nova. Nunca deduplicar apenas pelo número do lançamento.
+  function parseAccountingMatrix(matrix, options) {
+    options = options || {};
+    const names = ['conta', 'data', 'lancamento', 'contra_partida', 'complemento', 'saldo_anterior', 'debito', 'credito', 'saldo'];
+    const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, '_');
+    const headerIndex = matrix.slice(0, 25).findIndex(row => {
+      const h = row.map(normalize);
+      return h.includes('conta') && h.includes('lancamento') && h.includes('saldo_anterior');
+    });
+    if (headerIndex < 0) return null;
+    const headers = matrix[headerIndex].map(normalize);
+    if (names.some(name => headers.filter(h => h === name).length !== 1)) throw Error('Razão em planilha: colunas ausentes ou repetidas. Esperado: ' + names.join(', '));
+    const indices = names.map(name => headers.indexOf(name));
+    const grouped = new Map(), dates = [];
+    function dateValue(value) {
+      if (typeof value === 'number') {
+        const parts = window.XLSX.SSF.parse_date_code(value, { date1904: !!options.date1904 });
+        if (!parts || parts.y < 1900 || parts.y > 2199 || (parts.m === 2 && parts.d === 29 && parts.y === 1900)) return '';
+        value = String(parts.d).padStart(2, '0') + '/' + String(parts.m).padStart(2, '0') + '/' + parts.y;
+      }
+      const match = String(value || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (!match) return '';
+      const d = new Date(Date.UTC(+match[3], +match[2] - 1, +match[1]));
+      return d.getUTCFullYear() === +match[3] && d.getUTCMonth() === +match[2] - 1 && d.getUTCDate() === +match[1] ? match[0] : '';
+    }
+    matrix.slice(headerIndex + 1).forEach((row, offset) => {
+      if (row.every(v => v == null || String(v).trim() === '')) return;
+      const line = headerIndex + offset + 2;
+      const fail = message => { throw Error('Razão em planilha, linha ' + line + ': ' + message); };
+      const v = indices.map(i => row[i]);
+      const [code, , document, counterpart, description] = v.map(x => String(x == null ? '' : x).trim());
+      if (!/^\d+(?:\.\d+)+$/.test(code) || !(/^(?:\d+(?:\.\d+)+|multiplos)$/i.test(counterpart.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) || !document || !description) fail('conta, contrapartida, lançamento ou complemento inválido.');
+      const date = dateValue(v[1]);
+      if (!date) fail('data inválida.');
+      const values = v.slice(5).map(value => {
+        if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isSafeInteger(Math.round(value * 100)) || Math.abs(value * 100 - Math.round(value * 100)) > 0.001) fail('valor monetário inválido; use células numéricas com até dois decimais.');
+        return Math.round(value * 100);
+      });
+      const [opening, debit, credit, closing] = values;
+      if (debit < 0 || credit < 0 || (debit > 0 && credit > 0) || (!debit && !credit)) fail('débito/crédito inválido.');
+      if (opening + debit - credit !== closing) fail('saldo anterior + débito - crédito não confere com o saldo.');
+      let account = grouped.get(code);
+      if (!account) {
+        account = { key: code, code, description: 'Conta ' + code, opening, debit: 0, credit: 0, closing: opening, movements: [], movementsVerified: true };
+        grouped.set(code, account);
+      }
+      if (account.closing !== opening) fail('saldo descontínuo na conta ' + code + '.');
+      const iso = date.split('/').reverse().join('-');
+      if (account.lastDate && iso < account.lastDate) fail('datas fora de ordem na conta ' + code + '.');
+      account.lastDate = iso;
+      account.debit += debit; account.credit += credit; account.closing = closing;
+      account.movements.push({ date, document, description, counterpart, debit, credit, sourceLine: line, page: (options.sheetName || 'Planilha') + ' · linha ' + line });
+      dates.push(iso);
+    });
+    if (!grouped.size) throw Error('Razão em planilha sem movimentos.');
+    dates.sort();
+    const result = [...grouped.values()];
+    result.accounting = true; result.accountIdentity = 'code'; result.cnpj = '';
+    result.periods = [dates[0].split('-').reverse().join('/') + ' a ' + dates[dates.length - 1].split('-').reverse().join('/')];
+    result.coverageNotice = 'Planilha sem CNPJ e período declarado: confirme a empresa e o intervalo exportado. Datas observadas: ' + result.periods[0] + '. Contas sem movimento podem não estar incluídas.';
+    return result;
+  }
+
+  function rowsFromWorkbook(wb, fileName) {
+    const sheets = wb.SheetNames.map(name => {
+      const matrix = window.XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, blankrows: true });
+      return parseAccountingMatrix(matrix, { sheetName: name, date1904: wb.Workbook?.WBProps?.date1904 }) || rowsFromMatrix(matrix, { context: (fileName || '') + ' ' + name });
+    }).filter(rows => rows.length);
+    if (sheets.some(rows => rows.accounting)) {
+      if (sheets.length !== 1) throw Error('Razão contábil: selecione um arquivo com uma única aba preenchida para evitar sobreposição de contas e períodos.');
+      return sheets[0];
+    }
+    return sheets.flat();
+  }
+
   function rowsFromMatrix(matrix, options) {
     options = options || {};
     const rows = matrix.filter(function (r) { return r.some(function (v) { return String(v || '').trim() !== ''; }); });
@@ -581,7 +657,11 @@
     if(a.cnpj&&b.cnpj&&a.cnpj!==b.cnpj)throw Error('CNPJ diferente entre os relatórios.');
     const monthSet=rows=>[...new Set((rows.periods||[]).flatMap(p=>p.match(/\d{2}\/\d{4}/g)||[]))].sort().join('|');
     if(monthSet(a)&&monthSet(b)&&monthSet(a)!==monthSet(b))throw Error('Períodos diferentes entre os relatórios.');
-    const am=new Map(a.map(r=>[r.key,r])),bm=new Map(b.map(r=>[r.key,r]));
+    const useCode = a.accountIdentity === 'code' || b.accountIdentity === 'code';
+    if (useCode && [...a, ...b].some(r => !r.code)) throw Error('Para comparar este razão em planilha, o outro relatório precisa trazer o código completo das contas.');
+    const keyFor = r => useCode ? r.code : r.key;
+    const am=new Map(a.map(r=>[keyFor(r),r])),bm=new Map(b.map(r=>[keyFor(r),r]));
+    if (am.size !== a.length || bm.size !== b.length) throw Error('Código de conta repetido no relatório; comparação não validada.');
     return [...new Set([...am.keys(),...bm.keys()])].map(key=>{const left=am.get(key),right=bm.get(key);return {key,left,right,details:compareAccountingMovements(left,right),different:!left||!right||left.coverageWarning||right.coverageWarning||['opening','debit','credit','closing'].some(k=>left[k]!==right[k])};});
   }
   function renderAccounting(rows){
@@ -974,8 +1054,8 @@
     await ensureParsers();
     const ext = file.name.split('.').pop().toLowerCase();
     if (ext === 'xlsx' || ext === 'xls') {
-      const wb = window.XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
-      return wb.SheetNames.flatMap(function (name) { return rowsFromSheet(wb.Sheets[name], file.name + ' ' + name); });
+      const wb = window.XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false });
+      return rowsFromWorkbook(wb, file.name);
     }
     if (ext === 'csv' || ext === 'tsv') return rowsFromDelimitedText(await file.text(), ext);
     if (ext === 'pdf') return parsePdf(file);
@@ -1866,7 +1946,7 @@
         const accounts=compareAccounting(STATE.rows.a,STATE.rows.b);
         status.textContent=['a','b'].map(side=>'Arquivo '+side.toUpperCase()+': '+STATE.rows[side].length+' conta(s), '+STATE.rows[side].reduce((sum,r)=>sum+(r.movements?.length||0),0)+' lançamentos detalhados').join(' · ');
         STATE.result={accounting:true,accounts};
-        document.getElementById('sp-conciliacao-result').innerHTML=renderAccounting(accounts)+renderAccountingMovements(accounts);return;
+        document.getElementById('sp-conciliacao-result').innerHTML=['a','b'].filter(side=>STATE.rows[side].coverageNotice).map(side=>'<p class="p-3 bg-amber-50">Arquivo '+side.toUpperCase()+': '+escapeHtml(STATE.rows[side].coverageNotice)+'</p>').join('')+renderAccounting(accounts)+renderAccountingMovements(accounts);return;
       }
       STATE.result = reconcileRows(STATE.rows.a, STATE.rows.b);
       renderResult();
@@ -2000,6 +2080,8 @@
     reconcileRows: reconcileRows,
     renderOutOfScope: renderOutOfScope,
     rowsFromMatrix: rowsFromMatrix,
+    parseAccountingMatrix: parseAccountingMatrix,
+    rowsFromWorkbook: rowsFromWorkbook,
     rowsFromDelimitedText: rowsFromDelimitedText,
     rowsFromText: rowsFromText,
     parseAccountingText: parseAccountingText,
