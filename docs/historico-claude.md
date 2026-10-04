@@ -1798,3 +1798,7 @@ colocar o e-Fiscal no circuito seria criar dependência operacional nova do
 sistema que está sendo aposentado; (3) o argumento de dupla transmissão do
 #42 continua verdadeiro — resolve-se escolhendo o dono, não gerando XML pra
 outro sistema.
+
+## Templates e agendamentos (04/10)
+
+Atalho do administrador para comunicação contábil centralizada no CFI, sem alterar dados contábeis. Publicação autorizada por Paulo: "pode publicar e seguir". Versão 3.4.366.
