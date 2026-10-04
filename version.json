@@ -1,7 +1,8 @@
 {
-  "version": "3.4.365",
-  "build_date": "2026-10-03T10:25:41Z",
+  "version": "3.4.366",
+  "build_date": "2026-10-04T11:56:22Z",
   "release_notes": [
+    "Comunicação: atalho administrativo para templates e agendamentos do departamento contábil na central do CFI.",
     "AuditAI: leitura contábil do razão XLS/XLSX estruturado, preservando partidas, datas, documentos e sinais; comparação pelo código completo e validação dos saldos.",
     "Exclusão administrativa: filtrar S/N por conta e selecionar lançamentos individuais na prévia, revalidando conciliação, preservando backup e bloqueando competências encerradas.",
     "Conciliação: botão Marcar S — conciliado em cada linha e confirmação centralizada, visível sem rolar até o rodapé.",
