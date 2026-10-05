@@ -15,6 +15,9 @@
   function combinar(base, local, remoto) {
     const conflitos = [];
     function merge(b, l, r, caminho) {
+      // Horário do snapshot, gerado a cada envio; não representa uma edição
+      // contábil. A exceção é só na raiz, nunca dentro de um lançamento.
+      if (caminho === 'atualizadoEm') return l === undefined ? r : l;
       if (igual(l, b)) return r;
       if (igual(r, b) || igual(l, r)) return l;
       if (caminho === 'entries') {
