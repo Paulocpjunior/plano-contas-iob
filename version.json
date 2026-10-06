@@ -1,7 +1,8 @@
 {
-  "version": "3.4.369",
-  "build_date": "2026-10-06T10:14:55.219Z",
+  "version": "3.4.370",
+  "build_date": "2026-10-06T12:58:55.048195+00:00",
   "release_notes": [
+    "Dividendos: separar parcelas com e sem ATA por sócio, preservando o bruto, o saldo e os aceites anteriores, sem dedução automática de R$ 50 mil.",
     "Relatórios: ao abrir saldos anteriores a partir dos índices, retornar ao Balancete e exibir os controles de abertura.",
     "Relatórios: Índice Financeiro e Índice de Endividamento com bases por empresa e período, fórmulas, fontes e exportação PDF/Excel.",
     "Salvamento: corrigido falso conflito no horário de atualização da sessão, mantendo a proteção contra alterações incompatíveis no mesmo lançamento.",

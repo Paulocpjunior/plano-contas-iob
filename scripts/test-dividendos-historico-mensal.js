@@ -6,6 +6,8 @@ const meta={tpAmb:1,cnpjFonte:ref.id,cpf,reciboDocId:'setembro',perApur:'2026-09
 let baixa=await A.aplicarAceite(db,meta,ret,'P1');await H.registrarAceite(db,meta,ret,'P1',baixa);
 let cad=(await ref.get()).data().reinfDividendos,ctx=await H.carregar(ref,cad,'2026-10');assert.equal(ctx.saldoAbertura,30000);assert.equal(ctx.socios[0].ataSaldo,30000);assert.equal(ctx.historico[0].brutoCentavos,8000000);assert.equal(ctx.historico[0].ataCentavos,7000000);
 assert.equal((await H.carregar(ref,cad,'2026-09')).saldoAbertura,100000);
+const recarregado=await H.carregar(ref,cad,'2026-09');assert.equal(recarregado.dadosConfirmados.origemDividendos,'mista');assert.equal(recarregado.dadosConfirmados.pagamentos[0].valorSemAta,10000);
+const refeito=require('../reinf/reinf-dividendos-utils').calcularDividendos({...recarregado.dadosConfirmados,cnpj:ref.id,competencia:'2026-09',socios:recarregado.socios,ataSaldoAnterior:recarregado.saldoAbertura,ataAprovadaAte2025:true,ataValidaAte2028:true});assert.equal(refeito.ataUsado,70000,'Reabrir mês aceito preserva a parcela original sem ATA');
 const m2={...meta,ata:{centavos:6000000,reciboAnterior:'REC1'},dividendos:{...meta.dividendos,brutoCentavos:7000000}},r2={...ret,nrRecArqBase:'REC2'};
 baixa=await A.aplicarAceite(db,m2,r2,'P2');await H.registrarAceite(db,m2,r2,'P2',baixa);await H.registrarAceite(db,meta,ret,'P1',{status:'ja_aplicado'});
 cad=(await ref.get()).data().reinfDividendos;ctx=await H.carregar(ref,cad,'2026-10');assert.equal(ctx.saldoAbertura,40000);assert.equal(ctx.historico.length,1);assert.equal(ctx.historico[0].brutoCentavos,7000000);assert.equal(ctx.historico[0].recibos[0].recibo,'REC2');

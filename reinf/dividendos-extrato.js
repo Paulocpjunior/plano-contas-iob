@@ -20,7 +20,7 @@ function montarExtrato(empresa, dados, contexto = {}) {
     'Competência: '+r.competencia+' | Data do pagamento informada: '+data.split('-').reverse().join('/'),
     'Responsável: '+(dados.responsavel||empresa.reinfDividendos?.responsavelDividendos||'Não informado'),
     'Situação: demonstrativo do cálculo informado. Não comprova pagamento, transmissão ou aceite da Receita.',
-    'Origem: '+(dados.origemDividendos==='lucros_posteriores'?'lucros posteriores, sem consumo da ATA':'lucros previstos na ATA de 2025'),
+    'Origem: '+(dados.origemDividendos==='mista'?'com e sem ATA, conforme parcelas informadas por sócio':dados.origemDividendos==='lucros_posteriores'?'lucros posteriores, sem consumo da ATA':'lucros previstos na ATA de 2025'),
     'Distribuição: '+(dados.modoDistribuicao==='valores'?'valores informados por sócio':'rateio pela participação societária'),
     'Bruto: '+moeda(r.valorDistribuido)+' | IRRF: '+moeda(r.totalIrrf)+' | Líquido calculado: '+moeda(totalLiquido),
     'ATA registrada: '+moeda(r.ataValorTotal)+' | Saldo anterior informado: '+moeda(r.ataSaldoAnterior),
@@ -33,9 +33,9 @@ function montarExtrato(empresa, dados, contexto = {}) {
     'Emitir ou enviar este extrato não baixa a ATA. Os saldos abaixo são projeções; a atualização do controle depende do R-4010 aceito em produção.',
     r.alertaAta?.mensagem||''
   ];
-  const pagamentos=socios.map(s=>[s.nome,s.cpf,pct(s.percentual),moeda(s.valorBruto),moeda(s.valorAtaIsento),moeda(s.valorTributavel),moeda(s.irrf),moeda(s.liquido)]);
+  const pagamentos=socios.map(s=>[s.nome,s.cpf,pct(s.percentual),moeda(s.valorBruto),moeda(s.valorAtaIsento),moeda(s.valorBruto-s.valorAtaIsento),moeda(s.valorTributavel),moeda(s.irrf),moeda(s.liquido)]);
   const saldos=socios.map(s=>[s.nome,moeda(s.saldoAnterior),moeda(s.ataUsada),moeda(s.saldoApos),pct(s.percentualSaldo)]);
-  const texto=linhas.join('\n')+'\n\nPor sócio — Nome | CPF | Participação | Bruto | ATA | Base | IRRF | Líquido\n'+pagamentos.map(r=>r.join(' | ')).join('\n')+'\n\nSaldo ATA — Nome | Anterior | Utilizado | Projetado | % do saldo\n'+saldos.map(r=>r.join(' | ')).join('\n');
+  const texto=linhas.join('\n')+'\n\nPor sócio — Nome | CPF | Participação | Bruto | ATA | Sem ATA | Base | IRRF | Líquido\n'+pagamentos.map(r=>r.join(' | ')).join('\n')+'\n\nSaldo ATA — Nome | Anterior | Utilizado | Projetado | % do saldo\n'+saldos.map(r=>r.join(' | ')).join('\n');
   const visual=require('./dividendos-relatorio-layout').render({resultado:r,empresa:nome,totalLiquido},dados,contexto);
   return {assunto:'Extrato de lucros e dividendos — '+nome+' — '+r.competencia,html:visual.html,htmlEmail:'<h2 style="color:#091D8D">Extrato mensal de lucros e dividendos</h2><p><b>'+escape(nome)+'</b> · '+escape(r.competencia)+'</p><table style="width:100%;background:#f2f5fa;padding:18px"><tr><td>Distribuição<br><b>'+moeda(r.valorDistribuido)+'</b></td><td>IRRF<br><b>'+moeda(r.totalIrrf)+'</b></td><td>Líquido<br><b>'+moeda(totalLiquido)+'</b></td></tr></table><p>'+escape(visual.status)+'</p><p>O relatório completo está anexado em HTML, com gráficos e detalhamento por sócio. Abra no navegador para conferir ou imprimir/salvar como PDF.</p><p>'+visual.alertas.map(escape).join('<br>')+'</p><p>Emitir ou enviar este extrato não baixa a ATA.</p>',texto:texto+visual.textoHistorico,alertas:visual.alertas,status:visual.status,resultado:r,empresa:nome,cnpj:r.cnpj,competencia:r.competencia,totalLiquido};
 }

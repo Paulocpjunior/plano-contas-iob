@@ -1802,3 +1802,10 @@ outro sistema.
 ## Templates e agendamentos (04/10)
 
 Atalho do administrador para comunicação contábil centralizada no CFI, sem alterar dados contábeis. Publicação autorizada por Paulo: "pode publicar e seguir". Versão 3.4.366.
+
+## Dividendos: origem mista por sócio (06/10/2026)
+- Origem mista exige valores pagos e parcela sem ATA explícita por sócio. Somente o restante consome a ATA, com validação de cobertura e condições; não há franquia automática de 50 mil.
+- Extrato, memória e R-4010 mantêm o bruto integral. Reabertura de mês aceito preserva a parcela efetiva com/sem ATA, sem escrever ou retificar recibos existentes.
+- Regressão APATEL: 308.557,31 = 50.000 sem ATA + 258.557,31 com ATA; saldo de 2.996.836,22 passa a 2.738.278,91. Outro sócio com 15.300 sem ATA preservado.
+- Base oficial consultada: perguntas 4–8 da Receita Federal sobre Lei 15.270/2025 (manual_padrao_rfb_per_tributacao_sutri_v2.pdf); limite de retenção e exceção de lucros até 2025 são distintos.
+- Validação local: 234 scripts aprovados, 3 pulados por evidências externas ausentes e nenhuma falha no check:ci. check completo interrompido por PDF Itaú de regressão ausente; todos os testes de dividendos e sintaxe passaram. Auditoria de produção: zero vulnerabilidades. Nenhuma gravação financeira ou transmissão real realizada nesta entrega.
