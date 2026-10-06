@@ -520,6 +520,18 @@
       .sort(function (a, b) { return a.conta.localeCompare(b.conta, 'pt-BR', { numeric: true }); });
   }
 
+  function totaisRazao(grupos) {
+    let debitos = 0;
+    let creditos = 0;
+    (grupos || []).forEach(function (g) {
+      (g.movimentos || []).forEach(function (m) {
+        debitos += centavos(m.debito);
+        creditos += centavos(m.credito);
+      });
+    });
+    return { debitos: deCentavos(debitos), creditos: deCentavos(creditos) };
+  }
+
   function diario(lancamentos, periodo, contas) {
     const mapa = mapaContas(contas);
     return lancamentosDoFiltro(lancamentos, periodo).slice().sort(function (a, b) {
@@ -774,6 +786,6 @@
 
   return {
     dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao, complementoLancamento,
-    lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, saldosAnteriores, balanceteAnual, razao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
+    lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, saldosAnteriores, balanceteAnual, razao, totaisRazao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
   };
 });
