@@ -82,5 +82,7 @@
   "/reinf/carne-leao-preparacao.js",
   "/reinf/carne-leao-preparacao-ui.js",
   "/server-monitor-ui.js",
-  "/admin-backups-ui.js"
+  "/admin-backups-ui.js",
+  "/indices-financeiros.js",
+  "/indices-financeiros-ui.js"
 ]
