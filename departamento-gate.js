@@ -64,7 +64,7 @@ function avaliarHorario(acesso) {
  * "sem vínculo" para quem só está fora do horário.
  * @returns {{permitido, modo, aviso: string|null, motivo: string|null, titulo?: string, bloqueio?: string}}
  */
-function decidirGate({ acesso, erro, modo }) {
+function decidirGate({ acesso, erro, modo, acessoContabilAutorizado = false }) {
   if (erro || !acesso) {
     return {
       permitido: true, modo,
@@ -82,6 +82,12 @@ function decidirGate({ acesso, erro, modo }) {
       titulo: 'Fora do horário de acesso',
       aviso: null, motivo: horario.mensagem,
     };
+  }
+  // Recuperação explícita de contas próprias do CCI, autorizada no servidor.
+  // Não substitui negativa de um cadastro central existente nem a trava de horário.
+  if (acesso.usuario === null && acessoContabilAutorizado === true) {
+    return { permitido: true, modo, indeterminado: false, aviso: null,
+      motivo: 'Acesso ao CCI autorizado no cadastro contábil.', origem: 'cci' };
   }
   if (acesso.temAcesso) {
     return { permitido: true, modo, indeterminado: false, aviso: null, motivo: acesso.motivo || null };
@@ -107,7 +113,7 @@ function decidirGate({ acesso, erro, modo }) {
  * O token do usuário abre a porta no CFI (crossProjectAuth aceita este
  * projeto), igual às consultas do R-4020.
  */
-function registrarGateDepartamento(app) {
+function registrarGateDepartamento(app, { buscarAcesso = buscarAcessoModuloNoCfi } = {}) {
   app.get('/api/departamento/gate', async (req, res) => {
     const modo = modoAtual();
     const auth = String(req.headers.authorization || '');
@@ -115,9 +121,9 @@ function registrarGateDepartamento(app) {
     let acesso = null;
     let erro = null;
     try {
-      acesso = await buscarAcessoModuloNoCfi({ email: req.user?.email, modulo: MODULO_DESTE_APP, token });
+      acesso = await buscarAcesso({ email: req.user?.email, modulo: MODULO_DESTE_APP, token });
     } catch (e) { erro = e; }
-    const d = decidirGate({ acesso, erro, modo });
+    const d = decidirGate({ acesso, erro, modo, acessoContabilAutorizado: req.user?.acessoContabilAutorizado });
     if (d.indeterminado) {
       console.warn(`[departamento-gate] indeterminado para ${req.user?.email}: ${d.motivo}`);
     }

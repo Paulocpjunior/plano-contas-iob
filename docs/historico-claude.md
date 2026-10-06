@@ -1815,3 +1815,7 @@ Relato do grupo Ferrante: protocolo 1.202610.1085695694 contém apenas R-1000, s
 
 ## 06/10/2026 — Níveis de acesso próprios do CCI
 Consulta, edição e operação com seis ações configuráveis no painel de usuários, gravação transacional e auditoria imutável pelo cliente. Middleware consulta perfil atual a cada requisição; sessão também verifica exclusão e nova importação. Permissões próprias não alteram is_admin, departamentos ou responsáveis. Compatibilidade mantém acessos legados até configuração explícita. Nenhuma transmissão ou e-mail de teste.
+
+## 2026-10-06 — Recuperação geral de carteiras e contas próprias do CCI
+
+A auditoria identificou vínculos existentes no CCI sem representação nas carteiras do CFI. Recuperação administrativa auditada por identidade e CNPJ exatos, preservando principais, níveis efetivos e administração independente. Contas CCI sem cadastro central admitem autorização local explícita `users.acessoContabilAutorizado === true`, somente quando o CFI confirma `usuario: null`; negativa de cadastro existente e horário continuam prevalecendo. Flag lida exclusivamente do perfil autenticado; clientes não podem gravá-la. Permissões de empresa e ações não são alteradas pelo gate. Para revogar a autorização local, remover o campo via administração do banco; a recuperação não cria contas CFI ou empresas ausentes.

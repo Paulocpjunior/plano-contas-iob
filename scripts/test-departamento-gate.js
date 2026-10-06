@@ -15,7 +15,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { decidirGate, avaliarHorario, modoAtual, MODULO_DESTE_APP } = require('../departamento-gate');
+const { decidirGate, avaliarHorario, modoAtual, MODULO_DESTE_APP, registrarGateDepartamento } = require('../departamento-gate');
 const { buscarAcessoModuloNoCfi } = require('./../reinf/cfi-notas-client');
 
 assert.strictEqual(MODULO_DESTE_APP, 'contabil');
@@ -32,6 +32,16 @@ for (const modo of ['aviso', 'bloqueio']) {
   assert.strictEqual(d.permitido, true);
   assert.strictEqual(d.aviso, null, 'quem tem vínculo não vê faixa nenhuma');
 }
+
+// Conta exclusiva do CCI: apenas autorização explícita lida do perfil no servidor.
+const semCadastroCentral = { temAcesso: false, usuario: null, horario: { permitido: true } };
+assert.strictEqual(decidirGate({ acesso: semCadastroCentral, modo: 'bloqueio', acessoContabilAutorizado: true }).permitido, true);
+for (const valor of [undefined, false, 'true', 1]) {
+  assert.strictEqual(decidirGate({ acesso: semCadastroCentral, modo: 'bloqueio', acessoContabilAutorizado: valor }).permitido, false);
+}
+assert.strictEqual(decidirGate({ acesso: { ...semCadastroCentral, usuario: { departamentos: [] } }, modo: 'bloqueio', acessoContabilAutorizado: true }).permitido, false, 'cadastro central existente continua soberano');
+assert.strictEqual(decidirGate({ acesso: { temAcesso: false }, modo: 'bloqueio', acessoContabilAutorizado: true }).permitido, false, 'resposta sem usuario não comprova ausência de cadastro');
+assert.strictEqual(decidirGate({ acesso: { ...semCadastroCentral, horario: { permitido: false } }, modo: 'bloqueio', acessoContabilAutorizado: true }).bloqueio, 'horario');
 
 // ─── sem vínculo, modo AVISO: informa com a ação e NÃO tranca ───────────────
 const aviso = decidirGate({
@@ -87,6 +97,17 @@ assert.strictEqual(decidirGate({ erro: new Error('x'), modo: 'bloqueio' }).permi
 
 // ─── o cliente do túnel monta a URL certa e não engole falta de config ──────
 (async () => {
+  let handler;
+  const modoAnterior = process.env.DEPARTAMENTO_GATE_MODO;
+  process.env.DEPARTAMENTO_GATE_MODO = 'bloqueio';
+  registrarGateDepartamento({ get: (_path, fn) => { handler = fn; } }, { buscarAcesso: async () => semCadastroCentral });
+  let resposta;
+  await handler({ headers: {}, user: { email: 'colaborador@sp.com' }, body: { acessoContabilAutorizado: true }, query: { acessoContabilAutorizado: true } }, { json: r => { resposta = r; } });
+  assert.strictEqual(resposta.permitido, false, 'body/query não concedem autorização local');
+  await handler({ headers: {}, user: { email: 'colaborador@sp.com', acessoContabilAutorizado: true } }, { json: r => { resposta = r; } });
+  assert.strictEqual(resposta.permitido, true, 'perfil autenticado autoriza conta própria do CCI');
+  if (modoAnterior === undefined) delete process.env.DEPARTAMENTO_GATE_MODO;
+  else process.env.DEPARTAMENTO_GATE_MODO = modoAnterior;
   let urlChamada = null;
   const fake = async (url) => { urlChamada = url; return { status: 200, json: async () => ({ ok: true, temAcesso: true, motivo: 'x' }) }; };
   await buscarAcessoModuloNoCfi(
