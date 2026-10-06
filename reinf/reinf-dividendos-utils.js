@@ -129,14 +129,28 @@ function calcularDividendos(params = {}) {
   }
   // Registros anteriores sem origem conservam o cálculo histórico.
   const origemDividendos = params.origemDividendos || 'ata_2025';
-  if (!['ata_2025', 'lucros_posteriores'].includes(origemDividendos)) throw Error('Origem dos dividendos inválida.');
-  const ataAplicavel = origemDividendos === 'ata_2025' && ataAprovadaAte2025 && ataValidaAte2028;
+  if (!['ata_2025', 'lucros_posteriores', 'mista'].includes(origemDividendos)) throw Error('Origem dos dividendos inválida.');
+  const ataAplicavel = origemDividendos !== 'lucros_posteriores' && ataAprovadaAte2025 && ataValidaAte2028;
   let ataUsadoCentavos = ataAplicavel
     ? Math.min(Math.max(0, ataSaldoAnteriorCentavos), valorDistribuidoCentavos)
     : 0;
   const individuais = new Map((params.socios || []).filter(s => s.ataSaldo != null && s.ataSaldo !== '').map(s => [digits(s.cpf || s.cpfBenef), toCents(s.ataSaldo)]));
   if (individuais.size && (individuais.size !== normalizados.socios.length || [...individuais.values()].some(v=>v<0) || [...individuais.values()].reduce((a,b)=>a+b,0)!==ataSaldoAnteriorCentavos)) throw Error('Confira os saldos individuais: a soma deve coincidir com o saldo da ATA.');
-  const ataPorSocio = individuais.size ? socios.map((s,i)=>ataAplicavel ? Math.min(brutos[i],individuais.get(s.cpf)) : 0) : ratearCentavos(ataUsadoCentavos, brutos);
+  let ataPorSocio = individuais.size ? socios.map((s,i)=>ataAplicavel ? Math.min(brutos[i],individuais.get(s.cpf)) : 0) : ratearCentavos(ataUsadoCentavos, brutos);
+  if (origemDividendos === 'mista') {
+    if (params.modoDistribuicao !== 'valores') throw Error('Para separar com e sem ATA, informe os valores pagos por sócio.');
+    const parcelas = new Map();
+    for (const p of params.pagamentos) {
+      const v = p.valorSemAta;
+      const n = typeof v === 'number' ? v : Number(String(v ?? '').replace(',', '.'));
+      if (v == null || v === '' || !Number.isFinite(n) || n < 0 || !Number.isSafeInteger(Math.round(n * 100)) || toCents(n) > toCents(p.valor)) throw Error('Informe a parcela sem ATA de cada sócio, entre zero e o valor pago.');
+      parcelas.set(digits(p.cpf), toCents(n));
+    }
+    ataPorSocio = socios.map((s,i) => brutos[i] - parcelas.get(s.cpf));
+    const solicitado = ataPorSocio.reduce((a,b)=>a+b,0);
+    if (solicitado > 0 && !ataAplicavel) throw Error('A parcela com ATA exige ATA aprovada e pagamento dentro das condições informadas.');
+    if (solicitado > ataSaldoAnteriorCentavos || (individuais.size && socios.some((s,i)=>ataPorSocio[i] > individuais.get(s.cpf)))) throw Error('A parcela com ATA excede o saldo disponível da empresa ou do sócio. Confira a origem e os saldos.');
+  }
   ataUsadoCentavos = ataPorSocio.reduce((a,b)=>a+b,0);
 
   let totalBaseTributavelCentavos = 0;
@@ -157,6 +171,7 @@ function calcularDividendos(params = {}) {
       valorBruto: fromCents(brutoCentavos),
       valorAtaIsento: fromCents(valorAtaIsentoCentavos),
       valorAposAta: fromCents(posAtaCentavos),
+      valorSemAta: fromCents(posAtaCentavos),
       valorTributavel: fromCents(valorTributavelCentavos),
       irrf: fromCents(irrfCentavos),
       ultrapassouLimite50k: posAtaCentavos > LIMITE_MENSAL_DIVIDENDOS_CENTAVOS,

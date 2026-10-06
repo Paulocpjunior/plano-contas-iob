@@ -43,8 +43,8 @@ async function carregar(ref,cadastro,competencia){
  const registro=rascunhos.find(m=>m.competencia===competencia)||null;
  const doMes=confirmados.filter(c=>c.perApur===competencia);
  const dadosConfirmados=doMes.length&&doMes.every(c=>c.distribuicao)?{
-   valorDistribuido:fromCents(doMes.reduce((a,c)=>a+c.distribuicao.brutoCentavos,0)),modoDistribuicao:'valores',
-   pagamentos:socios.map(s=>({cpf:s.cpf,valor:fromCents(doMes.filter(c=>c.cpf===s.cpf).reduce((a,c)=>a+c.distribuicao.brutoCentavos,0))})),
+   valorDistribuido:fromCents(doMes.reduce((a,c)=>a+c.distribuicao.brutoCentavos,0)),modoDistribuicao:'valores',origemDividendos:'mista',
+   pagamentos:socios.map(s=>({cpf:s.cpf,valor:fromCents(doMes.filter(c=>c.cpf===s.cpf).reduce((a,c)=>a+c.distribuicao.brutoCentavos,0)),valorSemAta:fromCents(doMes.filter(c=>c.cpf===s.cpf).reduce((a,c)=>a+c.distribuicao.brutoCentavos-Number(c.ataCentavos||0),0))})),
    dtPagamento:[...new Set(doMes.flatMap(c=>c.distribuicao.datas||[]))].length===1?doMes[0].distribuicao.datas[0]:''
  }:null;
  const anterioresPendentes=rascunhos.filter(m=>{const c=porMes.get(m.competencia);return m.competencia<competencia&&(!c||c.pendente||c.incompleto||c.brutoCentavos!==toCents(m.resultado?.valorDistribuido)||c.ataCentavos!==toCents(m.resultado?.ataUsado));}).map(m=>m.competencia);
