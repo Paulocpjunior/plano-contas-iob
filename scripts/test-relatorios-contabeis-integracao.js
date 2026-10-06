@@ -110,3 +110,25 @@ assert(graphEmail.includes('/sendMail'), 'integração Microsoft Graph sendMail 
 assert(graphEmail.includes('saveToSentItems: true'), 'mensagem enviada não é preservada nos itens enviados');
 
 console.log('OK: integração dos relatórios contábeis validada');
+
+// As três saídas usam o mesmo total, com números preservados no Excel.
+const vm = require('vm');
+const elementosRazao = {};
+const ambienteRazao = { window: { CCIRelatoriosContabeis: require('../relatorios-contabeis'), CCIIndicesUI: { tipos: () => false } }, document: { getElementById: id => elementosRazao[id] || (elementosRazao[id] = { value: '' }) }, Intl, Date };
+vm.createContext(ambienteRazao);
+vm.runInContext(ui.replace(/\}\)\(\);\s*$/, "tipoAtual = 'razao'; window.testeRazao = { linhasExportacao, linhasExportacaoPDF, renderRazao }; })();"), ambienteRazao);
+const amostraRazao = { periodoLegivel: 'Agosto/2026', razao: [{ conta: '10', codigoCompleto: '1.1.1', reduzido: '0010', descricao: 'Banco', saldoAnterior: 9999, movimentos: [{ data: '2026-08-01', documento: '1', descricao: 'Entrada', contrapartida: '300', debito: 100.1, credito: 0, saldo: 10099.1 }, { data: '2026-08-02', documento: '2', descricao: 'Saída', contrapartida: '300', debito: 0, credito: 25.2, saldo: 10073.9 }] }] };
+const saídasRazao = ambienteRazao.window.testeRazao;
+const excelRazao = saídasRazao.linhasExportacao(amostraRazao);
+assert.strictEqual(excelRazao.at(-1)[7], 100.1);
+assert.strictEqual(excelRazao.at(-1)[8], 25.2);
+assert.strictEqual(excelRazao.at(-1)[9], '', 'saldo não é somado');
+const pdfRazao = saídasRazao.linhasExportacaoPDF(amostraRazao);
+assert.strictEqual(pdfRazao.at(-1)[0].content, 'TOTAL DO RAZÃO');
+assert.strictEqual(pdfRazao.at(-1)[0].colSpan, 7);
+assert.strictEqual(pdfRazao.at(-1)[1].content, 'R$ 100,10');
+assert.strictEqual(pdfRazao.at(-1)[2].content, 'R$ 25,20');
+saídasRazao.renderRazao(amostraRazao);
+assert(elementosRazao.rcBody.innerHTML.includes('TOTAL DO RAZÃO'));
+assert(elementosRazao.rcBody.innerHTML.includes('100,10'));
+console.log('OK: totais do razão na tela, PDF e Excel');

@@ -1819,3 +1819,7 @@ Consulta, edição e operação com seis ações configuráveis no painel de usu
 ## 2026-10-06 — Recuperação geral de carteiras e contas próprias do CCI
 
 A auditoria identificou vínculos existentes no CCI sem representação nas carteiras do CFI. Recuperação administrativa auditada por identidade e CNPJ exatos, preservando principais, níveis efetivos e administração independente. Contas CCI sem cadastro central admitem autorização local explícita `users.acessoContabilAutorizado === true`, somente quando o CFI confirma `usuario: null`; negativa de cadastro existente e horário continuam prevalecendo. Flag lida exclusivamente do perfil autenticado; clientes não podem gravá-la. Permissões de empresa e ações não são alteradas pelo gate. Para revogar a autorização local, remover o campo via administração do banco; a recuperação não cria contas CFI ou empresas ausentes.
+
+## 2026-10-06 — Totais de débito e crédito no Razão
+
+Linha final TOTAL DO RAZÃO na tela, PDF/ impressão e Excel. Soma em centavos dos movimentos efetivamente contidos no razão, após filtro de período/conta, excluindo saldo anterior e sem somar saldos corridos. Testes cobrem centavos, conta, período e saídas numéricas/formatadas. PDF paginado de QA conferido visualmente.

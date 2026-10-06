@@ -492,13 +492,17 @@ function preferenciasImpressao(ctx, sobrescritas) {
     document.getElementById('rcTituloTabela').textContent = 'Razão Analítico — ' + dados.periodoLegivel + ' | Gerado em ' + new Date().toLocaleString('pt-BR') + ' por ' + usuarioGerador();
     document.getElementById('rcHead').innerHTML = '<tr><th>Data</th><th>Documento</th><th>Histórico</th><th>Contrapartida</th><th class="num">Débito</th><th class="num">Crédito</th><th class="num">Saldo</th></tr>';
     let html = '';
+    const gruposVisiveis = [];
     dados.razao.forEach(function (g) {
       const movimentos = g.movimentos.filter(function (m) { return buscaAceita([g.conta, g.descricao, m.documento, m.descricao, m.contrapartida, m.origem]); });
       if (!movimentos.length && !buscaAceita([g.conta, g.descricao])) return;
+      gruposVisiveis.push({ movimentos: movimentos });
       const identificacao = [g.codigoCompleto, g.reduzido, g.descricao || 'Conta sem descrição'].filter(Boolean).join(' - ');
       html += '<tr class="rc-account-row"><td colspan="7">Conta analisada: ' + esc(identificacao) + ' | Saldo anterior: ' + saldoComNatureza(g.saldoAnterior) + '</td></tr>';
       movimentos.forEach(function (m) { html += '<tr><td>' + dataBR(m.data) + '</td><td>' + esc(m.documento) + '</td><td>' + esc(m.descricao) + '</td><td>' + esc(m.contrapartida) + '</td><td class="num">' + (m.debito ? moeda(m.debito) : '') + '</td><td class="num">' + (m.credito ? moeda(m.credito) : '') + '</td><td class="num">' + moeda(m.saldo) + '</td></tr>'; });
     });
+    const totais = Core.totaisRazao(gruposVisiveis);
+    if (html) html += '<tr class="rc-account-row"><td colspan="4">TOTAL DO RAZÃO</td><td class="num">' + moeda(totais.debitos) + '</td><td class="num">' + moeda(totais.creditos) + '</td><td></td></tr>';
     document.getElementById('rcBody').innerHTML = html || '<tr><td colspan="7">Nenhum movimento encontrado.</td></tr>';
   }
 
@@ -951,6 +955,8 @@ function preferenciasImpressao(ctx, sobrescritas) {
     if (tipoAtual === 'diario') return dados.diario.map(function (l) { return [l.numero, dataBR(l.data), l.debito, l.credito, l.historico, l.documento, l.valor]; });
     const linhas = [];
     dados.razao.forEach(function (g) { g.movimentos.forEach(function (m) { linhas.push([g.codigoCompleto, g.reduzido, g.descricao, dataBR(m.data), m.documento, m.descricao, m.contrapartida, m.debito, m.credito, m.saldo]); }); });
+    const totais = Core.totaisRazao(dados.razao);
+    linhas.push(['', '', '', '', '', 'TOTAL DO RAZÃO', '', totais.debitos, totais.creditos, '']);
     return linhas;
   }
 
@@ -967,6 +973,8 @@ function preferenciasImpressao(ctx, sobrescritas) {
     if (tipoAtual === 'diario') return dados.diario.map(function (l) { return [l.numero, dataBR(l.data), l.debito, l.credito, l.historico, l.documento, moedaPDF(l.valor)]; });
     const linhas = [];
     dados.razao.forEach(function (g) { g.movimentos.forEach(function (m) { linhas.push([g.codigoCompleto, g.reduzido, g.descricao, dataBR(m.data), m.documento, m.descricao, m.contrapartida, moedaPDF(m.debito), moedaPDF(m.credito), saldoPDFComNatureza(m.saldo)]); }); });
+    const totais = Core.totaisRazao(dados.razao);
+    linhas.push([{ content: 'TOTAL DO RAZÃO', colSpan: 7, styles: { fontStyle: 'bold', fillColor: [219, 234, 254] } }, { content: moedaPDF(totais.debitos), styles: { fontStyle: 'bold', halign: 'right', fillColor: [219, 234, 254] } }, { content: moedaPDF(totais.creditos), styles: { fontStyle: 'bold', halign: 'right', fillColor: [219, 234, 254] } }, '']);
     return linhas;
   }
 
@@ -1102,7 +1110,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
         }
       },
       styles: { fontSize: window.CCIIndicesUI.tipos(tipoAtual) ? 8 : 6.5, cellPadding: 1.5 },
-      columnStyles: window.CCIIndicesUI.tipos(tipoAtual) ? { 0: {cellWidth: 60}, 1: {cellWidth: doc.internal.pageSize.getWidth() - 120}, 2: {cellWidth: 32, halign: 'right'} } : {},
+      columnStyles: window.CCIIndicesUI.tipos(tipoAtual) ? { 0: {cellWidth: 60}, 1: {cellWidth: doc.internal.pageSize.getWidth() - 120}, 2: {cellWidth: 32, halign: 'right'} } : tipoAtual === 'razao' ? { 7: { minCellWidth: 25, halign: 'right' }, 8: { minCellWidth: 25, halign: 'right' }, 9: { minCellWidth: 22, halign: 'right' } } : {},
       headStyles: { fillColor: [30, 64, 175] },
       margin: { bottom: 42 }
     });

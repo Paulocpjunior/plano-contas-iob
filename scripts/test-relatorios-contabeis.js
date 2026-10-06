@@ -191,3 +191,9 @@ assert.strictEqual(snap1.hash, snap2.hash, 'snapshot deve ser determinístico');
 assert.strictEqual(core.assinaturaPeriodo(lancamentos, '2026-01'), core.assinaturaPeriodo(lancamentos.slice().reverse(), '2026-01'));
 
 console.log('OK: motor de relatórios contábeis validado');
+
+// Totais do razão somam apenas movimentos, em centavos, após recorte de conta/período.
+assert.deepStrictEqual(core.totaisRazao(core.razao(lancamentos, '2026-01', contas, { 111: 9000 })), { debitos: 1250, creditos: 1250 });
+assert.deepStrictEqual(core.totaisRazao(core.razao(lancamentos, '2026-01', contas, { 111: 9000 }, '111')), { debitos: 1000, creditos: 250 });
+assert.deepStrictEqual(core.totaisRazao([{ movimentos: [{ debito: 0.1, credito: 0.2 }, { debito: 0.2, credito: 0.1 }] }]), { debitos: 0.3, creditos: 0.3 });
+assert.deepStrictEqual(core.totaisRazao(core.razao([], '2026-01', contas, { 111: 9000 })), { debitos: 0, creditos: 0 });

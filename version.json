@@ -1,7 +1,8 @@
 {
-  "version": "3.4.373",
-  "build_date": "2026-10-06T19:47:06.645051+00:00",
+  "version": "3.4.374",
+  "build_date": "2026-10-06T20:14:45.628850+00:00",
   "release_notes": [
+    "Razão: totais de débito e crédito ao final do relatório, na tela, impressão/PDF e Excel, respeitando o período e a conta selecionados.",
     "Acesso: contas exclusivas do CCI com autorização contábil comprovada podem acessar suas empresas sem depender de um cadastro no CFI; ações e administração permanecem separadas.",
     "Permissões: níveis Consulta, Consulta e edição e Operação contábil, com ações independentes e histórico; administração e carteiras próprias do CCI preservadas.",
     "EFD-Reinf: selecionar R-1000 já cadastrado e vigente para enviar os movimentos sem nova inclusão mensal.",
