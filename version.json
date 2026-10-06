@@ -1,7 +1,8 @@
 {
-  "version": "3.4.368",
-  "build_date": "2026-10-06T10:06:11.216Z",
+  "version": "3.4.369",
+  "build_date": "2026-10-06T10:14:55.219Z",
   "release_notes": [
+    "Relatórios: ao abrir saldos anteriores a partir dos índices, retornar ao Balancete e exibir os controles de abertura.",
     "Relatórios: Índice Financeiro e Índice de Endividamento com bases por empresa e período, fórmulas, fontes e exportação PDF/Excel.",
     "Salvamento: corrigido falso conflito no horário de atualização da sessão, mantendo a proteção contra alterações incompatíveis no mesmo lançamento.",
     "Comunicação: atalho administrativo para templates e agendamentos do departamento contábil na central do CFI.",

@@ -1343,6 +1343,12 @@ function preferenciasImpressao(ctx, sobrescritas) {
     },
     abrirSaldosAnteriores: async function () {
       if (!inicializado) montarTela();
+      if (window.CCIIndicesUI.tipos(tipoAtual)) {
+        tipoAtual = 'balancete';
+        document.querySelectorAll('#relatoriosContabeisRoot [data-rc-tipo]').forEach(function(btn) {
+          btn.classList.toggle('active', btn.dataset.rcTipo === tipoAtual);
+        });
+      }
       await carregarStatus();
       const imp = (statusAtual && statusAtual.implantacao) || {};
       const periodoAbertura = String(imp.inicio_escrituracao_cci || '').slice(0, 7);
