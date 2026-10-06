@@ -1,3 +1,4 @@
+const { protegerAcoes, permissoesEfetivas, validarAlteracaoSessao } = require('./permissoes-cci');
 const express = require('express');
 const { colecaoContas, publicarContas } = require('./planos-versionados');
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
@@ -243,7 +244,7 @@ async function authRequired(req, res, next) {
     const decoded = await adminAuth.verifyIdToken(token);
     if (!decoded.email || !decoded.email.endsWith(DOMAIN)) return res.status(403).json({ erro: 'Dominio nao autorizado' });
     const userDoc = await db.collection('users').doc(decoded.uid).get();
-    req.user = { uid: decoded.uid, email: decoded.email, name: decoded.name || decoded.email, is_admin: userDoc.exists && userDoc.data().is_admin === true };
+    req.user = { uid: decoded.uid, email: decoded.email, name: decoded.name || decoded.email, is_admin: userDoc.exists && userDoc.data().is_admin === true, permissoesCci: permissoesEfetivas(userDoc.exists ? userDoc.data() : {}) };
     next();
   } catch (err) { return res.status(401).json({ erro: 'Token invalido', detalhe: err.message }); }
 }
@@ -259,6 +260,8 @@ function adminRequired(req, res, next) {
 
 require('./backup-notifications').register({app,db,email:GraphEmail,express});
 app.use('/api', authRequired);
+app.use('/api', protegerAcoes);
+require('./permissoes-cci-routes')(app, db, adminRequired);
 app.use('/api', criarLimitador({
   janelaMs: 60 * 1000,
   maximo: 1200,
@@ -3327,6 +3330,8 @@ app.post('/api/empresas/:cnpj/sessao', async (req, res) => {
         resultadoRevisao.codigo
       );
     }
+    const acaoNegada = validarAlteracaoSessao(req.user, atual.stateJson ? JSON.parse(atual.stateJson) : {}, recebido);
+    if (acaoNegada) throw erroSessao('Seu nível no CCI não permite ' + acaoNegada + ' lançamentos nesta sessão.', 403, 'CCI_ACAO_NAO_PERMITIDA');
     const perda = validarPerdaLancamentos(atual.stateJson ? JSON.parse(atual.stateJson) : {}, recebido, resumo, req.user);
     if (!perda.ok) throw erroSessao(perda.erro, perda.codigo === 'ADMIN_REQUIRED' ? 403 : 409, perda.codigo);
     const marcadoresEncerramento = json => (lerEstadoContabil(json).entries || []).filter(l => l.encerramentoContabil).map(l => [String(l.id), l.encerramentoContabil]).sort((a, b) => a[0].localeCompare(b[0]));

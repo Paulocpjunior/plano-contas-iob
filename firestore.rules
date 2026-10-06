@@ -13,17 +13,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Compatibilidade para os registros legados da folha. O fluxo atual usa API.
+    // Configuração explícita de consulta não pode gravar pelo SDK antigo.
+    function canAction(action) {
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return request.auth != null && (!exists(path)
+        || !('permissoesCci' in get(path).data)
+        || (get(path).data.permissoesCci.get('versao', 0) == 1
+          && get(path).data.permissoesCci.get('nivel', '') in ['edicao', 'operacao']
+          && get(path).data.permissoesCci.get('acoes', {}).get(action, false) == true));
+    }
+
     match /folha_mapeamentos/{docId} {
-      allow read, update, delete: if request.auth != null
+      allow read: if request.auth != null
                                   && resource.data.owner_uid == request.auth.uid;
-      allow create: if request.auth != null
+      allow update: if canAction('editar') && resource.data.owner_uid == request.auth.uid
+        && request.resource.data.owner_uid == resource.data.owner_uid;
+      allow delete: if canAction('excluir') && resource.data.owner_uid == request.auth.uid;
+      allow create: if canAction('editar')
                     && request.resource.data.owner_uid == request.auth.uid;
     }
 
     match /folha_importacoes/{docId} {
-      allow read, update, delete: if request.auth != null
+      allow read: if request.auth != null
                                   && resource.data.owner_uid == request.auth.uid;
-      allow create: if request.auth != null
+      allow update: if canAction('importar') && resource.data.owner_uid == request.auth.uid
+        && request.resource.data.owner_uid == resource.data.owner_uid;
+      allow delete: if canAction('excluir') && resource.data.owner_uid == request.auth.uid;
+      allow create: if canAction('importar')
                     && request.resource.data.owner_uid == request.auth.uid;
     }
 
