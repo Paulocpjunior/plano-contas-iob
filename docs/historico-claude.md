@@ -1812,3 +1812,6 @@ Atalho do administrador para comunicação contábil centralizada no CFI, sem al
 
 ## 06/10/2026 — R-1000 existente na transmissão de dividendos
 Relato do grupo Ferrante: protocolo 1.202610.1085695694 contém apenas R-1000, sem lote de movimento subsequente nos logs. O R-1000 ficou pendente durante a consulta síncrona e depois rejeitou MS1005; a tela obrigava nova inclusão em toda tentativa. Agora exige escolha explícita entre cadastro existente vigente e inclusão inicial; o caminho existente usa incluirR1000=false já suportado pelo servidor. Nenhuma declaração retransmitida, nenhum recibo ou saldo alterado. Teste executa a montagem real do payload para competência histórica, ambas as opções e ausência de escolha.
+
+## 06/10/2026 — Níveis de acesso próprios do CCI
+Consulta, edição e operação com seis ações configuráveis no painel de usuários, gravação transacional e auditoria imutável pelo cliente. Middleware consulta perfil atual a cada requisição; sessão também verifica exclusão e nova importação. Permissões próprias não alteram is_admin, departamentos ou responsáveis. Compatibilidade mantém acessos legados até configuração explícita. Nenhuma transmissão ou e-mail de teste.
