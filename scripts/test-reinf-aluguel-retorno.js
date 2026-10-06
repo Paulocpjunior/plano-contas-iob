@@ -56,3 +56,15 @@ vm.runInContext(routes.slice(routes.indexOf('async function registrarRetornoLote
     assert.ok(!writes.some(w => w.data.nrRecibo === 'NAO_GRAVAR'));
     console.log('OK: recibos aceitos preservados por evento em lote parcial.');
 })().catch(err => { console.error(err); process.exitCode = 1; });
+
+// Executa o payload real: cadastro existente não gera nova inclusão mensal.
+const fieldsR1000 = {reinfCnpjFonte:'12345678000190',reinfCnpjEstab:'12345678000190',reinfCompetencia:'2026-01',reinfDataPagamento:'2026-01-30',reinfTpAmb:'1',reinfNatRend:'12001',reinfContatoCpf:'12345678901',reinfContatoNome:'Responsavel',reinfContatoTelefone:'',reinfClassTrib:'99',reinfIndSitPJ:'0',reinfCadastroR1000:'existente'};
+const payloadCtx={document:{getElementById:id=>({value:fieldsR1000[id]||''})},reinfDigits:v=>String(v||'').replace(/\D/g,''),reinfValor:Number,reinfState:{beneficiarios:[{cpfBenef:'12345678901',valorBruto:100,valorIrrf:0}]},reinfBeneficiariosPorCnpjSelecionado:b=>b};
+vm.createContext(payloadCtx);
+vm.runInContext(html.slice(html.indexOf('        function montarPayloadReinf()'),html.indexOf('        function reinfClonarPayload(')),payloadCtx);
+assert.strictEqual(payloadCtx.montarPayloadReinf().incluirR1000,false);
+assert.strictEqual(payloadCtx.montarPayloadReinf().perApur,'2026-01');
+fieldsR1000.reinfCadastroR1000='';assert.throws(()=>payloadCtx.montarPayloadReinf(),/Informe se o R-1000/);
+fieldsR1000.reinfCadastroR1000='inclusao';assert.throws(()=>payloadCtx.montarPayloadReinf(),/Telefone/);
+fieldsR1000.reinfContatoTelefone='11999999999';assert.strictEqual(payloadCtx.montarPayloadReinf().incluirR1000,true);
+console.log('OK: cadastro R-1000 existente, inclusão explícita e competência histórica.');

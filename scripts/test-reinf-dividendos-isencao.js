@@ -30,7 +30,7 @@ for(const alteracao of [{natRend:'13002'},{perApur:'2025-12'},{tpInsc:2},{tribut
 assert.throws(()=>R.gerarEventosR4010DaPlanilha({...payload,natRend:'13002'}),/12001/);
 assert.throws(()=>R.gerarEventosR4010DaPlanilha({...payload,locadores:[{...locadores[0],rendimentosIsentos:{}}]}),/lista/);
 const html=fs.readFileSync('index.html','utf8');
-const valores={reinfContatoNome:'Teste',reinfContatoCpf:'11144477735',reinfContatoTelefone:'11999999999',reinfCnpjFonte:parametros.cnpj,reinfCnpjEstab:parametros.cnpj,reinfCompetencia:'2026-09',reinfDataPagamento:'2026-09-08',reinfTpAmb:'2',reinfNatRend:'12001',reinfClassTrib:'99',reinfIndSitPJ:'0'};
+const valores={reinfContatoNome:'Teste',reinfContatoCpf:'11144477735',reinfContatoTelefone:'11999999999',reinfCnpjFonte:parametros.cnpj,reinfCnpjEstab:parametros.cnpj,reinfCompetencia:'2026-09',reinfDataPagamento:'2026-09-08',reinfTpAmb:'2',reinfNatRend:'12001',reinfClassTrib:'99',reinfIndSitPJ:'0',reinfCadastroR1000:'existente'};
 const beneficiario={cpfBenef:locadores[0].cpf,nomeBenef:locadores[0].nome,valorBruto:400000,baseIrrf:0,valorIrrf:0,rendimentosIsentos:locadores[0].rendimentosIsentos};
 const sandbox={window:{ReinfIsencoesDividendos:I},document:{getElementById:id=>({value:valores[id]||''})},reinfDigits:s=>String(s||'').replace(/\D/g,''),reinfValor:Number,reinfState:{beneficiarios:[beneficiario]},reinfBeneficiariosPorCnpjSelecionado:bs=>bs};
 vm.createContext(sandbox);vm.runInContext(html.slice(html.indexOf('        function montarPayloadReinf()'),html.indexOf('        function reinfClonarPayload(')),sandbox);

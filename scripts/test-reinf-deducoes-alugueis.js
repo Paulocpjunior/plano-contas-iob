@@ -10,7 +10,7 @@ assert.deepEqual(b.deducoes,[{indTpDeducao:8,vlrDeducao:607.2}]);assert.equal(b.
 const loc={cpf,nome:b.nomeBenef,bruto:b.valorBruto,irrf:b.valorIrrf,baseIrrf:b.baseIrrf,rendimentoTrib:b.rendimentoTrib,deducoes:b.deducoes,dtPagamento:b.dtPagamento};
 const payload={contribuinte:{tpInsc:1,nrInsc:fonte},estabelecimento:{tpInscEstab:1,nrInscEstab:fonte},perApur:'2026-08',tpAmb:2,dtPagamento:'2026-08-31',natRend:'13002',locadores:[loc]};
 const vm=require('vm'),html=fs.readFileSync('index.html','utf8');
-const vals={reinfCnpjFonte:fonte,reinfCnpjEstab:fonte,reinfCompetencia:'2026-08',reinfDataPagamento:'2026-08-31',reinfTpAmb:'2',reinfNatRend:'13002',reinfContatoNome:'Teste',reinfContatoCpf:'11144477735',reinfContatoTelefone:'11999999999',reinfClassTrib:'99',reinfIndSitPJ:'0'};
+const vals={reinfCnpjFonte:fonte,reinfCnpjEstab:fonte,reinfCompetencia:'2026-08',reinfDataPagamento:'2026-08-31',reinfTpAmb:'2',reinfNatRend:'13002',reinfContatoNome:'Teste',reinfContatoCpf:'11144477735',reinfContatoTelefone:'11999999999',reinfClassTrib:'99',reinfIndSitPJ:'0',reinfCadastroR1000:'existente'};
 const ctx={document:{getElementById:id=>({value:vals[id]||''})},reinfDigits:U.digits,reinfValor:Number,reinfState:{beneficiarios:[b]},reinfBeneficiariosPorCnpjSelecionado:bs=>bs};
 vm.createContext(ctx);vm.runInContext(html.slice(html.indexOf('        function montarPayloadReinf()'),html.indexOf('        function reinfClonarPayload(')),ctx);
 const enviado=ctx.montarPayloadReinf().locadores[0];
