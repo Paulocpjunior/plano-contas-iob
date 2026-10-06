@@ -244,7 +244,7 @@ async function authRequired(req, res, next) {
     const decoded = await adminAuth.verifyIdToken(token);
     if (!decoded.email || !decoded.email.endsWith(DOMAIN)) return res.status(403).json({ erro: 'Dominio nao autorizado' });
     const userDoc = await db.collection('users').doc(decoded.uid).get();
-    req.user = { uid: decoded.uid, email: decoded.email, name: decoded.name || decoded.email, is_admin: userDoc.exists && userDoc.data().is_admin === true, permissoesCci: permissoesEfetivas(userDoc.exists ? userDoc.data() : {}) };
+    req.user = { uid: decoded.uid, email: decoded.email, name: decoded.name || decoded.email, is_admin: userDoc.exists && userDoc.data().is_admin === true, acessoContabilAutorizado: userDoc.exists && userDoc.data().acessoContabilAutorizado === true, permissoesCci: permissoesEfetivas(userDoc.exists ? userDoc.data() : {}) };
     next();
   } catch (err) { return res.status(401).json({ erro: 'Token invalido', detalhe: err.message }); }
 }
