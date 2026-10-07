@@ -1827,3 +1827,7 @@ Linha final TOTAL DO RAZÃO na tela, PDF/ impressão e Excel. Soma em centavos d
 ## 2026-10-07 — Gestores de acessos e cadastro de colaboradores
 
 Administração → Usuários inclui nomeação de gestor (admin + operação CCI), cadastro seguro em consulta e link de definição de senha, sem envio automático. Gestão revalida admin, identidade e revisão em transação auditada; cadastro Auth pendente inicia desativado e retoma sem duplicar conta. Gestor nomeado no CCI tem gate próprio, preservando horário e independência do CFI.
+
+## 2026-10-07 — Extrato Itaú: linhas físicas e prévia completa
+
+Corrigido descarte de movimentos legítimos iguais no PDF textual e ordem das descrições reconstruídas. A leitura posicional passa a conferir saldos impressos e diários; a prévia mostra contagem e permite percorrer todos os movimentos. Arquivo real agosto/2026 validado: 56 movimentos, créditos 890.179,61, débitos 832.258,00, saldo anterior 44.547,90 e final 102.469,51. Teste sintético cobre duplicados, quebra de descrição, omissão e deslocamento de data; dados financeiros não foram importados automaticamente.
