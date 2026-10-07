@@ -1,7 +1,8 @@
 {
-  "version": "3.4.375",
-  "build_date": "2026-10-07T09:28:11.647813+00:00",
+  "version": "3.4.376",
+  "build_date": "2026-10-07T18:12:29.072657+00:00",
   "release_notes": [
+    "Extrato Itaú: preserva movimentos iguais em linhas distintas, mantém a ordem do PDF e confere saldos diários. Prévia permite consultar todos os lançamentos.",
     "Gestão de acessos: nomear gestores com administração do CCI, cadastrar colaboradores em consulta e delegar ações e empresas, com histórico e independência do CFI.",
     "Razão: totais de débito e crédito ao final do relatório, na tela, impressão/PDF e Excel, respeitando o período e a conta selecionados.",
     "Acesso: contas exclusivas do CCI com autorização contábil comprovada podem acessar suas empresas sem depender de um cadastro no CFI; ações e administração permanecem separadas.",

@@ -159,7 +159,7 @@
     // corrente separadamente, exija as duas conciliações em todos os dias.
     const temSaldoConta = lines.some(l => /SALDO MOVIMENTA[CÇ][AÃ]O CONTA/i.test(l.text));
     const diasComSaldo = lines.filter(l => /^\d{2}\/\d{2}\/\d{4}.*SALDO TOTAL DISPON[IÍ]VEL DIA/i.test(l.text));
-    if (!temSaldoConta && (diasComSaldo.length < 2 || !lines.some(l => l.origem_ocr === true))) return null;
+    if (!temSaldoConta && (diasComSaldo.length < 2 || !lines.some(l => l.origem_ocr === true || (l.items && l.items.length)))) return null;
     const saldos = new Map();
     for (const line of lines) {
       const m = line.text.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+.*?(SALDO TOTAL DISPON[IÍ]VEL DIA|SALDO MOVIMENTA[CÇ][AÃ]O CONTA)\s+(-?[\d.]+,\d{2})\s*$/i);
@@ -189,6 +189,7 @@
 
   function parseItauLancamentosPeriodo(lines, textoCompleto, apenasDiagnostico) {
     const origemOCR = Array.isArray(lines) && lines.some(function(line) { return line && line.origem_ocr === true; });
+    const linhasPosicionais = !origemOCR && lines.some(l => l.items && l.items.length);
     const modeloPeriodoNaFrase = /Lan[cç]amentos do per[ií]odo:/i.test(textoCompleto)
       && /Data\s+Lan[cç]amentos\s+Raz[aã]o Social\s+CNPJ\/CPF\s+Valor/i.test(textoCompleto)
       && /Ag[eê]ncia\s+\d+\s+Conta\s+\d+/i.test(textoCompleto);
@@ -316,9 +317,9 @@
       if (ehDescricaoSaldo(descricao)) return false;
 
       const chave = [data, descricao.toLowerCase(), valor.toFixed(2)].join('|');
-      // O OCR percorre cada linha física uma única vez. Pagamentos iguais
+      // OCR e leitura posicional percorrem cada linha física uma única vez. Pagamentos iguais
       // em linhas distintas são legítimos e entram na conciliação diária.
-      if (!modeloPeriodoSeparado && !origemOCR && vistos.has(chave)) return false;
+      if (!modeloPeriodoSeparado && !origemOCR && !linhasPosicionais && vistos.has(chave)) return false;
       if (!modeloPeriodoSeparado && !origemOCR) vistos.add(chave);
       lancamentos.push({
         id: uuid(),
@@ -354,7 +355,9 @@
         return;
       }
       const chave = [pendente.data, desc.toLowerCase(), value.valor.toFixed(2)].join('|');
-      if (!vistos.has(chave)) adicionarLancamento(pendente.data, desc, value.valor);
+      if (linhasPosicionais || !vistos.has(chave)) {
+        if (adicionarLancamento(pendente.data, desc, value.valor) && pendente.line) movimentosPorLinha.set(pendente.line, lancamentos[lancamentos.length - 1]);
+      }
       pendente = null;
     }
 
@@ -367,7 +370,8 @@
         flush();
         pendente = {
           data: start[3] + '-' + start[2] + '-' + start[1],
-          text: start[4] || ''
+          text: start[4] || '',
+          line: line
         };
         const valueLine = extrairValorFinal(text, line);
         if (valueLine) {
@@ -403,7 +407,7 @@
     // linhas textuais diferentes das linhas posicionais do pdf.js. Rodamos uma
     // segunda passada pelo texto completo para recuperar casos como Redecard e
     // Rendimentos; a chave `vistos` evita duplicidade.
-    if (!temLinhasComValorESaldo && !modeloPeriodoSeparado && !origemOCR) {
+    if (!temLinhasComValorESaldo && !modeloPeriodoSeparado && !origemOCR && !linhasPosicionais) {
       pendente = null;
       String(textoCompleto || '').split(/\n+/).forEach(processarLinhaTexto);
       flush();
@@ -435,9 +439,12 @@
         existente.descricao = desc;
         existente.historico = desc;
       } else {
-        adicionarLancamento(data, desc, value.valor);
+        if (adicionarLancamento(data, desc, value.valor)) movimentosPorLinha.set(line, lancamentos[lancamentos.length - 1]);
       }
     });
+    // Reconstituições de descrições mantêm a posição da linha física do PDF.
+    const ordem = new Map(lines.map((line, i) => [movimentosPorLinha.get(line), i]));
+    if (linhasPosicionais) lancamentos.sort((a, b) => (ordem.get(a) ?? Infinity) - (ordem.get(b) ?? Infinity));
 
     // Zero movimentos é um resultado válido apenas com a tabela completa e
     // saldos explícitos iguais. Não use texto sobre lançamentos FUTUROS como prova.
@@ -488,7 +495,7 @@
     const saldoConsolidado = lines.some(l => /SALDO MOVIMENTA[CÇ][AÃ]O CONTA/i.test(l.text));
     const fluxoConsolidado = lancamentos.filter(function(l) { return !saldoConsolidado || !l.movimentoAplicacaoAutomatica; })
       .reduce(function(n, l) { return n + Math.round(l.valor * 100); }, 0);
-    const conciliacaoCentavos = (!modeloPeriodoSeparado && !origemOCR) || saldoAnterior === null || saldoFinal === null
+    const conciliacaoCentavos = (!modeloPeriodoSeparado && !origemOCR && !linhasPosicionais) || saldoAnterior === null || saldoFinal === null
       ? null
       : Math.round(saldoAnterior * 100) + fluxoConsolidado - Math.round(saldoFinal * 100);
     const conferenciaDiaria = conferirSaldosDiariosItau(lines, lancamentos, saldoAnterior);
