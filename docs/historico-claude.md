@@ -1823,3 +1823,7 @@ A auditoria identificou vínculos existentes no CCI sem representação nas cart
 ## 2026-10-06 — Totais de débito e crédito no Razão
 
 Linha final TOTAL DO RAZÃO na tela, PDF/ impressão e Excel. Soma em centavos dos movimentos efetivamente contidos no razão, após filtro de período/conta, excluindo saldo anterior e sem somar saldos corridos. Testes cobrem centavos, conta, período e saídas numéricas/formatadas. PDF paginado de QA conferido visualmente.
+
+## 2026-10-07 — Gestores de acessos e cadastro de colaboradores
+
+Administração → Usuários inclui nomeação de gestor (admin + operação CCI), cadastro seguro em consulta e link de definição de senha, sem envio automático. Gestão revalida admin, identidade e revisão em transação auditada; cadastro Auth pendente inicia desativado e retoma sem duplicar conta. Gestor nomeado no CCI tem gate próprio, preservando horário e independência do CFI.

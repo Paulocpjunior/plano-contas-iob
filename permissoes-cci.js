@@ -25,6 +25,7 @@ function acaoDaRota(method, url, body = {}) {
   const verbo = String(method).toUpperCase();
   if (['GET', 'HEAD', 'OPTIONS'].includes(verbo)) return null;
   // Administração continua exigindo is_admin próprio do CCI nas rotas originais.
+  if (path.startsWith('/api/gestao-acessos/')) return null; // Rotas exigem admin do CCI.
   if (/^\/api\/users\/[^/]+\/(permissoes|promote|demote)$/.test(path)) return null;
   if (['/api/auth/log', '/api/ajuda-cci/perguntar', '/api/validar'].includes(path)) return null;
   if (verbo === 'POST' && /^\/api\/empresas\/[^/]+\/ativar$/.test(path)) return 'editar';

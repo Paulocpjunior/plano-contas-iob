@@ -64,7 +64,7 @@ function avaliarHorario(acesso) {
  * "sem vínculo" para quem só está fora do horário.
  * @returns {{permitido, modo, aviso: string|null, motivo: string|null, titulo?: string, bloqueio?: string}}
  */
-function decidirGate({ acesso, erro, modo, acessoContabilAutorizado = false }) {
+function decidirGate({ acesso, erro, modo, acessoContabilAutorizado = false, gestorContabil = false }) {
   if (erro || !acesso) {
     return {
       permitido: true, modo,
@@ -84,8 +84,8 @@ function decidirGate({ acesso, erro, modo, acessoContabilAutorizado = false }) {
     };
   }
   // Recuperação explícita de contas próprias do CCI, autorizada no servidor.
-  // Não substitui negativa de um cadastro central existente nem a trava de horário.
-  if (acesso.usuario === null && acessoContabilAutorizado === true) {
+  // Gestor nomeado no CCI tem autorização própria do aplicativo; horário continua prevalecendo.
+  if (gestorContabil === true || (acesso.usuario === null && acessoContabilAutorizado === true)) {
     return { permitido: true, modo, indeterminado: false, aviso: null,
       motivo: 'Acesso ao CCI autorizado no cadastro contábil.', origem: 'cci' };
   }
@@ -123,7 +123,7 @@ function registrarGateDepartamento(app, { buscarAcesso = buscarAcessoModuloNoCfi
     try {
       acesso = await buscarAcesso({ email: req.user?.email, modulo: MODULO_DESTE_APP, token });
     } catch (e) { erro = e; }
-    const d = decidirGate({ acesso, erro, modo, acessoContabilAutorizado: req.user?.acessoContabilAutorizado });
+    const d = decidirGate({ acesso, erro, modo, acessoContabilAutorizado: req.user?.acessoContabilAutorizado, gestorContabil: req.user?.is_admin === true && req.user?.gestorAcessos === true });
     if (d.indeterminado) {
       console.warn(`[departamento-gate] indeterminado para ${req.user?.email}: ${d.motivo}`);
     }
