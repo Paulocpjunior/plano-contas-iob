@@ -43,6 +43,10 @@ assert.strictEqual(decidirGate({ acesso: { ...semCadastroCentral, usuario: { dep
 assert.strictEqual(decidirGate({ acesso: { temAcesso: false }, modo: 'bloqueio', acessoContabilAutorizado: true }).permitido, false, 'resposta sem usuario não comprova ausência de cadastro');
 assert.strictEqual(decidirGate({ acesso: { ...semCadastroCentral, horario: { permitido: false } }, modo: 'bloqueio', acessoContabilAutorizado: true }).bloqueio, 'horario');
 
+// Nomeação administrativa do CCI é independente do departamento no CFI.
+assert.strictEqual(decidirGate({ acesso: { usuario: { departamentos: [] }, temAcesso: false }, modo: 'bloqueio', gestorContabil: true }).permitido, true);
+assert.strictEqual(decidirGate({ acesso: { usuario: null, temAcesso: false, horario: { permitido: false } }, modo: 'bloqueio', gestorContabil: true }).permitido, false);
+
 // ─── sem vínculo, modo AVISO: informa com a ação e NÃO tranca ───────────────
 const aviso = decidirGate({
   acesso: { temAcesso: false, motivo: 'Ana existe no cadastro mas está SEM departamento. Peça ao admin…' },

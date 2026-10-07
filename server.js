@@ -244,7 +244,7 @@ async function authRequired(req, res, next) {
     const decoded = await adminAuth.verifyIdToken(token);
     if (!decoded.email || !decoded.email.endsWith(DOMAIN)) return res.status(403).json({ erro: 'Dominio nao autorizado' });
     const userDoc = await db.collection('users').doc(decoded.uid).get();
-    req.user = { uid: decoded.uid, email: decoded.email, name: decoded.name || decoded.email, is_admin: userDoc.exists && userDoc.data().is_admin === true, acessoContabilAutorizado: userDoc.exists && userDoc.data().acessoContabilAutorizado === true, permissoesCci: permissoesEfetivas(userDoc.exists ? userDoc.data() : {}) };
+    req.user = { uid: decoded.uid, email: decoded.email, name: decoded.name || decoded.email, is_admin: userDoc.exists && userDoc.data().is_admin === true, gestorAcessos: userDoc.exists && userDoc.data().gestorAcessos === true, acessoContabilAutorizado: userDoc.exists && userDoc.data().acessoContabilAutorizado === true, permissoesCci: permissoesEfetivas(userDoc.exists ? userDoc.data() : {}) };
     next();
   } catch (err) { return res.status(401).json({ erro: 'Token invalido', detalhe: err.message }); }
 }
@@ -288,6 +288,7 @@ app.use('/api/gemini', criarLimitador({
 
 // Autenticação e quotas são verificadas antes de alocar o corpo.
 app.use('/api', (req, res, next) => express.json({ limit: limiteCorpoPara(req), verify: verificarTamanhoJson })(req, res, next));
+require('./gestao-acessos.cjs').registrar(app, { db, auth: adminAuth, adminRequired, aplicativo: 'cci', efetivas: permissoesEfetivas });
 
 app.post('/api/auditai/extrair-pdf-contabil', adminRequired, async (req, res) => {
   const base64 = String((req.body && req.body.data) || '').replace(/^data:application\/pdf;base64,/, '');
@@ -1770,7 +1771,7 @@ app.post('/api/users/:uid/promote', adminRequired, async (req, res) => {
 app.post('/api/users/:uid/demote', adminRequired, async (req, res) => {
   try {
     if (req.params.uid === req.user.uid) return res.status(400).json({ erro: 'Admin nao pode remover proprio status' });
-    await db.collection('users').doc(req.params.uid).set({ is_admin: false, updated_at: new Date(), updated_by: req.user.uid }, { merge: true });
+    await db.collection('users').doc(req.params.uid).set({ is_admin: false, gestorAcessos: false, updated_at: new Date(), updated_by: req.user.uid }, { merge: true });
     res.json({ uid: req.params.uid, is_admin: false });
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });

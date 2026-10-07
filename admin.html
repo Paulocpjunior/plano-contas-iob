@@ -6,33 +6,33 @@
 <title>Admin — Plano de Contas IOB</title>
 <link rel="icon" type="image/png" href="/sp-logo.png">
 <script>(function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();</script>
-<script src="/saas-brand-theme.js?v=3.4.374"></script>
+<script src="/saas-brand-theme.js?v=3.4.375"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="/api-adapter.js?v=3.4.374"></script>
-<script src="/parser-ofx.js?v=3.4.374"></script>
-<script src="/parser-bradesco-netempresa.js?v=3.4.374"></script>
-<script src="/parser-bradesco-extrato-unificado.js?v=3.4.374"></script>
-<script src="/parser-bradesco-simples-conferencia.js?v=3.4.374"></script>
-<script src="/parser-safra-extrato.js?v=3.4.374"></script>
-<script src="/parser-brb-extrato.js?v=3.4.374"></script>
-<script src="/parser-bb-conta-atual.js?v=3.4.374"></script>
-<script src="/parser-bb-cash-ocr.js?v=3.4.374"></script>
-<script src="/parser-itau-extrato-mensal.js?v=3.4.374"></script>
-<script src="/parser-itau-fatura-cartao.js?v=3.4.374"></script>
-<script src="/parser-caixa-extrato.js?v=3.4.374"></script>
-<script src="/parser-santander-empresas-ocr.js?v=3.4.374"></script>
-<script src="/parser-btg-pactual.js?v=3.4.374"></script>
-<script src="/parser-c6-bank-extrato.js?v=3.4.374"></script>
-<script src="/parser-abc-extrato.js?v=3.4.374"></script>
-<script src="/parser-inter-extrato.js?v=3.4.374"></script>
-<script src="/parser-nubank-extrato.js?v=3.4.374"></script>
-<script src="/parser-stone-extrato.js?v=3.4.374"></script>
-<script src="/parser-mercado-pago-extrato.js?v=3.4.374"></script>
-<script src="/parser-clude-servicos-tomados.js?v=3.4.374"></script>
-<script src="/parser-flanacar-registro-entradas.js?v=3.4.374"></script>
+<script src="/api-adapter.js?v=3.4.375"></script>
+<script src="/parser-ofx.js?v=3.4.375"></script>
+<script src="/parser-bradesco-netempresa.js?v=3.4.375"></script>
+<script src="/parser-bradesco-extrato-unificado.js?v=3.4.375"></script>
+<script src="/parser-bradesco-simples-conferencia.js?v=3.4.375"></script>
+<script src="/parser-safra-extrato.js?v=3.4.375"></script>
+<script src="/parser-brb-extrato.js?v=3.4.375"></script>
+<script src="/parser-bb-conta-atual.js?v=3.4.375"></script>
+<script src="/parser-bb-cash-ocr.js?v=3.4.375"></script>
+<script src="/parser-itau-extrato-mensal.js?v=3.4.375"></script>
+<script src="/parser-itau-fatura-cartao.js?v=3.4.375"></script>
+<script src="/parser-caixa-extrato.js?v=3.4.375"></script>
+<script src="/parser-santander-empresas-ocr.js?v=3.4.375"></script>
+<script src="/parser-btg-pactual.js?v=3.4.375"></script>
+<script src="/parser-c6-bank-extrato.js?v=3.4.375"></script>
+<script src="/parser-abc-extrato.js?v=3.4.375"></script>
+<script src="/parser-inter-extrato.js?v=3.4.375"></script>
+<script src="/parser-nubank-extrato.js?v=3.4.375"></script>
+<script src="/parser-stone-extrato.js?v=3.4.375"></script>
+<script src="/parser-mercado-pago-extrato.js?v=3.4.375"></script>
+<script src="/parser-clude-servicos-tomados.js?v=3.4.375"></script>
+<script src="/parser-flanacar-registro-entradas.js?v=3.4.375"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -551,9 +551,10 @@
           </select>
         </div>
         <div style="margin-left:auto">
-          <button class="btn" onclick="loadUsers()">🔄 Atualizar</button>
+          <button class="btn" onclick="cadastrarColaboradorCci()" id="novoColaboradorCci">Cadastrar colaborador</button> <button class="btn" onclick="loadUsers()">🔄 Atualizar</button>
         </div>
       </div>
+      <p>Gestores de acessos são administradores do CCI e podem cadastrar colaboradores e delegar funções. A nomeação não altera o CFI.</p><p id="cadastroColaboradorStatus" role="status"></p><label id="linkColaboradorLabel" style="display:none">Link de senha — compartilhe apenas com o colaborador<input id="linkColaboradorSenha" readonly style="width:100%" onfocus="this.select()"></label>
       <div id="usersContent" class="loading">Carregando…</div>
     </div>
   </div>
@@ -2293,7 +2294,7 @@ function renderUsers() {
   let h = '<table><thead><tr><th>Email</th><th>Status</th><th>Cadastrado em</th><th>Último login</th><th>Total logins</th><th>UID</th><th>Ação</th></tr></thead><tbody>';
   list.forEach(u => {
     const email = u.last_email || u.email || '—';
-    const badge = u.is_admin ? '<span class="badge badge-admin">Admin</span>' : '<span class="badge badge-user">Usuário</span>';
+    const badge = u.gestorAcessos ? '<span class="badge badge-admin">Gestor de acessos</span>' : u.is_admin ? '<span class="badge badge-admin">Admin</span>' : '<span class="badge badge-user">Usuário</span>';
     const actionBtn = u.is_admin
       ? `<button class="btn-sm btn-demote" onclick="demote('${u.uid}', '${email}')">Remover admin</button>`
       : `<button class="btn-sm btn-promote" onclick="promote('${u.uid}', '${email}')">Promover</button>`;
@@ -2313,7 +2314,7 @@ function renderUsers() {
       <td>${fmtRelative(u.last_login_at)}</td>
       <td>${u.login_count || 0}</td>
       <td class="text-mono">${u.uid.slice(0, 12)}…</td>
-      <td>${actionBtn}${nivelEditor}</td>
+      <td>${actionBtn}<button class="btn-sm" onclick="nomearGestorCci('${u.uid}')">${u.gestorAcessos ? 'Retirar gestão (mantém admin)' : 'Nomear gestor de acessos'}</button>${nivelEditor}</td>
     </tr>`;
   });
   h += '</tbody></table>';
@@ -2338,7 +2339,7 @@ async function historicoNivelCci(uid) {
   try {
     const res = await window.API.apiFetch('/api/users/' + encodeURIComponent(uid) + '/permissoes/historico');
     const data = await res.json(); if (!res.ok) throw new Error(data.erro || 'Histórico indisponível.');
-    el.textContent = data.length ? data.map(h => new Date(h.em).toLocaleString('pt-BR') + ' · ' + h.autor + ' · ' + (h.antes?.nivel || 'anterior') + ' → ' + h.depois.nivel).join(' | ') : 'Nenhuma alteração de nível registrada.';
+    el.textContent = data.length ? data.map(h => new Date(h.em).toLocaleString('pt-BR') + ' · ' + h.autor + ' · ' + (h.evento === 'gestor_acessos' ? (h.gestorDepois ? 'Nomeado gestor de acessos' : 'Gestão retirada; admin mantido') : h.evento === 'administracao' ? (h.adminDepois ? 'Promovido a admin' : 'Rebaixado a colaborador') : h.evento === 'cadastro_colaborador' ? 'Colaborador cadastrado em consulta' : (h.antes?.nivel || 'anterior') + ' → ' + h.depois.nivel)).join(' | ') : 'Nenhuma alteração de nível registrada.';
   } catch (e) { el.textContent = e.message; }
 }
 async function salvarNivelCci(uid) {
@@ -2358,6 +2359,33 @@ async function salvarNivelCci(uid) {
   } catch (e) { status.textContent = e.message; }
 }
 
+async function gestaoCci(path, method, body) {
+  const res = await window.API.apiFetch('/api/gestao-acessos/' + path, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Não foi possível gerenciar o acesso.');
+  return data;
+}
+async function nomearGestorCci(uid) {
+  const u = currentUsers.find(x => x.uid === uid); if (!u) return;
+  const ativo = u.gestorAcessos !== true;
+  if (!confirm(ativo ? 'Nomear esta pessoa como gestor de acessos? Ela terá administração e todas as ações do CCI, poderá cadastrar colaboradores e delegar funções e carteiras. O CFI não será alterado.' : 'Retirar a gestão de acessos? A pessoa continuará administradora. Para retirar também a administração, use Remover admin.')) return;
+  try { await gestaoCci('gestores/' + encodeURIComponent(uid), 'PUT', {ativo, revisao:u.gestaoAcessosRevisao || 0}); await loadUsers(); }
+  catch(e) { alert(e.message); }
+}
+async function cadastrarColaboradorCci() {
+  const nome = prompt('Nome completo do colaborador:'); if (!nome) return;
+  const email = prompt('E-mail @spassessoriacontabil.com.br:'); if (!email) return;
+  const btn = document.getElementById('novoColaboradorCci'), status = document.getElementById('cadastroColaboradorStatus');
+  btn.disabled = true; document.getElementById('linkColaboradorLabel').style.display = 'none'; document.getElementById('linkColaboradorSenha').value = ''; status.textContent = 'Cadastrando…';
+  try {
+    const data = await gestaoCci('colaboradores', 'POST', {nome,email});
+    status.textContent = data.mensagem;
+    if (data.linkSenha) { document.getElementById('linkColaboradorSenha').value = data.linkSenha; document.getElementById('linkColaboradorLabel').style.display = 'block'; }
+    await loadUsers(); document.getElementById('userSearch').value = email.trim(); renderUsers();
+  } catch(e) { status.textContent = e.message; }
+  finally { btn.disabled = false; }
+}
+
 async function promote(uid, email) {
   if (!confirm('Promover ' + email + ' a administrador?')) return;
   try {
@@ -2369,7 +2397,8 @@ async function promote(uid, email) {
 async function demote(uid, email) {
   if (!confirm('Remover privilégio de admin de ' + email + '?')) return;
   try {
-    const r = await window.API.despromoverAdmin(uid);
+    const u = currentUsers.find(x => x.uid === uid);
+    const r = await gestaoCci('administracao/' + encodeURIComponent(uid), 'PUT', { ativo: false, revisao: u.gestaoAcessosRevisao || 0 });
     if (r.erro) { alert('Erro: ' + r.erro); return; }
     loadUsers();
   } catch (e) { alert('Erro: ' + e.message); }
@@ -2427,7 +2456,7 @@ function exportLogsCSV() {
   a.click();
 }
 </script>
-<script src="admin-backups-ui.js?v=3.4.374"></script>
-<script src="server-monitor-ui.js?v=3.4.374"></script>
+<script src="admin-backups-ui.js?v=3.4.375"></script>
+<script src="server-monitor-ui.js?v=3.4.375"></script>
 </body>
 </html>
