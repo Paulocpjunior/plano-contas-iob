@@ -34,10 +34,20 @@ async function main() {
     protegerAcoes({ user, method: 'PATCH', originalUrl: '/api/empresas/' + cnpj + '/cadastro' }, gravacao, () => { next = true; });
     assert.strictEqual(next, nivel === 'edicao', 'Consulta não concede permissão de gravação');
   }
-  for (const status of [404, 429, 500]) {
+  // Regression: edge rejects Node's generic UA even for a valid company.
+  const identificacao = response();
+  await criarConsultaCnpjHandler({ checarAcessoEmpresa: async () => ({ ok: true }), fetchImpl: async (url, options) => {
+    assert.strictEqual(url, 'https://brasilapi.com.br/api/cnpj/v1/' + cnpj);
+    assert.strictEqual(options.headers.Accept, 'application/json');
+    assert.strictEqual(options.headers['User-Agent'], 'ConsultorContabilInteligente/1.0');
+    return { ok: true, json: async () => fonte };
+  } })({ params: { cnpj }, user: { permissoesCci: criarPermissoes('edicao') } }, identificacao);
+  assert.strictEqual(identificacao.statusCode, 200);
+  assert.strictEqual(identificacao.body.campos.logradouro, 'DA MOOCA');
+  for (const status of [403, 404, 429, 500]) {
     const res = response();
     await criarConsultaCnpjHandler({ checarAcessoEmpresa: async () => ({ ok: true }), fetchImpl: async () => ({ ok: false, status }) })({ params: { cnpj } }, res);
-    assert.strictEqual(res.statusCode, status === 500 ? 502 : status);
+    assert.strictEqual(res.statusCode, [403, 500].includes(status) ? 502 : status);
   }
   const timeout = response();
   await criarConsultaCnpjHandler({ checarAcessoEmpresa: async () => ({ ok: true }), timeoutMs: 5, fetchImpl: (_, { signal }) => new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(Object.assign(new Error(), { name: 'AbortError' })))) })({ params: { cnpj } }, timeout);
