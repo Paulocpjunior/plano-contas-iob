@@ -1844,3 +1844,10 @@ Provedor Graph inclui agenda .ics com data informada ou rotulada no texto do PDF
 - Timeout de 12 segundos; falhas/limites da fonte são apresentados sem alterar cadastro. Respostas antigas após fechar/trocar empresa são descartadas; edição manual depois da consulta bloqueia aplicação obsoleta.
 - Validação: teste específico de mapeamento, autorização, timeout, limites e controlador real da tela; navegador local com respostas simuladas e sem gravação de cliente. Consulta pública do CNPJ do exemplo conferida sem persistência.
 - check:ci: 239 passaram, 3 pulados por ausência de evidências externas, 0 falharam. check local interrompido no fixture histórico Itaú abril ausente (sem mudança em parsers). Sintaxe HTML/JS e diff validados.
+
+## 2026-10-08 — v3.4.379 — Correção da consulta cadastral na BrasilAPI
+
+- Relato: CNPJ 24.377.794/0001-75 retornando consulta indisponível. Logs do CCI mostravam HTTP 502; consulta direta pelo Node reproduziu rejeição da identificação genérica, enquanto identificação explícita do integrador retornou HTTP 200 para o mesmo CNPJ. Há relato correspondente no repositório da BrasilAPI (issue 826).
+- Consulta agora envia User-Agent verdadeiro ConsultorContabilInteligente/1.0 e Accept application/json. Não simula navegador, não altera permissões, não persiste cadastro automaticamente e continua respeitando limites de consulta da fonte.
+- Falhas registram fonte/status ou categoria de erro sem tokens, dados pessoais ou corpo da resposta. Teste de regressão exige identificação do integrador e cobre retorno 403.
+- Testes: consulta real pelo handler corrigido retornou razão social, Praça Engenheiro Hugo Brandi, nº 01 e demais campos. check:ci 239 aprovados / 3 sem evidência / 0 falhas. check local interrompido no fixture Itaú abril ausente, como na versão anterior.
