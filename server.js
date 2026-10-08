@@ -1331,6 +1331,8 @@ app.post('/api/empresas/:cnpj/ativar', async (req, res) => {
   } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
+app.get('/api/empresas/:cnpj/consulta-cnpj', require('./consulta-cnpj').criarConsultaCnpjHandler({ checarAcessoEmpresa }));
+
 app.patch('/api/empresas/:cnpj/cadastro', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');

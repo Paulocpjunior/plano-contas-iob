@@ -1,7 +1,8 @@
 {
-  "version": "3.4.377",
-  "build_date": "2026-10-08T13:02:03.361571+00:00",
+  "version": "3.4.378",
+  "build_date": "2026-10-08T15:26:21.419918+00:00",
   "release_notes": [
+    "Cadastro: Consultar ao lado do CNPJ busca dados na BrasilAPI, mostra diferenças e permite aplicar campos selecionados antes de salvar, preservando dados manuais e permissões.",
     "Documentos por e-mail: convite de agenda com assunto e vencimento informado ou identificado em PDF textual. Campo opcional no envio de relatórios.",
     "Extrato Itaú: preserva movimentos iguais em linhas distintas, mantém a ordem do PDF e confere saldos diários. Prévia permite consultar todos os lançamentos.",
     "Gestão de acessos: nomear gestores com administração do CCI, cadastrar colaboradores em consulta e delegar ações e empresas, com histórico e independência do CFI.",
