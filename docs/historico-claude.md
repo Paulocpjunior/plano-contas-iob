@@ -1852,3 +1852,11 @@ Provedor Graph inclui agenda .ics com data informada ou rotulada no texto do PDF
 - Falhas registram fonte/status ou categoria de erro sem tokens, dados pessoais ou corpo da resposta. Teste de regressão exige identificação do integrador e cobre retorno 403.
 - Testes: consulta real pelo handler corrigido retornou razão social, Praça Engenheiro Hugo Brandi, nº 01 e demais campos. check:ci 239 aprovados / 3 sem evidência / 0 falhas. check local interrompido no fixture Itaú abril ausente, como na versão anterior.
 - Prova adicional no Google Cloud (Cloud Build us-west1 8194aeb3-229e-40b3-90aa-c5b67bc6e7d4): Node 22, mesmo CNPJ, UA genérico recebeu 403; UA verdadeiro do CCI recebeu 200 e os dados esperados. Nenhuma gravação cadastral. Não foi possível testar o endpoint autenticado por sessão local (sem sessão disponível e sem permissão IAM de assinatura); a prova cobre a chamada externa real a partir da nuvem.
+
+## 2026-10-08 — v3.4.380 — BTG Empresas ERF e Central de Qualidade
+
+- Novo modelo BTG Empresas dentro do parser PJ: recompõe glifos pela posição, separa colunas, lê ordem decrescente e preserva cada linha física, inclusive os três boletos de R$ 1.689,81.
+- PDF ERF de setembro/2026 contém 19 movimentos: créditos R$ 25.500,00 e débitos R$ 23.079,70, iguais ao resumo. Saldo inicial R$ 1.641,54 implica final R$ 4.061,84, mas PDF imprime R$ 4.062,04. Divergências por movimento: 01/09 +0,02; 11/09 +0,09; 14/09 +0,02; 29/09 +0,06; 30/09 +0,01. Não presumir rendimento nem criar ajuste; solicitar extrato completo/OFX para esclarecer.
+- Parser reconhece o modelo, mas bloqueia importação deste arquivo por saldo divergente antes de enriquecer/gravar sessão. Central de Qualidade e análise de novo layout mostram conferência pendente, sem orientar rascunho duplicado. GEN testa somente formatos compatíveis; PDF não aciona Extrato Conciliado XLSX.
+- Testes: fixture portátil anonimizada, PDF original, truncamento, saldos, boletos repetidos e fluxo real de importação sem gravação em falha. BTG PJ anterior (43), Wealth (167) e Investimento (4) preservados. Navegador com PDF.js 3.11.174 confirmou 19 movimentos e bloqueio de 0,20 no arquivo real.
+- check:ci: 241 aprovados, 3 pulados por ausência de arquivos externos, 0 falhas. check local interrompido no fixture histórico Itaú abril ausente; nenhum parser Itaú alterado.
