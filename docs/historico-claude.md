@@ -1835,3 +1835,12 @@ Corrigido descarte de movimentos legítimos iguais no PDF textual e ordem das de
 ## 08/10/2026 — Convites de vencimento nos documentos enviados
 
 Provedor Graph inclui agenda .ics com data informada ou rotulada no texto do PDF, preservando anexos originais. Relatórios têm campo opcional de vencimento e retornam quantidade/avisos de leitura. Padrão derivado do DP; sem alteração de saldos ou transmissão de mensagens de teste reais.
+
+## 2026-10-08 — v3.4.378 — Consulta cadastral por CNPJ
+
+- Dados da Empresa → Informações cadastrais: botão Consultar ao lado do CNPJ; consulta BrasilAPI por endpoint autenticado e autorizado pela carteira. Consulta não grava dados.
+- Prévia compara campos atuais e retornados. Campos vazios podem ser preenchidos; substituições exigem seleção. Aplicar apenas modifica o formulário, e Salvar cadastro preserva o controle de edição existente.
+- Não importa regime, inscrições, carteiras, plano ou estrutura matriz/filial. Campo ausente não apaga informação manual. Vários CNAEs secundários ficam descritos para conferência, sem truncar silenciosamente no campo individual.
+- Timeout de 12 segundos; falhas/limites da fonte são apresentados sem alterar cadastro. Respostas antigas após fechar/trocar empresa são descartadas; edição manual depois da consulta bloqueia aplicação obsoleta.
+- Validação: teste específico de mapeamento, autorização, timeout, limites e controlador real da tela; navegador local com respostas simuladas e sem gravação de cliente. Consulta pública do CNPJ do exemplo conferida sem persistência.
+- check:ci: 239 passaram, 3 pulados por ausência de evidências externas, 0 falharam. check local interrompido no fixture histórico Itaú abril ausente (sem mudança em parsers). Sintaxe HTML/JS e diff validados.
