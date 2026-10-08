@@ -110,6 +110,8 @@ async function enviarComoColaborador({ enviar, emailColaborador, env = process.e
   }
   return {
     ok: envio.ok === true,
+    convites: envio.convites || 0,
+    avisosConvites: envio.avisosConvites || [],
     error: envio.ok ? undefined : (envio.error || 'Falha ao enviar e-mail.'),
     remetente,
     fonteRemetente: refeito ? 'padrao' : escolha.fonte,

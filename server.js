@@ -4598,6 +4598,8 @@ app.post('/api/empresas/:cnpj/contabilidade/relatorios/enviar-email', async (req
         para: destinatario,
         assunto,
         html,
+        vencimento: entrada.vencimento || undefined,
+        identidade: `${cnpjLimpo}|${tipo}|${periodo}`,
         anexos: [{ name: nomeArquivo, contentType: 'application/pdf', contentBytes: base64Limpo }, ...EmailLayout.anexoLogo()]
       }
     });
@@ -4623,7 +4625,7 @@ app.post('/api/empresas/:cnpj/contabilidade/relatorios/enviar-email', async (req
     } catch (erroAuditoria) {
       console.error('auditoria do envio de relatorio contabil falhou:', erroAuditoria);
     }
-    res.json({ ok: true, destinatario, tipo, periodo, remetente: envio.remetente, fonteRemetente: envio.fonteRemetente, motivoRemetente: envio.motivoRemetente || null, refeitoPelaInstitucional: envio.refeitoPelaInstitucional });
+    res.json({ ok: true, destinatario, tipo, periodo, remetente: envio.remetente, fonteRemetente: envio.fonteRemetente, motivoRemetente: envio.motivoRemetente || null, refeitoPelaInstitucional: envio.refeitoPelaInstitucional, convites: envio.convites, avisosConvites: envio.avisosConvites });
   } catch (e) {
     console.error('enviar relatorio contabil por email erro:', e);
     res.status(500).json({ erro: e.message || 'Falha ao enviar relatório por e-mail.' });
