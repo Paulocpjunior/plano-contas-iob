@@ -1,7 +1,8 @@
 {
-  "version": "3.4.379",
-  "build_date": "2026-10-08T16:08:03.266624+00:00",
+  "version": "3.4.380",
+  "build_date": "2026-10-08T19:40:19.282253+00:00",
   "release_notes": [
+    "BTG Empresas: lê PDF com caracteres separados e ordem decrescente, preserva pagamentos iguais e confere totais/saldos. Central de Qualidade filtra o formato e diferencia saldo divergente de layout desconhecido.",
     "Consulta CNPJ: identifica corretamente o CCI na BrasilAPI para evitar rejeição do cliente Node; diagnóstico de indisponibilidade sem expor dados cadastrais.",
     "Cadastro: Consultar ao lado do CNPJ busca dados na BrasilAPI, mostra diferenças e permite aplicar campos selecionados antes de salvar, preservando dados manuais e permissões.",
     "Documentos por e-mail: convite de agenda com assunto e vencimento informado ou identificado em PDF textual. Campo opcional no envio de relatórios.",

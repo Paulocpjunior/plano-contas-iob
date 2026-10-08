@@ -103,6 +103,88 @@
     return m ? Math.abs(parseValorBR(m[1])) : 0;
   }
 
+  // BTG Empresas: relatório em ordem decrescente, com fonte fragmentada por glifo.
+  function textoPosicional(items) {
+    let texto = '', anterior;
+    items.forEach(function(item) {
+      if (anterior && item.x - (anterior.x + (anterior.w || 0)) > 3) texto += ' ';
+      texto += item.s;
+      anterior = item;
+    });
+    return texto.replace(/\s+/g, ' ').trim();
+  }
+
+  function parseExtratoEmpresas(lines) {
+    const texto = lines.map(l => textoPosicional(l.items)).join('\n');
+    if (!/Extrato conta corrente/i.test(texto) || !/Resumo do saldo/i.test(texto)
+      || !/Banco\s+208\b/i.test(texto) || !/BTG Pactual/i.test(texto)) return null;
+    const periodo = extrairPeriodo(texto);
+    const cnpj = (texto.match(/CNPJ\s+([\d./-]+)/i) || [])[1] || '';
+    const agencia = (texto.match(/Ag[eê]ncia\s+(\d+)/i) || [])[1] || '';
+    const conta = (texto.match(/Conta\s+(\d+)/i) || [])[1] || '';
+    const razao = (texto.match(/Per[ií]odo de[^\n]+?\s[–-]\s(.+)/i) || [])[1] || '';
+    const regiao = (l, inicio, fim) => textoPosicional(l.items.filter(i => i.x >= inicio && i.x < fim));
+    const moeda = s => /^-?\s*R\$\s*[\d.]+,\d{2}$/.test(s);
+    const cent = v => Math.round(v * 100);
+    const lancamentos = [];
+    let saldoInicial, saldoFinal;
+    for (const page of [...new Set(lines.map(l => l.page))]) {
+      const pagina = lines.filter(l => l.page === page);
+      const datas = pagina.filter(l => l.items.some(i => i.x < 120 && /^\d{2}\/\d{2}\/\d{4}$/.test(i.s.trim())));
+      datas.forEach(function(linha, index) {
+        const data = parseDataBR(regiao(linha, 0, 120));
+        const inline = regiao(linha, 120, 500);
+        const saldoTexto = regiao(linha, 650, Infinity);
+        if (/^Saldo de (abertura|fechamento)$/i.test(inline)) {
+          if (!moeda(saldoTexto)) throw new Error('BTG Empresas: saldo de abertura/fechamento ilegível.');
+          if (/abertura/i.test(inline)) saldoInicial = parseValorBR(saldoTexto);
+          else saldoFinal = parseValorBR(saldoTexto);
+          return;
+        }
+        const valorTexto = regiao(linha, 500, 650);
+        if (!data || !moeda(valorTexto) || !moeda(saldoTexto)) throw new Error('BTG Empresas: movimento incompleto na página ' + page + '. Confira o PDF original.');
+        const acima = index ? (datas[index - 1].y + linha.y) / 2 : linha.y + 24;
+        const abaixo = index + 1 < datas.length ? (linha.y + datas[index + 1].y) / 2 : linha.y - 26;
+        const descricao = pagina.filter(l => l.y < acima && l.y > abaixo).map(l => regiao(l, 120, 500)).filter(Boolean).join(' ');
+        if (!descricao || data < periodo.inicio || data > periodo.fim) throw new Error('BTG Empresas: descrição ou período inválido. Confira o PDF original.');
+        const valor = parseValorBR(valorTexto);
+        lancamentos.push({ id: crypto.randomUUID(), data, descricao, documento: '', valor, tipo: valor < 0 ? 'D' : 'C',
+          origem: 'pdf-btg-pactual', pagina_origem: page, linha_origem: linha.y, saldo_extrato: parseValorBR(saldoTexto) });
+      });
+    }
+    if (saldoInicial == null || saldoFinal == null || !periodo.inicio || !periodo.fim || !lancamentos.length) throw new Error('BTG Empresas: extrato incompleto; confira páginas, período e saldos.');
+    // Reverte a ordem física inteira, inclusive movimentos iguais no mesmo dia.
+    lancamentos.reverse();
+    const credito = lancamentos.reduce((s,l) => s + Math.max(cent(l.valor), 0), 0);
+    const debito = lancamentos.reduce((s,l) => s + Math.max(-cent(l.valor), 0), 0);
+    const totalImpresso = label => {
+      const linha = lines.find(l => normalize(textoPosicional(l.items)).startsWith(label));
+      const m = linha && textoPosicional(linha.items).match(/R\$\s*([\d.]+,\d{2})/);
+      if (!m) throw new Error('BTG Empresas: total impresso ausente.');
+      return cent(parseValorBR(m[1]));
+    };
+    if (credito !== totalImpresso('Total de entradas') || debito !== totalImpresso('Total de saidas')) throw new Error('BTG Empresas: movimentos divergem dos totais impressos; confira o arquivo completo.');
+    let anterior = cent(saldoInicial);
+    const divergencias = [];
+    lancamentos.forEach(function(l) {
+      const esperado = anterior + cent(l.valor);
+      if (esperado !== cent(l.saldo_extrato)) divergencias.push({ data: l.data, pagina: l.pagina_origem, esperado: esperado / 100, impresso: l.saldo_extrato, diferenca: (cent(l.saldo_extrato) - esperado) / 100 });
+      anterior = cent(l.saldo_extrato);
+    });
+    const calculado = (cent(saldoInicial) + credito - debito) / 100;
+    const resultado = { detectado: true, lancamentos, textoCompleto: texto, fingerprint: 'btg-pactual-empresas-v2',
+      banco_detectado: 'BTG PACTUAL', conta_detectada: 'AG-' + agencia + '/CC-' + conta,
+      nome_conta_detectado: razao, cnpj_detectado: cnpj.replace(/\D/g, ''), periodo_inicio: periodo.inicio, periodo_fim: periodo.fim,
+      total_credito: credito / 100, total_debito: debito / 100, saldo_anterior: saldoInicial, saldo_final: saldoFinal,
+      saldo_calculado: calculado, divergencias_saldo: divergencias, saldos_conciliados: !divergencias.length && anterior === cent(saldoFinal) && cent(calculado) === cent(saldoFinal) };
+    if (!resultado.saldos_conciliados) {
+      const br = v => Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      const erro = new Error('BTG Empresas reconhecido: ' + lancamentos.length + ' lançamentos; entradas R$ ' + br(credito / 100) + ' e saídas R$ ' + br(debito / 100) + ' conferem com o PDF. Os saldos impressos não fecham: calculado R$ ' + br(calculado) + ', final impresso R$ ' + br(saldoFinal) + ', diferença R$ ' + br(saldoFinal - calculado) + '. Solicite ao banco o extrato completo/OFX com os movimentos que expliquem a diferença. Nenhum ajuste foi criado.');
+      erro.codigo = 'BTG_SALDO_DIVERGENTE'; erro.resultado = resultado; throw erro;
+    }
+    return resultado;
+  }
+
   async function parsearPDF_BTG(arrayBuffer, varianteEsperada) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -118,11 +200,11 @@
       tc.items.forEach(function(it) {
         const y = Math.round(it.transform[5]);
         if (!byY[y]) byY[y] = [];
-        byY[y].push({ x: Math.round(it.transform[4]), s: it.str });
+        byY[y].push({ x: Math.round(it.transform[4]), s: it.str, w: it.width });
         const yFlexible = Object.keys(byYFlexible).map(Number).find(function(existing){ return Math.abs(existing - y) <= 2; });
         const flexibleKey = yFlexible == null ? y : yFlexible;
         if (!byYFlexible[flexibleKey]) byYFlexible[flexibleKey] = [];
-        byYFlexible[flexibleKey].push({ x: Math.round(it.transform[4]), s: it.str });
+        byYFlexible[flexibleKey].push({ x: Math.round(it.transform[4]), s: it.str, w: it.width });
       });
       Object.keys(byY).map(Number).sort(function(a,b){ return b - a; }).forEach(function(y) {
         const items = byY[y].sort(function(a,b){ return a.x - b.x; });
@@ -137,6 +219,11 @@
         const text = cleanLineText(items);
         if (text) flexibleLines.push({ page: p, y: y, items: items, text: text });
       });
+    }
+
+    if (varianteEsperada === 'pj') {
+      const empresas = parseExtratoEmpresas(flexibleLines);
+      if (empresas) return empresas;
     }
 
     const ehContaPJ = /Conta corrente - PJ/i.test(textoCompleto)
