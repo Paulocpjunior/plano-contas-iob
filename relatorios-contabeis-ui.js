@@ -237,6 +237,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
           <div class="rc-field"><label>E-mail do destinatário</label><input type="email" id="rcEmailDestinatario" autocomplete="email" placeholder="cliente@empresa.com.br"></div>
           <div class="rc-field" style="margin-top:12px"><label>Assunto</label><input id="rcEmailAssunto"></div>
           <div class="rc-field" style="margin-top:12px"><label>Mensagem</label><textarea id="rcEmailMensagem" style="font-family:inherit"></textarea></div>
+          <div class="rc-field" style="margin-top:12px"><label>Vencimento (opcional, quando o documento exigir ação até uma data)</label><input type="date" id="rcEmailVencimento"><small>O e-mail incluirá um convite de agenda com o assunto acima. Relatórios sem vencimento não precisam de data.</small></div>
           <div class="rc-modal-actions"><button class="rc-btn light" id="rcEmailCancelar" type="button">Cancelar</button><button class="rc-btn email" id="rcEmailEnviar" type="button">Enviar relatório</button></div>
         </div>
       </div>
@@ -1161,6 +1162,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     const dados = dadosAtuais();
     const empresa = dados.ctx.empresa || {};
     const nomeEmpresa = empresa.razao_social || empresa.empresa || 'Empresa';
+    document.getElementById('rcEmailVencimento').value = '';
     document.getElementById('rcEmailDestinatario').value = empresa.email_contato || empresa.email_cliente || empresa.email || '';
     document.getElementById('rcEmailAssunto').value = nomeTipoRelatorio() + ' — ' + nomeEmpresa + ' — ' + dados.periodoLegivel;
     document.getElementById('rcEmailMensagem').value = 'Olá,\n\nSegue em anexo o ' + nomeTipoRelatorio() + ' do período ' + dados.periodoLegivel + ', referente à empresa ' + nomeEmpresa + '.\n\nAtenciosamente,\nDepartamento Contábil — SP Assessoria Contábil';
@@ -1266,8 +1268,9 @@ function preferenciasImpressao(ctx, sobrescritas) {
       const resultado = await criarDocumentoPDF();
       const dataUri = resultado.doc.output('datauristring');
       const pdfBase64 = String(dataUri || '').split(',')[1] || '';
-      await window.API.enviarRelatorioContabilEmail(resultado.dados.ctx.empresa.cnpj, {
+      const envio = await window.API.enviarRelatorioContabilEmail(resultado.dados.ctx.empresa.cnpj, {
         email: email,
+        vencimento: document.getElementById('rcEmailVencimento').value || '',
         assunto: String(document.getElementById('rcEmailAssunto').value || '').trim(),
         mensagem: String(document.getElementById('rcEmailMensagem').value || '').trim(),
         tipo: tipoAtual,
@@ -1276,7 +1279,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
         nome_arquivo: resultado.arquivo
       });
       fecharModalEmail();
-      window.showToast('Relatório enviado por e-mail com sucesso.', 'success');
+      window.showToast('Relatório enviado por e-mail.' + (envio.convites ? ' Convite de agenda anexado.' : '') + (envio.avisosConvites && envio.avisosConvites.length ? ' '+envio.avisosConvites.join(' ') : ''), 'success');
     } catch (e) {
       window.showToast(e.message || String(e), 'error');
     } finally {

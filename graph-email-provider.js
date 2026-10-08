@@ -1,3 +1,4 @@
+const Convites = require('./convites-vencimento.cjs');
 'use strict';
 // ============================================================================
 // graph-email-provider.js — Microsoft Graph (Microsoft 365 do escritório).
@@ -69,13 +70,15 @@ const lista = (v) => (Array.isArray(v) ? v : [v]).filter(Boolean).map((addr) => 
  *        anexo com `contentId` vai INLINE (logo do template referenciado por cid:).
  * @returns {Promise<{ok: boolean, error?: string}>}
  */
-async function enviarEmail({ remetente, para, cc = [], bcc = [], assunto, html, anexos = [] }) {
+async function enviarEmail({ remetente, para, cc = [], bcc = [], assunto, html, anexos = [], vencimento, identidade = '' }) {
   if (!configurado()) return { ok: false, error: 'Microsoft Graph não configurado.' };
   if (!remetente) return { ok: false, error: 'Remetente do Microsoft Graph não configurado.' };
   const toRecipients = lista(para);
   if (!toRecipients.length) return { ok: false, error: 'Nenhum destinatário informado.' };
 
   try {
+    const agenda = await Convites.anexarConvites({ assunto, anexos, vencimento, identidade, lerPdf: async bytes => (await require('pdf-parse')(bytes)).text });
+    anexos = agenda.anexos;
     const token = await obterToken();
     const ccRecipients = lista(cc);
     const bccRecipients = lista(bcc);
@@ -105,7 +108,7 @@ async function enviarEmail({ remetente, para, cc = [], bcc = [], assunto, html, 
         saveToSentItems: true
       })
     });
-    if (response.status === 202) return { ok: true };
+    if (response.status === 202) return { ok: true, convites: agenda.quantidade, avisosConvites: agenda.avisos };
     const data = await response.json().catch(() => ({}));
     return { ok: false, error: (data && data.error && data.error.message) || `Falha ao enviar e-mail (${response.status}).` };
   } catch (error) {
