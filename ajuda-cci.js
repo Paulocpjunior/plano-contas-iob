@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const NOVIDADES_VERSAO = '2026-10-08.380';
+  const NOVIDADES_VERSAO = '2026-10-09.381';
   const NOVIDADES_LIDA_KEY = 'cci_novidades_lida';
 
   function escapeHtml(value) {
