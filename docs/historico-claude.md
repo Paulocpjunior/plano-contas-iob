@@ -1860,3 +1860,9 @@ Provedor Graph inclui agenda .ics com data informada ou rotulada no texto do PDF
 - Parser reconhece o modelo, mas bloqueia importação deste arquivo por saldo divergente antes de enriquecer/gravar sessão. Central de Qualidade e análise de novo layout mostram conferência pendente, sem orientar rascunho duplicado. GEN testa somente formatos compatíveis; PDF não aciona Extrato Conciliado XLSX.
 - Testes: fixture portátil anonimizada, PDF original, truncamento, saldos, boletos repetidos e fluxo real de importação sem gravação em falha. BTG PJ anterior (43), Wealth (167) e Investimento (4) preservados. Navegador com PDF.js 3.11.174 confirmou 19 movimentos e bloqueio de 0,20 no arquivo real.
 - check:ci: 241 aprovados, 3 pulados por ausência de arquivos externos, 0 falhas. check local interrompido no fixture histórico Itaú abril ausente; nenhum parser Itaú alterado.
+
+## 2026-10-09 — LAV 1244: consulta paginada para evitar travamento (3.4.381)
+- Auditoria somente leitura da sessão online: 27.906 lançamentos / ~49 MB; agosto possui 446, todos com descrição/histórico, 439 com débito e crédito preenchidos. Cabeçalho persistido ainda refere junho. Nenhuma escrita ou reimportação da empresa.
+- A tabela gerava todos os registros e campos editáveis de uma vez, inclusive nas atualizações após salvar. Agora limita DOM a 100 linhas por página; mantém filtros/totais/seleções/exportações integrais e índices originais para edição. Filtros/empresa reiniciam página e redução da lista ajusta limite.
+- Teste executa handler real com 27.906 registros, verifica páginas, agosto, última página, lista vazia, seleção, índices e imutabilidade. Navegador local com cópia integral real confirmou 446 em agosto e navegação 101–200, sem gravação.
+- Dados financeiros não foram alterados. Validação local isolada não substitui confirmação na sessão de Matheus após atualizar.
