@@ -2,9 +2,9 @@
   'use strict';
 
   const AUDITAI_VERSION_KEY = 'plano_contas_iob_auditai_versao_vista';
-  const AUDITAI_MOTOR_VERSION = '3.4.384';
+  const AUDITAI_MOTOR_VERSION = '3.4.385';
   const AUDITAI_MOTOR_CACHE_KEY = 'plano_contas_iob_auditai_motor_cache';
-  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.384';
+  const AUDITAI_MOTOR_LABEL = 'Motor conciliacao v3.4.385';
 
   const STATE = {
     files: { a: null, b: null },
@@ -1669,21 +1669,21 @@
     if (!document.getElementById('sp-version-modal')) {
       const modal = document.createElement('div');
       modal.id = 'sp-version-modal';
-      modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:100000;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px';
+      modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(28,28,30,.85);z-index:100000;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px';
       modal.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center;font-family:system-ui,sans-serif">' +
         '<div style="font-size:48px;margin-bottom:8px">🚀</div>' +
-        '<h2 style="margin:0 0 8px;color:#0f172a;font-size:22px;font-weight:800">Nova versão disponível</h2>' +
-        '<p style="margin:0 0 4px;color:#64748b;font-size:14px">Versão <strong id="sp-version-modal-number">-</strong></p>' +
-        '<p style="margin:0 0 20px;color:#94a3b8;font-size:12px">Para continuar usando o sistema, atualize agora.</p>' +
-        '<div id="sp-version-modal-notes" style="text-align:left;background:#f8fafc;border-radius:8px;padding:14px;margin-bottom:24px;max-height:240px;overflow-y:auto;font-size:13px;color:#334155;line-height:1.5"></div>' +
-        '<button id="sp-version-modal-reload" style="background:#2563eb;color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;width:100%">Atualizar agora</button>' +
+        '<h2 style="margin:0 0 8px;color:#1c1c1e;font-size:22px;font-weight:800">Nova versão disponível</h2>' +
+        '<p style="margin:0 0 4px;color:#6e6e73;font-size:14px">Versão <strong id="sp-version-modal-number">-</strong></p>' +
+        '<p style="margin:0 0 20px;color:#a1a1a6;font-size:12px">Para continuar usando o sistema, atualize agora.</p>' +
+        '<div id="sp-version-modal-notes" style="text-align:left;background:#fbfbfd;border-radius:8px;padding:14px;margin-bottom:24px;max-height:240px;overflow-y:auto;font-size:13px;color:#3a3a3c;line-height:1.5"></div>' +
+        '<button id="sp-version-modal-reload" style="background:#0071e3;color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;width:100%">Atualizar agora</button>' +
         '</div>';
       document.body.appendChild(modal);
     }
     if (!document.getElementById('sp-version-footer')) {
       const footer = document.createElement('div');
       footer.id = 'sp-version-footer';
-      footer.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none';
+      footer.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10px;color:#a1a1a6;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none';
       document.body.appendChild(footer);
     }
   }
@@ -1697,8 +1697,8 @@
     if (!modal || !number || !notes || !button) return;
     number.textContent = info.version;
     notes.innerHTML = Array.isArray(info.release_notes) && info.release_notes.length
-      ? '<strong style="display:block;margin-bottom:8px;color:#0f172a">O que mudou:</strong><ul style="margin:0;padding-left:18px">' + info.release_notes.map(function (note) { return '<li style="margin-bottom:4px">' + escapeHtml(note) + '</li>'; }).join('') + '</ul>'
-      : '<em style="color:#94a3b8">Sem notas de release publicadas</em>';
+      ? '<strong style="display:block;margin-bottom:8px;color:#1c1c1e">O que mudou:</strong><ul style="margin:0;padding-left:18px">' + info.release_notes.map(function (note) { return '<li style="margin-bottom:4px">' + escapeHtml(note) + '</li>'; }).join('') + '</ul>'
+      : '<em style="color:#a1a1a6">Sem notas de release publicadas</em>';
     modal.style.display = 'flex';
     button.onclick = function () {
       button.disabled = true;

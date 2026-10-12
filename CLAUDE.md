@@ -44,7 +44,7 @@ App contábil: conciliação bancária, plano de contas, ECD/ECF, exportação I
 - Arquivos IOB SAGE / Folhamatic: largura fixa, Windows-1252, CRLF. Use `iconv-lite`.
 - Faturas Itaú concatenam as descrições sem espaço. Use `\bPALAVRA` (fronteira só no início), nunca `\bPALAVRA\b`.
 - Firestore rejeita `undefined`: sanitize os payloads antes de gravar.
-- Visual (estilo Apple): tokens em `tema-apple.css` (CCI/Admin) e `tailwind.auditai.config.js` (AuditAI; depois rode `npm run build:auditai-css`). Destaque é o azul #0071e3, não o azul do Tailwind (#2563eb).
+- Visual (estilo Apple): tokens em `tema-apple.css` (CCI/Admin) e `tailwind.auditai.config.js` (AuditAI; depois rode `npm run build:auditai-css`). Destaque é o azul #0071e3, não o azul do Tailwind (#2563eb). Vale também para os `.js` de tela (lista travada em `scripts/test-tema-apple.js`); cor inline nova precisa do seletor `[style*="..."]` do tema escuro no `index.html`/`admin.html`.
 
 ## Regras de conteúdo fiscal (valem aqui como valem no CFI)
 

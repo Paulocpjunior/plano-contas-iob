@@ -106,7 +106,7 @@
     c.innerHTML =
       '<div style="background:#f8f9fa;border:2px dashed #c8d0d8;border-radius:8px;padding:40px;text-align:center;">' +
         '<div style="font-size:14px;margin-bottom:6px;">Selecione o arquivo da folha de pagamento</div>' +
-        '<div style="font-size:12px;color:#64748b;margin-bottom:12px;"><strong>SAGE Folha:</strong> FPIMP + código da empresa + .mês (ex.: FPIMP0040.01)<br>Também é aceito o Resumo Geral em PDF.</div>' +
+        '<div style="font-size:12px;color:#6e6e73;margin-bottom:12px;"><strong>SAGE Folha:</strong> FPIMP + código da empresa + .mês (ex.: FPIMP0040.01)<br>Também é aceito o Resumo Geral em PDF.</div>' +
         '<input type="file" id="folha-pdf-input" accept=".01,.02,.03,.04,.05,.06,.07,.08,.09,.10,.11,.12,.pdf,application/pdf,text/plain,application/octet-stream" style="margin:8px 0;" />' +
         '<div id="folha-status" style="font-size:12px;color:#666;margin-top:12px;"></div>' +
       '</div>';
@@ -171,15 +171,15 @@
         '<strong>Layout SAGE Folha reconhecido</strong><br>' + esc(f.nome_arquivo) + ' · empresa ' + esc(f.codigo_empresa_arquivo) + ' · competência ' + esc(f.competencia) +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;font-size:13px">' +
-        '<div style="padding:10px;background:#f8fafc;border-radius:7px"><strong>' + Number(f.totais.lancamentos || 0) + '</strong><br><span style="color:#64748b">lançamentos</span></div>' +
-        '<div style="padding:10px;background:#f8fafc;border-radius:7px"><strong>R$ ' + Number(f.totais.debitos || 0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong><br><span style="color:#64748b">débitos</span></div>' +
-        '<div style="padding:10px;background:#f8fafc;border-radius:7px"><strong>R$ ' + Number(f.totais.creditos || 0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong><br><span style="color:#64748b">créditos</span></div>' +
+        '<div style="padding:10px;background:#fbfbfd;border-radius:7px"><strong>' + Number(f.totais.lancamentos || 0) + '</strong><br><span style="color:#6e6e73">lançamentos</span></div>' +
+        '<div style="padding:10px;background:#fbfbfd;border-radius:7px"><strong>R$ ' + Number(f.totais.debitos || 0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong><br><span style="color:#6e6e73">débitos</span></div>' +
+        '<div style="padding:10px;background:#fbfbfd;border-radius:7px"><strong>R$ ' + Number(f.totais.creditos || 0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong><br><span style="color:#6e6e73">créditos</span></div>' +
       '</div>' +
-      '<div style="max-height:390px;overflow:auto;border:1px solid #e2e8f0;border-radius:7px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="position:sticky;top:0;background:#f1f5f9"><tr>' +
+      '<div style="max-height:390px;overflow:auto;border:1px solid #e8e8ed;border-radius:7px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="position:sticky;top:0;background:#f5f5f7"><tr>' +
         '<th style="padding:8px 5px;text-align:left">Data</th><th style="padding:8px 5px;text-align:left">Débito</th><th style="padding:8px 5px;text-align:left">Crédito</th><th style="padding:8px 5px;text-align:left">Hist.</th><th style="padding:8px 5px;text-align:left">Complemento</th><th style="padding:8px 5px;text-align:right">Valor</th>' +
       '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
-      '<div style="margin-top:12px;padding:10px;background:#eff6ff;border-radius:7px;color:#1e3a8a;font-size:12px">As contas, o histórico, o valor e o complemento serão mantidos exatamente conforme o arquivo SAGE. Revise a conferência antes de gravar.</div>' +
-      '<div style="display:flex;justify-content:flex-end;margin-top:16px"><button id="btn-importar-fpimp" style="padding:11px 20px;background:#2563eb;color:#fff;border:0;border-radius:7px;font-weight:700;cursor:pointer">Importar lançamentos no CCI</button></div>';
+      '<div style="margin-top:12px;padding:10px;background:#f0f7ff;border-radius:7px;color:#003e7a;font-size:12px">As contas, o histórico, o valor e o complemento serão mantidos exatamente conforme o arquivo SAGE. Revise a conferência antes de gravar.</div>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:16px"><button id="btn-importar-fpimp" style="padding:11px 20px;background:#0071e3;color:#fff;border:0;border-radius:7px;font-weight:700;cursor:pointer">Importar lançamentos no CCI</button></div>';
     document.getElementById('btn-importar-fpimp').onclick = importarFpimp;
   }
 
@@ -239,8 +239,8 @@
     function encargoRow(chave, label, valor) {
       const reg = (m.encargos || {})[chave] || { debito: '', credito: '', historico: '' };
       return '<tr data-codigo="' + chave + '" data-tipo="encargo" data-valor="' + valor + '">' +
-        '<td style="padding:6px 4px;font-family:monospace;font-size:11px;color:#069;">PAT</td>' +
-        '<td style="padding:6px 4px;font-size:13px;color:#069;">' + label + '</td>' +
+        '<td style="padding:6px 4px;font-family:monospace;font-size:11px;color:#0066cc;">PAT</td>' +
+        '<td style="padding:6px 4px;font-size:13px;color:#0066cc;">' + label + '</td>' +
         '<td style="padding:6px 4px;"><input type="text" value="' + (reg.debito || '') + '" placeholder="cod D" style="width:70px;font-family:monospace;padding:4px;"/></td>' +
         '<td style="padding:6px 4px;"><input type="text" value="' + (reg.credito || '') + '" placeholder="cod C" style="width:70px;font-family:monospace;padding:4px;"/></td>' +
         '<td style="padding:6px 4px;"><input type="text" value="' + (reg.historico || '') + '" placeholder="hist" style="width:60px;font-family:monospace;padding:4px;"/></td>' +

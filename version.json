@@ -1,7 +1,8 @@
 {
-  "version": "3.4.384",
-  "build_date": "2026-10-12T19:05:32.159Z",
+  "version": "3.4.385",
+  "build_date": "2026-10-12T19:15:39.060Z",
   "release_notes": [
+    "Visual: relatórios contábeis, ativo imobilizado, conferência de caixa, históricos, manual, ajuda, migração SAGE, aluguéis do Reinf, DARF pago e demais janelas também passam a usar os cinzas e o azul no estilo Apple, no claro e no escuro. Nenhuma tela muda de lugar; PDFs e e-mails seguem como estavam.",
     "Segurança: ferramentas internas de desenvolvimento com alerta de vulnerabilidade sem correção foram retiradas do projeto. Nenhuma tela muda e nada precisa ser feito.",
     "Visual: fonte do sistema (San Francisco no Mac/iPhone, Inter nos demais), cinzas e azul no estilo Apple, barra superior translúcida, entrada com botão azul arredondado e logo oficial com favicon e ícone do iPhone. Nenhuma tela muda de lugar.",
     "DARF pago: consulta na Receita, conferência das contas e partidas, comparação com lançamentos existentes e baixa protegida pela data de arrecadação.",
