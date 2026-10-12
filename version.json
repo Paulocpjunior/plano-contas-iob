@@ -1,7 +1,8 @@
 {
-  "version": "3.4.382",
-  "build_date": "2026-10-12T09:50:31.379656+00:00",
+  "version": "3.4.383",
+  "build_date": "2026-10-12T16:45:33.935188+00:00",
   "release_notes": [
+    "Visual: fonte do sistema (San Francisco no Mac/iPhone, Inter nos demais), cinzas e azul no estilo Apple, barra superior translúcida, entrada com botão azul arredondado e logo oficial com favicon e ícone do iPhone. Nenhuma tela muda de lugar.",
     "DARF pago: consulta na Receita, conferência das contas e partidas, comparação com lançamentos existentes e baixa protegida pela data de arrecadação.",
     "Lançamentos: consulta paginada para evitar travamento em empresas com grande volume, preservando classificações, históricos, totais e exportações completas.",
     "BTG Empresas: lê PDF com caracteres separados e ordem decrescente, preserva pagamentos iguais e confere totais/saldos. Central de Qualidade filtra o formato e diferencia saldo divergente de layout desconhecido.",

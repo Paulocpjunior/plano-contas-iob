@@ -4,14 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultor Contábil Inteligente v2.2 - SP Assessoria</title>
-    <link rel="icon" type="image/png" href="/sp-logo.png">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
     <script>
       (function(){try{var t=localStorage.getItem('sp_saas_theme')||localStorage.getItem('auditAI_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();
     </script>
-    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.382';</script>
-    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.382"></script>
-    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.382"></script>
-    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.382"></script>
+    <script>window.__PLANO_CONTAS_IOB_BUILD__ = '3.4.383';</script>
+    <script src="/vendor/firebase/firebase-app-compat.js?v=3.4.383"></script>
+    <script src="/vendor/firebase/firebase-auth-compat.js?v=3.4.383"></script>
+    <script src="/vendor/firebase/firebase-firestore-compat.js?v=3.4.383"></script>
     <script>
       if (!window.firebase) {
         document.write('<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"><\\/script>');
@@ -24,89 +27,89 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS para parse de .xlsx/.xls servido pelo proprio app -->
-    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.382"></script>
-    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.382"></script>
-    <script src="/reinf/reinf-isencoes-dividendos.js?v=3.4.382"></script>
-    <script src="/reinf/reinf-alugueis-planilha.js?v=3.4.382"></script>
-    <script src="/reinf/alugueis-conferencia.js?v=3.4.382"></script>
-    <script src="/reinf/alugueis-conferencia-ui.js?v=3.4.382"></script>
-    <script src="/reinf/carne-leao-preparacao.js?v=3.4.382"></script>
-    <script src="/reinf/carne-leao-preparacao-ui.js?v=3.4.382"></script>
-    <script src="/reinf/alugueis-planilha-modal.js?v=3.4.382"></script>
-    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.382"></script>
-    <script src="/reinf/reinf-import-xml-utils.js?v=3.4.382"></script>
+    <script src="/vendor/xlsx/xlsx.full.min.js?v=3.4.383"></script>
+    <script src="/reinf/reinf-aluguel-utils.js?v=3.4.383"></script>
+    <script src="/reinf/reinf-isencoes-dividendos.js?v=3.4.383"></script>
+    <script src="/reinf/reinf-alugueis-planilha.js?v=3.4.383"></script>
+    <script src="/reinf/alugueis-conferencia.js?v=3.4.383"></script>
+    <script src="/reinf/alugueis-conferencia-ui.js?v=3.4.383"></script>
+    <script src="/reinf/carne-leao-preparacao.js?v=3.4.383"></script>
+    <script src="/reinf/carne-leao-preparacao-ui.js?v=3.4.383"></script>
+    <script src="/reinf/alugueis-planilha-modal.js?v=3.4.383"></script>
+    <script src="/reinf/reinf-aplicacoes-utils.js?v=3.4.383"></script>
+    <script src="/reinf/reinf-import-xml-utils.js?v=3.4.383"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="/saas-brand-theme.js?v=3.4.382"></script>
+    <script src="/saas-brand-theme.js?v=3.4.383"></script>
     <script src="/session-merge.js"></script>
-    <script src="/api-adapter.js?v=3.4.382"></script>
-    <script src="/ajuda-cci.js?v=3.4.382"></script>
-    <script src="/manual-cci.js?v=3.4.382"></script>
-    <script src="/parametrizacao-regime-ui.js?v=3.4.382"></script>
-    <script src="/indices-financeiros.js?v=3.4.382"></script>
-    <script src="/indices-financeiros-ui.js?v=3.4.382"></script>
-    <script src="/relatorios-contabeis.js?v=3.4.382"></script>
-    <script src="/relatorios-contabeis-ui.js?v=3.4.382"></script>
-    <script src="/ativo-imobilizado.js?v=3.4.382"></script>
-    <script src="/ativo-imobilizado-ui.js?v=3.4.382"></script>
-    <script src="/lancamentos-edicao-lote.js?v=3.4.382"></script>
-    <script src="/migracao-sage-ui.js?v=3.4.382"></script>
-    <script src="/validador-defis.js?v=3.4.382"></script>
+    <script src="/api-adapter.js?v=3.4.383"></script>
+    <script src="/ajuda-cci.js?v=3.4.383"></script>
+    <script src="/manual-cci.js?v=3.4.383"></script>
+    <script src="/parametrizacao-regime-ui.js?v=3.4.383"></script>
+    <script src="/indices-financeiros.js?v=3.4.383"></script>
+    <script src="/indices-financeiros-ui.js?v=3.4.383"></script>
+    <script src="/relatorios-contabeis.js?v=3.4.383"></script>
+    <script src="/relatorios-contabeis-ui.js?v=3.4.383"></script>
+    <script src="/ativo-imobilizado.js?v=3.4.383"></script>
+    <script src="/ativo-imobilizado-ui.js?v=3.4.383"></script>
+    <script src="/lancamentos-edicao-lote.js?v=3.4.383"></script>
+    <script src="/migracao-sage-ui.js?v=3.4.383"></script>
+    <script src="/validador-defis.js?v=3.4.383"></script>
     <script src="/historicos-padrao.js"></script>
-    <script src="/vincular-folha-pagamento.js?v=3.4.382"></script>
-    <script src="/vincular-empresa.js?v=3.4.382"></script>
-    <script src="/parser-ofx.js?v=3.4.382"></script>
-    <script src="/iob-sentido-bancario.js?v=3.4.382"></script>
-    <script src="/parser-bradesco-netempresa.js?v=3.4.382"></script>
-    <script src="/parser-bradesco-extrato-unificado.js?v=3.4.382"></script>
-    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.382"></script>
-    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.382"></script>
-    <script src="/parser-safra-extrato.js?v=3.4.382"></script>
-<script src="/parser-brb-extrato.js?v=3.4.382"></script>
-    <script src="/parser-bb-conta-atual.js?v=3.4.382"></script>
-    <script src="/parser-bb-cash-ocr.js?v=3.4.382"></script>
-    <script src="/parser-itau-extrato-mensal.js?v=3.4.382"></script>
-    <script src="/parser-itau-fatura-cartao.js?v=3.4.382"></script>
-    <script src="/parser-caixa-extrato.js?v=3.4.382"></script>
-    <script src="/parser-santander-empresas-ocr.js?v=3.4.382"></script>
-    <script src="/parser-btg-pactual.js?v=3.4.382"></script>
-    <script src="/parser-c6-bank-extrato.js?v=3.4.382"></script>
-    <script src="/parser-abc-extrato.js?v=3.4.382"></script>
-    <script src="/parser-inter-extrato.js?v=3.4.382"></script>
-    <script src="/parser-nubank-extrato.js?v=3.4.382"></script>
-    <script src="/parser-stone-extrato.js?v=3.4.382"></script>
-    <script src="/parser-mercado-pago-extrato.js?v=3.4.382"></script>
-    <script src="/parser-extrato-conciliado.js?v=3.4.382"></script>
-    <script src="/parser-clude-servicos-tomados.js?v=3.4.382"></script>
-    <script src="/movimento-fiscal-cfi.js?v=3.4.382"></script>
-    <script src="/movimento-fiscal-escopo.js?v=3.4.382"></script>
-    <script src="/layouts-fiscais-padrao.js?v=3.4.382"></script>
-    <script src="/parser-flanacar-registro-entradas.js?v=3.4.382"></script>
-    <script src="/filtro-fiscal.js?v=3.4.382"></script>
-    <script src="/pagamentos-receita-ui.js?v=3.4.382"></script>
-    <script src="/igrejas-conferencia-caixa.js?v=3.4.382"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="/vincular-folha-pagamento.js?v=3.4.383"></script>
+    <script src="/vincular-empresa.js?v=3.4.383"></script>
+    <script src="/parser-ofx.js?v=3.4.383"></script>
+    <script src="/iob-sentido-bancario.js?v=3.4.383"></script>
+    <script src="/parser-bradesco-netempresa.js?v=3.4.383"></script>
+    <script src="/parser-bradesco-extrato-unificado.js?v=3.4.383"></script>
+    <script src="/parser-bradesco-netempresa-ocr.js?v=3.4.383"></script>
+    <script src="/parser-bradesco-simples-conferencia.js?v=3.4.383"></script>
+    <script src="/parser-safra-extrato.js?v=3.4.383"></script>
+<script src="/parser-brb-extrato.js?v=3.4.383"></script>
+    <script src="/parser-bb-conta-atual.js?v=3.4.383"></script>
+    <script src="/parser-bb-cash-ocr.js?v=3.4.383"></script>
+    <script src="/parser-itau-extrato-mensal.js?v=3.4.383"></script>
+    <script src="/parser-itau-fatura-cartao.js?v=3.4.383"></script>
+    <script src="/parser-caixa-extrato.js?v=3.4.383"></script>
+    <script src="/parser-santander-empresas-ocr.js?v=3.4.383"></script>
+    <script src="/parser-btg-pactual.js?v=3.4.383"></script>
+    <script src="/parser-c6-bank-extrato.js?v=3.4.383"></script>
+    <script src="/parser-abc-extrato.js?v=3.4.383"></script>
+    <script src="/parser-inter-extrato.js?v=3.4.383"></script>
+    <script src="/parser-nubank-extrato.js?v=3.4.383"></script>
+    <script src="/parser-stone-extrato.js?v=3.4.383"></script>
+    <script src="/parser-mercado-pago-extrato.js?v=3.4.383"></script>
+    <script src="/parser-extrato-conciliado.js?v=3.4.383"></script>
+    <script src="/parser-clude-servicos-tomados.js?v=3.4.383"></script>
+    <script src="/movimento-fiscal-cfi.js?v=3.4.383"></script>
+    <script src="/movimento-fiscal-escopo.js?v=3.4.383"></script>
+    <script src="/layouts-fiscais-padrao.js?v=3.4.383"></script>
+    <script src="/parser-flanacar-registro-entradas.js?v=3.4.383"></script>
+    <script src="/filtro-fiscal.js?v=3.4.383"></script>
+    <script src="/pagamentos-receita-ui.js?v=3.4.383"></script>
+    <script src="/igrejas-conferencia-caixa.js?v=3.4.383"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #0f172a;
-            --primary-light: #1e293b;
-            --accent: #3b82f6;
-            --accent-light: #60a5fa;
-            --accent-glow: rgba(59, 130, 246, 0.25);
+            --primary: #1c1c1e;
+            --primary-light: #2c2c2e;
+            --accent: #0a84ff;
+            --accent-light: #47a1ff;
+            --accent-glow: rgba(0,113,227, 0.25);
             --success: #10b981;
             --success-light: #34d399;
             --warning: #f59e0b;
             --warning-light: #fbbf24;
             --danger: #ef4444;
             --danger-light: #f87171;
-            --bg: #f8fafc;
-            --bg-dark: #f1f5f9;
+            --bg: #fbfbfd;
+            --bg-dark: #f5f5f7;
             --card: #ffffff;
-            --text: #0f172a;
-            --text-muted: #64748b;
-            --text-light: #94a3b8;
-            --border: #e2e8f0;
-            --border-light: #f1f5f9;
+            --text: #1c1c1e;
+            --text-muted: #6e6e73;
+            --text-light: #a1a1a6;
+            --border: #e8e8ed;
+            --border-light: #f5f5f7;
             --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
             --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
             --radius: 16px;
@@ -115,7 +118,7 @@
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter Variable', Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: var(--bg);
             min-height: 100vh;
             color: var(--text);
@@ -180,7 +183,7 @@
             margin-bottom: 8px;
             font-weight: 600;
             font-size: 13px;
-            color: #475569;
+            color: #515154;
         }
         .form-group input {
             width: 100%;
@@ -275,13 +278,13 @@
             align-items: center;
             justify-content: center;
             padding: 5px;
-            box-shadow: 0 8px 22px rgba(15,23,42,.22);
+            box-shadow: 0 8px 22px rgba(0,0,0,.22);
         }
         .header-title h1 {
             font-size: 18px;
             font-weight: 800;
         }
-        .header-title small { display:block;color:#93c5fd;font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-top:2px; }
+        .header-title small { display:block;color:#84c1ff;font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-top:2px; }
         .header-right {
             display: flex;
             align-items: center;
@@ -310,7 +313,7 @@
             transition: background .2s, transform .2s;
         }
         .theme-toggle:hover { background: rgba(255,255,255,.18); transform: translateY(-1px); }
-        .login-theme-toggle { position: absolute; top: 18px; right: 18px; min-width: 104px; background: #0f172a; }
+        .login-theme-toggle { position: absolute; top: 18px; right: 18px; min-width: 104px; background: #1c1c1e; }
         .btn-logout {
             background: rgba(255,255,255,0.12);
             color: #fff;
@@ -479,7 +482,7 @@
                 border: 1px solid var(--border);
                 border-radius: 0 0 12px 12px;
                 background: #fff;
-  box-shadow: 0 18px 40px rgba(15,23,42,.18);
+  box-shadow: 0 18px 40px rgba(0,0,0,.18);
   max-height: min(70vh, 620px);
   overflow-y: auto;
 }
@@ -547,7 +550,7 @@
                 display: block;
                 overflow-y: auto;
                 background: #fff;
-                box-shadow: 18px 0 50px rgba(15,23,42,.28);
+                box-shadow: 18px 0 50px rgba(0,0,0,.28);
                 transform: translateX(-105%);
                 transition: transform .22s ease;
             }
@@ -644,7 +647,7 @@
         .card-header h2 .icon {
             width: 36px;
             height: 36px;
-            background: linear-gradient(135deg, var(--accent-glow), rgba(59,130,246,0.1));
+            background: linear-gradient(135deg, var(--accent-glow), rgba(0,113,227,0.1));
             border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
@@ -870,19 +873,19 @@
         }
         .btn-filtro-fiscal {
             padding: 10px 20px;
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
+            background: #f0f7ff;
+            border: 1px solid #b8dcff;
             border-radius: var(--radius-sm);
             font-size: 13px;
             font-weight: 700;
             cursor: pointer;
             font-family: inherit;
-            color: #1d4ed8;
+            color: #0066cc;
         }
         .btn-filtro-fiscal.ativo {
-            background: #dbeafe;
-            border-color: #60a5fa;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
+            background: #e0efff;
+            border-color: #47a1ff;
+            box-shadow: 0 0 0 3px rgba(0,113,227, .12);
         }
         .filtro-fiscal-resumo {
             display: none;
@@ -890,9 +893,9 @@
             gap: 8px;
             padding: 9px 12px;
             border-radius: 999px;
-            border: 1px solid #bfdbfe;
-            background: #eff6ff;
-            color: #1e40af;
+            border: 1px solid #b8dcff;
+            background: #f0f7ff;
+            color: #00509f;
             font-size: 12px;
             font-weight: 700;
         }
@@ -908,10 +911,10 @@
         .filtro-fiscal-preview {
             padding: 12px 14px;
             margin-bottom: 18px;
-            border: 1px solid #dbeafe;
+            border: 1px solid #e0efff;
             border-radius: 10px;
             background: #f8fbff;
-            color: #334155;
+            color: #3a3a3c;
             font-size: 13px;
             line-height: 1.5;
         }
@@ -1023,8 +1026,8 @@
             box-shadow: var(--shadow-sm);
         }
         .btn-memorizar-selecionados:disabled {
-            background: #cbd5e1;
-            color: #64748b;
+            background: #d2d2d7;
+            color: #6e6e73;
             cursor: not-allowed;
             box-shadow: none;
         }
@@ -1032,7 +1035,7 @@
             padding: 8px 12px;
             border: none;
             border-radius: var(--radius-sm);
-            background: #2563eb;
+            background: #0071e3;
             color: #fff;
             font-size: 12px;
             font-weight: 700;
@@ -1040,8 +1043,8 @@
             box-shadow: var(--shadow-sm);
         }
         .btn-alterar-selecionados:disabled {
-            background: #cbd5e1;
-            color: #64748b;
+            background: #d2d2d7;
+            color: #6e6e73;
             cursor: not-allowed;
             box-shadow: none;
         }
@@ -1083,12 +1086,12 @@
         tr.selected-row,
         tr.unusual.selected-row,
         tr.pendente.selected-row {
-            background: #dbeafe;
+            background: #e0efff;
         }
         tr.selected-row:hover,
         tr.unusual.selected-row:hover,
         tr.pendente.selected-row:hover {
-            background: #bfdbfe;
+            background: #b8dcff;
         }
         .badge {
             display: inline-block;
@@ -1098,10 +1101,10 @@
             font-weight: 600;
         }
         .badge-green { background: #dcfce7; color: #166534; }
-        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-blue { background: #e0efff; color: #00509f; }
         .badge-yellow { background: #fef3c7; color: #92400e; }
         .badge-red { background: #fee2e2; color: #991b1b; }
-        .badge-gray { background: #f1f5f9; color: #475569; }
+        .badge-gray { background: #f5f5f7; color: #515154; }
         .badge-purple { background: #f3e8ff; color: #7c3aed; }
 
         .reinf-series-nav {
@@ -1112,7 +1115,7 @@
             padding: 6px;
             border: 1px solid #dbe3ef;
             border-radius: 12px;
-            background: #f8fafc;
+            background: #fbfbfd;
         }
         .reinf-series-tab {
             min-height: 54px;
@@ -1120,27 +1123,27 @@
             border: 1px solid transparent;
             border-radius: 9px;
             background: transparent;
-            color: #475569;
+            color: #515154;
             font: inherit;
             font-size: 13px;
             font-weight: 700;
             cursor: pointer;
             transition: .15s ease;
         }
-        .reinf-series-tab:hover { background: #fff; color: #1d4ed8; }
+        .reinf-series-tab:hover { background: #fff; color: #0066cc; }
         .reinf-series-tab.active {
-            border-color: #93c5fd;
+            border-color: #84c1ff;
             background: #fff;
-            color: #1d4ed8;
-            box-shadow: 0 2px 7px rgba(15, 23, 42, .08);
+            color: #0066cc;
+            box-shadow: 0 2px 7px rgba(0,0,0, .08);
         }
         .reinf-series-summary {
             margin-bottom: 18px;
             padding: 16px;
-            border: 1px solid #bfdbfe;
+            border: 1px solid #b8dcff;
             border-radius: 10px;
-            background: #eff6ff;
-            color: #1e3a8a;
+            background: #f0f7ff;
+            color: #003e7a;
         }
         .reinf-events-grid {
             display: grid;
@@ -1155,8 +1158,8 @@
             border-radius: 10px;
             background: #fff;
         }
-        .reinf-event-card strong { display: block; color: #0f172a; margin-bottom: 5px; }
-        .reinf-event-card p { margin: 0 0 9px; color: #64748b; font-size: 12px; line-height: 1.4; }
+        .reinf-event-card strong { display: block; color: #1c1c1e; margin-bottom: 5px; }
+        .reinf-event-card p { margin: 0 0 9px; color: #6e6e73; font-size: 12px; line-height: 1.4; }
         .reinf-import-box {
             display: flex;
             justify-content: space-between;
@@ -1164,12 +1167,12 @@
             gap: 16px;
             margin-top: 14px;
             padding: 15px;
-            border: 1px dashed #60a5fa;
+            border: 1px dashed #47a1ff;
             border-radius: 10px;
             background: #fff;
         }
-        .reinf-import-box strong { display: block; color: #0f172a; margin-bottom: 4px; }
-        .reinf-import-box p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.45; }
+        .reinf-import-box strong { display: block; color: #1c1c1e; margin-bottom: 4px; }
+        .reinf-import-box p { margin: 0; color: #6e6e73; font-size: 12px; line-height: 1.45; }
         .reinf-import-input {
             position: absolute;
             width: 1px;
@@ -1186,20 +1189,20 @@
             min-height: 42px;
             padding: 9px 15px;
             border-radius: 8px;
-            background: #2563eb;
+            background: #0071e3;
             color: #fff;
             font-size: 13px;
             font-weight: 800;
             cursor: pointer;
         }
-        .reinf-import-button:hover { background: #1d4ed8; }
+        .reinf-import-button:hover { background: #0066cc; }
         .reinf-import-status {
             margin-top: 12px;
             padding: 11px 12px;
-            border: 1px solid #bfdbfe;
+            border: 1px solid #b8dcff;
             border-radius: 8px;
             background: #fff;
-            color: #1e40af;
+            color: #00509f;
             font-size: 12px;
             line-height: 1.45;
         }
@@ -1212,7 +1215,7 @@
         .razao-notas-panel {
             margin-top: 20px;
             padding: 20px;
-            border: 1px solid #bfdbfe;
+            border: 1px solid #b8dcff;
             border-radius: var(--radius);
             background: #f8fbff;
         }
@@ -1224,7 +1227,7 @@
             margin-bottom: 16px;
         }
         .razao-notas-kicker {
-            color: #1d4ed8;
+            color: #0066cc;
             font-size: 11px;
             font-weight: 800;
             letter-spacing: .6px;
@@ -1260,7 +1263,7 @@
         }
         .razao-notas-metric {
             padding: 12px;
-            border: 1px solid #dbeafe;
+            border: 1px solid #e0efff;
             border-radius: var(--radius-sm);
             background: #fff;
         }
@@ -1326,7 +1329,7 @@
         }
         .razao-status.paga_no_mes { background: #dcfce7; color: #166534; }
         .razao-status.aberta_mes_seguinte { background: #fef3c7; color: #92400e; }
-        .razao-status.baixada_depois { background: #dbeafe; color: #1e40af; }
+        .razao-status.baixada_depois { background: #e0efff; color: #00509f; }
         .razao-status.em_aberto_atual { background: #fee2e2; color: #991b1b; }
         
         .valor-positivo {
@@ -1395,7 +1398,7 @@
             color: #fff;
         }
         .btn-action-primary:hover {
-            background: #2563eb;
+            background: #0071e3;
         }
         .btn-action-success {
             background: var(--success);
@@ -1463,7 +1466,7 @@
         
         /* Upload Section */
         .upload-section {
-            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            background: linear-gradient(135deg, #fbfbfd, #f5f5f7);
             border-radius: var(--radius-lg);
             padding: 40px;
             border: 1px solid var(--border);
@@ -1481,18 +1484,18 @@
             font-size: 14px;
         }
         .upload-zone {
-            border: 3px dashed #cbd5e1;
+            border: 3px dashed #d2d2d7;
             border-radius: var(--radius);
             padding: 60px 40px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
-            background: linear-gradient(180deg, #fff, #f8fafc);
+            background: linear-gradient(180deg, #fff, #fbfbfd);
         }
         .upload-zone:hover {
             border-color: var(--accent);
             transform: translateY(-4px);
-            box-shadow: 0 20px 40px rgba(59,130,246,0.15);
+            box-shadow: 0 20px 40px rgba(0,113,227,0.15);
         }
         .upload-zone.dragover {
             border-color: var(--success);
@@ -1502,14 +1505,14 @@
             width: 100px;
             height: 100px;
             margin: 0 auto 24px;
-            background: linear-gradient(135deg, var(--accent), #1d4ed8);
+            background: linear-gradient(135deg, var(--accent), #0066cc);
             border-radius: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 48px;
             color: #fff;
-            box-shadow: 0 15px 40px rgba(59,130,246,0.3);
+            box-shadow: 0 15px 40px rgba(0,113,227,0.3);
             position: relative;
         }
         .upload-icon::after {
@@ -1517,7 +1520,7 @@
             position: absolute;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, var(--accent), #1d4ed8);
+            background: linear-gradient(135deg, var(--accent), #0066cc);
             border-radius: 24px;
             opacity: 0.3;
             animation: pulse 2s ease-in-out infinite;
@@ -1560,7 +1563,7 @@
         .upload-hint {
             margin-top: 24px;
             padding: 16px;
-            background: rgba(59,130,246,0.06);
+            background: rgba(0,113,227,0.06);
             border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
@@ -1643,7 +1646,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(0,0,0, 0.8);
             z-index: 1000;
             align-items: center;
             justify-content: center;
@@ -1844,10 +1847,10 @@
             font-family: inherit;
             transition: border-color .2s, box-shadow .2s, background .2s;
         }
-        .import-type-option:hover { border-color: #93c5fd; }
+        .import-type-option:hover { border-color: #84c1ff; }
         .import-type-option.selected {
             border-color: var(--accent);
-            background: #eff6ff;
+            background: #f0f7ff;
             box-shadow: 0 0 0 3px var(--accent-glow);
         }
         .import-type-option[data-tipo="fiscal"].selected {
@@ -1898,7 +1901,7 @@
             right: 16px;
             top: 50%;
             transform: translateY(-50%);
-            color: #94a3b8;
+            color: #a1a1a6;
             font-size: 18px;
         }
         .input-icon.success { color: var(--success); }
@@ -1915,7 +1918,7 @@
             font-family: 'Monaco', 'Menlo', monospace;
             font-size: 11px;
             background: var(--primary);
-            color: #e2e8f0;
+            color: #e8e8ed;
             padding: 20px;
             border-radius: var(--radius);
             max-height: 300px;
@@ -1963,7 +1966,7 @@
             display: none;
             align-items: center;
             justify-content: center;
-            background: rgba(15, 23, 42, 0.72);
+            background: rgba(0,0,0, 0.72);
             z-index: 12000;
             padding: 20px;
         }
@@ -1974,7 +1977,7 @@
             overflow: auto;
             background: #fff;
             border-radius: 14px;
-            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.36);
+            box-shadow: 0 24px 70px rgba(0,0,0, 0.36);
             padding: 24px;
         }
         .confirm-import-head {
@@ -2004,7 +2007,7 @@
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 14px;
-            background: #f8fafc;
+            background: #fbfbfd;
         }
         .confirm-import-metric .label {
             display: block;
@@ -2037,7 +2040,7 @@
         }
         .confirm-import-table th {
             color: var(--text-muted);
-            background: #f8fafc;
+            background: #fbfbfd;
             font-size: 11px;
             text-transform: uppercase;
         }
@@ -2078,13 +2081,13 @@
             margin: 14px 0;
         }
         .movimento-fiscal-lock > div {
-            border: 1px solid #bfdbfe;
-            background: #eff6ff;
+            border: 1px solid #b8dcff;
+            background: #f0f7ff;
             border-radius: 10px;
             padding: 12px;
         }
-        .movimento-fiscal-lock span { display: block; color: #64748b; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
-        .movimento-fiscal-lock strong { display: block; color: #1e3a8a; font-size: 13px; margin-top: 4px; word-break: break-word; }
+        .movimento-fiscal-lock span { display: block; color: #6e6e73; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+        .movimento-fiscal-lock strong { display: block; color: #003e7a; font-size: 13px; margin-top: 4px; word-break: break-word; }
         .movimento-fiscal-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .movimento-fiscal-form label { display: block; color: var(--text-muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
         .movimento-fiscal-form select,
@@ -2092,7 +2095,7 @@
         .movimento-fiscal-status { display: none; margin-top: 14px; padding: 12px 14px; border-radius: 9px; font-size: 13px; line-height: 1.5; }
         .movimento-fiscal-status.ok { display: block; color: #166534; background: #ecfdf5; border: 1px solid #86efac; }
         .movimento-fiscal-status.error { display: block; color: #991b1b; background: #fef2f2; border: 1px solid #fca5a5; }
-        .movimento-fiscal-status.info { display: block; color: #1e40af; background: #eff6ff; border: 1px solid #bfdbfe; }
+        .movimento-fiscal-status.info { display: block; color: #00509f; background: #f0f7ff; border: 1px solid #b8dcff; }
         .movimento-fiscal-validation { display: none; margin-top: 14px; }
         .movimento-fiscal-validation.show { display: block; }
         @media (max-width: 768px) {
@@ -2136,24 +2139,24 @@
 
         /* Identidade SaaS — tema escuro com contraste de leitura */
         html[data-theme="dark"] {
-            --primary: #e2e8f0;
-            --primary-light: #cbd5e1;
-            --accent: #60a5fa;
-            --accent-light: #93c5fd;
+            --primary: #e8e8ed;
+            --primary-light: #d2d2d7;
+            --accent: #47a1ff;
+            --accent-light: #84c1ff;
             --accent-glow: rgba(96,165,250,.24);
-            --bg: #070d1b;
-            --bg-dark: #0b1220;
-            --card: #111827;
-            --text: #f8fafc;
-            --text-muted: #cbd5e1;
-            --text-light: #94a3b8;
-            --border: #334155;
-            --border-light: #1e293b;
+            --bg: #000000;
+            --bg-dark: #000000;
+            --card: #1c1c1e;
+            --text: #fbfbfd;
+            --text-muted: #d2d2d7;
+            --text-light: #a1a1a6;
+            --border: #3a3a3c;
+            --border-light: #2c2c2e;
             --shadow: 0 8px 24px rgba(0,0,0,.28);
             --shadow-lg: 0 18px 42px rgba(0,0,0,.42);
         }
         html[data-theme="dark"] body { background: var(--bg); color: var(--text); }
-        html[data-theme="dark"] .login-container { background: linear-gradient(135deg,#020617 0%,#0f172a 55%,#172554 100%); }
+        html[data-theme="dark"] .login-container { background: linear-gradient(135deg,#000000 0%,#1c1c1e 55%,#00264d 100%); }
         html[data-theme="dark"] .login-box,
         html[data-theme="dark"] .card,
         html[data-theme="dark"] .stat-card,
@@ -2170,90 +2173,90 @@
             border-color: var(--border) !important;
             color: var(--text) !important;
         }
-        html[data-theme="dark"] .header { background: linear-gradient(135deg,#020617 0%,#0f172a 58%,#172554 100%); border-bottom:1px solid #1e3a8a; }
+        html[data-theme="dark"] .header { background: linear-gradient(135deg,#000000 0%,#1c1c1e 58%,#00264d 100%); border-bottom:1px solid #003e7a; }
         html[data-theme="dark"] .content { background: var(--bg); }
         html[data-theme="dark"] .nav { border-color: var(--border); }
-        html[data-theme="dark"] .nav button { color: #cbd5e1; }
+        html[data-theme="dark"] .nav button { color: #d2d2d7; }
         html[data-theme="dark"] .nav button:hover,
-        html[data-theme="dark"] .nav button.active { color: #93c5fd; }
+        html[data-theme="dark"] .nav button.active { color: #84c1ff; }
         html[data-theme="dark"] .nav-mobile-bar,
         html[data-theme="dark"] .nav-cluster-menu {
             background: var(--card) !important;
             border-color: var(--border) !important;
             color: var(--text) !important;
         }
-        html[data-theme="dark"] .carteira-modal-panel { background:#0f172a !important; border:1px solid #334155; color:#e5e7eb; }
+        html[data-theme="dark"] .carteira-modal-panel { background:#1c1c1e !important; border:1px solid #3a3a3c; color:#e8e8ed; }
         html[data-theme="dark"] .carteira-modal-panel h2,
-        html[data-theme="dark"] .carteira-company-title { color:#f8fafc !important; }
+        html[data-theme="dark"] .carteira-company-title { color:#fbfbfd !important; }
         html[data-theme="dark"] .carteira-modal-panel p,
         html[data-theme="dark"] .carteira-modal-summary,
         html[data-theme="dark"] .carteira-company-meta,
-        html[data-theme="dark"] .carteira-empty { color:#cbd5e1 !important; }
+        html[data-theme="dark"] .carteira-empty { color:#d2d2d7 !important; }
         html[data-theme="dark"] .carteira-modal-search,
-        html[data-theme="dark"] .carteira-company-select { background:#0b1220 !important; color:#f8fafc !important; border-color:#475569 !important; color-scheme:dark; }
-        html[data-theme="dark"] .carteira-company-card { background:#111827 !important; border-color:#334155 !important; }
-        html[data-theme="dark"] .carteira-modal-close { background:#334155 !important; color:#f8fafc !important; }
-        html[data-theme="dark"] .nav-current-page { color: #cbd5e1; }
+        html[data-theme="dark"] .carteira-company-select { background:#000000 !important; color:#fbfbfd !important; border-color:#515154 !important; color-scheme:dark; }
+        html[data-theme="dark"] .carteira-company-card { background:#1c1c1e !important; border-color:#3a3a3c !important; }
+        html[data-theme="dark"] .carteira-modal-close { background:#3a3a3c !important; color:#fbfbfd !important; }
+        html[data-theme="dark"] .nav-current-page { color: #d2d2d7; }
         html[data-theme="dark"] input,
         html[data-theme="dark"] select,
         html[data-theme="dark"] textarea {
-            background: #0b1220 !important;
-            color: #f8fafc !important;
-            border-color: #475569 !important;
+            background: #000000 !important;
+            color: #fbfbfd !important;
+            border-color: #515154 !important;
         }
         html[data-theme="dark"] input::placeholder,
-        html[data-theme="dark"] textarea::placeholder { color: #94a3b8 !important; opacity: 1; }
-        html[data-theme="dark"] .form-group label { color: #cbd5e1; }
-        html[data-theme="dark"] option { background: #0b1220; color: #f8fafc; }
+        html[data-theme="dark"] textarea::placeholder { color: #a1a1a6 !important; opacity: 1; }
+        html[data-theme="dark"] .form-group label { color: #d2d2d7; }
+        html[data-theme="dark"] option { background: #000000; color: #fbfbfd; }
         html[data-theme="dark"] table,
         html[data-theme="dark"] tbody,
         html[data-theme="dark"] tr,
-        html[data-theme="dark"] td { color: #e2e8f0; border-color: #334155 !important; }
+        html[data-theme="dark"] td { color: #e8e8ed; border-color: #3a3a3c !important; }
         html[data-theme="dark"] th,
         html[data-theme="dark"] thead,
-        html[data-theme="dark"] tfoot { background: #0b1220 !important; color: #cbd5e1 !important; border-color: #334155 !important; }
-        html[data-theme="dark"] tr:hover { background: rgba(51,65,85,.42) !important; }
+        html[data-theme="dark"] tfoot { background: #000000 !important; color: #d2d2d7 !important; border-color: #3a3a3c !important; }
+        html[data-theme="dark"] tr:hover { background: rgba(58,58,60,.42) !important; }
         html[data-theme="dark"] [style*="background:#fff"],
         html[data-theme="dark"] [style*="background: #fff"],
         html[data-theme="dark"] [style*="background:#ffffff"],
-        html[data-theme="dark"] [style*="background: #ffffff"] { background: #111827 !important; border-color: #334155 !important; }
+        html[data-theme="dark"] [style*="background: #ffffff"] { background: #1c1c1e !important; border-color: #3a3a3c !important; }
         html[data-theme="dark"] [style*="background:#f8fafc"],
         html[data-theme="dark"] [style*="background: #f8fafc"],
         html[data-theme="dark"] [style*="background:#f3f4f6"],
-        html[data-theme="dark"] [style*="background: #f3f4f6"] { background: #0b1220 !important; border-color: #334155 !important; }
+        html[data-theme="dark"] [style*="background: #f3f4f6"] { background: #000000 !important; border-color: #3a3a3c !important; }
         html[data-theme="dark"] [style*="background:#f1f5f9"],
         html[data-theme="dark"] [style*="background: #f1f5f9"],
         html[data-theme="dark"] [style*="background:#e2e8f0"],
         html[data-theme="dark"] [style*="background: #e2e8f0"],
         html[data-theme="dark"] [style*="background:#e5e7eb"],
-        html[data-theme="dark"] [style*="background: #e5e7eb"] { background: #1e293b !important; border-color: #475569 !important; }
+        html[data-theme="dark"] [style*="background: #e5e7eb"] { background: #2c2c2e !important; border-color: #515154 !important; }
         html[data-theme="dark"] [style*="color:#111827"], html[data-theme="dark"] [style*="color: #111827"],
         html[data-theme="dark"] [style*="color:#0f172a"], html[data-theme="dark"] [style*="color: #0f172a"],
         html[data-theme="dark"] [style*="color:#1f2937"], html[data-theme="dark"] [style*="color: #1f2937"],
         html[data-theme="dark"] [style*="color:#334155"], html[data-theme="dark"] [style*="color: #334155"],
-        html[data-theme="dark"] [style*="color:#374151"], html[data-theme="dark"] [style*="color: #374151"] { color: #f8fafc !important; }
+        html[data-theme="dark"] [style*="color:#374151"], html[data-theme="dark"] [style*="color: #374151"] { color: #fbfbfd !important; }
         html[data-theme="dark"] [style*="color:#475569"], html[data-theme="dark"] [style*="color: #475569"],
         html[data-theme="dark"] [style*="color:#64748b"], html[data-theme="dark"] [style*="color: #64748b"],
         html[data-theme="dark"] [style*="color:#6b7280"], html[data-theme="dark"] [style*="color: #6b7280"],
-        html[data-theme="dark"] [style*="color:#9ca3af"], html[data-theme="dark"] [style*="color: #9ca3af"] { color: #cbd5e1 !important; }
-        html[data-theme="dark"] .btn-secondary { background: #1e293b; color: #e2e8f0; }
+        html[data-theme="dark"] [style*="color:#9ca3af"], html[data-theme="dark"] [style*="color: #9ca3af"] { color: #d2d2d7 !important; }
+        html[data-theme="dark"] .btn-secondary { background: #2c2c2e; color: #e8e8ed; }
         html[data-theme="dark"] .btn-primary,
-        html[data-theme="dark"] .stat-card.highlight { background: linear-gradient(135deg,#2563eb,#172554); }
-        html[data-theme="dark"] #modalLancamentoManual .manual-entry-modal-panel { background: #111827 !important; border: 1px solid #334155; }
+        html[data-theme="dark"] .stat-card.highlight { background: linear-gradient(135deg,#0071e3,#00264d); }
+        html[data-theme="dark"] #modalLancamentoManual .manual-entry-modal-panel { background: #1c1c1e !important; border: 1px solid #3a3a3c; }
         html[data-theme="dark"] #modalLancamentoManual .manual-entry-modal-header,
-        html[data-theme="dark"] #modalLancamentoManual .manual-entry-modal-actions { border-color: #334155 !important; }
-        html[data-theme="dark"] #modalLancamentoManual .manual-entry-title-icon { color: #93c5fd; }
+        html[data-theme="dark"] #modalLancamentoManual .manual-entry-modal-actions { border-color: #3a3a3c !important; }
+        html[data-theme="dark"] #modalLancamentoManual .manual-entry-title-icon { color: #84c1ff; }
         html[data-theme="dark"] #modalLancamentoManual .manual-entry-close,
         html[data-theme="dark"] #modalLancamentoManual .manual-entry-cancel {
-            background: #1e293b !important;
-            color: #f8fafc !important;
-            border: 1px solid #475569 !important;
+            background: #2c2c2e !important;
+            color: #fbfbfd !important;
+            border: 1px solid #515154 !important;
         }
         html[data-theme="dark"] #modalLancamentoManual .manual-entry-close:hover,
-        html[data-theme="dark"] #modalLancamentoManual .manual-entry-cancel:hover { background: #334155 !important; }
-        html[data-theme="dark"] #modalLancamentoManual input[type="checkbox"] { accent-color: #3b82f6; }
-        html[data-theme="dark"] #lmCamposMultiplos section { background:#111827 !important; border-color:#334155 !important; }
-        html[data-theme="dark"] #lmCamposMultiplos input { background:#0f172a !important; color:#e5e7eb !important; border-color:#475569 !important; }
+        html[data-theme="dark"] #modalLancamentoManual .manual-entry-cancel:hover { background: #3a3a3c !important; }
+        html[data-theme="dark"] #modalLancamentoManual input[type="checkbox"] { accent-color: #0a84ff; }
+        html[data-theme="dark"] #lmCamposMultiplos section { background:#1c1c1e !important; border-color:#3a3a3c !important; }
+        html[data-theme="dark"] #lmCamposMultiplos input { background:#1c1c1e !important; color:#e8e8ed !important; border-color:#515154 !important; }
         @media (max-width: 720px) {
             #lmCamposMultiplos > div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns:1fr !important; }
             #modalLancamentoManual .manual-entry-modal-panel { width:100% !important; }
@@ -2269,7 +2272,7 @@
         }
         .empresa-activation-card {
             background:#fff;
-            border:1px solid #e5e7eb;
+            border:1px solid #e8e8ed;
             border-radius:10px;
             padding:16px;
             display:flex;
@@ -2279,51 +2282,53 @@
             min-height:250px;
             transition:box-shadow .15s,transform .15s,border-color .15s;
         }
-        .empresa-activation-card:hover { box-shadow:0 8px 22px rgba(15,23,42,.12); transform:translateY(-1px); }
-        .empresa-activation-card-title { min-height:38px;font-weight:700;color:#111827;font-size:14px;line-height:1.35;overflow-wrap:anywhere; }
-        .empresa-card-code { font-family:monospace;font-weight:800;color:#1d4ed8; }
-        .empresa-card-meta { font-size:12px;color:#6b7280;font-family:monospace; }
+        .empresa-activation-card:hover { box-shadow:0 8px 22px rgba(0,0,0,.12); transform:translateY(-1px); }
+        .empresa-activation-card-title { min-height:38px;font-weight:700;color:#1c1c1e;font-size:14px;line-height:1.35;overflow-wrap:anywhere; }
+        .empresa-card-code { font-family:monospace;font-weight:800;color:#0066cc; }
+        .empresa-card-meta { font-size:12px;color:#6e6e73;font-family:monospace; }
         .empresa-card-whatsapp { font-size:12px;color:#047857; }
-        .empresa-card-whatsapp.is-empty { color:#9ca3af; }
+        .empresa-card-whatsapp.is-empty { color:#a1a1a6; }
         .empresa-card-status-row { display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap; }
-        .empresa-card-ready { display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:#dbeafe;color:#1e40af; }
-        .empresa-card-date { font-size:11px;color:#9ca3af; }
-        .empresa-card-detail { font-size:12px;color:#374151; }
-        .empresa-card-period { font-size:11px;color:#6b7280;margin-top:2px; }
+        .empresa-card-ready { display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:#e0efff;color:#00509f; }
+        .empresa-card-date { font-size:11px;color:#a1a1a6; }
+        .empresa-card-detail { font-size:12px;color:#3a3a3c; }
+        .empresa-card-period { font-size:11px;color:#6e6e73;margin-top:2px; }
         .empresa-card-responsibles { display:flex;flex-wrap:wrap;gap:5px;margin-top:3px; }
-        .empresa-card-responsible-chip { padding:3px 7px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:10px;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis; }
-        .empresa-card-responsible-chip.is-principal { background:#dbeafe;color:#1d4ed8; }
+        .empresa-card-responsible-chip { padding:3px 7px;border-radius:999px;background:#f5f5f7;color:#515154;font-size:10px;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis; }
+        .empresa-card-responsible-chip.is-principal { background:#e0efff;color:#0066cc; }
         .empresa-card-no-responsible { font-size:10px;color:#d97706; }
-        .empresa-card-owner { font-size:10px;color:#9ca3af;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .empresa-card-owner { font-size:10px;color:#a1a1a6;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
         .empresa-card-actions { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:auto;padding-top:8px; }
         .empresa-card-activate { padding:9px 10px;background:#059669;color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:13px;font-weight:700; }
-        .empresa-card-cadastro { padding:9px 12px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:7px;cursor:pointer;font-size:13px;font-weight:700; }
+        .empresa-card-cadastro { padding:9px 12px;background:#f0f7ff;color:#0066cc;border:1px solid #b8dcff;border-radius:7px;cursor:pointer;font-size:13px;font-weight:700; }
         @media (max-width:520px) {
             .empresa-card-actions { grid-template-columns:1fr; }
             .empresa-card-cadastro { width:100%; }
         }
-        html[data-theme="dark"] .empresa-activation-card { background:#111827 !important;border-color:#334155 !important;color:#f8fafc; }
-        html[data-theme="dark"] .empresa-activation-card-title { color:#f8fafc !important; }
-        html[data-theme="dark"] .empresa-card-code { color:#93c5fd !important; }
+        html[data-theme="dark"] .empresa-activation-card { background:#1c1c1e !important;border-color:#3a3a3c !important;color:#fbfbfd; }
+        html[data-theme="dark"] .empresa-activation-card-title { color:#fbfbfd !important; }
+        html[data-theme="dark"] .empresa-card-code { color:#84c1ff !important; }
         html[data-theme="dark"] .empresa-card-meta,
         html[data-theme="dark"] .empresa-card-whatsapp.is-empty,
         html[data-theme="dark"] .empresa-card-date,
         html[data-theme="dark"] .empresa-card-detail,
         html[data-theme="dark"] .empresa-card-period,
-        html[data-theme="dark"] .empresa-card-owner { color:#cbd5e1 !important; }
+        html[data-theme="dark"] .empresa-card-owner { color:#d2d2d7 !important; }
         html[data-theme="dark"] .empresa-card-whatsapp { color:#6ee7b7 !important; }
-        html[data-theme="dark"] .empresa-card-ready { background:#1e3a8a !important;color:#dbeafe !important; }
-        html[data-theme="dark"] .empresa-card-responsible-chip { background:#1e293b !important;color:#cbd5e1 !important; }
-        html[data-theme="dark"] .empresa-card-responsible-chip.is-principal { background:#1e3a8a !important;color:#dbeafe !important; }
-        html[data-theme="dark"] .empresa-card-cadastro { background:#172554 !important;color:#bfdbfe !important;border-color:#3b82f6 !important; }
+        html[data-theme="dark"] .empresa-card-ready { background:#003e7a !important;color:#e0efff !important; }
+        html[data-theme="dark"] .empresa-card-responsible-chip { background:#2c2c2e !important;color:#d2d2d7 !important; }
+        html[data-theme="dark"] .empresa-card-responsible-chip.is-principal { background:#003e7a !important;color:#e0efff !important; }
+        html[data-theme="dark"] .empresa-card-cadastro { background:#00264d !important;color:#b8dcff !important;border-color:#0a84ff !important; }
     </style>
+    <!-- Visual no estilo Apple: fonte do sistema, cinzas e azul da Apple, barra translúcida. Depois do <style> de propósito. -->
+    <link rel="stylesheet" href="/tema-apple.css?v=3.4.383">
 </head>
 <body>
     <!-- Login -->
     <div class="login-container" id="loginContainer">
         <div class="login-box">
             <div class="login-logo">
-                <div class="logo-circle"><img src="/sp-logo.png" alt="SP Assessoria Contábil"></div>
+                <div class="logo-circle"><img src="/logo-sp.png" alt="SP Assessoria Contábil"></div>
             </div>
             <button class="theme-toggle login-theme-toggle" type="button" data-theme-toggle onclick="window.SPSaaSTheme.toggle()"><span data-theme-icon>🌙</span><span data-theme-label>Escuro</span></button>
             <h1>CONSULTOR CONTÁBIL INTELIGENTE</h1>
@@ -2368,7 +2373,7 @@
         <!-- Header -->
         <div class="header">
             <div class="header-left">
-                <div class="header-logo"><img src="/sp-logo.png" alt="SP Assessoria Contábil"></div>
+                <div class="header-logo"><img src="/logo-sp.png" alt="SP Assessoria Contábil"></div>
                 <div class="header-title">
                     <h1>CONSULTOR CONTÁBIL INTELIGENTE</h1>
                     <small>SP Assessoria Contábil</small>
@@ -2394,7 +2399,7 @@
                 <div class="company-main">
                     <h2 id="barEmpresa">-</h2>
                     <p>CNPJ: <span id="barCNPJ">-</span> | <span id="barOrigemLabel">Banco</span>: <span id="barBanco">-</span> | Usuário: <span id="barUsuario">-</span> | Período: <span id="barPeriodo">-</span></p>
-                    <p id="barContaInfoWrap" style="margin-top:6px;display:none"><span id="barContaInfo" style="color:#2563eb;font-weight:600">🏦 -</span></p>
+                    <p id="barContaInfoWrap" style="margin-top:6px;display:none"><span id="barContaInfo" style="color:#0071e3;font-weight:600">🏦 -</span></p>
                     <p id="barPlanoInfoWrap" style="margin-top:4px;display:none"><span id="barPlanoInfo" style="color:#059669;font-weight:600">📚 -</span> <button id="btnTrocarPlanoBar" onclick="abrirModalTrocarPlano()" style="display:none;margin-left:10px;padding:4px 10px;background:#7c3aed;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">🔄 Trocar</button></p>
                 </div>
             </div>
@@ -2410,7 +2415,7 @@
                 <button class="nav-module-button active" onclick="showPage('inicio')"><span>🏠</span> Início</button>
                 <button class="nav-module-button" id="btnMinhasPendenciasNav" type="button" onclick="abrirMinhasPendenciasContabeis()" style="color:#9f1239;font-weight:800"><span>📌</span> Minhas solicitações <span id="minhasPendenciasBadge" style="display:none;margin-left:auto;padding:2px 6px;border-radius:999px;background:#dc2626;color:#fff;font-size:9px;font-weight:900">0</span></button>
                 <button class="nav-module-button" id="btnAtivarEmpresaNav" data-page="empresas" onclick="abrirAtivacaoEmpresa()" style="color:#b45309;font-weight:800"><span>⚡</span> Ativar empresa</button>
-                <button class="nav-module-button" id="btnCadastroEmpresaNav" data-page="empresas" onclick="abrirCadastroEmpresa()" style="color:#1d4ed8;font-weight:800"><span>🏢</span> Cadastro de Empresas</button>
+                <button class="nav-module-button" id="btnCadastroEmpresaNav" data-page="empresas" onclick="abrirCadastroEmpresa()" style="color:#0066cc;font-weight:800"><span>🏢</span> Cadastro de Empresas</button>
                 <button class="nav-module-button" id="btnDadosEmpresaNav" data-page="empresas" onclick="abrirDadosCadastraisEmpresa()" style="color:#0f766e;font-weight:800"><span>🏛️</span> Dados e Matriz/Filial</button>
                 <button class="nav-module-button" id="btnDeParaArquivosNav" data-page="migracaosage" onclick="showPage('migracaosage')" style="color:#7c3aed;font-weight:800"><span>🔄</span> De/Para de Arquivos</button>
             </div>
@@ -2454,7 +2459,7 @@
                     <button class="nav-module-button" onclick="abrirManualCCI()"><span>📘</span> Manual Operacional</button>
                     <button class="nav-module-button" onclick="abrirNovidadesCCI()" style="position:relative"><span>🆕</span> Novidades <span id="novidadesCciBadge" style="display:none;margin-left:auto;padding:2px 6px;border-radius:999px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;letter-spacing:.05em">NOVO</span></button>
                     <button class="nav-module-button" onclick="showPage('sobre')"><span>ℹ️</span> Sobre</button>
-                    <button class="nav-module-button" id="btnAuditAiNav" onclick="window.open('/auditai', '_blank')" style="display:none;color:#2563eb;font-weight:700"><span>🔍</span> AuditAI</button>
+                    <button class="nav-module-button" id="btnAuditAiNav" onclick="window.open('/auditai', '_blank')" style="display:none;color:#0071e3;font-weight:700"><span>🔍</span> AuditAI</button>
                     <a class="nav-module-button" id="btnComunicacaoNav" href="https://consultor-fiscal-inteligente-631239634290.us-west1.run.app/?painel=comunicacao&amp;departamento=contabil" target="_blank" rel="noopener noreferrer" style="display:none" title="Administração central de comunicação — acesso de admin no CFI"><span>✉️</span> Templates e agendamentos ↗</a>
                     <button class="nav-module-button" id="btnAdminNav" onclick="window.open('/admin', '_blank')" style="display:none;color:#059669;font-weight:700"><span>👑</span> Admin</button>
                 </div>
@@ -2466,8 +2471,8 @@
         <div class="content">
             <!-- Page: Empresas -->
             <div id="pageEmpresas" class="hidden">
-                <div id="empAtivacaoOrientacao" style="margin-bottom:18px;padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;box-shadow:0 12px 28px rgba(30,58,138,.20);display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap">
-                    <div><div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#bfdbfe;font-weight:800">Início obrigatório do trabalho</div><h2 style="margin:3px 0 4px;font-size:21px;color:#fff">1. Localize e ative a empresa</h2><p style="margin:0;color:#dbeafe;font-size:13px">Busque pelo número, nome ou CNPJ. Escolher não basta: clique em <strong>⚡ Ativar empresa</strong> no cartão para carregar somente os dados dela.</p></div>
+                <div id="empAtivacaoOrientacao" style="margin-bottom:18px;padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,#0f172a,#003e7a);color:#fff;box-shadow:0 12px 28px rgba(30,58,138,.20);display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap">
+                    <div><div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#b8dcff;font-weight:800">Início obrigatório do trabalho</div><h2 style="margin:3px 0 4px;font-size:21px;color:#fff">1. Localize e ative a empresa</h2><p style="margin:0;color:#e0efff;font-size:13px">Busque pelo número, nome ou CNPJ. Escolher não basta: clique em <strong>⚡ Ativar empresa</strong> no cartão para carregar somente os dados dela.</p></div>
                     <div style="padding:9px 13px;border:1px solid rgba(255,255,255,.25);border-radius:9px;background:rgba(255,255,255,.10);font-size:12px;font-weight:700">Empresa ativa: <span id="empEmpresaAtivaLabel">nenhuma</span></div>
                 </div>
                 <div class="card" style="padding:24px">
@@ -2476,7 +2481,7 @@
                         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                             <button type="button" id="btnCadastroEmpresaPagina" onclick="abrirCadastroEmpresa()" style="padding:9px 14px;background:#f59e0b;color:#fff;border:0;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer">🏢 Cadastrar empresa</button>
                             <div id="empAdminToggle" style="display:none;align-items:center">
-                            <button type="button" onclick="abrirCarteiraResponsaveis()" style="padding:9px 14px;background:#1d4ed8;color:#fff;border:0;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer">👥 Carteira de responsáveis</button>
+                            <button type="button" onclick="abrirCarteiraResponsaveis()" style="padding:9px 14px;background:#0066cc;color:#fff;border:0;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer">👥 Carteira de responsáveis</button>
                             </div>
                         </div>
                     </div>
@@ -2527,8 +2532,8 @@
 
             <!-- Page: Início -->
             <div id="pageInicio">
-                <div id="ativacaoEmpresaInicio" style="margin-bottom:22px;padding:20px 22px;border-radius:16px;background:linear-gradient(135deg,#0f172a 0%,#1d4ed8 100%);color:#fff;box-shadow:0 14px 30px rgba(29,78,216,.22);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
-                    <div><div style="font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#bfdbfe;font-weight:800">Empresa de trabalho</div><h2 id="ativacaoEmpresaInicioTitulo" style="margin:4px 0;color:#fff;font-size:21px">Ative uma empresa para começar</h2><p id="ativacaoEmpresaInicioTexto" style="margin:0;color:#dbeafe;font-size:13px">A ativação amarra cadastro, plano, importações, lançamentos e relatórios à empresa correta.</p></div>
+                <div id="ativacaoEmpresaInicio" style="margin-bottom:22px;padding:20px 22px;border-radius:16px;background:linear-gradient(135deg,#0f172a 0%,#0066cc 100%);color:#fff;box-shadow:0 14px 30px rgba(0,102,204,.22);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
+                    <div><div style="font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#b8dcff;font-weight:800">Empresa de trabalho</div><h2 id="ativacaoEmpresaInicioTitulo" style="margin:4px 0;color:#fff;font-size:21px">Ative uma empresa para começar</h2><p id="ativacaoEmpresaInicioTexto" style="margin:0;color:#e0efff;font-size:13px">A ativação amarra cadastro, plano, importações, lançamentos e relatórios à empresa correta.</p></div>
                     <button type="button" onclick="abrirAtivacaoEmpresa()" style="padding:12px 19px;border:0;border-radius:10px;background:#f59e0b;color:#fff;font-size:14px;font-weight:900;cursor:pointer;box-shadow:0 8px 20px rgba(245,158,11,.32);white-space:nowrap">⚡ Ativar empresa</button>
                 </div>
                 <!-- Form Card (inicial) -->
@@ -2590,7 +2595,7 @@
                         <button id="btnCadastrarPlano" class="btn" style="width:auto;padding:14px 24px;background:#059669;color:white" onclick="abrirCadastroPlano()">
                             📚 Cadastrar Plano de Contas
                         </button>
-                        <button id="btnVincularPlano" class="btn" style="width:auto;padding:14px 24px;background:#3b82f6;color:white;display:none" onclick="abrirVincularPlanoModalComGenericos()">
+                        <button id="btnVincularPlano" class="btn" style="width:auto;padding:14px 24px;background:#0a84ff;color:white;display:none" onclick="abrirVincularPlanoModalComGenericos()">
                             🔗 Vincular Plano Existente
                         </button>
                         <button id="btnAtivarEmpresa" class="btn" style="width:auto;padding:14px 24px;background:#10b981;color:white;display:none" onclick="ativarCadastroEmpresa()">
@@ -2716,7 +2721,7 @@
                             <button class="btn-action btn-action-secondary" type="button" onclick="abrirModalRetencoesServicosTomados()" style="background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe;margin-right:10px">
                                 🧮 Retenções — Serviços Tomados
                             </button>
-                            <button class="btn-action btn-action-secondary" type="button" onclick="abrirModalMercadoPago()" style="background:#eef2ff;color:#1d4ed8;border:1px solid #c7d2fe">
+                            <button class="btn-action btn-action-secondary" type="button" onclick="abrirModalMercadoPago()" style="background:#f0f7ff;color:#0066cc;border:1px solid #b8dcff">
                                 🟦 Mercado Pago API / Relatório
                             </button>
                         </div>
@@ -2729,7 +2734,7 @@
                                 <span class="format-badge ofx">📗 OFX/OFC</span>
                                 <span class="format-badge csv">📙 CSV</span>
                                 <span class="format-badge xlsx" style="background:#dcfce7;color:#166534">📊 XLSX</span>
-                                <span class="format-badge xlsx" style="background:#dbeafe;color:#1e40af">📋 Lançamentos</span>
+                                <span class="format-badge xlsx" style="background:#e0efff;color:#00509f">📋 Lançamentos</span>
                             </div>
                             <div class="upload-hint">
                                 <span>✨</span>
@@ -2779,7 +2784,7 @@
                                     <label id="uploadTituloLabel" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Título do Relatório *</label>
                                     <input type="text" id="uploadTitulo" placeholder="Ex.: Itaú Jan/2025 — Igreja Itapevi" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px">
                                 </div>
-                                <div id="uploadRazaoHint" style="display:none;grid-column:1/-1;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12px;font-weight:600">
+                                <div id="uploadRazaoHint" style="display:none;grid-column:1/-1;background:#f0f7ff;color:#00509f;border:1px solid #b8dcff;border-radius:8px;padding:10px 12px;font-size:12px;font-weight:600">
                                     Para razão de saldos, Banco e Título não são obrigatórios. Clique em Processar arquivo para gerar o relatório de notas pagas e abertas.
                                 </div>
                                 <div id="uploadFlanacarColumnsHint" style="display:none;grid-column:1/-1;background:#ecfdf5;color:#166534;border:1px solid #86efac;border-radius:8px;padding:10px 12px;font-size:12px;font-weight:700">
@@ -3089,9 +3094,9 @@
             
             <!-- Page: Plano de Contas -->
             <div id="pagePlano" class="hidden">
-                <script src="/conciliacao-manual-ui.js?v=3.4.382"></script>
-    <script src="/plano-consulta.js?v=3.4.382"></script>
-                <script src="/planos-gerenciamento-ui.js?v=3.4.382"></script>
+                <script src="/conciliacao-manual-ui.js?v=3.4.383"></script>
+    <script src="/plano-consulta.js?v=3.4.383"></script>
+                <script src="/planos-gerenciamento-ui.js?v=3.4.383"></script>
                 <!-- Planos Cadastrados (TRAVA CNPJ) -->
                 <div class="card" style="margin-bottom:24px">
                     <div class="card-header">
@@ -3196,7 +3201,7 @@
                     <div class="import-totals-grid">
                         <div class="import-total-card credit">
                             <h3>Layouts ativos</h3>
-                            <div class="value" style="font-size:26px;color:#2563eb">ECD / ECF</div>
+                            <div class="value" style="font-size:26px;color:#0071e3">ECD / ECF</div>
                             <div class="sub">SPED Contábil e ECF</div>
                         </div>
                         <div class="import-total-card debit">
@@ -3214,10 +3219,10 @@
                     <div style="margin:18px 0 20px">
                         <h3 style="margin:0 0 10px;color:#111827;font-size:16px">Layouts das obrigações cadastrados</h3>
                         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
-                            <div style="border:1px solid #dbeafe;background:#eff6ff;border-radius:8px;padding:14px">
+                            <div style="border:1px solid #e0efff;background:#f0f7ff;border-radius:8px;padding:14px">
                                 <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
                                     <div>
-                                        <strong style="display:block;color:#1d4ed8;font-size:15px">ECD - Escrituração Contábil Digital</strong>
+                                        <strong style="display:block;color:#0066cc;font-size:15px">ECD - Escrituração Contábil Digital</strong>
                                         <span style="color:#475569;font-size:12px">SPED Contábil | Assinatura LECD</span>
                                     </div>
                                     <span style="background:#dcfce7;color:#166534;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800">Ativo</span>
@@ -3225,9 +3230,9 @@
                                 <div style="margin-top:10px;color:#334155;font-size:12px;line-height:1.5">
                                     Registros estruturais monitorados: 0000, I010, I030, I050, I150, I155, I990, J005, J100, J150, J900, J930, J990, 9990 e 9999. A sequência I150 -> I155 e a regra 0000.IND_MUDANCA_PC = 1 -> I157 são bloqueantes no PVA; I100/J800 são condicionais.
                                 </div>
-                                <div style="margin-top:10px;display:flex;justify-content:space-between;gap:8px;align-items:center;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:8px">
+                                <div style="margin-top:10px;display:flex;justify-content:space-between;gap:8px;align-items:center;background:#fff;border:1px solid #b8dcff;border-radius:6px;padding:8px">
                                     <span id="obrigacaoPrazoEcdData" style="color:#475569;font-size:12px">Prazo: 30/06/2026</span>
-                                    <strong id="obrigacaoPrazoEcdDias" style="color:#1d4ed8;font-size:13px">-</strong>
+                                    <strong id="obrigacaoPrazoEcdDias" style="color:#0066cc;font-size:13px">-</strong>
                                 </div>
                             </div>
                             <div style="border:1px solid #fef3c7;background:#fffbeb;border-radius:8px;padding:14px">
@@ -3301,7 +3306,7 @@
                     </p>
                     <input type="file" id="defisFileInput" accept=".pdf,application/pdf" multiple style="display:none" onchange="processarArquivosDefis(event)">
 
-                    <div style="padding:14px 16px;margin-bottom:18px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:9px;color:#1e3a8a;font-size:13px;line-height:1.55">
+                    <div style="padding:14px 16px;margin-bottom:18px;border:1px solid #b8dcff;background:#f0f7ff;border-radius:9px;color:#003e7a;font-size:13px;line-height:1.55">
                         <strong>Contrato oficial:</strong> a DEFIS é preenchida no portal PGDAS-D e não possui registros TXT do SPED. Este validador lê a cópia e o recibo em PDF e usa o balancete apenas como apoio contábil, sem transmitir ou substituir a validação da Receita Federal.
                     </div>
 
@@ -3334,7 +3339,7 @@
                         </div>
                         <div class="import-total-card credit">
                             <h3>Documentos</h3>
-                            <div class="value" id="defisDocumentosResumo" style="font-size:25px;color:#2563eb">0</div>
+                            <div class="value" id="defisDocumentosResumo" style="font-size:25px;color:#0071e3">0</div>
                             <div class="sub">Declaração + balancete/recibo opcionais</div>
                         </div>
                         <div class="import-total-card credit">
@@ -3391,21 +3396,21 @@
                          dois números para o mesmo fato, com uma digitação no
                          meio. O que atravessa é o CARIMBO: imutável, versionado
                          e com a ressalva que PROÍBE recalcular deste lado. -->
-                    <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:14px;margin-bottom:18px">
+                    <div style="background:#f0f7ff;border:1px solid #b8dcff;border-radius:8px;padding:14px;margin-bottom:18px">
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
                             <div>
-                                <strong style="color:#3730a3">📥 Importar o fechamento do Consultor Fiscal</strong>
-                                <div style="color:#4338ca;font-size:13px;margin-top:2px">
+                                <strong style="color:#00509f">📥 Importar o fechamento do Consultor Fiscal</strong>
+                                <div style="color:#0066cc;font-size:13px;margin-top:2px">
                                     O valor apurado vem do mês FECHADO lá — não digite, e não refaça a conta.
                                 </div>
                             </div>
                             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                                <input type="month" id="fechamentoCfiCompetencia" onchange="consultarFechamentoCfi()" style="padding:6px 8px;border:1px solid #c7d2fe;border-radius:6px">
+                                <input type="month" id="fechamentoCfiCompetencia" onchange="consultarFechamentoCfi()" style="padding:6px 8px;border:1px solid #b8dcff;border-radius:6px">
                                 <button class="btn-action btn-action-secondary" onclick="consultarFechamentoCfi()">🔎 Consultar</button>
                                 <button class="btn-action btn-action-primary" onclick="importarFechamentoCfi()">📥 Importar</button>
                             </div>
                         </div>
-                        <div id="fechamentoCfiStatus" style="margin-top:10px;font-size:13px;color:#4338ca">
+                        <div id="fechamentoCfiStatus" style="margin-top:10px;font-size:13px;color:#0066cc">
                             Escolha a competência e consulte. A consulta NÃO grava nada.
                         </div>
                     </div>
@@ -3733,7 +3738,7 @@
                         Módulo pronto para gerar R-4010 em ambiente restrito. Consulte o certificado antes de transmitir.
                     </div>
 
-                    <div id="reinfCertUploadPanel" class="filters-section hidden" style="border-color:#bfdbfe;background:#eff6ff">
+                    <div id="reinfCertUploadPanel" class="filters-section hidden" style="border-color:#b8dcff;background:#f0f7ff">
                         <div class="filters-grid">
                             <div class="filter-group">
                                 <label>Certificado A1 (.pfx/.p12)</label>
@@ -3752,7 +3757,7 @@
                                 <button class="btn-action btn-action-secondary" onclick="toggleUploadCertificadoReinf(false)">Cancelar</button>
                             </div>
                         </div>
-                        <div style="font-size:12px;color:#1e40af;margin-top:8px">
+                        <div style="font-size:12px;color:#00509f;margin-top:8px">
                             O arquivo e a senha são enviados apenas para validação e gravação no Secret Manager. Eles não ficam salvos no navegador.
                         </div>
                     </div>
@@ -3870,9 +3875,9 @@
                         </div>
                     </div>
 
-                    <div class="filters-section" id="reinfAplicacoesPanel" style="border-color:#bfdbfe;background:#eff6ff">
-                        <h3 style="margin:0 0 8px;color:#1e3a8a">Aplicações financeiras — extratos multibanco, IRRF e lançamentos</h3>
-                        <div style="font-size:12px;color:#1e40af;margin-bottom:14px;line-height:1.5">
+                    <div class="filters-section" id="reinfAplicacoesPanel" style="border-color:#b8dcff;background:#f0f7ff">
+                        <h3 style="margin:0 0 8px;color:#003e7a">Aplicações financeiras — extratos multibanco, IRRF e lançamentos</h3>
+                        <div style="font-size:12px;color:#00509f;margin-bottom:14px;line-height:1.5">
                             Analisa o extrato recebido do cliente, classifica fundos e títulos, confere a regra de IRRF e prepara lançamentos para revisão. O banco ou a corretora é a fonte pagadora responsável pela retenção e pela informação na EFD-Reinf; esta área não cria R-4020 em nome do cliente investidor.
                         </div>
                         <div class="filters-grid">
@@ -3933,7 +3938,7 @@
                             <button class="btn-action btn-action-success" id="reinfAplicacoesLancamentosBtn" onclick="adicionarLancamentosAplicacoesReinf()" disabled>Levar para Lançamentos</button>
                             <button class="btn-action btn-action-secondary" id="reinfAplicacoesCsvBtn" onclick="baixarAnaliseAplicacoesReinf()" disabled>Exportar conferência</button>
                         </div>
-                        <div id="reinfAplicacoesStatus" style="margin-top:12px;padding:10px 12px;border-radius:8px;background:#fff;border:1px solid #bfdbfe;color:#1e40af;font-size:12px">
+                        <div id="reinfAplicacoesStatus" style="margin-top:12px;padding:10px 12px;border-radius:8px;background:#fff;border:1px solid #b8dcff;color:#00509f;font-size:12px">
                             Importe um PDF/XLSX de layout validado ou use o modelo CSV/XLSX para qualquer banco ou corretora. Um layout desconhecido permanece bloqueado até ser conferido com um documento real.
                         </div>
                         <div id="reinfAplicacoesResumo" style="display:none;margin-top:14px"></div>
@@ -4097,7 +4102,7 @@
                         </div>
                     </div>
                     
-                    <div id="exportStats" class="hidden" style="background:#dbeafe;color:#1e40af;padding:20px;border-radius:var(--radius-sm);margin-bottom:20px">
+                    <div id="exportStats" class="hidden" style="background:#e0efff;color:#00509f;padding:20px;border-radius:var(--radius-sm);margin-bottom:20px">
                         <span id="exportInfo"></span>
                     </div>
                     
@@ -4198,7 +4203,7 @@
                 <div class="card" style="padding:24px;margin-bottom:16px">
                     <div style="display:flex;gap:12px;flex-wrap:wrap">
                         <button id="ecdecfBtnConsolidar" onclick="ecdecfConsolidarExportar()" style="padding:12px 22px;background:#059669;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">⚙️ Consolidar + Validar + Exportar TXT</button>
-                        <button onclick="ecdecfAbrirValidador()" style="padding:12px 22px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">🛡️ Validador de Obrigações</button>
+                        <button onclick="ecdecfAbrirValidador()" style="padding:12px 22px;background:#0071e3;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">🛡️ Validador de Obrigações</button>
                     </div>
                     <div id="ecdecfResumo" style="margin-top:14px;font-size:13px;color:#374151"></div>
                 </div>
@@ -4214,7 +4219,7 @@
             </div>
 
             <!-- Modal: Validador de Obrigacoes ECD/ECF -->
-            <div id="ecdecfModalValidador" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:10000;align-items:center;justify-content:center;padding:20px">
+            <div id="ecdecfModalValidador" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center;padding:20px">
                 <div style="background:#fff;border-radius:12px;max-width:760px;width:100%;max-height:90vh;overflow-y:auto;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.35)">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
                         <h3 style="margin:0;font-size:19px;color:#111827">🛡️ Validador de Obrigações — ECD/ECF 2026</h3>
@@ -4226,13 +4231,13 @@
             </div>
 
             <!-- Modal: selecao obrigatoria de empresa a cada novo acesso -->
-            <div id="modalSelecaoEmpresa" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:99998;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)">
+            <div id="modalSelecaoEmpresa" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99998;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)">
                 <div style="background:#fff;border-radius:14px;max-width:520px;width:100%;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center">
                     <div style="font-size:44px;margin-bottom:10px">🔒</div>
                     <h3 style="margin:0 0 10px 0;font-size:20px;color:#111827">Selecione a empresa desta sessão</h3>
                     <p style="font-size:14px;color:#6b7280;margin:0 0 22px 0">Por segurança, o sistema não carrega mais a última empresa automaticamente. Escolha a empresa em que vai trabalhar para evitar importações e lançamentos na empresa errada. O trabalho anterior está salvo e será restaurado ao ativar a mesma empresa.</p>
                     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-                        <button onclick="fecharModalSelecaoEmpresa('empresas')" style="padding:12px 22px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">🏢 Selecionar empresa</button>
+                        <button onclick="fecharModalSelecaoEmpresa('empresas')" style="padding:12px 22px;background:#0071e3;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">🏢 Selecionar empresa</button>
                         <button onclick="fecharModalSelecaoEmpresa('nova')" style="padding:12px 22px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">➕ Nova empresa</button>
                     </div>
                 </div>
@@ -4245,7 +4250,7 @@
                         <h2><span class="icon">ℹ️</span> Sobre o Sistema</h2>
                     </div>
                     <div style="display:flex;gap:32px;flex-wrap:wrap">
-                        <div style="width:120px;height:120px;background:rgba(255,255,255,.96);border-radius:24px;padding:12px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-lg)"><img src="/sp-logo.png" alt="SP Assessoria Contábil" style="width:100%;height:100%;object-fit:contain"></div>
+                        <div style="width:120px;height:120px;background:#fff;border-radius:22%;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1px rgba(0,0,0,.05),var(--shadow-lg)"><img src="/logo-sp.png" alt="SP Assessoria Contábil" style="width:100%;height:100%;object-fit:contain"></div>
                         <div>
                             <h3 style="font-size:26px;color:var(--primary);margin-bottom:8px;font-weight:800">CONSULTOR CONTÁBIL INTELIGENTE</h3>
                             <p style="color:var(--accent);font-size:14px;margin-bottom:20px;font-weight:600">Automação contábil com Inteligência Artificial</p>
@@ -6207,7 +6212,7 @@
                         const aprovado = status === 'aprovado';
                         const homologado = status === 'homologado';
                         statusBox.style.display = 'block';
-                        statusBox.style.color = bloqueado ? '#dc2626' : (teste ? '#b45309' : (aprovado ? '#059669' : '#2563eb'));
+                        statusBox.style.color = bloqueado ? '#dc2626' : (teste ? '#b45309' : (aprovado ? '#059669' : '#0071e3'));
                         statusBox.textContent = bloqueado
                             ? 'Layout bloqueado pelo Admin. Selecione outro layout ou use Automático.'
                             : (teste
@@ -6547,7 +6552,7 @@
                         const acessoCci = window.CURRENT_USER.permissoesCci;
                         if (acessoCci && acessoCci.nivel !== 'operacao') {
                             let faixa = document.getElementById('faixaNivelCci');
-                            if (!faixa) { faixa = document.createElement('div'); faixa.id = 'faixaNivelCci'; faixa.style.cssText = 'padding:10px;background:#eff6ff;color:#1e3a8a;text-align:center'; document.body.prepend(faixa); }
+                            if (!faixa) { faixa = document.createElement('div'); faixa.id = 'faixaNivelCci'; faixa.style.cssText = 'padding:10px;background:#f0f7ff;color:#003e7a;text-align:center'; document.body.prepend(faixa); }
                             faixa.textContent = 'Seu nível no CCI: ' + (acessoCci.nivel === 'consulta' ? 'somente consulta e relatórios' : 'consulta e edição') + '. Ações adicionais dependem da liberação do administrador.';
                         }
                         // E-mail NÃO verificado bloqueia o túnel com o CFI
@@ -9414,7 +9419,7 @@
             const map = {
                 em_andamento: { cor: '#d1fae5', txt: '#065f46', lab: '🟢 Em andamento' },
                 pendente: { cor: '#fef3c7', txt: '#92400e', lab: '🟡 Pendente' },
-                fechado: { cor: '#dbeafe', txt: '#1e40af', lab: '🔵 Fechado' },
+                fechado: { cor: '#e0efff', txt: '#00509f', lab: '🔵 Fechado' },
                 nunca_processado: { cor: '#f3f4f6', txt: '#6b7280', lab: '⚪ Nunca processada' }
             };
             const c = map[status] || map.nunca_processado;
@@ -9439,10 +9444,10 @@
                     return '<span style="padding:5px 8px;border-radius:999px;background:#f8fafc;border:1px solid #e2e8f0;color:' + cor + ';font-size:11px;font-weight:700">' + empEscape(a.nome) + ' ' + Number(a.classificados || 0) + '/' + Number(a.total || 0) + '</span>';
                 }).join('');
                 const aviso = p.aviso_automatico && p.aviso_automatico.ativo
-                    ? '<div style="font-size:11px;color:#1d4ed8;margin-top:8px">🔔 Aviso automático após ' + Number(p.aviso_automatico.dias || 1) + ' dia(s) sem atividade. Esta solicitação já aparece aqui desde o salvamento.</div>'
+                    ? '<div style="font-size:11px;color:#0066cc;margin-top:8px">🔔 Aviso automático após ' + Number(p.aviso_automatico.dias || 1) + ' dia(s) sem atividade. Esta solicitação já aparece aqui desde o salvamento.</div>'
                     : '';
                 return '<article style="border:1px solid #e2e8f0;border-radius:13px;padding:15px;background:#fff;margin-bottom:10px">'
-                    + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div style="font-size:11px;color:#64748b;font-weight:800">' + empEscape(p.codigo_empresa || '') + ' · ' + empEscape(p.competencia) + '</div><h3 style="font-size:15px;color:#0f172a;margin:3px 0">' + empEscape(p.razao_social || p.cnpj) + '</h3></div><span style="font-size:12px;font-weight:900;color:#1d4ed8;white-space:nowrap">' + Number(p.percentual || 0) + '%</span></div>'
+                    + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div style="font-size:11px;color:#64748b;font-weight:800">' + empEscape(p.codigo_empresa || '') + ' · ' + empEscape(p.competencia) + '</div><h3 style="font-size:15px;color:#0f172a;margin:3px 0">' + empEscape(p.razao_social || p.cnpj) + '</h3></div><span style="font-size:12px;font-weight:900;color:#0066cc;white-space:nowrap">' + Number(p.percentual || 0) + '%</span></div>'
                     + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:9px 0">' + areas + '</div>'
                     + (p.impedimento ? '<div style="padding:9px 10px;border-radius:8px;background:#fff7ed;color:#9a3412;font-size:12px"><strong>Impedimento:</strong> ' + empEscape(p.impedimento) + '</div>' : '')
                     + (p.observacao ? '<p style="font-size:12px;color:#334155;margin:9px 0"><strong>Orientação:</strong> ' + empEscape(p.observacao) + '</p>' : '')
@@ -9470,7 +9475,7 @@
             if (!modal) {
                 modal = document.createElement('div');
                 modal.id = 'modalMinhasPendenciasContabeis';
-                modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.58);z-index:10050;display:flex;align-items:center;justify-content:center;padding:18px';
+                modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:10050;display:flex;align-items:center;justify-content:center;padding:18px';
                 modal.onclick = function (event) { if (event.target === modal) modal.remove(); };
                 modal.innerHTML = '<div style="background:#f8fafc;border-radius:16px;max-width:780px;width:100%;max-height:88vh;padding:20px;box-shadow:0 24px 70px rgba(0,0,0,.38);display:flex;flex-direction:column"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div style="font-size:11px;color:#9f1239;font-weight:900;letter-spacing:.08em">ÁREA DO COLABORADOR</div><h2 style="font-size:20px;color:#0f172a;margin:3px 0">📌 Minhas solicitações contábeis</h2><p style="font-size:12px;color:#64748b;margin:0 0 13px">Acompanhamentos atribuídos a você pelo gestor. A configuração de e-mail e Teams continua exclusiva do ADMIN.</p></div><button type="button" onclick="document.getElementById(\'modalMinhasPendenciasContabeis\').remove()" style="border:0;background:#e2e8f0;border-radius:9px;width:36px;height:36px;cursor:pointer">✕</button></div><div id="minhasPendenciasConteudo" style="overflow:auto;min-height:120px"><div style="padding:38px;text-align:center;color:#64748b">Carregando solicitações...</div></div></div>';
                 document.body.appendChild(modal);
@@ -9615,9 +9620,9 @@
             if (anterior) anterior.remove();
             const modal = document.createElement('div');
             modal.id = 'modalCarteiraResponsaveisCCI';
-            modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.76);z-index:100002;display:flex;align-items:stretch;justify-content:center;padding:22px';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.76);z-index:100002;display:flex;align-items:stretch;justify-content:center;padding:22px';
             modal.innerHTML = '<div class="carteira-modal-panel" style="background:#f8fafc;border-radius:16px;max-width:1080px;width:100%;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.4);display:flex;flex-direction:column;min-height:0">' +
-                '<div style="display:flex;justify-content:space-between;gap:16px;align-items:start"><div><div style="font-size:11px;color:#2563eb;font-weight:900;text-transform:uppercase;letter-spacing:.1em">Administração contábil</div><h2 style="margin:3px 0;color:#0f172a">👥 Carteira de responsáveis</h2><p style="margin:0 0 16px;color:#64748b;font-size:13px">O gestor define um responsável principal e um colaborador de apoio. Ambos podem abrir a mesma empresa; alterações em lançamentos diferentes são combinadas ao salvar.</p></div><button class="carteira-modal-close" type="button" onclick="document.getElementById(\'modalCarteiraResponsaveisCCI\').remove()" style="border:0;background:#e2e8f0;border-radius:9px;width:36px;height:36px;cursor:pointer">✕</button></div>' +
+                '<div style="display:flex;justify-content:space-between;gap:16px;align-items:start"><div><div style="font-size:11px;color:#0071e3;font-weight:900;text-transform:uppercase;letter-spacing:.1em">Administração contábil</div><h2 style="margin:3px 0;color:#0f172a">👥 Carteira de responsáveis</h2><p style="margin:0 0 16px;color:#64748b;font-size:13px">O gestor define um responsável principal e um colaborador de apoio. Ambos podem abrir a mesma empresa; alterações em lançamentos diferentes são combinadas ao salvar.</p></div><button class="carteira-modal-close" type="button" onclick="document.getElementById(\'modalCarteiraResponsaveisCCI\').remove()" style="border:0;background:#e2e8f0;border-radius:9px;width:36px;height:36px;cursor:pointer">✕</button></div>' +
                 '<input class="carteira-modal-search" id="carteiraRespBusca" type="search" placeholder="Buscar por número, empresa ou CNPJ..." oninput="renderCarteiraResponsaveis()" style="width:100%;padding:11px 13px;border:1px solid #cbd5e1;border-radius:9px;font-size:14px;margin-bottom:12px">' +
                 '<div class="carteira-modal-summary" id="carteiraRespResumo" style="font-size:12px;color:#64748b;margin-bottom:9px"></div>' +
                 '<div id="carteiraRespLista" style="overflow:auto;min-height:0;flex:1"><div class="carteira-empty" style="padding:50px;text-align:center;color:#64748b">Carregando carteira...</div></div></div>';
@@ -9655,9 +9660,9 @@
             listaEl.innerHTML = empresas.map(function(emp) {
                 const responsaveis = Array.isArray(emp.responsaveis) ? emp.responsaveis : [];
                 const chips = responsaveis.length ? responsaveis.map(function(r) {
-                    return '<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:' + (r.papel === 'principal' ? '#dbeafe' : '#e2e8f0') + ';color:' + (r.papel === 'principal' ? '#1e40af' : '#334155') + ';font-size:11px;font-weight:700">' + (r.papel === 'principal' ? '★ Principal · ' : '＋ Apoio · ') + empEscape(r.nome || r.email) + '<button type="button" title="Remover acesso" onclick="carteiraRemoverResponsavel(\'' + empEscape(emp.cnpj) + '\',\'' + empEscape(r.uid) + '\')" style="border:0;background:transparent;color:#dc2626;font-weight:900;cursor:pointer">×</button></span>';
+                    return '<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:' + (r.papel === 'principal' ? '#e0efff' : '#e2e8f0') + ';color:' + (r.papel === 'principal' ? '#00509f' : '#334155') + ';font-size:11px;font-weight:700">' + (r.papel === 'principal' ? '★ Principal · ' : '＋ Apoio · ') + empEscape(r.nome || r.email) + '<button type="button" title="Remover acesso" onclick="carteiraRemoverResponsavel(\'' + empEscape(emp.cnpj) + '\',\'' + empEscape(r.uid) + '\')" style="border:0;background:transparent;color:#dc2626;font-weight:900;cursor:pointer">×</button></span>';
                 }).join('') : '<span style="font-size:11px;color:#d97706;font-weight:700">Sem responsável</span>';
-                return '<div class="carteira-company-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:9px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div class="carteira-company-title" style="font-weight:800;color:#0f172a">' + (emp.codigo_empresa ? '<span style="color:#2563eb;font-family:monospace">' + empEscape(emp.codigo_empresa) + '</span> · ' : '') + empEscape(emp.razao_social || '(sem razão social)') + '</div><div class="carteira-company-meta" style="font-size:11px;color:#64748b;margin-top:2px">' + empEscape(empFmtCNPJ(emp.cnpj)) + (emp.owner_email ? ' · Cadastrada por ' + empEscape(emp.owner_email) : '') + '</div></div><div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">' + chips + '</div></div>' +
+                return '<div class="carteira-company-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:9px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div class="carteira-company-title" style="font-weight:800;color:#0f172a">' + (emp.codigo_empresa ? '<span style="color:#0071e3;font-family:monospace">' + empEscape(emp.codigo_empresa) + '</span> · ' : '') + empEscape(emp.razao_social || '(sem razão social)') + '</div><div class="carteira-company-meta" style="font-size:11px;color:#64748b;margin-top:2px">' + empEscape(empFmtCNPJ(emp.cnpj)) + (emp.owner_email ? ' · Cadastrada por ' + empEscape(emp.owner_email) : '') + '</div></div><div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">' + chips + '</div></div>' +
                     '<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:12px"><label>Responsável principal<select id="carteiraPrincipal_' + empEscape(emp.cnpj) + '"><option value="">Selecione...</option>' + usuarios.map(function(u) { return '<option value="' + empEscape(u.uid) + '"' + (responsaveis.some(function(r) { return r.uid === u.uid && r.papel === 'principal'; }) ? ' selected' : '') + '>' + empEscape(u.nome || u.email) + '</option>'; }).join('') + '</select></label><label>Colaborador de apoio<select id="carteiraApoio_' + empEscape(emp.cnpj) + '"><option value="">Sem apoio</option>' + usuarios.map(function(u) { return '<option value="' + empEscape(u.uid) + '"' + (responsaveis.some(function(r) { return r.uid === u.uid && r.papel === 'apoio'; }) ? ' selected' : '') + '>' + empEscape(u.nome || u.email) + '</option>'; }).join('') + '</select></label><button type="button" onclick="carteiraSalvarEquipe(\'' + empEscape(emp.cnpj) + '\')">Salvar equipe</button></div></div>';
             }).join('');
         }
@@ -9711,18 +9716,18 @@
                 if (anterior) anterior.remove();
                 const modal = document.createElement('div');
                 modal.id = 'modalCadastroEmpresaCCI';
-                modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:100001;display:flex;align-items:center;justify-content:center;padding:20px';
+                modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100001;display:flex;align-items:center;justify-content:center;padding:20px';
                 modal.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:620px;width:100%;max-height:90vh;overflow:auto;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.35)">' +
                     '<div style="display:flex;justify-content:space-between;gap:16px;align-items:start"><div><h3 style="margin:0;color:#111827">Cadastro da empresa</h3><p style="margin:5px 0 18px;color:#64748b;font-size:13px">' + empEscape(empFmtCNPJ(empresa.cnpj)) + '</p></div><button type="button" onclick="document.getElementById(\'modalCadastroEmpresaCCI\').remove()" style="border:0;background:#f1f5f9;border-radius:8px;width:34px;height:34px;cursor:pointer">✕</button></div>' +
                     '<label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Razão social</label><input id="empCadRazao" value="' + empEscape(empresa.razao_social || '') + '" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;margin-bottom:13px">' +
                     '<div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px"><div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Nº da empresa</label><input id="empCadCodigo" inputmode="numeric" maxlength="4" value="' + empEscape(empresa.codigo_empresa || '') + '" placeholder="0001" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"><small style="color:#94a3b8">Busca pelo código, preservando zeros.</small></div>' +
                     '<div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">WhatsApp API</label><input id="empCadWhatsapp" type="tel" value="' + empEscape(empresa.whatsapp || '') + '" placeholder="(11) 91234-5678" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"><small style="color:#94a3b8">Destino do canal oficial da Meta.</small></div></div>' +
-                    '<div style="margin-top:14px;padding:12px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:8px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><strong style="font-size:12px;color:#1e3a8a">Regime tributário — cadastro do CFI</strong><div id="empCadRegime" style="margin-top:4px;color:#334155">' + empEscape(empresa.regime_tributario_nome || empNomeRegime(empresa.regime_tributario_codigo)) + '</div></div><div style="display:flex;gap:7px"><button type="button" onclick="empSincronizarRegimeCfi(\'' + empresa.cnpj + '\')" style="padding:8px 10px;border:1px solid #93c5fd;background:#fff;color:#1d4ed8;border-radius:7px;font-weight:700;cursor:pointer">Sincronizar CFI</button><button type="button" onclick="CCIParametrizacaoRegimeUI.abrir(\'' + empresa.cnpj + '\')" style="padding:8px 10px;border:0;background:#1d4ed8;color:#fff;border-radius:7px;font-weight:700;cursor:pointer">⚙️ Parametrizar regras</button></div></div></div>' +
+                    '<div style="margin-top:14px;padding:12px;border:1px solid #b8dcff;background:#f0f7ff;border-radius:8px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><strong style="font-size:12px;color:#003e7a">Regime tributário — cadastro do CFI</strong><div id="empCadRegime" style="margin-top:4px;color:#334155">' + empEscape(empresa.regime_tributario_nome || empNomeRegime(empresa.regime_tributario_codigo)) + '</div></div><div style="display:flex;gap:7px"><button type="button" onclick="empSincronizarRegimeCfi(\'' + empresa.cnpj + '\')" style="padding:8px 10px;border:1px solid #84c1ff;background:#fff;color:#0066cc;border-radius:7px;font-weight:700;cursor:pointer">Sincronizar CFI</button><button type="button" onclick="CCIParametrizacaoRegimeUI.abrir(\'' + empresa.cnpj + '\')" style="padding:8px 10px;border:0;background:#0066cc;color:#fff;border-radius:7px;font-weight:700;cursor:pointer">⚙️ Parametrizar regras</button></div></div></div>' +
                     '<div style="display:grid;grid-template-columns:1.25fr 1fr;gap:12px;margin-top:14px"><div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Modo contábil</label><select id="empCadModo" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"><option value="ponte_sage"' + (empresa.modo_contabil === 'cci_exclusivo' ? '' : ' selected') + '>Ponte para SAGE</option><option value="cci_exclusivo"' + (empresa.modo_contabil === 'cci_exclusivo' ? ' selected' : '') + '>CCI como sistema único</option></select></div><div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Início da escrituração no CCI</label><input id="empCadInicio" type="date" value="' + empEscape(empresa.inicio_escrituracao_cci || '') + '" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px"></div></div>' +
                     '<div style="margin-top:8px;font-size:12px;color:#64748b">Plano de contas e históricos atuais serão preservados. Ambos os modos acumulam lançamentos e permitem exportação SAGE. No modo exclusivo, os saldos de abertura exigem aprovação.</div>' +
                     empResumoProntidao(empresa.prontidao_contabil) +
                     '<div id="empCadMsg" style="min-height:20px;margin-top:12px;font-size:13px;color:#64748b"></div>' +
-                    '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px"><button type="button" onclick="empWhatsappDialog(\'' + empresa.cnpj + '\')" style="padding:10px 14px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:7px;font-weight:700;cursor:pointer">💬 WhatsApp API</button><button type="button" onclick="empSalvarCadastro(\'' + empresa.cnpj + '\')" style="padding:10px 18px;background:#2563eb;color:white;border:0;border-radius:7px;font-weight:700;cursor:pointer">Salvar cadastro</button></div>' +
+                    '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px"><button type="button" onclick="empWhatsappDialog(\'' + empresa.cnpj + '\')" style="padding:10px 14px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:7px;font-weight:700;cursor:pointer">💬 WhatsApp API</button><button type="button" onclick="empSalvarCadastro(\'' + empresa.cnpj + '\')" style="padding:10px 18px;background:#0071e3;color:white;border:0;border-radius:7px;font-weight:700;cursor:pointer">Salvar cadastro</button></div>' +
                     '</div>';
                 modal.addEventListener('click', function(ev) { if (ev.target === modal) modal.remove(); });
                 document.body.appendChild(modal);
@@ -9969,7 +9974,7 @@
             if (status === 'PAGO' || status === 'COMPENSADO') return '#dcfce7;color:#166534';
             if (status === 'VENCIDO' || status === 'PAGO_COM_DIFERENCA' || status === 'PENDENTE_RECEITA') return '#fee2e2;color:#991b1b';
             if (status === 'PARCELADO' || status === 'EM_ANALISE') return '#fef3c7;color:#92400e';
-            return '#dbeafe;color:#1e40af';
+            return '#e0efff;color:#00509f';
         }
 
         function fiscalDataBR(iso) {
@@ -10068,7 +10073,7 @@
         const SELO_FECHAMENTO = {
             fechada:  { cor: '#065f46', fundo: '#d1fae5', texto: '🔒 Mês FECHADO no CFI — pode importar' },
             reaberta: { cor: '#92400e', fundo: '#fef3c7', texto: '⚠ Mês REABERTO no CFI — NÃO importe ainda' },
-            aberta:   { cor: '#3730a3', fundo: '#e0e7ff', texto: '⏳ Mês ABERTO no CFI — o Fiscal ainda não fechou' },
+            aberta:   { cor: '#00509f', fundo: '#e0efff', texto: '⏳ Mês ABERTO no CFI — o Fiscal ainda não fechou' },
         };
 
         function pintarSeloFechamento(estado, detalhe) {
@@ -10249,7 +10254,7 @@
                     '<td>' + fiscalEscape(formatarMoedaBR(oficial ? (item.valor_pago || 0) : 0)) + '</td>' +
                     '<td>' + fiscalEscape(fiscalDataBR(item.vencimento)) + '</td>' +
                     '<td>' + fiscalEscape(fiscalDataBR(item.data_pagamento)) + '</td>' +
-                    '<td>' + fiscalEscape(item.origem || 'manual') + evidencia + (item.anexo_url ? '<br><a href="' + fiscalEscape(item.anexo_url) + '" target="_blank" rel="noopener" style="font-size:11px;color:#2563eb">Comprovante</a>' : '') + '</td>' +
+                    '<td>' + fiscalEscape(item.origem || 'manual') + evidencia + (item.anexo_url ? '<br><a href="' + fiscalEscape(item.anexo_url) + '" target="_blank" rel="noopener" style="font-size:11px;color:#0071e3">Comprovante</a>' : '') + '</td>' +
                     '<td>' + (importado ? '<span style="font-size:11px;color:#64748b">Somente leitura</span>' : '<button class="btn-action btn-action-secondary" style="padding:6px 10px;font-size:12px" onclick="editarFiscalImposto(\'' + fiscalEscape(item.id) + '\')">Editar</button> <button class="btn-action btn-action-danger" style="padding:6px 10px;font-size:12px" onclick="excluirFiscalImposto(\'' + fiscalEscape(item.id) + '\')">Excluir</button>') + '</td>' +
                     '</tr>';
             });
@@ -10500,7 +10505,7 @@
             const box = document.getElementById('reinfServTomStatus');
             if (!box) return;
             const cores = {
-                info: ['#eff6ff', '#1d4ed8'], warn: ['#fffbeb', '#b45309'],
+                info: ['#f0f7ff', '#0066cc'], warn: ['#fffbeb', '#b45309'],
                 error: ['#fef2f2', '#b91c1c'], ok: ['#ecfdf5', '#047857'],
             };
             const c = cores[tipo] || cores.info;
@@ -10690,7 +10695,7 @@
             const box = document.getElementById('reinfServPrestStatus');
             if (!box) return;
             const cores = {
-                info: ['#eff6ff', '#1d4ed8'], warn: ['#fffbeb', '#b45309'],
+                info: ['#f0f7ff', '#0066cc'], warn: ['#fffbeb', '#b45309'],
                 error: ['#fef2f2', '#b91c1c'], ok: ['#ecfdf5', '#047857'],
             };
             const c = cores[tipo] || cores.info;
@@ -10900,7 +10905,7 @@
             const box = document.getElementById('reinfFech2000Status');
             if (!box) return;
             const cores = {
-                info: ['#eff6ff', '#1d4ed8'], warn: ['#fffbeb', '#b45309'],
+                info: ['#f0f7ff', '#0066cc'], warn: ['#fffbeb', '#b45309'],
                 error: ['#fef2f2', '#b91c1c'], ok: ['#ecfdf5', '#047857'],
             };
             const c = cores[tipo] || cores.info;
@@ -11066,7 +11071,7 @@
             // RETIFICAÇÃO SAI NOMEADA: declarar por cima de um evento que já
             // vale não pode acontecer em silêncio.
             const retif = (resp.retificados || []).length
-                ? '<div style="margin-top:6px;font-size:11px;color:#1d4ed8">↻ ' + (resp.retificados || []).length
+                ? '<div style="margin-top:6px;font-size:11px;color:#0066cc">↻ ' + (resp.retificados || []).length
                   + ' prestador(es) saíram como RETIFICAÇÃO do evento já entregue: '
                   + reinfEscape((resp.retificados || []).map(function (r) { return r.nome || r.cnpj; }).join(' · ')) + '</div>'
                 : '';
@@ -11142,7 +11147,7 @@
                 msg.textContent = 'API indisponível. Recarregue a página.';
                 return;
             }
-            msg.style.color = '#1d4ed8';
+            msg.style.color = '#0066cc';
             msg.textContent = 'Salvando…';
             try {
                 const resp = await window.API.reinfServicoTomadoRecibo({
@@ -11571,7 +11576,7 @@
             const rc = b && b.recibos;
             if (!rc) return '';
             return [1, 2].filter(function (a) { return rc[a] && rc[a].nrRecibo; }).map(function (a) {
-                return '<div style="font-size:11px;color:#1d4ed8;margin-top:3px;white-space:nowrap" title="O próximo envio neste ambiente sai como RETIFICAÇÃO deste recibo.">'
+                return '<div style="font-size:11px;color:#0066cc;margin-top:3px;white-space:nowrap" title="O próximo envio neste ambiente sai como RETIFICAÇÃO deste recibo.">'
                     + '↻ retificação em ' + (a === 1 ? 'PRODUÇÃO' : 'produção restrita')
                     + ' · recibo ' + reinfEscape(rc[a].nrRecibo)
                     + (rc[a].origem === 'informado' ? ' (informado à mão)' : '') + '</div>';
@@ -11619,7 +11624,7 @@
                 msg.textContent = 'API indisponível. Recarregue a página.';
                 return;
             }
-            msg.style.color = '#1d4ed8';
+            msg.style.color = '#0066cc';
             msg.textContent = 'Salvando…';
             try {
                 const resp = await window.API.reinfRetencaoPjRecibo(cnpj, comp, {
@@ -11650,7 +11655,7 @@
                 return '<li>' + reinfEscape(d.nome || d.cnpj || '') + ' — natureza(s) <strong>' + reinfEscape(nats) + '</strong>'
                     + ' · bruto ' + reinfMoney(d.bruto) + ' · agregado ' + reinfMoney(d.agregado)
                     + (Number(d.indRetif) === 2
-                        ? ' · <strong style="color:#1d4ed8">RETIFICAÇÃO</strong> do recibo ' + reinfEscape(d.nrRecibo || '')
+                        ? ' · <strong style="color:#0066cc">RETIFICAÇÃO</strong> do recibo ' + reinfEscape(d.nrRecibo || '')
                         : ' · original') + '</li>';
             }).join('');
             const recibos = (resp.recibosDevolvidos || []).length
@@ -12081,7 +12086,7 @@
             const box = document.getElementById('reinfPrevidenciarioStatus');
             if (!box) return;
             const styles = {
-                info: ['#fff', '#bfdbfe', '#1e40af'],
+                info: ['#fff', '#b8dcff', '#00509f'],
                 success: ['#ecfdf5', '#86efac', '#166534'],
                 warn: ['#fffbeb', '#fcd34d', '#92400e'],
                 error: ['#fef2f2', '#fca5a5', '#991b1b']
@@ -12195,7 +12200,7 @@
             const el = document.getElementById('reinfAplicacoesStatus');
             if (!el) return;
             const estilos = {
-                info: ['#fff', '#bfdbfe', '#1e40af'],
+                info: ['#fff', '#b8dcff', '#00509f'],
                 success: ['#ecfdf5', '#86efac', '#166534'],
                 warn: ['#fffbeb', '#fcd34d', '#92400e'],
                 error: ['#fef2f2', '#fca5a5', '#991b1b']
@@ -12218,7 +12223,7 @@
             const mapa = {
                 conforme: ['Conforme', '#dcfce7', '#166534'],
                 isento: ['Isento PF', '#dcfce7', '#166534'],
-                informado_extrato: ['IR do extrato', '#dbeafe', '#1e40af'],
+                informado_extrato: ['IR do extrato', '#e0efff', '#00509f'],
                 irrf_nao_informado: ['IR não informado', '#f1f5f9', '#475569'],
                 sem_retencao_no_periodo: ['Sem retenção', '#f1f5f9', '#475569'],
                 divergente: ['Divergente', '#fee2e2', '#991b1b'],
@@ -12247,7 +12252,7 @@
                     ['Posição informada', reinfMoney(r.valorBruto || r.valorLiquido), 'Aplicado: ' + reinfMoney(r.valorAplicado) + ' • Líquido: ' + reinfMoney(r.valorLiquido)],
                     ['Rendimento do mês', reinfMoney(r.rendimentoPeriodo), 'Base para lançamentos sugeridos'],
                     ['IR informado', reinfMoney(r.irrfInformado), (r.pendencias || 0) + ' pendência(s)']
-                ].map(card => '<div style="background:#fff;border:1px solid #bfdbfe;border-radius:10px;padding:12px">'
+                ].map(card => '<div style="background:#fff;border:1px solid #b8dcff;border-radius:10px;padding:12px">'
                     + '<div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700">' + reinfEscape(card[0]) + '</div>'
                     + '<div style="font-size:19px;color:#0f172a;font-weight:800;margin-top:3px">' + reinfEscape(card[1]) + '</div>'
                     + '<div style="font-size:11px;color:#64748b;margin-top:2px">' + reinfEscape(card[2]) + '</div></div>').join('');
@@ -12273,7 +12278,7 @@
                         + '</tr>';
                 }).join('');
                 tabelaEl.style.display = 'block';
-                tabelaEl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff"><thead><tr style="background:#dbeafe;color:#1e3a8a">'
+                tabelaEl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff"><thead><tr style="background:#e0efff;color:#003e7a">'
                     + '<th style="padding:9px;text-align:left">Produto</th><th style="padding:9px;text-align:left">Classe tributária</th><th style="padding:9px;text-align:right">Aplicado</th><th style="padding:9px;text-align:right">Bruto</th><th style="padding:9px;text-align:right">Líquido</th><th style="padding:9px;text-align:right">Rend. mês</th><th style="padding:9px;text-align:right">IR extrato</th><th style="padding:9px;text-align:left">Conferência</th>'
                     + '</tr></thead><tbody>' + rows + '</tbody></table>';
             }
@@ -14357,7 +14362,7 @@
             if (event && event.target) event.target.value = '';
             const status = document.getElementById('defisStatusResumo');
             status.textContent = 'Processando';
-            status.style.color = '#2563eb';
+            status.style.color = '#0071e3';
             document.getElementById('defisModoResumo').textContent = 'Lendo PDFs localmente';
             document.getElementById('defisResultado').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><h3>Validando DEFIS</h3><p>Extraindo localmente a declaração e os documentos de apoio...</p></div>';
             try {
@@ -15108,7 +15113,7 @@
             const resultado = document.getElementById('obrigacaoResultado');
             if (status) {
                 status.textContent = 'Processando';
-                status.style.color = '#2563eb';
+                status.style.color = '#0071e3';
             }
             if (arquivo) arquivo.textContent = file.name;
 
@@ -15641,7 +15646,7 @@
             // Ordena do maior pro menor
             const ordenado = Object.entries(grupos).sort((a, b) => b[1].total - a[1].total);
             // Paleta de cores simples por posicao
-            const cores = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16'];
+            const cores = ['#0a84ff','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#0a84ff','#84cc16'];
             let html = '';
             ordenado.forEach(([cat, g], idx) => {
                 const pct = totalGeral > 0 ? (g.total / totalGeral * 100) : 0;
@@ -15855,13 +15860,13 @@
                     + '</tr>';
             }).join('');
             painel.innerHTML =
-                '<div style="border:1px solid #e5e7eb;border-radius:12px;background:#fff;box-shadow:0 1px 4px rgba(15,23,42,.06);overflow:hidden">'
+                '<div style="border:1px solid #e5e7eb;border-radius:12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden">'
                 + '<div style="padding:16px 18px 10px">'
                 + '<h3 style="margin:0 0 4px;font-size:16px;color:#0f172a">Crédito PIS/COFINS — Lucro Real (não-cumulativo)</h3>'
                 + '<p style="margin:0;color:#64748b;font-size:13px">Alíquotas: PIS 1,65% · COFINS 7,60% · CLUDE usa Valor da Nota das categorias elegíveis, não Base de Cálculo/Retenção.</p>'
                 + '</div>'
                 + '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:12px 18px 14px">'
-                + '<div style="background:#eff6ff;border-radius:10px;padding:13px"><div style="font-size:11px;color:#2563eb">Base de Crédito</div><div style="font-size:18px;font-weight:800;color:#1e40af">' + formatarMoedaBR(resumo.baseCredito) + '</div></div>'
+                + '<div style="background:#f0f7ff;border-radius:10px;padding:13px"><div style="font-size:11px;color:#0071e3">Base de Crédito</div><div style="font-size:18px;font-weight:800;color:#00509f">' + formatarMoedaBR(resumo.baseCredito) + '</div></div>'
                 + '<div style="background:#f5f3ff;border-radius:10px;padding:13px"><div style="font-size:11px;color:#7c3aed">Crédito PIS</div><div style="font-size:18px;font-weight:800;color:#6d28d9">' + formatarMoedaBR(resumo.pis) + '</div></div>'
                 + '<div style="background:#fff7ed;border-radius:10px;padding:13px"><div style="font-size:11px;color:#c2410c">Crédito COFINS</div><div style="font-size:18px;font-weight:800;color:#9a3412">' + formatarMoedaBR(resumo.cofins) + '</div></div>'
                 + '<div style="background:#ecfdf5;border-radius:10px;padding:13px"><div style="font-size:11px;color:#047857">Crédito Total</div><div style="font-size:18px;font-weight:800;color:#065f46">' + formatarMoedaBR(resumo.totalCredito) + '</div></div>'
@@ -16523,8 +16528,8 @@
                     datasets: [{
                         data: [],
                         backgroundColor: [
-                            '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', 
-                            '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#6366f1'
+                            '#10b981', '#0a84ff', '#f59e0b', '#ef4444', '#8b5cf6', 
+                            '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#0a84ff'
                         ],
                         borderWidth: 0
                     }]
@@ -16538,7 +16543,7 @@
                             labels: { 
                                 padding: 16,
                                 usePointStyle: true,
-                                font: { family: 'Plus Jakarta Sans', size: 11 }
+                                font: { family: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, 'Segoe UI', Roboto, Arial, sans-serif", size: 11 }
                             }
                         }
                     }
@@ -16575,7 +16580,7 @@
                             labels: { 
                                 padding: 16,
                                 usePointStyle: true,
-                                font: { family: 'Plus Jakarta Sans', size: 11 }
+                                font: { family: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, 'Segoe UI', Roboto, Arial, sans-serif", size: 11 }
                             }
                         }
                     },
@@ -19329,7 +19334,7 @@
                             ${(e.contaDebito && e.contaCredito && codigoHistoricoValido(e.codigoHistorico) && !e._memorizado)
                                 ? '<button class="btn-sugestao" onclick="memorizarLancamento(' + idx + ')" title="Memorizar este padrao para a empresa" style="background:#dcfce7">🧠</button>' : ''}
                             ${e._memorizado && window.CURRENT_USER && window.CURRENT_USER.is_admin
-                                ? '<button class="btn-sugestao" onclick="atualizarMemoriaLancamento(' + idx + ')" title="Atualizar esta memorizacao com a classificacao corrigida (administrador)" style="background:#dbeafe">✏️🧠</button>'
+                                ? '<button class="btn-sugestao" onclick="atualizarMemoriaLancamento(' + idx + ')" title="Atualizar esta memorizacao com a classificacao corrigida (administrador)" style="background:#e0efff">✏️🧠</button>'
                                 : (e._memorizado ? '<span title="Padrao memorizado/aplicado" style="font-size:14px">🧠</span>' : '')}
                             <button class="btn-sugestao" onclick="removeEntry(${idx})" ${atributoBloqueio || 'title="Remover"'}>🗑️</button>
                         </td>
@@ -19828,7 +19833,7 @@
                     '<td style="min-width:220px"><input id="memHist_' + hash + '" value="' + escaparHtmlMemoria(hist) + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:7px"></td>' +
                     '<td style="font-size:12px;color:#64748b">' + escaparHtmlMemoria(item.vezes_usado || 0) + ' uso(s)</td>' +
                     '<td style="font-size:11px;color:#64748b;min-width:150px"><strong>Auditável</strong><br>' + escaparHtmlMemoria(auditoriaTexto) + '<br>' + escaparHtmlMemoria(auditoriaEmail) + '</td>' +
-                    '<td style="white-space:nowrap"><button onclick="salvarMemoriaEmpresa(\'' + hash + '\')" style="padding:8px 10px;border:none;border-radius:7px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer">Salvar</button> ' +
+                    '<td style="white-space:nowrap"><button onclick="salvarMemoriaEmpresa(\'' + hash + '\')" style="padding:8px 10px;border:none;border-radius:7px;background:#0071e3;color:#fff;font-weight:800;cursor:pointer">Salvar</button> ' +
                     '<button onclick="excluirMemoriaEmpresa(\'' + hash + '\')" style="padding:8px 10px;border:none;border-radius:7px;background:#fee2e2;color:#991b1b;font-weight:800;cursor:pointer">Excluir</button></td>' +
                 '</tr>';
             }).join('');
@@ -21564,7 +21569,7 @@ Responda APENAS JSON valido, sem texto antes/depois:
             }
             const antigo = document.getElementById('modalMercadoPago');
             if (antigo) antigo.remove();
-            const html = '<div id="modalMercadoPago" style="display:flex;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10000;align-items:center;justify-content:center;padding:20px">' +
+            const html = '<div id="modalMercadoPago" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;align-items:center;justify-content:center;padding:20px">' +
                 '<div style="background:#fff;border-radius:14px;padding:24px;max-width:760px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.28)">' +
                 '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px">' +
                 '<div><h3 style="margin:0;color:#111827;font-size:22px">🟦 Mercado Pago</h3><p style="margin:6px 0 0;color:#64748b;font-size:14px">Vincule a conta do cliente ou importe o relatório Account Money exportado pelo Mercado Pago.</p></div>' +
@@ -21572,14 +21577,14 @@ Responda APENAS JSON valido, sem texto antes/depois:
                 '</div>' +
                 '<div id="mpStatusBox" style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:14px;color:#334155">Consultando vínculo...</div>' +
                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">' +
-                '<button id="mpOAuthBtn" onclick="conectarMercadoPago()" style="padding:12px 14px;background:#2563eb;color:white;border:0;border-radius:10px;font-weight:700;cursor:pointer">Conectar via OAuth</button>' +
+                '<button id="mpOAuthBtn" onclick="conectarMercadoPago()" style="padding:12px 14px;background:#0071e3;color:white;border:0;border-radius:10px;font-weight:700;cursor:pointer">Conectar via OAuth</button>' +
                 '<button id="mpAutomaticoBtn" onclick="solicitarRelatorioMercadoPago()" style="padding:12px 14px;background:#0f172a;color:white;border:0;border-radius:10px;font-weight:700;cursor:pointer">Solicitar relatório automático</button>' +
                 '</div>' +
-                '<div style="border:1px solid #dbeafe;background:#eff6ff;border-radius:10px;padding:14px;margin-bottom:14px">' +
-                '<div style="font-weight:800;color:#1e3a8a;margin-bottom:8px">Importar relatório já baixado</div>' +
+                '<div style="border:1px solid #e0efff;background:#f0f7ff;border-radius:10px;padding:14px;margin-bottom:14px">' +
+                '<div style="font-weight:800;color:#003e7a;margin-bottom:8px">Importar relatório já baixado</div>' +
                 '<div style="display:grid;grid-template-columns:1fr 220px;gap:12px;align-items:end">' +
-                '<div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Arquivo CSV/XLSX do Mercado Pago</label><input id="mpReportFile" type="file" accept=".csv,.txt,.xlsx,.xls" style="width:100%;padding:10px;background:#fff;border:1px solid #bfdbfe;border-radius:8px"></div>' +
-                '<div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Valor de importação</label><select id="mpBaseValor" style="width:100%;padding:10px;background:#fff;border:1px solid #bfdbfe;border-radius:8px"><option value="liquido">Líquido recebido/pago</option><option value="bruto_com_taxa">Bruto + tarifa separada</option></select></div>' +
+                '<div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Arquivo CSV/XLSX do Mercado Pago</label><input id="mpReportFile" type="file" accept=".csv,.txt,.xlsx,.xls" style="width:100%;padding:10px;background:#fff;border:1px solid #b8dcff;border-radius:8px"></div>' +
+                '<div><label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">Valor de importação</label><select id="mpBaseValor" style="width:100%;padding:10px;background:#fff;border:1px solid #b8dcff;border-radius:8px"><option value="liquido">Líquido recebido/pago</option><option value="bruto_com_taxa">Bruto + tarifa separada</option></select></div>' +
                 '</div>' +
                 '<button onclick="processarRelatorioMercadoPagoLocal()" style="margin-top:12px;padding:12px 16px;background:#059669;color:white;border:0;border-radius:10px;font-weight:800;cursor:pointer">Gerar prévia no importador</button>' +
                 '</div>' +
@@ -21673,19 +21678,19 @@ Responda APENAS JSON valido, sem texto antes/depois:
         }
         
         // Console log
-        console.log('%cCONSULTOR CONTÁBIL INTELIGENTE', 'color:#3b82f6;font-weight:bold;font-size:16px');
+        console.log('%cCONSULTOR CONTÁBIL INTELIGENTE', 'color:#0a84ff;font-weight:bold;font-size:16px');
     </script>
 
 <!-- Modal Dados Cadastrais e Matriz/Filial -->
-<div id="dadosCadastraisEmpresaModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.68);z-index:10020;align-items:center;justify-content:center;padding:18px">
-  <div style="background:#fff;border-radius:16px;width:min(1120px,97vw);max-height:94vh;overflow:auto;box-shadow:0 28px 80px rgba(15,23,42,.38)">
+<div id="dadosCadastraisEmpresaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:10020;align-items:center;justify-content:center;padding:18px">
+  <div style="background:#fff;border-radius:16px;width:min(1120px,97vw);max-height:94vh;overflow:auto;box-shadow:0 28px 80px rgba(0,0,0,.38)">
     <div style="padding:20px 24px 14px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:16px;align-items:flex-start;position:sticky;top:0;background:#fff;z-index:2">
       <div><h3 style="margin:0;color:#0f172a;font-size:21px">🏛️ Dados da Empresa</h3><p id="cadEmpCabecalho" style="margin:5px 0 0;color:#64748b;font-size:13px">Cadastro oficial do CCI e estrutura matriz/filial.</p></div>
       <button type="button" onclick="fecharDadosCadastraisEmpresa()" style="border:0;background:#f1f5f9;border-radius:9px;width:38px;height:38px;font-size:20px;cursor:pointer;color:#475569">×</button>
     </div>
     <div style="padding:18px 24px 24px">
       <div style="display:flex;gap:8px;border-bottom:1px solid #e2e8f0;margin-bottom:18px">
-        <button id="cadEmpAbaDadosBtn" type="button" onclick="selecionarAbaCadastroEmpresa('dados')" style="padding:11px 16px;border:0;border-bottom:3px solid #2563eb;background:#eff6ff;color:#1d4ed8;font-weight:800;cursor:pointer">Informações cadastrais</button>
+        <button id="cadEmpAbaDadosBtn" type="button" onclick="selecionarAbaCadastroEmpresa('dados')" style="padding:11px 16px;border:0;border-bottom:3px solid #0071e3;background:#f0f7ff;color:#0066cc;font-weight:800;cursor:pointer">Informações cadastrais</button>
         <button id="cadEmpAbaEstruturaBtn" type="button" onclick="selecionarAbaCadastroEmpresa('estrutura')" style="padding:11px 16px;border:0;border-bottom:3px solid transparent;background:#fff;color:#64748b;font-weight:800;cursor:pointer">Matriz e filiais</button>
       </div>
       <div id="cadEmpAbaDados">
@@ -21737,7 +21742,7 @@ Responda APENAS JSON valido, sem texto antes/depois:
         </div>
       </div>
       <div id="cadEmpAbaEstrutura" style="display:none">
-        <div style="padding:14px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;color:#1e3a8a;font-size:13px;margin-bottom:16px">O vínculo é cadastral e único: uma filial aponta diretamente para sua matriz principal. O CCI bloqueia auto vínculo, ciclos e matriz que já esteja cadastrada como filial.</div>
+        <div style="padding:14px;border:1px solid #b8dcff;background:#f0f7ff;border-radius:10px;color:#003e7a;font-size:13px;margin-bottom:16px">O vínculo é cadastral e único: uma filial aponta diretamente para sua matriz principal. O CCI bloqueia auto vínculo, ciclos e matriz que já esteja cadastrada como filial.</div>
         <div style="display:grid;grid-template-columns:240px 1fr;gap:14px;align-items:end;margin-bottom:18px">
           <div><label class="cad-empresa-label">Tipo de estabelecimento</label><select id="cadEmpTipoEstabelecimento" class="cad-empresa-input" onchange="atualizarCamposMatrizFilial()"><option value="MATRIZ">Matriz</option><option value="FILIAL">Filial</option></select></div>
           <div id="cadEmpMatrizBox"><label class="cad-empresa-label">Matriz principal</label><select id="cadEmpMatrizCnpj" class="cad-empresa-input"><option value="">Selecione a matriz</option></select></div>
@@ -21747,21 +21752,21 @@ Responda APENAS JSON valido, sem texto antes/depois:
       <div id="cadEmpMensagem" style="min-height:20px;margin-top:14px;font-size:13px;font-weight:700"></div>
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:12px;padding-top:14px;border-top:1px solid #e2e8f0">
         <button type="button" onclick="fecharDadosCadastraisEmpresa()" style="padding:10px 17px;border:0;border-radius:8px;background:#e2e8f0;color:#334155;font-weight:800;cursor:pointer">Cancelar</button>
-        <button id="cadEmpSalvarBtn" type="button" onclick="salvarDadosCadastraisEmpresa()" style="padding:10px 17px;border:0;border-radius:8px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer">Salvar cadastro</button>
+        <button id="cadEmpSalvarBtn" type="button" onclick="salvarDadosCadastraisEmpresa()" style="padding:10px 17px;border:0;border-radius:8px;background:#0071e3;color:#fff;font-weight:800;cursor:pointer">Salvar cadastro</button>
       </div>
     </div>
   </div>
 </div>
 <style>
-  .cad-empresa-label{display:block;font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px}
-  .cad-empresa-input{box-sizing:border-box;width:100%;padding:10px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a;font-size:13px}
-  .cad-cnpj-botao{background:#2563eb;color:#fff;border:0;border-radius:8px;padding:9px 12px;cursor:pointer;font-weight:700}
+  .cad-empresa-label{display:block;font-size:11px;font-weight:800;color:#6e6e73;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px}
+  .cad-empresa-input{box-sizing:border-box;width:100%;padding:10px 11px;border:1px solid #d2d2d7;border-radius:8px;background:#fff;color:#1c1c1e;font-size:13px}
+  .cad-cnpj-botao{background:#0071e3;color:#fff;border:0;border-radius:8px;padding:9px 12px;cursor:pointer;font-weight:700}
   .cad-cnpj-botao:disabled{opacity:.5;cursor:default}
-  .cad-cnpj-previa{padding:16px;border:1px solid #93c5fd;border-radius:10px;background:#eff6ff;margin:12px 0;font-size:13px;color:#0f172a;overflow-wrap:anywhere}
-  .cad-cnpj-diferenca{display:flex;gap:10px;padding:9px 0;border-top:1px solid #dbeafe;align-items:flex-start}
+  .cad-cnpj-previa{padding:16px;border:1px solid #84c1ff;border-radius:10px;background:#f0f7ff;margin:12px 0;font-size:13px;color:#1c1c1e;overflow-wrap:anywhere}
+  .cad-cnpj-diferenca{display:flex;gap:10px;padding:9px 0;border-top:1px solid #e0efff;align-items:flex-start}
   .cad-cnpj-diferenca span span,.cad-cnpj-diferenca strong{display:block}
-  .cad-cnpj-antes{color:#64748b;margin:3px 0}
-  .cad-empresa-input:focus{outline:2px solid #bfdbfe;border-color:#2563eb}
+  .cad-cnpj-antes{color:#6e6e73;margin:3px 0}
+  .cad-empresa-input:focus{outline:2px solid #b8dcff;border-color:#0071e3}
 </style>
 <script>
 const CAMPOS_CADASTRO_EMPRESA_UI = {
@@ -21858,9 +21863,9 @@ function selecionarAbaCadastroEmpresa(aba) {
   ['Dados','Estrutura'].forEach(function(nome) {
     const ativo = (nome === 'Estrutura') === estrutura;
     const btn = document.getElementById('cadEmpAba' + nome + 'Btn');
-    btn.style.borderBottomColor = ativo ? '#2563eb' : 'transparent';
-    btn.style.background = ativo ? '#eff6ff' : '#fff';
-    btn.style.color = ativo ? '#1d4ed8' : '#64748b';
+    btn.style.borderBottomColor = ativo ? '#0071e3' : 'transparent';
+    btn.style.background = ativo ? '#f0f7ff' : '#fff';
+    btn.style.color = ativo ? '#0066cc' : '#64748b';
   });
 }
 function atualizarCamposMatrizFilial() {
@@ -21977,7 +21982,7 @@ async function salvarDadosCadastraisEmpresa() {
     <div id="vinpMsg" style="font-size:13px;margin-bottom:12px;color:#dc2626"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button onclick="fecharVincularPlanoModal()" style="padding:10px 16px;background:#e5e7eb;color:#111827;border:none;border-radius:6px;cursor:pointer;font-size:14px">Cancelar</button>
-      <button id="btnConfirmarVinculoPlano" onclick="confirmarVincularPlano()" style="padding:10px 16px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">Vincular</button>
+      <button id="btnConfirmarVinculoPlano" onclick="confirmarVincularPlano()" style="padding:10px 16px;background:#0a84ff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">Vincular</button>
     </div>
   </div>
 </div>
@@ -22001,7 +22006,7 @@ async function abrirVincularPlanoModalComGenericos(opcoes) {
     : 'Vincule o cadastro a um plano de contas existente.';
   document.getElementById('btnConfirmarVinculoPlano').textContent = novoCadastro ? 'Cadastrar empresa' : 'Vincular';
   document.getElementById('vinpMsg').innerHTML = novoCadastro
-    ? '<span style="color:#1d4ed8">Preencha o cadastro e escolha o plano de contas. A empresa não será ativada automaticamente.</span>'
+    ? '<span style="color:#0066cc">Preencha o cadastro e escolha o plano de contas. A empresa não será ativada automaticamente.</span>'
     : '<span style="color:#059669">✨ Escolha um plano generico (sem empresa especifica) ou vincule um existente.</span>';
   const sel = document.getElementById('vinpPlano');
   sel.innerHTML = '<option value="">Carregando...</option>';
@@ -22190,8 +22195,8 @@ async function confirmarVincularPlano() {
     <script src="parser-extrato-rave.js"></script>
 
 <!-- Modal memoria empresa -->
-<div id="modalMemoriaEmpresa" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.65);z-index:10000;align-items:center;justify-content:center;padding:20px">
-  <div style="background:#fff;border-radius:12px;box-shadow:0 24px 70px rgba(15,23,42,0.35);width:min(1180px,96vw);max-height:92vh;overflow:auto">
+<div id="modalMemoriaEmpresa" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);z-index:10000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,0.35);width:min(1180px,96vw);max-height:92vh;overflow:auto">
     <div style="padding:22px 24px 12px;border-bottom:1px solid #e5e7eb;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
       <div>
         <h3 style="margin:0;color:#111827;font-size:20px;font-weight:800">🧠 Memória da Empresa</h3>
@@ -22226,8 +22231,8 @@ async function confirmarVincularPlano() {
 </div>
 
 <!-- Modal alteracao em lote -->
-<div id="modalAlterarSelecionados" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.72);z-index:10001;align-items:center;justify-content:center;padding:20px">
-  <div style="background:#fff;border-radius:12px;box-shadow:0 24px 70px rgba(15,23,42,0.35);width:min(760px,96vw);max-height:92vh;overflow:auto">
+<div id="modalAlterarSelecionados" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.72);z-index:10001;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,0.35);width:min(760px,96vw);max-height:92vh;overflow:auto">
     <div style="padding:22px 24px 14px;border-bottom:1px solid #e5e7eb;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
       <div>
         <h3 style="margin:0;color:#111827;font-size:20px;font-weight:800">✏️ Alterar selecionados</h3>
@@ -22236,7 +22241,7 @@ async function confirmarVincularPlano() {
       <button aria-label="Fechar alteração em lote" onclick="fecharModalAlterarSelecionados()" style="border:none;background:#f1f5f9;color:#475569;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:18px">×</button>
     </div>
     <div style="padding:20px 24px">
-      <div id="bulkAlteracaoAviso" style="padding:11px 13px;margin-bottom:16px;border-radius:8px;background:#eff6ff;color:#1e40af;font-size:12px;font-weight:700"></div>
+      <div id="bulkAlteracaoAviso" style="padding:11px 13px;margin-bottom:16px;border-radius:8px;background:#f0f7ff;color:#00509f;font-size:12px;font-weight:700"></div>
       <p style="margin:0 0 14px;color:#475569;font-size:13px">Marque somente os campos que deseja aplicar. Campos não marcados permanecerão inalterados.</p>
       <div style="display:grid;grid-template-columns:minmax(180px,220px) 1fr;gap:12px;align-items:center">
         <label style="display:flex;align-items:center;gap:8px;color:#334155;font-size:13px;font-weight:700"><input id="bulkCampoContaDebito" type="checkbox"> Conta débito</label>
@@ -22249,22 +22254,22 @@ async function confirmarVincularPlano() {
         <input id="bulkValorHistorico" type="text" placeholder="Texto do histórico" oninput="sincronizarCampoAlteracaoLote('Historico')" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
       </div>
       <div style="margin-top:18px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:8px;color:#64748b;font-size:12px"><strong>Proteção:</strong> data, valor, descrição e documento nunca são alterados por esta operação. Para aplicar contas, todos os itens devem ser somente débitos ou somente créditos.</div>
-      <div id="bulkAtualizarMemoriaBloco" style="display:none;margin-top:12px;padding:12px 14px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:12px">
+      <div id="bulkAtualizarMemoriaBloco" style="display:none;margin-top:12px;padding:12px 14px;border:1px solid #b8dcff;border-radius:8px;background:#f0f7ff;color:#003e7a;font-size:12px">
         <label style="display:flex;align-items:flex-start;gap:9px;font-weight:800;cursor:pointer"><input id="bulkAtualizarMemoria" type="checkbox" style="margin-top:2px"> Atualizar também a memória da empresa</label>
         <div id="bulkAtualizarMemoriaTexto" style="margin:6px 0 0 25px;line-height:1.45"></div>
         <div style="margin:5px 0 0 25px;color:#475569">Função administrativa e auditável. Contas, código IOB e histórico corrigidos passam a valer nas próximas importações das mesmas descrições.</div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #e5e7eb;padding-top:16px;margin-top:18px">
         <button onclick="fecharModalAlterarSelecionados()" style="padding:11px 18px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Cancelar</button>
-        <button onclick="aplicarAlteracaoSelecionados()" style="padding:11px 18px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer">Aplicar alterações</button>
+        <button onclick="aplicarAlteracaoSelecionados()" style="padding:11px 18px;background:#0071e3;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer">Aplicar alterações</button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Modal lancamento manual -->
-<div id="modalLancamentoManual" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.65);z-index:10000;align-items:center;justify-content:center;padding:20px">
-  <div class="manual-entry-modal-panel" style="background:#fff;border-radius:12px;box-shadow:0 24px 70px rgba(15,23,42,0.35);width:min(720px,96vw);max-height:92vh;overflow:auto">
+<div id="modalLancamentoManual" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);z-index:10000;align-items:center;justify-content:center;padding:20px">
+  <div class="manual-entry-modal-panel" style="background:#fff;border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,0.35);width:min(720px,96vw);max-height:92vh;overflow:auto">
     <div class="manual-entry-modal-header" style="padding:22px 24px 12px;border-bottom:1px solid #e5e7eb;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
       <div>
         <h3 id="lmTitulo" style="margin:0;color:#111827;font-size:20px;font-weight:800"><span class="manual-entry-title-icon" aria-hidden="true">＋</span> Incluir Lançamento Manual</h3>
@@ -22305,14 +22310,14 @@ async function confirmarVincularPlano() {
         </div>
       </div>
       <div id="lmCamposMultiplos" style="margin-bottom:14px">
-        <div style="padding:12px 14px;margin-bottom:12px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:9px;color:#1e3a8a;font-size:12px;line-height:1.45">
+        <div style="padding:12px 14px;margin-bottom:12px;border:1px solid #b8dcff;background:#f0f7ff;border-radius:9px;color:#003e7a;font-size:12px;line-height:1.45">
           Inclua todas as contas e os valores de cada lado. O sistema desdobra as partidas para o arquivo contábil e só permite salvar quando Débitos = Créditos.
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
           <section style="padding:13px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">
               <strong style="font-size:12px;text-transform:uppercase;color:#475569">Partidas a débito</strong>
-              <button type="button" onclick="adicionarPartidaManual('debito')" style="padding:7px 9px;border:1px solid #93c5fd;background:#fff;color:#1d4ed8;border-radius:7px;font-size:12px;font-weight:800;cursor:pointer">+ Conta débito</button>
+              <button type="button" onclick="adicionarPartidaManual('debito')" style="padding:7px 9px;border:1px solid #84c1ff;background:#fff;color:#0066cc;border-radius:7px;font-size:12px;font-weight:800;cursor:pointer">+ Conta débito</button>
             </div>
             <div id="lmPartidasDebito" style="display:grid;gap:8px"></div>
             <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:#475569"><span>Total débitos</span><strong id="lmTotalDebitos">R$ 0,00</strong></div>
@@ -22320,7 +22325,7 @@ async function confirmarVincularPlano() {
           <section style="padding:13px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">
               <strong style="font-size:12px;text-transform:uppercase;color:#475569">Partidas a crédito</strong>
-              <button type="button" onclick="adicionarPartidaManual('credito')" style="padding:7px 9px;border:1px solid #93c5fd;background:#fff;color:#1d4ed8;border-radius:7px;font-size:12px;font-weight:800;cursor:pointer">+ Conta crédito</button>
+              <button type="button" onclick="adicionarPartidaManual('credito')" style="padding:7px 9px;border:1px solid #84c1ff;background:#fff;color:#0066cc;border-radius:7px;font-size:12px;font-weight:800;cursor:pointer">+ Conta crédito</button>
             </div>
             <div id="lmPartidasCredito" style="display:grid;gap:8px"></div>
             <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:#475569"><span>Total créditos</span><strong id="lmTotalCreditos">R$ 0,00</strong></div>
@@ -22344,7 +22349,7 @@ async function confirmarVincularPlano() {
       </label>
       <div class="manual-entry-modal-actions" style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #e5e7eb;padding-top:16px">
         <button class="manual-entry-cancel" onclick="fecharModalLancamentoManual()" style="padding:11px 18px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Cancelar</button>
-        <button id="lmSalvar" onclick="salvarLancamentoManual()" style="padding:11px 18px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer">Salvar lançamento</button>
+        <button id="lmSalvar" onclick="salvarLancamentoManual()" style="padding:11px 18px;background:#0071e3;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer">Salvar lançamento</button>
       </div>
     </div>
   </div>
@@ -22368,7 +22373,7 @@ async function confirmarVincularPlano() {
 <!-- [A3] Modal conta manual (fallback quando parser nao detecta) -->
 <div id="modalContaManual" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center">
   <div style="background:white;max-width:460px;width:92%;padding:24px;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-    <h3 style="margin:0 0 12px;color:#2563eb;font-size:18px">🏦 Conta bancária</h3>
+    <h3 style="margin:0 0 12px;color:#0071e3;font-size:18px">🏦 Conta bancária</h3>
     <p style="margin:0 0 16px;color:#6b7280;font-size:13px">O parser não identificou a conta. Informe manualmente:</p>
     <div style="margin-bottom:12px">
       <label style="display:block;margin-bottom:4px;color:#374151;font-weight:600;font-size:13px">Banco</label>
@@ -22385,7 +22390,7 @@ async function confirmarVincularPlano() {
     <div id="cmErro" style="color:#dc2626;font-size:13px;margin-bottom:8px;min-height:18px"></div>
     <div style="display:flex;gap:8px">
       <button onclick="cmAcao('cancelar')" style="flex:1;padding:12px;background:#e5e7eb;border:none;border-radius:8px;font-weight:600;cursor:pointer">Cancelar</button>
-      <button onclick="cmAcao('confirmar')" style="flex:1;padding:12px;background:#2563eb;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer">Confirmar</button>
+      <button onclick="cmAcao('confirmar')" style="flex:1;padding:12px;background:#0071e3;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer">Confirmar</button>
     </div>
   </div>
 </div>
@@ -22634,7 +22639,7 @@ window.confirmarTrocarPlano = async function() {
   })();
 </script>
     <!-- ===== VERSAO E POPUP DE ATUALIZACAO (auto-injetado) ===== -->
-    <div id="versionModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:99999;backdrop-filter:blur(2px);align-items:center;justify-content:center">
+    <div id="versionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;backdrop-filter:blur(2px);align-items:center;justify-content:center">
         <div style="background:#fff;border-radius:14px;max-width:520px;width:90%;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center">
             <div style="font-size:48px;margin-bottom:8px">🚀</div>
             <h2 id="versionModalTitle" style="margin:0 0 8px;color:#0f172a;font-size:22px;font-weight:700">Nova versao disponivel</h2>
@@ -22643,7 +22648,7 @@ window.confirmarTrocarPlano = async function() {
             <div id="versionModalNotes" style="text-align:left;background:#f8fafc;border-radius:8px;padding:14px;margin-bottom:24px;max-height:240px;overflow-y:auto;font-size:13px;color:#334155;line-height:1.5"></div>
             <div style="display:flex;gap:10px;align-items:center;justify-content:center">
                 <button id="versionModalLater" style="background:#e2e8f0;color:#334155;border:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;min-width:140px">Depois</button>
-                <button id="versionModalReload" style="background:#2563eb;color:#fff;border:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;min-width:180px">Atualizar agora</button>
+                <button id="versionModalReload" style="background:#0071e3;color:#fff;border:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;min-width:180px">Atualizar agora</button>
             </div>
             <p id="versionModalHint" style="margin:14px 0 0;color:#94a3b8;font-size:11px">Ao atualizar agora, a sessao sera salva antes do recarregamento.</p>
         </div>
@@ -22651,7 +22656,7 @@ window.confirmarTrocarPlano = async function() {
     <div id="versionFooter" style="position:fixed;bottom:8px;right:12px;font-size:10px;color:#94a3b8;font-family:system-ui,sans-serif;z-index:1000;pointer-events:none;user-select:none"></div>
     <script>
         (function() {
-            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.382';
+            const _VERSAO_BUILD = window.__PLANO_CONTAS_IOB_BUILD__ || '3.4.383';
             let _versaoAtual = _VERSAO_BUILD;
             const _VERSAO_VISTA_KEY = 'plano_contas_iob_versao_vista';
             const _VERSAO_ADIADA_KEY = 'plano_contas_iob_versao_adiada';
@@ -23986,7 +23991,7 @@ window.confirmarTrocarPlano = async function() {
                 }, 0);
                 var badge = a.isMatriz
                     ? '<span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:12px;font-weight:700;font-size:11px">MATRIZ</span>'
-                    : '<span style="background:#dbeafe;color:#1e40af;padding:2px 10px;border-radius:12px;font-weight:700;font-size:11px">FILIAL</span>';
+                    : '<span style="background:#e0efff;color:#00509f;padding:2px 10px;border-radius:12px;font-weight:700;font-size:11px">FILIAL</span>';
                 var statusMovimento = divergenciasMovimento.length
                     ? '<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px">ERRO: ' +
                         divergenciasMovimento.length + ' conta(s) / ' + camposDivergentes + ' campo(s)</span>'
@@ -24227,7 +24232,7 @@ window.confirmarTrocarPlano = async function() {
                 res.innerHTML = '✅ <strong>' + r.stats.linhas.toLocaleString('pt-BR') + '</strong> linhas | <strong>' +
                     r.stats.lancamentos.toLocaleString('pt-BR') + '</strong> lançamentos únicos | Ativo <strong>R$ ' + E.fmt(r.stats.ativo) +
                     '</strong> x Passivo <strong>R$ ' + E.fmt(r.stats.passivo) + '</strong> | ' + (filiais.length) + ' filial(is) aglutinada(s)' +
-                    (st.ecdAnterior ? '<div style="margin-top:8px;background:#eef2ff;color:#3730a3;padding:8px;border-radius:6px">ECD anterior usada na validação: ' + st.ecdAnterior.nomeArquivo + '</div>' :
+                    (st.ecdAnterior ? '<div style="margin-top:8px;background:#f0f7ff;color:#00509f;padding:8px;border-radius:6px">ECD anterior usada na validação: ' + st.ecdAnterior.nomeArquivo + '</div>' :
                         (exigeAnterior ? '<div style="margin-top:8px;background:#fffbeb;color:#92400e;padding:8px;border-radius:6px">ECD anterior não importada: a abertura do período não foi comparada com o encerramento anterior.</div>' :
                         '<div style="margin-top:8px;background:#ecfdf5;color:#065f46;padding:8px;border-radius:6px">ECD anterior dispensada: o registro |0000| identifica abertura ou início de obrigatoriedade.</div>')) +
                     (r.avisos.length ? '<div style="margin-top:8px;background:#fef3c7;color:#92400e;padding:8px;border-radius:6px">' + r.avisos.map(function(x){ return '⚠️ ' + x; }).join('<br>') + '</div>' : '');
@@ -24329,7 +24334,7 @@ window.confirmarTrocarPlano = async function() {
                         '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:center">' + ((m.arquivos || []).length) + '</td>' +
                         '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:center">' + val + '</td>' +
                         '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:center">' + dt + '</td>' +
-                        '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:center"><button onclick="ecdecfReabrir(\'' + m.cnpj + '\')" style="padding:4px 10px;background:#2563eb;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px">🔄 Revalidar</button></td></tr>';
+                        '<td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:center"><button onclick="ecdecfReabrir(\'' + m.cnpj + '\')" style="padding:4px 10px;background:#0071e3;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px">🔄 Revalidar</button></td></tr>';
                 }).join('');
             } catch (e){
                 if (cEl) cEl.textContent = '0';
@@ -24370,10 +24375,10 @@ window.confirmarTrocarPlano = async function() {
                 var pct = Math.max(6, Math.round(r.qtd / max * 100));
                 var nome = r.email.split('@')[0];
                 var destaque = r.email === euMesmo;
-                return '<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #f3f4f6' + (destaque ? ';background:#eff6ff;border-radius:6px' : '') + '">' +
+                return '<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #f3f4f6' + (destaque ? ';background:#f0f7ff;border-radius:6px' : '') + '">' +
                     '<span style="width:32px;text-align:center;font-size:' + (i < 3 ? '18' : '13') + 'px;font-weight:700;color:#6b7280">' + (medalhas[i] || (i + 1) + 'º') + '</span>' +
                     '<span style="min-width:160px;font-size:13px;font-weight:' + (destaque ? '800' : '600') + ';color:#111827">' + nome + (destaque ? ' (você)' : '') + '</span>' +
-                    '<div style="flex:1;background:#f3f4f6;border-radius:10px;height:14px;overflow:hidden"><div style="width:' + pct + '%;height:100%;border-radius:10px;background:' + (i === 0 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : '#2563eb') + '"></div></div>' +
+                    '<div style="flex:1;background:#f3f4f6;border-radius:10px;height:14px;overflow:hidden"><div style="width:' + pct + '%;height:100%;border-radius:10px;background:' + (i === 0 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : '#0071e3') + '"></div></div>' +
                     '<span style="width:90px;text-align:right;font-size:13px;font-weight:800;color:#059669">' + r.qtd + ' ECF' + (r.qtd > 1 ? 's' : '') + '</span></div>';
             }).join('');
         }
