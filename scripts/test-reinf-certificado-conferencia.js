@@ -13,7 +13,8 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const forge = require('node-forge');
+const { createHash, X509Certificate } = require('crypto');
+const { criarCertificadoTeste } = require('./helpers/certificado-teste');
 const { conferirCertificado } = require('../reinf/certificado-conferencia');
 const { metadados } = require('../reinf/cert-loader');
 const { montarUrlCadastroCfi } = require('../reinf/cfi-notas-client');
@@ -40,23 +41,21 @@ const doCfi = (over = {}) => ({
 // Se este teste cair, a conferência inteira vira ruído: hashes diferentes do
 // MESMO arquivo acusariam certificados distintos.
 (() => {
-  const chaves = forge.pki.rsa.generateKeyPair(512);
-  const cert = forge.pki.createCertificate();
-  cert.publicKey = chaves.publicKey;
-  cert.serialNumber = '01';
-  cert.validity.notBefore = new Date('2026-01-01T00:00:00Z');
-  cert.validity.notAfter = new Date('2027-01-01T00:00:00Z');
-  const attrs = [{ name: 'commonName', value: 'SP ASSESSORIA CONTABIL LTDA:44388152000189' }];
-  cert.setSubject(attrs); cert.setIssuer(attrs);
-  cert.sign(chaves.privateKey);
-  const pem = forge.pki.certificateToPem(cert);
+  const { pemCert: pem } = criarCertificadoTeste({
+    cn: 'SP ASSESSORIA CONTABIL LTDA:44388152000189',
+    notBefore: new Date('2026-01-01T00:00:00Z'),
+    notAfter: new Date('2027-01-01T00:00:00Z'),
+    modulusLength: 1024,
+  });
 
   const m = metadados(pem);
 
-  // Réplica EXATA do cálculo do CFI (sefaz-backend/cert-storage.js).
-  const md = forge.md.sha256.create();
-  md.update(forge.asn1.toDer(forge.pki.certificateToAsn1(forge.pki.certificateFromPem(pem))).getBytes());
-  assert.strictEqual(m.fingerprint, md.digest().toHex(),
+  // Réplica EXATA do cálculo do CFI (sefaz-backend/cert-storage.js): SHA-256
+  // dos bytes DER do certificado, em hexa minúsculo.
+  const der = Buffer.from(pem.replace(/-----[^-]+-----|\s+/g, ''), 'base64');
+  const md = createHash('sha256').update(der).digest('hex');
+  assert.deepStrictEqual(new X509Certificate(pem).raw, der, 'o DER lido do PEM é o próprio certificado');
+  assert.strictEqual(m.fingerprint, md,
     'o fingerprint daqui tem que bater com o cálculo do CFI — senão a comparação não significa nada');
 
   assert.strictEqual(m.cnpj, '44388152000189', 'o CNPJ sai do PRÓPRIO certificado, não de constante');
