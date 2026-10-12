@@ -1866,3 +1866,8 @@ Provedor Graph inclui agenda .ics com data informada ou rotulada no texto do PDF
 - A tabela gerava todos os registros e campos editáveis de uma vez, inclusive nas atualizações após salvar. Agora limita DOM a 100 linhas por página; mantém filtros/totais/seleções/exportações integrais e índices originais para edição. Filtros/empresa reiniciam página e redução da lista ajusta limite.
 - Teste executa handler real com 27.906 registros, verifica páginas, agosto, última página, lista vazia, seleção, índices e imutabilidade. Navegador local com cópia integral real confirmou 446 em agosto e navegação 101–200, sem gravação.
 - Dados financeiros não foram alterados. Validação local isolada não substitui confirmação na sessão de Matheus após atualizar.
+
+
+## 12/10/2026 — DARF pago pela Receita: consulta, conferência e baixa
+
+Consulta PAGTOWEB via rota exclusiva do CFI, com confirmação de carteira pelo backend CCI. Prévia usa fonte guardada no servidor (30 minutos, por usuário e empresa), valida plano e competência da arrecadação, mostra correspondências e bloqueia duplicidade. Baixa explícita usa trava e histórico da sessão, revalida a prévia e grava identidade do documento atomicamente. Contas exigem indicação explícita do plano. Ausência fica em branco; simulação, soma divergente e desmembramento incompleto bloqueiam. Coleções por empresa: pagamentos_receita_consultas, pagamentos_receita_baixas e parametros_contabeis/darf_pago. Sem publicação; PAGTOWEB e procuração ainda exigem validação operacional.

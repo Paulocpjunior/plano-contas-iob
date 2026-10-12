@@ -31,6 +31,9 @@ function acaoDaRota(method, url, body = {}) {
   if (verbo === 'POST' && /^\/api\/empresas\/[^/]+\/ativar$/.test(path)) return 'editar';
   // Geração do extrato sem envio ou persistência.
   if (verbo === 'POST' && path === '/api/reinf/dividendos/extrato') return body.enviar === true ? 'emitir' : null;
+  // Consulta oficial e prévia não alteram a escrituração; confirmar exige importação.
+  if (verbo === 'POST' && /^\/api\/empresas\/[^/]+\/pagamentos-receita\/(consultar|previa)$/.test(path)) return null;
+  if (verbo === 'POST' && /^\/api\/empresas\/[^/]+\/pagamentos-receita\/confirmar$/.test(path)) return 'importar';
   const partes = path.split('/');
   if (verbo === 'DELETE' || partes.some(p => /^(excluir|exclusao|remover|apagar|limpar)(-|$)/.test(p))) return 'excluir';
   if (partes.some(p => /^(transmitir|emitir|enviar|solicitar)(-|$)/.test(p))) return 'emitir';

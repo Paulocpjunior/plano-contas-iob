@@ -84,5 +84,6 @@
   "/server-monitor-ui.js",
   "/admin-backups-ui.js",
   "/indices-financeiros.js",
-  "/indices-financeiros-ui.js"
+  "/indices-financeiros-ui.js",
+  "/pagamentos-receita-ui.js"
 ]
