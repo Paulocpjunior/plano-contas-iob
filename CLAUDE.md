@@ -32,6 +32,7 @@ App contábil: conciliação bancária, plano de contas, ECD/ECF, exportação I
 - Quality gate: `npm run check:ci` no CI e `npm run check` local. O resumo sempre informa quantos testes foram PULADOS.
 - Não há framework de teste. Os testes são `scripts/test-*.js` com `require('assert')`. Módulo novo = teste novo registrado em três lugares do `package.json` no MESMO PR: `test:<nome>`, a lista do `node --check` e o encadeamento do `check`.
 - `npm audit --omit=dev` bloqueia só produção. Escape hatch: `[skip-audit]` no assunto do commit.
+- O robô diário exige `npm audit --audit-level=high` limpo (inclui dev). Certificado de teste sai de `scripts/helpers/certificado-teste.js` (crypto + OpenSSL), não do node-forge; o Tailwind do AuditAI roda por `npx` no `build:auditai-css`, fora do `package.json`.
 - Nunca commite marcador de conflito. Rode `node --check` antes de todo commit.
 - Nunca digite URL de Cloud Run. Derive com `gcloud run services describe <svc> --region <r> --project <p> --format='value(status.url)'`.
 

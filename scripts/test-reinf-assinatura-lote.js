@@ -1,23 +1,12 @@
 const assert = require('assert');
-const forge = require('node-forge');
+const { criarCertificadoTeste: gerarCertificado } = require('./helpers/certificado-teste');
 const { gerarTrioReinf, gerarEventosR4010DaPlanilha } = require('../reinf/reinf-utils');
 const { assinarEventoReinf, extrairIdEvento, verificarAssinaturaReinf, normalizarXmlEvento } = require('../reinf/assinador');
 const { montarLote } = require('../reinf/transmissor');
 
 function criarCertificadoTeste() {
-  const keys = forge.pki.rsa.generateKeyPair(2048);
-  const cert = forge.pki.createCertificate();
-  cert.publicKey = keys.publicKey;
-  cert.serialNumber = '01';
-  cert.validity.notBefore = new Date();
-  cert.validity.notAfter = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  cert.setSubject([{ name: 'commonName', value: 'TESTE REINF:24196949000177' }]);
-  cert.setIssuer([{ name: 'commonName', value: 'TESTE REINF:24196949000177' }]);
-  cert.sign(keys.privateKey, forge.md.sha256.create());
-  return {
-    pemKey: forge.pki.privateKeyToPem(keys.privateKey),
-    pemCert: forge.pki.certificateToPem(cert),
-  };
+  const { pemKey, pemCert } = gerarCertificado({ cn: 'TESTE REINF:24196949000177' });
+  return { pemKey, pemCert };
 }
 
 const cert = criarCertificadoTeste();

@@ -1,7 +1,8 @@
 {
-  "version": "3.4.383",
-  "build_date": "2026-10-12T16:45:33.935188+00:00",
+  "version": "3.4.384",
+  "build_date": "2026-10-12T19:05:32.159Z",
   "release_notes": [
+    "Segurança: ferramentas internas de desenvolvimento com alerta de vulnerabilidade sem correção foram retiradas do projeto. Nenhuma tela muda e nada precisa ser feito.",
     "Visual: fonte do sistema (San Francisco no Mac/iPhone, Inter nos demais), cinzas e azul no estilo Apple, barra superior translúcida, entrada com botão azul arredondado e logo oficial com favicon e ícone do iPhone. Nenhuma tela muda de lugar.",
     "DARF pago: consulta na Receita, conferência das contas e partidas, comparação com lançamentos existentes e baixa protegida pela data de arrecadação.",
     "Lançamentos: consulta paginada para evitar travamento em empresas com grande volume, preservando classificações, históricos, totais e exportações completas.",
