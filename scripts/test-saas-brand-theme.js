@@ -8,12 +8,17 @@ const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const pages = ['index.html', 'admin.html', 'auditai/index.html', 'auditai/conciliacao.html'];
 
-const logo = fs.readFileSync(path.join(root, 'sp-logo.png'));
-assert.strictEqual(logo.subarray(1, 4).toString('ascii'), 'PNG', 'O logo oficial deve ser um PNG valido.');
+// Logo oficial (12/10/2026): o mesmo arquivo do Consultor DP, com favicon e icone do iPhone gerados dele.
+// O sp-logo.png continua no repositorio para o e-mail institucional.
+['logo-sp.png', 'favicon.png', 'apple-touch-icon.png', 'sp-logo.png'].forEach((arquivo) => {
+  const png = fs.readFileSync(path.join(root, arquivo));
+  assert.strictEqual(png.subarray(1, 4).toString('ascii'), 'PNG', `${arquivo} deve ser um PNG valido.`);
+});
 
 pages.forEach((file) => {
   const html = read(file);
-  assert(html.includes('/sp-logo.png'), `${file} deve usar o logo oficial.`);
+  assert(html.includes('href="/favicon.png"'), `${file} deve usar o favicon do logo oficial.`);
+  assert(html.includes('href="/apple-touch-icon.png"'), `${file} deve ter o icone do iPhone.`);
   assert(html.includes('/saas-brand-theme.js'), `${file} deve carregar o tema compartilhado.`);
   assert(html.includes('sp_saas_theme'), `${file} deve aplicar o tema antes da pintura da pagina.`);
 });
@@ -25,12 +30,13 @@ const conciliacao = read('auditai/conciliacao-arquivos.js');
 const theme = read('saas-brand-theme.js');
 
 assert(index.includes('data-theme-toggle'), 'O CCI deve oferecer a opcao Claro/Escuro.');
-assert(index.includes('html[data-theme="dark"] .form-group label { color: #cbd5e1; }'), 'Os rotulos do login precisam manter contraste no escuro.');
+assert(index.includes('html[data-theme="dark"] .form-group label { color: #d2d2d7; }'), 'Os rotulos do login precisam manter contraste no escuro.');
+assert(index.includes('src="/logo-sp.png"') && admin.includes('src="/logo-sp.png"'), 'CCI e Admin devem mostrar o logo oficial.');
 assert(index.includes('class="manual-entry-close"'), 'O modal manual deve identificar semanticamente o botao de fechar.');
 assert(index.includes('class="manual-entry-cancel"'), 'O modal manual deve identificar semanticamente o botao de cancelar.');
 assert(index.includes('#modalLancamentoManual .manual-entry-close'), 'O botao de fechar precisa de contraste dedicado no escuro.');
 assert(index.includes('#modalLancamentoManual .manual-entry-cancel'), 'O botao de cancelar precisa de contraste dedicado no escuro.');
-assert(index.includes('background: #1e293b !important;'), 'Controles secundarios claros precisam ganhar superficie escura.');
+assert(index.includes('background: #2c2c2e !important;'), 'Controles secundarios claros precisam ganhar superficie escura.');
 assert(admin.includes('login-theme-toggle'), 'O login administrativo deve oferecer Claro/Escuro.');
 assert(audit.includes('.sp-audit-theme-toggle::after'), 'O AuditAI deve exibir o nome do tema, alem do icone.');
 assert(conciliacao.includes('data-theme-toggle'), 'A conciliacao deve oferecer Claro/Escuro.');

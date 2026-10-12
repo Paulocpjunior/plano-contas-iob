@@ -36,8 +36,8 @@
   function syncCharts(theme) {
     if (!root.Chart) return;
     const dark = theme === 'dark';
-    root.Chart.defaults.color = dark ? '#cbd5e1' : '#64748b';
-    root.Chart.defaults.borderColor = dark ? 'rgba(148,163,184,.20)' : 'rgba(100,116,139,.18)';
+    root.Chart.defaults.color = dark ? '#d2d2d7' : '#6e6e73';
+    root.Chart.defaults.borderColor = dark ? 'rgba(161,161,166,.20)' : 'rgba(110,110,115,.18)';
     const instances = root.Chart.instances || {};
     Object.keys(instances).forEach(function (key) {
       try { instances[key].update('none'); } catch (e) {}

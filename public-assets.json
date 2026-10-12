@@ -85,5 +85,9 @@
   "/admin-backups-ui.js",
   "/indices-financeiros.js",
   "/indices-financeiros-ui.js",
-  "/pagamentos-receita-ui.js"
+  "/pagamentos-receita-ui.js",
+  "/apple-touch-icon.png",
+  "/favicon.png",
+  "/logo-sp.png",
+  "/tema-apple.css"
 ]
