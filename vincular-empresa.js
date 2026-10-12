@@ -37,26 +37,26 @@
     backdrop.innerHTML = [
       '<div style="background:white;border-radius:12px;max-width:520px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3)">',
       '<h3 style="margin:0 0 4px 0;font-size:18px;color:#111">Vincular Empresa ao Plano</h3>',
-      '<p style="margin:0 0 20px 0;font-size:13px;color:#6b7280">Plano: <strong id="vincEmpPlanoNome"></strong></p>',
+      '<p style="margin:0 0 20px 0;font-size:13px;color:#6e6e73">Plano: <strong id="vincEmpPlanoNome"></strong></p>',
       '<div style="margin-bottom:14px">',
-      '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151">CNPJ <span style="color:#ef4444">*</span></label>',
+      '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#3a3a3c">CNPJ <span style="color:#ef4444">*</span></label>',
       '<div style="display:flex;gap:8px;align-items:center">',
-      '<input type="text" id="vincEmpCNPJ" placeholder="00.000.000/0000-00" maxlength="18" style="flex:1;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px" autocomplete="off">',
+      '<input type="text" id="vincEmpCNPJ" placeholder="00.000.000/0000-00" maxlength="18" style="flex:1;padding:10px 12px;border:1px solid #d2d2d7;border-radius:6px;font-size:14px" autocomplete="off">',
       '<span id="vincEmpCNPJStatus" style="font-size:20px;width:28px;text-align:center"></span>',
       '</div>',
-      '<p style="margin:4px 0 0 0;font-size:11px;color:#9ca3af">14 dígitos. Razão social consultada na Receita Federal automaticamente.</p>',
+      '<p style="margin:4px 0 0 0;font-size:11px;color:#a1a1a6">14 dígitos. Razão social consultada na Receita Federal automaticamente.</p>',
       '</div>',
       '<div style="margin-bottom:16px">',
-      '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151">Razão Social <span style="color:#ef4444">*</span></label>',
-      '<input type="text" id="vincEmpRazao" placeholder="(preenchido automaticamente)" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px" disabled>',
+      '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#3a3a3c">Razão Social <span style="color:#ef4444">*</span></label>',
+      '<input type="text" id="vincEmpRazao" placeholder="(preenchido automaticamente)" style="width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:6px;font-size:14px" disabled>',
       '</div>',
       '<div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-bottom:16px">',
-      '<div><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151">Nº da empresa</label><input type="text" id="vincEmpCodigo" inputmode="numeric" maxlength="4" placeholder="0001" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px"><p style="margin:4px 0 0;font-size:11px;color:#9ca3af">Código de 0001 a 9999.</p></div>',
-      '<div><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151">WhatsApp API</label><input type="tel" id="vincEmpWhatsapp" placeholder="(11) 91234-5678" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px"><p style="margin:4px 0 0;font-size:11px;color:#9ca3af">Número que receberá mensagens oficiais do CCI.</p></div>',
+      '<div><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#3a3a3c">Nº da empresa</label><input type="text" id="vincEmpCodigo" inputmode="numeric" maxlength="4" placeholder="0001" style="width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:6px;font-size:14px"><p style="margin:4px 0 0;font-size:11px;color:#a1a1a6">Código de 0001 a 9999.</p></div>',
+      '<div><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#3a3a3c">WhatsApp API</label><input type="tel" id="vincEmpWhatsapp" placeholder="(11) 91234-5678" style="width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:6px;font-size:14px"><p style="margin:4px 0 0;font-size:11px;color:#a1a1a6">Número que receberá mensagens oficiais do CCI.</p></div>',
       '</div>',
       '<div id="vincEmpAviso" style="display:none;padding:10px;border-radius:6px;font-size:12px;margin-bottom:16px"></div>',
       '<div style="display:flex;justify-content:flex-end;gap:8px">',
-      '<button id="vincEmpCancelar" type="button" style="padding:9px 16px;background:#f3f4f6;color:#374151;border:none;border-radius:6px;font-weight:600;cursor:pointer">Cancelar</button>',
+      '<button id="vincEmpCancelar" type="button" style="padding:9px 16px;background:#f5f5f7;color:#3a3a3c;border:none;border-radius:6px;font-weight:600;cursor:pointer">Cancelar</button>',
       '<button id="vincEmpConfirmar" type="button" disabled style="padding:9px 16px;background:#059669;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;opacity:0.5">Vincular</button>',
       '</div>',
       '</div>'
@@ -80,7 +80,7 @@
     }
     function setAviso(html, tipo) {
       if (!html) { avisoEl.style.display = 'none'; return; }
-      var cores = { warn: {bg:'#fef3c7',border:'#fde68a',text:'#92400e'}, error: {bg:'#fee2e2',border:'#fecaca',text:'#991b1b'}, info: {bg:'#dbeafe',border:'#bfdbfe',text:'#1e40af'} };
+      var cores = { warn: {bg:'#fef3c7',border:'#fde68a',text:'#92400e'}, error: {bg:'#fee2e2',border:'#fecaca',text:'#991b1b'}, info: {bg:'#e0efff',border:'#b8dcff',text:'#00509f'} };
       var c = cores[tipo || 'warn'];
       avisoEl.style.background = c.bg;
       avisoEl.style.border = '1px solid ' + c.border;
@@ -101,7 +101,7 @@
       if (limpo.length !== 14) return;
       var myGen = ++lookupGeneration;
       statusEl.textContent = '...';
-      statusEl.style.color = '#6b7280';
+      statusEl.style.color = '#6e6e73';
       try {
         var existeR = await window.API.apiFetch('/api/empresas/' + limpo);
         if (myGen !== lookupGeneration) return;

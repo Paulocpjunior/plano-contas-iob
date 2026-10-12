@@ -11,19 +11,19 @@
     document.getElementById('darfReceitaDialog')?.remove();
     const dialog = document.createElement('dialog');
     dialog.id = 'darfReceitaDialog';
-    dialog.style.cssText = 'width:min(1100px,94vw);max-height:90vh;overflow:auto;font-family:system-ui,sans-serif;padding:24px;border:1px solid #cbd5e1;border-radius:14px;color:#172033;background:#fff';
+    dialog.style.cssText = 'width:min(1100px,94vw);max-height:90vh;overflow:auto;font-family:system-ui,sans-serif;padding:24px;border:1px solid #d2d2d7;border-radius:14px;color:#1c1c1e;background:#fff';
     dialog.innerHTML = `<style>
       #darfReceitaDialog label { font-size:13px; font-weight:600; }
-      #darfReceitaDialog input, #darfReceitaDialog select { padding:9px; border:1px solid #cbd5e1; border-radius:6px; max-width:310px; font:inherit; }
-      #darfReceitaDialog button { padding:9px 13px; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc; color:#172033; cursor:pointer; }
-      #darfReceitaDialog [data-confirmar] { background:#1d4ed8; color:white; }
+      #darfReceitaDialog input, #darfReceitaDialog select { padding:9px; border:1px solid #d2d2d7; border-radius:6px; max-width:310px; font:inherit; }
+      #darfReceitaDialog button { padding:9px 13px; border:1px solid #d2d2d7; border-radius:6px; background:#fbfbfd; color:#1c1c1e; cursor:pointer; }
+      #darfReceitaDialog [data-confirmar] { background:#0066cc; color:white; }
       #darfReceitaDialog button:disabled { opacity:.6; cursor:wait; }
       #darfReceitaDialog table { width:100%; border-collapse:collapse; font-size:13px; }
-      #darfReceitaDialog th, #darfReceitaDialog td { text-align:left; padding:10px 8px; border-bottom:1px solid #e2e8f0; }
-      #darfReceitaDialog th { background:#f1f5f9; }
+      #darfReceitaDialog th, #darfReceitaDialog td { text-align:left; padding:10px 8px; border-bottom:1px solid #e8e8ed; }
+      #darfReceitaDialog th { background:#f5f5f7; }
       #darfReceitaDialog [data-previa-resultado] { overflow:auto; }
-      #darfReceitaDialog [data-status] { padding:12px; background:#eff6ff; border-radius:6px; }
-      #darfReceitaDialog::backdrop { background:rgba(15,23,42,.45); }
+      #darfReceitaDialog [data-status] { padding:12px; background:#f0f7ff; border-radius:6px; }
+      #darfReceitaDialog::backdrop { background:rgba(28,28,30,.45); }
       </style><h2>DARF pago — conferir na Receita</h2><p>${esc(inicial.nome)} · ${esc(inicial.cnpj)}</p>
       <p>Consulte por documento ou pelas datas de arrecadação. A competência é a apuração do tributo; a baixa usa a data de arrecadação. PAGTOWEB e procuração precisam estar habilitados.</p>
       <form data-filtros style="display:flex;flex-wrap:wrap;gap:14px;align-items:end">

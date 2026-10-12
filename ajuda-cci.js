@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const NOVIDADES_VERSAO = '2026-10-12.384';
+  const NOVIDADES_VERSAO = '2026-10-12.385';
   const NOVIDADES_LIDA_KEY = 'cci_novidades_lida';
 
   function escapeHtml(value) {
@@ -28,11 +28,11 @@
     if (document.getElementById('ajudaCciModal')) return;
     const modal = document.createElement('div');
     modal.id = 'ajudaCciModal';
-    modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:12000;background:rgba(2,6,23,.72);padding:18px;align-items:center;justify-content:center';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:12000;background:rgba(0,0,0,.72);padding:18px;align-items:center;justify-content:center';
     modal.innerHTML = `
-      <section role="dialog" aria-modal="true" aria-labelledby="ajudaCciTitulo" style="width:min(760px,96vw);max-height:92vh;overflow:auto;background:var(--surface,#fff);color:var(--text,#0f172a);border:1px solid var(--border,#dbe4f0);border-radius:18px;box-shadow:0 28px 80px rgba(2,6,23,.35)">
-        <header style="padding:22px 24px;background:linear-gradient(135deg,#07152f,#2454d7);color:#fff;display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-          <div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#bfdbfe;font-weight:800">Assistente operacional</div><h2 id="ajudaCciTitulo" style="margin:5px 0 3px;color:#fff">✨ Ajuda CCI</h2><p style="margin:0;color:#dbeafe;font-size:13px">Pergunte como operar o sistema. A resposta usa somente a base oficial do CCI.</p></div>
+      <section role="dialog" aria-modal="true" aria-labelledby="ajudaCciTitulo" style="width:min(760px,96vw);max-height:92vh;overflow:auto;background:var(--surface,#fff);color:var(--text,#1c1c1e);border:1px solid var(--border,#e8e8ed);border-radius:18px;box-shadow:0 28px 80px rgba(0,0,0,.35)">
+        <header style="padding:22px 24px;background:linear-gradient(135deg,#1d1d1f,#0071e3);color:#fff;display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
+          <div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#b8dcff;font-weight:800">Assistente operacional</div><h2 id="ajudaCciTitulo" style="margin:5px 0 3px;color:#fff">✨ Ajuda CCI</h2><p style="margin:0;color:#e0efff;font-size:13px">Pergunte como operar o sistema. A resposta usa somente a base oficial do CCI.</p></div>
           <button type="button" onclick="fecharAjudaCCI()" aria-label="Fechar" style="border:0;background:rgba(255,255,255,.15);color:#fff;border-radius:9px;width:36px;height:36px;font-size:21px;cursor:pointer">×</button>
         </header>
         <div style="padding:22px 24px">
@@ -42,20 +42,20 @@
             <button class="ajuda-cci-chip" type="button" data-question="O que falta para fechar o mês?">Fechar o mês</button>
             <button class="ajuda-cci-chip" type="button" data-question="Quais funções são exclusivas do administrador?">Acessos de admin</button>
           </div>
-          <label for="ajudaCciPergunta" style="display:block;font-size:12px;font-weight:800;color:var(--text-muted,#475569);margin-bottom:7px">SUA PERGUNTA</label>
-          <textarea id="ajudaCciPergunta" maxlength="1500" rows="4" placeholder="Ex.: Como cadastrar os saldos anteriores desta empresa?" style="width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid var(--border,#cbd5e1);border-radius:10px;background:var(--surface,#fff);color:var(--text,#0f172a);font:inherit;resize:vertical"></textarea>
+          <label for="ajudaCciPergunta" style="display:block;font-size:12px;font-weight:800;color:var(--text-muted,#515154);margin-bottom:7px">SUA PERGUNTA</label>
+          <textarea id="ajudaCciPergunta" maxlength="1500" rows="4" placeholder="Ex.: Como cadastrar os saldos anteriores desta empresa?" style="width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid var(--border,#d2d2d7);border-radius:10px;background:var(--surface,#fff);color:var(--text,#1c1c1e);font:inherit;resize:vertical"></textarea>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:11px;flex-wrap:wrap">
-            <small style="color:var(--text-muted,#64748b)">Não informe senhas, tokens, dados bancários ou dados pessoais.</small>
-            <button id="ajudaCciEnviar" type="button" onclick="enviarPerguntaAjudaCCI()" style="border:0;border-radius:9px;padding:10px 17px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer">Perguntar à Ajuda CCI</button>
+            <small style="color:var(--text-muted,#6e6e73)">Não informe senhas, tokens, dados bancários ou dados pessoais.</small>
+            <button id="ajudaCciEnviar" type="button" onclick="enviarPerguntaAjudaCCI()" style="border:0;border-radius:9px;padding:10px 17px;background:#0071e3;color:#fff;font-weight:800;cursor:pointer">Perguntar à Ajuda CCI</button>
           </div>
-          <div id="ajudaCciResposta" aria-live="polite" style="display:none;margin-top:18px;padding:16px;border-radius:12px;border:1px solid var(--border,#dbe4f0);line-height:1.55"></div>
-          <div style="margin-top:18px;padding:12px 14px;background:var(--surface-muted,#f8fafc);border-radius:10px;color:var(--text-muted,#64748b);font-size:12px;line-height:1.5"><strong>Como a base evolui:</strong> dúvidas não resolvidas viram sugestões para o administrador. Só respostas revisadas entram na base oficial; isso evita que uma orientação errada seja aprendida automaticamente.</div>
+          <div id="ajudaCciResposta" aria-live="polite" style="display:none;margin-top:18px;padding:16px;border-radius:12px;border:1px solid var(--border,#e8e8ed);line-height:1.55"></div>
+          <div style="margin-top:18px;padding:12px 14px;background:var(--surface-muted,#fbfbfd);border-radius:10px;color:var(--text-muted,#6e6e73);font-size:12px;line-height:1.5"><strong>Como a base evolui:</strong> dúvidas não resolvidas viram sugestões para o administrador. Só respostas revisadas entram na base oficial; isso evita que uma orientação errada seja aprendida automaticamente.</div>
         </div>
       </section>`;
     document.body.appendChild(modal);
 
     const style = document.createElement('style');
-    style.textContent = '.ajuda-cci-chip{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer}.ajuda-cci-chip:hover{background:#dbeafe}';
+    style.textContent = '.ajuda-cci-chip{border:1px solid #b8dcff;background:#f0f7ff;color:#0066cc;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer}.ajuda-cci-chip:hover{background:#e0efff}';
     document.head.appendChild(style);
     modal.querySelectorAll('.ajuda-cci-chip').forEach(function (button) {
       button.addEventListener('click', function () {
@@ -103,8 +103,8 @@
     enviarEl.disabled = true;
     enviarEl.textContent = 'Consultando...';
     respostaEl.style.display = 'block';
-    respostaEl.style.background = '#eff6ff';
-    respostaEl.style.color = '#1e3a8a';
+    respostaEl.style.background = '#f0f7ff';
+    respostaEl.style.color = '#003e7a';
     respostaEl.textContent = 'A Ajuda CCI está consultando a base oficial.';
     try {
       if (!window.API || !window.API.apiFetch) throw new Error('Serviço de ajuda indisponível nesta sessão.');

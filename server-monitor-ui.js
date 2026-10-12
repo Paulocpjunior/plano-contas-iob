@@ -17,9 +17,9 @@
     svg.setAttribute('viewBox','0 0 400 110');svg.setAttribute('role','img');svg.setAttribute('aria-label',m.label+' na última hora');svg.style.width='100%';
     const max=Math.max(...m.points.map(p=>p.value),1),start=Date.parse(data.start);
     let segment=[];
-    function draw(){if(!segment.length)return;const line=document.createElementNS(ns,'polyline');line.setAttribute('points',segment.join(' '));line.setAttribute('fill','none');line.setAttribute('stroke','#3b82f6');line.setAttribute('stroke-width','2');svg.appendChild(line);segment=[];}
+    function draw(){if(!segment.length)return;const line=document.createElementNS(ns,'polyline');line.setAttribute('points',segment.join(' '));line.setAttribute('fill','none');line.setAttribute('stroke','#0a84ff');line.setAttribute('stroke-width','2');svg.appendChild(line);segment=[];}
     let previous;
-    for(const p of m.points){const t=Date.parse(p.time);if(previous&&t-previous>90000)draw();const x=Math.max(0,Math.min(400,(t-start)/3600000*400)),y=100-p.value/max*90;segment.push(x+','+y);const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',y);dot.setAttribute('r','2');dot.setAttribute('fill','#3b82f6');const title=document.createElementNS(ns,'title');title.textContent=new Date(t).toLocaleTimeString('pt-BR')+' · '+p.value.toFixed(2)+' '+m.unit;dot.appendChild(title);svg.appendChild(dot);previous=t;}draw();card.appendChild(svg);
+    for(const p of m.points){const t=Date.parse(p.time);if(previous&&t-previous>90000)draw();const x=Math.max(0,Math.min(400,(t-start)/3600000*400)),y=100-p.value/max*90;segment.push(x+','+y);const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',y);dot.setAttribute('r','2');dot.setAttribute('fill','#0a84ff');const title=document.createElementNS(ns,'title');title.textContent=new Date(t).toLocaleTimeString('pt-BR')+' · '+p.value.toFixed(2)+' '+m.unit;dot.appendChild(title);svg.appendChild(dot);previous=t;}draw();card.appendChild(svg);
     text('small','Escala: 0 a '+max.toLocaleString('pt-BR',{maximumFractionDigits:2})+' '+m.unit+' · pontos a cada minuto',card);
    }
   }

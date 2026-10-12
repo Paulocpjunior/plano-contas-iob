@@ -31,50 +31,50 @@
       .sp-hist-modal{background:#fff;width:min(960px,95vw);max-height:92vh;
         border-radius:10px;display:flex;flex-direction:column;overflow:hidden;
         box-shadow:0 20px 60px rgba(0,0,0,.35)}
-      .sp-hist-head{padding:14px 20px;background:#0f172a;color:#fff;
+      .sp-hist-head{padding:14px 20px;background:#1c1c1e;color:#fff;
         display:flex;align-items:center;justify-content:space-between}
       .sp-hist-head h2{margin:0;font-size:17px;font-weight:600}
       .sp-hist-close{background:none;border:0;color:#fff;font-size:22px;
         cursor:pointer;line-height:1}
-      .sp-hist-toolbar{padding:12px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0;
+      .sp-hist-toolbar{padding:12px 20px;background:#fbfbfd;border-bottom:1px solid #e8e8ed;
         display:flex;flex-wrap:wrap;gap:8px;align-items:center}
       .sp-hist-toolbar input[type=text]{flex:1;min-width:200px;padding:8px 10px;
-        border:1px solid #cbd5e1;border-radius:6px;font-size:14px}
+        border:1px solid #d2d2d7;border-radius:6px;font-size:14px}
       .sp-hist-btn{padding:8px 14px;border:0;border-radius:6px;cursor:pointer;
         font-size:13px;font-weight:600}
       .sp-hist-btn-primary{background:#16a34a;color:#fff}
       .sp-hist-btn-primary:hover{background:#15803d}
-      .sp-hist-btn-secondary{background:#3b82f6;color:#fff}
-      .sp-hist-btn-secondary:hover{background:#2563eb}
+      .sp-hist-btn-secondary{background:#0a84ff;color:#fff}
+      .sp-hist-btn-secondary:hover{background:#0071e3}
       .sp-hist-btn-danger{background:#dc2626;color:#fff}
-      .sp-hist-btn-ghost{background:#e2e8f0;color:#0f172a}
+      .sp-hist-btn-ghost{background:#e8e8ed;color:#1c1c1e}
       .sp-hist-body{flex:1;overflow-y:auto;padding:0}
       .sp-hist-table{width:100%;border-collapse:collapse;font-size:13px}
-      .sp-hist-table thead th{position:sticky;top:0;background:#1e293b;color:#fff;
+      .sp-hist-table thead th{position:sticky;top:0;background:#2c2c2e;color:#fff;
         padding:8px 10px;text-align:left;font-weight:600;font-size:12px}
-      .sp-hist-table tbody td{padding:6px 10px;border-bottom:1px solid #f1f5f9}
-      .sp-hist-table tbody tr:hover{background:#f8fafc}
+      .sp-hist-table tbody td{padding:6px 10px;border-bottom:1px solid #f5f5f7}
+      .sp-hist-table tbody tr:hover{background:#fbfbfd}
       .sp-hist-table .col-codigo{font-family:monospace;font-weight:600;width:70px}
       .sp-hist-table .col-debito,.sp-hist-table .col-credito{font-family:monospace;
-        font-size:12px;color:#475569;width:120px}
+        font-size:12px;color:#515154;width:120px}
       .sp-hist-table .col-acoes{width:100px;text-align:right;white-space:nowrap}
       .sp-hist-pill{display:inline-block;padding:1px 6px;border-radius:10px;
         font-size:10px;font-weight:600}
-      .sp-hist-pill-global{background:#dbeafe;color:#1e40af}
+      .sp-hist-pill-global{background:#e0efff;color:#00509f}
       .sp-hist-pill-own{background:#dcfce7;color:#166534}
-      .sp-hist-empty{padding:40px 20px;text-align:center;color:#64748b}
-      .sp-hist-form{background:#f8fafc;padding:14px 20px;border-top:1px solid #e2e8f0;
+      .sp-hist-empty{padding:40px 20px;text-align:center;color:#6e6e73}
+      .sp-hist-form{background:#fbfbfd;padding:14px 20px;border-top:1px solid #e8e8ed;
         display:grid;grid-template-columns:90px 1fr 1fr 1fr;gap:8px}
-      .sp-hist-form label{font-size:11px;font-weight:600;color:#475569;
+      .sp-hist-form label{font-size:11px;font-weight:600;color:#515154;
         text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:2px}
-      .sp-hist-form input{width:100%;padding:6px 8px;border:1px solid #cbd5e1;
+      .sp-hist-form input{width:100%;padding:6px 8px;border:1px solid #d2d2d7;
         border-radius:4px;font-size:13px}
       .sp-hist-form .full{grid-column:1/-1}
       .sp-hist-form-actions{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}
       .sp-hist-msg{padding:8px 14px;font-size:12px;font-weight:600}
       .sp-hist-msg-err{background:#fef2f2;color:#991b1b}
       .sp-hist-msg-ok{background:#f0fdf4;color:#166534}
-      .sp-hist-loading{padding:20px;text-align:center;color:#64748b}
+      .sp-hist-loading{padding:20px;text-align:center;color:#6e6e73}
     `;
     document.head.appendChild(style);
   }
@@ -169,7 +169,7 @@
           ${i.global
             ? '<span class="sp-hist-pill sp-hist-pill-global">GLOBAL</span>'
             : '<span class="sp-hist-pill sp-hist-pill-own">PROPRIO</span>'}
-          ${i.complemento ? `<br><small style="color:#64748b">${escapar(i.complemento)}</small>` : ''}
+          ${i.complemento ? `<br><small style="color:#6e6e73">${escapar(i.complemento)}</small>` : ''}
         </td>
         <td class="col-debito">${escapar(i.debito || '—')}</td>
         <td class="col-credito">${escapar(i.credito || '—')}</td>
@@ -192,14 +192,14 @@
       ? `Editando ${escapar(state.editing.__originalCodigo)}`
       : 'Novo historico';
     return `
-      <div class="full" style="font-weight:600;color:#0f172a;font-size:13px;margin-bottom:4px">
+      <div class="full" style="font-weight:600;color:#1c1c1e;font-size:13px;margin-bottom:4px">
         ${titulo}
       </div>
       <div>
         <label>Codigo</label>
         <input type="text" data-field="codigo" value="${escapar(e.codigo)}"
                maxlength="4" placeholder="0101"
-               ${state.editing && state.editing.__originalCodigo ? 'readonly style="background:#e2e8f0"' : ''}>
+               ${state.editing && state.editing.__originalCodigo ? 'readonly style="background:#e8e8ed"' : ''}>
       </div>
       <div style="grid-column:span 3">
         <label>Descricao</label>
