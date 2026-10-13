@@ -2,7 +2,11 @@
 
 ## Evidência e escopo
 
-Conferência feita na sessão autenticada do Jotform Tables em 13/10/2026. O conector retornava metadados incompletos; as exportações das abas operacionais foram conferidas contra os totais da interface. A base oficial tem 1.585 linhas / 39 campos; a contábil V2, 967 linhas / 55 campos exportáveis. Linhas não equivalem a empresas únicas. Abas de obrigações contêm parâmetros adicionais e foram preservadas separadamente.
+Conferência feita na sessão autenticada do Jotform Tables em 13/10/2026. O conector retornava metadados incompletos; as exportações das abas operacionais foram conferidas contra os totais da interface. As primeiras exportações continham apenas as colunas visíveis. Após abrir as tabelas originais e exibir todos os campos, foram acrescentadas as exportações integrais: base oficial, 1.585 linhas / 101 colunas; contábil V2, 967 / 87; aluguéis, 541 / 25. Os campos adicionais ficaram preservados em fontes separadas, sem substituir o retrato anterior. Botões da interface não são colunas de dados exportáveis.
+
+A conferência final em produção, em 13/10/2026 às 18:50 UTC, comparou integralmente os campos de 7.928 registros, 419.095 campos e 14 exportações. Os registros incluem repetições entre abas e retratos; não representam 7.928 empresas. Foram identificados 975 CNPJs válidos distintos na origem, sendo 297 já cadastrados e 678 novos dossiês CRM. A carteira administrativa apresentou 984 identificadores distintos na união com os cadastros contábeis existentes. Essa contagem é dinâmica e inclui cadastros anteriores à migração.
+
+Há 125 registros sem identificação segura, preservados para conferência administrativa; tampouco são 125 empresas distintas. Nove linhas da exportação oficial integral contêm divergência entre duas colunas de CNPJ preenchidas: nenhum dos dois foi escolhido automaticamente. A exportação não incluiu a restauração de itens arquivados ou excluídos.
 
 Os arquivos reais, manifestos, hashes e snapshot anterior do destino ficam em diretório privado, fora do repositório e dos assets do app. O quadro administrativo “Conferência da migração” consulta os manifests conferidos no banco online; não contém dados fictícios.
 
@@ -45,3 +49,7 @@ Identificadores de linha são identificadores desta exportação, não IDs de su
 ## Validação
 
 Testes cobrem isolamento por UID, prioridade do cadastro atual, identificação inválida, acesso direto indevido, revisões concorrentes, campos repetidos, preservação de nulo/zero/origem, auditoria e estabilidade dos controles ao criar cadastro posteriormente. A suíte de CI distingue testes sem arquivos de evidência dos que falharam.
+
+Entrega 3.4.389: PR #264, merge `18d37d5075d0736d5546c1158698cb6782aa525a`, workflow 38447268920 concluído e revisão `plano-contas-iob-01140-tol` com 100% do tráfego. Versão pública, saúde do Firestore e hash do JavaScript servido foram conferidos. Backend/importador não são assets públicos; consulta sem autenticação retorna 401. Suíte: 250 testes aprovados, 3 pulados por ausência de fixtures externas, zero falhas.
+
+Na sessão real do administrador no Safari, a busca por uma empresa existente retornou um resultado e carregou suas seis fontes, incluindo os 87 campos da V2 integral. Conferidos status, atividade, tributação e colaborador de origem ao lado do valor atual. O painel administrativo mostrou as exportações integrais. Nenhuma baixa, alteração de parâmetro ou atribuição fictícia foi criada para validar a interface.
