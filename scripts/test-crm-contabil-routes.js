@@ -79,5 +79,21 @@ function ambiente() {
   for(let i=1;i<=55;i++)b.dados.set('empresas/'+cnpj+'/crm_controles/0000/historico/h'+i,{revisao:i});
   r=await b.call('GET',base+'/controles/:id/historico',{},'colab',{id:'0000'});assert.equal(r.body.historico.length,50);
   r=await b.call('GET',base+'/controles/:id/historico',{},'colab',{id:'0000'},{cursor:r.body.proximo});assert.equal(r.body.historico.length,5);
+  // Empresas importadas usam carteira explícita e controles conservam o caminho estável.
+  const c=ambiente(), novo='11222333000181';
+  c.dados.set('crm_empresas/'+novo,{razao_social:'Importada',codigo_empresa:'8000',carteira_uids:[],responsaveis:[]});
+  assert.equal((await c.call('GET',base+'/parametros',{},'colab',{cnpj:novo})).statusCode,403);
+  let lista=await c.call('GET','/api/crm/carteira',{},'admin',{}, {busca:'importada'});assert.equal(lista.body.total,1);
+  const reg={cnpj:novo,fonte:'fonte',linha:2,revisao:1,campos:[{nome:'FOLHA',valor:null,original:null}]};
+  c.dados.set('crm_registros/fonte_2',reg);
+  assert.equal((await c.call('GET',base+'/parametros',{},'admin',{cnpj:novo})).body.registros.length,1);
+  assert.equal((await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'Feito',motivo:'Conferido'},'admin',{cnpj,id:'fonte_2'})).statusCode,404);
+  let edit=await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'Feito',motivo:'Conferido'},'admin',{cnpj:novo,id:'fonte_2'});assert.equal(edit.statusCode,200,JSON.stringify(edit.body));assert.equal(edit.body.registro.campos[0].original,null);
+  assert.equal((await c.call('POST',base+'/controles',body,'admin',{cnpj:novo})).statusCode,201);
+  assert(c.dados.has('empresas/'+novo+'/crm_controles/obrigacao_FISCAL_2026-09'));
+  c.dados.set('empresas/'+novo,{razao_social:'Cadastro posterior',carteira_uids:[],responsaveis:[]});
+  c.dados.set('crm_empresas/'+novo,{carteira_uids:['colab'],responsaveis:[{uid:'colab',papel:'principal'}]});
+  assert.equal((await c.call('GET',base+'/controles',{},'colab',{cnpj:novo})).statusCode,403,'cadastro atual prevalece sobre carteira importada');
+  assert.equal((await c.call('GET','/api/crm/carteira',{},'colab',{}, {busca:novo})).body.total,0);
   console.log('CRM rotas: acesso direto, UID, perfil atual, revogação, transações, evidência, histórico, duplicidade e paginação OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});

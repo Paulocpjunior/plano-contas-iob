@@ -1,7 +1,8 @@
 {
-  "version": "3.4.388",
-  "build_date": "2026-10-13T17:46:10Z",
+  "version": "3.4.389",
+  "build_date": "2026-10-13T18:24:51Z",
   "release_notes": [
+    "CRM: base de empresas e parâmetros importados do Jotform, busca em toda a carteira, registros por origem e edição com histórico; distribuição administrativa e conferência de identificações.",
     "Carteira e obrigações: acesso ao módulo disponível antes de ativar uma empresa, para consultar e distribuir a carteira desde a entrada no CCI.",
     "Carteira e obrigações: novo módulo com empresas atribuídas pelo administrador, controles por período, conclusão com evidência, histórico e distribuição de responsável e apoios. Conferência do Checklist em prévia; migração de dados ainda pendente.",
     "Importação FI IOB/SAGE: importar partidas diretamente em todas as empresas, com conferência do plano e período, preservação de repetidos e proteção contra reimportação.",
