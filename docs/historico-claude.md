@@ -1902,4 +1902,9 @@ Branch codex/crm-carteira-obrigacoes a partir da main 3.4.385. Matriz de equival
 
 ### Publicação solicitada em 13/10/2026
 
-Paulo solicitou disponibilizar a primeira etapa no app online. Candidata 3.4.386 preparada para o fluxo branch/PR/squash e deploy oficial. Escopo permanece o descrito na matriz: controles manuais e prévia, sem migração do Jotform nem mudança do acesso legado de outros módulos. O status final de publicação deve ser conferido no workflow e em /api/version.
+Paulo solicitou disponibilizar a primeira etapa no app online. Candidata 3.4.387 preparada para o fluxo branch/PR/squash e deploy oficial. Escopo permanece o descrito na matriz: controles manuais e prévia, sem migração do Jotform nem mudança do acesso legado de outros módulos. O status final de publicação deve ser conferido no workflow e em /api/version.
+## 2026-10-13 — Importação direta FI IOB/SAGE — 3.4.386
+
+- Importador financeiro de 328 posições baseado no gerador CCI e no espelho fornecido; disponível a todas as empresas conforme orientação atualizada.
+- Prévia por partida, confirmação de destino sem CNPJ no arquivo, validação do plano e período, preservação de repetidos, bloqueio de reimportação e gravação sob trava/revalidação com auditoria.
+- Anexo validado integralmente; testes sintéticos e Chrome local sem gravação real. `check:ci`: 246 passaram, 3 pulados por evidência externa, 0 falhas. `check` completo para no arquivo de regressão Itaú ausente. Publicação autorizada pelo Paulo em 13/10; entrega via PR e deploy oficial.

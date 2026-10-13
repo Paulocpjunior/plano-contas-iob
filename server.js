@@ -2591,6 +2591,9 @@ app.get('/api/fiscal/serpro-status', async (req, res) => {
 require('./pagamentos-receita-routes').registrar(app, { db, checarAcessoEmpresa, carregarContasContabeisEmpresa,
   carregarSessaoAtualPorRef, adquirirTravaSessao, liberarTravaSessao, gravarSessaoBloqueada });
 
+require('./importacao-fi-routes').registrar(app, { db, checarAcessoEmpresa, carregarContasContabeisEmpresa,
+  carregarSessaoAtualPorRef, adquirirTravaSessao, liberarTravaSessao, gravarSessaoBloqueada, impedirAlteracaoPeriodosFechados });
+
 app.get('/api/empresas/:cnpj/fiscal/impostos', async (req, res) => {
   try {
     const cnpjLimpo = req.params.cnpj.replace(/\D/g, '');
