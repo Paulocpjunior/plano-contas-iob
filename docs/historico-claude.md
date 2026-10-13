@@ -1908,3 +1908,7 @@ Paulo solicitou disponibilizar a primeira etapa no app online. Candidata 3.4.387
 - Importador financeiro de 328 posições baseado no gerador CCI e no espelho fornecido; disponível a todas as empresas conforme orientação atualizada.
 - Prévia por partida, confirmação de destino sem CNPJ no arquivo, validação do plano e período, preservação de repetidos, bloqueio de reimportação e gravação sob trava/revalidação com auditoria.
 - Anexo validado integralmente; testes sintéticos e Chrome local sem gravação real. `check:ci`: 246 passaram, 3 pulados por evidência externa, 0 falhas. `check` completo para no arquivo de regressão Itaú ausente. Publicação autorizada pelo Paulo em 13/10; entrega via PR e deploy oficial.
+
+## 2026-10-13 — CRM online e acesso inicial — 3.4.388
+
+3.4.387 publicada pelo PR #262 e workflow 38440613704, saúde e versão conferidas. Login Firebase teve falha de rede transitória e funcionou na repetição (HTTP 200). Validação autenticada encontrou bloqueio do menu CRM pelo gate de ativação. 3.4.388 permite abrir a carteira antes de ativar empresa, mantendo o bloqueio contábil e cobrindo ambos os casos em regressão.

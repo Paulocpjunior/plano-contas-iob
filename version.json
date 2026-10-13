@@ -1,7 +1,8 @@
 {
-  "version": "3.4.387",
-  "build_date": "2026-10-13T17:39:11Z",
+  "version": "3.4.388",
+  "build_date": "2026-10-13T17:46:10Z",
   "release_notes": [
+    "Carteira e obrigações: acesso ao módulo disponível antes de ativar uma empresa, para consultar e distribuir a carteira desde a entrada no CCI.",
     "Carteira e obrigações: novo módulo com empresas atribuídas pelo administrador, controles por período, conclusão com evidência, histórico e distribuição de responsável e apoios. Conferência do Checklist em prévia; migração de dados ainda pendente.",
     "Importação FI IOB/SAGE: importar partidas diretamente em todas as empresas, com conferência do plano e período, preservação de repetidos e proteção contra reimportação.",
     "Visual: relatórios contábeis, ativo imobilizado, conferência de caixa, históricos, manual, ajuda, migração SAGE, aluguéis do Reinf, DARF pago e demais janelas também passam a usar os cinzas e o azul no estilo Apple, no claro e no escuro. Nenhuma tela muda de lugar; PDFs e e-mails seguem como estavam.",
