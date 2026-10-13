@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const linkSeguro = v => {try{const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password?u.href:null;}catch{return null;}};
   const dataBr = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v.split('-').reverse().join('/') : String(v || '');
   const instanteBr = v => { const d = new Date(v); return Number.isFinite(d.getTime()) ? d.toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo' }) : String(v || ''); };
   const acoes = { criacao:'Criação', atualizacao:'Atualização', reabertura:'Reabertura' };
@@ -17,11 +18,11 @@
       #crmContabilDialog label{display:grid;gap:5px;font-size:13px}#crmContabilDialog form{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}#crmContabilDialog .crm-wide{grid-column:1/-1}
       #crmContabilDialog table{width:100%;border-collapse:collapse;font-size:13px}#crmContabilDialog th,#crmContabilDialog td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--border,#e8e8ed);vertical-align:top}
       #crmContabilDialog th{background:var(--surface2,#f5f5f7)}#crmContabilDialog [data-status]{padding:12px;background:var(--surface2,#f5f5f7);border-radius:10px;line-height:1.5}
-      #crmContabilDialog .crm-scroll{overflow:auto}#crmContabilDialog [hidden]{display:none!important}#crmContabilDialog .crm-muted{color:var(--muted,#6e6e73);font-size:13px}#crmContabilDialog .crm-alert{color:#b45309}
+      #crmContabilDialog .crm-scroll{overflow:auto}#crmContabilDialog [data-empresas-tabela]{max-height:260px;margin:12px 0}#crmContabilDialog summary{cursor:pointer;padding:12px;font-weight:600}#crmContabilDialog details{border:1px solid var(--border,#d2d2d7);border-radius:10px;margin:8px 0;padding:4px}#crmContabilDialog [hidden]{display:none!important}#crmContabilDialog .crm-muted{color:var(--muted,#6e6e73);font-size:13px}#crmContabilDialog .crm-alert{color:#b45309}
     </style><div class="crm-bar crm-top"><div><h2 id="crmTitulo">Carteira e obrigações</h2><p class="crm-muted">Acompanhamento por empresa e período</p></div><button data-fechar>Fechar</button></div>
-    <p data-status role="status" aria-live="polite">Carregando sua carteira…</p>
+    <div class="crm-bar"><label>Buscar em toda a carteira<input data-busca placeholder="Número, nome ou CNPJ"></label><button data-buscar>Buscar empresas</button><button data-base-resumo hidden>Conferência da migração</button><button data-pendencias hidden>Identificações a conferir</button></div><p data-status role="status" aria-live="polite">Carregando sua carteira…</p>
     <div class="crm-bar"><label>Empresa<select data-empresa><option value="">Selecione uma empresa</option></select></label><button data-mais-empresas hidden>Mais empresas</button><button data-atualizar>Atualizar</button><button data-equipe hidden>Distribuir carteira</button><button data-checklist hidden>Conferir Checklist</button></div>
-    <p data-equipe-resumo class="crm-muted"></p><div class="crm-bar"><label>Filtrar período<input data-periodo placeholder="2026 ou 2026-10" maxlength="7"></label><label>Situação<select data-filtro><option value="">Todas</option>${Object.entries(situacoes).map(([v,n]) => `<option value="${v}">${n}</option>`).join('')}</select></label><button data-novo hidden class="crm-primary">Novo controle</button></div>
+    <button data-parametros hidden>Parâmetros e registros da empresa</button><section data-parametros-area></section><div data-empresas-tabela class="crm-scroll"></div><p data-equipe-resumo class="crm-muted"></p><div class="crm-bar"><label>Filtrar período<input data-periodo placeholder="2026 ou 2026-10" maxlength="7"></label><label>Situação<select data-filtro><option value="">Todas</option>${Object.entries(situacoes).map(([v,n]) => `<option value="${v}">${n}</option>`).join('')}</select></label><button data-novo hidden class="crm-primary">Novo controle</button></div>
     <p data-indicadores class="crm-muted"></p><div data-lista class="crm-scroll"></div><button data-mais hidden>Mais controles</button><section data-editor></section><section data-historico></section><section data-previa></section>`;
     document.body.appendChild(dialog); dialog.showModal();
     const q = s => dialog.querySelector(s);
@@ -34,14 +35,14 @@
       const r = await window.API.apiFetch(path, body === undefined ? {} : { method: method || 'POST', body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) {
-        if ([401,403].includes(r.status)) { carteira = []; controles = []; config = {}; nextEmp = null; nextControl = null; usuarios = null; q('[data-empresa]').innerHTML = '<option value="">Selecione uma empresa</option>'; limparDetalhes(); render(); }
+        if ([401,403].includes(r.status)) { carteira = []; controles = []; config = {}; nextEmp = null; nextControl = null; usuarios = null; q('[data-empresa]').innerHTML = '<option value="">Selecione uma empresa</option>'; q('[data-empresas-tabela]').innerHTML=''; limparDetalhes(); render(); }
         throw Error(d.erro || 'Não foi possível concluir. Tente novamente.');
       }
       return d;
     }
     function permissoes() {
       q('[data-equipe]').hidden = !config.admin || !empresa(); q('[data-checklist]').hidden = !config.admin;
-      q('[data-novo]').hidden = !config.admin || !empresa();
+      q('[data-novo]').hidden = !config.admin || !empresa(); q('[data-parametros]').hidden = !empresa(); q('[data-base-resumo]').hidden = !config.admin; q('[data-pendencias]').hidden = !config.admin;
     }
     async function executar(fn) {
       if (busy) return; busy = true;
@@ -55,15 +56,46 @@
     async function carregarCarteira(mais = false) {
       const anterior = q('[data-empresa]').value;
       if (!mais) { carteira = []; controles = []; config = {}; nextEmp = null; nextControl = null; usuarios = null; q('[data-empresa]').innerHTML = '<option value="">Selecione uma empresa</option>'; q('[data-mais-empresas]').hidden = true; limparDetalhes(); render(); }
-      const d = await api('/api/crm/carteira' + (mais && nextEmp ? '?cursor=' + encodeURIComponent(nextEmp) : ''));
+      const qs = new URLSearchParams({busca:q('[data-busca]').value.trim()}); if (mais && nextEmp) qs.set('cursor',nextEmp);
+      const d = await api('/api/crm/carteira?' + qs);
       config = d; carteira = mais ? carteira.concat(d.empresas) : d.empresas; nextEmp = d.proximo;
       q('[data-empresa]').innerHTML = '<option value="">Selecione uma empresa</option>' + carteira.map(e => `<option value="${esc(e.cnpj)}">${esc(e.codigo_empresa)} · ${esc(e.razao_social || e.cnpj)}</option>`).join('');
       q('[data-empresa]').value = carteira.some(e => e.cnpj === anterior) ? anterior : '';
       q('[data-mais-empresas]').hidden = !nextEmp; permissoes();
-      mensagem(`${carteira.length} empresa(s) carregada(s)${nextEmp ? '; há mais empresas.' : '.'}${!carteira.length ? ' Solicite a atribuição da carteira ao administrador.' : ''}`);
+      q('[data-empresas-tabela]').innerHTML='<table><thead><tr><th>Número</th><th>Empresa</th><th>CNPJ</th><th>Equipe CCI</th><th></th></tr></thead><tbody>'+carteira.map(e=>`<tr><td>${esc(e.codigo_empresa)}</td><td>${esc(e.razao_social)}</td><td>${esc(e.cnpj)}</td><td>${esc(e.responsaveis.map(p=>p.nome||p.uid).join(' · ')||'Aguardando distribuição')}</td><td><button data-abrir-empresa="${esc(e.cnpj)}">Abrir</button></td></tr>`).join('')+'</tbody></table>';
+      q('[data-empresas-tabela]').querySelectorAll('[data-abrir-empresa]').forEach(btn=>btn.onclick=()=>executar(async()=>{q('[data-empresa]').value=btn.dataset.abrirEmpresa;await carregarControles();await carregarParametros();q('[data-parametros-area]').scrollIntoView({block:'start'});}));
+      mensagem(`Mostrando ${carteira.length} de ${d.total} empresa(s)${nextEmp ? '; há mais empresas.' : '.'}${!carteira.length ? ' Solicite a atribuição da carteira ao administrador.' : ''}`);
+    }
+    q('[data-buscar]').onclick = ()=>executar(()=>carregarCarteira());
+    q('[data-busca]').onkeydown = e=>{if(e.key==='Enter'){e.preventDefault();executar(()=>carregarCarteira());}};
+    q('[data-pendencias]').onclick=()=>executar(async()=>{
+      const d=await api('/api/crm/base/pendencias');
+      q('[data-previa]').innerHTML='<h3>Identificações a conferir</h3><p>'+d.registros.length+' registros preservados com CNPJ ausente ou inválido. Não foram vinculados automaticamente a uma carteira. Confira a identificação na origem antes da vinculação.</p>'+d.registros.map(r=>`<details><summary>${esc(r.codigo)} · ${esc(r.nome)} · ${esc(r.fonte_nome)} · linha ${r.linha}</summary><table>${r.campos.map((c,i)=>`<tr><th>${i+1} · ${esc(c.nome)}</th><td>${esc(c.valor??'Não informado')}</td></tr>`).join('')}</table></details>`).join('');
+    });
+    q('[data-base-resumo]').onclick = ()=>executar(async()=>{
+      const d=await api('/api/crm/base/resumo');
+      q('[data-previa]').innerHTML='<h3>Conferência da base importada</h3><p>Linhas de diferentes abas podem representar a mesma empresa. Cada registro e coluna conserva sua origem. Colaborador de origem não concede acesso.</p><div class="crm-scroll"><table><tr><th>Fonte</th><th>Registros</th><th>Colunas</th><th>Importação</th></tr>'+d.fontes.map(f=>`<tr><td>${esc(f.nome)}</td><td>${esc(f.registros)}</td><td>${esc(f.colunas)}</td><td>${esc(instanteBr(f.importado_em))}</td></tr>`).join('')+'</table></div>';
+    });
+    q('[data-parametros]').onclick=()=>executar(carregarParametros);
+    async function carregarParametros(){
+      const cnpj=empresa()?.cnpj; if(!cnpj)return;
+      const d=await api(base()+'/parametros'); if(empresa()?.cnpj!==cnpj)return;
+      const area=q('[data-parametros-area]');
+      area.innerHTML='<h3>Parâmetros da empresa</h3><p class="crm-muted">Cada aba mantém seus próprios registros. Campos vazios, valores repetidos e erros de origem foram preservados. A edição aqui atualiza o CRM do CCI e mantém o valor original para conferência.</p>'+(!d.registros.length?'<p>Sem registros importados do Jotform para este CNPJ.</p>':d.registros.map((r,n)=>`<details><summary>${esc(r.fonte_nome)} · linha ${r.linha} · revisão ${r.revisao}</summary><p class="crm-muted">Importado em ${esc(instanteBr(r.importado_em))}</p><div class="crm-scroll"><table><thead><tr><th>Coluna</th><th>Parâmetro</th><th>Valor atual</th><th>Valor da origem</th><th>Ação</th></tr></thead><tbody>${r.campos.map((c,i)=>`<tr><td>${i+1}</td><td>${esc(c.nome)}</td><td style="white-space:pre-wrap">${esc(c.valor ?? 'Não informado')}${linkSeguro(c.link||c.valor)?`<br><a href="${esc(linkSeguro(c.link||c.valor))}" target="_blank" rel="noopener noreferrer">Abrir documento</a>`:''}</td><td style="white-space:pre-wrap">${esc(c.original ?? 'Não informado')}</td><td>${d.pode_editar&&!c.protegido?`<button data-editar-param="${n}:${i}">Editar</button>`:''}</td></tr>`).join('')}</tbody></table></div><button data-hist-param="${n}">Histórico das alterações</button></details>`).join(''));
+      area.querySelectorAll('[data-editar-param]').forEach(btn=>btn.onclick=()=>{
+        const [n,i]=btn.dataset.editarParam.split(':').map(Number),r=d.registros[n],c=r.campos[i];
+        q('[data-editor]').innerHTML=`<h3>Editar ${esc(c.nome)} · coluna ${i+1}</h3><form data-param-form><label class="crm-wide">Valor<textarea name="valor" maxlength="10000" rows="4">${esc(c.valor ?? '')}</textarea></label><label class="crm-wide">Motivo<textarea name="motivo" required maxlength="1000"></textarea></label><button class="crm-primary">Salvar parâmetro</button><button type="button" data-cancel-param>Cancelar</button></form>`;
+        q('[data-cancel-param]').onclick=()=>{q('[data-editor]').innerHTML='';};
+        q('[data-param-form]').onsubmit=e=>{e.preventDefault();const fd=new FormData(e.target);executar(async()=>{await api('/api/crm/empresas/'+cnpj+'/parametros/'+r.id,{revisao:r.revisao,coluna:i,valor:fd.get('valor'),motivo:fd.get('motivo')},'PATCH');q('[data-editor]').innerHTML='';await carregarParametros();mensagem('Parâmetro salvo com histórico.');});};
+        q('[data-editor]').scrollIntoView({block:'nearest'});
+      });
+      area.querySelectorAll('[data-hist-param]').forEach(btn=>btn.onclick=()=>executar(async()=>{
+        const r=d.registros[Number(btn.dataset.histParam)],h=await api('/api/crm/empresas/'+cnpj+'/parametros/'+r.id+'/historico');
+        q('[data-historico]').innerHTML='<h3>Histórico de parâmetros</h3>'+(!h.historico.length?'<p>Nenhuma alteração após a importação.</p>':h.historico.map(v=>`<p>Revisão ${v.revisao} · ${esc(instanteBr(v.quando))} · ${esc(v.antes.nome)}<br>${esc(v.antes.valor ?? 'Não informado')} → ${esc(v.depois.valor)}<br>Motivo: ${esc(v.motivo)} · Usuário: ${esc(v.por_uid)}</p>`).join(''));
+      }));
     }
     function limparDetalhes() {
-      ['editor','historico','previa'].forEach(s => { q('[data-'+s+']').innerHTML = ''; });
+      ['editor','historico','previa','parametros-area'].forEach(s => { q('[data-'+s+']').innerHTML = ''; });
       q('[data-equipe-resumo]').textContent = '';
     }
     async function carregarControles(mais = false) {

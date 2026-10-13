@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('assert');
+const {editarParametro,normalizarBusca}=require('../crm-base');
+const {valido}=require('./importar-crm-jotform');
+const {criarPermissoes}=require('../permissoes-cci');
+const admin={uid:'adm',is_admin:true},consulta={uid:'u',permissoesCci:criarPermissoes('consulta')};
+const r={revisao:1,campos:[{nome:'CNPJ',valor:'original',original:'original',protegido:true},{nome:'IMPORTAÇÃO',valor:null,original:null},{nome:'IMPORTAÇÃO',valor:0,original:0}]};
+assert.throws(()=>editarParametro(r,{revisao:1,coluna:0,valor:'novo',motivo:'x'},admin,'now'),/preservadas/);
+assert.throws(()=>editarParametro(r,{revisao:0,coluna:1,valor:'novo',motivo:'x'},admin,'now'),/mudou/);
+assert.throws(()=>editarParametro(r,{revisao:1,coluna:1,valor:'novo',motivo:'x'},consulta,'now'),/perfil/);
+assert.throws(()=>editarParametro(r,{revisao:1,coluna:1,valor:'novo',motivo:''},admin,'now'),/motivo/);
+const out=editarParametro(r,{revisao:1,coluna:1,valor:'CONCLUÍDO',motivo:'Conferência'},admin,'now');
+assert.strictEqual(out.campos[1].original,null);assert.strictEqual(out.campos[2].valor,0);assert.strictEqual(r.campos[1].valor,null);assert.equal(out.revisao,2);
+assert.equal(normalizarBusca('  Açúcar  '),'acucar');
+assert(valido('11222333000181'));assert(!valido('11222333000180'));assert(!valido('00000000000000'));assert(!valido(''));
+console.log('CRM base: colunas repetidas, vazio versus zero, origem imutável, revisão, perfil e CNPJ OK');

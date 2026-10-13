@@ -1,5 +1,6 @@
 'use strict';
 const core = require('./crm-contabil');
+const { normalizarBusca, editarParametro } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
@@ -25,10 +26,15 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     return db.collection('empresas').doc(cnpj);
   }
   async function contexto(req, tx) {
-    const user = await usuario(req, tx), ref = empresaRef(req);
-    const doc = await (tx ? tx.get(ref) : ref.get());
+    const user = await usuario(req, tx);
+    let ref = empresaRef(req);
+    let doc = await (tx ? tx.get(ref) : ref.get());
+    if (!doc.exists) {
+      ref = db.collection('crm_empresas').doc(req.params.cnpj);
+      doc = await (tx ? tx.get(ref) : ref.get());
+    }
     if (!doc.exists || !core.temCarteira(doc.data(), user)) throw core.erro('Empresa indisponível na sua carteira. Consulte o administrador.', 403);
-    return { user, ref, empresa: doc.data() };
+    return { user, ref, controlesRef: empresaRef(req), empresa: doc.data() };
   }
   function admin(user) { if (!user.is_admin) throw core.erro('Esta ação é exclusiva dos administradores.', 403); }
   function empresaPublica(doc, user) {
@@ -40,15 +46,56 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
   function cursorId(v, regex) { if (v && (typeof v !== 'string' || !regex.test(v))) throw core.erro('Paginação inválida. Recarregue a lista.'); return v; }
   app.get('/api/crm/carteira', wrap(async (req, res) => {
     const user = await usuario(req);
-    let query = db.collection('empresas');
-    if (!user.is_admin) query = query.where('carteira_uids', 'array-contains', user.uid);
-    query = query.orderBy('__name__');
-    const cursor = cursorId(req.query.cursor, /^\d{14}$/);
-    if (cursor) query = query.startAfter(cursor);
-    const snap = await query.limit(51).get(), docs = snap.docs.slice(0, 50);
-    const empresas = docs.filter(d => core.temCarteira(d.data(), user)).map(d => empresaPublica(d, user));
-    res.json({ ok: true, empresas, proximo: snap.docs.length > 50 ? docs[docs.length - 1].id : null,
-      admin: user.is_admin, pode_editar: user.is_admin || podeAcao(user, 'editar'), pode_concluir: user.is_admin || podeAcao(user, 'fechar'), catalogo: core.CATALOGO });
+    // Consulta unificada: cadastro contábil prevalece sobre o dossiê importado.
+    // A autorização usa o documento atual, nunca o nome do colaborador no Jotform.
+    const snapshots = await Promise.all(['crm_empresas','empresas'].map(c=>db.collection(c).get()));
+    const mapa = new Map(); snapshots.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
+    const busca = normalizarBusca(req.query.busca), cursor = cursorId(req.query.cursor, /^\d{14}$/);
+    const todas = [...mapa.values()].filter(d=>core.temCarteira(d.data(),user)).map(d=>empresaPublica(d,user))
+      .filter(e=>!busca || normalizarBusca([e.cnpj,e.razao_social,e.codigo_empresa].join(' ')).includes(busca)
+        || (busca.replace(/\D/g,'').length>=8 && e.cnpj.includes(busca.replace(/\D/g,''))))
+      .sort((a,b)=>a.cnpj.localeCompare(b.cnpj));
+    const restantes = todas.filter(e=>!cursor || e.cnpj>cursor), empresas=restantes.slice(0,50);
+    res.json({ ok:true, empresas, total:todas.length, proximo:restantes.length>50 ? empresas[49].cnpj : null,
+      admin:user.is_admin, pode_editar:user.is_admin || podeAcao(user,'editar'), pode_concluir:user.is_admin || podeAcao(user,'fechar'), catalogo:core.CATALOGO });
+  }));
+  app.get(base + '/parametros', wrap(async (req,res)=>{
+    await contexto(req);
+    const snap = await db.collection('crm_registros').where('cnpj','==',req.params.cnpj).get();
+    const registros = snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>a.fonte.localeCompare(b.fonte)||a.linha-b.linha);
+    // Reconfere após a leitura da base para não devolver parâmetros após revogação.
+    const ctx = await contexto(req);
+    res.json({ok:true,registros,pode_editar:ctx.user.is_admin || podeAcao(ctx.user,'editar')});
+  }));
+  app.patch(base + '/parametros/:id', wrap(async (req,res)=>{
+    if (!/^[a-z0-9_-]{1,100}$/.test(req.params.id || '')) throw core.erro('Registro inválido. Atualize a página.');
+    const registro = await db.runTransaction(async tx=>{
+      const ctx=await contexto(req,tx), ref=db.collection('crm_registros').doc(req.params.id), doc=await tx.get(ref);
+      if (!doc.exists || doc.data().cnpj!==req.params.cnpj) throw core.erro('Registro indisponível nesta empresa.',404);
+      const antes=doc.data(), depois=editarParametro(antes,req.body || {},ctx.user,agora());
+      tx.set(ref,depois);
+      tx.create(ref.collection('historico').doc(),{revisao:depois.revisao,quando:agora(),por_uid:ctx.user.uid,
+        coluna:req.body.coluna,motivo:req.body.motivo.trim(),antes:antes.campos[req.body.coluna],depois:depois.campos[req.body.coluna]});
+      return {...depois,id:doc.id};
+    }); res.json({ok:true,registro});
+  }));
+  app.get(base + '/parametros/:id/historico', wrap(async (req,res)=>{
+    await contexto(req);
+    if (!/^[a-z0-9_-]{1,100}$/.test(req.params.id || '')) throw core.erro('Registro inválido.');
+    const ref=db.collection('crm_registros').doc(req.params.id), doc=await ref.get();
+    if (!doc.exists || doc.data().cnpj!==req.params.cnpj) throw core.erro('Registro indisponível.',404);
+    const snap=await ref.collection('historico').orderBy('revisao').get();
+    res.json({ok:true,historico:snap.docs.map(d=>d.data())});
+  }));
+  app.get('/api/crm/base/pendencias',wrap(async(req,res)=>{
+    admin(await usuario(req));
+    const snap=await db.collection('crm_registros').where('identidade_valida','==',false).get();
+    res.json({ok:true,registros:snap.docs.map(d=>({...d.data(),id:d.id}))});
+  }));
+  app.get('/api/crm/base/resumo',wrap(async(req,res)=>{
+    admin(await usuario(req));
+    const snap=await db.collection('crm_importacoes').get();
+    res.json({ok:true,fontes:snap.docs.map(d=>d.data())});
   }));
   app.get('/api/crm/usuarios', wrap(async (req, res) => {
     admin(await usuario(req));
@@ -85,7 +132,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
   }));
   app.get(base + '/controles', wrap(async (req, res) => {
     const ctx = await contexto(req);
-    let q = ctx.ref.collection('crm_controles').orderBy('__name__');
+    let q = ctx.controlesRef.collection('crm_controles').orderBy('__name__');
     const cursor = cursorId(req.query.cursor, /^[A-Za-z0-9_-]{1,100}$/);
     if (cursor) q = q.startAfter(cursor);
     const snap = await q.limit(101).get(), docs = snap.docs.slice(0, 100);
@@ -96,7 +143,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const result = await db.runTransaction(async tx => {
       const ctx = await contexto(req, tx);
       const novo = core.criarControle(req.body || {}, ctx.user, agora());
-      const ref = ctx.ref.collection('crm_controles').doc(novo.id), anterior = await tx.get(ref);
+      const ref = ctx.controlesRef.collection('crm_controles').doc(novo.id), anterior = await tx.get(ref);
       if (anterior.exists) throw core.erro('Já existe este controle para o período. Abra o registro existente.', 409);
       tx.create(ref, novo.registro);
       tx.create(ref.collection('historico').doc(), { revisao: 1, acao: 'criacao', quando: novo.registro.criado_em, por_uid: ctx.user.uid, antes: null, depois: novo.registro });
@@ -106,7 +153,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
   function controleRef(ctx, req) {
     const id = cursorId(req.params.id, /^[A-Za-z0-9_-]{1,100}$/);
     if (!id) throw core.erro('Selecione um controle.');
-    return ctx.ref.collection('crm_controles').doc(id);
+    return ctx.controlesRef.collection('crm_controles').doc(id);
   }
   app.patch(base + '/controles/:id', wrap(async (req, res) => {
     const result = await db.runTransaction(async tx => {

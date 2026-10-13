@@ -1912,3 +1912,9 @@ Paulo solicitou disponibilizar a primeira etapa no app online. Candidata 3.4.387
 ## 2026-10-13 — CRM online e acesso inicial — 3.4.388
 
 3.4.387 publicada pelo PR #262 e workflow 38440613704, saúde e versão conferidas. Login Firebase teve falha de rede transitória e funcionou na repetição (HTTP 200). Validação autenticada encontrou bloqueio do menu CRM pelo gate de ativação. 3.4.388 permite abrir a carteira antes de ativar empresa, mantendo o bloqueio contábil e cobrindo ambos os casos em regressão.
+
+## 2026-10-13 — CRM base Jotform (v3.4.389)
+- Exportações autenticadas conferidas por aba; base oficial 1.585 linhas e V2 967. Importação aditiva em crm_registros/crm_empresas, sem regravar empresas, usuários ou lançamentos.
+- Carteira unificada com busca, parâmetros por fonte/linha, origem imutável, edição com motivo/revisão/histórico, pendências de CNPJ e distribuição administrativa por UID.
+- Os valores de origem não certificam entrega de obrigações. Anexos permanecem por links; fórmulas, envios e sincronização do Checklist ainda precisam da etapa de equivalência. Análise em docs/crm-base-jotform.md.
+- Validação local: 250 testes passaram, três sem evidência local, zero falhas no check:ci; check completo interrompe no PDF Itaú externo ausente. Testes específicos e sintaxe conferidos.
