@@ -89,7 +89,7 @@ assert.ok(/slate: neutros,\s*gray: neutros,\s*blue: azul,\s*indigo: azul/.test(b
 const TELAS_JS = [
   'relatorios-contabeis-ui.js', 'igrejas-conferencia-caixa.js', 'historicos-padrao.js', 'ativo-imobilizado-ui.js',
   'vincular-empresa.js', 'manual-cci.js', 'ajuda-cci.js', 'parametrizacao-regime-ui.js', 'vincular-folha-pagamento.js',
-  'reinf/alugueis-planilha-modal.js', 'auditai/conciliacao-arquivos.js', 'pagamentos-receita-ui.js',
+  'reinf/alugueis-planilha-modal.js', 'auditai/conciliacao-arquivos.js', 'pagamentos-receita-ui.js', 'importacao-fi-ui.js',
   'conciliacao-manual-ui.js', 'migracao-sage-ui.js', 'server-monitor-ui.js', 'planos-gerenciamento-ui.js', 'plano-consulta.js',
 ];
 const TAILWIND_ANTIGO = [
