@@ -1918,3 +1918,7 @@ Paulo solicitou disponibilizar a primeira etapa no app online. Candidata 3.4.387
 - Carteira unificada com busca, parâmetros por fonte/linha, origem imutável, edição com motivo/revisão/histórico, pendências de CNPJ e distribuição administrativa por UID.
 - Os valores de origem não certificam entrega de obrigações. Anexos permanecem por links; fórmulas, envios e sincronização do Checklist ainda precisam da etapa de equivalência. Análise em docs/crm-base-jotform.md.
 - Validação local: 250 testes passaram, três sem evidência local, zero falhas no check:ci; check completo interrompe no PDF Itaú externo ausente. Testes específicos e sintaxe conferidos.
+
+## 13/10/2026 — Ativação por busca (3.4.390)
+
+Entrada sem consulta da carteira com busca vazia. Busca com dois caracteres, oito resultados compactos por página e descarte de respostas obsoletas. Servidor também recusa a varredura inicial e retorna apenas identificação para ativação; carteira e ativação explícita preservadas. Regressões de consulta vazia e corrida de busca verificadas.

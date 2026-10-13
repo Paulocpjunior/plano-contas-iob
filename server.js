@@ -1087,6 +1087,10 @@ app.get('/api/empresas/listar', async (req, res) => {
   try {
     const { q, banco, status, periodo_de, periodo_ate, sort, order, limit, offset, modo } = req.query || {};
     const verTudo = !!req.user.is_admin;
+    // A tela de ativação vazia nunca lê a coleção de empresas.
+    if (modo === 'ativacao' && String(q || '').trim().length < 2) {
+      return res.json({ total: 0, empresas: [], bancos: [], modo: 'ativacao', is_admin: verTudo, offset: 0, limit: 8 });
+    }
     const docs = verTudo
       ? (await db.collection('empresas').get()).docs
       : await listarEmpresasAcessiveis(req.user, { somenteVinculadas: true });
@@ -1095,26 +1099,9 @@ app.get('/api/empresas/listar', async (req, res) => {
     // O primeiro passo do CCI usa somente o cadastro-base. Nao consulta planos,
     // sessoes, relatorios ou lancamentos de cada empresa antes da ativacao.
     if (modo === 'ativacao') {
-      let leves = empresas.map(function (emp) {
-        return {
-          cnpj: emp.cnpj,
-          razao_social: emp.razao_social || '',
-          codigo_empresa: codigoEmpresaDe(emp),
-          whatsapp: emp.whatsapp || emp.whatsapp_cliente || '',
-          ativo: emp.ativo !== false,
-          owner_email: emp.created_by_email || null,
-          responsaveis: normalizarResponsaveis(emp.responsaveis),
-          modo_contabil: emp.modo_contabil || '',
-          inicio_escrituracao_cci: emp.inicio_escrituracao_cci || '',
-          regime_tributario_codigo: emp.regime_tributario_codigo || '',
-          regime_tributario_nome: emp.regime_tributario_nome || '',
-          plano_id: emp.plano_id || null,
-          saldo_abertura_status: emp.saldo_abertura_status || '',
-          saldo_abertura_periodo: emp.saldo_abertura_periodo || '',
-          prontidao_contabil: avaliarProntidaoContabil(emp)
-        };
+      let leves = empresas.filter(emp => empresaBateBusca(String(q).trim(), emp)).map(function (emp) {
+        return { cnpj: emp.cnpj, razao_social: emp.razao_social || '', codigo_empresa: codigoEmpresaDe(emp) };
       });
-      if (q) leves = leves.filter(function (empresa) { return empresaBateBusca(q, empresa); });
       leves.sort(function (a, b) {
         const ca = String(a.codigo_empresa || '9999');
         const cb = String(b.codigo_empresa || '9999');
