@@ -33,3 +33,11 @@ const resumo = c.resumir([{status:'concluida',prazo:'2026-10-01'}, {status:'pend
 assert.equal(resumo.percentual,50); assert.equal(resumo.atrasados,1);
 assert.throws(() => c.data('2026-02-29','prazo')); assert.equal(c.data('2024-02-29','prazo'),'2024-02-29');
 console.log('CRM domínio: isolamento, períodos, evidências, perfis, conflito, reabertura e indicadores OK');
+
+// A carteira é uma visão entre empresas e deve abrir antes da ativação.
+const html = require('fs').readFileSync(require('path').join(__dirname, '../index.html'), 'utf8');
+const gate = html.match(/function aplicarGateAtivacaoEmpresa\(liberado\) \{([\s\S]*?)\n        function /)[0];
+const regra = gate.match(/const permitidoAntesDaAtivacao = ([^;]+);/)[1];
+const permitido = new Function('botao', 'return '+regra);
+assert.equal(permitido({id:'btnCrmContabilNav'}), true);
+assert.equal(permitido({id:'btnDadosEmpresaNav'}), false);
