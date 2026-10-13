@@ -1,7 +1,8 @@
 {
-  "version": "3.4.389",
-  "build_date": "2026-10-13T18:24:51Z",
+  "version": "3.4.390",
+  "build_date": "2026-10-13T18:57:43Z",
   "release_notes": [
+    "Ativação de empresa: entrada com busca por número, nome ou CNPJ, sem carregar a carteira ao entrar, e resultados compactos para ativar a empresa desejada.",
     "CRM: base de empresas e parâmetros importados do Jotform, busca em toda a carteira, registros por origem e edição com histórico; distribuição administrativa e conferência de identificações.",
     "Carteira e obrigações: acesso ao módulo disponível antes de ativar uma empresa, para consultar e distribuir a carteira desde a entrada no CCI.",
     "Carteira e obrigações: novo módulo com empresas atribuídas pelo administrador, controles por período, conclusão com evidência, histórico e distribuição de responsável e apoios. Conferência do Checklist em prévia; migração de dados ainda pendente.",
