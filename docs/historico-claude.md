@@ -1895,6 +1895,14 @@ Pendência do PR #258: os `.js` que geram HTML/estilo de tela seguiam com azul e
 Decisões: NÃO mudaram (1) os PDFs do jsPDF dos relatórios contábeis (cores RGB em array — documento contábil entregue ao cliente), (2) a janela de impressão da conferência de caixa (já em cinza puro), (3) `reinf/dividendos-relatorio-layout.js` (extrato de dividendos, documento do cliente) e `email-layout.js` (casca do e-mail igual à do CFI), (4) os bundles compilados do AuditAI em `auditai/assets` (cores de série de gráfico "Circulante/Fixo").
 Tema escuro: os seletores `[style*="..."]` do `index.html`/`admin.html` ganharam os valores novos (`background:#fbfbfd` → preto; `#f5f5f7`/`#e8e8ed` → #2c2c2e; `color:#1c1c1e/#2c2c2e/#3a3a3c` → #fbfbfd; `color:#515154/#6e6e73/#a1a1a6` → #d2d2d7), mantendo os antigos porque o `index.html` ainda tem estilos inline com os neutros antigos. Trava: `test-tema-apple.js` seção 4 (lista dos 17 arquivos sem cor antiga em hex ou rgb + seletores novos), provada falhando contra o código anterior. Capturas antes/depois (claro e escuro) de Ajuda, Manual, Conferência de caixa e Relatórios renderizadas sem login, com /api simulada.
 
+
+## 2026-10-13 — CRM: carteira e obrigações (etapa local)
+
+Branch codex/crm-carteira-obrigacoes a partir da main 3.4.385. Matriz de equivalência em docs/crm-carteira-obrigacoes.md. Novo módulo com carteira estrita por UID, distribuição administrativa auditada, controles por período com evidência e revisão concorrente, histórico transacional e prévia somente leitura do Checklist. Sem carga de origem, alteração de dados reais, commit, push ou deploy. Regras de acesso dos módulos antigos permanecem pendentes de migração controlada. Ver docs/crm-validacao-20261013.md para resultados e limites.
+
+### Publicação solicitada em 13/10/2026
+
+Paulo solicitou disponibilizar a primeira etapa no app online. Candidata 3.4.387 preparada para o fluxo branch/PR/squash e deploy oficial. Escopo permanece o descrito na matriz: controles manuais e prévia, sem migração do Jotform nem mudança do acesso legado de outros módulos. O status final de publicação deve ser conferido no workflow e em /api/version.
 ## 2026-10-13 — Importação direta FI IOB/SAGE — 3.4.386
 
 - Importador financeiro de 328 posições baseado no gerador CCI e no espelho fornecido; disponível a todas as empresas conforme orientação atualizada.
