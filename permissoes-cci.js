@@ -24,6 +24,8 @@ function acaoDaRota(method, url, body = {}) {
   const path = String(url || '').split('?')[0].replace(/\/+$/, '').toLowerCase();
   const verbo = String(method).toUpperCase();
   if (['GET', 'HEAD', 'OPTIONS'].includes(verbo)) return null;
+  // O CRM relê usuário e carteira na transação e decide edição/conclusão pelo estado atual.
+  if (path.startsWith('/api/crm/')) return null;
   // Administração continua exigindo is_admin próprio do CCI nas rotas originais.
   if (path.startsWith('/api/gestao-acessos/')) return null; // Rotas exigem admin do CCI.
   if (/^\/api\/users\/[^/]+\/(permissoes|promote|demote)$/.test(path)) return null;

@@ -72,7 +72,7 @@ function rodar(arquivo) {
 function main() {
     console.log('── Sintaxe (node --check) ──');
     const arquivosJs = [
-        'server.js',
+        'server.js', 'crm-contabil.js', 'crm-checklist.js', 'crm-contabil-routes.js', 'crm-contabil-ui.js',
         ...fs.readdirSync(RAIZ).filter((f) => f.startsWith('parser-') && f.endsWith('.js')),
         'indices-financeiros.js', 'indices-financeiros-ui.js', 'api-adapter.js', 'lancamentos-edicao-lote.js', 'ajuda-cci-base.js', 'ajuda-cci.js', 'manual-cci-base.js', 'manual-cci.js', 'parametrizacao-regime.js', 'parametrizacao-regime-ui.js', 'historicos-padrao.js', 'historicos-routes.js',
         'igrejas-conferencia-caixa.js', 'layouts-bancarios-padrao.js',
