@@ -91,3 +91,22 @@ Formulário público original aberto em uma aba temporária, com valores fictíc
 | Depois informar entrada `7`, em seguida `8` | permanece `99` em ambos |
 
 O input de saída é numérico e `readOnly=false`. A regra condicional de cópia e o cálculo declarado não podem ser tratados como arredondamento obrigatório a duas casas: a execução observada preservou três. Também não se pode zerar o residual ao apagar a entrada nem sobrescrever a intervenção manual. A tentativa inicial de limpar por `fill('')` não limpou o campo; o resultado de vazio acima foi confirmado após seleção e Backspace. Ainda faltam separador decimal por locale, recarga/edição de submissão existente e fórmulas do Tables. A aba temporária foi fechada sem submissão; evidência JSON ficou privada fora do repositório.
+
+## Acesso às integrações e publicação 3.4.398
+
+Após o usuário disponibilizar a conta proprietária, a página de integrações abriu sem o aviso de restrição. A opção Jotform Tabelas apresentou um assistente novo com Criar Entrada/Update Entry, sem ação selecionada; o assistente foi cancelado, sem criar conexão. A galeria não foi tomada como prova de ausência de automações externas. Continua necessária a conferência das configurações da própria tabela.
+
+3.4.398 publicada pelo PR #276, merge `e7a41b830e27bf79bf19d5ebf1fe18e20e0a41dd`, workflow `38569224653` concluído. Revisão `plano-contas-iob-01158-dox` com 100% do tráfego; API de versão, saúde e Firestore conectados conferidos. SHA-256 do JavaScript servido igual ao arquivo do commit: `79eb977d1c6dea9a6d2199dede0b5c0e6920b6e4ea1559de616bc04b7fd69e13`. CI remoto: 229 aprovados, 26 pulados, zero falhas. A falha local do PDF externo AuditAI permanece reproduzível também na main anterior e não foi contornada.
+
+## Ação da tabela: envio DEFIS — configuração conferida
+
+A tabela V2 mostrou 967 registros e a coluna de ação com rótulo truncado `ENVIO DEFIS 202...`. Há células com data de envio e outras com botão disponível; nenhum botão de linha foi executado. O menu do cabeçalho permitiu consultar duas integrações selecionadas. Os editores foram cancelados, sem Salvar ou Aplicar Alterações. Uma seleção provisória alterada durante a navegação foi descartada pelo fechamento; ao reabrir, ambas as seleções originais estavam preservadas.
+
+| Integração | Configuração observada |
+|---|---|
+| Microsoft Teams — Enviar mensagem via chat | Chat existente configurado; título com prefixo `New submission for:` seguido de N°, CNPJ, Colaborador, Status da Empresa e Tributação. Corpo inclui N°, CNPJ, Status da Empresa, Tributação, Colaborador e BALANCO / BALANCETE FECHADO 2025. Botões Visualizar Envio e Editar envio desmarcados. |
+| OneDrive — Envio de Arquivos | Pasta existente em OneDrive corporativo/SharePoint; criação de subpastas por envio ativada. Nome composto pelos campos ID do Envio, N°, CNPJ, EMPRESAS e Colaborador. PDF de submissão selecionado: Padrão. Campo de upload selecionado: RECIBO + DEFIS 2025/2026. |
+
+URLs de chat/pasta e conta vinculada ficaram somente nas capturas privadas. O destino completo estava truncado na tela e não foi inferido. A presença dessas configurações não comprova entrega atual nem define os gatilhos de todas as demais ações. O botão DEFIS não deve ser reduzido a uma baixa de obrigação: sua equivalência exige comunicação, PDF, cópia do anexo, organização de pastas e histórico do resultado.
+
+Para implementação e homologação: identificar ação e versão, guardar referência estável do registro de origem, gerar prévia dos campos e arquivos, validar destino autorizado, separar resultado de cada integração e impedir repetição indevida. Testar falha parcial e retomada com destinos de teste antes de habilitar envios reais. A infraestrutura de documentos nativos do CCI não comprova, por si só, a migração desses arquivos e efeitos externos. Permanecem pendentes as outras ações da tabela, fórmulas, destinos completos, layout do PDF padrão e ensaio controlado.
