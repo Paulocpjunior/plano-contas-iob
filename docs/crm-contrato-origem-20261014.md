@@ -53,3 +53,13 @@ Os estados referenciados nas condições são CLIENTE NOVO, CLIENTE SAIDA, CLIEN
 A 3.4.396 publicou a ferramenta de reconciliação, não um motor de automações. PR #272, commit `e0cac28fea3d7fe128206ddb25d17e659f30d52c`, workflow 38561585206 concluído; revisão `plano-contas-iob-01154-kay` com 100% de tráfego. API de versão 3.4.396, saúde ok, Firestore conectado e hash do JavaScript servido conferidos. CI remoto: 229 aprovados, 26 pulados, zero falhas; local: 252 aprovados, 3 pulados, zero falhas.
 
 A próxima implementação pode partir deste contrato, mas a homologação integral continua aberta: fórmulas do Tables, comportamento das comunicações, delta atualizado da origem, binários privados, integração Checklist, conta colaboradora restrita e restauração isolada. A restauração de JSON em teste não substitui a restauração do banco completo, subcoleções e arquivos.
+
+## Continuação — opções e apresentação nativas (3.4.397)
+
+`crm-base.js` entrega contrato de apresentação apenas para `contabil_v2` e `contabil_v2_integral`. Situação da Empresa e Tributação usam as opções acima, com validação no servidor, motivo, revisão e histórico existentes. Valor legado desconhecido pode ser preservado; não é convertido automaticamente. Nomes duplicados não recebem seletor presumido. Metadados são calculados na leitura e não gravados nos registros da migração.
+
+As condições de tributação são indicadas junto aos campos, sem ocultar dados históricos, alterar prazos ou dispensar obrigações. Tributação desconhecida, vazia ou ambígua não produz indicação de visibilidade. O seletor recebe foco ao abrir a edição.
+
+A inspeção das duas exportações confirmou uma diferença de abrangência: `SALDO JANEIRO 2026` e `SALDO RESIDUAL` estão em `contabil_v2_integral`, mas não em `contabil_v2`. Portanto, a fórmula da origem não deve ser aplicada à visão resumida nem confundida com os campos de distribuição de dividendos. A cópia calculada ainda não foi ativada: resta conferir comportamento real de vazio, zero, negativo, vírgula e arredondamento e distinguir cálculo do formulário das fórmulas do Tables.
+
+Validação desta continuação: testes de domínio cobrem as 12 tributações, valores desconhecidos, sufixos, nomes duplicados e preservação de originais; testes de rota cobrem validação e ausência de persistência do contrato. Navegador com dados fictícios confirmou seletor e indicação de campo oculto. Nenhum parâmetro real foi alterado para testar.

@@ -1961,3 +1961,7 @@ Ferramenta somente leitura com comparação integral e relatório privado sem va
 ## 2026-10-14 — CRM: contrato de origem recuperado
 
 Após disponibilização da sessão remota, lidos sem edição os formulários V2 e Checklist: condições, fórmula, opções e mapeamento de campos. Três configurações de e-mail observadas, nenhum envio. Evidência e limites em docs/crm-contrato-origem-20261014.md. Publicação 3.4.396 confirmada: workflow 38561585206, revisão 01154-kay, tráfego 100%, versão/saúde/hash conferidos.
+
+## 2026-10-14 — CRM 3.4.397: opções nativas do formulário V2
+
+Continuação autorizada: seletores de situação e tributação com opções conferidas, validação de servidor e preservação dos valores legados; condições de apresentação como orientação, sem dispensar obrigações nem apagar campos. Contrato restrito às duas fontes V2 e metadados não persistidos. Testes de domínio/rotas e navegador fictício. A exportação integral contém os dois campos da fórmula de saldo, ausentes na visão resumida; cálculo e comunicações permanecem pendentes de equivalência. Nenhum dado real modificado nesta validação.
