@@ -64,6 +64,22 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     res.json({ ok:true, empresas, equipes, total:todas.length, proximo:restantes.length>50 ? empresas[49].cnpj : null,
       admin:user.is_admin, pode_editar:user.is_admin || podeAcao(user,'editar'), pode_concluir:user.is_admin || podeAcao(user,'fechar'), catalogo:core.CATALOGO });
   }));
+  // Leitura operacional limitada por lote; nenhuma baixa ou distribuição automática.
+  app.get('/api/crm/trabalho', wrap(async (req,res)=>{
+    const user=await usuario(req), cursor=cursorId(req.query.cursor,/^\d{14}$/);
+    const snapshots=await Promise.all(['crm_empresas','empresas'].map(c=>db.collection(c).get()));
+    const mapa=new Map();snapshots.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
+    const todas=[...mapa.values()].filter(d=>core.temCarteira(d.data(),user)).sort((a,b)=>a.id.localeCompare(b.id));
+    const restantes=todas.filter(d=>!cursor||d.id>cursor), lote=restantes.slice(0,10), itens=[], truncadas=[];
+    for(const doc of lote){
+      const snap=await db.collection('empresas').doc(doc.id).collection('crm_controles').orderBy('__name__').limit(101).get();
+      // Revalidação após leitura impede devolver controles após revogação da carteira.
+      const ctx=await contexto({...req,params:{cnpj:doc.id}});
+      if(snap.docs.length>100)truncadas.push(doc.id);
+      snap.docs.slice(0,100).forEach(c=>itens.push({...c.data(),id:c.id,cnpj:doc.id,empresa:ctx.empresa.razao_social||doc.id,responsaveis:normalizarResponsaveis(ctx.empresa.responsaveis).map(p=>({uid:p.uid,nome:p.nome,papel:p.papel}))}));
+    }
+    res.json({ok:true,itens,empresas_lidas:lote.length,total_empresas:todas.length,truncadas,proximo:restantes.length>10?lote[lote.length-1].id:null});
+  }));
   app.get('/api/crm/visualizacoes',wrap(async(req,res)=>{
     const user=await usuario(req), doc=await db.collection('users').doc(user.uid).collection('crm_preferencias').doc('visualizacoes').get();
     res.json({ok:true,...(doc.exists?doc.data():{revisao:0,itens:[]})});

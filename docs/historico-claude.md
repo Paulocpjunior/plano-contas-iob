@@ -1932,3 +1932,7 @@ Testes CI: 250 aprovados, 3 pulados por evidência local ausente, zero falhas. N
 ### Publicação autorizada do CRM (14/10) — v3.4.391
 
 Paulo autorizou subir e fazer deploy da etapa de filtros/dossiê. Preparada a versão 3.4.391 com novidades e invalidação de cache. Fluxo branch → PR → squash-merge → deploy-app.yml, com candidata sem tráfego e promoção após health. A autorização não inclui desligar Jotform; equivalência permanece pendente conforme matriz documentada. O resultado de CI e deploy deve ser conferido nas execuções vinculadas ao PR.
+
+### CRM como área de trabalho (14/10) — v3.4.392
+
+Após crítica da interface publicada e autorização para seguir, reorganizada a carteira em área ampla com navegação para demandas, gestão e dossiê. Corrigido contraste usando os tokens reais; filtros recolhíveis, colunas ocultáveis e retorno preservando filtros/posição. Consulta operacional limitada e autorizada em lotes, com testes de isolamento, paginação e truncamento. QA com CSS completo do CCI, API fictícia, claro/escuro e viewport 390 px. CI local: 250 aprovados, 3 pulados, zero falhas. Conferidos por leitura os três registros genéricos: sem parâmetros importados vinculados, origem ainda não comprovada; nenhuma alteração de dados. Publicação pelo fluxo já autorizado de PR e candidata validada.
