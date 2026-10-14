@@ -63,3 +63,19 @@ As condições de tributação são indicadas junto aos campos, sem ocultar dado
 A inspeção das duas exportações confirmou uma diferença de abrangência: `SALDO JANEIRO 2026` e `SALDO RESIDUAL` estão em `contabil_v2_integral`, mas não em `contabil_v2`. Portanto, a fórmula da origem não deve ser aplicada à visão resumida nem confundida com os campos de distribuição de dividendos. A cópia calculada ainda não foi ativada: resta conferir comportamento real de vazio, zero, negativo, vírgula e arredondamento e distinguir cálculo do formulário das fórmulas do Tables.
 
 Validação desta continuação: testes de domínio cobrem as 12 tributações, valores desconhecidos, sufixos, nomes duplicados e preservação de originais; testes de rota cobrem validação e ausência de persistência do contrato. Navegador com dados fictícios confirmou seletor e indicação de campo oculto. Nenhum parâmetro real foi alterado para testar.
+
+## Comportamento real do cálculo — teste sem envio em 14/10/2026
+
+Formulário público original aberto em uma aba temporária, com valores fictícios apenas nos campos de saldo; nenhum envio realizado. Leituras do DOM dos inputs 37 e 39 (não do valor float arredondado da árvore de acessibilidade):
+
+| Entrada / ação | Saldo residual observado |
+|---|---|
+| `12.345` | `12.345` |
+| `0` | `0` |
+| `-12.345` | `-12.345` |
+| `1.005` | `1.005` |
+| Apagar entrada após `1.005` | permanece `1.005` |
+| Editar manualmente residual para `99` | `99` |
+| Depois informar entrada `7`, em seguida `8` | permanece `99` em ambos |
+
+O input de saída é numérico e `readOnly=false`. A regra condicional de cópia e o cálculo declarado não podem ser tratados como arredondamento obrigatório a duas casas: a execução observada preservou três. Também não se pode zerar o residual ao apagar a entrada nem sobrescrever a intervenção manual. A tentativa inicial de limpar por `fill('')` não limpou o campo; o resultado de vazio acima foi confirmado após seleção e Backspace. Ainda faltam separador decimal por locale, recarga/edição de submissão existente e fórmulas do Tables. A aba temporária foi fechada sem submissão; evidência JSON ficou privada fora do repositório.
