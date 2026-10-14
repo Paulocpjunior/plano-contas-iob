@@ -38,6 +38,15 @@ function ambiente() {
 }
 (async()=>{
   const a=ambiente(), base='/api/crm/empresas/:cnpj';
+  const buscaEnv=ambiente();
+  for(let n=0;n<55;n++)buscaEnv.dados.set('empresas/'+String(100+n).padStart(14,'0'),{razao_social:'Busca 1200',codigo_empresa:'55',responsaveis:[]});
+  buscaEnv.dados.set('empresas/'+outro,{razao_social:'Piloto',codigo_empresa:'1200',responsaveis:[]});
+  const primeira=await buscaEnv.call('GET','/api/crm/carteira',{},'admin',{}, {busca:'1200'});
+  assert.equal(primeira.body.empresas[0].cnpj,outro,'código exato antes dos resultados parciais');
+  const segunda=await buscaEnv.call('GET','/api/crm/carteira',{},'admin',{}, {busca:'1200',cursor:primeira.body.proximo});
+  const ids=[...primeira.body.empresas,...segunda.body.empresas].map(e=>e.cnpj);
+  assert.equal(ids.length,56);assert.equal(new Set(ids).size,56,'paginação não repete nem perde empresas');
+  assert.equal((await buscaEnv.call('GET','/api/crm/carteira',{},'colab',{}, {busca:'1200'})).body.total,0,'busca não amplia carteira');
   const entrada=await a.call('GET','/api/crm/contexto');assert.equal(entrada.statusCode,200);assert.equal(entrada.body.uid,'colab');assert.equal(entrada.body.admin,false);assert.equal(a.companyQueries(),0,'entrada não lê a carteira completa');
   assert.equal((await a.call('GET','/api/crm/contexto',{},'')).statusCode,401);
   let r=await a.call('GET','/api/crm/carteira'); assert.equal(r.body.empresas.length,1);assert(!r.body.admin);assert(!('acessos_legados' in r.body.empresas[0]));

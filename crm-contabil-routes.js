@@ -1,6 +1,6 @@
 'use strict';
 const core = require('./crm-contabil');
-const { documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao } = require('./crm-base');
+const { compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
@@ -62,10 +62,12 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const todas = acessiveis.filter(e=>(!filtros.origem || e.origem===filtros.origem)
       && (!filtros.cliente || e.situacao_cliente===filtros.cliente)
       && (!filtros.equipe || (filtros.equipe==='sem_equipe' ? !e.responsaveis.length : e.responsaveis.some(p=>p.uid===filtros.equipe))))
-      .filter(e=>!busca || normalizarBusca([e.cnpj,e.razao_social,e.codigo_empresa].join(' ')).includes(busca)
+      .filter(e=>!busca || (/^\d+$/.test(busca)&&String(e.codigo_empresa||'').replace(/^0+(?=\d)/,'')===busca.replace(/^0+(?=\d)/,'')) || normalizarBusca([e.cnpj,e.razao_social,e.codigo_empresa].join(' ')).includes(busca)
         || (busca.replace(/\D/g,'').length>=8 && e.cnpj.includes(busca.replace(/\D/g,''))))
-      .sort((a,b)=>a.cnpj.localeCompare(b.cnpj));
-    const restantes = todas.filter(e=>!cursor || e.cnpj>cursor), empresas=restantes.slice(0,50);
+      .sort((a,b)=>compararBusca(a,b,busca));
+    const posicao=cursor?todas.findIndex(e=>e.cnpj===cursor):-1;
+    if(cursor && posicao<0)throw core.erro('A carteira mudou. Atualize a busca antes de continuar.',409);
+    const restantes = todas.slice(posicao+1), empresas=restantes.slice(0,50);
     res.json({ ok:true, empresas, equipes, total:todas.length, proximo:restantes.length>50 ? empresas[49].cnpj : null,
       admin:user.is_admin, pode_editar:user.is_admin || podeAcao(user,'editar'), pode_concluir:user.is_admin || podeAcao(user,'fechar'), catalogo:core.CATALOGO });
   }));

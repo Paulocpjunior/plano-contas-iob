@@ -2,6 +2,12 @@
 const { erro } = require('./crm-contabil');
 const { podeAcao } = require('./permissoes-cci');
 function normalizarBusca(v) { return String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
+// Correspondência exata primeiro; desempate estável preserva a paginação.
+function compararBusca(a,b,busca) {
+  const q=normalizarBusca(busca), digits=q.replace(/\D/g,'');
+  const score=e=>!q?2:((/^\d+$/.test(q) && String(e.codigo_empresa||'').replace(/^0+(?=\d)/,'')===q.replace(/^0+(?=\d)/,'')) || (digits.length===14 && e.cnpj===digits))?0:normalizarBusca(e.razao_social)===q?1:2;
+  return score(a)-score(b)||a.cnpj.localeCompare(b.cnpj);
+}
 // Classificação por fonte E campo conferidos, nunca pelo nome do arquivo/URL.
 function documentosEmpresa(registros) {
   return registros.flatMap(r => (r.campos || []).flatMap((c,coluna) => {
@@ -102,4 +108,4 @@ function atualizarVisualizacao(antes, body, quando) {
   const v={nome,filtros,colunas,atualizada_em:quando}; if(i<0)itens.push(v);else itens[i]=v;
   return {revisao:(antes.revisao||0)+1,itens};
 }
-module.exports={documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
+module.exports={compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};

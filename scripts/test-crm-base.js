@@ -90,3 +90,10 @@ assert.deepStrictEqual(docs.filter(d=>d.obrigacao==='DITR').map(d=>[d.coluna,d.i
 assert.equal(documentosEmpresa([{...fontesDocs[1],fonte:'contabil_v2_integral'}])[0].obrigacao,'DEFIS');
 assert.equal(documentosEmpresa([{...fontesDocs[1],fonte:'ditr'}])[0].obrigacao,null,'DITR não aceita o campo de DEFIS como anexo próprio');
 console.log('CRM documentos: DITR e DEFIS isolados, referências preservadas, ambiguidade e URLs inválidas OK');
+
+const {compararBusca}=require('../crm-base');
+const buscaEmpresas=[{cnpj:'00000012000001',codigo_empresa:'0128',razao_social:'Outra'},{cnpj:'99999999999999',codigo_empresa:'1200',razao_social:'Piloto'},{cnpj:'11111111111111',codigo_empresa:'1200',razao_social:'Outra filial'}];
+assert.deepEqual([...buscaEmpresas].sort((a,b)=>compararBusca(a,b,'001200')).map(e=>e.cnpj),['11111111111111','99999999999999','00000012000001']);
+assert.equal([...buscaEmpresas].sort((a,b)=>compararBusca(a,b,'00000012000001'))[0].cnpj,'00000012000001');
+assert.equal([...buscaEmpresas].sort((a,b)=>compararBusca(a,b,'piloto'))[0].razao_social,'Piloto');
+console.log('CRM busca: código exato, zeros iniciais, CNPJ e desempate estável OK');

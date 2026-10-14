@@ -24,3 +24,11 @@ html[data-theme=dark] #crmContabilDialog .crm-badge[data-tone=em_andamento]{back
 
 #crmContabilDialog .crm-document-group{border:1px solid var(--border);background:var(--surface);border-radius:16px;padding:18px;margin:16px 0;overflow-wrap:anywhere}#crmContabilDialog .crm-document-group header{display:flex;align-items:center;gap:12px}#crmContabilDialog .crm-document-group h4{margin:0;font-size:16px}#crmContabilDialog .crm-document-group p{line-height:1.6}#crmContabilDialog .crm-document-group button{margin-top:8px}
 #crmContabilDialog .crm-document-group a{color:var(--crm-blue);text-underline-offset:3px}
+
+/* Densidade de trabalho e documentos: toque preservado no celular. */
+#crmContabilDialog .crm-document-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+#crmContabilDialog .crm-document-card{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px;border:1px solid var(--border);border-radius:12px;min-width:0}
+#crmContabilDialog .crm-document-card a{overflow-wrap:anywhere}#crmContabilDialog .crm-document-card summary{cursor:pointer;font-size:13px}#crmContabilDialog .crm-document-card p{margin:8px 0;font-size:13px}
+#crmContabilDialog form.crm-message-preview{display:flex;flex-direction:column;align-items:stretch;max-width:850px}#crmContabilDialog .crm-message-preview label{display:flex;flex-direction:column;gap:6px}#crmContabilDialog .crm-message-preview button{align-self:flex-start}
+@media(min-width:900px){#crmContabilDialog .crm-workspace .crm-main{padding:24px 28px}#crmContabilDialog .crm-page-head{margin-bottom:20px}#crmContabilDialog .crm-main .crm-dossie{padding:16px 20px}#crmContabilDialog .crm-hero{min-height:150px;padding:22px 26px;margin-bottom:16px}#crmContabilDialog .crm-hero img{max-height:160px;width:auto}#crmContabilDialog .crm-main td{padding:10px 12px}#crmContabilDialog .crm-launch{padding:16px}#crmContabilDialog .crm-summary-card{padding:14px}}
+@media(max-width:640px){#crmContabilDialog .crm-document-card button{min-height:44px;width:100%}#crmContabilDialog .crm-document-group{padding:12px}}
