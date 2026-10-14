@@ -1,7 +1,8 @@
 {
-  "version": "3.4.394",
-  "build_date": "2026-10-14T11:06:16Z",
+  "version": "3.4.395",
+  "build_date": "2026-10-14T11:36:37Z",
   "release_notes": [
+    "CRM: documentos múltiplos de um campo importado abrem separadamente, com numeração, preservando os valores originais e evitando endereços concatenados.",
     "CRM: novo início ilustrado, atalhos e cores por função, Meu dia com demandas atribuídas ao usuário, visão pessoal/equipe e abertura leve sem carregar a carteira. Orientação de migração na gestão e ilustração na ativação de empresa.",
     "CRM: calendário mensal e semanal, planejamento com executor/revisor e dependências, carga por horas e ausências, distribuição em lote e apoios temporários auditados. Recorrências por regras confirmadas, com prévia e preservação dos controles existentes.",
     "CRM: área de trabalho com carteira ampla, colunas configuráveis, dossiê separado, gestão administrativa e consulta de demandas por empresa em lotes. Contraste corrigido no tema escuro e cartões no celular.",

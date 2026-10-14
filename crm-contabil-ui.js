@@ -2,6 +2,19 @@
   'use strict';
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const linkSeguro = v => {try{const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password?u.href:null;}catch{return null;}};
+  // Um campo de upload pode conter vários endereços, um por linha.
+  // URL remove quebras de linha: validar o conjunto antes de separar une PDFs.
+  function linksDoCampo(c) {
+    const valores = [c.valor, c.link].filter(v => typeof v === 'string');
+    const links = valores.flatMap(v => v.split(/[\r\n]+/).map(l => l.trim()))
+      .filter(l => /^https:\/\//i.test(l) && (l.match(/https?:\/\//gi) || []).length === 1)
+      .map(linkSeguro).filter(Boolean);
+    return [...new Set(links)];
+  }
+  function linksDocumento(c) {
+    const links = linksDoCampo(c);
+    return links.map((url, i) => `<br><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Abrir documento${links.length > 1 ? ' '+(i+1)+' de '+links.length : ''}</a>`).join('');
+  }
   const dataBr = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v.split('-').reverse().join('/') : String(v || '');
   const instanteBr = v => { const d = new Date(v); return Number.isFinite(d.getTime()) ? d.toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo' }) : String(v || ''); };
   const acoes = { criacao:'Criação', atualizacao:'Atualização', reabertura:'Reabertura' };
@@ -194,10 +207,10 @@
       const cnpj=empresa()?.cnpj; if(!cnpj)return;
       const d=await api(base()+'/parametros'); if(empresa()?.cnpj!==cnpj)return;
       const area=q('[data-parametros-area]');
-      const documentos=d.registros.flatMap(r=>r.campos.filter(c=>linkSeguro(c.link||c.valor)).map(c=>({nome:c.nome,url:linkSeguro(c.link||c.valor),fonte:r.fonte_nome})));
+      const documentos=d.registros.flatMap(r=>r.campos.flatMap(c=>{const links=linksDoCampo(c);return links.map((url,i)=>({nome:c.nome+(links.length>1?' · documento '+(i+1)+' de '+links.length:''),url,fonte:r.fonte_nome}));}));
       q('[data-documentos]').innerHTML='<h3>Documentos vinculados</h3><p>Links preservados da origem; os arquivos ainda não foram copiados para armazenamento próprio.</p>'+(!documentos.length?'<p>Nenhum link de documento encontrado nos campos importados.</p>':documentos.map(c=>`<p><a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(c.nome)}</a> · ${esc(c.fonte)}</p>`).join(''));
 
-      area.innerHTML='<h3>Parâmetros da empresa</h3><p class="crm-muted">Cada aba mantém seus próprios registros. Campos vazios, valores repetidos e erros de origem foram preservados. A edição aqui atualiza o CRM do CCI e mantém o valor original para conferência.</p>'+(!d.registros.length?'<p>Sem registros importados do Jotform para este CNPJ.</p>':d.registros.map((r,n)=>`<details><summary>${esc(r.fonte_nome)} · linha ${r.linha} · revisão ${r.revisao}</summary><p class="crm-muted">Importado em ${esc(instanteBr(r.importado_em))}</p><div class="crm-scroll"><table><thead><tr><th>Coluna</th><th>Parâmetro</th><th>Valor atual</th><th>Valor da origem</th><th>Ação</th></tr></thead><tbody>${r.campos.map((c,i)=>`<tr><td>${i+1}</td><td>${esc(c.nome)}</td><td style="white-space:pre-wrap">${esc(c.valor ?? 'Não informado')}${linkSeguro(c.link||c.valor)?`<br><a href="${esc(linkSeguro(c.link||c.valor))}" target="_blank" rel="noopener noreferrer">Abrir documento</a>`:''}</td><td style="white-space:pre-wrap">${esc(c.original ?? 'Não informado')}</td><td>${d.pode_editar&&!c.protegido?`<button data-editar-param="${n}:${i}">Editar</button>`:''}</td></tr>`).join('')}</tbody></table></div><button data-hist-param="${n}">Histórico das alterações</button></details>`).join(''));
+      area.innerHTML='<h3>Parâmetros da empresa</h3><p class="crm-muted">Cada aba mantém seus próprios registros. Campos vazios, valores repetidos e erros de origem foram preservados. A edição aqui atualiza o CRM do CCI e mantém o valor original para conferência.</p>'+(!d.registros.length?'<p>Sem registros importados do Jotform para este CNPJ.</p>':d.registros.map((r,n)=>`<details><summary>${esc(r.fonte_nome)} · linha ${r.linha} · revisão ${r.revisao}</summary><p class="crm-muted">Importado em ${esc(instanteBr(r.importado_em))}</p><div class="crm-scroll"><table><thead><tr><th>Coluna</th><th>Parâmetro</th><th>Valor atual</th><th>Valor da origem</th><th>Ação</th></tr></thead><tbody>${r.campos.map((c,i)=>`<tr><td>${i+1}</td><td>${esc(c.nome)}</td><td style="white-space:pre-wrap">${esc(c.valor ?? 'Não informado')}${linksDocumento(c)}</td><td style="white-space:pre-wrap">${esc(c.original ?? 'Não informado')}</td><td>${d.pode_editar&&!c.protegido?`<button data-editar-param="${n}:${i}">Editar</button>`:''}</td></tr>`).join('')}</tbody></table></div><button data-hist-param="${n}">Histórico das alterações</button></details>`).join(''));
       area.querySelectorAll('[data-editar-param]').forEach(btn=>btn.onclick=()=>{
         const [n,i]=btn.dataset.editarParam.split(':').map(Number),r=d.registros[n],c=r.campos[i];
         q('[data-editor]').innerHTML=`<h3>Editar ${esc(c.nome)} · coluna ${i+1}</h3><form data-param-form><label class="crm-wide">Valor<textarea name="valor" maxlength="10000" rows="4">${esc(c.valor ?? '')}</textarea></label><label class="crm-wide">Motivo<textarea name="motivo" required maxlength="1000"></textarea></label><button class="crm-primary">Salvar parâmetro</button><button type="button" data-cancel-param>Cancelar</button></form>`;

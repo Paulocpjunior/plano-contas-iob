@@ -36,3 +36,11 @@ O payload privado consolidado da migração de 13/10 contém 14 fontes e 7.928 r
 3. Obter a configuração completa da origem que falta no conector/exportação; documentar expressões, opções e automações antes de implementar equivalência.
 4. Implementar e testar integrações a partir desses contratos, usando cenários isolados; homologar com colaborador real.
 5. Concluir desempenho, restauração e reconciliação final; somente então propor o corte do Jotform.
+
+
+## 2026-10-14 — Piloto 1200 e documentos múltiplos (3.4.395)
+
+Conferência na sessão administrativa autorizada, via Compartilhamento de Tela: ativação e dossiê funcionando; sete registros de origem disponíveis. Parâmetros exibem valor atual e original, inclusive status legado ATIVA e DEFIS ENVIADA = 1; situação contratual do CRM continua não confirmada e não foi inferida do legado. Nenhum controle operacional encontrado para o piloto. Histórico geral ainda é uma orientação para trilhas individuais. Não houve edição de parâmetros, atribuição de equipe ou baixa.
+
+Erro reproduzido ao abrir um campo com recibo e declaração: URL uniu dois PDFs separados por newline, retornando 404. A interface passou a separar links antes de validar com URL e renderizar cada documento nas duas seções, com numeração e deduplicação no mesmo campo. Payload importado intacto. Teste de regressão cobre dois PDFs, CRLF, repetição, link explícito, escaping e esquemas/credenciais inválidos. A existência dos binários e a equivalência de obrigações continuam pendentes; administrador não homologa restrição de colaborador.
+- Validação da correção: `npm run check:ci` com 251 aprovados, 3 pulados por evidência externa ausente e nenhuma falha. Navegador com dados fictícios confirmou dois links distintos e numerados nas abas Documentos e Parâmetros, preservando o valor original.

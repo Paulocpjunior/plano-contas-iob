@@ -41,3 +41,23 @@ const regra = gate.match(/const permitidoAntesDaAtivacao = ([^;]+);/)[1];
 const permitido = new Function('botao', 'return '+regra);
 assert.equal(permitido({id:'btnCrmContabilNav'}), true);
 assert.equal(permitido({id:'btnDadosEmpresaNav'}), false);
+
+// Regressão real: dois uploads separados por newline não podem virar uma URL.
+const ui = require('fs').readFileSync(require('path').join(__dirname, '../crm-contabil-ui.js'), 'utf8');
+const helpers = ui.slice(ui.indexOf("  'use strict';"), ui.indexOf('  const dataBr ='));
+const sandbox = { URL };
+require('vm').runInNewContext(helpers+';this.linksDoCampo=linksDoCampo;this.linksDocumento=linksDocumento;',sandbox);
+const a='https://example.com/recibo.pdf', b='https://example.com/declaracao.pdf';
+const campo={valor:a+'\r\n'+b,link:a+'\r\n'+b};
+assert.equal(JSON.stringify(sandbox.linksDoCampo(campo)),JSON.stringify([a,b]));
+assert.equal(campo.valor,a+'\r\n'+b);
+const rendered=sandbox.linksDocumento(campo);
+assert.equal((rendered.match(/<a /g)||[]).length,2);
+assert.ok(rendered.includes('Abrir documento 1 de 2') && rendered.includes('Abrir documento 2 de 2'));
+assert.ok(rendered.includes('href="'+a+'"') && rendered.includes('href="'+b+'"'));
+assert.equal(sandbox.linksDoCampo({valor:a+'\n'+a}).length,1);
+assert.equal(sandbox.linksDoCampo({valor:'Recibo',link:a})[0],a);
+for(const valor of ['javascript:alert(1)','http://example.com/x','https://user:pass@example.com/x',a+b]) assert.equal(sandbox.linksDoCampo({valor}).length,0);
+assert.equal(sandbox.linksDoCampo({valor:'https://example.com/arquivo%20assinado.pdf?x=1&y=2'})[0],'https://example.com/arquivo%20assinado.pdf?x=1&y=2');
+assert.ok(sandbox.linksDocumento({valor:'https://example.com/x?a=1&b=2'}).includes('&amp;'));
+console.log('CRM documentos: uploads múltiplos separados, origem intacta e links seguros OK');
