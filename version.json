@@ -1,7 +1,8 @@
 {
-  "version": "3.4.395",
-  "build_date": "2026-10-14T11:36:37Z",
+  "version": "3.4.396",
+  "build_date": "2026-10-14T12:06:03Z",
   "release_notes": [
+    "CRM: conferência técnica repetível dos dados migrados, preservando edições do CCI. Fórmulas, automações, Checklist e cópia dos anexos continuam em homologação; mantenha o Jotform disponível.",
     "CRM: documentos múltiplos de um campo importado abrem separadamente, com numeração, preservando os valores originais e evitando endereços concatenados.",
     "CRM: novo início ilustrado, atalhos e cores por função, Meu dia com demandas atribuídas ao usuário, visão pessoal/equipe e abertura leve sem carregar a carteira. Orientação de migração na gestão e ilustração na ativação de empresa.",
     "CRM: calendário mensal e semanal, planejamento com executor/revisor e dependências, carga por horas e ausências, distribuição em lote e apoios temporários auditados. Recorrências por regras confirmadas, com prévia e preservação dos controles existentes.",
