@@ -1,7 +1,8 @@
 {
-  "version": "3.4.401",
-  "build_date": "2026-10-14T14:49:06Z",
+  "version": "3.4.402",
+  "build_date": "2026-10-14T17:48:20Z",
   "release_notes": [
+    "Retenções de serviços tomados: leitura de valores e totais com milhares no PDF SAGE, preservando IRRF, PIS e CSLL. Campos ausentes ou ambíguos bloqueiam a importação; divergências mostram imposto, soma das notas, total impresso e diferença.",
     "CRM: busca prioriza número exato, Meu dia mostra próximos 7 dias e lacunas de planejamento; documentos repetidos são agrupados por endereço e obrigação, preservando as referências. Prévia de mensagens e telas mais compactas, com suporte ao celular.",
     "CRM: documentos DITR e DEFIS separados por fonte, com cartões, ícones e prévias de mensagem próprias. Sem envio automático; links preservados e migração dos arquivos ainda em homologação.",
     "AuditAI: conferência individual de natureza D/C por grupo contábil, separação de sintéticas, alertas e pendências completos no painel, CSV e PDFs. Para análises anteriores, envie novamente o arquivo em Nova Análise.",

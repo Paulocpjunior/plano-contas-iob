@@ -1149,7 +1149,12 @@
         grupo = { coordenada: coordenadaLinha, itens: [] };
         grupos.push(grupo);
       }
-      grupo.itens.push({ str: str, coluna: coordenadaColuna });
+      // O valor monetário é alinhado à direita. O início muda com o número
+      // de dígitos; preservar a extensão evita perder milhares e totais.
+      const direcao = Math.sign(Number(t[paisagemNativa ? 0 : 1])) || 1;
+      const largura = Number(item.width);
+      grupo.itens.push({ str: str, coluna: coordenadaColuna,
+        colunaFim: Number.isFinite(largura) ? coordenadaColuna + direcao * largura : null });
     });
     grupos.forEach(function(grupo) { grupo.itens.sort(function(a, b) { return a.coluna - b.coluna; }); });
     return grupos.sort(function(a, b) {
@@ -1157,11 +1162,21 @@
     });
   }
 
-  function valorMonetarioNaFaixa(itens, inicio, fim) {
-    const item = (itens || []).find(function(i) {
-      return i.coluna >= inicio && i.coluna < fim && /^\s*\d{1,3}(?:\.\d{3})*,\d{2}\s*$|^\s*\d+,\d{2}\s*$/.test(i.str);
+  function valorMonetarioNaFaixa(itens, inicio, fim, contexto) {
+    const candidatos = (itens || []).filter(function(i) {
+      // As faixas homologadas indicam a região de alinhamento dos valores.
+      // Folga de 4 pontos cobre a borda direita das fontes dos PDFs SAGE
+      // nativo e rotacionado, sem alcançar a próxima coluna monetária.
+      const posicao = Number.isFinite(i.colunaFim) ? i.colunaFim : i.coluna;
+      return ((i.coluna >= inicio && i.coluna < fim) || (posicao >= inicio && posicao < fim + 4)) &&
+        /^(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(i.str.trim());
     });
-    return item ? Math.abs(parseMoneyBR(item.str)) : 0;
+    if (candidatos.length !== 1) {
+      throw new Error('Leitura incompleta: ' + contexto + ' ' +
+        (candidatos.length ? 'contém mais de um valor na mesma coluna.' : 'não foi localizado ou está ilegível.') +
+        ' Nenhum valor foi assumido como zero. A importação permanece bloqueada; confira o PDF.');
+    }
+    return Math.abs(parseMoneyBR(candidatos[0].str));
   }
 
   function codigoRetencaoNaFaixa(itens, inicio, fim) {
@@ -1293,13 +1308,13 @@
         .map(function(i) { return i.str; }).join(' ').replace(/\s+/g, ' ').trim();
       const m = cabecalho.match(/^(\d{2}\/\d{2}\/\d{4})\s+(?:([A-Z0-9]{1,4})\s+)?(\d{8,12})\s+(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/i);
       if (!m) return null;
-      const valorNota = valorMonetarioNaFaixa(grupo.itens, colunas.valorNota[0], colunas.valorNota[1]);
-      if (centavos(valorNota) === 0) return null;
-      const pis = valorMonetarioNaFaixa(grupo.itens, colunas.pis[0], colunas.pis[1]);
-      const cofins = valorMonetarioNaFaixa(grupo.itens, colunas.cofins[0], colunas.cofins[1]);
-      const csll = valorMonetarioNaFaixa(grupo.itens, colunas.csll[0], colunas.csll[1]);
-      const irrf = valorMonetarioNaFaixa(grupo.itens, colunas.irrf[0], colunas.irrf[1]);
-      const seguridade = valorMonetarioNaFaixa(grupo.itens, colunas.seguridade[0], colunas.seguridade[1]);
+      const valorNota = valorMonetarioNaFaixa(grupo.itens, colunas.valorNota[0], colunas.valorNota[1], 'NF ' + m[3] + ' — valor da nota');
+      if (centavos(valorNota) === 0) throw new Error('NF ' + m[3] + ': valor bruto zero. Confira a nota antes de importar.');
+      const pis = valorMonetarioNaFaixa(grupo.itens, colunas.pis[0], colunas.pis[1], 'NF ' + m[3] + ' — PIS');
+      const cofins = valorMonetarioNaFaixa(grupo.itens, colunas.cofins[0], colunas.cofins[1], 'NF ' + m[3] + ' — COFINS');
+      const csll = valorMonetarioNaFaixa(grupo.itens, colunas.csll[0], colunas.csll[1], 'NF ' + m[3] + ' — CSLL');
+      const irrf = valorMonetarioNaFaixa(grupo.itens, colunas.irrf[0], colunas.irrf[1], 'NF ' + m[3] + ' — IRRF');
+      const seguridade = valorMonetarioNaFaixa(grupo.itens, colunas.seguridade[0], colunas.seguridade[1], 'NF ' + m[3] + ' — Seguridade Social');
       const totalRetencoes = pis + cofins + csll + irrf + seguridade;
       return {
         data: parseDateBR(m[1]),
@@ -1307,7 +1322,7 @@
         documento: String(m[3] || '').trim(),
         cnpj_fornecedor: String(m[4] || '').trim(),
         valorNota: valorNota,
-        baseCalculoRetencao: valorMonetarioNaFaixa(grupo.itens, colunas.base[0], colunas.base[1]),
+        baseCalculoRetencao: valorMonetarioNaFaixa(grupo.itens, colunas.base[0], colunas.base[1], 'NF ' + m[3] + ' — base de retenção'),
         pisRetido: pis,
         cofinsRetida: cofins,
         csllRetida: csll,
@@ -1330,13 +1345,13 @@
       }).sort(function(a, b) { return a.coordenada - b.coordenada; })[0]
       : grupos.find(function(grupo) { return grupo.coordenada > 530; });
     const totaisOficiais = grupoTotais ? {
-      valorNotas: valorMonetarioNaFaixa(grupoTotais.itens, colunas.valorNota[0], colunas.valorNota[1]),
-      baseRetencao: valorMonetarioNaFaixa(grupoTotais.itens, colunas.base[0], colunas.base[1]),
-      pis: valorMonetarioNaFaixa(grupoTotais.itens, colunas.pis[0], colunas.pis[1]),
-      cofins: valorMonetarioNaFaixa(grupoTotais.itens, colunas.cofins[0], colunas.cofins[1]),
-      csll: valorMonetarioNaFaixa(grupoTotais.itens, colunas.csll[0], colunas.csll[1]),
-      irrf: valorMonetarioNaFaixa(grupoTotais.itens, colunas.irrf[0], colunas.irrf[1]),
-      seguridadeSocial: valorMonetarioNaFaixa(grupoTotais.itens, colunas.seguridade[0], colunas.seguridade[1])
+      valorNotas: valorMonetarioNaFaixa(grupoTotais.itens, colunas.valorNota[0], colunas.valorNota[1], 'Total oficial — valor da nota'),
+      baseRetencao: valorMonetarioNaFaixa(grupoTotais.itens, colunas.base[0], colunas.base[1], 'Total oficial — base de retenção'),
+      pis: valorMonetarioNaFaixa(grupoTotais.itens, colunas.pis[0], colunas.pis[1], 'Total oficial — PIS'),
+      cofins: valorMonetarioNaFaixa(grupoTotais.itens, colunas.cofins[0], colunas.cofins[1], 'Total oficial — COFINS'),
+      csll: valorMonetarioNaFaixa(grupoTotais.itens, colunas.csll[0], colunas.csll[1], 'Total oficial — CSLL'),
+      irrf: valorMonetarioNaFaixa(grupoTotais.itens, colunas.irrf[0], colunas.irrf[1], 'Total oficial — IRRF'),
+      seguridadeSocial: valorMonetarioNaFaixa(grupoTotais.itens, colunas.seguridade[0], colunas.seguridade[1], 'Total oficial — Seguridade Social')
     } : null;
     const somas = notasFiscais.reduce(function(acc, nota) {
       acc.valorNotas += nota.valorNota;
@@ -1591,7 +1606,21 @@
       throw new Error('O CNPJ do relatorio (' + (resultado.cnpj_detectado || '-') + ') difere do CNPJ da empresa ativa. Selecione a empresa correta antes de importar.');
     }
     if (resultado.total_divergente === true) {
-      throw new Error('O total dos lancamentos diverge do total oficial impresso no PDF. A importacao permanece bloqueada.');
+      const nomes = { valorNotas: 'Valor das notas', baseRetencao: 'Base de retenção', pis: 'PIS', cofins: 'COFINS', csll: 'CSLL', irrf: 'IRRF', inss: 'INSS', seguridadeSocial: 'Seguridade Social' };
+      const formatar = function(valor) {
+        return typeof valor === 'number' && Number.isFinite(valor)
+          ? valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'não identificado';
+      };
+      const detalhes = (resultado.campos_totais_divergentes || []).map(function(campo) {
+        if (campo === 'totais_oficiais_ausentes') return 'Total oficial não identificado no PDF';
+        const calculado = (resultado.totais_retencoes_calculados || {})[campo];
+        const oficial = (resultado.totais_retencoes_oficiais || {})[campo];
+        return (nomes[campo] || campo) + ': soma das notas ' + formatar(calculado) +
+          '; total impresso ' + formatar(oficial) +
+          (Number.isFinite(calculado) && Number.isFinite(oficial) ? '; diferença ' + formatar(calculado - oficial) : '');
+      }).join('. ');
+      throw new Error('O total dos lancamentos diverge do total oficial impresso no PDF. ' +
+        (detalhes ? detalhes + '. ' : '') + 'A importacao permanece bloqueada.');
     }
     return {
       valido: true,
