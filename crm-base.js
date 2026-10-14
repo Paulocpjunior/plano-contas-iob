@@ -72,7 +72,19 @@ function atualizarVisualizacao(antes, body, quando) {
   const nome=body.nome.trim(), filtros=filtrosCarteira(body.filtros), itens=[...(antes.itens || [])];
   const i=itens.findIndex(v=>normalizarBusca(v.nome)===normalizarBusca(nome));
   if(i<0 && itens.length>=20) throw erro('Limite de 20 visualizações. Use o nome de uma existente para atualizá-la.');
-  const v={nome,filtros,atualizada_em:quando}; if(i<0)itens.push(v);else itens[i]=v;
+  // Clientes antigos não enviam colunas: preservar a escolha já salva.
+  const recebidas=body.colunas===undefined?(i<0?undefined:itens[i].colunas):body.colunas;
+  const colunas={cnpj:true,equipe:true,cliente:true};
+  if(recebidas!==undefined){
+    if(!recebidas || typeof recebidas!=='object' || Array.isArray(recebidas) || Object.keys(recebidas).some(k=>!Object.hasOwn(colunas,k))) throw erro('Colunas inválidas. Atualize a tela e escolha novamente.');
+    for(const k of Object.keys(colunas)){
+      if(Object.hasOwn(recebidas,k)){
+        if(typeof recebidas[k]!=='boolean') throw erro('A visibilidade das colunas deve ser marcada ou desmarcada.');
+        colunas[k]=recebidas[k];
+      }
+    }
+  }
+  const v={nome,filtros,colunas,atualizada_em:quando}; if(i<0)itens.push(v);else itens[i]=v;
   return {revisao:(antes.revisao||0)+1,itens};
 }
 module.exports={contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};

@@ -27,6 +27,17 @@ assert.equal(visao.revisao,1);assert.equal(visao.itens[0].filtros.atraso,'atrasa
 assert.throws(()=>atualizarVisualizacao(visao,{revisao:0,nome:'Minha carteira',filtros:{}},'agora'),e=>e.status===409);
 assert.equal(atualizarVisualizacao(visao,{revisao:1,nome:'MINHA CARTEIRA',filtros:{}},'depois').itens.length,1);
 console.log('CRM filtros: situação contratual explícita, prazos e revisão de visualizações OK');
+const todasColunas={cnpj:true,equipe:true,cliente:true};
+assert.deepStrictEqual(visao.itens[0].colunas,todasColunas);
+const compacta=atualizarVisualizacao(visao,{revisao:1,nome:'Minha carteira',filtros:{},colunas:{cnpj:false,equipe:true,cliente:false}},'depois');
+assert.deepStrictEqual(compacta.itens[0].colunas,{cnpj:false,equipe:true,cliente:false});
+assert.deepStrictEqual(visao.itens[0].colunas,todasColunas,'não alterar snapshot anterior');
+const clienteAntigo=atualizarVisualizacao(compacta,{revisao:2,nome:'Minha carteira',filtros:{busca:'abc'}},'mais tarde');
+assert.deepStrictEqual(clienteAntigo.itens[0].colunas,compacta.itens[0].colunas,'cliente antigo não apaga escolhas');
+assert.deepStrictEqual(atualizarVisualizacao({revisao:1,itens:[{nome:'Legada',filtros:{}}]},{revisao:1,nome:'Legada',filtros:{}},'agora').itens[0].colunas,todasColunas);
+for(const colunas of [null,[],false,{cnpj:'false'},{cnpj:0},{acesso:true}]) assert.throws(()=>atualizarVisualizacao({},{revisao:0,nome:'Inválida',filtros:{},colunas},'agora'));
+assert.deepStrictEqual(atualizarVisualizacao({},{revisao:0,nome:'Parcial',filtros:{},colunas:{cnpj:false}},'agora').itens[0].colunas,{...todasColunas,cnpj:false});
+console.log('CRM visualizações: colunas, legado, atualização por cliente antigo e validação OK');
 
 assert.throws(()=>filtrosCarteira(null));
 const {contratoParametros}=require('../crm-base');

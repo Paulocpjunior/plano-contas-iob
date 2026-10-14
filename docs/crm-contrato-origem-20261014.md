@@ -28,7 +28,19 @@ Essas são condições de apresentação do formulário, **não regras de dispen
 
 Na sessão autenticada foram identificados três cartões: Notificação 1, E-mail de Resposta Automática 1 e Notificação 2. As duas notificações apontam para o mesmo destinatário administrativo; a resposta automática usa o campo E-mail de Contato da Empresa. Endereço pessoal e capturas ficam privados. Notificação 1 usa assunto `Re: {form_title}` e corpo com campos do formulário. Não foi enviado e-mail de teste nem salva configuração.
 
-Ainda é necessário conferir conteúdo integral, habilitação, anexos, repetição/atualização, horários e diferenças entre os dois avisos antes de reproduzi-los. A galeria de integrações exibida não comprova quais integrações estão ativas. Não criar fila com destinatários ou gatilhos presumidos.
+Conferência adicional na sessão autenticada, sem salvar nem enviar:
+
+| Modelo | Novo envio | Edição do envio | Destino | Anexos |
+|---|---|---|---|---|
+| Notificação 1 | Marcado | Marcado | Destinatário administrativo fixo | Uploads e PDF desativados |
+| Resposta Automática 1 | Marcado | Desmarcado | Campo E-mail de Contato da Empresa | Nenhum arquivo fixo exibido; PDF desativado |
+| Notificação 2 | Desmarcado | Desmarcado | Mesmo destinatário administrativo | Uploads e PDF desativados |
+
+A Notificação 2 exibe explicitamente que só pode ser enviada manualmente pela tabela. Não ativá-la como automação no CCI. A resposta automática tem assunto `Recebemos sua resposta para {form_title}` e a Notificação 2 usa `Re: {form_title}`. Na resposta automática, o envio adiado está desativado. Nos três modelos, “Atualizar E-mail” e “Ocultar Campos Vazios” estão ativados; o primeiro atualiza o modelo ao editar o formulário, não é um gatilho de envio por edição da submissão. Reply-to das notificações usa o campo de contato da empresa; o da resposta automática é administrativo. Os endereços pessoais e capturas ficam fora do Git.
+
+Ainda é necessário conferir conteúdo integral, remetentes efetivos e entrega antes de reproduzi-los. As telas de remetente da resposta automática e da Notificação 2 mostraram “Choose one”; isso não comprova qual endereço efetivamente envia. Nenhum modelo foi habilitado no CCI, nenhuma fila criada e nenhum e-mail de teste enviado.
+
+A página de integrações exibiu **“Only Form Owner can access this feature”**. É necessária a sessão proprietária para conferir integrações ativas; a galeria não comprova ausência de integrações. A página Workflows mostrou opções de criação, sem lista de fluxos existentes; não equivale a inventário global de automações da conta.
 
 ## Checklist
 

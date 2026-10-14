@@ -1,7 +1,8 @@
 {
-  "version": "3.4.397",
-  "build_date": "2026-10-14T12:26:48Z",
+  "version": "3.4.398",
+  "build_date": "2026-10-14T12:58:56Z",
   "release_notes": [
+    "CRM: visualizações pessoais preservam filtros e colunas escolhidas entre sessões; compatibilidade com visualizações antigas e acesso restrito ao próprio usuário.",
     "CRM: opções originais de situação e tributação nos parâmetros V2, com validação no servidor e preservação de valores legados. Indicações de campos ocultos na origem não alteram obrigações nem apagam dados.",
     "CRM: conferência técnica repetível dos dados migrados, preservando edições do CCI. Fórmulas, automações, Checklist e cópia dos anexos continuam em homologação; mantenha o Jotform disponível.",
     "CRM: documentos múltiplos de um campo importado abrem separadamente, com numeração, preservando os valores originais e evitando endereços concatenados.",
