@@ -21,3 +21,6 @@ html[data-theme=dark] #crmContabilDialog .crm-badge[data-tone=em_andamento]{back
 
 @media(max-width:640px){#pageEmpresas .crm-activation-search{grid-template-columns:minmax(0,1fr)!important}}
 #crmContabilDialog .crm-hero{isolation:isolate}#crmContabilDialog .crm-hero>*{position:relative;z-index:1}
+
+#crmContabilDialog .crm-document-group{border:1px solid var(--border);background:var(--surface);border-radius:16px;padding:18px;margin:16px 0;overflow-wrap:anywhere}#crmContabilDialog .crm-document-group header{display:flex;align-items:center;gap:12px}#crmContabilDialog .crm-document-group h4{margin:0;font-size:16px}#crmContabilDialog .crm-document-group p{line-height:1.6}#crmContabilDialog .crm-document-group button{margin-top:8px}
+#crmContabilDialog .crm-document-group a{color:var(--crm-blue);text-underline-offset:3px}

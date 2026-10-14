@@ -1,7 +1,8 @@
 {
-  "version": "3.4.399",
-  "build_date": "2026-10-14T13:10:48Z",
+  "version": "3.4.400",
+  "build_date": "2026-10-14T13:47:48Z",
   "release_notes": [
+    "CRM: documentos DITR e DEFIS separados por fonte, com cartões, ícones e prévias de mensagem próprias. Sem envio automático; links preservados e migração dos arquivos ainda em homologação.",
     "AuditAI: conferência individual de natureza D/C por grupo contábil, separação de sintéticas, alertas e pendências completos no painel, CSV e PDFs. Para análises anteriores, envie novamente o arquivo em Nova Análise.",
     "CRM: visualizações pessoais preservam filtros e colunas escolhidas entre sessões; compatibilidade com visualizações antigas e acesso restrito ao próprio usuário.",
     "CRM: opções originais de situação e tributação nos parâmetros V2, com validação no servidor e preservação de valores legados. Indicações de campos ocultos na origem não alteram obrigações nem apagam dados.",

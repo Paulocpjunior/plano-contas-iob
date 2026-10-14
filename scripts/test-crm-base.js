@@ -63,3 +63,30 @@ assert.deepStrictEqual(mudado.campos.slice(1),origem.campos.slice(1));
 assert.equal(mudado.campos[0].original,'SIMPLES-F');
 assert(!Object.hasOwn(mudado,'contrato'));
 console.log('CRM contrato V2: opções, sufixos, condições de apresentação, desconhecidos e preservação OK');
+
+const {documentosEmpresa}=require('../crm-base');
+const fontesDocs=[
+  {id:'ditr_2',fonte:'ditr',fonte_nome:'DITR',cnpj:'11222333000181',nome:'Empresa teste',linha:2,campos:[
+    {nome:'RECIBO/DECLARAÇÃO',valor:'https://example.com/ditr.pdf\nhttps://example.com/ditr2.pdf',link:'https://example.com/ditr.pdf'},
+    {nome:'Observação',valor:'https://example.com/defis.pdf'}]},
+  {id:'defis_2',fonte:'defis_2025',fonte_nome:'DEFIS',linha:2,campos:[{nome:'RECIBO + DEFIS 2025/2026',valor:'https://example.com/defis.pdf'}]},
+  {id:'ambigua_2',fonte:'oficial_integral',linha:2,campos:[{nome:'RECIBO/DECLARAÇÃO',valor:'https://example.com/ditr.pdf'}]},
+  {id:'hostil',fonte:'ditr',campos:[{nome:'RECIBO/DECLARAÇÃO',valor:'javascript:alert(1)\nhttps://user:secret@example.com/a\nhttps://example.com/a https://example.com/b\nhttp://example.com/c'}]}
+];
+const antesDocs=JSON.stringify(fontesDocs), docs=documentosEmpresa(fontesDocs);
+assert.equal(docs.length,5);
+assert.equal(docs.filter(d=>d.obrigacao==='DITR').length,2);
+assert.equal(docs.filter(d=>d.obrigacao==='DEFIS').length,1);
+assert.equal(docs.filter(d=>d.obrigacao===null).length,2);
+assert.equal(docs.find(d=>d.registro_id==='ambigua_2').previa,null,'mesmo rótulo em outra fonte não autoriza classificação');
+for(const d of docs.filter(d=>d.obrigacao==='DITR')){
+  assert(d.previa.titulo.startsWith('DITR'));
+  assert(d.previa.texto.includes(d.url));
+  assert(!d.previa.texto.includes('defis.pdf') && !d.previa.texto.includes('BALANCO'));
+  assert(d.previa.texto.includes('não comprova transmissão'));
+}
+assert.equal(JSON.stringify(fontesDocs),antesDocs,'a leitura não altera registros');
+assert.deepStrictEqual(docs.filter(d=>d.obrigacao==='DITR').map(d=>[d.coluna,d.indice]),[[0,0],[0,1]]);
+assert.equal(documentosEmpresa([{...fontesDocs[1],fonte:'contabil_v2_integral'}])[0].obrigacao,'DEFIS');
+assert.equal(documentosEmpresa([{...fontesDocs[1],fonte:'ditr'}])[0].obrigacao,null,'DITR não aceita o campo de DEFIS como anexo próprio');
+console.log('CRM documentos: DITR e DEFIS isolados, referências preservadas, ambiguidade e URLs inválidas OK');
