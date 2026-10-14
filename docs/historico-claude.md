@@ -1946,3 +1946,10 @@ Validação local: check:ci com 251 aprovados, 3 pulados por evidências externa
 ## 2026-10-14 — CRM início visual e homologação, v3.4.394
 
 Branch codex/crm-experiencia-profissional baseada na main cb01373. Meu início ilustrado, ícones e cores semânticas, escopo pessoal/equipe, entrada leve GET /crm/contexto sem carregar empresas e ilustração na ativação. Assets decorativos explícitos na allowlist. Testes de autorização e ausência de leitura de carteira na abertura; QA claro/escuro e celular. 251 testes passaram, 3 pulados por evidência externa, nenhuma falha; verificações de versão repetidas após bump. Usuário indicou empresa 1200 como piloto, sem autorizar inventar atribuições. Inventário privado encontrou zero expressões de fórmula no payload de 14 fontes/7.928 registros; conector retornou apenas metadados. Plano de aceite em docs/crm-homologacao-profissional.md; migração integral permanece pendente de configuração da origem e homologação real.
+
+
+## 2026-10-14 — Piloto 1200 e documentos múltiplos (3.4.395)
+
+Conferência na sessão administrativa autorizada, via Compartilhamento de Tela: ativação e dossiê funcionando; sete registros de origem disponíveis. Parâmetros exibem valor atual e original, inclusive status legado ATIVA e DEFIS ENVIADA = 1; situação contratual do CRM continua não confirmada e não foi inferida do legado. Nenhum controle operacional encontrado para o piloto. Histórico geral ainda é uma orientação para trilhas individuais. Não houve edição de parâmetros, atribuição de equipe ou baixa.
+
+Erro reproduzido ao abrir um campo com recibo e declaração: URL uniu dois PDFs separados por newline, retornando 404. A interface passou a separar links antes de validar com URL e renderizar cada documento nas duas seções, com numeração e deduplicação no mesmo campo. Payload importado intacto. Teste de regressão cobre dois PDFs, CRLF, repetição, link explícito, escaping e esquemas/credenciais inválidos. A existência dos binários e a equivalência de obrigações continuam pendentes; administrador não homologa restrição de colaborador.
