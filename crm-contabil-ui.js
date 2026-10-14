@@ -6,6 +6,9 @@
   const instanteBr = v => { const d = new Date(v); return Number.isFinite(d.getTime()) ? d.toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo' }) : String(v || ''); };
   const acoes = { criacao:'Criação', atualizacao:'Atualização', reabertura:'Reabertura' };
   const situacoes = { pendente: 'Pendente', em_andamento: 'Em andamento', aguardando_documentos: 'Aguardando documentos', em_revisao: 'Em revisão', concluida: 'Concluída', nao_aplicavel: 'Não aplicável' };
+  const clientes={ativa:'Ativa',suspensa:'Suspensa',saida:'Saída',baixada:'Baixada',nao_informada:'Não confirmada'};
+  const prazos={atrasado:'Em atraso',no_prazo:'No prazo',sem_prazo:'Sem prazo',encerrado:'Encerrado'};
+  const prazoDe=(c,dia)=>['concluida','nao_aplicavel'].includes(c.status)?'encerrado':!c.prazo?'sem_prazo':c.prazo<dia?'atrasado':'no_prazo';
   window.abrirCrmContabil = async function () {
     if (document.getElementById('crmContabilDialog')) return;
     const dialog = document.createElement('dialog'); dialog.id = 'crmContabilDialog'; dialog.setAttribute('aria-labelledby', 'crmTitulo');
@@ -14,19 +17,32 @@
       #crmContabilDialog::backdrop{background:#0007}#crmContabilDialog h2{margin:0}#crmContabilDialog h3{margin:16px 0 10px}
       #crmContabilDialog .crm-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}#crmContabilDialog .crm-top{justify-content:space-between}
       #crmContabilDialog button,#crmContabilDialog input,#crmContabilDialog select,#crmContabilDialog textarea{font:inherit;padding:9px 11px;border:1px solid var(--border,#d2d2d7);border-radius:8px;background:var(--surface,#fff);color:inherit;max-width:100%;box-sizing:border-box}
-      #crmContabilDialog button{cursor:pointer}#crmContabilDialog button:disabled{opacity:.5;cursor:wait}#crmContabilDialog .crm-primary{background:#0066cc;color:white;border-color:#0066cc}
+      #crmContabilDialog button{cursor:pointer}#crmContabilDialog button:disabled{opacity:.5;cursor:wait}#crmContabilDialog .crm-primary{background:#0071e3;color:white;border-color:#0071e3}
       #crmContabilDialog label{display:grid;gap:5px;font-size:13px}#crmContabilDialog form{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}#crmContabilDialog .crm-wide{grid-column:1/-1}
       #crmContabilDialog table{width:100%;border-collapse:collapse;font-size:13px}#crmContabilDialog th,#crmContabilDialog td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--border,#e8e8ed);vertical-align:top}
       #crmContabilDialog th{background:var(--surface2,#f5f5f7)}#crmContabilDialog [data-status]{padding:12px;background:var(--surface2,#f5f5f7);border-radius:10px;line-height:1.5}
       #crmContabilDialog .crm-scroll{overflow:auto}#crmContabilDialog [data-empresas-tabela]{max-height:260px;margin:12px 0}#crmContabilDialog summary{cursor:pointer;padding:12px;font-weight:600}#crmContabilDialog details{border:1px solid var(--border,#d2d2d7);border-radius:10px;margin:8px 0;padding:4px}#crmContabilDialog [hidden]{display:none!important}#crmContabilDialog .crm-muted{color:var(--muted,#6e6e73);font-size:13px}#crmContabilDialog .crm-alert{color:#b45309}
+      #crmContabilDialog .crm-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;padding:16px;background:var(--surface2,#f5f5f7);border-radius:14px;margin:12px 0}
+      #crmContabilDialog :focus-visible{outline:3px solid #0071e3;outline-offset:3px}
+      #crmContabilDialog [aria-busy="true"]{opacity:.65}
+      #crmContabilDialog button{min-height:44px;transition:background .15s,transform .15s}#crmContabilDialog button:active{transform:scale(.98)}
+      #crmContabilDialog .crm-badge{display:inline-flex;padding:5px 9px;border-radius:20px;font-weight:600;background:var(--surface2,#f5f5f7);border:1px solid var(--border,#d2d2d7)}
+      #crmContabilDialog .crm-badge[data-tone="concluida"]{background:#e8f5ec;color:#176a35}#crmContabilDialog .crm-badge[data-tone="atrasado"]{background:#fff0ed;color:#9b2525}
+      #crmContabilDialog .crm-badge[data-tone="em_andamento"],#crmContabilDialog .crm-badge[data-tone="em_revisao"]{background:#eaf2ff;color:#1457a6}
+      #crmContabilDialog .crm-badge[data-tone="aguardando_documentos"]{background:#fff4d9;color:#795100}
+      html[data-theme="dark"] #crmContabilDialog .crm-badge{background:#303034;color:#f5f5f7}html[data-theme="dark"] #crmContabilDialog .crm-badge[data-tone="atrasado"]{color:#ffb4a9}html[data-theme="dark"] #crmContabilDialog .crm-badge[data-tone="concluida"]{color:#9ce5af}
+      #crmContabilDialog .crm-dossie{padding:16px;border:1px solid var(--border,#d2d2d7);border-radius:14px;margin:14px 0}#crmContabilDialog progress{width:100%;height:10px;accent-color:#0071e3}
+      #crmContabilDialog .crm-nav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#crmContabilDialog .crm-nav button[aria-pressed="true"]{border-color:#0071e3;color:#0071e3;font-weight:700}
+      @media(prefers-reduced-motion:reduce){#crmContabilDialog *{transition:none!important;scroll-behavior:auto!important}}
+      @media(max-width:640px){#crmContabilDialog{width:100%;max-width:100%;max-height:100dvh;padding:14px;border-radius:0;box-sizing:border-box}#crmContabilDialog .crm-bar>*{flex:1 1 140px}#crmContabilDialog .crm-filters{grid-template-columns:1fr}#crmContabilDialog .crm-mobile thead{display:none}#crmContabilDialog .crm-mobile tr{display:block;padding:10px 0;border-bottom:1px solid var(--border,#d2d2d7)}#crmContabilDialog .crm-mobile td{display:block;border:0;padding:5px 0;overflow-wrap:anywhere}#crmContabilDialog [data-empresas-tabela]{max-height:45vh}}
     </style><div class="crm-bar crm-top"><div><h2 id="crmTitulo">Carteira e obrigações</h2><p class="crm-muted">Acompanhamento por empresa e período</p></div><button data-fechar>Fechar</button></div>
-    <div class="crm-bar"><label>Buscar em toda a carteira<input data-busca placeholder="Número, nome ou CNPJ"></label><button data-buscar>Buscar empresas</button><button data-base-resumo hidden>Conferência da migração</button><button data-pendencias hidden>Identificações a conferir</button></div><p data-status role="status" aria-live="polite">Carregando sua carteira…</p>
+    <div class="crm-bar"><label>Buscar em toda a carteira<input data-busca placeholder="Número, nome ou CNPJ"></label><button data-buscar>Buscar empresas</button><button data-base-resumo hidden>Conferência da migração</button><button data-pendencias hidden>Identificações a conferir</button></div><div class="crm-filters"><label>Equipe<select data-carteira-equipe><option value="">Todas as equipes</option><option value="sem_equipe">Aguardando distribuição</option></select></label><label>Origem do cadastro<select data-carteira-origem><option value="">Todas</option><option value="contabil">Cadastro contábil</option><option value="crm">Dossiê CRM</option></select></label><label>Situação do cliente confirmada<select data-carteira-cliente><option value="">Todas</option>${Object.entries(clientes).map(([v,n])=>`<option value="${v}">${n}</option>`).join('')}</select></label><button data-aplicar>Aplicar filtros</button><button data-limpar>Limpar filtros</button></div><div class="crm-bar"><label>Minhas visualizações<select data-visualizacao><option value="">Escolha uma visualização</option></select></label><button data-salvar-visao>Salvar visualização atual</button></div><p class="crm-muted">Os filtros da carteira são combinados. Situação não confirmada não significa cliente ativo ou encerrado.</p><p data-status role="status" aria-live="polite">Carregando sua carteira…</p>
     <div class="crm-bar"><label>Empresa<select data-empresa><option value="">Selecione uma empresa</option></select></label><button data-mais-empresas hidden>Mais empresas</button><button data-atualizar>Atualizar</button><button data-equipe hidden>Distribuir carteira</button><button data-checklist hidden>Conferir Checklist</button></div>
-    <button data-parametros hidden>Parâmetros e registros da empresa</button><section data-parametros-area></section><div data-empresas-tabela class="crm-scroll"></div><p data-equipe-resumo class="crm-muted"></p><div class="crm-bar"><label>Filtrar período<input data-periodo placeholder="2026 ou 2026-10" maxlength="7"></label><label>Situação<select data-filtro><option value="">Todas</option>${Object.entries(situacoes).map(([v,n]) => `<option value="${v}">${n}</option>`).join('')}</select></label><button data-novo hidden class="crm-primary">Novo controle</button></div>
-    <p data-indicadores class="crm-muted"></p><div data-lista class="crm-scroll"></div><button data-mais hidden>Mais controles</button><section data-editor></section><section data-historico></section><section data-previa></section>`;
+    <section data-dossie class="crm-dossie" hidden><h3 data-dossie-titulo tabindex="-1"></h3><p data-dossie-cliente></p><nav class="crm-nav" aria-label="Seções do dossiê"><button data-secao="controles" aria-pressed="true">Obrigações e demandas</button><button data-secao="parametros" aria-pressed="false">Parâmetros</button><button data-secao="documentos" aria-pressed="false">Documentos</button><button data-secao="historico" aria-pressed="false">Histórico</button></nav><p class="crm-muted">Equipe exibida abaixo. Alterações de equipe são exclusivas da administração.</p></section><button data-parametros hidden>Parâmetros e registros da empresa</button><section data-parametros-area></section><section data-documentos hidden></section><div data-empresas-tabela class="crm-scroll"></div><p data-equipe-resumo class="crm-muted"></p><div class="crm-bar" data-filtros-controles><label>Filtrar período<input data-periodo placeholder="2026 ou 2026-10" maxlength="7"></label><label>Situação da obrigação<select data-filtro><option value="">Todas</option>${Object.entries(situacoes).map(([v,n]) => `<option value="${v}">${n}</option>`).join('')}</select></label><label>Prazo<select data-atraso><option value="">Todos os prazos</option>${Object.entries(prazos).map(([v,n])=>`<option value="${v}">${n}</option>`).join('')}</select></label><button data-novo hidden class="crm-primary">Novo controle</button></div>
+    <p data-indicadores class="crm-muted" role="status"></p><progress data-progresso max="100" hidden aria-label="Conclusão dos itens exigíveis carregados"></progress><div data-lista class="crm-scroll"></div><button data-mais hidden>Mais controles</button><section data-editor></section><section data-historico></section><section data-previa></section>`;
     document.body.appendChild(dialog); dialog.showModal();
     const q = s => dialog.querySelector(s);
-    let busy = false, seq = 0, carteira = [], controles = [], config = {}, nextEmp = null, nextControl = null, usuarios = null;
+    let busy = false, seq = 0, carteira = [], controles = [], config = {}, nextEmp = null, nextControl = null, usuarios = null, visualizacoes={revisao:0,itens:[]}, secao='controles';
     const empresa = () => carteira.find(e => e.cnpj === q('[data-empresa]').value);
     const base = () => '/api/crm/empresas/' + empresa().cnpj;
     const hoje = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
@@ -45,10 +61,10 @@
       q('[data-novo]').hidden = !config.admin || !empresa(); q('[data-parametros]').hidden = !empresa(); q('[data-base-resumo]').hidden = !config.admin; q('[data-pendencias]').hidden = !config.admin;
     }
     async function executar(fn) {
-      if (busy) return; busy = true;
+      if (busy) return; busy = true; dialog.setAttribute('aria-busy','true');
       dialog.querySelectorAll('button,input,select,textarea').forEach(el => { el.disabled = true; });
       try { await fn(); } catch (e) { mensagem(e.message); }
-      finally { busy = false; dialog.querySelectorAll('button,input,select,textarea').forEach(el => { el.disabled = false; }); permissoes(); }
+      finally { busy = false; dialog.setAttribute('aria-busy','false'); dialog.querySelectorAll('button,input,select,textarea').forEach(el => { el.disabled = false; }); permissoes(); }
     }
     dialog.addEventListener('cancel', e => { if (busy) e.preventDefault(); });
     dialog.addEventListener('close', () => { seq++; dialog.remove(); });
@@ -56,18 +72,32 @@
     async function carregarCarteira(mais = false) {
       const anterior = q('[data-empresa]').value;
       if (!mais) { carteira = []; controles = []; config = {}; nextEmp = null; nextControl = null; usuarios = null; q('[data-empresa]').innerHTML = '<option value="">Selecione uma empresa</option>'; q('[data-mais-empresas]').hidden = true; limparDetalhes(); render(); }
-      const qs = new URLSearchParams({busca:q('[data-busca]').value.trim()}); if (mais && nextEmp) qs.set('cursor',nextEmp);
+      const qs = new URLSearchParams({busca:q('[data-busca]').value.trim(),equipe:q('[data-carteira-equipe]').value,origem:q('[data-carteira-origem]').value,cliente:q('[data-carteira-cliente]').value}); if (mais && nextEmp) qs.set('cursor',nextEmp);
       const d = await api('/api/crm/carteira?' + qs);
+      const equipeFiltro=q('[data-carteira-equipe]').value;
+      q('[data-carteira-equipe]').innerHTML='<option value="">Todas as equipes</option><option value="sem_equipe">Aguardando distribuição</option>'+(d.equipes||[]).map(p=>`<option value="${esc(p.uid)}">${esc(p.nome)}</option>`).join('');
+      q('[data-carteira-equipe]').value=equipeFiltro;
+      if(equipeFiltro && q('[data-carteira-equipe]').value!==equipeFiltro){const o=document.createElement('option');o.value=equipeFiltro;o.textContent='Equipe indisponível nesta carteira';q('[data-carteira-equipe]').appendChild(o);q('[data-carteira-equipe]').value=equipeFiltro;}
       config = d; carteira = mais ? carteira.concat(d.empresas) : d.empresas; nextEmp = d.proximo;
       q('[data-empresa]').innerHTML = '<option value="">Selecione uma empresa</option>' + carteira.map(e => `<option value="${esc(e.cnpj)}">${esc(e.codigo_empresa)} · ${esc(e.razao_social || e.cnpj)}</option>`).join('');
       q('[data-empresa]').value = carteira.some(e => e.cnpj === anterior) ? anterior : '';
       q('[data-mais-empresas]').hidden = !nextEmp; permissoes();
-      q('[data-empresas-tabela]').innerHTML='<table><thead><tr><th>Número</th><th>Empresa</th><th>CNPJ</th><th>Equipe CCI</th><th></th></tr></thead><tbody>'+carteira.map(e=>`<tr><td>${esc(e.codigo_empresa)}</td><td>${esc(e.razao_social)}</td><td>${esc(e.cnpj)}</td><td>${esc(e.responsaveis.map(p=>p.nome||p.uid).join(' · ')||'Aguardando distribuição')}</td><td><button data-abrir-empresa="${esc(e.cnpj)}">Abrir</button></td></tr>`).join('')+'</tbody></table>';
-      q('[data-empresas-tabela]').querySelectorAll('[data-abrir-empresa]').forEach(btn=>btn.onclick=()=>executar(async()=>{q('[data-empresa]').value=btn.dataset.abrirEmpresa;await carregarControles();await carregarParametros();q('[data-parametros-area]').scrollIntoView({block:'start'});}));
-      mensagem(`Mostrando ${carteira.length} de ${d.total} empresa(s)${nextEmp ? '; há mais empresas.' : '.'}${!carteira.length ? ' Solicite a atribuição da carteira ao administrador.' : ''}`);
+      q('[data-empresas-tabela]').innerHTML='<table class="crm-mobile"><thead><tr><th>Número</th><th>Empresa</th><th>CNPJ</th><th>Equipe CCI</th><th>Cliente</th><th></th></tr></thead><tbody>'+carteira.map(e=>`<tr><td>${esc(e.codigo_empresa)}</td><td>${esc(e.razao_social)}</td><td>${esc(e.cnpj)}</td><td>${esc(e.responsaveis.map(p=>p.nome||p.uid).join(' · ')||'Aguardando distribuição')}</td><td>${esc(clientes[e.situacao_cliente]||clientes.nao_informada)}</td><td><button data-abrir-empresa="${esc(e.cnpj)}">Abrir</button></td></tr>`).join('')+'</tbody></table>';
+      q('[data-empresas-tabela]').querySelectorAll('[data-abrir-empresa]').forEach(btn=>btn.onclick=()=>executar(async()=>{q('[data-empresa]').value=btn.dataset.abrirEmpresa;await carregarControles();mostrarSecao('controles');q('[data-dossie-titulo]').focus();}));
+      mensagem(`Mostrando ${carteira.length} de ${d.total} empresa(s)${nextEmp ? '; há mais empresas.' : '.'}${!carteira.length ? ' Nenhuma empresa acessível corresponde aos filtros; limpe os filtros ou confira a distribuição com o administrador.' : ''}`);
     }
-    q('[data-buscar]').onclick = ()=>executar(()=>carregarCarteira());
-    q('[data-busca]').onkeydown = e=>{if(e.key==='Enter'){e.preventDefault();executar(()=>carregarCarteira());}};
+    function filtrosAtuais(){return {busca:q('[data-busca]').value.trim(),equipe:q('[data-carteira-equipe]').value,origem:q('[data-carteira-origem]').value,cliente:q('[data-carteira-cliente]').value,periodo:q('[data-periodo]').value.trim(),obrigacao:q('[data-filtro]').value,atraso:q('[data-atraso]').value};}
+    function preencherFiltros(f){for(const [k,sel] of Object.entries({busca:'busca',equipe:'carteira-equipe',origem:'carteira-origem',cliente:'carteira-cliente',periodo:'periodo',obrigacao:'filtro',atraso:'atraso'})){const el=q('[data-'+sel+']');if(k==='equipe'&&f[k]&&!Array.from(el.options).some(o=>o.value===f[k])){const o=document.createElement('option');o.value=f[k];o.textContent='Equipe da visualização';el.appendChild(o);}el.value=f[k]||'';}}
+    function listarVisualizacoes(){q('[data-visualizacao]').innerHTML='<option value="">Escolha uma visualização</option>'+visualizacoes.itens.map((v,i)=>`<option value="${i}">${esc(v.nome)}</option>`).join('');}
+    async function filtrarCarteira(){await carregarCarteira();await carregarControles();mostrarSecao('controles');}
+    q('[data-aplicar]').onclick=()=>executar(filtrarCarteira);
+    q('[data-limpar]').onclick=()=>executar(async()=>{preencherFiltros({});q('[data-visualizacao]').value='';await filtrarCarteira();});
+    q('[data-visualizacao]').onchange=()=>{const v=visualizacoes.itens[Number(q('[data-visualizacao]').value)];if(q('[data-visualizacao]').value!==''&&v)executar(async()=>{preencherFiltros(v.filtros);await carregarCarteira();await carregarControles();});};
+    q('[data-salvar-visao]').onclick=()=>formulario('<h3>Salvar visualização pessoal</h3><form><label>Nome<input name="nome" required maxlength="60"></label><p class="crm-muted">Disponível apenas para você. Use o mesmo nome para atualizar os filtros de uma visualização existente.</p><button class="crm-primary">Salvar filtros</button><button type="button" data-cancelar>Cancelar</button></form>',async b=>{visualizacoes=await api('/api/crm/visualizacoes',{revisao:visualizacoes.revisao,nome:b.nome,filtros:filtrosAtuais()},'PUT');listarVisualizacoes();q('[data-editor]').innerHTML='';mensagem('Visualização pessoal salva. Ela não concede acesso a outras empresas.');});
+    function mostrarSecao(nome){secao=nome;dialog.querySelectorAll('[data-secao]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.secao===nome)));q('[data-parametros-area]').hidden=nome!=='parametros';q('[data-documentos]').hidden=nome!=='documentos';q('[data-lista]').hidden=nome!=='controles';q('[data-historico]').hidden=nome!=='historico';q('[data-filtros-controles]').hidden=nome!=='controles';q('[data-indicadores]').hidden=nome!=='controles';q('[data-progresso]').hidden=nome!=='controles'||!controles.some(c=>c.status!=='nao_aplicavel'&&c.prazo&&c.prazo<=hoje()&&(!q('[data-periodo]').value||c.periodo.startsWith(q('[data-periodo]').value)));q('[data-mais]').hidden=nome!=='controles'||!nextControl;}
+    dialog.querySelectorAll('[data-secao]').forEach(b=>b.onclick=()=>executar(async()=>{if(['parametros','documentos'].includes(b.dataset.secao))await carregarParametros();if(b.dataset.secao==='historico')q('[data-historico]').innerHTML='<h3>Histórico da empresa</h3><p>Abra Histórico em uma obrigação ou Histórico das alterações em um registro de parâmetros para consultar sua trilha. A distribuição de equipe permanece auditada.</p>';mostrarSecao(b.dataset.secao);}));
+    q('[data-buscar]').onclick = ()=>executar(filtrarCarteira);
+    q('[data-busca]').onkeydown = e=>{if(e.key==='Enter'){e.preventDefault();executar(filtrarCarteira);}};
     q('[data-pendencias]').onclick=()=>executar(async()=>{
       const d=await api('/api/crm/base/pendencias');
       q('[data-previa]').innerHTML='<h3>Identificações a conferir</h3><p>'+d.registros.length+' registros preservados com CNPJ ausente ou inválido. Não foram vinculados automaticamente a uma carteira. Confira a identificação na origem antes da vinculação.</p>'+d.registros.map(r=>`<details><summary>${esc(r.codigo)} · ${esc(r.nome)} · ${esc(r.fonte_nome)} · linha ${r.linha}</summary><table>${r.campos.map((c,i)=>`<tr><th>${i+1} · ${esc(c.nome)}</th><td>${esc(c.valor??'Não informado')}</td></tr>`).join('')}</table></details>`).join('');
@@ -76,11 +106,14 @@
       const d=await api('/api/crm/base/resumo');
       q('[data-previa]').innerHTML='<h3>Conferência da base importada</h3><p>Linhas de diferentes abas podem representar a mesma empresa. Cada registro e coluna conserva sua origem. Colaborador de origem não concede acesso.</p><div class="crm-scroll"><table><tr><th>Fonte</th><th>Registros</th><th>Colunas</th><th>Importação</th></tr>'+d.fontes.map(f=>`<tr><td>${esc(f.nome)}</td><td>${esc(f.registros)}</td><td>${esc(f.colunas)}</td><td>${esc(instanteBr(f.importado_em))}</td></tr>`).join('')+'</table></div>';
     });
-    q('[data-parametros]').onclick=()=>executar(carregarParametros);
+    q('[data-parametros]').onclick=()=>executar(async()=>{await carregarParametros();mostrarSecao('parametros');});
     async function carregarParametros(){
       const cnpj=empresa()?.cnpj; if(!cnpj)return;
       const d=await api(base()+'/parametros'); if(empresa()?.cnpj!==cnpj)return;
       const area=q('[data-parametros-area]');
+      const documentos=d.registros.flatMap(r=>r.campos.filter(c=>linkSeguro(c.link||c.valor)).map(c=>({nome:c.nome,url:linkSeguro(c.link||c.valor),fonte:r.fonte_nome})));
+      q('[data-documentos]').innerHTML='<h3>Documentos vinculados</h3><p>Links preservados da origem; os arquivos ainda não foram copiados para armazenamento próprio.</p>'+(!documentos.length?'<p>Nenhum link de documento encontrado nos campos importados.</p>':documentos.map(c=>`<p><a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(c.nome)}</a> · ${esc(c.fonte)}</p>`).join(''));
+
       area.innerHTML='<h3>Parâmetros da empresa</h3><p class="crm-muted">Cada aba mantém seus próprios registros. Campos vazios, valores repetidos e erros de origem foram preservados. A edição aqui atualiza o CRM do CCI e mantém o valor original para conferência.</p>'+(!d.registros.length?'<p>Sem registros importados do Jotform para este CNPJ.</p>':d.registros.map((r,n)=>`<details><summary>${esc(r.fonte_nome)} · linha ${r.linha} · revisão ${r.revisao}</summary><p class="crm-muted">Importado em ${esc(instanteBr(r.importado_em))}</p><div class="crm-scroll"><table><thead><tr><th>Coluna</th><th>Parâmetro</th><th>Valor atual</th><th>Valor da origem</th><th>Ação</th></tr></thead><tbody>${r.campos.map((c,i)=>`<tr><td>${i+1}</td><td>${esc(c.nome)}</td><td style="white-space:pre-wrap">${esc(c.valor ?? 'Não informado')}${linkSeguro(c.link||c.valor)?`<br><a href="${esc(linkSeguro(c.link||c.valor))}" target="_blank" rel="noopener noreferrer">Abrir documento</a>`:''}</td><td style="white-space:pre-wrap">${esc(c.original ?? 'Não informado')}</td><td>${d.pode_editar&&!c.protegido?`<button data-editar-param="${n}:${i}">Editar</button>`:''}</td></tr>`).join('')}</tbody></table></div><button data-hist-param="${n}">Histórico das alterações</button></details>`).join(''));
       area.querySelectorAll('[data-editar-param]').forEach(btn=>btn.onclick=()=>{
         const [n,i]=btn.dataset.editarParam.split(':').map(Number),r=d.registros[n],c=r.campos[i];
@@ -91,17 +124,19 @@
       });
       area.querySelectorAll('[data-hist-param]').forEach(btn=>btn.onclick=()=>executar(async()=>{
         const r=d.registros[Number(btn.dataset.histParam)],h=await api('/api/crm/empresas/'+cnpj+'/parametros/'+r.id+'/historico');
+        mostrarSecao('historico');
         q('[data-historico]').innerHTML='<h3>Histórico de parâmetros</h3>'+(!h.historico.length?'<p>Nenhuma alteração após a importação.</p>':h.historico.map(v=>`<p>Revisão ${v.revisao} · ${esc(instanteBr(v.quando))} · ${esc(v.antes.nome)}<br>${esc(v.antes.valor ?? 'Não informado')} → ${esc(v.depois.valor)}<br>Motivo: ${esc(v.motivo)} · Usuário: ${esc(v.por_uid)}</p>`).join(''));
       }));
     }
     function limparDetalhes() {
-      ['editor','historico','previa','parametros-area'].forEach(s => { q('[data-'+s+']').innerHTML = ''; });
-      q('[data-equipe-resumo]').textContent = '';
+      ['editor','historico','previa','parametros-area','documentos'].forEach(s => { q('[data-'+s+']').innerHTML = ''; });
+      q('[data-equipe-resumo]').textContent = '';q('[data-dossie]').hidden=true;
     }
     async function carregarControles(mais = false) {
       const token = ++seq;
       if (!mais) { controles = []; nextControl = null; limparDetalhes(); render(); }
       if (!empresa()) return;
+      q('[data-dossie]').hidden=false;q('[data-dossie-titulo]').textContent=empresa().razao_social;q('[data-dossie-cliente]').textContent='Cliente: '+(clientes[empresa().situacao_cliente]||clientes.nao_informada)+' · Situação contratual independente das obrigações e dos prazos.';
       const d = await api(base() + '/controles' + (mais && nextControl ? '?cursor=' + encodeURIComponent(nextControl) : ''));
       if (!dialog.isConnected || token !== seq) return;
       controles = mais ? controles.concat(d.controles) : d.controles; nextControl = d.proximo;
@@ -111,20 +146,21 @@
     function render() {
       const periodo = q('[data-periodo]').value.trim(), status = q('[data-filtro]').value;
       const porPeriodo = controles.filter(c => !periodo || c.periodo === periodo || (periodo.length === 4 && c.periodo.startsWith(periodo)));
-      const filtrados = porPeriodo.filter(c => !status || c.status === status);
+      const filtrados = porPeriodo.filter(c => (!status || c.status === status) && (!q('[data-atraso]').value || prazoDe(c,hoje())===q('[data-atraso]').value));
       const exigiveis = porPeriodo.filter(c => c.status !== 'nao_aplicavel' && c.prazo && c.prazo <= hoje());
       const concluidos = exigiveis.filter(c => c.status === 'concluida').length;
       q('[data-indicadores]').textContent = `${filtrados.length} controle(s) visível(is) de ${controles.length} carregado(s). ${exigiveis.length ? Math.round(concluidos / exigiveis.length * 100) + '% dos itens exigíveis concluídos no período.' : 'Sem itens exigíveis para calcular percentual.'}${nextControl ? ' Resumo parcial: carregue os demais controles.' : ''}`;
+      q('[data-progresso]').hidden=!exigiveis.length;q('[data-progresso]').value=exigiveis.length?Math.round(concluidos/exigiveis.length*100):0;
       q('[data-mais]').hidden = !nextControl;
-      q('[data-lista]').innerHTML = !empresa() ? '<p>Selecione uma empresa da carteira.</p>' : !filtrados.length ? '<p>Nenhum controle encontrado para esta seleção.</p>' : `<table><thead><tr><th>Controle</th><th>Período</th><th>Prazo</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${filtrados.map(c => `<tr><td>${esc(c.titulo)}<br><span class="crm-muted">${c.categoria === 'obrigacao' ? 'Obrigação' : 'Processo'}</span></td><td>${esc(c.periodo)}</td><td>${esc(dataBr(c.prazo))}${!['concluida','nao_aplicavel'].includes(c.status) && c.prazo < hoje() ? '<br><span class="crm-alert">Em atraso</span>' : ''}</td><td>${esc(situacoes[c.status])}</td><td>${(config.admin || config.pode_editar) && (!['concluida','nao_aplicavel'].includes(c.status) || config.admin) ? `<button data-editar="${esc(c.id)}">${['concluida','nao_aplicavel'].includes(c.status) ? 'Reabrir' : 'Atualizar'}</button> ` : ''}<button data-hist="${esc(c.id)}">Histórico</button></td></tr>`).join('')}</tbody></table>`;
+      q('[data-lista]').innerHTML = !empresa() ? '<p>Selecione uma empresa da carteira.</p>' : !filtrados.length ? '<p>Nenhum controle encontrado para esta seleção.</p>' : `<table class="crm-mobile"><thead><tr><th>Controle</th><th>Período</th><th>Prazo</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${filtrados.map(c => `<tr><td>${esc(c.titulo)}<br><span class="crm-muted">${c.categoria === 'obrigacao' ? 'Obrigação' : 'Processo'}</span></td><td>${esc(c.periodo)}</td><td>${esc(dataBr(c.prazo))}<br><span class="crm-badge" data-tone="${prazoDe(c,hoje())}">${prazos[prazoDe(c,hoje())]}</span></td><td><span class="crm-badge" data-tone="${esc(c.status)}">${esc(situacoes[c.status])}</span></td><td>${(config.admin || config.pode_editar) && (!['concluida','nao_aplicavel'].includes(c.status) || config.admin) ? `<button data-editar="${esc(c.id)}">${['concluida','nao_aplicavel'].includes(c.status) ? 'Reabrir' : 'Atualizar'}</button> ` : ''}<button data-hist="${esc(c.id)}">Histórico</button></td></tr>`).join('')}</tbody></table>`;
       q('[data-lista]').querySelectorAll('[data-editar]').forEach(b => { b.onclick = () => editar(controles.find(c => c.id === b.dataset.editar)); });
-      q('[data-lista]').querySelectorAll('[data-hist]').forEach(b => { b.onclick = () => executar(() => historico(b.dataset.hist)); });
+      q('[data-lista]').querySelectorAll('[data-hist]').forEach(b => { b.onclick = () => executar(async () => {await historico(b.dataset.hist);mostrarSecao('historico');}); });
     }
     function formulario(html, salvar) {
       const area = q('[data-editor]'); area.innerHTML = html;
       area.querySelector('[data-cancelar]').onclick = () => { area.innerHTML = ''; };
       area.querySelector('form').onsubmit = e => { e.preventDefault(); const dados = new FormData(e.currentTarget); executar(() => salvar(Object.fromEntries(dados), dados)); };
-      area.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      area.scrollIntoView({ block: 'nearest' });area.querySelector('input,select,textarea')?.focus();
     }
     function editar(c) {
       const fechado = ['concluida','nao_aplicavel'].includes(c.status);
@@ -177,11 +213,11 @@
       q('[data-previa]').innerHTML = `<h3>Conferência do Checklist</h3><p>${d.total} evento(s), ${d.com_pendencias} com pendências. Leitura: ${esc(instanteBr(d.lido_em))}.</p><p>Somente conferência. Empresas, vigências e obrigações ainda não foram alteradas.</p><div class="crm-scroll"><table><thead><tr><th>Empresa / Nosso Número</th><th>Evento</th><th>Responsabilidade</th><th>Conferência</th></tr></thead><tbody>${d.eventos.map(e => `<tr><td>${esc(e.empresa_nome)}<br>${esc(e.numero_original)}</td><td>${esc(e.tipo)}</td><td>${esc(e.responsabilidade_inicio || 'Início não informado')} — ${esc(e.responsabilidade_fim || 'Fim não informado')}</td><td>${esc(e.problemas.join(' ') || 'Sem conflito identificado nesta prévia; confirmar aplicação.')}</td></tr>`).join('')}</tbody></table></div>`;
       mensagem('Prévia concluída sem alterar cadastros.');
     });
-    q('[data-empresa]').onchange = () => executar(carregarControles);
+    q('[data-empresa]').onchange = () => executar(async()=>{await carregarControles();mostrarSecao('controles');});
     q('[data-mais-empresas]').onclick = () => executar(() => carregarCarteira(true));
     q('[data-atualizar]').onclick = () => executar(async () => { await carregarCarteira(); await carregarControles(); });
     q('[data-mais]').onclick = () => executar(() => carregarControles(true));
-    q('[data-periodo]').oninput = render; q('[data-filtro]').onchange = render;
-    await executar(carregarCarteira);
+    q('[data-periodo]').oninput = render; q('[data-filtro]').onchange = render;q('[data-atraso]').onchange=render;
+    await executar(async()=>{await carregarCarteira();visualizacoes=await api('/api/crm/visualizacoes');listarVisualizacoes();q('[data-busca]').focus();});
   };
 })();

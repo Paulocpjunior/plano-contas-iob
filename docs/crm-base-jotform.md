@@ -53,3 +53,20 @@ Testes cobrem isolamento por UID, prioridade do cadastro atual, identificação 
 Entrega 3.4.389: PR #264, merge `18d37d5075d0736d5546c1158698cb6782aa525a`, workflow 38447268920 concluído e revisão `plano-contas-iob-01140-tol` com 100% do tráfego. Versão pública, saúde do Firestore e hash do JavaScript servido foram conferidos. Backend/importador não são assets públicos; consulta sem autenticação retorna 401. Suíte: 250 testes aprovados, 3 pulados por ausência de fixtures externas, zero falhas.
 
 Na sessão real do administrador no Safari, a busca por uma empresa existente retornou um resultado e carregou suas seis fontes, incluindo os 87 campos da V2 integral. Conferidos status, atividade, tributação e colaborador de origem ao lado do valor atual. O painel administrativo mostrou as exportações integrais. Nenhuma baixa, alteração de parâmetro ou atribuição fictícia foi criada para validar a interface.
+
+## Critério de equivalência antes de desligar o Jotform — 14/10/2026
+
+Esta etapa acrescenta filtros e navegação local, não autoriza a desativação da origem. A migração de valores não comprova migração de comportamento.
+
+| Item | Evidência disponível | Falta para equivalência |
+|---|---|---|
+| Empresas, colunas e valores | Importação documentada acima, com origem preservada | Reconciliar cada identificação pendente e divergência entre fontes; conferir snapshot final atualizado |
+| Opções e situação do cliente | Valores originais preservados nos parâmetros | Inventariar opções/validações condicionais; conciliar estado contratual canônico com histórico, sem inferir do estado das obrigações |
+| Carteira e permissões | Distribuição administrativa por UID; testes de isolamento | Homologar contas reais de admin, colaborador e consulta; revisar permissões dos demais módulos |
+| Fórmulas | Resultados importados | Inventariar expressão, dependências, tipos e arredondamento; recalcular casos normais, vazios, erros e limites comparando campo a campo |
+| Automações | Sem reprodução integral comprovada | Inventariar gatilho, condição, ação, destino e efeitos; testar repetição, falha/retry e desativação segura, sem disparar comunicações reais |
+| Anexos | Links preservados e expostos no dossiê | Copiar binários para armazenamento privado; validar contagem, hashes e acesso por carteira; testar sem depender de sessão Jotform |
+| Checklist | Prévia de leitura existente | Resolver credencial autorizada e contrato; testar entrada, saída e início/fim de responsabilidade, correção retroativa e replay idempotente |
+| Obrigações/processos | Estados, evidência e histórico existentes; prazo separado nesta etapa | Conciliar aplicabilidade, periodicidade, valores e transições com a origem; não converter valores importados em baixas automaticamente |
+
+Homologação final: congelar um snapshot de referência, registrar diferenças por fonte/linha/coluna, corrigir e repetir; executar cenários de paridade aprovados, ensaiar restauração e definir janela de corte. Só desligar após aceite explícito com pendências resolvidas ou formalmente aceitas. A edição e publicação desta etapa permanecem separadas do corte da origem.

@@ -109,3 +109,28 @@ Próxima integração: mapear serviços contratados, tributação e suas vigênc
 ## Validação desta etapa
 
 Testes de domínio, rotas e leitor são registrados em npm run test:crm-contabil, npm run check e check:ci. Cobrem autorização por UID, acessos legados negados no CRM, perfil atual, revogação, conclusão, reabertura, históricos atômicos, duplicidade, concorrência e páginas. Integração de UI é verificada localmente com dados fictícios. Resultados e limitações da execução estão no relatório de validação ao lado deste documento.
+
+## Etapa local de 14/10/2026 — filtros e navegação do dossiê
+
+Branch `codex/crm-filtros-dossie`, baseada no `origin/main` f2dd52c (3.4.390). As alterações visuais mencionadas no handoff não estavam no checkout limpo; esta etapa reconstrói os recursos abaixo. Sem commit, push ou deploy.
+
+- Busca, equipe (UID), origem do cadastro e situação confirmada do cliente são combinados no servidor, após autorização e antes da paginação. As equipes retornadas pertencem apenas às empresas acessíveis. O cadastro contábil prevalece sobre o dossiê com mesmo CNPJ.
+- Visualizações pessoais: até 20 nomes, atualização pelo mesmo nome, revisão transacional contra sobrescrita concorrente. GET/PUT `/api/crm/visualizacoes`, persistência em `users/{uid autenticado}/crm_preferencias/visualizacoes`. O UID do corpo não define o proprietário. Filtros salvos nunca concedem acesso.
+- Dossiê com navegação para controles, parâmetros, links de documentos e orientação para consultar o histórico por registro. A equipe continua administrada exclusivamente pelo administrador. Ainda não há uma linha do tempo unificada da empresa.
+- `crm_situacao_cliente`: ativa, suspensa, saida, baixada ou nao_informada. Não é deduzida de `ativo`, encerramento contábil ou texto legado. Falta conciliar/preencher esse campo com histórico antes de a situação contratual funcionar sobre toda a base real. Os campos originais continuam disponíveis nos parâmetros.
+- Situação da obrigação permanece independente do prazo: concluída/não aplicável aparece como encerrado; falta de prazo não vira atraso. O filtro de período/situação/prazo age nos controles carregados da empresa selecionada, não seleciona empresas por pendência global. Resumos de páginas incompletas são explicitamente parciais.
+- Cores com rótulos textuais, progresso, foco visível, estado de carregamento, botões de 44 px, cartões em celular e respeito à redução de movimento. Tema escuro usa os tokens existentes.
+
+### Decisões técnicas e pendências
+
+Manter Cloud Run e Firestore. A consulta unificada de carteira ainda lê as duas coleções completas no servidor; a paginação da resposta não elimina esse custo. Próxima otimização: índice materializado de carteira/atributos consultáveis, atualizado transacionalmente ou por processo idempotente, mantendo a autorização fresca. Não alterar o fluxo leve de ativação de empresa da 3.4.390.
+
+Tabulator foi avaliado, mas não adicionado nesta etapa. A tabela nativa paginada atende a seleção e os cartões no celular sem uma nova dependência. Avaliar adoção quando forem necessários agrupamentos, reorganização/ocultação de colunas e grandes grades; fixar versão e validar teclado, leitores de tela e celular. Referência: [acessibilidade do Tabulator 6.x](https://www.tabulator.info/docs/6.x/accessibility/).
+
+Anexos: bucket privado no Cloud Storage, manifesto de origem, tamanho, MIME e hash, contagem conciliada, repetição segura e download autorizado pela carteira atual. URLs assinadas dão acesso a quem as possui enquanto válidas; preferir autorização no backend ou expiração curta após a verificação. Nenhum bucket/arquivo foi criado/copiado nesta etapa. Referência: [Cloud Storage — signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls).
+
+Automações: Scheduler para disparos periódicos e Tasks para trabalho individual com controle de taxa/repetição. Cada evento precisa de identidade estável, consumo idempotente, histórico de execução e reconciliação. Repetir um evento não pode duplicar empresa, obrigação ou baixa. Nenhuma fila/job foi provisionada. Referência: [Tasks e Scheduler](https://docs.cloud.google.com/tasks/docs/comp-tasks-sched).
+
+### Validação desta etapa
+
+`npm run check:ci`: 250 passaram, 3 pulados por ausência de evidência local, nenhuma falha. Navegador com API fictícia: abrir dossiê, distinguir atraso de conclusão, salvar/limpar/restaurar visualização, abrir seção de documentos; tema escuro e viewport de 390 px sem transbordamento horizontal. Nenhuma gravação de produção. Isso não comprova equivalência da base real nem substitui homologação autenticada após eventual publicação. O gate local completo continua pendente dos arquivos externos de evidência; nenhum parser foi alterado.
