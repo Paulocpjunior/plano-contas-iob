@@ -16,7 +16,10 @@ const ARQUIVO = '/Users/paulocesarpereirajunior/Downloads/Demonstrativo dos Impo
 const HASH = '9deb36326825f86d425f2640016e7e2a05a8efc883cc2ab32909577ba470bf7a';
 const ARQUIVO_RELACAO = '/Users/paulocesarpereirajunior/Downloads/SERVIÇOS TOMADOS 01.2026.pdf';
 const HASH_RELACAO = '1d90421f4a8390a500f1603297dc3669086b1250e78fb112e9c54ab3089d0143';
-const ARQUIVO_PAISAGEM_NATIVA = '/Users/paulocesarpereirajunior/Downloads/Serviços tomados retençoes (1).pdf';
+const ARQUIVO_PAISAGEM_NATIVA = [
+  '/Users/paulocesarpereirajunior/Downloads/Serviços tomados retençoes (1).pdf',
+  '/Users/paulocesarpereirajunior/Downloads/Serviços tomados retençoes.pdf'
+].find(file => fs.existsSync(file)) || '/Users/paulocesarpereirajunior/Downloads/Serviços tomados retençoes (1).pdf';
 const HASH_PAISAGEM_NATIVA = '2ffcd6c72ca819ead5f910eb2b0d114ac3ef1b5c2c764b1e41e2a24fd3d63cfc';
 
 function money(valor) {
