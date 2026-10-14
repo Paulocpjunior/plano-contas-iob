@@ -134,3 +134,13 @@ Automações: Scheduler para disparos periódicos e Tasks para trabalho individu
 ### Validação desta etapa
 
 `npm run check:ci`: 250 passaram, 3 pulados por ausência de evidência local, nenhuma falha. Navegador com API fictícia: abrir dossiê, distinguir atraso de conclusão, salvar/limpar/restaurar visualização, abrir seção de documentos; tema escuro e viewport de 390 px sem transbordamento horizontal. Nenhuma gravação de produção. Isso não comprova equivalência da base real nem substitui homologação autenticada após eventual publicação. O gate local completo continua pendente dos arquivos externos de evidência; nenhum parser foi alterado.
+
+## Área de trabalho — 14/10/2026, v3.4.392
+
+A interface usa toda a área disponível com navegação própria, mantendo o isolamento nativo do dialog e o retorno ao CCI. Carteira, demandas, gestão administrativa e dossiê ficam em painéis separados. A carteira mantém filtros e posição ao abrir/voltar de um dossiê, permite ocultar CNPJ/equipe/situação durante a sessão e recolher filtros. As colunas ainda não integram as visualizações persistidas. A gestão concentra conferência, Checklist e atalho para empresas sem equipe. Não há indicadores fictícios de produtividade.
+
+`GET /api/crm/trabalho` consulta apenas carteiras autorizadas, em lotes de dez empresas; retorna no máximo cem controles por empresa e indica empresas truncadas. A autorização é revalidada depois da leitura dos controles. O cursor percorre empresas por CNPJ. A tela informa empresas consultadas versus total e permite continuar; os filtros operacionais incidem no conjunto carregado. Responsáveis exibidos são os da empresa, não uma atribuição individual presumida para a tarefa. Nenhuma baixa acontece nessa consulta. O índice materializado e a distribuição individual de demandas continuam como evolução posterior.
+
+Causa do defeito de contraste: `--surface2` não existe no tema real; o fallback claro combinava com texto claro. Substituído por `--bg-dark`, presente nos dois temas. QA usa os estilos completos extraídos do index e tema-apple.css, com API fictícia. Confirmados filtros salvos, retorno ao dossiê, ocultação de colunas, demandas, tema claro/escuro e largura de 390 px sem transbordamento. CI local: 250 aprovados, 3 pulados por arquivos externos ausentes, zero falhas.
+
+Conferência somente de leitura em produção: os três registros genéricos terminados em 01, 02 e 03 não possuem registros importados de Jotform na seção de parâmetros. Não foram encontrados no código atual. A origem de criação permanece não comprovada; nenhum registro foi excluído, arquivado ou reclassificado.

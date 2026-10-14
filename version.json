@@ -1,7 +1,8 @@
 {
-  "version": "3.4.391",
-  "build_date": "2026-10-14T09:44:50Z",
+  "version": "3.4.392",
+  "build_date": "2026-10-14T10:02:22Z",
   "release_notes": [
+    "CRM: área de trabalho com carteira ampla, colunas configuráveis, dossiê separado, gestão administrativa e consulta de demandas por empresa em lotes. Contraste corrigido no tema escuro e cartões no celular.",
     "CRM: filtros combinados de carteira e visualizações pessoais salvas; dossiê com parâmetros e links de documentos, situação do cliente separada das obrigações e prazos, melhorias no celular e tema escuro.",
     "Ativação de empresa: entrada com busca por número, nome ou CNPJ, sem carregar a carteira ao entrar, e resultados compactos para ativar a empresa desejada.",
     "CRM: base de empresas e parâmetros importados do Jotform, busca em toda a carteira, registros por origem e edição com histórico; distribuição administrativa e conferência de identificações.",
