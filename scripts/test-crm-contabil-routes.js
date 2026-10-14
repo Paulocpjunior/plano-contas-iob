@@ -48,9 +48,12 @@ function ambiente() {
   assert.equal((await a.call('GET','/api/crm/checklist/previa')).statusCode,403); assert.equal(a.checklistCalls(),0);
   assert.equal((await a.call('GET','/api/crm/checklist/previa',{},'admin')).statusCode,502);assert.equal(a.writes(),0);
   // Preferências são pessoais, inclusive quando o payload tenta escolher outro usuário.
-  r=await a.call('PUT','/api/crm/visualizacoes',{revisao:0,nome:'Minha carteira',uid:'admin',filtros:{equipe:'colab',origem:'contabil'}});
+  r=await a.call('PUT','/api/crm/visualizacoes',{revisao:0,nome:'Minha carteira',uid:'admin',filtros:{equipe:'colab',origem:'contabil'},colunas:{cnpj:false,equipe:true,cliente:false}});
   assert.equal(r.statusCode,200);assert(a.dados.has('users/colab/crm_preferencias/visualizacoes'));assert(!a.dados.has('users/admin/crm_preferencias/visualizacoes'));
   assert.equal((await a.call('GET','/api/crm/visualizacoes',{},'admin')).body.itens.length,0);
+  assert.deepStrictEqual((await a.call('GET','/api/crm/visualizacoes')).body.itens[0].colunas,{cnpj:false,equipe:true,cliente:false});
+  assert.equal((await a.call('PUT','/api/crm/visualizacoes',{revisao:1,nome:'Inválida',filtros:{},colunas:{cnpj:'false'}})).statusCode,400);
+  assert.equal((await a.call('GET','/api/crm/visualizacoes')).body.revisao,1,'entrada inválida não grava');
   assert.equal((await a.call('PUT','/api/crm/visualizacoes',{revisao:0,nome:'Antiga',filtros:{}})).statusCode,409);
   const filtrosEnv=ambiente();
   filtrosEnv.dados.get('empresas/'+cnpj).crm_situacao_cliente='ativa';

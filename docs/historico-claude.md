@@ -1965,3 +1965,11 @@ Após disponibilização da sessão remota, lidos sem edição os formulários V
 ## 2026-10-14 — CRM 3.4.397: opções nativas do formulário V2
 
 Continuação autorizada: seletores de situação e tributação com opções conferidas, validação de servidor e preservação dos valores legados; condições de apresentação como orientação, sem dispensar obrigações nem apagar campos. Contrato restrito às duas fontes V2 e metadados não persistidos. Testes de domínio/rotas e navegador fictício. A exportação integral contém os dois campos da fórmula de saldo, ausentes na visão resumida; cálculo e comunicações permanecem pendentes de equivalência. Nenhum dado real modificado nesta validação.
+
+## 2026-10-14 — CRM: visualizações e conferência das comunicações (3.4.398)
+
+- Visualizações pessoais passam a persistir colunas além dos filtros, com compatibilidade para registros/telas antigas, validação booleana, revisão e isolamento por usuário.
+- Navegador fictício confirmou salvar, reabrir e restaurar a tabela; nenhum dado real foi usado como teste de gravação.
+- Conferidos os três e-mails V2: notificação 1 em criação/edição; resposta ao contato só em criação; notificação 2 manual. PDF desativado nos três. Capturas privadas; sem envio ou edição no Jotform. Contrato detalhado em `docs/crm-contrato-origem-20261014.md`.
+- Integrações bloqueadas na origem: requer conta proprietária. Migração integral continua aberta, inclusive Checklist autenticado, anexos binários, fórmulas e homologação restrita.
+- Validação local: `check:ci` com 251 aprovados, 3 pulados e 1 falha (`test-auditai-balancete-local.js`, `bad XRef entry`). A mesma falha foi reproduzida isoladamente com os arquivos de `origin/main`; não é regressão das colunas. `npm run check` também parou no leitor PDF. Testes CRM passaram; auditoria de dependências de produção: zero vulnerabilidades. Nenhum teste ou parser foi desabilitado/alterado.
