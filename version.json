@@ -1,7 +1,8 @@
 {
-  "version": "3.4.392",
-  "build_date": "2026-10-14T10:02:22Z",
+  "version": "3.4.393",
+  "build_date": "2026-10-14T10:28:19Z",
   "release_notes": [
+    "CRM: calendário mensal e semanal, planejamento com executor/revisor e dependências, carga por horas e ausências, distribuição em lote e apoios temporários auditados. Recorrências por regras confirmadas, com prévia e preservação dos controles existentes.",
     "CRM: área de trabalho com carteira ampla, colunas configuráveis, dossiê separado, gestão administrativa e consulta de demandas por empresa em lotes. Contraste corrigido no tema escuro e cartões no celular.",
     "CRM: filtros combinados de carteira e visualizações pessoais salvas; dossiê com parâmetros e links de documentos, situação do cliente separada das obrigações e prazos, melhorias no celular e tema escuro.",
     "Ativação de empresa: entrada com busca por número, nome ou CNPJ, sem carregar a carteira ao entrar, e resultados compactos para ativar a empresa desejada.",
