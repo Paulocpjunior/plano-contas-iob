@@ -5,7 +5,7 @@ const { criarPermissoes, acaoDaRota } = require('../permissoes-cci');
 const { versaoCarteira } = require('../crm-contabil');
 const cnpj = '12345678901234', outro = '99999999999999';
 function ambiente() {
-  const routes={}, dados=new Map(); let auto=0, writes=0, checklistCalls=0;
+  const routes={}, dados=new Map(); let auto=0, writes=0, checklistCalls=0, companyQueries=0;
   const empresa={razao_social:'Fixture',codigo_empresa:'0012',owner_uid:'legado',carteira_uids:['colab','indice-velho'],responsaveis:[{uid:'colab',papel:'principal'}]};
   dados.set('empresas/'+cnpj,empresa); dados.set('empresas/'+outro,{razao_social:'Outra',carteira_uids:[],responsaveis:[]});
   dados.set('users/admin',{is_admin:true,email:'admin@fixture.test'});
@@ -16,10 +16,10 @@ function ambiente() {
     return {doc:id=>ref(path+'/'+(id||'auto'+(++auto))),
       where:(key,op,val)=>collection(path,[...filters,[key,op,val]],order,after,limit),
       orderBy:key=>collection(path,filters,key,after,limit),startAfter:v=>collection(path,filters,order,v,limit),limit:n=>collection(path,filters,order,after,n),
-      get:async()=>({docs:[...dados.keys()].filter(k=>k.startsWith(path+'/') && k.slice(path.length+1).indexOf('/')<0)
+      get:async()=>{if(['empresas','crm_empresas'].includes(path))companyQueries++;return ({docs:[...dados.keys()].filter(k=>k.startsWith(path+'/') && k.slice(path.length+1).indexOf('/')<0)
         .map(snap).filter(d=>filters.every(([key,op,val])=>op==='array-contains' ? d.data()[key]?.includes(val) : d.data()[key]===val))
         .sort((a,b)=>order==='__name__'?a.id.localeCompare(b.id):a.data()[order]-b.data()[order])
-        .filter(d=>after===null || (order==='__name__'?d.id>after:d.data()[order]>after)).slice(0,limit)})};
+        .filter(d=>after===null || (order==='__name__'?d.id>after:d.data()[order]>after)).slice(0,limit)});}};
   }
   const db={collection,runTransaction:async fn=>{
     const pending=[];
@@ -34,10 +34,12 @@ function ambiente() {
     await routes[method+' '+path]({params:{cnpj,...params},query,body,user:{uid,is_admin:true}},res); // is_admin forjado deve ser ignorado.
     return res;
   }
-  return {call,dados,writes:()=>writes,checklistCalls:()=>checklistCalls};
+  return {call,dados,writes:()=>writes,checklistCalls:()=>checklistCalls,companyQueries:()=>companyQueries};
 }
 (async()=>{
   const a=ambiente(), base='/api/crm/empresas/:cnpj';
+  const entrada=await a.call('GET','/api/crm/contexto');assert.equal(entrada.statusCode,200);assert.equal(entrada.body.uid,'colab');assert.equal(entrada.body.admin,false);assert.equal(a.companyQueries(),0,'entrada não lê a carteira completa');
+  assert.equal((await a.call('GET','/api/crm/contexto',{},'')).statusCode,401);
   let r=await a.call('GET','/api/crm/carteira'); assert.equal(r.body.empresas.length,1);assert(!r.body.admin);assert(!('acessos_legados' in r.body.empresas[0]));
   assert.equal((await a.call('GET','/api/crm/carteira',{},'indice-velho')).body.empresas.length,0);
   for(const uid of ['legado','indice-velho']) assert.equal((await a.call('GET',base+'/controles',{},uid)).statusCode,403);

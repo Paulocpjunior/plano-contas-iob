@@ -160,3 +160,13 @@ Recorrência: responsabilidade contratual ativa com início confirmado e regra d
 Pendências de equivalência: execução agendada de regras, reprodução integral de fórmulas/automação Jotform, cópia conciliada de anexos, aplicação incremental do Checklist e homologação dos parâmetros/vigências reais. Nenhuma dessas funções deve ser presumida concluída por esta publicação. Nenhuma carteira, ausência, prazo ou recorrência de produção foi preenchida automaticamente nesta etapa.
 
 Validação: testes de domínio e rotas cobrem ciclos, vigência, prévia concorrente, preservação de existentes, carga com ausências, revisão, dependências e revogação de apoio. Navegador com dados fictícios: calendário, carga, formulário de planejamento e responsabilidade; celular 390 px sem transbordamento e tema escuro. Validação local não comprova a conciliação da origem real.
+
+## Experiência profissional — 14/10/2026, v3.4.394
+
+Meu início substitui a grade como entrada do CRM. Ilustração SVG própria (sem dados reais), ícones consistentes e cores acompanhadas por texto identificam carteira, demandas, calendário e administração. A ativação de empresa do CCI mantém a busca sob demanda e recebe a mesma ilustração; abrir um dossiê não ativa a empresa contábil implicitamente.
+
+GET /api/crm/contexto consulta somente o usuário autenticado e devolve perfil/permissões atuais e catálogo. Abrir o CRM consulta contexto e visualizações pessoais, sem ler empresas ou controles. Carteira, calendário e demandas são carregados ao solicitar. Teste de rota verifica ausência de consultas às coleções de empresas na entrada.
+
+Meu dia filtra executor_uid/revisor_uid do usuário atual; não presume que todo responsável da empresa executa todas as tarefas. Visão da equipe continua limitada às carteiras autorizadas. Contagens só aparecem após consulta e herdam o alcance de /trabalho (dez empresas por lote, até cem controles por empresa). Mostram explicitamente a parcialidade; grupos podem se sobrepor. Não são indicadores globais de produtividade. Implementar índice operacional para totais pessoais completos com baixo custo continua necessário.
+
+QA com dados fictícios confirmou somente contexto/preferências na abertura, um atraso atribuído ao usuário sem incluir demanda não atribuída, navegação até dossiê e retorno com carregamento de carteira. Temas claro/escuro e largura de 390 px conferidos. Ajuste de empilhamento garante conteúdo do banner acima do fundo no tema escuro. Gate local: 251 aprovados, 3 pulados por arquivos externos ausentes, zero falhas; verificações de versão repetidas após atualização para 3.4.394.
