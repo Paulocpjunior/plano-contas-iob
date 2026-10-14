@@ -20,6 +20,11 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const d = doc.data();
     return { uid: req.user.uid, is_admin: d.is_admin === true, permissoesCci: permissoesEfetivas(d) };
   }
+  // Entrada leve: não consulta coleções de empresas nem controles.
+  app.get('/api/crm/contexto', wrap(async(req,res)=>{
+    const user=await usuario(req);
+    res.json({ok:true,uid:user.uid,admin:user.is_admin,pode_editar:user.is_admin||podeAcao(user,'editar'),pode_concluir:user.is_admin||podeAcao(user,'fechar'),catalogo:core.CATALOGO});
+  }));
   function empresaRef(req) {
     const cnpj = String(req.params.cnpj || '');
     if (!/^\d{14}$/.test(cnpj)) throw core.erro('Escolha uma empresa válida.');
