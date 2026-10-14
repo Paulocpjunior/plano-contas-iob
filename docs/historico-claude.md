@@ -1922,3 +1922,13 @@ Paulo solicitou disponibilizar a primeira etapa no app online. Candidata 3.4.387
 ## 13/10/2026 — Ativação por busca (3.4.390)
 
 Entrada sem consulta da carteira com busca vazia. Busca com dois caracteres, oito resultados compactos por página e descarte de respostas obsoletas. Servidor também recusa a varredura inicial e retorna apenas identificação para ativação; carteira e ativação explícita preservadas. Regressões de consulta vazia e corrida de busca verificadas.
+
+### 14/10/2026 — CRM: filtros combinados e dossiê (somente local)
+
+Retomada após leitura de CLAUDE.md e histórico. Checkout limpo sem as alterações visuais não commitadas do handoff; branch `codex/crm-filtros-dossie` criada a partir de origin/main f2dd52c, versão 3.4.390. Implementados filtros de carteira após autorização e antes da paginação, visualizações pessoais com revisão transacional, navegação do dossiê e distinção cliente/obrigação/prazo. Ajustes de foco, carregamento, cores, progresso, celular e tema escuro. Nenhum dado real alterado; sem commit, push ou deploy, conforme instrução explícita.
+
+Testes CI: 250 aprovados, 3 pulados por evidência local ausente, zero falhas. Navegador com dados fictícios validou restauração de filtros, atraso independente da conclusão, documentos e layout móvel. Detalhes, limitações e avaliação de Tabulator/Storage/Tasks/Scheduler em docs/crm-carteira-obrigacoes.md; matriz de equivalência antes do corte em docs/crm-base-jotform.md. Fórmulas, automações, cópia de anexos e aplicação do Checklist continuam pendentes; Jotform não deve ser desligado com base nesta entrega.
+
+### Publicação autorizada do CRM (14/10) — v3.4.391
+
+Paulo autorizou subir e fazer deploy da etapa de filtros/dossiê. Preparada a versão 3.4.391 com novidades e invalidação de cache. Fluxo branch → PR → squash-merge → deploy-app.yml, com candidata sem tráfego e promoção após health. A autorização não inclui desligar Jotform; equivalência permanece pendente conforme matriz documentada. O resultado de CI e deploy deve ser conferido nas execuções vinculadas ao PR.

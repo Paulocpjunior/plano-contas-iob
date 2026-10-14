@@ -1,6 +1,6 @@
 'use strict';
 const core = require('./crm-contabil');
-const { normalizarBusca, editarParametro } = require('./crm-base');
+const { normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
@@ -37,9 +37,9 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     return { user, ref, controlesRef: empresaRef(req), empresa: doc.data() };
   }
   function admin(user) { if (!user.is_admin) throw core.erro('Esta ação é exclusiva dos administradores.', 403); }
-  function empresaPublica(doc, user) {
+  function empresaPublica(doc, user, origem) {
     const d = doc.data();
-    return { cnpj: doc.id, razao_social: d.razao_social || '', codigo_empresa: codigoEmpresaDe(d),
+    return { origem, situacao_cliente:situacaoCliente(d), cnpj: doc.id, razao_social: d.razao_social || '', codigo_empresa: codigoEmpresaDe(d),
       responsaveis: normalizarResponsaveis(d.responsaveis).map(p => ({ uid: p.uid, nome: p.nome, papel: p.papel })),
       revisao_carteira: core.versaoCarteira(d), ...(user.is_admin ? { acessos_legados: [...new Set([d.owner_uid, d.vinculado_por_uid, ...(d.acesso_uids || [])].filter(Boolean))] } : {}) };
   }
@@ -49,15 +49,31 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     // Consulta unificada: cadastro contábil prevalece sobre o dossiê importado.
     // A autorização usa o documento atual, nunca o nome do colaborador no Jotform.
     const snapshots = await Promise.all(['crm_empresas','empresas'].map(c=>db.collection(c).get()));
-    const mapa = new Map(); snapshots.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
-    const busca = normalizarBusca(req.query.busca), cursor = cursorId(req.query.cursor, /^\d{14}$/);
-    const todas = [...mapa.values()].filter(d=>core.temCarteira(d.data(),user)).map(d=>empresaPublica(d,user))
+    const mapa = new Map(); snapshots.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,{doc:d,origem:s===snapshots[0]?'crm':'contabil'})));
+    const filtros=filtrosCarteira(req.query);
+    const busca = normalizarBusca(filtros.busca), cursor = cursorId(req.query.cursor, /^\d{14}$/);
+    const acessiveis = [...mapa.values()].filter(v=>core.temCarteira(v.doc.data(),user)).map(v=>empresaPublica(v.doc,user,v.origem));
+    const equipes = [...new Map(acessiveis.flatMap(e=>e.responsaveis).map(p=>[p.uid,{uid:p.uid,nome:p.nome||p.uid}])).values()];
+    const todas = acessiveis.filter(e=>(!filtros.origem || e.origem===filtros.origem)
+      && (!filtros.cliente || e.situacao_cliente===filtros.cliente)
+      && (!filtros.equipe || (filtros.equipe==='sem_equipe' ? !e.responsaveis.length : e.responsaveis.some(p=>p.uid===filtros.equipe))))
       .filter(e=>!busca || normalizarBusca([e.cnpj,e.razao_social,e.codigo_empresa].join(' ')).includes(busca)
         || (busca.replace(/\D/g,'').length>=8 && e.cnpj.includes(busca.replace(/\D/g,''))))
       .sort((a,b)=>a.cnpj.localeCompare(b.cnpj));
     const restantes = todas.filter(e=>!cursor || e.cnpj>cursor), empresas=restantes.slice(0,50);
-    res.json({ ok:true, empresas, total:todas.length, proximo:restantes.length>50 ? empresas[49].cnpj : null,
+    res.json({ ok:true, empresas, equipes, total:todas.length, proximo:restantes.length>50 ? empresas[49].cnpj : null,
       admin:user.is_admin, pode_editar:user.is_admin || podeAcao(user,'editar'), pode_concluir:user.is_admin || podeAcao(user,'fechar'), catalogo:core.CATALOGO });
+  }));
+  app.get('/api/crm/visualizacoes',wrap(async(req,res)=>{
+    const user=await usuario(req), doc=await db.collection('users').doc(user.uid).collection('crm_preferencias').doc('visualizacoes').get();
+    res.json({ok:true,...(doc.exists?doc.data():{revisao:0,itens:[]})});
+  }));
+  app.put('/api/crm/visualizacoes',wrap(async(req,res)=>{
+    const resultado=await db.runTransaction(async tx=>{
+      const user=await usuario(req,tx), ref=db.collection('users').doc(user.uid).collection('crm_preferencias').doc('visualizacoes');
+      const doc=await tx.get(ref), depois=atualizarVisualizacao(doc.exists?doc.data():{},req.body||{},agora());
+      tx.set(ref,depois);return depois;
+    });res.json({ok:true,...resultado});
   }));
   app.get(base + '/parametros', wrap(async (req,res)=>{
     await contexto(req);

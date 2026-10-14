@@ -14,3 +14,18 @@ assert.strictEqual(out.campos[1].original,null);assert.strictEqual(out.campos[2]
 assert.equal(normalizarBusca('  Açúcar  '),'acucar');
 assert(valido('11222333000181'));assert(!valido('11222333000180'));assert(!valido('00000000000000'));assert(!valido(''));
 console.log('CRM base: colunas repetidas, vazio versus zero, origem imutável, revisão, perfil e CNPJ OK');
+const {filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao}=require('../crm-base');
+assert.equal(situacaoCliente({ativo:false}),'nao_informada');
+assert.equal(situacaoCliente({crm_situacao_cliente:'Saída'}),'saida');
+assert.equal(prazoControle({status:'pendente',prazo:''},'2026-10-14'),'sem_prazo');
+assert.equal(prazoControle({status:'pendente',prazo:'2026-10-13'},'2026-10-14'),'atrasado');
+assert.equal(prazoControle({status:'concluida',prazo:'2026-10-13'},'2026-10-14'),'encerrado');
+assert.throws(()=>filtrosCarteira({periodo:'2026-13'}));
+assert.throws(()=>filtrosCarteira({equipe:'users/admin'}));
+const visao=atualizarVisualizacao({},{revisao:0,nome:'Minha carteira',filtros:{equipe:'colab',atraso:'atrasado'}},'agora');
+assert.equal(visao.revisao,1);assert.equal(visao.itens[0].filtros.atraso,'atrasado');
+assert.throws(()=>atualizarVisualizacao(visao,{revisao:0,nome:'Minha carteira',filtros:{}},'agora'),e=>e.status===409);
+assert.equal(atualizarVisualizacao(visao,{revisao:1,nome:'MINHA CARTEIRA',filtros:{}},'depois').itens.length,1);
+console.log('CRM filtros: situação contratual explícita, prazos e revisão de visualizações OK');
+
+assert.throws(()=>filtrosCarteira(null));
