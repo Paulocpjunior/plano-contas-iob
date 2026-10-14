@@ -66,3 +66,7 @@ Próximas condições objetivas para concluir a migração:
 - Ensaio de restauração em destino isolado, conferência final e aceite explícito de corte.
 
 O CCI permanece disponível para testes. A migração integral não está encerrada e o Jotform deve permanecer disponível.
+
+## Complemento após acesso à origem
+
+A sessão remota foi disponibilizada pelo usuário e retomada. A configuração original do formulário V2 e do Checklist foi lida sem alterações: cinco condições e uma fórmula no V2, dez condições no Checklist, três configurações de e-mail no V2. Os IDs do Checklist foram conferidos. Ver `docs/crm-contrato-origem-20261014.md` para regras, limites e evidência de publicação 3.4.396. A ausência dessas informações no conector não é mais um bloqueio para inventariar esses dois formulários; a implementação e a paridade integral continuam pendentes.
