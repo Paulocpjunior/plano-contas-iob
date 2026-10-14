@@ -70,3 +70,38 @@ O CCI permanece disponível para testes. A migração integral não está encerr
 ## Complemento após acesso à origem
 
 A sessão remota foi disponibilizada pelo usuário e retomada. A configuração original do formulário V2 e do Checklist foi lida sem alterações: cinco condições e uma fórmula no V2, dez condições no Checklist, três configurações de e-mail no V2. Os IDs do Checklist foram conferidos. Ver `docs/crm-contrato-origem-20261014.md` para regras, limites e evidência de publicação 3.4.396. A ausência dessas informações no conector não é mais um bloqueio para inventariar esses dois formulários; a implementação e a paridade integral continuam pendentes.
+
+
+## 2026-10-14 — Conferência autenticada da versão 3.4.400
+
+Conferência no Safari do MacBook remoto, na sessão administrativa autorizada: empresa 1200, S&P ASSESSORIA CONTABIL S/S, dossiê e aba Documentos acessíveis. Equipe exibida: Josilaine responsável e Roger apoio. Nenhum vínculo, parâmetro, controle ou mensagem foi gravado durante o teste.
+
+- DITR: nenhum link identificado para o piloto; a tela alerta que isso não significa dispensa.
+- DEFIS: quatro referências, duas do V2 integral (linha 424) e duas da fonte DEFIS 2025 (linha 25). Repetições entre registros são preservadas; não são quatro arquivos distintos comprovados.
+- Outros documentos: quatro referências, relativas a Reinf e IBGE e suas representações na base oficial.
+- Prévia DEFIS: abriu com empresa, CNPJ, referência e um link individual. Aviso explícito de ausência de envio ao Teams e cópia ao OneDrive. Nenhum envio executado.
+- Situação contratual permanece não confirmada; zero controles operacionais. Nenhuma conclusão, regularidade ou ausência de obrigação pode ser deduzida desses estados.
+- Busca por 1200 também encontra trechos de CNPJ (73 resultados nesta sessão). A empresa foi isolada por nome e confirmada pelo número; registrar como melhoria de relevância da busca, sem excluir resultados legítimos.
+
+Evidência privada: `cci-400-documentos-1200-remoto.png` no diretório de QA de 14/10, fora do Git. Esta conferência cobre a leitura com administrador; não homologa restrição de um colaborador real, migração de binários ou entrega das automações.
+
+### Status técnico reconferido
+
+Main `4b0d328` e produção na versão 3.4.400. Revisão Cloud Run `plano-contas-iob-01162-kuq`, 100% do tráfego; saúde ok e Firestore conectado. Quatro scripts focados passaram, zero falhas e nenhum skip reportado: base, Checklist, planejamento e rotas CRM. Não é nova execução do gate integral. A limitação anterior do gate local por PDF externo continua sem resolução comprovada.
+
+A inspeção de nomes de variáveis, sem exibir valores, confirmou `CCI_CHECKLIST_API_KEY` ausente no serviço. A integração não está habilitada apenas porque seu contrato e testes passaram.
+
+### Critérios restantes para o corte
+
+| Frente | Estado | Próxima evidência exigida |
+|---|---|---|
+| Carteira, dossiê e documentos do piloto | Leitura administrativa conferida | Homologação de operações com registros autorizados e colaborador restrito |
+| Contrato e recorrências do piloto | Sem configuração confirmada | Regras reais de aplicabilidade, vigência e prazo aprovadas pelo administrador |
+| Checklist | Contrato e testes prontos; credencial ausente | Configuração autorizada da credencial, leitura paginada completa e prévia de entradas/saídas/responsabilidade |
+| Fórmulas e ações Jotform | Inventário parcial | Demais fórmulas do Tables, casos restantes do cálculo e configuração integral das ações |
+| DITR e DEFIS | Categorias e prévias próprias publicadas | Anexos próprios, destinos completos e ensaio de entrega/falha parcial em destino de teste |
+| Binários | Links preservados; cópia não comprovada | Inventário, cópia privada, hashes e acesso por carteira |
+| Dados da origem | Snapshot de 13/10 reconciliado em 14/10 | Novo snapshot e conciliação do delta sem sobrescrever edições CCI |
+| Recuperação | Backup existente; restauração completa não ensaiada | Restauração isolada de banco, subcoleções e arquivos |
+
+**Decisão de corte: pendente. Manter o Jotform disponível.** Não há percentual global confiável de conclusão enquanto a equivalência das ações e anexos não estiver inventariada e homologada.

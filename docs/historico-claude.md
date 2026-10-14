@@ -1991,3 +1991,8 @@ PR #276 publicado e validado em produção: revisão 01158-dox, 100% do tráfego
 PR #279 mesclado (df883648130a688da0fc6122b7dca49c9c083df9), workflow 38575902919 concluído com sucesso. Revisão plano-contas-iob-01162-kuq com 100% do tráfego. API de versão e saúde confirmaram 3.4.400 e Firestore conectado; hashes do JS/CSS do CRM iguais aos locais. Gate portátil local final: 254 aprovados, 3 pulados, zero falhas. CI remoto: 230 aprovados, 27 pulados por evidências ausentes, zero falhas. Auditoria de produção sem vulnerabilidades. O gate completo local depende do PDF externo de regressão do Itaú ausente.
 
 Safari remoto exibiu o aviso e rodapé 3.4.400, porém a recarga voltou ao login. Conferência autenticada desta entrega pendente de nova entrada do usuário. Teste visual fictício validou documentos/prévia DITR e celular/temas; não equivale a teste de envio real. Nenhuma mensagem enviada, binário copiado ou obrigação baixada. A migração integral e o desligamento do Jotform continuam pendentes.
+
+
+## 2026-10-14 — Status e homologação remota CRM 3.4.400
+
+Safari remoto autenticado: piloto 1200 com responsável e apoio preservados, dossiê acessível, quatro referências DEFIS e quatro outras referências; DITR sem link, sem inferir dispensa. Prévia DEFIS abriu sem envio; contrato não confirmado e zero controles permanecem pendentes. Produção 400 saudável, revisão 01162-kuq com 100% de tráfego. Quatro testes focados passaram; gate integral não repetido. Credencial Checklist ainda ausente (somente presença conferida). Matriz de critérios restantes atualizada em docs/crm-homologacao-profissional.md; migração e desligamento do Jotform não concluídos. Sem mudanças de dados ou código do produto nesta etapa.
