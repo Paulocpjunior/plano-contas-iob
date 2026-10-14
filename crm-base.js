@@ -2,6 +2,30 @@
 const { erro } = require('./crm-contabil');
 const { podeAcao } = require('./permissoes-cci');
 function normalizarBusca(v) { return String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
+// Contrato conferido no formulário 260402658948061 em 14/10/2026.
+// Metadados de apresentação não são aplicabilidade fiscal nem dados persistidos.
+const OPCOES_V2 = Object.freeze({
+  'Status da Empresa': Object.freeze(['','ATIVA','ENCERRADA','SUSPENSA','EM TRANSFERÊNCIA','BAIXADA']),
+  'Tributação': Object.freeze(['','SIMPLES','SIMPLES-F','PRESUMIDO','ISENTA','MEI','LUCRO REAL','IMUNE','C.C','PRESUMIDO-F','PESSOA FISICA','IMUNE-F','LUCRO REAL-F'])
+});
+function contratoParametros(registro) {
+  if (!['contabil_v2','contabil_v2_integral'].includes(registro.fonte)) return null;
+  const campos = registro.campos || [];
+  const tributacoes = campos.filter(c=>c.nome === 'Tributação');
+  const t = tributacoes.length === 1 ? tributacoes[0].valor : null;
+  const simples = ['SIMPLES','SIMPLES-F','MEI'].includes(t);
+  const ecd = ['PRESUMIDO','PRESUMIDO-F','LUCRO REAL','LUCRO REAL-F'].includes(t);
+  const outros = ['ISENTA','IMUNE','IMUNE-F','C.C','PESSOA FISICA'].includes(t);
+  const conhecido = simples || ecd || outros;
+  return {versao:'jotform-v2-20261014', campos:campos.map(c=>{
+    const meta = {};
+    // Nome duplicado não comprova o ID de pergunta: não restringir por suposição.
+    if (Object.hasOwn(OPCOES_V2,c.nome) && campos.filter(x=>x.nome===c.nome).length===1) meta.opcoes=[...OPCOES_V2[c.nome]];
+    if (conhecido && ['CHECK ECD 2026','CHECK ECF 2026','PRAZO LIMITE ECD','PRAZO LIMITE ECF'].includes(c.nome)) meta.visivel_origem=ecd;
+    if (conhecido && ['CHECK DEFIS 2026','PRAZO LIMITE DEFIS'].includes(c.nome)) meta.visivel_origem=simples;
+    return meta;
+  })};
+}
 function editarParametro(antes, body, user, quando) {
   if (!user.is_admin && !podeAcao(user,'editar')) throw erro('Seu perfil não permite edição.',403);
   if (body.revisao !== antes.revisao) throw erro('O registro mudou. Atualize antes de salvar.',409);
@@ -11,6 +35,8 @@ function editarParametro(antes, body, user, quando) {
   if (antes.campos[i].protegido) throw erro('Identificação e origem são preservadas. Use a distribuição de carteira para alterar responsáveis.');
   if (typeof body.valor !== 'string' || body.valor.length > 10000) throw erro('Informe até 10.000 caracteres.');
   if (typeof body.motivo !== 'string' || !body.motivo.trim() || body.motivo.length > 1000) throw erro('Informe o motivo da alteração, até 1.000 caracteres.');
+  const opcoes=contratoParametros(antes)?.campos[i]?.opcoes;
+  if (opcoes && !opcoes.includes(body.valor) && body.valor !== antes.campos[i].valor) throw erro('Selecione uma opção da origem. Valores legados podem ser mantidos sem alteração.');
   const campos = antes.campos.map((c,n)=>n===i ? {...c,valor:body.valor} : c);
   return {...antes,campos,revisao:antes.revisao+1,atualizado_em:quando,atualizado_por_uid:user.uid};
 }
@@ -49,4 +75,4 @@ function atualizarVisualizacao(antes, body, quando) {
   const v={nome,filtros,atualizada_em:quando}; if(i<0)itens.push(v);else itens[i]=v;
   return {revisao:(antes.revisao||0)+1,itens};
 }
-module.exports={normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
+module.exports={contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};

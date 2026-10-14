@@ -29,3 +29,26 @@ assert.equal(atualizarVisualizacao(visao,{revisao:1,nome:'MINHA CARTEIRA',filtro
 console.log('CRM filtros: situação contratual explícita, prazos e revisão de visualizações OK');
 
 assert.throws(()=>filtrosCarteira(null));
+const {contratoParametros}=require('../crm-base');
+const origem={fonte:'contabil_v2_integral',revisao:1,campos:[
+  {nome:'Tributação',valor:'SIMPLES-F',original:'SIMPLES-F'},
+  {nome:'Status da Empresa',valor:'LEGADO',original:'LEGADO'},
+  ...['CHECK ECD 2026','CHECK ECF 2026','PRAZO LIMITE ECD','PRAZO LIMITE ECF','CHECK DEFIS 2026','PRAZO LIMITE DEFIS'].map(nome=>({nome,valor:0,original:0}))
+]};
+const copia=JSON.stringify(origem);
+for(const [t,esperado] of [['SIMPLES',[false,false,false,false,true,true]],['SIMPLES-F',[false,false,false,false,true,true]],['MEI',[false,false,false,false,true,true]],['PRESUMIDO',[true,true,true,true,false,false]],['PRESUMIDO-F',[true,true,true,true,false,false]],['LUCRO REAL',[true,true,true,true,false,false]],['LUCRO REAL-F',[true,true,true,true,false,false]],['ISENTA',[false,false,false,false,false,false]],['IMUNE',[false,false,false,false,false,false]],['IMUNE-F',[false,false,false,false,false,false]],['C.C',[false,false,false,false,false,false]],['PESSOA FISICA',[false,false,false,false,false,false]]]) {
+  const reg={...origem,campos:origem.campos.map((c,i)=>i?c:{...c,valor:t})};
+  assert.deepStrictEqual(contratoParametros(reg).campos.slice(2).map(c=>c.visivel_origem),esperado);
+}
+assert.equal(JSON.stringify(origem),copia);
+assert.equal(contratoParametros({...origem,fonte:'outra'}),null);
+for(const valor of ['',null,'NOVO REGIME']) assert(contratoParametros({...origem,campos:origem.campos.map((c,i)=>i?c:{...c,valor})}).campos.slice(2).every(c=>c.visivel_origem===undefined));
+assert(contratoParametros(origem).campos[0].opcoes.includes('SIMPLES-F'));
+assert.equal(contratoParametros({...origem,campos:[...origem.campos,origem.campos[0]]}).campos[0].opcoes,undefined);
+assert.throws(()=>editarParametro(origem,{revisao:1,coluna:0,valor:'INVALIDO',motivo:'teste'},admin,'agora'),/opção da origem/);
+assert.equal(editarParametro(origem,{revisao:1,coluna:1,valor:'LEGADO',motivo:'preservar'},admin,'agora').campos[1].valor,'LEGADO');
+const mudado=editarParametro(origem,{revisao:1,coluna:0,valor:'PRESUMIDO-F',motivo:'conferido'},admin,'agora');
+assert.deepStrictEqual(mudado.campos.slice(1),origem.campos.slice(1));
+assert.equal(mudado.campos[0].original,'SIMPLES-F');
+assert(!Object.hasOwn(mudado,'contrato'));
+console.log('CRM contrato V2: opções, sufixos, condições de apresentação, desconhecidos e preservação OK');

@@ -149,6 +149,14 @@ function ambiente() {
   assert.equal((await c.call('GET',base+'/parametros',{},'admin',{cnpj:novo})).body.registros.length,1);
   assert.equal((await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'Feito',motivo:'Conferido'},'admin',{cnpj,id:'fonte_2'})).statusCode,404);
   let edit=await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'Feito',motivo:'Conferido'},'admin',{cnpj:novo,id:'fonte_2'});assert.equal(edit.statusCode,200,JSON.stringify(edit.body));assert.equal(edit.body.registro.campos[0].original,null);
+  const v2={...reg,fonte:'contabil_v2_integral',campos:[{nome:'Tributação',valor:'SIMPLES-F',original:'SIMPLES-F'}]};
+  c.dados.set('crm_registros/v2_2',v2);
+  const parametros=(await c.call('GET',base+'/parametros',{},'admin',{cnpj:novo})).body.registros;
+  assert(parametros.find(r=>r.id==='v2_2').contrato.campos[0].opcoes.includes('LUCRO REAL-F'));
+  assert.equal((await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'Inventado',motivo:'teste'},'admin',{cnpj:novo,id:'v2_2'})).statusCode,400);
+  assert.equal(c.dados.get('crm_registros/v2_2').revisao,1);
+  assert.equal((await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'MEI',motivo:'conferido'},'admin',{cnpj:novo,id:'v2_2'})).statusCode,200);
+  assert(!Object.hasOwn(c.dados.get('crm_registros/v2_2'),'contrato'));
   assert.equal((await c.call('POST',base+'/controles',body,'admin',{cnpj:novo})).statusCode,201);
   assert(c.dados.has('empresas/'+novo+'/crm_controles/obrigacao_FISCAL_2026-09'));
   c.dados.set('empresas/'+novo,{razao_social:'Cadastro posterior',carteira_uids:[],responsaveis:[]});
