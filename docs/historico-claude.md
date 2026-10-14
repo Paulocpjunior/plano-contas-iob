@@ -1957,3 +1957,7 @@ Erro reproduzido ao abrir um campo com recibo e declaração: URL uniu dois PDFs
 ## 2026-10-14 — CRM: reconciliação da origem preservada (3.4.396)
 
 Ferramenta somente leitura com comparação integral e relatório privado sem valores. Execução em produção: 7.928 registros / 419.095 campos, zero divergências; edições CCI não são sobrescritas. Inventário de links e limites do backup registrados em docs/crm-homologacao-profissional.md. Checklist sem credencial no serviço; fórmulas/automações não fornecidas pelo conector. Sem corte do Jotform e sem alterações de dados operacionais.
+
+## 2026-10-14 — CRM: contrato de origem recuperado
+
+Após disponibilização da sessão remota, lidos sem edição os formulários V2 e Checklist: condições, fórmula, opções e mapeamento de campos. Três configurações de e-mail observadas, nenhum envio. Evidência e limites em docs/crm-contrato-origem-20261014.md. Publicação 3.4.396 confirmada: workflow 38561585206, revisão 01154-kay, tráfego 100%, versão/saúde/hash conferidos.
