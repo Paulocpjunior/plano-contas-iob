@@ -110,3 +110,19 @@ A tabela V2 mostrou 967 registros e a coluna de ação com rótulo truncado `ENV
 URLs de chat/pasta e conta vinculada ficaram somente nas capturas privadas. O destino completo estava truncado na tela e não foi inferido. A presença dessas configurações não comprova entrega atual nem define os gatilhos de todas as demais ações. O botão DEFIS não deve ser reduzido a uma baixa de obrigação: sua equivalência exige comunicação, PDF, cópia do anexo, organização de pastas e histórico do resultado.
 
 Para implementação e homologação: identificar ação e versão, guardar referência estável do registro de origem, gerar prévia dos campos e arquivos, validar destino autorizado, separar resultado de cada integração e impedir repetição indevida. Testar falha parcial e retomada com destinos de teste antes de habilitar envios reais. A infraestrutura de documentos nativos do CCI não comprova, por si só, a migração desses arquivos e efeitos externos. Permanecem pendentes as outras ações da tabela, fórmulas, destinos completos, layout do PDF padrão e ensaio controlado.
+
+## Ação DITR e decisão de separação — 14/10/2026
+
+O menu do cabeçalho `ENVIO DITR - 2025` abriu as integrações Teams e OneDrive selecionadas. Os detalhes mostraram o mesmo título/corpo de Teams da ação DEFIS, incluindo BALANCO / BALANCETE FECHADO 2025. O OneDrive também selecionava PDF Padrão e `RECIBO + DEFIS 2025/2026`, com subpastas por ID do Envio, N°, CNPJ, EMPRESAS e Colaborador. URLs completas continuam truncadas. Isso comprova configuração visível, não execução ou entrega. Nenhum botão de linha, Salvar ou Aplicar Alterações foi acionado. Os editores foram cancelados e o modal externo fechado para descartar a seleção provisória.
+
+Paulo confirmou explicitamente: **“DITR deve ter anexo e mensagem próprios”**. A divergência da origem não deve ser reproduzida como regra de envio no CCI. O Jotform não foi corrigido durante esta consulta.
+
+O manifesto privado permite distinguir com segurança a fonte `ditr`, campo `RECIBO/DECLARAÇÃO`, da fonte `defis_2025` (e sua representação em `contabil_v2_integral`), campo `RECIBO + DEFIS 2025/2026`. O rótulo genérico RECIBO/DECLARAÇÃO também aparece em `oficial_integral`: ali não basta para inferir DITR. A classificação exige fonte e campo exatos.
+
+### Implementação 3.4.400
+
+A leitura autorizada de parâmetros passa a devolver referências documentais por DITR, DEFIS e outros documentos. O dossiê mostra cartões e ícones, fonte e linha, mantendo repetições entre registros. Não se usam nome do arquivo, URL nem ausência de outro documento como fallback de classificação. Endereços múltiplos continuam separados; URLs inseguras ou concatenadas são rejeitadas.
+
+Cada referência classificada tem uma prévia de mensagem própria com obrigação, empresa, CNPJ e seu link. A DITR não inclui saldo/balanço nem documento de DEFIS. A prévia não envia ao Teams, não copia para OneDrive/Storage, não registra entrega e não conclui obrigação. Exercício, destinatário e conteúdo do arquivo ainda precisam de conferência; nenhum ano é inferido do nome da aba. Não representa homologação do envio ou migração dos binários.
+
+Testes de domínio verificam isolamento DITR/DEFIS, fontes ambíguas, múltiplos links, URLs inválidas e preservação dos registros. Teste da rota verifica carteira, ausência de vazamento a usuário sem acesso e ausência de gravação. Navegador com dados fictícios confirmou as categorias e a prévia DITR, sem chamada de envio; 390 px sem transbordamento horizontal, temas claro e escuro, contraste corrigido dos links. Evidências ficam privadas fora do Git.

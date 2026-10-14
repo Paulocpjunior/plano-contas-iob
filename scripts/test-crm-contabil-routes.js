@@ -160,6 +160,14 @@ function ambiente() {
   assert.equal(c.dados.get('crm_registros/v2_2').revisao,1);
   assert.equal((await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'MEI',motivo:'conferido'},'admin',{cnpj:novo,id:'v2_2'})).statusCode,200);
   assert(!Object.hasOwn(c.dados.get('crm_registros/v2_2'),'contrato'));
+  c.dados.set('crm_registros/ditr_2',{...reg,fonte:'ditr',campos:[{nome:'RECIBO/DECLARAÇÃO',valor:'https://example.com/ditr.pdf'}]});
+  const docsAntes=JSON.stringify([...c.dados]);
+  const docsResp=await c.call('GET',base+'/parametros',{},'admin',{cnpj:novo});
+  assert.equal(docsResp.body.documentos[0].obrigacao,'DITR');
+  assert(docsResp.body.documentos[0].previa.titulo.startsWith('DITR'));
+  assert.equal(JSON.stringify([...c.dados]),docsAntes,'a prévia não grava nem baixa obrigação');
+  const proibida=await c.call('GET',base+'/parametros',{},'colab',{cnpj:novo});
+  assert.equal(proibida.statusCode,403);assert(!JSON.stringify(proibida.body).includes('ditr.pdf'));
   assert.equal((await c.call('POST',base+'/controles',body,'admin',{cnpj:novo})).statusCode,201);
   assert(c.dados.has('empresas/'+novo+'/crm_controles/obrigacao_FISCAL_2026-09'));
   c.dados.set('empresas/'+novo,{razao_social:'Cadastro posterior',carteira_uids:[],responsaveis:[]});

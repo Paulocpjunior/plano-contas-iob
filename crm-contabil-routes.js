@@ -1,6 +1,6 @@
 'use strict';
 const core = require('./crm-contabil');
-const { contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao } = require('./crm-base');
+const { documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
@@ -102,7 +102,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const registros = snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>a.fonte.localeCompare(b.fonte)||a.linha-b.linha);
     // Reconfere após a leitura da base para não devolver parâmetros após revogação.
     const ctx = await contexto(req);
-    res.json({ok:true,registros:registros.map(r=>({...r,contrato:contratoParametros(r)})),pode_editar:ctx.user.is_admin || podeAcao(ctx.user,'editar')});
+    res.json({ok:true,registros:registros.map(r=>({...r,contrato:contratoParametros(r)})),documentos:documentosEmpresa(registros),pode_editar:ctx.user.is_admin || podeAcao(ctx.user,'editar')});
   }));
   app.patch(base + '/parametros/:id', wrap(async (req,res)=>{
     if (!/^[a-z0-9_-]{1,100}$/.test(req.params.id || '')) throw core.erro('Registro inválido. Atualize a página.');

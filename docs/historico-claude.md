@@ -1977,3 +1977,11 @@ Continuação autorizada: seletores de situação e tributação com opções co
 ## 2026-10-14 — CRM 3.4.398 publicado e integrações DEFIS conferidas
 
 PR #276 publicado e validado em produção: revisão 01158-dox, 100% do tráfego, versão/saúde/Firestore/hash conferidos; CI remoto 229 aprovados, 26 pulados e zero falhas. A conta proprietária disponibilizada permitiu avançar na leitura das integrações. Na ação DEFIS da tabela V2 foram conferidos Teams (campos da mensagem) e OneDrive (subpastas, PDF padrão e upload RECIBO + DEFIS 2025/2026). Editores cancelados, sem salvar configuração nem executar envio. Detalhes e limites em `docs/crm-contrato-origem-20261014.md`; URLs e capturas ficam privadas. Isso substitui o bloqueio de leitura anterior, mas não comprova equivalência operacional ou autoriza desligar o Jotform.
+
+## 14/10/2026 — CRM: separar documentos DITR e DEFIS (candidata 3.4.400)
+
+- Consulta remota da ação ENVIO DITR - 2025 revelou Teams com campos de balanço e OneDrive apontando RECIBO + DEFIS 2025/2026. Cancelado sem salvar/aplicar/enviar.
+- Paulo determinou anexo e mensagem próprios para DITR. Fonte `ditr` + RECIBO/DECLARAÇÃO confirmados no manifesto; o mesmo rótulo na fonte oficial integral permanece sem classificação presumida.
+- Dossiê separa referências DITR/DEFIS/outros, cartões com ícones e prévia individual de mensagem, sem efeito externo, baixa ou dedução de exercício. Testes de domínio/rota e navegador fictício (390 px, claro/escuro) passaram.
+- Produção 3.4.399 conferida antes da preparação da 3.4.400; atualização do AuditAI preservada. Auditoria de produção sem vulnerabilidades. Gate portátil: 253 aprovados, 3 pulados e falha editorial em Novidades corrigida e retestada; gate completo local interrompido pela ausência do PDF externo de regressão do Itaú. Publicação depende do gate remoto e do workflow.
+- Permanecem pendentes: envio efetivo, destinos completos, PDF padrão, binários, delta da origem, Checklist autenticado/incremental, perfil restrito real e restauração isolada. Jotform permanece ativo.
