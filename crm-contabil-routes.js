@@ -40,7 +40,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
   function empresaPublica(doc, user, origem) {
     const d = doc.data();
     return { origem, situacao_cliente:situacaoCliente(d), cnpj: doc.id, razao_social: d.razao_social || '', codigo_empresa: codigoEmpresaDe(d),
-      responsaveis: normalizarResponsaveis(d.responsaveis).map(p => ({ uid: p.uid, nome: p.nome, papel: p.papel })),
+      responsaveis: core.equipeVigente(d).map(p => ({ uid: p.uid, nome: p.nome, papel: p.papel, temporario:p.temporario===true })),
       revisao_carteira: core.versaoCarteira(d), ...(user.is_admin ? { acessos_legados: [...new Set([d.owner_uid, d.vinculado_por_uid, ...(d.acesso_uids || [])].filter(Boolean))] } : {}) };
   }
   function cursorId(v, regex) { if (v && (typeof v !== 'string' || !regex.test(v))) throw core.erro('Paginação inválida. Recarregue a lista.'); return v; }
@@ -76,7 +76,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       // Revalidação após leitura impede devolver controles após revogação da carteira.
       const ctx=await contexto({...req,params:{cnpj:doc.id}});
       if(snap.docs.length>100)truncadas.push(doc.id);
-      snap.docs.slice(0,100).forEach(c=>itens.push({...c.data(),id:c.id,cnpj:doc.id,empresa:ctx.empresa.razao_social||doc.id,responsaveis:normalizarResponsaveis(ctx.empresa.responsaveis).map(p=>({uid:p.uid,nome:p.nome,papel:p.papel}))}));
+      snap.docs.slice(0,100).forEach(c=>itens.push({...c.data(),id:c.id,cnpj:doc.id,empresa:ctx.empresa.razao_social||doc.id,responsaveis:core.equipeVigente(ctx.empresa).map(p=>({uid:p.uid,nome:p.nome,papel:p.papel}))}));
     }
     res.json({ok:true,itens,empresas_lidas:lote.length,total_empresas:todas.length,truncadas,proximo:restantes.length>10?lote[lote.length-1].id:null});
   }));
@@ -158,7 +158,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       tx.set(ctx.ref, { ...camposCarteira(equipe), carteira_atualizada_em: quando, carteira_atualizada_por_uid: ctx.user.uid }, { merge: true });
       tx.create(ctx.ref.collection('auditoria_contabil').doc(), { tipo: 'CRM_EQUIPE_ATUALIZADA', quando, por_uid: ctx.user.uid, motivo,
         anteriores: normalizarResponsaveis(ctx.empresa.responsaveis), responsaveis: equipe });
-      return { revisao_carteira: core.versaoCarteira({ responsaveis: equipe }) };
+      return { revisao_carteira: core.versaoCarteira({ responsaveis: equipe, crm_substituicoes:ctx.empresa.crm_substituicoes||[] }) };
     });
     res.json({ ok: true, ...result });
   }));
@@ -191,7 +191,12 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const result = await db.runTransaction(async tx => {
       const ctx = await contexto(req, tx), ref = controleRef(ctx, req), doc = await tx.get(ref);
       if (!doc.exists) throw core.erro('Controle não encontrado. Atualize a lista.', 404);
-      const antes = doc.data(), depois = core.atualizarControle(antes, req.body || {}, ctx.user, agora());
+      const antes = doc.data();
+      if(req.body?.status==='concluida'){
+        if(antes.revisor_uid&&ctx.user.uid!==antes.revisor_uid&&!ctx.user.is_admin)throw core.erro('Esta demanda exige conclusão pelo revisor indicado.',403);
+        for(const id of antes.dependencias||[]){const dep=await tx.get(ctx.controlesRef.collection('crm_controles').doc(id));if(!dep.exists||!core.TERMINAIS.includes(dep.data().status))throw core.erro('Conclua ou justifique as dependências antes desta demanda.',409);}
+      }
+      const depois = core.atualizarControle(antes, req.body || {}, ctx.user, agora());
       tx.set(ref, depois);
       tx.create(ref.collection('historico').doc(), { revisao: depois.revisao, acao: core.TERMINAIS.includes(antes.status) ? 'reabertura' : 'atualizacao',
         quando: depois.atualizado_em, por_uid: ctx.user.uid, antes, depois });
@@ -206,6 +211,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const snap = await q.limit(51).get(), docs = snap.docs.slice(0, 50);
     res.json({ ok: true, historico: docs.map(d => d.data()), proximo: snap.docs.length > 50 ? String(docs[49].data().revisao) : null });
   }));
+  require('./crm-planejamento-routes').registrarPlanejamento(app,{db,domain,wrap,usuario,contexto,admin,agora});
   app.get('/api/crm/checklist/previa', wrap(async (req, res) => {
     admin(await usuario(req));
     const fonte = await checklist({ apiKey: env.CCI_CHECKLIST_API_KEY });

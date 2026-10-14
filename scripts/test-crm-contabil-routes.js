@@ -23,7 +23,7 @@ function ambiente() {
   }
   const db={collection,runTransaction:async fn=>{
     const pending=[];
-    const tx={get:async r=>{assert.equal(pending.length,0,'leituras antes das gravações');return snap(r.path);},getAll:async(...refs)=>{assert.equal(pending.length,0);return refs.map(r=>snap(r.path));},
+    const tx={get:async r=>{assert.equal(pending.length,0,'leituras antes das gravações');return r.path?snap(r.path):r.get();},getAll:async(...refs)=>{assert.equal(pending.length,0);return refs.map(r=>snap(r.path));},
       create:(r,d)=>{assert(!dados.has(r.path),'create protege duplicidade');pending.push([r.path,d]);},set:(r,d,opts)=>pending.push([r.path,opts?.merge?{...dados.get(r.path),...d}:d])};
     const result=await fn(tx); pending.forEach(([p,d])=>{dados.set(p,structuredClone(d));writes++;});return result;
   }};
@@ -69,6 +69,40 @@ function ambiente() {
   const pagina=await trabalhoEnv.call('GET','/api/crm/trabalho',{},'admin');assert.equal(pagina.body.empresas_lidas,10);assert(pagina.body.proximo);
   const seguinte=await trabalhoEnv.call('GET','/api/crm/trabalho',{},'admin',{}, {cursor:pagina.body.proximo});assert.equal(seguinte.body.empresas_lidas,3);assert.equal(seguinte.body.proximo,null);
   assert.equal((await trabalhoEnv.call('GET','/api/crm/trabalho',{},'admin',{}, {cursor:'../'})).statusCode,400);
+  const planejamentoEnv=ambiente();
+  let p=await planejamentoEnv.call('PUT',base+'/contrato',{revisao:0,situacao:'ativa',inicio:'2026-01-01',motivo:'Contrato conferido'},'admin');assert.equal(p.statusCode,200);
+  assert.equal((await planejamentoEnv.call('PUT',base+'/contrato',{revisao:1},'colab')).statusCode,403);
+  p=await planejamentoEnv.call('PUT',base+'/recorrencias/:codigo',{revisao:0,ativa:true,aplicabilidade_confirmada:true,inicio:'2026-01-01',dia:20,deslocamento:1,antecedencia:3,motivo:'Confirmado'},'admin',{codigo:'FISCAL'});assert.equal(p.statusCode,200);
+  const periodo={de:'2026-01-01',ate:'2026-02-28'};
+  p=await planejamentoEnv.call('POST',base+'/recorrencias/previa',periodo,'admin');assert.equal(p.body.novos.length,2);const assinatura=p.body.assinatura;
+  assert.equal((await planejamentoEnv.call('POST',base+'/recorrencias/gerar',{...periodo,assinatura:'incorreta'},'admin')).statusCode,409);
+  p=await planejamentoEnv.call('POST',base+'/recorrencias/gerar',{...periodo,assinatura},'admin');assert.equal(p.statusCode,200);
+  p=await planejamentoEnv.call('POST',base+'/recorrencias/previa',periodo,'admin');assert.equal(p.body.novos.length,0);assert.equal(p.body.existentes,2);
+  p=await planejamentoEnv.call('GET','/api/crm/agenda',{},'legado',{}, {de:'2026-01-01',ate:'2026-03-31'});assert.equal(p.body.total,0);
+  p=await planejamentoEnv.call('GET','/api/crm/agenda',{},'colab',{}, {de:'2026-01-01',ate:'2026-03-31'});assert.equal(p.body.total,2);assert(p.body.completo);
+  assert.equal((await planejamentoEnv.call('GET','/api/crm/carga',{},'colab',{}, {inicio:'2026-10-12'})).statusCode,403);
+  p=await planejamentoEnv.call('PUT','/api/crm/capacidades/:uid',{revisao:0,horas_semanais:40,ausencias:[]},'admin',{uid:'colab'});assert.equal(p.statusCode,200);
+  p=await planejamentoEnv.call('PUT',base+'/controles/:id/planejamento',{revisao:1,executor_uid:'colab',revisor_uid:'',prioridade:'alta',horas_estimadas:5,dependencias:[]},'admin',{id:'obrigacao_FISCAL_2026-01'});assert.equal(p.statusCode,200);assert.equal(p.body.controle.revisao,2);
+  const antesLote=planejamentoEnv.writes();p=await planejamentoEnv.call('POST','/api/crm/carteira/lote',{empresas:[{cnpj,revisao_carteira:'velha'}],principal_uid:'apoio',motivo:'Teste'},'admin');assert.equal(p.statusCode,409);assert.equal(planejamentoEnv.writes(),antesLote);
+  p=await planejamentoEnv.call('POST','/api/crm/carteira/lote',{empresas:[{cnpj,revisao_carteira:versaoCarteira(planejamentoEnv.dados.get('empresas/'+cnpj))}],principal_uid:'apoio',motivo:'Teste'},'admin');assert.equal(p.statusCode,200);assert.equal(p.body.alteradas,1);
+  p=await planejamentoEnv.call('PUT',base+'/substituicao',{revisao_carteira:versaoCarteira(planejamentoEnv.dados.get('empresas/'+cnpj)),uid:'legado',inicio:'2026-10-01',fim:'2026-10-31',motivo:'Ausência'},'admin');assert.equal(p.statusCode,200);
+  const carteiraTemporaria=await planejamentoEnv.call('GET','/api/crm/carteira',{},'admin');
+  assert(carteiraTemporaria.body.empresas.find(e=>e.cnpj===cnpj).responsaveis.find(p=>p.uid==='legado').temporario,'apoio deve ser distinguido do vínculo permanente');
+  const cancelBody={revisao_carteira:versaoCarteira(planejamentoEnv.dados.get('empresas/'+cnpj)),motivo:'Retorno antecipado'};
+  assert.equal((await planejamentoEnv.call('PUT',base+'/substituicao/:indice/cancelar',cancelBody,'colab',{indice:'0'})).statusCode,403);
+  assert.equal((await planejamentoEnv.call('PUT',base+'/substituicao/:indice/cancelar',cancelBody,'admin',{indice:'0'})).statusCode,200);
+  assert.equal((await planejamentoEnv.call('GET',base+'/controles',{},'legado')).statusCode,403);
+  const review=ambiente();
+  review.dados.get('empresas/'+cnpj).responsaveis.push({uid:'apoio',papel:'apoio'});
+  let rr=await review.call('POST',base+'/controles',{categoria:'obrigacao',codigo:'FISCAL',periodo:'2026-08',prazo:'2026-09-15'},'admin');
+  const rid=rr.body.controle.id;
+  review.dados.get('empresas/'+cnpj+'/crm_controles/'+rid).revisor_uid='apoio';
+  assert.equal((await review.call('PATCH',base+'/controles/:id',{revisao:1,status:'concluida',protocolo:'R1'},'colab',{id:rid})).statusCode,403);
+  review.dados.get('empresas/'+cnpj+'/crm_controles/'+rid).dependencias=['dependencia'];
+  review.dados.set('empresas/'+cnpj+'/crm_controles/dependencia',{status:'pendente'});
+  assert.equal((await review.call('PATCH',base+'/controles/:id',{revisao:1,status:'concluida',protocolo:'R1'},'apoio',{id:rid})).statusCode,409);
+  review.dados.get('empresas/'+cnpj+'/crm_controles/dependencia').status='concluida';
+  assert.equal((await review.call('PATCH',base+'/controles/:id',{revisao:1,status:'concluida',protocolo:'R1'},'apoio',{id:rid})).statusCode,200);
   const body={categoria:'obrigacao',codigo:'FISCAL',periodo:'2026-09',prazo:'2026-10-15'};
   assert.equal((await a.call('POST',base+'/controles',body)).statusCode,403);
   r=await a.call('POST',base+'/controles',body,'admin');assert.equal(r.statusCode,201);const id=r.body.controle.id;

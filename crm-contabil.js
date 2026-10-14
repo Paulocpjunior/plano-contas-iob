@@ -35,10 +35,15 @@ function evidencia(v) {
   return url;
 }
 // A lista indexada é só candidata de consulta. O vínculo por UID é a autoridade.
-function temCarteira(empresa, usuario) {
-  return !!usuario?.uid && (usuario.is_admin === true || normalizarResponsaveis(empresa?.responsaveis).some(p => p.uid === usuario.uid));
+function equipeVigente(empresa, hoje = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())) {
+  const equipe=normalizarResponsaveis(empresa?.responsaveis);
+  for(const s of empresa?.crm_substituicoes||[])if(!s.cancelado_em&&s.inicio<=hoje&&s.fim>=hoje&&!equipe.some(p=>p.uid===s.uid))equipe.push({uid:s.uid,nome:s.nome,email:s.email,papel:'apoio',temporario:true,inicio:s.inicio,fim:s.fim});
+  return equipe;
 }
-function versaoCarteira(empresa) { return hash(normalizarResponsaveis(empresa?.responsaveis).sort((a,b) => a.uid.localeCompare(b.uid))); }
+function temCarteira(empresa, usuario) {
+  return !!usuario?.uid && (usuario.is_admin === true || equipeVigente(empresa).some(p => p.uid === usuario.uid));
+}
+function versaoCarteira(empresa) { return hash({equipe:normalizarResponsaveis(empresa?.responsaveis).sort((a,b) => a.uid.localeCompare(b.uid)),substituicoes:empresa?.crm_substituicoes||[]}); }
 function exigirEdicao(usuario) {
   if (!usuario?.uid || (!usuario.is_admin && !podeAcao(usuario, 'editar'))) throw erro('Peça ao administrador permissão de edição no CCI.', 403);
 }
@@ -92,4 +97,4 @@ function resumir(controles, hoje) {
     atrasados: controles.filter(c => !TERMINAIS.includes(c.status) && c.prazo && c.prazo < hoje).length,
     percentual: exigiveis.length ? Math.round(concluidos / exigiveis.length * 100) : null };
 }
-module.exports = { CATALOGO, STATUS, TERMINAIS, erro, hash, texto, data, temCarteira, versaoCarteira, criarControle, atualizarControle, resumir };
+module.exports = { equipeVigente, CATALOGO, STATUS, TERMINAIS, erro, hash, texto, data, temCarteira, versaoCarteira, criarControle, atualizarControle, resumir };

@@ -1936,3 +1936,9 @@ Paulo autorizou subir e fazer deploy da etapa de filtros/dossiê. Preparada a ve
 ### CRM como área de trabalho (14/10) — v3.4.392
 
 Após crítica da interface publicada e autorização para seguir, reorganizada a carteira em área ampla com navegação para demandas, gestão e dossiê. Corrigido contraste usando os tokens reais; filtros recolhíveis, colunas ocultáveis e retorno preservando filtros/posição. Consulta operacional limitada e autorizada em lotes, com testes de isolamento, paginação e truncamento. QA com CSS completo do CCI, API fictícia, claro/escuro e viewport 390 px. CI local: 250 aprovados, 3 pulados, zero falhas. Conferidos por leitura os três registros genéricos: sem parâmetros importados vinculados, origem ainda não comprovada; nenhuma alteração de dados. Publicação pelo fluxo já autorizado de PR e candidata validada.
+
+## 2026-10-14 — CRM planejamento, v3.4.393
+
+Branch codex/crm-planejamento-completo, baseada na main ae27bfc (3.4.392). Calendário, executor/revisor, dependências, prioridade e estimativas; carga semanal completa com capacidades/ausências; distribuição transacional em lote e apoio temporário com revogação. Contrato e regras confirmadas permitem prévia e geração idempotente de competências. Nova lógica e rotas em crm-planejamento*.js, testes registrados no gate. Sem alteração automática de dados reais. Limites e pendências de equivalência documentados em docs/crm-carteira-obrigacoes.md; Scheduler e aplicação do Checklist não estão ativos. Publicação segue autorização do usuário, PR e workflow oficial.
+
+Validação local: check:ci com 251 aprovados, 3 pulados por evidências externas ausentes e zero falhas; auditoria de produção sem vulnerabilidades. Sintaxe e testes CRM repetidos após revisão de revogação. Navegador fictício confirmou calendário semanal/mensal, dossiê, carga, tema escuro e largura de 390 px sem transbordamento.
