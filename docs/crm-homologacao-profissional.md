@@ -105,3 +105,23 @@ A inspeção de nomes de variáveis, sem exibir valores, confirmou `CCI_CHECKLIS
 | Recuperação | Backup existente; restauração completa não ensaiada | Restauração isolada de banco, subcoleções e arquivos |
 
 **Decisão de corte: pendente. Manter o Jotform disponível.** Não há percentual global confiável de conclusão enquanto a equivalência das ações e anexos não estiver inventariada e homologada.
+
+## 2026-10-14 — Rotina e relevância da busca (3.4.401)
+
+Entrega incremental: número exato primeiro (inclusive zeros à esquerda), paginação por posição na ordenação e rejeição de cursor fora do recorte; autorização permanece anterior à busca. Meu dia ganhou próximos sete dias (amanhã até hoje + 7, inclusive), indicação de controles carregados sem executor/prazo e continuação da consulta por empresas. Links iguais são agrupados somente dentro da mesma categoria, com todas as referências preservadas. Prévia de mensagem em coluna e densidade ajustada no desktop; alvos de toque preservados no celular.
+
+Validação: `check:ci` com 254 aprovados, 3 pulados por evidência local ausente e zero falhas na execução final da versão 3.4.401. Teste de rota com 56 resultados verificou prioridade exata, paginação sem perdas/repetições e restrição de acesso. Navegador com dados fictícios: desktop, celular 390 × 844, claro/escuro, próximos sete dias e prévia DITR; duas referências DEFIS para o mesmo endereço resultaram em um cartão com ambas as fontes. O gate `npm run check` parou no PDF externo ausente do teste Itaú. Nenhum parser foi alterado.
+
+### Preparação do piloto 1200
+
+A leitura autenticada anterior é a base, não uma nova homologação: Josilaine principal, Roger apoio, situação contratual não confirmada e nenhum controle operacional. Preparar no dossiê → Contrato e recorrências, sem preencher por suposição:
+
+| Campo necessário | Decisão pendente |
+|---|---|
+| Situação e vigência da responsabilidade | Confirmar início e eventual fim com o administrador/Checklist |
+| Obrigações aplicáveis | Confirmar cada obrigação; ausência de anexo não implica dispensa |
+| Competência, frequência e prazo | Informar cronograma aprovado, sem presumir prazo fiscal |
+| Executor, revisor e estimativa | Confirmar atribuição por demanda; vínculo da carteira não a substitui |
+| Evidência de conclusão | Definir recibo/documento e conferir o exercício |
+
+Somente depois dessas confirmações gerar e conferir a prévia das recorrências. Esta entrega não grava controles do piloto, não envia mensagens e não habilita automações. Critérios de corte anteriores permanecem pendentes.
