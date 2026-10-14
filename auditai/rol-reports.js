@@ -777,6 +777,7 @@ function buildAnalysisExecutiveBig4Pdf({ analysis, headerData = {} }) {
 
 function exportAnalysisExecutiveBig4Pdf({ analysis, headerData = {} }) {
   const doc = buildAnalysisExecutiveBig4Pdf({ analysis, headerData });
+  window.AuditAiAccountAudit.appendPdf(doc, analysis);
   const documentType = analysis && analysis.summary && analysis.summary.document_type || 'Documento';
   downloadPdf(
     doc,

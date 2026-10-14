@@ -79,7 +79,7 @@ function toPipeLine(group) {
   const final = valueInBand(group.items, 510, 590);
   if (!initial || !debit || !credit || !final) return null;
 
-  const side = sideOf(final) || sideOf(initial);
+  const side = sideOf(final);
   const values = [initial, debit, credit, final].map(value => normalizeSpace(value).replace(/\s*[DC]$/i, ''));
   return {
     line: [descriptor.code, descriptor.name, ...values, side].filter(Boolean).join(' | '),
@@ -245,17 +245,30 @@ function extractDreRows(groups) {
 }
 
 async function extractAccountingPdf(buffer) {
-  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  // PDF.js exige semântica Uint8Array.slice; Buffer.slice compartilha memória.
+  const bytes = new Uint8Array(buffer);
   const document = await pdfjsLib.getDocument({ data: bytes }).promise;
   const allGroups = [];
   const rows = [];
+  let parent = null;
+  const unreadRows = [];
 
   for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
     const page = await document.getPage(pageNumber);
     const content = await page.getTextContent();
     const groups = groupItemsByLine(content.items || []);
     allGroups.push(...groups);
-    groups.map(toPipeLine).filter(Boolean).forEach(row => rows.push(row));
+    groups.forEach(group => {
+      const descriptor = accountDescriptor(group.items);
+      if (!descriptor) return;
+      const row = toPipeLine(group);
+      if (!row) { unreadRows.push(descriptor.code); return; }
+      row.page = pageNumber;
+      row.parentCode = row.analytical && parent ? parent.code : '';
+      row.parentName = row.analytical && parent ? parent.name : '';
+      if (!row.analytical) parent = row;
+      rows.push(row);
+    });
   }
 
   const isDre = allGroups.some(group => group.items.some(item => /DEMONSTRA[CÇ][AÃ]O DO RESULTADO|\bDRE\b/i.test(item.text)));
@@ -264,6 +277,12 @@ async function extractAccountingPdf(buffer) {
   if (extractedRows.length < 5) {
     const error = new Error('O PDF não possui texto contábil estruturado suficiente para extração local.');
     error.code = 'PDF_SEM_TEXTO_ESTRUTURADO';
+    throw error;
+  }
+
+  if (!isDre && unreadRows.length) {
+    const error = new Error('Há contas com colunas ausentes ou ilegíveis no PDF: ' + unreadRows.join(', ') + '. A leitura não pode ser tratada como completa.');
+    error.code = 'PDF_CONTAS_INCOMPLETAS';
     throw error;
   }
 

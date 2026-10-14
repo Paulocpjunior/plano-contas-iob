@@ -1,7 +1,8 @@
 {
-  "version": "3.4.397",
-  "build_date": "2026-10-14T12:26:48Z",
+  "version": "3.4.398",
+  "build_date": "2026-10-14T13:05:55Z",
   "release_notes": [
+    "AuditAI: conferência individual de natureza D/C por grupo contábil, separação de sintéticas, alertas e pendências completos no painel, CSV e PDFs. Para análises anteriores, envie novamente o arquivo em Nova Análise.",
     "CRM: opções originais de situação e tributação nos parâmetros V2, com validação no servidor e preservação de valores legados. Indicações de campos ocultos na origem não alteram obrigações nem apagam dados.",
     "CRM: conferência técnica repetível dos dados migrados, preservando edições do CCI. Fórmulas, automações, Checklist e cópia dos anexos continuam em homologação; mantenha o Jotform disponível.",
     "CRM: documentos múltiplos de um campo importado abrem separadamente, com numeração, preservando os valores originais e evitando endereços concatenados.",

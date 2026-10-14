@@ -18,10 +18,10 @@ const rows = Array.from({ length: 180 }, (_, i) => ({account_name: 'Conta de rec
 const totals = {calculatedResult: 18000, dreTotals: {receitaBruta: 18000, deducoes: 0, custos: 0, despesas: 0, financeiro: 0}, bpTotals: {ac: 1000, anc: 2000}, dre: {receitaBruta: rows, deducoes: [], custos: [], despesasOp: [], financeiro: []}};
 let saved;
 function Pdf() { const pdf = new jsPDF(); pdf.save = name => { saved = {name, bytes: Buffer.from(pdf.output('arraybuffer')), pages: pdf.getNumberOfPages()}; }; return pdf; }
-const run = new Function('Ft','N3','t','d','e','S','A','_','y', 'return (' + handler + ')');
+const run = new Function('Ft','N3','t','d','e','S','A','_','y','AuditAiAccountAudit', 'return (' + handler + ')');
 for (const alerts of [false, true]) {
   saved = null;
-  run(Pdf, autoTable, {companyName:'EMPRESA TESTE', cnpj:'00000000000000', collaboratorName:'Teste'}, '01/10/2026', {summary:{gaps:alerts ? [{type:'Revisão',message:'Conferir conta'}] : []}}, [], [], totals, n => 'R$ ' + Number(n).toFixed(2))();
+  run(Pdf, autoTable, {companyName:'EMPRESA TESTE', cnpj:'00000000000000', collaboratorName:'Teste'}, '01/10/2026', {summary:{gaps:alerts ? [{type:'Revisão',message:'Conferir conta'}] : []}}, [], [], totals, n => 'R$ ' + Number(n).toFixed(2), require('../auditai/account-audit'))();
   assert(saved, 'Export must reach download/save');
   assert(saved.name.endsWith('.pdf'));
   assert.equal(saved.bytes.subarray(0, 5).toString(), '%PDF-');

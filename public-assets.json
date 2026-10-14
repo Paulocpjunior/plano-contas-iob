@@ -93,5 +93,7 @@
   "/tema-apple.css",
   "/importacao-fi-ui.js",
   "/crm-experiencia.css",
-  "/assets/crm/organizacao.svg"
+  "/assets/crm/organizacao.svg",
+  "/auditai/account-audit.js",
+  "/auditai/account-audit-view.js"
 ]

@@ -1,0 +1,25 @@
+'use strict';
+const assert=require('assert'),fs=require('fs'),crypto=require('crypto');
+const {extractAccountingPdf}=require('../auditai/pdf-contabil-extractor');
+const {parser}=require('./test-auditai-account-audit');
+const file='/Users/paulocesarpereirajunior/Downloads/Balancete_012026_a_082026.pdf';
+(async()=>{
+ assert(fs.existsSync(file),'Fixture real não encontrada: '+file);
+ const bytes=fs.readFileSync(file),before=crypto.createHash('sha256').update(bytes).digest('hex');
+ const extracted=await extractAccountingPdf(bytes);
+ assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),before,'PDF de origem não pode ser alterado');
+ assert.equal(extracted.rows.length,99);assert.equal(extracted.pages,3);
+ const result=parser()(extracted.lines,extracted.docType,extracted.rows);
+ assert.equal(result.account_audit.total,49);assert.equal(result.account_audit.synthetic,50);
+ assert.equal(result.account_audit.reviewed,49);assert.equal(result.account_audit.pending,0);
+ assert.equal(result.account_audit.complete,true);
+ const findings=result.account_audit.details.filter(a=>a.status==='divergente');
+ assert.deepStrictEqual(Array.from(findings,a=>a.code),['0000000061','0000000071','0000000300','0000000316','0000000373','0000000772']);
+ assert.deepStrictEqual(Array.from(findings,a=>a.balance),[759852.6,14445.16,799962.62,6658.2,942,902.52]);
+ assert.equal(result.summary.is_balanced,true);
+ assert(Math.abs(result.summary.total_debits-5791520.65)<0.001);
+ assert(Math.abs(result.summary.total_credits-5791520.65)<0.001);
+ assert.equal(result.summary.specific_result_value,-454014.46);
+ assert.equal(result.summary.officialTotals.patrimonioLiquido,-131309.58);
+ console.log('OK: PDF real JO-BRAS — 49/49 contas, 6 alertas, 50 sintéticas, débitos e créditos 5.791.520,65; resultado oficial preservado. SHA256 '+before);
+})().catch(e=>{console.error(e);process.exitCode=1});
