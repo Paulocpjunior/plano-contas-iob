@@ -2052,3 +2052,10 @@ Consultas mensais e cálculos escolhem o quadro vigente; cadastro comum não con
 - Publicação autorizada por Paulo em 15/10/2026: commit, PR e deploy pelo fluxo oficial. Preparada versão 3.4.408 com marcadores, Novidades e roteiro `docs/cia-apresentacao-colaboradores.md`; homologação autenticada continua pendente até validação efetiva.
 
 - Revisão de publicação CiA: o middleware geral classificava o novo POST como operação completa. Adicionada exceção exata de consulta para `/api/cia/perguntar`, preservando autenticação e carteira na rota. Teste inclui perfil somente consulta e mantém outras rotas bloqueadas. Primeiro workflow cancelado antes da publicação para incorporar a correção.
+
+
+## 2026-10-15 — CiA no canto inferior direito (3.4.409)
+
+- Pedido de Paulo: abrir como os demais aplicativos, no canto inferior direito e já aberta. Painel não modal após login, com minimização e botão persistente para reabrir; sem bloquear a tela nem tomar o foco na abertura automática.
+- Sessão encerrada cancela a consulta, limpa informações e oculta painel/botão. Respostas antigas continuam sendo descartadas na troca de empresa/período. Nenhuma mudança nas regras contábeis.
+- Validação em navegador com dados fictícios: abertura automática, interação na tela de fundo, minimizar/reabrir, sair/entrar, foco preservado e tamanho de celular sem rolagem lateral. Consulta autenticada real permanece pendente.
