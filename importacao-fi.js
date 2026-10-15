@@ -15,7 +15,12 @@ function lerFI(buffer) {
   const lancamentos = linhas.map((linha, i) => {
     const erro = msg => falha(`Linha ${i + 1}: ${msg} Confira o arquivo FI na origem.`);
     if (linha.length !== 328) erro('o registro deve ter exatamente 328 posições.');
-    if (/[\x00-\x1f\x7f]/.test(linha)) erro('há caracteres de controle no registro.');
+    // FI é posicional: TAB no histórico equivale a um espaço, nunca expansão
+    // ou remoção. Canonicalizar também a impressão evita reimportar a cópia limpa.
+    linha = linha.slice(0, 74) + linha.slice(74, 217).replace(/\t/g, ' ') + linha.slice(217);
+    const controle = linha.search(/[\x00-\x1f\x7f]/);
+    if (controle !== -1) erro('há caractere de controle 0x' + linha.charCodeAt(controle).toString(16).padStart(2, '0').toUpperCase() + ' na posição ' + (controle + 1) + '.');
+    linhas[i] = linha;
     if (linha.slice(0, 5).trim() || linha[45] !== ' ' || linha.slice(68, 74).trim()) erro('campos reservados fora do leiaute.');
     const debito = linha.slice(5, 23).trim(), credito = linha.slice(23, 41).trim();
     if (![debito, credito].every(c => /^\d{1,18}$/.test(c) && normalizar(c) !== '0')) erro('informe as duas contas reduzidas da partida.');

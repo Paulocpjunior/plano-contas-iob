@@ -16,6 +16,25 @@ const arquivo = lerFI(buffer(linha() + '\r\n' + linha() + '\r\n'));
 assert.equal(arquivo.lancamentos.length, 2); assert.equal(arquivo.repetidos, 1);
 assert.equal(arquivo.lancamentos[0].descricao, 'Doação de teste');
 assert.equal(arquivo.fingerprint, lerFI(buffer(linha() + '\n' + linha())).fingerprint);
+// TAB só é aceito nas 143 posições do histórico e ocupa exatamente um byte.
+const comTab = buffer(linha({ texto: '\tDoação\tde teste\t' }));
+const originalTab = Buffer.from(comTab);
+const limpo = lerFI(buffer(linha({ texto: ' Doação de teste ' })));
+const normalizado = lerFI(comTab);
+assert.deepEqual(normalizado, limpo);
+assert(comTab.equals(originalTab), 'Não modificar os bytes recebidos');
+for (let pos = 0; pos < 328; pos++) {
+  const registro = linha();
+  const trocar = char => registro.slice(0, pos) + char + registro.slice(pos + 1);
+  if (pos < 74 || pos >= 217) {
+    assert.throws(() => lerFI(buffer(trocar('\t'))), new RegExp('0x09 na posição ' + (pos + 1)));
+  } else {
+    assert.deepEqual(lerFI(buffer(trocar('\t'))), lerFI(buffer(trocar(' '))));
+  }
+  for (const char of ['\x00', '\x0b', '\x7f']) assert.throws(() => lerFI(buffer(trocar(char))), /caractere de controle/);
+}
+assert(!prepararFI({ arquivo: normalizado, contas, state: { ...state, entries: [{ _fingerprint_imp: limpo.fingerprint }] }, cnpj }).ok);
+
 const preparar = (extra = {}) => prepararFI({ arquivo, contas, state, cnpj, ...extra });
 assert.equal(preparar().totalCentavos, 2468); assert(preparar().ok);
 for (const alterado of [linha().slice(1), linha({ valor: '            ' }), linha({ data: '31/02/2026' }), linha({ d: '' }), linha({ c: 'X' }), linha().slice(0, 327) + 'S', linha().slice(0, 257) + 'X' + linha().slice(258), linha().slice(0, 237) + '6' + linha().slice(238)]) assert.throws(() => lerFI(buffer(alterado)));
