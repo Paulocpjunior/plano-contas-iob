@@ -79,7 +79,7 @@ O identificador legado contém fonte e linha, não ID de submissão. Alteração
 
 Inventário do snapshot de 13/10 executado em 15/10: 4.316 combinações empresa/link, 10.839 referências, 53 combinações com identidade inválida. Hosts observados: Jotform 3.820; SharePoint 134; portal igreja 358; Google Drive 2; 1drv.ms 1; OneDrive 1. Nenhum binário copiado. Links podem ser páginas, não anexos; classificar antes de transferir. Relatório privado fora do Git em `cci-crm-qa-20261015/inventario-anexos.json`.
 
-## Checklist assistido — implementação 3.4.403
+## Checklist assistido — implementação 3.4.404
 
 `POST /api/crm/checklist/aplicar`: exclusivo de administrador conferido no Firestore antes e depois da consulta externa. Exige assinatura da leitura, ID da submissão, revisão do contrato, motivo e confirmação explícita. Reconsulta a origem paginada e valida seu esquema; transação atualiza apenas `crm_contrato`/`crm_situacao_cliente`, cria evento em `crm_checklist_eventos` e auditoria em `auditoria_contabil` da empresa. Repetição idêntica não grava; alteração posterior da mesma submissão exige revisão manual. A chave global da submissão impede repetir a aplicação após troca de vínculo da empresa.
 

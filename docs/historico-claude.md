@@ -2005,11 +2005,17 @@ Busca por número exato priorizada com paginação estável; Meu dia inclui pró
 
 Main/produção 3.4.402, revisão 01167-hiw com 100% do tráfego, saúde/Firestore ok e assets CRM correspondentes. Reconciliação somente leitura: 7.928 registros, 419.095 campos, zero divergências contra snapshot 13/10; não cobre delta posterior Jotform. CI local: 257 aprovados, 2 pulados, 0 falhas; gate integral para no PDF Itaú ausente. Checklist sem credencial. Safari remoto atualizado mostrou 3.4.402 e voltou ao login (persistência NONE exigida pelo código/teste). Detalhes e pendências em docs/crm-homologacao-profissional.md. Sem alteração de dados de negócio ou código da aplicação.
 
+## 2026-10-15 — FI/SAGE: TAB no histórico (3.4.403)
+
+O arquivo FI232232.04 reproduziu a rejeição na linha 29: TAB (0x09) na posição 107 do histórico, com 328 posições válidas. O leitor agora converte TAB em um único espaço apenas nas posições 75–217, preservando o restante do registro. A impressão de deduplicação usa a forma normalizada, impedindo reimportação entre original e cópia limpa. Outros controles e TAB fora do histórico continuam bloqueados, com código e posição na mensagem.
+
+Regressão portátil percorre as 328 posições e verifica controles proibidos, equivalência de impressão e buffer imutável. Arquivo original: 70 lançamentos, R$ 9.217,39, resultado idêntico à cópia limpa; nenhum lançamento persistido. Publicação autorizada pelo usuário; verificar resultado do deploy.
+
 ## 2026-10-15 — Piloto CRM 1200 autenticado na 3.4.402
 
 Safari remoto com usuário administrador: busca exata em primeiro lugar, equipe, ausência de controles, agrupamento DEFIS (2 links/4 referências), outros documentos (2/4), DITR separada e prévia sem envio conferidos. Evidências privadas em cci-crm-qa-20261015; detalhes em docs/crm-homologacao-profissional.md. Três cadastros genéricos com identificadores sequenciais vistos na lista geral: origem pendente, sem exclusão. Nenhuma alteração de código/dados nem novo deploy. Critérios de corte e teste com colaborador restrito continuam pendentes.
 
-## 2026-10-15 — CRM 3.4.403: Checklist assistido e preparação do delta
+## 2026-10-15 — CRM 3.4.404: Checklist assistido e preparação do delta
 
 Implementada aplicação individual administrativa do Checklist: reconsulta integral com assinatura, revisão do contrato, confirmação/motivo, transação com auditoria e idempotência global por submissão. Preserva carteira, controles e lançamentos; bloqueia origem alterada, eventos ambíguos/futuros, retorno com contrato anterior e saída sem contrato ativo. Credencial de produção ainda ausente; nenhuma aplicação real executada. Não foram criados segredos ou ampliadas permissões.
 

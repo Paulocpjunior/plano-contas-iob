@@ -155,7 +155,7 @@ Achado de qualidade cadastral: a listagem administrativa geral mostrou três nom
 
 Esta conferência encerra a pendência de leitura administrativa do agrupamento e da busca na versão atual. Não homologa usuário restrito, gravações, entrega de automações ou cópia de binários. Permanecem os critérios de corte acima; Jotform deve continuar disponível.
 
-## 2026-10-15 — Implementação assistida 3.4.403
+## 2026-10-15 — Implementação assistida 3.4.404
 
 Checklist agora tem revisão individual e aplicação de contrato com motivo, confirmação, verificação da assinatura da origem, concorrência e trilha idempotente. Implementação testada com dados fictícios; leitura/aplicação reais continuam dependentes da credencial. Não há sincronização automática, criação automática de empresas sem vínculo ou alteração de obrigações.
 
