@@ -104,6 +104,12 @@
     const status=node('[data-status]');main.insertBefore(status,carteiraPane);
     dialog.querySelectorAll(':scope > :not(style)').forEach(el=>el.remove());dialog.appendChild(shell);
     dialog.setAttribute('aria-labelledby','crmWorkspaceTitulo');
+    for(const key of ['periodo','filtro','atraso']) {
+      const original=node('[data-'+key+']'), label=original.closest('label').cloneNode(true);
+      const input=label.querySelector('input,select');input.removeAttribute('data-'+key);input.setAttribute('data-carteira-'+key,'');
+      input.onchange=()=>{original.value=input.value;};
+      filtros.insertBefore(label,node('[data-aplicar]'));
+    }
     document.body.appendChild(dialog); dialog.showModal();
     const q = s => dialog.querySelector(s);
     let busy = false, seq = 0, carteira = [], controles = [], config = {}, nextEmp = null, nextControl = null, usuarios = null, visualizacoes={revisao:0,itens:[]}, secao='controles';
@@ -169,7 +175,7 @@
     async function carregarCarteira(mais = false) {
       const anterior = q('[data-empresa]').value;
       if (!mais) { carteira = []; controles = []; config = {}; nextEmp = null; nextControl = null; usuarios = null; q('[data-empresa]').innerHTML = '<option value="">Selecione uma empresa</option>'; q('[data-mais-empresas]').hidden = true; limparDetalhes(); render(); }
-      const qs = new URLSearchParams({busca:q('[data-busca]').value.trim(),equipe:q('[data-carteira-equipe]').value,origem:q('[data-carteira-origem]').value,cliente:q('[data-carteira-cliente]').value}); if (mais && nextEmp) qs.set('cursor',nextEmp);
+      const qs = new URLSearchParams(filtrosAtuais()); if (mais && nextEmp) qs.set('cursor',nextEmp);
       const d = await api('/api/crm/carteira?' + qs);
       const equipeFiltro=q('[data-carteira-equipe]').value;
       q('[data-carteira-equipe]').innerHTML='<option value="">Todas as equipes</option><option value="sem_equipe">Aguardando distribuição</option>'+(d.equipes||[]).map(p=>`<option value="${esc(p.uid)}">${esc(p.nome)}</option>`).join('');
@@ -181,12 +187,12 @@
       q('[data-mais-empresas]').hidden = !nextEmp; permissoes();
       q('[data-empresas-tabela]').innerHTML='<table class="crm-mobile"><thead><tr><th>Número</th><th>Empresa</th><th data-column="cnpj">CNPJ</th><th data-column="equipe">Equipe CCI</th><th data-column="cliente">Cliente</th><th></th></tr></thead><tbody>'+carteira.map(e=>`<tr><td>${esc(e.codigo_empresa)}</td><td><span class="crm-company-name">${esc(e.razao_social)}</span><span class="crm-origin">${e.origem==='crm'?'Dossiê importado':'Cadastro contábil'}</span></td><td data-column="cnpj" data-label="CNPJ">${esc(e.cnpj)}</td><td data-column="equipe" data-label="Equipe">${esc(e.responsaveis.map(p=>p.nome||p.uid).join(' · ')||'Aguardando distribuição')}</td><td data-column="cliente" data-label="Cliente">${esc(clientes[e.situacao_cliente]||clientes.nao_informada)}</td><td><button data-abrir-empresa="${esc(e.cnpj)}">Abrir</button></td></tr>`).join('')+'</tbody></table>';
       q('[data-empresas-tabela]').querySelectorAll('[data-abrir-empresa]').forEach(btn=>btn.onclick=()=>executar(async()=>{q('[data-empresa]').value=btn.dataset.abrirEmpresa;await carregarControles();mostrarSecao('controles');abrirArea('dossie');q('[data-dossie-titulo]').focus();}));
-      mensagem(`Mostrando ${carteira.length} de ${d.total} empresa(s)${nextEmp ? '; há mais empresas.' : '.'}${!carteira.length ? ' Nenhuma empresa acessível corresponde aos filtros; limpe os filtros ou confira a distribuição com o administrador.' : ''}`);
+      mensagem(d.filtro_operacional ? `${carteira.length} empresa(s) encontrada(s) em ${d.consultadas} de ${d.total_candidatas} empresas consultadas.${nextEmp?' Busca parcial: use Mais empresas para continuar a conferência.':' Conferência concluída para esta busca.'}` : `Mostrando ${carteira.length} de ${d.total} empresa(s)${nextEmp ? '; há mais empresas.' : '.'}${!carteira.length ? ' Nenhuma empresa acessível corresponde aos filtros; limpe os filtros ou confira a distribuição com o administrador.' : ''}`);
     }
-    function filtrosAtuais(){return {busca:q('[data-busca]').value.trim(),equipe:q('[data-carteira-equipe]').value,origem:q('[data-carteira-origem]').value,cliente:q('[data-carteira-cliente]').value,periodo:q('[data-periodo]').value.trim(),obrigacao:q('[data-filtro]').value,atraso:q('[data-atraso]').value};}
+    function filtrosAtuais(){for(const key of ['periodo','filtro','atraso'])q('[data-'+key+']').value=q('[data-carteira-'+key+']').value;return {busca:q('[data-busca]').value.trim(),equipe:q('[data-carteira-equipe]').value,origem:q('[data-carteira-origem]').value,cliente:q('[data-carteira-cliente]').value,periodo:q('[data-periodo]').value.trim(),obrigacao:q('[data-filtro]').value,atraso:q('[data-atraso]').value};}
     function colunasAtuais(){return Object.fromEntries([...dialog.querySelectorAll('[data-coluna]')].map(c=>[c.dataset.coluna,c.checked]));}
     function preencherColunas(colunas){dialog.querySelectorAll('[data-coluna]').forEach(c=>{c.checked=colunas?.[c.dataset.coluna]!==false;dialog.setAttribute('data-hide-'+c.dataset.coluna,String(!c.checked));});}
-    function preencherFiltros(f){for(const [k,sel] of Object.entries({busca:'busca',equipe:'carteira-equipe',origem:'carteira-origem',cliente:'carteira-cliente',periodo:'periodo',obrigacao:'filtro',atraso:'atraso'})){const el=q('[data-'+sel+']');if(k==='equipe'&&f[k]&&!Array.from(el.options).some(o=>o.value===f[k])){const o=document.createElement('option');o.value=f[k];o.textContent='Equipe da visualização';el.appendChild(o);}el.value=f[k]||'';}}
+    function preencherFiltros(f){for(const [k,sel] of Object.entries({busca:'busca',equipe:'carteira-equipe',origem:'carteira-origem',cliente:'carteira-cliente',periodo:'periodo',obrigacao:'filtro',atraso:'atraso'})){const el=q('[data-'+sel+']');if(k==='equipe'&&f[k]&&!Array.from(el.options).some(o=>o.value===f[k])){const o=document.createElement('option');o.value=f[k];o.textContent='Equipe da visualização';el.appendChild(o);}el.value=f[k]||'';const par=q('[data-carteira-'+sel+']');if(par)par.value=el.value;}}
     function listarVisualizacoes(){q('[data-visualizacao]').innerHTML='<option value="">Escolha uma visualização</option>'+visualizacoes.itens.map((v,i)=>`<option value="${i}">${esc(v.nome)}</option>`).join('');}
     async function filtrarCarteira(){await carregarCarteira();await carregarControles();mostrarSecao('controles');}
     q('[data-aplicar]').onclick=()=>executar(filtrarCarteira);
@@ -194,7 +200,23 @@
     q('[data-visualizacao]').onchange=()=>{const v=visualizacoes.itens[Number(q('[data-visualizacao]').value)];if(q('[data-visualizacao]').value!==''&&v)executar(async()=>{preencherFiltros(v.filtros);preencherColunas(v.colunas);await carregarCarteira();await carregarControles();});};
     q('[data-salvar-visao]').onclick=()=>formulario('<h3>Salvar visualização pessoal</h3><form><label>Nome<input name="nome" required maxlength="60"></label><p class="crm-muted">Salva seus filtros e colunas escolhidas, disponíveis apenas para você. Use o mesmo nome para atualizar uma visualização existente.</p><button class="crm-primary">Salvar visualização</button><button type="button" data-cancelar>Cancelar</button></form>',async b=>{visualizacoes=await api('/api/crm/visualizacoes',{revisao:visualizacoes.revisao,nome:b.nome,filtros:filtrosAtuais(),colunas:colunasAtuais()},'PUT');listarVisualizacoes();q('[data-visualizacao]').value=String(visualizacoes.itens.findIndex(v=>v.nome===b.nome.trim()));q('[data-editor]').innerHTML='';mensagem('Filtros e colunas salvos na sua visualização pessoal. Ela não concede acesso a outras empresas.');});
     function mostrarSecao(nome){secao=nome;dialog.querySelectorAll('[data-secao]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.secao===nome)));q('[data-parametros-area]').hidden=nome!=='parametros';q('[data-documentos]').hidden=nome!=='documentos';q('[data-lista]').hidden=nome!=='controles';q('[data-historico]').hidden=nome!=='historico';q('[data-filtros-controles]').hidden=nome!=='controles';q('[data-indicadores]').hidden=nome!=='controles';q('[data-progresso]').hidden=nome!=='controles'||!controles.some(c=>c.status!=='nao_aplicavel'&&c.prazo&&c.prazo<=hoje()&&(!q('[data-periodo]').value||c.periodo.startsWith(q('[data-periodo]').value)));q('[data-mais]').hidden=nome!=='controles'||!nextControl;}
-    dialog.querySelectorAll('[data-secao]').forEach(b=>b.onclick=()=>executar(async()=>{if(['parametros','documentos'].includes(b.dataset.secao))await carregarParametros();if(b.dataset.secao==='historico')q('[data-historico]').innerHTML='<h3>Histórico da empresa</h3><p>Abra Histórico em uma obrigação ou Histórico das alterações em um registro de parâmetros para consultar sua trilha. A distribuição de equipe permanece auditada.</p>';mostrarSecao(b.dataset.secao);}));
+    dialog.querySelectorAll('[data-secao]').forEach(b=>b.onclick=()=>executar(async()=>{if(['parametros','documentos'].includes(b.dataset.secao))await carregarParametros();if(b.dataset.secao==='historico')await carregarHistoricoEmpresa();mostrarSecao(b.dataset.secao);}));
+    function resumoHistorico(valor) {
+      if(valor==null)return 'Não informado';
+      if(Array.isArray(valor))return valor.map(v=>v.nome||v.uid||resumoHistorico(v)).join(' · ')||'Sem integrantes';
+      if(typeof valor!=='object')return String(valor);
+      const campos={situacao:'Situação',inicio:'Início',fim:'Fim',ativa:'Ativa',periodicidade:'Periodicidade',dia:'Dia',mes:'Mês',motivo:'Motivo',revisao:'Revisão'};
+      return Object.entries(campos).filter(([k])=>valor[k]!=null).map(([k,n])=>n+': '+(typeof valor[k]==='boolean'?(valor[k]?'Sim':'Não'):valor[k])).join(' · ')||'Alteração registrada';
+    }
+    async function carregarHistoricoEmpresa(cursor='', anteriores=[]) {
+      const cnpj=empresa()?.cnpj;if(!cnpj)return;
+      const d=await api(base()+'/historico'+(cursor?'?cursor='+encodeURIComponent(cursor):''));
+      if(empresa()?.cnpj!==cnpj)return;
+      const itens=anteriores.concat(d.historico).sort((a,b)=>String(b.quando||'').localeCompare(String(a.quando||''))||a.id.localeCompare(b.id));
+      const nomes={CRM_EQUIPE_ATUALIZADA:'Equipe atualizada',CRM_CHECKLIST:'Checklist aplicado',CRM_CONTRATO:'Responsabilidade atualizada',CRM_RECORRENCIA:'Recorrência atualizada',CRM_APOIO_TEMPORARIO:'Apoio temporário'};
+      q('[data-historico]').innerHTML='<h3>Histórico da empresa</h3><p class="crm-muted">'+esc(d.escopo)+'</p><p>'+itens.length+' evento(s) carregado(s), ordenados por data.'+(d.proximo?' Lista parcial; carregue os próximos eventos.':'')+'</p>'+itens.map(h=>`<details><summary>${esc(instanteBr(h.quando))} · ${esc(nomes[h.tipo]||h.tipo)}</summary><p>Autor: ${esc(h.por_uid)}</p><p>Motivo: ${esc(h.motivo||'Não informado')}</p><p><strong>Antes:</strong> ${esc(resumoHistorico(h.antes??h.anteriores))}</p><p><strong>Depois:</strong> ${esc(resumoHistorico(h.depois??h.responsaveis))}</p></details>`).join('')+(d.proximo?'<button data-historico-empresa-mais>Mais eventos</button>':'');
+      const mais=q('[data-historico-empresa-mais]');if(mais)mais.onclick=()=>executar(()=>carregarHistoricoEmpresa(d.proximo,itens));
+    }
     q('[data-buscar]').onclick = ()=>executar(filtrarCarteira);
     q('[data-busca]').onkeydown = e=>{if(e.key==='Enter'){e.preventDefault();executar(filtrarCarteira);}};
     q('[data-pendencias]').onclick=()=>executar(async()=>{
@@ -217,6 +239,18 @@
         const agrupados=new Map();itens.forEach(c=>{if(!agrupados.has(c.url))agrupados.set(c.url,[]);agrupados.get(c.url).push(c);});
         return `<section class="crm-document-group"><header>${icon('document',codigo==='DITR'?'violet':codigo==='DEFIS'?'blue':'amber')}<h4>${esc(titulo)}</h4></header>${itens.length?`<p class="crm-muted">${agrupados.size} endereço(s) distinto(s) · ${itens.length} referência(s) preservada(s). Exercício a conferir no documento.</p><div class="crm-document-grid">`+[...agrupados.values()].map(refs=>{const c=refs[0];let arquivo='Abrir documento';try{arquivo=decodeURIComponent(new URL(c.url).pathname.split('/').pop())||arquivo;}catch{}return `<article class="crm-document-card"><strong>${esc(c.nome)}</strong><a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(arquivo)}</a><details><summary>${refs.length} referência(s) de origem</summary>${refs.map(r=>`<p>${esc(r.fonte)}${r.linha?' · linha '+esc(r.linha):''}<br><small>${esc(r.nome)}</small></p>`).join('')}</details>${c.previa?`<button data-previa-documento="${c.i}">Ver prévia de mensagem ${esc(c.obrigacao)}</button>`:''}</article>`;}).join('')+'</div>':'<p>Nenhum link identificado nesta categoria. Confira a origem; isso não significa dispensa da obrigação.</p>'}</section>`;
       }).join('');
+      const documentosArea=q('[data-documentos]');
+      documentosArea.insertAdjacentHTML('afterbegin','<div class="crm-bar"><label>Buscar documento<input data-documento-busca type="search" placeholder="Nome, fonte ou arquivo"></label><label>Categoria<select data-documento-categoria><option value="">Todas</option><option value="DITR">DITR</option><option value="DEFIS">DEFIS</option><option value="OUTROS">Outros</option></select></label></div><p data-documento-resumo role="status"></p>');
+      const filtrarDocumentos=()=>{
+        const termo=q('[data-documento-busca]').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(),categoria=q('[data-documento-categoria]').value;
+        let visiveis=0,total=0;
+        documentosArea.querySelectorAll('.crm-document-group').forEach((grupo,i)=>{let encontrados=0;
+          grupo.querySelectorAll('.crm-document-card').forEach(card=>{total++;const texto=card.textContent.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();card.hidden=Boolean((categoria&&categoria!==['DITR','DEFIS','OUTROS'][i])||!texto.includes(termo));if(!card.hidden){visiveis++;encontrados++;}});
+          grupo.hidden=Boolean((termo||categoria)&&!encontrados);
+        });
+        q('[data-documento-resumo]').textContent=visiveis+' de '+total+' cartão(ões) de links. Arquivos ainda não copiados; ausência de resultado não significa dispensa.';
+      };
+      q('[data-documento-busca]').oninput=filtrarDocumentos;q('[data-documento-categoria]').onchange=filtrarDocumentos;filtrarDocumentos();
       q('[data-documentos]').querySelectorAll('[data-previa-documento]').forEach(b=>b.onclick=()=>{
         const p=documentos[Number(b.dataset.previaDocumento)].previa;
         formulario(`<h3>Prévia de mensagem</h3><p>Rascunho para conferência, sem envio ao Teams ou cópia ao OneDrive. O exercício deve ser conferido no documento; a data não é deduzida pelo nome da aba.</p><form class="crm-message-preview"><label class="crm-wide">Título<input readonly value="${esc(p.titulo)}"></label><label class="crm-wide">Mensagem<textarea readonly rows="9">${esc(p.texto)}</textarea></label><button type="button" data-cancelar>Fechar prévia</button></form>`,async()=>{});
@@ -341,7 +375,7 @@
     q('[data-mais-empresas]').onclick = () => executar(() => carregarCarteira(true));
     q('[data-atualizar]').onclick = () => executar(async () => { await carregarCarteira(); await carregarControles(); });
     q('[data-mais]').onclick = () => executar(() => carregarControles(true));
-    q('[data-periodo]').oninput = render; q('[data-filtro]').onchange = render;q('[data-atraso]').onchange=render;
+    q('[data-periodo]').oninput = ()=>{q('[data-carteira-periodo]').value=q('[data-periodo]').value;render();}; q('[data-filtro]').onchange = ()=>{q('[data-carteira-filtro]').value=q('[data-filtro]').value;render();};q('[data-atraso]').onchange=()=>{q('[data-carteira-atraso]').value=q('[data-atraso]').value;render();};
     // Planejamento operacional: mesmas rotas autenticadas e mesma carteira do dossiê.
     const nav=q('.crm-sidebar nav'),planningMain=q('.crm-main');
     nav.insertAdjacentHTML('beforeend','<button data-planejamento-area="agenda">▦ Calendário</button><button data-planejamento-area="carga" hidden>◴ Carga da equipe</button>');

@@ -172,3 +172,16 @@ A coluna de IA **Saldo a Distribuir 2028** está excluída da migração e da ex
 O planejador offline registra explicitamente os índices da coluna de IA excluída e não propõe atualizar seus valores. A comparação exige o nome exato no campo e no cabeçalho; `SALDO A DISTRIBUIR ATÉ 2028` permanece na comparação. Auditoria de integridade histórica, estrutura e identidade continuam obrigatórias, inclusive para registros que contêm a coluna excluída. Nenhum snapshot é modificado.
 
 Execução sobre o snapshot de 13/10: 7.928 registros comparados consigo mesmos, todos inalterados, com 5.621 ocorrências da coluna de IA explicitamente excluídas. É validação do planejador sobre evidência histórica, não delta atualizado nem aplicação no Firestore. Relatório privado: `cci-crm-qa-20261015/delta-exclusao-ia.json`. Testes cobrem alteração exclusiva na IA, preservação do saldo numérico zero, imutabilidade das entradas, histórico corrompido e identidade não comprovada.
+
+
+## Rodada de operação do dossiê — 15/10/2026
+
+Versão candidata 3.4.405: filtros de período, situação da obrigação e prazo passam a restringir as empresas da carteira, combinados com equipe, situação do cliente e origem. Os critérios operacionais devem coincidir no mesmo controle. Consulta limitada a 50 empresas por página e 1.000 controles por empresa; lista parcial apresenta empresas consultadas e permite continuar mesmo quando a página não encontra resultados. Acima do limite de controles, a consulta falha explicitamente, sem inferir ausência. Busca comum não carrega controles.
+
+Histórico do dossiê agora consulta eventos CRM da auditoria da empresa (equipe, contrato, recorrências, apoio e Checklist), com paginação e revalidação de acesso. Ordenação por data dos eventos carregados; a interface informa quando há páginas restantes. Trilhas de parâmetros e controles permanecem próprias. Documentos têm busca textual sem distinção de acentos e categoria DITR/DEFIS/Outros, preservando referências e prévias existentes. Não houve cópia de binários nem envio de mensagens.
+
+Validação: testes de combinação no mesmo controle, paginação com página vazia, limite de leitura, acesso negado e revogação durante leitura. Navegador com dados fictícios: filtros enviados na consulta, visualização salva/restaurada, histórico e filtro documental; celular 390 px sem transbordamento horizontal. Evidências privadas em `cci-crm-qa-20261015/cci-405-*.png`. Permanecem as pendências de credencial do Checklist, snapshot atualizado, arquivos binários, equivalência de automações, colaborador real e recuperação isolada.
+
+Conferência adicional da origem: ação com cabeçalho visível “ENVIO ANALISE -...” tem Teams selecionado e OneDrive desmarcado. Título usa N°, CNPJ, Colaborador, Status da Empresa e Tributação; corpo inclui BALANCO / BALANCETE FECHADO 2025. Botões visualizar/editar envio desmarcados. Destino completo ainda não conferido (URL truncada). Nenhuma configuração salva ou mensagem enviada. Evidência privada: `analise-origem-rodada-289.json` e capturas correspondentes.
+
+Qualidade da rodada 3.4.405: check:ci com 258 aprovados, 2 pulados por evidência externa e zero falhas. Gate local interrompido pelo PDF Itaú externo ausente. Testes focados de rotas repetidos após a revalidação de acesso nas trilhas. Homologação autenticada real desta versão ainda não realizada.
