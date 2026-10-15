@@ -1,6 +1,7 @@
 (function () {
   'use strict';
-  let dialog, controller, contexto, retornoFoco, monitor;
+  let dialog, controller, contexto, retornoFoco, monitor, launcher;
+  let sessaoAtiva = false;
   const $ = id => document.getElementById(id);
   const chave = c => JSON.stringify(c || null);
   function atual() { return typeof window.contextoCiA === 'function' ? window.contextoCiA() : null; }
@@ -20,7 +21,7 @@
     dialog = document.createElement('dialog');
     dialog.id = 'ciaDialog';
     dialog.setAttribute('aria-labelledby', 'ciaTitulo');
-    dialog.innerHTML = `<header class="cia-header"><div><span class="cia-selo">Sua inteligência contábil</span><h2 id="ciaTitulo">CiA</h2><p>Inteligência que acompanha sua contabilidade.</p></div><button type="button" id="ciaFechar" aria-label="Fechar CiA">×</button></header>
+    dialog.innerHTML = `<header class="cia-header"><div><span class="cia-selo">Sua inteligência contábil</span><h2 id="ciaTitulo">CiA</h2><p>Inteligência que acompanha sua contabilidade.</p></div><button type="button" id="ciaFechar" aria-label="Minimizar CiA" title="Minimizar CiA">−</button></header>
       <div class="cia-corpo"><p id="ciaContexto" class="cia-contexto"></p><p>Olá, sou a CiA. Posso ajudar você a revisar os lançamentos salvos e entender os pontos que precisam de conferência.</p>
       <div class="cia-atalhos"><button type="button" data-cia="Revise os lançamentos desta competência e indique os pontos que precisam de conferência.">Revisar esta competência</button><button type="button" data-cia="Quais pendências de classificação aparecem nos lançamentos deste período?">Ver pendências</button><button type="button" data-cia="Como conferir um saldo no razão e no balancete?">Conferir um saldo</button></div>
       <form id="ciaForm"><label for="ciaPergunta">O que você quer conferir?</label><textarea id="ciaPergunta" rows="3" maxlength="1500" required minlength="3" placeholder="Ex.: Quais lançamentos estão sem conta de débito ou crédito?"></textarea><button id="ciaEnviar" type="submit">Consultar a CiA</button></form>
@@ -28,7 +29,20 @@
       <p class="cia-nota">A CiA consulta dados salvos e não altera lançamentos. Confira as evidências antes de decidir.</p></div>`;
     document.body.appendChild(dialog);
     $('ciaFechar').onclick = () => dialog.close();
-    dialog.addEventListener('close', () => { cancelar(); clearInterval(monitor); limparResposta(); $('ciaPergunta').value = ''; if (retornoFoco) retornoFoco.focus(); });
+    dialog.addEventListener('close', () => {
+      if (controller) $('ciaStatus').textContent = 'Consulta interrompida ao minimizar. Você pode consultar novamente.';
+      cancelar(); launcher.setAttribute('aria-expanded', 'false');
+      if (sessaoAtiva && retornoFoco && retornoFoco.isConnected) retornoFoco.focus({ preventScroll: true });
+    });
+    dialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); dialog.close(); }
+    });
+    launcher = document.createElement('button');
+    launcher.id = 'ciaLauncher'; launcher.type = 'button'; launcher.textContent = '✦ CiA';
+    launcher.setAttribute('aria-label', 'Abrir ou minimizar CiA');
+    launcher.setAttribute('aria-controls', 'ciaDialog'); launcher.setAttribute('aria-expanded', 'false');
+    launcher.onclick = () => dialog.open ? dialog.close() : window.abrirCiA();
+    document.body.appendChild(launcher);
     dialog.querySelectorAll('[data-cia]').forEach(button => { button.onclick = () => { $('ciaPergunta').value = button.dataset.cia; $('ciaPergunta').focus(); }; });
     $('ciaForm').addEventListener('submit', enviar);
   }
@@ -67,10 +81,27 @@
       if (controller === request) { controller = null; sincronizar(); }
     }
   }
-  window.abrirCiA = function () {
+  window.abrirCiA = function (automatico) {
+    if (!sessaoAtiva) return;
     criar(); retornoFoco = document.activeElement; sincronizar();
-    if (!dialog.open) dialog.showModal();
-    clearInterval(monitor); monitor = setInterval(sincronizar, 500);
-    $('ciaPergunta').focus();
+    if (!dialog.open) dialog.setAttribute('open', '');
+    launcher.setAttribute('aria-expanded', 'true');
+    if (automatico === true) {
+      if (retornoFoco && retornoFoco.isConnected) retornoFoco.focus({ preventScroll: true });
+    } else $('ciaPergunta').focus();
+  };
+  window.definirSessaoCiA = function (ativa) {
+    const entrou = ativa === true && !sessaoAtiva;
+    sessaoAtiva = ativa === true;
+    if (sessaoAtiva) {
+      criar(); launcher.hidden = false;
+      if (entrou) window.abrirCiA(true);
+      clearInterval(monitor); monitor = setInterval(sincronizar, 500);
+    } else if (dialog) {
+      cancelar(); clearInterval(monitor); contexto = null;
+      limparResposta(); $('ciaPergunta').value = ''; $('ciaStatus').textContent = '';
+      $('ciaContexto').textContent = ''; launcher.hidden = true;
+      if (dialog.open) dialog.close();
+    }
   };
 })();

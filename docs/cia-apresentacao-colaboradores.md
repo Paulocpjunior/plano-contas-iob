@@ -8,7 +8,7 @@ Equipe, nossa família de assistentes ganhou uma nova integrante: a **CiA**, a a
 
 A CiA ajuda a revisar os lançamentos salvos da empresa e do período selecionados. Ela aponta classificações incompletas, valores não identificados e possíveis repetições, mostrando referências para conferência.
 
-**Como acessar:** entre no CCI, ative uma empresa da sua carteira, confira o período e abra **Inteligência → CiA · Assistente contábil**. Comece pelo atalho **Revisar esta competência** ou **Ver pendências**.
+**Como acessar:** entre no CCI: a CiA já abre no canto inferior direito. Ative uma empresa da sua carteira e confira o período. Você pode minimizar e reabrir pelo botão **CiA** no canto, ou por **Inteligência → CiA · Assistente contábil**. Comece pelo atalho **Revisar esta competência** ou **Ver pendências**.
 
 A CiA não altera lançamentos nem fecha competências. Uma possível repetição precisa ser conferida no documento original. A análise usa os dados salvos online; alterações ainda não salvas na tela não entram na consulta.
 
