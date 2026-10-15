@@ -2059,3 +2059,8 @@ Consultas mensais e cálculos escolhem o quadro vigente; cadastro comum não con
 - Pedido de Paulo: abrir como os demais aplicativos, no canto inferior direito e já aberta. Painel não modal após login, com minimização e botão persistente para reabrir; sem bloquear a tela nem tomar o foco na abertura automática.
 - Sessão encerrada cancela a consulta, limpa informações e oculta painel/botão. Respostas antigas continuam sendo descartadas na troca de empresa/período. Nenhuma mudança nas regras contábeis.
 - Validação em navegador com dados fictícios: abertura automática, interação na tela de fundo, minimizar/reabrir, sair/entrar, foco preservado e tamanho de celular sem rolagem lateral. Consulta autenticada real permanece pendente.
+
+
+## 2026-10-15 — v3.4.410: carregamento do CRM
+
+Calendário em produção levou 99,844 s por leitura de controles e contexto por empresa. Substituída por collectionGroup limitada (excesso gera erro, nunca total parcial), com validação de caminho e carteira atual após leitura. Filtros operacionais e trabalho usam paralelismo limitado a 10. UI limita consultas a 25 s e gravações a 60 s, libera controles e mantém saída; resposta tardia não renderiza. Testes cobrem revogação, isolamento, 965 empresas sem N+1, limite, saída, timeout e recuperação.

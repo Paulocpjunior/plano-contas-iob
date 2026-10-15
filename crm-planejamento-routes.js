@@ -64,10 +64,23 @@ function registrarPlanejamento(app,{db,domain,wrap,usuario,contexto,admin,agora}
  }));
  // Leitura completa para totais: agregação não depende das páginas abertas pelo navegador.
  async function universo(req){
-  const user=await usuario(req);const ss=await Promise.all(['crm_empresas','empresas'].map(n=>db.collection(n).get()));const mapa=new Map();ss.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
-  const empresas=[...mapa.values()].filter(d=>core.temCarteira(d.data(),user));const itens=[];
-  for(let i=0;i<empresas.length;i+=10){const lote=await Promise.all(empresas.slice(i,i+10).map(async d=>{const q=await db.collection('empresas').doc(d.id).collection('crm_controles').get();const c=await contexto({...req,params:{cnpj:d.id}});return q.docs.map(t=>({...t.data(),id:t.id,cnpj:d.id,empresa:c.empresa.razao_social||d.id}));}));lote.forEach(a=>itens.push(...a));}
-  return {user,itens,empresas:empresas.length};
+  await usuario(req);
+  // Uma leitura do grupo substitui uma consulta por empresa, inclusive as vazias.
+  // O grupo pode conter documentos fora do CRM: caminho e carteira são conferidos abaixo.
+  const controles=await db.collectionGroup('crm_controles').limit(20001).get();
+  if(controles.docs.length>20000)throw core.erro('A carteira excedeu o limite desta consulta. Consulte as demandas por empresa.',409);
+  const ss=await Promise.all(['crm_empresas','empresas'].map(n=>db.collection(n).get()));
+  const user=await usuario(req),mapa=new Map();
+  ss.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d.data())));
+  for(const [id,empresa] of mapa)if(!core.temCarteira(empresa,user))mapa.delete(id);
+  const itens=[];
+  for(const doc of controles.docs){
+   const caminho=doc.ref.path.split('/');
+   if(caminho.length!==4||caminho[0]!=='empresas'||caminho[2]!=='crm_controles'||!mapa.has(caminho[1]))continue;
+   const cnpj=caminho[1];
+   itens.push({...doc.data(),id:doc.id,cnpj,empresa:mapa.get(cnpj).razao_social||cnpj});
+  }
+  return {user,itens,empresas:mapa.size};
  }
  app.get('/api/crm/agenda',wrap(async(req,res)=>{const de=core.data(req.query.de,'início',true),ate=core.data(req.query.ate,'fim',true);if(de>ate||Date.parse(ate)-Date.parse(de)>92*86400000)throw core.erro('Consulte até 92 dias de agenda.');const d=await universo(req);const itens=d.itens.filter(c=>[c.inicio,c.prazo_interno,c.prazo].some(v=>v&&v>=de&&v<=ate));res.json({ok:true,itens:itens.slice(0,2000),total:itens.length,completo:itens.length<=2000,empresas:d.empresas,sem_prazo:d.itens.filter(c=>!c.prazo&&!core.TERMINAIS.includes(c.status)).length});}));
  app.get('/api/crm/carga',wrap(async(req,res)=>{admin(await usuario(req));plano.semana(req.query.inicio);const d=await universo(req),[caps,users]=await Promise.all([db.collection('crm_capacidades').get(),db.collection('users').get()]);admin(await usuario(req));const configs=new Map(caps.docs.map(x=>[x.id,x.data()]));const disponibilidades=users.docs.filter(u=>String(u.data().last_email||u.data().email||'').toLowerCase().endsWith(domain)).map(u=>({uid:u.id,nome:u.data().last_name||u.data().name||u.data().email||u.id,...(configs.get(u.id)||{})}));res.json({ok:true,completo:true,empresas:d.empresas,...plano.carga(d.itens,disponibilidades,req.query.inicio)});}));

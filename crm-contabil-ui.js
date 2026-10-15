@@ -118,8 +118,28 @@
     const hoje = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
     function mensagem(s) { q('[data-status]').textContent = s; }
     async function api(path, body, method) {
-      const r = await window.API.apiFetch(path, body === undefined ? {} : { method: method || 'POST', body: JSON.stringify(body) });
-      const d = await r.json();
+      if (!dialog.isConnected) throw Error('Consulta encerrada.');
+      const controller = new AbortController();
+      const escrita = body !== undefined;
+      let timer;
+      const interromper = () => controller.abort();
+      dialog.addEventListener('close', interromper, { once:true });
+      let r, d;
+      try {
+        [r,d] = await Promise.race([
+          (async () => {
+            const resposta = await window.API.apiFetch(path, { signal:controller.signal, ...(escrita ? {method:method||'POST',body:JSON.stringify(body)} : {}) });
+            return [resposta, await resposta.json()];
+          })(),
+          new Promise((_,reject) => {
+            controller.signal.addEventListener('abort', () => reject(Error(escrita
+              ? 'Não foi possível confirmar a gravação. Consulte os dados antes de tentar novamente.'
+              : 'A consulta demorou demais ou foi encerrada. Tente novamente.')), {once:true});
+            timer = setTimeout(interromper, escrita ? 60000 : 25000);
+          })
+        ]);
+      } finally { clearTimeout(timer); dialog.removeEventListener('close', interromper); }
+      if (!dialog.isConnected) throw Error('Consulta encerrada.');
       if (!r.ok) {
         if ([401,403].includes(r.status)) { carteira = []; controles = []; config = {}; nextEmp = null; nextControl = null; usuarios = null; q('[data-empresa]').innerHTML = '<option value="">Selecione uma empresa</option>'; q('[data-empresas-tabela]').innerHTML=''; trabalho=[];trabalhoCursor=null;trabalhoTruncadas=[];q('[data-agenda-grid]').innerHTML='';q('[data-agenda-resumo]').textContent='';q('[data-carga-lista]').innerHTML='';q('[data-carga-resumo]').textContent='';diaConsultado=false;renderMeuDia();q('[data-trabalho-resumo]').textContent='';q('[data-trabalho-mais]').hidden=true;renderTrabalho();limparDetalhes();render();abrirArea('carteira'); }
         throw Error(d.erro || 'Não foi possível concluir. Tente novamente.');
@@ -133,11 +153,10 @@
     }
     async function executar(fn) {
       if (busy) return; busy = true; dialog.setAttribute('aria-busy','true');
-      dialog.querySelectorAll('button,input,select,textarea').forEach(el => { el.disabled = true; });
-      try { await fn(); } catch (e) { mensagem(e.message); }
-      finally { busy = false; dialog.setAttribute('aria-busy','false'); dialog.querySelectorAll('button,input,select,textarea').forEach(el => { el.disabled = false; }); permissoes(); }
+      dialog.querySelectorAll('button,input,select,textarea').forEach(el => { el.disabled = !el.matches('[data-sair]'); });
+      try { await fn(); } catch (e) { if(dialog.isConnected){ mensagem(e.message); if(areaAtual==='agenda')q('[data-agenda-resumo]').textContent='Consulta não concluída.'; if(areaAtual==='carga')q('[data-carga-resumo]').textContent='Consulta não concluída.'; } }
+      finally { busy = false; if(dialog.isConnected){ dialog.setAttribute('aria-busy','false'); dialog.querySelectorAll('button,input,select,textarea').forEach(el => { el.disabled = false; }); permissoes(); } }
     }
-    dialog.addEventListener('cancel', e => { if (busy) e.preventDefault(); });
     dialog.addEventListener('close', () => { seq++; dialog.remove(); });
     q('[data-sair]').onclick = () => dialog.close();
     let areaAtual='carteira', scrollCarteira=0, trabalho=[], trabalhoCursor=null, trabalhoLidas=0, trabalhoTruncadas=[];
@@ -385,7 +404,7 @@
     let planningInfo=null,capacidades=[];
     const antigoPermissoes=permissoes;
     permissoes=function(){antigoPermissoes();q('[data-planejamento-area=carga]').hidden=!config.admin;q('[data-lote]').hidden=!config.admin;q('[data-planejar-empresa]').hidden=!empresa();};
-    function abrirPlanejamentoArea(nome){abrirArea(nome==='agenda'?'trabalho':'gestao');dialog.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==nome);q('#crmWorkspaceTitulo').textContent=nome==='agenda'?'Calendário operacional':'Carga semanal da equipe';q('[data-subtitulo]').textContent=nome==='agenda'?'Início previsto, prazo interno e vencimento por empresa.':'Planejamento por executor, disponibilidade e ausências confirmadas.';dialog.querySelectorAll('[data-area]').forEach(b=>b.setAttribute('aria-current','false'));dialog.querySelectorAll('[data-planejamento-area]').forEach(b=>b.setAttribute('aria-current',b.dataset.planejamentoArea===nome?'page':'false'));}
+    function abrirPlanejamentoArea(nome){abrirArea(nome==='agenda'?'trabalho':'gestao');areaAtual=nome;dialog.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==nome);q('#crmWorkspaceTitulo').textContent=nome==='agenda'?'Calendário operacional':'Carga semanal da equipe';q('[data-subtitulo]').textContent=nome==='agenda'?'Início previsto, prazo interno e vencimento por empresa.':'Planejamento por executor, disponibilidade e ausências confirmadas.';dialog.querySelectorAll('[data-area]').forEach(b=>b.setAttribute('aria-current','false'));dialog.querySelectorAll('[data-planejamento-area]').forEach(b=>b.setAttribute('aria-current',b.dataset.planejamentoArea===nome?'page':'false'));}
     q('[data-planejamento-area=agenda]').onclick=()=>executar(async()=>{abrirPlanejamentoArea('agenda');await agenda();});
     q('[data-planejamento-area=carga]').onclick=()=>executar(async()=>{abrirPlanejamentoArea('carga');await carga();});
     async function abrirPorCnpj(id){if(!carteira.some(e=>e.cnpj===id)){const d=await api('/api/crm/carteira?busca='+encodeURIComponent(id)),e=d.empresas.find(e=>e.cnpj===id);if(!e)throw Error('Empresa indisponível. Atualize a consulta.');carteira.push(e);const o=document.createElement('option');o.value=id;o.textContent=e.razao_social;q('[data-empresa]').appendChild(o);}q('[data-empresa]').value=id;await carregarControles();mostrarSecao('controles');abrirArea('dossie');}
