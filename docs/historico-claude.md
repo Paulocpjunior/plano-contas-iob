@@ -2038,3 +2038,15 @@ Corrigida mistura de fundo branco do modal com texto claro herdado do modo escur
 Novo fluxo administrativo separado do cadastro da ATA: registra data contratual, competência inicial, motivo e quadro societário versionado. Snapshot legado mantém as competências anteriores; os CPFs retirantes são preservados para consulta e retificação. Novo CPF exige saldo ATA zero explícito, sem transferência automática; retirante com saldo pendente bloqueia a mudança. Preparações, aceites e movimentos a partir da vigência impedem sobrescrita. Auditoria e alteração gravadas na mesma transação, com revisão otimista.
 
 Consultas mensais e cálculos escolhem o quadro vigente; cadastro comum não contorna a proteção de histórico. Validação fictícia cobre contrato em junho e vigência em julho, recibos anteriores, bloqueios por competência, autorização, falha atômica, repetição e retificação do retirante. Tela validada localmente sem dados de produção. CI: 259 passaram, 2 sem evidência externa, zero falhas; gate completo local interrompido pelo PDF Itaú externo ausente. Nenhum cadastro real alterado; commit e publicação autorizados pelo usuário.
+
+
+## 2026-10-15 — CiA: primeira etapa de assistência contábil (local)
+
+- Implementada na branch `codex/cia-assistente-contabil`, a partir de `origin/main` eff1616, versão-base 3.4.407 também observada no endpoint de produção. Sem commit, push ou deploy.
+- Novo painel CiA no menu, contexto da empresa ativa e período; consulta somente à sessão salva online. Troca de contexto cancela e descarta respostas anteriores.
+- Rota autenticada com controle de carteira antes e depois da análise; quota individual, leitura sem gravação e falha segura para sessão ausente/inválida.
+- Conferência determinística: contas faltantes, valores ausentes/inválidos, datas inválidas e possíveis repetições (não comprovam duplicidade). Evidências limitadas a 30; contagens completas.
+- Interpretação opcional pelo provedor de IA existente, com base oficial e dados mínimos. Falhas mantêm a conferência e indicam indisponibilidade da interpretação. Não consulta CRM, conciliações ou saldos de abertura e não certifica fechamento.
+- Testes de domínio/rotas em `scripts/test-cia-contabil.js`; teste de navegador com dados fictícios validou desktop, celular, texto não interpretado como HTML, troca de empresa, respostas tardias e Escape. Homologação autenticada com dados reais e provedor real pendente.
+- Validação final: `npm run check:ci` = 261 passaram, 2 pulados por evidências externas ausentes (Itaú e Santander), 0 falharam. `npm run check` interrompido no PDF externo ausente de regressão Itaú. `npm audit --audit-level=high` = zero vulnerabilidades. `git diff --check` limpo. Capturas fictícias em `output/cia-desktop.png` e `output/cia-mobile.png`.
+- Publicação autorizada por Paulo em 15/10/2026: commit, PR e deploy pelo fluxo oficial. Preparada versão 3.4.408 com marcadores, Novidades e roteiro `docs/cia-apresentacao-colaboradores.md`; homologação autenticada continua pendente até validação efetiva.
