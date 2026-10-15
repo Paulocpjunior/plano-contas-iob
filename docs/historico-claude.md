@@ -2032,3 +2032,9 @@ Implementados filtros operacionais combinados com paginação explícita, leitur
 ## 2026-10-15 — Contraste da prévia FI (3.4.406)
 
 Corrigida mistura de fundo branco do modal com texto claro herdado do modo escuro. Estilos concentrados em tema-apple.css, escopo importacaoFIDialog, com cabeçalho azul, linhas alternadas, valores destacados e foco visível. Prévia visual conferida nos dois temas na sessão autorizada, sem importar lançamentos. Publicação autorizada pelo usuário.
+
+## 2026-10-15 — Dividendos: alteração societária por competência (3.4.407)
+
+Novo fluxo administrativo separado do cadastro da ATA: registra data contratual, competência inicial, motivo e quadro societário versionado. Snapshot legado mantém as competências anteriores; os CPFs retirantes são preservados para consulta e retificação. Novo CPF exige saldo ATA zero explícito, sem transferência automática; retirante com saldo pendente bloqueia a mudança. Preparações, aceites e movimentos a partir da vigência impedem sobrescrita. Auditoria e alteração gravadas na mesma transação, com revisão otimista.
+
+Consultas mensais e cálculos escolhem o quadro vigente; cadastro comum não contorna a proteção de histórico. Validação fictícia cobre contrato em junho e vigência em julho, recibos anteriores, bloqueios por competência, autorização, falha atômica, repetição e retificação do retirante. Tela validada localmente sem dados de produção. CI: 259 passaram, 2 sem evidência externa, zero falhas; gate completo local interrompido pelo PDF Itaú externo ausente. Nenhum cadastro real alterado; commit e publicação autorizados pelo usuário.

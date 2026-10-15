@@ -1,7 +1,8 @@
 {
-  "version": "3.4.406",
-  "build_date": "2026-10-15T12:47:42Z",
+  "version": "3.4.407",
+  "build_date": "2026-10-15T14:17:06Z",
   "release_notes": [
+    "Dividendos: alteração societária por competência, com data contratual, motivo e histórico. Preserva meses anteriores e saldos individuais da ATA; mudanças em períodos já controlados permanecem protegidas.",
     "Importação FI/SAGE: prévia com cabeçalho azul forte, linhas alternadas e valores em destaque. Contraste corrigido nos temas claro e escuro, sem alteração da leitura ou gravação dos lançamentos.",
     "CRM: filtros combinados por período, situação e prazo na carteira; histórico de gestão no dossiê; busca e categorias nos documentos.",
     "CRM: aplicação individual conferida do Checklist com auditoria, proteção contra repetição e conflito; preparação do delta Jotform e inventário de links sem sobrescrever dados. Integração real depende da credencial.",

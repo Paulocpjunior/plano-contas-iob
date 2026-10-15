@@ -1,6 +1,7 @@
 'use strict';
 const {createHash}=require('node:crypto');
 const {fromCents,toCents}=require('./reinf-dividendos-utils');
+const {sociosNaCompetencia}=require('./dividendos-societario');
 const tag=(xml,n)=>(String(xml||'').match(new RegExp('<'+n+'>([^<]*)</'+n+'>'))||[])[1]||'';
 function extrairDistribuicao(xml){
  const grupos=[...String(xml||'').matchAll(/<idePgto>([\s\S]*?)<\/idePgto>/g)].map(m=>m[1]).filter(g=>tag(g,'natRend')==='12001');
@@ -32,7 +33,7 @@ async function carregar(ref,cadastro,competencia){
  for(const d of pos.docs)if(!ids.has(d.id)){const p=d.data();confirmados.push({...p,id:d.id,ataCentavos:p.centavos,distribuicao:null,baixa:'atualizado',legado:true});}
  const posteriores=movimentos.filter(m=>m.perApur>=competencia);
  const saldoAbertura=Number(cadastro.ataSaldoCentavos||0)+posteriores.reduce((a,m)=>a+Number(m.deltaCentavos||0),0);
- const socios=(cadastro.socios||[]).map(s=>({...s,ataSaldo:s.ataSaldoCentavos==null?null:fromCents(s.ataSaldoCentavos+posteriores.filter(m=>m.cpf===s.cpf).reduce((a,m)=>a+Number(m.deltaCentavos||0),0))}));
+ const socios=sociosNaCompetencia(cadastro,competencia).map(s=>({...s,ataSaldo:s.ataSaldoCentavos==null?null:fromCents(s.ataSaldoCentavos+posteriores.filter(m=>m.cpf===s.cpf).reduce((a,m)=>a+Number(m.deltaCentavos||0),0))}));
  const porMes=new Map();
  for(const c of confirmados){
   if(!porMes.has(c.perApur))porMes.set(c.perApur,{competencia:c.perApur,brutoCentavos:0,ataCentavos:0,irrfCentavos:0,incompleto:false,pendente:false,recibos:[]});
@@ -42,6 +43,7 @@ async function carregar(ref,cadastro,competencia){
  const rascunhos=meses.docs.map(d=>({competencia:d.id,...d.data()}));
  const registro=rascunhos.find(m=>m.competencia===competencia)||null;
  const doMes=confirmados.filter(c=>c.perApur===competencia);
+ if(doMes.some(c=>!socios.some(s=>s.cpf===c.cpf)))throw Error('Há aceite de beneficiário fora do quadro societário desta competência. Confira os recibos e a vigência antes de continuar.');
  const dadosConfirmados=doMes.length&&doMes.every(c=>c.distribuicao)?{
    valorDistribuido:fromCents(doMes.reduce((a,c)=>a+c.distribuicao.brutoCentavos,0)),modoDistribuicao:'valores',origemDividendos:'mista',
    pagamentos:socios.map(s=>({cpf:s.cpf,valor:fromCents(doMes.filter(c=>c.cpf===s.cpf).reduce((a,c)=>a+c.distribuicao.brutoCentavos,0)),valorSemAta:fromCents(doMes.filter(c=>c.cpf===s.cpf).reduce((a,c)=>a+c.distribuicao.brutoCentavos-Number(c.ataCentavos||0),0))})),
@@ -54,6 +56,7 @@ async function carregar(ref,cadastro,competencia){
 function dadosConferidos(dados,cadastro,ctx){
  if(!cadastro.controleAtaIndividual)throw Error('Salve e confira o cadastro e os saldos individuais da ATA antes de emitir o extrato mensal.');
  if(toCents(dados.ataSaldoAnterior)!==toCents(ctx.saldoAbertura)||toCents(dados.ataValorTotal)!==Number(cadastro.ataValorTotalCentavos||0))throw Error('O saldo informado difere da abertura online de '+ctx.competencia+' (R$ '+ctx.saldoAbertura.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'). Alterar o formulário não altera o cadastro online. Se está cadastrando o saldo inicial, confira os saldos por sócio e use Salvar cadastro; depois Carregar mês / saldo online. Saldos já controlados por aceites exigem conciliação, sem nova dedução manual.');
+ if(cadastro.societarioVersoes?.length && ctx.socios.reduce((a,s)=>a+toCents(s.ataSaldo),0)!==toCents(ctx.saldoAbertura))throw Error('Há saldo de ATA fora do quadro societário desta competência. Confira os saldos dos sócios retirantes e as retificações; não há transferência automática.');
  const by=new Map(ctx.socios.map(s=>[s.cpf,s]));
  if(!Array.isArray(dados.socios)||dados.socios.length!==by.size||dados.socios.some(s=>!by.has(s.cpf)||toCents(s.ataSaldo)!==toCents(by.get(s.cpf).ataSaldo)))throw Error('Os saldos por sócio diferem do controle online. Clique em Carregar mês.');
  return {...dados,ataSaldoAnterior:ctx.saldoAbertura,ataValorTotal:ctx.ataValorTotal,socios:ctx.socios,ataAprovadaAte2025:cadastro.ataAprovadaAte2025===true,ataValidaAte2028:cadastro.ataValidaAte2028!==false};
