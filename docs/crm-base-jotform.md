@@ -70,3 +70,19 @@ Esta etapa acrescenta filtros e navegação local, não autoriza a desativação
 | Obrigações/processos | Estados, evidência e histórico existentes; prazo separado nesta etapa | Conciliar aplicabilidade, periodicidade, valores e transições com a origem; não converter valores importados em baixas automaticamente |
 
 Homologação final: congelar um snapshot de referência, registrar diferenças por fonte/linha/coluna, corrigir e repetir; executar cenários de paridade aprovados, ensaiar restauração e definir janela de corte. Só desligar após aceite explícito com pendências resolvidas ou formalmente aceitas. A edição e publicação desta etapa permanecem separadas do corte da origem.
+
+## Preparação do delta e anexos — 15/10/2026
+
+`scripts/planejar-crm-delta.js` compara três entradas privadas: snapshot anterior, novo snapshot e array atual de `crm_registros`. Quarto argumento: relatório novo. Quinto opcional: JSON de vínculos `{anterior, novo, motivo}` conferidos pelo operador. Sem rede, gravação no banco ou aplicação automática. Saída exclusiva, modo 0600; valores, CNPJ e URLs são representados por hashes. Relatório inclui inventário dos links reconhecidos por empresa; não representa inventário completo de binários.
+
+O identificador legado contém fonte e linha, não ID de submissão. Alteração do manifesto da fonte bloqueia vínculo implícito mesmo quando o número de linha se repete. Nome/CNPJ não fazem pareamento automático. Mudança de identificação/estrutura exige revisão; edições CCI são preservadas e divergências simultâneas viram conflitos. Registro sem vínculo permanece preservado. Vínculos explícitos não são autorização para aplicar o plano. O script não implementa escrita do delta.
+
+Inventário do snapshot de 13/10 executado em 15/10: 4.316 combinações empresa/link, 10.839 referências, 53 combinações com identidade inválida. Hosts observados: Jotform 3.820; SharePoint 134; portal igreja 358; Google Drive 2; 1drv.ms 1; OneDrive 1. Nenhum binário copiado. Links podem ser páginas, não anexos; classificar antes de transferir. Relatório privado fora do Git em `cci-crm-qa-20261015/inventario-anexos.json`.
+
+## Checklist assistido — implementação 3.4.404
+
+`POST /api/crm/checklist/aplicar`: exclusivo de administrador conferido no Firestore antes e depois da consulta externa. Exige assinatura da leitura, ID da submissão, revisão do contrato, motivo e confirmação explícita. Reconsulta a origem paginada e valida seu esquema; transação atualiza apenas `crm_contrato`/`crm_situacao_cliente`, cria evento em `crm_checklist_eventos` e auditoria em `auditoria_contabil` da empresa. Repetição idêntica não grava; alteração posterior da mesma submissão exige revisão manual. A chave global da submissão impede repetir a aplicação após troca de vínculo da empresa.
+
+Entradas só iniciam contrato ausente; saídas/baixas exigem contrato ativo, preservam seu início e conferem a data final. Não há aplicação de eventos futuros, múltiplos eventos da empresa, suspensão/alteração, retorno com contrato anterior ou identificação ambígua. Não cria empresa sem CNPJ/vínculo confirmado, não concede acessos, não gera/baixa controles e não envia mensagens. Isso não é sincronização automática nem homologação do Checklist real.
+
+Credencial: não foi encontrado segredo identificado como Jotform/Checklist no Secret Manager do projeto de produção; nenhum valor foi lido. No projeto de autenticação a consulta retornou serviço desabilitado/inacessível. É necessário cadastrar uma credencial autorizada e vinculá-la a `CCI_CHECKLIST_API_KEY` antes da homologação real. Não presumir que outro segredo seja a chave correta.

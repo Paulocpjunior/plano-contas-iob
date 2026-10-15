@@ -14,6 +14,22 @@ assert.throws(()=>c.previaChecklist({...questions,'30':{text:'Outro campo'}},[ro
 const saida=row(); saida.answers['47'].answer='CLIENTE SAIDA'; saida.answers['40']={answer:'2026-08-01'};
 p=c.previaChecklist(questions,[saida],empresas); assert(p.eventos[0].problemas.some(s=>s.includes('anterior')));
 const excluido=row(); excluido.status='DELETED'; p=c.previaChecklist(questions,[excluido],empresas); assert(p.com_pendencias);
+const evento = c.previaChecklist(questions,[row()],empresas).eventos[0];
+const body={confirmado:true,revisao_contrato:0,motivo:'Vigência conferida'};
+const contrato=c.contratoDoEvento(evento,null,body,'2026-10-15');
+assert.equal(contrato.situacao,'ativa');assert.equal(contrato.inicio,'2026-09-01');
+assert.throws(()=>c.contratoDoEvento(evento,null,{...body,confirmado:false},'2026-10-15'));
+assert.throws(()=>c.contratoDoEvento(evento,null,{...body,revisao_contrato:1},'2026-10-15'),/mudou/);
+assert.throws(()=>c.contratoDoEvento(evento,contrato,{...body,revisao_contrato:1},'2026-10-15'),/revisão manual/);
+assert.throws(()=>c.contratoDoEvento({...evento,responsabilidade_inicio:'2026-11-01'},null,body,'2026-10-15'),/futuro/);
+const evSaida={...evento,tipo:'saida',responsabilidade_inicio:null,responsabilidade_fim:'2026-10-01'};
+const encerrado=c.contratoDoEvento(evSaida,contrato,{...body,revisao_contrato:1},'2026-10-15');
+assert.equal(encerrado.inicio,contrato.inicio);assert.equal(encerrado.fim,'2026-10-01');assert.equal(encerrado.situacao,'saida');
+assert.throws(()=>c.contratoDoEvento(evSaida,null,body,'2026-10-15'),/contrato ativo/);
+assert.throws(()=>c.contratoDoEvento({...evSaida,responsabilidade_inicio:'2025-01-01'},contrato,body,'2026-10-15'),/diverge/);
+assert.throws(()=>c.contratoDoEvento({...evSaida,responsabilidade_fim:'2025-01-01'},contrato,body,'2026-10-15'),/anterior/);
+assert.throws(()=>c.contratoDoEvento({...evento,problemas:['pendente']},null,body,'2026-10-15'),/pendências/);
+assert.throws(()=>c.contratoDoEvento({...evento,tipo:'suspensao'},null,body,'2026-10-15'),/manualmente/);
 (async()=>{
   await assert.rejects(c.carregarChecklist({apiKey:''}), /credencial/);
   const mock = (changed=false, count=1) => { let scans=0; return async (url,opts)=>{
