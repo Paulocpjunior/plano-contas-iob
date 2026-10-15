@@ -7,6 +7,8 @@ const { conferir } = require('./conferir-crm-jotform');
 const { documentosEmpresa } = require('../crm-base');
 const { valido } = require('./importar-crm-jotform');
 const hash = v => crypto.createHash('sha256').update(v).digest('hex');
+// Decisão de 15/10: apenas a coluna de IA; não confundir com o saldo numérico ATÉ 2028.
+const COLUNA_IA_EXCLUIDA = 'Saldo a Distribuir 2028';
 function mapa(rows) {
   const m = new Map();
   for (const r of rows) {
@@ -50,20 +52,26 @@ function planejar(anterior, nova, atuais, vinculos = []) {
     if (!igual(fontesAntes.get(a.fonte).cabecalhos, f.cabecalhos) || a.campos.length !== n.campos.length) {
       item(n.id, 'estrutura_alterada'); continue;
     }
+    const colunas_excluidas = [];
     const campos = n.campos.map((c, i) => {
       const old = a.campos[i], atual = d.campos[i];
+      if (c.nome === COLUNA_IA_EXCLUIDA && old.nome === COLUNA_IA_EXCLUIDA && f.cabecalhos[i] === COLUNA_IA_EXCLUIDA) {
+        colunas_excluidas.push(i);
+        return { coluna: i, estado: 'inalterado' };
+      }
       const origemMudou = !igual(old, c), cciMudou = !igual(old.valor, atual.valor);
       let estado = 'inalterado';
       if (origemMudou) estado = cciMudou ? (igual(c.valor, atual.valor) ? 'convergente_conferir_metadados' : 'conflito') : 'mudanca_origem_a_conferir';
       else if (cciMudou) estado = 'preservar_edicao_cci';
       return { coluna: i, estado };
     }).filter(c => c.estado !== 'inalterado');
-    item(n.id, campos.some(c => c.estado === 'conflito') ? 'conflito' : campos.length ? 'revisar_campos' : 'inalterado', { anterior_sha256: hash(aid), campos });
+    item(n.id, campos.some(c => c.estado === 'conflito') ? 'conflito' : campos.length ? 'revisar_campos' : 'inalterado', { anterior_sha256: hash(aid), campos, colunas_excluidas });
   }
   for (const a of antigos.values()) if (!usados.has(a.id)) item(a.id, 'origem_anterior_sem_vinculo_preservar');
   const totais = {};
   for (const i of itens) totais[i.estado] = (totais[i.estado] || 0) + 1;
   return { esquema: 1, somente_previa: true, aplicacao_automatica: false, corte_jotform: false,
+    exclusoes: [{ coluna: COLUNA_IA_EXCLUIDA, motivo: 'Exclusão da migração aprovada em 15/10/2026; preservar histórico.' }],
     aviso: 'Linha, nome e CNPJ não comprovam identidade de submissão. Vínculos explícitos exigem conferência humana. Ausência nunca autoriza exclusão.', totais, itens };
 }
 function inventariar(payload) {
