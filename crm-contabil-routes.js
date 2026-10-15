@@ -75,11 +75,15 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       empresas=[];
       // Lote limitado: filtros vazios nunca carregam obrigações. Todos os critérios
       // devem corresponder ao mesmo controle, não a controles diferentes da empresa.
-      for (const e of lote) {
+      for (let i=0;i<lote.length;i+=10) {
+       const resultados=await Promise.all(lote.slice(i,i+10).map(async e=>{
         const snap=await db.collection('empresas').doc(e.cnpj).collection('crm_controles').orderBy('__name__').limit(1001).get();
         if(snap.docs.length>1000)throw core.erro('Uma empresa excedeu o limite de conferência. Consulte os controles no dossiê; a busca não foi apresentada como completa.',409);
         await contexto({...req,params:{cnpj:e.cnpj}});
-        if(snap.docs.some(d=>{const c=d.data();return (!filtros.periodo || String(c.periodo||'').startsWith(filtros.periodo)) && (!filtros.obrigacao || c.status===filtros.obrigacao) && (!filtros.atraso || prazoControle(c,hoje)===filtros.atraso);}))empresas.push(e);
+        if(snap.docs.some(d=>{const c=d.data();return (!filtros.periodo || String(c.periodo||'').startsWith(filtros.periodo)) && (!filtros.obrigacao || c.status===filtros.obrigacao) && (!filtros.atraso || prazoControle(c,hoje)===filtros.atraso);}))return e;
+        return null;
+       }));
+       empresas.push(...resultados.filter(Boolean));
       }
     }
     res.json({ ok:true, empresas, equipes, total:operacional?null:todas.length, consultadas:posicao+1+lote.length,total_candidatas:todas.length,filtro_operacional:operacional, proximo:restantes.length>50 ? lote[49].cnpj : null,
@@ -92,13 +96,13 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const mapa=new Map();snapshots.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
     const todas=[...mapa.values()].filter(d=>core.temCarteira(d.data(),user)).sort((a,b)=>a.id.localeCompare(b.id));
     const restantes=todas.filter(d=>!cursor||d.id>cursor), lote=restantes.slice(0,10), itens=[], truncadas=[];
-    for(const doc of lote){
+    const resultados=await Promise.all(lote.map(async doc=>{
       const snap=await db.collection('empresas').doc(doc.id).collection('crm_controles').orderBy('__name__').limit(101).get();
       // Revalidação após leitura impede devolver controles após revogação da carteira.
       const ctx=await contexto({...req,params:{cnpj:doc.id}});
-      if(snap.docs.length>100)truncadas.push(doc.id);
-      snap.docs.slice(0,100).forEach(c=>itens.push({...c.data(),id:c.id,cnpj:doc.id,empresa:ctx.empresa.razao_social||doc.id,responsaveis:core.equipeVigente(ctx.empresa).map(p=>({uid:p.uid,nome:p.nome,papel:p.papel}))}));
-    }
+      return {truncada:snap.docs.length>100?doc.id:null,itens:snap.docs.slice(0,100).map(c=>({...c.data(),id:c.id,cnpj:doc.id,empresa:ctx.empresa.razao_social||doc.id,responsaveis:core.equipeVigente(ctx.empresa).map(p=>({uid:p.uid,nome:p.nome,papel:p.papel}))}))};
+    }));
+    resultados.forEach(r=>{if(r.truncada)truncadas.push(r.truncada);itens.push(...r.itens);});
     res.json({ok:true,itens,empresas_lidas:lote.length,total_empresas:todas.length,truncadas,proximo:restantes.length>10?lote[lote.length-1].id:null});
   }));
   app.get('/api/crm/visualizacoes',wrap(async(req,res)=>{

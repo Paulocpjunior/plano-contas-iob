@@ -61,3 +61,35 @@ for(const valor of ['javascript:alert(1)','http://example.com/x','https://user:p
 assert.equal(sandbox.linksDoCampo({valor:'https://example.com/arquivo%20assinado.pdf?x=1&y=2'})[0],'https://example.com/arquivo%20assinado.pdf?x=1&y=2');
 assert.ok(sandbox.linksDocumento({valor:'https://example.com/x?a=1&b=2'}).includes('&amp;'));
 console.log('CRM documentos: uploads múltiplos separados, origem intacta e links seguros OK');
+
+// Executa o código de espera da tela com transporte e relógio controlados.
+(async()=>{
+  const vm=require('vm');
+  function tela(fetch){
+    const dialog=new EventTarget();dialog.isConnected=true;dialog.setAttribute=()=>{};
+    const saida={disabled:false,matches:()=>true},controle={disabled:false,matches:()=>false};
+    dialog.querySelectorAll=()=>[saida,controle];
+    const resumo={textContent:''};let timer,intervalo,limpou=false;
+    const ctx={dialog,AbortController,Promise,Error,window:{API:{apiFetch:fetch}},
+      setTimeout:(fn,ms)=>{timer=fn;intervalo=ms;return 1;},clearTimeout:()=>{limpou=true;},
+      q:()=>resumo,mensagem:s=>{ctx.mensagemFinal=s;},permissoes:()=>{}};
+    vm.createContext(ctx);
+    vm.runInContext('let busy=false,areaAtual="agenda";'+ui.slice(ui.indexOf('    async function api('),ui.indexOf('    function permissoes('))+ui.slice(ui.indexOf('    async function executar('),ui.indexOf("    dialog.addEventListener('close'",ui.indexOf('    async function executar('))),ctx);
+    return {ctx,dialog,saida,controle,resumo,expirar:()=>timer(),intervalo:()=>intervalo,limpou:()=>limpou};
+  }
+  let completar,opcoes;
+  const t=tela((_,opts)=>{opcoes=opts;return new Promise(r=>{completar=r;});});
+  const espera=t.ctx.executar(()=>t.ctx.api('/api/crm/agenda'));
+  assert.equal(t.saida.disabled,false,'saída disponível durante consulta');assert(t.controle.disabled);
+  assert.equal(t.intervalo(),25000);t.expirar();await espera;
+  assert(opcoes.signal.aborted);assert(!t.controle.disabled);assert(t.limpou());assert.match(t.ctx.mensagemFinal,/demorou/);assert.equal(t.resumo.textContent,'Consulta não concluída.');
+  completar({ok:true,json:async()=>({total:999})});await Promise.resolve();assert.equal(t.resumo.textContent,'Consulta não concluída.','resposta atrasada não renderiza');
+  t.ctx.window.API.apiFetch=async()=>({ok:true,json:async()=>({total:1})});
+  assert.equal((await t.ctx.api('/api/crm/agenda')).total,1,'nova consulta funciona após timeout');
+  const fechada=tela(()=>new Promise(()=>{}));const pendente=fechada.ctx.api('/api/crm/agenda');
+  fechada.dialog.isConnected=false;fechada.dialog.dispatchEvent(new Event('close'));await assert.rejects(pendente,/encerrada/);assert(fechada.limpou());
+  const escrita=tela(()=>new Promise(()=>{}));const gravacao=escrita.ctx.api('/api/crm/empresa',{});
+  assert.equal(escrita.intervalo(),60000);escrita.expirar();await assert.rejects(gravacao,/Consulte os dados antes/);
+  const jsonLento=tela(async()=>({ok:true,json:()=>new Promise(()=>{})}));const json=jsonLento.ctx.api('/api/crm/agenda');jsonLento.expirar();await assert.rejects(json,/demorou/);
+  console.log('CRM tela: espera limitada, saída, recuperação, resposta tardia e gravação incerta OK');
+})().catch(e=>{console.error(e);process.exitCode=1;});

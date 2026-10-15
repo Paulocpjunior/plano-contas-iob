@@ -10,7 +10,7 @@ function ambiente(checklistFonte = null, onRead = null) {
   dados.set('empresas/'+cnpj,empresa); dados.set('empresas/'+outro,{razao_social:'Outra',carteira_uids:[],responsaveis:[]});
   dados.set('users/admin',{is_admin:true,email:'admin@fixture.test'});
   for(const uid of ['colab','legado','indice-velho','apoio']) dados.set('users/'+uid,{email:uid+'@fixture.test',permissoesCci:criarPermissoes('operacao')});
-  const snap=(path)=>({id:path.split('/').pop(),exists:dados.has(path),data:()=>structuredClone(dados.get(path))});
+  const snap=(path)=>({ref:{path},id:path.split('/').pop(),exists:dados.has(path),data:()=>structuredClone(dados.get(path))});
   const ref=path=>({path,id:path.split('/').pop(),get:async()=>snap(path),collection:n=>collection(path+'/'+n)});
   function collection(path, filters=[],order='__name__',after=null,limit=Infinity) {
     return {doc:id=>ref(path+'/'+(id||'auto'+(++auto))),
@@ -21,7 +21,7 @@ function ambiente(checklistFonte = null, onRead = null) {
         .sort((a,b)=>order==='__name__'?a.id.localeCompare(b.id):a.data()[order]-b.data()[order])
         .filter(d=>after===null || (order==='__name__'?d.id>after:d.data()[order]>after)).slice(0,limit)});}};
   }
-  const db={collection,runTransaction:async fn=>{
+  const db={collection,collectionGroup:name=>({limit:max=>({get:async()=>{if(onRead)onRead('group/'+name,dados);return {docs:[...dados.keys()].filter(k=>k.split('/').at(-2)===name).slice(0,max).map(snap)};}})}),runTransaction:async fn=>{
     const pending=[];
     const tx={get:async r=>{assert.equal(pending.length,0,'leituras antes das gravações');return r.path?snap(r.path):r.get();},getAll:async(...refs)=>{assert.equal(pending.length,0);return refs.map(r=>snap(r.path));},
       create:(r,d)=>{assert(!dados.has(r.path),'create protege duplicidade');pending.push([r.path,d]);},set:(r,d,opts)=>pending.push([r.path,opts?.merge?{...dados.get(r.path),...d}:d])};
@@ -149,6 +149,25 @@ function ambiente(checklistFonte = null, onRead = null) {
   p=await planejamentoEnv.call('POST',base+'/recorrencias/previa',periodo,'admin');assert.equal(p.body.novos.length,0);assert.equal(p.body.existentes,2);
   p=await planejamentoEnv.call('GET','/api/crm/agenda',{},'legado',{}, {de:'2026-01-01',ate:'2026-03-31'});assert.equal(p.body.total,0);
   p=await planejamentoEnv.call('GET','/api/crm/agenda',{},'colab',{}, {de:'2026-01-01',ate:'2026-03-31'});assert.equal(p.body.total,2);assert(p.body.completo);
+  const agendaQuery={de:'2026-01-01',ate:'2026-03-31'};
+  let leiturasPorEmpresa=0;
+  const rapida=ambiente(null,path=>{if(path.startsWith('empresas/')&&path.endsWith('/crm_controles'))leiturasPorEmpresa++;});
+  for(let i=0;i<965;i++)rapida.dados.set('empresas/'+String(i).padStart(14,'0'),{responsaveis:[]});
+  rapida.dados.set('empresas/'+cnpj+'/crm_controles/valida',{prazo:'2026-01-20',cnpj:outro});
+  rapida.dados.set('empresas/'+outro+'/crm_controles/privada',{prazo:'2026-01-20'});
+  rapida.dados.set('outra/'+cnpj+'/crm_controles/intrusa',{prazo:'2026-01-20'});
+  let agendaRapida=await rapida.call('GET','/api/crm/agenda',{},'colab',{},agendaQuery);
+  assert.equal(agendaRapida.body.total,1);assert.equal(agendaRapida.body.itens[0].cnpj,cnpj);
+  assert.equal(leiturasPorEmpresa,0,'agenda não consulta cada empresa');
+  assert.equal(rapida.writes(),0);
+  for(const revogar of ['carteira','usuario']){
+    const rev=ambiente(null,(path,dados)=>{if(path==='group/crm_controles'){if(revogar==='carteira')dados.get('empresas/'+cnpj).responsaveis=[];else dados.delete('users/colab');}});
+    rev.dados.set('empresas/'+cnpj+'/crm_controles/a',{prazo:'2026-01-20'});
+    const resposta=await rev.call('GET','/api/crm/agenda',{},'colab',{},agendaQuery);
+    if(revogar==='usuario')assert.equal(resposta.statusCode,403);else assert.equal(resposta.body.total,0);
+  }
+  const grande=ambiente();for(let i=0;i<20001;i++)grande.dados.set('empresas/'+cnpj+'/crm_controles/'+i,{prazo:'2026-01-20'});
+  assert.equal((await grande.call('GET','/api/crm/agenda',{},'admin',{},agendaQuery)).statusCode,409,'não apresenta totais incompletos');
   assert.equal((await planejamentoEnv.call('GET','/api/crm/carga',{},'colab',{}, {inicio:'2026-10-12'})).statusCode,403);
   p=await planejamentoEnv.call('PUT','/api/crm/capacidades/:uid',{revisao:0,horas_semanais:40,ausencias:[]},'admin',{uid:'colab'});assert.equal(p.statusCode,200);
   p=await planejamentoEnv.call('PUT',base+'/controles/:id/planejamento',{revisao:1,executor_uid:'colab',revisor_uid:'',prioridade:'alta',horas_estimadas:5,dependencias:[]},'admin',{id:'obrigacao_FISCAL_2026-01'});assert.equal(p.statusCode,200);assert.equal(p.body.controle.revisao,2);

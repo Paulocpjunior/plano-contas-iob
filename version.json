@@ -1,7 +1,8 @@
 {
-  "version": "3.4.409",
-  "build_date": "2026-10-15T19:35:58Z",
+  "version": "3.4.410",
+  "build_date": "2026-10-15T19:50:24Z",
   "release_notes": [
+    "CRM: calendário e carga da equipe com consulta unificada; demandas e filtros em lotes paralelos. Consultas têm limite de espera, liberam a tela em caso de falha e permitem voltar ao CCI durante o carregamento.",
     "CiA: painel flutuante aberto automaticamente após o login, no canto inferior direito, com botão para minimizar e reabrir. A tela permanece disponível e os dados da consulta são limpos ao sair.",
     "CiA: assistente contábil com contexto da empresa e período, conferência dos lançamentos salvos e evidências de classificação incompleta, valores não identificados e possíveis repetições. Acesso restrito à carteira e consultas sem alteração dos registros.",
     "Dividendos: alteração societária por competência, com data contratual, motivo e histórico. Preserva meses anteriores e saldos individuais da ATA; mudanças em períodos já controlados permanecem protegidas.",
