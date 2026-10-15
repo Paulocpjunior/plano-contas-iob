@@ -137,3 +137,20 @@ Nova leitura transacional do Firestore comparou o payload privado de 13/10: 7.92
 A variável `CCI_CHECKLIST_API_KEY` continua ausente no serviço (verificado apenas nome/presença). Critérios de corte continuam pendentes: credencial e leitura completa do Checklist; delta atual da origem; fórmulas e automações restantes; cópia privada dos binários com hashes; teste com colaborador restrito; regras reais de recorrência; restauração isolada. Não desativar o Jotform.
 
 No Safari remoto, a aba ainda estava na interface anterior ao agrupamento; após recarga, exibiu o aviso e rodapé 3.4.402 e voltou ao login. A causa do retorno ao login está explícita no código (`Auth.Persistence.NONE`) e protegida por `test-memoria-cobranca-login.js`; não foi alterada nesta rodada. O acesso visual autenticado depende de nova entrada. A prova pública de versão não equivale à homologação do piloto.
+
+### Piloto 1200 autenticado — complemento de 15/10
+
+Após entrada do usuário no Safari remoto, leitura administrativa da 3.4.402 conferida, sem alteração de registros ou envio de mensagens:
+
+- Busca `1200`: empresa exata em primeiro lugar entre 73 resultados, 50 carregados; os demais podem corresponder a trechos do CNPJ.
+- Dossiê S&P: Josilaine responsável, Roger apoio, situação contratual não confirmada e zero controles; sem percentual indevido de conclusão.
+- DEFIS: dois endereços distintos e quatro referências. A expansão do recibo preserva V2 integral, linha 424, e DEFIS 2025, linha 25.
+- Outros documentos: dois endereços distintos (Reinf e IBGE), quatro referências. DITR separada, sem link identificado e sem inferência de dispensa.
+- Prévia DEFIS em coluna, empresa/CNPJ e link individual corretos; aviso de rascunho sem envio ao Teams/cópia ao OneDrive. Nenhum envio executado.
+- Entrada do CCI exibe busca vazia e ativação explícita, sem grade inicial de empresas.
+
+Evidências privadas em `cci-crm-qa-20261015/`: `cci-402-documentos-1200-remoto.png` e `cci-402-previa-defis-1200-remoto.png`, fora do Git.
+
+Achado de qualidade cadastral: a listagem administrativa geral mostrou três nomes genéricos (Empresa Servicos Ltda, Empresa Comercio Ltda, Empresa Industria Ltda), com identificadores sequenciais terminados em 1, 2 e 3. A origem e finalidade ainda precisam ser apuradas; nenhum cadastro foi excluído ou alterado. Não tratar a contagem de 986 entradas da carteira como total de clientes ativos homologados.
+
+Esta conferência encerra a pendência de leitura administrativa do agrupamento e da busca na versão atual. Não homologa usuário restrito, gravações, entrega de automações ou cópia de binários. Permanecem os critérios de corte acima; Jotform deve continuar disponível.

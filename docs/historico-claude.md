@@ -2004,3 +2004,7 @@ Busca por número exato priorizada com paginação estável; Meu dia inclui pró
 ## 2026-10-15 — CRM: segunda rodada de validação
 
 Main/produção 3.4.402, revisão 01167-hiw com 100% do tráfego, saúde/Firestore ok e assets CRM correspondentes. Reconciliação somente leitura: 7.928 registros, 419.095 campos, zero divergências contra snapshot 13/10; não cobre delta posterior Jotform. CI local: 257 aprovados, 2 pulados, 0 falhas; gate integral para no PDF Itaú ausente. Checklist sem credencial. Safari remoto atualizado mostrou 3.4.402 e voltou ao login (persistência NONE exigida pelo código/teste). Detalhes e pendências em docs/crm-homologacao-profissional.md. Sem alteração de dados de negócio ou código da aplicação.
+
+## 2026-10-15 — Piloto CRM 1200 autenticado na 3.4.402
+
+Safari remoto com usuário administrador: busca exata em primeiro lugar, equipe, ausência de controles, agrupamento DEFIS (2 links/4 referências), outros documentos (2/4), DITR separada e prévia sem envio conferidos. Evidências privadas em cci-crm-qa-20261015; detalhes em docs/crm-homologacao-profissional.md. Três cadastros genéricos com identificadores sequenciais vistos na lista geral: origem pendente, sem exclusão. Nenhuma alteração de código/dados nem novo deploy. Critérios de corte e teste com colaborador restrito continuam pendentes.
