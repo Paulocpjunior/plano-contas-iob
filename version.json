@@ -1,7 +1,8 @@
 {
-  "version": "3.4.407",
-  "build_date": "2026-10-15T14:17:06Z",
+  "version": "3.4.408",
+  "build_date": "2026-10-15T19:18:49Z",
   "release_notes": [
+    "CiA: assistente contábil com contexto da empresa e período, conferência dos lançamentos salvos e evidências de classificação incompleta, valores não identificados e possíveis repetições. Acesso restrito à carteira e consultas sem alteração dos registros.",
     "Dividendos: alteração societária por competência, com data contratual, motivo e histórico. Preserva meses anteriores e saldos individuais da ATA; mudanças em períodos já controlados permanecem protegidas.",
     "Importação FI/SAGE: prévia com cabeçalho azul forte, linhas alternadas e valores em destaque. Contraste corrigido nos temas claro e escuro, sem alteração da leitura ou gravação dos lançamentos.",
     "CRM: filtros combinados por período, situação e prazo na carteira; histórico de gestão no dossiê; busca e categorias nos documentos.",
