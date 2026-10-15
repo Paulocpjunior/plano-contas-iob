@@ -2022,3 +2022,8 @@ Implementada aplicação individual administrativa do Checklist: reconsulta inte
 Novo planejador offline de delta exige vínculo explícito quando muda o manifesto, preserva edições CCI e sinaliza conflitos sem escrita. Inventário privado da exportação 13/10: 4.316 combinações empresa/link, 10.839 referências, 53 combinações com identidade inválida; nenhum binário copiado. Ver docs/crm-base-jotform.md.
 
 Validação: check:ci 258 aprovados, 2 pulados por evidência externa, zero falhas. Gate local para no PDF Itaú externo ausente. Navegador fictício: revisão, motivo, confirmação e retorno de aplicação; celular 390×844. Evidências privadas cci-crm-qa-20261015/cci-403-checklist-ficticio.png e cci-403-checklist-celular-ficticio.png. Não equivale a homologação real. Jotform permanece disponível.
+
+
+## 15/10/2026 — CRM: filtros operacionais, histórico e documentos
+
+Implementados filtros operacionais combinados com paginação explícita, leitura do histórico de gestão no dossiê e busca/categorias documentais. Testes de autorização, revogação, limites e paginação; validação visual fictícia em desktop/celular. Sem gravação de dados reais ou envio externo. Detalhes e pendências em docs/crm-homologacao-profissional.md.

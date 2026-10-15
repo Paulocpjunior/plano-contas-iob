@@ -1,6 +1,6 @@
 'use strict';
 const core = require('./crm-contabil');
-const { compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao } = require('./crm-base');
+const { compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
@@ -67,8 +67,22 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       .sort((a,b)=>compararBusca(a,b,busca));
     const posicao=cursor?todas.findIndex(e=>e.cnpj===cursor):-1;
     if(cursor && posicao<0)throw core.erro('A carteira mudou. Atualize a busca antes de continuar.',409);
-    const restantes = todas.slice(posicao+1), empresas=restantes.slice(0,50);
-    res.json({ ok:true, empresas, equipes, total:todas.length, proximo:restantes.length>50 ? empresas[49].cnpj : null,
+    const restantes = todas.slice(posicao+1), lote=restantes.slice(0,50);
+    const operacional=Boolean(filtros.periodo || filtros.obrigacao || filtros.atraso);
+    const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(agora()));
+    let empresas=lote;
+    if (operacional) {
+      empresas=[];
+      // Lote limitado: filtros vazios nunca carregam obrigações. Todos os critérios
+      // devem corresponder ao mesmo controle, não a controles diferentes da empresa.
+      for (const e of lote) {
+        const snap=await db.collection('empresas').doc(e.cnpj).collection('crm_controles').orderBy('__name__').limit(1001).get();
+        if(snap.docs.length>1000)throw core.erro('Uma empresa excedeu o limite de conferência. Consulte os controles no dossiê; a busca não foi apresentada como completa.',409);
+        await contexto({...req,params:{cnpj:e.cnpj}});
+        if(snap.docs.some(d=>{const c=d.data();return (!filtros.periodo || String(c.periodo||'').startsWith(filtros.periodo)) && (!filtros.obrigacao || c.status===filtros.obrigacao) && (!filtros.atraso || prazoControle(c,hoje)===filtros.atraso);}))empresas.push(e);
+      }
+    }
+    res.json({ ok:true, empresas, equipes, total:operacional?null:todas.length, consultadas:posicao+1+lote.length,total_candidatas:todas.length,filtro_operacional:operacional, proximo:restantes.length>50 ? lote[49].cnpj : null,
       admin:user.is_admin, pode_editar:user.is_admin || podeAcao(user,'editar'), pode_concluir:user.is_admin || podeAcao(user,'fechar'), catalogo:core.CATALOGO });
   }));
   // Leitura operacional limitada por lote; nenhuma baixa ou distribuição automática.
@@ -106,6 +120,19 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const ctx = await contexto(req);
     res.json({ok:true,registros:registros.map(r=>({...r,contrato:contratoParametros(r)})),documentos:documentosEmpresa(registros),pode_editar:ctx.user.is_admin || podeAcao(ctx.user,'editar')});
   }));
+  app.get(base + '/historico', wrap(async(req,res)=>{
+    const ctx=await contexto(req);
+    const cursor=cursorId(req.query.cursor,/^[a-zA-Z0-9_-]{1,150}$/);
+    let query=ctx.ref.collection('auditoria_contabil').orderBy('__name__');
+    if(cursor)query=query.startAfter(cursor);
+    const snap=await query.limit(51).get();
+    const atual=await contexto(req);
+    if(atual.ref.path!==ctx.ref.path)throw core.erro('O cadastro mudou. Atualize o histórico.',409);
+    const docs=snap.docs.slice(0,50);
+    // Somente eventos do CRM, nunca outros dados da auditoria contábil.
+    res.json({ok:true,historico:docs.filter(d=>String(d.data().tipo||'').startsWith('CRM_')).map(d=>({id:d.id,...d.data()})),
+      proximo:snap.docs.length>50?docs[49].id:null,escopo:'Equipe, responsabilidade, recorrências e Checklist. Alterações de controles e parâmetros têm trilhas próprias.'});
+  }));
   app.patch(base + '/parametros/:id', wrap(async (req,res)=>{
     if (!/^[a-z0-9_-]{1,100}$/.test(req.params.id || '')) throw core.erro('Registro inválido. Atualize a página.');
     const registro = await db.runTransaction(async tx=>{
@@ -124,6 +151,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const ref=db.collection('crm_registros').doc(req.params.id), doc=await ref.get();
     if (!doc.exists || doc.data().cnpj!==req.params.cnpj) throw core.erro('Registro indisponível.',404);
     const snap=await ref.collection('historico').orderBy('revisao').get();
+    await contexto(req);
     res.json({ok:true,historico:snap.docs.map(d=>d.data())});
   }));
   app.get('/api/crm/base/pendencias',wrap(async(req,res)=>{
@@ -216,6 +244,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const cursor = cursorId(req.query.cursor, /^[1-9]\d{0,9}$/);
     if (cursor) q = q.startAfter(Number(cursor));
     const snap = await q.limit(51).get(), docs = snap.docs.slice(0, 50);
+    await contexto(req);
     res.json({ ok: true, historico: docs.map(d => d.data()), proximo: snap.docs.length > 50 ? String(docs[49].data().revisao) : null });
   }));
   require('./crm-planejamento-routes').registrarPlanejamento(app,{db,domain,wrap,usuario,contexto,admin,agora});

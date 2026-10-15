@@ -4,7 +4,7 @@ const { registrar } = require('../crm-contabil-routes');
 const { criarPermissoes, acaoDaRota } = require('../permissoes-cci');
 const { versaoCarteira } = require('../crm-contabil');
 const cnpj = '12345678901234', outro = '99999999999999';
-function ambiente(checklistFonte = null) {
+function ambiente(checklistFonte = null, onRead = null) {
   const routes={}, dados=new Map(); let auto=0, writes=0, checklistCalls=0, companyQueries=0;
   const empresa={razao_social:'Fixture',codigo_empresa:'0012',owner_uid:'legado',carteira_uids:['colab','indice-velho'],responsaveis:[{uid:'colab',papel:'principal'}]};
   dados.set('empresas/'+cnpj,empresa); dados.set('empresas/'+outro,{razao_social:'Outra',carteira_uids:[],responsaveis:[]});
@@ -16,7 +16,7 @@ function ambiente(checklistFonte = null) {
     return {doc:id=>ref(path+'/'+(id||'auto'+(++auto))),
       where:(key,op,val)=>collection(path,[...filters,[key,op,val]],order,after,limit),
       orderBy:key=>collection(path,filters,key,after,limit),startAfter:v=>collection(path,filters,order,v,limit),limit:n=>collection(path,filters,order,after,n),
-      get:async()=>{if(['empresas','crm_empresas'].includes(path))companyQueries++;return ({docs:[...dados.keys()].filter(k=>k.startsWith(path+'/') && k.slice(path.length+1).indexOf('/')<0)
+      get:async()=>{if(onRead)onRead(path,dados);if(['empresas','crm_empresas'].includes(path))companyQueries++;return ({docs:[...dados.keys()].filter(k=>k.startsWith(path+'/') && k.slice(path.length+1).indexOf('/')<0)
         .map(snap).filter(d=>filters.every(([key,op,val])=>op==='array-contains' ? d.data()[key]?.includes(val) : d.data()[key]===val))
         .sort((a,b)=>order==='__name__'?a.id.localeCompare(b.id):a.data()[order]-b.data()[order])
         .filter(d=>after===null || (order==='__name__'?d.id>after:d.data()[order]>after)).slice(0,limit)});}};
@@ -60,6 +60,39 @@ function ambiente(checklistFonte = null) {
   const conc=ambiente(async()=>fonte);conc.dados.get('empresas/'+cnpj).crm_contrato={revisao:4};
   assert.equal((await conc.call('POST','/api/crm/checklist/aplicar',evtBody,'admin')).statusCode,409);assert.equal(conc.writes(),0);
   const a=ambiente(), base='/api/crm/empresas/:cnpj';
+  const historicoEnv=ambiente();
+  for(let i=0;i<52;i++)historicoEnv.dados.set('empresas/'+cnpj+'/auditoria_contabil/'+String(i).padStart(3,'0'),{tipo:'CRM_CONTRATO',quando:'2026-10-13',motivo:'Conferido',por_uid:'admin'});
+  historicoEnv.dados.set('empresas/'+cnpj+'/auditoria_contabil/099',{tipo:'OUTRA_AUDITORIA',segredo:'fora do escopo'});
+  const h1=await historicoEnv.call('GET',base+'/historico');assert.equal(h1.body.historico.length,50);
+  const h2=await historicoEnv.call('GET',base+'/historico',{},'colab',{}, {cursor:h1.body.proximo});
+  assert.equal(h2.body.historico.length,2);assert.equal(h2.body.proximo,null);assert(!JSON.stringify(h2.body).includes('segredo'));
+  assert.equal((await historicoEnv.call('GET',base+'/historico',{},'legado')).statusCode,403);
+  assert.equal((await historicoEnv.call('GET',base+'/historico',{},'colab',{cnpj:outro})).statusCode,403);
+  assert.equal((await historicoEnv.call('GET',base+'/historico',{},'colab',{}, {cursor:'../outro'})).statusCode,400);
+  const revogadoHist=ambiente(null,(path,dados)=>{if(path.endsWith('/auditoria_contabil'))dados.get('empresas/'+cnpj).responsaveis=[];});
+  assert.equal((await revogadoHist.call('GET',base+'/historico')).statusCode,403,'revogação durante leitura impede entrega');
+  const revogadoFiltro=ambiente(null,(path,dados)=>{if(path.endsWith('/crm_controles'))dados.get('empresas/'+cnpj).responsaveis=[];});
+  assert.equal((await revogadoFiltro.call('GET','/api/crm/carteira',{},'colab',{}, {obrigacao:'pendente'})).statusCode,403);
+  let consultasControles=0;
+  const leve=ambiente(null,path=>{if(path.endsWith('/crm_controles'))consultasControles++;});
+  await leve.call('GET','/api/crm/carteira');assert.equal(consultasControles,0,'busca sem filtro operacional não lê controles');
+  const operacional=ambiente();
+  operacional.dados.set('empresas/'+cnpj+'/crm_controles/a',{periodo:'2026-10',status:'pendente',prazo:'2026-10-12'});
+  operacional.dados.set('empresas/'+cnpj+'/crm_controles/b',{periodo:'2026-09',status:'concluida',prazo:'2026-09-10'});
+  const f={periodo:'2026-10',obrigacao:'pendente',atraso:'atrasado',equipe:'colab'};
+  assert.equal((await operacional.call('GET','/api/crm/carteira',{},'colab',{},f)).body.empresas.length,1);
+  assert.equal((await operacional.call('GET','/api/crm/carteira',{},'colab',{}, {...f,obrigacao:'concluida'})).body.empresas.length,0,'critérios devem coincidir no mesmo controle');
+  assert.equal((await operacional.call('GET','/api/crm/carteira',{},'legado',{},f)).body.empresas.length,0);
+  const limite=ambiente();
+  for(let i=0;i<1001;i++)limite.dados.set('empresas/'+cnpj+'/crm_controles/'+i,{status:'pendente'});
+  assert.equal((await limite.call('GET','/api/crm/carteira',{},'colab',{}, {obrigacao:'pendente'})).statusCode,409,'limite nunca vira resultado completo');
+  const paginada=ambiente();
+  for(let i=1;i<=51;i++)paginada.dados.set('empresas/'+String(i).padStart(14,'0'),{razao_social:'Paginação',responsaveis:[]});
+  paginada.dados.set('empresas/00000000000051/crm_controles/a',{periodo:'2026-10',status:'pendente'});
+  const p1=await paginada.call('GET','/api/crm/carteira',{},'admin',{}, {obrigacao:'pendente'});
+  assert.equal(p1.body.empresas.length,0);assert(p1.body.proximo);assert.equal(p1.body.total,null);assert.equal(p1.body.consultadas,50);
+  const p2=await paginada.call('GET','/api/crm/carteira',{},'admin',{}, {obrigacao:'pendente',cursor:p1.body.proximo});
+  assert.equal(p2.body.empresas.length,1);assert.equal(p2.body.empresas[0].cnpj,'00000000000051');assert.equal(p2.body.proximo,null);
   const buscaEnv=ambiente();
   for(let n=0;n<55;n++)buscaEnv.dados.set('empresas/'+String(100+n).padStart(14,'0'),{razao_social:'Busca 1200',codigo_empresa:'55',responsaveis:[]});
   buscaEnv.dados.set('empresas/'+outro,{razao_social:'Piloto',codigo_empresa:'1200',responsaveis:[]});
