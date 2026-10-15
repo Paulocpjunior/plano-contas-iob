@@ -4,7 +4,7 @@ const { registrar } = require('../crm-contabil-routes');
 const { criarPermissoes, acaoDaRota } = require('../permissoes-cci');
 const { versaoCarteira } = require('../crm-contabil');
 const cnpj = '12345678901234', outro = '99999999999999';
-function ambiente() {
+function ambiente(checklistFonte = null) {
   const routes={}, dados=new Map(); let auto=0, writes=0, checklistCalls=0, companyQueries=0;
   const empresa={razao_social:'Fixture',codigo_empresa:'0012',owner_uid:'legado',carteira_uids:['colab','indice-velho'],responsaveis:[{uid:'colab',papel:'principal'}]};
   dados.set('empresas/'+cnpj,empresa); dados.set('empresas/'+outro,{razao_social:'Outra',carteira_uids:[],responsaveis:[]});
@@ -28,7 +28,7 @@ function ambiente() {
     const result=await fn(tx); pending.forEach(([p,d])=>{dados.set(p,structuredClone(d));writes++;});return result;
   }};
   const app=Object.fromEntries(['get','post','put','patch'].map(m=>[m,(p,fn)=>{routes[m.toUpperCase()+' '+p]=fn;}]));
-  registrar(app,{db,domain:'@fixture.test',agora:()=> '2026-10-13T18:00:00Z',checklist:async()=>{checklistCalls++;return {completo:false};}});
+  registrar(app,{db,domain:'@fixture.test',agora:()=> '2026-10-13T18:00:00Z',checklist:async()=>{checklistCalls++;return checklistFonte ? await checklistFonte(dados) : {completo:false};}});
   async function call(method,path,body={},uid='colab',params={},query={}) {
     const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.statusCode=n;return this;},json(d){this.body=d;return this;}};
     await routes[method+' '+path]({params:{cnpj,...params},query,body,user:{uid,is_admin:true}},res); // is_admin forjado deve ser ignorado.
@@ -37,6 +37,28 @@ function ambiente() {
   return {call,dados,writes:()=>writes,checklistCalls:()=>checklistCalls,companyQueries:()=>companyQueries};
 }
 (async()=>{
+  const ck=require('../crm-checklist');
+  const quest=Object.fromEntries(Object.values(ck.CAMPOS).map(([id,text])=>[id,{text}]));
+  const fonte={completo:true,assinatura:'a'.repeat(64),questions:quest,rows:[{id:'123',form_id:ck.FORM_ID,status:'ACTIVE',answers:{
+    '24':{answer:'Fixture'},'33':{answer:'0012'},'47':{answer:'CLIENTE NOVO'},'30':{answer:'2026-09-01'}
+  }}]};
+  const evtBody={submission_id:'123',assinatura:fonte.assinatura,confirmado:true,revisao_contrato:0,motivo:'Conferido com a origem'};
+  const ce=ambiente(async()=>fonte);
+  assert.equal((await ce.call('POST','/api/crm/checklist/aplicar',evtBody,'colab')).statusCode,403);assert.equal(ce.checklistCalls(),0);
+  assert.equal((await ce.call('POST','/api/crm/checklist/aplicar',{...evtBody,assinatura:'b'.repeat(64)},'admin')).statusCode,409);
+  assert.equal(ce.writes(),0);
+  let aplicado=await ce.call('POST','/api/crm/checklist/aplicar',evtBody,'admin');
+  assert.equal(aplicado.statusCode,200);assert.equal(aplicado.body.aplicado,true);assert.equal(ce.writes(),3);
+  assert.equal(ce.dados.get('empresas/'+cnpj).crm_contrato.inicio,'2026-09-01');
+  assert.deepEqual(ce.dados.get('empresas/'+cnpj).responsaveis,[{uid:'colab',papel:'principal'}]);
+  assert(![...ce.dados.keys()].some(p=>p.includes('/crm_controles/')));
+  aplicado=await ce.call('POST','/api/crm/checklist/aplicar',evtBody,'admin');assert.equal(aplicado.body.ja_aplicado,true);assert.equal(ce.writes(),3);
+  fonte.rows[0].answers['24'].answer='Alterado';
+  assert.equal((await ce.call('POST','/api/crm/checklist/aplicar',evtBody,'admin')).statusCode,409);assert.equal(ce.writes(),3);
+  const revogado=ambiente(async dados=>{dados.set('users/admin',{is_admin:false});return fonte;});
+  assert.equal((await revogado.call('POST','/api/crm/checklist/aplicar',evtBody,'admin')).statusCode,403);assert.equal(revogado.writes(),0);
+  const conc=ambiente(async()=>fonte);conc.dados.get('empresas/'+cnpj).crm_contrato={revisao:4};
+  assert.equal((await conc.call('POST','/api/crm/checklist/aplicar',evtBody,'admin')).statusCode,409);assert.equal(conc.writes(),0);
   const a=ambiente(), base='/api/crm/empresas/:cnpj';
   const buscaEnv=ambiente();
   for(let n=0;n<55;n++)buscaEnv.dados.set('empresas/'+String(100+n).padStart(14,'0'),{razao_social:'Busca 1200',codigo_empresa:'55',responsaveis:[]});

@@ -1,7 +1,8 @@
 {
-  "version": "3.4.402",
-  "build_date": "2026-10-14T17:48:20Z",
+  "version": "3.4.403",
+  "build_date": "2026-10-15T09:34:29Z",
   "release_notes": [
+    "CRM: aplicação individual conferida do Checklist com auditoria, proteção contra repetição e conflito; preparação do delta Jotform e inventário de links sem sobrescrever dados. Integração real depende da credencial.",
     "Retenções de serviços tomados: leitura de valores e totais com milhares no PDF SAGE, preservando IRRF, PIS e CSLL. Campos ausentes ou ambíguos bloqueiam a importação; divergências mostram imposto, soma das notas, total impresso e diferença.",
     "CRM: busca prioriza número exato, Meu dia mostra próximos 7 dias e lacunas de planejamento; documentos repetidos são agrupados por endereço e obrigação, preservando as referências. Prévia de mensagens e telas mais compactas, com suporte ao celular.",
     "CRM: documentos DITR e DEFIS separados por fonte, com cartões, ícones e prévias de mensagem próprias. Sem envio automático; links preservados e migração dos arquivos ainda em homologação.",

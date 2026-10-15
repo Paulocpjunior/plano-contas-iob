@@ -154,3 +154,11 @@ Evidências privadas em `cci-crm-qa-20261015/`: `cci-402-documentos-1200-remoto.
 Achado de qualidade cadastral: a listagem administrativa geral mostrou três nomes genéricos (Empresa Servicos Ltda, Empresa Comercio Ltda, Empresa Industria Ltda), com identificadores sequenciais terminados em 1, 2 e 3. A origem e finalidade ainda precisam ser apuradas; nenhum cadastro foi excluído ou alterado. Não tratar a contagem de 986 entradas da carteira como total de clientes ativos homologados.
 
 Esta conferência encerra a pendência de leitura administrativa do agrupamento e da busca na versão atual. Não homologa usuário restrito, gravações, entrega de automações ou cópia de binários. Permanecem os critérios de corte acima; Jotform deve continuar disponível.
+
+## 2026-10-15 — Implementação assistida 3.4.403
+
+Checklist agora tem revisão individual e aplicação de contrato com motivo, confirmação, verificação da assinatura da origem, concorrência e trilha idempotente. Implementação testada com dados fictícios; leitura/aplicação reais continuam dependentes da credencial. Não há sincronização automática, criação automática de empresas sem vínculo ou alteração de obrigações.
+
+Delta: planejador de comparação tripla e inventário de links implementados, sem escrita no banco. O snapshot novo, a identidade estável das submissões, a aplicação do delta e a cópia privada dos arquivos continuam pendentes. O inventário de 13/10 aponta 4.316 combinações empresa/link e 10.839 referências; não representa 4.316 arquivos comprovados.
+
+Qualidade: check:ci 258 aprovados, 2 pulados, zero falhas; gate local bloqueado pelo PDF Itaú externo. Revisão/aplicação fictícia conferida no navegador e apresentação no celular. Demais critérios de corte preservados.

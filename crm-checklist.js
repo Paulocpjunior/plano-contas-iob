@@ -96,4 +96,25 @@ async function carregarChecklist({ apiKey, fetchImpl = fetch, agora = () => new 
   if (first.length !== expected || second.length !== expected || quantidade(after) !== expected || assinatura(first) !== assinatura(second) || hash(questions) !== hash(questionsAfter)) throw erro('O Checklist mudou durante a leitura. Consulte novamente; nenhuma alteração foi aplicada.', 409);
   return { questions, rows: first, form_id: FORM_ID, lido_em: agora(), assinatura: assinatura(first), completo: true };
 }
-module.exports = { FORM_ID, CAMPOS, previaChecklist, carregarChecklist };
+// Aplicação individual explícita. Não cria empresa, carteira ou obrigação.
+function contratoDoEvento(evento, antes, body, hoje) {
+  const { contrato } = require('./crm-planejamento');
+  if (body.confirmado !== true) throw erro('Confirme a aplicação do evento conferido.');
+  if (!evento || evento.problemas.length || !evento.cnpj) throw erro('Resolva as pendências do Checklist antes de aplicar.', 409);
+  if (!['entrada','saida','baixa'].includes(evento.tipo)) throw erro('Revise este tipo de evento manualmente.', 409);
+  const existente = antes || {};
+  let inicio = evento.responsabilidade_inicio, fim = evento.responsabilidade_fim;
+  if (evento.tipo === 'entrada') {
+    if (existente.inicio || fim) throw erro('Entrada com contrato anterior ou fim informado exige revisão manual da vigência.', 409);
+  } else {
+    if (!existente.inicio || existente.situacao !== 'ativa' || existente.fim) throw erro('Confirme o contrato ativo antes de aplicar saída ou baixa.', 409);
+    if (inicio && inicio !== existente.inicio) throw erro('O início informado diverge do contrato. Confira a responsabilidade.', 409);
+    inicio = existente.inicio;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(hoje || '') || (evento.tipo === 'entrada' ? inicio : fim) > hoje) throw erro('Evento futuro exige agendamento; não aplique antes da vigência.', 409);
+  // Efeitos anteriores ao contrato corrente nunca são aplicados por aproximação.
+  if (fim && fim < inicio) throw erro('Evento anterior ao início do contrato; revise o histórico.', 409);
+  return contrato({ revisao:body.revisao_contrato, situacao: {entrada:'ativa',saida:'saida',baixa:'baixada'}[evento.tipo],
+    inicio, fim, motivo:body.motivo }, existente);
+}
+module.exports = { FORM_ID, CAMPOS, previaChecklist, carregarChecklist, contratoDoEvento };

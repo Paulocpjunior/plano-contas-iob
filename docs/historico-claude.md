@@ -2008,3 +2008,11 @@ Main/produção 3.4.402, revisão 01167-hiw com 100% do tráfego, saúde/Firesto
 ## 2026-10-15 — Piloto CRM 1200 autenticado na 3.4.402
 
 Safari remoto com usuário administrador: busca exata em primeiro lugar, equipe, ausência de controles, agrupamento DEFIS (2 links/4 referências), outros documentos (2/4), DITR separada e prévia sem envio conferidos. Evidências privadas em cci-crm-qa-20261015; detalhes em docs/crm-homologacao-profissional.md. Três cadastros genéricos com identificadores sequenciais vistos na lista geral: origem pendente, sem exclusão. Nenhuma alteração de código/dados nem novo deploy. Critérios de corte e teste com colaborador restrito continuam pendentes.
+
+## 2026-10-15 — CRM 3.4.403: Checklist assistido e preparação do delta
+
+Implementada aplicação individual administrativa do Checklist: reconsulta integral com assinatura, revisão do contrato, confirmação/motivo, transação com auditoria e idempotência global por submissão. Preserva carteira, controles e lançamentos; bloqueia origem alterada, eventos ambíguos/futuros, retorno com contrato anterior e saída sem contrato ativo. Credencial de produção ainda ausente; nenhuma aplicação real executada. Não foram criados segredos ou ampliadas permissões.
+
+Novo planejador offline de delta exige vínculo explícito quando muda o manifesto, preserva edições CCI e sinaliza conflitos sem escrita. Inventário privado da exportação 13/10: 4.316 combinações empresa/link, 10.839 referências, 53 combinações com identidade inválida; nenhum binário copiado. Ver docs/crm-base-jotform.md.
+
+Validação: check:ci 258 aprovados, 2 pulados por evidência externa, zero falhas. Gate local para no PDF Itaú externo ausente. Navegador fictício: revisão, motivo, confirmação e retorno de aplicação; celular 390×844. Evidências privadas cci-crm-qa-20261015/cci-403-checklist-ficticio.png e cci-403-checklist-celular-ficticio.png. Não equivale a homologação real. Jotform permanece disponível.
