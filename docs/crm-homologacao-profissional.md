@@ -125,3 +125,15 @@ A leitura autenticada anterior é a base, não uma nova homologação: Josilaine
 | Evidência de conclusão | Definir recibo/documento e conferir o exercício |
 
 Somente depois dessas confirmações gerar e conferir a prévia das recorrências. Esta entrega não grava controles do piloto, não envia mensagens e não habilita automações. Critérios de corte anteriores permanecem pendentes.
+
+## 2026-10-15 — Segunda rodada de validação
+
+Produção reconferida na versão 3.4.402, main `282e15b` (correção SAGE posterior ao CRM 3.4.401), revisão `plano-contas-iob-01167-hiw` com 100% do tráfego. Saúde ok e Firestore conectado; JavaScript e CSS do CRM servidos correspondem aos arquivos da main. Rotas de contexto, carteira e parâmetros do piloto retornam 401 sem autenticação; backend e script de conferência retornam 404 como assets públicos. Isso não substitui teste de isolamento com colaborador real.
+
+Nova leitura transacional do Firestore comparou o payload privado de 13/10: 7.928 registros, 419.095 campos, zero divergências e zero campos editados no CCI detectados pelo comparador. Relatório privado `cci-crm-migracao-20261013/reconciliacao-20261015.json`. A preservação do snapshot está comprovada nesta data; mudanças posteriores no Jotform não estão cobertas.
+
+`npm run check:ci`: 257 aprovados, 2 pulados por evidência externa ausente, zero falhas. `npm run check`: parou novamente no PDF de regressão Itaú ausente. Nenhuma alteração de código ou dados de negócio nesta rodada.
+
+A variável `CCI_CHECKLIST_API_KEY` continua ausente no serviço (verificado apenas nome/presença). Critérios de corte continuam pendentes: credencial e leitura completa do Checklist; delta atual da origem; fórmulas e automações restantes; cópia privada dos binários com hashes; teste com colaborador restrito; regras reais de recorrência; restauração isolada. Não desativar o Jotform.
+
+No Safari remoto, a aba ainda estava na interface anterior ao agrupamento; após recarga, exibiu o aviso e rodapé 3.4.402 e voltou ao login. A causa do retorno ao login está explícita no código (`Auth.Persistence.NONE`) e protegida por `test-memoria-cobranca-login.js`; não foi alterada nesta rodada. O acesso visual autenticado depende de nova entrada. A prova pública de versão não equivale à homologação do piloto.
