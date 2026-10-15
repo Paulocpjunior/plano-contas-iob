@@ -1068,6 +1068,11 @@
     return await r.json();
   }
 
+  async function reinfDividendosAlterarSocietario(cnpj, dados) {
+    const r = await apiFetch(API_BASE + '/api/reinf/dividendos/empresa/' + cnpj.replace(/\D/g, '') + '/societario', { method: 'POST', body: JSON.stringify(dados) });
+    return r.json();
+  }
+
   async function reinfDividendosSalvarCadastro(cnpj, dados) {
     const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
     const r = await apiFetch(API_BASE + '/api/reinf/dividendos/empresa/' + cnpjLimpo, {
@@ -1107,7 +1112,7 @@
     reinfRetencaoPjRecibo,
     reinfServicosPrestados,
     reinfServicoPrestadoTomador,
-    reinfServicosPrestadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar, reinfDividendosExtrato, reinfDividendosMensal, reinfDividendosSalvarMes };
+    reinfServicosPrestadosTransmitir, reinfFechamento2000, reinfFechamento2000Transmitir, reinfResponsavel, reinfPreferenciasRetencao, reinfSalvarPreferenciasRetencao, reinfCertificado, reinfCertificadoConferencia, reinfSalvarCertificado, reinfGerarR1000, reinfGerarR4010, reinfSalvarReciboR4010, reinfAplicarAcumuloIrrf, reinfGerarR4099, reinfTransmitir, reinfTransmitirAquisicaoRural, reinfGatewayTeste, reinfConsultarLote, reinfAplicacoesCadastro, reinfAplicacoesSalvarCadastro, reinfAplicacoesRegistrar, reinfAplicacoesSolicitar, reinfDividendosStatusMicrosoft365, reinfDividendosAlterarSocietario, reinfDividendosCadastro, reinfDividendosSalvarCadastro, reinfDividendosCalcular, reinfDividendosRegistrar, reinfDividendosSolicitar, reinfDividendosExtrato, reinfDividendosMensal, reinfDividendosSalvarMes };
   window.API.getAdminProgressaoContabil = getAdminProgressaoContabil;
   window.API.getMinhasPendenciasContabeis = getMinhasPendenciasContabeis;
   window.API.salvarAdminAcompanhamentoContabil = salvarAdminAcompanhamentoContabil;

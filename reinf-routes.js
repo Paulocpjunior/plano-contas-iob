@@ -6,6 +6,7 @@
 const express = require('express');
 const SaldoAta = require('./reinf/dividendos-saldo-ata');
 const DividendosHistorico = require('./reinf/dividendos-historico');
+const DividendosSocietario = require('./reinf/dividendos-societario');
 // FieldValue.delete() — remover a base informada de UMA nota sem tocar nas outras.
 const { FieldValue } = require('@google-cloud/firestore');
 const {
@@ -921,6 +922,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         ataAprovadaAte2025: div.ataAprovadaAte2025 === true,
         ataValidaAte2028: div.ataValidaAte2028 !== false,
         socios: Array.isArray(div.socios) ? div.socios : [],
+        societarioVersoes: div.societarioVersoes || [],
       });
     } catch (err) {
       respostaErro(res, 400, err);
@@ -966,14 +968,19 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         const snap = await tx.get(ref);
         const anterior = (snap.data() || {}).reinfDividendos || {};
         if (Number(body.ataRevisao || 0) !== Number(anterior.ataRevisao || 0)) throw Error('O saldo da ATA foi atualizado. Carregue novamente o cadastro antes de salvar.');
+        const [meses, aceites, posicoes] = await Promise.all(['reinf_dividendos_meses','reinf_dividendos_confirmados','reinf_ata_posicoes'].map(n => tx.get(ref.collection(n))));
         const temMovimentos=anterior.ataControleReinf || (await tx.get(ref.collection('reinf_ata_movimentos').limit(1))).size>0;
-        if(temMovimentos && (update.reinfDividendos.ataSaldoCentavos!==anterior.ataSaldoCentavos || socios.length!==(anterior.socios||[]).length || socios.some(s=>s.ataSaldoCentavos!==(anterior.socios||[]).find(a=>a.cpf===s.cpf)?.ataSaldoCentavos))) throw Error('O saldo já é controlado pelos aceites da Reinf. Não substitua a posição online por saldos de outro mês.');
+        const quadroProtegido = temMovimentos || anterior.societarioVersoes?.length || meses.size || aceites.size || posicoes.size || anterior.ataControleReinf;
+        if (quadroProtegido && !DividendosSocietario.mesmoQuadro(anterior.socios, socios)) throw Error('Há histórico controlado. Use Registrar alteração societária e informe a competência inicial; os meses anteriores serão preservados.');
+        if((temMovimentos || anterior.societarioVersoes?.length) && (update.reinfDividendos.ataSaldoCentavos!==anterior.ataSaldoCentavos || socios.length!==(anterior.socios||[]).length || socios.some(s=>s.ataSaldoCentavos!==(anterior.socios||[]).find(a=>a.cpf===s.cpf)?.ataSaldoCentavos))) throw Error('O saldo já é controlado pelos aceites da Reinf. Não substitua a posição online por saldos de outro mês.');
+        if (anterior.societarioVersoes?.length && ['ataValorTotalCentavos','ataAprovadaAte2025','ataValidaAte2028'].some(k => update.reinfDividendos[k] !== anterior[k])) throw Error('Há quadro societário versionado. Os parâmetros da ATA devem ser conciliados sem sobrescrever o histórico.');
         update.reinfDividendos.ataControleReinf=temMovimentos;
         const individual = socios.some(s => s.ataSaldoCentavos != null);
         if (individual && (socios.some(s => !Number.isSafeInteger(s.ataSaldoCentavos) || s.ataSaldoCentavos < 0) || socios.reduce((a,s)=>a+s.ataSaldoCentavos,0) !== update.reinfDividendos.ataSaldoCentavos)) throw Error('Informe os saldos de todos os sócios; a soma deve coincidir com o saldo disponível da ATA.');
         if (anterior.controleAtaIndividual && !individual) throw Error('Mantenha o controle individual de saldo da ATA.');
         update.reinfDividendos.controleAtaIndividual = individual;
         update.reinfDividendos.ataRevisao = Number(anterior.ataRevisao || 0) + 1;
+        update.reinfDividendos = { ...anterior, ...update.reinfDividendos };
         tx.set(ref, update, {merge:true});
         return update.reinfDividendos.ataRevisao;
       });
@@ -982,6 +989,31 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     } catch (err) {
       respostaErro(res, 400, err);
     }
+  });
+
+  router.post('/dividendos/empresa/:cnpj/societario', adminReinfCadastroRequired, async (req, res) => {
+    try {
+      const cnpj = limparCnpj(req.params.cnpj);
+      if (cnpj.length !== 14) throw Error('CNPJ inválido.');
+      const ref = db.collection('empresas').doc(cnpj), body = req.body || {};
+      const ataRevisao = await db.runTransaction(async tx => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) throw Error('Empresa não encontrada.');
+        const nomes = ['reinf_dividendos_meses','reinf_dividendos_confirmados','reinf_ata_posicoes','reinf_ata_movimentos'];
+        const consultas = await Promise.all(nomes.map(n => tx.get(ref.collection(n))));
+        const controles = consultas.flatMap((q,i) => q.docs.map(d => ({ competencia: i === 0 ? d.id : d.data().perApur })));
+        const anterior = snap.data().reinfDividendos || {};
+        const novo = DividendosSocietario.prepararAlteracao(anterior, body, controles, req.user, new Date().toISOString());
+        tx.set(ref, { reinfDividendos: novo }, { merge: true });
+        tx.create(ref.collection('reinf_societario_alteracoes').doc(String(novo.ataRevisao)), {
+          antes: anterior.socios || [], depois: novo.socios, competenciaInicio: body.competenciaInicio,
+          dataContrato: body.dataContrato, motivo: String(body.motivo).trim(), porUid: req.user.uid,
+          registradoEm: novo.atualizado_em, ataRevisao: novo.ataRevisao,
+        });
+        return novo.ataRevisao;
+      });
+      res.json({ ok: true, cnpj, ataRevisao, competenciaInicio: body.competenciaInicio });
+    } catch (err) { respostaErro(res, 400, err); }
   });
 
   router.post('/dividendos/calcular', async (req, res) => {
@@ -993,7 +1025,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         const snap = await db.collection('empresas').doc(cnpj).get();
         cadastro = snap.exists ? ((snap.data() || {}).reinfDividendos || {}) : {};
       }
-      if(body.controleMensal===true){
+      if(body.controleMensal===true || cadastro.societarioVersoes?.length){
         const contexto=await DividendosHistorico.carregar(db.collection('empresas').doc(cnpj),cadastro,body.competencia);
         Object.assign(body,DividendosHistorico.dadosConferidos(body,cadastro,contexto));
       }
