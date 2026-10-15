@@ -126,3 +126,18 @@ A leitura autorizada de parâmetros passa a devolver referências documentais po
 Cada referência classificada tem uma prévia de mensagem própria com obrigação, empresa, CNPJ e seu link. A DITR não inclui saldo/balanço nem documento de DEFIS. A prévia não envia ao Teams, não copia para OneDrive/Storage, não registra entrega e não conclui obrigação. Exercício, destinatário e conteúdo do arquivo ainda precisam de conferência; nenhum ano é inferido do nome da aba. Não representa homologação do envio ou migração dos binários.
 
 Testes de domínio verificam isolamento DITR/DEFIS, fontes ambíguas, múltiplos links, URLs inválidas e preservação dos registros. Teste da rota verifica carteira, ausência de vazamento a usuário sem acesso e ausência de gravação. Navegador com dados fictícios confirmou as categorias e a prévia DITR, sem chamada de envio; 390 px sem transbordamento horizontal, temas claro e escuro, contraste corrigido dos links. Evidências ficam privadas fora do Git.
+
+## Exclusão aprovada do escopo — 15/10/2026
+
+Paulo determinou desconsiderar a coluna **Saldo a Distribuir 2028** e esclareceu: **“só da migração”**. A coluna original do Jotform deve permanecer intacta.
+
+A consulta autenticada do Tables identificou essa coluna como **Coluna de IA Personalizada (Beta)**, com o prompt `SALDO A DISTRIBUIR ATÉ 2028 - VALOR DISTRIBUÍDO MENSAL = SALDO RESIDUAL` e inclusão automática de novos envios ativada. A configuração foi fechada sem gerar visualização nem aplicar alterações. Captura e registro da consulta estão no diretório privado de QA de 15/10.
+
+Decisão de migração:
+- Não reproduzir a coluna de IA, seu prompt ou sua execução no CCI.
+- Não exigir equivalência dessa coluna como condição de corte do Jotform.
+- Não usar seus resultados para recalcular saldos, gerar obrigações ou tomar decisões automáticas.
+- Preservar snapshots e valores históricos já capturados como evidência da origem; esta decisão não autoriza apagar registros importados.
+- Não confundir esta exclusão com os campos distintos **SALDO A DISTRIBUIR ATÉ 2028**, **VALOR DISTRIBUÍDO MENSAL**, **SALDO RESIDUAL** ou **SALDO JANEIRO 2026**. Eles continuam no escopo de preservação.
+
+A exclusão é específica dessa coluna; as demais fórmulas, ações e critérios de homologação permanecem pendentes conforme seus inventários.

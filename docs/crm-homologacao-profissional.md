@@ -162,3 +162,7 @@ Checklist agora tem revisão individual e aplicação de contrato com motivo, co
 Delta: planejador de comparação tripla e inventário de links implementados, sem escrita no banco. O snapshot novo, a identidade estável das submissões, a aplicação do delta e a cópia privada dos arquivos continuam pendentes. O inventário de 13/10 aponta 4.316 combinações empresa/link e 10.839 referências; não representa 4.316 arquivos comprovados.
 
 Qualidade: check:ci 258 aprovados, 2 pulados, zero falhas; gate local bloqueado pelo PDF Itaú externo. Revisão/aplicação fictícia conferida no navegador e apresentação no celular. Demais critérios de corte preservados.
+
+## Ajuste de escopo aprovado — 15/10/2026
+
+A coluna de IA **Saldo a Distribuir 2028** está excluída da migração e da exigência de equivalência, por determinação de Paulo (“só da migração”). Manter a coluna no Jotform original e preservar os snapshots históricos. Não usar seus resultados em cálculos ou automações do CCI. A exclusão não se aplica aos campos numéricos de saldo e distribuição com nomes semelhantes. Contrato detalhado: `docs/crm-contrato-origem-20261014.md`, seção “Exclusão aprovada do escopo”.
