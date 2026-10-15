@@ -166,3 +166,9 @@ Qualidade: check:ci 258 aprovados, 2 pulados, zero falhas; gate local bloqueado 
 ## Ajuste de escopo aprovado — 15/10/2026
 
 A coluna de IA **Saldo a Distribuir 2028** está excluída da migração e da exigência de equivalência, por determinação de Paulo (“só da migração”). Manter a coluna no Jotform original e preservar os snapshots históricos. Não usar seus resultados em cálculos ou automações do CCI. A exclusão não se aplica aos campos numéricos de saldo e distribuição com nomes semelhantes. Contrato detalhado: `docs/crm-contrato-origem-20261014.md`, seção “Exclusão aprovada do escopo”.
+
+### Proteção no planejador de delta
+
+O planejador offline registra explicitamente os índices da coluna de IA excluída e não propõe atualizar seus valores. A comparação exige o nome exato no campo e no cabeçalho; `SALDO A DISTRIBUIR ATÉ 2028` permanece na comparação. Auditoria de integridade histórica, estrutura e identidade continuam obrigatórias, inclusive para registros que contêm a coluna excluída. Nenhum snapshot é modificado.
+
+Execução sobre o snapshot de 13/10: 7.928 registros comparados consigo mesmos, todos inalterados, com 5.621 ocorrências da coluna de IA explicitamente excluídas. É validação do planejador sobre evidência histórica, não delta atualizado nem aplicação no Firestore. Relatório privado: `cci-crm-qa-20261015/delta-exclusao-ia.json`. Testes cobrem alteração exclusiva na IA, preservação do saldo numérico zero, imutabilidade das entradas, histórico corrompido e identidade não comprovada.

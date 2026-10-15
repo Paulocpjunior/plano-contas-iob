@@ -39,6 +39,28 @@ const removida=clone(n); removida.fontes[0].id='outra'; removida.registros[0].fo
 const ausencia=planejar(p,removida,c);
 assert.equal(ausencia.totais.origem_anterior_sem_vinculo_preservar,1);
 assert.equal(ausencia.aplicacao_automatica,false);
+// A coluna de IA não gera proposta; saldos numéricos semelhantes continuam conferidos.
+const ia = clone(p);
+ia.fontes[0].cabecalhos = ['Saldo a Distribuir 2028', 'SALDO A DISTRIBUIR ATÉ 2028'];
+ia.registros[0].campos = ia.fontes[0].cabecalhos.map(nome => ({nome, original: 10, valor: 10}));
+const iaNova = clone(ia);
+iaNova.registros[0].campos[0].original = 99;
+iaNova.registros[0].campos[0].valor = 99;
+const intactos = JSON.stringify([ia, iaNova]);
+let planoIA = planejar(ia, iaNova, ia.registros);
+assert.equal(planoIA.totais.inalterado, 1);
+assert.deepEqual(planoIA.itens[0].colunas_excluidas, [0]);
+assert.deepEqual(planoIA.itens[0].campos, []);
+assert.equal(JSON.stringify([ia, iaNova]), intactos);
+iaNova.registros[0].campos[1].original = 0;
+iaNova.registros[0].campos[1].valor = 0;
+planoIA = planejar(ia, iaNova, ia.registros);
+assert.deepEqual(planoIA.itens[0].campos, [{coluna:1, estado:'mudanca_origem_a_conferir'}]);
+// Exclusão não enfraquece auditoria do histórico nem permite identidade implícita.
+const iaCorrompida = clone(ia.registros); iaCorrompida[0].campos[0].original = 5;
+assert.throws(() => planejar(ia, iaNova, iaCorrompida));
+const iaOutraFonte = clone(iaNova); iaOutraFonte.fontes[0].sha256 = 'outro'; iaOutraFonte.registros[0].origem_sha256 = 'outro';
+assert.equal(planejar(ia, iaOutraFonte, ia.registros).totais.identidade_a_confirmar, 1);
 const docs=clone(p); docs.registros.push({...clone(p.registros[0]),id:'segunda',linha:3}); docs.fontes[0].registros=2;
 let inv=inventariar(docs); assert.equal(inv.arquivos.length,1); assert.equal(inv.arquivos[0].referencias.length,2);
 assert.equal(inv.arquivos[0].referencias[0].obrigacao,'DEFIS');
