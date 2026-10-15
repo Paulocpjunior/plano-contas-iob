@@ -2027,3 +2027,8 @@ Validação: check:ci 258 aprovados, 2 pulados por evidência externa, zero falh
 ## 15/10/2026 — CRM: filtros operacionais, histórico e documentos
 
 Implementados filtros operacionais combinados com paginação explícita, leitura do histórico de gestão no dossiê e busca/categorias documentais. Testes de autorização, revogação, limites e paginação; validação visual fictícia em desktop/celular. Sem gravação de dados reais ou envio externo. Detalhes e pendências em docs/crm-homologacao-profissional.md.
+
+
+## 2026-10-15 — Contraste da prévia FI (3.4.406)
+
+Corrigida mistura de fundo branco do modal com texto claro herdado do modo escuro. Estilos concentrados em tema-apple.css, escopo importacaoFIDialog, com cabeçalho azul, linhas alternadas, valores destacados e foco visível. Prévia visual conferida nos dois temas na sessão autorizada, sem importar lançamentos. Publicação autorizada pelo usuário.
