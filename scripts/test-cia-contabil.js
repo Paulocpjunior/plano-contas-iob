@@ -2,6 +2,13 @@
 const assert = require('node:assert/strict');
 const { analisar, centavos } = require('../cia-contabil');
 const { criarHandler } = require('../cia-contabil-routes');
+const { acaoDaRota, protegerAcoes, criarPermissoes } = require('../permissoes-cci');
+assert.equal(acaoDaRota('POST', '/api/cia/perguntar'), null);
+assert.equal(acaoDaRota('POST', '/api/cia/alterar'), 'operar', 'a exceção não libera outras rotas');
+let consultaLiberada = false;
+protegerAcoes({ method: 'POST', originalUrl: '/api/cia/perguntar', user: { permissoesCci: criarPermissoes('consulta') } }, { status() { throw new Error('Consulta bloqueada'); } }, () => { consultaLiberada = true; });
+assert.equal(consultaLiberada, true, 'colaborador de consulta chega à validação da carteira');
+
 const e = { id: 'a', data: '15/10/2026', valor: 125.99, contaDebito: '1', contaCredito: '2', descricao: 'Compra' };
 const state = { entries: [e, { ...e, id: 'b' }, { ...e, data: '2026-09-15' }, { data: '2026-10-16', valor: null }, { data: '31/02/2026', valor: 10 }] };
 const antes = JSON.stringify(state);
