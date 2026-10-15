@@ -6288,6 +6288,22 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
   }
 });
 
+// Topologia do departamento: abre o organograma para administradores sem novo login.
+const topologiaSso = require('./topologia-sso');
+app.get('/api/admin/topologia/passe', adminRequired, (req, res) => {
+  const segredo = process.env.TOPOLOGIA_SSO_SECRET || '';
+  const base = process.env.TOPOLOGIA_URL || '';
+  if (!segredo || !base) {
+    return res.status(503).json({ erro: 'Integração com a Topologia não configurada. Peça ao administrador para definir TOPOLOGIA_URL e TOPOLOGIA_SSO_SECRET no serviço.' });
+  }
+  try {
+    const passe = topologiaSso.gerarPasse({ email: req.user.email, nome: req.user.name, segredo });
+    res.json({ url: topologiaSso.montarUrl(base, passe) });
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message });
+  }
+});
+
 // Rota da pagina admin
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));

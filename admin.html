@@ -295,6 +295,7 @@
     <button onclick="showTab('qualidade')">✅ Qualidade de Layouts</button>
     <button onclick="showTab('exclusao', this)">🗑️ Exclusão de Lançamentos</button>
     <button onclick="showTab('usuarios')">👥 Usuários</button>
+    <button onclick="showTab('topologia', this)">🧭 Topologia</button>
     <button onclick="showTab('backups', this)">💾 Backup / Restore</button>
     <button onclick="showTab('servidor', this)">🖥️ Servidor BETA</button>
     <button onclick="showTab('logs')">📜 Log de Acesso</button>
@@ -570,6 +571,13 @@
     </div>
   </div>
 
+  <div id="tab-topologia" class="tab-content">
+    <div class="card"><h2>Topologia do departamento</h2>
+      <p id="topologia-status" role="status">Abra esta aba para carregar o organograma.</p>
+      <iframe id="topologia-frame" title="Topologia do departamento contábil" hidden style="width:100%;height:80vh;border:0;border-radius:12px"></iframe>
+    </div>
+  </div>
+
   <div id="tab-logs" class="tab-content">
     <div class="card">
       <div class="filters">
@@ -717,6 +725,25 @@ function showTab(tab, sourceButton) {
   if (tab === 'qualidade') loadLayoutQuality();
   if (tab === 'exclusao') loadExclusaoEmpresas();
   if (tab === 'progressao') loadProgressaoContabil(true);
+  if (tab === 'topologia') carregarTopologia();
+}
+
+async function carregarTopologia() {
+  const status = document.getElementById('topologia-status');
+  const frame = document.getElementById('topologia-frame');
+  if (frame.dataset.carregado === '1') return;
+  status.textContent = 'Abrindo a Topologia...';
+  try {
+    const r = await window.API.apiFetch('/api/admin/topologia/passe');
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.erro || ('HTTP ' + r.status));
+    frame.src = data.url;
+    frame.hidden = false;
+    frame.dataset.carregado = '1';
+    status.textContent = 'Acesso como gestor. As alterações ficam registradas no histórico da Topologia.';
+  } catch (erro) {
+    status.textContent = erro.message + ' Para tentar de novo, saia e volte para esta aba.';
+  }
 }
 
 function escapeHtml(v) {
