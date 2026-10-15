@@ -2000,3 +2000,7 @@ Safari remoto autenticado: piloto 1200 com responsável e apoio preservados, dos
 ## 2026-10-14 — CRM: busca exata, rotina e documentos (3.4.401)
 
 Busca por número exato priorizada com paginação estável; Meu dia inclui próximos sete dias e lacunas de planejamento; documentos agrupados por URL/categoria preservam fontes, com prévia compacta e celular. Testes de busca/paginação/permissões e QA fictícia claro/escuro. `check:ci`: 254 aprovados, 3 pulados, 0 falhas; gate local bloqueado pelo PDF Itaú externo ausente. Preparação do piloto 1200 e limites da homologação em `docs/crm-homologacao-profissional.md`. Sem alteração de dados operacionais ou envio.
+
+## 2026-10-15 — CRM: segunda rodada de validação
+
+Main/produção 3.4.402, revisão 01167-hiw com 100% do tráfego, saúde/Firestore ok e assets CRM correspondentes. Reconciliação somente leitura: 7.928 registros, 419.095 campos, zero divergências contra snapshot 13/10; não cobre delta posterior Jotform. CI local: 257 aprovados, 2 pulados, 0 falhas; gate integral para no PDF Itaú ausente. Checklist sem credencial. Safari remoto atualizado mostrou 3.4.402 e voltou ao login (persistência NONE exigida pelo código/teste). Detalhes e pendências em docs/crm-homologacao-profissional.md. Sem alteração de dados de negócio ou código da aplicação.
