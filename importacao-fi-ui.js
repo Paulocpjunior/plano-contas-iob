@@ -7,8 +7,7 @@
     if (!inicial.confirmada || !/^\d{14}$/.test(inicial.cnpj) || inicial.pendente) return ctx.aviso('Ative e confirme a empresa e aguarde o salvamento antes de importar FI.');
     const dialog = document.createElement('dialog');
     dialog.id = 'importacaoFIDialog';
-    dialog.style.cssText = 'width:min(1100px,94vw);max-height:90vh;overflow:auto;padding:24px;border-radius:14px;background:var(--bg-card,#fff);color:var(--text-primary,#1c1c1e)';
-    dialog.innerHTML = `<style>#importacaoFIDialog button {padding:10px 14px;border:1px solid var(--border-color,#d2d2d7);border-radius:8px;background:var(--bg-secondary,#f5f5f7);color:inherit;cursor:pointer} #importacaoFIDialog button:disabled {opacity:.5;cursor:default} #importacaoFIDialog table {border-collapse:collapse;width:100%} #importacaoFIDialog th,#importacaoFIDialog td {padding:8px;text-align:left;border-bottom:1px solid var(--border-color,#d2d2d7)} #importacaoFIDialog td:nth-child(2),#importacaoFIDialog td:nth-child(5) {white-space:nowrap}</style><h2>Importar FI IOB/SAGE</h2><p>${esc(inicial.nome)} — CNPJ ${esc(inicial.cnpj)}</p>
+    dialog.innerHTML = `<h2>Importar FI IOB/SAGE</h2><p>${esc(inicial.nome)} — CNPJ ${esc(inicial.cnpj)}</p>
       <p>Arquivo financeiro de 328 posições, Windows-1252. Disponível para todas as empresas. O FI não contém CNPJ: confira a origem e o plano da empresa selecionada.</p>
       <label>Arquivo FI <input type="file" data-arquivo></label> <button type="button" data-ler>Conferir arquivo</button>
       <p data-status role="status" aria-live="polite"></p><div data-previa></div>
