@@ -28,6 +28,47 @@ function money(n) {
 }
 
 (async () => {
+  // Coluna C.I. vazia não pode consumir a série nem unificar notas diferentes.
+  const pdfjsOriginal = global.pdfjsLib;
+  try {
+    for (const rotate of [0, 90, 270]) {
+      const item = (str, x, y) => ({str, transform: rotate === 90 ? [1,0,0,1,-y,x] : rotate === 270 ? [1,0,0,1,y,-x] : [1,0,0,1,x,y]});
+      const items = [
+        item('Empresa: 0188 - TESTE', 0, 600), item('C.N.P.J.: 00.621.930/0001-62', 0, 580),
+        item('Relação de NFs de Serviços Tomados', 0, 560),
+        item('Emissão',0,540), item('Número',60,540), item('Série',143,540), item('C.I',192,540), item('CNPJ/CPF',234,540)
+      ];
+      const row = (y, serie, ci, cpf, valor) => {
+        items.push(item('01/06/2026',0,y),item('0000077744',60,y));
+        if (serie) items.push(item(serie,143,y));
+        if (ci) items.push(item(ci,192,y));
+        items.push(item(cpf,211,y),item('PRESTADOR',320,y),item(valor,500,y),item('0,00',600,y));
+      };
+      row(520,'3','','00.618.488/0001-15','64,00');
+      row(500,'00003','','00.618.488/0001-15','64,00');
+      row(480,'','001','010.424.609-06','27,56');
+      items.push(item('Total 155,56 0,00 0,00',0,460));
+      global.pdfjsLib = {getDocument: () => ({promise: Promise.resolve({numPages:1,getPage:async()=>({rotate,getTextContent:async()=>({items})})})})};
+      const r = await parsearPDF_IOB_Sage_ServicosTomados(new Uint8Array([1]));
+      assert.equal(r.total_divergente,false, 'total deve conferir com rotação ' + rotate);
+      assert.equal(r.lancamentos.length,3);
+      assert.deepStrictEqual(r.lancamentos.map(l=>l.serieSubserie),['3','00003','']);
+      assert.deepStrictEqual(r.lancamentos.map(l=>l.codigoIntegracao),['','','001']);
+      assert.equal(r.lancamentos[2].tipo_documento_fornecedor,'CPF');
+    }
+  } finally {global.pdfjsLib = pdfjsOriginal;}
+  const federacaoPdf = '/Users/paulocesarpereirajunior/Downloads/SERVIÇOS TOMADOS FEDERAÇÃO (1).pdf';
+  if (fs.existsSync(federacaoPdf)) {
+    const r = await parsearPDF_IOB_Sage_ServicosTomados(fs.readFileSync(federacaoPdf));
+    assert.equal(r.total_divergente,false);
+    assert.equal(money(r.total_debito),6133272.12);
+    assert.equal(r.total_notas_fiscais,822);
+    assert.equal(r.lancamentos.filter(l=>l.tipo_documento_fornecedor==='CPF').length,2);
+    for (const [documento, series] of [['77744',['00003','3']],['216230',['00007','7']],['216287',['00007','7']]]) {
+      assert.deepStrictEqual(r.lancamentos.filter(l=>l.documento===documento).map(l=>l.serieSubserie).sort(),series);
+    }
+    console.log('OK: Federação — 822 lançamentos, CPF preservado e total de R$ 6.133.272,12 conferido.');
+  }
   const textoSeriesDistintas = `
 Empresa: 1273 - DIEGO BOMFIM FREIRE
 C.N.P.J.: 31.162.727/0001-07

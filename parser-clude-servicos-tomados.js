@@ -606,7 +606,8 @@
       const identificacao = antesCnpj.split(/\s+/).filter(Boolean);
       const documento = String(identificacao.shift() || '').replace(/^0+(?=\d)/, '');
       if (!documento) continue;
-      const codigoIntegracao = identificacao.length ? identificacao[identificacao.length - 1] : '';
+      const codigoIntegracaoToken = identificacao.length ? identificacao[identificacao.length - 1] : '';
+      const codigoIntegracao = codigoIntegracaoToken === '[CI_VAZIO]' ? '' : codigoIntegracaoToken;
       const serieSubserie = identificacao.length > 1 ? identificacao.slice(0, -1).join(' ') : '';
 
       const depoisCnpj = linha.slice(cnpjMatch.index + cnpjMatch[0].length).trim();
@@ -1406,7 +1407,7 @@
     };
   }
 
-  function agruparItensPdfEmLinhas(items, rotacao) {
+  function agruparItensPdfEmLinhas(items, rotacao, preservarSerieTomados) {
     const giro = ((Number(rotacao || 0) % 360) + 360) % 360;
     const usaEixoX = giro === 90 || giro === 270;
     const itens = (items || [])
@@ -1430,12 +1431,30 @@
       const ultima = linhas[linhas.length - 1];
       const coordenada = usaEixoX ? item.x : item.y;
       if (!ultima || Math.abs(ultima.coordenada - coordenada) > 2) {
-        linhas.push({ coordenada: coordenada, parts: [item.str] });
+        linhas.push({ coordenada: coordenada, parts: [item] });
       } else {
-        ultima.parts.push(item.str);
+        ultima.parts.push(item);
       }
     }
-    return linhas.map(function(linha) { return linha.parts.join(' ').replace(/\s+/g, ' ').trim(); });
+    // A posição das colunas distingue Série preenchida de C.I. preenchido.
+    // Sem esse marcador, a junção de texto apaga a célula vazia e perde a série.
+    const eixoColuna = item => usaEixoX ? (giro === 90 ? item.y : -item.y) : item.x;
+    const serieCab = preservarSerieTomados && itens.find(item => /^S[ée]rie$/i.test(item.str));
+    const ciCab = preservarSerieTomados && itens.find(item => /^C\.I\.?$/i.test(item.str));
+    const docCab = preservarSerieTomados && itens.find(item => /^CNPJ\/CPF$/i.test(item.str));
+    return linhas.map(function(linha) {
+      const parts = linha.parts.map(item => item.str);
+      if (serieCab && ciCab && docCab && /^\d{2}\/\d{2}\/\d{4}$/.test(parts[0])) {
+        const inicioSerie = eixoColuna(serieCab) - 2;
+        const inicioCi = eixoColuna(ciCab) - 2;
+        const inicioDoc = eixoColuna(docCab) - 2;
+        const temSerie = linha.parts.some(item => eixoColuna(item) >= inicioSerie && eixoColuna(item) < inicioCi);
+        const docIndex = linha.parts.findIndex(item => /^(?:\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})(?:\s|$)/.test(item.str));
+        const temCi = docIndex > 0 && linha.parts.slice(0, docIndex).some(item => eixoColuna(item) >= inicioCi);
+        if (inicioSerie < inicioCi && inicioCi < inicioDoc && temSerie && !temCi && docIndex > 0) parts.splice(docIndex, 0, '[CI_VAZIO]');
+      }
+      return parts.join(' ').replace(/\s+/g, ' ').trim();
+    });
   }
 
   async function parsearPDF_Clude_ServicosTomados(arrayBuffer) {
@@ -1506,7 +1525,7 @@
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       sequencia.push((content.items || []).map(function(item) { return String(item.str || '').trim(); }).filter(Boolean).join(' '));
-      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate).join('\n'));
+      paginas.push(agruparItensPdfEmLinhas(content.items, page.rotate, true).join('\n'));
     }
     const agrupado = paginas.join('\n');
     const raw = sequencia.join('\n');
