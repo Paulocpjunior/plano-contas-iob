@@ -32,3 +32,8 @@ assert(!serialized.includes('privado') && !serialized.includes('example.com') &&
 // Serializar e reabrir o snapshot mantém nulos, zeros, posições e campos repetidos.
 assert.deepStrictEqual(conferir(clone(p), clone(p.registros), clone(p.fontes)), audit());
 console.log('CRM reconciliação: origem, edições, lacunas, campos repetidos e relatório sem valores privados OK');
+
+const vinculo=clone(p.registros);Object.assign(vinculo[0],{cnpj:'11222333000181',cnpj_origem:'privado',revisao:2,identificacao_conferida_por:'admin',identificacao_conferida_em:'2026-10-16T12:00:00Z'});
+assert.equal(audit(vinculo).preservacao_origem,'conferida');assert.equal(audit(vinculo).identificacoes_conferidas_cci,1);
+vinculo[0].cnpj_origem='alterado';assert.equal(audit(vinculo).preservacao_origem,'divergente');
+vinculo[0].cnpj_origem='privado';delete vinculo[0].identificacao_conferida_por;assert.equal(audit(vinculo).preservacao_origem,'divergente');

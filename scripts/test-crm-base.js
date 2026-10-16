@@ -97,3 +97,11 @@ assert.deepEqual([...buscaEmpresas].sort((a,b)=>compararBusca(a,b,'001200')).map
 assert.equal([...buscaEmpresas].sort((a,b)=>compararBusca(a,b,'00000012000001'))[0].cnpj,'00000012000001');
 assert.equal([...buscaEmpresas].sort((a,b)=>compararBusca(a,b,'piloto'))[0].razao_social,'Piloto');
 console.log('CRM busca: código exato, zeros iniciais, CNPJ e desempate estável OK');
+
+const {corrigirIdentificacao}=require('../crm-base');
+const inicial={cnpj:'sem',revisao:1,campos:[{original:null,valor:0}]};
+const identificado=corrigirIdentificacao(inicial,{revisao:1,cnpj:'11222333000181',motivo:'Conferência',confirmado:true},admin,'agora');
+const revisto=corrigirIdentificacao(identificado,{revisao:2,cnpj:'44388152000189',motivo:'Nova conferência',confirmado:true},admin,'depois');
+assert.equal(revisto.cnpj_origem,'sem');assert.deepStrictEqual(revisto.campos,inicial.campos);assert.equal(inicial.cnpj,'sem');
+assert.throws(()=>corrigirIdentificacao(inicial,{revisao:1,cnpj:'00000000000000',motivo:'x',confirmado:true},admin,'agora'));
+console.log('CRM saneamento: identificação original, revisão e campos preservados OK');

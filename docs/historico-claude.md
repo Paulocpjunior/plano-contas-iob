@@ -2076,3 +2076,7 @@ Substituída incorporação externa na área CRM por visão baseada nos mesmos c
 ## 2026-10-16 — acesso único à Topologia (3.4.413)
 
 Admin passa a abrir a mesma interface nativa do CRM, em vez do iframe externo. Elimina a ambiguidade de duas fontes de contagem/distribuição. O serviço externo não foi apagado nem teve seus dados alterados; suas posições não foram automaticamente transformadas em permissões. Lideranças exigem delegação explícita na Topologia do CRM.
+
+## 2026-10-16 — CRM 3.4.414: saneamento preservando origem
+
+Implementada conferência administrativa do vínculo de registros importados, com CNPJ válido, nome exato do cadastro, confirmação, motivo, revisão transacional e histórico. Campos originais e origem imutáveis; nenhuma distribuição automática. Ajustados cartões/formulários da Topologia e adicionados filtros de qualidade. Testes de isolamento, conflito, preservação e relatório; prévia fictícia desktop/celular. Sem nova carga do Jotform ou alterações de empresas reais nesta etapa. Detalhes e limites em docs/crm-base-jotform.md.

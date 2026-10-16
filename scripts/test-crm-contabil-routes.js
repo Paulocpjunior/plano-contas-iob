@@ -37,6 +37,28 @@ function ambiente(checklistFonte = null, onRead = null) {
   return {call,dados,writes:()=>writes,checklistCalls:()=>checklistCalls,companyQueries:()=>companyQueries};
 }
 (async()=>{
+  const sane=ambiente(), identidade='/api/crm/base/registros/:id/identificacao', destino='11222333000181';
+  sane.dados.set('crm_empresas/'+destino,{razao_social:'Destino conferido',responsaveis:[]});
+  const bruto={cnpj:'inválido',identidade_valida:false,revisao:1,fonte:'origem',origem_sha256:'preservar',campos:[{nome:'CNPJ',valor:'inválido',original:'inválido',protegido:true}]};
+  sane.dados.set('crm_registros/pendente_1',bruto);
+  const correcao={cnpj:destino,razao_social:'Destino conferido',revisao:1,motivo:'Identidade conferida pelo administrador',confirmado:true};
+  assert.equal((await sane.call('PUT',identidade,correcao,'colab',{id:'pendente_1'})).statusCode,403);
+  assert.equal((await sane.call('PUT',identidade,{...correcao,confirmado:false},'admin',{id:'pendente_1'})).statusCode,400);
+  assert.equal((await sane.call('PUT',identidade,{...correcao,razao_social:'Outra'},'admin',{id:'pendente_1'})).statusCode,409);
+  assert.equal((await sane.call('PUT',identidade,{...correcao,cnpj:'11222333000180'},'admin',{id:'pendente_1'})).statusCode,400);
+  assert.equal(sane.writes(),0);
+  assert.equal((await sane.call('PUT',identidade,correcao,'admin',{id:'pendente_1'})).statusCode,200);
+  const corrigido=sane.dados.get('crm_registros/pendente_1');
+  assert.equal(corrigido.cnpj,destino);assert.equal(corrigido.cnpj_origem,'inválido');assert.equal(corrigido.revisao,2);
+  assert.deepStrictEqual(corrigido.campos,bruto.campos);assert.equal(corrigido.origem_sha256,'preservar');
+  assert.deepStrictEqual(sane.dados.get('crm_empresas/'+destino).responsaveis,[],'correção não distribui acesso');
+  assert.equal([...sane.dados.keys()].filter(k=>k.startsWith('crm_registros/pendente_1/historico/')).length,1);
+  assert.equal([...sane.dados.keys()].filter(k=>k.startsWith('crm_empresas/'+destino+'/auditoria_contabil/')).length,1);
+  assert.equal((await sane.call('PUT',identidade,correcao,'admin',{id:'pendente_1'})).statusCode,409);
+  assert.equal((await sane.call('GET','/api/crm/base/pendencias',{},'admin')).body.registros.length,0);
+  assert.equal((await sane.call('GET','/api/crm/empresas/:cnpj/parametros',{},'colab',{cnpj:destino})).statusCode,403);
+  const revogadoSaneamento=ambiente(null,(path,dados)=>{if(path==='crm_registros')dados.set('users/admin',{is_admin:false});});
+  assert.equal((await revogadoSaneamento.call('GET','/api/crm/base/pendencias',{},'admin')).statusCode,403);
   const top=ambiente();
   const tp='/api/crm/topologia', tg=tp+'/gestao', tw=tp+'/empresas/:cnpj/equipe';
   assert.equal((await top.call('GET',tp)).statusCode,403);
