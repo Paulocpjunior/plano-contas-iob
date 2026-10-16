@@ -79,15 +79,18 @@ console.log('OK: PDFs BB digitalizados, juros/IOF, duas datas, paginas, tarifas 
   console.log('OK: fluxo PDF BB processa todas as paginas com conferencia obrigatoria.');
   const linhaOriginal = paginas[0].split('\n').find(l => /6\.800,00 C/.test(l));
   const linhaRuim = linhaOriginal.replace('6.800,00 C', '6.800,00');
-  async function cenario(releitura) {
+  async function cenario(releitura, somenteModo13) {
     let leituras = 0, paginasLidas = 0, encerrado = 0, recortes = 0;
     const modos = [];
-    global.document = {createElement: () => ({getContext: () => ({fillRect() {}, drawImage() {recortes++;}})})};
+    global.pdfjsLib = { getDocument: () => ({ promise: Promise.resolve({numPages:2,
+      getPage: async () => ({getViewport: () => ({width:1000,height:100}),render: () => ({promise:Promise.resolve()})}),destroy: async () => {}
+    }) }) };
+    global.document = {createElement: () => ({getContext: () => ({fillRect() {}, drawImage(canvas, x, y, largura) {recortes++; assert.equal(x + largura, canvas.width, 'recorte deve alcançar margem direita mesmo se OCR perder C/D');}})})};
     global.Tesseract = {createWorker: async () => ({
       setParameters: async p => modos.push(p.tessedit_pageseg_mode), terminate: async () => {encerrado++;},
       recognize: async () => {
         leituras++;
-        if (modos.at(-1) === '7') return {data: {text: releitura}};
+        if (['7', '13'].includes(modos.at(-1))) return {data: {text: somenteModo13 && modos.at(-1) === '7' ? linhaRuim : releitura}};
         const pagina = paginasLidas++ % 2;
         return {data: {text: paginas[pagina].replace(linhaOriginal, linhaRuim), lines: [{text: linhaRuim, bbox: {x0:1,y0:1,x1:8,y1:4}}]}};
       }
@@ -100,6 +103,10 @@ console.log('OK: PDFs BB digitalizados, juros/IOF, duas datas, paginas, tarifas 
   assert.equal(recuperado.saldos_conciliados, true);
   assert(recuperado.lancamentos.some(l => l.valor === 6800));
   await assert.rejects(cenario(linhaOriginal.replace('6.800,00 C', '6.800,00 D')), /saldo divergente|natureza ilegivel/);
+  const modoAlternativo = await cenario(linhaOriginal, true);
+  assert.equal(modoAlternativo.lancamentos.length, 21);
+  const espacosDiferentes = await cenario(linhaOriginal.replace('Pix- Recebido', 'Pix -Recebido'));
+  assert.equal(espacosDiferentes.lancamentos.length, 21);
   await assert.rejects(cenario(linhaRuim), /natureza ilegivel/);
   await assert.rejects(cenario(linhaOriginal.replace('14397', '13105')), /natureza ilegivel/);
   console.log('OK: releitura recupera sinal impresso; natureza errada e linha ilegível continuam bloqueadas.');
