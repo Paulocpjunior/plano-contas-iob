@@ -1,7 +1,8 @@
 {
-  "version": "3.4.411",
-  "build_date": "2026-10-16T09:41:00Z",
+  "version": "3.4.412",
+  "build_date": "2026-10-16T10:08:13Z",
   "release_notes": [
+    "Topologia: carteira real do CRM, distribuição auditada e delegação de líderes por equipe.",
     "CRM: Topologia integrada à gestão, com carregamento sob demanda e acesso exclusivo de administradores.",
     "CRM: calendário e carga da equipe com consulta unificada; demandas e filtros em lotes paralelos. Consultas têm limite de espera, liberam a tela em caso de falha e permitem voltar ao CCI durante o carregamento.",
     "CiA: painel flutuante aberto automaticamente após o login, no canto inferior direito, com botão para minimizar e reabrir. A tela permanece disponível e os dados da consulta são limpos ao sair.",
