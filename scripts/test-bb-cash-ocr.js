@@ -77,4 +77,31 @@ console.log('OK: PDFs BB digitalizados, juros/IOF, duas datas, paginas, tarifas 
   assert.equal(posicao, 2);
   assert.equal(encerramentos, 1);
   console.log('OK: fluxo PDF BB processa todas as paginas com conferencia obrigatoria.');
+  const linhaOriginal = paginas[0].split('\n').find(l => /6\.800,00 C/.test(l));
+  const linhaRuim = linhaOriginal.replace('6.800,00 C', '6.800,00');
+  async function cenario(releitura) {
+    let leituras = 0, paginasLidas = 0, encerrado = 0, recortes = 0;
+    const modos = [];
+    global.document = {createElement: () => ({getContext: () => ({fillRect() {}, drawImage() {recortes++;}})})};
+    global.Tesseract = {createWorker: async () => ({
+      setParameters: async p => modos.push(p.tessedit_pageseg_mode), terminate: async () => {encerrado++;},
+      recognize: async () => {
+        leituras++;
+        if (modos.at(-1) === '7') return {data: {text: releitura}};
+        const pagina = paginasLidas++ % 2;
+        return {data: {text: paginas[pagina].replace(linhaOriginal, linhaRuim), lines: [{text: linhaRuim, bbox: {x0:1,y0:1,x1:8,y1:4}}]}};
+      }
+    })};
+    try {return await bbCash.parsearPDF_BB_CashOCR(new ArrayBuffer(0));}
+    finally {assert.equal(encerrado, 1); assert(recortes > 0); assert(modos.includes('7')); assert.equal(modos.at(-1), '6');}
+  }
+  const recuperado = await cenario(linhaOriginal);
+  assert.equal(recuperado.lancamentos.length, 21);
+  assert.equal(recuperado.saldos_conciliados, true);
+  assert(recuperado.lancamentos.some(l => l.valor === 6800));
+  await assert.rejects(cenario(linhaOriginal.replace('6.800,00 C', '6.800,00 D')), /saldo divergente|natureza ilegivel/);
+  await assert.rejects(cenario(linhaRuim), /natureza ilegivel/);
+  await assert.rejects(cenario(linhaOriginal.replace('14397', '13105')), /natureza ilegivel/);
+  console.log('OK: releitura recupera sinal impresso; natureza errada e linha ilegível continuam bloqueadas.');
+
 })().catch(e => { console.error(e); process.exitCode = 1; });
