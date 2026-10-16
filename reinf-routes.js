@@ -1056,6 +1056,12 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
       res.json({ok:true,...await DividendosHistorico.carregar(ref,snap.data().reinfDividendos||{},req.params.competencia)});
     }catch(e){respostaErro(res,400,e);}
   });
+  router.post('/dividendos/cancelar-preparacao', adminReinfCadastroRequired, async (req,res)=>{
+    try {
+      const body=req.body||{},ref=db.collection('empresas').doc(limparCnpj(body.cnpj));
+      res.json(await require('./reinf/dividendos-preparacao').cancelar(db,ref,body,req.user));
+    } catch(e) { respostaErro(res,400,e); }
+  });
   router.post('/dividendos/mensal', async (req,res)=>{
     try {
       const body=req.body||{},cnpj=limparCnpj(body.cnpj),ref=db.collection('empresas').doc(cnpj),snap=await ref.get();
@@ -1070,7 +1076,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
         if(Number(atual.data().reinfDividendos?.ataRevisao||0)!==ctx.ataRevisao)throw Error('A ATA mudou. Carregue o mês novamente.');
         if(Number(mes.data()?.revisao||0)!==Number(body.revisaoMes||0))throw Error('O mês foi atualizado por outro usuário. Carregue novamente.');
         const versao={competencia:body.competencia,dados,resultado:modelo.resultado,revisao:Number(body.revisaoMes||0)+1,por_uid:req.user.uid,salvo_em:new Date(),status:'preparado'};
-        tx.set(mesRef,versao);tx.set(mesRef.collection('versoes').doc(String(versao.revisao)),versao);
+        tx.set(mesRef,versao);tx.create(mesRef.collection('versoes').doc(),versao);
       });
       res.json({ok:true,revisaoMes:Number(body.revisaoMes||0)+1});
     }catch(e){respostaErro(res,400,e);}
