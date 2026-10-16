@@ -14,6 +14,9 @@ assert.throws(()=>run(positive+row('0002688','6394','0,00 0,00 5,00 1,00 0,00'))
 assert.throws(()=>run(positive+row('0002688','6394','0,00 0,00 0,00')),/ausentes ou ambíguos/);
 assert.equal(run(positive+zero,'101,00 101,00 5,00 0,00').total_divergente,true);
 // A série pode ficar vazia no mesmo relatório que contém notas com série.
+const serieTexto = run(positive.replace(' 002 ', ' NFE 002 '));
+assert.equal(serieTexto.lancamentos[0].serieSubserie, 'NFE 002');
+assert(!serieTexto.lancamentos[0].descricao_memoria.includes('NFE 002'));
 const semSerie = row('0002690','24.96','200,00 200,00 5,00 10,00 0,00').replace(' 002 ', ' ');
 const zeroSemSerie = zero.replace(' 002 ', ' ');
 const misto = run(positive + semSerie + zeroSemSerie, '300,00 300,00 15,00 0,00');

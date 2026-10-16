@@ -691,7 +691,7 @@
     // Modelo 51/53 com data, serviço, nota e série em colunas, inclusive cliente não identificado.
     const tabulares=[];
     for(const linha of linhas){
-      const m=linha.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d{4}|\d{1,2}\.\d{2})\s+(\d{7})\s+(?:(\d{3})\s+)?(.+)$/);
+      const m=linha.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d{4}|\d{1,2}\.\d{2})\s+(\d{7})\s+(?:(\d{3}|[A-Z]{1,5}\s+\d{3})\s+)?(.+)$/);
       if(!m)continue;
       const valores=[...m[5].matchAll(money)];if(valores.length<4||valores.length>5)throw new Error('NF '+m[3]+': campos monetários ausentes ou ambíguos. Confira o relatório SAGE.');
       const cliente=m[5].slice(0,valores[0].index).trim(),doc=(cliente.match(cpfCnpj)||[])[0]||'';
