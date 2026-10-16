@@ -1,7 +1,8 @@
 {
-  "version": "3.4.421",
-  "build_date": "2026-10-16T18:54:07.417Z",
+  "version": "3.4.422",
+  "build_date": "2026-10-16T19:15:32.410Z",
   "release_notes": [
+    "Cadastro de empresas: Confirmar e Continuar também salva a numeração informada; falhas de gravação mantêm o formulário aberto e preservam os lançamentos.",
     "SAGE serviços prestados: leitura de notas com série preenchida ou em branco no mesmo relatório, para todas as empresas do modelo 51/53, preservando notas zeradas como exceções e conferência do total impresso.",
     "BB Cash: releitura ampliada da linha com valor ou natureza ilegível, preservando identificação e conferência obrigatória dos saldos.",
     "Cadastro de empresas: edição do número da empresa na tela de informações; sincronização mantém nome, código e plano do cadastro do mesmo CNPJ e atualiza cabeçalho e painel juntos, preservando lançamentos.",
