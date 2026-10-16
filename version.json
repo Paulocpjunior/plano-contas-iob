@@ -1,7 +1,8 @@
 {
-  "version": "3.4.420",
-  "build_date": "2026-10-16T18:52:22.810Z",
+  "version": "3.4.421",
+  "build_date": "2026-10-16T18:54:07.417Z",
   "release_notes": [
+    "SAGE serviços prestados: leitura de notas com série preenchida ou em branco no mesmo relatório, para todas as empresas do modelo 51/53, preservando notas zeradas como exceções e conferência do total impresso.",
     "BB Cash: releitura ampliada da linha com valor ou natureza ilegível, preservando identificação e conferência obrigatória dos saldos.",
     "Cadastro de empresas: edição do número da empresa na tela de informações; sincronização mantém nome, código e plano do cadastro do mesmo CNPJ e atualiza cabeçalho e painel juntos, preservando lançamentos.",
     "Importação bancária: BB Cash digitalizado com leitura local, preservação de juros/IOF e conferência obrigatória dos saldos. Bradesco mensal de uma página com OCR local por colunas e totais conferidos.",
