@@ -128,7 +128,7 @@
     }
     function renderTopologia(){
       if(!topo)return;
-      q('[data-topologia-status]').textContent=`${topo.empresas.length} empresas no escopo de gestão · ${topo.pessoas.length} colaboradores · consulta ${instanteBr(topo.lido_em)}. Empresas com apoios aparecem em mais de uma carteira; não some cartões para obter o total.`;
+      q('[data-topologia-status]').textContent=`${topo.empresas.length} empresas no escopo de gestão · ${topo.pessoas.length} colaboradores do departamento contábil · consulta ${instanteBr(topo.lido_em)}. ${topo.identidades_pendentes ? topo.identidades_pendentes + " e-mails com contas duplicadas aguardam conferência no cadastro de usuários. " : ""}Empresas com apoios aparecem em mais de uma carteira; não some cartões para obter o total.`;
       q('[data-topologia-pessoas]').innerHTML=topo.pessoas.map(p=>`<button class="crm-summary-card crm-person-card" data-color="violet" data-topo-pessoa="${esc(p.uid)}"><span><strong>${esc(p.nome)}</strong><small>${p.empresas} empresas · ${p.principais} como principal<br>${p.obrigacoes_abertas} controles abertos na carteira · ${p.atrasadas} atrasados · ${p.sem_prazo} sem prazo<br>${p.execucao} como executor · ${p.revisao||0} como revisor (no escopo de gestão)</small></span></button>`).join('');
       const pessoa=q('[data-topologia-pessoa]').value,busca=q('[data-topologia-busca]').value.trim().toLocaleLowerCase('pt-BR');
       const qualidade=q('[data-topologia-qualidade]').value;

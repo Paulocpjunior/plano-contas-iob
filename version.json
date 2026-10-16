@@ -1,7 +1,8 @@
 {
-  "version": "3.4.414",
-  "build_date": "2026-10-16T10:38:55Z",
+  "version": "3.4.415",
+  "build_date": "2026-10-16T10:57:25Z",
   "release_notes": [
+    "Topologia: equipe restrita ao departamento contábil do cadastro central, com bloqueio de contas ambíguas na distribuição.",
     "CRM: conferência de identificações importadas dentro do aplicativo, com origem preservada e histórico.",
     "Topologia: filtros de qualidade cadastral e formulários legíveis no celular.",
     "Topologia: painel Admin e CRM abrem a mesma carteira, sem contagem paralela.",

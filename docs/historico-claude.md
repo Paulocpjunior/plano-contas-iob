@@ -2080,3 +2080,7 @@ Admin passa a abrir a mesma interface nativa do CRM, em vez do iframe externo. E
 ## 2026-10-16 — CRM 3.4.414: saneamento preservando origem
 
 Implementada conferência administrativa do vínculo de registros importados, com CNPJ válido, nome exato do cadastro, confirmação, motivo, revisão transacional e histórico. Campos originais e origem imutáveis; nenhuma distribuição automática. Ajustados cartões/formulários da Topologia e adicionados filtros de qualidade. Testes de isolamento, conflito, preservação e relatório; prévia fictícia desktop/celular. Sem nova carga do Jotform ou alterações de empresas reais nesta etapa. Detalhes e limites em docs/crm-base-jotform.md.
+
+## Topologia: escopo do departamento — 3.4.415
+
+Corrigida a inclusão de todos os usuários corporativos. CRM consulta a API do cadastro central do CFI e exige departamento `contabil`, sem inferir por papel de administrador, acesso ao app ou primeiro nome no Jotform. Lista e distribuição validam a mesma regra; falha da integração não amplia o escopo. Contas locais inativas e identidades duplicadas por e-mail não são elegíveis para novas atribuições. Vínculos existentes são preservados. Testes incluem departamento externo, administrador externo, duplicidade e indisponibilidade da origem. Sem nova importação de dados do Jotform nesta correção.

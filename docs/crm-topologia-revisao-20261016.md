@@ -48,3 +48,7 @@ Testes: delegação administrativa, tentativa de escalada, isolamento entre equi
 ### Acesso unificado (3.4.413)
 
 O painel Admin também abre a interface nativa do CRM. O iframe externo foi retirado dessa entrada; não há uma segunda carteira manual no fluxo do CCI. O serviço externo e seu histórico foram preservados, mas suas posições/células não foram migradas automaticamente para delegações de acesso.
+
+## Topologia: escopo do departamento — 3.4.415
+
+Corrigida a inclusão de todos os usuários corporativos. CRM consulta a API do cadastro central do CFI e exige departamento `contabil`, sem inferir por papel de administrador, acesso ao app ou primeiro nome no Jotform. Lista e distribuição validam a mesma regra; falha da integração não amplia o escopo. Contas locais inativas e identidades duplicadas por e-mail não são elegíveis para novas atribuições. Vínculos existentes são preservados. Testes incluem departamento externo, administrador externo, duplicidade e indisponibilidade da origem. Sem nova importação de dados do Jotform nesta correção.
