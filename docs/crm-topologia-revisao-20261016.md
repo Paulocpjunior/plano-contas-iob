@@ -32,3 +32,15 @@ A incorporação visual não é sincronização de cadastros. A fonte de autoriz
 6. Executar restauração isolada e ensaiar corte sem perda de eventos. Só então suspender novas entradas no Jotform.
 
 Jotform não foi desligado. Esta revisão não comprova equivalência completa, cópia de anexos ou homologação autenticada.
+
+## Evolução 3.4.412 — carteira nativa
+
+A entrada do CRM deixa de incorporar o serviço externo e passa a consultar os documentos canônicos de `empresas`/`crm_empresas`, `users` e `crm_controles`. O cadastro contábil prevalece, como na carteira. Tributação e CNAE vêm do cadastro; ausências são explícitas, sem inferência do Jotform. A administração externa antiga permanece independente e não distribui carteira CCI.
+
+Delegações explícitas em `crm_topologia/gestao`, com revisão e histórico: somente administrador configura líder e integrantes. Um integrante pertence a uma equipe de gestão. Líder só consulta/distribui empresa cuja equipe vigente esteja integralmente sob sua gestão; empresa sem equipe ou compartilhada com pessoas externas exige administrador. Não se infere autorização do cargo ou e-mail da Topologia externa. A delegação não libera lançamentos, documentos ou outras APIs do CRM fora da carteira pessoal.
+
+Distribuição reutiliza a mesma transação da carteira, com versão esperada, usuários corporativos, principal/apoios distintos, motivo obrigatório e auditoria anterior/posterior. Vigência imediata; agendamento futuro não implementado. Controles existentes e seus executores/revisores permanecem intactos. Indicadores de execução/revisão usam todos os controles do escopo, inclusive os ainda atribuídos ao antigo responsável após uma transferência.
+
+Totais de carteira incluem apoios: não somar cartões para contar empresas distintas. Controles registrados não são prova de aplicabilidade completa. Sem controles não significa regularidade fiscal. Consulta falha explicitamente acima de 20 mil controles ou 5 mil documentos por cadastro, sem publicar totais parciais como completos.
+
+Testes: delegação administrativa, tentativa de escalada, isolamento entre equipes, conflito de revisão, revogação após/ durante consulta, transferência com executor preservado e perda do acesso anterior. Validação visual fictícia em 390×844 sem transbordamento. Nenhuma delegação ou carteira real foi alterada automaticamente. Homologação com usuários reais continua pendente.

@@ -2068,3 +2068,7 @@ Calendário em produção levou 99,844 s por leitura de controles e contexto por
 ## 2026-10-16 — CRM e revisão Topologia (3.4.411)
 
 Integração administrativa sob demanda no CRM; passe sem cache, URL HTTPS sem credenciais e validação de assinatura/validade. Revisão do serviço externo documentada em docs/crm-topologia-revisao-20261016.md: sessão sem revogação imediata, replay entre instâncias, escopo de líderes, concorrência e contagem manual. Correções do receptor externo e integração de dados não foram publicadas por esta mudança. Checklist sem credencial configurada, anexos e reconciliação final continuam impeditivos ao desligamento do Jotform. Nenhum dado real alterado.
+
+## 2026-10-16 — Topologia com carteira nativa (3.4.412)
+
+Substituída incorporação externa na área CRM por visão baseada nos mesmos cadastros e controles. Administrador delega líderes/equipes com revisão/histórico; líderes só distribuem dentro do escopo completo da equipe. Redistribuição usa transação canônica, vigência imediata e motivo obrigatório. Executores/revisores existentes preservados e contabilizados mesmo após transferência. Sem atribuições reais automáticas. Testes de escopo, escalada, conflito, revogação e UI móvel fictícia passaram; consultar docs/crm-topologia-revisao-20261016.md para limites e pendências.

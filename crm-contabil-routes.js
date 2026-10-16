@@ -20,10 +20,65 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const d = doc.data();
     return { uid: req.user.uid, is_admin: d.is_admin === true, permissoesCci: permissoesEfetivas(d) };
   }
+  const gestaoRef = db.collection('crm_topologia').doc('gestao');
+  async function gestao(req, tx) {
+    const user=await usuario(req,tx), snap=await (tx?tx.get(gestaoRef):gestaoRef.get());
+    const cfg=snap.exists?snap.data():{revisao:0,equipes:[]};
+    const equipes=(cfg.equipes||[]).filter(e=>e.lider_uid===user.uid);
+    return {user,cfg,membros:new Set(equipes.flatMap(e=>e.membros)),lider:equipes.length>0};
+  }
+  function podeGerirEmpresa(g,d){
+    const equipe=core.equipeVigente(d);
+    return g.user.is_admin || (g.lider && equipe.length>0 && equipe.every(p=>g.membros.has(p.uid)));
+  }
+  app.put('/api/crm/topologia/gestao',wrap(async(req,res)=>{
+    const result=await db.runTransaction(async tx=>{
+      const g=await gestao(req,tx);admin(g.user);
+      const b=req.body||{};
+      if(b.revisao!==(g.cfg.revisao||0))throw core.erro('A configuração mudou. Atualize a Topologia.',409);
+      if(!Array.isArray(b.equipes)||b.equipes.length>50)throw core.erro('Informe até cinquenta equipes.');
+      const vistos=new Set(), equipes=b.equipes.map(e=>{
+        const nome=core.texto(e.nome,100,'nome da equipe',true), lider_uid=core.texto(e.lider_uid,128,'líder',true);
+        if(!Array.isArray(e.membros)||!e.membros.length||e.membros.length>100)throw core.erro('Selecione os integrantes da equipe.');
+        const membros=[...new Set(e.membros)];
+        for(const id of [lider_uid,...membros])if(typeof id!=='string'||!id||id.includes('/')||id.length>128)throw core.erro('Usuário inválido.');
+        for(const id of membros){if(vistos.has(id))throw core.erro('Um colaborador só pode pertencer a uma equipe de gestão.');vistos.add(id);}
+        return {nome,lider_uid,membros};
+      });
+      const ids=[...new Set(equipes.flatMap(e=>[e.lider_uid,...e.membros]))];
+      const docs=ids.length?await tx.getAll(...ids.map(id=>db.collection('users').doc(id))):[];
+      if(docs.some(d=>!d.exists||!String(d.data().last_email||d.data().email||'').toLowerCase().endsWith(domain)))throw core.erro('Selecione usuários corporativos cadastrados.');
+      const motivo=core.texto(b.motivo,1000,'motivo',true),quando=agora();
+      tx.set(gestaoRef,{equipes,revisao:(g.cfg.revisao||0)+1,quando,por_uid:g.user.uid});
+      tx.create(gestaoRef.collection('historico').doc(),{antes:g.cfg,depois:equipes,quando,por_uid:g.user.uid,motivo});
+      return {revisao:(g.cfg.revisao||0)+1};
+    });res.json({ok:true,...result});
+  }));
+  app.get('/api/crm/topologia',wrap(async(req,res)=>{
+    let g=await gestao(req);if(!g.user.is_admin&&!g.lider)throw core.erro('Topologia disponível apenas para gestores autorizados.',403);
+    const controles=await db.collectionGroup('crm_controles').limit(20001).get();
+    if(controles.docs.length>20000)throw core.erro('Há mais de 20 mil controles. Consulte por empresa; totais não calculados.',409);
+    const ss=await Promise.all(['crm_empresas','empresas','users'].map(n=>db.collection(n).limit(5001).get()));
+    if(ss.some(v=>v.docs.length>5000))throw core.erro('O cadastro excedeu o limite desta consulta. Totais não calculados.',409);
+    g=await gestao(req);if(!g.user.is_admin&&!g.lider)throw core.erro('A autorização mudou. Consulte o administrador.',403);
+    const mapa=new Map();ss.slice(0,2).forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
+    const empresas=[...mapa.values()].filter(d=>podeGerirEmpresa(g,d.data())).map(d=>({...empresaPublica(d,g.user,'crm'),
+      tributacao:d.data().regime_tributario_nome||d.data().regime_tributario_codigo||null,
+      atividade:d.data().cnae_principal||null,controles:[],responsaveis_permanentes:normalizarResponsaveis(d.data().responsaveis)}));
+    const porCnpj=new Map(empresas.map(e=>[e.cnpj,e]));
+    const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(agora()));
+    for(const d of controles.docs){const p=d.ref.path.split('/'),e=porCnpj.get(p[1]);if(p.length!==4||p[0]!=='empresas'||!e)continue;const c=d.data();e.controles.push({id:d.id,titulo:c.titulo||'',status:c.status,periodo:c.periodo||'',prazo:c.prazo||null,executor_uid:c.executor_uid||null,revisor_uid:c.revisor_uid||null,atrasado:prazoControle(c,hoje)==='atrasado'});}
+    const pessoas=ss[2].docs.filter(d=>(g.user.is_admin||g.membros.has(d.id))&&String(d.data().last_email||d.data().email||'').toLowerCase().endsWith(domain)).map(d=>{
+      const carteira=empresas.filter(e=>e.responsaveis.some(p=>p.uid===d.id));
+      const demandas=carteira.flatMap(e=>e.controles),abertas=demandas.filter(c=>!core.TERMINAIS.includes(c.status));
+      return {uid:d.id,nome:d.data().last_name||d.data().name||d.data().email||d.id,empresas:carteira.length,principais:carteira.filter(e=>e.responsaveis.some(p=>p.uid===d.id&&p.papel==='principal')).length,obrigacoes_abertas:abertas.length,atrasadas:abertas.filter(c=>c.atrasado).length,sem_prazo:abertas.filter(c=>!c.prazo).length,execucao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.executor_uid===d.id).length,revisao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.revisor_uid===d.id).length};
+    });
+    res.json({ok:true,admin:g.user.is_admin,completo:true,lido_em:agora(),empresas,pessoas,gestao:g.user.is_admin?g.cfg:{equipes:(g.cfg.equipes||[]).filter(e=>e.lider_uid===g.user.uid)}});
+  }));
   // Entrada leve: não consulta coleções de empresas nem controles.
   app.get('/api/crm/contexto', wrap(async(req,res)=>{
-    const user=await usuario(req);
-    res.json({ok:true,uid:user.uid,admin:user.is_admin,pode_editar:user.is_admin||podeAcao(user,'editar'),pode_concluir:user.is_admin||podeAcao(user,'fechar'),catalogo:core.CATALOGO});
+    const g=await gestao(req),user=g.user;
+    res.json({ok:true,topologia:user.is_admin||g.lider,uid:user.uid,admin:user.is_admin,pode_editar:user.is_admin||podeAcao(user,'editar'),pode_concluir:user.is_admin||podeAcao(user,'fechar'),catalogo:core.CATALOGO});
   }));
   function empresaRef(req) {
     const cnpj = String(req.params.cnpj || '');
@@ -87,7 +142,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       }
     }
     res.json({ ok:true, empresas, equipes, total:operacional?null:todas.length, consultadas:posicao+1+lote.length,total_candidatas:todas.length,filtro_operacional:operacional, proximo:restantes.length>50 ? lote[49].cnpj : null,
-      admin:user.is_admin, pode_editar:user.is_admin || podeAcao(user,'editar'), pode_concluir:user.is_admin || podeAcao(user,'fechar'), catalogo:core.CATALOGO });
+      topologia:user.is_admin||(await gestao(req)).lider, admin:user.is_admin, pode_editar:user.is_admin || podeAcao(user,'editar'), pode_concluir:user.is_admin || podeAcao(user,'fechar'), catalogo:core.CATALOGO });
   }));
   // Leitura operacional limitada por lote; nenhuma baixa ou distribuição automática.
   app.get('/api/crm/trabalho', wrap(async (req,res)=>{
@@ -175,9 +230,16 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       const d = doc.data(); return { uid: doc.id, nome: d.last_name || d.name || '', email: String(d.last_email || d.email || '').toLowerCase() };
     }).filter(u => u.email.endsWith(domain)).sort((a,b) => (a.nome || a.email).localeCompare(b.nome || b.email)) });
   }));
-  app.put(base + '/equipe', wrap(async (req, res) => {
+  async function salvarEquipe(req,res,topologia=false) {
     const result = await db.runTransaction(async tx => {
-      const ctx = await contexto(req, tx); admin(ctx.user);
+      let ctx;
+      let g;
+      if(topologia){
+        g=await gestao(req,tx);let ref=empresaRef(req),doc=await tx.get(ref);
+        if(!doc.exists){ref=db.collection('crm_empresas').doc(req.params.cnpj);doc=await tx.get(ref);}
+        if(!doc.exists||!podeGerirEmpresa(g,doc.data()))throw core.erro('Empresa fora da equipe sob sua gestão.',403);
+        ctx={ref,empresa:doc.data(),user:g.user};
+      }else{ctx=await contexto(req,tx);admin(ctx.user);}
       const body = req.body || {};
       if (body.revisao_carteira !== core.versaoCarteira(ctx.empresa)) throw core.erro('A carteira mudou. Atualize antes de redistribuir.', 409);
       const principal = core.texto(body.principal_uid, 128, 'responsável principal', true);
@@ -185,6 +247,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       if (!Array.isArray(apoios) || apoios.length > 10) throw core.erro('Selecione até dez colaboradores de apoio.');
       const uids = [principal, ...apoios];
       if (uids.some(u => typeof u !== 'string' || !u || u.length > 128 || u.includes('/')) || new Set(uids).size !== uids.length) throw core.erro('Selecione colaboradores distintos e válidos.');
+      if(topologia&&!g.user.is_admin&&uids.some(id=>!g.membros.has(id)))throw core.erro('Distribua apenas entre integrantes da sua equipe.',403);
       const docs = await tx.getAll(...uids.map(uid => db.collection('users').doc(uid)));
       let equipe = []; const quando = agora();
       for (let i = 0; i < docs.length; i++) {
@@ -200,7 +263,9 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       return { revisao_carteira: core.versaoCarteira({ responsaveis: equipe, crm_substituicoes:ctx.empresa.crm_substituicoes||[] }) };
     });
     res.json({ ok: true, ...result });
-  }));
+  }
+  app.put(base + '/equipe',wrap((req,res)=>salvarEquipe(req,res)));
+  app.put('/api/crm/topologia/empresas/:cnpj/equipe',wrap((req,res)=>salvarEquipe(req,res,true)));
   app.get(base + '/controles', wrap(async (req, res) => {
     const ctx = await contexto(req);
     let q = ctx.controlesRef.collection('crm_controles').orderBy('__name__');

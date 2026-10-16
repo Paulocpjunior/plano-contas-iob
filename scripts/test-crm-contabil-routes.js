@@ -37,6 +37,37 @@ function ambiente(checklistFonte = null, onRead = null) {
   return {call,dados,writes:()=>writes,checklistCalls:()=>checklistCalls,companyQueries:()=>companyQueries};
 }
 (async()=>{
+  const top=ambiente();
+  const tp='/api/crm/topologia', tg=tp+'/gestao', tw=tp+'/empresas/:cnpj/equipe';
+  assert.equal((await top.call('GET',tp)).statusCode,403);
+  const cfg={revisao:0,equipes:[{nome:'Equipe A',lider_uid:'legado',membros:['colab','apoio']}],motivo:'Delegação confirmada'};
+  assert.equal((await top.call('PUT',tg,cfg,'colab')).statusCode,403);
+  assert.equal((await top.call('PUT',tg,cfg,'admin')).statusCode,200);
+  assert.equal((await top.call('PUT',tg,cfg,'admin')).statusCode,409);
+  top.dados.set('empresas/'+cnpj+'/crm_controles/t1',{titulo:'Teste',status:'pendente',prazo:'2026-10-01',executor_uid:'colab'});
+  top.dados.set('empresas/'+outro+'/crm_controles/privado',{titulo:'Fora do escopo',status:'pendente'});
+  const vis=await top.call('GET',tp,{},'legado');
+  assert.equal(vis.statusCode,200);assert.equal(vis.body.empresas.length,1);assert.equal(vis.body.pessoas.length,2);
+  assert.equal(vis.body.pessoas.find(p=>p.uid==='colab').atrasadas,1);
+  assert.equal(vis.body.pessoas.find(p=>p.uid==='apoio').empresas,0);
+  assert.equal((await top.call('GET','/api/crm/contexto',{},'legado')).body.topologia,true);
+  const transfer={principal_uid:'apoio',apoio_uids:[],motivo:'Balanceamento',revisao_carteira:versaoCarteira(top.dados.get('empresas/'+cnpj))};
+  assert.equal((await top.call('PUT',tw,{...transfer,principal_uid:'admin'},'legado')).statusCode,403);
+  assert.equal((await top.call('PUT',tw,transfer,'legado',{cnpj:outro})).statusCode,403);
+  assert.equal((await top.call('PUT',tw,transfer,'legado')).statusCode,200);
+  assert.equal((await top.call('PUT',tw,transfer,'legado')).statusCode,409);
+  assert.equal(top.dados.get('empresas/'+cnpj).responsaveis[0].uid,'apoio');
+  const aposTopo=(await top.call('GET',tp,{},'admin')).body;
+  assert.equal(aposTopo.pessoas.find(p=>p.uid==='colab').empresas,0);
+  assert.equal(aposTopo.pessoas.find(p=>p.uid==='colab').execucao,1,'executor preservado continua contabilizado após transferência');
+  assert.equal(top.dados.get('empresas/'+cnpj+'/crm_controles/t1').executor_uid,'colab','transferência não redistribui demandas');
+  assert.equal((await top.call('GET','/api/crm/empresas/:cnpj/controles',{},'colab')).statusCode,403,'revogação da carteira efetiva');
+  assert.equal((await top.call('PUT',tg,{revisao:1,equipes:[],motivo:'Revogação'},'admin')).statusCode,200);
+  assert.equal((await top.call('GET',tp,{},'legado')).statusCode,403);
+  assert.equal((await top.call('PUT',tw,{...transfer,revisao_carteira:versaoCarteira(top.dados.get('empresas/'+cnpj))},'legado')).statusCode,403);
+  const revtop=ambiente(null,(path,dados)=>{if(path==='group/crm_controles')dados.set('crm_topologia/gestao',{revisao:2,equipes:[]});});
+  revtop.dados.set('crm_topologia/gestao',{revisao:1,equipes:cfg.equipes});
+  assert.equal((await revtop.call('GET',tp,{},'legado')).statusCode,403,'revogação durante leitura');
   const ck=require('../crm-checklist');
   const quest=Object.fromEntries(Object.values(ck.CAMPOS).map(([id,text])=>[id,{text}]));
   const fonte={completo:true,assinatura:'a'.repeat(64),questions:quest,rows:[{id:'123',form_id:ck.FORM_ID,status:'ACTIVE',answers:{

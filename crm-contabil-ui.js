@@ -117,27 +117,43 @@
     const base = () => '/api/crm/empresas/' + empresa().cnpj;
     const hoje = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
     function mensagem(s) { q('[data-status]').textContent = s; }
-    main.insertAdjacentHTML('beforeend', '<section data-pane="topologia" hidden><p class="crm-muted">Organização do departamento. A carteira e as permissões continuam sendo administradas no CRM.</p><div class="crm-bar"><button data-topologia-abrir>Carregar Topologia</button><button data-topologia-carteira>Gerir responsáveis</button></div><p data-topologia-status role="status">Carregue o organograma quando precisar consultá-lo.</p><iframe data-topologia-frame title="Topologia do departamento contábil" referrerpolicy="no-referrer" hidden style="width:100%;height:70vh;border:0;border-radius:12px"></iframe></section>');
-    function limparTopologia() {
-      const frame=q('[data-topologia-frame]');
-      frame.hidden=true;frame.removeAttribute('src');
+    let topo=null;
+    main.insertAdjacentHTML('beforeend', `<section data-pane="topologia" hidden><p class="crm-muted">Pessoas e empresas da mesma carteira do CRM. Indicadores contam controles registrados; ausência de controles não comprova cumprimento fiscal.</p><div class="crm-bar"><button data-topologia-abrir>Consultar Topologia</button><button data-topologia-equipes hidden>Configurar líderes e equipes</button><label>Colaborador<select data-topologia-pessoa><option value="">Todos</option></select></label><label>Buscar empresa<input data-topologia-busca placeholder="Nome, CNPJ, tributação ou atividade"></label></div><p data-topologia-status role="status">Consulte para carregar a carteira real.</p><div data-topologia-pessoas class="crm-summary-grid"></div><div data-topologia-empresas></div></section>`);
+    function limparTopologia(){topo=null;q('[data-topologia-pessoas]').innerHTML='';q('[data-topologia-empresas]').innerHTML='';q('[data-topologia-pessoa]').innerHTML='<option value="">Todos</option>';}
+    async function carregarTopologia(){
+      limparTopologia();q('[data-topologia-status]').textContent='Consultando vínculos e controles do CRM…';
+      try{topo=await api('/api/crm/topologia');q('[data-topologia-equipes]').hidden=!topo.admin;
+        q('[data-topologia-pessoa]').innerHTML='<option value="">Todos</option><option value="sem">Sem responsável</option>'+topo.pessoas.map(p=>`<option value="${esc(p.uid)}">${esc(p.nome)}</option>`).join('');renderTopologia();
+      }catch(e){q('[data-topologia-status]').textContent=e.message;throw e;}
     }
-    q('[data-topologia-carteira]').onclick=()=>abrirArea('gestao');
-    q('[data-topologia-abrir]').onclick=()=>executar(async()=>{
-      if(!config.admin)throw Error('Acesso exclusivo da administração.');
-      limparTopologia();
-      const status=q('[data-topologia-status]');
-      status.textContent='Solicitando acesso à Topologia…';
-      try {
-        const d=await api('/api/admin/topologia/passe');
-        let url;
-        try { url=new URL(d.url); } catch (_) { throw Error('Endereço da Topologia inválido. Contate a administração.'); }
-        if(url.protocol!=='https:'||url.username||url.password)throw Error('Endereço da Topologia inválido. Contate a administração.');
-        const frame=q('[data-topologia-frame]');
-        frame.src=url.href;frame.hidden=false;
-        status.textContent='Acesso solicitado. Se o organograma não aparecer, clique em Carregar Topologia para tentar novamente.';
-      } catch(e){status.textContent=e.message;throw e;}
-    });
+    function renderTopologia(){
+      if(!topo)return;
+      q('[data-topologia-status]').textContent=`${topo.empresas.length} empresas no escopo de gestão · ${topo.pessoas.length} colaboradores · consulta ${instanteBr(topo.lido_em)}. Empresas com apoios aparecem em mais de uma carteira; não some cartões para obter o total.`;
+      q('[data-topologia-pessoas]').innerHTML=topo.pessoas.map(p=>`<button class="crm-summary-card" data-topo-pessoa="${esc(p.uid)}"><span><strong>${esc(p.nome)}</strong><small>${p.empresas} empresas · ${p.principais} como principal<br>${p.obrigacoes_abertas} controles abertos na carteira · ${p.atrasadas} atrasados · ${p.sem_prazo} sem prazo<br>${p.execucao} como executor · ${p.revisao||0} como revisor (no escopo de gestão)</small></span></button>`).join('');
+      const pessoa=q('[data-topologia-pessoa]').value,busca=q('[data-topologia-busca]').value.trim().toLocaleLowerCase('pt-BR');
+      const empresas=topo.empresas.filter(e=>(!pessoa||(pessoa==='sem'?!e.responsaveis.length:e.responsaveis.some(p=>p.uid===pessoa)))&&(!busca||[e.cnpj,e.razao_social,e.codigo_empresa,e.tributacao,e.atividade].join(' ').toLocaleLowerCase('pt-BR').includes(busca)));
+      q('[data-topologia-empresas]').innerHTML=`<p>${empresas.length} empresas no filtro</p>`+empresas.map(e=>`<details class="crm-dossie"><summary><strong>${esc(e.codigo_empresa)} · ${esc(e.razao_social||e.cnpj)}</strong> — ${e.responsaveis.map(p=>esc(p.nome||p.uid)).join(', ')||'Sem responsável'}</summary><p>${esc(e.cnpj)} · Tributação: ${esc(e.tributacao||'Não informada no cadastro')} · CNAE: ${esc(e.atividade||'Não informado no cadastro')}</p><p>Situação do cliente: ${esc(e.situacao_cliente)} · ${e.controles.length} controles registrados</p><button data-topo-distribuir="${esc(e.cnpj)}">Distribuir empresa</button><div class="crm-scroll"><table><thead><tr><th>Obrigação / demanda</th><th>Período</th><th>Prazo</th><th>Situação</th><th>Executor</th></tr></thead><tbody>${e.controles.map(c=>`<tr><td>${esc(c.titulo)}</td><td>${esc(c.periodo)}</td><td>${esc(c.prazo||'Não informado')}</td><td>${esc(situacoes[c.status]||c.status)}${c.atrasado?' · Em atraso':''}</td><td>${esc(topo.pessoas.find(p=>p.uid===c.executor_uid)?.nome||c.executor_uid||'Não definido')}</td></tr>`).join('')}</tbody></table></div></details>`).join('');
+      q('[data-topologia-pessoas]').querySelectorAll('[data-topo-pessoa]').forEach(b=>b.onclick=()=>{q('[data-topologia-pessoa]').value=b.dataset.topoPessoa;renderTopologia();});
+      q('[data-topologia-empresas]').querySelectorAll('[data-topo-distribuir]').forEach(b=>b.onclick=()=>distribuirTopologia(topo.empresas.find(e=>e.cnpj===b.dataset.topoDistribuir)));
+    }
+    function distribuirTopologia(e){
+      const principal=e.responsaveis_permanentes.find(p=>p.papel==='principal'),apoios=e.responsaveis_permanentes.filter(p=>p.papel!=='principal').map(p=>p.uid);
+      formulario(`<h3>Distribuir ${esc(e.razao_social)}</h3><form><label>Responsável principal<select name="principal_uid" required><option value="">Selecione</option>${topo.pessoas.map(p=>`<option value="${esc(p.uid)}" ${p.uid===principal?.uid?'selected':''}>${esc(p.nome)}</option>`).join('')}</select></label><label>Apoios (seleção múltipla)<select name="apoio_uids" multiple size="5">${topo.pessoas.map(p=>`<option value="${esc(p.uid)}" ${apoios.includes(p.uid)?'selected':''}>${esc(p.nome)}</option>`).join('')}</select></label><p>Vigência imediata. O acesso à empresa muda ao salvar. Executores e revisores de demandas existentes serão preservados; confira sua redistribuição no planejamento.</p><label>Motivo<textarea name="motivo" required maxlength="1000"></textarea></label><button>Confirmar distribuição</button><button type="button" data-cancelar>Cancelar</button></form>`,async(b,f)=>{
+        await api('/api/crm/topologia/empresas/'+e.cnpj+'/equipe',{principal_uid:b.principal_uid,apoio_uids:f.getAll('apoio_uids'),motivo:b.motivo,revisao_carteira:e.revisao_carteira},'PUT');q('[data-editor]').innerHTML='';await carregarTopologia();mensagem('Carteira atualizada com histórico. Confira os executores das demandas em andamento.');
+      });q('[data-editor]').scrollIntoView({block:'nearest'});
+    }
+    q('[data-topologia-equipes]').onclick=()=>{
+      if(!topo?.admin)return;
+      const op=topo.pessoas.map(p=>`<option value="${esc(p.uid)}">${esc(p.nome)}</option>`).join('');
+      formulario(`<h3>Líderes e equipes</h3><p>Adicionar uma equipe autoriza o líder a distribuir as empresas inteiramente vinculadas aos integrantes selecionados. A delegação não concede acesso aos lançamentos contábeis.</p><form><label>Equipe<select name="indice"><option value="nova">Nova equipe</option>${(topo.gestao.equipes||[]).map((e,i)=>`<option value="${i}">${esc(e.nome)} (substituir ou revogar)</option>`).join('')}</select></label><label>Nome<input name="nome"></label><label>Líder<select name="lider_uid"><option value="">Selecione</option>${op}</select></label><label>Integrantes<select name="membros" multiple size="8">${op}</select></label><label><input type="checkbox" name="revogar">Revogar a equipe selecionada</label><label>Motivo<textarea name="motivo" required></textarea></label><button>Salvar delegação</button><button type="button" data-cancelar>Cancelar</button></form>`,async(b,f)=>{
+        const equipes=[...(topo.gestao.equipes||[])],indice=b.indice==='nova'?-1:Number(b.indice);
+        if(b.revogar){if(indice<0)throw Error('Selecione a equipe a revogar.');equipes.splice(indice,1);}
+        else{const e={nome:b.nome,lider_uid:b.lider_uid,membros:f.getAll('membros')};if(indice<0)equipes.push(e);else equipes[indice]=e;}
+        await api('/api/crm/topologia/gestao',{equipes,revisao:topo.gestao.revisao||0,motivo:b.motivo},'PUT');q('[data-editor]').innerHTML='';await carregarTopologia();mensagem('Delegações atualizadas com histórico.');
+      });q('[data-editor]').scrollIntoView({block:'nearest'});
+    };
+    q('[data-topologia-abrir]').onclick=()=>executar(carregarTopologia);
+    q('[data-topologia-pessoa]').onchange=renderTopologia;q('[data-topologia-busca]').oninput=renderTopologia;
     async function api(path, body, method) {
       if (!dialog.isConnected) throw Error('Consulta encerrada.');
       const controller = new AbortController();
@@ -169,8 +185,9 @@
     }
     function permissoes() {
       q('[data-area=gestao]').hidden=!config.admin;
-      q('[data-area=topologia]').hidden=!config.admin;
-      if(!config.admin)limparTopologia();
+      q('[data-area=topologia]').hidden=!(config.admin||config.topologia);
+      q('[data-topologia-equipes]').hidden=!config.admin;
+      if(!config.admin&&!config.topologia)limparTopologia();
       q('[data-equipe]').hidden = !config.admin || !empresa(); q('[data-checklist]').hidden = !config.admin;
       q('[data-novo]').hidden = !config.admin || !empresa(); q('[data-parametros]').hidden = true; q('[data-base-resumo]').hidden = !config.admin; q('[data-pendencias]').hidden = !config.admin;
     }
