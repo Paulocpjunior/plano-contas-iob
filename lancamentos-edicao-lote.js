@@ -8,6 +8,20 @@
     const CAMPOS_PERMITIDOS = ['contaDebito', 'contaCredito', 'codigoHistorico', 'historico'];
     const CAMPOS_EDICAO_INDIVIDUAL = ['data', 'descricao', 'valor', 'contaDebito', 'contaCredito', 'codigoHistorico', 'historico', 'historicoPadraoDescricao', 'incomum'];
 
+    function identificarAutoria(entry) {
+        const e = entry || {};
+        const origem = String(e.origem || '').toLowerCase();
+        const manual = origem === 'manual' || !!e.criadoManualEm;
+        const automatico = !!e.encerramentoContabil || /encerramento|automatico|automático/.test(origem);
+        const importado = !!(e.importacaoId || e.arquivoOrigem || e.layoutParser || e.digitador_sage)
+            || /pdf|ofx|ofc|csv|xls|sage|iob|import|fiscal|fpimp/.test(origem);
+        return {
+            tipo: manual ? 'Manual' : automatico ? 'Automático' : importado ? 'Input (importado)' : 'Não registrada',
+            digitador: String(e.digitador_sage || e.incluidoPor || e.migradoPorEmail || '').trim() || 'Não registrado',
+            fonteDigitador: e.digitador_sage ? 'Digitador (SAGE)' : 'Digitador'
+        };
+    }
+
     function periodoLancamento(entry) {
         return String(entry && entry.data || '').slice(0, 7);
     }
@@ -233,6 +247,7 @@
     }
 
     return {
+        identificarAutoria: identificarAutoria,
         CAMPOS_PERMITIDOS: CAMPOS_PERMITIDOS,
         prepararAlteracao: prepararAlteracao,
         selecionarLancamentos: selecionarLancamentos,

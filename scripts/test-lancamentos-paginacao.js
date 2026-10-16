@@ -9,7 +9,7 @@ const el = id => { if (!elementos.has(id)) elementos.set(id, { value: '', style:
 const entries = Array.from({length: 27906}, (_, i) => ({id:'id-'+i, numeroLancamento:i+1, data:i<446?'2026-08-01':'2026-06-01', descricao:'Pagamento repetido', historico:'Histórico preservado '+i, contaDebito:'101', contaCredito:'201', valor:-10}));
 const state = {entries, info:{cnpj:'empresa-a'}, lastFile:'extrato.pdf'};
 const before = JSON.stringify(state);
-const ctx = { state, document:{getElementById:el}, window:{}, lancamentosSelecionados:new Set(['id-0','id-101']),
+const ctx = { state, document:{getElementById:el}, window:{CCILancamentosEdicaoLote:require('../lancamentos-edicao-lote')}, lancamentosSelecionados:new Set(['id-0','id-101']),
  popularFiltroImportacoes(){}, capturarEdicaoAtivaLancamentos(){return null;}, popularDatalistHistoricos(){}, sincronizarSelecaoLancamentos(){},
  obterEntriesFiltrados(){return state.entries.filter(e=>!el('filterDataInicio').value || e.data>=el('filterDataInicio').value);},
  atualizarCardsTotaisImportados(list){ctx.totalCards=list.length;}, atualizarPainelCreditoPisCofins(list){ctx.totalPis=list.length;},

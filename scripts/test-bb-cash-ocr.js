@@ -34,3 +34,47 @@ assert.ok(resultado.lancamentos.some(l => l.descricao.includes('TED-Credito') &&
 assert.ok(resultado.lancamentos.some(l => l.descricao.includes('Pagamento de DARF') && l.valor === -14998.77));
 
 console.log('OK: BB Cash OCR reconhece periodo, sinal C/D/€ e valores colados.');
+
+// OCR real dos PDFs digitalizados recebidos em 16/10/2026, identidades anonimizadas.
+for (const [arquivo, qtd, periodo, total] of [
+  ['bb1', 17, '2026-09-01', 41712.83], ['bb2', 21, '2026-07-01', 52614.02]
+]) {
+  const paginas = require('./fixtures/bank-ocr/' + arquivo + '.json');
+  const r = bbCash.parsearTexto_BB_CashOCR(paginas, { exigirSaldos: true });
+  assert.equal(r.lancamentos.length, qtd);
+  assert.equal(r.periodo_inicio, periodo);
+  assert.equal(r.saldo_anterior, 0);
+  assert.equal(r.saldo_final, 0);
+  assert.equal(r.saldos_conciliados, true);
+  assert.equal(Math.round(r.lancamentos.filter(l => l.valor > 0).reduce((s, l) => s + l.valor, 0) * 100), Math.round(total * 100));
+  assert.equal(Math.round(r.lancamentos.reduce((s, l) => s + l.valor, 0) * 100), 0);
+  if (arquivo === 'bb2') {
+    assert(r.lancamentos.some(l => l.data === '2026-07-01' && /Juros/.test(l.descricao) && l.valor === 20.48));
+    assert(r.lancamentos.some(l => l.valor === -5.60), 'IOF e movimento real');
+    assert.throws(() => bbCash.parsearTexto_BB_CashOCR([paginas[0]], { exigirSaldos: true }), /saldo final nao reconhecido/);
+  } else {
+    assert.equal(r.lancamentos.filter(l => l.valor === -17.50).length, 2, 'Tarifas distintas nao podem ser deduplicadas');
+    assert.throws(() => bbCash.parsearTexto_BB_CashOCR(paginas.map(p => p.replace('6.200,00 C', '6.200,00 D')), { exigirSaldos: true }), /saldo divergente/);
+    assert.throws(() => bbCash.parsearTexto_BB_CashOCR(paginas.map(p => p.replace('6.200,00 C', '6.200,00')), { exigirSaldos: true }), /natureza ilegivel/);
+    assert.throws(() => bbCash.parsearTexto_BB_CashOCR(paginas.map(p => p.replace(/^01\/09\/2026.*6.200,00 C\n/m, '')), { exigirSaldos: true }), /saldo divergente/);
+  }
+}
+assert.equal(bbCash.parsearTexto_BB_CashOCR('Extrato de outro banco').detectado, false);
+console.log('OK: PDFs BB digitalizados, juros/IOF, duas datas, paginas, tarifas e conferencia de saldos.');
+
+(async function validarFluxoPDF() {
+  const paginas = require('./fixtures/bank-ocr/bb2.json');
+  let posicao = 0, encerramentos = 0;
+  global.pdfjsLib = { getDocument: () => ({ promise: Promise.resolve({ numPages: 2,
+    getPage: async () => ({ getViewport: () => ({ width: 10, height: 10 }), render: () => ({ promise: Promise.resolve() }) }), destroy: async () => {}
+  }) }) };
+  global.document = { createElement: () => ({ getContext: () => ({}) }) };
+  global.Tesseract = { createWorker: async () => ({ setParameters: async () => {}, terminate: async () => { encerramentos++; },
+    recognize: async () => ({ data: { text: paginas[posicao++] } })
+  }) };
+  const r = await bbCash.parsearPDF_BB_CashOCR(new ArrayBuffer(0));
+  assert.equal(r.lancamentos.length, 21);
+  assert.equal(posicao, 2);
+  assert.equal(encerramentos, 1);
+  console.log('OK: fluxo PDF BB processa todas as paginas com conferencia obrigatoria.');
+})().catch(e => { console.error(e); process.exitCode = 1; });
