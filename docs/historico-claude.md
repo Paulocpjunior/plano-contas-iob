@@ -2072,3 +2072,7 @@ Integração administrativa sob demanda no CRM; passe sem cache, URL HTTPS sem c
 ## 2026-10-16 — Topologia com carteira nativa (3.4.412)
 
 Substituída incorporação externa na área CRM por visão baseada nos mesmos cadastros e controles. Administrador delega líderes/equipes com revisão/histórico; líderes só distribuem dentro do escopo completo da equipe. Redistribuição usa transação canônica, vigência imediata e motivo obrigatório. Executores/revisores existentes preservados e contabilizados mesmo após transferência. Sem atribuições reais automáticas. Testes de escopo, escalada, conflito, revogação e UI móvel fictícia passaram; consultar docs/crm-topologia-revisao-20261016.md para limites e pendências.
+
+## 2026-10-16 — acesso único à Topologia (3.4.413)
+
+Admin passa a abrir a mesma interface nativa do CRM, em vez do iframe externo. Elimina a ambiguidade de duas fontes de contagem/distribuição. O serviço externo não foi apagado nem teve seus dados alterados; suas posições não foram automaticamente transformadas em permissões. Lideranças exigem delegação explícita na Topologia do CRM.

@@ -44,3 +44,7 @@ Distribuição reutiliza a mesma transação da carteira, com versão esperada, 
 Totais de carteira incluem apoios: não somar cartões para contar empresas distintas. Controles registrados não são prova de aplicabilidade completa. Sem controles não significa regularidade fiscal. Consulta falha explicitamente acima de 20 mil controles ou 5 mil documentos por cadastro, sem publicar totais parciais como completos.
 
 Testes: delegação administrativa, tentativa de escalada, isolamento entre equipes, conflito de revisão, revogação após/ durante consulta, transferência com executor preservado e perda do acesso anterior. Validação visual fictícia em 390×844 sem transbordamento. Nenhuma delegação ou carteira real foi alterada automaticamente. Homologação com usuários reais continua pendente.
+
+### Acesso unificado (3.4.413)
+
+O painel Admin também abre a interface nativa do CRM. O iframe externo foi retirado dessa entrada; não há uma segunda carteira manual no fluxo do CCI. O serviço externo e seu histórico foram preservados, mas suas posições/células não foram migradas automaticamente para delegações de acesso.

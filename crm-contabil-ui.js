@@ -23,7 +23,7 @@
   const prazos={atrasado:'Em atraso',no_prazo:'No prazo',sem_prazo:'Sem prazo',encerrado:'Encerrado'};
   const prazoDe=(c,dia)=>['concluida','nao_aplicavel'].includes(c.status)?'encerrado':!c.prazo?'sem_prazo':c.prazo<dia?'atrasado':'no_prazo';
   const proximosSete=(c,dia)=>{const fim=new Date(dia+'T12:00:00Z');fim.setUTCDate(fim.getUTCDate()+7);return !['concluida','nao_aplicavel'].includes(c.status)&&c.prazo>dia&&c.prazo<=fim.toISOString().slice(0,10);};
-  window.abrirCrmContabil = async function () {
+  window.abrirCrmContabil = async function (areaInicial) {
     if (document.getElementById('crmContabilDialog')) return;
     const dialog = document.createElement('dialog'); dialog.id = 'crmContabilDialog'; dialog.setAttribute('aria-labelledby', 'crmTitulo');
     dialog.innerHTML = `<style>
@@ -516,5 +516,6 @@
     q('[data-pane=gestao]').insertAdjacentHTML('beforeend','<div class="crm-health-note"><strong>Migração em homologação — Jotform permanece disponível</strong><p>Confira empresas e identificações nos relatórios acima. Valores importados não comprovam equivalência das fórmulas e automações.</p><ul><li>Fórmulas e opções: comparar regras, resultados e casos vazios com a origem.</li><li>Anexos: links preservados; cópia privada e conciliação ainda pendentes.</li><li>Checklist: consulta e aplicação individual pelo administrador dependem da credencial; eventos com pendências exigem revisão.</li><li>Aceite: validar administrador, colaborador e consulta antes de definir o corte.</li></ul></div>');
     abrirArea('inicio');
     await executar(async()=>{config=await api('/api/crm/contexto');perfilUid=config.uid;visualizacoes=await api('/api/crm/visualizacoes');listarVisualizacoes();});q('[data-home-nav]').focus();
+    if(areaInicial==='topologia'&&(config.admin||config.topologia)){abrirArea('topologia');q('[data-topologia-abrir]').focus();}
   };
 })();

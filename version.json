@@ -1,7 +1,8 @@
 {
-  "version": "3.4.412",
-  "build_date": "2026-10-16T10:08:13Z",
+  "version": "3.4.413",
+  "build_date": "2026-10-16T10:10:13Z",
   "release_notes": [
+    "Topologia: painel Admin e CRM abrem a mesma carteira, sem contagem paralela.",
     "Topologia: carteira real do CRM, distribuição auditada e delegação de líderes por equipe.",
     "CRM: Topologia integrada à gestão, com carregamento sob demanda e acesso exclusivo de administradores.",
     "CRM: calendário e carga da equipe com consulta unificada; demandas e filtros em lotes paralelos. Consultas têm limite de espera, liberam a tela em caso de falha e permitem voltar ao CCI durante o carregamento.",
