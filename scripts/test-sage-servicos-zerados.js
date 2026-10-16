@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('assert'),fs=require('fs');
+global.pdfjsLib=require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js');
+const p=require('../parser-clude-servicos-tomados');
+const header='Empresa: 1183 - DAXX MIDIA LTDA\nC.N.P.J.: 11.775.820/0001-71 Período: 01/01/2026 á 31/07/2026\nRelação de NFs de Serviços Prestados - Modelo 51 e 53\n';
+const row=(nf,servico,values)=>`02/01/2026 ${servico} ${nf} 002 06.004.860/0001-80 CLIENTE TESTE ${values}\n`;
+const positive=row('0002686','24.96','100,00 100,00 5,00 5,00 0,00');
+const zero=row('0002688','6394','0,00 0,00 0,00 0,00');
+const run=(body,total='100,00 100,00 5,00 0,00')=>p.parsearTexto_IOBSageServicosPrestados(header+body+'Total '+total);
+const r=run(positive+zero+row('0002689','63.94','0,00 0,00 5,00 0,00 0,00'));
+assert.equal(r.total_notas_fiscais,3);assert.equal(r.total_notas_zeradas,2);assert.equal(r.lancamentos.length,1);assert.equal(r.total_credito,100);assert.equal(r.total_divergente,false);assert.equal(r.notas_zeradas_desconsideradas[0].documento,'2688');
+assert(p.validarVinculoCnpjRelatorioFiscal(r,{cnpjEmpresaAtiva:'11775820000171',movimento:'servicos_prestados'}).valido);
+assert.throws(()=>run(positive+row('0002688','6394','0,00 0,00 5,00 1,00 0,00')),/base ou ISS/);
+assert.throws(()=>run(positive+row('0002688','6394','0,00 0,00 0,00')),/ausentes ou ambíguos/);
+assert.equal(run(positive+zero,'101,00 101,00 5,00 0,00').total_divergente,true);
+const only=run(zero,'0,00 0,00 0,00 0,00');assert.equal(only.lancamentos.length,0);assert.throws(()=>p.validarVinculoCnpjRelatorioFiscal(only,{cnpjEmpresaAtiva:'11775820000171'}),/Não há valores para integrar/);
+(async()=>{const file=process.env.SAGE_PRESTADOS_PDF;if(file){const data=await p.parsearPDF_IOB_Sage_ServicosPrestados(fs.readFileSync(file));assert.equal(data.total_notas_fiscais,338);assert.equal(data.total_notas_zeradas,87);assert.equal(data.lancamentos.length,251);assert.equal(Math.round(data.total_credito*100),820588026);assert.equal(data.total_divergente,false);assert(data.lancamentos.every(n=>n.valor>0));}console.log('OK: SAGE serviços zerados, código decimal, exceções rastreáveis e bloqueios preservados.');})().catch(e=>{console.error(e);process.exitCode=1});

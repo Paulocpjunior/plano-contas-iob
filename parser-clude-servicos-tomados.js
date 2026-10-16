@@ -325,11 +325,11 @@
     };
   }
 
-  function criarLancamentoServicoPrestado({ cnpj, tomador, valor, documento, data, periodo, metaEmpresa, servico, baseCalculoIss, aliquotaIss, valorIss, issRetido }) {
+  function criarLancamentoServicoPrestado({ cnpj, tomador, valor, documento, data, periodo, metaEmpresa, servico, baseCalculoIss, aliquotaIss, valorIss, issRetido, permitirZeroExplicito }) {
     const tomadorLimpo = normalizarTomadorPrestado(tomador)
       || (somenteDigitos(cnpj) ? 'TOMADOR NAO INFORMADO NO RELATORIO' : '');
     const documentoLimpo = String(documento || '').replace(/^0+(?=\d)/, '');
-    if (!tomadorLimpo || !valor || !data) return null;
+    if (!tomadorLimpo || (!valor && !(permitirZeroExplicito && valor === 0)) || !data) return null;
     if (cnpjIgual(cnpj, metaEmpresa && metaEmpresa.cnpj)) return null;
     if (ehTrechoCabecalhoServicoPrestado(tomadorLimpo)) return null;
     if (/^(SERVICO|NUMERO|SERIE|CNPJ|CPF|RAZAO|SOCIAL)$/i.test(tomadorLimpo)) return null;
@@ -691,14 +691,14 @@
     // Modelo 51/53 com data, serviço, nota e série em colunas, inclusive cliente não identificado.
     const tabulares=[];
     for(const linha of linhas){
-      const m=linha.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d{4})\s+(\d{7})\s+(\d{3})\s+(.+)$/);
+      const m=linha.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d{4}|\d{1,2}\.\d{2})\s+(\d{7})\s+(\d{3})\s+(.+)$/);
       if(!m)continue;
-      const valores=[...m[5].matchAll(money)];if(valores.length<4||valores.length>5)continue;
+      const valores=[...m[5].matchAll(money)];if(valores.length<4||valores.length>5)throw new Error('NF '+m[3]+': campos monetários ausentes ou ambíguos. Confira o relatório SAGE.');
       const cliente=m[5].slice(0,valores[0].index).trim(),doc=(cliente.match(cpfCnpj)||[])[0]||'';
       if(!doc&&!/^N[ÃA]O INFORMADO$/i.test(cliente))continue;
       const nome=doc?cliente.replace(doc,'').trim():'';
-      const lanc=criarLancamentoServicoPrestado({cnpj:doc,tomador:nome||'TOMADOR NAO INFORMADO NO RELATORIO',valor:parseMoneyBR(valores[0][1]),documento:m[3],data:parseDateBR(m[1]),periodo,metaEmpresa,servico:m[2],baseCalculoIss:parseMoneyBR(valores[1][1]),aliquotaIss:parseMoneyBR(valores[2][1]),valorIss:parseMoneyBR(valores[3][1]),issRetido:valores[4]?parseMoneyBR(valores[4][1]):0});
-      if(lanc){lanc.identificacaoTomadorPendente=!doc||!nome;if(lanc.identificacaoTomadorPendente){lanc.incomum=true;lanc.ressalvaFiscal='Cliente sem documento ou nome na fonte; conferir cadastro, sem identificação presumida.';}lanc.documentoTomadorTipo=doc?(somenteDigitos(doc).length===11?'CPF':'CNPJ'):null;tabulares.push(lanc);}
+      const lanc=criarLancamentoServicoPrestado({cnpj:doc,tomador:nome||'TOMADOR NAO INFORMADO NO RELATORIO',valor:parseMoneyBR(valores[0][1]),documento:m[3],data:parseDateBR(m[1]),periodo,metaEmpresa,servico:m[2],baseCalculoIss:parseMoneyBR(valores[1][1]),aliquotaIss:valores.length===5?parseMoneyBR(valores[2][1]):0,valorIss:parseMoneyBR(valores[valores.length-2][1]),issRetido:parseMoneyBR(valores[valores.length-1][1]),permitirZeroExplicito:true});
+      if(lanc){lanc.serieSubserie=m[4];lanc.identificacaoTomadorPendente=!doc||!nome;if(lanc.identificacaoTomadorPendente){lanc.incomum=true;lanc.ressalvaFiscal='Cliente sem documento ou nome na fonte; conferir cadastro, sem identificação presumida.';}lanc.documentoTomadorTipo=doc?(somenteDigitos(doc).length===11?'CPF':'CNPJ'):null;tabulares.push(lanc);}
     }
     if(tabulares.length)return tabulares;
 
@@ -892,14 +892,21 @@
       parsearRegistrosServicosPrestadosVisual(texto, periodo, metaEmpresa)
         .concat(parsearRegistrosServicosPrestadosIOB(texto, periodo, metaEmpresa))
     );
-    const registros = notasFiscais.reduce(function(todos, nota) {
+    const notasZeradas = notasFiscais.filter(function(nota) { return nota.valorNota === 0; });
+    notasZeradas.forEach(function(nota) {
+      if ([nota.baseCalculoIss, nota.valorIss, nota.issRetido].some(function(valor) { return valor !== 0; })) {
+        throw new Error('NF ' + nota.documento + ': valor da nota zero com base ou ISS diferente de zero. Confira o relatório SAGE.');
+      }
+    });
+    const notasIntegraveis = notasFiscais.filter(function(nota) { return nota.valorNota !== 0; });
+    const registros = notasIntegraveis.reduce(function(todos, nota) {
       const iss = criarLancamentoIssRetidoServicoPrestado(nota);
       return iss ? todos.concat([nota, iss]) : todos.concat([nota]);
     }, []);
     const totalCredito = notasFiscais.reduce((acc, l) => acc + Math.abs(Number(l.valorNota || l.valor) || 0), 0);
     const totalIssRetido = notasFiscais.reduce((acc, l) => acc + Math.abs(Number(l.issRetido || 0)), 0);
     const divergencias = [];
-    if (totalOficial && Math.abs(centavos(totalCredito) - centavos(totalOficial)) > 1) divergencias.push('valorNotas');
+    if ((totaisOficiais || totalOficial) && Math.abs(centavos(totalCredito) - centavos(totalOficial)) > 1) divergencias.push('valorNotas');
     if (totaisOficiais && Math.abs(centavos(totalIssRetido) - centavos(totaisOficiais.issRetido)) > 1) divergencias.push('issRetido');
     const codigoEmpresa = String(metaEmpresa.codigo || '').trim() || 'FISCAL';
     const nomeLayout = codigoEmpresa === '1183'
@@ -907,7 +914,7 @@
       : codigoEmpresa + ' - Servicos Prestados Fiscal';
 
     return {
-      detectado: registros.length > 0,
+      detectado: notasFiscais.length > 0,
       banco_detectado: codigoEmpresa,
       nome_banco_detectado: metaEmpresa.nome || nomeLayout,
       conta_detectada: 'SERVICOS_PRESTADOS',
@@ -922,9 +929,11 @@
       total_iss_retido: Math.round(totalIssRetido * 100) / 100,
       total_notas_fiscais: notasFiscais.length,
       total_lancamentos_fiscais: registros.length,
+      total_notas_zeradas: notasZeradas.length,
+      notas_zeradas_desconsideradas: notasZeradas.map(function(nota) { return { documento: nota.documento, data: nota.data, tomador: nota.descricao_memoria, valor: 0, motivo: 'Valor da nota, base e ISS explicitamente zerados no SAGE; sem lançamento contábil.' }; }),
       direcao_fiscal: 'servicos_prestados',
-      total_oficial: totalOficial || totalCredito,
-      total_oficial_detectado: !!totalOficial,
+      total_oficial: totaisOficiais ? totalOficial : (totalOficial || totalCredito),
+      total_oficial_detectado: !!totaisOficiais || !!totalOficial,
       totais_iss_oficiais: totaisOficiais,
       total_divergente: divergencias.length > 0,
       campos_totais_divergentes: divergencias,
@@ -1475,8 +1484,10 @@
     const raw = sequencia.join('\n');
     const combinado = agrupado + '\n' + raw;
     const totalOficial = extrairTotalOficial(raw) || extrairTotalOficial(agrupado) || extrairTotalOficial(combinado);
+    const resultadoAgrupado = parsearTexto_IOBSageServicosPrestados(agrupado);
+    if (resultadoAgrupado.detectado && resultadoAgrupado.total_notas_zeradas > 0 && !resultadoAgrupado.total_divergente && resultadoAgrupado.total_oficial_detectado) return resultadoAgrupado;
     return escolherResultadoPorTotalOficial([
-      parsearTexto_IOBSageServicosPrestados(agrupado),
+      resultadoAgrupado,
       parsearTexto_IOBSageServicosPrestados(raw),
       parsearTexto_IOBSageServicosPrestados(combinado)
     ], totalOficial, 'credito');
@@ -1590,6 +1601,9 @@
     const cnpjArquivo = somenteDigitos(resultado && resultado.cnpj_detectado);
     const movimentoEsperado = String(opts.movimento || '');
     const movimentoDetectado = String((resultado && resultado.direcao_fiscal) || '');
+    if (resultado && resultado.detectado && resultado.total_notas_zeradas > 0 && Array.isArray(resultado.lancamentos) && !resultado.lancamentos.length && !resultado.total_divergente) {
+      throw new Error('Todas as ' + resultado.total_notas_zeradas + ' notas estão zeradas. Não há valores para integrar nem lançamentos contábeis a gerar.');
+    }
     if (!resultado || !resultado.detectado || !Array.isArray(resultado.lancamentos) || !resultado.lancamentos.length) {
       throw new Error('O PDF nao foi reconhecido como relatorio E-Fiscal de servicos do modelo selecionado.');
     }
