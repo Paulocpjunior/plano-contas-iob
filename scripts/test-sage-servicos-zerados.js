@@ -13,5 +13,23 @@ assert(p.validarVinculoCnpjRelatorioFiscal(r,{cnpjEmpresaAtiva:'11775820000171',
 assert.throws(()=>run(positive+row('0002688','6394','0,00 0,00 5,00 1,00 0,00')),/base ou ISS/);
 assert.throws(()=>run(positive+row('0002688','6394','0,00 0,00 0,00')),/ausentes ou ambíguos/);
 assert.equal(run(positive+zero,'101,00 101,00 5,00 0,00').total_divergente,true);
+// A série pode ficar vazia no mesmo relatório que contém notas com série.
+const serieTexto = run(positive.replace(' 002 ', ' NFE 002 '));
+assert.equal(serieTexto.lancamentos[0].serieSubserie, 'NFE 002');
+assert(!serieTexto.lancamentos[0].descricao_memoria.includes('NFE 002'));
+const semSerie = row('0002690','24.96','200,00 200,00 5,00 10,00 0,00').replace(' 002 ', ' ');
+const zeroSemSerie = zero.replace(' 002 ', ' ');
+const misto = run(positive + semSerie + zeroSemSerie, '300,00 300,00 15,00 0,00');
+assert.equal(misto.total_notas_fiscais, 3);
+assert.equal(misto.total_notas_zeradas, 1);
+assert.equal(misto.lancamentos.length, 2);
+assert.equal(misto.total_credito, 300);
+assert.equal(misto.total_divergente, false);
+assert.equal(misto.lancamentos.find(l=>l.documento==='2690').serieSubserie, '');
+assert.equal(misto.lancamentos.find(l=>l.documento==='2686').serieSubserie, '002');
+const outraEmpresa = p.parsearTexto_IOBSageServicosPrestados((header+positive+semSerie+'Total 300,00 300,00 15,00 0,00').replace('1183 - DAXX MIDIA LTDA','1336 - EMPRESA TESTE').replace('11.775.820/0001-71','60.527.879/0001-56'));
+assert.equal(outraEmpresa.total_credito, 300);
+assert.equal(outraEmpresa.total_divergente, false);
+assert.equal(run(positive+semSerie,'301,00 301,00 15,00 0,00').total_divergente,true);
 const only=run(zero,'0,00 0,00 0,00 0,00');assert.equal(only.lancamentos.length,0);assert.throws(()=>p.validarVinculoCnpjRelatorioFiscal(only,{cnpjEmpresaAtiva:'11775820000171'}),/Não há valores para integrar/);
 (async()=>{const file=process.env.SAGE_PRESTADOS_PDF;if(file){const data=await p.parsearPDF_IOB_Sage_ServicosPrestados(fs.readFileSync(file));assert.equal(data.total_notas_fiscais,338);assert.equal(data.total_notas_zeradas,87);assert.equal(data.lancamentos.length,251);assert.equal(Math.round(data.total_credito*100),820588026);assert.equal(data.total_divergente,false);assert(data.lancamentos.every(n=>n.valor>0));}console.log('OK: SAGE serviços zerados, código decimal, exceções rastreáveis e bloqueios preservados.');})().catch(e=>{console.error(e);process.exitCode=1});

@@ -184,7 +184,9 @@ Total 3.960,00 3.960,00 79,20 79,20
   assert.strictEqual(resultadoSintese.cnpj_detectado, '02.986.671/0001-07');
   assert.strictEqual(resultadoSintese.periodo_inicio, '2026-06-01');
   assert.strictEqual(resultadoSintese.periodo_fim, '2026-06-30');
-  assert.strictEqual(resultadoSintese.total_notas_fiscais, 19);
+  assert.strictEqual(resultadoSintese.total_notas_fiscais, 22);
+  assert.strictEqual(resultadoSintese.total_notas_zeradas, 3);
+  assert.deepStrictEqual(resultadoSintese.notas_zeradas_desconsideradas.map(n=>n.documento), ['7685','7689','7692']);
   assert.strictEqual(resultadoSintese.total_lancamentos_fiscais, 20);
   assert.strictEqual(money(resultadoSintese.total_credito), 283994.17);
   assert.strictEqual(money(resultadoSintese.total_debito), 1875.52);
@@ -213,7 +215,10 @@ Total 3.960,00 3.960,00 79,20 79,20
   const resultadoDaxxTotalPass = await parsearPDF_IOB_Sage_ServicosPrestados(new Uint8Array(bufferDaxxTotalPass));
   assert.strictEqual(resultadoDaxxTotalPass.detectado, true);
   assert.strictEqual(resultadoDaxxTotalPass.cnpj_detectado, '60.527.879/0001-56');
-  assert.strictEqual(resultadoDaxxTotalPass.total_notas_fiscais, 64);
+  assert.strictEqual(resultadoDaxxTotalPass.total_notas_fiscais, 69);
+  assert.strictEqual(resultadoDaxxTotalPass.total_notas_zeradas, 5);
+  assert.strictEqual(resultadoDaxxTotalPass.lancamentos.length, 64);
+  assert.deepStrictEqual(resultadoDaxxTotalPass.notas_zeradas_desconsideradas.map(n=>n.documento), ['362','374','388','406','407']);
   assert.strictEqual(money(resultadoDaxxTotalPass.total_credito), 8647374.14);
   assert.strictEqual(resultadoDaxxTotalPass.total_divergente, false);
   assert.ok(resultadoDaxxTotalPass.lancamentos.some(l => l.documento === '378' && money(l.valor) === 22328.17), 'NF 378 da TOTAL PASS deve ser preservada');
