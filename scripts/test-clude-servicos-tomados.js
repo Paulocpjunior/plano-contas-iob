@@ -56,8 +56,9 @@ Total 3.960,00 3.960,00 79,20 79,20
 `;
   const resultadoSemRazaoSocial = parsearTexto_IOBSageServicosPrestados(textoPrestadosSemRazaoSocial);
   assert.strictEqual(resultadoSemRazaoSocial.detectado, true);
-  assert.strictEqual(resultadoSemRazaoSocial.total_notas_fiscais, 1, 'NF com valor e sem razao social deve ser preservada; NF zerada permanece fora');
+  assert.strictEqual(resultadoSemRazaoSocial.total_notas_fiscais, 2, 'NF zerada deve constar da conferência, sem gerar lançamento');
   assert.strictEqual(resultadoSemRazaoSocial.total_lancamentos_fiscais, 2);
+  assert.strictEqual(resultadoSemRazaoSocial.total_notas_zeradas, 1);
   assert.strictEqual(money(resultadoSemRazaoSocial.total_credito), 3960);
   assert.strictEqual(money(resultadoSemRazaoSocial.total_debito), 79.20);
   assert.strictEqual(resultadoSemRazaoSocial.total_divergente, false);

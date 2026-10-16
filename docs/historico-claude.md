@@ -2084,3 +2084,9 @@ Implementada conferência administrativa do vínculo de registros importados, co
 ## Topologia: escopo do departamento — 3.4.415
 
 Corrigida a inclusão de todos os usuários corporativos. CRM consulta a API do cadastro central do CFI e exige departamento `contabil`, sem inferir por papel de administrador, acesso ao app ou primeiro nome no Jotform. Lista e distribuição validam a mesma regra; falha da integração não amplia o escopo. Contas locais inativas e identidades duplicadas por e-mail não são elegíveis para novas atribuições. Vínculos existentes são preservados. Testes incluem departamento externo, administrador externo, duplicidade e indisponibilidade da origem. Sem nova importação de dados do Jotform nesta correção.
+
+## 2026-10-16 — SAGE serviços prestados: notas zeradas e código decimal (3.4.416)
+
+Relatório DAXX 1183 jan–jul/2026 reproduziu leitura de 222 notas e R$ 7.282.720,64 contra total oficial R$ 8.205.880,26. Código de serviço decimal não entrava no caminho tabular quando havia outras linhas com código inteiro. Ajuste reconhece ambos, confere 338 notas, separa 87 notas explicitamente zeradas e entrega 251 lançamentos no total oficial. Exceções identificadas por nota, data e cliente na tela; base/ISS não zerados e campos monetários incompletos bloqueiam. Nenhum lançamento ou cadastro real alterado. Testes cobrem o PDF original por variável SAGE_PRESTADOS_PDF e casos portáteis. Publicação autorizada pelo usuário.
+
+Validação final: check:ci com 262 aprovados, 2 pulados por evidências externas ausentes e zero falhas. Teste dedicado executado também com o PDF original da DAXX; regressões reais SAGE tomados/prestados e retenções passaram. check local completo interrompido por fixture externa Itaú ausente, sem relação com esta alteração. Evidências locais em output/daxx-sage-prestados-20261016 (conferência e relação das 87 notas zeradas).

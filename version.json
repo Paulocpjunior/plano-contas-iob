@@ -1,7 +1,8 @@
 {
-  "version": "3.4.415",
-  "build_date": "2026-10-16T10:57:25Z",
+  "version": "3.4.416",
+  "build_date": "2026-10-16T15:26:03Z",
   "release_notes": [
+    "SAGE serviços prestados: códigos de serviço decimais reconhecidos e notas explicitamente zeradas listadas como exceção, sem lançamento contábil e com conferência do total oficial.",
     "Topologia: equipe restrita ao departamento contábil do cadastro central, com bloqueio de contas ambíguas na distribuição.",
     "CRM: conferência de identificações importadas dentro do aplicativo, com origem preservada e histórico.",
     "Topologia: filtros de qualidade cadastral e formulários legíveis no celular.",
