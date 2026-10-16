@@ -1,7 +1,8 @@
 {
-  "version": "3.4.422",
-  "build_date": "2026-10-16T19:15:32.410Z",
+  "version": "3.4.423",
+  "build_date": "2026-10-16T19:39:05.387Z",
   "release_notes": [
+    "SAGE serviços tomados: preservação da série quando a coluna C.I. está vazia, evitando descartar notas de séries distintas e mantendo a conferência do total oficial.",
     "Cadastro de empresas: Confirmar e Continuar também salva a numeração informada; falhas de gravação mantêm o formulário aberto e preservam os lançamentos.",
     "SAGE serviços prestados: leitura de notas com série preenchida ou em branco no mesmo relatório, para todas as empresas do modelo 51/53, preservando notas zeradas como exceções e conferência do total impresso.",
     "BB Cash: releitura ampliada da linha com valor ou natureza ilegível, preservando identificação e conferência obrigatória dos saldos.",
