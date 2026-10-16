@@ -1,7 +1,8 @@
 {
-  "version": "3.4.410",
-  "build_date": "2026-10-15T19:50:24Z",
+  "version": "3.4.411",
+  "build_date": "2026-10-16T09:41:00Z",
   "release_notes": [
+    "CRM: Topologia integrada à gestão, com carregamento sob demanda e acesso exclusivo de administradores.",
     "CRM: calendário e carga da equipe com consulta unificada; demandas e filtros em lotes paralelos. Consultas têm limite de espera, liberam a tela em caso de falha e permitem voltar ao CCI durante o carregamento.",
     "CiA: painel flutuante aberto automaticamente após o login, no canto inferior direito, com botão para minimizar e reabrir. A tela permanece disponível e os dados da consulta são limpos ao sair.",
     "CiA: assistente contábil com contexto da empresa e período, conferência dos lançamentos salvos e evidências de classificação incompleta, valores não identificados e possíveis repetições. Acesso restrito à carteira e consultas sem alteração dos registros.",

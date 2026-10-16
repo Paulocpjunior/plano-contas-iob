@@ -6291,6 +6291,8 @@ app.get('/api/layout-quality/ops', adminRequired, async (req, res) => {
 // Topologia do departamento: abre o organograma para administradores sem novo login.
 const topologiaSso = require('./topologia-sso');
 app.get('/api/admin/topologia/passe', adminRequired, (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  res.set('Referrer-Policy', 'no-referrer');
   const segredo = process.env.TOPOLOGIA_SSO_SECRET || '';
   const base = process.env.TOPOLOGIA_URL || '';
   if (!segredo || !base) {
