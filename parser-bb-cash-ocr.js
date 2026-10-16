@@ -250,24 +250,30 @@
           const fator = escala / escalaOriginal;
           const x = Math.max(0, Math.floor(box.x0 * fator) - 6);
           const y = Math.max(0, Math.floor(box.y0 * fator) - 4);
-          const largura = Math.min(canvas.width - x, Math.ceil((box.x1 - box.x0) * fator) + 12);
+          // A caixa do OCR pode terminar antes do C/D que ele não reconheceu.
+          // Releia a faixa até a margem direita do PDF, incluindo valor e saldo.
+          const largura = canvas.width - x;
           const altura = Math.min(canvas.height - y, Math.ceil((box.y1 - box.y0) * fator) + 8);
           if (largura <= 0 || altura <= 0) continue;
           recorte.width = largura + 40; recorte.height = altura + 40;
           const ctx = recorte.getContext('2d');
           ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, recorte.width, recorte.height);
           ctx.drawImage(canvas, x, y, largura, altura, 20, 20, largura, altura);
-          const r = await worker.recognize(recorte);
-          if (opts.signal && opts.signal.aborted) throw opts.signal.reason;
-          const texto = limparLinhaOCR(r.data.text);
-          // A releitura precisa conservar datas, agência, lote, histórico e documento.
-          // Só a parte monetária ilegível pode mudar; linhas vizinhas não são aceitas.
-          const originalPrefixo = erro.linhaOCR.match(/^(.*?\s\d[\d.]*[,.]\d{2})(?=\s|$)/);
-          const valores = valoresComNatureza(texto);
-          if (!originalPrefixo || !valores.length) continue;
-          const prefixo = originalPrefixo[1].replace(/\d[\d.]*[,.]\d{2}$/, '').trim();
-          if (texto.slice(0, valores[0].index).trim() !== prefixo) continue;
-          return texto;
+          for (const modo of ['7', '13']) {
+            await worker.setParameters({ tessedit_pageseg_mode: modo });
+            const r = await worker.recognize(recorte);
+            if (opts.signal && opts.signal.aborted) throw opts.signal.reason;
+            const texto = limparLinhaOCR(r.data.text);
+            // Aceite apenas diferenças de espaçamento no prefixo. Dígitos de data,
+            // agência, lote e documento, além do histórico, devem permanecer iguais.
+            const originalPrefixo = erro.linhaOCR.match(/^(.*?\s\d[\d.]*[,.]\d{2})(?=\s|$)/);
+            const valores = valoresComNatureza(texto);
+            if (!originalPrefixo || !valores.length) continue;
+            const prefixo = originalPrefixo[1].replace(/\d[\d.]*[,.]\d{2}$/, '').trim();
+            if (texto.slice(0, valores[0].index).replace(/\s/g, '') !== prefixo.replace(/\s/g, '')) continue;
+            // Mantenha a identificação original; substitua só a leitura monetária.
+            return prefixo + ' ' + texto.slice(valores[0].index).trim();
+          }
         } finally { canvas.width = canvas.height = recorte.width = recorte.height = 0; }
       }
       return null;
