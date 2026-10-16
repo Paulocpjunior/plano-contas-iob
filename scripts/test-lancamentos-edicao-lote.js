@@ -245,3 +245,13 @@ assert(pacote.scripts.precheck.includes('npm run test:lancamentos-lote'), 'deplo
 });
 
 console.log('OK: alteração explícita em lote preserva dados financeiros e aplica travas contábeis.');
+
+// A origem nao muda ao editar; o editor atual nao pode virar o digitador original.
+assert.deepStrictEqual(lote.identificarAutoria({ origem: 'manual', incluidoPor: 'Ana', importacaoId: 'grupo' }),
+  { tipo: 'Manual', digitador: 'Ana', fonteDigitador: 'Digitador' });
+assert.equal(lote.identificarAutoria({ origem: 'pdf-bb', incluidoPor: 'Ana', editadoPor: 'Bruno' }).digitador, 'Ana');
+assert.equal(lote.identificarAutoria({ origem: 'pdf-bb', editadoPor: 'Bruno' }).digitador, 'Não registrado');
+assert.equal(lote.identificarAutoria({ origem: 'sage-folha', digitador_sage: 'MATEUS', incluidoPor: 'Ana' }).digitador, 'MATEUS');
+assert.equal(lote.identificarAutoria({ origem: 'pdf-bb', editadoPor: 'Bruno' }).tipo, 'Input (importado)');
+assert.equal(lote.identificarAutoria({}).tipo, 'Não registrada');
+assert.equal(lote.identificarAutoria({ encerramentoContabil: true }).tipo, 'Automático');

@@ -1,7 +1,9 @@
 {
-  "version": "3.4.417",
-  "build_date": "2026-10-16T16:31:03Z",
+  "version": "3.4.418",
+  "build_date": "2026-10-16T17:13:15Z",
   "release_notes": [
+    "Importação bancária: BB Cash digitalizado com leitura local, preservação de juros/IOF e conferência obrigatória dos saldos. Bradesco mensal de uma página com OCR local por colunas e totais conferidos.",
+    "CCI: contraste corrigido em Informações do Relatório no modo escuro. Digitador e origem Manual/Input destacados em vermelho na lista e no modal; autoria antiga desconhecida não é presumida.",
     "Dividendos: administrador pode cancelar preparação mensal sem envio, com motivo e histórico preservados. Recibos, movimentos e controles posteriores bloqueiam o cancelamento; nenhum saldo da ATA é estornado.",
     "SAGE serviços prestados: códigos de serviço decimais reconhecidos e notas explicitamente zeradas listadas como exceção, sem lançamento contábil e com conferência do total oficial.",
     "Topologia: equipe restrita ao departamento contábil do cadastro central, com bloqueio de contas ambíguas na distribuição.",
