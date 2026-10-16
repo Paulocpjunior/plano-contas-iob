@@ -1,7 +1,8 @@
 {
-  "version": "3.4.418",
-  "build_date": "2026-10-16T17:13:15Z",
+  "version": "3.4.419",
+  "build_date": "2026-10-16T17:54:34.534Z",
   "release_notes": [
+    "Cadastro de empresas: edição do número da empresa na tela de informações; sincronização mantém nome, código e plano do cadastro do mesmo CNPJ e atualiza cabeçalho e painel juntos, preservando lançamentos.",
     "Importação bancária: BB Cash digitalizado com leitura local, preservação de juros/IOF e conferência obrigatória dos saldos. Bradesco mensal de uma página com OCR local por colunas e totais conferidos.",
     "CCI: contraste corrigido em Informações do Relatório no modo escuro. Digitador e origem Manual/Input destacados em vermelho na lista e no modal; autoria antiga desconhecida não é presumida.",
     "Dividendos: administrador pode cancelar preparação mensal sem envio, com motivo e histórico preservados. Recibos, movimentos e controles posteriores bloqueiam o cancelamento; nenhum saldo da ATA é estornado.",
