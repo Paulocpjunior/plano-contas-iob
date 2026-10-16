@@ -6,7 +6,28 @@ const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
 const { carregarChecklist, previaChecklist, contratoDoEvento } = require('./crm-checklist');
 
-function registrar(app, { db, domain, checklist = carregarChecklist, env = process.env, agora = () => new Date().toISOString() }) {
+// O acesso ao aplicativo não prova vínculo com o departamento.
+async function carregarDepartamento(req, env = process.env, fetcher = globalThis.fetch) {
+  const base = String(env.CFI_URL || env.FISCAL_GATEWAY_URL || '').replace(/\/+$/, '');
+  const auth = String(req.headers?.authorization || '');
+  if (!base || !auth.startsWith('Bearer ')) throw core.erro('Não foi possível conferir o departamento. Entre novamente ou confira a integração com o cadastro central.', 503);
+  try {
+    const r = await fetcher(base + '/api/admin/cadastro/usuarios', {headers: {Authorization: auth}, signal: AbortSignal.timeout(15000), redirect: 'error'});
+    const b = await r.json();
+    if (!r.ok || b.ok !== true || !Array.isArray(b.usuarios) || b.resumo?.total !== b.usuarios.length) throw Error('Cadastro incompleto');
+    const emails = new Map();
+    for (const u of b.usuarios) {
+      if (!Array.isArray(u.departamentos)) throw Error('Departamento ausente');
+      const email = String(u.email || '').trim().toLowerCase();
+      if (!email) continue;
+      if (emails.has(email)) throw Error('Identidade duplicada');
+      emails.set(email, u.departamentos.includes('contabil'));
+    }
+    return new Set([...emails].filter(([, pertence]) => pertence).map(([email]) => email));
+  } catch (_) { throw core.erro('Não foi possível confirmar a equipe contábil. Confira o cadastro central e tente novamente; a lista geral não será usada.', 503); }
+}
+
+function registrar(app, { db, domain, checklist = carregarChecklist, departamento = carregarDepartamento, env = process.env, agora = () => new Date().toISOString() }) {
   const base = '/api/crm/empresas/:cnpj';
   const wrap = fn => async (req, res) => {
     try { res.setHeader('Cache-Control', 'private, no-store'); await fn(req, res); }
@@ -20,6 +41,20 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const d = doc.data();
     return { uid: req.user.uid, is_admin: d.is_admin === true, permissoesCci: permissoesEfetivas(d) };
   }
+  const pertence = (d, emails) => d.active !== false && emails.has(String(d.last_email || d.email || '').trim().toLowerCase());
+  async function equipeDepartamento(req) {
+    const emails = await departamento(req, env);
+    const snap = await db.collection('users').limit(5001).get();
+    if(snap.docs.length>5000)throw core.erro('Cadastro excedeu o limite. Não foi possível conferir a equipe.',409);
+    const grupos=new Map();
+    for(const d of snap.docs){
+      if(!pertence(d.data(),emails))continue;
+      const email=String(d.data().last_email||d.data().email||'').trim().toLowerCase();
+      if(!grupos.has(email))grupos.set(email,[]);
+      grupos.get(email).push(d.id);
+    }
+    return {emails,uids:new Set([...grupos.values()].filter(ids=>ids.length===1).flat()),ambiguos:[...grupos.values()].filter(ids=>ids.length>1).length};
+  }
   const gestaoRef = db.collection('crm_topologia').doc('gestao');
   async function gestao(req, tx) {
     const user=await usuario(req,tx), snap=await (tx?tx.get(gestaoRef):gestaoRef.get());
@@ -32,6 +67,8 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     return g.user.is_admin || (g.lider && equipe.length>0 && equipe.every(p=>g.membros.has(p.uid)));
   }
   app.put('/api/crm/topologia/gestao',wrap(async(req,res)=>{
+    admin(await usuario(req));
+    const {emails,uids,ambiguos} = await equipeDepartamento(req);
     const result=await db.runTransaction(async tx=>{
       const g=await gestao(req,tx);admin(g.user);
       const b=req.body||{};
@@ -47,7 +84,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       });
       const ids=[...new Set(equipes.flatMap(e=>[e.lider_uid,...e.membros]))];
       const docs=ids.length?await tx.getAll(...ids.map(id=>db.collection('users').doc(id))):[];
-      if(docs.some(d=>!d.exists||!String(d.data().last_email||d.data().email||'').toLowerCase().endsWith(domain)))throw core.erro('Selecione usuários corporativos cadastrados.');
+      if(docs.some(d=>!d.exists||!uids.has(d.id)||!pertence(d.data(),emails)||!String(d.data().last_email||d.data().email||'').toLowerCase().endsWith(domain)))throw core.erro('Selecione usuários ativos vinculados ao departamento contábil no cadastro central.');
       const motivo=core.texto(b.motivo,1000,'motivo',true),quando=agora();
       tx.set(gestaoRef,{equipes,revisao:(g.cfg.revisao||0)+1,quando,por_uid:g.user.uid});
       tx.create(gestaoRef.collection('historico').doc(),{antes:g.cfg,depois:equipes,quando,por_uid:g.user.uid,motivo});
@@ -68,12 +105,16 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const porCnpj=new Map(empresas.map(e=>[e.cnpj,e]));
     const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(agora()));
     for(const d of controles.docs){const p=d.ref.path.split('/'),e=porCnpj.get(p[1]);if(p.length!==4||p[0]!=='empresas'||!e)continue;const c=d.data();e.controles.push({id:d.id,titulo:c.titulo||'',status:c.status,periodo:c.periodo||'',prazo:c.prazo||null,executor_uid:c.executor_uid||null,revisor_uid:c.revisor_uid||null,atrasado:prazoControle(c,hoje)==='atrasado'});}
-    const pessoas=ss[2].docs.filter(d=>(g.user.is_admin||g.membros.has(d.id))&&String(d.data().last_email||d.data().email||'').toLowerCase().endsWith(domain)).map(d=>{
+    const escopoAntes=JSON.stringify({admin:g.user.is_admin,cfg:g.cfg});
+    const {emails,uids,ambiguos} = await equipeDepartamento(req);
+    g=await gestao(req);
+    if(escopoAntes!==JSON.stringify({admin:g.user.is_admin,cfg:g.cfg}))throw core.erro('A equipe de gestão mudou. Consulte novamente.',409);if(!g.user.is_admin&&!g.lider)throw core.erro('A autorização mudou. Atualize a Topologia.',403);
+    const pessoas=ss[2].docs.filter(d=>uids.has(d.id)&&pertence(d.data(),emails)&&(g.user.is_admin||g.membros.has(d.id))&&String(d.data().last_email||d.data().email||'').toLowerCase().endsWith(domain)).map(d=>{
       const carteira=empresas.filter(e=>e.responsaveis.some(p=>p.uid===d.id));
       const demandas=carteira.flatMap(e=>e.controles),abertas=demandas.filter(c=>!core.TERMINAIS.includes(c.status));
       return {uid:d.id,nome:d.data().last_name||d.data().name||d.data().email||d.id,empresas:carteira.length,principais:carteira.filter(e=>e.responsaveis.some(p=>p.uid===d.id&&p.papel==='principal')).length,obrigacoes_abertas:abertas.length,atrasadas:abertas.filter(c=>c.atrasado).length,sem_prazo:abertas.filter(c=>!c.prazo).length,execucao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.executor_uid===d.id).length,revisao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.revisor_uid===d.id).length};
     });
-    res.json({ok:true,admin:g.user.is_admin,completo:true,lido_em:agora(),empresas,pessoas,gestao:g.user.is_admin?g.cfg:{equipes:(g.cfg.equipes||[]).filter(e=>e.lider_uid===g.user.uid)}});
+    res.json({ok:true,admin:g.user.is_admin,completo:true,lido_em:agora(),empresas,pessoas,identidades_pendentes:g.user.is_admin?ambiguos:0,gestao:g.user.is_admin?g.cfg:{equipes:(g.cfg.equipes||[]).filter(e=>e.lider_uid===g.user.uid)}});
   }));
   // Entrada leve: não consulta coleções de empresas nem controles.
   app.get('/api/crm/contexto', wrap(async(req,res)=>{
@@ -246,12 +287,17 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
   }));
   app.get('/api/crm/usuarios', wrap(async (req, res) => {
     admin(await usuario(req));
+    const {emails,uids,ambiguos} = await equipeDepartamento(req);
     const snap = await db.collection('users').get();
-    res.json({ ok: true, usuarios: snap.docs.map(doc => {
+    admin(await usuario(req));
+    res.json({ ok: true, usuarios: snap.docs.filter(d=>uids.has(d.id)&&pertence(d.data(),emails)).map(doc => {
       const d = doc.data(); return { uid: doc.id, nome: d.last_name || d.name || '', email: String(d.last_email || d.email || '').toLowerCase() };
     }).filter(u => u.email.endsWith(domain)).sort((a,b) => (a.nome || a.email).localeCompare(b.nome || b.email)) });
   }));
   async function salvarEquipe(req,res,topologia=false) {
+    const acesso = await gestao(req);
+    if(!acesso.user.is_admin && !(topologia && acesso.lider))throw core.erro('Distribuição disponível apenas para gestores autorizados.',403);
+    const {emails,uids:permitidos} = await equipeDepartamento(req);
     const result = await db.runTransaction(async tx => {
       let ctx;
       let g;
@@ -274,6 +320,7 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       for (let i = 0; i < docs.length; i++) {
         if (!docs[i].exists) throw core.erro('Colaborador não encontrado. Atualize a lista.');
         const d = docs[i].data(), email = String(d.last_email || d.email || '').toLowerCase();
+        if (!permitidos.has(uids[i]) || !pertence(d, emails)) throw core.erro('Colaborador fora do departamento contábil ou inativo. Corrija o vínculo no cadastro central.',403);
         if (!email.endsWith(domain)) throw core.erro('Colaborador sem e-mail corporativo válido.');
         equipe = atribuirResponsavel(equipe, { uid: uids[i], nome: d.last_name || d.name || email, email }, i ? 'apoio' : 'principal', { uid: ctx.user.uid, quando });
       }
@@ -382,4 +429,4 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     res.json({ ok: true, form_id: fonte.form_id, lido_em: fonte.lido_em, assinatura: fonte.assinatura, ...previaChecklist(fonte.questions, fonte.rows, empresas) });
   }));
 }
-module.exports = { registrar };
+module.exports = { registrar, carregarDepartamento };

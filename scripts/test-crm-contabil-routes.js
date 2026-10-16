@@ -28,7 +28,7 @@ function ambiente(checklistFonte = null, onRead = null) {
     const result=await fn(tx); pending.forEach(([p,d])=>{dados.set(p,structuredClone(d));writes++;});return result;
   }};
   const app=Object.fromEntries(['get','post','put','patch'].map(m=>[m,(p,fn)=>{routes[m.toUpperCase()+' '+p]=fn;}]));
-  registrar(app,{db,domain:'@fixture.test',agora:()=> '2026-10-13T18:00:00Z',checklist:async()=>{checklistCalls++;return checklistFonte ? await checklistFonte(dados) : {completo:false};}});
+  registrar(app,{db,departamento:async()=>new Set(['admin','colab','legado','indice-velho','apoio'].filter(id=>dados.get('users/'+id)?.foraDepartamento!==true).map(id=>id+'@fixture.test')),domain:'@fixture.test',agora:()=> '2026-10-13T18:00:00Z',checklist:async()=>{checklistCalls++;return checklistFonte ? await checklistFonte(dados) : {completo:false};}});
   async function call(method,path,body={},uid='colab',params={},query={}) {
     const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.statusCode=n;return this;},json(d){this.body=d;return this;}};
     await routes[method+' '+path]({params:{cnpj,...params},query,body,user:{uid,is_admin:true}},res); // is_admin forjado deve ser ignorado.
@@ -90,6 +90,26 @@ function ambiente(checklistFonte = null, onRead = null) {
   const revtop=ambiente(null,(path,dados)=>{if(path==='group/crm_controles')dados.set('crm_topologia/gestao',{revisao:2,equipes:[]});});
   revtop.dados.set('crm_topologia/gestao',{revisao:1,equipes:cfg.equipes});
   assert.equal((await revtop.call('GET',tp,{},'legado')).statusCode,403,'revogação durante leitura');
+  const escopo=ambiente();
+  escopo.dados.set('users/fiscal',{email:'fiscal@fixture.test',is_admin:true});
+  escopo.dados.get('users/apoio').foraDepartamento=true;
+  assert(!(await escopo.call('GET',tp,{},'admin')).body.pessoas.some(p=>['fiscal','apoio'].includes(p.uid)));
+  assert(!(await escopo.call('GET','/api/crm/usuarios',{},'admin')).body.usuarios.some(p=>['fiscal','apoio'].includes(p.uid)));
+  assert.equal((await escopo.call('PUT',tw,{...transfer,principal_uid:'apoio',revisao_carteira:versaoCarteira(escopo.dados.get('empresas/'+cnpj))},'admin')).statusCode,403);
+  assert.equal((await escopo.call('PUT',tg,cfg,'admin')).statusCode,400);
+  assert.equal(escopo.writes(),0,'não altera carteiras existentes ao filtrar departamento');
+  escopo.dados.set('users/duplicado',{email:'colab@fixture.test'});
+  const ambiguo=(await escopo.call('GET',tp,{},'admin')).body;
+  assert.equal(ambiguo.identidades_pendentes,1);assert(!ambiguo.pessoas.some(p=>['colab','duplicado'].includes(p.uid)));
+  assert.equal((await escopo.call('PUT',tw,{...transfer,principal_uid:'colab',revisao_carteira:versaoCarteira(escopo.dados.get('empresas/'+cnpj))},'admin')).statusCode,403);
+  const {carregarDepartamento}=require('../crm-contabil-routes');
+  const request={headers:{authorization:'Bearer fixture'}};
+  const central={ok:true,usuarios:[{email:'colab@fixture.test',departamentos:['contabil']},{email:'admin@fixture.test',role:'admin',departamentos:['fiscal']}],resumo:{total:2}};
+  const fetcher=async()=>({ok:true,json:async()=>central});
+  assert.deepStrictEqual([...await carregarDepartamento(request,{CFI_URL:'https://fixture.test'},fetcher)],['colab@fixture.test']);
+  central.resumo.total=3;
+  await assert.rejects(()=>carregarDepartamento(request,{CFI_URL:'https://fixture.test'},fetcher),e=>e.status===503);
+  await assert.rejects(()=>carregarDepartamento(request,{CFI_URL:'https://fixture.test'},async()=>{throw Error('offline')}),e=>e.status===503);
   const ck=require('../crm-checklist');
   const quest=Object.fromEntries(Object.values(ck.CAMPOS).map(([id,text])=>[id,{text}]));
   const fonte={completo:true,assinatura:'a'.repeat(64),questions:quest,rows:[{id:'123',form_id:ck.FORM_ID,status:'ACTIVE',answers:{
