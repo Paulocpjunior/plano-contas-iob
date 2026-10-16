@@ -109,7 +109,7 @@
     let saldoInicial = null;
     let saldoFinal = null;
 
-    paginas.forEach(function(textoPagina) {
+    paginas.forEach(function(textoPagina, paginaIndex) {
       const periodoPagina = extrairPeriodo(textoPagina);
       if (!periodoPrincipal && periodoPagina) periodoPrincipal = periodoPagina;
       if (periodoPrincipal && periodoPagina && (periodoPagina.inicio !== periodoPrincipal.inicio || periodoPagina.fim !== periodoPrincipal.fim)) {
@@ -145,7 +145,12 @@
         if (periodoPrincipal && (iso < periodoPrincipal.inicio || iso > periodoPrincipal.fim)) throw erroIntegridade('movimento fora do periodo impresso');
 
         const valorTipo = extrairValorTipo(resto);
-        if (!valorTipo || !valorTipo.valor) throw erroIntegridade('valor ou natureza ilegivel em ' + m[1]);
+        if (!valorTipo || !valorTipo.valor) {
+          const erro = erroIntegridade('valor ou natureza ilegivel em ' + m[1] + ' (pagina ' + (paginaIndex + 1) + ')');
+          erro.paginaOCR = paginaIndex;
+          erro.linhaOCR = linha;
+          throw erro;
+        }
 
         const antesValor = resto.slice(0, valorTipo.index).trim();
         if (/(?:^|\s)\d[\d.]*,\d{2}(?:\s|$)/.test(antesValor)) throw erroIntegridade('valor sem natureza antes do saldo');
@@ -223,6 +228,52 @@
     };
   }
 
+  // Releitura da linha impressa, sem inferir valor/sinal pelo histórico ou pelo saldo.
+  async function relerLinhaPDF(pdf, worker, erro, dadosPaginas, escalaOriginal, opts) {
+    const linhas = dadosPaginas[erro.paginaOCR]?.lines || [];
+    const candidatas = linhas.filter(l => limparLinhaOCR(l.text) === erro.linhaOCR);
+    if (candidatas.length !== 1 || !candidatas[0].bbox) return null;
+    const box = candidatas[0].bbox;
+    if (![box.x0, box.y0, box.x1, box.y1].every(Number.isFinite) || box.x1 <= box.x0 || box.y1 <= box.y0) return null;
+    const page = await pdf.getPage(erro.paginaOCR + 1);
+    await worker.setParameters({ tessedit_pageseg_mode: '7' });
+    try {
+      for (const escala of [4.5, 6]) {
+        if (opts.signal && opts.signal.aborted) throw opts.signal.reason;
+        if (opts.onProgress) opts.onProgress('OCR BB Cash: releitura da linha na página ' + (erro.paginaOCR + 1) + '/' + pdf.numPages);
+        const viewport = page.getViewport({ scale: escala });
+        const canvas = document.createElement('canvas');
+        const recorte = document.createElement('canvas');
+        try {
+          canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+          const fator = escala / escalaOriginal;
+          const x = Math.max(0, Math.floor(box.x0 * fator) - 6);
+          const y = Math.max(0, Math.floor(box.y0 * fator) - 4);
+          const largura = Math.min(canvas.width - x, Math.ceil((box.x1 - box.x0) * fator) + 12);
+          const altura = Math.min(canvas.height - y, Math.ceil((box.y1 - box.y0) * fator) + 8);
+          if (largura <= 0 || altura <= 0) continue;
+          recorte.width = largura + 40; recorte.height = altura + 40;
+          const ctx = recorte.getContext('2d');
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, recorte.width, recorte.height);
+          ctx.drawImage(canvas, x, y, largura, altura, 20, 20, largura, altura);
+          const r = await worker.recognize(recorte);
+          if (opts.signal && opts.signal.aborted) throw opts.signal.reason;
+          const texto = limparLinhaOCR(r.data.text);
+          // A releitura precisa conservar datas, agência, lote, histórico e documento.
+          // Só a parte monetária ilegível pode mudar; linhas vizinhas não são aceitas.
+          const originalPrefixo = erro.linhaOCR.match(/^(.*?\s\d[\d.]*[,.]\d{2})(?=\s|$)/);
+          const valores = valoresComNatureza(texto);
+          if (!originalPrefixo || !valores.length) continue;
+          const prefixo = originalPrefixo[1].replace(/\d[\d.]*[,.]\d{2}$/, '').trim();
+          if (texto.slice(0, valores[0].index).trim() !== prefixo) continue;
+          return texto;
+        } finally { canvas.width = canvas.height = recorte.width = recorte.height = 0; }
+      }
+      return null;
+    } finally { await worker.setParameters({ tessedit_pageseg_mode: '6' }); }
+  }
+
   async function parsearPDF_BB_CashOCR(arrayBuffer, opcoes) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     if (typeof Tesseract === 'undefined') throw new Error('OCR local nao carregado. Atualize a tela e tente novamente.');
@@ -235,6 +286,7 @@
       let ultimoErro;
       for (const escala of [3.5, 2.6]) {
         const textos = [];
+        const dadosPaginas = [];
         for (let i = 1; i <= pdf.numPages; i++) {
           if (opts.signal && opts.signal.aborted) throw opts.signal.reason;
           if (opts.onProgress) opts.onProgress('OCR BB Cash: página ' + i + '/' + pdf.numPages);
@@ -246,13 +298,35 @@
           await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
           const result = await worker.recognize(canvas);
           textos.push(result.data.text || '');
+          dadosPaginas.push(result.data);
           canvas.width = canvas.height = 0;
         }
         try {
           const resultado = parsearTexto_BB_CashOCR(textos, { exigirSaldos: true });
           if (resultado.detectado) return resultado;
           ultimoErro = null;
-        } catch (erro) { ultimoErro = erro; }
+        } catch (erro) {
+          ultimoErro = erro;
+          const tentadas = new Set();
+          while (ultimoErro.linhaOCR && tentadas.size < 8) {
+            const chave = ultimoErro.paginaOCR + ':' + ultimoErro.linhaOCR;
+            if (tentadas.has(chave)) break;
+            tentadas.add(chave);
+            const linha = await relerLinhaPDF(pdf, worker, ultimoErro, dadosPaginas, escala, opts);
+            if (!linha) break;
+            const pagina = ultimoErro.paginaOCR;
+            const originais = textos[pagina].split(/\r?\n/);
+            const indices = originais.map((l, i) => limparLinhaOCR(l) === ultimoErro.linhaOCR ? i : -1).filter(i => i >= 0);
+            if (indices.length !== 1) break;
+            originais[indices[0]] = linha;
+            textos[pagina] = originais.join('\n');
+            try {
+              const resultado = parsearTexto_BB_CashOCR(textos, { exigirSaldos: true });
+              if (resultado.detectado) return resultado;
+              break;
+            } catch (erroReleitura) { ultimoErro = erroReleitura; }
+          }
+        }
       }
       if (ultimoErro) throw ultimoErro;
       return { detectado: false, lancamentos: [] };

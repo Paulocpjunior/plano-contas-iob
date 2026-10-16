@@ -1,7 +1,8 @@
 {
-  "version": "3.4.419",
-  "build_date": "2026-10-16T17:54:34.534Z",
+  "version": "3.4.420",
+  "build_date": "2026-10-16T18:52:22.810Z",
   "release_notes": [
+    "BB Cash: releitura ampliada da linha com valor ou natureza ilegível, preservando identificação e conferência obrigatória dos saldos.",
     "Cadastro de empresas: edição do número da empresa na tela de informações; sincronização mantém nome, código e plano do cadastro do mesmo CNPJ e atualiza cabeçalho e painel juntos, preservando lançamentos.",
     "Importação bancária: BB Cash digitalizado com leitura local, preservação de juros/IOF e conferência obrigatória dos saldos. Bradesco mensal de uma página com OCR local por colunas e totais conferidos.",
     "CCI: contraste corrigido em Informações do Relatório no modo escuro. Digitador e origem Manual/Input destacados em vermelho na lista e no modal; autoria antiga desconhecida não é presumida.",
