@@ -35,3 +35,16 @@ html[data-theme=dark] #crmContabilDialog .crm-badge[data-tone=em_andamento]{back
 
 #crmContabilDialog .crm-confirmacao { display:flex; align-items:center; gap:10px; cursor:pointer; min-height:44px; }
 #crmContabilDialog .crm-confirmacao input[type="checkbox"] { width:20px; height:20px; flex:0 0 20px; margin:0; }
+
+/* Topologia: nomes são rótulos, não números de indicadores. */
+#crmContabilDialog .crm-person-card{align-items:flex-start;min-width:0;white-space:normal}
+#crmContabilDialog .crm-person-card span{min-width:0;width:100%}
+#crmContabilDialog .crm-person-card strong{font-size:16px;line-height:1.4;overflow-wrap:anywhere;white-space:normal}
+#crmContabilDialog .crm-person-card small{line-height:1.6;overflow-wrap:anywhere}
+#crmContabilDialog [data-editor] form{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;max-width:1000px}
+#crmContabilDialog [data-editor] label{min-width:0}
+#crmContabilDialog [data-editor] input:not([type=checkbox]),#crmContabilDialog [data-editor] select,#crmContabilDialog [data-editor] textarea{min-width:0;width:100%;box-sizing:border-box}
+#crmContabilDialog [data-editor] button{align-self:start;min-height:44px}
+#crmContabilDialog [data-topologia-pessoas]{max-height:340px;overflow:auto;padding:4px}
+#crmContabilDialog [data-topologia-empresas] summary{overflow-wrap:anywhere}
+@media(max-width:640px){#crmContabilDialog [data-editor] form{grid-template-columns:minmax(0,1fr)}#crmContabilDialog [data-topologia-pessoas]{max-height:250px}#crmContabilDialog .crm-person-card strong{font-size:14px}}

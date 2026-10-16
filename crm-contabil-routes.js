@@ -1,6 +1,6 @@
 'use strict';
 const core = require('./crm-contabil');
-const { compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
+const { corrigirIdentificacao, compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
@@ -215,8 +215,29 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
   }));
   app.get('/api/crm/base/pendencias',wrap(async(req,res)=>{
     admin(await usuario(req));
-    const snap=await db.collection('crm_registros').where('identidade_valida','==',false).get();
+    const snap=await db.collection('crm_registros').where('identidade_valida','==',false).limit(501).get();
+    admin(await usuario(req));
+    if(snap.docs.length>500)throw core.erro('Há mais de 500 identificações pendentes. Consulte uma exportação administrativa para revisão; lista não truncada.',409);
     res.json({ok:true,registros:snap.docs.map(d=>({...d.data(),id:d.id}))});
+  }));
+  app.put('/api/crm/base/registros/:id/identificacao',wrap(async(req,res)=>{
+    if(!/^[a-z0-9_-]{1,100}$/.test(req.params.id||''))throw core.erro('Registro inválido.');
+    const result=await db.runTransaction(async tx=>{
+      const user=await usuario(req,tx);admin(user);
+      const ref=db.collection('crm_registros').doc(req.params.id),doc=await tx.get(ref);
+      if(!doc.exists)throw core.erro('Registro não encontrado.',404);
+      const antes=doc.data(),quando=agora(),depois=corrigirIdentificacao(antes,req.body||{},user,quando);
+      const refs=[db.collection('empresas').doc(depois.cnpj),db.collection('crm_empresas').doc(depois.cnpj)];
+      const destinos=await tx.getAll(...refs),destino=destinos.find(d=>d.exists);
+      if(!destino)throw core.erro('Cadastre ou localize a empresa no CCI antes de vincular.',404);
+      // A prévia deve ser da mesma revisão do cadastro; nunca mover dados silenciosamente.
+      if(req.body.razao_social!==destino.data().razao_social)throw core.erro('O nome da empresa difere do cadastro. Confira o destino antes de salvar.',409);
+      tx.set(ref,depois);
+      tx.create(ref.collection('historico').doc(),{tipo:'CRM_IDENTIFICACAO_CONFERIDA',revisao:depois.revisao,quando,por_uid:user.uid,
+        motivo:req.body.motivo.trim(),antes:{cnpj:antes.cnpj||'',identidade_valida:antes.identidade_valida===true},depois:{cnpj:depois.cnpj,identidade_valida:true}});
+      tx.create(refs[destinos.findIndex(d=>d.exists)].collection('auditoria_contabil').doc(),{tipo:'CRM_IDENTIFICACAO_CONFERIDA',quando,por_uid:user.uid,registro_id:doc.id,motivo:req.body.motivo.trim(),antes:{cnpj:antes.cnpj||''},depois:{cnpj:depois.cnpj}});
+      return {id:doc.id,cnpj:depois.cnpj,revisao:depois.revisao};
+    });res.json({ok:true,...result});
   }));
   app.get('/api/crm/base/resumo',wrap(async(req,res)=>{
     admin(await usuario(req));

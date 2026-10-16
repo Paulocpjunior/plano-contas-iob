@@ -108,4 +108,16 @@ function atualizarVisualizacao(antes, body, quando) {
   const v={nome,filtros,colunas,atualizada_em:quando}; if(i<0)itens.push(v);else itens[i]=v;
   return {revisao:(antes.revisao||0)+1,itens};
 }
-module.exports={compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
+// Corrige somente o vínculo operacional; campos e identificação de origem permanecem intactos.
+function corrigirIdentificacao(antes, body, user, quando) {
+  if (!user.is_admin) throw erro('Somente administradores podem conferir identificações.',403);
+  if (!Number.isInteger(body.revisao) || body.revisao !== antes.revisao) throw erro('O registro mudou. Atualize antes de salvar.',409);
+  if (typeof body.cnpj !== 'string' || !/^\d{14}$/.test(body.cnpj) || /^(\d)\1+$/.test(body.cnpj)) throw erro('Informe um CNPJ válido com 14 dígitos.');
+  const dig=s=>{let peso=s.length-7,total=0;for(const c of s){total+=Number(c)*peso--;if(peso<2)peso=9;}const n=total%11;return n<2?0:11-n;};
+  if(dig(body.cnpj.slice(0,12))!==Number(body.cnpj[12])||dig(body.cnpj.slice(0,13))!==Number(body.cnpj[13]))throw erro('Confira os dígitos do CNPJ.');
+  if(typeof body.motivo!=='string'||!body.motivo.trim()||body.motivo.length>1000)throw erro('Informe o motivo da conferência, até 1.000 caracteres.');
+  if(body.confirmado!==true)throw erro('Confirme a empresa de destino antes de vincular.');
+  return {...antes,cnpj_origem:antes.cnpj_origem??antes.cnpj??'',cnpj:body.cnpj,identidade_valida:true,
+    revisao:antes.revisao+1,identificacao_conferida_em:quando,identificacao_conferida_por:user.uid};
+}
+module.exports={corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
