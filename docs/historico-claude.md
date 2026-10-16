@@ -2064,3 +2064,7 @@ Consultas mensais e cálculos escolhem o quadro vigente; cadastro comum não con
 ## 2026-10-15 — v3.4.410: carregamento do CRM
 
 Calendário em produção levou 99,844 s por leitura de controles e contexto por empresa. Substituída por collectionGroup limitada (excesso gera erro, nunca total parcial), com validação de caminho e carteira atual após leitura. Filtros operacionais e trabalho usam paralelismo limitado a 10. UI limita consultas a 25 s e gravações a 60 s, libera controles e mantém saída; resposta tardia não renderiza. Testes cobrem revogação, isolamento, 965 empresas sem N+1, limite, saída, timeout e recuperação.
+
+## 2026-10-16 — CRM e revisão Topologia (3.4.411)
+
+Integração administrativa sob demanda no CRM; passe sem cache, URL HTTPS sem credenciais e validação de assinatura/validade. Revisão do serviço externo documentada em docs/crm-topologia-revisao-20261016.md: sessão sem revogação imediata, replay entre instâncias, escopo de líderes, concorrência e contagem manual. Correções do receptor externo e integração de dados não foram publicadas por esta mudança. Checklist sem credencial configurada, anexos e reconciliação final continuam impeditivos ao desligamento do Jotform. Nenhum dado real alterado.

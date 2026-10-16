@@ -35,4 +35,12 @@ const url = montarUrl('https://topologia.exemplo.run.app', passe);
 assert.strictEqual(new URL(url).searchParams.get('sso'), passe);
 assert.throws(() => montarUrl('http://topologia.exemplo', passe), /https/);
 
-console.log('test-topologia-sso: 12 verificações OK (0 puladas)');
+
+
+assert.strictEqual(verificarPasse(`${p}.${s}.extra`, segredo, agora), null);
+assert.strictEqual(verificarPasse(`${p}.${'é'.repeat(43)}`, segredo, agora), null);
+assert.throws(() => gerarPasse({email:'a@b.com', segredo, agora, validadeMs:Infinity}), /Validade/);
+assert.throws(() => gerarPasse({email:'a@b.com', segredo, agora, validadeMs:0}), /Validade/);
+assert.throws(() => montarUrl('https://usuario:senha@topologia.exemplo', passe), /credenciais/);
+
+console.log('test-topologia-sso: acesso, validade, adulteração, Unicode e URL OK (0 puladas)');
