@@ -120,4 +120,48 @@ console.log('OK: identidade da empresa preservada na sincronização');
   await ctx.salvarNumeroEmpresaInfo();
   assert.equal(ctx.state.info.codigo_empresa, '0766', 'falha da API não altera o código salvo');
   console.log('OK: edição do número respeita a API e preserva lançamentos');
+  const confirmarInicio = index.indexOf('        async function confirmarInfo(');
+  vm.runInContext(index.slice(confirmarInicio, index.indexOf('        async function salvarNumeroEmpresaInfo(', confirmarInicio)), ctx);
+  Object.assign(ctx, {
+    tipoImportacaoSelecionado: () => 'bancaria', valorComboboxBanco: () => '001',
+    infoInicialTemOrigemValida: () => true, initCharts() {},
+    consultarEmpresaNoBancoInterno: async () => ({cnpj: '26929226000165', razao_social: 'JOTASUL'}),
+    verificarPlanoPorCNPJ: () => ({nome: 'Plano', plano: {id: 'plano-correto'}})
+  });
+  for (const [id, value] of Object.entries({infoEmpresa: 'JOTASUL', infoUsuario: 'operador', infoPeriodoInicio: '2026-01-01', infoPeriodoFim: '2026-12-31'})) elements[id] = {value};
+  let avancos = 0;
+  for (const id of ['formCard', 'dashboardCard', 'companyBar', 'btnEditInfo']) elements[id] = {style: {}, classList: {add() {avancos++;}, remove() {avancos++;}}};
+  ctx.state.info = {cnpj: '26929226000165'};
+  ctx.window.__empresaCadastroInternoAtual = null;
+  elements.infoCodigoEmpresa.value = '123';
+  let chamadas = 0;
+  ctx.window.API.atualizarCadastroEmpresa = async (cnpj, dados) => {
+    chamadas++;
+    assert.equal(cnpj, '26929226000165');
+    assert.equal(dados.codigo_empresa, '123');
+    return {cnpj, razao_social: 'JOTASUL', codigo_empresa: '0123'};
+  };
+  await ctx.confirmarInfo();
+  assert.equal(chamadas, 1, 'confirmação principal grava o número informado');
+  assert.equal(ctx.state.info.codigo_empresa, '0123');
+  assert(avancos > 0);
+  assert.equal(JSON.stringify(ctx.state.entries), JSON.stringify(entries));
+  const estadoSalvo = JSON.stringify(ctx.state);
+  const avancosSalvos = avancos;
+  elements.infoCodigoEmpresa.value = '9999';
+  ctx.window.API.atualizarCadastroEmpresa = async () => {throw Error('Número duplicado');};
+  await ctx.confirmarInfo();
+  assert.equal(JSON.stringify(ctx.state), estadoSalvo, 'falha não confirma nem altera a sessão');
+  assert.equal(avancos, avancosSalvos, 'falha mantém formulário aberto');
+  ctx.window.API.atualizarCadastroEmpresa = async () => ({codigo_empresa: '0123'});
+  await ctx.confirmarInfo();
+  assert.equal(avancos, avancosSalvos, 'resposta sem o número solicitado não avança');
+  elements.infoCodigoEmpresa.value = '123';
+  ctx.consultarEmpresaNoBancoInterno = async () => ({cnpj: '26929226000165', razao_social: 'JOTASUL', codigo_empresa: '0123'});
+  ctx.window.API.atualizarCadastroEmpresa = async () => {throw Error('Não deve salvar código inalterado');};
+  await ctx.confirmarInfo();
+  assert(avancos > avancosSalvos, 'número já salvo permite continuar sem nova gravação');
+  assert.equal(JSON.stringify(ctx.state.entries), JSON.stringify(entries));
+  console.log('OK: confirmação principal salva número, verifica resposta e bloqueia avanço em falhas');
+
 })().catch(e => {console.error(e); process.exitCode = 1;});
