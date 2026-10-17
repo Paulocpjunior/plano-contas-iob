@@ -29,7 +29,7 @@ async function carregarDepartamento(req, env = process.env, fetcher = globalThis
   } catch (_) { throw core.erro('Não foi possível confirmar a equipe contábil. Confira o cadastro central e tente novamente; a lista geral não será usada.', 503); }
 }
 
-function registrar(app, { db, domain, storage, checklist = carregarChecklist, departamento = carregarDepartamento, env = process.env, entrega = require('./notificacoes-entrega'), agora = () => new Date().toISOString() }) {
+function registrar(app, { db, domain, storage, checklist = carregarChecklist, departamento = carregarDepartamento, env = process.env, conexaoTeams = require('./notificacoes-teams'), entrega = require('./notificacoes-entrega'), agora = () => new Date().toISOString() }) {
   const base = '/api/crm/empresas/:cnpj';
   const wrap = fn => async (req, res) => {
     try { res.setHeader('Cache-Control', 'private, no-store'); await fn(req, res); }
@@ -150,12 +150,13 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     }
     function colecao(req){return escopoEmpresa?empresaRef(req).collection('crm_notificacoes'):db.collection('crm_automacoes');}
     function refRegra(req){automacoes.regra(req.params.id,modulo);return colecao(req).doc(escopoEmpresa?modulo+'_'+req.params.id:req.params.id);}
+    require('./notificacoes-rotas').registrar({app,db,path,modulo,escopoEmpresa,wrap,acesso,contexto,admin,refRegra,agora,env,teams:conexaoTeams});
 
   app.get(path,wrap(async(req,res)=>{
     await acesso(req);
     const docs=await Promise.all(catalogo.map(r=>colecao(req).doc(escopoEmpresa?modulo+'_'+r.id:r.id).get()));
     await acesso(req);
-    res.json({ok:true,modulo,cnpj:escopoEmpresa?req.params.cnpj:null,variaveis:automacoes.variaveisDoModulo(modulo),envios_habilitados:entrega.disponibilidade(env).email,canais:entrega.disponibilidade(env),agenda_habilitada:false,regras:catalogo.map((r,i)=>({...r,config:docs[i].exists?docs[i].data():{revisao:0,ativa:false,modelo:r.modelo,canal:r.canal,destinatarios:[]}}))});
+    res.json({ok:true,modulo,cnpj:escopoEmpresa?req.params.cnpj:null,variaveis:automacoes.variaveisDoModulo(modulo),envios_habilitados:entrega.disponibilidade(env).email,canais:entrega.disponibilidade(env),agenda_habilitada:true,regras:catalogo.map((r,i)=>({...r,config:docs[i].exists?docs[i].data():{revisao:0,ativa:false,modelo:r.modelo,canal:r.canal,destinatarios:[]}}))});
   }));
   app.put(path+'/:id',wrap(async(req,res)=>{
     automacoes.regra(req.params.id,modulo);
@@ -198,6 +199,7 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     const emailColaborador=userDoc.data()?.last_email||userDoc.data()?.email||'';
     const original=await hist.doc(b.chave).get(),p=original.data()?.previa;
     if(!original.exists||!p||p.cnpj!==req.params.cnpj||p.automacao!==regra.id)throw core.erro('Prévia indisponível para esta empresa.',404);
+    if(original.data().execucao)throw core.erro('Esta prévia pertence a uma execução automática. Consulte o histórico da agenda.',409);
     if(!entrega.disponibilidade(env)[p.canal])throw core.erro('Este canal ainda não possui conexão de envio disponível. Confira a central.',409);
     if(!p.destinatarios.length)throw core.erro('Configure quem recebe e gere uma nova prévia.');
     const resultados=[];
@@ -398,7 +400,8 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
       const ctx=await contexto(req,tx), ref=db.collection('crm_registros').doc(req.params.id), doc=await tx.get(ref);
       if (!doc.exists || doc.data().cnpj!==req.params.cnpj) throw core.erro('Registro indisponível nesta empresa.',404);
       const antes=doc.data(), depois=editarParametro(antes,req.body || {},ctx.user,agora());
-      tx.set(ref,depois);
+      const evento=require('./notificacoes-motor').eventoRef(db,req.params.cnpj,'cadastro_editado',ctx.user.uid,agora(),core.hash('parametro|'+doc.id+'|'+depois.revisao));
+      tx.set(ref,depois);tx.create(evento.ref,evento.data);
       tx.create(ref.collection('historico').doc(),{revisao:depois.revisao,quando:agora(),por_uid:ctx.user.uid,
         coluna:req.body.coluna,...(req.body.formula?{formula:req.body.formula}:{}),motivo:req.body.motivo.trim(),antes:antes.campos[req.body.coluna],depois:depois.campos[req.body.coluna]});
       return {...depois,id:doc.id};

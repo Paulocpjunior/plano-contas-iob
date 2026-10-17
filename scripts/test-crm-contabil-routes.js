@@ -10,18 +10,18 @@ function ambiente(checklistFonte = null, onRead = null, extra = {}) {
   dados.set('empresas/'+cnpj,empresa); dados.set('empresas/'+outro,{razao_social:'Outra',carteira_uids:[],responsaveis:[]});
   dados.set('users/admin',{is_admin:true,email:'admin@fixture.test'});
   for(const uid of ['colab','legado','indice-velho','apoio']) dados.set('users/'+uid,{email:uid+'@fixture.test',permissoesCci:criarPermissoes('operacao')});
-  const snap=(path)=>({ref:{path},id:path.split('/').pop(),exists:dados.has(path),data:()=>structuredClone(dados.get(path))});
-  const ref=path=>({path,id:path.split('/').pop(),get:async()=>snap(path),collection:n=>collection(path+'/'+n)});
+  const snap=(path)=>({ref:ref(path),id:path.split('/').pop(),exists:dados.has(path),data:()=>structuredClone(dados.get(path))});
+  const ref=path=>({path,id:path.split('/').pop(),get:async()=>snap(path),set:async(d,o)=>{dados.set(path,o?.merge?{...dados.get(path),...d}:d);},collection:n=>collection(path+'/'+n)});
   function collection(path, filters=[],order='__name__',after=null,limit=Infinity) {
     return {doc:id=>ref(path+'/'+(id||'auto'+(++auto))),
       where:(key,op,val)=>collection(path,[...filters,[key,op,val]],order,after,limit),
       orderBy:key=>collection(path,filters,key,after,limit),startAfter:v=>collection(path,filters,order,v,limit),limit:n=>collection(path,filters,order,after,n),
       get:async()=>{if(onRead)onRead(path,dados);if(['empresas','crm_empresas'].includes(path))companyQueries++;return ({docs:[...dados.keys()].filter(k=>k.startsWith(path+'/') && k.slice(path.length+1).indexOf('/')<0)
-        .map(snap).filter(d=>filters.every(([key,op,val])=>op==='array-contains' ? d.data()[key]?.includes(val) : d.data()[key]===val))
+        .map(snap).filter(d=>filters.every(([key,op,val])=>op==='array-contains' ? d.data()[key]?.includes(val) : op==='<='?d.data()[key]<=val:d.data()[key]===val))
         .sort((a,b)=>order==='__name__'?a.id.localeCompare(b.id):a.data()[order]-b.data()[order])
         .filter(d=>after===null || (order==='__name__'?d.id>after:d.data()[order]>after)).slice(0,limit)});}};
   }
-  const db={collection,collectionGroup:name=>({limit:max=>({get:async()=>{if(onRead)onRead('group/'+name,dados);return {docs:[...dados.keys()].filter(k=>k.split('/').at(-2)===name).slice(0,max).map(snap)};}})}),runTransaction:async fn=>{
+  const db={collection,batch:()=>{const writes=[];return {set:(r,d,o)=>writes.push(()=>dados.set(r.path,o?.merge?{...dados.get(r.path),...d}:d)),create:(r,d)=>writes.push(()=>{assert(!dados.has(r.path));dados.set(r.path,d);}),commit:async()=>writes.forEach(f=>f())};},collectionGroup:name=>({limit:max=>({get:async()=>{if(onRead)onRead('group/'+name,dados);return {docs:[...dados.keys()].filter(k=>k.split('/').at(-2)===name).slice(0,max).map(snap)};}})}),runTransaction:async fn=>{
     const pending=[];
     const tx={get:async r=>{assert.equal(pending.length,0,'leituras antes das gravações');return r.path?snap(r.path):r.get();},getAll:async(...refs)=>{assert.equal(pending.length,0);return refs.map(r=>snap(r.path));},
       create:(r,d)=>{assert(!dados.has(r.path),'create protege duplicidade');pending.push([r.path,d]);},set:(r,d,opts)=>pending.push([r.path,opts?.merge?{...dados.get(r.path),...d}:d])};
@@ -34,9 +34,10 @@ function ambiente(checklistFonte = null, onRead = null, extra = {}) {
     await routes[method+' '+path]({params:{cnpj,...params},query,body,user:{uid,is_admin:true}},res); // is_admin forjado deve ser ignorado.
     return res;
   }
-  return {call,dados,writes:()=>writes,checklistCalls:()=>checklistCalls,companyQueries:()=>companyQueries};
+  return {call,dados,db,routes,writes:()=>writes,checklistCalls:()=>checklistCalls,companyQueries:()=>companyQueries};
 }
-(async()=>{
+module.exports={ambiente};
+if(require.main===module)(async()=>{
   {
     let enviados=0,resultadoEnvio='aceito';
     const n=ambiente(null,null,{entrega:{disponibilidade:()=>({email:true,teams:false}),enviar:async()=>{enviados++;return {estado:resultadoEnvio,detalhe:'Fixture'};}}});

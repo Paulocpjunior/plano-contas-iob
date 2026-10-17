@@ -1,7 +1,8 @@
 {
-  "version": "3.4.430",
-  "build_date": "2026-10-17T12:00:26.097858+00:00",
+  "version": "3.4.431",
+  "build_date": "2026-10-17T12:16:09.721809+00:00",
   "release_notes": [
+    "Notificações: conexão Teams administrada, gatilhos de cadastro e agendas com pausa, histórico e proteção contra repetição. Checklist agendado somente para conferência.",
     "Notificações: envio manual confirmado por e-mail, resultado por destinatário, proteção contra repetição e registros DEFIS/DITR em PDF. Teams e agendamentos ainda pendentes.",
     "Notificações: central compartilhada entre CRM e Aplicações Financeiras, com destinatários e modelos separados por empresa. O envio manual de extratos permanece independente.",
     "CRM: central administrativa para configurar destinatários por e-mail ou Teams, modelos e prévias com histórico. Envios e agenda permanecem desativados.",

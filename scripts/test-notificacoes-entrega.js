@@ -11,6 +11,6 @@ const {enviar,disponibilidade}=require('../notificacoes-entrega');
  assert.equal((await enviar(input,{...deps,fetcher:async()=>{throw Error('secret must not leak');}})).estado,'incerto');
  assert.equal((await enviar(input,{...deps,token:async()=>{throw Error('secret');}})).estado,'recusado');
  assert.equal((await enviar({...input,previa:{canal:'teams'}},deps)).estado,'recusado');
- assert.equal(disponibilidade({}).email,false);assert.equal(disponibilidade({}).teams,false);
+ assert.equal(disponibilidade({}).email,false);assert.equal(disponibilidade({}).teams,true);
  console.log('Notificações: aceite, recusa, resultado incerto, escape e ausência de repetição OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});

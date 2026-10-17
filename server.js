@@ -258,6 +258,8 @@ function adminRequired(req, res, next) {
   next();
 }
 
+const motorNotificacoes = require('./notificacoes-motor').criar({db});
+require('./notificacoes-internal').registrar(app,{db,motor:motorNotificacoes});
 require('./backup-notifications').register({app,db,email:GraphEmail,express});
 app.use('/api', authRequired);
 app.use('/api', protegerAcoes);
@@ -1298,7 +1300,10 @@ app.post('/api/empresas', async (req, res) => {
     const planoDoc = await db.collection('planos').doc(plano_id).get();
     if (!planoDoc.exists) return res.status(400).json({ erro: 'Plano ' + plano_id + ' nao existe' });
     if (planoDoc.data().ativo === false) return res.status(409).json({ erro: 'Restaure o plano arquivado antes de vincular uma empresa.' });
-    await db.collection('empresas').doc(cnpjLimpo).create({ ...cadastro.campos, razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
+    const eventoNotificacao=require('./notificacoes-motor').eventoRef(db,cnpjLimpo,'cadastro_criado',req.user.uid);
+    const loteCadastro=db.batch();
+    loteCadastro.create(db.collection('empresas').doc(cnpjLimpo),{ ...cadastro.campos, razao_social, plano_id, owner_uid: req.user.uid, ativo: true, created_at: new Date(), updated_at: new Date(), created_by: req.user.uid, created_by_email: req.user.email });
+    loteCadastro.create(eventoNotificacao.ref,eventoNotificacao.data);await loteCadastro.commit();
     let regimeCfi = null;
     let regimeAviso = null;
     try { regimeCfi = await sincronizarRegimeTributarioCfi(cnpjLimpo, req); }
@@ -1347,7 +1352,9 @@ app.patch('/api/empresas/:cnpj/cadastro', async (req, res) => {
       cadastro.campos.inicio_escrituracao_cci !== undefined
       && cadastro.campos.inicio_escrituracao_cci !== chk.empresa.inicio_escrituracao_cci
     );
-    await db.collection('empresas').doc(cnpjLimpo).set({
+    const eventoNotificacao=require('./notificacoes-motor').eventoRef(db,cnpjLimpo,'cadastro_editado',req.user.uid);
+    const loteCadastro=db.batch();
+    loteCadastro.set(db.collection('empresas').doc(cnpjLimpo),{
       ...cadastro.campos,
       ...(alterouImplantacao ? {
         saldo_abertura_status: futuro.modo_contabil === 'cci_exclusivo' ? 'pendente' : FieldValue.delete(),
@@ -1361,6 +1368,7 @@ app.patch('/api/empresas/:cnpj/cadastro', async (req, res) => {
       cadastro_atualizado_por_uid: req.user.uid,
       cadastro_atualizado_por_email: req.user.email
     }, { merge: true });
+    loteCadastro.create(eventoNotificacao.ref,eventoNotificacao.data);await loteCadastro.commit();
     const atualizado = await db.collection('empresas').doc(cnpjLimpo).get();
     res.json({ ok: true, cnpj: cnpjLimpo, ...atualizado.data() });
   } catch (err) { res.status(500).json({ erro: err.message }); }

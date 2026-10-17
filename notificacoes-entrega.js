@@ -3,10 +3,11 @@ const Graph = require('./graph-email-provider');
 const { escolherRemetente, remetentePadrao, dominiosPermitidos } = require('./graph-remetente');
 const esc = v => String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function disponibilidade(env=process.env) {
-  return {email:Graph.configurado(env),teams:false,teams_motivo:'O link do Teams identifica o destino, mas não concede permissão de envio. A conexão de entrega do Teams ainda precisa ser implementada.'};
+  return {email:Graph.configurado(env),teams:true,teams_motivo:'Conecte cada regra ao Workflows do chat ou canal escolhido pelo administrador.'};
 }
 // Não repetir automaticamente: uma interrupção depois do POST pode ocultar uma aceitação.
 async function enviar({destino,previa,emailColaborador}, {env=process.env,token=Graph.getGraphToken,fetcher=globalThis.fetch}={}) {
+  if(previa.canal==='teams')return require('./notificacoes-teams').enviar({destino,previa});
   if(previa.canal!=='email')return {estado:'recusado',detalhe:'Canal sem conexão de envio disponível.'};
   const {remetente}=escolherRemetente({emailColaborador,padrao:remetentePadrao(env),dominios:dominiosPermitidos(env)});
   if(!remetente)return {estado:'recusado',detalhe:'Configure a caixa do remetente antes de enviar.'};
