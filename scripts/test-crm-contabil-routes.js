@@ -38,6 +38,35 @@ function ambiente(checklistFonte = null, onRead = null, extra = {}) {
 }
 (async()=>{
   {
+    let enviados=0,resultadoEnvio='aceito';
+    const n=ambiente(null,null,{entrega:{disponibilidade:()=>({email:true,teams:false}),enviar:async()=>{enviados++;return {estado:resultadoEnvio,detalhe:'Fixture'};}}});
+    const path='/api/crm/empresas/:cnpj/notificacoes/aplicacoes';
+    await n.call('PUT',path+'/:id',{revisao:0,modelo:'{{empresa}} {{competencia}}',destinatarios:['um@example.com'],motivo:'Teste'},'admin',{id:'F01'});
+    const b={evento:'manual',competencia:'2026-10',chave:'envio-fixture-00000001',revisao:1};
+    await n.call('POST',path+'/:id/previa',b,'admin',{id:'F01'});
+    const send={chave:b.chave,confirmado:true,destino:'um@example.com'};
+    assert.equal((await n.call('POST',path+'/:id/enviar',send,'colab',{id:'F01'})).statusCode,403);
+    assert.equal((await n.call('POST',path+'/:id/enviar',send,'admin',{id:'F01',cnpj:outro})).statusCode,404);
+    assert.equal((await n.call('POST',path+'/:id/enviar',{...send,destino:'intruso@example.com'},'admin',{id:'F01'})).statusCode,400);
+    assert.equal((await n.call('POST',path+'/:id/enviar',send,'admin',{id:'F01'})).body.resultados[0].estado,'aceito');assert.equal(enviados,1);
+    await n.call('POST',path+'/:id/enviar',send,'admin',{id:'F01'});assert.equal(enviados,1,'mesma operação não repete');
+    const b2={...b,chave:'envio-fixture-00000002'};await n.call('POST',path+'/:id/previa',b2,'admin',{id:'F01'});
+    await n.call('POST',path+'/:id/enviar',{...send,chave:b2.chave},'admin',{id:'F01'});assert.equal(enviados,1,'outra prévia idêntica não duplica');
+    await n.call('PUT',path+'/:id',{revisao:1,modelo:'Novo {{empresa}}',destinatarios:['outro@example.com'],motivo:'Troca'},'admin',{id:'F01'});
+    assert.equal((await n.call('POST',path+'/:id/enviar',send,'admin',{id:'F01'})).statusCode,409);
+    resultadoEnvio='recusado';const rb={...b,revisao:2,chave:'envio-fixture-00000003'};await n.call('POST',path+'/:id/previa',rb,'admin',{id:'F01'});
+    const rs={...send,chave:rb.chave,destino:'outro@example.com'};
+    await n.call('POST',path+'/:id/enviar',rs,'admin',{id:'F01'});assert.equal(enviados,2);
+    await n.call('POST',path+'/:id/enviar',rs,'admin',{id:'F01'});assert.equal(enviados,2,'recusa não repete sem comando');
+    resultadoEnvio='incerto';await n.call('POST',path+'/:id/enviar',{...rs,repetir:true,tentativa:1},'admin',{id:'F01'});assert.equal(enviados,3);
+    await n.call('POST',path+'/:id/enviar',{...rs,repetir:true,tentativa:2},'admin',{id:'F01'});assert.equal(enviados,3,'incerto nunca repete');
+
+    const pp='/api/crm/empresas/:cnpj/automacoes/:id';
+    await n.call('POST',pp+'/previa',{chave:'pdf-fixture-00000001',revisao:0,evento:'manual',categoria:'DITR',exercicio:'2026',link:'https://example.com/ditr'},'admin',{id:'A07'});
+    assert.equal((await n.call('POST',pp+'/pdf',{chave:'pdf-fixture-00000001'},'colab',{id:'A07'})).statusCode,403);
+    const pdf=await n.call('POST',pp+'/pdf',{chave:'pdf-fixture-00000001'},'admin',{id:'A07'});assert.equal(pdf.statusCode,200);assert.equal(pdf.headers['Content-Type'],'application/pdf');assert(pdf.body.toString().startsWith('%PDF-'));
+  }
+  {
     const n=ambiente(),p='/api/crm/empresas/:cnpj/notificacoes/aplicacoes';
     assert.equal((await n.call('GET',p,{},'colab')).statusCode,403);
     assert.equal((await n.call('GET',p,{},'admin',{cnpj:'00000000000000'})).statusCode,403);
