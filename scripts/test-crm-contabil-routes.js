@@ -339,6 +339,15 @@ function ambiente(checklistFonte = null, onRead = null, extra = {}) {
   assert.equal(c.dados.get('crm_registros/v2_2').revisao,1);
   assert.equal((await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'MEI',motivo:'conferido'},'admin',{cnpj:novo,id:'v2_2'})).statusCode,200);
   assert(!Object.hasOwn(c.dados.get('crm_registros/v2_2'),'contrato'));
+  c.dados.set('crm_registros/formula_2',{...reg,fonte:'contabil_v2_integral',campos:[{nome:'SALDO JANEIRO 2026',valor:'1.005',original:'1.005'},{nome:'SALDO RESIDUAL',valor:'99',original:'99'}]});
+  const aplicarFormula={revisao:1,coluna:1,formula:'saldo-janeiro-residual-v2',confirmado:true,motivo:'Conferência'};
+  assert.equal((await c.call('PATCH',base+'/parametros/:id',aplicarFormula,'colab',{cnpj:novo,id:'formula_2'})).statusCode,403);
+  assert.equal((await c.call('PATCH',base+'/parametros/:id',aplicarFormula,'admin',{cnpj,id:'formula_2'})).statusCode,404);
+  const formulaResp=await c.call('PATCH',base+'/parametros/:id',aplicarFormula,'admin',{cnpj:novo,id:'formula_2'});
+  assert.equal(formulaResp.statusCode,200);assert.equal(formulaResp.body.registro.campos[1].valor,'1.005');
+  assert.equal((await c.call('PATCH',base+'/parametros/:id',aplicarFormula,'admin',{cnpj:novo,id:'formula_2'})).statusCode,409);
+  const histFormula=[...c.dados].filter(([k])=>k.startsWith('crm_registros/formula_2/historico/')).map(([,v])=>v);
+  assert.equal(histFormula.length,1);assert.equal(histFormula[0].formula,aplicarFormula.formula);assert.equal(histFormula[0].antes.valor,'99');assert.equal(histFormula[0].depois.valor,'1.005');
   c.dados.set('crm_registros/ditr_2',{...reg,fonte:'ditr',campos:[{nome:'RECIBO/DECLARAÇÃO',valor:'https://example.com/ditr.pdf'}]});
   const docsAntes=JSON.stringify([...c.dados]);
   const docsResp=await c.call('GET',base+'/parametros',{},'admin',{cnpj:novo});

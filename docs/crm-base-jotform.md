@@ -108,3 +108,9 @@ A versão 3.4.425 prepara a credencial no runtime e a leitura dos arquivos no bu
 `GET /api/crm/empresas/:cnpj/documentos/:registro/:coluna/:indice` confere carteira atual, registro e vínculo com a empresa, cópia existente, tamanho e SHA-256, e relê vínculo e permissão depois do download. A interface diferencia download CCI de link ainda na origem. URLs múltiplas no mesmo campo também são preservadas. Checklist mantém aplicação individual assistida; campos ausentes e ambíguos não são inferidos.
 
 Pendências de encerramento: relatório final de anexos e indisponíveis, homologação autenticada da empresa 1200, conferência das fórmulas/automações, ensaio de restauração e aceite de corte dos controles. O Checklist não será desligado.
+
+## Atualização da conferência — 17/10/2026
+
+Cópia concluída para 3.800 de 3.802 URLs de anexos Jotform; dois arquivos indisponíveis (404 e vazio), 114 URLs externas preservadas e uma credencial segregada. Homologação administrativa na SP_HOME: empresa 1200, dossiê/documentos, download privado e abertura do PDF DEFIS confirmados. Piloto sem controles cadastrados; não equivale à homologação de obrigações ou de colaborador restrito.
+
+Por decisão de Paulo, automações serão enumeradas e construídas nativamente no CCI, sem bloquear os demais desenvolvimentos pela reprodução exata do fluxo legado. Ver `crm-engenharia-reversa-20261017.md` para matriz atual de transferência, adaptação da fórmula de saldo e pendências reais. Nenhum envio foi ativado.

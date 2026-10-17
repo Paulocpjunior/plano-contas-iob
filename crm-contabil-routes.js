@@ -272,7 +272,7 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
       const antes=doc.data(), depois=editarParametro(antes,req.body || {},ctx.user,agora());
       tx.set(ref,depois);
       tx.create(ref.collection('historico').doc(),{revisao:depois.revisao,quando:agora(),por_uid:ctx.user.uid,
-        coluna:req.body.coluna,motivo:req.body.motivo.trim(),antes:antes.campos[req.body.coluna],depois:depois.campos[req.body.coluna]});
+        coluna:req.body.coluna,...(req.body.formula?{formula:req.body.formula}:{}),motivo:req.body.motivo.trim(),antes:antes.campos[req.body.coluna],depois:depois.campos[req.body.coluna]});
       return {...depois,id:doc.id};
     }); res.json({ok:true,registro});
   }));
