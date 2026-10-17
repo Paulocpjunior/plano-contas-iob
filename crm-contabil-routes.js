@@ -1,5 +1,7 @@
 'use strict';
 const core = require('./crm-contabil');
+const crypto = require('crypto');
+const documentoId = url => crypto.createHash('sha256').update(url).digest('hex');
 const { corrigirIdentificacao, compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
@@ -27,7 +29,7 @@ async function carregarDepartamento(req, env = process.env, fetcher = globalThis
   } catch (_) { throw core.erro('Não foi possível confirmar a equipe contábil. Confira o cadastro central e tente novamente; a lista geral não será usada.', 503); }
 }
 
-function registrar(app, { db, domain, checklist = carregarChecklist, departamento = carregarDepartamento, env = process.env, agora = () => new Date().toISOString() }) {
+function registrar(app, { db, domain, storage, checklist = carregarChecklist, departamento = carregarDepartamento, env = process.env, agora = () => new Date().toISOString() }) {
   const base = '/api/crm/empresas/:cnpj';
   const wrap = fn => async (req, res) => {
     try { res.setHeader('Cache-Control', 'private, no-store'); await fn(req, res); }
@@ -212,13 +214,42 @@ function registrar(app, { db, domain, checklist = carregarChecklist, departament
       tx.set(ref,depois);return depois;
     });res.json({ok:true,...resultado});
   }));
+  app.get(base + '/documentos/:registro/:coluna/:indice', wrap(async(req,res)=>{
+    await contexto(req);
+    const {registro,coluna,indice}=req.params;
+    if(!/^[\w-]{1,200}$/.test(registro)||!/^\d{1,5}$/.test(coluna)||!/^\d{1,5}$/.test(indice))throw core.erro('Referência inválida. Atualize o dossiê.',400);
+    const ref=db.collection('crm_registros').doc(registro), snap=await ref.get();
+    if(!snap.exists||snap.data().cnpj!==req.params.cnpj)throw core.erro('Documento não pertence à empresa.',404);
+    const doc=documentosEmpresa([{...snap.data(),id:snap.id}]).find(d=>d.coluna===Number(coluna)&&d.indice===Number(indice));
+    if(!doc)throw core.erro('Documento indisponível. Atualize o dossiê.',404);
+    const meta=await db.collection('crm_documentos_migrados').doc(documentoId(doc.url)).get();
+    const m=meta.exists?meta.data():{};
+    if(!storage||!env.CCI_CRM_DOCUMENTS_BUCKET||m.estado!=='copiado'||m.bucket!==env.CCI_CRM_DOCUMENTS_BUCKET||!/^[a-f0-9]{64}$/.test(m.sha256||'')||m.path!=='jotform/'+m.sha256||!Number.isInteger(m.bytes)||m.bytes<1||m.bytes>50*1024*1024)throw core.erro('Cópia ainda não disponível no CCI. Confira a migração deste documento.',409);
+    const [buffer]=await storage.bucket(m.bucket).file(m.path,{generation:m.generation}).download({validation:'crc32c'});
+    if(buffer.length!==m.bytes||documentoId(buffer)!==m.sha256)throw core.erro('Falha de integridade. Solicite nova conferência do arquivo.',409);
+    const atual=await ref.get();
+    if(!atual.exists||atual.data().cnpj!==req.params.cnpj||!documentosEmpresa([{...atual.data(),id:atual.id}]).some(d=>d.coluna===Number(coluna)&&d.indice===Number(indice)&&d.url===doc.url))throw core.erro('O vínculo foi alterado. Atualize o dossiê.',409);
+    await contexto(req); // Revogação durante o download também bloqueia a entrega.
+    res.setHeader('Content-Type','application/octet-stream');
+    res.setHeader('X-Content-Type-Options','nosniff');
+    res.setHeader('Content-Disposition','attachment; filename="documento"');
+    res.send(buffer);
+  }));
   app.get(base + '/parametros', wrap(async (req,res)=>{
     await contexto(req);
     const snap = await db.collection('crm_registros').where('cnpj','==',req.params.cnpj).get();
     const registros = snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>a.fonte.localeCompare(b.fonte)||a.linha-b.linha);
+    const documentos = documentosEmpresa(registros);
+    const ids = [...new Set(documentos.map(d=>documentoId(d.url)))];
+    const copiados = new Set();
+    // Limita concorrência das leituras sem truncar o dossiê.
+    for(let i=0;i<ids.length;i+=20) {
+      const metas=await Promise.all(ids.slice(i,i+20).map(id=>db.collection('crm_documentos_migrados').doc(id).get()));
+      metas.forEach(m=>{if(m.exists&&m.data().estado==='copiado'&&m.data().bucket===env.CCI_CRM_DOCUMENTS_BUCKET)copiados.add(m.id);});
+    }
     // Reconfere após a leitura da base para não devolver parâmetros após revogação.
     const ctx = await contexto(req);
-    res.json({ok:true,registros:registros.map(r=>({...r,contrato:contratoParametros(r)})),documentos:documentosEmpresa(registros),pode_editar:ctx.user.is_admin || podeAcao(ctx.user,'editar')});
+    res.json({ok:true,registros:registros.map(r=>({...r,contrato:contratoParametros(r)})),documentos:documentos.map(d=>({...d,copiado:copiados.has(documentoId(d.url))})),pode_editar:ctx.user.is_admin || podeAcao(ctx.user,'editar')});
   }));
   app.get(base + '/historico', wrap(async(req,res)=>{
     const ctx=await contexto(req);

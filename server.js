@@ -289,7 +289,7 @@ app.use('/api/gemini', criarLimitador({
 // Autenticação e quotas são verificadas antes de alocar o corpo.
 app.use('/api', (req, res, next) => express.json({ limit: limiteCorpoPara(req), verify: verificarTamanhoJson })(req, res, next));
 require('./gestao-acessos.cjs').registrar(app, { db, auth: adminAuth, adminRequired, aplicativo: 'cci', efetivas: permissoesEfetivas });
-require('./crm-contabil-routes').registrar(app, { db, domain: DOMAIN });
+require('./crm-contabil-routes').registrar(app, { db, domain: DOMAIN, storage: { bucket: nome => admin.storage().bucket(nome) } });
 
 app.post('/api/auditai/extrair-pdf-contabil', adminRequired, async (req, res) => {
   const base64 = String((req.body && req.body.data) || '').replace(/^data:application\/pdf;base64,/, '');

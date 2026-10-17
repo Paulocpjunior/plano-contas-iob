@@ -4,7 +4,7 @@ const { registrar } = require('../crm-contabil-routes');
 const { criarPermissoes, acaoDaRota } = require('../permissoes-cci');
 const { versaoCarteira } = require('../crm-contabil');
 const cnpj = '12345678901234', outro = '99999999999999';
-function ambiente(checklistFonte = null, onRead = null) {
+function ambiente(checklistFonte = null, onRead = null, extra = {}) {
   const routes={}, dados=new Map(); let auto=0, writes=0, checklistCalls=0, companyQueries=0;
   const empresa={razao_social:'Fixture',codigo_empresa:'0012',owner_uid:'legado',carteira_uids:['colab','indice-velho'],responsaveis:[{uid:'colab',papel:'principal'}]};
   dados.set('empresas/'+cnpj,empresa); dados.set('empresas/'+outro,{razao_social:'Outra',carteira_uids:[],responsaveis:[]});
@@ -28,15 +28,38 @@ function ambiente(checklistFonte = null, onRead = null) {
     const result=await fn(tx); pending.forEach(([p,d])=>{dados.set(p,structuredClone(d));writes++;});return result;
   }};
   const app=Object.fromEntries(['get','post','put','patch'].map(m=>[m,(p,fn)=>{routes[m.toUpperCase()+' '+p]=fn;}]));
-  registrar(app,{db,departamento:async()=>new Set(['admin','colab','legado','indice-velho','apoio'].filter(id=>dados.get('users/'+id)?.foraDepartamento!==true).map(id=>id+'@fixture.test')),domain:'@fixture.test',agora:()=> '2026-10-13T18:00:00Z',checklist:async()=>{checklistCalls++;return checklistFonte ? await checklistFonte(dados) : {completo:false};}});
+  registrar(app,{...extra,db,departamento:async()=>new Set(['admin','colab','legado','indice-velho','apoio'].filter(id=>dados.get('users/'+id)?.foraDepartamento!==true).map(id=>id+'@fixture.test')),domain:'@fixture.test',agora:()=> '2026-10-13T18:00:00Z',checklist:async()=>{checklistCalls++;return checklistFonte ? await checklistFonte(dados) : {completo:false};}});
   async function call(method,path,body={},uid='colab',params={},query={}) {
-    const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.statusCode=n;return this;},json(d){this.body=d;return this;}};
+    const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.statusCode=n;return this;},json(d){this.body=d;return this;},send(d){this.body=d;return this;}};
     await routes[method+' '+path]({params:{cnpj,...params},query,body,user:{uid,is_admin:true}},res); // is_admin forjado deve ser ignorado.
     return res;
   }
   return {call,dados,writes:()=>writes,checklistCalls:()=>checklistCalls,companyQueries:()=>companyQueries};
 }
 (async()=>{
+  const crypto=require('crypto'), hash=b=>crypto.createHash('sha256').update(b).digest('hex');
+  const binary=Buffer.from('%PDF-1.7 fixture'),url='https://www.jotform.com/uploads/fixture/arquivo.pdf',bucket='privado-fixture';
+  let downloads=0, mutate=()=>{};
+  const docs=ambiente(null,null,{env:{CCI_CRM_DOCUMENTS_BUCKET:bucket},storage:{bucket:n=>{assert.equal(n,bucket);return {file:(path,opts)=>{assert.equal(path,'jotform/'+hash(binary));assert.equal(opts.generation,'123');return {download:async()=>{downloads++;mutate();return [binary];}};}};}}});
+  const route='/api/crm/empresas/:cnpj/documentos/:registro/:coluna/:indice',params={registro:'origem_1',coluna:'0',indice:'0'};
+  docs.dados.set('crm_registros/origem_1',{cnpj,fonte:'fixture',campos:[{nome:'Arquivo',valor:url}]});
+  const meta={estado:'copiado',sha256:hash(binary),bytes:binary.length,bucket,path:'jotform/'+hash(binary),generation:'123'};
+  docs.dados.set('crm_documentos_migrados/'+hash(url),meta);
+  let response=await docs.call('GET',route,{},'colab',params);
+  assert.equal(response.statusCode,200);assert.deepEqual(response.body,binary);assert.equal(response.headers['Cache-Control'],'private, no-store');assert.equal(response.headers['X-Content-Type-Options'],'nosniff');
+  const previous=downloads;
+  assert.equal((await docs.call('GET',route,{},'indice-velho',params)).statusCode,403);assert.equal(downloads,previous);
+  assert.equal((await docs.call('GET',route,{},'admin',{...params,cnpj:outro})).statusCode,404);assert.equal(downloads,previous);
+  assert.equal((await docs.call('GET',route,{},'colab',{...params,registro:'../other'})).statusCode,400);
+  docs.dados.set('crm_documentos_migrados/'+hash(url),{...meta,bytes:binary.length+1});
+  assert.equal((await docs.call('GET',route,{},'colab',params)).statusCode,409);
+  docs.dados.set('crm_documentos_migrados/'+hash(url),meta);
+  mutate=()=>docs.dados.set('crm_registros/origem_1',{cnpj:outro,campos:[{nome:'Arquivo',valor:url}]});
+  assert.equal((await docs.call('GET',route,{},'colab',params)).statusCode,409);
+  docs.dados.set('crm_registros/origem_1',{cnpj,campos:[{nome:'Arquivo',valor:url}]});
+  mutate=()=>docs.dados.set('empresas/'+cnpj,{responsaveis:[],carteira_uids:[]});
+  assert.equal((await docs.call('GET',route,{},'colab',params)).statusCode,403);
+
   const sane=ambiente(), identidade='/api/crm/base/registros/:id/identificacao', destino='11222333000181';
   sane.dados.set('crm_empresas/'+destino,{razao_social:'Destino conferido',responsaveis:[]});
   const bruto={cnpj:'inválido',identidade_valida:false,revisao:1,fonte:'origem',origem_sha256:'preservar',campos:[{nome:'CNPJ',valor:'inválido',original:'inválido',protegido:true}]};
