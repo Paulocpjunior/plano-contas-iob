@@ -8,3 +8,5 @@ for(const host of ['', 'localhost:8080','firestore.googleapis.com:443','192.168.
 assert.throws(()=>validarDestino('127.0.0.1:8080','gen-lang-client-0569062468'));validarDestino('127.0.0.1:8080','demo-crm-restauracao-teste');
 assert(incluir('empresas/123/crm_documentos/doc/historico/1',{}));assert(incluir('crm_registros/1/historico/1',{}));assert(!incluir('empresas/123/lancamentos/1',{}));assert(!incluir('empresas/123/auditoria_contabil/1',{tipo:'CONTABIL'}));assert(incluir('empresas/123/auditoria_contabil/1',{tipo:'CRM_CARTEIRA'}));
 console.log('CRM restauração: tipos, integridade, escopo e bloqueio de destino remoto OK');
+
+assert(incluir('empresas/123/crm_notificacoes/aplicacoes_F01/historico/1',{}));

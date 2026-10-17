@@ -142,45 +142,56 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
   }
   function admin(user) { if (!user.is_admin) throw core.erro('Esta ação é exclusiva dos administradores.', 403); }
   const automacoes = require('./crm-automacoes');
-  const automacoesRef = db.collection('crm_automacoes');
-  app.get('/api/crm/automacoes',wrap(async(req,res)=>{
-    admin(await usuario(req));
-    const docs=await Promise.all(automacoes.catalogo.map(r=>automacoesRef.doc(r.id).get()));
-    admin(await usuario(req));
-    res.json({ok:true,envios_habilitados:false,agenda_habilitada:false,regras:automacoes.catalogo.map((r,i)=>({...r,config:docs[i].exists?docs[i].data():{revisao:0,ativa:false,modelo:r.modelo,canal:r.canal,destinatarios:[]}}))});
+  function registrarNotificacoes(modulo,path,escopoEmpresa){
+    const catalogo=automacoes.catalogoDoModulo(modulo);
+    async function acesso(req,tx){
+      if(escopoEmpresa){const c=await contexto(req,tx);admin(c.user);return c;}
+      const user=await usuario(req,tx);admin(user);return {user};
+    }
+    function colecao(req){return escopoEmpresa?empresaRef(req).collection('crm_notificacoes'):db.collection('crm_automacoes');}
+    function refRegra(req){automacoes.regra(req.params.id,modulo);return colecao(req).doc(escopoEmpresa?modulo+'_'+req.params.id:req.params.id);}
+
+  app.get(path,wrap(async(req,res)=>{
+    await acesso(req);
+    const docs=await Promise.all(catalogo.map(r=>colecao(req).doc(escopoEmpresa?modulo+'_'+r.id:r.id).get()));
+    await acesso(req);
+    res.json({ok:true,modulo,cnpj:escopoEmpresa?req.params.cnpj:null,variaveis:automacoes.variaveisDoModulo(modulo),envios_habilitados:false,agenda_habilitada:false,regras:catalogo.map((r,i)=>({...r,config:docs[i].exists?docs[i].data():{revisao:0,ativa:false,modelo:r.modelo,canal:r.canal,destinatarios:[]}}))});
   }));
-  app.put('/api/crm/automacoes/:id',wrap(async(req,res)=>{
-    automacoes.regra(req.params.id);
-    const ref=automacoesRef.doc(req.params.id);
+  app.put(path+'/:id',wrap(async(req,res)=>{
+    automacoes.regra(req.params.id,modulo);
+    const ref=refRegra(req);
     const config=await db.runTransaction(async tx=>{
-      const user=await usuario(req,tx);admin(user);
+      const {user}=await acesso(req,tx);
       const d=await tx.get(ref),antes=d.exists?d.data():{};
-      const depois=automacoes.configurar(req.params.id,antes,req.body||{},user.uid,agora());
+      const depois=automacoes.configurar(req.params.id,antes,req.body||{},user.uid,agora(),modulo);
       tx.set(ref,depois);tx.create(ref.collection('historico').doc(),{tipo:'configuracao',antes,depois,quando:agora(),autor:user.uid});return depois;
     });res.json({ok:true,config});
   }));
-  app.get('/api/crm/automacoes/:id/historico',wrap(async(req,res)=>{
-    admin(await usuario(req));automacoes.regra(req.params.id);
+  app.get(path+'/:id/historico',wrap(async(req,res)=>{
+    await acesso(req);automacoes.regra(req.params.id,modulo);
     const cursor=String(req.query.cursor||'');if(cursor && !/^[a-zA-Z0-9_-]{1,128}$/.test(cursor))throw core.erro('Cursor inválido. Atualize a central.');
-    let query=automacoesRef.doc(req.params.id).collection('historico').orderBy('__name__').limit(51);if(cursor)query=query.startAfter(cursor);
-    const snap=await query.get();admin(await usuario(req));const rows=snap.docs.slice(0,50);
+    let query=refRegra(req).collection('historico').orderBy('__name__').limit(51);if(cursor)query=query.startAfter(cursor);
+    const snap=await query.get();await acesso(req);const rows=snap.docs.slice(0,50);
     res.json({ok:true,itens:rows.map(d=>({id:d.id,...d.data()})),proximo:snap.docs.length>50?rows.at(-1).id:null});
   }));
-  app.post(base+'/automacoes/:id/previa',wrap(async(req,res)=>{
-    admin(await usuario(req));automacoes.regra(req.params.id);
+  app.post(escopoEmpresa?path+'/:id/previa':base+'/automacoes/:id/previa',wrap(async(req,res)=>{
+    await acesso(req);automacoes.regra(req.params.id,modulo);
     const b=req.body||{};
     if(typeof b.chave!=='string'||! /^[a-zA-Z0-9_-]{16,80}$/.test(b.chave))throw core.erro('Reabra a prévia para gerar a identificação da operação.');
-    const ref=automacoesRef.doc(req.params.id),hist=ref.collection('historico').doc(b.chave);
+    const ref=refRegra(req),hist=ref.collection('historico').doc(b.chave);
     const result=await db.runTransaction(async tx=>{
       const c=await contexto(req,tx);admin(c.user);
       const cfgDoc=await tx.get(ref),cfg=cfgDoc.exists?cfgDoc.data():{};
       if(b.revisao!==(cfg.revisao||0))throw core.erro('Modelo alterado. Reabra a prévia.',409);
-      const previa=automacoes.preparar(req.params.id,cfg,b,{...c.empresa,cnpj:req.params.cnpj});
+      const previa=automacoes.preparar(req.params.id,cfg,b,{...c.empresa,cnpj:req.params.cnpj},modulo);
       const assinatura=core.hash(JSON.stringify(previa)),existe=await tx.get(hist);
       if(existe.exists){if(existe.data().assinatura!==assinatura)throw core.erro('Esta operação já foi registrada com outro conteúdo. Reabra a prévia.',409);return existe.data();}
       const item={tipo:'previa',assinatura,previa,quando:agora(),autor:c.user.uid};tx.create(hist,item);return item;
     });res.json({ok:true,...result});
   }));
+  }
+  registrarNotificacoes('crm','/api/crm/automacoes',false);
+  registrarNotificacoes('aplicacoes',base+'/notificacoes/aplicacoes',true);
   function empresaPublica(doc, user, origem) {
     const d = doc.data();
     return { origem, situacao_cliente:situacaoCliente(d), cnpj: doc.id, razao_social: d.razao_social || '', codigo_empresa: codigoEmpresaDe(d),
