@@ -17,8 +17,8 @@ function desserializar(v){switch(v.tipo){case'timestamp':return new Timestamp(v.
 function hash(v){return crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');}
 function validarDestino(host,project){if(!/^127\.0\.0\.1:\d{4,5}$/.test(host||'')||!/^demo-crm-restauracao-[a-z0-9-]+$/.test(project||''))throw Error('Restauração exige emulador em 127.0.0.1 e projeto demo-crm-restauracao exclusivo.');}
 const roots=['crm_automacoes','empresas','users','crm_empresas','crm_registros','crm_importacoes','crm_preferencias','crm_topologia','crm_capacidades','crm_checklist_eventos','crm_documentos_migrados'];
-const grupos=['crm_controles','crm_recorrencias','crm_documentos','historico','auditoria_contabil'];
-function incluir(path,dados){const p=path.split('/');if(p.length===2)return roots.includes(p[0]);if(p[0].startsWith('crm_')&&roots.includes(p[0]))return true;if(p[0]!=='empresas')return false;if(['crm_controles','crm_recorrencias','crm_documentos'].includes(p[2]))return true;return p[2]==='auditoria_contabil'&&String(dados.tipo||'').startsWith('CRM_');}
+const grupos=['crm_controles','crm_recorrencias','crm_documentos','crm_notificacoes','historico','auditoria_contabil'];
+function incluir(path,dados){const p=path.split('/');if(p.length===2)return roots.includes(p[0]);if(p[0].startsWith('crm_')&&roots.includes(p[0]))return true;if(p[0]!=='empresas')return false;if(['crm_controles','crm_recorrencias','crm_documentos','crm_notificacoes'].includes(p[2]))return true;return p[2]==='auditoria_contabil'&&String(dados.tipo||'').startsWith('CRM_');}
 async function main(){
   const [acao,arquivo,relatorio]=process.argv.slice(2);if(!arquivo||!relatorio)throw Error('Uso: snapshot|restaurar arquivo.json relatorio.json');
   let db;

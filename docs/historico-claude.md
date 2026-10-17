@@ -2119,3 +2119,6 @@ Escopo alterado por Paulo: não copiar novos anexos, manter Jotform para consult
 
 ## 17/10/2026 — CRM: central de destinatários e modelos (3.4.428)
 Solicitação: iniciar automações pendentes e permitir que admins configurem quem recebe por e-mail ou Teams. Entregue catálogo A01–A08, modelos e destinatários por regra, revisão/motivo/histórico e prévias auditadas idempotentes. Envios, gatilhos automáticos, PDFs e agenda não implementados nesta etapa; API rejeita ativação. Sem cópia de anexos ou mudanças de carteira. Detalhes e próximos passos em docs/crm-automacoes-nativas.md.
+
+## 17/10/2026 — Central compartilhada CRM / Aplicações Financeiras
+Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competência e histórico segregados. CRM mantém catálogo e configurações anteriores; rotas usam registrador comum e autorização administrativa atual. Solicitação manual de extratos preservada; central ainda não dispara mensagens. Testes de isolamento e compatibilidade, navegador com duas empresas fictícias. Detalhes em docs/notificacoes-compartilhadas.md.

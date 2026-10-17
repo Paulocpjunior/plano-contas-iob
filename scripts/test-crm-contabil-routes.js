@@ -38,6 +38,26 @@ function ambiente(checklistFonte = null, onRead = null, extra = {}) {
 }
 (async()=>{
   {
+    const n=ambiente(),p='/api/crm/empresas/:cnpj/notificacoes/aplicacoes';
+    assert.equal((await n.call('GET',p,{},'colab')).statusCode,403);
+    assert.equal((await n.call('GET',p,{},'admin',{cnpj:'00000000000000'})).statusCode,403);
+    assert.equal((await n.call('GET',p,{},'admin')).body.regras.length,3);
+    const cfg={revisao:0,modelo:'Extratos {{empresa}} {{competencia}}',canal:'email',destinatarios:['um@example.com'],motivo:'Teste por empresa'};
+    assert.equal((await n.call('PUT',p+'/:id',cfg,'admin',{id:'F01'})).statusCode,200);
+    assert.equal((await n.call('PUT',p+'/:id',cfg,'admin',{id:'A01'})).statusCode,404);
+    assert.equal((await n.call('PUT','/api/crm/automacoes/:id',cfg,'admin',{id:'F01'})).statusCode,404);
+    const outra=await n.call('GET',p,{},'admin',{cnpj:outro});assert.equal(outra.body.regras[0].config.revisao,0);assert.deepEqual(outra.body.regras[0].config.destinatarios,[]);
+    assert.equal((await n.call('GET',p+'/:id/historico',{},'admin',{cnpj:outro,id:'F01'})).body.itens.length,0);
+    const b={evento:'manual',competencia:'2026-10',chave:'financeira-fixture-00001',revisao:1};
+    const preview=await n.call('POST',p+'/:id/previa',b,'admin',{id:'F01'});assert.equal(preview.statusCode,200);assert.equal(preview.body.previa.cnpj,cnpj);assert.deepEqual(preview.body.previa.destinatarios,['um@example.com']);assert.equal(preview.body.previa.envio_realizado,false);
+    assert.equal((await n.call('POST',p+'/:id/previa',b,'admin',{cnpj:outro,id:'F01'})).statusCode,409);
+    assert.equal((await n.call('PUT',p+'/:id',{...cfg,revisao:1},'colab',{id:'F01'})).statusCode,403);
+    assert.equal((await n.call('GET',p+'/:id/historico',{},'colab',{id:'F01'})).statusCode,403);
+    const rev=ambiente(null,(path,d)=>{if(path.endsWith('crm_notificacoes/aplicacoes_F01/historico'))d.set('users/admin',{is_admin:false});});
+    assert.equal((await rev.call('GET',p+'/:id/historico',{},'admin',{id:'F01'})).statusCode,403);
+  }
+
+  {
   const auto=ambiente();
   const confPath='/api/crm/automacoes/:id', previewPath='/api/crm/empresas/:cnpj/automacoes/:id/previa';
   assert.equal((await auto.call('GET','/api/crm/automacoes',{},'colab')).statusCode,403);

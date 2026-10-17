@@ -97,5 +97,7 @@
   "/auditai/account-audit.js",
   "/auditai/account-audit-view.js",
   "/cia-contabil-ui.js",
-  "/cia-contabil.css"
+  "/cia-contabil.css",
+  "/notificacoes-ui.js",
+  "/notificacoes.css"
 ]
