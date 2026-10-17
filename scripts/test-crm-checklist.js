@@ -46,3 +46,8 @@ assert.throws(()=>c.contratoDoEvento({...evento,tipo:'suspensao'},null,body,'202
   await assert.rejects(c.carregarChecklist({apiKey:'fixture',fetchImpl:async()=>{throw Error('segredo nunca devolvido');}}),e=>!e.message.includes('segredo'));
   console.log('Checklist: datas contratuais, identidade, duplicidades, esquema, leitura completa e deriva OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});
+
+const {orientacoesChecklist}=require('../crm-checklist');
+assert(orientacoesChecklist({problemas:['Empresa sem vínculo confirmado no CCI.']})[0].includes('Cadastro de Empresas'));
+assert(orientacoesChecklist({problemas:['Múltiplos eventos para a empresa: conferir sequência e vigências.']})[0].includes('Contrato e recorrências'));
+assert(orientacoesChecklist({problemas:['Registro não ativo na origem; não aplicar nem apagar histórico.']})[0].includes('histórico'));

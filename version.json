@@ -1,7 +1,8 @@
 {
-  "version": "3.4.426",
-  "build_date": "2026-10-17T10:05:54.571797+00:00",
+  "version": "3.4.427",
+  "build_date": "2026-10-17T10:23:24.229442+00:00",
   "release_notes": [
+    "CRM: referências documentais com histórico, filtros e orientação no Checklist; Topologia mostra regimes da carteira e vigência. Jotform permanece para consulta, sem nova cópia de anexos.",
     "CRM: prévia e aplicação conferida da fórmula de saldo da origem, com histórico e proteção de ajustes manuais; matriz de equivalência e automações pendentes documentadas.",
     "CRM: download autenticado dos anexos copiados, com conferência de integridade e carteira; Checklist permanece integrado ao Jotform com prévia para revisão.",
     "BB Cash: releitura até a margem direita para incluir o sinal C/D eventualmente omitido pelo OCR, com modo alternativo de reconhecimento e conferência obrigatória dos saldos.",

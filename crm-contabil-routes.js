@@ -2,7 +2,7 @@
 const core = require('./crm-contabil');
 const crypto = require('crypto');
 const documentoId = url => crypto.createHash('sha256').update(url).digest('hex');
-const { corrigirIdentificacao, compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
+const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
@@ -103,7 +103,7 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     const mapa=new Map();ss.slice(0,2).forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
     const empresas=[...mapa.values()].filter(d=>podeGerirEmpresa(g,d.data())).map(d=>({...empresaPublica(d,g.user,'crm'),
       tributacao:d.data().regime_tributario_nome||d.data().regime_tributario_codigo||null,
-      atividade:d.data().cnae_principal||null,controles:[],responsaveis_permanentes:normalizarResponsaveis(d.data().responsaveis)}));
+      atividade:d.data().cnae_principal||null,contrato:d.data().crm_contrato||null,controles:[],responsaveis_permanentes:normalizarResponsaveis(d.data().responsaveis)}));
     const porCnpj=new Map(empresas.map(e=>[e.cnpj,e]));
     const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(agora()));
     for(const d of controles.docs){const p=d.ref.path.split('/'),e=porCnpj.get(p[1]);if(p.length!==4||p[0]!=='empresas'||!e)continue;const c=d.data();e.controles.push({id:d.id,titulo:c.titulo||'',status:c.status,periodo:c.periodo||'',prazo:c.prazo||null,executor_uid:c.executor_uid||null,revisor_uid:c.revisor_uid||null,atrasado:prazoControle(c,hoje)==='atrasado'});}
@@ -114,7 +114,8 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     const pessoas=ss[2].docs.filter(d=>uids.has(d.id)&&pertence(d.data(),emails)&&(g.user.is_admin||g.membros.has(d.id))&&String(d.data().last_email||d.data().email||'').toLowerCase().endsWith(domain)).map(d=>{
       const carteira=empresas.filter(e=>e.responsaveis.some(p=>p.uid===d.id));
       const demandas=carteira.flatMap(e=>e.controles),abertas=demandas.filter(c=>!core.TERMINAIS.includes(c.status));
-      return {uid:d.id,nome:d.data().last_name||d.data().name||d.data().email||d.id,empresas:carteira.length,principais:carteira.filter(e=>e.responsaveis.some(p=>p.uid===d.id&&p.papel==='principal')).length,obrigacoes_abertas:abertas.length,atrasadas:abertas.filter(c=>c.atrasado).length,sem_prazo:abertas.filter(c=>!c.prazo).length,execucao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.executor_uid===d.id).length,revisao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.revisor_uid===d.id).length};
+      const regimes=[...new Set(carteira.map(e=>e.tributacao||'Não informado'))].sort();
+      return {regimes,uid:d.id,nome:d.data().last_name||d.data().name||d.data().email||d.id,empresas:carteira.length,principais:carteira.filter(e=>e.responsaveis.some(p=>p.uid===d.id&&p.papel==='principal')).length,obrigacoes_abertas:abertas.length,atrasadas:abertas.filter(c=>c.atrasado).length,sem_prazo:abertas.filter(c=>!c.prazo).length,execucao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.executor_uid===d.id).length,revisao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.revisor_uid===d.id).length};
     });
     res.json({ok:true,admin:g.user.is_admin,completo:true,lido_em:agora(),empresas,pessoas,identidades_pendentes:g.user.is_admin?ambiguos:0,gestao:g.user.is_admin?g.cfg:{equipes:(g.cfg.equipes||[]).filter(e=>e.lider_uid===g.user.uid)}});
   }));
@@ -234,6 +235,28 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Content-Disposition','attachment; filename="documento"');
     res.send(buffer);
+  }));
+  app.get(base+'/documentos-referencias',wrap(async(req,res)=>{
+    const ctx=await contexto(req);let query=ctx.controlesRef.collection('crm_documentos').orderBy('__name__');
+    const cursor=cursorId(req.query.cursor,/^[a-zA-Z0-9_-]{1,100}$/);if(cursor)query=query.startAfter(cursor);
+    const snap=await query.limit(51).get();await contexto(req);
+    res.json({ok:true,documentos:snap.docs.slice(0,50).map(d=>({...d.data(),id:d.id})),proximo:snap.docs.length>50?snap.docs[49].id:null});
+  }));
+  app.post(base+'/documentos-referencias',wrap(async(req,res)=>{
+    const result=await db.runTransaction(async tx=>{const ctx=await contexto(req,tx),d=documentoReferencia(null,req.body||{},ctx.user,agora()),ref=ctx.controlesRef.collection('crm_documentos').doc();
+      tx.create(ref,d);tx.create(ref.collection('historico').doc(),d);return {...d,id:ref.id};});res.status(201).json({ok:true,documento:result});
+  }));
+  app.put(base+'/documentos-referencias/:id',wrap(async(req,res)=>{
+    if(!/^[a-zA-Z0-9_-]{1,100}$/.test(req.params.id||''))throw core.erro('Selecione um documento válido.');
+    const result=await db.runTransaction(async tx=>{const ctx=await contexto(req,tx),ref=ctx.controlesRef.collection('crm_documentos').doc(req.params.id),doc=await tx.get(ref);
+      if(!doc.exists)throw core.erro('Documento indisponível nesta empresa.',404);
+      const d=documentoReferencia(doc.data(),req.body||{},ctx.user,agora());tx.set(ref,d);tx.create(ref.collection('historico').doc(),d);return {...d,id:ref.id};});res.json({ok:true,documento:result});
+  }));
+  app.get(base+'/documentos-referencias/:id/historico',wrap(async(req,res)=>{
+    if(!/^[a-zA-Z0-9_-]{1,100}$/.test(req.params.id||''))throw core.erro('Selecione um documento válido.');
+    const ctx=await contexto(req),ref=ctx.controlesRef.collection('crm_documentos').doc(req.params.id),doc=await ref.get();if(!doc.exists)throw core.erro('Documento indisponível nesta empresa.',404);
+    let query=ref.collection('historico').orderBy('revisao');const cursor=cursorId(req.query.cursor,/^[1-9]\d{0,9}$/);if(cursor)query=query.startAfter(Number(cursor));
+    const snap=await query.limit(51).get();await contexto(req);res.json({ok:true,historico:snap.docs.slice(0,50).map(d=>d.data()),proximo:snap.docs.length>50?String(snap.docs[49].data().revisao):null});
   }));
   app.get(base + '/parametros', wrap(async (req,res)=>{
     await contexto(req);

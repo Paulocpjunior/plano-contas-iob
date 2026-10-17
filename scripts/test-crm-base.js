@@ -131,3 +131,13 @@ assert.equal(formulaSaldo({...sr,campos:[sr.campos[0],{...sr.campos[1],protegido
 assert.equal(editarParametro(sr,{revisao:1,coluna:0,valor:'8',motivo:'Edição independente'},admin,'agora').campos[1].valor,'99');
 assert.equal(editarParametro(sr,{revisao:1,coluna:0,valor:'',motivo:'Limpar entrada'},admin,'agora').campos[1].valor,'99');
 console.log('CRM fórmula: cópia fiel, confirmação, zero, precisão, revisão e intervenção manual preservados OK');
+
+const {documentoReferencia}=require('../crm-base');
+const docBody={revisao:0,titulo:'Recibo',url:'https://example.com/arquivo.pdf',categoria:'DEFIS',periodo:'2026',motivo:'Conferido'};
+const referencia=documentoReferencia(null,docBody,admin,'agora');assert.equal(referencia.revisao,1);assert.equal(referencia.tipo,'referencia_externa');
+assert.equal(documentoReferencia(referencia,{...docBody,revisao:1,url:'https://example.com/novo.pdf'},admin,'depois').revisao,2);
+assert.equal(referencia.url,docBody.url);
+for(const url of ['http://example.com/a','javascript:alert(1)','https://user:pass@example.com/a','file:///tmp/a'])assert.throws(()=>documentoReferencia(null,{...docBody,url},admin,'now'));
+for(const patch of [{periodo:'2026-13'},{categoria:'outro'},{motivo:''},{revisao:1}])assert.throws(()=>documentoReferencia(null,{...docBody,...patch},admin,'now'));
+assert.throws(()=>documentoReferencia(null,docBody,consulta,'now'),e=>e.status===403);
+console.log('CRM referências: HTTPS, versões, revisão, categoria, período e perfil OK');
