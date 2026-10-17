@@ -29,7 +29,7 @@ async function carregarDepartamento(req, env = process.env, fetcher = globalThis
   } catch (_) { throw core.erro('Não foi possível confirmar a equipe contábil. Confira o cadastro central e tente novamente; a lista geral não será usada.', 503); }
 }
 
-function registrar(app, { db, domain, storage, checklist = carregarChecklist, departamento = carregarDepartamento, env = process.env, agora = () => new Date().toISOString() }) {
+function registrar(app, { db, domain, storage, checklist = carregarChecklist, departamento = carregarDepartamento, env = process.env, entrega = require('./notificacoes-entrega'), agora = () => new Date().toISOString() }) {
   const base = '/api/crm/empresas/:cnpj';
   const wrap = fn => async (req, res) => {
     try { res.setHeader('Cache-Control', 'private, no-store'); await fn(req, res); }
@@ -155,7 +155,7 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     await acesso(req);
     const docs=await Promise.all(catalogo.map(r=>colecao(req).doc(escopoEmpresa?modulo+'_'+r.id:r.id).get()));
     await acesso(req);
-    res.json({ok:true,modulo,cnpj:escopoEmpresa?req.params.cnpj:null,variaveis:automacoes.variaveisDoModulo(modulo),envios_habilitados:false,agenda_habilitada:false,regras:catalogo.map((r,i)=>({...r,config:docs[i].exists?docs[i].data():{revisao:0,ativa:false,modelo:r.modelo,canal:r.canal,destinatarios:[]}}))});
+    res.json({ok:true,modulo,cnpj:escopoEmpresa?req.params.cnpj:null,variaveis:automacoes.variaveisDoModulo(modulo),envios_habilitados:entrega.disponibilidade(env).email,canais:entrega.disponibilidade(env),agenda_habilitada:false,regras:catalogo.map((r,i)=>({...r,config:docs[i].exists?docs[i].data():{revisao:0,ativa:false,modelo:r.modelo,canal:r.canal,destinatarios:[]}}))});
   }));
   app.put(path+'/:id',wrap(async(req,res)=>{
     automacoes.regra(req.params.id,modulo);
@@ -173,6 +173,60 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     let query=refRegra(req).collection('historico').orderBy('__name__').limit(51);if(cursor)query=query.startAfter(cursor);
     const snap=await query.get();await acesso(req);const rows=snap.docs.slice(0,50);
     res.json({ok:true,itens:rows.map(d=>({id:d.id,...d.data()})),proximo:snap.docs.length>50?rows.at(-1).id:null});
+  }));
+  app.post(escopoEmpresa?path+'/:id/pdf':base+'/automacoes/:id/pdf',wrap(async(req,res)=>{
+    await acesso(req);const c=await contexto(req);admin(c.user);
+    const r=automacoes.regra(req.params.id,modulo),b=req.body||{};
+    if(r.canal!=='registro')throw core.erro('PDF disponível somente para os registros DEFIS e DITR.');
+    if(typeof b.chave!=='string'||! /^[a-zA-Z0-9_-]{16,80}$/.test(b.chave))throw core.erro('Gere uma prévia antes de baixar o PDF.');
+    const d=await refRegra(req).collection('historico').doc(b.chave).get(),p=d.data()?.previa;
+    if(!p||p.cnpj!==req.params.cnpj||p.automacao!==r.id)throw core.erro('Prévia indisponível para esta empresa.',404);
+    const {jsPDF}=require('jspdf'),pdf=new jsPDF();
+    pdf.setFontSize(15);pdf.text('CCI - '+r.nome,15,20);pdf.setFontSize(10);
+    const lines=pdf.splitTextToSize(p.mensagem+'\n\nRegistro interno. Não comprova entrega da obrigação.\nPrévia: '+b.chave+'\nGerada em: '+d.data().quando,180);
+    let y=30;for(const line of lines){if(y>280){pdf.addPage();y=20;}pdf.text(line,15,y);y+=5;}
+    await acesso(req);
+    res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition','attachment; filename="CCI-'+r.id+'-'+req.params.cnpj+'.pdf"');res.send(Buffer.from(pdf.output('arraybuffer')));
+  }));
+  app.post(escopoEmpresa?path+'/:id/enviar':base+'/automacoes/:id/enviar',wrap(async(req,res)=>{
+    await acesso(req);
+    const b=req.body||{},regra=automacoes.regra(req.params.id,modulo);
+    if(b.confirmado!==true||typeof b.chave!=='string'||! /^[a-zA-Z0-9_-]{16,80}$/.test(b.chave))throw core.erro('Confira a prévia e confirme o envio.');
+    const ref=refRegra(req),hist=ref.collection('historico');
+    const c=await contexto(req);admin(c.user);
+    const userDoc=await db.collection('users').doc(c.user.uid).get();
+    const emailColaborador=userDoc.data()?.last_email||userDoc.data()?.email||'';
+    const original=await hist.doc(b.chave).get(),p=original.data()?.previa;
+    if(!original.exists||!p||p.cnpj!==req.params.cnpj||p.automacao!==regra.id)throw core.erro('Prévia indisponível para esta empresa.',404);
+    if(!entrega.disponibilidade(env)[p.canal])throw core.erro('Este canal ainda não possui conexão de envio disponível. Confira a central.',409);
+    if(!p.destinatarios.length)throw core.erro('Configure quem recebe e gere uma nova prévia.');
+    const resultados=[];
+    // Cada destino tem chave estável por conteúdo/configuração, mesmo em outra prévia.
+    if(typeof b.destino!=='string'||!p.destinatarios.includes(b.destino))throw core.erro('Selecione um destinatário da prévia.');
+    for(const destino of [b.destino]){
+      const id='envio_'+core.hash(JSON.stringify({previa:p,destino})),itemRef=hist.doc(id);
+      const claim=await db.runTransaction(async tx=>{
+        const atual=await contexto(req,tx);admin(atual.user);
+        const cfg=await tx.get(ref),old=await tx.get(itemRef);
+        if((cfg.data()?.revisao||0)!==p.config_revisao)throw core.erro('Configuração alterada. Gere uma nova prévia.',409);
+        if(old.exists){
+          const anterior=old.data();
+          if(b.repetir!==true||anterior.estado!=='recusado'||b.tentativa!==anterior.tentativas)return {executar:false,item:anterior};
+        }
+        const tentativas=(old.data()?.tentativas||0)+1;
+        const item={tipo:'envio',estado:'processando',destino,previa:p,quando:agora(),autor:atual.user.uid,previa_id:b.chave,tentativas};
+        tx.set(itemRef,item);tx.create(hist.doc(id+'_tentativa_'+tentativas),{...item,tipo:'tentativa'});return {executar:true,item};
+      });
+      if(!claim.executar){resultados.push({id,...claim.item});continue;}
+      let resultado;
+      try {resultado=await entrega.enviar({destino,previa:p,emailColaborador});}
+      catch {resultado={estado:'incerto',detalhe:'Não foi possível confirmar o resultado. Confira os itens enviados; não repita automaticamente.'};}
+      if(!['aceito','recusado','incerto'].includes(resultado.estado))resultado={estado:'incerto',detalhe:'Resultado do provedor não reconhecido.'};
+      const final={...claim.item,...resultado,concluido_em:agora()};
+      await db.runTransaction(async tx=>{const d=await tx.get(itemRef);if(d.data()?.estado==='processando'){tx.set(itemRef,final);tx.set(hist.doc(id+'_tentativa_'+claim.item.tentativas),{...final,tipo:'tentativa'});}});
+      resultados.push({id,...final});
+    }
+    res.json({ok:true,resultados});
   }));
   app.post(escopoEmpresa?path+'/:id/previa':base+'/automacoes/:id/previa',wrap(async(req,res)=>{
     await acesso(req);automacoes.regra(req.params.id,modulo);

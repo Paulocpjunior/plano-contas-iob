@@ -2122,3 +2122,9 @@ Solicitação: iniciar automações pendentes e permitir que admins configurem q
 
 ## 17/10/2026 — Central compartilhada CRM / Aplicações Financeiras
 Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competência e histórico segregados. CRM mantém catálogo e configurações anteriores; rotas usam registrador comum e autorização administrativa atual. Solicitação manual de extratos preservada; central ainda não dispara mensagens. Testes de isolamento e compatibilidade, navegador com duas empresas fictícias. Detalhes em docs/notificacoes-compartilhadas.md.
+
+## 2026-10-17 — Notificações: envio manual e registros PDF (3.4.430)
+- Administradores mantêm destinatários/modelos. Prévia auditada liga ao envio por destinatário, com revalidação e reserva transacional; repetição apenas de recusas explícitas, sem reenvio de resultados incertos.
+- PDF dos registros DEFIS e DITR, sem cópia de anexos Jotform nem baixa contábil.
+- Testes de provedor, carteira, revisão, repetição entre prévias, recusa, incerteza e PDF; navegador com servidor de teste e provedor simulado. Nenhuma mensagem real enviada.
+- Teams, gatilhos automáticos e agendas continuam pendentes; não considerar painel integralmente concluído. Detalhes em docs/notificacoes-compartilhadas.md.

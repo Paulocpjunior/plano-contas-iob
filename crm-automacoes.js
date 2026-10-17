@@ -59,6 +59,6 @@ function preparar(id,cfg,b,empresa,modulo='crm'){
   }
   const modelo=cfg.modelo||r.modelo;
   const mensagem=modelo.replace(/{{([a-z]+)}}/g,(_,v)=>dados[v]??'');
-  return {automacao:id,canal:cfg.canal||r.canal,evento:b.evento,cnpj:dados.cnpj,config_revisao:cfg.revisao||0,destinatarios:cfg.destinatarios||[],mensagem,estado:'previa',envio_realizado:false,pendencias:r.canal==='registro'?['Imprimir o registro não comprova entrega da obrigação.']:['Envio não habilitado; confirme destinatário, mensagem e integração.']};
+  return {automacao:id,canal:cfg.canal||r.canal,evento:b.evento,cnpj:dados.cnpj,config_revisao:cfg.revisao||0,destinatarios:cfg.destinatarios||[],mensagem,estado:'previa',envio_realizado:false,pendencias:r.canal==='registro'?['Imprimir o registro não comprova entrega da obrigação.']:['Confira os destinatários e a mensagem. O envio exige confirmação e conexão disponível para o canal.']};
 }
 module.exports={catalogo,catalogoDoModulo,variaveisDoModulo,regra,configurar,preparar};
