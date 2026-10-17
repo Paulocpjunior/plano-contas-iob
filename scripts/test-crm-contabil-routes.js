@@ -37,6 +37,27 @@ function ambiente(checklistFonte = null, onRead = null, extra = {}) {
   return {call,dados,writes:()=>writes,checklistCalls:()=>checklistCalls,companyQueries:()=>companyQueries};
 }
 (async()=>{
+  {
+  const auto=ambiente();
+  const confPath='/api/crm/automacoes/:id', previewPath='/api/crm/empresas/:cnpj/automacoes/:id/previa';
+  assert.equal((await auto.call('GET','/api/crm/automacoes',{},'colab')).statusCode,403);
+  assert.equal((await auto.call('GET','/api/crm/automacoes',{},'admin')).body.regras.length,8);
+  const payload={revisao:0,modelo:'DITR {{empresa}} {{link}}',destino:'https://teams.microsoft.com/l/chat/fixture',motivo:'Conferência'};
+  assert.equal((await auto.call('PUT',confPath,payload,'colab',{id:'A06'})).statusCode,403);
+  assert.equal((await auto.call('PUT',confPath,payload,'admin',{id:'A06'})).statusCode,200);
+  assert.equal((await auto.call('PUT',confPath,payload,'admin',{id:'A06'})).statusCode,409);
+  const entrada={revisao:1,chave:'fixture-operation-0001',evento:'manual',exercicio:'2026',categoria:'DITR',link:'https://example.com/ditr.pdf'};
+  const first=await auto.call('POST',previewPath,entrada,'admin',{id:'A06'});assert.equal(first.statusCode,200);assert.equal(first.body.previa.envio_realizado,false);
+  const writes=auto.writes();assert.equal((await auto.call('POST',previewPath,entrada,'admin',{id:'A06'})).statusCode,200);assert.equal(auto.writes(),writes);
+  assert.equal((await auto.call('POST',previewPath,{...entrada,link:'https://example.com/other.pdf'},'admin',{id:'A06'})).statusCode,409);
+  assert.equal((await auto.call('POST',previewPath,entrada,'colab',{id:'A06'})).statusCode,403);
+  assert.equal((await auto.call('POST',previewPath,{...entrada,categoria:'DEFIS'},'admin',{id:'A06'})).statusCode,400);
+  assert.equal((await auto.call('GET','/api/crm/automacoes/:id/historico',{},'colab',{id:'A06'})).statusCode,403);
+  assert.equal((await auto.call('GET','/api/crm/automacoes/:id/historico',{},'admin',{id:'A06'})).body.itens.length,2);
+  auto.dados.set('users/admin',{is_admin:false});
+  assert.equal((await auto.call('PUT',confPath,{...payload,revisao:1},'admin',{id:'A06'})).statusCode,403);
+  }
+
   const dr=ambiente(), drPath='/api/crm/empresas/:cnpj/documentos-referencias';
   const drBody={revisao:0,titulo:'Documento teste',url:'https://example.com/teste.pdf',categoria:'DEFIS',periodo:'2026',motivo:'Conferido'};
   const criado=await dr.call('POST',drPath,drBody,'admin');assert.equal(criado.statusCode,201);
