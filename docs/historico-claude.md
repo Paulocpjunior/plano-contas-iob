@@ -2116,3 +2116,6 @@ A pedido de Paulo, separadas automações para construção nativa posterior. Ma
 ## 17/10/2026 — CRM operacional, Jotform mantido para consulta
 
 Escopo alterado por Paulo: não copiar novos anexos, manter Jotform para consulta. Modais de referência HTTPS com atualização/histórico por empresa; sem upload/cópia de binários. Topologia mostra regimes da carteira e vigência canônica; Checklist recebe busca, filtros e orientações. Ensaio isolado: 14.543 documentos restaurados no emulador e comparados integralmente; permissões de administrador/colaborador/revogação conferidas sobre cadastros reais restaurados, sem alteração em produção. Limites e evidências em `docs/crm-operacao-20261017.md`.
+
+## 17/10/2026 — CRM: central de destinatários e modelos (3.4.428)
+Solicitação: iniciar automações pendentes e permitir que admins configurem quem recebe por e-mail ou Teams. Entregue catálogo A01–A08, modelos e destinatários por regra, revisão/motivo/histórico e prévias auditadas idempotentes. Envios, gatilhos automáticos, PDFs e agenda não implementados nesta etapa; API rejeita ativação. Sem cópia de anexos ou mudanças de carteira. Detalhes e próximos passos em docs/crm-automacoes-nativas.md.
