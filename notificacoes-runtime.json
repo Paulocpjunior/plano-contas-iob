@@ -1,0 +1,4 @@
+{
+  "audience": "https://plano-contas-iob-q4woqnee3a-uw.a.run.app/api/internal/notificacoes/processar",
+  "serviceAccount": "cci-notificacoes-scheduler@gen-lang-client-0569062468.iam.gserviceaccount.com"
+}

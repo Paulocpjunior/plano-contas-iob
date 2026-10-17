@@ -22,7 +22,7 @@ function variaveisDoModulo(modulo){return modulo==='aplicacoes'?['empresa','cnpj
 function configurar(id,antes,b,uid,quando,modulo='crm'){
   const r=regra(id,modulo);
   if(!Number.isSafeInteger(b.revisao)||b.revisao!==(antes.revisao||0))throw erro('A configuração mudou. Atualize a central.',409);
-  if(b.ativa===true)throw erro('Envios e agenda ainda não estão habilitados. Confira a configuração e o canal antes da ativação.',409);
+  if(b.ativa===true)throw erro('Ative a execução em Gatilhos e agenda depois de salvar a configuração.',409);
   const modelo=texto(b.modelo,4000,'modelo',true);
   const resto=modelo.replace(/{{([a-z]+)}}/g,(m,v)=>{if(!variaveisDoModulo(modulo).includes(v))throw erro('Variável desconhecida no modelo: '+v);return '';});
   if(/[{}]/.test(resto))throw erro('Use variáveis no formato {{empresa}}.');
@@ -37,7 +37,7 @@ function configurar(id,antes,b,uid,quando,modulo='crm'){
   }
   if(destinatarios.length&&['registro','consulta'].includes(canal))throw erro('Esta operação não recebe destinatário externo.');
   const motivo=texto(b.motivo,1000,'motivo',true);
-  return {id,revisao:(antes.revisao||0)+1,ativa:false,modelo,canal,destinatarios,motivo,alterado_por:uid,alterado_em:quando};
+  return {...(antes.conexao_teams?{conexao_teams:antes.conexao_teams}:{}),id,revisao:(antes.revisao||0)+1,ativa:false,modelo,canal,destinatarios,motivo,alterado_por:uid,alterado_em:quando};
 }
 function preparar(id,cfg,b,empresa,modulo='crm'){
   const r=regra(id,modulo);
@@ -59,6 +59,6 @@ function preparar(id,cfg,b,empresa,modulo='crm'){
   }
   const modelo=cfg.modelo||r.modelo;
   const mensagem=modelo.replace(/{{([a-z]+)}}/g,(_,v)=>dados[v]??'');
-  return {automacao:id,canal:cfg.canal||r.canal,evento:b.evento,cnpj:dados.cnpj,config_revisao:cfg.revisao||0,destinatarios:cfg.destinatarios||[],mensagem,estado:'previa',envio_realizado:false,pendencias:r.canal==='registro'?['Imprimir o registro não comprova entrega da obrigação.']:['Confira os destinatários e a mensagem. O envio exige confirmação e conexão disponível para o canal.']};
+  return {...(cfg.canal==='teams'&&cfg.conexao_teams?{conexao_teams:cfg.conexao_teams}:{}),automacao:id,canal:cfg.canal||r.canal,evento:b.evento,cnpj:dados.cnpj,config_revisao:cfg.revisao||0,destinatarios:cfg.destinatarios||[],mensagem,estado:'previa',envio_realizado:false,pendencias:r.canal==='registro'?['Imprimir o registro não comprova entrega da obrigação.']:['Confira os destinatários e a mensagem. O envio exige confirmação e conexão disponível para o canal.']};
 }
 module.exports={catalogo,catalogoDoModulo,variaveisDoModulo,regra,configurar,preparar};

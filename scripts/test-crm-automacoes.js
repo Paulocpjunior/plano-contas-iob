@@ -4,7 +4,7 @@ const {catalogo,configurar,preparar}=require('../crm-automacoes');
 assert.equal(catalogo.length,8);
 const b={revisao:0,modelo:'Olá {{empresa}}',destino:'admin@example.com',motivo:'Configuração'};
 assert.equal(configurar('A01',{},b,'admin','agora').ativa,false);
-assert.throws(()=>configurar('A01',{}, {...b,ativa:true},'u','t'),/não estão habilitados/);
+assert.throws(()=>configurar('A01',{}, {...b,ativa:true},'u','t'),/Ative a execução/);
 assert.throws(()=>configurar('A01',{}, {...b,revisao:1},'u','t'),/mudou/);
 assert.throws(()=>configurar('A01',{}, {...b,modelo:'{{segredo}}'},'u','t'),/desconhecida/);
 assert.throws(()=>configurar('A01',{}, {...b,modelo:'{{empresa}'},'u','t'),/formato/);

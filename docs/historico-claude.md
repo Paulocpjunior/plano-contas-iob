@@ -2128,3 +2128,9 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - PDF dos registros DEFIS e DITR, sem cópia de anexos Jotform nem baixa contábil.
 - Testes de provedor, carteira, revisão, repetição entre prévias, recusa, incerteza e PDF; navegador com servidor de teste e provedor simulado. Nenhuma mensagem real enviada.
 - Teams, gatilhos automáticos e agendas continuam pendentes; não considerar painel integralmente concluído. Detalhes em docs/notificacoes-compartilhadas.md.
+
+## 2026-10-17 — Central de notificações completa (3.4.431)
+- Times/CRM e Aplicações Financeiras: conexão Teams via Workflows protegido no Secret Manager; agenda única/diária/semanal/mensal, eventos novos de cadastro, escopo por empresa ou global no CRM, pausa e repetição somente de recusa confirmada.
+- Scheduler OIDC exclusivo, trava global, fila com idempotência, revisão e autorização revalidadas antes do transporte. Checklist agendado apenas consulta. Prévia automática não pode ser reenviada manualmente.
+- Infra provisionada; regras reais não ativadas. Testes de interface e backend usam dados/provedores fictícios, sem mensagens reais. Guia: docs/notificacoes-administracao.md.
+- Validação: check:ci 268 aprovados, 2 pulados, 0 falhas; npm audit --audit-level=high sem vulnerabilidades. check local interrompido apenas por fixture externa ausente do Itaú (`E - EXTRATO ITAÚ ABRIL 2026 (1).pdf`).
