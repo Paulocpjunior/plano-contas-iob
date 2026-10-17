@@ -143,4 +143,16 @@ function corrigirIdentificacao(antes, body, user, quando) {
   return {...antes,cnpj_origem:antes.cnpj_origem??antes.cnpj??'',cnpj:body.cnpj,identidade_valida:true,
     revisao:antes.revisao+1,identificacao_conferida_em:quando,identificacao_conferida_por:user.uid};
 }
-module.exports={formulaSaldo,corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
+// Cadastro de referências: não transfere nem busca arquivos externos.
+function documentoReferencia(antes,body,user,quando){
+  if(!user.is_admin&&!podeAcao(user,'editar'))throw erro('Seu perfil não permite edição.',403);
+  if(body.revisao!==(antes?.revisao||0))throw erro('O documento mudou. Atualize antes de salvar.',409);
+  const texto=(k,max)=>{if(typeof body[k]!=='string'||!body[k].trim()||body[k].length>max)throw erro('Confira '+k+' do documento.');return body[k].trim();};
+  const titulo=texto('titulo',180),motivo=texto('motivo',1000),url=texto('url',2000);
+  let u;try{u=new URL(url);}catch{throw erro('Informe um link HTTPS válido.');}
+  if(u.protocol!=='https:'||u.username||u.password)throw erro('Use um link HTTPS sem credenciais.');
+  if(!['DITR','DEFIS','ECD','ECF','CONTRATO','OUTROS'].includes(body.categoria))throw erro('Selecione a categoria do documento.');
+  if(typeof body.periodo!=='string'||(body.periodo&&!/^\d{4}(-(?:0[1-9]|1[0-2]))?$/.test(body.periodo)))throw erro('Informe ano ou competência válida.');
+  return {titulo,url:u.href,categoria:body.categoria,periodo:body.periodo,motivo,revisao:(antes?.revisao||0)+1,quando,por_uid:user.uid,tipo:'referencia_externa'};
+}
+module.exports={documentoReferencia,formulaSaldo,corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};

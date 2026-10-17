@@ -2112,3 +2112,7 @@ Gate final desta etapa: 263 aprovados, 2 pulados por evidências externas ausent
 ## 17/10/2026 — Engenharia reversa funcional CRM
 
 A pedido de Paulo, separadas automações para construção nativa posterior. Matriz em `docs/crm-engenharia-reversa-20261017.md`, com oito itens de automação, dependências de origem e lacunas reais do CCI, incluindo upload/versionamento ainda ausente. Implementada prévia/aplicação explícita da regra `{37}` SALDO JANEIRO 2026 → SALDO RESIDUAL, sem arredondamento/subtração, com transação, revisão, motivo e histórico; entrada alterada/vazia não sobrescreve residual manual. Apresentação EMPRESAS condicionada ao saldo documentada na interface. Dados reais preservados.
+
+## 17/10/2026 — CRM operacional, Jotform mantido para consulta
+
+Escopo alterado por Paulo: não copiar novos anexos, manter Jotform para consulta. Modais de referência HTTPS com atualização/histórico por empresa; sem upload/cópia de binários. Topologia mostra regimes da carteira e vigência canônica; Checklist recebe busca, filtros e orientações. Ensaio isolado: 14.543 documentos restaurados no emulador e comparados integralmente; permissões de administrador/colaborador/revogação conferidas sobre cadastros reais restaurados, sem alteração em produção. Limites e evidências em `docs/crm-operacao-20261017.md`.

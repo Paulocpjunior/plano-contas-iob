@@ -37,6 +37,23 @@ function ambiente(checklistFonte = null, onRead = null, extra = {}) {
   return {call,dados,writes:()=>writes,checklistCalls:()=>checklistCalls,companyQueries:()=>companyQueries};
 }
 (async()=>{
+  const dr=ambiente(), drPath='/api/crm/empresas/:cnpj/documentos-referencias';
+  const drBody={revisao:0,titulo:'Documento teste',url:'https://example.com/teste.pdf',categoria:'DEFIS',periodo:'2026',motivo:'Conferido'};
+  const criado=await dr.call('POST',drPath,drBody,'admin');assert.equal(criado.statusCode,201);
+  const drId=criado.body.documento.id;
+  assert.equal((await dr.call('GET',drPath,{},'colab')).body.documentos.length,1);
+  assert.equal((await dr.call('GET',drPath,{},'indice-velho')).statusCode,403);
+  assert.equal((await dr.call('PUT',drPath+'/:id',{...drBody,revisao:1},'admin',{id:drId,cnpj:outro})).statusCode,404);
+  assert.equal((await dr.call('PUT',drPath+'/:id',{...drBody,revisao:0},'admin',{id:drId})).statusCode,409);
+  assert.equal((await dr.call('PUT',drPath+'/:id',{...drBody,revisao:1,titulo:'Nova versão'},'admin',{id:drId})).statusCode,200);
+  const drHist=await dr.call('GET',drPath+'/:id/historico',{},'colab',{id:drId});assert.equal(drHist.body.historico.length,2);assert.equal(drHist.body.historico[0].titulo,'Documento teste');
+  for(let i=0;i<55;i++)dr.dados.set('empresas/'+cnpj+'/crm_documentos/ref_'+String(i).padStart(3,'0'),{...drBody,revisao:1});
+  const paginaRefs=await dr.call('GET',drPath,{},'colab');assert.equal(paginaRefs.body.documentos.length,50);assert(paginaRefs.body.proximo);
+  const restoRefs=await dr.call('GET',drPath,{},'colab',{}, {cursor:paginaRefs.body.proximo});assert.equal(restoRefs.body.documentos.length,6);
+  dr.dados.get('empresas/'+cnpj).carteira_uids=[];dr.dados.get('empresas/'+cnpj).responsaveis=[];
+  assert.equal((await dr.call('GET',drPath,{},'colab')).statusCode,403);
+  assert.equal((await dr.call('GET',drPath+'/:id/historico',{},'colab',{id:drId})).statusCode,403);
+  assert.equal((await dr.call('POST',drPath,drBody,'colab')).statusCode,403);
   const crypto=require('crypto'), hash=b=>crypto.createHash('sha256').update(b).digest('hex');
   const binary=Buffer.from('%PDF-1.7 fixture'),url='https://www.jotform.com/uploads/fixture/arquivo.pdf',bucket='privado-fixture';
   let downloads=0, mutate=()=>{};
@@ -89,11 +106,13 @@ function ambiente(checklistFonte = null, onRead = null, extra = {}) {
   assert.equal((await top.call('PUT',tg,cfg,'colab')).statusCode,403);
   assert.equal((await top.call('PUT',tg,cfg,'admin')).statusCode,200);
   assert.equal((await top.call('PUT',tg,cfg,'admin')).statusCode,409);
+  top.dados.get('empresas/'+cnpj).regime_tributario_nome='IMUNE';top.dados.get('empresas/'+cnpj).crm_contrato={inicio:'2026-01-01',fim:null,situacao:'ativa',revisao:1};
   top.dados.set('empresas/'+cnpj+'/crm_controles/t1',{titulo:'Teste',status:'pendente',prazo:'2026-10-01',executor_uid:'colab'});
   top.dados.set('empresas/'+outro+'/crm_controles/privado',{titulo:'Fora do escopo',status:'pendente'});
   const vis=await top.call('GET',tp,{},'legado');
   assert.equal(vis.statusCode,200);assert.equal(vis.body.empresas.length,1);assert.equal(vis.body.pessoas.length,2);
   assert.equal(vis.body.pessoas.find(p=>p.uid==='colab').atrasadas,1);
+  assert.deepEqual(vis.body.pessoas.find(p=>p.uid==='colab').regimes,['IMUNE']);assert.equal(vis.body.empresas[0].contrato.inicio,'2026-01-01');
   assert.equal(vis.body.pessoas.find(p=>p.uid==='apoio').empresas,0);
   assert.equal((await top.call('GET','/api/crm/contexto',{},'legado')).body.topologia,true);
   const transfer={principal_uid:'apoio',apoio_uids:[],motivo:'Balanceamento',revisao_carteira:versaoCarteira(top.dados.get('empresas/'+cnpj))};
