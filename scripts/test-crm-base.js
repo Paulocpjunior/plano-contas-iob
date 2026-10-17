@@ -71,7 +71,7 @@ const fontesDocs=[
     {nome:'Observação',valor:'https://example.com/defis.pdf'}]},
   {id:'defis_2',fonte:'defis_2025',fonte_nome:'DEFIS',linha:2,campos:[{nome:'RECIBO + DEFIS 2025/2026',valor:'https://example.com/defis.pdf'}]},
   {id:'ambigua_2',fonte:'oficial_integral',linha:2,campos:[{nome:'RECIBO/DECLARAÇÃO',valor:'https://example.com/ditr.pdf'}]},
-  {id:'hostil',fonte:'ditr',campos:[{nome:'RECIBO/DECLARAÇÃO',valor:'javascript:alert(1)\nhttps://user:secret@example.com/a\nhttps://example.com/a https://example.com/b\nhttp://example.com/c'}]}
+  {id:'hostil',fonte:'ditr',campos:[{nome:'RECIBO/DECLARAÇÃO',valor:'javascript:alert(1)\nhttps://user:secret@example.com/a\nhttp://example.com/c'}]}
 ];
 const antesDocs=JSON.stringify(fontesDocs), docs=documentosEmpresa(fontesDocs);
 assert.equal(docs.length,5);
@@ -105,3 +105,5 @@ const revisto=corrigirIdentificacao(identificado,{revisao:2,cnpj:'44388152000189
 assert.equal(revisto.cnpj_origem,'sem');assert.deepStrictEqual(revisto.campos,inicial.campos);assert.equal(inicial.cnpj,'sem');
 assert.throws(()=>corrigirIdentificacao(inicial,{revisao:1,cnpj:'00000000000000',motivo:'x',confirmado:true},admin,'agora'));
 console.log('CRM saneamento: identificação original, revisão e campos preservados OK');
+
+assert.deepEqual(documentosEmpresa([{id:'multiplos',campos:[{nome:'Upload',valor:'Recibos: https://example.com/a.pdf https://example.com/b.pdf'}]}]).map(d=>d.url),['https://example.com/a.pdf','https://example.com/b.pdf']);

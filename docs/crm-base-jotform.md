@@ -94,3 +94,17 @@ A base preservada pode ser conferida progressivamente no destino. Registros sem 
 O relatório de preservação distingue `cnpj_origem` do vínculo operacional corrigido e exige metadados/revisão da conferência. A Topologia permite combinar responsável, busca e pendência: sem equipe, tributação, CNAE, situação confirmada ou controles. Esses filtros indicam ausências no cadastro canônico, não divergências entre todas as fontes nem dispensas fiscais. Corrigir tributação/CNAE canônicos continua pelo cadastro da empresa; parâmetros exportados mantêm edição independente no dossiê.
 
 Limites desta entrega: não houve nova exportação ou importação em produção, cópia de binários, edição em lote dos parâmetros, detecção automática de duplicidades ou ativação de automações. A base de outubro já preservada continua disponível. Snapshot final e conciliação do delta permanecem necessários; nunca sobrescrever por posição de linha. A coluna IA `Saldo a Distribuir 2028` continua excluída somente da migração. Jotform não foi desligado.
+
+## Corte do CRM e permanência do Checklist — 17/10/2026
+
+Decisão do usuário: manter somente o Checklist no Jotform, integrado ao CCI. A retirada dos controles do CRM continua condicionada à conferência final; não inclui excluir formulários nem disparar mensagens.
+
+A exportação oficial de 16/10 (SHA-256 `65d4da58f7727b7969904b7067225fc9b4b89be43cb02c5c463e9fa85288d924`) foi preservada como fonte adicional `oficial_20261016_65d4da58`: 1.586 linhas, 60.268 campos, 20 linhas com identificação inválida disponíveis para saneamento administrativo. As 1.566 linhas com CNPJ válido representam 975 CNPJs distintos, todos já presentes no destino. Não representam 1.586 empresas únicas. Verificação posterior não encontrou alterações nos registros anteriores. Total preservado: 9.516 registros em 16 fontes, não empresas. Evidências privadas em `cci-crm-migracao-20261017` fora do Git.
+
+Credencial exclusiva somente leitura validada na API e armazenada no Secret Manager. Prévia real do Checklist: 1.431 registros, 1.346 com pendências e 85 sem pendências de leitura. Nenhum evento foi aplicado. Principais causas, com sobreposição: 782 sem vínculo confirmado, 432 em múltiplos eventos, 326 que exigem conferência de vigência, 249 situações não reconhecidas, 6 códigos ambíguos. Ausência de pendência na leitura não comprova aprovação operacional.
+
+A versão 3.4.425 prepara a credencial no runtime e a leitura dos arquivos no bucket privado com prevenção de acesso público. A migração de 3.802 URLs de anexos está em andamento; 114 URLs externas e uma credencial de certificado foram separadas. Não declarar cópia completa sem relatório final. Cada binário copiado é relido e comparado por SHA-256; metadados guardam geração e tamanho. Nenhum link público de armazenamento é criado.
+
+`GET /api/crm/empresas/:cnpj/documentos/:registro/:coluna/:indice` confere carteira atual, registro e vínculo com a empresa, cópia existente, tamanho e SHA-256, e relê vínculo e permissão depois do download. A interface diferencia download CCI de link ainda na origem. URLs múltiplas no mesmo campo também são preservadas. Checklist mantém aplicação individual assistida; campos ausentes e ambíguos não são inferidos.
+
+Pendências de encerramento: relatório final de anexos e indisponíveis, homologação autenticada da empresa 1200, conferência das fórmulas/automações, ensaio de restauração e aceite de corte dos controles. O Checklist não será desligado.

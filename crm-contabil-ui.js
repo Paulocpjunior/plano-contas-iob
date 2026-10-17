@@ -2,12 +2,11 @@
   'use strict';
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const linkSeguro = v => {try{const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password?u.href:null;}catch{return null;}};
-  // Um campo de upload pode conter vários endereços, um por linha.
-  // URL remove quebras de linha: validar o conjunto antes de separar une PDFs.
+  // Preserva links separados por espaços, quebras ou texto de origem.
   function linksDoCampo(c) {
     const valores = [c.valor, c.link].filter(v => typeof v === 'string');
-    const links = valores.flatMap(v => v.split(/[\r\n]+/).map(l => l.trim()))
-      .filter(l => /^https:\/\//i.test(l) && (l.match(/https?:\/\//gi) || []).length === 1)
+    const links = valores.flatMap(v => v.match(/https:\/\/[^\s<>"']+/gi)||[])
+      .filter(s=>(s.match(/https?:\/\//gi)||[]).length===1)
       .map(linkSeguro).filter(Boolean);
     return [...new Set(links)];
   }
@@ -176,7 +175,7 @@
             controller.signal.addEventListener('abort', () => reject(Error(escrita
               ? 'Não foi possível confirmar a gravação. Consulte os dados antes de tentar novamente.'
               : 'A consulta demorou demais ou foi encerrada. Tente novamente.')), {once:true});
-            timer = setTimeout(interromper, escrita ? 60000 : 25000);
+            timer = setTimeout(interromper, path==='/api/crm/checklist/previa' ? 110000 : escrita ? 60000 : 25000);
           })
         ]);
       } finally { clearTimeout(timer); dialog.removeEventListener('close', interromper); }
@@ -305,12 +304,23 @@
       const area=q('[data-parametros-area]');
       const documentos=d.documentos || d.registros.flatMap(r=>r.campos.flatMap(c=>linksDoCampo(c).map(url=>({nome:c.nome,url,fonte:r.fonte_nome}))));
       const grupos=[['DITR','DITR — recibos e declarações'],['DEFIS','DEFIS — recibos e declarações'],[null,'Outros documentos — classificação a conferir']];
-      q('[data-documentos]').innerHTML='<h3>Documentos por obrigação</h3><p>Links preservados da origem; os arquivos ainda não foram copiados para armazenamento próprio. A separação usa a aba e o campo de origem, sem presumir o conteúdo do arquivo.</p>'+grupos.map(([codigo,titulo])=>{
+      q('[data-documentos]').innerHTML='<h3>Documentos por obrigação</h3><p>Arquivos com cópia conferida podem ser baixados pelo CCI. Os demais mantêm o link de origem até a conclusão da migração. A separação usa a aba e o campo de origem, sem presumir o conteúdo do arquivo.</p>'+grupos.map(([codigo,titulo])=>{
         const itens=documentos.map((c,i)=>({...c,i})).filter(c=>(c.obrigacao||null)===codigo);
         const agrupados=new Map();itens.forEach(c=>{if(!agrupados.has(c.url))agrupados.set(c.url,[]);agrupados.get(c.url).push(c);});
-        return `<section class="crm-document-group"><header>${icon('document',codigo==='DITR'?'violet':codigo==='DEFIS'?'blue':'amber')}<h4>${esc(titulo)}</h4></header>${itens.length?`<p class="crm-muted">${agrupados.size} endereço(s) distinto(s) · ${itens.length} referência(s) preservada(s). Exercício a conferir no documento.</p><div class="crm-document-grid">`+[...agrupados.values()].map(refs=>{const c=refs[0];let arquivo='Abrir documento';try{arquivo=decodeURIComponent(new URL(c.url).pathname.split('/').pop())||arquivo;}catch{}return `<article class="crm-document-card"><strong>${esc(c.nome)}</strong><a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(arquivo)}</a><details><summary>${refs.length} referência(s) de origem</summary>${refs.map(r=>`<p>${esc(r.fonte)}${r.linha?' · linha '+esc(r.linha):''}<br><small>${esc(r.nome)}</small></p>`).join('')}</details>${c.previa?`<button data-previa-documento="${c.i}">Ver prévia de mensagem ${esc(c.obrigacao)}</button>`:''}</article>`;}).join('')+'</div>':'<p>Nenhum link identificado nesta categoria. Confira a origem; isso não significa dispensa da obrigação.</p>'}</section>`;
+        return `<section class="crm-document-group"><header>${icon('document',codigo==='DITR'?'violet':codigo==='DEFIS'?'blue':'amber')}<h4>${esc(titulo)}</h4></header>${itens.length?`<p class="crm-muted">${agrupados.size} endereço(s) distinto(s) · ${itens.length} referência(s) preservada(s). Exercício a conferir no documento.</p><div class="crm-document-grid">`+[...agrupados.values()].map(refs=>{const c=refs[0];let arquivo='Abrir documento';try{arquivo=decodeURIComponent(new URL(c.url).pathname.split('/').pop())||arquivo;}catch{}return `<article class="crm-document-card"><strong>${esc(c.nome)}</strong>${c.copiado?`<button data-baixar-documento="${c.i}">Baixar pelo CCI · ${esc(arquivo)}</button>`:`<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(arquivo)} · origem</a>`}<details><summary>${refs.length} referência(s) de origem</summary>${refs.map(r=>`<p>${esc(r.fonte)}${r.linha?' · linha '+esc(r.linha):''}<br><small>${esc(r.nome)}</small></p>`).join('')}</details>${c.previa?`<button data-previa-documento="${c.i}">Ver prévia de mensagem ${esc(c.obrigacao)}</button>`:''}</article>`;}).join('')+'</div>':'<p>Nenhum link identificado nesta categoria. Confira a origem; isso não significa dispensa da obrigação.</p>'}</section>`;
       }).join('');
       const documentosArea=q('[data-documentos]');
+      documentosArea.querySelectorAll('[data-baixar-documento]').forEach(b=>b.onclick=()=>executar(async()=>{
+        const doc=documentos[Number(b.dataset.baixarDocumento)];
+        const path='/api/crm/empresas/'+encodeURIComponent(cnpj)+'/documentos/'+encodeURIComponent(doc.registro_id)+'/'+doc.coluna+'/'+doc.indice;
+        const resposta=await window.API.apiFetch(path,{signal:AbortSignal.timeout(60000)});
+        if(!resposta.ok){const erro=await resposta.json();throw Error(erro.erro||'Não foi possível baixar. Atualize o dossiê.');}
+        const blob=await resposta.blob();
+        if(!dialog.isConnected||empresa()?.cnpj!==cnpj)throw Error('Empresa alterada. Abra novamente o documento.');
+        const url=URL.createObjectURL(blob),a=document.createElement('a');
+        let nome='documento';try{nome=decodeURIComponent(new URL(doc.url).pathname.split('/').pop())||nome;}catch{}
+        a.href=url;a.download=nome.replace(/[\\/\x00-\x1f]/g,'_');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+      }));
       documentosArea.insertAdjacentHTML('afterbegin','<div class="crm-bar"><label>Buscar documento<input data-documento-busca type="search" placeholder="Nome, fonte ou arquivo"></label><label>Categoria<select data-documento-categoria><option value="">Todas</option><option value="DITR">DITR</option><option value="DEFIS">DEFIS</option><option value="OUTROS">Outros</option></select></label></div><p data-documento-resumo role="status"></p>');
       const filtrarDocumentos=()=>{
         const termo=q('[data-documento-busca]').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(),categoria=q('[data-documento-categoria]').value;
@@ -319,7 +329,7 @@
           grupo.querySelectorAll('.crm-document-card').forEach(card=>{total++;const texto=card.textContent.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();card.hidden=Boolean((categoria&&categoria!==['DITR','DEFIS','OUTROS'][i])||!texto.includes(termo));if(!card.hidden){visiveis++;encontrados++;}});
           grupo.hidden=Boolean((termo||categoria)&&!encontrados);
         });
-        q('[data-documento-resumo]').textContent=visiveis+' de '+total+' cartão(ões) de links. Arquivos ainda não copiados; ausência de resultado não significa dispensa.';
+        q('[data-documento-resumo]').textContent=visiveis+' de '+total+' cartão(ões) de documentos. Ausência de resultado não significa dispensa.';
       };
       q('[data-documento-busca]').oninput=filtrarDocumentos;q('[data-documento-categoria]').onchange=filtrarDocumentos;filtrarDocumentos();
       q('[data-documentos]').querySelectorAll('[data-previa-documento]').forEach(b=>b.onclick=()=>{

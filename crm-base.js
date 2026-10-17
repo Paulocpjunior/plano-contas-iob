@@ -13,8 +13,8 @@ function documentosEmpresa(registros) {
   return registros.flatMap(r => (r.campos || []).flatMap((c,coluna) => {
     const obrigacao = r.fonte === 'ditr' && c.nome === 'RECIBO/DECLARAÇÃO' ? 'DITR'
       : ['defis_2025','contabil_v2_integral'].includes(r.fonte) && c.nome === 'RECIBO + DEFIS 2025/2026' ? 'DEFIS' : null;
-    const links = [...new Set([c.valor,c.link].filter(v=>typeof v==='string').flatMap(v=>v.split(/[\r\n]+/).map(s=>s.trim()))
-      .filter(s=>/^https:\/\//i.test(s) && (s.match(/https?:\/\//gi)||[]).length===1)
+    const links = [...new Set([c.valor,c.link].filter(v=>typeof v==='string').flatMap(v=>v.match(/https:\/\/[^\s<>"']+/gi)||[])
+      .filter(s=>(s.match(/https?:\/\//gi)||[]).length===1)
       .map(s=>{try{const u=new URL(s);return u.protocol==='https:'&&!u.username&&!u.password?u.href:null;}catch{return null;}}).filter(Boolean))];
     return links.map((url,indice)=>({registro_id:r.id,coluna,indice,nome:c.nome,url,fonte:r.fonte_nome,linha:r.linha,obrigacao,
       previa:obrigacao ? {titulo:obrigacao+' — documento para conferência',

@@ -2100,3 +2100,11 @@ Diagnóstico somente leitura: S&P possui dois aceites de janeiro/2026, com consu
 Validação: 263 testes aprovados, 2 pulados por fixtures externas ausentes, zero falhas no check:ci. Cancelamento seguido de recriação testado sem perda de versões nem mudança de saldo. Testes de autorização, isolamento, duplicidade, concorrência e falha atômica passaram. Sintaxe inline e tema conferidos. Nenhum cancelamento real efetuado.
 
 Conferência complementar NOB: o usuário confirmou que os valores por sócio são iniciais. Lotes antigos mostram retornos de sucesso em produção em abril, maio e setembro; maio tem metadado ATA de R$ 350 mil. Abril e setembro não preservam o valor no documento do lote. Não é possível atribuir a diferença restante de R$ 50 mil sem os XMLs/eventos completos; nenhuma recomposição foi realizada. O diagnóstico anterior era limitado às coleções do controle mensal novo.
+
+## 17/10/2026 — CRM: Checklist mantido e documentos privados (3.4.425)
+
+Usuário definiu permanência exclusiva do Checklist no Jotform. Importação adicional oficial de 1.586 linhas verificada sem modificar registros anteriores; detalhes e limites em docs/crm-base-jotform.md. Prévia real Checklist 1.431/1.346 pendentes, sem aplicação. Migração de binários iniciada em bucket privado; nova rota valida carteira, vínculo e integridade antes da entrega. Testes cobrem troca de empresa, revogação durante download e tamanho divergente. Publicação e homologação devem ser confirmadas por evidências, não por este registro de implementação.
+
+Validação local completa interrompida por ausência do PDF externo de regressão Itaú (E - EXTRATO ITAÚ ABRIL 2026 (1).pdf). Nenhum parser alterado. Auditoria npm sem vulnerabilidades. Testes específicos CRM, permissões, integridade multiusuário e novidades aprovados; gate CI integral registrado após estabilizar a versão.
+
+Gate final desta etapa: 263 aprovados, 2 pulados por evidências externas ausentes, zero falhas.

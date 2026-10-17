@@ -1,7 +1,8 @@
 {
-  "version": "3.4.424",
-  "build_date": "2026-10-16T19:47:35.604Z",
+  "version": "3.4.425",
+  "build_date": "2026-10-17T09:35:41.825735+00:00",
   "release_notes": [
+    "CRM: download autenticado dos anexos copiados, com conferência de integridade e carteira; Checklist permanece integrado ao Jotform com prévia para revisão.",
     "BB Cash: releitura até a margem direita para incluir o sinal C/D eventualmente omitido pelo OCR, com modo alternativo de reconhecimento e conferência obrigatória dos saldos.",
     "SAGE serviços tomados: preservação da série quando a coluna C.I. está vazia, evitando descartar notas de séries distintas e mantendo a conferência do total oficial.",
     "Cadastro de empresas: Confirmar e Continuar também salva a numeração informada; falhas de gravação mantêm o formulário aberto e preservam os lançamentos.",
