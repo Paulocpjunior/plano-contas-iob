@@ -29,6 +29,21 @@ const OPCOES_V2 = Object.freeze({
   'Status da Empresa': Object.freeze(['','ATIVA','ENCERRADA','SUSPENSA','EM TRANSFERÊNCIA','BAIXADA']),
   'Tributação': Object.freeze(['','SIMPLES','SIMPLES-F','PRESUMIDO','ISENTA','MEI','LUCRO REAL','IMUNE','C.C','PRESUMIDO-F','PESSOA FISICA','IMUNE-F','LUCRO REAL-F'])
 });
+// Regra {37} observada no formulário: cópia literal, sem arredondamento.
+// A aplicação é explícita; não sobrescreve ajustes por efeito de outra edição.
+function formulaSaldo(registro) {
+  if (registro.fonte !== 'contabil_v2_integral') return null;
+  const campos=registro.campos || [];
+  const indices=nome=>campos.flatMap((c,i)=>c.nome===nome?[i]:[]);
+  const entradas=indices('SALDO JANEIRO 2026'),saidas=indices('SALDO RESIDUAL');
+  if(entradas.length!==1 || saidas.length!==1) return null;
+  const origem=entradas[0],destino=saidas[0],v=campos[origem].valor;
+  const texto=typeof v==='number'&&Number.isFinite(v)?String(v):typeof v==='string'?v.trim():'';
+  const valida=/^-?\d+(?:\.\d+)?$/.test(texto) && !campos[destino].protegido;
+  return {id:'saldo-janeiro-residual-v2',origem,destino,expressao:'{37}',
+    disponivel:valida,valor:valida?texto:null,
+    aviso:valida?'Copia o saldo de janeiro sem subtração ou arredondamento. Confira o residual atual antes de aplicar.':'Informe um número com ponto decimal no saldo de janeiro. Vazio e formatos ambíguos não alteram o residual.'};
+}
 function contratoParametros(registro) {
   if (!['contabil_v2','contabil_v2_integral'].includes(registro.fonte)) return null;
   const campos = registro.campos || [];
@@ -38,12 +53,14 @@ function contratoParametros(registro) {
   const ecd = ['PRESUMIDO','PRESUMIDO-F','LUCRO REAL','LUCRO REAL-F'].includes(t);
   const outros = ['ISENTA','IMUNE','IMUNE-F','C.C','PESSOA FISICA'].includes(t);
   const conhecido = simples || ecd || outros;
-  return {versao:'jotform-v2-20261014', campos:campos.map(c=>{
+  return {versao:'jotform-v2-20261017', formulas:[formulaSaldo(registro)].filter(Boolean), campos:campos.map(c=>{
     const meta = {};
     // Nome duplicado não comprova o ID de pergunta: não restringir por suposição.
     if (Object.hasOwn(OPCOES_V2,c.nome) && campos.filter(x=>x.nome===c.nome).length===1) meta.opcoes=[...OPCOES_V2[c.nome]];
     if (conhecido && ['CHECK ECD 2026','CHECK ECF 2026','PRAZO LIMITE ECD','PRAZO LIMITE ECF'].includes(c.nome)) meta.visivel_origem=ecd;
     if (conhecido && ['CHECK DEFIS 2026','PRAZO LIMITE DEFIS'].includes(c.nome)) meta.visivel_origem=simples;
+    const saldos=campos.filter(x=>x.nome==='SALDO JANEIRO 2026');
+    if(c.nome.trim()==='EMPRESAS' && campos.filter(x=>x.nome.trim()==='EMPRESAS').length===1 && saldos.length===1 && saldos[0].valor!=null && String(saldos[0].valor).trim()!=='') meta.condicao_origem='Exibido na origem quando SALDO JANEIRO 2026 está preenchido.';
     return meta;
   })};
 }
@@ -54,6 +71,12 @@ function editarParametro(antes, body, user, quando) {
   if (!Number.isInteger(i) || i < 0 || i >= antes.campos.length) throw erro('Selecione um parâmetro válido.');
   // Identificação e colaborador de origem são evidências, nunca permissões.
   if (antes.campos[i].protegido) throw erro('Identificação e origem são preservadas. Use a distribuição de carteira para alterar responsáveis.');
+  if(body.formula!==undefined){
+    const f=formulaSaldo(antes);
+    if(!f || body.formula!==f.id || !f.disponivel || i!==f.destino || body.confirmado!==true) throw erro('Confira a prévia da fórmula e confirme o destino antes de aplicar.');
+    // Recalcula do registro lido na transação, nunca do valor enviado pela tela.
+    body={...body,valor:f.valor};
+  }
   if (typeof body.valor !== 'string' || body.valor.length > 10000) throw erro('Informe até 10.000 caracteres.');
   if (typeof body.motivo !== 'string' || !body.motivo.trim() || body.motivo.length > 1000) throw erro('Informe o motivo da alteração, até 1.000 caracteres.');
   const opcoes=contratoParametros(antes)?.campos[i]?.opcoes;
@@ -120,4 +143,4 @@ function corrigirIdentificacao(antes, body, user, quando) {
   return {...antes,cnpj_origem:antes.cnpj_origem??antes.cnpj??'',cnpj:body.cnpj,identidade_valida:true,
     revisao:antes.revisao+1,identificacao_conferida_em:quando,identificacao_conferida_por:user.uid};
 }
-module.exports={corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
+module.exports={formulaSaldo,corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};

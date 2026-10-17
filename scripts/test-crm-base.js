@@ -107,3 +107,27 @@ assert.throws(()=>corrigirIdentificacao(inicial,{revisao:1,cnpj:'00000000000000'
 console.log('CRM saneamento: identificação original, revisão e campos preservados OK');
 
 assert.deepEqual(documentosEmpresa([{id:'multiplos',campos:[{nome:'Upload',valor:'Recibos: https://example.com/a.pdf https://example.com/b.pdf'}]}]).map(d=>d.url),['https://example.com/a.pdf','https://example.com/b.pdf']);
+
+const {formulaSaldo}=require('../crm-base');
+const saldo=(valor,residual='99')=>({fonte:'contabil_v2_integral',revisao:1,campos:[{nome:'SALDO JANEIRO 2026',valor,original:valor},{nome:'SALDO RESIDUAL',valor:residual,original:residual},{nome:'EMPRESAS ',valor:'Empresa',protegido:true}]});
+for(const valor of ['12.345','0','-12.345','1.005',0]){
+  const r=saldo(valor),prev=JSON.stringify(r),f=formulaSaldo(r);
+  assert.equal(f.valor,String(valor));
+  const out=editarParametro(r,{revisao:1,coluna:1,formula:f.id,confirmado:true,valor:'999999',motivo:'Conferência'},admin,'agora');
+  assert.equal(out.campos[1].valor,String(valor),'servidor deriva valor, sem arredondar ou confiar na tela');
+  assert.equal(out.campos[1].original,'99');assert.equal(out.campos[0].valor,valor);assert.equal(JSON.stringify(r),prev);
+  assert(contratoParametros(r).campos[2].condicao_origem);
+}
+for(const valor of ['',null,'1,005','1.234,56','abc',Infinity,{},'1e3']){
+  const r=saldo(valor);assert.equal(formulaSaldo(r).disponivel,false);
+  assert.throws(()=>editarParametro(r,{revisao:1,coluna:1,formula:'saldo-janeiro-residual-v2',confirmado:true,motivo:'x'},admin,'agora'));
+}
+const sr=saldo('1.005');
+for(const body of [{confirmado:false},{coluna:0},{formula:'outra'},{revisao:0}])assert.throws(()=>editarParametro(sr,{revisao:1,coluna:1,formula:'saldo-janeiro-residual-v2',confirmado:true,motivo:'x',...body},admin,'agora'));
+assert.throws(()=>editarParametro(sr,{revisao:1,coluna:1,formula:'saldo-janeiro-residual-v2',confirmado:true,motivo:'x'},consulta,'agora'),/perfil/);
+assert.equal(formulaSaldo({...sr,fonte:'contabil_v2'}),null);
+assert.equal(formulaSaldo({...sr,campos:[...sr.campos,sr.campos[0]]}),null);
+assert.equal(formulaSaldo({...sr,campos:[sr.campos[0],{...sr.campos[1],protegido:true}]}).disponivel,false);
+assert.equal(editarParametro(sr,{revisao:1,coluna:0,valor:'8',motivo:'Edição independente'},admin,'agora').campos[1].valor,'99');
+assert.equal(editarParametro(sr,{revisao:1,coluna:0,valor:'',motivo:'Limpar entrada'},admin,'agora').campos[1].valor,'99');
+console.log('CRM fórmula: cópia fiel, confirmação, zero, precisão, revisão e intervenção manual preservados OK');
