@@ -1,0 +1,16 @@
+.cci-notificacoes{--not-bg:#fff;--not-fg:#1d1d1f;--not-line:#d2d2d7;box-sizing:border-box;width:min(900px,96vw);max-height:92dvh;overflow:auto;border:1px solid var(--not-line);border-radius:18px;padding:24px;background:var(--not-bg);color:var(--not-fg);font:15px/1.5 system-ui,sans-serif;color-scheme:light dark}
+.cci-notificacoes::backdrop{background:rgb(0 0 0 / .45)}
+.cci-notificacoes header{display:flex;align-items:start;justify-content:space-between;gap:16px}
+.cci-notificacoes h2{margin:0;font-size:22px}.cci-notificacoes h3{font-size:19px}
+.cci-notificacoes .crm-card{padding:16px;margin:12px 0;border:1px solid var(--not-line);border-radius:12px}
+.cci-notificacoes label{display:block;margin:12px 0}.cci-notificacoes textarea{min-height:90px;resize:vertical}
+.cci-notificacoes input:not([type=checkbox]),.cci-notificacoes textarea,.cci-notificacoes select{display:block;width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--not-line);border-radius:8px;background:var(--not-bg);color:inherit;font:inherit}
+.cci-notificacoes button{padding:10px 14px;margin:4px;border:1px solid var(--not-line);border-radius:9px;background:var(--not-bg);color:inherit;font:inherit;cursor:pointer;min-height:44px}
+.cci-notificacoes button:focus-visible,.cci-notificacoes input:focus-visible,.cci-notificacoes textarea:focus-visible,.cci-notificacoes select:focus-visible{outline:3px solid #0071e3;outline-offset:2px}
+.cci-notificacoes pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.cci-notificacoes p{overflow-wrap:anywhere}.cci-notificacoes [data-status]:not(:empty){border-left:3px solid #0071e3;padding:10px}
+:root[data-theme=dark] .cci-notificacoes,body.dark-mode .cci-notificacoes{--not-bg:#1c1c1e;--not-fg:#f5f5f7;--not-line:#48484a}
+@media(prefers-color-scheme:dark){.cci-notificacoes{--not-bg:#1c1c1e;--not-fg:#f5f5f7;--not-line:#48484a}}
+@media(max-width:600px){.cci-notificacoes{padding:14px;width:96vw}.cci-notificacoes .crm-card>button{display:block;width:100%;margin:8px 0}}
+:root[data-theme=light] .cci-notificacoes{--not-bg:#fff;--not-fg:#1d1d1f;--not-line:#d2d2d7}
+.cci-notificacoes{scroll-padding-top:84px}.cci-notificacoes header{position:sticky;top:-24px;z-index:1;background:var(--not-bg);padding:12px 0}
+@media(max-width:600px){.cci-notificacoes header{top:-14px}}

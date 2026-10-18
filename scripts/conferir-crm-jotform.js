@@ -24,7 +24,7 @@ function conferir(payload, registros, manifests) {
   }
   for (const f of fontes.values()) if (contagens.get(f.id) !== f.registros) throw Error('Contagem da origem inconsistente.');
   const divergencias = [], alterados = new Set();
-  let campos = 0, edicoes = 0;
+  let campos = 0, edicoes = 0, identificacoes = 0;
   // Relatório sem valores cadastrais, nomes de campos, URLs ou identificadores pessoais.
   const falha = (id, caminho, tipo) => divergencias.push({ referencia_sha256: digest(id), caminho, tipo });
   for (const f of fontes.values()) {
@@ -37,6 +37,11 @@ function conferir(payload, registros, manifests) {
     campos += r.campos.length;
     if (!d) { falha(id, 'registro', 'ausente'); continue; }
     for (const k of Object.keys(r).filter(k => !['id', 'campos', 'revisao'].includes(k))) {
+      if(k==='cnpj' && Object.hasOwn(d,'cnpj_origem')){
+        if(!igual(r[k],d.cnpj_origem))falha(id,'cnpj_origem','diferente');
+        if(!(d.revisao>r.revisao)||!d.identificacao_conferida_em||!d.identificacao_conferida_por)falha(id,'cnpj','edicao_sem_metadados');
+        identificacoes++;continue;
+      }
       if (!igual(r[k], d[k])) falha(id, k, 'diferente');
     }
     if (!Number.isInteger(d.revisao) || d.revisao < r.revisao) falha(id, 'revisao', 'invalida');
@@ -59,7 +64,7 @@ function conferir(payload, registros, manifests) {
     if (fontes.has(d.fonte)) falha(id, 'registro', 'extra_na_fonte');
   }
   return { esquema: 1, somente_leitura: true, escopo: 'Snapshot exportado; não comprova equivalência com o Jotform atual.',
-    fontes: fontes.size, registros_esperados: origens.size, campos_esperados: campos, registros_lidos: destino.size,
+    identificacoes_conferidas_cci: identificacoes, fontes: fontes.size, registros_esperados: origens.size, campos_esperados: campos, registros_lidos: destino.size,
     registros_adicionais: adicionais, campos_editados_cci: edicoes, registros_editados_cci: alterados.size,
     preservacao_origem: divergencias.length ? 'divergente' : 'conferida', divergencias,
     equivalencia_funcional: 'nao_homologada', corte_jotform: false };

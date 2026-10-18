@@ -17,6 +17,14 @@ function lerData(v, campo, problemas) {
   if (typeof s === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(s)) s = s.split('/').reverse().join('-');
   try { return data(s, campo); } catch { problemas.push('Data inválida: ' + campo); return null; }
 }
+function orientacoesChecklist(evento){
+  const p=evento.problemas.join(' '),acoes=[];
+  if(/Número|Código interno|vínculo/.test(p))acoes.push('No Cadastro de Empresas do CCI, confira o número interno e a identidade. Não escolha uma empresa por semelhança de nome. Depois consulte novamente o Checklist.');
+  if(/Status|vigência|responsabilidade|Múltiplos eventos|Data inválida/.test(p))acoes.push('No dossiê da empresa, confira Contrato e recorrências com o administrador. Registre a vigência e o motivo com base na documentação; não aplique eventos conflitantes em lote.');
+  if(/não ativo/.test(p))acoes.push('Mantenha este registro como histórico. Não aplique nem exclua dados porque a origem está inativa.');
+  if(!acoes.length)acoes.push('Compare o evento com o contrato atual antes da confirmação individual.');
+  return acoes;
+}
 function previaChecklist(questions, rows, empresas) {
   for (const [id, rotulo] of Object.values(CAMPOS)) {
     if (normalizar(questions?.[id]?.text).replace(/\s*\*$/, '') !== rotulo) throw erro('O Checklist mudou. Revise o mapeamento de campos antes de importar.', 409);
@@ -55,6 +63,7 @@ function previaChecklist(questions, rows, empresas) {
   const contagem = new Map();
   eventos.forEach(e => { if (e.cnpj) contagem.set(e.cnpj, (contagem.get(e.cnpj) || 0) + 1); });
   eventos.forEach(e => { if (contagem.get(e.cnpj) > 1) e.problemas.push('Múltiplos eventos para a empresa: conferir sequência e vigências.'); });
+  eventos.forEach(e=>{e.orientacoes=orientacoesChecklist(e);});
   return { eventos, total: eventos.length, com_pendencias: eventos.filter(e => e.problemas.length).length, somente_previa: true };
 }
 
@@ -117,4 +126,4 @@ function contratoDoEvento(evento, antes, body, hoje) {
   return contrato({ revisao:body.revisao_contrato, situacao: {entrada:'ativa',saida:'saida',baixa:'baixada'}[evento.tipo],
     inicio, fim, motivo:body.motivo }, existente);
 }
-module.exports = { FORM_ID, CAMPOS, previaChecklist, carregarChecklist, contratoDoEvento };
+module.exports = { orientacoesChecklist, FORM_ID, CAMPOS, previaChecklist, carregarChecklist, contratoDoEvento };

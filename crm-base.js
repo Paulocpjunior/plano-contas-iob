@@ -13,8 +13,8 @@ function documentosEmpresa(registros) {
   return registros.flatMap(r => (r.campos || []).flatMap((c,coluna) => {
     const obrigacao = r.fonte === 'ditr' && c.nome === 'RECIBO/DECLARAÇÃO' ? 'DITR'
       : ['defis_2025','contabil_v2_integral'].includes(r.fonte) && c.nome === 'RECIBO + DEFIS 2025/2026' ? 'DEFIS' : null;
-    const links = [...new Set([c.valor,c.link].filter(v=>typeof v==='string').flatMap(v=>v.split(/[\r\n]+/).map(s=>s.trim()))
-      .filter(s=>/^https:\/\//i.test(s) && (s.match(/https?:\/\//gi)||[]).length===1)
+    const links = [...new Set([c.valor,c.link].filter(v=>typeof v==='string').flatMap(v=>v.match(/https:\/\/[^\s<>"']+/gi)||[])
+      .filter(s=>(s.match(/https?:\/\//gi)||[]).length===1)
       .map(s=>{try{const u=new URL(s);return u.protocol==='https:'&&!u.username&&!u.password?u.href:null;}catch{return null;}}).filter(Boolean))];
     return links.map((url,indice)=>({registro_id:r.id,coluna,indice,nome:c.nome,url,fonte:r.fonte_nome,linha:r.linha,obrigacao,
       previa:obrigacao ? {titulo:obrigacao+' — documento para conferência',
@@ -29,6 +29,21 @@ const OPCOES_V2 = Object.freeze({
   'Status da Empresa': Object.freeze(['','ATIVA','ENCERRADA','SUSPENSA','EM TRANSFERÊNCIA','BAIXADA']),
   'Tributação': Object.freeze(['','SIMPLES','SIMPLES-F','PRESUMIDO','ISENTA','MEI','LUCRO REAL','IMUNE','C.C','PRESUMIDO-F','PESSOA FISICA','IMUNE-F','LUCRO REAL-F'])
 });
+// Regra {37} observada no formulário: cópia literal, sem arredondamento.
+// A aplicação é explícita; não sobrescreve ajustes por efeito de outra edição.
+function formulaSaldo(registro) {
+  if (registro.fonte !== 'contabil_v2_integral') return null;
+  const campos=registro.campos || [];
+  const indices=nome=>campos.flatMap((c,i)=>c.nome===nome?[i]:[]);
+  const entradas=indices('SALDO JANEIRO 2026'),saidas=indices('SALDO RESIDUAL');
+  if(entradas.length!==1 || saidas.length!==1) return null;
+  const origem=entradas[0],destino=saidas[0],v=campos[origem].valor;
+  const texto=typeof v==='number'&&Number.isFinite(v)?String(v):typeof v==='string'?v.trim():'';
+  const valida=/^-?\d+(?:\.\d+)?$/.test(texto) && !campos[destino].protegido;
+  return {id:'saldo-janeiro-residual-v2',origem,destino,expressao:'{37}',
+    disponivel:valida,valor:valida?texto:null,
+    aviso:valida?'Copia o saldo de janeiro sem subtração ou arredondamento. Confira o residual atual antes de aplicar.':'Informe um número com ponto decimal no saldo de janeiro. Vazio e formatos ambíguos não alteram o residual.'};
+}
 function contratoParametros(registro) {
   if (!['contabil_v2','contabil_v2_integral'].includes(registro.fonte)) return null;
   const campos = registro.campos || [];
@@ -38,12 +53,14 @@ function contratoParametros(registro) {
   const ecd = ['PRESUMIDO','PRESUMIDO-F','LUCRO REAL','LUCRO REAL-F'].includes(t);
   const outros = ['ISENTA','IMUNE','IMUNE-F','C.C','PESSOA FISICA'].includes(t);
   const conhecido = simples || ecd || outros;
-  return {versao:'jotform-v2-20261014', campos:campos.map(c=>{
+  return {versao:'jotform-v2-20261017', formulas:[formulaSaldo(registro)].filter(Boolean), campos:campos.map(c=>{
     const meta = {};
     // Nome duplicado não comprova o ID de pergunta: não restringir por suposição.
     if (Object.hasOwn(OPCOES_V2,c.nome) && campos.filter(x=>x.nome===c.nome).length===1) meta.opcoes=[...OPCOES_V2[c.nome]];
     if (conhecido && ['CHECK ECD 2026','CHECK ECF 2026','PRAZO LIMITE ECD','PRAZO LIMITE ECF'].includes(c.nome)) meta.visivel_origem=ecd;
     if (conhecido && ['CHECK DEFIS 2026','PRAZO LIMITE DEFIS'].includes(c.nome)) meta.visivel_origem=simples;
+    const saldos=campos.filter(x=>x.nome==='SALDO JANEIRO 2026');
+    if(c.nome.trim()==='EMPRESAS' && campos.filter(x=>x.nome.trim()==='EMPRESAS').length===1 && saldos.length===1 && saldos[0].valor!=null && String(saldos[0].valor).trim()!=='') meta.condicao_origem='Exibido na origem quando SALDO JANEIRO 2026 está preenchido.';
     return meta;
   })};
 }
@@ -54,6 +71,12 @@ function editarParametro(antes, body, user, quando) {
   if (!Number.isInteger(i) || i < 0 || i >= antes.campos.length) throw erro('Selecione um parâmetro válido.');
   // Identificação e colaborador de origem são evidências, nunca permissões.
   if (antes.campos[i].protegido) throw erro('Identificação e origem são preservadas. Use a distribuição de carteira para alterar responsáveis.');
+  if(body.formula!==undefined){
+    const f=formulaSaldo(antes);
+    if(!f || body.formula!==f.id || !f.disponivel || i!==f.destino || body.confirmado!==true) throw erro('Confira a prévia da fórmula e confirme o destino antes de aplicar.');
+    // Recalcula do registro lido na transação, nunca do valor enviado pela tela.
+    body={...body,valor:f.valor};
+  }
   if (typeof body.valor !== 'string' || body.valor.length > 10000) throw erro('Informe até 10.000 caracteres.');
   if (typeof body.motivo !== 'string' || !body.motivo.trim() || body.motivo.length > 1000) throw erro('Informe o motivo da alteração, até 1.000 caracteres.');
   const opcoes=contratoParametros(antes)?.campos[i]?.opcoes;
@@ -108,4 +131,28 @@ function atualizarVisualizacao(antes, body, quando) {
   const v={nome,filtros,colunas,atualizada_em:quando}; if(i<0)itens.push(v);else itens[i]=v;
   return {revisao:(antes.revisao||0)+1,itens};
 }
-module.exports={compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
+// Corrige somente o vínculo operacional; campos e identificação de origem permanecem intactos.
+function corrigirIdentificacao(antes, body, user, quando) {
+  if (!user.is_admin) throw erro('Somente administradores podem conferir identificações.',403);
+  if (!Number.isInteger(body.revisao) || body.revisao !== antes.revisao) throw erro('O registro mudou. Atualize antes de salvar.',409);
+  if (typeof body.cnpj !== 'string' || !/^\d{14}$/.test(body.cnpj) || /^(\d)\1+$/.test(body.cnpj)) throw erro('Informe um CNPJ válido com 14 dígitos.');
+  const dig=s=>{let peso=s.length-7,total=0;for(const c of s){total+=Number(c)*peso--;if(peso<2)peso=9;}const n=total%11;return n<2?0:11-n;};
+  if(dig(body.cnpj.slice(0,12))!==Number(body.cnpj[12])||dig(body.cnpj.slice(0,13))!==Number(body.cnpj[13]))throw erro('Confira os dígitos do CNPJ.');
+  if(typeof body.motivo!=='string'||!body.motivo.trim()||body.motivo.length>1000)throw erro('Informe o motivo da conferência, até 1.000 caracteres.');
+  if(body.confirmado!==true)throw erro('Confirme a empresa de destino antes de vincular.');
+  return {...antes,cnpj_origem:antes.cnpj_origem??antes.cnpj??'',cnpj:body.cnpj,identidade_valida:true,
+    revisao:antes.revisao+1,identificacao_conferida_em:quando,identificacao_conferida_por:user.uid};
+}
+// Cadastro de referências: não transfere nem busca arquivos externos.
+function documentoReferencia(antes,body,user,quando){
+  if(!user.is_admin&&!podeAcao(user,'editar'))throw erro('Seu perfil não permite edição.',403);
+  if(body.revisao!==(antes?.revisao||0))throw erro('O documento mudou. Atualize antes de salvar.',409);
+  const texto=(k,max)=>{if(typeof body[k]!=='string'||!body[k].trim()||body[k].length>max)throw erro('Confira '+k+' do documento.');return body[k].trim();};
+  const titulo=texto('titulo',180),motivo=texto('motivo',1000),url=texto('url',2000);
+  let u;try{u=new URL(url);}catch{throw erro('Informe um link HTTPS válido.');}
+  if(u.protocol!=='https:'||u.username||u.password)throw erro('Use um link HTTPS sem credenciais.');
+  if(!['DITR','DEFIS','ECD','ECF','CONTRATO','OUTROS'].includes(body.categoria))throw erro('Selecione a categoria do documento.');
+  if(typeof body.periodo!=='string'||(body.periodo&&!/^\d{4}(-(?:0[1-9]|1[0-2]))?$/.test(body.periodo)))throw erro('Informe ano ou competência válida.');
+  return {titulo,url:u.href,categoria:body.categoria,periodo:body.periodo,motivo,revisao:(antes?.revisao||0)+1,quando,por_uid:user.uid,tipo:'referencia_externa'};
+}
+module.exports={documentoReferencia,formulaSaldo,corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};

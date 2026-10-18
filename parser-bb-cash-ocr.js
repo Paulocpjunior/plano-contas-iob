@@ -15,6 +15,7 @@
     return removerAcentos(s)
       .replace(/[—_=]+/g, ' ')
       .replace(/[¢©]/g, 'C')
+      .replace(/(\d)\s+(?=\.\d{3})/g, '$1')
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -53,7 +54,12 @@
   function extrairPeriodo(texto) {
     const clean = limparLinhaOCR(texto);
     const m = clean.match(/(?:Periodo|Periggoue|extrato).*?de\s+(\d{2})\s*\/\s*(\d{2})\s*\/\s*(\d{4})\s+ate\s+(\d{2})\s*\/\s*(\d{2})\s*\/\s*(\d{4})/i);
-    if (!m) return null;
+    if (!m) {
+      const mensal = clean.match(/Periodo\s+(?:do\s+)?(?:extrato\s+)?(\d{2})\s*\/\s*(\d{4})/i);
+      if (!mensal || Number(mensal[1]) < 1 || Number(mensal[1]) > 12) return null;
+      return { inicio: mensal[2] + '-' + mensal[1] + '-01',
+        fim: mensal[2] + '-' + mensal[1] + '-' + new Date(Date.UTC(Number(mensal[2]), Number(mensal[1]), 0)).getUTCDate() };
+    }
     return {
       inicio: m[3] + '-' + m[2] + '-' + m[1],
       fim: m[6] + '-' + m[5] + '-' + m[4]
@@ -71,66 +77,83 @@
     };
   }
 
-  function normalizarDocumento(s) {
-    return String(s || '').replace(/\D/g, '');
-  }
-
-  function inferirTipo(desc) {
-    const d = limparLinhaOCR(desc).toLowerCase();
-    if (/tarifa|pagamento|transferencia enviada|ted\b|darf|rende facil/.test(d)) return 'D';
-    return 'C';
+  function valoresComNatureza(resto) {
+    // Somente valores monetarios com centavos E natureza impressa. Documento nao e valor.
+    return Array.from(resto.matchAll(/(?:^|\s)(\d[\d.]*[,.]\d{2})\s*([CD€])(?:[C4]?)(?=\s|$|[^A-Za-z0-9])/ig));
   }
 
   function extrairValorTipo(resto) {
-    const reComTipo = /(?:^|\s)([sS][oO0]\d[\d.,]*|[sS]?\d[\d.,]*|[oO]\d[\d.,]*)\s*([CD€])(?:\b|[^A-Za-z]|$)/ig;
-    const matches = Array.from(resto.matchAll(reComTipo)).filter(m => parseValorBR(m[1]) > 0);
-    if (matches.length) {
-      const m = matches[0];
-      return { raw: m[1], tipo: m[2] === '€' ? 'C' : m[2].toUpperCase(), index: m.index + (m[0].match(/^\s/) ? 1 : 0), valor: parseValorBR(m[1]) };
-    }
-
-    const valores = Array.from(resto.matchAll(/(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})/g)).filter(m => parseValorBR(m[1]) > 0);
-    if (!valores.length) return null;
-    const m = valores[valores.length - 1];
-    return { raw: m[1], tipo: inferirTipo(resto.slice(0, m.index)), index: m.index, valor: parseValorBR(m[1]) };
+    const m = valoresComNatureza(resto)[0];
+    if (!m) return null;
+    return { raw: m[1], tipo: m[2].toUpperCase() === 'D' ? 'D' : 'C',
+      index: m.index + (m[0].match(/^\s/) ? 1 : 0), valor: parseValorBR(m[1]) };
   }
 
-  function parsearTexto_BB_CashOCR(textoPorPagina) {
+  function erroIntegridade(detalhe) {
+    const erro = new Error('Conferencia BB Cash: ' + detalhe + '. Envie o extrato completo ou um PDF mais legivel.');
+    erro.code = 'BB_OCR_INTEGRIDADE';
+    return erro;
+  }
+
+  function parsearTexto_BB_CashOCR(textoPorPagina, opcoes) {
     const paginas = Array.isArray(textoPorPagina) ? textoPorPagina : String(textoPorPagina || '').split(/\f/);
     const textoCompleto = paginas.join('\n');
-    const ehBB = /Banco do Brasil/i.test(textoCompleto)
-      && /BB Cash/i.test(textoCompleto)
+    const ehBB = /BB Cash.*Conta corrente/i.test(textoCompleto)
       && /Cliente\s*-\s*Conta\s*atual/i.test(textoCompleto);
 
     if (!ehBB) return { detectado: false, lancamentos: [], textoCompleto: textoCompleto };
 
     let periodoPrincipal = null;
     const lancamentos = [];
-    const vistos = new Set();
+    let saldo = null;
+    let saldoInicial = null;
+    let saldoFinal = null;
 
-    paginas.forEach(function(textoPagina) {
+    paginas.forEach(function(textoPagina, paginaIndex) {
       const periodoPagina = extrairPeriodo(textoPagina);
       if (!periodoPrincipal && periodoPagina) periodoPrincipal = periodoPagina;
       if (periodoPrincipal && periodoPagina && (periodoPagina.inicio !== periodoPrincipal.inicio || periodoPagina.fim !== periodoPrincipal.fim)) {
-        return;
+        throw erroIntegridade('paginas com periodos diferentes');
       }
 
       const linhas = String(textoPagina || '').split(/\r?\n/).map(limparLinhaOCR).filter(Boolean);
       for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];
-        if (!/^\d{2}\/\d{2}\/\d{4}/.test(linha)) continue;
-        if (/Saldo Anterior|SALDO|Invest|Juros|IOF|Banco do Brasil/i.test(linha)) continue;
+        if (!/^\d{2}\/\d{2}\/\d{4}/.test(linha)) {
+          if (saldoFinal === null && /\b\d{4}\s+\d{5}[.]?\s/.test(linha) && valoresComNatureza(linha).length) {
+            throw erroIntegridade('movimento com data ilegivel');
+          }
+          continue;
+        }
+        if (saldoFinal !== null) throw erroIntegridade('linhas datadas apos o saldo final');
+        const m = linha.match(/^(\d{2}\/\d{2}\/\d{4})(?:\s+(\d{2}\/\d{2}\/\d{4}))?\s+(\d{4})\s+(\d{5})[.]?\s+[-|]?\s*(.+)$/);
+        if (!m) throw erroIntegridade('linha datada nao reconhecida: ' + linha);
+        const resto = m[5];
+        if (/^(?:Saldo Anterior|S\s*A\s*L\s*D\s*O)\b/i.test(resto)) {
+          const v = extrairValorTipo(resto);
+          if (!v) throw erroIntegridade('saldo impresso ilegivel');
+          const impresso = Math.round(v.valor * 100) * (v.tipo === 'D' ? -1 : 1);
+          if (/^Saldo Anterior/i.test(resto) && saldoInicial === null) saldoInicial = saldo = impresso;
+          else {
+            if (saldo === null || saldo !== impresso) throw erroIntegridade('saldo final divergente dos movimentos');
+            saldoFinal = impresso;
+          }
+          continue;
+        }
 
-        const m = linha.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d{4})\s+(\d{5})\s+(.+)$/);
-        if (!m) continue;
+        const iso = dataISO(m[2] || m[1]);
+        if (periodoPrincipal && (iso < periodoPrincipal.inicio || iso > periodoPrincipal.fim)) throw erroIntegridade('movimento fora do periodo impresso');
 
-        const iso = dataISO(m[1]);
-        if (periodoPrincipal && (iso < periodoPrincipal.inicio || iso > periodoPrincipal.fim)) continue;
+        const valorTipo = extrairValorTipo(resto);
+        if (!valorTipo || !valorTipo.valor) {
+          const erro = erroIntegridade('valor ou natureza ilegivel em ' + m[1] + ' (pagina ' + (paginaIndex + 1) + ')');
+          erro.paginaOCR = paginaIndex;
+          erro.linhaOCR = linha;
+          throw erro;
+        }
 
-        const valorTipo = extrairValorTipo(m[4]);
-        if (!valorTipo || !valorTipo.valor) continue;
-
-        const antesValor = m[4].slice(0, valorTipo.index).trim();
+        const antesValor = resto.slice(0, valorTipo.index).trim();
+        if (/(?:^|\s)\d[\d.]*,\d{2}(?:\s|$)/.test(antesValor)) throw erroIntegridade('valor sem natureza antes do saldo');
         const palavras = antesValor.split(/\s+/).filter(Boolean);
         let docIdx = -1;
         for (let j = palavras.length - 1; j >= 0; j--) {
@@ -153,13 +176,22 @@
         descricao = descricao.replace(/\s+/g, ' ').trim() || 'Lancamento Banco do Brasil';
 
         const valor = valorTipo.tipo === 'D' ? -Math.abs(valorTipo.valor) : Math.abs(valorTipo.valor);
-        const chave = [iso, limparLinhaOCR(descricao).toLowerCase(), normalizarDocumento(documento), valor.toFixed(2)].join('|');
-        if (vistos.has(chave)) continue;
-        vistos.add(chave);
+        if (saldo !== null) {
+          saldo += Math.round(valor * 100);
+          const valores = valoresComNatureza(resto);
+          if (valores.length > 2) throw erroIntegridade('colunas monetarias ambiguas');
+          if (valores.length === 2) {
+            const ultimo = valores[1];
+            const impresso = Math.round(parseValorBR(ultimo[1]) * 100) * (ultimo[2].toUpperCase() === 'D' ? -1 : 1);
+            if (saldo !== impresso) throw erroIntegridade('saldo divergente apos ' + m[1]);
+          }
+        }
 
         lancamentos.push({
           id: uuid(),
           data: iso,
+          data_balancete: dataISO(m[1]),
+          data_movimento: m[2] ? dataISO(m[2]) : iso,
           descricao: descricao,
           documento: documento,
           valor: valor,
@@ -176,9 +208,15 @@
       }
     });
 
+    if (opcoes && opcoes.exigirSaldos && (!periodoPrincipal || saldoInicial === null || saldoFinal === null)) {
+      throw erroIntegridade('periodo, saldo anterior ou saldo final nao reconhecido');
+    }
     const meta = extrairMeta(textoCompleto);
     return {
       detectado: true,
+      saldos_conciliados: saldoInicial !== null && saldoFinal !== null,
+      saldo_anterior: saldoInicial === null ? null : saldoInicial / 100,
+      saldo_final: saldoFinal === null ? null : saldoFinal / 100,
       lancamentos: lancamentos,
       textoCompleto: textoCompleto,
       fingerprint: 'bb-cash-ocr-' + (meta.agencia || 'x') + '-' + (meta.conta || 'x') + '-' + ((periodoPrincipal && periodoPrincipal.inicio) || 'x'),
@@ -190,44 +228,118 @@
     };
   }
 
-  async function extrairTextoPorPaginaComOCR(pdf) {
-    if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js nao carregado para OCR');
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const textos = [];
-    for (let i = 1; i <= pdf.numPages; i++) {
-      if (typeof showToast === 'function') showToast('OCR BB Cash pagina ' + i + '/' + pdf.numPages + '...', 'success');
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 2.6 });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-      const result = await Tesseract.recognize(canvas, 'por', {
-        logger: m => console.log('[bb-cash-ocr]', m.status, m.progress)
-      });
-      textos.push(result.data && result.data.text ? result.data.text : '');
-    }
-    return textos;
+  // Releitura da linha impressa, sem inferir valor/sinal pelo histórico ou pelo saldo.
+  async function relerLinhaPDF(pdf, worker, erro, dadosPaginas, escalaOriginal, opts) {
+    const linhas = dadosPaginas[erro.paginaOCR]?.lines || [];
+    const candidatas = linhas.filter(l => limparLinhaOCR(l.text) === erro.linhaOCR);
+    if (candidatas.length !== 1 || !candidatas[0].bbox) return null;
+    const box = candidatas[0].bbox;
+    if (![box.x0, box.y0, box.x1, box.y1].every(Number.isFinite) || box.x1 <= box.x0 || box.y1 <= box.y0) return null;
+    const page = await pdf.getPage(erro.paginaOCR + 1);
+    await worker.setParameters({ tessedit_pageseg_mode: '7' });
+    try {
+      for (const escala of [4.5, 6]) {
+        if (opts.signal && opts.signal.aborted) throw opts.signal.reason;
+        if (opts.onProgress) opts.onProgress('OCR BB Cash: releitura da linha na página ' + (erro.paginaOCR + 1) + '/' + pdf.numPages);
+        const viewport = page.getViewport({ scale: escala });
+        const canvas = document.createElement('canvas');
+        const recorte = document.createElement('canvas');
+        try {
+          canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+          const fator = escala / escalaOriginal;
+          const x = Math.max(0, Math.floor(box.x0 * fator) - 6);
+          const y = Math.max(0, Math.floor(box.y0 * fator) - 4);
+          // A caixa do OCR pode terminar antes do C/D que ele não reconheceu.
+          // Releia a faixa até a margem direita do PDF, incluindo valor e saldo.
+          const largura = canvas.width - x;
+          const altura = Math.min(canvas.height - y, Math.ceil((box.y1 - box.y0) * fator) + 8);
+          if (largura <= 0 || altura <= 0) continue;
+          recorte.width = largura + 40; recorte.height = altura + 40;
+          const ctx = recorte.getContext('2d');
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, recorte.width, recorte.height);
+          ctx.drawImage(canvas, x, y, largura, altura, 20, 20, largura, altura);
+          for (const modo of ['7', '13']) {
+            await worker.setParameters({ tessedit_pageseg_mode: modo });
+            const r = await worker.recognize(recorte);
+            if (opts.signal && opts.signal.aborted) throw opts.signal.reason;
+            const texto = limparLinhaOCR(r.data.text);
+            // Aceite apenas diferenças de espaçamento no prefixo. Dígitos de data,
+            // agência, lote e documento, além do histórico, devem permanecer iguais.
+            const originalPrefixo = erro.linhaOCR.match(/^(.*?\s\d[\d.]*[,.]\d{2})(?=\s|$)/);
+            const valores = valoresComNatureza(texto);
+            if (!originalPrefixo || !valores.length) continue;
+            const prefixo = originalPrefixo[1].replace(/\d[\d.]*[,.]\d{2}$/, '').trim();
+            if (texto.slice(0, valores[0].index).replace(/\s/g, '') !== prefixo.replace(/\s/g, '')) continue;
+            // Mantenha a identificação original; substitua só a leitura monetária.
+            return prefixo + ' ' + texto.slice(valores[0].index).trim();
+          }
+        } finally { canvas.width = canvas.height = recorte.width = recorte.height = 0; }
+      }
+      return null;
+    } finally { await worker.setParameters({ tessedit_pageseg_mode: '6' }); }
   }
 
-  async function parsearPDF_BB_CashOCR(arrayBuffer) {
+  async function parsearPDF_BB_CashOCR(arrayBuffer, opcoes) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
+    if (typeof Tesseract === 'undefined') throw new Error('OCR local nao carregado. Atualize a tela e tente novamente.');
+    const opts = opcoes || {};
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-    const textosPdf = [];
-    for (let p = 1; p <= pdf.numPages; p++) {
-      const page = await pdf.getPage(p);
-      const tc = await page.getTextContent();
-      textosPdf.push((tc.items || []).map(function(it){ return it.str || ''; }).join(' '));
+    let worker;
+    try {
+      worker = await Tesseract.createWorker('por', 1);
+      await worker.setParameters({ tessedit_pageseg_mode: '6' });
+      let ultimoErro;
+      for (const escala of [3.5, 2.6]) {
+        const textos = [];
+        const dadosPaginas = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          if (opts.signal && opts.signal.aborted) throw opts.signal.reason;
+          if (opts.onProgress) opts.onProgress('OCR BB Cash: página ' + i + '/' + pdf.numPages);
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: escala });
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+          const result = await worker.recognize(canvas);
+          textos.push(result.data.text || '');
+          dadosPaginas.push(result.data);
+          canvas.width = canvas.height = 0;
+        }
+        try {
+          const resultado = parsearTexto_BB_CashOCR(textos, { exigirSaldos: true });
+          if (resultado.detectado) return resultado;
+          ultimoErro = null;
+        } catch (erro) {
+          ultimoErro = erro;
+          const tentadas = new Set();
+          while (ultimoErro.linhaOCR && tentadas.size < 8) {
+            const chave = ultimoErro.paginaOCR + ':' + ultimoErro.linhaOCR;
+            if (tentadas.has(chave)) break;
+            tentadas.add(chave);
+            const linha = await relerLinhaPDF(pdf, worker, ultimoErro, dadosPaginas, escala, opts);
+            if (!linha) break;
+            const pagina = ultimoErro.paginaOCR;
+            const originais = textos[pagina].split(/\r?\n/);
+            const indices = originais.map((l, i) => limparLinhaOCR(l) === ultimoErro.linhaOCR ? i : -1).filter(i => i >= 0);
+            if (indices.length !== 1) break;
+            originais[indices[0]] = linha;
+            textos[pagina] = originais.join('\n');
+            try {
+              const resultado = parsearTexto_BB_CashOCR(textos, { exigirSaldos: true });
+              if (resultado.detectado) return resultado;
+              break;
+            } catch (erroReleitura) { ultimoErro = erroReleitura; }
+          }
+        }
+      }
+      if (ultimoErro) throw ultimoErro;
+      return { detectado: false, lancamentos: [] };
+    } finally {
+      if (worker) await worker.terminate();
+      if (pdf.destroy) await pdf.destroy();
     }
-    const textoNativo = textosPdf.join('\n');
-    if (textoNativo.trim().length > 80 && /BB Cash/i.test(textoNativo)) {
-      return parsearTexto_BB_CashOCR(textosPdf);
-    }
-
-    const textosOCR = await extrairTextoPorPaginaComOCR(pdf);
-    return parsearTexto_BB_CashOCR(textosOCR);
   }
 
   const api = {

@@ -28,6 +28,47 @@ function money(n) {
 }
 
 (async () => {
+  // Coluna C.I. vazia não pode consumir a série nem unificar notas diferentes.
+  const pdfjsOriginal = global.pdfjsLib;
+  try {
+    for (const rotate of [0, 90, 270]) {
+      const item = (str, x, y) => ({str, transform: rotate === 90 ? [1,0,0,1,-y,x] : rotate === 270 ? [1,0,0,1,y,-x] : [1,0,0,1,x,y]});
+      const items = [
+        item('Empresa: 0188 - TESTE', 0, 600), item('C.N.P.J.: 00.621.930/0001-62', 0, 580),
+        item('Relação de NFs de Serviços Tomados', 0, 560),
+        item('Emissão',0,540), item('Número',60,540), item('Série',143,540), item('C.I',192,540), item('CNPJ/CPF',234,540)
+      ];
+      const row = (y, serie, ci, cpf, valor) => {
+        items.push(item('01/06/2026',0,y),item('0000077744',60,y));
+        if (serie) items.push(item(serie,143,y));
+        if (ci) items.push(item(ci,192,y));
+        items.push(item(cpf,211,y),item('PRESTADOR',320,y),item(valor,500,y),item('0,00',600,y));
+      };
+      row(520,'3','','00.618.488/0001-15','64,00');
+      row(500,'00003','','00.618.488/0001-15','64,00');
+      row(480,'','001','010.424.609-06','27,56');
+      items.push(item('Total 155,56 0,00 0,00',0,460));
+      global.pdfjsLib = {getDocument: () => ({promise: Promise.resolve({numPages:1,getPage:async()=>({rotate,getTextContent:async()=>({items})})})})};
+      const r = await parsearPDF_IOB_Sage_ServicosTomados(new Uint8Array([1]));
+      assert.equal(r.total_divergente,false, 'total deve conferir com rotação ' + rotate);
+      assert.equal(r.lancamentos.length,3);
+      assert.deepStrictEqual(r.lancamentos.map(l=>l.serieSubserie),['3','00003','']);
+      assert.deepStrictEqual(r.lancamentos.map(l=>l.codigoIntegracao),['','','001']);
+      assert.equal(r.lancamentos[2].tipo_documento_fornecedor,'CPF');
+    }
+  } finally {global.pdfjsLib = pdfjsOriginal;}
+  const federacaoPdf = '/Users/paulocesarpereirajunior/Downloads/SERVIÇOS TOMADOS FEDERAÇÃO (1).pdf';
+  if (fs.existsSync(federacaoPdf)) {
+    const r = await parsearPDF_IOB_Sage_ServicosTomados(fs.readFileSync(federacaoPdf));
+    assert.equal(r.total_divergente,false);
+    assert.equal(money(r.total_debito),6133272.12);
+    assert.equal(r.total_notas_fiscais,822);
+    assert.equal(r.lancamentos.filter(l=>l.tipo_documento_fornecedor==='CPF').length,2);
+    for (const [documento, series] of [['77744',['00003','3']],['216230',['00007','7']],['216287',['00007','7']]]) {
+      assert.deepStrictEqual(r.lancamentos.filter(l=>l.documento===documento).map(l=>l.serieSubserie).sort(),series);
+    }
+    console.log('OK: Federação — 822 lançamentos, CPF preservado e total de R$ 6.133.272,12 conferido.');
+  }
   const textoSeriesDistintas = `
 Empresa: 1273 - DIEGO BOMFIM FREIRE
 C.N.P.J.: 31.162.727/0001-07
@@ -56,8 +97,9 @@ Total 3.960,00 3.960,00 79,20 79,20
 `;
   const resultadoSemRazaoSocial = parsearTexto_IOBSageServicosPrestados(textoPrestadosSemRazaoSocial);
   assert.strictEqual(resultadoSemRazaoSocial.detectado, true);
-  assert.strictEqual(resultadoSemRazaoSocial.total_notas_fiscais, 1, 'NF com valor e sem razao social deve ser preservada; NF zerada permanece fora');
+  assert.strictEqual(resultadoSemRazaoSocial.total_notas_fiscais, 2, 'NF zerada deve constar da conferência, sem gerar lançamento');
   assert.strictEqual(resultadoSemRazaoSocial.total_lancamentos_fiscais, 2);
+  assert.strictEqual(resultadoSemRazaoSocial.total_notas_zeradas, 1);
   assert.strictEqual(money(resultadoSemRazaoSocial.total_credito), 3960);
   assert.strictEqual(money(resultadoSemRazaoSocial.total_debito), 79.20);
   assert.strictEqual(resultadoSemRazaoSocial.total_divergente, false);
@@ -183,7 +225,9 @@ Total 3.960,00 3.960,00 79,20 79,20
   assert.strictEqual(resultadoSintese.cnpj_detectado, '02.986.671/0001-07');
   assert.strictEqual(resultadoSintese.periodo_inicio, '2026-06-01');
   assert.strictEqual(resultadoSintese.periodo_fim, '2026-06-30');
-  assert.strictEqual(resultadoSintese.total_notas_fiscais, 19);
+  assert.strictEqual(resultadoSintese.total_notas_fiscais, 22);
+  assert.strictEqual(resultadoSintese.total_notas_zeradas, 3);
+  assert.deepStrictEqual(resultadoSintese.notas_zeradas_desconsideradas.map(n=>n.documento), ['7685','7689','7692']);
   assert.strictEqual(resultadoSintese.total_lancamentos_fiscais, 20);
   assert.strictEqual(money(resultadoSintese.total_credito), 283994.17);
   assert.strictEqual(money(resultadoSintese.total_debito), 1875.52);
@@ -212,7 +256,10 @@ Total 3.960,00 3.960,00 79,20 79,20
   const resultadoDaxxTotalPass = await parsearPDF_IOB_Sage_ServicosPrestados(new Uint8Array(bufferDaxxTotalPass));
   assert.strictEqual(resultadoDaxxTotalPass.detectado, true);
   assert.strictEqual(resultadoDaxxTotalPass.cnpj_detectado, '60.527.879/0001-56');
-  assert.strictEqual(resultadoDaxxTotalPass.total_notas_fiscais, 64);
+  assert.strictEqual(resultadoDaxxTotalPass.total_notas_fiscais, 69);
+  assert.strictEqual(resultadoDaxxTotalPass.total_notas_zeradas, 5);
+  assert.strictEqual(resultadoDaxxTotalPass.lancamentos.length, 64);
+  assert.deepStrictEqual(resultadoDaxxTotalPass.notas_zeradas_desconsideradas.map(n=>n.documento), ['362','374','388','406','407']);
   assert.strictEqual(money(resultadoDaxxTotalPass.total_credito), 8647374.14);
   assert.strictEqual(resultadoDaxxTotalPass.total_divergente, false);
   assert.ok(resultadoDaxxTotalPass.lancamentos.some(l => l.documento === '378' && money(l.valor) === 22328.17), 'NF 378 da TOTAL PASS deve ser preservada');

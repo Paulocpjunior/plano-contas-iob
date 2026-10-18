@@ -30,6 +30,8 @@ function acaoDaRota(method, url, body = {}) {
   if (path.startsWith('/api/gestao-acessos/')) return null; // Rotas exigem admin do CCI.
   if (/^\/api\/users\/[^/]+\/(permissoes|promote|demote)$/.test(path)) return null;
   if (['/api/auth/log', '/api/ajuda-cci/perguntar', '/api/validar'].includes(path)) return null;
+  // A CiA apenas consulta a sessão; a rota valida a carteira da empresa.
+  if (verbo === 'POST' && path === '/api/cia/perguntar') return null;
   if (verbo === 'POST' && /^\/api\/empresas\/[^/]+\/ativar$/.test(path)) return 'editar';
   // Geração do extrato sem envio ou persistência.
   if (verbo === 'POST' && path === '/api/reinf/dividendos/extrato') return body.enviar === true ? 'emitir' : null;

@@ -102,7 +102,7 @@ assert.throws(function() {
 
 const indexSource = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 assert(
-  indexSource.includes("if (pdfEscaneado && ['237', '341', '184'].includes(normalizarCodigoBancoLayout(bancoResolvido))) throw e;"),
+  indexSource.includes("if (pdfEscaneado && ['001', '237', '341', '184'].includes(normalizarCodigoBancoLayout(bancoResolvido))) throw e;"),
   'Bradesco escaneado nao pode cair no leitor generico depois de uma falha de integridade.'
 );
 assert(
@@ -111,3 +111,49 @@ assert(
 );
 
 console.log('OK: Bradesco Net Empresa escaneado valida paginas, contas, totais e sequencia de saldos.');
+
+const evidenciaLocal = require('./fixtures/bank-ocr/bradesco-mensal.json');
+const local = parser.parsearPaginaOCRLocal(evidenciaLocal);
+assert.equal(local.lancamentos.length, 9);
+assert.equal(local.total_credito, 5403.47);
+assert.equal(local.total_debito, 5576.64);
+assert.equal(local.contas[0].saldoInicial, 255.28);
+assert.equal(local.contas[0].saldoFinal, 82.11);
+assert.equal(local.periodo_inicio, '2026-09-01');
+assert(local.lancamentos.some(l => l.valor === -23.49), 'Debito sem sinal no OCR deve usar a coluna');
+assert(local.lancamentos.some(l => l.valor === -5371.60), 'Capital de giro e debito pela coluna');
+for (const alterar of [
+  d => { d.lines.find(l => l.text.startsWith('Total ')).words.find(w => w.text === '5.403,47').text = '5.403,48'; },
+  d => { d.lines = d.lines.filter(l => !l.text.startsWith('Total ')); },
+  d => { const l = d.lines.find(l => l.text.includes('23,49')); l.words.find(w => w.text === '23,49').text = '23,48'; },
+  d => { const l = d.lines.find(l => l.text.includes('23,49')); l.words.find(w => w.text === '23,49').bbox = { x0: 1100, x1: 1200 }; },
+  d => { d.lines = d.lines.filter(l => !l.text.includes('23,49')); },
+  d => { const l = d.lines.find(l => l.text.includes('23,49')); l.words.find(w => w.text === '508,74').text = '308,74'; }
+]) {
+  const d = JSON.parse(JSON.stringify(evidenciaLocal)); alterar(d);
+  assert.throws(() => parser.parsearPaginaOCRLocal(d), /Conferencia Bradesco/, 'OCR incompleto/divergente nao pode liberar importacao');
+}
+assert.equal(parser.parsearPaginaOCRLocal({ text: 'outro banco', lines: [] }), null);
+console.log('OK: Bradesco local por colunas, sem IA, 9 movimentos e saldos/totais conferidos.');
+
+(async function validarFluxoLocalSemIA() {
+  let leituras = 0, encerramentos = 0, pdfsLiberados = 0;
+  global.pdfjsLib = { getDocument: () => ({ promise: Promise.resolve({ numPages: 1,
+    getPage: async () => ({ getViewport: () => ({ width: 10, height: 10 }), render: () => ({ promise: Promise.resolve() }) }),
+    destroy: async () => { pdfsLiberados++; }
+  }) }) };
+  global.document = { createElement: () => ({ getContext: () => ({ fillRect() {} }), toDataURL: () => 'data:image/png;base64,fixture' }) };
+  global.API = { callGemini: () => { throw new Error('Nao deve chamar IA para modelo local'); } };
+  global.Tesseract = { createWorker: async () => ({ setParameters: async () => {}, terminate: async () => { encerramentos++; },
+    recognize: async () => { leituras++; const d = JSON.parse(JSON.stringify(evidenciaLocal));
+      if (leituras === 1) d.lines.find(l => l.text.includes('23,49')).words.find(w => w.text === '23,49').text = '123,49';
+      return { data: d };
+    }
+  }) };
+  const r = await require('../parser-bradesco-netempresa-ocr').parsearPDF_Bradesco_NetEmpresaOCR(new ArrayBuffer(0));
+  assert.equal(r.lancamentos.length, 9);
+  assert.equal(leituras, 2, 'Saldo divergente exige nova leitura, sem corrigir valor por diferenca');
+  assert.equal(encerramentos, 1);
+  assert.equal(pdfsLiberados, 1);
+  console.log('OK: fluxo PDF Bradesco repete OCR, libera recursos e nao chama IA.');
+})().catch(e => { console.error(e); process.exitCode = 1; });

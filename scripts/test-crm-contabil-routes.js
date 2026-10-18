@@ -4,39 +4,225 @@ const { registrar } = require('../crm-contabil-routes');
 const { criarPermissoes, acaoDaRota } = require('../permissoes-cci');
 const { versaoCarteira } = require('../crm-contabil');
 const cnpj = '12345678901234', outro = '99999999999999';
-function ambiente(checklistFonte = null, onRead = null) {
+function ambiente(checklistFonte = null, onRead = null, extra = {}) {
   const routes={}, dados=new Map(); let auto=0, writes=0, checklistCalls=0, companyQueries=0;
   const empresa={razao_social:'Fixture',codigo_empresa:'0012',owner_uid:'legado',carteira_uids:['colab','indice-velho'],responsaveis:[{uid:'colab',papel:'principal'}]};
   dados.set('empresas/'+cnpj,empresa); dados.set('empresas/'+outro,{razao_social:'Outra',carteira_uids:[],responsaveis:[]});
   dados.set('users/admin',{is_admin:true,email:'admin@fixture.test'});
   for(const uid of ['colab','legado','indice-velho','apoio']) dados.set('users/'+uid,{email:uid+'@fixture.test',permissoesCci:criarPermissoes('operacao')});
-  const snap=(path)=>({id:path.split('/').pop(),exists:dados.has(path),data:()=>structuredClone(dados.get(path))});
-  const ref=path=>({path,id:path.split('/').pop(),get:async()=>snap(path),collection:n=>collection(path+'/'+n)});
+  const snap=(path)=>({ref:ref(path),id:path.split('/').pop(),exists:dados.has(path),data:()=>structuredClone(dados.get(path))});
+  const ref=path=>({path,id:path.split('/').pop(),get:async()=>snap(path),set:async(d,o)=>{dados.set(path,o?.merge?{...dados.get(path),...d}:d);},collection:n=>collection(path+'/'+n)});
   function collection(path, filters=[],order='__name__',after=null,limit=Infinity) {
     return {doc:id=>ref(path+'/'+(id||'auto'+(++auto))),
       where:(key,op,val)=>collection(path,[...filters,[key,op,val]],order,after,limit),
       orderBy:key=>collection(path,filters,key,after,limit),startAfter:v=>collection(path,filters,order,v,limit),limit:n=>collection(path,filters,order,after,n),
       get:async()=>{if(onRead)onRead(path,dados);if(['empresas','crm_empresas'].includes(path))companyQueries++;return ({docs:[...dados.keys()].filter(k=>k.startsWith(path+'/') && k.slice(path.length+1).indexOf('/')<0)
-        .map(snap).filter(d=>filters.every(([key,op,val])=>op==='array-contains' ? d.data()[key]?.includes(val) : d.data()[key]===val))
+        .map(snap).filter(d=>filters.every(([key,op,val])=>op==='array-contains' ? d.data()[key]?.includes(val) : op==='<='?d.data()[key]<=val:d.data()[key]===val))
         .sort((a,b)=>order==='__name__'?a.id.localeCompare(b.id):a.data()[order]-b.data()[order])
         .filter(d=>after===null || (order==='__name__'?d.id>after:d.data()[order]>after)).slice(0,limit)});}};
   }
-  const db={collection,runTransaction:async fn=>{
+  const db={collection,batch:()=>{const writes=[];return {set:(r,d,o)=>writes.push(()=>dados.set(r.path,o?.merge?{...dados.get(r.path),...d}:d)),create:(r,d)=>writes.push(()=>{assert(!dados.has(r.path));dados.set(r.path,d);}),commit:async()=>writes.forEach(f=>f())};},collectionGroup:name=>({limit:max=>({get:async()=>{if(onRead)onRead('group/'+name,dados);return {docs:[...dados.keys()].filter(k=>k.split('/').at(-2)===name).slice(0,max).map(snap)};}})}),runTransaction:async fn=>{
     const pending=[];
     const tx={get:async r=>{assert.equal(pending.length,0,'leituras antes das gravações');return r.path?snap(r.path):r.get();},getAll:async(...refs)=>{assert.equal(pending.length,0);return refs.map(r=>snap(r.path));},
       create:(r,d)=>{assert(!dados.has(r.path),'create protege duplicidade');pending.push([r.path,d]);},set:(r,d,opts)=>pending.push([r.path,opts?.merge?{...dados.get(r.path),...d}:d])};
     const result=await fn(tx); pending.forEach(([p,d])=>{dados.set(p,structuredClone(d));writes++;});return result;
   }};
   const app=Object.fromEntries(['get','post','put','patch'].map(m=>[m,(p,fn)=>{routes[m.toUpperCase()+' '+p]=fn;}]));
-  registrar(app,{db,domain:'@fixture.test',agora:()=> '2026-10-13T18:00:00Z',checklist:async()=>{checklistCalls++;return checklistFonte ? await checklistFonte(dados) : {completo:false};}});
+  registrar(app,{...extra,db,departamento:async()=>new Set(['admin','colab','legado','indice-velho','apoio'].filter(id=>dados.get('users/'+id)?.foraDepartamento!==true).map(id=>id+'@fixture.test')),domain:'@fixture.test',agora:()=> '2026-10-13T18:00:00Z',checklist:async()=>{checklistCalls++;return checklistFonte ? await checklistFonte(dados) : {completo:false};}});
   async function call(method,path,body={},uid='colab',params={},query={}) {
-    const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.statusCode=n;return this;},json(d){this.body=d;return this;}};
+    const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.statusCode=n;return this;},json(d){this.body=d;return this;},send(d){this.body=d;return this;}};
     await routes[method+' '+path]({params:{cnpj,...params},query,body,user:{uid,is_admin:true}},res); // is_admin forjado deve ser ignorado.
     return res;
   }
-  return {call,dados,writes:()=>writes,checklistCalls:()=>checklistCalls,companyQueries:()=>companyQueries};
+  return {call,dados,db,routes,writes:()=>writes,checklistCalls:()=>checklistCalls,companyQueries:()=>companyQueries};
 }
-(async()=>{
+module.exports={ambiente};
+if(require.main===module)(async()=>{
+  {
+    let enviados=0,resultadoEnvio='aceito';
+    const n=ambiente(null,null,{entrega:{disponibilidade:()=>({email:true,teams:false}),enviar:async()=>{enviados++;return {estado:resultadoEnvio,detalhe:'Fixture'};}}});
+    const path='/api/crm/empresas/:cnpj/notificacoes/aplicacoes';
+    await n.call('PUT',path+'/:id',{revisao:0,modelo:'{{empresa}} {{competencia}}',destinatarios:['um@example.com'],motivo:'Teste'},'admin',{id:'F01'});
+    const b={evento:'manual',competencia:'2026-10',chave:'envio-fixture-00000001',revisao:1};
+    await n.call('POST',path+'/:id/previa',b,'admin',{id:'F01'});
+    const send={chave:b.chave,confirmado:true,destino:'um@example.com'};
+    assert.equal((await n.call('POST',path+'/:id/enviar',send,'colab',{id:'F01'})).statusCode,403);
+    assert.equal((await n.call('POST',path+'/:id/enviar',send,'admin',{id:'F01',cnpj:outro})).statusCode,404);
+    assert.equal((await n.call('POST',path+'/:id/enviar',{...send,destino:'intruso@example.com'},'admin',{id:'F01'})).statusCode,400);
+    assert.equal((await n.call('POST',path+'/:id/enviar',send,'admin',{id:'F01'})).body.resultados[0].estado,'aceito');assert.equal(enviados,1);
+    await n.call('POST',path+'/:id/enviar',send,'admin',{id:'F01'});assert.equal(enviados,1,'mesma operação não repete');
+    const b2={...b,chave:'envio-fixture-00000002'};await n.call('POST',path+'/:id/previa',b2,'admin',{id:'F01'});
+    await n.call('POST',path+'/:id/enviar',{...send,chave:b2.chave},'admin',{id:'F01'});assert.equal(enviados,1,'outra prévia idêntica não duplica');
+    await n.call('PUT',path+'/:id',{revisao:1,modelo:'Novo {{empresa}}',destinatarios:['outro@example.com'],motivo:'Troca'},'admin',{id:'F01'});
+    assert.equal((await n.call('POST',path+'/:id/enviar',send,'admin',{id:'F01'})).statusCode,409);
+    resultadoEnvio='recusado';const rb={...b,revisao:2,chave:'envio-fixture-00000003'};await n.call('POST',path+'/:id/previa',rb,'admin',{id:'F01'});
+    const rs={...send,chave:rb.chave,destino:'outro@example.com'};
+    await n.call('POST',path+'/:id/enviar',rs,'admin',{id:'F01'});assert.equal(enviados,2);
+    await n.call('POST',path+'/:id/enviar',rs,'admin',{id:'F01'});assert.equal(enviados,2,'recusa não repete sem comando');
+    resultadoEnvio='incerto';await n.call('POST',path+'/:id/enviar',{...rs,repetir:true,tentativa:1},'admin',{id:'F01'});assert.equal(enviados,3);
+    await n.call('POST',path+'/:id/enviar',{...rs,repetir:true,tentativa:2},'admin',{id:'F01'});assert.equal(enviados,3,'incerto nunca repete');
+
+    const pp='/api/crm/empresas/:cnpj/automacoes/:id';
+    await n.call('POST',pp+'/previa',{chave:'pdf-fixture-00000001',revisao:0,evento:'manual',categoria:'DITR',exercicio:'2026',link:'https://example.com/ditr'},'admin',{id:'A07'});
+    assert.equal((await n.call('POST',pp+'/pdf',{chave:'pdf-fixture-00000001'},'colab',{id:'A07'})).statusCode,403);
+    const pdf=await n.call('POST',pp+'/pdf',{chave:'pdf-fixture-00000001'},'admin',{id:'A07'});assert.equal(pdf.statusCode,200);assert.equal(pdf.headers['Content-Type'],'application/pdf');assert(pdf.body.toString().startsWith('%PDF-'));
+  }
+  {
+    const n=ambiente(),p='/api/crm/empresas/:cnpj/notificacoes/aplicacoes';
+    assert.equal((await n.call('GET',p,{},'colab')).statusCode,403);
+    assert.equal((await n.call('GET',p,{},'admin',{cnpj:'00000000000000'})).statusCode,403);
+    assert.equal((await n.call('GET',p,{},'admin')).body.regras.length,3);
+    const cfg={revisao:0,modelo:'Extratos {{empresa}} {{competencia}}',canal:'email',destinatarios:['um@example.com'],motivo:'Teste por empresa'};
+    assert.equal((await n.call('PUT',p+'/:id',cfg,'admin',{id:'F01'})).statusCode,200);
+    assert.equal((await n.call('PUT',p+'/:id',cfg,'admin',{id:'A01'})).statusCode,404);
+    assert.equal((await n.call('PUT','/api/crm/automacoes/:id',cfg,'admin',{id:'F01'})).statusCode,404);
+    const outra=await n.call('GET',p,{},'admin',{cnpj:outro});assert.equal(outra.body.regras[0].config.revisao,0);assert.deepEqual(outra.body.regras[0].config.destinatarios,[]);
+    assert.equal((await n.call('GET',p+'/:id/historico',{},'admin',{cnpj:outro,id:'F01'})).body.itens.length,0);
+    const b={evento:'manual',competencia:'2026-10',chave:'financeira-fixture-00001',revisao:1};
+    const preview=await n.call('POST',p+'/:id/previa',b,'admin',{id:'F01'});assert.equal(preview.statusCode,200);assert.equal(preview.body.previa.cnpj,cnpj);assert.deepEqual(preview.body.previa.destinatarios,['um@example.com']);assert.equal(preview.body.previa.envio_realizado,false);
+    assert.equal((await n.call('POST',p+'/:id/previa',b,'admin',{cnpj:outro,id:'F01'})).statusCode,409);
+    assert.equal((await n.call('PUT',p+'/:id',{...cfg,revisao:1},'colab',{id:'F01'})).statusCode,403);
+    assert.equal((await n.call('GET',p+'/:id/historico',{},'colab',{id:'F01'})).statusCode,403);
+    const rev=ambiente(null,(path,d)=>{if(path.endsWith('crm_notificacoes/aplicacoes_F01/historico'))d.set('users/admin',{is_admin:false});});
+    assert.equal((await rev.call('GET',p+'/:id/historico',{},'admin',{id:'F01'})).statusCode,403);
+  }
+
+  {
+  const auto=ambiente();
+  const confPath='/api/crm/automacoes/:id', previewPath='/api/crm/empresas/:cnpj/automacoes/:id/previa';
+  assert.equal((await auto.call('GET','/api/crm/automacoes',{},'colab')).statusCode,403);
+  assert.equal((await auto.call('GET','/api/crm/automacoes',{},'admin')).body.regras.length,8);
+  const payload={revisao:0,modelo:'DITR {{empresa}} {{link}}',destino:'https://teams.microsoft.com/l/chat/fixture',motivo:'Conferência'};
+  assert.equal((await auto.call('PUT',confPath,payload,'colab',{id:'A06'})).statusCode,403);
+  assert.equal((await auto.call('PUT',confPath,payload,'admin',{id:'A06'})).statusCode,200);
+  assert.equal((await auto.call('PUT',confPath,payload,'admin',{id:'A06'})).statusCode,409);
+  const entrada={revisao:1,chave:'fixture-operation-0001',evento:'manual',exercicio:'2026',categoria:'DITR',link:'https://example.com/ditr.pdf'};
+  const first=await auto.call('POST',previewPath,entrada,'admin',{id:'A06'});assert.equal(first.statusCode,200);assert.equal(first.body.previa.envio_realizado,false);
+  const writes=auto.writes();assert.equal((await auto.call('POST',previewPath,entrada,'admin',{id:'A06'})).statusCode,200);assert.equal(auto.writes(),writes);
+  assert.equal((await auto.call('POST',previewPath,{...entrada,link:'https://example.com/other.pdf'},'admin',{id:'A06'})).statusCode,409);
+  assert.equal((await auto.call('POST',previewPath,entrada,'colab',{id:'A06'})).statusCode,403);
+  assert.equal((await auto.call('POST',previewPath,{...entrada,categoria:'DEFIS'},'admin',{id:'A06'})).statusCode,400);
+  assert.equal((await auto.call('GET','/api/crm/automacoes/:id/historico',{},'colab',{id:'A06'})).statusCode,403);
+  assert.equal((await auto.call('GET','/api/crm/automacoes/:id/historico',{},'admin',{id:'A06'})).body.itens.length,2);
+  auto.dados.set('users/admin',{is_admin:false});
+  assert.equal((await auto.call('PUT',confPath,{...payload,revisao:1},'admin',{id:'A06'})).statusCode,403);
+  }
+
+  const dr=ambiente(), drPath='/api/crm/empresas/:cnpj/documentos-referencias';
+  const drBody={revisao:0,titulo:'Documento teste',url:'https://example.com/teste.pdf',categoria:'DEFIS',periodo:'2026',motivo:'Conferido'};
+  const criado=await dr.call('POST',drPath,drBody,'admin');assert.equal(criado.statusCode,201);
+  const drId=criado.body.documento.id;
+  assert.equal((await dr.call('GET',drPath,{},'colab')).body.documentos.length,1);
+  assert.equal((await dr.call('GET',drPath,{},'indice-velho')).statusCode,403);
+  assert.equal((await dr.call('PUT',drPath+'/:id',{...drBody,revisao:1},'admin',{id:drId,cnpj:outro})).statusCode,404);
+  assert.equal((await dr.call('PUT',drPath+'/:id',{...drBody,revisao:0},'admin',{id:drId})).statusCode,409);
+  assert.equal((await dr.call('PUT',drPath+'/:id',{...drBody,revisao:1,titulo:'Nova versão'},'admin',{id:drId})).statusCode,200);
+  const drHist=await dr.call('GET',drPath+'/:id/historico',{},'colab',{id:drId});assert.equal(drHist.body.historico.length,2);assert.equal(drHist.body.historico[0].titulo,'Documento teste');
+  for(let i=0;i<55;i++)dr.dados.set('empresas/'+cnpj+'/crm_documentos/ref_'+String(i).padStart(3,'0'),{...drBody,revisao:1});
+  const paginaRefs=await dr.call('GET',drPath,{},'colab');assert.equal(paginaRefs.body.documentos.length,50);assert(paginaRefs.body.proximo);
+  const restoRefs=await dr.call('GET',drPath,{},'colab',{}, {cursor:paginaRefs.body.proximo});assert.equal(restoRefs.body.documentos.length,6);
+  dr.dados.get('empresas/'+cnpj).carteira_uids=[];dr.dados.get('empresas/'+cnpj).responsaveis=[];
+  assert.equal((await dr.call('GET',drPath,{},'colab')).statusCode,403);
+  assert.equal((await dr.call('GET',drPath+'/:id/historico',{},'colab',{id:drId})).statusCode,403);
+  assert.equal((await dr.call('POST',drPath,drBody,'colab')).statusCode,403);
+  const crypto=require('crypto'), hash=b=>crypto.createHash('sha256').update(b).digest('hex');
+  const binary=Buffer.from('%PDF-1.7 fixture'),url='https://www.jotform.com/uploads/fixture/arquivo.pdf',bucket='privado-fixture';
+  let downloads=0, mutate=()=>{};
+  const docs=ambiente(null,null,{env:{CCI_CRM_DOCUMENTS_BUCKET:bucket},storage:{bucket:n=>{assert.equal(n,bucket);return {file:(path,opts)=>{assert.equal(path,'jotform/'+hash(binary));assert.equal(opts.generation,'123');return {download:async()=>{downloads++;mutate();return [binary];}};}};}}});
+  const route='/api/crm/empresas/:cnpj/documentos/:registro/:coluna/:indice',params={registro:'origem_1',coluna:'0',indice:'0'};
+  docs.dados.set('crm_registros/origem_1',{cnpj,fonte:'fixture',campos:[{nome:'Arquivo',valor:url}]});
+  const meta={estado:'copiado',sha256:hash(binary),bytes:binary.length,bucket,path:'jotform/'+hash(binary),generation:'123'};
+  docs.dados.set('crm_documentos_migrados/'+hash(url),meta);
+  let response=await docs.call('GET',route,{},'colab',params);
+  assert.equal(response.statusCode,200);assert.deepEqual(response.body,binary);assert.equal(response.headers['Cache-Control'],'private, no-store');assert.equal(response.headers['X-Content-Type-Options'],'nosniff');
+  const previous=downloads;
+  assert.equal((await docs.call('GET',route,{},'indice-velho',params)).statusCode,403);assert.equal(downloads,previous);
+  assert.equal((await docs.call('GET',route,{},'admin',{...params,cnpj:outro})).statusCode,404);assert.equal(downloads,previous);
+  assert.equal((await docs.call('GET',route,{},'colab',{...params,registro:'../other'})).statusCode,400);
+  docs.dados.set('crm_documentos_migrados/'+hash(url),{...meta,bytes:binary.length+1});
+  assert.equal((await docs.call('GET',route,{},'colab',params)).statusCode,409);
+  docs.dados.set('crm_documentos_migrados/'+hash(url),meta);
+  mutate=()=>docs.dados.set('crm_registros/origem_1',{cnpj:outro,campos:[{nome:'Arquivo',valor:url}]});
+  assert.equal((await docs.call('GET',route,{},'colab',params)).statusCode,409);
+  docs.dados.set('crm_registros/origem_1',{cnpj,campos:[{nome:'Arquivo',valor:url}]});
+  mutate=()=>docs.dados.set('empresas/'+cnpj,{responsaveis:[],carteira_uids:[]});
+  assert.equal((await docs.call('GET',route,{},'colab',params)).statusCode,403);
+
+  const sane=ambiente(), identidade='/api/crm/base/registros/:id/identificacao', destino='11222333000181';
+  sane.dados.set('crm_empresas/'+destino,{razao_social:'Destino conferido',responsaveis:[]});
+  const bruto={cnpj:'inválido',identidade_valida:false,revisao:1,fonte:'origem',origem_sha256:'preservar',campos:[{nome:'CNPJ',valor:'inválido',original:'inválido',protegido:true}]};
+  sane.dados.set('crm_registros/pendente_1',bruto);
+  const correcao={cnpj:destino,razao_social:'Destino conferido',revisao:1,motivo:'Identidade conferida pelo administrador',confirmado:true};
+  assert.equal((await sane.call('PUT',identidade,correcao,'colab',{id:'pendente_1'})).statusCode,403);
+  assert.equal((await sane.call('PUT',identidade,{...correcao,confirmado:false},'admin',{id:'pendente_1'})).statusCode,400);
+  assert.equal((await sane.call('PUT',identidade,{...correcao,razao_social:'Outra'},'admin',{id:'pendente_1'})).statusCode,409);
+  assert.equal((await sane.call('PUT',identidade,{...correcao,cnpj:'11222333000180'},'admin',{id:'pendente_1'})).statusCode,400);
+  assert.equal(sane.writes(),0);
+  assert.equal((await sane.call('PUT',identidade,correcao,'admin',{id:'pendente_1'})).statusCode,200);
+  const corrigido=sane.dados.get('crm_registros/pendente_1');
+  assert.equal(corrigido.cnpj,destino);assert.equal(corrigido.cnpj_origem,'inválido');assert.equal(corrigido.revisao,2);
+  assert.deepStrictEqual(corrigido.campos,bruto.campos);assert.equal(corrigido.origem_sha256,'preservar');
+  assert.deepStrictEqual(sane.dados.get('crm_empresas/'+destino).responsaveis,[],'correção não distribui acesso');
+  assert.equal([...sane.dados.keys()].filter(k=>k.startsWith('crm_registros/pendente_1/historico/')).length,1);
+  assert.equal([...sane.dados.keys()].filter(k=>k.startsWith('crm_empresas/'+destino+'/auditoria_contabil/')).length,1);
+  assert.equal((await sane.call('PUT',identidade,correcao,'admin',{id:'pendente_1'})).statusCode,409);
+  assert.equal((await sane.call('GET','/api/crm/base/pendencias',{},'admin')).body.registros.length,0);
+  assert.equal((await sane.call('GET','/api/crm/empresas/:cnpj/parametros',{},'colab',{cnpj:destino})).statusCode,403);
+  const revogadoSaneamento=ambiente(null,(path,dados)=>{if(path==='crm_registros')dados.set('users/admin',{is_admin:false});});
+  assert.equal((await revogadoSaneamento.call('GET','/api/crm/base/pendencias',{},'admin')).statusCode,403);
+  const top=ambiente();
+  const tp='/api/crm/topologia', tg=tp+'/gestao', tw=tp+'/empresas/:cnpj/equipe';
+  assert.equal((await top.call('GET',tp)).statusCode,403);
+  const cfg={revisao:0,equipes:[{nome:'Equipe A',lider_uid:'legado',membros:['colab','apoio']}],motivo:'Delegação confirmada'};
+  assert.equal((await top.call('PUT',tg,cfg,'colab')).statusCode,403);
+  assert.equal((await top.call('PUT',tg,cfg,'admin')).statusCode,200);
+  assert.equal((await top.call('PUT',tg,cfg,'admin')).statusCode,409);
+  top.dados.get('empresas/'+cnpj).regime_tributario_nome='IMUNE';top.dados.get('empresas/'+cnpj).crm_contrato={inicio:'2026-01-01',fim:null,situacao:'ativa',revisao:1};
+  top.dados.set('empresas/'+cnpj+'/crm_controles/t1',{titulo:'Teste',status:'pendente',prazo:'2026-10-01',executor_uid:'colab'});
+  top.dados.set('empresas/'+outro+'/crm_controles/privado',{titulo:'Fora do escopo',status:'pendente'});
+  const vis=await top.call('GET',tp,{},'legado');
+  assert.equal(vis.statusCode,200);assert.equal(vis.body.empresas.length,1);assert.equal(vis.body.pessoas.length,2);
+  assert.equal(vis.body.pessoas.find(p=>p.uid==='colab').atrasadas,1);
+  assert.deepEqual(vis.body.pessoas.find(p=>p.uid==='colab').regimes,['IMUNE']);assert.equal(vis.body.empresas[0].contrato.inicio,'2026-01-01');
+  assert.equal(vis.body.pessoas.find(p=>p.uid==='apoio').empresas,0);
+  assert.equal((await top.call('GET','/api/crm/contexto',{},'legado')).body.topologia,true);
+  const transfer={principal_uid:'apoio',apoio_uids:[],motivo:'Balanceamento',revisao_carteira:versaoCarteira(top.dados.get('empresas/'+cnpj))};
+  assert.equal((await top.call('PUT',tw,{...transfer,principal_uid:'admin'},'legado')).statusCode,403);
+  assert.equal((await top.call('PUT',tw,transfer,'legado',{cnpj:outro})).statusCode,403);
+  assert.equal((await top.call('PUT',tw,transfer,'legado')).statusCode,200);
+  assert.equal((await top.call('PUT',tw,transfer,'legado')).statusCode,409);
+  assert.equal(top.dados.get('empresas/'+cnpj).responsaveis[0].uid,'apoio');
+  const aposTopo=(await top.call('GET',tp,{},'admin')).body;
+  assert.equal(aposTopo.pessoas.find(p=>p.uid==='colab').empresas,0);
+  assert.equal(aposTopo.pessoas.find(p=>p.uid==='colab').execucao,1,'executor preservado continua contabilizado após transferência');
+  assert.equal(top.dados.get('empresas/'+cnpj+'/crm_controles/t1').executor_uid,'colab','transferência não redistribui demandas');
+  assert.equal((await top.call('GET','/api/crm/empresas/:cnpj/controles',{},'colab')).statusCode,403,'revogação da carteira efetiva');
+  assert.equal((await top.call('PUT',tg,{revisao:1,equipes:[],motivo:'Revogação'},'admin')).statusCode,200);
+  assert.equal((await top.call('GET',tp,{},'legado')).statusCode,403);
+  assert.equal((await top.call('PUT',tw,{...transfer,revisao_carteira:versaoCarteira(top.dados.get('empresas/'+cnpj))},'legado')).statusCode,403);
+  const revtop=ambiente(null,(path,dados)=>{if(path==='group/crm_controles')dados.set('crm_topologia/gestao',{revisao:2,equipes:[]});});
+  revtop.dados.set('crm_topologia/gestao',{revisao:1,equipes:cfg.equipes});
+  assert.equal((await revtop.call('GET',tp,{},'legado')).statusCode,403,'revogação durante leitura');
+  const escopo=ambiente();
+  escopo.dados.set('users/fiscal',{email:'fiscal@fixture.test',is_admin:true});
+  escopo.dados.get('users/apoio').foraDepartamento=true;
+  assert(!(await escopo.call('GET',tp,{},'admin')).body.pessoas.some(p=>['fiscal','apoio'].includes(p.uid)));
+  assert(!(await escopo.call('GET','/api/crm/usuarios',{},'admin')).body.usuarios.some(p=>['fiscal','apoio'].includes(p.uid)));
+  assert.equal((await escopo.call('PUT',tw,{...transfer,principal_uid:'apoio',revisao_carteira:versaoCarteira(escopo.dados.get('empresas/'+cnpj))},'admin')).statusCode,403);
+  assert.equal((await escopo.call('PUT',tg,cfg,'admin')).statusCode,400);
+  assert.equal(escopo.writes(),0,'não altera carteiras existentes ao filtrar departamento');
+  escopo.dados.set('users/duplicado',{email:'colab@fixture.test'});
+  const ambiguo=(await escopo.call('GET',tp,{},'admin')).body;
+  assert.equal(ambiguo.identidades_pendentes,1);assert(!ambiguo.pessoas.some(p=>['colab','duplicado'].includes(p.uid)));
+  assert.equal((await escopo.call('PUT',tw,{...transfer,principal_uid:'colab',revisao_carteira:versaoCarteira(escopo.dados.get('empresas/'+cnpj))},'admin')).statusCode,403);
+  const {carregarDepartamento}=require('../crm-contabil-routes');
+  const request={headers:{authorization:'Bearer fixture'}};
+  const central={ok:true,usuarios:[{email:'colab@fixture.test',departamentos:['contabil']},{email:'admin@fixture.test',role:'admin',departamentos:['fiscal']}],resumo:{total:2}};
+  const fetcher=async()=>({ok:true,json:async()=>central});
+  assert.deepStrictEqual([...await carregarDepartamento(request,{CFI_URL:'https://fixture.test'},fetcher)],['colab@fixture.test']);
+  central.resumo.total=3;
+  await assert.rejects(()=>carregarDepartamento(request,{CFI_URL:'https://fixture.test'},fetcher),e=>e.status===503);
+  await assert.rejects(()=>carregarDepartamento(request,{CFI_URL:'https://fixture.test'},async()=>{throw Error('offline')}),e=>e.status===503);
   const ck=require('../crm-checklist');
   const quest=Object.fromEntries(Object.values(ck.CAMPOS).map(([id,text])=>[id,{text}]));
   const fonte={completo:true,assinatura:'a'.repeat(64),questions:quest,rows:[{id:'123',form_id:ck.FORM_ID,status:'ACTIVE',answers:{
@@ -149,6 +335,25 @@ function ambiente(checklistFonte = null, onRead = null) {
   p=await planejamentoEnv.call('POST',base+'/recorrencias/previa',periodo,'admin');assert.equal(p.body.novos.length,0);assert.equal(p.body.existentes,2);
   p=await planejamentoEnv.call('GET','/api/crm/agenda',{},'legado',{}, {de:'2026-01-01',ate:'2026-03-31'});assert.equal(p.body.total,0);
   p=await planejamentoEnv.call('GET','/api/crm/agenda',{},'colab',{}, {de:'2026-01-01',ate:'2026-03-31'});assert.equal(p.body.total,2);assert(p.body.completo);
+  const agendaQuery={de:'2026-01-01',ate:'2026-03-31'};
+  let leiturasPorEmpresa=0;
+  const rapida=ambiente(null,path=>{if(path.startsWith('empresas/')&&path.endsWith('/crm_controles'))leiturasPorEmpresa++;});
+  for(let i=0;i<965;i++)rapida.dados.set('empresas/'+String(i).padStart(14,'0'),{responsaveis:[]});
+  rapida.dados.set('empresas/'+cnpj+'/crm_controles/valida',{prazo:'2026-01-20',cnpj:outro});
+  rapida.dados.set('empresas/'+outro+'/crm_controles/privada',{prazo:'2026-01-20'});
+  rapida.dados.set('outra/'+cnpj+'/crm_controles/intrusa',{prazo:'2026-01-20'});
+  let agendaRapida=await rapida.call('GET','/api/crm/agenda',{},'colab',{},agendaQuery);
+  assert.equal(agendaRapida.body.total,1);assert.equal(agendaRapida.body.itens[0].cnpj,cnpj);
+  assert.equal(leiturasPorEmpresa,0,'agenda não consulta cada empresa');
+  assert.equal(rapida.writes(),0);
+  for(const revogar of ['carteira','usuario']){
+    const rev=ambiente(null,(path,dados)=>{if(path==='group/crm_controles'){if(revogar==='carteira')dados.get('empresas/'+cnpj).responsaveis=[];else dados.delete('users/colab');}});
+    rev.dados.set('empresas/'+cnpj+'/crm_controles/a',{prazo:'2026-01-20'});
+    const resposta=await rev.call('GET','/api/crm/agenda',{},'colab',{},agendaQuery);
+    if(revogar==='usuario')assert.equal(resposta.statusCode,403);else assert.equal(resposta.body.total,0);
+  }
+  const grande=ambiente();for(let i=0;i<20001;i++)grande.dados.set('empresas/'+cnpj+'/crm_controles/'+i,{prazo:'2026-01-20'});
+  assert.equal((await grande.call('GET','/api/crm/agenda',{},'admin',{},agendaQuery)).statusCode,409,'não apresenta totais incompletos');
   assert.equal((await planejamentoEnv.call('GET','/api/crm/carga',{},'colab',{}, {inicio:'2026-10-12'})).statusCode,403);
   p=await planejamentoEnv.call('PUT','/api/crm/capacidades/:uid',{revisao:0,horas_semanais:40,ausencias:[]},'admin',{uid:'colab'});assert.equal(p.statusCode,200);
   p=await planejamentoEnv.call('PUT',base+'/controles/:id/planejamento',{revisao:1,executor_uid:'colab',revisor_uid:'',prioridade:'alta',horas_estimadas:5,dependencias:[]},'admin',{id:'obrigacao_FISCAL_2026-01'});assert.equal(p.statusCode,200);assert.equal(p.body.controle.revisao,2);
@@ -224,6 +429,15 @@ function ambiente(checklistFonte = null, onRead = null) {
   assert.equal(c.dados.get('crm_registros/v2_2').revisao,1);
   assert.equal((await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'MEI',motivo:'conferido'},'admin',{cnpj:novo,id:'v2_2'})).statusCode,200);
   assert(!Object.hasOwn(c.dados.get('crm_registros/v2_2'),'contrato'));
+  c.dados.set('crm_registros/formula_2',{...reg,fonte:'contabil_v2_integral',campos:[{nome:'SALDO JANEIRO 2026',valor:'1.005',original:'1.005'},{nome:'SALDO RESIDUAL',valor:'99',original:'99'}]});
+  const aplicarFormula={revisao:1,coluna:1,formula:'saldo-janeiro-residual-v2',confirmado:true,motivo:'Conferência'};
+  assert.equal((await c.call('PATCH',base+'/parametros/:id',aplicarFormula,'colab',{cnpj:novo,id:'formula_2'})).statusCode,403);
+  assert.equal((await c.call('PATCH',base+'/parametros/:id',aplicarFormula,'admin',{cnpj,id:'formula_2'})).statusCode,404);
+  const formulaResp=await c.call('PATCH',base+'/parametros/:id',aplicarFormula,'admin',{cnpj:novo,id:'formula_2'});
+  assert.equal(formulaResp.statusCode,200);assert.equal(formulaResp.body.registro.campos[1].valor,'1.005');
+  assert.equal((await c.call('PATCH',base+'/parametros/:id',aplicarFormula,'admin',{cnpj:novo,id:'formula_2'})).statusCode,409);
+  const histFormula=[...c.dados].filter(([k])=>k.startsWith('crm_registros/formula_2/historico/')).map(([,v])=>v);
+  assert.equal(histFormula.length,1);assert.equal(histFormula[0].formula,aplicarFormula.formula);assert.equal(histFormula[0].antes.valor,'99');assert.equal(histFormula[0].depois.valor,'1.005');
   c.dados.set('crm_registros/ditr_2',{...reg,fonte:'ditr',campos:[{nome:'RECIBO/DECLARAÇÃO',valor:'https://example.com/ditr.pdf'}]});
   const docsAntes=JSON.stringify([...c.dados]);
   const docsResp=await c.call('GET',base+'/parametros',{},'admin',{cnpj:novo});

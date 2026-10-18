@@ -1,12 +1,35 @@
 'use strict';
 const core = require('./crm-contabil');
-const { compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
+const crypto = require('crypto');
+const documentoId = url => crypto.createHash('sha256').update(url).digest('hex');
+const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
 const { carregarChecklist, previaChecklist, contratoDoEvento } = require('./crm-checklist');
 
-function registrar(app, { db, domain, checklist = carregarChecklist, env = process.env, agora = () => new Date().toISOString() }) {
+// O acesso ao aplicativo não prova vínculo com o departamento.
+async function carregarDepartamento(req, env = process.env, fetcher = globalThis.fetch) {
+  const base = String(env.CFI_URL || env.FISCAL_GATEWAY_URL || '').replace(/\/+$/, '');
+  const auth = String(req.headers?.authorization || '');
+  if (!base || !auth.startsWith('Bearer ')) throw core.erro('Não foi possível conferir o departamento. Entre novamente ou confira a integração com o cadastro central.', 503);
+  try {
+    const r = await fetcher(base + '/api/admin/cadastro/usuarios', {headers: {Authorization: auth}, signal: AbortSignal.timeout(15000), redirect: 'error'});
+    const b = await r.json();
+    if (!r.ok || b.ok !== true || !Array.isArray(b.usuarios) || b.resumo?.total !== b.usuarios.length) throw Error('Cadastro incompleto');
+    const emails = new Map();
+    for (const u of b.usuarios) {
+      if (!Array.isArray(u.departamentos)) throw Error('Departamento ausente');
+      const email = String(u.email || '').trim().toLowerCase();
+      if (!email) continue;
+      if (emails.has(email)) throw Error('Identidade duplicada');
+      emails.set(email, u.departamentos.includes('contabil'));
+    }
+    return new Set([...emails].filter(([, pertence]) => pertence).map(([email]) => email));
+  } catch (_) { throw core.erro('Não foi possível confirmar a equipe contábil. Confira o cadastro central e tente novamente; a lista geral não será usada.', 503); }
+}
+
+function registrar(app, { db, domain, storage, checklist = carregarChecklist, departamento = carregarDepartamento, env = process.env, conexaoTeams = require('./notificacoes-teams'), entrega = require('./notificacoes-entrega'), agora = () => new Date().toISOString() }) {
   const base = '/api/crm/empresas/:cnpj';
   const wrap = fn => async (req, res) => {
     try { res.setHeader('Cache-Control', 'private, no-store'); await fn(req, res); }
@@ -20,10 +43,86 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const d = doc.data();
     return { uid: req.user.uid, is_admin: d.is_admin === true, permissoesCci: permissoesEfetivas(d) };
   }
+  const pertence = (d, emails) => d.active !== false && emails.has(String(d.last_email || d.email || '').trim().toLowerCase());
+  async function equipeDepartamento(req) {
+    const emails = await departamento(req, env);
+    const snap = await db.collection('users').limit(5001).get();
+    if(snap.docs.length>5000)throw core.erro('Cadastro excedeu o limite. Não foi possível conferir a equipe.',409);
+    const grupos=new Map();
+    for(const d of snap.docs){
+      if(!pertence(d.data(),emails))continue;
+      const email=String(d.data().last_email||d.data().email||'').trim().toLowerCase();
+      if(!grupos.has(email))grupos.set(email,[]);
+      grupos.get(email).push(d.id);
+    }
+    return {emails,uids:new Set([...grupos.values()].filter(ids=>ids.length===1).flat()),ambiguos:[...grupos.values()].filter(ids=>ids.length>1).length};
+  }
+  const gestaoRef = db.collection('crm_topologia').doc('gestao');
+  async function gestao(req, tx) {
+    const user=await usuario(req,tx), snap=await (tx?tx.get(gestaoRef):gestaoRef.get());
+    const cfg=snap.exists?snap.data():{revisao:0,equipes:[]};
+    const equipes=(cfg.equipes||[]).filter(e=>e.lider_uid===user.uid);
+    return {user,cfg,membros:new Set(equipes.flatMap(e=>e.membros)),lider:equipes.length>0};
+  }
+  function podeGerirEmpresa(g,d){
+    const equipe=core.equipeVigente(d);
+    return g.user.is_admin || (g.lider && equipe.length>0 && equipe.every(p=>g.membros.has(p.uid)));
+  }
+  app.put('/api/crm/topologia/gestao',wrap(async(req,res)=>{
+    admin(await usuario(req));
+    const {emails,uids,ambiguos} = await equipeDepartamento(req);
+    const result=await db.runTransaction(async tx=>{
+      const g=await gestao(req,tx);admin(g.user);
+      const b=req.body||{};
+      if(b.revisao!==(g.cfg.revisao||0))throw core.erro('A configuração mudou. Atualize a Topologia.',409);
+      if(!Array.isArray(b.equipes)||b.equipes.length>50)throw core.erro('Informe até cinquenta equipes.');
+      const vistos=new Set(), equipes=b.equipes.map(e=>{
+        const nome=core.texto(e.nome,100,'nome da equipe',true), lider_uid=core.texto(e.lider_uid,128,'líder',true);
+        if(!Array.isArray(e.membros)||!e.membros.length||e.membros.length>100)throw core.erro('Selecione os integrantes da equipe.');
+        const membros=[...new Set(e.membros)];
+        for(const id of [lider_uid,...membros])if(typeof id!=='string'||!id||id.includes('/')||id.length>128)throw core.erro('Usuário inválido.');
+        for(const id of membros){if(vistos.has(id))throw core.erro('Um colaborador só pode pertencer a uma equipe de gestão.');vistos.add(id);}
+        return {nome,lider_uid,membros};
+      });
+      const ids=[...new Set(equipes.flatMap(e=>[e.lider_uid,...e.membros]))];
+      const docs=ids.length?await tx.getAll(...ids.map(id=>db.collection('users').doc(id))):[];
+      if(docs.some(d=>!d.exists||!uids.has(d.id)||!pertence(d.data(),emails)||!String(d.data().last_email||d.data().email||'').toLowerCase().endsWith(domain)))throw core.erro('Selecione usuários ativos vinculados ao departamento contábil no cadastro central.');
+      const motivo=core.texto(b.motivo,1000,'motivo',true),quando=agora();
+      tx.set(gestaoRef,{equipes,revisao:(g.cfg.revisao||0)+1,quando,por_uid:g.user.uid});
+      tx.create(gestaoRef.collection('historico').doc(),{antes:g.cfg,depois:equipes,quando,por_uid:g.user.uid,motivo});
+      return {revisao:(g.cfg.revisao||0)+1};
+    });res.json({ok:true,...result});
+  }));
+  app.get('/api/crm/topologia',wrap(async(req,res)=>{
+    let g=await gestao(req);if(!g.user.is_admin&&!g.lider)throw core.erro('Topologia disponível apenas para gestores autorizados.',403);
+    const controles=await db.collectionGroup('crm_controles').limit(20001).get();
+    if(controles.docs.length>20000)throw core.erro('Há mais de 20 mil controles. Consulte por empresa; totais não calculados.',409);
+    const ss=await Promise.all(['crm_empresas','empresas','users'].map(n=>db.collection(n).limit(5001).get()));
+    if(ss.some(v=>v.docs.length>5000))throw core.erro('O cadastro excedeu o limite desta consulta. Totais não calculados.',409);
+    g=await gestao(req);if(!g.user.is_admin&&!g.lider)throw core.erro('A autorização mudou. Consulte o administrador.',403);
+    const mapa=new Map();ss.slice(0,2).forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
+    const empresas=[...mapa.values()].filter(d=>podeGerirEmpresa(g,d.data())).map(d=>({...empresaPublica(d,g.user,'crm'),
+      tributacao:d.data().regime_tributario_nome||d.data().regime_tributario_codigo||null,
+      atividade:d.data().cnae_principal||null,contrato:d.data().crm_contrato||null,controles:[],responsaveis_permanentes:normalizarResponsaveis(d.data().responsaveis)}));
+    const porCnpj=new Map(empresas.map(e=>[e.cnpj,e]));
+    const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(agora()));
+    for(const d of controles.docs){const p=d.ref.path.split('/'),e=porCnpj.get(p[1]);if(p.length!==4||p[0]!=='empresas'||!e)continue;const c=d.data();e.controles.push({id:d.id,titulo:c.titulo||'',status:c.status,periodo:c.periodo||'',prazo:c.prazo||null,executor_uid:c.executor_uid||null,revisor_uid:c.revisor_uid||null,atrasado:prazoControle(c,hoje)==='atrasado'});}
+    const escopoAntes=JSON.stringify({admin:g.user.is_admin,cfg:g.cfg});
+    const {emails,uids,ambiguos} = await equipeDepartamento(req);
+    g=await gestao(req);
+    if(escopoAntes!==JSON.stringify({admin:g.user.is_admin,cfg:g.cfg}))throw core.erro('A equipe de gestão mudou. Consulte novamente.',409);if(!g.user.is_admin&&!g.lider)throw core.erro('A autorização mudou. Atualize a Topologia.',403);
+    const pessoas=ss[2].docs.filter(d=>uids.has(d.id)&&pertence(d.data(),emails)&&(g.user.is_admin||g.membros.has(d.id))&&String(d.data().last_email||d.data().email||'').toLowerCase().endsWith(domain)).map(d=>{
+      const carteira=empresas.filter(e=>e.responsaveis.some(p=>p.uid===d.id));
+      const demandas=carteira.flatMap(e=>e.controles),abertas=demandas.filter(c=>!core.TERMINAIS.includes(c.status));
+      const regimes=[...new Set(carteira.map(e=>e.tributacao||'Não informado'))].sort();
+      return {regimes,uid:d.id,nome:d.data().last_name||d.data().name||d.data().email||d.id,empresas:carteira.length,principais:carteira.filter(e=>e.responsaveis.some(p=>p.uid===d.id&&p.papel==='principal')).length,obrigacoes_abertas:abertas.length,atrasadas:abertas.filter(c=>c.atrasado).length,sem_prazo:abertas.filter(c=>!c.prazo).length,execucao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.executor_uid===d.id).length,revisao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.revisor_uid===d.id).length};
+    });
+    res.json({ok:true,admin:g.user.is_admin,completo:true,lido_em:agora(),empresas,pessoas,identidades_pendentes:g.user.is_admin?ambiguos:0,gestao:g.user.is_admin?g.cfg:{equipes:(g.cfg.equipes||[]).filter(e=>e.lider_uid===g.user.uid)}});
+  }));
   // Entrada leve: não consulta coleções de empresas nem controles.
   app.get('/api/crm/contexto', wrap(async(req,res)=>{
-    const user=await usuario(req);
-    res.json({ok:true,uid:user.uid,admin:user.is_admin,pode_editar:user.is_admin||podeAcao(user,'editar'),pode_concluir:user.is_admin||podeAcao(user,'fechar'),catalogo:core.CATALOGO});
+    const g=await gestao(req),user=g.user;
+    res.json({ok:true,topologia:user.is_admin||g.lider,uid:user.uid,admin:user.is_admin,pode_editar:user.is_admin||podeAcao(user,'editar'),pode_concluir:user.is_admin||podeAcao(user,'fechar'),catalogo:core.CATALOGO});
   }));
   function empresaRef(req) {
     const cnpj = String(req.params.cnpj || '');
@@ -42,6 +141,113 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     return { user, ref, controlesRef: empresaRef(req), empresa: doc.data() };
   }
   function admin(user) { if (!user.is_admin) throw core.erro('Esta ação é exclusiva dos administradores.', 403); }
+  const automacoes = require('./crm-automacoes');
+  function registrarNotificacoes(modulo,path,escopoEmpresa){
+    const catalogo=automacoes.catalogoDoModulo(modulo);
+    async function acesso(req,tx){
+      if(escopoEmpresa){const c=await contexto(req,tx);admin(c.user);return c;}
+      const user=await usuario(req,tx);admin(user);return {user};
+    }
+    function colecao(req){return escopoEmpresa?empresaRef(req).collection('crm_notificacoes'):db.collection('crm_automacoes');}
+    function refRegra(req){automacoes.regra(req.params.id,modulo);return colecao(req).doc(escopoEmpresa?modulo+'_'+req.params.id:req.params.id);}
+    require('./notificacoes-rotas').registrar({app,db,path,modulo,escopoEmpresa,wrap,acesso,contexto,admin,refRegra,agora,env,teams:conexaoTeams});
+
+  app.get(path,wrap(async(req,res)=>{
+    await acesso(req);
+    const docs=await Promise.all(catalogo.map(r=>colecao(req).doc(escopoEmpresa?modulo+'_'+r.id:r.id).get()));
+    await acesso(req);
+    res.json({ok:true,modulo,cnpj:escopoEmpresa?req.params.cnpj:null,variaveis:automacoes.variaveisDoModulo(modulo),envios_habilitados:entrega.disponibilidade(env).email,canais:entrega.disponibilidade(env),agenda_habilitada:true,regras:catalogo.map((r,i)=>({...r,config:docs[i].exists?docs[i].data():{revisao:0,ativa:false,modelo:r.modelo,canal:r.canal,destinatarios:[]}}))});
+  }));
+  app.put(path+'/:id',wrap(async(req,res)=>{
+    automacoes.regra(req.params.id,modulo);
+    const ref=refRegra(req);
+    const config=await db.runTransaction(async tx=>{
+      const {user}=await acesso(req,tx);
+      const d=await tx.get(ref),antes=d.exists?d.data():{};
+      const depois=automacoes.configurar(req.params.id,antes,req.body||{},user.uid,agora(),modulo);
+      tx.set(ref,depois);tx.create(ref.collection('historico').doc(),{tipo:'configuracao',antes,depois,quando:agora(),autor:user.uid});return depois;
+    });res.json({ok:true,config});
+  }));
+  app.get(path+'/:id/historico',wrap(async(req,res)=>{
+    await acesso(req);automacoes.regra(req.params.id,modulo);
+    const cursor=String(req.query.cursor||'');if(cursor && !/^[a-zA-Z0-9_-]{1,128}$/.test(cursor))throw core.erro('Cursor inválido. Atualize a central.');
+    let query=refRegra(req).collection('historico').orderBy('__name__').limit(51);if(cursor)query=query.startAfter(cursor);
+    const snap=await query.get();await acesso(req);const rows=snap.docs.slice(0,50);
+    res.json({ok:true,itens:rows.map(d=>({id:d.id,...d.data()})),proximo:snap.docs.length>50?rows.at(-1).id:null});
+  }));
+  app.post(escopoEmpresa?path+'/:id/pdf':base+'/automacoes/:id/pdf',wrap(async(req,res)=>{
+    await acesso(req);const c=await contexto(req);admin(c.user);
+    const r=automacoes.regra(req.params.id,modulo),b=req.body||{};
+    if(r.canal!=='registro')throw core.erro('PDF disponível somente para os registros DEFIS e DITR.');
+    if(typeof b.chave!=='string'||! /^[a-zA-Z0-9_-]{16,80}$/.test(b.chave))throw core.erro('Gere uma prévia antes de baixar o PDF.');
+    const d=await refRegra(req).collection('historico').doc(b.chave).get(),p=d.data()?.previa;
+    if(!p||p.cnpj!==req.params.cnpj||p.automacao!==r.id)throw core.erro('Prévia indisponível para esta empresa.',404);
+    const {jsPDF}=require('jspdf'),pdf=new jsPDF();
+    pdf.setFontSize(15);pdf.text('CCI - '+r.nome,15,20);pdf.setFontSize(10);
+    const lines=pdf.splitTextToSize(p.mensagem+'\n\nRegistro interno. Não comprova entrega da obrigação.\nPrévia: '+b.chave+'\nGerada em: '+d.data().quando,180);
+    let y=30;for(const line of lines){if(y>280){pdf.addPage();y=20;}pdf.text(line,15,y);y+=5;}
+    await acesso(req);
+    res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition','attachment; filename="CCI-'+r.id+'-'+req.params.cnpj+'.pdf"');res.send(Buffer.from(pdf.output('arraybuffer')));
+  }));
+  app.post(escopoEmpresa?path+'/:id/enviar':base+'/automacoes/:id/enviar',wrap(async(req,res)=>{
+    await acesso(req);
+    const b=req.body||{},regra=automacoes.regra(req.params.id,modulo);
+    if(b.confirmado!==true||typeof b.chave!=='string'||! /^[a-zA-Z0-9_-]{16,80}$/.test(b.chave))throw core.erro('Confira a prévia e confirme o envio.');
+    const ref=refRegra(req),hist=ref.collection('historico');
+    const c=await contexto(req);admin(c.user);
+    const userDoc=await db.collection('users').doc(c.user.uid).get();
+    const emailColaborador=userDoc.data()?.last_email||userDoc.data()?.email||'';
+    const original=await hist.doc(b.chave).get(),p=original.data()?.previa;
+    if(!original.exists||!p||p.cnpj!==req.params.cnpj||p.automacao!==regra.id)throw core.erro('Prévia indisponível para esta empresa.',404);
+    if(original.data().execucao)throw core.erro('Esta prévia pertence a uma execução automática. Consulte o histórico da agenda.',409);
+    if(!entrega.disponibilidade(env)[p.canal])throw core.erro('Este canal ainda não possui conexão de envio disponível. Confira a central.',409);
+    if(!p.destinatarios.length)throw core.erro('Configure quem recebe e gere uma nova prévia.');
+    const resultados=[];
+    // Cada destino tem chave estável por conteúdo/configuração, mesmo em outra prévia.
+    if(typeof b.destino!=='string'||!p.destinatarios.includes(b.destino))throw core.erro('Selecione um destinatário da prévia.');
+    for(const destino of [b.destino]){
+      const id='envio_'+core.hash(JSON.stringify({previa:p,destino})),itemRef=hist.doc(id);
+      const claim=await db.runTransaction(async tx=>{
+        const atual=await contexto(req,tx);admin(atual.user);
+        const cfg=await tx.get(ref),old=await tx.get(itemRef);
+        if((cfg.data()?.revisao||0)!==p.config_revisao)throw core.erro('Configuração alterada. Gere uma nova prévia.',409);
+        if(old.exists){
+          const anterior=old.data();
+          if(b.repetir!==true||anterior.estado!=='recusado'||b.tentativa!==anterior.tentativas)return {executar:false,item:anterior};
+        }
+        const tentativas=(old.data()?.tentativas||0)+1;
+        const item={tipo:'envio',estado:'processando',destino,previa:p,quando:agora(),autor:atual.user.uid,previa_id:b.chave,tentativas};
+        tx.set(itemRef,item);tx.create(hist.doc(id+'_tentativa_'+tentativas),{...item,tipo:'tentativa'});return {executar:true,item};
+      });
+      if(!claim.executar){resultados.push({id,...claim.item});continue;}
+      let resultado;
+      try {resultado=await entrega.enviar({destino,previa:p,emailColaborador});}
+      catch {resultado={estado:'incerto',detalhe:'Não foi possível confirmar o resultado. Confira os itens enviados; não repita automaticamente.'};}
+      if(!['aceito','recusado','incerto'].includes(resultado.estado))resultado={estado:'incerto',detalhe:'Resultado do provedor não reconhecido.'};
+      const final={...claim.item,...resultado,concluido_em:agora()};
+      await db.runTransaction(async tx=>{const d=await tx.get(itemRef);if(d.data()?.estado==='processando'){tx.set(itemRef,final);tx.set(hist.doc(id+'_tentativa_'+claim.item.tentativas),{...final,tipo:'tentativa'});}});
+      resultados.push({id,...final});
+    }
+    res.json({ok:true,resultados});
+  }));
+  app.post(escopoEmpresa?path+'/:id/previa':base+'/automacoes/:id/previa',wrap(async(req,res)=>{
+    await acesso(req);automacoes.regra(req.params.id,modulo);
+    const b=req.body||{};
+    if(typeof b.chave!=='string'||! /^[a-zA-Z0-9_-]{16,80}$/.test(b.chave))throw core.erro('Reabra a prévia para gerar a identificação da operação.');
+    const ref=refRegra(req),hist=ref.collection('historico').doc(b.chave);
+    const result=await db.runTransaction(async tx=>{
+      const c=await contexto(req,tx);admin(c.user);
+      const cfgDoc=await tx.get(ref),cfg=cfgDoc.exists?cfgDoc.data():{};
+      if(b.revisao!==(cfg.revisao||0))throw core.erro('Modelo alterado. Reabra a prévia.',409);
+      const previa=automacoes.preparar(req.params.id,cfg,b,{...c.empresa,cnpj:req.params.cnpj},modulo);
+      const assinatura=core.hash(JSON.stringify(previa)),existe=await tx.get(hist);
+      if(existe.exists){if(existe.data().assinatura!==assinatura)throw core.erro('Esta operação já foi registrada com outro conteúdo. Reabra a prévia.',409);return existe.data();}
+      const item={tipo:'previa',assinatura,previa,quando:agora(),autor:c.user.uid};tx.create(hist,item);return item;
+    });res.json({ok:true,...result});
+  }));
+  }
+  registrarNotificacoes('crm','/api/crm/automacoes',false);
+  registrarNotificacoes('aplicacoes',base+'/notificacoes/aplicacoes',true);
   function empresaPublica(doc, user, origem) {
     const d = doc.data();
     return { origem, situacao_cliente:situacaoCliente(d), cnpj: doc.id, razao_social: d.razao_social || '', codigo_empresa: codigoEmpresaDe(d),
@@ -75,15 +281,19 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       empresas=[];
       // Lote limitado: filtros vazios nunca carregam obrigações. Todos os critérios
       // devem corresponder ao mesmo controle, não a controles diferentes da empresa.
-      for (const e of lote) {
+      for (let i=0;i<lote.length;i+=10) {
+       const resultados=await Promise.all(lote.slice(i,i+10).map(async e=>{
         const snap=await db.collection('empresas').doc(e.cnpj).collection('crm_controles').orderBy('__name__').limit(1001).get();
         if(snap.docs.length>1000)throw core.erro('Uma empresa excedeu o limite de conferência. Consulte os controles no dossiê; a busca não foi apresentada como completa.',409);
         await contexto({...req,params:{cnpj:e.cnpj}});
-        if(snap.docs.some(d=>{const c=d.data();return (!filtros.periodo || String(c.periodo||'').startsWith(filtros.periodo)) && (!filtros.obrigacao || c.status===filtros.obrigacao) && (!filtros.atraso || prazoControle(c,hoje)===filtros.atraso);}))empresas.push(e);
+        if(snap.docs.some(d=>{const c=d.data();return (!filtros.periodo || String(c.periodo||'').startsWith(filtros.periodo)) && (!filtros.obrigacao || c.status===filtros.obrigacao) && (!filtros.atraso || prazoControle(c,hoje)===filtros.atraso);}))return e;
+        return null;
+       }));
+       empresas.push(...resultados.filter(Boolean));
       }
     }
     res.json({ ok:true, empresas, equipes, total:operacional?null:todas.length, consultadas:posicao+1+lote.length,total_candidatas:todas.length,filtro_operacional:operacional, proximo:restantes.length>50 ? lote[49].cnpj : null,
-      admin:user.is_admin, pode_editar:user.is_admin || podeAcao(user,'editar'), pode_concluir:user.is_admin || podeAcao(user,'fechar'), catalogo:core.CATALOGO });
+      topologia:user.is_admin||(await gestao(req)).lider, admin:user.is_admin, pode_editar:user.is_admin || podeAcao(user,'editar'), pode_concluir:user.is_admin || podeAcao(user,'fechar'), catalogo:core.CATALOGO });
   }));
   // Leitura operacional limitada por lote; nenhuma baixa ou distribuição automática.
   app.get('/api/crm/trabalho', wrap(async (req,res)=>{
@@ -92,13 +302,13 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     const mapa=new Map();snapshots.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
     const todas=[...mapa.values()].filter(d=>core.temCarteira(d.data(),user)).sort((a,b)=>a.id.localeCompare(b.id));
     const restantes=todas.filter(d=>!cursor||d.id>cursor), lote=restantes.slice(0,10), itens=[], truncadas=[];
-    for(const doc of lote){
+    const resultados=await Promise.all(lote.map(async doc=>{
       const snap=await db.collection('empresas').doc(doc.id).collection('crm_controles').orderBy('__name__').limit(101).get();
       // Revalidação após leitura impede devolver controles após revogação da carteira.
       const ctx=await contexto({...req,params:{cnpj:doc.id}});
-      if(snap.docs.length>100)truncadas.push(doc.id);
-      snap.docs.slice(0,100).forEach(c=>itens.push({...c.data(),id:c.id,cnpj:doc.id,empresa:ctx.empresa.razao_social||doc.id,responsaveis:core.equipeVigente(ctx.empresa).map(p=>({uid:p.uid,nome:p.nome,papel:p.papel}))}));
-    }
+      return {truncada:snap.docs.length>100?doc.id:null,itens:snap.docs.slice(0,100).map(c=>({...c.data(),id:c.id,cnpj:doc.id,empresa:ctx.empresa.razao_social||doc.id,responsaveis:core.equipeVigente(ctx.empresa).map(p=>({uid:p.uid,nome:p.nome,papel:p.papel}))}))};
+    }));
+    resultados.forEach(r=>{if(r.truncada)truncadas.push(r.truncada);itens.push(...r.itens);});
     res.json({ok:true,itens,empresas_lidas:lote.length,total_empresas:todas.length,truncadas,proximo:restantes.length>10?lote[lote.length-1].id:null});
   }));
   app.get('/api/crm/visualizacoes',wrap(async(req,res)=>{
@@ -112,13 +322,64 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       tx.set(ref,depois);return depois;
     });res.json({ok:true,...resultado});
   }));
+  app.get(base + '/documentos/:registro/:coluna/:indice', wrap(async(req,res)=>{
+    await contexto(req);
+    const {registro,coluna,indice}=req.params;
+    if(!/^[\w-]{1,200}$/.test(registro)||!/^\d{1,5}$/.test(coluna)||!/^\d{1,5}$/.test(indice))throw core.erro('Referência inválida. Atualize o dossiê.',400);
+    const ref=db.collection('crm_registros').doc(registro), snap=await ref.get();
+    if(!snap.exists||snap.data().cnpj!==req.params.cnpj)throw core.erro('Documento não pertence à empresa.',404);
+    const doc=documentosEmpresa([{...snap.data(),id:snap.id}]).find(d=>d.coluna===Number(coluna)&&d.indice===Number(indice));
+    if(!doc)throw core.erro('Documento indisponível. Atualize o dossiê.',404);
+    const meta=await db.collection('crm_documentos_migrados').doc(documentoId(doc.url)).get();
+    const m=meta.exists?meta.data():{};
+    if(!storage||!env.CCI_CRM_DOCUMENTS_BUCKET||m.estado!=='copiado'||m.bucket!==env.CCI_CRM_DOCUMENTS_BUCKET||!/^[a-f0-9]{64}$/.test(m.sha256||'')||m.path!=='jotform/'+m.sha256||!Number.isInteger(m.bytes)||m.bytes<1||m.bytes>50*1024*1024)throw core.erro('Cópia ainda não disponível no CCI. Confira a migração deste documento.',409);
+    const [buffer]=await storage.bucket(m.bucket).file(m.path,{generation:m.generation}).download({validation:'crc32c'});
+    if(buffer.length!==m.bytes||documentoId(buffer)!==m.sha256)throw core.erro('Falha de integridade. Solicite nova conferência do arquivo.',409);
+    const atual=await ref.get();
+    if(!atual.exists||atual.data().cnpj!==req.params.cnpj||!documentosEmpresa([{...atual.data(),id:atual.id}]).some(d=>d.coluna===Number(coluna)&&d.indice===Number(indice)&&d.url===doc.url))throw core.erro('O vínculo foi alterado. Atualize o dossiê.',409);
+    await contexto(req); // Revogação durante o download também bloqueia a entrega.
+    res.setHeader('Content-Type','application/octet-stream');
+    res.setHeader('X-Content-Type-Options','nosniff');
+    res.setHeader('Content-Disposition','attachment; filename="documento"');
+    res.send(buffer);
+  }));
+  app.get(base+'/documentos-referencias',wrap(async(req,res)=>{
+    const ctx=await contexto(req);let query=ctx.controlesRef.collection('crm_documentos').orderBy('__name__');
+    const cursor=cursorId(req.query.cursor,/^[a-zA-Z0-9_-]{1,100}$/);if(cursor)query=query.startAfter(cursor);
+    const snap=await query.limit(51).get();await contexto(req);
+    res.json({ok:true,documentos:snap.docs.slice(0,50).map(d=>({...d.data(),id:d.id})),proximo:snap.docs.length>50?snap.docs[49].id:null});
+  }));
+  app.post(base+'/documentos-referencias',wrap(async(req,res)=>{
+    const result=await db.runTransaction(async tx=>{const ctx=await contexto(req,tx),d=documentoReferencia(null,req.body||{},ctx.user,agora()),ref=ctx.controlesRef.collection('crm_documentos').doc();
+      tx.create(ref,d);tx.create(ref.collection('historico').doc(),d);return {...d,id:ref.id};});res.status(201).json({ok:true,documento:result});
+  }));
+  app.put(base+'/documentos-referencias/:id',wrap(async(req,res)=>{
+    if(!/^[a-zA-Z0-9_-]{1,100}$/.test(req.params.id||''))throw core.erro('Selecione um documento válido.');
+    const result=await db.runTransaction(async tx=>{const ctx=await contexto(req,tx),ref=ctx.controlesRef.collection('crm_documentos').doc(req.params.id),doc=await tx.get(ref);
+      if(!doc.exists)throw core.erro('Documento indisponível nesta empresa.',404);
+      const d=documentoReferencia(doc.data(),req.body||{},ctx.user,agora());tx.set(ref,d);tx.create(ref.collection('historico').doc(),d);return {...d,id:ref.id};});res.json({ok:true,documento:result});
+  }));
+  app.get(base+'/documentos-referencias/:id/historico',wrap(async(req,res)=>{
+    if(!/^[a-zA-Z0-9_-]{1,100}$/.test(req.params.id||''))throw core.erro('Selecione um documento válido.');
+    const ctx=await contexto(req),ref=ctx.controlesRef.collection('crm_documentos').doc(req.params.id),doc=await ref.get();if(!doc.exists)throw core.erro('Documento indisponível nesta empresa.',404);
+    let query=ref.collection('historico').orderBy('revisao');const cursor=cursorId(req.query.cursor,/^[1-9]\d{0,9}$/);if(cursor)query=query.startAfter(Number(cursor));
+    const snap=await query.limit(51).get();await contexto(req);res.json({ok:true,historico:snap.docs.slice(0,50).map(d=>d.data()),proximo:snap.docs.length>50?String(snap.docs[49].data().revisao):null});
+  }));
   app.get(base + '/parametros', wrap(async (req,res)=>{
     await contexto(req);
     const snap = await db.collection('crm_registros').where('cnpj','==',req.params.cnpj).get();
     const registros = snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>a.fonte.localeCompare(b.fonte)||a.linha-b.linha);
+    const documentos = documentosEmpresa(registros);
+    const ids = [...new Set(documentos.map(d=>documentoId(d.url)))];
+    const copiados = new Set();
+    // Limita concorrência das leituras sem truncar o dossiê.
+    for(let i=0;i<ids.length;i+=20) {
+      const metas=await Promise.all(ids.slice(i,i+20).map(id=>db.collection('crm_documentos_migrados').doc(id).get()));
+      metas.forEach(m=>{if(m.exists&&m.data().estado==='copiado'&&m.data().bucket===env.CCI_CRM_DOCUMENTS_BUCKET)copiados.add(m.id);});
+    }
     // Reconfere após a leitura da base para não devolver parâmetros após revogação.
     const ctx = await contexto(req);
-    res.json({ok:true,registros:registros.map(r=>({...r,contrato:contratoParametros(r)})),documentos:documentosEmpresa(registros),pode_editar:ctx.user.is_admin || podeAcao(ctx.user,'editar')});
+    res.json({ok:true,registros:registros.map(r=>({...r,contrato:contratoParametros(r)})),documentos:documentos.map(d=>({...d,copiado:copiados.has(documentoId(d.url))})),pode_editar:ctx.user.is_admin || podeAcao(ctx.user,'editar')});
   }));
   app.get(base + '/historico', wrap(async(req,res)=>{
     const ctx=await contexto(req);
@@ -139,9 +400,10 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       const ctx=await contexto(req,tx), ref=db.collection('crm_registros').doc(req.params.id), doc=await tx.get(ref);
       if (!doc.exists || doc.data().cnpj!==req.params.cnpj) throw core.erro('Registro indisponível nesta empresa.',404);
       const antes=doc.data(), depois=editarParametro(antes,req.body || {},ctx.user,agora());
-      tx.set(ref,depois);
+      const evento=require('./notificacoes-motor').eventoRef(db,req.params.cnpj,'cadastro_editado',ctx.user.uid,agora(),core.hash('parametro|'+doc.id+'|'+depois.revisao));
+      tx.set(ref,depois);tx.create(evento.ref,evento.data);
       tx.create(ref.collection('historico').doc(),{revisao:depois.revisao,quando:agora(),por_uid:ctx.user.uid,
-        coluna:req.body.coluna,motivo:req.body.motivo.trim(),antes:antes.campos[req.body.coluna],depois:depois.campos[req.body.coluna]});
+        coluna:req.body.coluna,...(req.body.formula?{formula:req.body.formula}:{}),motivo:req.body.motivo.trim(),antes:antes.campos[req.body.coluna],depois:depois.campos[req.body.coluna]});
       return {...depois,id:doc.id};
     }); res.json({ok:true,registro});
   }));
@@ -156,8 +418,29 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
   }));
   app.get('/api/crm/base/pendencias',wrap(async(req,res)=>{
     admin(await usuario(req));
-    const snap=await db.collection('crm_registros').where('identidade_valida','==',false).get();
+    const snap=await db.collection('crm_registros').where('identidade_valida','==',false).limit(501).get();
+    admin(await usuario(req));
+    if(snap.docs.length>500)throw core.erro('Há mais de 500 identificações pendentes. Consulte uma exportação administrativa para revisão; lista não truncada.',409);
     res.json({ok:true,registros:snap.docs.map(d=>({...d.data(),id:d.id}))});
+  }));
+  app.put('/api/crm/base/registros/:id/identificacao',wrap(async(req,res)=>{
+    if(!/^[a-z0-9_-]{1,100}$/.test(req.params.id||''))throw core.erro('Registro inválido.');
+    const result=await db.runTransaction(async tx=>{
+      const user=await usuario(req,tx);admin(user);
+      const ref=db.collection('crm_registros').doc(req.params.id),doc=await tx.get(ref);
+      if(!doc.exists)throw core.erro('Registro não encontrado.',404);
+      const antes=doc.data(),quando=agora(),depois=corrigirIdentificacao(antes,req.body||{},user,quando);
+      const refs=[db.collection('empresas').doc(depois.cnpj),db.collection('crm_empresas').doc(depois.cnpj)];
+      const destinos=await tx.getAll(...refs),destino=destinos.find(d=>d.exists);
+      if(!destino)throw core.erro('Cadastre ou localize a empresa no CCI antes de vincular.',404);
+      // A prévia deve ser da mesma revisão do cadastro; nunca mover dados silenciosamente.
+      if(req.body.razao_social!==destino.data().razao_social)throw core.erro('O nome da empresa difere do cadastro. Confira o destino antes de salvar.',409);
+      tx.set(ref,depois);
+      tx.create(ref.collection('historico').doc(),{tipo:'CRM_IDENTIFICACAO_CONFERIDA',revisao:depois.revisao,quando,por_uid:user.uid,
+        motivo:req.body.motivo.trim(),antes:{cnpj:antes.cnpj||'',identidade_valida:antes.identidade_valida===true},depois:{cnpj:depois.cnpj,identidade_valida:true}});
+      tx.create(refs[destinos.findIndex(d=>d.exists)].collection('auditoria_contabil').doc(),{tipo:'CRM_IDENTIFICACAO_CONFERIDA',quando,por_uid:user.uid,registro_id:doc.id,motivo:req.body.motivo.trim(),antes:{cnpj:antes.cnpj||''},depois:{cnpj:depois.cnpj}});
+      return {id:doc.id,cnpj:depois.cnpj,revisao:depois.revisao};
+    });res.json({ok:true,...result});
   }));
   app.get('/api/crm/base/resumo',wrap(async(req,res)=>{
     admin(await usuario(req));
@@ -166,14 +449,26 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
   }));
   app.get('/api/crm/usuarios', wrap(async (req, res) => {
     admin(await usuario(req));
+    const {emails,uids,ambiguos} = await equipeDepartamento(req);
     const snap = await db.collection('users').get();
-    res.json({ ok: true, usuarios: snap.docs.map(doc => {
+    admin(await usuario(req));
+    res.json({ ok: true, usuarios: snap.docs.filter(d=>uids.has(d.id)&&pertence(d.data(),emails)).map(doc => {
       const d = doc.data(); return { uid: doc.id, nome: d.last_name || d.name || '', email: String(d.last_email || d.email || '').toLowerCase() };
     }).filter(u => u.email.endsWith(domain)).sort((a,b) => (a.nome || a.email).localeCompare(b.nome || b.email)) });
   }));
-  app.put(base + '/equipe', wrap(async (req, res) => {
+  async function salvarEquipe(req,res,topologia=false) {
+    const acesso = await gestao(req);
+    if(!acesso.user.is_admin && !(topologia && acesso.lider))throw core.erro('Distribuição disponível apenas para gestores autorizados.',403);
+    const {emails,uids:permitidos} = await equipeDepartamento(req);
     const result = await db.runTransaction(async tx => {
-      const ctx = await contexto(req, tx); admin(ctx.user);
+      let ctx;
+      let g;
+      if(topologia){
+        g=await gestao(req,tx);let ref=empresaRef(req),doc=await tx.get(ref);
+        if(!doc.exists){ref=db.collection('crm_empresas').doc(req.params.cnpj);doc=await tx.get(ref);}
+        if(!doc.exists||!podeGerirEmpresa(g,doc.data()))throw core.erro('Empresa fora da equipe sob sua gestão.',403);
+        ctx={ref,empresa:doc.data(),user:g.user};
+      }else{ctx=await contexto(req,tx);admin(ctx.user);}
       const body = req.body || {};
       if (body.revisao_carteira !== core.versaoCarteira(ctx.empresa)) throw core.erro('A carteira mudou. Atualize antes de redistribuir.', 409);
       const principal = core.texto(body.principal_uid, 128, 'responsável principal', true);
@@ -181,11 +476,13 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       if (!Array.isArray(apoios) || apoios.length > 10) throw core.erro('Selecione até dez colaboradores de apoio.');
       const uids = [principal, ...apoios];
       if (uids.some(u => typeof u !== 'string' || !u || u.length > 128 || u.includes('/')) || new Set(uids).size !== uids.length) throw core.erro('Selecione colaboradores distintos e válidos.');
+      if(topologia&&!g.user.is_admin&&uids.some(id=>!g.membros.has(id)))throw core.erro('Distribua apenas entre integrantes da sua equipe.',403);
       const docs = await tx.getAll(...uids.map(uid => db.collection('users').doc(uid)));
       let equipe = []; const quando = agora();
       for (let i = 0; i < docs.length; i++) {
         if (!docs[i].exists) throw core.erro('Colaborador não encontrado. Atualize a lista.');
         const d = docs[i].data(), email = String(d.last_email || d.email || '').toLowerCase();
+        if (!permitidos.has(uids[i]) || !pertence(d, emails)) throw core.erro('Colaborador fora do departamento contábil ou inativo. Corrija o vínculo no cadastro central.',403);
         if (!email.endsWith(domain)) throw core.erro('Colaborador sem e-mail corporativo válido.');
         equipe = atribuirResponsavel(equipe, { uid: uids[i], nome: d.last_name || d.name || email, email }, i ? 'apoio' : 'principal', { uid: ctx.user.uid, quando });
       }
@@ -196,7 +493,9 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
       return { revisao_carteira: core.versaoCarteira({ responsaveis: equipe, crm_substituicoes:ctx.empresa.crm_substituicoes||[] }) };
     });
     res.json({ ok: true, ...result });
-  }));
+  }
+  app.put(base + '/equipe',wrap((req,res)=>salvarEquipe(req,res)));
+  app.put('/api/crm/topologia/empresas/:cnpj/equipe',wrap((req,res)=>salvarEquipe(req,res,true)));
   app.get(base + '/controles', wrap(async (req, res) => {
     const ctx = await contexto(req);
     let q = ctx.controlesRef.collection('crm_controles').orderBy('__name__');
@@ -292,4 +591,4 @@ function registrar(app, { db, domain, checklist = carregarChecklist, env = proce
     res.json({ ok: true, form_id: fonte.form_id, lido_em: fonte.lido_em, assinatura: fonte.assinatura, ...previaChecklist(fonte.questions, fonte.rows, empresas) });
   }));
 }
-module.exports = { registrar };
+module.exports = { registrar, carregarDepartamento };

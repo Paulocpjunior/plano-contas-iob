@@ -71,7 +71,7 @@ const fontesDocs=[
     {nome:'Observação',valor:'https://example.com/defis.pdf'}]},
   {id:'defis_2',fonte:'defis_2025',fonte_nome:'DEFIS',linha:2,campos:[{nome:'RECIBO + DEFIS 2025/2026',valor:'https://example.com/defis.pdf'}]},
   {id:'ambigua_2',fonte:'oficial_integral',linha:2,campos:[{nome:'RECIBO/DECLARAÇÃO',valor:'https://example.com/ditr.pdf'}]},
-  {id:'hostil',fonte:'ditr',campos:[{nome:'RECIBO/DECLARAÇÃO',valor:'javascript:alert(1)\nhttps://user:secret@example.com/a\nhttps://example.com/a https://example.com/b\nhttp://example.com/c'}]}
+  {id:'hostil',fonte:'ditr',campos:[{nome:'RECIBO/DECLARAÇÃO',valor:'javascript:alert(1)\nhttps://user:secret@example.com/a\nhttp://example.com/c'}]}
 ];
 const antesDocs=JSON.stringify(fontesDocs), docs=documentosEmpresa(fontesDocs);
 assert.equal(docs.length,5);
@@ -97,3 +97,47 @@ assert.deepEqual([...buscaEmpresas].sort((a,b)=>compararBusca(a,b,'001200')).map
 assert.equal([...buscaEmpresas].sort((a,b)=>compararBusca(a,b,'00000012000001'))[0].cnpj,'00000012000001');
 assert.equal([...buscaEmpresas].sort((a,b)=>compararBusca(a,b,'piloto'))[0].razao_social,'Piloto');
 console.log('CRM busca: código exato, zeros iniciais, CNPJ e desempate estável OK');
+
+const {corrigirIdentificacao}=require('../crm-base');
+const inicial={cnpj:'sem',revisao:1,campos:[{original:null,valor:0}]};
+const identificado=corrigirIdentificacao(inicial,{revisao:1,cnpj:'11222333000181',motivo:'Conferência',confirmado:true},admin,'agora');
+const revisto=corrigirIdentificacao(identificado,{revisao:2,cnpj:'44388152000189',motivo:'Nova conferência',confirmado:true},admin,'depois');
+assert.equal(revisto.cnpj_origem,'sem');assert.deepStrictEqual(revisto.campos,inicial.campos);assert.equal(inicial.cnpj,'sem');
+assert.throws(()=>corrigirIdentificacao(inicial,{revisao:1,cnpj:'00000000000000',motivo:'x',confirmado:true},admin,'agora'));
+console.log('CRM saneamento: identificação original, revisão e campos preservados OK');
+
+assert.deepEqual(documentosEmpresa([{id:'multiplos',campos:[{nome:'Upload',valor:'Recibos: https://example.com/a.pdf https://example.com/b.pdf'}]}]).map(d=>d.url),['https://example.com/a.pdf','https://example.com/b.pdf']);
+
+const {formulaSaldo}=require('../crm-base');
+const saldo=(valor,residual='99')=>({fonte:'contabil_v2_integral',revisao:1,campos:[{nome:'SALDO JANEIRO 2026',valor,original:valor},{nome:'SALDO RESIDUAL',valor:residual,original:residual},{nome:'EMPRESAS ',valor:'Empresa',protegido:true}]});
+for(const valor of ['12.345','0','-12.345','1.005',0]){
+  const r=saldo(valor),prev=JSON.stringify(r),f=formulaSaldo(r);
+  assert.equal(f.valor,String(valor));
+  const out=editarParametro(r,{revisao:1,coluna:1,formula:f.id,confirmado:true,valor:'999999',motivo:'Conferência'},admin,'agora');
+  assert.equal(out.campos[1].valor,String(valor),'servidor deriva valor, sem arredondar ou confiar na tela');
+  assert.equal(out.campos[1].original,'99');assert.equal(out.campos[0].valor,valor);assert.equal(JSON.stringify(r),prev);
+  assert(contratoParametros(r).campos[2].condicao_origem);
+}
+for(const valor of ['',null,'1,005','1.234,56','abc',Infinity,{},'1e3']){
+  const r=saldo(valor);assert.equal(formulaSaldo(r).disponivel,false);
+  assert.throws(()=>editarParametro(r,{revisao:1,coluna:1,formula:'saldo-janeiro-residual-v2',confirmado:true,motivo:'x'},admin,'agora'));
+}
+const sr=saldo('1.005');
+for(const body of [{confirmado:false},{coluna:0},{formula:'outra'},{revisao:0}])assert.throws(()=>editarParametro(sr,{revisao:1,coluna:1,formula:'saldo-janeiro-residual-v2',confirmado:true,motivo:'x',...body},admin,'agora'));
+assert.throws(()=>editarParametro(sr,{revisao:1,coluna:1,formula:'saldo-janeiro-residual-v2',confirmado:true,motivo:'x'},consulta,'agora'),/perfil/);
+assert.equal(formulaSaldo({...sr,fonte:'contabil_v2'}),null);
+assert.equal(formulaSaldo({...sr,campos:[...sr.campos,sr.campos[0]]}),null);
+assert.equal(formulaSaldo({...sr,campos:[sr.campos[0],{...sr.campos[1],protegido:true}]}).disponivel,false);
+assert.equal(editarParametro(sr,{revisao:1,coluna:0,valor:'8',motivo:'Edição independente'},admin,'agora').campos[1].valor,'99');
+assert.equal(editarParametro(sr,{revisao:1,coluna:0,valor:'',motivo:'Limpar entrada'},admin,'agora').campos[1].valor,'99');
+console.log('CRM fórmula: cópia fiel, confirmação, zero, precisão, revisão e intervenção manual preservados OK');
+
+const {documentoReferencia}=require('../crm-base');
+const docBody={revisao:0,titulo:'Recibo',url:'https://example.com/arquivo.pdf',categoria:'DEFIS',periodo:'2026',motivo:'Conferido'};
+const referencia=documentoReferencia(null,docBody,admin,'agora');assert.equal(referencia.revisao,1);assert.equal(referencia.tipo,'referencia_externa');
+assert.equal(documentoReferencia(referencia,{...docBody,revisao:1,url:'https://example.com/novo.pdf'},admin,'depois').revisao,2);
+assert.equal(referencia.url,docBody.url);
+for(const url of ['http://example.com/a','javascript:alert(1)','https://user:pass@example.com/a','file:///tmp/a'])assert.throws(()=>documentoReferencia(null,{...docBody,url},admin,'now'));
+for(const patch of [{periodo:'2026-13'},{categoria:'outro'},{motivo:''},{revisao:1}])assert.throws(()=>documentoReferencia(null,{...docBody,...patch},admin,'now'));
+assert.throws(()=>documentoReferencia(null,docBody,consulta,'now'),e=>e.status===403);
+console.log('CRM referências: HTTPS, versões, revisão, categoria, período e perfil OK');

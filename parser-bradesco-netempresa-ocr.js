@@ -1,4 +1,5 @@
-// Parser Bradesco Net Empresa digitalizado. A IA le uma pagina por vez e a
+// Parser Bradesco Net Empresa digitalizado. Prioriza OCR local do modelo mensal;
+// nos demais modelos a IA le uma pagina por vez e a
 // importacao so e liberada quando os totais impressos e a sequencia de saldos conferem.
 (function(root) {
   'use strict';
@@ -306,7 +307,7 @@
     ].join('\n');
   }
 
-  async function renderizarPagina(page, escala) {
+  async function renderizarPagina(page, escala, formato) {
     const viewport = page.getViewport({ scale: escala });
     const canvas = document.createElement('canvas');
     canvas.width = Math.ceil(viewport.width);
@@ -315,7 +316,7 @@
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-    return canvas.toDataURL('image/jpeg', 0.94).split(',')[1];
+    return canvas.toDataURL(formato || 'image/jpeg', 0.94).split(',')[1];
   }
 
   async function chamarGeminiPagina(page, numero, total, escala) {
@@ -358,33 +359,151 @@
     throw new Error('Nao foi possivel ler integralmente a pagina ' + numero + ': ' + (ultimoErro && ultimoErro.message || ultimoErro));
   }
 
-  async function parsearPDF_Bradesco_NetEmpresaOCR(arrayBuffer) {
+  function erroOCRLocal(mensagem) {
+    const erro = new Error('Conferencia Bradesco: ' + mensagem + '. Envie um PDF mais legivel ou o OFX do banco.');
+    erro.code = 'BRA_OCR_INTEGRIDADE';
+    return erro;
+  }
+
+  function numeroOCRColuna(texto) {
+    const valor = String(texto).trim().replace(/[−–—]/g, '-').replace(/\s/g, '');
+    if (!/^-?\d+(?:[.,]\d{3})*[,.]\d{2}$/.test(valor)) throw erroOCRLocal('valor ilegivel na coluna: ' + texto);
+    return Number(valor.slice(0, -3).replace(/[.,]/g, '') + '.' + valor.slice(-2));
+  }
+
+  // Modelo mensal de uma pagina: natureza vem da POSICAO na coluna, nunca do historico.
+  // Outros modelos mantem o leitor existente; um modelo reconhecido com erro nao e liberado.
+  function parsearPaginaOCRLocal(dados) {
+    const texto = String(dados.text || '');
+    const normalizar = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (!/bradesco/i.test(texto) || !/Extrato Mensal\s*\/\s*Por Per/i.test(texto)) return null;
+    const linhas = dados.lines || [];
+    const cab = linhas.find(l => /Credito.*Debito.*Saldo/i.test(normalizar(l.text)));
+    if (!cab) throw erroOCRLocal('cabecalho das colunas nao reconhecido');
+    const palavras = cab.words || [];
+    const indice = nome => palavras.findIndex(w => new RegExp('^' + nome, 'i').test(normalizar(w.text)));
+    const indices = ['Data', 'Lancamento', 'Dcto', 'Credito', 'Debito', 'Saldo'].map(indice);
+    if (indices.some(i => i < 0)) throw erroOCRLocal('colunas incompletas');
+    const limites = indices.slice(1).map((idx, i) => (palavras[idx].bbox.x0 + palavras[idx - 1].bbox.x1) / 2);
+    limites[1] = palavras[indices[2]].bbox.x0; // Historico ocupa a largura ate Dcto., inclusive datas do PIX.
+    if (limites.some((x, i) => i && x <= limites[i - 1])) throw erroOCRLocal('ordem de colunas invalida');
+    const meta = texto.match(/Extrato de:\s*Ag:\s*(\d+)\s*\|\s*CC:\s*([\d-]+)\s*\|\s*Entre\s*(\d{2}\/\d{2}\/\d{4})\s*e\s*(\d{2}\/\d{2}\/\d{4})/i);
+    if (!meta) throw erroOCRLocal('conta ou periodo nao reconhecido');
+    const pagina = { is_statement: true, page_number: 1, agency: meta[1], account: meta[2],
+      opening_balance: null, total_credit: null, total_debit: null, transactions: [] };
+    const inicio = dataISO(meta[3]), fim = dataISO(meta[4]);
+    let data = '', historico = [], encerrado = false, saldo = null;
+    for (const linha of linhas.slice(linhas.indexOf(cab) + 1)) {
+      const textoLinha = normalizar(linha.text).trim();
+      if (encerrado) {
+        if (/^\d{2}\/\d{2}\/\d{4}\b/.test(textoLinha)) throw erroOCRLocal('movimentos adicionais apos o total');
+        continue;
+      }
+      const campos = Array.from({ length: 6 }, () => []);
+      for (const palavra of linha.words || []) {
+        const centro = (palavra.bbox.x0 + palavra.bbox.x1) / 2;
+        let col = limites.findIndex(x => centro < x);
+        if (col < 0) col = 5;
+        campos[col].push(palavra.text);
+      }
+      const [dt, descricao, doc, cred, deb, bal] = campos.map(c => c.join(' ').trim());
+      if (/SALDO ANTERIOR/i.test(textoLinha)) {
+        if (pagina.opening_balance !== null) throw erroOCRLocal('mais de um saldo anterior');
+        saldo = numeroOCRColuna(bal);
+        pagina.opening_balance = saldo;
+        continue;
+      }
+      if (/^Total\b/i.test(textoLinha)) {
+        pagina.total_credit = Math.abs(numeroOCRColuna(cred));
+        pagina.total_debit = Math.abs(numeroOCRColuna(deb));
+        if (Math.round(numeroOCRColuna(bal) * 100) !== Math.round(saldo * 100)) throw erroOCRLocal('saldo total divergente');
+        encerrado = true;
+        continue;
+      }
+      if (dt) {
+        data = dataISO(dt);
+        if (!data || data < inicio || data > fim) throw erroOCRLocal('data ilegivel ou fora do periodo: ' + dt);
+      }
+      if (descricao) historico.push(descricao);
+      if (!cred && !deb && !bal && !doc) continue;
+      if (!bal || (!cred && !deb) || (cred && deb) || saldo === null || !data) throw erroOCRLocal('movimento incompleto');
+      const credito = cred ? Math.abs(numeroOCRColuna(cred)) : 0;
+      const debito = deb ? Math.abs(numeroOCRColuna(deb)) : 0;
+      const saldoLido = numeroOCRColuna(bal);
+      if (Math.round((saldo + credito - debito) * 100) !== Math.round(saldoLido * 100)) throw erroOCRLocal('saldo intermediario divergente em ' + data);
+      if (!/^\d+$/.test(doc) || !historico.length) throw erroOCRLocal('documento ou historico nao reconhecido');
+      pagina.transactions.push({ date: data, description: historico.join(' '), document: doc,
+        credit: credito, debit: debito, balance: saldoLido });
+      historico = [];
+      saldo = saldoLido;
+    }
+    if (!encerrado || historico.length || pagina.opening_balance === null) throw erroOCRLocal('extrato incompleto');
+    const creditoLido = pagina.transactions.reduce((s, tx) => s + Math.round(tx.credit * 100), 0);
+    const debitoLido = pagina.transactions.reduce((s, tx) => s + Math.round(tx.debit * 100), 0);
+    if (creditoLido !== Math.round(pagina.total_credit * 100) || debitoLido !== Math.round(pagina.total_debit * 100)) {
+      throw erroOCRLocal('totais impressos divergentes dos movimentos');
+    }
+    const resultado = consolidarPaginas([pagina], { exigirTotais: true });
+    resultado.periodo_inicio = inicio;
+    resultado.periodo_fim = fim;
+    resultado.observacao_importacao = 'Leitura OCR local conferida por colunas, todos os saldos e totais impressos.';
+    return resultado;
+  }
+
+  async function tentarOCRLocal(pdf, opcoes) {
+    if (pdf.numPages !== 1 || !root.Tesseract || !root.Tesseract.createWorker) return null;
+    const opts = opcoes || {};
+    const worker = await root.Tesseract.createWorker('por', 1);
+    let ultimoErro;
+    try {
+      await worker.setParameters({ tessedit_pageseg_mode: '6' });
+      for (const escala of [3.5, 4.5]) {
+        if (opts.signal && opts.signal.aborted) throw opts.signal.reason;
+        if (opts.onProgress) opts.onProgress('OCR Bradesco local: página 1/1');
+        const page = await pdf.getPage(1);
+        const imagem = await renderizarPagina(page, escala, 'image/png');
+        const { data } = await worker.recognize('data:image/png;base64,' + imagem);
+        try {
+          const resultado = parsearPaginaOCRLocal(data);
+          if (resultado) return resultado;
+        } catch (erro) { ultimoErro = erro; }
+      }
+      if (ultimoErro) throw ultimoErro;
+      return null;
+    } finally { await worker.terminate(); }
+  }
+
+  async function parsearPDF_Bradesco_NetEmpresaOCR(arrayBuffer, opcoes) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
-    if (!root.API || typeof root.API.callGemini !== 'function') throw new Error('Servico de leitura por IA indisponivel');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const paginas = new Array(pdf.numPages);
-    let proxima = 1;
+    try {
+      const local = await tentarOCRLocal(pdf, opcoes);
+      if (local) return local;
+      if (!root.API || typeof root.API.callGemini !== 'function') throw new Error('Servico de leitura por IA indisponivel para este modelo de extrato');
+      const paginas = new Array(pdf.numPages);
+      let proxima = 1;
 
-    async function trabalhador() {
-      while (proxima <= pdf.numPages) {
-        const numero = proxima++;
-        if (typeof showToast === 'function') showToast('Bradesco escaneado: conferindo pagina ' + numero + '/' + pdf.numPages + '...', 'success');
-        paginas[numero - 1] = await lerPaginaComTentativas(pdf, numero);
+      async function trabalhador() {
+        while (proxima <= pdf.numPages) {
+          const numero = proxima++;
+          if (typeof showToast === 'function') showToast('Bradesco escaneado: conferindo pagina ' + numero + '/' + pdf.numPages + '...', 'success');
+          paginas[numero - 1] = await lerPaginaComTentativas(pdf, numero);
+        }
       }
-    }
 
-    await Promise.all([trabalhador(), trabalhador()]);
-    const paginasRevisadas = new Set();
-    while (true) {
-      try {
-        return consolidarPaginas(paginas, { exigirTotais: true });
-      } catch (e) {
-        if (!e.pagina || paginasRevisadas.has(e.pagina)) throw e;
-        paginasRevisadas.add(e.pagina);
-        if (typeof showToast === 'function') showToast('Revisando pagina ' + e.pagina + ' por divergencia de saldo...', 'error');
-        paginas[e.pagina - 1] = await lerPaginaComTentativas(pdf, e.pagina, 3.5);
+      await Promise.all([trabalhador(), trabalhador()]);
+      const paginasRevisadas = new Set();
+      while (true) {
+        try {
+          return consolidarPaginas(paginas, { exigirTotais: true });
+        } catch (e) {
+          if (!e.pagina || paginasRevisadas.has(e.pagina)) throw e;
+          paginasRevisadas.add(e.pagina);
+          if (typeof showToast === 'function') showToast('Revisando pagina ' + e.pagina + ' por divergencia de saldo...', 'error');
+          paginas[e.pagina - 1] = await lerPaginaComTentativas(pdf, e.pagina, 3.5);
+        }
       }
-    }
+    } finally { if (pdf.destroy) await pdf.destroy(); }
   }
 
   root.parsearPDF_Bradesco_NetEmpresaOCR = parsearPDF_Bradesco_NetEmpresaOCR;
@@ -392,6 +511,7 @@
     module.exports = {
       parsearPDF_Bradesco_NetEmpresaOCR: parsearPDF_Bradesco_NetEmpresaOCR,
       __test__: {
+        parsearPaginaOCRLocal: parsearPaginaOCRLocal,
         consolidarPaginas: consolidarPaginas,
         limparConta: limparConta,
         dataISO: dataISO,

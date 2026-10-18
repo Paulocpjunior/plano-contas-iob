@@ -257,3 +257,16 @@ html[data-theme="dark"] #importacaoFIDialog thead th {
   border-color: #0054a8 !important;
 }
 html[data-theme="dark"] #importacaoFIDialog tbody tr:hover { background: var(--fi-hover) !important; }
+
+/* Cadastro inicial: superficie e texto acompanham o mesmo tema. */
+#formCard.form-card { background: var(--card); color: var(--text); }
+#formCard .import-type-option { background: var(--card); color: var(--text); }
+#formCard .import-type-option.selected { background: #f0f7ff; }
+#formCard .import-type-option[data-tipo="fiscal"].selected { background: #ecfdf5; }
+html[data-theme="dark"] #formCard .import-type-option.selected { background: #102d49; }
+html[data-theme="dark"] #formCard .import-type-option[data-tipo="fiscal"].selected { background: #103b32; }
+#formCard h2, #formCard label, #formCard .import-type-option strong { color: var(--text); }
+#formCard > p, #formCard .import-type-option small { color: var(--text-muted); }
+.lancamento-autoria { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 7px; font-size: 12px; line-height: 1.5; color: #b91c1c; overflow-wrap: anywhere; }
+html[data-theme="dark"] .lancamento-autoria { color: #ff8a80; }
+.lancamento-autoria span, .lancamento-autoria strong { color: inherit !important; }

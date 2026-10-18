@@ -2,12 +2,11 @@
   'use strict';
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const linkSeguro = v => {try{const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password?u.href:null;}catch{return null;}};
-  // Um campo de upload pode conter vários endereços, um por linha.
-  // URL remove quebras de linha: validar o conjunto antes de separar une PDFs.
+  // Preserva links separados por espaços, quebras ou texto de origem.
   function linksDoCampo(c) {
     const valores = [c.valor, c.link].filter(v => typeof v === 'string');
-    const links = valores.flatMap(v => v.split(/[\r\n]+/).map(l => l.trim()))
-      .filter(l => /^https:\/\//i.test(l) && (l.match(/https?:\/\//gi) || []).length === 1)
+    const links = valores.flatMap(v => v.match(/https:\/\/[^\s<>"']+/gi)||[])
+      .filter(s=>(s.match(/https?:\/\//gi)||[]).length===1)
       .map(linkSeguro).filter(Boolean);
     return [...new Set(links)];
   }
@@ -23,7 +22,7 @@
   const prazos={atrasado:'Em atraso',no_prazo:'No prazo',sem_prazo:'Sem prazo',encerrado:'Encerrado'};
   const prazoDe=(c,dia)=>['concluida','nao_aplicavel'].includes(c.status)?'encerrado':!c.prazo?'sem_prazo':c.prazo<dia?'atrasado':'no_prazo';
   const proximosSete=(c,dia)=>{const fim=new Date(dia+'T12:00:00Z');fim.setUTCDate(fim.getUTCDate()+7);return !['concluida','nao_aplicavel'].includes(c.status)&&c.prazo>dia&&c.prazo<=fim.toISOString().slice(0,10);};
-  window.abrirCrmContabil = async function () {
+  window.abrirCrmContabil = async function (areaInicial) {
     if (document.getElementById('crmContabilDialog')) return;
     const dialog = document.createElement('dialog'); dialog.id = 'crmContabilDialog'; dialog.setAttribute('aria-labelledby', 'crmTitulo');
     dialog.innerHTML = `<style>
@@ -87,7 +86,7 @@
     // Espaço de trabalho com navegação própria; reaproveita os controles auditados.
     const node = sel => dialog.querySelector(sel) || shell.querySelector(sel);
     const shell=document.createElement('div');shell.className='crm-workspace';
-    shell.innerHTML=`<aside class="crm-sidebar"><div class="crm-brand">SP <span>CRM CONTÁBIL</span></div><p class="crm-muted">Área de trabalho</p><nav aria-label="Áreas do CRM"><button data-area="carteira" aria-current="page">▦ Minha carteira</button><button data-area="trabalho">◷ Obrigações e demandas</button><button data-area="gestao" hidden>◎ Gestão da carteira</button></nav><p class="crm-sidebar-note">Cada empresa, sua equipe e o próximo passo.</p><button data-sair>← Voltar ao CCI</button></aside><main class="crm-main"><header class="crm-page-head"><div><p class="crm-eyebrow">RELACIONAMENTO E OPERAÇÃO</p><h2 id="crmWorkspaceTitulo">Minha carteira</h2><p data-subtitulo class="crm-muted">Localize uma empresa e abra seu dossiê para acompanhar o trabalho.</p></div><button data-recarregar>Atualizar carteira</button></header><section data-pane="carteira"></section><section data-pane="trabalho" hidden><div class="crm-bar"><label>Exibir<select data-trabalho-filtro><option value="abertos">Em aberto</option><option value="atrasado">Em atraso</option><option value="hoje">Vencem hoje</option><option value="aguardando_documentos">Aguardando documentos</option><option value="todos">Todos</option></select></label><button data-trabalho-refresh>Atualizar demandas</button></div><p data-trabalho-resumo role="status"></p><div data-trabalho-lista></div><button data-trabalho-mais hidden>Consultar próximas empresas</button></section><section data-pane="gestao" hidden><h3>Distribuição e conferência</h3><p class="crm-muted">A atribuição de responsáveis é exclusiva da administração. Abra o dossiê da empresa para distribuir sua equipe.</p><button data-sem-equipe>Ver empresas sem responsável</button><div data-admin-tools class="crm-bar"></div></section><section data-pane="dossie" hidden><button data-voltar>← Voltar à carteira</button></section></main>`;
+    shell.innerHTML=`<aside class="crm-sidebar"><div class="crm-brand">SP <span>CRM CONTÁBIL</span></div><p class="crm-muted">Área de trabalho</p><nav aria-label="Áreas do CRM"><button data-area="carteira" aria-current="page">▦ Minha carteira</button><button data-area="trabalho">◷ Obrigações e demandas</button><button data-area="gestao" hidden>◎ Gestão da carteira</button><button data-area="topologia" hidden>◇ Topologia</button></nav><p class="crm-sidebar-note">Cada empresa, sua equipe e o próximo passo.</p><button data-sair>← Voltar ao CCI</button></aside><main class="crm-main"><header class="crm-page-head"><div><p class="crm-eyebrow">RELACIONAMENTO E OPERAÇÃO</p><h2 id="crmWorkspaceTitulo">Minha carteira</h2><p data-subtitulo class="crm-muted">Localize uma empresa e abra seu dossiê para acompanhar o trabalho.</p></div><button data-recarregar>Atualizar carteira</button></header><section data-pane="carteira"></section><section data-pane="trabalho" hidden><div class="crm-bar"><label>Exibir<select data-trabalho-filtro><option value="abertos">Em aberto</option><option value="atrasado">Em atraso</option><option value="hoje">Vencem hoje</option><option value="aguardando_documentos">Aguardando documentos</option><option value="todos">Todos</option></select></label><button data-trabalho-refresh>Atualizar demandas</button></div><p data-trabalho-resumo role="status"></p><div data-trabalho-lista></div><button data-trabalho-mais hidden>Consultar próximas empresas</button></section><section data-pane="gestao" hidden><h3>Distribuição e conferência</h3><p class="crm-muted">A atribuição de responsáveis é exclusiva da administração. Abra o dossiê da empresa para distribuir sua equipe.</p><button data-sem-equipe>Ver empresas sem responsável</button><div data-admin-tools class="crm-bar"></div></section><section data-pane="dossie" hidden><button data-voltar>← Voltar à carteira</button></section></main>`;
     const carteiraPane=shell.querySelector('[data-pane="carteira"]'),dossiePane=shell.querySelector('[data-pane="dossie"]');
     const search=node('[data-busca]').parentElement.parentElement;
     const views=node('[data-visualizacao]').parentElement.parentElement;
@@ -117,9 +116,72 @@
     const base = () => '/api/crm/empresas/' + empresa().cnpj;
     const hoje = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
     function mensagem(s) { q('[data-status]').textContent = s; }
+    let topo=null;
+    main.insertAdjacentHTML('beforeend', `<section data-pane="topologia" hidden><p class="crm-muted">Pessoas e empresas da mesma carteira do CRM. Indicadores contam controles registrados; ausência de controles não comprova cumprimento fiscal.</p><div class="crm-bar"><button data-topologia-abrir>Consultar Topologia</button><button data-topologia-equipes hidden>Configurar líderes e equipes</button><label>Colaborador<select data-topologia-pessoa><option value="">Todos</option></select></label><label>Buscar empresa<input data-topologia-busca placeholder="Número, nome, CNPJ, tributação ou atividade"></label><label>Qualidade do cadastro<select data-topologia-qualidade><option value="">Todas</option><option value="sem_equipe">Sem responsável</option><option value="tributacao">Sem tributação</option><option value="atividade">Sem CNAE</option><option value="cliente">Situação não confirmada</option><option value="controles">Sem controles registrados</option></select></label><button data-topologia-filtrar>Aplicar filtros</button></div><p data-topologia-status role="status">Consulte para carregar a carteira real.</p><div data-topologia-pessoas class="crm-summary-grid"></div><div data-topologia-empresas></div></section>`);
+    function limparTopologia(){topo=null;q('[data-topologia-pessoas]').innerHTML='';q('[data-topologia-empresas]').innerHTML='';q('[data-topologia-pessoa]').innerHTML='<option value="">Todos</option>';}
+    async function carregarTopologia(){
+      limparTopologia();q('[data-topologia-status]').textContent='Consultando vínculos e controles do CRM…';
+      try{topo=await api('/api/crm/topologia');q('[data-topologia-equipes]').hidden=!topo.admin;
+        q('[data-topologia-pessoa]').innerHTML='<option value="">Todos</option><option value="sem">Sem responsável</option>'+topo.pessoas.map(p=>`<option value="${esc(p.uid)}">${esc(p.nome)}</option>`).join('');renderTopologia();
+      }catch(e){q('[data-topologia-status]').textContent=e.message;throw e;}
+    }
+    function renderTopologia(){
+      if(!topo)return;
+      q('[data-topologia-status]').textContent=`${topo.empresas.length} empresas no escopo de gestão · ${topo.pessoas.length} colaboradores do departamento contábil · consulta ${instanteBr(topo.lido_em)}. ${topo.identidades_pendentes ? topo.identidades_pendentes + " e-mails com contas duplicadas aguardam conferência no cadastro de usuários. " : ""}Empresas com apoios aparecem em mais de uma carteira; não some cartões para obter o total.`;
+      q('[data-topologia-pessoas]').innerHTML=topo.pessoas.map(p=>`<button class="crm-summary-card crm-person-card" data-color="violet" data-topo-pessoa="${esc(p.uid)}"><span><strong>${esc(p.nome)}</strong><small>${esc((p.regimes||[]).join(' · '))}<br>${p.empresas} empresas · ${p.principais} como principal<br>${p.obrigacoes_abertas} controles abertos na carteira · ${p.atrasadas} atrasados · ${p.sem_prazo} sem prazo<br>${p.execucao} como executor · ${p.revisao||0} como revisor (no escopo de gestão)</small></span></button>`).join('');
+      const pessoa=q('[data-topologia-pessoa]').value,busca=q('[data-topologia-busca]').value.trim().toLocaleLowerCase('pt-BR');
+      const qualidade=q('[data-topologia-qualidade]').value;
+      const falta=e=>!qualidade||(qualidade==='sem_equipe'?!e.responsaveis.length:qualidade==='cliente'?e.situacao_cliente==='nao_informada':qualidade==='controles'?!e.controles.length:!e[qualidade]);
+      const empresas=topo.empresas.filter(e=>falta(e)&&(!pessoa||(pessoa==='sem'?!e.responsaveis.length:e.responsaveis.some(p=>p.uid===pessoa)))&&(!busca||[e.cnpj,e.razao_social,e.codigo_empresa,e.tributacao,e.atividade].join(' ').toLocaleLowerCase('pt-BR').includes(busca)));
+      q('[data-topologia-empresas]').innerHTML=`<p role="status">${empresas.length} empresas no filtro. Pendência cadastral não altera a situação do cliente nem a situação das obrigações.</p>`+empresas.map(e=>`<details class="crm-dossie"><summary><strong>${esc(e.codigo_empresa)} · ${esc(e.razao_social||e.cnpj)}</strong> — ${e.responsaveis.map(p=>esc(p.nome||p.uid)).join(', ')||'Sem responsável'}</summary><p>${esc(e.cnpj)} · Tributação: ${esc(e.tributacao||'Não informada no cadastro')} · CNAE: ${esc(e.atividade||'Não informado no cadastro')}</p><p>Responsabilidade: ${esc(e.contrato?.inicio||'Início não confirmado')} até ${esc(e.contrato?.fim||'Sem fim confirmado')}<br>Situação do cliente: ${esc(clientes[e.situacao_cliente]||'Não confirmada')} · ${e.controles.length} controles registrados</p><button data-topo-distribuir="${esc(e.cnpj)}">Distribuir empresa</button><div class="crm-scroll"><table><thead><tr><th>Obrigação / demanda</th><th>Período</th><th>Prazo</th><th>Situação</th><th>Executor</th></tr></thead><tbody>${e.controles.map(c=>`<tr><td>${esc(c.titulo)}</td><td>${esc(c.periodo)}</td><td>${esc(c.prazo||'Não informado')}</td><td>${esc(situacoes[c.status]||c.status)}${c.atrasado?' · Em atraso':''}</td><td>${esc(topo.pessoas.find(p=>p.uid===c.executor_uid)?.nome||c.executor_uid||'Não definido')}</td></tr>`).join('')}</tbody></table></div></details>`).join('');
+      q('[data-topologia-pessoas]').querySelectorAll('[data-topo-pessoa]').forEach(b=>b.onclick=()=>{q('[data-topologia-pessoa]').value=b.dataset.topoPessoa;renderTopologia();});
+      q('[data-topologia-empresas]').querySelectorAll('[data-topo-distribuir]').forEach(b=>b.onclick=()=>distribuirTopologia(topo.empresas.find(e=>e.cnpj===b.dataset.topoDistribuir)));
+    }
+    function distribuirTopologia(e){
+      const principal=e.responsaveis_permanentes.find(p=>p.papel==='principal'),apoios=e.responsaveis_permanentes.filter(p=>p.papel!=='principal').map(p=>p.uid);
+      formulario(`<h3>Distribuir ${esc(e.razao_social)}</h3><form><label>Responsável principal<select name="principal_uid" required><option value="">Selecione</option>${topo.pessoas.map(p=>`<option value="${esc(p.uid)}" ${p.uid===principal?.uid?'selected':''}>${esc(p.nome)}</option>`).join('')}</select></label><label>Apoios (seleção múltipla)<select name="apoio_uids" multiple size="5">${topo.pessoas.map(p=>`<option value="${esc(p.uid)}" ${apoios.includes(p.uid)?'selected':''}>${esc(p.nome)}</option>`).join('')}</select></label><p>Vigência imediata. O acesso à empresa muda ao salvar. Executores e revisores de demandas existentes serão preservados; confira sua redistribuição no planejamento.</p><label>Motivo<textarea name="motivo" required maxlength="1000"></textarea></label><button>Confirmar distribuição</button><button type="button" data-cancelar>Cancelar</button></form>`,async(b,f)=>{
+        await api('/api/crm/topologia/empresas/'+e.cnpj+'/equipe',{principal_uid:b.principal_uid,apoio_uids:f.getAll('apoio_uids'),motivo:b.motivo,revisao_carteira:e.revisao_carteira},'PUT');q('[data-editor]').innerHTML='';await carregarTopologia();mensagem('Carteira atualizada com histórico. Confira os executores das demandas em andamento.');
+      });q('[data-editor]').scrollIntoView({block:'nearest'});
+    }
+    q('[data-topologia-equipes]').onclick=()=>{
+      if(!topo?.admin)return;
+      const op=topo.pessoas.map(p=>`<option value="${esc(p.uid)}">${esc(p.nome)}</option>`).join('');
+      formulario(`<h3>Líderes e equipes</h3><p>Adicionar uma equipe autoriza o líder a distribuir as empresas inteiramente vinculadas aos integrantes selecionados. A delegação não concede acesso aos lançamentos contábeis.</p><form><label>Equipe<select name="indice"><option value="nova">Nova equipe</option>${(topo.gestao.equipes||[]).map((e,i)=>`<option value="${i}">${esc(e.nome)} (substituir ou revogar)</option>`).join('')}</select></label><label>Nome<input name="nome"></label><label>Líder<select name="lider_uid"><option value="">Selecione</option>${op}</select></label><label>Integrantes<select name="membros" multiple size="8">${op}</select></label><label><input type="checkbox" name="revogar">Revogar a equipe selecionada</label><label>Motivo<textarea name="motivo" required></textarea></label><button>Salvar delegação</button><button type="button" data-cancelar>Cancelar</button></form>`,async(b,f)=>{
+        const equipes=[...(topo.gestao.equipes||[])],indice=b.indice==='nova'?-1:Number(b.indice);
+        if(b.revogar){if(indice<0)throw Error('Selecione a equipe a revogar.');equipes.splice(indice,1);}
+        else{const e={nome:b.nome,lider_uid:b.lider_uid,membros:f.getAll('membros')};if(indice<0)equipes.push(e);else equipes[indice]=e;}
+        await api('/api/crm/topologia/gestao',{equipes,revisao:topo.gestao.revisao||0,motivo:b.motivo},'PUT');q('[data-editor]').innerHTML='';await carregarTopologia();mensagem('Delegações atualizadas com histórico.');
+      });q('[data-editor]').scrollIntoView({block:'nearest'});
+    };
+    q('[data-topologia-abrir]').onclick=()=>executar(carregarTopologia);
+    q('[data-topologia-filtrar]').onclick=()=>{renderTopologia();q('[data-topologia-empresas]').scrollIntoView({block:'start'});};
+    q('[data-topologia-qualidade]').onchange=renderTopologia;
+    q('[data-topologia-pessoa]').onchange=renderTopologia;q('[data-topologia-busca]').oninput=renderTopologia;
+    q('[data-admin-tools]').insertAdjacentHTML('beforeend','<button data-automacoes>Automações do CRM</button>');
+    q('[data-automacoes]').onclick=()=>executar(()=>window.abrirCentralNotificacoes({modulo:'crm',cnpj:empresa()?.cnpj||''}));
     async function api(path, body, method) {
-      const r = await window.API.apiFetch(path, body === undefined ? {} : { method: method || 'POST', body: JSON.stringify(body) });
-      const d = await r.json();
+      if (!dialog.isConnected) throw Error('Consulta encerrada.');
+      const controller = new AbortController();
+      const escrita = body !== undefined;
+      let timer;
+      const interromper = () => controller.abort();
+      dialog.addEventListener('close', interromper, { once:true });
+      let r, d;
+      try {
+        [r,d] = await Promise.race([
+          (async () => {
+            const resposta = await window.API.apiFetch(path, { signal:controller.signal, ...(escrita ? {method:method||'POST',body:JSON.stringify(body)} : {}) });
+            return [resposta, await resposta.json()];
+          })(),
+          new Promise((_,reject) => {
+            controller.signal.addEventListener('abort', () => reject(Error(escrita
+              ? 'Não foi possível confirmar a gravação. Consulte os dados antes de tentar novamente.'
+              : 'A consulta demorou demais ou foi encerrada. Tente novamente.')), {once:true});
+            timer = setTimeout(interromper, path==='/api/crm/checklist/previa' ? 110000 : escrita ? 60000 : 25000);
+          })
+        ]);
+      } finally { clearTimeout(timer); dialog.removeEventListener('close', interromper); }
+      if (!dialog.isConnected) throw Error('Consulta encerrada.');
       if (!r.ok) {
         if ([401,403].includes(r.status)) { carteira = []; controles = []; config = {}; nextEmp = null; nextControl = null; usuarios = null; q('[data-empresa]').innerHTML = '<option value="">Selecione uma empresa</option>'; q('[data-empresas-tabela]').innerHTML=''; trabalho=[];trabalhoCursor=null;trabalhoTruncadas=[];q('[data-agenda-grid]').innerHTML='';q('[data-agenda-resumo]').textContent='';q('[data-carga-lista]').innerHTML='';q('[data-carga-resumo]').textContent='';diaConsultado=false;renderMeuDia();q('[data-trabalho-resumo]').textContent='';q('[data-trabalho-mais]').hidden=true;renderTrabalho();limparDetalhes();render();abrirArea('carteira'); }
         throw Error(d.erro || 'Não foi possível concluir. Tente novamente.');
@@ -128,16 +190,18 @@
     }
     function permissoes() {
       q('[data-area=gestao]').hidden=!config.admin;
+      q('[data-area=topologia]').hidden=!(config.admin||config.topologia);
+      q('[data-topologia-equipes]').hidden=!config.admin;
+      if(!config.admin&&!config.topologia)limparTopologia();
       q('[data-equipe]').hidden = !config.admin || !empresa(); q('[data-checklist]').hidden = !config.admin;
       q('[data-novo]').hidden = !config.admin || !empresa(); q('[data-parametros]').hidden = true; q('[data-base-resumo]').hidden = !config.admin; q('[data-pendencias]').hidden = !config.admin;
     }
     async function executar(fn) {
       if (busy) return; busy = true; dialog.setAttribute('aria-busy','true');
-      dialog.querySelectorAll('button,input,select,textarea').forEach(el => { el.disabled = true; });
-      try { await fn(); } catch (e) { mensagem(e.message); }
-      finally { busy = false; dialog.setAttribute('aria-busy','false'); dialog.querySelectorAll('button,input,select,textarea').forEach(el => { el.disabled = false; }); permissoes(); }
+      dialog.querySelectorAll('button,input,select,textarea').forEach(el => { el.disabled = !el.matches('[data-sair]'); });
+      try { await fn(); } catch (e) { if(dialog.isConnected){ mensagem(e.message); if(areaAtual==='agenda')q('[data-agenda-resumo]').textContent='Consulta não concluída.'; if(areaAtual==='carga')q('[data-carga-resumo]').textContent='Consulta não concluída.'; } }
+      finally { busy = false; if(dialog.isConnected){ dialog.setAttribute('aria-busy','false'); dialog.querySelectorAll('button,input,select,textarea').forEach(el => { el.disabled = false; }); permissoes(); } }
     }
-    dialog.addEventListener('cancel', e => { if (busy) e.preventDefault(); });
     dialog.addEventListener('close', () => { seq++; dialog.remove(); });
     q('[data-sair]').onclick = () => dialog.close();
     let areaAtual='carteira', scrollCarteira=0, trabalho=[], trabalhoCursor=null, trabalhoLidas=0, trabalhoTruncadas=[];
@@ -146,8 +210,8 @@
       areaAtual=nome;dialog.querySelectorAll('[data-planejamento-area]').forEach(b=>b.setAttribute('aria-current','false'));dialog.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==nome);
       dialog.querySelectorAll('[data-area]').forEach(b=>b.setAttribute('aria-current',b.dataset.area===nome?'page':'false'));
       q('[data-recarregar]').hidden=nome!=='carteira';mensagem('');
-      q('#crmWorkspaceTitulo').textContent=({carteira:'Minha carteira',trabalho:'Obrigações e demandas',gestao:'Gestão da carteira',dossie:'Dossiê da empresa'})[nome];
-      q('[data-subtitulo]').textContent=({carteira:'Localize uma empresa e abra seu dossiê para acompanhar o trabalho.',trabalho:'Prioridades das empresas acessíveis à sua equipe. Consulte mais empresas para completar a visão.',gestao:'Organize responsáveis e confira os dados da carteira.',dossie:'Parâmetros, equipe, documentos e andamento em um só lugar.'})[nome];
+      q('#crmWorkspaceTitulo').textContent=({carteira:'Minha carteira',trabalho:'Obrigações e demandas',gestao:'Gestão da carteira',topologia:'Topologia do departamento',dossie:'Dossiê da empresa'})[nome];
+      q('[data-subtitulo]').textContent=({carteira:'Localize uma empresa e abra seu dossiê para acompanhar o trabalho.',trabalho:'Prioridades das empresas acessíveis à sua equipe. Consulte mais empresas para completar a visão.',gestao:'Organize responsáveis e confira os dados da carteira.',topologia:'Estrutura da equipe integrada à área de gestão.',dossie:'Parâmetros, equipe, documentos e andamento em um só lugar.'})[nome];
       q('[data-editor]').innerHTML='';q('[data-previa]').innerHTML='';
       if(nome==='carteira'&&config.total!=null)mensagem(`Mostrando ${q('[data-empresas-tabela]').querySelectorAll('tbody tr').length} de ${config.total} empresa(s).`);q('.crm-main').scrollTop=nome==='carteira'?scrollCarteira:0;
     }
@@ -219,10 +283,18 @@
     }
     q('[data-buscar]').onclick = ()=>executar(filtrarCarteira);
     q('[data-busca]').onkeydown = e=>{if(e.key==='Enter'){e.preventDefault();executar(filtrarCarteira);}};
-    q('[data-pendencias]').onclick=()=>executar(async()=>{
+    async function carregarIdentificacoes(){
       const d=await api('/api/crm/base/pendencias');
-      q('[data-previa]').innerHTML='<h3>Identificações a conferir</h3><p>'+d.registros.length+' registros preservados com CNPJ ausente ou inválido. Não foram vinculados automaticamente a uma carteira. Confira a identificação na origem antes da vinculação.</p>'+d.registros.map(r=>`<details><summary>${esc(r.codigo)} · ${esc(r.nome)} · ${esc(r.fonte_nome)} · linha ${r.linha}</summary><table>${r.campos.map((c,i)=>`<tr><th>${i+1} · ${esc(c.nome)}</th><td>${esc(c.valor??'Não informado')}</td></tr>`).join('')}</table></details>`).join('');
-    });
+      q('[data-previa]').innerHTML='<h3>Central de conferência · identificação</h3><p>'+d.registros.length+' registros preservados sem identificação segura. Corrija o vínculo aqui depois de conferir a empresa de destino. Os campos originais, inclusive CNPJ, permanecem intactos; nenhum responsável é atribuído automaticamente.</p>'+d.registros.map((r,n)=>`<details><summary>${esc(r.codigo)} · ${esc(r.nome)} · ${esc(r.fonte_nome)} · linha ${r.linha}</summary><button data-corrigir-identidade="${n}">Conferir vínculo da empresa</button><div class="crm-scroll"><table>${r.campos.map((c,i)=>`<tr><th>${i+1} · ${esc(c.nome)}</th><td>${esc(c.valor??'Não informado')}</td></tr>`).join('')}</table></div></details>`).join('');
+      q('[data-previa]').querySelectorAll('[data-corrigir-identidade]').forEach(b=>b.onclick=()=>corrigirVinculo(d.registros[Number(b.dataset.corrigirIdentidade)],carregarIdentificacoes));
+    }
+    function corrigirVinculo(r,recarregar){
+      formulario(`<h3>Conferir vínculo · ${esc(r.fonte_nome)} · linha ${esc(r.linha)}</h3><p>Origem: ${esc(r.nome)} · CNPJ original: ${esc((r.cnpj_origem??r.cnpj)||'Não informado')}. Vínculo atual: ${esc(r.cnpj||'Não informado')}.</p><form><label>CNPJ da empresa cadastrada<input name="cnpj" required pattern="[0-9]{14}" maxlength="14" inputmode="numeric"></label><label>Razão social exata no cadastro CCI<input name="razao_social" required maxlength="250"></label><p class="crm-wide">Os parâmetros e links deste registro ficarão disponíveis à carteira da empresa escolhida. A origem será preservada. Confira a identidade antes de confirmar; esta ação não distribui a carteira e não baixa obrigações.</p><label class="crm-wide">Motivo<textarea name="motivo" required maxlength="1000"></textarea></label><label class="crm-wide"><input type="checkbox" name="confirmado" required>Conferi a empresa e autorizo vincular este registro à sua carteira.</label><button class="crm-primary">Confirmar vínculo</button><button type="button" data-cancelar>Cancelar</button></form>`,async b=>{
+        await api('/api/crm/base/registros/'+r.id+'/identificacao',{...b,confirmado:b.confirmado==='on',revisao:r.revisao},'PUT');
+        q('[data-editor]').innerHTML='';await recarregar();mensagem('Vínculo conferido. Origem preservada e alteração registrada no histórico.');
+      });
+    }
+    q('[data-pendencias]').onclick=()=>executar(carregarIdentificacoes);
     q('[data-base-resumo]').onclick = ()=>executar(async()=>{
       const d=await api('/api/crm/base/resumo');
       q('[data-previa]').innerHTML='<h3>Conferência da base importada</h3><p>Linhas de diferentes abas podem representar a mesma empresa. Cada registro e coluna conserva sua origem. Colaborador de origem não concede acesso.</p><div class="crm-scroll"><table><tr><th>Fonte</th><th>Registros</th><th>Colunas</th><th>Importação</th></tr>'+d.fontes.map(f=>`<tr><td>${esc(f.nome)}</td><td>${esc(f.registros)}</td><td>${esc(f.colunas)}</td><td>${esc(instanteBr(f.importado_em))}</td></tr>`).join('')+'</table></div>';
@@ -234,12 +306,44 @@
       const area=q('[data-parametros-area]');
       const documentos=d.documentos || d.registros.flatMap(r=>r.campos.flatMap(c=>linksDoCampo(c).map(url=>({nome:c.nome,url,fonte:r.fonte_nome}))));
       const grupos=[['DITR','DITR — recibos e declarações'],['DEFIS','DEFIS — recibos e declarações'],[null,'Outros documentos — classificação a conferir']];
-      q('[data-documentos]').innerHTML='<h3>Documentos por obrigação</h3><p>Links preservados da origem; os arquivos ainda não foram copiados para armazenamento próprio. A separação usa a aba e o campo de origem, sem presumir o conteúdo do arquivo.</p>'+grupos.map(([codigo,titulo])=>{
+      q('[data-documentos]').innerHTML='<h3>Documentos por obrigação</h3><p>Arquivos com cópia conferida podem ser baixados pelo CCI. Os demais permanecem disponíveis na origem para consulta; não haverá nova cópia de anexos do Jotform. A separação usa a aba e o campo de origem, sem presumir o conteúdo do arquivo.</p>'+grupos.map(([codigo,titulo])=>{
         const itens=documentos.map((c,i)=>({...c,i})).filter(c=>(c.obrigacao||null)===codigo);
         const agrupados=new Map();itens.forEach(c=>{if(!agrupados.has(c.url))agrupados.set(c.url,[]);agrupados.get(c.url).push(c);});
-        return `<section class="crm-document-group"><header>${icon('document',codigo==='DITR'?'violet':codigo==='DEFIS'?'blue':'amber')}<h4>${esc(titulo)}</h4></header>${itens.length?`<p class="crm-muted">${agrupados.size} endereço(s) distinto(s) · ${itens.length} referência(s) preservada(s). Exercício a conferir no documento.</p><div class="crm-document-grid">`+[...agrupados.values()].map(refs=>{const c=refs[0];let arquivo='Abrir documento';try{arquivo=decodeURIComponent(new URL(c.url).pathname.split('/').pop())||arquivo;}catch{}return `<article class="crm-document-card"><strong>${esc(c.nome)}</strong><a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(arquivo)}</a><details><summary>${refs.length} referência(s) de origem</summary>${refs.map(r=>`<p>${esc(r.fonte)}${r.linha?' · linha '+esc(r.linha):''}<br><small>${esc(r.nome)}</small></p>`).join('')}</details>${c.previa?`<button data-previa-documento="${c.i}">Ver prévia de mensagem ${esc(c.obrigacao)}</button>`:''}</article>`;}).join('')+'</div>':'<p>Nenhum link identificado nesta categoria. Confira a origem; isso não significa dispensa da obrigação.</p>'}</section>`;
+        return `<section class="crm-document-group"><header>${icon('document',codigo==='DITR'?'violet':codigo==='DEFIS'?'blue':'amber')}<h4>${esc(titulo)}</h4></header>${itens.length?`<p class="crm-muted">${agrupados.size} endereço(s) distinto(s) · ${itens.length} referência(s) preservada(s). Exercício a conferir no documento.</p><div class="crm-document-grid">`+[...agrupados.values()].map(refs=>{const c=refs[0];let arquivo='Abrir documento';try{arquivo=decodeURIComponent(new URL(c.url).pathname.split('/').pop())||arquivo;}catch{}return `<article class="crm-document-card"><strong>${esc(c.nome)}</strong>${c.copiado?`<button data-baixar-documento="${c.i}">Baixar pelo CCI · ${esc(arquivo)}</button>`:`<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(arquivo)} · origem</a>`}<details><summary>${refs.length} referência(s) de origem</summary>${refs.map(r=>`<p>${esc(r.fonte)}${r.linha?' · linha '+esc(r.linha):''}<br><small>${esc(r.nome)}</small></p>`).join('')}</details>${c.previa?`<button data-previa-documento="${c.i}">Ver prévia de mensagem ${esc(c.obrigacao)}</button>`:''}</article>`;}).join('')+'</div>':'<p>Nenhum link identificado nesta categoria. Confira a origem; isso não significa dispensa da obrigação.</p>'}</section>`;
       }).join('');
       const documentosArea=q('[data-documentos]');
+      documentosArea.querySelectorAll('[data-baixar-documento]').forEach(b=>b.onclick=()=>executar(async()=>{
+        const doc=documentos[Number(b.dataset.baixarDocumento)];
+        const path='/api/crm/empresas/'+encodeURIComponent(cnpj)+'/documentos/'+encodeURIComponent(doc.registro_id)+'/'+doc.coluna+'/'+doc.indice;
+        const resposta=await window.API.apiFetch(path,{signal:AbortSignal.timeout(60000)});
+        if(!resposta.ok){const erro=await resposta.json();throw Error(erro.erro||'Não foi possível baixar. Atualize o dossiê.');}
+        const blob=await resposta.blob();
+        if(!dialog.isConnected||empresa()?.cnpj!==cnpj)throw Error('Empresa alterada. Abra novamente o documento.');
+        const url=URL.createObjectURL(blob),a=document.createElement('a');
+        let nome='documento';try{nome=decodeURIComponent(new URL(doc.url).pathname.split('/').pop())||nome;}catch{}
+        a.href=url;a.download=nome.replace(/[\\/\x00-\x1f]/g,'_');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+      }));
+      documentosArea.insertAdjacentHTML('afterbegin','<section data-referencias><h3>Referências de documentos</h3><p>Cadastre links para consulta, sem transferir arquivos. O histórico registra as versões do cadastro, não cópias do arquivo externo.</p><button data-ref-novo '+(d.pode_editar?'':'hidden')+'>Cadastrar referência</button><div data-ref-lista></div><button data-ref-mais hidden>Mais referências</button></section>');
+      let referencias=[],refCursor=null;
+      const editarReferencia=r=>{
+        formulario(`<h3>${r?'Atualizar referência':'Cadastrar referência de documento'}</h3><p>Empresa: ${esc(cnpj)}. Jotform e outros repositórios continuam disponíveis para consulta. Nenhum arquivo será copiado.</p><form><label>Título<input name="titulo" required maxlength="180" value="${esc(r?.titulo||'')}"></label><label>Categoria<select name="categoria">${['DITR','DEFIS','ECD','ECF','CONTRATO','OUTROS'].map(v=>`<option ${r?.categoria===v?'selected':''}>${v}</option>`).join('')}</select></label><label>Período<input name="periodo" placeholder="2026 ou 2026-10" value="${esc(r?.periodo||'')}"></label><label class="crm-wide">Link HTTPS<input type="url" name="url" required maxlength="2000" value="${esc(r?.url||'')}"></label><label class="crm-wide">Motivo<textarea name="motivo" required maxlength="1000"></textarea></label><button>Salvar referência</button><button type="button" data-cancelar>Cancelar</button></form>`,async b=>{
+          await api('/api/crm/empresas/'+cnpj+'/documentos-referencias'+(r?'/'+r.id:''),{...b,revisao:r?.revisao||0},r?'PUT':'POST');q('[data-editor]').innerHTML='';await carregarParametros();mensagem('Referência salva com histórico. Nenhum arquivo transferido.');
+        });
+      };
+      const listarReferencias=async mais=>{
+        const rsp=await api('/api/crm/empresas/'+cnpj+'/documentos-referencias'+(mais&&refCursor?'?cursor='+encodeURIComponent(refCursor):''));if(empresa()?.cnpj!==cnpj||!documentosArea.isConnected)return;
+        referencias=mais?referencias.concat(rsp.documentos):rsp.documentos;refCursor=rsp.proximo;
+        q('[data-ref-lista]').innerHTML=`<p>${referencias.length} referência(s) carregada(s)${refCursor?'; há mais referências':''}.</p>`+referencias.map((r,i)=>`<article class="crm-document-card"><strong>${esc(r.titulo)}</strong><p>${esc(r.categoria)} · ${esc(r.periodo||'Período não informado')} · versão ${r.revisao}</p><a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">Consultar na origem</a>${d.pode_editar?`<button data-ref-editar="${i}">Atualizar referência</button>`:''}<button data-ref-hist="${i}">Histórico de versões</button></article>`).join('');
+        q('[data-ref-mais]').hidden=!refCursor;
+        q('[data-ref-lista]').querySelectorAll('[data-ref-editar]').forEach(b=>b.onclick=()=>editarReferencia(referencias[Number(b.dataset.refEditar)]));
+        q('[data-ref-lista]').querySelectorAll('[data-ref-hist]').forEach(b=>b.onclick=()=>executar(async()=>{
+          const r=referencias[Number(b.dataset.refHist)];let cursor=null,linhas=[];
+          do{const h=await api('/api/crm/empresas/'+cnpj+'/documentos-referencias/'+r.id+'/historico'+(cursor?'?cursor='+cursor:''));linhas.push(...h.historico);cursor=h.proximo;}while(cursor);
+          if(empresa()?.cnpj!==cnpj)return;
+          formulario(`<h3>Histórico — ${esc(r.titulo)}</h3><p>Versões do cadastro de referência; o conteúdo externo pode ter sido alterado pelo provedor.</p>${linhas.map(v=>`<p><strong>Versão ${v.revisao}</strong> · ${esc(instanteBr(v.quando))}<br>${esc(v.titulo)} · ${esc(v.categoria)} · ${esc(v.periodo)}<br>${esc(v.motivo)}<br><a href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">Consultar referência desta versão</a></p>`).join('')}<form><button type="button" data-cancelar>Fechar</button></form>`,async()=>{});
+        }));
+      };
+      q('[data-ref-novo]').onclick=()=>editarReferencia(null);q('[data-ref-mais]').onclick=()=>executar(()=>listarReferencias(true));await listarReferencias(false);if(empresa()?.cnpj!==cnpj||!q('[data-documentos]'))return;
       documentosArea.insertAdjacentHTML('afterbegin','<div class="crm-bar"><label>Buscar documento<input data-documento-busca type="search" placeholder="Nome, fonte ou arquivo"></label><label>Categoria<select data-documento-categoria><option value="">Todas</option><option value="DITR">DITR</option><option value="DEFIS">DEFIS</option><option value="OUTROS">Outros</option></select></label></div><p data-documento-resumo role="status"></p>');
       const filtrarDocumentos=()=>{
         const termo=q('[data-documento-busca]').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(),categoria=q('[data-documento-categoria]').value;
@@ -248,7 +352,7 @@
           grupo.querySelectorAll('.crm-document-card').forEach(card=>{total++;const texto=card.textContent.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();card.hidden=Boolean((categoria&&categoria!==['DITR','DEFIS','OUTROS'][i])||!texto.includes(termo));if(!card.hidden){visiveis++;encontrados++;}});
           grupo.hidden=Boolean((termo||categoria)&&!encontrados);
         });
-        q('[data-documento-resumo]').textContent=visiveis+' de '+total+' cartão(ões) de links. Arquivos ainda não copiados; ausência de resultado não significa dispensa.';
+        q('[data-documento-resumo]').textContent=visiveis+' de '+total+' cartão(ões) de documentos. Ausência de resultado não significa dispensa.';
       };
       q('[data-documento-busca]').oninput=filtrarDocumentos;q('[data-documento-categoria]').onchange=filtrarDocumentos;filtrarDocumentos();
       q('[data-documentos]').querySelectorAll('[data-previa-documento]').forEach(b=>b.onclick=()=>{
@@ -256,7 +360,15 @@
         formulario(`<h3>Prévia de mensagem</h3><p>Rascunho para conferência, sem envio ao Teams ou cópia ao OneDrive. O exercício deve ser conferido no documento; a data não é deduzida pelo nome da aba.</p><form class="crm-message-preview"><label class="crm-wide">Título<input readonly value="${esc(p.titulo)}"></label><label class="crm-wide">Mensagem<textarea readonly rows="9">${esc(p.texto)}</textarea></label><button type="button" data-cancelar>Fechar prévia</button></form>`,async()=>{});
       });
 
-      area.innerHTML='<h3>Parâmetros da empresa</h3><p class="crm-muted">Cada aba mantém seus próprios registros. Campos vazios, valores repetidos e erros de origem foram preservados. A edição aqui atualiza o CRM do CCI e mantém o valor original para conferência. As opções conferidas da origem estão disponíveis nos campos de situação e tributação. Indicações de campo oculto descrevem o formulário e não dispensam obrigações fiscais.</p>'+(!d.registros.length?'<p>Sem registros importados do Jotform para este CNPJ.</p>':d.registros.map((r,n)=>`<details><summary>${esc(r.fonte_nome)} · linha ${r.linha} · revisão ${r.revisao}</summary><p class="crm-muted">Importado em ${esc(instanteBr(r.importado_em))}</p><div class="crm-scroll"><table><thead><tr><th>Coluna</th><th>Parâmetro</th><th>Valor atual</th><th>Valor da origem</th><th>Ação</th></tr></thead><tbody>${r.campos.map((c,i)=>`<tr><td>${i+1}</td><td>${esc(c.nome)}${r.contrato?.campos[i]?.visivel_origem===false?'<br><small class="crm-muted">Oculto no formulário para esta tributação; valor preservado.</small>':''}</td><td style="white-space:pre-wrap">${esc(c.valor ?? 'Não informado')}${linksDocumento(c)}</td><td style="white-space:pre-wrap">${esc(c.original ?? 'Não informado')}</td><td>${d.pode_editar&&!c.protegido?`<button data-editar-param="${n}:${i}">Editar</button>`:''}</td></tr>`).join('')}</tbody></table></div><button data-hist-param="${n}">Histórico das alterações</button></details>`).join(''));
+      area.innerHTML='<h3>Parâmetros da empresa</h3><p class="crm-muted">Cada aba mantém seus próprios registros. Campos vazios, valores repetidos e erros de origem foram preservados. A edição aqui atualiza o CRM do CCI e mantém o valor original para conferência. As opções conferidas da origem estão disponíveis nos campos de situação e tributação. Indicações de campo oculto descrevem o formulário e não dispensam obrigações fiscais.</p>'+(!d.registros.length?'<p>Sem registros importados do Jotform para este CNPJ.</p>':d.registros.map((r,n)=>`<details><summary>${esc(r.fonte_nome)} · linha ${r.linha} · revisão ${r.revisao}</summary><p class="crm-muted">Importado em ${esc(instanteBr(r.importado_em))}</p>${(r.contrato?.formulas||[]).map(f=>`<div class="crm-contract"><strong>Regra da origem: saldo de janeiro → saldo residual</strong><p>${esc(f.aviso)}</p><p>Residual atual: ${esc(r.campos[f.destino].valor??'Não informado')} · Resultado proposto: ${esc(f.valor??'Indisponível')}</p>${d.pode_editar&&f.disponivel?`<button data-formula-param="${n}">Conferir aplicação da fórmula</button>`:''}</div>`).join('')}<div class="crm-scroll"><table><thead><tr><th>Coluna</th><th>Parâmetro</th><th>Valor atual</th><th>Valor da origem</th><th>Ação</th></tr></thead><tbody>${r.campos.map((c,i)=>`<tr><td>${i+1}</td><td>${esc(c.nome)}${r.contrato?.campos[i]?.condicao_origem?`<br><small class="crm-muted">${esc(r.contrato.campos[i].condicao_origem)}</small>`:''}${r.contrato?.campos[i]?.visivel_origem===false?'<br><small class="crm-muted">Oculto no formulário para esta tributação; valor preservado.</small>':''}</td><td style="white-space:pre-wrap">${esc(c.valor ?? 'Não informado')}${linksDocumento(c)}</td><td style="white-space:pre-wrap">${esc(c.original ?? 'Não informado')}</td><td>${d.pode_editar&&!c.protegido?`<button data-editar-param="${n}:${i}">Editar</button>`:''}</td></tr>`).join('')}</tbody></table></div><button data-hist-param="${n}">Histórico das alterações</button>${config.admin?`<button data-vinculo-param="${n}">Conferir vínculo da empresa</button>`:''}</details>`).join(''));
+      area.querySelectorAll('[data-formula-param]').forEach(btn=>btn.onclick=()=>{
+        const r=d.registros[Number(btn.dataset.formulaParam)],f=r.contrato.formulas[0];
+        formulario(`<h3>Conferir saldo residual</h3><p>Saldo de janeiro: ${esc(r.campos[f.origem].valor)} · Residual atual: ${esc(r.campos[f.destino].valor??'Não informado')}</p><p>Resultado proposto: <strong>${esc(f.valor)}</strong>. Esta ação substitui somente o residual deste registro, mantendo o original e o histórico. Não altera lançamentos contábeis.</p><form><label class="crm-wide">Motivo<textarea name="motivo" required maxlength="1000"></textarea></label><label class="crm-wide"><input type="checkbox" name="confirmado" required> Conferi o resultado e autorizo substituir o residual atual.</label><button class="crm-primary">Aplicar fórmula conferida</button><button type="button" data-cancelar>Cancelar</button></form>`,async b=>{
+          await api('/api/crm/empresas/'+cnpj+'/parametros/'+r.id,{revisao:r.revisao,coluna:f.destino,formula:f.id,confirmado:b.confirmado==='on',motivo:b.motivo},'PATCH');
+          q('[data-editor]').innerHTML='';await carregarParametros();mensagem('Fórmula aplicada com histórico.');
+        });
+      });
+      area.querySelectorAll('[data-vinculo-param]').forEach(b=>b.onclick=()=>corrigirVinculo(d.registros[Number(b.dataset.vinculoParam)],carregarParametros));
       area.querySelectorAll('[data-editar-param]').forEach(btn=>btn.onclick=()=>{
         const [n,i]=btn.dataset.editarParam.split(':').map(Number),r=d.registros[n],c=r.campos[i];
         const opcoes=r.contrato?.campos[i]?.opcoes;
@@ -271,7 +383,7 @@
       area.querySelectorAll('[data-hist-param]').forEach(btn=>btn.onclick=()=>executar(async()=>{
         const r=d.registros[Number(btn.dataset.histParam)],h=await api('/api/crm/empresas/'+cnpj+'/parametros/'+r.id+'/historico');
         mostrarSecao('historico');
-        q('[data-historico]').innerHTML='<h3>Histórico de parâmetros</h3>'+(!h.historico.length?'<p>Nenhuma alteração após a importação.</p>':h.historico.map(v=>`<p>Revisão ${v.revisao} · ${esc(instanteBr(v.quando))} · ${esc(v.antes.nome)}<br>${esc(v.antes.valor ?? 'Não informado')} → ${esc(v.depois.valor)}<br>Motivo: ${esc(v.motivo)} · Usuário: ${esc(v.por_uid)}</p>`).join(''));
+        q('[data-historico]').innerHTML='<h3>Histórico de parâmetros</h3>'+(!h.historico.length?'<p>Nenhuma alteração após a importação.</p>':h.historico.map(v=>`<p>Revisão ${v.revisao} · ${esc(instanteBr(v.quando))} · ${esc(v.tipo==='CRM_IDENTIFICACAO_CONFERIDA'?'Vínculo da empresa':v.antes.nome)}<br>${esc(v.antes.cnpj??v.antes.valor??'Não informado')} → ${esc(v.depois.cnpj??v.depois.valor)}<br>Motivo: ${esc(v.motivo)} · Usuário: ${esc(v.por_uid)}</p>`).join(''));
       }));
     }
     function limparDetalhes() {
@@ -304,6 +416,7 @@
     }
     function formulario(html, salvar) {
       const area = q('[data-editor]'); area.innerHTML = html;
+      area.querySelectorAll('form > p,form > label:has(textarea)').forEach(p=>p.classList.add('crm-wide'));
       area.querySelector('[data-cancelar]').onclick = () => { area.innerHTML = ''; };
       area.querySelector('form').onsubmit = e => { e.preventDefault(); const dados = new FormData(e.currentTarget); executar(() => salvar(Object.fromEntries(dados), dados)); };
       area.scrollIntoView({ block: 'nearest' });area.querySelector('input,select,textarea')?.focus();
@@ -356,7 +469,11 @@
     q('[data-checklist]').onclick = () => executar(async () => {
       limparDetalhes(); mensagem('Conferindo a leitura completa do Checklist…');
       const d = await api('/api/crm/checklist/previa');
-      q('[data-previa]').innerHTML = `<h3>Conferência do Checklist</h3><p>${d.total} evento(s), ${d.com_pendencias} com pendências. Leitura: ${esc(instanteBr(d.lido_em))}.</p><p>Revise cada evento antes de aplicar. A aplicação altera somente a responsabilidade contratual; não cria empresas, não distribui carteira nem baixa obrigações.</p><div class="crm-scroll"><table><thead><tr><th>Empresa / Nosso Número</th><th>Evento</th><th>Responsabilidade</th><th>Conferência</th></tr></thead><tbody>${d.eventos.map((e,i) => `<tr><td>${esc(e.empresa_nome)}<br>${esc(e.numero_original)}</td><td>${esc(e.tipo)}</td><td>${esc(e.responsabilidade_inicio || 'Início não informado')} — ${esc(e.responsabilidade_fim || 'Fim não informado')}</td><td>${esc(e.problemas.join(' ') || 'Revisar contrato antes de aplicar.')}${!e.problemas.length && e.cnpj ? `<button data-checklist-revisar="${i}">Revisar aplicação</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+      q('[data-previa]').innerHTML = `<h3>Conferência do Checklist</h3><p>${d.total} evento(s), ${d.com_pendencias} com pendências. Leitura: ${esc(instanteBr(d.lido_em))}.</p><p>Revise cada evento antes de aplicar. A aplicação altera somente a responsabilidade contratual; não cria empresas, não distribui carteira nem baixa obrigações.</p><div class="crm-scroll"><table><thead><tr><th>Empresa / Nosso Número</th><th>Evento</th><th>Responsabilidade</th><th>Conferência</th></tr></thead><tbody>${d.eventos.map((e,i) => `<tr data-checklist-linha="${i}"><td>${esc(e.empresa_nome)}<br>${esc(e.numero_original)}</td><td>${esc(e.tipo)}</td><td>${esc(e.responsabilidade_inicio || 'Início não informado')} — ${esc(e.responsabilidade_fim || 'Fim não informado')}</td><td>${esc(e.problemas.join(' ') || 'Revisar contrato antes de aplicar.')}<details><summary>Como conferir no CCI</summary>${(e.orientacoes||[]).map(v=>`<p>${esc(v)}</p>`).join('')}</details>${!e.problemas.length && e.cnpj ? `<button data-checklist-revisar="${i}">Revisar aplicação</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+      q('[data-previa]').insertAdjacentHTML('afterbegin','<div class="crm-bar"><label>Buscar evento<input data-check-busca type="search" placeholder="Empresa, número ou CNPJ"></label><label>Conferência<select data-check-filtro><option value="">Todos</option><option value="pendente">Com pendências</option><option value="pronto">Sem pendências de leitura</option></select></label></div><p data-check-contagem role="status"></p>');
+      const filtrarChecklist=()=>{const busca=q('[data-check-busca]').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(),filtro=q('[data-check-filtro]').value;let visiveis=0;
+        q('[data-previa]').querySelectorAll('[data-checklist-linha]').forEach(tr=>{const e=d.eventos[Number(tr.dataset.checklistLinha)],texto=[e.empresa_nome,e.numero_original,e.cnpj,e.submission_id].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();tr.hidden=Boolean((busca&&!texto.includes(busca))||(filtro==='pendente'&&!e.problemas.length)||(filtro==='pronto'&&e.problemas.length));if(!tr.hidden)visiveis++;});q('[data-check-contagem]').textContent=visiveis+' de '+d.total+' eventos no filtro. Sem pendências de leitura não significa aprovado.';};
+      q('[data-check-busca]').oninput=filtrarChecklist;q('[data-check-filtro]').onchange=filtrarChecklist;filtrarChecklist();
       q('[data-previa]').querySelectorAll('[data-checklist-revisar]').forEach(btn => btn.onclick = () => executar(async () => {
         const evento = d.eventos[Number(btn.dataset.checklistRevisar)];
         const atual = await api('/api/crm/empresas/' + encodeURIComponent(evento.cnpj) + '/planejamento');
@@ -385,7 +502,7 @@
     let planningInfo=null,capacidades=[];
     const antigoPermissoes=permissoes;
     permissoes=function(){antigoPermissoes();q('[data-planejamento-area=carga]').hidden=!config.admin;q('[data-lote]').hidden=!config.admin;q('[data-planejar-empresa]').hidden=!empresa();};
-    function abrirPlanejamentoArea(nome){abrirArea(nome==='agenda'?'trabalho':'gestao');dialog.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==nome);q('#crmWorkspaceTitulo').textContent=nome==='agenda'?'Calendário operacional':'Carga semanal da equipe';q('[data-subtitulo]').textContent=nome==='agenda'?'Início previsto, prazo interno e vencimento por empresa.':'Planejamento por executor, disponibilidade e ausências confirmadas.';dialog.querySelectorAll('[data-area]').forEach(b=>b.setAttribute('aria-current','false'));dialog.querySelectorAll('[data-planejamento-area]').forEach(b=>b.setAttribute('aria-current',b.dataset.planejamentoArea===nome?'page':'false'));}
+    function abrirPlanejamentoArea(nome){abrirArea(nome==='agenda'?'trabalho':'gestao');areaAtual=nome;dialog.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==nome);q('#crmWorkspaceTitulo').textContent=nome==='agenda'?'Calendário operacional':'Carga semanal da equipe';q('[data-subtitulo]').textContent=nome==='agenda'?'Início previsto, prazo interno e vencimento por empresa.':'Planejamento por executor, disponibilidade e ausências confirmadas.';dialog.querySelectorAll('[data-area]').forEach(b=>b.setAttribute('aria-current','false'));dialog.querySelectorAll('[data-planejamento-area]').forEach(b=>b.setAttribute('aria-current',b.dataset.planejamentoArea===nome?'page':'false'));}
     q('[data-planejamento-area=agenda]').onclick=()=>executar(async()=>{abrirPlanejamentoArea('agenda');await agenda();});
     q('[data-planejamento-area=carga]').onclick=()=>executar(async()=>{abrirPlanejamentoArea('carga');await carga();});
     async function abrirPorCnpj(id){if(!carteira.some(e=>e.cnpj===id)){const d=await api('/api/crm/carteira?busca='+encodeURIComponent(id)),e=d.empresas.find(e=>e.cnpj===id);if(!e)throw Error('Empresa indisponível. Atualize a consulta.');carteira.push(e);const o=document.createElement('option');o.value=id;o.textContent=e.razao_social;q('[data-empresa]').appendChild(o);}q('[data-empresa]').value=id;await carregarControles();mostrarSecao('controles');abrirArea('dossie');}
@@ -430,7 +547,7 @@
     const icon=(name,color='blue')=>`<span class="crm-icon" data-color="${color}" aria-hidden="true"><svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${iconPaths[name]||iconPaths.task}"/></svg></span>`;
     let perfilUid='',diaConsultado=false;
     q('.crm-sidebar nav').insertAdjacentHTML('afterbegin',`<button data-home-nav>${icon('home')}<span>Meu início</span></button>`);
-    const navigationIcons=[['[data-area=carteira]','company','Minha carteira','blue'],['[data-area=trabalho]','task','Obrigações e demandas','amber'],['[data-area=gestao]','team','Gestão da carteira','violet'],['[data-planejamento-area=agenda]','calendar','Calendário','green'],['[data-planejamento-area=carga]','team','Carga da equipe','violet']];
+    const navigationIcons=[['[data-area=carteira]','company','Minha carteira','blue'],['[data-area=trabalho]','task','Obrigações e demandas','amber'],['[data-area=gestao]','team','Gestão da carteira','violet'],['[data-area=topologia]','team','Topologia','violet'],['[data-planejamento-area=agenda]','calendar','Calendário','green'],['[data-planejamento-area=carga]','team','Carga da equipe','violet']];
     navigationIcons.forEach(([selector,id,label,color])=>q(selector).innerHTML=icon(id,color)+'<span>'+label+'</span>');
     q('[data-pane=carteira]').insertAdjacentHTML('afterbegin','<p class="crm-muted">Encontre a empresa, abra seu dossiê e acompanhe os próximos passos. A consulta respeita sua carteira.</p>');
     main.insertAdjacentHTML('beforeend',`<section data-pane="inicio" hidden><div class="crm-hero"><div><small>SUA ROTINA, MAIS CLARA</small><h3>Cada empresa.<br>Um próximo passo.</h3><p>Ative a empresa para trabalhar na contabilidade. No CRM, acompanhe sua carteira, os prazos e o que precisa de atenção.</p><button data-home-ativar>Escolher empresa de trabalho →</button></div><img src="/assets/crm/organizacao.svg" alt="" aria-hidden="true" width="440" height="280"></div><div class="crm-journey"><span><b>1</b> Ative a empresa</span><span><b>2</b> Confira as demandas</span><span><b>3</b> Registre a conclusão e a evidência</span></div><p class="crm-muted" data-home-ativa></p><div class="crm-launch-grid"><button class="crm-launch" data-home-carteira>${icon('company')}<span><strong>Minha carteira</strong><small>Empresas, parâmetros, documentos e histórico.</small></span></button><button class="crm-launch" data-home-agenda>${icon('calendar','green')}<span><strong>Calendário</strong><small>Veja início, prazo interno e vencimento.</small></span></button><button class="crm-launch" data-home-trabalho>${icon('task','amber')}<span><strong>Obrigações e demandas</strong><small>Organize o trabalho e acompanhe as entregas.</small></span></button></div><div class="crm-bar crm-top"><div><h3>Meu dia</h3><p class="crm-muted">Demandas atribuídas a você como executor ou revisor.</p></div><button data-home-consultar>Consultar minhas demandas</button></div><p class="crm-muted" role="status" data-home-alcance>Consulte para carregar suas demandas. Nenhum indicador foi calculado ainda.</p><div class="crm-summary-grid">${[['hoje','clock','blue','Vencem hoje'],['atrasado','clock','red','Em atraso'],['proximos7','calendar','green','Próximos 7 dias'],['em_revisao','review','violet','Em revisão']].map(([key,id,color,label])=>`<button class="crm-summary-card" data-color="${color}" data-home-filtro="${key}">${icon(id,color)}<span><strong data-home-contagem="${key}">—</strong><small>${label}</small></span></button>`).join('')}</div><button data-home-mais hidden>Consultar próximas empresas</button><div data-home-pendencias class="crm-health-note" hidden></div><div class="crm-empty-illustrated">${icon('review','green')}<div><strong>Concluir é deixar evidência.</strong><p>Registre recibo, protocolo ou documento ao finalizar. Uma tarefa sem prazo ou sem responsável continua precisando de conferência.</p></div></div><div class="crm-legend" aria-label="Legenda de situações"><span><i class="crm-dot" style="color:var(--crm-red)"></i>Atraso</span><span><i class="crm-dot" style="color:var(--crm-amber)"></i>Atenção</span><span><i class="crm-dot" style="color:var(--crm-blue)"></i>Andamento</span><span><i class="crm-dot" style="color:var(--crm-violet)"></i>Revisão</span><span><i class="crm-dot" style="color:var(--crm-green)"></i>Conclusão comprovada</span></div><div class="crm-health-note" data-home-admin hidden><strong>Administração da carteira</strong><br>Distribua empresas e demandas, confirme vigências e confira a carga da equipe. A migração do Jotform permanece em homologação.<div class="crm-bar"><button data-home-gestao>Gerir carteira e migração</button><button data-home-carga>Ver carga da equipe</button></div></div></section>`);
@@ -454,8 +571,9 @@
     q('[data-home-consultar]').onclick=()=>executar(()=>carregarTrabalho());
     q('[data-trabalho-escopo]').onchange=renderTrabalho;
     q('[data-pane=inicio]').querySelectorAll('[data-home-filtro]').forEach(b=>b.onclick=()=>executar(async()=>{q('[data-trabalho-escopo]').value='pessoal';q('[data-trabalho-filtro]').value=b.dataset.homeFiltro;abrirArea('trabalho');if(!diaConsultado)await carregarTrabalho();else renderTrabalho();}));
-    q('[data-pane=gestao]').insertAdjacentHTML('beforeend','<div class="crm-health-note"><strong>Migração em homologação — Jotform permanece disponível</strong><p>Confira empresas e identificações nos relatórios acima. Valores importados não comprovam equivalência das fórmulas e automações.</p><ul><li>Fórmulas e opções: comparar regras, resultados e casos vazios com a origem.</li><li>Anexos: links preservados; cópia privada e conciliação ainda pendentes.</li><li>Checklist: consulta e aplicação individual pelo administrador dependem da credencial; eventos com pendências exigem revisão.</li><li>Aceite: validar administrador, colaborador e consulta antes de definir o corte.</li></ul></div>');
+    q('[data-pane=gestao]').insertAdjacentHTML('beforeend','<div class="crm-health-note"><strong>Migração em homologação — Jotform permanece disponível</strong><p>Confira empresas e identificações nos relatórios acima. Valores importados não comprovam equivalência das fórmulas e automações.</p><ul><li>Parâmetros: opções preservadas e fórmula de saldo com prévia e confirmação, quando identificada na fonte integral.</li><li>Anexos: arquivos com cópia conferida podem ser baixados pelo CCI; referências sem cópia mantêm a origem. Novas referências podem ser cadastradas por link, com histórico; anexos antigos permanecem consultáveis no Jotform.</li><li>Checklist: permanece integrado ao Jotform, com consulta e aplicação individual pelo administrador; eventos com pendências exigem revisão.</li><li>Automações: notificações e envios serão construídos no CCI; prévias não enviam mensagens.</li><li>Aceite: validar obrigações configuradas, acesso do colaborador e restauração antes do corte definitivo.</li></ul></div>');
     abrirArea('inicio');
     await executar(async()=>{config=await api('/api/crm/contexto');perfilUid=config.uid;visualizacoes=await api('/api/crm/visualizacoes');listarVisualizacoes();});q('[data-home-nav]').focus();
+    if(areaInicial==='topologia'&&(config.admin||config.topologia)){abrirArea('topologia');q('[data-topologia-abrir]').focus();}
   };
 })();

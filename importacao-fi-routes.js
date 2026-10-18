@@ -39,6 +39,7 @@ function registrar(app, deps) {
         data: l.data, valor: l.valorCentavos / 100, descricao: l.descricao, historico: l.descricao,
         contaDebito: l.contaDebito, contaCredito: l.contaCredito, codigoHistorico: l.codigoHistorico,
         digitador_sage: l.digitador_sage, tipo_movimento_sage: l.tipo_movimento_sage, tipo_digitacao_sage: l.tipo_digitacao_sage,
+        incluidoPor: req.user.nome || req.user.email || '',
         origem: 'iob-sage-fi', categoria: 'Movimento contábil', bancoId: 'CONTABIL_FI', bancoNome: 'Importação contábil FI',
         importacaoId, importacaoTitulo: 'IOB/SAGE FI — ' + previa.inicio + ' a ' + previa.fim,
         layoutNome: 'IOB/SAGE FI financeiro (328 posições)', layoutParser: 'lerFI',

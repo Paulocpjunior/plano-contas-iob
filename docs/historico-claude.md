@@ -2042,3 +2042,105 @@ Consultas mensais e cálculos escolhem o quadro vigente; cadastro comum não con
 ## 2026-10-15 — Admin: aba Topologia do departamento (PR #293)
 
 Aba Topologia no /admin, só para is_admin, abre o organograma (serviço topologia-contabil, southamerica-east1) sem novo login. Rota /api/admin/topologia/passe gera passe HMAC de 2 min, uso único, com e-mail e nome; módulo puro topologia-sso.js com teste. Env no plano-contas-iob: TOPOLOGIA_URL e TOPOLOGIA_SSO_SECRET (segredo em ~/.topologia_sso_secret, nunca no chat); sem elas a rota responde 503. Admin do CCI entra como Gestor, salvo cadastro próprio na Topologia. Lição: nomes de revisão do Cloud Run não seguem a ordem de criação; confira por creationTimestamp antes de mover tráfego.
+
+## 2026-10-15 — CiA: primeira etapa de assistência contábil (local)
+
+- Implementada na branch `codex/cia-assistente-contabil`, a partir de `origin/main` eff1616, versão-base 3.4.407 também observada no endpoint de produção. Sem commit, push ou deploy.
+- Novo painel CiA no menu, contexto da empresa ativa e período; consulta somente à sessão salva online. Troca de contexto cancela e descarta respostas anteriores.
+- Rota autenticada com controle de carteira antes e depois da análise; quota individual, leitura sem gravação e falha segura para sessão ausente/inválida.
+- Conferência determinística: contas faltantes, valores ausentes/inválidos, datas inválidas e possíveis repetições (não comprovam duplicidade). Evidências limitadas a 30; contagens completas.
+- Interpretação opcional pelo provedor de IA existente, com base oficial e dados mínimos. Falhas mantêm a conferência e indicam indisponibilidade da interpretação. Não consulta CRM, conciliações ou saldos de abertura e não certifica fechamento.
+- Testes de domínio/rotas em `scripts/test-cia-contabil.js`; teste de navegador com dados fictícios validou desktop, celular, texto não interpretado como HTML, troca de empresa, respostas tardias e Escape. Homologação autenticada com dados reais e provedor real pendente.
+- Validação final: `npm run check:ci` = 261 passaram, 2 pulados por evidências externas ausentes (Itaú e Santander), 0 falharam. `npm run check` interrompido no PDF externo ausente de regressão Itaú. `npm audit --audit-level=high` = zero vulnerabilidades. `git diff --check` limpo. Capturas fictícias em `output/cia-desktop.png` e `output/cia-mobile.png`.
+- Publicação autorizada por Paulo em 15/10/2026: commit, PR e deploy pelo fluxo oficial. Preparada versão 3.4.408 com marcadores, Novidades e roteiro `docs/cia-apresentacao-colaboradores.md`; homologação autenticada continua pendente até validação efetiva.
+
+- Revisão de publicação CiA: o middleware geral classificava o novo POST como operação completa. Adicionada exceção exata de consulta para `/api/cia/perguntar`, preservando autenticação e carteira na rota. Teste inclui perfil somente consulta e mantém outras rotas bloqueadas. Primeiro workflow cancelado antes da publicação para incorporar a correção.
+
+
+## 2026-10-15 — CiA no canto inferior direito (3.4.409)
+
+- Pedido de Paulo: abrir como os demais aplicativos, no canto inferior direito e já aberta. Painel não modal após login, com minimização e botão persistente para reabrir; sem bloquear a tela nem tomar o foco na abertura automática.
+- Sessão encerrada cancela a consulta, limpa informações e oculta painel/botão. Respostas antigas continuam sendo descartadas na troca de empresa/período. Nenhuma mudança nas regras contábeis.
+- Validação em navegador com dados fictícios: abertura automática, interação na tela de fundo, minimizar/reabrir, sair/entrar, foco preservado e tamanho de celular sem rolagem lateral. Consulta autenticada real permanece pendente.
+
+
+## 2026-10-15 — v3.4.410: carregamento do CRM
+
+Calendário em produção levou 99,844 s por leitura de controles e contexto por empresa. Substituída por collectionGroup limitada (excesso gera erro, nunca total parcial), com validação de caminho e carteira atual após leitura. Filtros operacionais e trabalho usam paralelismo limitado a 10. UI limita consultas a 25 s e gravações a 60 s, libera controles e mantém saída; resposta tardia não renderiza. Testes cobrem revogação, isolamento, 965 empresas sem N+1, limite, saída, timeout e recuperação.
+
+## 2026-10-16 — CRM e revisão Topologia (3.4.411)
+
+Integração administrativa sob demanda no CRM; passe sem cache, URL HTTPS sem credenciais e validação de assinatura/validade. Revisão do serviço externo documentada em docs/crm-topologia-revisao-20261016.md: sessão sem revogação imediata, replay entre instâncias, escopo de líderes, concorrência e contagem manual. Correções do receptor externo e integração de dados não foram publicadas por esta mudança. Checklist sem credencial configurada, anexos e reconciliação final continuam impeditivos ao desligamento do Jotform. Nenhum dado real alterado.
+
+## 2026-10-16 — Topologia com carteira nativa (3.4.412)
+
+Substituída incorporação externa na área CRM por visão baseada nos mesmos cadastros e controles. Administrador delega líderes/equipes com revisão/histórico; líderes só distribuem dentro do escopo completo da equipe. Redistribuição usa transação canônica, vigência imediata e motivo obrigatório. Executores/revisores existentes preservados e contabilizados mesmo após transferência. Sem atribuições reais automáticas. Testes de escopo, escalada, conflito, revogação e UI móvel fictícia passaram; consultar docs/crm-topologia-revisao-20261016.md para limites e pendências.
+
+## 2026-10-16 — acesso único à Topologia (3.4.413)
+
+Admin passa a abrir a mesma interface nativa do CRM, em vez do iframe externo. Elimina a ambiguidade de duas fontes de contagem/distribuição. O serviço externo não foi apagado nem teve seus dados alterados; suas posições não foram automaticamente transformadas em permissões. Lideranças exigem delegação explícita na Topologia do CRM.
+
+## 2026-10-16 — CRM 3.4.414: saneamento preservando origem
+
+Implementada conferência administrativa do vínculo de registros importados, com CNPJ válido, nome exato do cadastro, confirmação, motivo, revisão transacional e histórico. Campos originais e origem imutáveis; nenhuma distribuição automática. Ajustados cartões/formulários da Topologia e adicionados filtros de qualidade. Testes de isolamento, conflito, preservação e relatório; prévia fictícia desktop/celular. Sem nova carga do Jotform ou alterações de empresas reais nesta etapa. Detalhes e limites em docs/crm-base-jotform.md.
+
+## Topologia: escopo do departamento — 3.4.415
+
+Corrigida a inclusão de todos os usuários corporativos. CRM consulta a API do cadastro central do CFI e exige departamento `contabil`, sem inferir por papel de administrador, acesso ao app ou primeiro nome no Jotform. Lista e distribuição validam a mesma regra; falha da integração não amplia o escopo. Contas locais inativas e identidades duplicadas por e-mail não são elegíveis para novas atribuições. Vínculos existentes são preservados. Testes incluem departamento externo, administrador externo, duplicidade e indisponibilidade da origem. Sem nova importação de dados do Jotform nesta correção.
+
+## 2026-10-16 — SAGE serviços prestados: notas zeradas e código decimal (3.4.416)
+
+Relatório DAXX 1183 jan–jul/2026 reproduziu leitura de 222 notas e R$ 7.282.720,64 contra total oficial R$ 8.205.880,26. Código de serviço decimal não entrava no caminho tabular quando havia outras linhas com código inteiro. Ajuste reconhece ambos, confere 338 notas, separa 87 notas explicitamente zeradas e entrega 251 lançamentos no total oficial. Exceções identificadas por nota, data e cliente na tela; base/ISS não zerados e campos monetários incompletos bloqueiam. Nenhum lançamento ou cadastro real alterado. Testes cobrem o PDF original por variável SAGE_PRESTADOS_PDF e casos portáteis. Publicação autorizada pelo usuário.
+
+Validação final: check:ci com 262 aprovados, 2 pulados por evidências externas ausentes e zero falhas. Teste dedicado executado também com o PDF original da DAXX; regressões reais SAGE tomados/prestados e retenções passaram. check local completo interrompido por fixture externa Itaú ausente, sem relação com esta alteração. Evidências locais em output/daxx-sage-prestados-20261016 (conferência e relação das 87 notas zeradas).
+
+## 2026-10-16 — Cancelamento administrativo de preparação mensal de dividendos (3.4.417)
+
+Novo cancelamento exige administrador, motivo, revisão do mês e revisão da ATA. Bloqueia recibos, movimentos, envios existentes (inclusive pendentes), controles sem competência válida, preparações posteriores e vigência societária posterior. Arquiva a preparação com ator/motivo/data na mesma transação, remove somente o rascunho ativo e incrementa revisão sem alterar valores. Versões anteriores permanecem; novos salvamentos usam identificador único para nunca sobrescrever versões após cancelamento/recriação. Nenhuma operação de cancelamento realizada em produção.
+
+Diagnóstico somente leitura: S&P possui dois aceites de janeiro/2026, com consumo ATA de R$ 49 mil em um deles; versões antigas da preparação usavam ATA e a revisão 5 usa lucros posteriores, mas o aceite antigo permanece. NOB não possui rascunhos, aceites, posições nem movimentos neste controle; cadastro tem R$ 5.966.714,79 de total e R$ 5.566.714,79 de saldo. Recomposição depende de origem comprovada, solicitada ao usuário. Não houve alteração em nenhum desses cadastros. Publicação autorizada pelo usuário.
+
+Validação: 263 testes aprovados, 2 pulados por fixtures externas ausentes, zero falhas no check:ci. Cancelamento seguido de recriação testado sem perda de versões nem mudança de saldo. Testes de autorização, isolamento, duplicidade, concorrência e falha atômica passaram. Sintaxe inline e tema conferidos. Nenhum cancelamento real efetuado.
+
+Conferência complementar NOB: o usuário confirmou que os valores por sócio são iniciais. Lotes antigos mostram retornos de sucesso em produção em abril, maio e setembro; maio tem metadado ATA de R$ 350 mil. Abril e setembro não preservam o valor no documento do lote. Não é possível atribuir a diferença restante de R$ 50 mil sem os XMLs/eventos completos; nenhuma recomposição foi realizada. O diagnóstico anterior era limitado às coleções do controle mensal novo.
+
+## 17/10/2026 — CRM: Checklist mantido e documentos privados (3.4.425)
+
+Usuário definiu permanência exclusiva do Checklist no Jotform. Importação adicional oficial de 1.586 linhas verificada sem modificar registros anteriores; detalhes e limites em docs/crm-base-jotform.md. Prévia real Checklist 1.431/1.346 pendentes, sem aplicação. Migração de binários iniciada em bucket privado; nova rota valida carteira, vínculo e integridade antes da entrega. Testes cobrem troca de empresa, revogação durante download e tamanho divergente. Publicação e homologação devem ser confirmadas por evidências, não por este registro de implementação.
+
+Validação local completa interrompida por ausência do PDF externo de regressão Itaú (E - EXTRATO ITAÚ ABRIL 2026 (1).pdf). Nenhum parser alterado. Auditoria npm sem vulnerabilidades. Testes específicos CRM, permissões, integridade multiusuário e novidades aprovados; gate CI integral registrado após estabilizar a versão.
+
+Gate final desta etapa: 263 aprovados, 2 pulados por evidências externas ausentes, zero falhas.
+
+## 17/10/2026 — Engenharia reversa funcional CRM
+
+A pedido de Paulo, separadas automações para construção nativa posterior. Matriz em `docs/crm-engenharia-reversa-20261017.md`, com oito itens de automação, dependências de origem e lacunas reais do CCI, incluindo upload/versionamento ainda ausente. Implementada prévia/aplicação explícita da regra `{37}` SALDO JANEIRO 2026 → SALDO RESIDUAL, sem arredondamento/subtração, com transação, revisão, motivo e histórico; entrada alterada/vazia não sobrescreve residual manual. Apresentação EMPRESAS condicionada ao saldo documentada na interface. Dados reais preservados.
+
+## 17/10/2026 — CRM operacional, Jotform mantido para consulta
+
+Escopo alterado por Paulo: não copiar novos anexos, manter Jotform para consulta. Modais de referência HTTPS com atualização/histórico por empresa; sem upload/cópia de binários. Topologia mostra regimes da carteira e vigência canônica; Checklist recebe busca, filtros e orientações. Ensaio isolado: 14.543 documentos restaurados no emulador e comparados integralmente; permissões de administrador/colaborador/revogação conferidas sobre cadastros reais restaurados, sem alteração em produção. Limites e evidências em `docs/crm-operacao-20261017.md`.
+
+## 17/10/2026 — CRM: central de destinatários e modelos (3.4.428)
+Solicitação: iniciar automações pendentes e permitir que admins configurem quem recebe por e-mail ou Teams. Entregue catálogo A01–A08, modelos e destinatários por regra, revisão/motivo/histórico e prévias auditadas idempotentes. Envios, gatilhos automáticos, PDFs e agenda não implementados nesta etapa; API rejeita ativação. Sem cópia de anexos ou mudanças de carteira. Detalhes e próximos passos em docs/crm-automacoes-nativas.md.
+
+## 17/10/2026 — Central compartilhada CRM / Aplicações Financeiras
+Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competência e histórico segregados. CRM mantém catálogo e configurações anteriores; rotas usam registrador comum e autorização administrativa atual. Solicitação manual de extratos preservada; central ainda não dispara mensagens. Testes de isolamento e compatibilidade, navegador com duas empresas fictícias. Detalhes em docs/notificacoes-compartilhadas.md.
+
+## 2026-10-17 — Notificações: envio manual e registros PDF (3.4.430)
+- Administradores mantêm destinatários/modelos. Prévia auditada liga ao envio por destinatário, com revalidação e reserva transacional; repetição apenas de recusas explícitas, sem reenvio de resultados incertos.
+- PDF dos registros DEFIS e DITR, sem cópia de anexos Jotform nem baixa contábil.
+- Testes de provedor, carteira, revisão, repetição entre prévias, recusa, incerteza e PDF; navegador com servidor de teste e provedor simulado. Nenhuma mensagem real enviada.
+- Teams, gatilhos automáticos e agendas continuam pendentes; não considerar painel integralmente concluído. Detalhes em docs/notificacoes-compartilhadas.md.
+
+## 2026-10-17 — Central de notificações completa (3.4.431)
+- Times/CRM e Aplicações Financeiras: conexão Teams via Workflows protegido no Secret Manager; agenda única/diária/semanal/mensal, eventos novos de cadastro, escopo por empresa ou global no CRM, pausa e repetição somente de recusa confirmada.
+- Scheduler OIDC exclusivo, trava global, fila com idempotência, revisão e autorização revalidadas antes do transporte. Checklist agendado apenas consulta. Prévia automática não pode ser reenviada manualmente.
+- Infra provisionada; regras reais não ativadas. Testes de interface e backend usam dados/provedores fictícios, sem mensagens reais. Guia: docs/notificacoes-administracao.md.
+- Validação: check:ci 268 aprovados, 2 pulados, 0 falhas; npm audit --audit-level=high sem vulnerabilidades. check local interrompido apenas por fixture externa ausente do Itaú (`E - EXTRATO ITAÚ ABRIL 2026 (1).pdf`).
+
+## 18/10/2026 — Gemini: o Flash sai da lista da conta (opção A do Paulo) · v3.4.432
+
+- Paulo: "segue com o plano A". O Gemini 4 só tem `gemini-4-argon` (raciocínio pesado); o CCI usa Flash. Antes: `gemini-3.8-flash` fixo no env do deploy e conferido por NOME no health.
+- `gemini-modelo.js` (porta da régua do CFI, só a linha Flash): o mais novo Flash da conta com versão ≥ 3.8, sem lite/tts/embedding, estável antes de preview; pino por env (`GEMINI_MODEL`/`GEMINI_FLASH_MODEL`) vence; sem lista → `gemini-3.8-flash`.
+- `server.js`: a escolha roda na sonda do boot (`conferirModeloGeminiNaConta`) e a cada 6 h; a sonda continua perguntando pelo PRÓPRIO modelo escolhido; `/api/health` ganha `gemini_model_origem`, `gemini_model_motivo`, `gemini_piso_flash`. Chat (Ajuda e CiA) segue o mesmo Flash (`modeloChatGemini()`), salvo pino próprio.
+- Deploy: tira `GEMINI_MODEL/FLASH/CHAT` do serviço (`--remove-env-vars`) e o gate passa de "nome igual a gemini-3.8-flash" para "Flash da família 3.8 ou superior" (`flashNoPiso`), na candidata e na produção. Testes: `test-gemini-modelo.js` (novo) e `test-gemini-model-version.js` (contrato reescrito).
