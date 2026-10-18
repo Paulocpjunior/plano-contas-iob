@@ -2039,6 +2039,9 @@ Novo fluxo administrativo separado do cadastro da ATA: registra data contratual,
 
 Consultas mensais e cálculos escolhem o quadro vigente; cadastro comum não contorna a proteção de histórico. Validação fictícia cobre contrato em junho e vigência em julho, recibos anteriores, bloqueios por competência, autorização, falha atômica, repetição e retificação do retirante. Tela validada localmente sem dados de produção. CI: 259 passaram, 2 sem evidência externa, zero falhas; gate completo local interrompido pelo PDF Itaú externo ausente. Nenhum cadastro real alterado; commit e publicação autorizados pelo usuário.
 
+## 2026-10-15 — Admin: aba Topologia do departamento (PR #293)
+
+Aba Topologia no /admin, só para is_admin, abre o organograma (serviço topologia-contabil, southamerica-east1) sem novo login. Rota /api/admin/topologia/passe gera passe HMAC de 2 min, uso único, com e-mail e nome; módulo puro topologia-sso.js com teste. Env no plano-contas-iob: TOPOLOGIA_URL e TOPOLOGIA_SSO_SECRET (segredo em ~/.topologia_sso_secret, nunca no chat); sem elas a rota responde 503. Admin do CCI entra como Gestor, salvo cadastro próprio na Topologia. Lição: nomes de revisão do Cloud Run não seguem a ordem de criação; confira por creationTimestamp antes de mover tráfego.
 
 ## 2026-10-15 — CiA: primeira etapa de assistência contábil (local)
 
