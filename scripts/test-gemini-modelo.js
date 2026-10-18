@@ -38,4 +38,19 @@ const semFlash = g.resolverModeloCci({ env: {}, modelos: [{ name: 'models/gemini
 assert.strictEqual(semFlash.modelo, g.MODELO_PADRAO);
 assert.strictEqual(semFlash.origem, 'padrao');
 
+// Codex no #322 (P2): listagem que pisca numa rodada posterior não rebaixa o motor.
+const mantido = g.resolverAposFalhaDaLista({ env: {}, atual: { modelo: 'gemini-4-flash', origem: 'conta' }, erro: 'HTTP 503' });
+assert.deepStrictEqual([mantido.modelo, mantido.origem], ['gemini-4-flash', 'conta']);
+assert.ok(mantido.motivo.includes('HTTP 503'));
+// No boot (nada escolhido pela conta ainda) vale o padrão conferido.
+assert.strictEqual(g.resolverAposFalhaDaLista({ env: {}, atual: { modelo: g.MODELO_PADRAO, origem: 'padrao' }, erro: 'x' }).origem, 'padrao');
+assert.strictEqual(g.resolverAposFalhaDaLista({ env: {}, atual: null, erro: 'x' }).modelo, g.MODELO_PADRAO);
+
+// Codex no #322 (P1): candidato novo só vira motor depois de confirmado.
+assert.strictEqual(g.podePromover({ candidato: 'gemini-4-flash', atual: 'gemini-3.8-flash', situacao: 'confirmado' }), true);
+assert.strictEqual(g.podePromover({ candidato: 'gemini-4-flash', atual: 'gemini-3.8-flash', situacao: 'nao-encontrado' }), false);
+assert.strictEqual(g.podePromover({ candidato: 'gemini-4-flash', atual: 'gemini-3.8-flash', situacao: 'indeterminado' }), false);
+// Mesmo nome: nada a trocar, o resultado da sonda vale para o atual.
+assert.strictEqual(g.podePromover({ candidato: 'gemini-3.8-flash', atual: 'gemini-3.8-flash', situacao: 'nao-encontrado' }), true);
+
 console.log('OK: régua do Gemini Flash do CCI (piso 3.8, escolha pela conta, pino por env).');

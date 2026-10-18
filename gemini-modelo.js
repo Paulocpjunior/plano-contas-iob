@@ -95,6 +95,29 @@ function resolverModeloCci({ env = {}, modelos = null, erroDaLista = null } = {}
     : { modelo: MODELO_PADRAO, origem: 'padrao', motivo: `${r.motivo} — seguindo em ${MODELO_PADRAO}` };
 }
 
+/**
+ * Codex no #322 (P2): a listagem falhou numa rodada posterior (6 h). Se o motor
+ * atual já veio da conta, ele fica — uma listagem que piscou não rebaixa o CCI
+ * para o padrão. Só no boot (nada escolhido ainda) vale o padrão.
+ * @param {{env?: object, atual?: {modelo: string, origem: string}, erro?: string}} p
+ */
+function resolverAposFalhaDaLista({ env = {}, atual = null, erro = null } = {}) {
+  if (atual && atual.origem === 'conta' && atual.modelo) {
+    return { modelo: atual.modelo, origem: 'conta', motivo: `mantido o último Flash escolhido pela conta — a listagem falhou agora${erro ? ` (${erro})` : ''}` };
+  }
+  return resolverModeloCci({ env, modelos: null, erroDaLista: erro });
+}
+
+/**
+ * Codex no #322 (P1): um candidato só vira o motor depois que a Google
+ * CONFIRMA que a chave tem o modelo. Até lá segue o atual (mesmo nome: nada
+ * a trocar).
+ */
+function podePromover({ candidato, atual, situacao }) {
+  return candidato === atual || situacao === 'confirmado';
+}
+
 module.exports = {
   PISO_FLASH, MODELO_PADRAO, normalizarNomeModelo, versaoDoModelo, flashNoPiso, escolherFlash, resolverModeloCci,
+  resolverAposFalhaDaLista, podePromover,
 };

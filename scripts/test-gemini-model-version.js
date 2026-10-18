@@ -41,7 +41,12 @@ for (const antigo of ['gemini-3.5-flash', 'gemini-3.7-flash']) {
 // Paulo, 06/09: o nome é STATUS; o deploy só roteia se o SERVIDOR confirmou o
 // modelo na conta (RESULTADO). Vale para o modelo escolhido automaticamente.
 assert(server.includes("gemini_model_conferido: geminiModeloConferido.situacao"), '/api/health deve dizer se a conta TEM o modelo (confirmado / nao-encontrado / indeterminado)');
-assert(server.includes("v1beta/models/' + encodeURIComponent(GEMINI_DEFAULT_MODEL) + '?key='"), 'a sonda pergunta à Google pelo PRÓPRIO modelo escolhido, nunca por outro nome');
+assert(server.includes("v1beta/models/' + encodeURIComponent(modelo) + '?key='"), 'a sonda pergunta à Google pelo PRÓPRIO modelo, nunca por outro nome');
+assert(server.includes('sondarModeloGemini(candidato, key, ctrl.signal)'), 'a sonda pergunta pelo candidato escolhido na lista');
+// Codex no #322: candidato só vira motor depois de confirmado; listagem que piscou não rebaixa.
+assert(/if \(podePromover\(\{ candidato, atual: GEMINI_DEFAULT_MODEL, situacao: sonda\.situacao \}\)\) \{\n\s+if \(resolucao\) aplicarResolucaoGemini\(resolucao\);/.test(server), 'o candidato só é aplicado depois da sonda confirmar');
+assert((server.match(/aplicarResolucaoGemini\(/g) || []).length === 2, 'aplicarResolucaoGemini: só a definição e a chamada pós-confirmação');
+assert(server.includes('resolverAposFalhaDaLista({ env: process.env, atual: { modelo: GEMINI_DEFAULT_MODEL, origem: geminiOrigem }'), 'falha da listagem mantém o Flash já escolhido pela conta');
 assert(workflow.includes('nao-encontrado)') && workflow.includes('exit 1'), 'deploy deve recusar tráfego quando a Google diz que o modelo NÃO existe');
 assert(workflow.includes('::warning::Não deu para confirmar'), 'indeterminado LIBERA e vai dito — rede que piscou não é veredito');
 assert(workflow.includes('esperando a sonda do modelo'), 'o deploy deve ESPERAR a sonda enquanto for indeterminado, senão a prova nunca chega ao log');

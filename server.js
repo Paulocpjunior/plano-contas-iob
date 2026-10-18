@@ -80,7 +80,7 @@ const PORT = process.env.PORT || 8080;
 // para cima, e sobe sozinho quando sair um Flash mais novo. Env explícito
 // (GEMINI_MODEL / GEMINI_FLASH_MODEL) continua sendo pino humano. Régua em
 // gemini-modelo.js; a escolha acontece em conferirModeloGeminiNaConta().
-const { resolverModeloCci, PISO_FLASH: GEMINI_PISO_FLASH } = require('./gemini-modelo');
+const { resolverModeloCci, resolverAposFalhaDaLista, podePromover, PISO_FLASH: GEMINI_PISO_FLASH } = require('./gemini-modelo');
 const geminiResolucaoInicial = resolverModeloCci({ env: process.env, modelos: null });
 let GEMINI_DEFAULT_MODEL = geminiResolucaoInicial.modelo;
 let geminiOrigem = geminiResolucaoInicial.origem;
@@ -208,6 +208,16 @@ function aplicarResolucaoGemini(r) {
   geminiModeloConferido.modelo = r.modelo;
 }
 
+/** Pergunta à Google se a chave tem o modelo: confirmado / nao-encontrado / indeterminado. */
+async function sondarModeloGemini(modelo, key, signal) {
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(modelo) + '?key=' + encodeURIComponent(key);
+  const r = await fetch(url, { signal });
+  const body = await r.text().catch(() => '');
+  if (r.ok) return { situacao: 'confirmado', detalhe: 'a conta lista ' + modelo };
+  if (r.status === 404) return { situacao: 'nao-encontrado', detalhe: 'HTTP 404 — o modelo ' + modelo + ' não existe para esta chave: ' + body.slice(0, 160) };
+  return { situacao: 'indeterminado', detalhe: 'HTTP ' + r.status + ' ao perguntar pelo modelo: ' + body.slice(0, 160) };
+}
+
 function conferirModeloGeminiNaConta() {
   if (geminiConferindo) return geminiConferindo;
   const key = process.env.GEMINI_API_KEY;
@@ -221,21 +231,27 @@ function conferirModeloGeminiNaConta() {
   // "indeterminado" — sem a prova que ele existia para dar.
   const timer = setTimeout(() => ctrl.abort(), 25000);
   geminiConferindo = (async () => {
-    // 1) Escolhe o Flash pela lista da conta (pino de env não é tocado).
+    // 1) Escolhe o candidato pela lista da conta (pino de env não é tocado).
+    let resolucao = null;
     if (geminiOrigem !== 'env') {
       try {
-        aplicarResolucaoGemini(resolverModeloCci({ env: process.env, modelos: await listarModelosGeminiDaConta(key, ctrl.signal) }));
+        resolucao = resolverModeloCci({ env: process.env, modelos: await listarModelosGeminiDaConta(key, ctrl.signal) });
       } catch (e) {
-        aplicarResolucaoGemini(resolverModeloCci({ env: process.env, modelos: null, erroDaLista: e && e.message ? e.message : String(e) }));
+        resolucao = resolverAposFalhaDaLista({ env: process.env, atual: { modelo: GEMINI_DEFAULT_MODEL, origem: geminiOrigem }, erro: e && e.message ? e.message : String(e) });
       }
     }
-    // 2) Pergunta à Google pelo PRÓPRIO modelo escolhido (resultado, não status).
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(GEMINI_DEFAULT_MODEL) + '?key=' + encodeURIComponent(key);
-    const r = await fetch(url, { signal: ctrl.signal });
-    const body = await r.text().catch(() => '');
-    if (r.ok) return { situacao: 'confirmado', detalhe: 'a conta lista ' + GEMINI_DEFAULT_MODEL };
-    if (r.status === 404) return { situacao: 'nao-encontrado', detalhe: 'HTTP 404 — o modelo ' + GEMINI_DEFAULT_MODEL + ' não existe para esta chave: ' + body.slice(0, 160) };
-    return { situacao: 'indeterminado', detalhe: 'HTTP ' + r.status + ' ao perguntar pelo modelo: ' + body.slice(0, 160) };
+    // 2) Pergunta à Google pelo PRÓPRIO candidato (resultado, não status). Ele
+    // só vira o motor depois de confirmado (Codex no #322); senão segue o atual,
+    // que é conferido de novo para o health dizer a verdade sobre o que roda.
+    const candidato = resolucao ? resolucao.modelo : GEMINI_DEFAULT_MODEL;
+    const sonda = await sondarModeloGemini(candidato, key, ctrl.signal);
+    if (podePromover({ candidato, atual: GEMINI_DEFAULT_MODEL, situacao: sonda.situacao })) {
+      if (resolucao) aplicarResolucaoGemini(resolucao);
+      return sonda;
+    }
+    console.log('[gemini] candidato ' + candidato + ' não confirmado (' + sonda.situacao + ') — segue ' + GEMINI_DEFAULT_MODEL);
+    const atual = await sondarModeloGemini(GEMINI_DEFAULT_MODEL, key, ctrl.signal);
+    return { situacao: atual.situacao, detalhe: atual.detalhe + ' (o candidato ' + candidato + ' não foi confirmado: ' + sonda.detalhe + ')' };
   })()
     .catch((e) => ({ situacao: 'indeterminado', detalhe: 'não consegui perguntar à Google: ' + (e && e.message ? e.message : String(e)) }))
     .then((r) => {
