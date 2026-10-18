@@ -1,7 +1,8 @@
 {
-  "version": "3.4.431",
-  "build_date": "2026-10-17T12:16:09.721809+00:00",
+  "version": "3.4.432",
+  "build_date": "2026-10-18T18:52:42.243940+00:00",
   "release_notes": [
+    "IA: o CCI escolhe sozinho o Gemini Flash mais novo da conta (família 3.8 ou superior) e passa ao próximo Flash quando a Google publicar, sem atualização manual. Hoje segue no Gemini 3.8 Flash; nada muda na leitura de PDFs, na Ajuda ou na CiA.",
     "Notificações: conexão Teams administrada, gatilhos de cadastro e agendas com pausa, histórico e proteção contra repetição. Checklist agendado somente para conferência.",
     "Notificações: envio manual confirmado por e-mail, resultado por destinatário, proteção contra repetição e registros DEFIS/DITR em PDF. Teams e agendamentos ainda pendentes.",
     "Notificações: central compartilhada entre CRM e Aplicações Financeiras, com destinatários e modelos separados por empresa. O envio manual de extratos permanece independente.",

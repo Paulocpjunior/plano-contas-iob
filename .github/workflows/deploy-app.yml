@@ -276,9 +276,9 @@ jobs:
               --region "$REGION" \
               --project "$PROJECT_ID" \
               --service-account "$CCI_RUNTIME_SERVICE_ACCOUNT" \
-              --update-env-vars=CCI_RUNTIME_PROJECT_ID="$PROJECT_ID",CCI_DATA_PROJECT_ID="$CCI_DATA_PROJECT_ID",CCI_DATA_DATABASE_ID="$CCI_DATA_DATABASE_ID",CCI_AUTH_PROJECT_ID="$CCI_AUTH_PROJECT_ID",CCI_BACKUP_PROJECT_ID="$CCI_BACKUP_PROJECT_ID",CCI_BACKUP_BUCKET="$CCI_BACKUP_BUCKET",CCI_LAYOUT_SAMPLE_BUCKET="$CCI_LAYOUT_SAMPLE_BUCKET",CCI_CRM_DOCUMENTS_BUCKET=cci-crm-documentos-292090471177,MERCADO_PAGO_OAUTH_ENABLED=false,DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_MODEL=gemini-3.8-flash,GEMINI_FLASH_MODEL=gemini-3.8-flash,GEMINI_CHAT_MODEL=gemini-3.8-flash,GEMINI_ALLOW_CLIENT_MODEL=false \
+              --update-env-vars=CCI_RUNTIME_PROJECT_ID="$PROJECT_ID",CCI_DATA_PROJECT_ID="$CCI_DATA_PROJECT_ID",CCI_DATA_DATABASE_ID="$CCI_DATA_DATABASE_ID",CCI_AUTH_PROJECT_ID="$CCI_AUTH_PROJECT_ID",CCI_BACKUP_PROJECT_ID="$CCI_BACKUP_PROJECT_ID",CCI_BACKUP_BUCKET="$CCI_BACKUP_BUCKET",CCI_LAYOUT_SAMPLE_BUCKET="$CCI_LAYOUT_SAMPLE_BUCKET",CCI_CRM_DOCUMENTS_BUCKET=cci-crm-documentos-292090471177,MERCADO_PAGO_OAUTH_ENABLED=false,DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_ALLOW_CLIENT_MODEL=false \
               --update-secrets=CCI_CHECKLIST_API_KEY=cci-jotform-migracao-readonly:2 \
-              --remove-env-vars=MERCADO_PAGO_CLIENT_ID,MERCADO_PAGO_CLIENT_SECRET \
+              --remove-env-vars=MERCADO_PAGO_CLIENT_ID,MERCADO_PAGO_CLIENT_SECRET,GEMINI_MODEL,GEMINI_FLASH_MODEL,GEMINI_CHAT_MODEL \
               --memory=2Gi --concurrency=2 \
               --no-traffic --tag candidate \
               --quiet; then
@@ -355,11 +355,15 @@ jobs:
             exit 1
           fi
 
+          # Opção A do Paulo (18/10): o motor sai da lista da conta (gemini-modelo.js),
+          # então o deploy não exige um NOME — exige um Flash da família piso (3.8)
+          # para cima. O pino por env (GEMINI_MODEL) sai do serviço neste deploy.
           HEALTH_MODEL=$(jq -r '.gemini_model // empty' /tmp/health.json)
-          if [ "$HEALTH_MODEL" != "gemini-3.8-flash" ]; then
-            echo "::error::Candidata iniciou com motor $HEALTH_MODEL; esperado gemini-3.8-flash."
+          if ! node -e "process.exit(require('./gemini-modelo.js').flashNoPiso(process.argv[1]) ? 0 : 1)" "$HEALTH_MODEL"; then
+            echo "::error::Candidata iniciou com motor $HEALTH_MODEL; esperado um Gemini Flash da família $(node -p "require('./gemini-modelo.js').PISO_FLASH") ou superior."
             exit 1
           fi
+          echo "motor da candidata: $HEALTH_MODEL ($(jq -r '.gemini_model_origem // "?"' /tmp/health.json): $(jq -r '.gemini_model_motivo // empty' /tmp/health.json))"
           # O nome certo é STATUS; se a conta TEM esse modelo é RESULTADO — e é
           # o servidor que pergunta à Google (gemini_model_conferido). Nome que a
           # conta não tem derrubaria a IA calada no deploy. Indeterminado LIBERA
@@ -380,7 +384,7 @@ jobs:
           done
           case "$MODEL_CONFERIDO" in
             confirmado) echo "✓ a conta lista $HEALTH_MODEL ($MODEL_DETALHE)" ;;
-            nao-encontrado) echo "::error::A Google respondeu que $HEALTH_MODEL NÃO existe para esta chave ($MODEL_DETALHE) — tráfego não roteado. Corrija GEMINI_MODEL no deploy-app.yml."; exit 1 ;;
+            nao-encontrado) echo "::error::A Google respondeu que $HEALTH_MODEL NÃO existe para esta chave ($MODEL_DETALHE) — tráfego não roteado. Confira a lista de modelos da conta (gemini_model_motivo no /api/health) ou fixe GEMINI_MODEL à mão como hotfix."; exit 1 ;;
             *) echo "::warning::Não deu para confirmar $HEALTH_MODEL na conta ($MODEL_DETALHE) — seguindo; confira /api/health depois." ;;
           esac
           jq -e --arg runtime "$PROJECT_ID" --arg data "$CCI_DATA_PROJECT_ID" --arg database "$CCI_DATA_DATABASE_ID" --arg auth "$CCI_AUTH_PROJECT_ID" --arg backup "$CCI_BACKUP_PROJECT_ID" \
@@ -441,8 +445,8 @@ jobs:
           curl -sSf "$URL/api/health" > /tmp/production-health.json || { echo "::error::Health final falhou."; exit 1; }
           cat /tmp/production-health.json
           HEALTH_MODEL=$(jq -r '.gemini_model // empty' /tmp/production-health.json)
-          if [ "$HEALTH_MODEL" != "gemini-3.8-flash" ]; then
-            echo "::error::Produção iniciou com motor $HEALTH_MODEL; esperado gemini-3.8-flash."; exit 1
+          if ! node -e "process.exit(require('./gemini-modelo.js').flashNoPiso(process.argv[1]) ? 0 : 1)" "$HEALTH_MODEL"; then
+            echo "::error::Produção iniciou com motor $HEALTH_MODEL; esperado um Gemini Flash da família $(node -p "require('./gemini-modelo.js').PISO_FLASH") ou superior."; exit 1
           fi
           echo "sonda do modelo em produção: $(jq -r '.gemini_model_conferido // "indeterminado"' /tmp/production-health.json) — $(jq -r '.gemini_model_detalhe // empty' /tmp/production-health.json)"
           jq -e --arg runtime "$PROJECT_ID" --arg data "$CCI_DATA_PROJECT_ID" --arg database "$CCI_DATA_DATABASE_ID" --arg auth "$CCI_AUTH_PROJECT_ID" --arg backup "$CCI_BACKUP_PROJECT_ID" \
