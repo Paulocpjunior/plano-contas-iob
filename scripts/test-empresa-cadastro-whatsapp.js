@@ -58,9 +58,18 @@ assert(fs.readFileSync(path.join(raiz, 'api-adapter.js'), 'utf8').includes("'/pl
 
 assert.strictEqual(whatsapp.baseCfi({ CFI_URL: 'https://cfi.example/' }), 'https://cfi.example');
 // G5: com SP_CONNECT_URL o envio vai ao Connect (mesmas rotas); sem ela, CFI.
+// baseCfi não muda: o regime tributário (cfi-regime-client) só existe no CFI.
 assert.strictEqual(
-  whatsapp.baseCfi({ SP_CONNECT_URL: 'https://connect.example/', CFI_URL: 'https://cfi.example' }),
+  whatsapp.baseWhatsapp({ SP_CONNECT_URL: 'https://connect.example/', CFI_URL: 'https://cfi.example' }),
   'https://connect.example'
+);
+assert.strictEqual(
+  whatsapp.baseCfi({ SP_CONNECT_URL: 'https://connect.example/', CFI_URL: 'https://cfi.example/' }),
+  'https://cfi.example'
+);
+assert.strictEqual(
+  require('../cfi-regime-client').urlRegimeCfi('11222333000181', { SP_CONNECT_URL: 'https://connect.example', CFI_URL: 'https://cfi.example' }),
+  'https://cfi.example/api/admin/cadastro-contabil/regime/11222333000181'
 );
 assert.strictEqual(
   whatsapp.urlWhatsappCfi('enviar', { SP_CONNECT_URL: 'https://connect.example', CFI_URL: 'https://cfi.example' }),

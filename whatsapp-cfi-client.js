@@ -4,13 +4,20 @@
 // vai direto a ele (aceita o token do projeto do CCI, projetos-app-sp) e a
 // mensagem entra na conversa do atendimento; sem ela, segue o CFI (que guarda
 // a credencial até a G6). As rotas /api/admin/whatsapp/* são as mesmas.
+// Só o WhatsApp muda de casa: baseCfi continua sendo o CFI, porque outros
+// clientes (cfi-regime-client.js) chamam rotas que só existem nele (Codex no #323).
 function baseCfi(env) {
   const fonte = env || process.env;
-  return String(fonte.SP_CONNECT_URL || fonte.CFI_URL || fonte.FISCAL_GATEWAY_URL || '').trim().replace(/\/+$/, '');
+  return String(fonte.CFI_URL || fonte.FISCAL_GATEWAY_URL || '').trim().replace(/\/+$/, '');
+}
+
+function baseWhatsapp(env) {
+  const fonte = env || process.env;
+  return String(fonte.SP_CONNECT_URL || '').trim().replace(/\/+$/, '') || baseCfi(fonte);
 }
 
 function urlWhatsappCfi(recurso, env) {
-  const base = baseCfi(env);
+  const base = baseWhatsapp(env);
   if (!base) throw new Error('Defina SP_CONNECT_URL (ou CFI_URL) para usar o gateway central do WhatsApp.');
   return base + '/api/admin/whatsapp/' + String(recurso || '').replace(/^\/+/, '');
 }
@@ -75,4 +82,4 @@ async function enviarWhatsappCfi(input, deps) {
   }, deps);
 }
 
-module.exports = { baseCfi, urlWhatsappCfi, chamarCfi, statusWhatsappCfi, enviarWhatsappCfi };
+module.exports = { baseCfi, baseWhatsapp, urlWhatsappCfi, chamarCfi, statusWhatsappCfi, enviarWhatsappCfi };
