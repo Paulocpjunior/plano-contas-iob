@@ -57,6 +57,15 @@ assert(index.includes('window.API.loadPlanoEmpresa(cnpjLimpo)'));
 assert(fs.readFileSync(path.join(raiz, 'api-adapter.js'), 'utf8').includes("'/plano-contexto'"));
 
 assert.strictEqual(whatsapp.baseCfi({ CFI_URL: 'https://cfi.example/' }), 'https://cfi.example');
+// G5: com SP_CONNECT_URL o envio vai ao Connect (mesmas rotas); sem ela, CFI.
+assert.strictEqual(
+  whatsapp.baseCfi({ SP_CONNECT_URL: 'https://connect.example/', CFI_URL: 'https://cfi.example' }),
+  'https://connect.example'
+);
+assert.strictEqual(
+  whatsapp.urlWhatsappCfi('enviar', { SP_CONNECT_URL: 'https://connect.example', CFI_URL: 'https://cfi.example' }),
+  'https://connect.example/api/admin/whatsapp/enviar'
+);
 assert.strictEqual(
   whatsapp.urlWhatsappCfi('status', { CFI_URL: 'https://cfi.example/' }),
   'https://cfi.example/api/admin/whatsapp/status'

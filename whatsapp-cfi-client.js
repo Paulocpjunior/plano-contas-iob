@@ -1,13 +1,17 @@
 'use strict';
 
+// G5 (18/10/2026): o WhatsApp mora no SP Connect. Com SP_CONNECT_URL, o envio
+// vai direto a ele (aceita o token do projeto do CCI, projetos-app-sp) e a
+// mensagem entra na conversa do atendimento; sem ela, segue o CFI (que guarda
+// a credencial até a G6). As rotas /api/admin/whatsapp/* são as mesmas.
 function baseCfi(env) {
   const fonte = env || process.env;
-  return String(fonte.CFI_URL || fonte.FISCAL_GATEWAY_URL || '').trim().replace(/\/+$/, '');
+  return String(fonte.SP_CONNECT_URL || fonte.CFI_URL || fonte.FISCAL_GATEWAY_URL || '').trim().replace(/\/+$/, '');
 }
 
 function urlWhatsappCfi(recurso, env) {
   const base = baseCfi(env);
-  if (!base) throw new Error('Defina CFI_URL para usar o gateway central do WhatsApp.');
+  if (!base) throw new Error('Defina SP_CONNECT_URL (ou CFI_URL) para usar o gateway central do WhatsApp.');
   return base + '/api/admin/whatsapp/' + String(recurso || '').replace(/^\/+/, '');
 }
 
@@ -27,7 +31,7 @@ async function chamarCfi(input, deps) {
       ...(input.body ? { body: JSON.stringify(input.body) } : {})
     });
   } catch (e) {
-    const erro = new Error('Nao consegui falar com o gateway de WhatsApp do CFI. Tente novamente em instantes.');
+    const erro = new Error('Nao consegui falar com o gateway de WhatsApp. Tente novamente em instantes.');
     erro.indeterminado = input.method === 'POST';
     throw erro;
   }

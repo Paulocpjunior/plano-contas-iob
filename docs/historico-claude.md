@@ -2144,3 +2144,7 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - `gemini-modelo.js` (porta da régua do CFI, só a linha Flash): o mais novo Flash da conta com versão ≥ 3.8, sem lite/tts/embedding, estável antes de preview; pino por env (`GEMINI_MODEL`/`GEMINI_FLASH_MODEL`) vence; sem lista → `gemini-3.8-flash`.
 - `server.js`: a escolha roda na sonda do boot (`conferirModeloGeminiNaConta`) e a cada 6 h; a sonda continua perguntando pelo PRÓPRIO modelo escolhido; `/api/health` ganha `gemini_model_origem`, `gemini_model_motivo`, `gemini_piso_flash`. Chat (Ajuda e CiA) segue o mesmo Flash (`modeloChatGemini()`), salvo pino próprio.
 - Deploy: tira `GEMINI_MODEL/FLASH/CHAT` do serviço (`--remove-env-vars`) e o gate passa de "nome igual a gemini-3.8-flash" para "Flash da família 3.8 ou superior" (`flashNoPiso`), na candidata e na produção. Testes: `test-gemini-modelo.js` (novo) e `test-gemini-model-version.js` (contrato reescrito).
+
+## 18/10/2026 — WhatsApp do CCI pelo SP Connect (G5)
+
+- `whatsapp-cfi-client.js`: com `SP_CONNECT_URL` no serviço, status, templates e envio vão ao Connect (mesmas rotas `/api/admin/whatsapp/*`; o Connect aceita o token do `projetos-app-sp`). Sem a variável, segue o CFI. Trava em `scripts/test-empresa-cadastro-whatsapp.js`.
