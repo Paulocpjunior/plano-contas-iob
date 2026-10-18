@@ -2134,3 +2134,10 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - Scheduler OIDC exclusivo, trava global, fila com idempotência, revisão e autorização revalidadas antes do transporte. Checklist agendado apenas consulta. Prévia automática não pode ser reenviada manualmente.
 - Infra provisionada; regras reais não ativadas. Testes de interface e backend usam dados/provedores fictícios, sem mensagens reais. Guia: docs/notificacoes-administracao.md.
 - Validação: check:ci 268 aprovados, 2 pulados, 0 falhas; npm audit --audit-level=high sem vulnerabilidades. check local interrompido apenas por fixture externa ausente do Itaú (`E - EXTRATO ITAÚ ABRIL 2026 (1).pdf`).
+
+## 18/10/2026 — Gemini: o Flash sai da lista da conta (opção A do Paulo) · v3.4.432
+
+- Paulo: "segue com o plano A". O Gemini 4 só tem `gemini-4-argon` (raciocínio pesado); o CCI usa Flash. Antes: `gemini-3.8-flash` fixo no env do deploy e conferido por NOME no health.
+- `gemini-modelo.js` (porta da régua do CFI, só a linha Flash): o mais novo Flash da conta com versão ≥ 3.8, sem lite/tts/embedding, estável antes de preview; pino por env (`GEMINI_MODEL`/`GEMINI_FLASH_MODEL`) vence; sem lista → `gemini-3.8-flash`.
+- `server.js`: a escolha roda na sonda do boot (`conferirModeloGeminiNaConta`) e a cada 6 h; a sonda continua perguntando pelo PRÓPRIO modelo escolhido; `/api/health` ganha `gemini_model_origem`, `gemini_model_motivo`, `gemini_piso_flash`. Chat (Ajuda e CiA) segue o mesmo Flash (`modeloChatGemini()`), salvo pino próprio.
+- Deploy: tira `GEMINI_MODEL/FLASH/CHAT` do serviço (`--remove-env-vars`) e o gate passa de "nome igual a gemini-3.8-flash" para "Flash da família 3.8 ou superior" (`flashNoPiso`), na candidata e na produção. Testes: `test-gemini-modelo.js` (novo) e `test-gemini-model-version.js` (contrato reescrito).
