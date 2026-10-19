@@ -325,6 +325,22 @@
       i += reconstruida.consumidas;
     }
 
+    // Conferencia com os saldos impressos: nao bloqueia, mas expoe o resultado
+    // para a tela avisar quando a soma dos lancamentos nao bate.
+    const saldoBB = function(re) {
+      const m = textoCompleto.match(re);
+      return m ? parseValorBR(m[1]) * (String(m[2]).toUpperCase() === 'D' ? -1 : 1) : null;
+    };
+    const saldoAnterior = saldoBB(/Saldo\s+Anterior\s+(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*([CD])\b/i);
+    const saldosFinais = Array.from(textoCompleto.matchAll(/S\s+A\s+L\s+D\s+O\s+(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*([CD])\b/g));
+    const ultimoSaldo = saldosFinais.length ? saldosFinais[saldosFinais.length - 1] : null;
+    const saldoFinal = ultimoSaldo ? parseValorBR(ultimoSaldo[1]) * (ultimoSaldo[2] === 'D' ? -1 : 1) : null;
+    const totalCredito = lancamentos.filter(function(l) { return l.valor > 0; }).reduce(function(s, l) { return s + l.valor; }, 0);
+    const totalDebito = lancamentos.filter(function(l) { return l.valor < 0; }).reduce(function(s, l) { return s + Math.abs(l.valor); }, 0);
+    const saldosConciliados = saldoAnterior === null || saldoFinal === null
+      ? null
+      : Math.round((saldoAnterior + totalCredito - totalDebito - saldoFinal) * 100) === 0;
+
     const fingerprint = 'bb-conta-atual-' + (meta.agencia || 'x') + '-' + (meta.conta || 'x') + '-' + (meta.periodo || 'x');
     const periodoMatch = meta.periodo.match(/^(\d{2})\/(\d{4})$/);
     const periodoInicio = periodoMatch ? (periodoMatch[2] + '-' + periodoMatch[1] + '-01') : '';
@@ -338,12 +354,66 @@
       banco_detectado: 'BB',
       conta_detectada: (meta.agencia ? 'AG-' + meta.agencia : '') + (meta.conta ? '/CC-' + meta.conta : ''),
       nome_conta_detectado: meta.titular || 'CONTA CORRENTE BB',
+      total_credito: totalCredito,
+      total_debito: totalDebito,
+      saldo_anterior: saldoAnterior,
+      saldo_final: saldoFinal,
+      saldos_conciliados: saldosConciliados,
       periodo_inicio: periodoInicio,
       periodo_fim: periodoFim
     };
   }
 
-  async function extrairTextoPDFBB(arrayBuffer) {
+  // No "Cliente - Conta atual", valores altos nao cabem na celula: o numero
+  // sobe meia linha e o C/D desce meia linha em relacao a data (ex.: valor em
+  // y+4,8 e "C" em y-4,8). Agrupando so por y, o valor vira linha propria
+  // antes da data e o C/D outra depois, e o parser acabava lendo o Saldo.
+  // Aqui esses fragmentos (so numero ou so C/D) voltam para a linha da data.
+  const TOLERANCIA_CELULA_QUEBRADA_BB = 6;
+  const FRAGMENTO_CELULA_VALOR_BB = /^(?:\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}|[CD])$/;
+
+  function montarLinhasPaginaBB(itens, opcoes) {
+    const juntarCelulas = !!(opcoes && opcoes.juntarCelulasQuebradas);
+    const linhas = {};
+    (itens || []).forEach(it => {
+      const y = Math.round(it.y);
+      if (!linhas[y]) linhas[y] = [];
+      linhas[y].push({ x: it.x, s: it.s });
+    });
+
+    if (juntarCelulas) {
+      const ehLinhaData = function(y) {
+        return linhas[y].some(function(o) { return /^\d{2}\/\d{2}\/\d{4}$/.test(String(o.s).trim()); });
+      };
+      const ysData = Object.keys(linhas).map(Number).filter(ehLinhaData);
+      Object.keys(linhas).map(Number).forEach(function(y) {
+        if (ehLinhaData(y)) return;
+        let alvo = null;
+        ysData.forEach(function(yd) {
+          const d = Math.abs(yd - y);
+          if (d <= TOLERANCIA_CELULA_QUEBRADA_BB && (alvo === null || d < Math.abs(alvo - y))) alvo = yd;
+        });
+        if (alvo === null) return;
+        const ficam = [];
+        linhas[y].forEach(function(o) {
+          if (FRAGMENTO_CELULA_VALOR_BB.test(String(o.s).trim())) linhas[alvo].push(o);
+          else ficam.push(o);
+        });
+        if (ficam.length) linhas[y] = ficam;
+        else delete linhas[y];
+      });
+    }
+
+    const ys = Object.keys(linhas).map(Number).sort((a,b) => b - a);
+    const linhasPagina = [];
+    ys.forEach(y => {
+      const linha = linhas[y].sort((a,b) => a.x - b.x).map(o => o.s).join(' ').replace(/\s+/g,' ').trim();
+      if (linha) linhasPagina.push(linha);
+    });
+    return linhasPagina;
+  }
+
+  async function extrairTextoPDFBB(arrayBuffer, opcoes) {
     if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js nao carregado');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
@@ -351,19 +421,8 @@
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const tc = await page.getTextContent();
-      const linhas = {};
-      tc.items.forEach(it => {
-        const y = Math.round(it.transform[5]);
-        if (!linhas[y]) linhas[y] = [];
-        linhas[y].push({ x: it.transform[4], s: it.str });
-      });
-      const ys = Object.keys(linhas).map(Number).sort((a,b) => b - a);
-      const linhasPagina = [];
-      ys.forEach(y => {
-        const linha = linhas[y].sort((a,b) => a.x - b.x).map(o => o.s).join(' ').replace(/\s+/g,' ').trim();
-        if (linha) linhasPagina.push(linha);
-      });
-      paginas.push(linhasPagina);
+      const itens = tc.items.map(it => ({ x: it.transform[4], y: it.transform[5], s: it.str }));
+      paginas.push(montarLinhasPaginaBB(itens, opcoes));
     }
 
     return repararDataDivididaEntrePaginasBB(paginas).map(function(linhas) {
@@ -529,7 +588,7 @@
   }
 
   async function parsearPDF_BB_ContaAtual(arrayBuffer) {
-    return parsearTextoBBContaAtual(await extrairTextoPDFBB(arrayBuffer));
+    return parsearTextoBBContaAtual(await extrairTextoPDFBB(arrayBuffer, { juntarCelulasQuebradas: true }));
   }
 
   async function parsearPDF_BB_ExtratoContaCorrente(arrayBuffer) {
@@ -559,6 +618,7 @@
     __test__: {
       parseLinhaLancamentoBB: parseLinhaLancamentoBB,
       montarLinhaLancamento: montarLinhaLancamento,
+      montarLinhasPaginaBB: montarLinhasPaginaBB,
       normalizarDescricaoBB: normalizarDescricaoBB,
       extrairPalavrasResultadoOCR: extrairPalavrasResultadoOCR,
       agruparPalavrasOCRPorLinha: agruparPalavrasOCRPorLinha,

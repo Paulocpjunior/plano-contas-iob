@@ -143,6 +143,61 @@ function validarPdfEscaneado0017ComOCRLocal() {
   }
 }
 
+// Conta atual com valor alto: o numero sobe meia linha e o C/D desce meia
+// linha em relacao a data. Coordenadas copiadas do PDF real (jul/2026), sem
+// nomes de cliente. Antes da correcao o parser lia a coluna Saldo.
+(function validarCelulaValorQuebradaContaAtual() {
+  const item = (y, x, s) => ({ y, x, s });
+  const itens = [
+    item(786.4, 477.2, 'G3330811047564281'),
+    item(728.1, 54.8, 'Cliente - Conta atual'),
+    item(709.0, 55.5, 'Agência'), item(709.0, 147.0, '1234-5'),
+    item(698.0, 55.5, 'Conta corrente'), item(698.0, 147.0, '99999-9CLIENTE TESTE'),
+    item(686.9, 55.5, 'Período do extrato'), item(686.9, 147.0, '07 / 2026'),
+    item(634.9, 59.8, 'Dt. balancete'), item(634.9, 247.5, 'Histórico'),
+    item(634.9, 463.4, 'Valor R$'), item(634.9, 525.3, 'Saldo'),
+    item(618.9, 64.9, '26/06/2026'), item(618.9, 247.5, '000 Saldo Anterior'), item(618.9, 518.9, '14,12 C'),
+    item(602.3, 64.9, '03/07/2026'), item(602.3, 190.8, '0000'), item(602.3, 223.1, '13113'),
+    item(597.5, 247.5, 'Relac'), item(602.3, 368.1, '811.840.700.054.181'),
+    item(602.3, 472.6, '5,00 D'), item(602.3, 523.4, '9,12 C'),
+    item(569.1, 64.9, '07/07/2026'), item(569.1, 247.5, '612 Recebimento Fornecedor'), item(569.1, 425.4, '1.931'),
+    item(573.9, 455.6, '285.155,37'), item(564.3, 490.9, 'C'),
+    item(573.9, 506.5, '285.164,49'), item(564.3, 541.8, 'C'),
+    item(552.5, 247.5, '11.222.333/0001-81 FORNECEDOR TESTE'),
+    item(535.9, 64.9, '20/07/2026'), item(535.9, 247.5, '438 TED'), item(535.9, 420.8, '72.001'),
+    item(540.7, 455.6, '285.000,00'), item(531.1, 490.9, 'D'), item(535.9, 514.3, '164,49 C'),
+    item(519.3, 247.5, '341 0002 CLIENTE TESTE'),
+    item(502.7, 64.9, '24/07/2026'), item(502.7, 247.5, '612 Recebimento Fornecedor'), item(502.7, 425.4, '1.935'),
+    item(507.5, 455.6, '273.613,73'), item(497.9, 490.9, 'C'),
+    item(486.1, 247.5, '11.222.333/0001-81 FORNECEDOR TESTE'),
+    item(469.5, 64.9, '24/07/2026'), item(469.5, 247.5, '438 TED'), item(469.5, 420.8, '72.401'),
+    item(474.3, 455.6, '273.700,00'), item(464.7, 490.9, 'D'), item(469.5, 518.9, '78,22 C'),
+    item(452.9, 247.5, '341 0002 CLIENTE TESTE'),
+    item(441.1, 64.9, '31/07/2026'), item(441.1, 247.5, '999 S A L D O'), item(441.1, 518.9, '78,22 C')
+  ];
+  const texto = __test__.montarLinhasPaginaBB(itens, { juntarCelulasQuebradas: true }).join('\n');
+  const extrato = __test__.parsearTextoBBContaAtual(texto);
+  assert.strictEqual(extrato.detectado, true);
+  assert.deepStrictEqual(
+    extrato.lancamentos.map(l => [l.data, money(l.valor)]),
+    [
+      ['2026-07-03', money(-5)],
+      ['2026-07-07', money(285155.37)],
+      ['2026-07-20', money(-285000)],
+      ['2026-07-24', money(273613.73)],
+      ['2026-07-24', money(-273700)]
+    ],
+    'BB conta atual deve ler a coluna Valor R$, nunca o Saldo'
+  );
+  assert.strictEqual(money(extrato.saldo_anterior), money(14.12));
+  assert.strictEqual(money(extrato.saldo_final), money(78.22));
+  assert.strictEqual(extrato.saldos_conciliados, true);
+  assert.ok(!extrato.lancamentos.some(l => /^D\b|\s-\sD\s/.test(l.descricao)), 'sinal D nao pode vazar para a descricao');
+
+  const semJuntar = __test__.parsearTextoBBContaAtual(__test__.montarLinhasPaginaBB(itens).join('\n'));
+  assert.strictEqual(semJuntar.saldos_conciliados, false, 'conferencia de saldos deve acusar a leitura antiga');
+})();
+
 (async () => {
   assert.ok(fs.existsSync(PDF_BB_0017_OCR), `Arquivo de evidencia OCR nao encontrado: ${PDF_BB_0017_OCR}`);
   const buffer0017 = fs.readFileSync(PDF_BB_0017_OCR);
