@@ -62,6 +62,7 @@
   "/reinf/reinf-import-xml-utils.js",
   "/relatorios-contabeis-ui.js",
   "/relatorios-contabeis.js",
+  "/dfc-indireto.js",
   "/saas-brand-theme.js",
   "/session-merge.js",
   "/sp-logo.png",

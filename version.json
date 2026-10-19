@@ -1,7 +1,8 @@
 {
-  "version": "3.4.433",
-  "build_date": "2026-10-19T13:26:20+00:00",
+  "version": "3.4.434",
+  "build_date": "2026-10-19T14:10:00+00:00",
   "release_notes": [
+    "Relatórios: nova aba DFC Indireto (Demonstração do Fluxo de Caixa pelo método indireto) para todas as empresas, calculada pelo balancete e plano de contas da empresa, com PDF e Excel. Acumula do início do exercício até a competência e confere a soma das atividades com a variação do caixa.",
     "Extratos: o PDF do Banco do Brasil (Conta atual) volta a ler a coluna Valor R$ quando o valor é alto e quebra em duas linhas; antes o CCI pegava o Saldo e perdia lançamentos. A importação agora confere a soma com o saldo final impresso e avisa quando não bate.",
     "IA: o CCI escolhe sozinho o Gemini Flash mais novo da conta (família 3.8 ou superior) e passa ao próximo Flash quando a Google publicar, sem atualização manual. Hoje segue no Gemini 3.8 Flash; nada muda na leitura de PDFs, na Ajuda ou na CiA.",
     "Notificações: conexão Teams administrada, gatilhos de cadastro e agendas com pausa, histórico e proteção contra repetição. Checklist agendado somente para conferência.",
