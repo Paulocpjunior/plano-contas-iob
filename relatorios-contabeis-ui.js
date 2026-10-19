@@ -342,8 +342,14 @@ function preferenciasImpressao(ctx, sobrescritas) {
       dfc: function() {
         const intervalo = intervaloDFC || filtroDFC(ctx, filtro);
         if (!Core.intervaloValido(intervalo)) throw new Error('Informe um período válido para a DFC.');
-        const linhas = Core.balancete(Core.lancamentosOperacionais(ctx.entries), intervalo, ctx.contas, saldosDoFiltro(ctx, intervalo));
-        return Object.assign(window.CCIDFCIndireto.calcular(linhas, { ajustadoPara: intervalo.ajustadoPara }), { intervalo: intervalo });
+        const operacionais = Core.lancamentosOperacionais(ctx.entries);
+        const linhas = Core.balancete(operacionais, intervalo, ctx.contas, saldosDoFiltro(ctx, intervalo));
+        const mapa = Core.mapaContas(ctx.contas);
+        return Object.assign(window.CCIDFCIndireto.calcular(linhas, {
+          ajustadoPara: intervalo.ajustadoPara,
+          lancamentos: Core.lancamentosDoFiltro(operacionais, intervalo),
+          resolver: function (conta) { return Core.contaCanonica(conta, mapa); }
+        }), { intervalo: intervalo });
       },
       analise: function() { return Core.analiseEconomica(balancete, ctx.contas, (((ctx || {}).config || {}).mapeamentoAnaliseEconomica || {})); }
     };

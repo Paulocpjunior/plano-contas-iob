@@ -25,8 +25,25 @@
   }
 
   function centavos(valor) {
-    const n = Number(valor);
+    let n = valor;
+    if (typeof n !== 'number') {
+      let t = texto(n).replace(/\s/g, '').replace(/R\$/gi, '');
+      if (t.includes(',') && t.includes('.')) t = t.replace(/\./g, '').replace(',', '.');
+      else if (t.includes(',')) t = t.replace(',', '.');
+      n = Number(t);
+    }
     return Number.isFinite(n) ? Math.round((n + Number.EPSILON) * 100) : 0;
+  }
+
+  function moeda(valorCentavos) {
+    return deCentavos(valorCentavos).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // Pares de contas sem passagem pelo caixa que inventariam fluxos opostos
+  // de mesmo valor (CPC 03, item 43): ficam fora das atividades e vão às notas.
+  const SEM_CAIXA = { investimento: ['passivo', 'emprestimo', 'patrimonio'], emprestimo: ['patrimonio'] };
+  function parSemCaixa(a, b) {
+    return (SEM_CAIXA[a] || []).indexOf(b) >= 0 || (SEM_CAIXA[b] || []).indexOf(a) >= 0;
   }
 
   function deCentavos(valor) {
@@ -107,6 +124,31 @@
       descricao: function (s, nivel) { const g = sinteticas.get(this.chave(s, nivel)); return g ? g.descricao : ''; }
     };
     const analiticas = todas.filter(function (l) { return l.analitica !== false; });
+    const porConta = new Map();
+    analiticas.forEach(function (l) { porConta.set(texto(l.conta), l); });
+
+    // Lançamento a lançamento: encerramento (resultado ↔ PL, com ou sem a
+    // marca do CCI) e pares sem caixa são anulados nas duas contas.
+    const ajustes = new Map();
+    let encerramentoCentavos = 0;
+    const semCaixa = new Map();
+    const resolver = typeof cfg.resolver === 'function' ? cfg.resolver : function (c) { return texto(c); };
+    (cfg.lancamentos || []).forEach(function (l) {
+      const debito = porConta.get(texto(resolver(l.contaDebito)));
+      const credito = porConta.get(texto(resolver(l.contaCredito)));
+      if (!debito || !credito || debito === credito) return;
+      const td = classificar(debito, grupos);
+      const tc = classificar(credito, grupos);
+      const encerramento = (td === 'resultado' && tc === 'patrimonio') || (td === 'patrimonio' && tc === 'resultado');
+      if (!encerramento && !parSemCaixa(td, tc)) return;
+      const valor = Math.abs(centavos(l.valor));
+      if (!valor) return;
+      ajustes.set(debito.conta, (ajustes.get(debito.conta) || 0) + valor);
+      ajustes.set(credito.conta, (ajustes.get(credito.conta) || 0) - valor);
+      if (encerramento) { encerramentoCentavos += valor; return; }
+      const nome = texto(debito.descricao) + ' × ' + texto(credito.descricao);
+      semCaixa.set(nome, (semCaixa.get(nome) || 0) + valor);
+    });
 
     const secoes = { ativo: new Map(), passivo: new Map(), investimento: new Map(), financiamento: new Map() };
     const totais = { lucro: 0, depreciacao: 0, foraPlano: 0, caixaInicial: 0, caixaFinal: 0, caixaVariacao: 0 };
@@ -130,7 +172,7 @@
     analiticas.forEach(function (linha) {
       const debitos = centavos(linha.debitos);
       const creditos = centavos(linha.creditos);
-      const efeito = creditos - debitos;
+      const efeito = creditos - debitos + (ajustes.get(linha.conta) || 0);
       if (debitos || creditos) movimentos += 1;
       const s = segmentos(linha);
       const tipo = classificar(linha, grupos);
@@ -185,7 +227,12 @@
     }
     if (cfg.ajustadoPara) notas.push('Início ajustado para ' + cfg.ajustadoPara.slice(5, 7) + '/' + cfg.ajustadoPara.slice(0, 4) + ', competência dos saldos de abertura no CCI.');
     if (emprestimos.size) notas.push('Empréstimos e financiamentos do passivo classificados em financiamentos: ' + Array.from(emprestimos).join('; ') + '.');
-    notas.push('Lucro líquido apurado pelas contas de resultado do período, sem os lançamentos de encerramento do CCI. Encerramento lançado manualmente aparece como variação do patrimônio líquido.');
+    if (semCaixa.size) {
+      const pares = Array.from(semCaixa.entries());
+      notas.push('Transações sem efeito no caixa, fora das atividades (CPC 03): ' + pares.slice(0, 5).map(function (p) { return p[0] + ' R$ ' + moeda(p[1]); }).join('; ') + (pares.length > 5 ? ' (mostrando 5 de ' + pares.length + ')' : '') + '.');
+    }
+    if (encerramentoCentavos) notas.push('Lançamentos de encerramento entre resultado e patrimônio líquido desconsiderados: R$ ' + moeda(encerramentoCentavos) + '.');
+    notas.push('Lucro líquido apurado pelas contas de resultado do período, antes do encerramento.');
 
     const linhas = [];
     function add(tipo, descricao, valorCentavos, extra) {

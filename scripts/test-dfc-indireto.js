@@ -48,8 +48,10 @@ const aberturas = { '2025-12': { 10: 9001, 400: -9001 } };
 function gerar(filtro, entries, abertura) {
   const intervalo = DFC.intervalo(filtro, entries, abertura);
   const saldos = core.saldosAnteriores(entries, intervalo.inicio, contas, abertura);
-  const linhas = core.balancete(core.lancamentosOperacionais(entries), intervalo, contas, saldos);
-  return { intervalo, dfc: DFC.calcular(linhas, { ajustadoPara: intervalo.ajustadoPara }) };
+  const operacionais = core.lancamentosOperacionais(entries);
+  const linhas = core.balancete(operacionais, intervalo, contas, saldos);
+  const mapa = core.mapaContas(contas);
+  return { intervalo, dfc: DFC.calcular(linhas, { ajustadoPara: intervalo.ajustadoPara, lancamentos: core.lancamentosDoFiltro(operacionais, intervalo), resolver: (c) => core.contaCanonica(c, mapa) }) };
 }
 const valor = (dfc, descricao) => {
   const linha = dfc.linhas.find((x) => x.descricao === descricao);
@@ -92,6 +94,28 @@ assert.deepStrictEqual(dfc.linhas.filter((x) => x.tipo === 'titulo').map((x) => 
   '3 - DAS ATIVIDADES DE FINANCIAMENTOS',
 ]);
 assert.strictEqual(dfc.linhas[dfc.linhas.length - 1].descricao, 'CAIXA E EQUIVALENTES DE CAIXA NO FINAL DO PERÍODO');
+
+// Veículo financiado direto pelo banco e capital integralizado com bens:
+// sem caixa, ficam fora das atividades e aparecem nas notas (CPC 03).
+const comSemCaixa = lancamentos.concat([l('2026-03-20', 30000, '200', '310'), l('2026-03-21', 4000, '200', '400')]);
+const semCaixa = gerar('2026-03', comSemCaixa, aberturas).dfc;
+assert.strictEqual(semCaixa.totalInvestimento, -12000);
+assert.strictEqual(semCaixa.totalFinanciamento, 14000);
+assert.strictEqual(semCaixa.aumentoLiquido, 5500);
+assert.strictEqual(semCaixa.conciliado, true);
+assert(semCaixa.notas.some((n) => n.includes('sem efeito no caixa') && n.includes('30.000,00') && n.includes('4.000,00')));
+
+// Encerramento lançado à mão (sem a marca do CCI), direto ou via apuração:
+// o lucro continua na parte operacional, não vira financiamento.
+const manual = lancamentos.filter((x) => !x.encerramentoContabil).concat([
+  l('2026-03-31', 8000, '500', '900'), l('2026-03-31', 3000, '900', '600'),
+  l('2026-03-31', 1200, '900', '855'), l('2026-03-31', 3800, '900', '400'),
+]);
+const encerrada = gerar('2026-03', manual, aberturas).dfc;
+assert.strictEqual(encerrada.lucroLiquido, 3800);
+assert.strictEqual(encerrada.totalFinanciamento, 14000, 'transferência para o PL não entra como financiamento');
+assert.strictEqual(encerrada.totalOperacional, 3500);
+assert(encerrada.notas.some((n) => n.includes('encerramento') && n.includes('3.800,00')));
 
 // Implantação no meio do ano: começa na competência da abertura.
 const implantada = [l('2026-05-10', 300, '61', '500'), l('2026-06-01', 300, '10', '61')];
