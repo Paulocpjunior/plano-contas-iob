@@ -2148,3 +2148,11 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 ## 18/10/2026 — WhatsApp do CCI pelo SP Connect (G5)
 
 - `whatsapp-cfi-client.js`: com `SP_CONNECT_URL` no serviço, status, templates e envio vão ao Connect (mesmas rotas `/api/admin/whatsapp/*`; o Connect aceita o token do `projetos-app-sp`). Sem a variável, segue o CFI. Trava em `scripts/test-empresa-cadastro-whatsapp.js`.
+
+## 19/10/2026 — BB Conta atual: valor alto lido do Saldo (Casa Betinho, jul/2026) · v3.4.433
+
+- Sintoma: PDF BB "Cliente - Conta atual" (ag. 1192-4, c/c 50710-5) importava 3 de 5 lançamentos; TEDs de 285.000,00 D e 273.700,00 D entravam como 164,49 C e 78,22 C (o Saldo) e os créditos de 285.155,37 e 273.613,73 sumiam.
+- Causa: valor que não cabe na célula sai com o número em y+4,8 e o C/D em y-4,8 em relação à data. `extrairTextoPDFBB` agrupava só por y arredondado, então o valor virava linha antes da data, o C/D linha depois, e `parseLinhaLancamentoBB` só achava "Saldo C" na linha da data.
+- Correção: `montarLinhasPaginaBB(itens, { juntarCelulasQuebradas })` devolve à linha da data (tolerância 6pt) fragmentos que são só valor ou só C/D. Só o caminho Conta atual liga a opção; o "mais/menos" segue igual.
+- Conta atual agora expõe `saldo_anterior`, `saldo_final`, `saldos_conciliados` (sem bloquear) e a tela avisa quando a soma não bate.
+- Teste sintético em `scripts/test-bb-conta-atual.js` com as coordenadas reais, sem nomes (o PDF do cliente não foi versionado: repo público).
