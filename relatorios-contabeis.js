@@ -786,6 +786,6 @@
 
   return {
     dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao, complementoLancamento,
-    lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, saldosAnteriores, balanceteAnual, razao, totaisRazao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
+    contaCanonica, lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, saldosAnteriores, balanceteAnual, razao, totaisRazao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
   };
 });

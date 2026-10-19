@@ -2156,3 +2156,12 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - Correção: `montarLinhasPaginaBB(itens, { juntarCelulasQuebradas })` devolve à linha da data (tolerância 6pt) fragmentos que são só valor ou só C/D. Só o caminho Conta atual liga a opção; o "mais/menos" segue igual.
 - Conta atual agora expõe `saldo_anterior`, `saldo_final`, `saldos_conciliados` (sem bloquear) e a tela avisa quando a soma não bate.
 - Teste sintético em `scripts/test-bb-conta-atual.js` com as coordenadas reais, sem nomes (o PDF do cliente não foi versionado: repo público).
+
+## 19/10/2026 — Relatórios: DFC método indireto (pedido de cliente, todas as empresas) · v3.4.434
+
+- Pedido do Paulo/cliente: "Demonstração do Fluxo de Caixa (DFC) pelo método indireto" no menu Relatórios, para todas as empresas. Referência de linhas: DFC indireto do Office Contábil.
+- `dfc-indireto.js` (puro, `CCIDFCIndireto`): recebe as linhas de `CCIRelatoriosContabeis.balancete` e classifica pelo código estrutural: 1.1.1 caixa e equivalentes; 1.1.x e 1.2.1 ativo operacional (grupo de 4º nível); 1.2.x com DEPRECIA/AMORTIZA/EXAUST soma ao lucro; demais 1.2.x investimento (3º nível); 2.1/2.2 passivo operacional, salvo EMPREST/FINANCIAMENT/MUTUO/DEBENTURE sem TRIBUT/PARCELAMENTO (financiamento); 2.3+ PL em financiamento; 3+ resultado. Efeito de cada conta = créditos − débitos do período.
+- Período: competência = acumulado de jan até o mês (como o Office); intervalo personalizado é respeitado. Implantação no meio do ano (abertura sem lançamento antes no exercício) começa na competência da abertura.
+- Lucro = contas de resultado sem os lançamentos `encerramentoContabil`; encerramento manual aparece como variação do PL (nota no relatório). Alertas: sem movimento, conta fora do plano, 1.1.1 sem cara de disponível, soma ≠ variação do caixa.
+- Revisão Codex (PR #325): lançamentos resultado ↔ PL (encerramento com ou sem marca do CCI) e pares sem caixa (investimento × passivo/empréstimo/PL; empréstimo × PL) são anulados lançamento a lançamento e descritos nas notas (CPC 03). `contaCanonica` passa a ser exportada pelo core.
+- UI: aba `dfc_indireto` em `relatorios-contabeis-ui.js` (tela, PDF, Excel). Teste `scripts/test-dfc-indireto.js`. Fora do escopo: comparativo de 2 anos ("Imprimir 2 anos" do Office).
