@@ -12,7 +12,7 @@ function validarLink(url, driveId) {
   let u;
   try { u = new URL(url); } catch (_) { erro('Checkpoint Graph invalido.'); }
   if (u.origin !== GRAPH || u.username || u.password || u.hash ||
-      !u.pathname.startsWith('/v1.0/drives/' + encodeURIComponent(driveId) + '/root/delta')) {
+      u.pathname !== '/v1.0/drives/' + encodeURIComponent(driveId) + '/root/delta') {
     // @odata.nextLink usa frequentemente /root/delta?token=...; nunca aceitar URL arbitraria.
     erro('Checkpoint fora do escopo da biblioteca autorizada.');
   }
@@ -47,7 +47,7 @@ async function lerDelta({driveId, checkpoint, token, fetcher=globalThis.fetch, m
     itens.push(...body.value.map(classificar));
     const next = body['@odata.nextLink'], delta = body['@odata.deltaLink'];
     if (next && delta) erro('Resposta Graph ambigua.');
-    if (delta) return {itens, checkpoint:validarLink(delta,drive), completo:true, notificacoes_enviadas:false};
+    if (delta) return {itens, checkpoint:validarLink(delta,drive), completo:true, notificacoes_enviadas:false, requer_confirmacao_checkpoint:true};
     if (!next) erro('Graph nao forneceu checkpoint.');
     url = validarLink(next,drive);
   }
