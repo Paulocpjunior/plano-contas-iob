@@ -88,8 +88,10 @@ function erroResposta(status, body) {
 function criarLeitorProxy({url, token, fetcher = globalThis.fetch, env = process.env} = {}) {
   const configuracao = env || {};
   const origem = validarUrlProxy(url === undefined ? configuracao.CCI_SHAREPOINT_PROXY_URL || configuracao.SHAREPOINT_PROXY_URL : url);
-  const tokenProxy = token === undefined ? configuracao.SHAREPOINT_PROXY_TOKEN : token;
-  if (typeof tokenProxy !== 'string' || !tokenProxy || tokenProxy.length > 8192 || /[\u0000-\u0020\u007f]/.test(tokenProxy)) {
+  const tokenBruto = token === undefined ? configuracao.SHAREPOINT_PROXY_TOKEN : token;
+  // Mesmo tratamento do proxy existente: espaços de cópia nas bordas não alteram a credencial.
+  const tokenProxy = typeof tokenBruto === 'string' ? tokenBruto.trim() : tokenBruto;
+  if (typeof tokenProxy !== 'string' || !tokenProxy || tokenBruto.length > 8192 || /[\u0000-\u0020\u007f]/.test(tokenProxy)) {
     throw erro('SHAREPOINT_PROXY_AUTH_NOT_CONFIGURED', 'Configure a referência do token interno SharePoint existente no CCI.', {status:503});
   }
   if (typeof fetcher !== 'function') throw erro('SHAREPOINT_PROXY_CONFIG_INVALID', 'Configure o transporte HTTP interno do proxy SharePoint.', {status:503});
