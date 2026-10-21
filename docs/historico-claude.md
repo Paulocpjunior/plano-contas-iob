@@ -2197,3 +2197,8 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - Paulo (EDSON PADUAN, jan/2026): "Retenções de serviços prestados" travava com soma R$ 5.757,45 × total R$ 6.532,45 e IRRF 76,54 × 88,16. A NF 0000400 tinha compensação impressa "/ /", base 0,00 e só IRRF 11,62; `parsearLinhaDemonstrativoRetidos` exige a data e a linha sumia em silêncio.
 - Decisão do Paulo: a trava está certa, sem exceção. Toda NF deve ter valor e data; nota sem data da compensação NÃO entra.
 - Entregue: linha que começa com modelo + data e não casa o leiaute vai para `linhas_nao_lidas` ({documento, data, motivo, texto}), entra em `campos_totais_divergentes` (bloqueia mesmo com total batendo) e a mensagem diz "NF X de dd/mm/aaaa, sem data da compensação" ou "linha fora do leiaute" e pede para corrigir na SAGE. Teste `scripts/test-sage-retidos-notas-nao-lidas.js`.
+
+## 21/10/2026 — v3.4.442: central de notificações no painel Admin
+
+- Paulo (print): CRM → Gestão da carteira → Automações do CRM dava "window.abrirCentralNotificacoes is not a function". Causa: `admin.html` carregava `crm-contabil-ui.js` sem `notificacoes-ui.js`, `notificacoes.css` e `crm-sharepoint-ui.js` (o `index.html` já carregava). Trava em `test-notificacoes-compartilhadas.js`: toda página que abre o CRM carrega essas dependências antes.
+- Decisão do Paulo: Teams continua por chat ou canal (Workflows), sem cadastro de usuário do tenant. "Ficha Financeira" foi engano de nome. Manual do usuário em PDF entregue nos arquivos do projeto (notificacoes/teams-ficha-financeira).
