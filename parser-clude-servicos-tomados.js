@@ -965,14 +965,36 @@
     return totais;
   }
 
-  function parsearLinhaDemonstrativoRetidos(linha, periodo, metaEmpresa) {
+  // Linha de nota: modelo + data de emissão no início. Nota que não casa o
+  // leiaute é acusada pelo número, em vez de sumir e só aparecer na soma.
+  const INICIO_NOTA_DEMONSTRATIVO_RETIDOS = /^(\d{1,3})\s+(\d{2}\/\d{2}\/\d{4})\s/;
+
+  function regexLinhaDemonstrativoRetidos(dataCompensacao) {
     const money = '(\\d{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+,\\d{2})';
     const documentoPessoa = '(\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2})';
-    const regex = new RegExp('^(\\d{1,3})\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(.+?)\\s+' + documentoPessoa
-      + '\\s+' + money + '\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+' + money + '\\s+' + money
+    return new RegExp('^(\\d{1,3})\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(.+?)\\s+' + documentoPessoa
+      + '\\s+' + money + '\\s+' + dataCompensacao + money + '\\s+' + money
       + '\\s+' + money + '\\s+' + money + '\\s+' + money + '\\s+' + money + '$');
+  }
+
+  // Toda NF precisa de data da compensação: sem ela a nota NÃO entra (regra do
+  // Paulo, 21/10/2026). Este diagnóstico só diz qual nota e o que falta.
+  function diagnosticarLinhaDemonstrativoRetidos(texto) {
+    const inicio = texto.match(INICIO_NOTA_DEMONSTRATIVO_RETIDOS);
+    if (!inicio) return null;
+    const semData = texto.match(regexLinhaDemonstrativoRetidos('(?:\\/\\s*\\/\\s+)?'));
+    const documento = semData ? String(semData[3] || '').trim().split(/\s+/).pop() : '';
+    return {
+      documento: documento,
+      data: inicio[2],
+      motivo: semData ? 'sem data da compensação' : 'linha fora do leiaute do relatório',
+      texto: texto
+    };
+  }
+
+  function parsearLinhaDemonstrativoRetidos(linha, periodo, metaEmpresa) {
     const texto = String(linha || '').replace(/\s+/g, ' ').trim();
-    const m = texto.match(regex);
+    const m = texto.match(regexLinhaDemonstrativoRetidos('(\\d{2}\\/\\d{2}\\/\\d{4})\\s+'));
     if (!m) return null;
 
     const identificacaoNota = String(m[3] || '').trim().split(/\s+/);
@@ -1094,9 +1116,14 @@
     const periodo = extrairPeriodo(texto);
     if (!periodo.inicio || !periodo.fim) return { detectado: false, lancamentos: [] };
 
-    const notasFiscais = texto.split(/\r?\n/)
-      .map(function(linha) { return parsearLinhaDemonstrativoRetidos(linha, periodo, metaEmpresa); })
-      .filter(Boolean);
+    const notasFiscais = [];
+    const linhasNaoLidas = [];
+    texto.split(/\r?\n/).forEach(function(linha) {
+      const nota = parsearLinhaDemonstrativoRetidos(linha, periodo, metaEmpresa);
+      if (nota) { notasFiscais.push(nota); return; }
+      const diagnostico = diagnosticarLinhaDemonstrativoRetidos(String(linha || '').replace(/\s+/g, ' ').trim());
+      if (diagnostico) linhasNaoLidas.push(diagnostico);
+    });
     const totaisOficiais = extrairTotaisDemonstrativoRetidos(texto);
     const somas = notasFiscais.reduce(function(acc, l) {
       acc.valorNotas += Number(l.valorNota || 0);
@@ -1112,13 +1139,15 @@
     const divergencias = totaisOficiais ? camposTotal.filter(function(campo) {
       return Math.abs(centavos(somas[campo]) - centavos(totaisOficiais[campo])) > 1;
     }) : [];
+    if (linhasNaoLidas.length) divergencias.unshift('linhas_nao_lidas');
     const lancamentos = notasFiscais.reduce(function(todos, nota) {
       return todos.concat(criarLancamentosDemonstrativoRetidos(nota));
     }, []);
     const totalRetencoes = somas.pis + somas.cofins + somas.csll + somas.irrf + somas.inss;
 
     return {
-      detectado: notasFiscais.length > 0,
+      // Relatório só com notas incompletas segue reconhecido, para a tela apontar a NF.
+      detectado: notasFiscais.length > 0 || linhasNaoLidas.length > 0,
       banco_detectado: metaEmpresa.codigo,
       nome_banco_detectado: metaEmpresa.nome || 'Demonstrativo de Impostos Retidos em Servicos',
       conta_detectada: 'IMPOSTOS_RETIDOS_SERVICOS',
@@ -1139,6 +1168,7 @@
       totais_retencoes_oficiais: totaisOficiais,
       total_divergente: divergencias.length > 0,
       campos_totais_divergentes: divergencias,
+      linhas_nao_lidas: linhasNaoLidas,
       lancamentos
     };
   }
@@ -1623,7 +1653,8 @@
     if (resultado && resultado.detectado && resultado.total_notas_zeradas > 0 && Array.isArray(resultado.lancamentos) && !resultado.lancamentos.length && !resultado.total_divergente) {
       throw new Error('Todas as ' + resultado.total_notas_zeradas + ' notas estão zeradas. Não há valores para integrar nem lançamentos contábeis a gerar.');
     }
-    if (!resultado || !resultado.detectado || !Array.isArray(resultado.lancamentos) || !resultado.lancamentos.length) {
+    const temLinhasNaoLidas = !!(resultado && Array.isArray(resultado.linhas_nao_lidas) && resultado.linhas_nao_lidas.length);
+    if (!resultado || !resultado.detectado || !Array.isArray(resultado.lancamentos) || (!resultado.lancamentos.length && !temLinhasNaoLidas)) {
       throw new Error('O PDF nao foi reconhecido como relatorio E-Fiscal de servicos do modelo selecionado.');
     }
     if (movimentoEsperado && movimentoDetectado !== movimentoEsperado) {
@@ -1646,6 +1677,15 @@
       };
       const detalhes = (resultado.campos_totais_divergentes || []).map(function(campo) {
         if (campo === 'totais_oficiais_ausentes') return 'Total oficial não identificado no PDF';
+        if (campo === 'linhas_nao_lidas') {
+          const linhas = resultado.linhas_nao_lidas || [];
+          return 'Notas que não entraram (' + linhas.length + '): ' +
+            linhas.slice(0, 5).map(function(l) {
+              return (l.documento ? 'NF ' + l.documento : 'linha "' + l.texto + '"') + ' de ' + l.data + ', ' + l.motivo;
+            }).join('; ') +
+            (linhas.length > 5 ? ' (mostrando 5 de ' + linhas.length + ')' : '') +
+            '. Corrija a nota na SAGE / E-Fiscal e gere o PDF novamente';
+        }
         const calculado = (resultado.totais_retencoes_calculados || {})[campo];
         const oficial = (resultado.totais_retencoes_oficiais || {})[campo];
         return (nomes[campo] || campo) + ': soma das notas ' + formatar(calculado) +

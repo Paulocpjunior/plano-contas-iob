@@ -1,7 +1,8 @@
 {
-  "version": "3.4.440",
-  "build_date": "2026-10-21T16:00:00Z",
+  "version": "3.4.441",
+  "build_date": "2026-10-21T17:00:00Z",
   "release_notes": [
+    "SAGE retenções de serviços prestados: quando uma nota não entra na importação, a mensagem passa a dizer qual NF e o motivo (ex.: \"NF 0000400 de 21/01/2026, sem data da compensação\"), para corrigir na SAGE e gerar o PDF de novo. Toda NF continua exigindo valor e data, e a importação segue bloqueada até o total bater.",
     "Encerramento contábil: encerrada uma competência (mês, trimestre ou ano), ela e todos os meses anteriores ficam bloqueados para incluir, alterar ou excluir lançamentos, inclusive importações, mesmo sem encerramento formal desses meses. A correção é lançada depois do encerramento. Ao reabrir o encerramento mais recente, a trava volta para o encerramento anterior.",
     "Importação fiscal do CFI: as NF-e de entrada e saída chegam com o mesmo CFOP do Livro de Entradas/Saídas do CFI (CFOP informado na nota, parâmetros por fornecedor e natureza da atividade), sem troca no CCI. Nota já importada com CFOP antigo não entra de novo em duplicidade: o CCI pede para remover a importação anterior e mostra o CFOP antigo e o novo.",
     "SharePoint: aceitar espaços e quebras de linha somente nas bordas da credencial interna existente, como o proxy, para iniciar o inventário sem trocar segredos. Controles internos, token vazio e valores excessivos permanecem bloqueados.",

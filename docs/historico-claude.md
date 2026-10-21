@@ -2191,3 +2191,9 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - Módulo puro `trava-digitacao-contabil.js` (UMD, servidor e navegador). Marco = maior `periodos_contabeis` com status `fechado`; `reaberto` não conta. Usado em `impedirAlteracaoPeriodosFechados` (autosave, migração SAGE, exclusão administrativa), FI, DARF pago, ativo, evento patrimonial e `lancamentos-edicao-lote.js` (tela).
 - Decisão: reabrir o encerramento mais recente devolve o marco ao encerramento anterior. Só o mais recente pode ser reaberto, e não se encerra mês anterior ao marco (`PERIODO_POSTERIOR_FECHADO`).
 - Fora do escopo: conciliação manual S/N (não altera lançamento) segue travando só a competência encerrada.
+
+## 21/10/2026 — v3.4.441: SAGE retidos prestados, mensagem aponta a NF que ficou de fora
+
+- Paulo (EDSON PADUAN, jan/2026): "Retenções de serviços prestados" travava com soma R$ 5.757,45 × total R$ 6.532,45 e IRRF 76,54 × 88,16. A NF 0000400 tinha compensação impressa "/ /", base 0,00 e só IRRF 11,62; `parsearLinhaDemonstrativoRetidos` exige a data e a linha sumia em silêncio.
+- Decisão do Paulo: a trava está certa, sem exceção. Toda NF deve ter valor e data; nota sem data da compensação NÃO entra.
+- Entregue: linha que começa com modelo + data e não casa o leiaute vai para `linhas_nao_lidas` ({documento, data, motivo, texto}), entra em `campos_totais_divergentes` (bloqueia mesmo com total batendo) e a mensagem diz "NF X de dd/mm/aaaa, sem data da compensação" ou "linha fora do leiaute" e pede para corrigir na SAGE. Teste `scripts/test-sage-retidos-notas-nao-lidas.js`.
