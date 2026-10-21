@@ -17679,7 +17679,13 @@
                         ? (resultado.total_credito || 0)
                         : ((resultado.total_credito || 0) + (resultado.total_debito || 0))
                 );
-                if (origem === 'cfi' && ['entrada', 'saida'].includes(layout.movimento)) document.getElementById('movFiscalVendas').textContent += ' | NF-e: ' + resultado.total_nfe + ' | NFC-e: ' + resultado.total_nfce;
+                if (origem === 'cfi' && ['entrada', 'saida'].includes(layout.movimento)) {
+                    const imp = resultado.total_impostos_destacados || {};
+                    const fora = resultado.notas_fora_do_livro_cfi || [];
+                    document.getElementById('movFiscalVendas').textContent += ' | NF-e: ' + resultado.total_nfe + ' | NFC-e: ' + resultado.total_nfce + ' | CT-e: ' + (resultado.total_cte || 0)
+                        + ' | ICMS: ' + formatarMoedaBR(imp.ICMS || 0) + ' | ICMS ST: ' + formatarMoedaBR(imp['ICMS ST'] || 0) + ' | IPI: ' + formatarMoedaBR(imp.IPI || 0)
+                        + (fora.length ? ' | Fora do Livro no CFI: ' + fora.map(function(e) { return 'NF ' + e.numero + ' (' + formatarMoedaBR(e.valor) + ')'; }).join(', ') : '');
+                }
                 if (origem === 'cfi' && ['servicos_prestados', 'servicos_tomados'].includes(layout.movimento)) document.getElementById('movFiscalVendas').textContent +=
                     ' | ISS no CFI: ' + (resultado.total_iss_destacado_cfi == null ? 'não informado' : formatarMoedaBR(resultado.total_iss_destacado_cfi)) +
                     ' | ISS a importar: ' + (resultado.iss_destacado_aplicavel === false

@@ -2217,6 +2217,14 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - Módulo puro `ativo-imobilizado-exclusao.js`: lançamentos do bem pela chave `AAAA-MM:<bemId>:...` (controle `ativos_lancamentos` + entradas da sessão). Se algum cair em período travado (3.4.440, pela chave ou pela data), bloqueia e indica Baixa/estorno a partir do mês seguinte ao marco; senão remove junto, sob a trava da sessão e com `impedirAlteracaoPeriodosFechados`. Baixado não se exclui.
 - Rotas `POST .../:id/exclusao/previa` e `.../:id/excluir` com `adminRequired` e `hash_previa`. Listagem devolve `possiveis_duplicados` (descrição normalizada + data + custo) e `pode_excluir`. Teste `scripts/test-ativo-imobilizado-exclusao.js`.
 
+## 21/10/2026 — v3.4.445: movimento do CFI com CT-e e ICMS/ICMS ST/IPI por CFOP (NOVA ERA 09/2026)
+
+- Paulo: frete 2353 não subia (CCI 99 mil abaixo do Livro), ICMS das saídas não integrado. O CFI passou a mandar CT-e, tirar a NF do produtor do art. 136 (`foraDoLivro`) e levar `baseIcms, icms, icmsSt, ipi, isentas, outras` por grupo + `resumo.icms/icmsSt/ipi`.
+- `movimento-fiscal-cfi.js`: aceita chave modelo 57/67 (`especie: 'CTE'`, `tipoDocumentoFiscal` `CTE_ENTRADA/SAIDA`, descrição "CT-e N"); principal ganha `valorIcms/baseIcms/valorIcmsSt/valorIpi/isentasIcms/outrasIcms`; ICMS/ICMS ST/IPI > 0 viram linha de imposto destacado no desenho do SAGE (`valor` negativo, `impostoFiscalTipo`, `REGISTRO_*_FISCAL_IMPOSTO`, `cfiLancamentoId` `id:CFOP:x:ICMS|ICMS_ST|IPI`).
+- Ausente ≠ zero: grupo sem as colunas (CFI antigo) bloqueia; total de cada imposto confere com o resumo do CFI.
+- Conferência mostra CT-e, ICMS, ICMS ST, IPI e as notas "Fora do Livro no CFI". Teste: `scripts/test-movimento-fiscal-nfe-cfi.js`.
+- Ordem de deploy: CFI antes do CCI (o CCI novo bloqueia o payload antigo).
+
 ## 21/10/2026 — v3.4.446: layout PDF do Cora (banco 403)
 
 - Paulo (HYPE CAFE): banco 403 dava "Nao existe layout PDF cadastrado". Novo `parser-cora-extrato.js` (`parsearPDF_Cora_Extrato`), layout `Cora - Extrato do Periodo` no `layouts-bancarios-padrao.js`.

@@ -14,6 +14,17 @@
     return /^\d{4}-\d{2}-\d{2}$/.test(String(data || '')) && String(data).slice(0, 7) === competencia;
   }
 
+  // Imposto destacado POR CFOP, com o desenho do arquivo SAGE
+  // (`criarLancamentoImposto`): o mesmo lançamento, venha a nota do arquivo
+  // ou da consulta direta. 21/10, NOVA ERA 09/2026: o ICMS das saídas não
+  // chegava porque o contrato só levava { cfop, valor }.
+  const IMPOSTOS_DO_GRUPO = [
+    { campo: 'icms', base: 'baseIcms', tipo: 'ICMS', id: 'ICMS' },
+    { campo: 'icmsSt', base: '', tipo: 'ICMS ST', id: 'ICMS_ST' },
+    { campo: 'ipi', base: '', tipo: 'IPI', id: 'IPI' }
+  ];
+  const CAMPOS_FISCAIS_DO_GRUPO = ['baseIcms', 'icms', 'icmsSt', 'ipi', 'isentas', 'outras'];
+
   function normalizarNfe(body, opts, notas, total) {
     const cnpj = digitos(opts.cnpj), movimento = opts.movimento, saida = movimento === 'saida';
     const inicio = opts.competencia + '-01';
@@ -24,34 +35,75 @@
       let soma = 0, peso = 2;
       for (let i = 42; i >= 0; i--) { soma += Number(chave[i]) * peso; peso = peso === 9 ? 2 : peso + 1; }
       const dv = 11 - soma % 11;
-      if (chave.length !== 44 || Number(chave[43]) !== (dv >= 10 ? 0 : dv) || chaves.has(chave)) throw new Error('Chave NF-e inválida ou repetida na origem CFI.');
+      // O frete (CT-e, modelo 57/67) vem no mesmo movimento, como no Livro.
+      const cte = ['57', '67'].includes(chave.slice(20,22));
+      const doc = cte ? 'CT-e' : 'NF-e';
+      if (chave.length !== 44 || Number(chave[43]) !== (dv >= 10 ? 0 : dv) || chaves.has(chave)) throw new Error('Chave ' + doc + ' inválida ou repetida na origem CFI.');
+      if (cte !== (nota.especie === 'CTE')) throw new Error(doc + ' ' + nota.numero + ': a espécie informada pelo CFI difere do modelo da chave. Atualize a consulta no CFI.');
       chaves.add(chave); emitentes.add(chave.slice(6,20));
-      if (saida && chave.slice(6,20) !== cnpj) throw new Error('Emitente da NF-e difere da empresa ativa.');
+      if (saida && chave.slice(6,20) !== cnpj) throw new Error('Emitente da ' + doc + ' difere da empresa ativa.');
       const grupos = nota.gruposCfop;
       if (!Array.isArray(grupos) || !grupos.length || new Set(grupos.map(g => g.cfop)).size !== grupos.length) throw new Error('NF ' + nota.numero + ' sem grupos CFOP válidos.');
       if (grupos.some(g => !(saida ? /^[567]\d{3}$/ : /^[123]\d{3}$/).test(String(g.cfop)) || !Number.isFinite(Number(g.valor)) || !(Number(g.valor) > 0))
           || grupos.reduce((s,g) => s + Math.round(Number(g.valor)*100),0) !== Math.round(nota.valor*100)) throw new Error('NF ' + nota.numero + ': CFOP/valores divergem do total da nota.');
+      // Ausente ≠ zero: sem as colunas do Livro, o ICMS não sobe como zero.
+      if (grupos.some(g => CAMPOS_FISCAIS_DO_GRUPO.some(c => typeof g[c] !== 'number' || !Number.isFinite(g[c]) || g[c] < 0))) {
+        throw new Error((cte ? 'CT-e ' : 'NF ') + nota.numero + ': o CFI não enviou ICMS, ICMS ST e IPI por CFOP. Atualize o CFI e consulte de novo; nada foi importado.');
+      }
+      const rotulo = (cte ? 'CT-e ' : 'NF ') + nota.numero;
       grupos.forEach(g => {
         const participante = nota.participanteNome || 'CONTRAPARTE NÃO INFORMADA NO CFI';
-        lancamentos.push({ data: nota.data, valor: (saida ? 1 : -1) * r2(g.valor), valorContabil: r2(g.valor), valorNota: nota.valor,
-          descricao: (saida ? 'Saída' : 'Entrada') + ' - NF ' + nota.numero + ' - CFOP ' + g.cfop + ' - ' + participante,
+        const principal = { data: nota.data, valor: (saida ? 1 : -1) * r2(g.valor), valorContabil: r2(g.valor), valorNota: nota.valor,
+          baseIcms: r2(g.baseIcms), valorIcms: r2(g.icms), isentasIcms: r2(g.isentas), outrasIcms: r2(g.outras), valorIcmsSt: r2(g.icmsSt), valorIpi: r2(g.ipi),
+          especie: cte ? 'CTE' : (nota.modelo === '65' ? 'NFCE' : 'NFE'),
+          descricao: (saida ? 'Saída' : 'Entrada') + ' - ' + rotulo + ' - CFOP ' + g.cfop + ' - ' + participante,
           descricao_memoria: participante, memoriaDescricoes: [participante, 'CFOP ' + g.cfop],
           documento: nota.numero, numero_nf: nota.numero, chave_nfe: chave, cfop: g.cfop, cfops: [g.cfop], cfopsNota: grupos.map(g => g.cfop),
           categoria: saida ? 'Saídas de Mercadorias' : 'Entradas de Mercadorias', categoriaFiscal: saida ? 'SAIDA_MERCADORIAS' : 'ENTRADA_MERCADORIAS',
-          tipoDocumentoFiscal: (nota.modelo === '65' ? 'NFCE_' : 'NFE_') + (saida ? 'SAIDA' : 'ENTRADA'), direcaoFiscal: movimento,
+          tipoDocumentoFiscal: (cte ? 'CTE_' : nota.modelo === '65' ? 'NFCE_' : 'NFE_') + (saida ? 'SAIDA' : 'ENTRADA'), direcaoFiscal: movimento,
           cnpj_tomador: saida ? nota.participanteDocumento : '', cnpj_fornecedor: saida ? '' : nota.participanteDocumento,
           empresaCnpjFiscal: cnpj, empresaNomeFiscal: body.empresa?.nome || '', periodo_inicio: inicio, periodo_fim: fim,
           cfiDocumentoId: nota.idOrigem, cfiLancamentoId: nota.idOrigem + ':CFOP:' + g.cfop,
           cfiOrigemDocumento: nota.origemDocumento || 'CFI', origemDadosFiscal: 'CFI_API',
           conta: 'Fiscal CFI - ' + movimento, nome_conta: 'Fiscal CFI - ' + movimento
+        };
+        lancamentos.push(principal);
+        IMPOSTOS_DO_GRUPO.forEach(cfg => {
+          const valor = r2(g[cfg.campo]);
+          if (!(valor > 0)) return;
+          const sobre = saida ? 'saidas' : 'entradas';
+          lancamentos.push({ ...principal,
+            descricao: ['Imposto destacado fiscal', cfg.tipo, participante, rotulo, 'CFOP ' + g.cfop, cfg.tipo + ' ' + valor.toFixed(2).replace('.', ',')].join(' - '),
+            descricao_memoria: cfg.tipo + ' DESTACADO - ' + participante,
+            memoriaDescricoes: [cfg.tipo, 'Imposto destacado fiscal', participante, rotulo, 'CFOP ' + g.cfop],
+            valor: -valor, valorContabil: valor, valorImpostoFiscal: valor, baseImpostoFiscal: cfg.base ? r2(g[cfg.base]) : 0,
+            impostoFiscalTipo: cfg.tipo, componenteFiscal: 'IMPOSTO_DESTACADO',
+            categoria: cfg.tipo + ' destacado sobre ' + sobre, categoriaFiscal: cfg.tipo + ' destacado sobre ' + sobre,
+            tipoDocumentoFiscal: saida ? 'REGISTRO_SAIDA_FISCAL_IMPOSTO' : 'REGISTRO_ENTRADA_FISCAL_IMPOSTO',
+            naturezaLancamento: (saida ? 'saida' : 'entrada') + '_fiscal_imposto_destacado',
+            cfiLancamentoId: nota.idOrigem + ':CFOP:' + g.cfop + ':' + cfg.id,
+            codigoHistorico: '', historico: '', contaDebito: '', contaCredito: '',
+            conta: 'Fiscal CFI - ' + cfg.tipo + ' ' + movimento, nome_conta: 'Fiscal CFI - ' + cfg.tipo + ' ' + movimento
+          });
         });
       });
+    }
+    const somaImposto = tipo => r2(lancamentos.filter(l => l.impostoFiscalTipo === tipo).reduce((s, l) => s + l.valorImpostoFiscal, 0));
+    const impostos = { ICMS: somaImposto('ICMS'), 'ICMS ST': somaImposto('ICMS ST'), IPI: somaImposto('IPI') };
+    // O resumo do CFI e as linhas criadas aqui têm de dizer o mesmo número.
+    for (const [tipo, campo] of [['ICMS', 'icms'], ['ICMS ST', 'icmsSt'], ['IPI', 'ipi']]) {
+      const informado = body.resumo && body.resumo[campo];
+      if (typeof informado !== 'number' || Math.round(informado * 100) !== Math.round(impostos[tipo] * 100)) {
+        throw new Error('O total de ' + tipo + ' das notas diverge do resumo devolvido pelo CFI. A importação permanece bloqueada.');
+      }
     }
     return { detectado: true, contrato: body.contrato, direcao_fiscal: movimento, cnpj_detectado: cnpj, cnpj_empresa_detectado: cnpj,
       cnpjs_empresa_detectados: saida ? [...emitentes] : [cnpj], chaves_nfe_validas: chaves.size, chaves_nfe_invalidas: 0,
       periodo_inicio: inicio, periodo_fim: fim, empresa_codigo_detectado: '', nome_banco_detectado: body.empresa?.nome || 'CFI',
       total_credito: saida ? total : 0, total_debito: saida ? 0 : total, total_oficial: total, total_oficial_detectado: true,
-      total_divergente: false, total_notas_fiscais: notas.length, total_nfe: notas.filter(n => n.modelo !== '65').length, total_nfce: notas.filter(n => n.modelo === '65').length, total_lancamentos_fiscais: lancamentos.length,
+      total_divergente: false, total_notas_fiscais: notas.length, total_nfe: notas.filter(n => n.modelo === '55').length, total_nfce: notas.filter(n => n.modelo === '65').length,
+      total_cte: notas.filter(n => n.especie === 'CTE').length, total_impostos_destacados: impostos,
+      notas_fora_do_livro_cfi: Array.isArray(body.foraDoLivro) ? body.foraDoLivro : [], total_lancamentos_fiscais: lancamentos.length,
       documentos_lidos_cfi: body.documentosLidos || 0, ressalvas_cfi: body.ressalvas || [], lancamentos };
   }
 
