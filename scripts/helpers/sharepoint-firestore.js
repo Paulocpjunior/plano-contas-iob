@@ -73,6 +73,11 @@ class Query {
   orderBy(campo, sentido = 'asc') {
     return new Query(this.db, this.path, this.filtros, this.limite, [...this.ordenacao, [campo, sentido]]);
   }
+  startAfter(value) {
+    if (this.ordenacao.length !== 1) throw new Error('Cursor de teste exige uma ordenação');
+    const [campo, sentido] = this.ordenacao[0];
+    return this.where(campo, sentido === 'desc' ? '<' : '>', value);
+  }
   async get() { return this.db._query(this); }
 }
 
@@ -135,7 +140,7 @@ class SharePointFirestore {
       .sort()
       .map(path => this._snapshot(this.doc(path)))
       .filter(s => query.filtros.every(([campo, operador, valor]) => {
-        const atual = valorCampo(s.data(), campo);
+        const atual = campo === '__name__' ? s.id : valorCampo(s.data(), campo);
         switch (operador) {
           case '==': return atual === valor;
           case '!=': return atual !== undefined && atual !== valor;

@@ -147,3 +147,45 @@ Delta representa o último estado observado, não todas as ações do usuário. 
 - [Firestore — transações](https://firebase.google.com/docs/firestore/manage-data/transactions).
 - [PR #326](https://github.com/Paulocpjunior/plano-contas-iob/pull/326).
 - [Código original do proxy](https://github.com/Paulocpjunior/consultor-fiscal-inteligente/tree/037920140584cb27228f254aca56647739c69aa6/proxy-backend).
+
+## Interface administrativa no CRM
+
+No CRM do CCI, administradores ativos encontram **Monitor documental** na navegação.
+A tela usa `window.API.apiFetch`, a sessão Firebase e o bloqueio de operações já
+existentes no CRM. Todas as rotas continuam verificando o administrador ativo no
+banco a cada requisição; alterações também conferem o perfil dentro da transação.
+A revogação de acesso limpa os dados documentais da tela.
+
+O formulário sugere **Documentos** no site **ClientesSP2**, mas exige o host
+SharePoint e o `drive ID` confirmados pelo administrador. Nenhum ID é inferido do
+nome do site. Salvar cria a biblioteca desabilitada, não homologada e sem envio.
+Os nomes são rótulos opcionais, preservados ao habilitar/desabilitar a leitura.
+Não há botão para homologar, autorizar ou enviar notificações.
+
+O administrador pode habilitar a leitura e executar um passo, retomar ou solicitar
+reconciliação silenciosa. A tela mostra a configuração global, fase, etapa, tipo de
+ciclo, páginas coletadas no ciclo, presença de checkpoint, último ciclo e erro.
+Não há percentual estimado nem consulta automática periódica. O runtime e o
+agendamento já existentes continuam responsáveis pelo processamento; esta mudança
+não configura infraestrutura ou segredos.
+
+A nova consulta administrativa `GET /api/crm/sharepoint/pastas?driveId=...` lê até
+51 metadados por página e devolve somente as pastas elegíveis entre os primeiros
+50 itens, com nome, ID, pai e vínculo explícito. Arquivos, raiz e itens excluídos
+não são selecionáveis. `proximo` é o ID interno do último metadado consultado,
+nunca um cursor Graph. Ao continuar, enviar `cursor` e `geracao` recebidos.
+Uma página pode não conter pastas e ainda oferecer continuação. Mudança de geração
+retorna conflito e exige reiniciar a consulta. Não há novo índice composto.
+
+Para vincular, selecionar a pasta inventariada, consultar o CNPJ completo no CRM,
+conferir a razão social e marcar a confirmação explícita. A edição do CNPJ invalida
+a prévia. O servidor revalida empresa, pasta e revisão antes de gravar; não altera
+responsáveis ou distribuição da carteira. Alterações revogam homologação e envio.
+Os eventos mostram até 50 ocorrências mais recentes globais, filtradas na tela
+pela biblioteca selecionada; a ausência de eventos não comprova ausência de
+pendências fora desse recorte. O inventário inicial não gera eventos nem envios.
+
+Validação local: `npm run check:crm-sharepoint`, `npm run test:crm-sharepoint`,
+`npm run test:crm-contabil`, `npm run test:crm-base` e `npm run check:ci`.
+Os testes usam dados simulados; a homologação autenticada com o SharePoint real
+permanece uma etapa operacional após revisão e publicação autorizada.

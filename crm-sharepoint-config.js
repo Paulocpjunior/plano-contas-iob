@@ -21,17 +21,24 @@ function criarConfigurador({ db, agora = Date.now }) {
     if (!Number.isSafeInteger(revisao) || revisao !== (data?.revisao || 0)) throw erro('A configuração mudou. Atualize a tela antes de salvar.', 'REVISAO_DIVERGENTE');
     if (data?.ciclo || data?.lease?.expira_em_ms > agora()) throw erro('Conclua o ciclo atual antes de alterar os vínculos.', 'CICLO_EM_ANDAMENTO');
   }
-  async function salvarBiblioteca({ adminUid, driveId, sharepointHost, revisao = 0, habilitada = false, canais = ['teams', 'email'] }) {
+  async function salvarBiblioteca({ adminUid, driveId, sharepointHost, revisao = 0, habilitada = false, canais = ['teams', 'email'], siteNome, bibliotecaNome }) {
     id(driveId);
     if (typeof sharepointHost !== 'string' || !/^[a-z0-9-]+\.sharepoint\.com$/.test(sharepointHost)) throw erro('Informe somente o host SharePoint do escritório.', 'HOST_INVALIDO', 400);
     if (typeof habilitada !== 'boolean' || !Array.isArray(canais) || !canais.length || canais.some(c => !['teams', 'email'].includes(c))) throw erro('Confira os canais e a habilitação da biblioteca.', 'CONFIGURACAO_INVALIDA', 400);
+    const rotulos = {};
+    for (const [campo, valor] of [['site_nome', siteNome], ['biblioteca_nome', bibliotecaNome]]) {
+      if (valor !== undefined) {
+        if (typeof valor !== 'string' || !valor.trim() || valor.length > 120 || /[\x00-\x1f]/.test(valor)) throw erro('Confira o nome do site e da biblioteca.', 'CONFIGURACAO_INVALIDA', 400);
+        rotulos[campo] = valor.trim();
+      }
+    }
     const ref = bibliotecaRef(driveId);
     return db.runTransaction(async tx => {
       await admin(tx, adminUid);
       const s = await tx.get(ref), anterior = s.data();
       conferirRevisao(anterior, revisao);
       if (anterior && (anterior.drive_id !== driveId || anterior.sharepoint_host !== sharepointHost)) throw erro('O drive e o host da biblioteca existente não podem ser substituídos.', 'BIBLIOTECA_DIVERGENTE');
-      const dados = { drive_id: driveId, sharepoint_host: sharepointHost, canais: [...new Set(canais)], habilitada,
+      const dados = { ...rotulos, drive_id: driveId, sharepoint_host: sharepointHost, canais: [...new Set(canais)], habilitada,
         revisao: revisao + 1, homologada: false, envios_habilitados: false, proximo_passo_em_ms: 0,
         atualizado_por: adminUid, atualizado_em: new Date(agora()).toISOString(),
         ...(anterior ? {} : { fase: 'novo', checkpoint: null, ciclo: null, lease: null, geracao: null, proximo_passo_em_ms: 0 }) };

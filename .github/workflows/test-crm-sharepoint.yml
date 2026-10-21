@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'crm-sharepoint-*.js'
+      - 'crm-contabil-ui.js'
+      - 'crm-experiencia.css'
+      - 'index.html'
+      - 'public-assets.json'
       - 'carteira-contabil.js'
       - 'crm-contabil.js'
       - 'notificacoes-*.js'

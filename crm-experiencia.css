@@ -48,3 +48,7 @@ html[data-theme=dark] #crmContabilDialog .crm-badge[data-tone=em_andamento]{back
 #crmContabilDialog [data-topologia-pessoas]{max-height:340px;overflow:auto;padding:4px}
 #crmContabilDialog [data-topologia-empresas] summary{overflow-wrap:anywhere}
 @media(max-width:640px){#crmContabilDialog [data-editor] form{grid-template-columns:minmax(0,1fr)}#crmContabilDialog [data-topologia-pessoas]{max-height:250px}#crmContabilDialog .crm-person-card strong{font-size:14px}}
+
+/* Confirmação documental: mantém o checkbox junto ao texto em todos os tamanhos. */
+#crmContabilDialog [data-pane="sharepoint"] .crm-sp-confirmacao{display:flex;align-items:flex-start;gap:8px}
+#crmContabilDialog [data-pane="sharepoint"] .crm-sp-confirmacao input{width:auto;flex:none;margin:3px 0 0}
