@@ -264,6 +264,9 @@ jobs:
           console.log(`Versão autorizada: candidato ${candidate}, produção ${production}.`);
           NODE
 
+      # A leitura documental é uma ativação operacional por biblioteca. O update
+      # preserva seu valor existente; se ausente, o runtime permanece desligado.
+      # Envios continuam explicitamente desativados em toda publicação.
       - name: Deploy no Cloud Run (sem tráfego, revisão candidata)
         # --no-traffic + --tag candidate: a revisão nova sobe isolada. Só recebe
         # tráfego depois de passar no health check. Retry porque o Cloud Run
@@ -276,7 +279,7 @@ jobs:
               --region "$REGION" \
               --project "$PROJECT_ID" \
               --service-account "$CCI_RUNTIME_SERVICE_ACCOUNT" \
-              --update-env-vars=CCI_RUNTIME_PROJECT_ID="$PROJECT_ID",CCI_DATA_PROJECT_ID="$CCI_DATA_PROJECT_ID",CCI_DATA_DATABASE_ID="$CCI_DATA_DATABASE_ID",CCI_AUTH_PROJECT_ID="$CCI_AUTH_PROJECT_ID",CCI_BACKUP_PROJECT_ID="$CCI_BACKUP_PROJECT_ID",CCI_BACKUP_BUCKET="$CCI_BACKUP_BUCKET",CCI_LAYOUT_SAMPLE_BUCKET="$CCI_LAYOUT_SAMPLE_BUCKET",CCI_CRM_DOCUMENTS_BUCKET=cci-crm-documentos-292090471177,MERCADO_PAGO_OAUTH_ENABLED=false,DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_ALLOW_CLIENT_MODEL=false,CCI_SHAREPOINT_MONITOR_ENABLED=false,CCI_SHAREPOINT_SEND_ENABLED=false \
+              --update-env-vars=CCI_RUNTIME_PROJECT_ID="$PROJECT_ID",CCI_DATA_PROJECT_ID="$CCI_DATA_PROJECT_ID",CCI_DATA_DATABASE_ID="$CCI_DATA_DATABASE_ID",CCI_AUTH_PROJECT_ID="$CCI_AUTH_PROJECT_ID",CCI_BACKUP_PROJECT_ID="$CCI_BACKUP_PROJECT_ID",CCI_BACKUP_BUCKET="$CCI_BACKUP_BUCKET",CCI_LAYOUT_SAMPLE_BUCKET="$CCI_LAYOUT_SAMPLE_BUCKET",CCI_CRM_DOCUMENTS_BUCKET=cci-crm-documentos-292090471177,MERCADO_PAGO_OAUTH_ENABLED=false,DEPARTAMENTO_GATE_MODO=bloqueio,REINF_TRANSMISSOR=gateway,GEMINI_ALLOW_CLIENT_MODEL=false,CCI_SHAREPOINT_SEND_ENABLED=false \
               --update-secrets=CCI_CHECKLIST_API_KEY=cci-jotform-migracao-readonly:2 \
               --remove-env-vars=MERCADO_PAGO_CLIENT_ID,MERCADO_PAGO_CLIENT_SECRET,GEMINI_MODEL,GEMINI_FLASH_MODEL,GEMINI_CHAT_MODEL \
               --memory=2Gi --concurrency=2 \

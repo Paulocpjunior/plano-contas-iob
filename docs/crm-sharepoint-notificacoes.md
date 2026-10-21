@@ -189,3 +189,14 @@ Validação local: `npm run check:crm-sharepoint`, `npm run test:crm-sharepoint`
 `npm run test:crm-contabil`, `npm run test:crm-base` e `npm run check:ci`.
 Os testes usam dados simulados; a homologação autenticada com o SharePoint real
 permanece uma etapa operacional após revisão e publicação autorizada.
+
+
+### Preservação da leitura nas próximas publicações
+
+O deploy do CCI usa `--update-env-vars` e preserva o valor já configurado de
+`CCI_SHAREPOINT_MONITOR_ENABLED`. Uma ativação operacional autorizada não é
+revertida por uma publicação de código durante o inventário. Se a flag não
+existir, o runtime continua desativado por padrão. Habilitar o monitor global
+não habilita bibliotecas: cada cadastro conserva sua própria autorização de
+leitura, revisão e ciclo. `CCI_SHAREPOINT_SEND_ENABLED=false` continua imposto
+pelo deploy; homologação e autorização por biblioteca também permanecem exigidas.
