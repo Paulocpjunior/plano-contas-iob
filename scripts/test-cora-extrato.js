@@ -157,6 +157,7 @@ function alterar(pags, de, para, x) {
   for (const arquivo of ['index.html', 'admin.html']) {
     assert(fs.readFileSync(path.join(raiz, arquivo), 'utf8').includes('/parser-cora-extrato.js'), `${arquivo} deve carregar o parser Cora`);
   }
+  assert(fs.readFileSync(path.join(raiz, 'index.html'), 'utf8').includes("{ code: '403', name: 'CORA"), 'banco 403 selecionável mesmo sem a lista da BrasilAPI');
   assert(JSON.parse(fs.readFileSync(path.join(raiz, 'public-assets.json'), 'utf8')).includes('/parser-cora-extrato.js'), 'parser publicado em public-assets.json');
   console.log('OK: Cora sintético (coordenadas, quebra de página, integridade e mês sem movimento).');
 
