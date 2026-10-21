@@ -1,7 +1,8 @@
 {
-  "version": "3.4.444",
-  "build_date": "2026-10-21T19:30:00Z",
+  "version": "3.4.445",
+  "build_date": "2026-10-21T21:00:00Z",
   "release_notes": [
+    "Importação fiscal do CFI: o frete (CT-e, CFOP 1353/2353) passa a subir junto com as NF-e, a NF-e do produtor que o CFI tira do Livro de Entradas (art. 136) não entra mais, e o ICMS, o ICMS ST e o IPI de cada CFOP viram lançamentos de imposto destacado, nas entradas e nas saídas, como na importação do arquivo SAGE. A conferência mostra CT-e, ICMS, ICMS ST e IPI. Competências já importadas: remova a importação anterior e importe de novo.",
     "Ativo Imobilizado: administradores podem excluir um bem cadastrado por engano (botão \"Excluir\"). A tela mostra se o mesmo bem está cadastrado em duplicidade, pede o motivo e registra quem excluiu e quando. Os lançamentos do bem saem junto se estiverem em competência aberta; se houver lançamento em mês encerrado ou anterior ao último encerramento, a exclusão é bloqueada e a mensagem indica a baixa ou o estorno no mês seguinte.",
     "Automações do CRM e Notificações de Aplicações Financeiras: botão \"＋ Nova automação\" para o administrador criar o próprio aviso (nome, e-mail ou chat/canal do Teams, destinatários e texto com variáveis), com envio manual após prévia ou por agenda. Central mais didática: guia numerado, situação por cor (✅ pronta, ⚠️ pendente), ícone por canal e passos em cada cartão.",
     "CRM pelo painel Admin: Automações do CRM volta a abrir a central de notificações (destinatários por e-mail ou chat/canal do Teams). Desde a 3.4.429 o Admin mostrava \"window.abrirCentralNotificacoes is not a function\" porque não carregava a central; pelo CCI a tela já funcionava.",
