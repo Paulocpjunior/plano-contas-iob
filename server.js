@@ -4098,9 +4098,10 @@ app.get('/api/empresas/:cnpj/ativos-imobilizados', async (req, res) => {
     const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
     const chk = await checarAcessoEmpresa(cnpj, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
-    const snap = await db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').orderBy('descricao').limit(1000).get();
     // Bem excluído por engano (exclusão lógica) não aparece; o registro fica no Firestore e na auditoria.
-    const vigentes = AtivoExclusao.ativosVigentes(snap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; }));
+    // O limite vale para os vigentes: filtra antes de cortar, para o excluído não ocupar vaga na lista.
+    const snap = await db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').orderBy('descricao').get();
+    const vigentes = AtivoExclusao.ativosVigentes(snap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; })).slice(0, 1000);
     const itens = vigentes.map(function (dados) {
       return { ...dados, criado_em: serializarDataSegura(dados.criado_em), atualizado_em: serializarDataSegura(dados.atualizado_em), baixa_em: serializarDataSegura(dados.baixa_em), possiveis_duplicados: AtivoExclusao.possiveisDuplicados(dados, vigentes) };
     });
