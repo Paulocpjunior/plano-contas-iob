@@ -2,6 +2,13 @@
 const {erro}=require('./crm-contabil');
 const PROJECT='gen-lang-client-0569062468';
 const SECRET=`projects/${PROJECT}/secrets/cci-notificacoes-teams`;
+// O Secret Manager devolve o número do mesmo projeto nas versões criadas.
+const SECRET_NUMERICO='projects/292090471177/secrets/cci-notificacoes-teams';
+function versaoPermitida(valor){
+  if(typeof valor!=='string')return false;
+  const partes=valor.split('/versions/');
+  return partes.length===2&&[SECRET,SECRET_NUMERICO].includes(partes[0])&&partes[1].length>0&&!/[^0-9]/.test(partes[1]);
+}
 let client;
 const sm=()=>client||(client=new (require('@google-cloud/secret-manager').SecretManagerServiceClient)());
 function validarWebhook(valor){
@@ -16,7 +23,7 @@ async function salvar(url,servico=sm()){
 }
 async function enviar({destino,previa},{servico,fetcher=globalThis.fetch}={}){
   const c=previa.conexao_teams;
-  if(!c||c.destino!==destino||!new RegExp('^'+SECRET+'/versions/[0-9]+$').test(c.versao||''))return {estado:'recusado',detalhe:'Cadastre a conexão do Workflows para este destino e gere uma nova prévia.'};
+  if(!c||c.destino!==destino||!versaoPermitida(c.versao))return {estado:'recusado',detalhe:'Cadastre a conexão do Workflows para este destino e gere uma nova prévia.'};
   let endpoint;
   try{const [v]=await (servico||sm()).accessSecretVersion({name:c.versao},{timeout:10000});endpoint=validarWebhook(Buffer.from(v.payload.data).toString());}
   catch{return {estado:'recusado',detalhe:'Conexão Teams indisponível. Confira a conexão cadastrada no painel.'};}

@@ -27,6 +27,50 @@ const {ambiente}=require('./test-crm-contabil-routes');
   const sent=await teams.enviar({destino:previa.conexao_teams.destino,previa},{servico:sm,fetcher:async(url,opts)=>{posted++;assert.equal(url,endpoint);assert.equal(opts.redirect,'error');assert.equal(JSON.parse(opts.body).attachments[0].content.type,'AdaptiveCard');return {status:202};}});
   assert.equal(sent.estado,'aceito');assert.equal(posted,1);
   assert.equal((await teams.enviar({destino:'outro',previa},{servico:sm})).estado,'recusado');
+  // Regressão: addSecretVersion recebe o ID textual, mas devolve o número do projeto.
+  const numericVersion='projects/292090471177/secrets/cci-notificacoes-teams/versions/1';
+  let secretReads=0,numericPosts=0;
+  const numericSm={
+    addSecretVersion:async p=>{assert.equal(p.parent,teams.SECRET);return [{name:numericVersion}];},
+    accessSecretVersion:async p=>{secretReads++;assert.equal(p.name,numericVersion);return [{payload:{data:Buffer.from(endpoint)}}];}
+  };
+  const numericDeps={servico:numericSm,fetcher:async(url,opts)=>{
+    numericPosts++;assert.equal(url,endpoint);assert.equal(opts.method,'POST');assert.equal(opts.redirect,'error');
+    assert.equal(JSON.parse(opts.body).attachments[0].content.body[1].text,'Informe');return {status:202};
+  }};
+  const connected=ambiente(null,null,{
+    conexaoTeams:{validarWebhook:teams.validarWebhook,salvar:url=>teams.salvar(url,numericSm)},
+    entrega:{disponibilidade:()=>({teams:true}),enviar:args=>teams.enviar(args,numericDeps)}
+  });
+  const globalPath='/api/crm/automacoes/:id',companyPath='/api/crm/empresas/:cnpj/automacoes/:id';
+  const params={id:'P01'},destination='https://teams.microsoft.com/l/chat/fixture';
+  assert.equal((await connected.call('PUT',globalPath,{nome:'Informes de Rendimentos',revisao:0,modelo:'Informe',canal:'teams',destinatarios:[destination],motivo:'Teste'},'admin',params)).statusCode,200);
+  assert.equal((await connected.call('POST',globalPath+'/conexao-teams',{revisao:1,confirmado:true,webhook:endpoint,motivo:'Conexão'},'admin',params)).statusCode,200);
+  const key='numeric_project_preview';
+  const preview=await connected.call('POST',companyPath+'/previa',{chave:key,revisao:2,evento:'manual'},'admin',params);
+  assert.equal(preview.statusCode,200,JSON.stringify(preview.body));
+  assert.equal(preview.body.previa.conexao_teams.versao,numericVersion);
+  const sendBody={confirmado:true,chave:key,destino:destination};
+  assert.equal((await connected.call('POST',companyPath+'/enviar',sendBody,'colab',params)).statusCode,403);
+  for(let i=0;i<2;i++){
+    const sent=await connected.call('POST',companyPath+'/enviar',sendBody,'admin',params);
+    assert.equal(sent.statusCode,200,JSON.stringify(sent.body));assert.equal(sent.body.resultados[0].estado,'aceito');
+  }
+  assert.equal(secretReads,1);assert.equal(numericPosts,1);
+  assert(!JSON.stringify([...connected.dados]).includes('FAKE'));
+  const numericPreview=preview.body.previa;
+  const invalidVersions=[
+    numericVersion.replace('292090471177','292090471178'),version.replace('gen-lang-client-0569062468','outro-projeto'),
+    numericVersion.replace('cci-notificacoes-teams','outro-segredo'),numericVersion.replace('/1','/latest'),
+    numericVersion+'\n',numericVersion+'\r',numericVersion+'\0',numericVersion+'/extra',numericVersion+'/versions/2',
+    numericVersion.replace('/1','/'),null,123
+  ];
+  for(const versao of invalidVersions){
+    const result=await teams.enviar({destino:destination,previa:{...numericPreview,conexao_teams:{versao,destino:destination}}},numericDeps);
+    assert.equal(result.estado,'recusado',String(versao));
+  }
+  assert.equal((await teams.enviar({destino:'outro',previa:numericPreview},numericDeps)).estado,'recusado');
+  assert.equal(secretReads,1);assert.equal(numericPosts,1);
   const n=ambiente(null,null,{env:{GRAPH_TENANT_ID:'fake',GRAPH_CLIENT_ID:'fake',GRAPH_CLIENT_SECRET:'fake'}}),cnpj='12345678901234',path='/api/crm/empresas/:cnpj/notificacoes/aplicacoes';
   await n.call('PUT',path+'/:id',{revisao:0,modelo:'{{empresa}} {{competencia}}',destinatarios:['fixture@example.test'],motivo:'Teste'},'admin',{id:'F01'});
   const body={config_revisao:1,revisao:0,tipo:'agenda',frequencia:'unica',inicio:'2026-10-20T09:00',competencia_modo:'atual',cnpj,ativa:true,motivo:'Teste'};
