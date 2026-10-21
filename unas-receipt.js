@@ -34,7 +34,7 @@ function verify(envelope, {app, run, system, manifest, manifestRaw, manifestGene
   check(p.application === app && p.run === run && p.project === system.project && p.bucket === system.bucket &&
     p.manifestSha256 === hash(manifestRaw) && p.manifestGeneration === String(manifestGeneration) && p.markerSha256 === hash(markerRaw), 'RECEIPT_BINDING');
   check(server && p.destination?.server === server && p.destination?.share === SHARES[app] &&
-    p.destination?.path === run && p.destination?.transport === 'smb3-vpn', 'RECEIPT_BINDING');
+    p.destination?.path === run && p.destination?.transport === 'smb3-unifi-wireguard', 'RECEIPT_BINDING');
   const timestamp = Date.parse(p.verifiedAt);
   check(Number.isFinite(timestamp) && timestamp <= Date.now() + 300000);
   check(Array.isArray(p.files) && p.files.length === manifest.objects.length + 2 && p.fileCount === p.files.length);

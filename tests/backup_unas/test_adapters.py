@@ -89,6 +89,21 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(original.call_args.kwargs['timeout'],60)
         self.assertFalse(original.call_args.kwargs['resolve_symlinks'])
 
+    @patch('backup_unas.adapters.smbclient')
+    def test_wireguard_routes_every_smb_operation_through_loopback(self, smb):
+        target = SMB('10.0.0.215','Backup_CFI',RUN,{'username':'test','password':'fixture'}, wireguard=True)
+        self.assertEqual(smb.register_session.call_args.args[0], '127.0.0.1')
+        self.assertEqual(smb.register_session.call_args.kwargs['port'], 1445)
+        self.assertTrue(smb.register_session.call_args.kwargs['encrypt'])
+        smb.stat.return_value = SimpleNamespace(st_mode=stat.S_IFREG,st_file_attributes=0,st_size=5)
+        target.size('file')
+        target.commit('file.unas-part', 'file')
+        for call in smb.stat.call_args_list + smb.rename.call_args_list:
+            self.assertEqual(call.kwargs['port'], 1445)
+            self.assertTrue(call.args[0].startswith('\\\\127.0.0.1\\'))
+        with self.assertRaisesRegex(ReplicaError, 'TARGET_CONFIG'):
+            SMB('10.0.0.5','Backup_CFI',RUN,{},wireguard=True)
+
     def test_gcs_ranges_are_pinned_and_bounded(self):
         blob, bucket, client = Mock(), Mock(), Mock()
         blob.download_as_bytes.return_value = b'abcd'

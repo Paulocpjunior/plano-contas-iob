@@ -1,6 +1,6 @@
 {
   "approved": false,
-  "transport": "smb3-vpn",
+  "transport": "smb3-unifi-wireguard",
   "server": "10.0.0.215",
   "shares": {"CCI": "Backup_CCI", "CFI": "Backup_CFI"}
 }

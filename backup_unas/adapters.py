@@ -7,6 +7,8 @@ import os
 import stat
 import time
 import uuid
+from functools import partial
+from types import SimpleNamespace
 from pathlib import Path
 
 from google.api_core.exceptions import AlreadyExists, NotFound, PreconditionFailed
@@ -154,12 +156,17 @@ class Job:
 
 
 class SMB:
-    def __init__(self, server, share, run, credentials):
+    def __init__(self, server, share, run, credentials, wireguard=False):
         require(ipaddress.ip_address(server).is_private and share in ("Backup_CCI", "Backup_CFI") and RUN.fullmatch(run), "TARGET_CONFIG")
-        self.share = "\\\\" + server + "\\" + share
+        if wireguard:
+            require(server == "10.0.0.215", "TARGET_CONFIG")
+        transport_server = "127.0.0.1" if wireguard else server
+        self.client = SimpleNamespace(**{name: partial(getattr(smbclient, name), port=1445 if wireguard else 445)
+            for name in ("stat", "open_file", "mkdir", "rename", "scandir")})
+        self.share = "\\\\" + transport_server + "\\" + share
         self.root = self.share + "\\" + run
         smbclient.ClientConfig(skip_dfs=True, require_secure_negotiate=True)
-        session = smbclient.register_session(server, username=credentials["username"], password=credentials["password"],
+        session = smbclient.register_session(transport_server, port=1445 if wireguard else 445, username=credentials["username"], password=credentials["password"],
                                             encrypt=True, require_signing=True, connection_timeout=30)
         # smbclient's high-level I/O otherwise waits indefinitely in Connection.receive.
         # Bound the public transport method below the 300 s lease; never resolve symlinks.
@@ -174,21 +181,20 @@ class SMB:
         safe_path(rel)
         return self.root + "\\" + rel.replace("/", "\\")
 
-    @staticmethod
-    def checked_stat(path):
-        s = smbclient.stat(path, follow_symlinks=False)
+    def checked_stat(self, path):
+        s = self.client.stat(path, follow_symlinks=False)
         require(not stat.S_ISLNK(s.st_mode) and not (s.st_file_attributes & 0x400), "UNSAFE_REPARSE_POINT")
         return s
 
     def preflight(self, ensure_run=True):
         require(stat.S_ISDIR(self.checked_stat(self.share).st_mode), "SHARE_MISSING")
         # Request list/add-file/add-subdirectory rights without creating any probe file.
-        with smbclient.open_file(self.share, mode="rb", file_type="dir", desired_access=0x00000007):
+        with self.client.open_file(self.share, mode="rb", file_type="dir", desired_access=0x00000007):
             pass
         if not ensure_run:
             return
         try:
-            smbclient.mkdir(self.root)
+            self.client.mkdir(self.root)
         except FileExistsError:
             pass
         require(stat.S_ISDIR(self.checked_stat(self.root).st_mode), "RUN_PATH_CONFLICT")
@@ -198,7 +204,7 @@ class SMB:
         for segment in safe_path(rel).split("/")[:-1]:
             path += "\\" + segment
             try:
-                smbclient.mkdir(path)
+                self.client.mkdir(path)
             except FileExistsError:
                 pass
             require(stat.S_ISDIR(self.checked_stat(path).st_mode), "UNSAFE_PARENT")
@@ -213,24 +219,24 @@ class SMB:
 
     def open(self, rel, mode):
         self.checked_stat(self.path(rel))
-        return smbclient.open_file(self.path(rel), mode=mode, buffering=0, share_access="")
+        return self.client.open_file(self.path(rel), mode=mode, buffering=0, share_access="")
 
     def prepare(self, rel):
         self.parents(rel)
         try:
-            with smbclient.open_file(self.path(rel), mode="xb", buffering=0, share_access=""):
+            with self.client.open_file(self.path(rel), mode="xb", buffering=0, share_access=""):
                 pass
         except FileExistsError:
             self.checked_stat(self.path(rel))
 
     def commit(self, part, final):
         self.checked_stat(self.path(part))
-        smbclient.rename(self.path(part), self.path(final))  # unlike replace(), never overwrites
+        self.client.rename(self.path(part), self.path(final))  # unlike replace(), never overwrites
 
     def inventory(self):
         result = {}
         def visit(directory, prefix):
-            for item in smbclient.scandir(directory):
+            for item in self.client.scandir(directory):
                 rel = safe_path(prefix + item.name)
                 s = self.checked_stat(self.path(rel))
                 if stat.S_ISDIR(s.st_mode):
@@ -255,7 +261,7 @@ class SMB:
         # Final receipt created atomically from a deterministic temporary file.
         part = rel + ".unas-part"
         try:
-            with smbclient.open_file(self.path(part), mode="xb", buffering=0, share_access="") as stream:
+            with self.client.open_file(self.path(part), mode="xb", buffering=0, share_access="") as stream:
                 offset = 0
                 while offset < len(data):
                     n = stream.write(data[offset:])
@@ -280,7 +286,7 @@ class SMB:
 def configuration():
     require(os.environ.get("CLOUD_RUN_JOB"), "CLOUD_RUN_REQUIRED")
     config = json.loads(Path(os.environ["UNAS_CONFIG_FILE"]).read_text())
-    require(config.get("approved") is True and config.get("transport") == "smb3-vpn"
+    require(config.get("approved") is True and config.get("transport") == "smb3-unifi-wireguard"
             and config.get("shares") == {a: s["share"] for a, s in SYSTEMS.items()}, "CONFIG_NOT_APPROVED")
     require(ipaddress.ip_address(config["server"]).is_private, "PRIVATE_TARGET_REQUIRED")
     credentials = json.loads(Path(os.environ["UNAS_CREDENTIALS_FILE"]).read_text())

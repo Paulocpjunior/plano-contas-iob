@@ -2,11 +2,11 @@
 
 ## Estado da entrega
 
-**Atualização de 21/10/2026:** o usuário rejeitou a arquitetura de VPN paga.
-O transporte SMB3/VPN deste PR não deve ser implantado. A integração deve ser
-revisada com base nas ferramentas nativas do UNAS, sem serviços adicionais pagos.
-Foi confirmada na interface Drive a opção Local Backup com origem Rsync Server e
-destino UNAS; a compatibilidade da origem GCS ainda precisa ser demonstrada.
+**Arquitetura revisada em 21/10/2026:** cliente WireGuard sem privilégios dentro
+do job Cloud Run, conectado ao servidor WireGuard já existente no UDM Pro. Usa SMB3
+nativo do UNAS, sem contratar Cloud VPN, VM, gateway ou licença adicional.
+O uso dos serviços Google Cloud existentes continua sujeito à cobrança de execução,
+armazenamento e tráfego. A conexão real ainda não foi homologada.
 
 Implementação candidata para revisão. **Não implantada e não homologada no UNAS.**
 Nenhum export, transferência de dados reais, restauração, alteração de agenda ou
@@ -56,7 +56,7 @@ deve ser presumida válida para SMB.
 Scheduler atual 00h30 -> Cloud Run Job atual (nova imagem após homologação)
   -> GCS CCI + GCS CFI: descobrir TODOS os EXPORT_COMPLETED.json
   -> Firestore separado backup-control: fila, leases, backoff, checkpoints/outbox
-  -> Direct VPC egress -> VPN IPsec no UDM -> SMB3 cifrado no UNAS
+  -> WireGuard em userspace -> WireGuard nativo do UDM -> SMB3 cifrado no UNAS
        \\10.0.0.215\Backup_CCI\<run>\...
        \\10.0.0.215\Backup_CFI\<run>\...
   -> releitura SHA-256 + inventário -> UNAS_VERIFIED.json no NAS e GCS
@@ -69,6 +69,35 @@ permissões da conta de serviço e a atomicidade do rename **ainda dependem de
 homologação real**. Não há fallback para protocolo sem criptografia ou IP público.
 O worker exige Cloud Run (`CLOUD_RUN_JOB`), configuração aprovada e ativação explícita.
 Nenhuma estação ou SERVER_2019 participa da execução.
+
+### Transporte UniFi
+
+O binário Go usa a implementação oficial `wireguard-go` com netstack, sem
+`/dev/net/tun`, root, alterações das rotas do contêiner ou contêiner privilegiado.
+Expõe apenas `127.0.0.1:1445`, encaminhado exclusivamente para `10.0.0.215:445`.
+O adaptador SMB exige assinatura e criptografia. Rotas e DNS contidos no perfil
+UniFi não ampliam o destino: a rota interna é fixada em `10.0.0.215/32`.
+O perfil secreto é montado como arquivo e não é impresso em logs.
+
+O servidor existente `VPN-SP-EXTERNA.` atende UDP 51820; o painel apresenta WAN1
+`187.101.246.158` como endereço de exportação. Ambos os links possuem IP fixo,
+conforme informado pelo administrador. O perfil inicial usa um endpoint literal:
+**failover automático entre os dois links ainda não está implementado**. Uma queda
+mantém a fila retomável; o retorno do endpoint permite nova tentativa. Validar um
+segundo endpoint antes de implementar failover, sem alterar outros clientes.
+
+Antes da conexão, criar cliente dedicado e política no UDM permitindo somente
+esse cliente → NAS TCP 445, bloqueando os demais destinos. A restrição do programa
+não substitui a regra no gateway. Não reutilizar o perfil pessoal `MAC-Paulo`.
+O processo sinaliza somente prontidão local; sucesso depende do preflight SMB real.
+
+A opção Local Backup do Drive aceita servidor rsync como origem. Os buckets GCS
+não oferecem esse protocolo; esta implementação conecta o job já existente ao
+serviço SMB do NAS, sem instalar agentes no UNAS ou em computadores locais.
+
+Referências: [WireGuard no UniFi](https://help.ui.com/hc/en-us/articles/115005445768-UniFi-Gateway-WireGuard-VPN-Server),
+[netstack oficial](https://github.com/WireGuard/wireguard-go/blob/master/tun/netstack/examples/http_server.go),
+[contrato do Cloud Run](https://docs.cloud.google.com/run/docs/container-contract).
 
 ### Fila e transferência
 
@@ -138,6 +167,7 @@ atual de restauração nativa permanece separado do ensaio da réplica UNAS.
 
 - `backup_unas/core.py`: inventário, transferência retomável, integridade e prova.
 - `backup_unas/adapters.py`: GCS, Firestore de controle e SMB3.
+- `backup_unas/wireguard/` e `vpn.py`: cliente WireGuard em userspace e ciclo de vida.
 - `backup_unas/worker.py`: descoberta, execução, backoff/outbox e preflight.
 - `backup_unas/restore_test.py`: reidratação do NAS e comparação de duas restaurações isoladas.
 - Dockerfile, requisitos fixados, config de exemplo e Cloud Build próprio do worker.
@@ -150,7 +180,7 @@ inspecionados permaneceram iguais.
 
 ## Testes executados
 
-- 33 testes Python: ambos os destinos, backlog, duplicatas, recuperação, lease,
+- 34 testes Python: ambos os destinos, backlog, duplicatas, recuperação, lease,
   backoff, origem alterada, corrupção, extras, conflitos preservados, caminhos,
   SMB cifrado/timeout, manifesto, prova forjada/replay e restauração isolada.
 - Teste sintético de 96 MiB: pico de alocações Python abaixo de 16 MiB. Mede o
@@ -159,6 +189,8 @@ inspecionados permaneceram iguais.
   API de consulta, identidade da réplica, e-mail idempotente e renderização dos estados.
 - `npm run check:ci`: 285 passaram, 2 pulados por falta de evidência local, zero
   falhas na rodada inicial. Novas suítes adicionadas depois executadas separadamente.
+- Go: parsing restritivo e transferência sintética com dois peers WireGuard reais
+  em userspace, com detector de races. Compilação cruzada Linux/amd64.
 - `git diff --check`: aprovado.
 
 Os testes de adaptadores usam doubles dos SDKs; os testes de transação não substituem
@@ -166,9 +198,9 @@ ensaio concorrente contra Firestore. Não houve teste contra servidor SMB real.
 
 ## Pendências concretas antes da ativação
 
-1. Configurar VPN Google Cloud ↔ UDM, com endereçamento privado sem sobreposição,
-   roteamento estável frente ao IP dinâmico/failover e acesso somente ao NAS/porta 445.
-   Confirmar compatibilidade da VPN e monitoramento de queda. Não abrir SMB na Internet.
+1. Criar cliente WireGuard dedicado no servidor UniFi existente, exportar perfil
+   para Secret Manager e restringir o IP atribuído no UDM ao NAS TCP 445. Confirmar
+   handshake e preflight no Cloud Run; não criar Cloud VPN, VPC ou VM para isso.
 2. Provisionar conta de serviço de arquivos no UNAS com leitura, criação, escrita e
    rename apenas em `Backup_CCI`/`Backup_CFI`. A tela atual confirma administradores,
    não a permissão dessa conta. Não reutilizar automaticamente a senha rsync.
@@ -189,6 +221,7 @@ Valores necessários no worker:
 | Variável | Uso |
 |---|---|
 | `UNAS_CONFIG_FILE` | JSON revisado a partir de `config.example.json`; `approved=true` somente após revisão de rede/destinos |
+| `UNAS_WIREGUARD_PROFILE_FILE` | Perfil WireGuard dedicado exportado do UniFi, montado via Secret Manager |
 | `UNAS_CREDENTIALS_FILE` | Secret JSON com `username`/`password` da conta SMB |
 | `UNAS_RECEIPT_KEYS_FILE` | Secret JSON `{keyId: chave-base64}` |
 | `UNAS_SIGNING_KEY_ID` | Versão ativa do keyring |
@@ -209,7 +242,7 @@ Dar ao backend consulta da fila e comprovantes, sem permissão SMB.
 2. Construir imagem com `backup_unas/cloudbuild.yaml`, tag do SHA e implantação por
    digest. O build somente cria imagem; não executa backup ou transferência.
 3. Preparar job de homologação sem Scheduler, com a mesma imagem, 2 GiB, credenciais
-   montadas, Direct VPC egress e VPN. Começar com `--preflight`: confere direitos de
+   montadas, perfil WireGuard e saída de Internet padrão. Começar com `--preflight`: confere direitos de
    listar/criar dentro de shares existentes sem criar arquivo/pasta de teste.
 4. Executar `--discover-only`; conferir os 44 itens observados (o número pode crescer
    pelos agendamentos existentes). Nenhuma exportação nova é criada.

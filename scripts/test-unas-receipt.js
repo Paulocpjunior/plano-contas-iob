@@ -8,7 +8,7 @@ const m={application:'CCI',run,project:system.project,status:'FIRESTORE_EXPORT_C
 const raw=JSON.stringify(m),marker=JSON.stringify({manifest:`gs://${system.bucket}/daily/${run}/manifest.json`,status:m.status});
 const file=(path,data)=>({path,size:Buffer.byteLength(data),sha256:hash(data)});
 const files=[{...file('firestore/firestore.overall_export_metadata','test'),generation:'123',crc32c:object.crc32c},file('manifest.json',raw),file('EXPORT_COMPLETED.json',marker)];
-const payload={schema:1,status:'UNAS_VERIFIED',readBack:true,application:'CCI',run,project:system.project,bucket:system.bucket,manifestSha256:hash(raw),manifestGeneration:'42',markerSha256:hash(marker),destination:{transport:'smb3-vpn',server:'10.0.0.215',share:'Backup_CCI',path:run},verifiedAt:'2026-10-21T03:00:00Z',files,fileCount:files.length,totalBytes:files.reduce((n,f)=>n+f.size,0),firestoreObjectCount:1,firestoreBytes:4};
+const payload={schema:1,status:'UNAS_VERIFIED',readBack:true,application:'CCI',run,project:system.project,bucket:system.bucket,manifestSha256:hash(raw),manifestGeneration:'42',markerSha256:hash(marker),destination:{transport:'smb3-unifi-wireguard',server:'10.0.0.215',share:'Backup_CCI',path:run},verifiedAt:'2026-10-21T03:00:00Z',files,fileCount:files.length,totalBytes:files.reduce((n,f)=>n+f.size,0),firestoreObjectCount:1,firestoreBytes:4};
 const sign=p=>{const body=Buffer.from(JSON.stringify(p));return {algorithm:'HMAC-SHA256',keyId:'fixture',payload:body.toString('base64'),signature:crypto.createHmac('sha256',key).update(body).digest('hex')}};
 const opts={app:'CCI',run,system,manifest:m,manifestRaw:raw,manifestGeneration:'42',markerRaw:marker,keys:{fixture:key},server:'10.0.0.215'};
 assert.equal(verify(sign(payload),opts).status,'UNAS_VERIFIED');

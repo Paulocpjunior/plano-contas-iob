@@ -7,6 +7,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.id_token import fetch_id_token
 import requests
 
+from .vpn import wireguard_transport
 from .adapters import GCS, Queue, SMB, configuration
 from .core import SYSTEMS, Replicator, ReplicaError, require
 
@@ -44,7 +45,7 @@ def main():
     config, credentials, kid, keys = configuration()
     if args.preflight:
         for app in ([args.app] if args.app else SYSTEMS):
-            target = SMB(config["server"], SYSTEMS[app]["share"], args.run or "20000101T000000Z-00000000", credentials)
+            target = SMB(config["server"], SYSTEMS[app]["share"], args.run or "20000101T000000Z-00000000", credentials, wireguard=True)
             target.preflight(ensure_run=False)
             print(json.dumps({"app": app, "status": "share_access_checked", "dataWritten": False}))
         return
@@ -73,8 +74,8 @@ def main():
             continue
         job.deadline = deadline
         try:
-            target = SMB(config["server"], SYSTEMS[app]["share"], run, credentials)
-            destination = {"transport": "smb3-vpn", "server": config["server"], "share": SYSTEMS[app]["share"], "path": run}
+            target = SMB(config["server"], SYSTEMS[app]["share"], run, credentials, wireguard=True)
+            destination = {"transport": "smb3-unifi-wireguard", "server": config["server"], "share": SYSTEMS[app]["share"], "path": run}
             replica = Replicator(sources[app], target, job, destination, kid, keys[kid], keys)
             replica.execute(app, run)
             print(json.dumps({"app": app, "run": run, "status": "verified"}))
@@ -93,7 +94,8 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        with wireguard_transport():
+            main()
     except Exception as error:
         # Never serialize SDK exceptions: may include URLs, credentials or document data.
         print(json.dumps({"status": "failed", "code": str(error) if isinstance(error, ReplicaError) else "CONFIG_OR_DISCOVERY_FAILED"}))

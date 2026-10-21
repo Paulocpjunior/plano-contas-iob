@@ -29,6 +29,12 @@ jobs:
         with:
           node-version: '20'
           cache: npm
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.6'
+          cache-dependency-path: backup_unas/wireguard/go.sum
+      - run: go test -race ./...
+        working-directory: backup_unas/wireguard
       - run: pip install -r backup_unas/requirements.lock
       - run: npm ci --no-audit --no-fund
       - run: python -m unittest discover -s tests/backup_unas -v

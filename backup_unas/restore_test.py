@@ -17,6 +17,7 @@ import google.auth
 from google.auth.transport.requests import AuthorizedSession
 from google.cloud import firestore, storage
 
+from .vpn import wireguard_transport
 from .adapters import GCS, SMB, configuration
 from .core import SYSTEMS, RUN, BLOCK, MAX_MANIFEST, encode, require, sha, validate_manifest, verify_receipt, ReplicaError, now
 
@@ -110,9 +111,9 @@ def main():
     envelope = source.receipt(prefix+'UNAS_VERIFIED.json')
     binding = {'application': args.app, 'run': args.run, 'project': system['project'], 'bucket': system['bucket'],
                'manifestSha256': sha(raw), 'manifestGeneration': metadata['generation'], 'markerSha256': sha(marker),
-               'destination': {'transport':'smb3-vpn','server':config['server'],'share':system['share'],'path':args.run}}
+               'destination': {'transport':'smb3-unifi-wireguard','server':config['server'],'share':system['share'],'path':args.run}}
     proof = verify_receipt(envelope, keys, binding)
-    nas = SMB(config['server'], system['share'], args.run, credentials)
+    nas = SMB(config['server'], system['share'], args.run, credentials, wireguard=True)
     require(nas.read_small('UNAS_VERIFIED.json', MAX_MANIFEST) == encode(envelope), 'NAS_RECEIPT_MISMATCH')
     attempt = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S') + '-' + uuid.uuid4().hex[:8]
     target_prefix = f'unas-restore/{args.app}/{args.run}/{attempt}/'
@@ -148,7 +149,8 @@ def main():
 
 if __name__ == '__main__':
     try:
-        main()
+        with wireguard_transport():
+            main()
     except Exception as error:
         print(json.dumps({'status':'failed','code':str(error) if isinstance(error,ReplicaError) else 'RESTORE_UNCONFIRMED'}))
         raise SystemExit(1) from None

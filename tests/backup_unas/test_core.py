@@ -155,7 +155,7 @@ class Target:
 class Tests(unittest.TestCase):
     def setup_replica(self, app="CCI"):
         self.s, self.t, self.j = Source(app), Target(), Job()
-        self.destination = {"transport": "smb3-vpn", "server": "10.0.0.215", "share": SYSTEMS[app]['share'], "path": RUN}
+        self.destination = {"transport": "smb3-unifi-wireguard", "server": "10.0.0.215", "share": SYSTEMS[app]['share'], "path": RUN}
         self.r = Replicator(self.s, self.t, self.j, self.destination, "test", KEY, {"test": KEY}, block=32)
 
     def setUp(self):
