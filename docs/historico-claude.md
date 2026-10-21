@@ -2224,3 +2224,10 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - Ausente ≠ zero: grupo sem as colunas (CFI antigo) bloqueia; total de cada imposto confere com o resumo do CFI.
 - Conferência mostra CT-e, ICMS, ICMS ST, IPI e as notas "Fora do Livro no CFI". Teste: `scripts/test-movimento-fiscal-nfe-cfi.js`.
 - Ordem de deploy: CFI antes do CCI (o CCI novo bloqueia o payload antigo).
+
+## 21/10/2026 — v3.4.446: layout PDF do Cora (banco 403)
+
+- Paulo (HYPE CAFE): banco 403 dava "Nao existe layout PDF cadastrado". Novo `parser-cora-extrato.js` (`parsearPDF_Cora_Extrato`), layout `Cora - Extrato do Periodo` no `layouts-bancarios-padrao.js`.
+- Leitura por coordenadas do PDF.js: resumo da pág. 1 (saldo inicial, entradas, saídas, saldo final), dias em ordem decrescente com "Saldo do dia", transações com sinal +/- impresso, contraparte truncada ("…") e CPF/CNPJ. Bloqueia se totais, fechamento diário ou saldo final não baterem, se faltar item do resumo ou se houver linha com R$ não reconhecida.
+- PDF real de junho/2026 (9 págs.): 145 lançamentos, entradas 30.263,27, saídas 29.835,70, 30 dias conferidos, saldo final 7.965,22. O arquivo do print era "part-1" de um PDF 01/06–30/09 dividido: parte isolada é recusada (resumo é do período inteiro).
+- Teste `scripts/test-cora-extrato.js`: sintético com coordenadas + parte real pulada fora do Mac (`~/Downloads/Hype Café - Extrato CORA - Junho 2026 1.pdf`).

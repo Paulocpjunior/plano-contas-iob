@@ -57,6 +57,7 @@
   "/parser-sage-folha-fpimp.js",
   "/parser-santander-empresas-ocr.js",
   "/parser-stone-extrato.js",
+  "/parser-cora-extrato.js",
   "/reinf/reinf-aluguel-utils.js",
   "/reinf/reinf-isencoes-dividendos.js",
   "/reinf/reinf-aplicacoes-utils.js",

@@ -745,6 +745,21 @@ const LAYOUT_QUALITY_EVIDENCE = [
     observacao: 'PDF textual real de 3 paginas. Validado com 16 movimentos, credito de R$ 7.100,09, debito de R$ 7.371,38, saldo inicial de R$ 1.365,32, 11 saldos diarios e saldo final de R$ 1.094,03.'
   },
   {
+    id: 'cora-hype-cafe-2026-06',
+    banco: '403',
+    nomeBanco: 'Cora SCFI',
+    layout: 'Cora - Extrato do Periodo',
+    parser: 'parsearPDF_Cora_Extrato',
+    arquivo: 'Hype Café - Extrato CORA - Junho 2026 1.pdf',
+    caminho_local: '/Users/paulocesarpereirajunior/Downloads/Hype Café - Extrato CORA - Junho 2026 1.pdf',
+    empresa: 'HYPE CAFE SERVICOS DE ALIMENTACAO LTDA',
+    periodo_inicio: '2026-06-01',
+    periodo_fim: '2026-06-30',
+    etapa: 'regressao_aprovada',
+    status: 'Regressao aprovada',
+    observacao: 'PDF textual real de 9 paginas. Validado com 145 movimentos, entradas de R$ 30.263,27, saidas de R$ 29.835,70, saldo inicial de R$ 7.537,65, 30 saldos diarios e saldo final de R$ 7.965,22.'
+  },
+  {
     id: 'bb-extrato-mais-menos-trindade-2026-04',
     banco: '001',
     nomeBanco: 'Banco do Brasil',
