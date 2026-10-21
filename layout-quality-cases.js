@@ -839,6 +839,25 @@ const LAYOUT_QUALITY_CASES = [
     observacao: 'PDF textual Nubank PJ validado pelo PDF.js. Concilia 11 saldos diarios, preserva o movimento dividido entre paginas e importa R$ 0,09 de rendimento alem dos R$ 7.100,00 de entradas.'
   },
   {
+    id: 'cora-hype-cafe-2026-06',
+    banco: '403',
+    nomeBanco: 'Cora SCFI',
+    layout: 'Cora - Extrato do Periodo',
+    parser: 'parsearPDF_Cora_Extrato',
+    arquivo: 'Hype Café - Extrato CORA - Junho 2026 1.pdf',
+    empresa: 'HYPE CAFE SERVICOS DE ALIMENTACAO LTDA',
+    periodo_inicio: '2026-06-01',
+    periodo_fim: '2026-06-30',
+    esperado: {
+      total_lancamentos: 145,
+      total_credito: 30263.27,
+      total_debito: 29835.70
+    },
+    status: 'Aprovado',
+    validado_em: '2026-10-21T12:00:00-03:00',
+    observacao: 'PDF textual Cora de 9 paginas validado pelo PDF.js. Confere 30 saldos diarios, o saldo inicial de R$ 7.537,65, os totais impressos de entradas e saidas e o saldo final de R$ 7.965,22.'
+  },
+  {
     id: 'bb-extrato-mais-menos-trindade-2026-04',
     banco: '001',
     nomeBanco: 'Banco do Brasil',

@@ -2216,3 +2216,10 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - Decisão: exclusão LÓGICA (`status: excluido`, `excluido_em/por`, `motivo_exclusao`, `status_anterior`) + `auditoria_contabil` tipo `ATIVO_EXCLUIDO`. Bem excluído sai da listagem, da prévia/aprovação de depreciação, dos eventos, da edição e da homologação (`ativosVigentes`).
 - Módulo puro `ativo-imobilizado-exclusao.js`: lançamentos do bem pela chave `AAAA-MM:<bemId>:...` (controle `ativos_lancamentos` + entradas da sessão). Se algum cair em período travado (3.4.440, pela chave ou pela data), bloqueia e indica Baixa/estorno a partir do mês seguinte ao marco; senão remove junto, sob a trava da sessão e com `impedirAlteracaoPeriodosFechados`. Baixado não se exclui.
 - Rotas `POST .../:id/exclusao/previa` e `.../:id/excluir` com `adminRequired` e `hash_previa`. Listagem devolve `possiveis_duplicados` (descrição normalizada + data + custo) e `pode_excluir`. Teste `scripts/test-ativo-imobilizado-exclusao.js`.
+
+## 21/10/2026 — v3.4.446: layout PDF do Cora (banco 403)
+
+- Paulo (HYPE CAFE): banco 403 dava "Nao existe layout PDF cadastrado". Novo `parser-cora-extrato.js` (`parsearPDF_Cora_Extrato`), layout `Cora - Extrato do Periodo` no `layouts-bancarios-padrao.js`.
+- Leitura por coordenadas do PDF.js: resumo da pág. 1 (saldo inicial, entradas, saídas, saldo final), dias em ordem decrescente com "Saldo do dia", transações com sinal +/- impresso, contraparte truncada ("…") e CPF/CNPJ. Bloqueia se totais, fechamento diário ou saldo final não baterem, se faltar item do resumo ou se houver linha com R$ não reconhecida.
+- PDF real de junho/2026 (9 págs.): 145 lançamentos, entradas 30.263,27, saídas 29.835,70, 30 dias conferidos, saldo final 7.965,22. O arquivo do print era "part-1" de um PDF 01/06–30/09 dividido: parte isolada é recusada (resumo é do período inteiro).
+- Teste `scripts/test-cora-extrato.js`: sintético com coordenadas + parte real pulada fora do Mac (`~/Downloads/Hype Café - Extrato CORA - Junho 2026 1.pdf`).
