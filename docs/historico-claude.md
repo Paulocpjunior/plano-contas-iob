@@ -2165,3 +2165,11 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - Lucro = contas de resultado sem os lançamentos `encerramentoContabil`; encerramento manual aparece como variação do PL (nota no relatório). Alertas: sem movimento, conta fora do plano, 1.1.1 sem cara de disponível, soma ≠ variação do caixa.
 - Revisão Codex (PR #325): lançamentos resultado ↔ PL (encerramento com ou sem marca do CCI) e pares sem caixa (investimento × passivo/empréstimo/PL; empréstimo × PL) são anulados lançamento a lançamento e descritos nas notas (CPC 03). `contaCanonica` passa a ser exportada pelo core.
 - UI: aba `dfc_indireto` em `relatorios-contabeis-ui.js` (tela, PDF, Excel). Teste `scripts/test-dfc-indireto.js`. Fora do escopo: comparativo de 2 anos ("Imprimir 2 anos" do Office).
+
+## SharePoint — preparação da integração documental (21/10) · v3.4.435
+
+- Base do monitor por biblioteca com leitura Delta pelo proxy existente, inventário inicial silencioso, checkpoints e eventos/fila transacionais. A associação por pasta/CNPJ usa a carteira e a topologia existentes; não duplica empresas ou distribuição.
+- Reprocessamento administrativo preserva reservas de entrega, aceitações e resultados incertos. Departamento, permissões SharePoint e destino continuam sujeitos à validação antes de qualquer envio.
+- Monitoramento e novos envios documentais permanecem desativados nesta release. Homologação de uma biblioteca real e validação dos canais continuam pendentes; não houve envio real nos testes.
+- Validação específica já registrada: 184 testes CCI e 17 do proxy aprovados em Node 20, sem falhas ou pulados. Workflow de PR inclui `npm ci` e `npm run check:ci`, preservando o relatório de evidências externas ausentes. Guia: `docs/crm-sharepoint-notificacoes.md`.
+- Versão, cache-busters, novidades e indicador atualizados; as 137 notas anteriores de `version.json` foram preservadas junto da nova nota de preparação.
