@@ -2,8 +2,8 @@
 
 > **ABORDAGEM CANCELADA pelo usuário em 21/10/2026.** Não implantar VPN paga.
 > O usuário exige aproveitar os recursos nativos do UNAS, sem contratação adicional.
-> Gateway, IP reservado e forwarding rules removidos; limpeza da VPC/sub-rede,
-> firewall e recipiente vazio de segredo iniciada. O formulário UniFi foi
+> Gateway, IP reservado, forwarding rules, VPC, sub-rede, firewall e
+> recipiente vazio de segredo removidos. Nenhum valor de segredo existia. O formulário UniFi foi
 > descartado sem submissão. Nenhum túnel chegou a ser criado. Este documento
 > preserva o histórico, não constitui instrução vigente de implantação.
 
