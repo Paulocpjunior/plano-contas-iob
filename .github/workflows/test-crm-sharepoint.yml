@@ -16,6 +16,7 @@ on:
       - 'scripts/test-crm-sharepoint-*.js'
       - 'scripts/helpers/sharepoint-firestore.js'
       - '.github/workflows/test-crm-sharepoint.yml'
+      - '.github/workflows/deploy-app.yml'
   workflow_dispatch:
 
 permissions:
