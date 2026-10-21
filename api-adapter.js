@@ -502,6 +502,22 @@
     return body;
   }
 
+  async function previaExclusaoAtivo(cnpj, id) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/ativos-imobilizados/' + encodeURIComponent(id) + '/exclusao/previa', { method: 'POST', body: '{}' });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
+  async function excluirAtivoImobilizado(cnpj, id, dados) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/ativos-imobilizados/' + encodeURIComponent(id) + '/excluir', { method: 'POST', body: JSON.stringify(dados || {}) });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
   async function previaEventoAtivo(cnpj, id, dados) {
     const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
     const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/ativos-imobilizados/' + encodeURIComponent(id) + '/eventos/previa', { method: 'POST', body: JSON.stringify(dados || {}) });
@@ -1105,7 +1121,7 @@
     return await r.json();
   }
 
-  window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, consultarCadastroCnpj, consultarEstruturaMatrizFilial, sincronizarRegimeCfi, consultarParametrizacaoRegime, salvarParametrizacaoRegime, validarRegimeCnaeIA, aprovarSaldosAbertura, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, adotarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarPeriodosContabeis, consultarHomologacaoPiloto, avaliarConciliacaoBancaria, aprovarConciliacaoBancaria, avaliarConciliacaoDetalhada, aprovarConciliacaoDetalhada, listarAtivosImobilizados, salvarAtivoImobilizado, baixarAtivoImobilizado, previaDepreciacaoAtivo, aprovarDepreciacaoAtivo, previaEventoAtivo, aprovarEventoAtivo, enviarRelatorioContabilEmail, fecharPeriodoContabil, reabrirPeriodoContabil, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalFechamentosCfi, fiscalImportarFechamentoCfi, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAjustarRetencao, reinfTransmitirRetencoesPJ, reinfAquisicaoRural,
+  window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, consultarCadastroCnpj, consultarEstruturaMatrizFilial, sincronizarRegimeCfi, consultarParametrizacaoRegime, salvarParametrizacaoRegime, validarRegimeCnaeIA, aprovarSaldosAbertura, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, adotarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarPeriodosContabeis, consultarHomologacaoPiloto, avaliarConciliacaoBancaria, aprovarConciliacaoBancaria, avaliarConciliacaoDetalhada, aprovarConciliacaoDetalhada, listarAtivosImobilizados, salvarAtivoImobilizado, baixarAtivoImobilizado, previaDepreciacaoAtivo, aprovarDepreciacaoAtivo, previaEventoAtivo, aprovarEventoAtivo, previaExclusaoAtivo, excluirAtivoImobilizado, enviarRelatorioContabilEmail, fecharPeriodoContabil, reabrirPeriodoContabil, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalFechamentosCfi, fiscalImportarFechamentoCfi, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAjustarRetencao, reinfTransmitirRetencoesPJ, reinfAquisicaoRural,
     reinfServicosTomados,
     reinfServicoTomadoPrestador,
     reinfServicosTomadosTransmitir,

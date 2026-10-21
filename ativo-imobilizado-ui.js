@@ -6,6 +6,7 @@
   let editandoId = '';
   let previaContabil = null;
   let inicializado = false;
+  let podeExcluir = false;
 
   function esc(valor) { return String(valor == null ? '' : valor).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
   function moeda(valor) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(valor || 0)); }
@@ -18,7 +19,7 @@
     const style = document.createElement('style');
     style.id = 'aiStyles';
     style.textContent = `
-      .ai-shell{display:grid;gap:18px}.ai-hero{padding:22px;border-radius:16px;background:linear-gradient(135deg,#00264d,#0066cc);color:#fff;display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}.ai-hero h2{margin:4px 0}.ai-hero p{margin:0;color:#e0efff;max-width:850px}.ai-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ai-kpi{padding:16px;border:1px solid #e8e8ed;border-radius:12px;background:#fff}.ai-kpi small{display:block;color:#6e6e73;font-weight:800;text-transform:uppercase;font-size:10px}.ai-kpi strong{display:block;margin-top:7px;font-size:20px}.ai-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ai-field label{display:block;font-size:11px;font-weight:900;text-transform:uppercase;color:#515154;margin-bottom:5px}.ai-field input,.ai-field select,.ai-field textarea{width:100%;padding:10px;border:1px solid #d2d2d7;border-radius:8px;background:#fff;color:#1c1c1e}.ai-field textarea{min-height:76px;resize:vertical}.ai-span-2{grid-column:span 2}.ai-span-4{grid-column:1/-1}.ai-actions{display:flex;gap:8px;flex-wrap:wrap}.ai-btn{border:0;border-radius:8px;padding:10px 14px;font-weight:800;cursor:pointer}.ai-primary{background:#0071e3;color:#fff}.ai-light{background:#e8e8ed;color:#1c1c1e}.ai-warn{background:#f59e0b;color:#fff}.ai-table-wrap{overflow:auto}.ai-table{width:100%;border-collapse:collapse;font-size:12px}.ai-table th,.ai-table td{padding:10px;border-bottom:1px solid #e8e8ed;text-align:left;white-space:nowrap}.ai-table th{background:#f0f7ff;color:#003e7a}.ai-note{padding:12px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:12px;line-height:1.5}.ai-schedule{max-height:300px;overflow:auto}.ai-status{padding:3px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:800}.ai-status.baixado{background:#fee2e2;color:#991b1b}
+      .ai-shell{display:grid;gap:18px}.ai-hero{padding:22px;border-radius:16px;background:linear-gradient(135deg,#00264d,#0066cc);color:#fff;display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}.ai-hero h2{margin:4px 0}.ai-hero p{margin:0;color:#e0efff;max-width:850px}.ai-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ai-kpi{padding:16px;border:1px solid #e8e8ed;border-radius:12px;background:#fff}.ai-kpi small{display:block;color:#6e6e73;font-weight:800;text-transform:uppercase;font-size:10px}.ai-kpi strong{display:block;margin-top:7px;font-size:20px}.ai-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ai-field label{display:block;font-size:11px;font-weight:900;text-transform:uppercase;color:#515154;margin-bottom:5px}.ai-field input,.ai-field select,.ai-field textarea{width:100%;padding:10px;border:1px solid #d2d2d7;border-radius:8px;background:#fff;color:#1c1c1e}.ai-field textarea{min-height:76px;resize:vertical}.ai-span-2{grid-column:span 2}.ai-span-4{grid-column:1/-1}.ai-actions{display:flex;gap:8px;flex-wrap:wrap}.ai-btn{border:0;border-radius:8px;padding:10px 14px;font-weight:800;cursor:pointer}.ai-primary{background:#0071e3;color:#fff}.ai-light{background:#e8e8ed;color:#1c1c1e}.ai-warn{background:#f59e0b;color:#fff}.ai-danger{background:#d70015;color:#fff}.ai-dup{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:#fff4e5;color:#9a5b00;font-weight:800;font-size:12px}.ai-table-wrap{overflow:auto}.ai-table{width:100%;border-collapse:collapse;font-size:12px}.ai-table th,.ai-table td{padding:10px;border-bottom:1px solid #e8e8ed;text-align:left;white-space:nowrap}.ai-table th{background:#f0f7ff;color:#003e7a}.ai-note{padding:12px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:12px;line-height:1.5}.ai-schedule{max-height:300px;overflow:auto}.ai-status{padding:3px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:800}.ai-status.baixado{background:#fee2e2;color:#991b1b}
       html[data-theme="dark"] .ai-kpi,html[data-theme="dark"] .ai-field input,html[data-theme="dark"] .ai-field select,html[data-theme="dark"] .ai-field textarea{background:#1c1c1e;color:#fbfbfd;border-color:#3a3a3c}html[data-theme="dark"] .ai-field label{color:#d2d2d7}html[data-theme="dark"] .ai-table th{background:#00264d;color:#b8dcff}html[data-theme="dark"] .ai-table td{border-color:#3a3a3c}html[data-theme="dark"] .ai-note{background:#431407;color:#fed7aa;border-color:#9a3412}
       @media(max-width:1000px){.ai-grid,.ai-form{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.ai-grid,.ai-form{grid-template-columns:1fr}.ai-span-2,.ai-span-4{grid-column:auto}}
     `;
@@ -209,6 +210,32 @@
     catch (e) { window.showToast(e.message || String(e), 'error'); }
   }
 
+  // Exclusão administrativa (cadastro por engano). O servidor decide: bloqueia se houver lançamento do bem
+  // em período travado pelo encerramento e, se não houver, remove os lançamentos do bem junto.
+  async function excluir(id) {
+    const bem = itens.find(function (item) { return item.id === id; });
+    if (!bem) return;
+    const cnpj = contexto().empresa.cnpj;
+    const nome = (bem.patrimonio ? 'Bem nº ' + bem.patrimonio + ' – ' : '') + bem.descricao;
+    try {
+      const previa = await window.API.previaExclusaoAtivo(cnpj, id);
+      const dup = (previa.duplicados || []).map(function (d) { return 'nº ' + (d.patrimonio || '(sem número)'); });
+      const qtd = (previa.lancamentos_escrituracao || []).length;
+      const motivo = prompt('EXCLUIR CADASTRO (somente administradores)\n\n' + nome + '\nAquisição ' + dataBR(bem.data_aquisicao) + ' · ' + moeda(bem.custo)
+        + (dup.length ? '\n\nMesmo bem também cadastrado como ' + dup.join(', ') + '.' : '\n\nNão há outro bem igual (descrição, data e custo) cadastrado.')
+        + (qtd ? '\n\nSerão removidos ' + qtd + ' lançamento(s) deste bem da escrituração (' + previa.periodos.join(', ') + ').' : '\n\nO bem não tem lançamentos na escrituração.')
+        + '\n\nInforme o motivo da exclusão:', dup.length ? 'Cadastro em duplicidade do bem ' + dup[0] : '');
+      if (motivo == null) return;
+      if (motivo.trim().length < 5) return window.showToast('Informe o motivo da exclusão.', 'warn');
+      if (!confirm('Confirma a exclusão de "' + nome + '"? O registro fica na auditoria com seu usuário, a data e o motivo.')) return;
+      const resposta = await window.API.excluirAtivoImobilizado(cnpj, id, { motivo: motivo.trim(), hash_previa: previa.hash_previa });
+      if (editandoId === id) limpar();
+      invalidarPrevia();
+      window.showToast(resposta.lancamentos_removidos ? 'Bem excluído e ' + resposta.lancamentos_removidos + ' lançamento(s) removido(s). Recarregue a empresa para receber a nova revisão.' : 'Bem excluído.', 'success');
+      await carregar();
+    } catch (e) { window.showToast(e.message || String(e), 'error'); }
+  }
+
   async function gerarPreviaContabil() {
     invalidarPrevia();
     const ctx = contexto();
@@ -236,17 +263,18 @@
     let custo = 0, acumulada = 0, valor = 0, ativos = 0;
     itens.forEach(function (bem) { if (bem.status === 'baixado') return; const c = Core.calcular(bem); custo += Number(bem.custo || 0); acumulada += c.depreciacao_acumulada; valor += c.valor_contabil; ativos += 1; });
     campo('aiResumo').innerHTML = '<div class="ai-kpi"><small>Bens ativos</small><strong>' + ativos + '</strong></div><div class="ai-kpi"><small>Custo histórico</small><strong>' + moeda(custo) + '</strong></div><div class="ai-kpi"><small>Depreciação acumulada</small><strong>' + moeda(acumulada) + '</strong></div><div class="ai-kpi"><small>Valor contábil</small><strong>' + moeda(valor) + '</strong></div>';
-    campo('aiBody').innerHTML = itens.map(function (bem) { const calc = Core.calcular(bem); const ref = Core.classeFiscal(bem.classe_fiscal); const acoes = bem.status === 'baixado' ? '<small>Histórico preservado</small>' : '<button class="ai-btn ai-light" data-ai-editar="' + esc(bem.id) + '">Editar</button> <button class="ai-btn ai-light" data-ai-aquisicao="' + esc(bem.id) + '">Aquisição</button> <button class="ai-btn ai-light" data-ai-transferir="' + esc(bem.id) + '">Transferir</button> <button class="ai-btn ai-warn" data-ai-baixar="' + esc(bem.id) + '">Baixar</button>'; return '<tr><td>' + esc(bem.patrimonio || '-') + '</td><td><strong>' + esc(bem.descricao) + '</strong><br><small>' + esc(bem.conta_ativo || 'Conta não vinculada') + '</small></td><td>' + esc(ref.nome) + '</td><td>' + dataBR(bem.data_disponivel_uso) + '</td><td>' + moeda(bem.custo) + '</td><td>' + moeda(calc.depreciacao_acumulada) + '</td><td>' + moeda(calc.valor_contabil) + '</td><td><span class="ai-status ' + esc(bem.status) + '">' + esc(bem.status) + '</span></td><td>' + acoes + '</td></tr>'; }).join('') || '<tr><td colspan="9">Nenhum bem cadastrado.</td></tr>';
+    campo('aiBody').innerHTML = itens.map(function (bem) { const calc = Core.calcular(bem); const ref = Core.classeFiscal(bem.classe_fiscal); const acoes = bem.status === 'baixado' ? '<small>Histórico preservado</small>' : '<button class="ai-btn ai-light" data-ai-editar="' + esc(bem.id) + '">Editar</button> <button class="ai-btn ai-light" data-ai-aquisicao="' + esc(bem.id) + '">Aquisição</button> <button class="ai-btn ai-light" data-ai-transferir="' + esc(bem.id) + '">Transferir</button> <button class="ai-btn ai-warn" data-ai-baixar="' + esc(bem.id) + '">Baixar</button>' + (podeExcluir ? ' <button class="ai-btn ai-danger" data-ai-excluir="' + esc(bem.id) + '" title="Excluir cadastro feito por engano (somente administradores)">Excluir</button>' : ''); const dup = (bem.possiveis_duplicados || []).map(function (d) { return 'nº ' + (d.patrimonio || '(sem número)'); }); return '<tr><td>' + esc(bem.patrimonio || '-') + '</td><td><strong>' + esc(bem.descricao) + '</strong><br><small>' + esc(bem.conta_ativo || 'Conta não vinculada') + '</small>' + (dup.length ? '<br><span class="ai-dup">⚠ Possível duplicidade: ' + esc(dup.join(', ')) + '</span>' : '') + '</td><td>' + esc(ref.nome) + '</td><td>' + dataBR(bem.data_disponivel_uso) + '</td><td>' + moeda(bem.custo) + '</td><td>' + moeda(calc.depreciacao_acumulada) + '</td><td>' + moeda(calc.valor_contabil) + '</td><td><span class="ai-status ' + esc(bem.status) + '">' + esc(bem.status) + '</span></td><td>' + acoes + '</td></tr>'; }).join('') || '<tr><td colspan="9">Nenhum bem cadastrado.</td></tr>';
     campo('aiBody').querySelectorAll('[data-ai-editar]').forEach(function (b) { b.addEventListener('click', function () { editar(b.dataset.aiEditar); }); });
     campo('aiBody').querySelectorAll('[data-ai-baixar]').forEach(function (b) { b.addEventListener('click', function () { baixar(b.dataset.aiBaixar); }); });
     campo('aiBody').querySelectorAll('[data-ai-aquisicao]').forEach(function (b) { b.addEventListener('click', function () { contabilizarAquisicao(b.dataset.aiAquisicao); }); });
+    campo('aiBody').querySelectorAll('[data-ai-excluir]').forEach(function (b) { b.addEventListener('click', function () { excluir(b.dataset.aiExcluir); }); });
     campo('aiBody').querySelectorAll('[data-ai-transferir]').forEach(function (b) { b.addEventListener('click', function () { transferir(b.dataset.aiTransferir); }); });
   }
 
   async function carregar() {
     const ctx = contexto();
     if (!ctx || !ctx.empresa || !ctx.empresa.cnpj) return;
-    try { const resposta = await window.API.listarAtivosImobilizados(ctx.empresa.cnpj); itens = resposta.itens || []; referencias = resposta.referencias_fiscais || Core.CLASSES_FISCAIS; render(); }
+    try { const resposta = await window.API.listarAtivosImobilizados(ctx.empresa.cnpj); itens = resposta.itens || []; podeExcluir = resposta.pode_excluir === true; referencias = resposta.referencias_fiscais || Core.CLASSES_FISCAIS; render(); }
     catch (e) { campo('aiBody').innerHTML = '<tr><td colspan="9">' + esc(e.message || String(e)) + '</td></tr>'; }
   }
 

@@ -32,6 +32,7 @@ const RelatoriosContabeis = require('./relatorios-contabeis');
 const TravaDigitacao = require('./trava-digitacao-contabil');
 const AtivoImobilizado = require('./ativo-imobilizado');
 const AtivoImobilizadoContabil = require('./ativo-imobilizado-contabil');
+const AtivoExclusao = require('./ativo-imobilizado-exclusao');
 const ConciliacaoContabil = require('./conciliacao-contabil');
 const ConciliacaoDetalhada = require('./conciliacao-detalhada');
 const HomologacaoPiloto = require('./homologacao-piloto');
@@ -4098,11 +4099,12 @@ app.get('/api/empresas/:cnpj/ativos-imobilizados', async (req, res) => {
     const chk = await checarAcessoEmpresa(cnpj, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
     const snap = await db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').orderBy('descricao').limit(1000).get();
-    const itens = snap.docs.map(function (doc) {
-      const dados = doc.data() || {};
-      return { id: doc.id, ...dados, criado_em: serializarDataSegura(dados.criado_em), atualizado_em: serializarDataSegura(dados.atualizado_em), baixa_em: serializarDataSegura(dados.baixa_em) };
+    // Bem excluído por engano (exclusão lógica) não aparece; o registro fica no Firestore e na auditoria.
+    const vigentes = AtivoExclusao.ativosVigentes(snap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; }));
+    const itens = vigentes.map(function (dados) {
+      return { ...dados, criado_em: serializarDataSegura(dados.criado_em), atualizado_em: serializarDataSegura(dados.atualizado_em), baixa_em: serializarDataSegura(dados.baixa_em), possiveis_duplicados: AtivoExclusao.possiveisDuplicados(dados, vigentes) };
     });
-    res.json({ itens, referencias_fiscais: AtivoImobilizado.CLASSES_FISCAIS });
+    res.json({ itens, referencias_fiscais: AtivoImobilizado.CLASSES_FISCAIS, pode_excluir: !!req.user.is_admin });
   } catch (e) { console.error('listar ativos imobilizados erro:', e); res.status(500).json({ erro: e.message }); }
 });
 
@@ -4127,7 +4129,7 @@ app.put('/api/empresas/:cnpj/ativos-imobilizados/:id', async (req, res) => {
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
     const ref = db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').doc(String(req.params.id || ''));
     const atual = await ref.get();
-    if (!atual.exists) return res.status(404).json({ erro: 'Bem não encontrado.' });
+    if (!atual.exists || AtivoExclusao.excluido(atual.data())) return res.status(404).json({ erro: 'Bem não encontrado. Ele pode ter sido excluído; atualize a lista do Ativo Imobilizado.' });
     if (String((atual.data() || {}).status) === 'baixado') return res.status(409).json({ erro: 'Bem baixado não pode ser editado; a trilha histórica foi preservada.' });
     const dados = normalizarBemAtivo({ ...(atual.data() || {}), ...(req.body || {}) });
     const validacao = AtivoImobilizado.validar(dados);
@@ -4151,7 +4153,7 @@ async function previaEventoAtivoEmpresa(empresaRef, bemId, tipo, dados, stateJso
     empresaRef.collection('ativos_imobilizados').doc(bemId).get(),
     empresaRef.collection('ativos_lancamentos').get()
   ]);
-  if (!bemDoc.exists) throw erroSessao('Bem não encontrado.', 404, 'ATIVO_NAO_ENCONTRADO');
+  if (!bemDoc.exists || AtivoExclusao.excluido(bemDoc.data())) throw erroSessao('Bem não encontrado. Ele pode ter sido excluído; atualize a lista do Ativo Imobilizado.', 404, 'ATIVO_NAO_ENCONTRADO');
   const bem = { id: bemDoc.id, ...(bemDoc.data() || {}) };
   const chavesSessao = stateJson ? parsearStateJson(stateJson).entries.map(function (item) { return String(item.chave || ''); }).filter(Boolean) : [];
   const chaves = geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao);
@@ -4232,6 +4234,104 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/eventos/aprovar', async (r
   }
 });
 
+// Exclusão administrativa de bem cadastrado por engano (v3.4.444). Lógica: o bem fica com status
+// 'excluido' e some das telas e cálculos; os lançamentos que ele gerou saem da escrituração só se todos
+// estiverem em competência aberta (ativo-imobilizado-exclusao.js decide e explica o bloqueio).
+async function avaliarExclusaoAtivoEmpresa(empresaRef, bemId, stateJson) {
+  const [bemDoc, bensSnap, geradosSnap, periodosSnap] = await Promise.all([
+    empresaRef.collection('ativos_imobilizados').doc(bemId).get(),
+    empresaRef.collection('ativos_imobilizados').get(),
+    empresaRef.collection('ativos_lancamentos').get(),
+    empresaRef.collection('periodos_contabeis').get()
+  ]);
+  const bem = bemDoc.exists ? { id: bemDoc.id, ...(bemDoc.data() || {}) } : null;
+  const entradasSessao = stateJson ? parsearStateJson(stateJson).entries.filter(function (l) { return l && l.chave; }).map(function (l) {
+    return { id: String(l.id || ''), chave: String(l.chave), periodo: RelatoriosContabeis.periodoDaData(l.data) || '' };
+  }) : [];
+  const avaliacao = AtivoExclusao.avaliarExclusao({
+    bem,
+    bens: bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; }),
+    lancamentosGerados: geradosSnap.docs.map(function (doc) { const d = doc.data() || {}; return { id: doc.id, chave: String(d.chave || ''), periodo: String(d.periodo || '') }; }),
+    entradasSessao,
+    periodos: periodosSnap
+  });
+  const hash = hashSessao(JSON.stringify({ controle: avaliacao.lancamentos_controle || [], escrituracao: avaliacao.lancamentos_escrituracao || [] }));
+  return { bem, avaliacao, hash };
+}
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/exclusao/previa', adminRequired, async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    const sessao = await carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current'));
+    const { avaliacao, hash } = await avaliarExclusaoAtivoEmpresa(empresaRef, String(req.params.id || ''), sessao.stateJson || '');
+    const status = avaliacao.codigo === 'ATIVO_NAO_ENCONTRADO' ? 404 : (avaliacao.ok ? 200 : 409);
+    res.status(status).json({ ...avaliacao, hash_previa: avaliacao.ok ? hash : null });
+  } catch (e) { res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_PREVIA_EXCLUSAO_ATIVO' }); }
+});
+
+app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/excluir', adminRequired, async (req, res) => {
+  let sessaoRef = null;
+  let tokenTrava = null;
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const bemId = String(req.params.id || '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const motivo = AtivoExclusao.validarMotivo(req.body && req.body.motivo);
+    if (!motivo.ok) return res.status(400).json({ erro: motivo.erro, codigo: 'MOTIVO_OBRIGATORIO' });
+    const empresaRef = db.collection('empresas').doc(cnpj);
+    sessaoRef = empresaRef.collection('sessoes').doc('current');
+    // A reserva da sessão serializa a exclusão com a aprovação de depreciação e de eventos do ativo.
+    const sessaoExiste = (await sessaoRef.get()).exists;
+    if (sessaoExiste) tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'excluir_ativo');
+    const sessao = sessaoExiste ? await carregarSessaoAtualPorRef(sessaoRef) : { encontrada: false, stateJson: '' };
+    const { bem, avaliacao, hash } = await avaliarExclusaoAtivoEmpresa(empresaRef, bemId, sessao.stateJson || '');
+    if (!avaliacao.ok) throw erroSessao(avaliacao.erro, avaliacao.codigo === 'ATIVO_NAO_ENCONTRADO' ? 404 : 409, avaliacao.codigo);
+    const hashPrevia = String(req.body && req.body.hash_previa || '');
+    if (!hashPrevia || hashPrevia !== hash) throw erroSessao('Os lançamentos do bem mudaram depois da prévia. Abra a exclusão de novo para conferir.', 409, 'PREVIA_DESATUALIZADA');
+    const removerEscrituracao = avaliacao.lancamentos_escrituracao.length > 0;
+    const gravarExclusao = (lote) => {
+      avaliacao.lancamentos_controle.forEach(function (id) { lote.delete(empresaRef.collection('ativos_lancamentos').doc(id)); });
+      lote.set(empresaRef.collection('ativos_imobilizados').doc(bemId), {
+        status: AtivoExclusao.STATUS_EXCLUIDO, status_anterior: String(bem.status || 'ativo'),
+        excluido_em: new Date(), excluido_por_uid: req.user.uid, excluido_por_email: req.user.email || '', motivo_exclusao: motivo.motivo,
+        lancamentos_removidos_na_exclusao: avaliacao.lancamentos_escrituracao.length,
+        atualizado_em: new Date(), atualizado_por_uid: req.user.uid, atualizado_por_email: req.user.email || ''
+      }, { merge: true });
+      lote.create(empresaRef.collection('auditoria_contabil').doc(), {
+        tipo: 'ATIVO_EXCLUIDO', bem_id: bemId, patrimonio: String(bem.patrimonio || ''), descricao: String(bem.descricao || ''),
+        custo: Number(bem.custo || 0), data_aquisicao: String(bem.data_aquisicao || ''), conta_ativo: String(bem.conta_ativo || ''),
+        motivo: motivo.motivo, possiveis_duplicados: avaliacao.duplicados.map(function (d) { return d.id; }),
+        periodos: avaliacao.periodos, lancamentos_controle_removidos: avaliacao.lancamentos_controle,
+        lancamentos_escrituracao_removidos: avaliacao.lancamentos_escrituracao.map(function (l) { return l.chave; }),
+        quando: new Date(), por_uid: req.user.uid, por_email: req.user.email || ''
+      });
+    };
+    if (removerEscrituracao) {
+      const chaves = new Set(avaliacao.lancamentos_escrituracao.map(function (l) { return l.chave; }));
+      const state = parsearStateJson(sessao.stateJson);
+      state.entries = state.entries.filter(function (l) { return !(l && chaves.has(String(l.chave || ''))); });
+      const novoStateJson = JSON.stringify(state);
+      await impedirAlteracaoPeriodosFechados(cnpj, sessao.stateJson, novoStateJson);
+      const resumo = { ...(sessao.dados && sessao.dados.resumo || {}), total_lancamentos: state.entries.length };
+      await gravarSessaoBloqueada(sessaoRef, novoStateJson, resumo, req.user, { exigirRevisao: true, gravarRelacionados: gravarExclusao, tokenTrava });
+      tokenTrava = null;
+    } else {
+      const lote = db.batch();
+      gravarExclusao(lote);
+      await lote.commit();
+      if (tokenTrava) { await liberarTravaSessao(sessaoRef, tokenTrava); tokenTrava = null; }
+    }
+    res.json({ ok: true, bem_id: bemId, patrimonio: String(bem.patrimonio || ''), lancamentos_removidos: avaliacao.lancamentos_escrituracao.length, periodos: avaliacao.periodos, recarregar_empresa: removerEscrituracao });
+  } catch (e) {
+    if (sessaoRef && tokenTrava) await liberarTravaSessao(sessaoRef, tokenTrava);
+    res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_EXCLUIR_ATIVO' });
+  }
+});
+
 app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/previa', async (req, res) => {
   try {
     const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
@@ -4248,7 +4348,7 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/previa', async (re
     ]);
     const travaAtivo = TravaDigitacao.periodoBloqueado(periodo, periodosSnap) ? TravaDigitacao.mensagemBloqueio([periodo], periodosSnap) : '';
     if (travaAtivo) return res.status(409).json({ erro: travaAtivo, codigo: 'PERIODO_CONTABIL_FECHADO' });
-    const bens = bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; });
+    const bens = AtivoExclusao.ativosVigentes(bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; }));
     const chavesSessao = sessao.encontrada && sessao.stateJson ? parsearStateJson(sessao.stateJson).entries.map(function (item) { return String(item.chave || ''); }).filter(Boolean) : [];
     const jaGerados = geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao);
     const contas = await carregarContasContabeisEmpresa(chk.empresa);
@@ -4280,7 +4380,7 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/aprovar', async (r
     ]);
     const chavesSessao = parsearStateJson(sessao.stateJson).entries.map(function (item) { return String(item.chave || ''); }).filter(Boolean);
     const previa = AtivoImobilizadoContabil.previaDepreciacao(
-      bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; }),
+      AtivoExclusao.ativosVigentes(bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; })),
       periodo,
       geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao),
       await carregarContasContabeisEmpresa(chk.empresa)
@@ -4422,7 +4522,7 @@ app.get('/api/empresas/:cnpj/contabilidade/homologacao-piloto', async (req, res)
       periodos: dados(periodosSnap),
       transportes: dados(transportesSnap),
       conciliacoes: dados(conciliacoesSnap),
-      ativos: dados(ativosSnap),
+      ativos: AtivoExclusao.ativosVigentes(dados(ativosSnap)),
       ativos_lancamentos: dados(ativosLancamentosSnap),
       meta_fechamentos: 2
     }));
