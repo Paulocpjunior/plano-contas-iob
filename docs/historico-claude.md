@@ -2173,3 +2173,9 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - Monitoramento e novos envios documentais permanecem desativados nesta release. Homologação de uma biblioteca real e validação dos canais continuam pendentes; não houve envio real nos testes.
 - Validação específica já registrada: 184 testes CCI e 17 do proxy aprovados em Node 20, sem falhas ou pulados. Workflow de PR inclui `npm ci` e `npm run check:ci`, preservando o relatório de evidências externas ausentes. Guia: `docs/crm-sharepoint-notificacoes.md`.
 - Versão, cache-busters, novidades e indicador atualizados; as 137 notas anteriores de `version.json` foram preservadas junto da nova nota de preparação.
+
+## Cadastro: salvar quebrado pelo evento de notificação (21/10) · v3.4.436
+
+- Sintoma: "Value for argument documentPath is not a valid resource path" ao salvar Dados da Empresa (PATCH `/api/empresas/:cnpj/cadastro`) e ao criar empresa. Regressão da 3.4.431 (#321).
+- Causa: `eventoRef` em `notificacoes-motor.js` chamava `doc(id||undefined)`; o SDK real só gera ID com `doc()` sem argumento. O banco falso dos testes aceitava `undefined`.
+- Correção: `id ? col.doc(id) : col.doc()`. Regressão com o SDK real (`new Firestore`, sem rede) em `scripts/test-notificacoes-automacao.js`.

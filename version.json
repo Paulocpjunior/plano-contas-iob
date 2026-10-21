@@ -1,7 +1,8 @@
 {
-  "version": "3.4.435",
-  "build_date": "2026-10-21T10:24:43Z",
+  "version": "3.4.436",
+  "build_date": "2026-10-21T12:05:00Z",
   "release_notes": [
+    "Cadastro de empresas: Salvar cadastro volta a funcionar em Dados da Empresa e na inclusão de empresas. Desde a 3.4.431 a gravação parava com o erro \"documentPath is not a valid resource path\"; nenhum dado foi alterado nas tentativas que falharam.",
     "SharePoint: preparação do monitor documental integrado à carteira do CRM, com inventário inicial silencioso, histórico e proteção contra notificações repetidas. Monitoramento e envios por Teams/e-mail permanecem desativados, aguardando homologação e validação de destinatários e permissões.",
     "Relatórios: nova aba DFC Indireto (Demonstração do Fluxo de Caixa pelo método indireto) para todas as empresas, calculada pelo balancete e plano de contas da empresa, com PDF e Excel. Acumula do início do exercício até a competência e confere a soma das atividades com a variação do caixa.",
     "Extratos: o PDF do Banco do Brasil (Conta atual) volta a ler a coluna Valor R$ quando o valor é alto e quebra em duas linhas; antes o CCI pegava o Saldo e perdia lançamentos. A importação agora confere a soma com o saldo final impresso e avisa quando não bate.",

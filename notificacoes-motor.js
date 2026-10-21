@@ -8,7 +8,8 @@ function refConfig(db,path){
 }
 function eventoRef(db,cnpj,tipo,autor,quando=new Date().toISOString(),id){
   if(!/^\d{14}$/.test(cnpj)||!['cadastro_criado','cadastro_editado'].includes(tipo))throw Error('Evento inválido');
-  return {ref:db.collection(EVENTOS).doc(id||undefined),data:{cnpj,tipo,autor,quando,estado:'pendente'}};
+  const col=db.collection(EVENTOS);
+  return {ref:id?col.doc(id):col.doc(),data:{cnpj,tipo,autor,quando,estado:'pendente'}};
 }
 function criar({db,entrega=require('./notificacoes-entrega'),checklist=require('./crm-checklist').carregarChecklist,env=process.env,agora=()=>new Date().toISOString()}){
   async function conferir(tx,j){

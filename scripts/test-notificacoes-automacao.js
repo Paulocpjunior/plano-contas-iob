@@ -1,9 +1,14 @@
 'use strict';
 const assert=require('assert');
 const agenda=require('../notificacoes-agenda'),teams=require('../notificacoes-teams');
-const {criar,JOBS,FILA,EVENTOS,FUTURO}=require('../notificacoes-motor');
+const {criar,JOBS,FILA,EVENTOS,FUTURO,eventoRef}=require('../notificacoes-motor');
+const {Firestore}=require('@google-cloud/firestore');
 const {ambiente}=require('./test-crm-contabil-routes');
 (async()=>{
+  // Regressão: doc(undefined) no SDK real lança "documentPath is not a valid resource path" e quebrava o salvar do cadastro.
+  const fs=new Firestore({projectId:'fixture'});
+  assert.ok(eventoRef(fs,'96312889000111','cadastro_editado','uid').ref.id);
+  assert.equal(eventoRef(fs,'96312889000111','cadastro_editado','uid',undefined,'abc').ref.id,'abc');
   assert.equal(agenda.dataLocal('2026-10-20T09:00'),'2026-10-20T12:00:00.000Z');
   assert.throws(()=>agenda.dataLocal('2026-02-30T09:00'),/inválido/);
   assert.throws(()=>agenda.dataLocal('2026-10-20T25:00'),/inválido/);
