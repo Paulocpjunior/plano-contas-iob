@@ -127,3 +127,26 @@ test('falhas de transporte e JSON não expõem tokens, URLs ou causas', async ()
   }
   await assert.rejects(leitor(async()=>({ok:true,status:200,json:async()=>{throw Error(token);}}))({driveId}),{code:'GRAPH_DELTA_INVALID_RESPONSE'});
 });
+
+
+test('token existente com quebra de linha final usa a mesma normalização do proxy sem expor credencial', async () => {
+  for (const raw of [token+'\n', ' '+token+'\r\n', '\t'+token+' ']) {
+    const env = {CCI_SHAREPOINT_PROXY_URL:url,SHAREPOINT_PROXY_TOKEN:raw};
+    let chamadas=0;
+    const ler=criarLeitorProxy({env,fetcher:async(_,opcoes)=>{
+      chamadas++;
+      assert.equal(opcoes.headers.Authorization,'Bearer '+token);
+      return response(completo([{id:'item',file:{}}]));
+    }});
+    const pagina=await ler({driveId});
+    assert.equal(chamadas,1); assert.equal(pagina.completo,true);
+    assert.equal(JSON.stringify(pagina).includes(token),false);
+    assert.equal(env.SHAREPOINT_PROXY_TOKEN,raw,'A configuração original não é modificada');
+  }
+});
+
+test('normalização não aceita token vazio, controles internos ou valor acima do limite', () => {
+  for (const raw of ['', ' \n\r\t ', 'valor\nmalformado', 'valor malformado', 'valor\u0000malformado', 'x'.repeat(8193)]) {
+    assert.throws(()=>criarLeitorProxy({url,token:raw}),{code:'SHAREPOINT_PROXY_AUTH_NOT_CONFIGURED'});
+  }
+});

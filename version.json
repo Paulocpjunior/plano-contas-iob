@@ -1,7 +1,8 @@
 {
-  "version": "3.4.437",
-  "build_date": "2026-10-21T12:59:49Z",
+  "version": "3.4.438",
+  "build_date": "2026-10-21T13:20:54Z",
   "release_notes": [
+    "SharePoint: aceitar espaços e quebras de linha somente nas bordas da credencial interna existente, como o proxy, para iniciar o inventário sem trocar segredos. Controles internos, token vazio e valores excessivos permanecem bloqueados.",
     "CRM: Monitor documental SharePoint exclusivo para administradores, com bibliotecas, inventário silencioso, eventos, pendências e vínculos de pastas a CNPJs confirmados. Cadastro Documentos / ClientesSP2 inicia desabilitado e sem autorização de envio.",
     "Cadastro de empresas: Salvar cadastro volta a funcionar em Dados da Empresa e na inclusão de empresas. Desde a 3.4.431 a gravação parava com o erro \"documentPath is not a valid resource path\"; nenhum dado foi alterado nas tentativas que falharam.",
     "SharePoint: preparação do monitor documental integrado à carteira do CRM, com inventário inicial silencioso, histórico e proteção contra notificações repetidas. Monitoramento e envios por Teams/e-mail permanecem desativados, aguardando homologação e validação de destinatários e permissões.",
