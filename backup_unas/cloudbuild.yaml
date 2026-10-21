@@ -1,0 +1,8 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-f', 'backup_unas/Dockerfile', '-t', '${_IMAGE}', '.']
+images: ['${_IMAGE}']
+substitutions:
+  _IMAGE: southamerica-east1-docker.pkg.dev/consultorfiscalapp/cloud-run-source-deploy/cci-unas-replica:candidate
+options:
+  logging: CLOUD_LOGGING_ONLY
