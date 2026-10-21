@@ -2,9 +2,13 @@
 
 ## Situação da entrega — 21/10/2026
 
-Implementação em revisão no [PR #326](https://github.com/Paulocpjunior/plano-contas-iob/pull/326), branch `feature/cci-sharepoint-notificacoes-base`, preparada sobre a base `34ae3e2cd47849645ba7b393887c9fe697dc7e44`. A publicação em branches e PRs de rascunho foi autorizada por Paulo. Monitoramento e envio continuam desligados; não houve merge, deploy, habilitação de biblioteca ou envio real.
+Implementação preparada para a versão **3.4.435** no [PR #326](https://github.com/Paulocpjunior/plano-contas-iob/pull/326), com a rota do proxy no [PR #1444](https://github.com/Paulocpjunior/consultor-fiscal-inteligente/pull/1444). Paulo autorizou commit, squash-merge e implantação controlada em 21/10/2026. Os workflows publicam candidatas sem tráfego, validam sua saúde e só depois promovem a revisão. A situação efetiva de cada publicação deve ser conferida nas execuções vinculadas aos PRs.
+
+Esta entrega fixa `CCI_SHAREPOINT_MONITOR_ENABLED=false` e `CCI_SHAREPOINT_SEND_ENABLED=false` no CCI e `CCI_SHAREPOINT_DELTA_ENABLED=false` no proxy. A publicação do código desativado não homologa a integração documental. Biblioteca real, acesso ao segredo compartilhado pelo CCI, destinatários e canais ainda precisam ser validados; não houve envio real de notificações.
 
 **Resultado consolidado: 201 testes aprovados, zero falhas e zero pulados em Node v20.20.2: 184 no CCI e 17 no proxy.** A sintaxe dos módulos, testes e dois servidores passou. Os testes usam Graph, Firestore e transportes simulados; não comprovam funcionamento nos serviços reais, desempenho com 3.000 clientes nem IAM de produção. O pacote contém logs e resultado estruturado.
+
+O gate completo local do CCI, executado em UTC, aprovou 255 arquivos de teste, pulou 28 por ausência de evidências externas e terminou sem falhas. As auditorias exigidas pelos dois serviços retornaram zero vulnerabilidades. Os workflows de PR repetem a validação antes do merge; as duas falhas de datas observadas com o fuso local Australia/Sydney vieram de parsers preexistentes e não ocorreram em UTC, sem alterar ou dispensar asserções.
 
 ## 1. Origem do proxy comprovada
 
@@ -32,7 +36,7 @@ Todos os módulos recebem o mesmo `db` criado pelo servidor CCI. `runtime-config
 
 ## 3. Contrato documental do proxy
 
-Nova proposta: `POST /api/sharepoint/documentos/delta`, protegida pelo `requireProxyAuth` existente. As rotas XML e `sharepoint-sync.js` foram preservados.
+Rota acrescentada: `POST /api/sharepoint/documentos/delta`, protegida pelo `requireProxyAuth` existente. As rotas XML e `sharepoint-sync.js` foram preservados.
 
 Entrada: `{ "driveId": "<drive autorizado>", "checkpoint": null }` ou o cursor retornado anteriormente. Saída: `{ "value": [...], "@odata.nextLink": "..." }` ou `{ "value": [...], "@odata.deltaLink": "..." }`.
 
@@ -127,8 +131,8 @@ Os novos workflows de PR executam somente testes simulados, com acesso de leitur
 
 A homologação deverá registrar:
 
-1. Revisão e gates completos dos dois repositórios. O merge na main aciona os workflows de deploy existentes; manter os PRs em rascunho até o plano aprovado.
-2. Autenticação com recursos existentes e uma biblioteca real selecionada, sem alterar permissões. A execução de candidato fora do tráfego de produção depende do plano de homologação aprovado.
+1. Revisões publicadas, gates completos e flags desativadas dos dois serviços. A implantação controlada autorizada publica o código antes de habilitar o monitor documental.
+2. Autenticação com recursos existentes e uma biblioteca real selecionada, sem alterar permissões. Conferir a referência do segredo compartilhado e o acesso do runtime CCI antes de liberar a leitura dessa biblioteca; os envios continuam desativados.
 3. Inventário completo, várias páginas, checkpoint durável, zero notificações iniciais e retomada após reinício.
 4. Inclusão, edição, renomeação, movimentação e exclusão reais, com CNPJ, principal, apoios e gestor corretos; mudança de carteira e usuário sem acesso.
 5. Transações/concorrência no Firestore, falha de worker, quotas, custos e latência Graph. O helper de teste não substitui o serviço ou emulador.
