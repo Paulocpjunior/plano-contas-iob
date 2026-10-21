@@ -1,7 +1,8 @@
 {
-  "version": "3.4.442",
-  "build_date": "2026-10-21T16:45:00Z",
+  "version": "3.4.443",
+  "build_date": "2026-10-21T18:00:00Z",
   "release_notes": [
+    "Automações do CRM e Notificações de Aplicações Financeiras: botão \"＋ Nova automação\" para o administrador criar o próprio aviso (nome, e-mail ou chat/canal do Teams, destinatários e texto com variáveis), com envio manual após prévia ou por agenda. Central mais didática: guia numerado, situação por cor (✅ pronta, ⚠️ pendente), ícone por canal e passos em cada cartão.",
     "CRM pelo painel Admin: Automações do CRM volta a abrir a central de notificações (destinatários por e-mail ou chat/canal do Teams). Desde a 3.4.429 o Admin mostrava \"window.abrirCentralNotificacoes is not a function\" porque não carregava a central; pelo CCI a tela já funcionava.",
     "SAGE retenções de serviços prestados: quando uma nota não entra na importação, a mensagem passa a dizer qual NF e o motivo (ex.: \"NF 0000400 de 21/01/2026, sem data da compensação\"), para corrigir na SAGE e gerar o PDF de novo. Toda NF continua exigindo valor e data, e a importação segue bloqueada até o total bater.",
     "Encerramento contábil: encerrada uma competência (mês, trimestre ou ano), ela e todos os meses anteriores ficam bloqueados para incluir, alterar ou excluir lançamentos, inclusive importações, mesmo sem encerramento formal desses meses. A correção é lançada depois do encerramento. Ao reabrir o encerramento mais recente, a trava volta para o encerramento anterior.",

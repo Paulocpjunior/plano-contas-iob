@@ -14,3 +14,32 @@
 :root[data-theme=light] .cci-notificacoes{--not-bg:#fff;--not-fg:#1d1d1f;--not-line:#d2d2d7}
 .cci-notificacoes{scroll-padding-top:84px}.cci-notificacoes header{position:sticky;top:-24px;z-index:1;background:var(--not-bg);padding:12px 0}
 @media(max-width:600px){.cci-notificacoes header{top:-14px}}
+/* Central didática: guia numerado, situação por cor, ícone por canal. */
+.cci-notificacoes{--not-ok:#248a3d;--not-ok-bg:#e8f7ec;--not-alerta:#b25000;--not-alerta-bg:#fff4e5;--not-info:#0071e3;--not-info-bg:#e8f2fd;--not-suave:#6e6e73;--not-card:#fbfbfd}
+:root[data-theme=dark] .cci-notificacoes,body.dark-mode .cci-notificacoes{--not-ok:#30d158;--not-ok-bg:#12321b;--not-alerta:#ffb340;--not-alerta-bg:#3a2a12;--not-info:#409cff;--not-info-bg:#14273d;--not-suave:#a1a1a6;--not-card:#232325}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .cci-notificacoes{--not-ok:#30d158;--not-ok-bg:#12321b;--not-alerta:#ffb340;--not-alerta-bg:#3a2a12;--not-info:#409cff;--not-info-bg:#14273d;--not-suave:#a1a1a6;--not-card:#232325}}
+.cci-not-guia{padding:14px 16px;border-radius:12px;background:var(--not-info-bg);border-left:4px solid var(--not-info);margin:8px 0 16px}
+.cci-not-guia ol{margin:8px 0;padding-left:22px}.cci-not-guia li{margin:3px 0}
+.cci-not-canais{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.cci-not-chip{display:inline-block;padding:4px 10px;border-radius:999px;font-size:13px;background:var(--not-bg);border:1px solid var(--not-line)}
+.cci-not-chip.ok{color:var(--not-ok)}.cci-not-chip.alerta{color:var(--not-alerta)}.cci-not-chip.info{color:var(--not-fg)}
+.cci-not-secao{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px}.cci-not-secao h3{margin:0}
+.cci-notificacoes .cci-not-card{background:var(--not-card);border-left:5px solid var(--not-line)}
+.cci-not-card[data-situacao=ok]{border-left-color:var(--not-ok)}.cci-not-card[data-situacao=alerta]{border-left-color:var(--not-alerta)}.cci-not-card[data-situacao=info]{border-left-color:var(--not-info)}
+.cci-not-topo{display:flex;align-items:center;gap:12px}.cci-not-titulo{flex:1;min-width:0}.cci-not-titulo h4{margin:0;font-size:16px}.cci-not-titulo small{color:var(--not-suave)}
+.cci-not-icone{font-size:26px;line-height:1;width:40px;height:40px;display:grid;place-items:center;border-radius:10px;background:var(--not-bg);border:1px solid var(--not-line)}
+.cci-not-selo{font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.cci-not-ok{color:var(--not-ok);background:var(--not-ok-bg)}.cci-not-alerta{color:var(--not-alerta);background:var(--not-alerta-bg)}.cci-not-info{color:var(--not-info);background:var(--not-info-bg)}
+.cci-not-passos{display:flex;flex-wrap:wrap;gap:6px 18px;margin:12px 0 4px;padding-left:20px;font-size:14px}
+.cci-not-passos li.feito{color:var(--not-ok)}.cci-not-passos li.falta{color:var(--not-alerta)}.cci-not-passos li.neutro{color:var(--not-suave)}
+.cci-not-acoes{display:flex;flex-wrap:wrap;margin:6px -4px 0}
+.cci-notificacoes button.cci-not-primario{background:#0071e3;border-color:#0071e3;color:#fff;font-weight:600}
+.cci-not-tag{color:var(--not-info);font-weight:600}
+.cci-not-dica{color:var(--not-suave);font-size:14px}.cci-not-dica code{font-size:13px;padding:1px 5px;border-radius:5px;background:var(--not-info-bg);color:var(--not-fg)}
+.cci-not-vazio{padding:14px;border:1px dashed var(--not-line);border-radius:12px;color:var(--not-suave)}
+.cci-not-num{display:inline-grid;place-items:center;width:22px;height:22px;margin-right:6px;border-radius:50%;background:#0071e3;color:#fff;font-size:12px;font-weight:700}
+@media(max-width:600px){.cci-not-topo{flex-wrap:wrap}.cci-not-acoes button{flex:1 1 100%}}
+.cci-notificacoes pre.cci-not-previa{padding:14px 16px;border-radius:12px;background:var(--not-card);border:1px solid var(--not-line);border-left:5px solid var(--not-info)}
+.cci-not-resultado{padding:10px 12px;border-radius:10px}.cci-not-resultado.cci-not-erro{color:#d70015;background:#ffebee}
+:root[data-theme=dark] .cci-not-resultado.cci-not-erro,body.dark-mode .cci-not-resultado.cci-not-erro{color:#ff6961;background:#3b1414}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .cci-not-resultado.cci-not-erro{color:#ff6961;background:#3b1414}}

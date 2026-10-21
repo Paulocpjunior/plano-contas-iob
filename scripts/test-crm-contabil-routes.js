@@ -104,6 +104,22 @@ if(require.main===module)(async()=>{
   assert.equal((await auto.call('POST',previewPath,{...entrada,categoria:'DEFIS'},'admin',{id:'A06'})).statusCode,400);
   assert.equal((await auto.call('GET','/api/crm/automacoes/:id/historico',{},'colab',{id:'A06'})).statusCode,403);
   assert.equal((await auto.call('GET','/api/crm/automacoes/:id/historico',{},'admin',{id:'A06'})).body.itens.length,2);
+  // Automação criada pelo administrador: aparece na central, ocupa P01 e só gera prévia com o dado que o texto usa.
+  const nova={revisao:0,nome:'Ficha financeira disponível',canal:'teams',destinatarios:['https://teams.microsoft.com/l/channel/fixture'],modelo:'Ficha de {{empresa}} — {{competencia}}',motivo:'Criação'};
+  assert.equal((await auto.call('GET','/api/crm/automacoes',{},'admin')).body.proxima_personalizada,'P01');
+  assert.equal((await auto.call('PUT',confPath,nova,'colab',{id:'P01'})).statusCode,403);
+  assert.equal((await auto.call('PUT',confPath,{...nova,nome:''},'admin',{id:'P01'})).statusCode,400);
+  assert.equal((await auto.call('PUT',confPath,nova,'admin',{id:'P01'})).statusCode,200);
+  assert.equal((await auto.call('PUT',confPath,nova,'admin',{id:'P01'})).statusCode,409,'segunda criação no mesmo id conflita');
+  assert.equal((await auto.call('PUT',confPath,nova,'admin',{id:'P21'})).statusCode,404);
+  const lista=(await auto.call('GET','/api/crm/automacoes',{},'admin')).body;
+  assert.equal(lista.regras.length,9);assert.equal(lista.proxima_personalizada,'P02');
+  const propria=lista.regras.find(r=>r.id==='P01');assert.equal(propria.nome,'Ficha financeira disponível');assert.equal(propria.personalizada,true);assert.equal(propria.config.canal,'teams');
+  assert(lista.variaveis_personalizadas.includes('competencia'));
+  const pv={revisao:1,chave:'fixture-propria-00001',evento:'manual'};
+  assert.equal((await auto.call('POST',previewPath,pv,'admin',{id:'P01'})).statusCode,400,'competência ausente não vira texto vazio');
+  const pr=await auto.call('POST',previewPath,{...pv,competencia:'2026-09'},'admin',{id:'P01'});
+  assert.equal(pr.statusCode,200);assert.equal(pr.body.previa.mensagem,'Ficha de Fixture — 2026-09');assert.equal(pr.body.previa.titulo,'Ficha financeira disponível');
   auto.dados.set('users/admin',{is_admin:false});
   assert.equal((await auto.call('PUT',confPath,{...payload,revisao:1},'admin',{id:'A06'})).statusCode,403);
   }

@@ -155,8 +155,14 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
   app.get(path,wrap(async(req,res)=>{
     await acesso(req);
     const docs=await Promise.all(catalogo.map(r=>colecao(req).doc(escopoEmpresa?modulo+'_'+r.id:r.id).get()));
+    const prefixo=escopoEmpresa?modulo+'_':'';
+    const proprias=(await colecao(req).where('personalizada','==',true).get()).docs
+      .filter(d=>d.id.startsWith(prefixo)&&automacoes.personalizada(d.id.slice(prefixo.length)))
+      .map(d=>{const config=d.data(),id=d.id.slice(prefixo.length);return {...automacoes.regra(id,modulo),nome:config.nome,canal:config.canal,modelo:config.modelo,config};})
+      .sort((a,b)=>a.id.localeCompare(b.id));
     await acesso(req);
-    res.json({ok:true,modulo,cnpj:escopoEmpresa?req.params.cnpj:null,variaveis:automacoes.variaveisDoModulo(modulo),envios_habilitados:entrega.disponibilidade(env).email,canais:entrega.disponibilidade(env),agenda_habilitada:true,regras:catalogo.map((r,i)=>({...r,config:docs[i].exists?docs[i].data():{revisao:0,ativa:false,modelo:r.modelo,canal:r.canal,destinatarios:[]}}))});
+    const usados=new Set(proprias.map(r=>r.id));
+    res.json({ok:true,modulo,cnpj:escopoEmpresa?req.params.cnpj:null,variaveis:automacoes.variaveisDoModulo(modulo),variaveis_personalizadas:automacoes.variaveisDoModulo(modulo,'P01'),proxima_personalizada:automacoes.idsPersonalizados.find(id=>!usados.has(id))||null,envios_habilitados:entrega.disponibilidade(env).email,canais:entrega.disponibilidade(env),agenda_habilitada:true,regras:[...catalogo.map((r,i)=>({...r,config:docs[i].exists?docs[i].data():{revisao:0,ativa:false,modelo:r.modelo,canal:r.canal,destinatarios:[]}})),...proprias]});
   }));
   app.put(path+'/:id',wrap(async(req,res)=>{
     automacoes.regra(req.params.id,modulo);

@@ -29,3 +29,34 @@ assert.equal(configurar('A01',{}, {...b,canal:'teams',destinatarios:['https://te
 assert.throws(()=>configurar('A01',{}, {...b,canal:'sms'},'u','t'),/Escolha/);
 assert.throws(()=>configurar('A01',{}, {...b,destinatarios:Array(21).fill('a@example.com')},'u','t'),/vinte/);
 assert.throws(()=>configurar('A01',{}, {...b,destinatarios:['']},'u','t'),/destinatário/);
+
+// Automações criadas pelo administrador (P01–P20): nome obrigatório, só manual/agenda e variável vazia não vira texto em branco.
+{
+  const {personalizada,idsPersonalizados,variaveisDoModulo,regra}=require('../crm-automacoes');
+  assert(personalizada('P01')&&personalizada('P20')&&!personalizada('P21')&&!personalizada('P00')&&!personalizada('A01'));
+  assert.equal(idsPersonalizados.length,20);
+  assert.throws(()=>regra('P21'),/desconhecida/);
+  assert.deepEqual(regra('P03').gatilhos,['manual']);
+  assert(variaveisDoModulo('crm','P01').includes('competencia')&&!variaveisDoModulo('crm','A03').includes('competencia'));
+  const base={revisao:0,canal:'teams',destinatarios:['https://teams.microsoft.com/l/channel/fixture'],modelo:'Ficha financeira de {{empresa}}, competência {{competencia}}.',motivo:'Criação'};
+  assert.throws(()=>configurar('P01',{},base,'admin','t'),/nome da automação/);
+  const cfg=configurar('P01',{},{...base,nome:'Ficha financeira disponível'},'admin','t');
+  assert.equal(cfg.personalizada,true);assert.equal(cfg.nome,'Ficha financeira disponível');assert.equal(cfg.ativa,false);
+  assert.throws(()=>configurar('A03',{},{...base,modelo:'{{competencia}}'},'admin','t'),/desconhecida/);
+  const empresa={cnpj:'12345678000190',razao_social:'Empresa Fixture'};
+  assert.throws(()=>preparar('P01',{},{evento:'manual'},empresa),/Salve a configuração/);
+  assert.throws(()=>preparar('P01',cfg,{evento:'manual'},empresa),/Informe a competência/);
+  assert.throws(()=>preparar('P01',cfg,{evento:'manual',competencia:'2026-13'},empresa),/competência válida/);
+  assert.throws(()=>preparar('P01',cfg,{evento:'cadastro_criado',competencia:'2026-09'},empresa),/Gatilho/);
+  const p=preparar('P01',cfg,{evento:'manual',competencia:'2026-09'},empresa);
+  assert.equal(p.mensagem,'Ficha financeira de Empresa Fixture, competência 2026-09.');
+  assert.equal(p.titulo,'Ficha financeira disponível');assert.equal(p.canal,'teams');assert.equal(p.envio_realizado,false);
+  assert.equal(preparar('A03',{revisao:1,modelo:'{{empresa}}'},{evento:'manual'},empresa).titulo,'Aviso administrativo manual');
+  const ag=require('../notificacoes-agenda');
+  const ex=ag.configurarExecucao('P01','crm',{tipo:'agenda',cnpj:empresa.cnpj,frequencia:'mensal',inicio:'2099-01-05T09:00',competencia_modo:'anterior',motivo:'Mensal'},'2026-10-21T00:00:00Z');
+  assert.equal(ex.competencia_modo,'anterior');assert.equal(ex.evento,'manual');
+  assert.equal(ag.parametros(ex,'2026-11-05T12:00:00Z').competencia,'2026-10');
+  assert.throws(()=>ag.configurarExecucao('P01','crm',{tipo:'evento',evento:'cadastro_criado',motivo:'x'},'2026-10-21T00:00:00Z'),/gatilho de cadastro/);
+  assert.equal(ag.configurarExecucao('A03','crm',{tipo:'agenda',cnpj:empresa.cnpj,frequencia:'unica',inicio:'2099-01-05T09:00',motivo:'x'},'2026-10-21T00:00:00Z').competencia_modo,null);
+  console.log('CRM automações personalizadas: nome, gatilho manual, competência e título conferidos.');
+}

@@ -1,6 +1,6 @@
 'use strict';
 const {erro,texto}=require('./crm-contabil');
-const {regra}=require('./crm-automacoes');
+const {regra,personalizada}=require('./crm-automacoes');
 const ZONE='America/Sao_Paulo';
 function horarioLocal(iso){
   const p=Object.fromEntries(new Intl.DateTimeFormat('sv-SE',{timeZone:ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(iso)).map(x=>[x.type,x.value]));
@@ -38,7 +38,7 @@ function configurarExecucao(id,modulo,b,agora){
   if(id!=='A08'&&!(tipo==='evento'&&cnpj==='*')&&!/^\d{14}$/.test(cnpj))throw erro('Informe o CNPJ da empresa desta execução.');
   if(tipo==='evento'&&!r.gatilhos.includes(b.evento))throw erro('Escolha um gatilho disponível.');
   const params={evento:tipo==='evento'?b.evento:r.gatilhos[0],observacao:texto(b.observacao,1000,'observação',false)||'',exercicio:String(b.exercicio||''),link:String(b.link||''),categoria:['A04','A05'].includes(id)?'DEFIS':(['A06','A07'].includes(id)?'DITR':'')};
-  const competencia=modulo==='aplicacoes'?(b.competencia_modo||'fixa'):null;
+  const competencia=modulo==='aplicacoes'||personalizada(id)?(b.competencia_modo||'fixa'):null;
   if(competencia&&!['fixa','atual','anterior'].includes(competencia))throw erro('Escolha a competência da mensagem.');
   if(competencia==='fixa')params.competencia=String(b.competencia||'');
   let agenda=null,proximo=null;
