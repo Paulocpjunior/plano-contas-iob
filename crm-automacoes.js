@@ -16,15 +16,23 @@ const aplicacoes=[
   {id:'F03',nome:'Conclusão da conferência',gatilhos:['manual'],canal:'email',modelo:'Conferência de aplicações financeiras de {{empresa}} ({{cnpj}}), competência {{competencia}}. Registro informado pelo responsável: {{observacao}}'}
 ];
 function catalogoDoModulo(modulo='crm'){if(modulo==='crm')return catalogo;if(modulo==='aplicacoes')return aplicacoes;throw erro('Módulo de notificações desconhecido.',404);}
-function regra(id,modulo='crm'){const r=catalogoDoModulo(modulo).find(x=>x.id===id);if(!r)throw erro('Automação desconhecida. Atualize a central.',404);return r;}
+// Automações criadas pelo administrador: P01 a P20 por módulo, sempre manuais ou por agenda.
+// O nome e o modelo moram na configuração gravada; aqui fica só o contrato comum.
+const MAX_PERSONALIZADAS=20;
+const personalizada=id=>/^P(0[1-9]|1\d|20)$/.test(String(id));
+const idsPersonalizados=Array.from({length:MAX_PERSONALIZADAS},(_,i)=>'P'+String(i+1).padStart(2,'0'));
+function regra(id,modulo='crm'){
+  if(personalizada(id)){catalogoDoModulo(modulo);return {id,nome:'Automação personalizada',gatilhos:['manual'],canal:'email',modelo:'',personalizada:true};}
+  const r=catalogoDoModulo(modulo).find(x=>x.id===id);if(!r)throw erro('Automação desconhecida. Atualize a central.',404);return r;}
 const variaveis=['empresa','cnpj','evento','exercicio','link','observacao'];
-function variaveisDoModulo(modulo){return modulo==='aplicacoes'?['empresa','cnpj','evento','competencia','observacao']:variaveis;}
+function variaveisDoModulo(modulo,id){if(modulo==='aplicacoes')return ['empresa','cnpj','evento','competencia','observacao'];return personalizada(id)?[...variaveis,'competencia']:variaveis;}
+const ROTULOS={empresa:'a razão social da empresa',cnpj:'o CNPJ',competencia:'a competência',observacao:'a observação',exercicio:'o exercício',link:'o link do documento'};
 function configurar(id,antes,b,uid,quando,modulo='crm'){
   const r=regra(id,modulo);
   if(!Number.isSafeInteger(b.revisao)||b.revisao!==(antes.revisao||0))throw erro('A configuração mudou. Atualize a central.',409);
   if(b.ativa===true)throw erro('Ative a execução em Gatilhos e agenda depois de salvar a configuração.',409);
   const modelo=texto(b.modelo,4000,'modelo',true);
-  const resto=modelo.replace(/{{([a-z]+)}}/g,(m,v)=>{if(!variaveisDoModulo(modulo).includes(v))throw erro('Variável desconhecida no modelo: '+v);return '';});
+  const resto=modelo.replace(/{{([a-z]+)}}/g,(m,v)=>{if(!variaveisDoModulo(modulo,id).includes(v))throw erro('Variável desconhecida no modelo: '+v);return '';});
   if(/[{}]/.test(resto))throw erro('Use variáveis no formato {{empresa}}.');
   const canal=['email','teams'].includes(r.canal)?(b.canal||r.canal):r.canal;
   if(['email','teams'].includes(r.canal)&&!['email','teams'].includes(canal))throw erro('Escolha e-mail ou Teams.');
@@ -37,7 +45,8 @@ function configurar(id,antes,b,uid,quando,modulo='crm'){
   }
   if(destinatarios.length&&['registro','consulta'].includes(canal))throw erro('Esta operação não recebe destinatário externo.');
   const motivo=texto(b.motivo,1000,'motivo',true);
-  return {...(antes.conexao_teams?{conexao_teams:antes.conexao_teams}:{}),id,revisao:(antes.revisao||0)+1,ativa:false,modelo,canal,destinatarios,motivo,alterado_por:uid,alterado_em:quando};
+  const extra=personalizada(id)?{personalizada:true,nome:texto(b.nome,80,'nome da automação',true)}:{};
+  return {...(antes.conexao_teams?{conexao_teams:antes.conexao_teams}:{}),...extra,id,revisao:(antes.revisao||0)+1,ativa:false,modelo,canal,destinatarios,motivo,alterado_por:uid,alterado_em:quando};
 }
 function preparar(id,cfg,b,empresa,modulo='crm'){
   const r=regra(id,modulo);
@@ -56,9 +65,17 @@ function preparar(id,cfg,b,empresa,modulo='crm'){
     if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(b.competencia||''))throw erro('Informe uma competência válida, no formato AAAA-MM.');
     dados.competencia=b.competencia;
     if(['F02','F03'].includes(id)&&!dados.observacao)throw erro('Descreva as pendências ou a conferência realizada.');
+  }else if(personalizada(id)&&b.competencia){
+    if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(b.competencia))throw erro('Informe uma competência válida, no formato AAAA-MM.');
+    dados.competencia=b.competencia;
+  }
+  if(personalizada(id)){
+    if(!cfg.revisao)throw erro('Salve a configuração desta automação antes de gerar a prévia.');
+    // Variável vazia não vira texto em branco: a prévia pede o dado que falta.
+    for(const [,v] of (cfg.modelo||'').matchAll(/{{([a-z]+)}}/g))if(v!=='evento'&&!dados[v])throw erro('Informe '+(ROTULOS[v]||v)+': o modelo usa {{'+v+'}}.');
   }
   const modelo=cfg.modelo||r.modelo;
   const mensagem=modelo.replace(/{{([a-z]+)}}/g,(_,v)=>dados[v]??'');
-  return {...(cfg.canal==='teams'&&cfg.conexao_teams?{conexao_teams:cfg.conexao_teams}:{}),automacao:id,canal:cfg.canal||r.canal,evento:b.evento,cnpj:dados.cnpj,config_revisao:cfg.revisao||0,destinatarios:cfg.destinatarios||[],mensagem,estado:'previa',envio_realizado:false,pendencias:r.canal==='registro'?['Imprimir o registro não comprova entrega da obrigação.']:['Confira os destinatários e a mensagem. O envio exige confirmação e conexão disponível para o canal.']};
+  return {...(cfg.canal==='teams'&&cfg.conexao_teams?{conexao_teams:cfg.conexao_teams}:{}),automacao:id,titulo:cfg.nome||r.nome,canal:cfg.canal||r.canal,evento:b.evento,cnpj:dados.cnpj,config_revisao:cfg.revisao||0,destinatarios:cfg.destinatarios||[],mensagem,estado:'previa',envio_realizado:false,pendencias:r.canal==='registro'?['Imprimir o registro não comprova entrega da obrigação.']:['Confira os destinatários e a mensagem. O envio exige confirmação e conexão disponível para o canal.']};
 }
-module.exports={catalogo,catalogoDoModulo,variaveisDoModulo,regra,configurar,preparar};
+module.exports={catalogo,catalogoDoModulo,variaveisDoModulo,regra,personalizada,idsPersonalizados,configurar,preparar};

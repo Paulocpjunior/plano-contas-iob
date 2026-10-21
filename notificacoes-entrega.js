@@ -17,7 +17,7 @@ async function enviar({destino,previa,emailColaborador}, {env=process.env,token=
     const r=await fetcher('https://graph.microsoft.com/v1.0/users/'+encodeURIComponent(remetente)+'/sendMail',{
       method:'POST',redirect:'error',signal:AbortSignal.timeout(12000),
       headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
-      body:JSON.stringify({message:{subject:'CCI · '+previa.automacao+' · '+previa.cnpj,body:{contentType:'HTML',content:'<div style="white-space:pre-wrap">'+esc(previa.mensagem)+'</div>'},toRecipients:[{emailAddress:{address:destino}}]},saveToSentItems:true})
+      body:JSON.stringify({message:{subject:'CCI · '+(previa.titulo||previa.automacao)+' · '+previa.cnpj,body:{contentType:'HTML',content:'<div style="white-space:pre-wrap">'+esc(previa.mensagem)+'</div>'},toRecipients:[{emailAddress:{address:destino}}]},saveToSentItems:true})
     });
     if(r.status===202)return {estado:'aceito',remetente,detalhe:'Aceito pelo Microsoft 365. A entrega na caixa do destinatário não foi confirmada.'};
     if(r.status>=400&&r.status<500&&r.status!==408)return {estado:'recusado',remetente,detalhe:'Microsoft 365 recusou o envio (HTTP '+r.status+'). Confira acesso e destinatário.'};

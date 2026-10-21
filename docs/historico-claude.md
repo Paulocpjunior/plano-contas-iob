@@ -2202,3 +2202,10 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 
 - Paulo (print): CRM → Gestão da carteira → Automações do CRM dava "window.abrirCentralNotificacoes is not a function". Causa: `admin.html` carregava `crm-contabil-ui.js` sem `notificacoes-ui.js`, `notificacoes.css` e `crm-sharepoint-ui.js` (o `index.html` já carregava). Trava em `test-notificacoes-compartilhadas.js`: toda página que abre o CRM carrega essas dependências antes.
 - Decisão do Paulo: Teams continua por chat ou canal (Workflows), sem cadastro de usuário do tenant. "Ficha Financeira" foi engano de nome. Manual do usuário em PDF entregue nos arquivos do projeto (notificacoes/teams-ficha-financeira).
+
+## 21/10/2026 — v3.4.443: automações criadas pelo administrador e central didática
+
+- Paulo: a central abriu na 3.4.442, mas as regras fixas (A01–A08, F01–F03) não serviam e não havia como criar um aviso. Pediu também layout mais didático, com cores e símbolos.
+- Automações próprias: ids reservados P01–P20 por módulo (`crm-automacoes.js`, `personalizada()`); `regra()` devolve um contrato comum (gatilho só `manual`, agenda permitida) e o nome/modelo/canal moram no documento de configuração (`personalizada:true`, `nome`). A central lista pelo `where('personalizada','==',true)` e devolve `proxima_personalizada`. Sem exclusão nesta versão (para parar, não ativar/pausar a agenda).
+- Personalizadas aceitam `{{competencia}}` também no CRM (agenda com competência fixa/atual/anterior). Variável usada no texto e vazia bloqueia a prévia com "Informe X: o modelo usa {{x}}" (ausente ≠ vazio). Prévia ganhou `titulo` (nome da regra), usado no assunto do e-mail e no cartão do Teams no lugar do id.
+- UI (`notificacoes-ui.js`/`notificacoes.css`): guia de 4 passos, situação ✅/⚠️ por cor calculada só do que está salvo (Teams exige conexão do mesmo destino), ícone por canal, passos por cartão e formulário numerado.
