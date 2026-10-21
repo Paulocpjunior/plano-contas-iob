@@ -1,5 +1,6 @@
 'use strict';
 
+const { hash } = require('./crm-sharepoint-documentos');
 const { criarMonitor, BIBLIOTECAS, EVENTOS } = require('./crm-sharepoint-monitor');
 const { criarLeitorProxy } = require('./crm-sharepoint-proxy');
 const { criarResolvedorCarteira } = require('./crm-sharepoint-carteira');
@@ -9,7 +10,7 @@ const { criarReprocessador } = require('./crm-sharepoint-reprocessar');
 
 // Somente falhas produzidas pelos validadores locais podem fornecer uma mensagem
 // pública. Erros HTTP/SDK/Firestore não têm o corpo original encaminhado ao cliente.
-const ERROS_PUBLICOS = new Set(['ADMIN_NECESSARIO', 'IDENTIFICADOR_INVALIDO', 'DRIVE_INVALIDO', 'SHAREPOINT_VALIDACAO',
+const ERROS_PUBLICOS = new Set(['BIBLIOTECA_AUSENTE', 'INVENTARIO_ALTERADO', 'ADMIN_NECESSARIO', 'IDENTIFICADOR_INVALIDO', 'DRIVE_INVALIDO', 'SHAREPOINT_VALIDACAO',
   'REVISAO_DIVERGENTE', 'CICLO_EM_ANDAMENTO', 'HOST_INVALIDO', 'CONFIGURACAO_INVALIDA',
   'BIBLIOTECA_DIVERGENTE', 'VINCULO_INVALIDO', 'INVENTARIO_NECESSARIO', 'EMPRESA_NAO_CONFIRMADA',
   'PASTA_NAO_CONFIRMADA', 'BIBLIOTECA_NAO_HABILITADA', 'BIBLIOTECA_REVISAO_INVALIDA',
@@ -74,7 +75,9 @@ function criar({ db, env = process.env, agora = Date.now, lerPagina, validarDest
     return uid;
   }
   const publico = d => ({ biblioteca_id: d.id, drive_id: d.data().drive_id, sharepoint_host: d.data().sharepoint_host,
-    fase: d.data().fase, habilitada: d.data().habilitada === true, homologada: d.data().homologada === true,
+    site_nome: d.data().site_nome || null, biblioteca_nome: d.data().biblioteca_nome || null,
+    tem_inventario: !!d.data().geracao, tipo_ciclo: d.data().ciclo?.tipo || null,
+    retomar_apos_ms: d.data().retomar_apos_ms || null, fase: d.data().fase, habilitada: d.data().habilitada === true, homologada: d.data().homologada === true,
     envios_habilitados: d.data().envios_habilitados === true, revisao: d.data().revisao,
     canais: d.data().canais || [], tem_checkpoint: !!d.data().checkpoint, etapa: d.data().ciclo?.etapa || null,
     paginas: d.data().ciclo?.paginas || 0, ultimo_ciclo_em: d.data().ultimo_ciclo_em || null,
@@ -95,6 +98,30 @@ function criar({ db, env = process.env, agora = Date.now, lerPagina, validarDest
       return { monitor_habilitado: habilitado(), envio_habilitado: env.CCI_SHAREPOINT_SEND_ENABLED === 'true',
         bibliotecas: docs.docs.slice(0, 100).map(publico), limite_excedido: docs.size > 100 };
     }));
+    app.get('/api/crm/sharepoint/pastas', route(async req => {
+      const { driveId, cursor, geracao } = req.query || {};
+      if (typeof driveId !== 'string' || !/^[A-Za-z0-9_!.-]{1,256}$/.test(driveId) ||
+          (cursor !== undefined && (typeof cursor !== 'string' || !/^[a-f0-9]{64}$/.test(cursor)))) {
+        throw Object.assign(new Error('Identificador ou cursor inválido. Atualize a consulta.'), { status: 400, code: 'IDENTIFICADOR_INVALIDO' });
+      }
+      const ref = db.collection(BIBLIOTECAS).doc(hash(driveId)), snap = await ref.get(), lib = snap.data();
+      if (!lib || lib.drive_id !== driveId) throw Object.assign(new Error('Biblioteca não cadastrada.'), { status: 404, code: 'BIBLIOTECA_AUSENTE' });
+      if (geracao !== undefined && geracao !== lib.geracao) throw Object.assign(new Error('Inventário alterado. Consulte as pastas novamente.'), { status: 409, code: 'INVENTARIO_ALTERADO' });
+      if (!lib.geracao) return { pastas: [], proximo: null, geracao: null, inventario_concluido: false, revisao: lib.revisao };
+      let query = ref.collection('inventarios').doc(lib.geracao).collection('itens').orderBy('__name__');
+      if (cursor) query = query.startAfter(cursor);
+      const itens = await query.limit(51).get(), pagina = itens.docs.slice(0, 50);
+      // Página limitada de metadados. Nomes não participam da identificação da empresa.
+      const pastas = await Promise.all(pagina.filter(d => {
+        const i = d.data().item; return i?.folder && !i.root && !i.excluido;
+      }).map(async d => {
+        const i = d.data().item, v = (await ref.collection('vinculos').doc(hash(i.id)).get()).data();
+        return { pasta_id: i.id, nome: i.name || null, pai_id: i.parentReference?.id || null,
+          vinculo: v ? { cnpj: v.cnpj, ativo: v.ativo === true, confirmado_em: v.confirmado_em || null } : null };
+      }));
+      return { pastas, geracao: lib.geracao, revisao: lib.revisao, inventario_concluido: true,
+        proximo: itens.size > 50 ? pagina.at(-1).id : null };
+    }));
     app.get('/api/crm/sharepoint/eventos', route(async () => {
       const docs = await db.collection(EVENTOS).orderBy('quando', 'desc').limit(50).get();
       return { eventos: docs.docs.map(d => { const e = d.data(); return { id: d.id, biblioteca_id: e.biblioteca_id,
@@ -105,6 +132,7 @@ function criar({ db, env = process.env, agora = Date.now, lerPagina, validarDest
     }));
     app.post('/api/crm/sharepoint/bibliotecas', route((req, adminUid) => configurador.salvarBiblioteca({
       adminUid, driveId: req.body?.driveId, sharepointHost: req.body?.sharepointHost,
+      siteNome: req.body?.siteNome, bibliotecaNome: req.body?.bibliotecaNome,
       revisao: req.body?.revisao, habilitada: req.body?.habilitada, canais: req.body?.canais
     })));
     app.post('/api/crm/sharepoint/vinculos', route((req, adminUid) => configurador.vincularPasta({

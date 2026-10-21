@@ -26,7 +26,7 @@ function rotas(runtime) {
     get(path, handler) { handlers.set('GET ' + path, handler); },
     post(path, handler) { handlers.set('POST ' + path, handler); },
   });
-  return async function chamar(method, rota, { user = { uid: 'admin' }, body = {} } = {}) {
+  return async function chamar(method, rota, { user = { uid: 'admin' }, body = {}, query = {} } = {}) {
     const handler = handlers.get(method + ' ' + prefixo + rota);
     assert.equal(typeof handler, 'function', 'A rota precisa estar registrada');
     const r = { status: 200, body: null, headers: {} };
@@ -35,7 +35,7 @@ function rotas(runtime) {
       status(value) { r.status = value; return this; },
       json(value) { r.body = value; return this; },
     };
-    await handler({ user, body }, res);
+    await handler({ user, body, query }, res);
     return r;
   };
 }
@@ -68,7 +68,7 @@ test('criação, registro, execução e scheduler desligados não fazem I/O nem 
 });
 
 test('todas as rotas administrativas recusam identidade ausente, inativa ou privilégio revogado', async () => {
-  const cases = [['GET', '/bibliotecas'], ['GET', '/eventos'], ['POST', '/bibliotecas'], ['POST', '/vinculos'], ['POST', '/executar'], ['POST', '/reconciliar'], ['POST', '/retomar'], ['POST', '/reprocessar']];
+  const cases = [['GET', '/bibliotecas'], ['GET', '/eventos'], ['GET', '/pastas'], ['POST', '/bibliotecas'], ['POST', '/vinculos'], ['POST', '/executar'], ['POST', '/reconciliar'], ['POST', '/retomar'], ['POST', '/reprocessar']];
   for (const user of [null, { uid: '' }, { uid: 'admin/outra' }, { uid: 'contador', is_admin: true }, { uid: 'admin', is_admin: true }]) {
     const db = dbBase();
     db.seed('users/admin', { is_admin: true, active: false });
@@ -217,4 +217,57 @@ test('configuração, inventário, carteira e fila usam o mesmo banco existente;
   assert.deepEqual(db.read('empresas/' + cnpj), originalEmpresa);
   assert.deepEqual(db.read('crm_topologia/gestao'), originalGestao);
   assert.ok(db.commits.flat().every(op => op.path.startsWith('crm_sharepoint_')));
+});
+
+
+test('cadastro rotulado Documentos / ClientesSP2 permanece desligado e ignora autorização de envio do cliente', async () => {
+  const db = dbBase(), chamar = rotas(criar({db, env:{}, agora:()=>instante}));
+  const r = await chamar('POST', '/bibliotecas', {body:{driveId:drive, sharepointHost:host,
+    siteNome:'ClientesSP2', bibliotecaNome:'Documentos', envios_habilitados:true, homologada:true}});
+  assert.equal(r.status, 200);
+  const lib = db.read(pathBiblioteca);
+  assert.equal(lib.habilitada, false); assert.equal(lib.envios_habilitados, false); assert.equal(lib.homologada, false);
+  const lista = await chamar('GET', '/bibliotecas');
+  assert.equal(lista.body.bibliotecas[0].site_nome, 'ClientesSP2');
+  assert.equal(lista.body.bibliotecas[0].biblioteca_nome, 'Documentos');
+  const erro = await chamar('POST', '/bibliotecas', {body:{driveId:'outro',sharepointHost:host,siteNome:'x'.repeat(121)}});
+  assert.equal(erro.status,400);
+});
+
+test('consulta de pastas pagina por ID, não inclui arquivos, raiz, excluídos ou segredos e consulta vínculo explícito', async () => {
+  const db = dbBase();
+  db.seed(pathBiblioteca, {drive_id:drive, revisao:2, geracao:'g1'});
+  const items = pathBiblioteca + '/inventarios/g1/itens/';
+  for (let i=0;i<55;i++) db.seed(items + i.toString(16).padStart(64,'0'), {item:{id:'pasta-'+i,
+    name:'Nome não comprova CNPJ <script>', folder:{}, parentReference:{id:'raiz'}, segredo:'TOKEN_NAO_PUBLICO', webUrl:'https://privado/?token=segredo'}});
+  db.seed(items + 'a'.repeat(64), {item:{id:'arquivo',file:{}}});
+  db.seed(items + 'b'.repeat(64), {item:{id:'raiz',folder:{},root:{}}});
+  db.seed(items + 'c'.repeat(64), {item:{id:'excluida',folder:{},excluido:true}});
+  db.seed(pathBiblioteca+'/vinculos/'+hash('pasta-0'), {cnpj,ativo:true,confirmado_em:'2026-10-21',token:'TOKEN_NAO_PUBLICO'});
+  const chamar = rotas(criar({db,env:{}}));
+  const primeira = await chamar('GET','/pastas',{query:{driveId:drive}});
+  assert.equal(primeira.status,200); assert.equal(primeira.body.pastas.length,50);
+  assert.equal(primeira.body.pastas[0].vinculo.cnpj,cnpj);
+  assert.equal(primeira.body.pastas[1].vinculo,null);
+  assert.ok(primeira.body.proximo);
+  const segunda = await chamar('GET','/pastas',{query:{driveId:drive,cursor:primeira.body.proximo,geracao:'g1'}});
+  assert.equal(segunda.body.pastas.length,5); assert.equal(segunda.body.proximo,null);
+  const serializado = JSON.stringify([primeira.body,segunda.body]);
+  assert.equal(serializado.includes('TOKEN_NAO_PUBLICO'),false); assert.equal(serializado.includes('https://privado'),false);
+  assert.equal(db.commits.length,0);
+  db.seed(pathBiblioteca, {drive_id:drive,revisao:3,geracao:'g2'});
+  const alterada = await chamar('GET','/pastas',{query:{driveId:drive,cursor:primeira.body.proximo,geracao:'g1'}});
+  assert.equal(alterada.status,409); assert.equal(alterada.body.codigo,'INVENTARIO_ALTERADO');
+});
+
+test('pastas valida parâmetros, biblioteca ausente e inventário ainda não concluído sem escrita', async () => {
+  const db=dbBase(), chamar=rotas(criar({db,env:{}}));
+  for (const query of [{},{driveId:'x/y'},{driveId:drive,cursor:'token-privado'},{driveId:[drive]}]) {
+    assert.equal((await chamar('GET','/pastas',{query})).status,400);
+  }
+  assert.equal((await chamar('GET','/pastas',{query:{driveId:drive}})).status,404);
+  db.seed(pathBiblioteca,{drive_id:drive,revisao:1});
+  const r=await chamar('GET','/pastas',{query:{driveId:drive}});
+  assert.equal(r.body.inventario_concluido,false); assert.deepEqual(r.body.pastas,[]); assert.equal(r.body.proximo,null);
+  assert.equal(db.commits.length,0);
 });
