@@ -3,6 +3,7 @@
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.normalizarMovimentoFiscalCfi = api.normalizarMovimentoFiscalCfi;
+  root.repetidosMovimentoFiscalCfi = api.repetidosMovimentoFiscalCfi;
 })(typeof window !== 'undefined' ? window : globalThis, function() {
   'use strict';
 
@@ -325,5 +326,25 @@
     };
   }
 
-  return { normalizarMovimentoFiscalCfi };
+  // Notas do CFI que já estão na empresa. O id do lançamento leva o CFOP
+  // (`:CFOP:2407`), então comparar só ele deixava reimportar a MESMA nota
+  // quando o CFOP mudou no CFI (21/10, NF 285590: 1929 → 2407) e o mês
+  // dobrava. A nota (cfiDocumentoId) também conta.
+  function repetidosMovimentoFiscalCfi(existentes, novos) {
+    const doCfi = (existentes || []).filter(e => e && e.origemDadosFiscal === 'CFI_API');
+    const lancs = new Set(doCfi.map(e => String(e.cfiLancamentoId || '')).filter(Boolean));
+    const docs = new Map();
+    doCfi.forEach(e => { const id = String(e.cfiDocumentoId || ''); if (id && !docs.has(id)) docs.set(id, e); });
+    const notas = new Map();
+    (novos || []).forEach(n => {
+      const doc = String(n.cfiDocumentoId || ''), lanc = String(n.cfiLancamentoId || '');
+      const antigo = doc && docs.get(doc);
+      if (!antigo && !(lanc && lancs.has(lanc))) return;
+      const chave = doc || lanc;
+      if (!notas.has(chave)) notas.set(chave, { numero: String(n.documento || n.numero_nf || ''), cfopNovo: n.cfop || '', cfopAnterior: (antigo && antigo.cfop) || '' });
+    });
+    return [...notas.values()];
+  }
+
+  return { normalizarMovimentoFiscalCfi, repetidosMovimentoFiscalCfi };
 });
