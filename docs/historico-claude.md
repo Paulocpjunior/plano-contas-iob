@@ -2184,3 +2184,10 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 
 - Paulo: NF 285590 (NOVA ERA 09/2026) com 2407 no Livro de Entradas do CFI e 1929 no CCI. O CCI só repassa `gruposCfop`; a troca era no CFI (`movimento-nfe-contabil.js` invertia o 1º dígito sem `cfopDoLancamento`). Correção no CFI, na mesma régua do Livro.
 - CCI: `cfiLancamentoId` leva o CFOP, então a trava antiga deixava a mesma nota entrar de novo com CFOP novo. `repetidosMovimentoFiscalCfi` (em `movimento-fiscal-cfi.js`) compara também `cfiDocumentoId` e mostra CFOP antigo → novo. Competências importadas antes da correção: remover a importação e reimportar.
+
+## 21/10/2026 — v3.4.440: trava de digitação pelo último encerramento
+
+- Paulo (NOB Imóveis, fechamento trimestral): março/2026 encerrado e fevereiro/2026 ainda aceitava digitação. Regra: encerrada uma competência, ela e todas as anteriores ficam travadas para incluir/alterar/excluir (inclusive importações), sem encerrar nem apurar os meses anteriores. Correção vai para o período posterior.
+- Módulo puro `trava-digitacao-contabil.js` (UMD, servidor e navegador). Marco = maior `periodos_contabeis` com status `fechado`; `reaberto` não conta. Usado em `impedirAlteracaoPeriodosFechados` (autosave, migração SAGE, exclusão administrativa), FI, DARF pago, ativo, evento patrimonial e `lancamentos-edicao-lote.js` (tela).
+- Decisão: reabrir o encerramento mais recente devolve o marco ao encerramento anterior. Só o mais recente pode ser reaberto, e não se encerra mês anterior ao marco (`PERIODO_POSTERIOR_FECHADO`).
+- Fora do escopo: conciliação manual S/N (não altera lançamento) segue travando só a competência encerrada.

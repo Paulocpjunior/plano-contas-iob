@@ -1,8 +1,9 @@
 (function (root, factory) {
-    const api = factory();
+    const trava = typeof module === 'object' && module.exports ? require('./trava-digitacao-contabil') : root && root.CCITravaDigitacaoContabil;
+    const api = factory(trava);
     if (typeof module === 'object' && module.exports) module.exports = api;
     if (root) root.CCILancamentosEdicaoLote = api;
-})(typeof window !== 'undefined' ? window : globalThis, function () {
+})(typeof window !== 'undefined' ? window : globalThis, function (trava) {
     'use strict';
 
     const CAMPOS_PERMITIDOS = ['contaDebito', 'contaCredito', 'codigoHistorico', 'historico'];
@@ -26,20 +27,31 @@
         return String(entry && entry.data || '').slice(0, 7);
     }
 
+    // Bloqueia a competência encerrada e todas as anteriores ao último encerramento (trava-digitacao-contabil.js).
     function periodoFechado(entry, periodos) {
         const periodo = periodoLancamento(entry);
-        return !!periodo && (periodos || []).some(function (item) {
+        if (!periodo) return false;
+        if (trava) return trava.periodoBloqueado(periodo, periodos);
+        return (periodos || []).some(function (item) {
             return item && item.periodo === periodo && item.status === 'fechado';
         });
+    }
+
+    function motivoBloqueio(entry, periodos) {
+        if (!periodoFechado(entry, periodos)) return '';
+        return trava ? trava.rotuloSituacao(periodoLancamento(entry), periodos) : 'Competência encerrada. Solicite a reabertura administrativa.';
     }
 
     function garantirPeriodosAbertos(entries, periodos) {
         const fechados = Array.from(new Set((entries || [])
             .filter(function (entry) { return periodoFechado(entry, periodos); })
-            .map(periodoLancamento)));
+            .map(periodoLancamento))).sort();
         if (fechados.length) {
-            const erro = new Error('O período ' + fechados.join(', ') + ' está encerrado. Solicite a reabertura administrativa antes de alterar.');
+            const erro = new Error(trava
+                ? trava.mensagemBloqueio(fechados, periodos)
+                : 'O período ' + fechados.join(', ') + ' está encerrado. Solicite a reabertura administrativa antes de alterar.');
             erro.code = 'PERIODO_CONTABIL_FECHADO';
+            erro.periodos = fechados;
             throw erro;
         }
     }
@@ -255,6 +267,7 @@
         aplicar: aplicar,
         periodoLancamento: periodoLancamento,
         periodoFechado: periodoFechado,
+        motivoBloqueio: motivoBloqueio,
         garantirPeriodosAbertos: garantirPeriodosAbertos,
         executarComRollback: executarComRollback,
         aplicarEdicaoIndividual: aplicarEdicaoIndividual,

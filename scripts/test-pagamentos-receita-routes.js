@@ -6,7 +6,8 @@ const cnpj = '00000000000000';
 const documento = { numeroDocumento: '123', tipo: { sigla: 'DARF' }, receita: { codigo: '9999' }, periodoApuracao: '2026-09-01', dataArrecadacao: '2026-10-12', valorPrincipal: 100, valorMulta: 0, valorJuros: null, valorTotal: 100, desmembramentos: [] };
 function ambiente() {
   const routes = {}, dados = new Map();
-  const ref = path => ({ path, collection: nome => ({ doc: id => ref(path + '/' + nome + '/' + (id || 'auto')) }),
+  const listar = base => async () => ({ docs: [...dados].filter(([p]) => p.startsWith(base + '/') && !p.slice(base.length + 1).includes('/')).map(([p, d]) => ({ id: p.split('/').pop(), data: () => d })) });
+  const ref = path => ({ path, collection: nome => ({ doc: id => ref(path + '/' + nome + '/' + (id || 'auto')), get: listar(path + '/' + nome) }),
     async get() { return { exists: dados.has(path), data: () => dados.get(path) }; }, async set(d) { dados.set(path, d); } });
   const db = { collection: nome => ({ doc: id => ref(nome + '/' + id) }) };
   const app = { get: (p,f) => { routes['GET '+p] = f; }, post: (p,f) => { routes['POST '+p] = f; } };
@@ -51,7 +52,10 @@ function ambiente() {
   assert(a.dados.has(`empresas/${cnpj}/pagamentos_receita_baixas/${hash(cnpj+':DARF:123')}`));
   a = ambiente(); const c2 = await a.call('consultar'); const b2={...body,consultaId:c2.body.consultaId};
   a.dados.set(`empresas/${cnpj}/periodos_contabeis/2026-10`, { status:'fechado' });
-  p = await a.call('previa',b2); assert(!p.body.ok); assert(p.body.erros.some(x=>x.includes('encerrada')));
+  p = await a.call('previa',b2); assert(!p.body.ok); assert(p.body.erros.some(x=>/2026-10 está encerrado/.test(x)));
+  // Trava pelo último encerramento: novembro encerrado bloqueia a baixa em outubro, mesmo aberto.
+  a.dados.set(`empresas/${cnpj}/periodos_contabeis/2026-10`, { status:'reaberto' }); a.dados.set(`empresas/${cnpj}/periodos_contabeis/2026-11`, { status:'fechado' });
+  p = await a.call('previa',b2); assert(!p.body.ok); assert(p.body.erros.some(x=>/2026-10 é anterior ao encerramento de novembro\/2026/.test(x)));
   assert.equal((await a.call('confirmar',{...b2,hashPrevia:p.body.hashPrevia})).statusCode,409); assert.equal(a.controle.writes,0);
   a.controle.agora += 31*60000; assert.equal((await a.call('previa',b2)).statusCode,409);
   for (const response of [{ ok:false, status:502,json:async()=>({error:'falhou'}) }, { ok:true,status:200,json:async()=>({ok:true,fonte:'dry_run',documentos:[]}) }]) {

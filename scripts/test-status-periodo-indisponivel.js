@@ -9,7 +9,7 @@ vm.runInContext(src.slice(src.indexOf('  async function carregarStatus('),src.in
 (async()=>{
 await c.carregarStatus(true);assert.equal(c.statusAtual.periodos[0].status,'fechado');assert.equal(c.statusEmpresa,'a');
 fail=true;await assert.rejects(c.carregarStatus(true));assert.equal(c.statusAtual,null);assert.equal(c.statusEmpresa,null);
-assert(src.includes("anual || emIntervalo || fechado || !statusConferido ? 'none' : ''"));
+assert(src.includes("anual || emIntervalo || fechado || anteriorAoEncerramento || !statusConferido ? 'none' : ''"));
 assert(src.includes('id="rcFechar" style="display:none"'));
 console.log('OK: consulta falha não converte encerrado em aberto; fechamento oculto até confirmação.');
 })().catch(e=>{console.error(e);process.exitCode=1});

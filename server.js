@@ -29,6 +29,7 @@ const ProgressaoAlertas = require('./progressao-alertas');
 const { avaliarParametrizacaoRegime, sanitizarParametrizacaoRegime } = require('./parametrizacao-regime');
 const { definirEquipe, atribuirResponsavel, camposCarteira, normalizarResponsaveis, removerResponsavel } = require('./carteira-contabil');
 const RelatoriosContabeis = require('./relatorios-contabeis');
+const TravaDigitacao = require('./trava-digitacao-contabil');
 const AtivoImobilizado = require('./ativo-imobilizado');
 const AtivoImobilizadoContabil = require('./ativo-imobilizado-contabil');
 const ConciliacaoContabil = require('./conciliacao-contabil');
@@ -2281,22 +2282,44 @@ function assinaturaEstadoPeriodo(estado, periodo) {
   return hashSessao(RelatoriosContabeis.assinaturaPeriodo((estado && estado.entries) || [], periodo) + '|' + JSON.stringify(saldos));
 }
 
+// Competências cobertas pela trava (a encerrada mais recente e todas as anteriores) que mudaram entre a sessão
+// gravada e a nova. Agrupa por competência uma vez para não varrer todos os lançamentos a cada mês.
+function periodosTravadosAlterados(atual, novo, periodos) {
+  const marco = TravaDigitacao.marcoTrava(periodos);
+  if (!marco) return [];
+  const grupos = [new Map(), new Map()];
+  [atual, novo].forEach(function (estado, i) {
+    (estado.entries || []).forEach(function (l) {
+      const periodo = RelatoriosContabeis.periodoDaData(l && l.data);
+      if (!periodo || periodo > marco) return;
+      if (!grupos[i].has(periodo)) grupos[i].set(periodo, []);
+      grupos[i].get(periodo).push(l);
+    });
+  });
+  const candidatos = new Set([...grupos[0].keys(), ...grupos[1].keys()]);
+  [atual, novo].forEach(function (estado) {
+    Object.keys((estado.relatoriosContabeis && estado.relatoriosContabeis.saldosIniciais) || {}).forEach(function (p) { if (TravaDigitacao.periodoValido(p) && p <= marco) candidatos.add(p); });
+  });
+  TravaDigitacao.listaPeriodos(periodos).forEach(function (item) { if (item.status === 'fechado') candidatos.add(item.periodo); });
+  return Array.from(candidatos).filter(function (periodo) {
+    const a = { entries: grupos[0].get(periodo) || [], relatoriosContabeis: atual.relatoriosContabeis };
+    const b = { entries: grupos[1].get(periodo) || [], relatoriosContabeis: novo.relatoriosContabeis };
+    return assinaturaEstadoPeriodo(a, periodo) !== assinaturaEstadoPeriodo(b, periodo);
+  }).sort();
+}
+
 async function impedirAlteracaoPeriodosFechados(cnpj, stateJsonAtual, stateJsonNovo, periodosCarregados) {
   const periodos = periodosCarregados || await db.collection('empresas').doc(cnpj).collection('periodos_contabeis').get();
-  const fechados = periodos.docs.filter(function (doc) { return String((doc.data() || {}).status) === 'fechado'; });
-  if (!fechados.length) return;
-  const atual = lerEstadoContabil(stateJsonAtual);
-  const novo = lerEstadoContabil(stateJsonNovo);
-  const alterados = fechados.map(function (doc) { return doc.id; }).filter(function (periodo) {
-    return assinaturaEstadoPeriodo(atual, periodo) !== assinaturaEstadoPeriodo(novo, periodo);
-  });
-  if (alterados.length) {
-    throw erroSessao(
-      'O período ' + alterados.join(', ') + ' está encerrado. Reabra a competência antes de alterar seus lançamentos.',
-      409,
-      'PERIODO_CONTABIL_FECHADO'
-    );
-  }
+  if (!TravaDigitacao.marcoTrava(periodos)) return;
+  const alterados = periodosTravadosAlterados(lerEstadoContabil(stateJsonAtual), lerEstadoContabil(stateJsonNovo), periodos);
+  if (alterados.length) throw erroSessao(TravaDigitacao.mensagemBloqueio(alterados, periodos), 409, 'PERIODO_CONTABIL_FECHADO');
+}
+
+// Inclusão de lançamentos gerados no servidor (ativo, evento patrimonial, DARF, FI): mesma trava da digitação.
+async function periodoTravadoParaDigitacao(empresaRef, periodo) {
+  const periodos = await empresaRef.collection('periodos_contabeis').get();
+  const situacao = TravaDigitacao.situacao(periodo, periodos);
+  return situacao.bloqueado ? TravaDigitacao.mensagemBloqueio([periodo], periodos) : '';
 }
 
 async function impedirSobrescritaSaldosTransportados(cnpj, stateJsonNovo, transportesCarregados) {
@@ -4145,8 +4168,8 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/eventos/previa', async (re
     const tipo = String(req.body && req.body.tipo || '').trim();
     const previa = await previaEventoAtivoEmpresa(empresaRef, String(req.params.id || ''), tipo, req.body || {}, sessao.stateJson || '');
     if (previa.periodo) {
-      const periodoDoc = await empresaRef.collection('periodos_contabeis').doc(previa.periodo).get();
-      if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') return res.status(409).json({ erro: 'Reabra a competência antes de contabilizar o evento patrimonial.', codigo: 'PERIODO_CONTABIL_FECHADO' });
+      const travaEvento = await periodoTravadoParaDigitacao(empresaRef, previa.periodo);
+      if (travaEvento) return res.status(409).json({ erro: travaEvento, codigo: 'PERIODO_CONTABIL_FECHADO' });
     }
     res.json({ ...previa, hash_previa: hashSessao(JSON.stringify({ lancamentos: previa.lancamentos, mutacao_bem: previa.mutacao_bem })) });
   } catch (e) { res.status(e.status || 500).json({ erro: e.message, codigo: e.codigo || 'ERRO_PREVIA_EVENTO_ATIVO' }); }
@@ -4169,8 +4192,8 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/:id/eventos/aprovar', async (r
     if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Sessão contábil não encontrada.', 409, 'SESSAO_NAO_ENCONTRADA');
     const previa = await previaEventoAtivoEmpresa(empresaRef, bemId, tipo, req.body || {}, sessao.stateJson);
     if (!previa.ok) throw erroSessao(previa.erros[0] || 'Evento patrimonial sem lançamento válido.', 409, 'ATIVO_SEM_LANCAMENTOS');
-    const periodoDoc = await empresaRef.collection('periodos_contabeis').doc(previa.periodo).get();
-    if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') throw erroSessao('Reabra a competência antes de contabilizar o evento patrimonial.', 409, 'PERIODO_CONTABIL_FECHADO');
+    const travaEvento = await periodoTravadoParaDigitacao(empresaRef, previa.periodo);
+    if (travaEvento) throw erroSessao(travaEvento, 409, 'PERIODO_CONTABIL_FECHADO');
     const hashAtual = hashSessao(JSON.stringify({ lancamentos: previa.lancamentos, mutacao_bem: previa.mutacao_bem }));
     if (!hashPrevia || hashAtual !== hashPrevia) throw erroSessao('A prévia mudou. Revise o evento antes de aprovar.', 409, 'PREVIA_DESATUALIZADA');
     const state = parsearStateJson(sessao.stateJson);
@@ -4217,13 +4240,14 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/previa', async (re
     const chk = await checarAcessoEmpresa(cnpj, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
     const empresaRef = db.collection('empresas').doc(cnpj);
-    const [bensSnap, geradosSnap, periodoDoc, sessao] = await Promise.all([
+    const [bensSnap, geradosSnap, periodosSnap, sessao] = await Promise.all([
       empresaRef.collection('ativos_imobilizados').get(),
       empresaRef.collection('ativos_lancamentos').where('periodo', '==', periodo).get(),
-      empresaRef.collection('periodos_contabeis').doc(periodo).get(),
+      empresaRef.collection('periodos_contabeis').get(),
       carregarSessaoAtualPorRef(empresaRef.collection('sessoes').doc('current'))
     ]);
-    if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') return res.status(409).json({ erro: 'Reabra a competência antes de gerar lançamentos do ativo.', codigo: 'PERIODO_CONTABIL_FECHADO' });
+    const travaAtivo = TravaDigitacao.periodoBloqueado(periodo, periodosSnap) ? TravaDigitacao.mensagemBloqueio([periodo], periodosSnap) : '';
+    if (travaAtivo) return res.status(409).json({ erro: travaAtivo, codigo: 'PERIODO_CONTABIL_FECHADO' });
     const bens = bensSnap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; });
     const chavesSessao = sessao.encontrada && sessao.stateJson ? parsearStateJson(sessao.stateJson).entries.map(function (item) { return String(item.chave || ''); }).filter(Boolean) : [];
     const jaGerados = geradosSnap.docs.map(function (doc) { return String((doc.data() || {}).chave || doc.id); }).concat(chavesSessao);
@@ -4246,8 +4270,8 @@ app.post('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/aprovar', async (r
     const empresaRef = db.collection('empresas').doc(cnpj);
     sessaoRef = empresaRef.collection('sessoes').doc('current');
     tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'ativo_imobilizado');
-    const periodoDoc = await empresaRef.collection('periodos_contabeis').doc(periodo).get();
-    if (periodoDoc.exists && String((periodoDoc.data() || {}).status) === 'fechado') throw erroSessao('Reabra a competência antes de gerar lançamentos do ativo.', 409, 'PERIODO_CONTABIL_FECHADO');
+    const travaAtivo = await periodoTravadoParaDigitacao(empresaRef, periodo);
+    if (travaAtivo) throw erroSessao(travaAtivo, 409, 'PERIODO_CONTABIL_FECHADO');
     const sessao = await carregarSessaoAtualPorRef(sessaoRef);
     if (!sessao.encontrada || !sessao.stateJson) throw erroSessao('Sessão contábil não encontrada.', 409, 'SESSAO_NAO_ENCONTRADA');
     const [bensSnap, geradosSnap] = await Promise.all([
@@ -4355,6 +4379,7 @@ app.get('/api/empresas/:cnpj/contabilidade/periodos', async (req, res) => {
     }).sort(function (a, b) { return b.periodo.localeCompare(a.periodo); });
     res.json({
       periodos,
+      trava_digitacao: { ate: TravaDigitacao.marcoTrava(periodos) },
       transportes: transportesSnap.docs.map(function (doc) { const d = doc.data() || {}; return { id: doc.id, ...d, gerado_em: serializarDataSegura(d.gerado_em) }; }),
       conciliacoes: conciliacoesSnap.docs.map(function (doc) { const d = doc.data() || {}; return { id: doc.id, ...d, aprovado_em: serializarDataSegura(d.aprovado_em) }; }),
       is_admin: !!req.user.is_admin,
@@ -4741,6 +4766,14 @@ app.post('/api/empresas/:cnpj/contabilidade/fechar', async (req, res) => {
     if (periodoAtual.exists && String((periodoAtual.data() || {}).status) === 'fechado') {
       return res.status(409).json({ erro: 'Esta competência já está encerrada.', codigo: 'PERIODO_CONTABIL_FECHADO' });
     }
+    // Encerrar um mês anterior ao último encerramento mudaria saldos já transportados e a trava de digitação.
+    const marcoEncerramento = TravaDigitacao.marcoTrava(await empresaRef.collection('periodos_contabeis').get());
+    if (marcoEncerramento && periodo < marcoEncerramento) {
+      return res.status(409).json({
+        erro: 'Não é possível encerrar ' + TravaDigitacao.rotuloPeriodo(periodo) + ': ' + TravaDigitacao.rotuloPeriodo(marcoEncerramento) + ' já está encerrado e os meses anteriores ficam bloqueados para digitação. Para encerrar ' + TravaDigitacao.rotuloPeriodo(periodo) + ', peça a um administrador a reabertura de ' + TravaDigitacao.rotuloPeriodo(marcoEncerramento) + '.',
+        codigo: 'PERIODO_POSTERIOR_FECHADO'
+      });
+    }
     sessaoRef = empresaRef.collection('sessoes').doc('current');
     tokenTrava = await adquirirTravaSessao(sessaoRef, req.user, 'fechamento_contabil');
     const sessao = await carregarSessaoAtualPorRef(sessaoRef);
@@ -4875,6 +4908,10 @@ app.post('/api/empresas/:cnpj/contabilidade/reabrir', adminRequired, async (req,
       throw erroSessao('A competência não está encerrada.', 409, 'PERIODO_NAO_FECHADO');
     }
     const empresaRef = db.collection('empresas').doc(cnpjLimpo);
+    const marcoEncerramento = TravaDigitacao.marcoTrava(await empresaRef.collection('periodos_contabeis').get());
+    if (marcoEncerramento && periodo < marcoEncerramento) {
+      throw erroSessao('Reabra primeiro o encerramento mais recente, ' + TravaDigitacao.rotuloPeriodo(marcoEncerramento) + '. Enquanto ele estiver encerrado, ' + TravaDigitacao.rotuloPeriodo(periodo) + ' continua bloqueado para digitação.', 409, 'PERIODO_POSTERIOR_FECHADO');
+    }
     const proximo = proximoPeriodo(periodo);
     const proximoDoc = await empresaRef.collection('periodos_contabeis').doc(proximo).get();
     if (proximoDoc.exists && String((proximoDoc.data() || {}).status) === 'fechado') {

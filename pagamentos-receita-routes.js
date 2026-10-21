@@ -1,6 +1,7 @@
 'use strict';
 const { randomUUID } = require('crypto');
 const { proporBaixa, hash } = require('./pagamentos-receita');
+const TravaDigitacao = require('./trava-digitacao-contabil');
 const erro = (mensagem, status = 409) => Object.assign(new Error(mensagem), { status });
 
 async function consultarCfi({ cnpj, filtro, token, env = process.env, fetchImpl = fetch }) {
@@ -76,8 +77,8 @@ function registrar(app, deps) {
     const baixado = await ctx.ref.collection('pagamentos_receita_baixas').doc(hash(previa.chaveDocumento)).get();
     if (baixado.exists) previa.erros.push('Este DARF já foi contabilizado por esta integração. Confira o histórico da baixa.');
     if (previa.periodo) {
-      const periodo = await ctx.ref.collection('periodos_contabeis').doc(previa.periodo).get();
-      if (periodo.exists && periodo.data().status === 'fechado') previa.erros.push('A competência da arrecadação está encerrada. Solicite a reabertura antes de baixar.');
+      const periodos = await ctx.ref.collection('periodos_contabeis').get();
+      if (TravaDigitacao.periodoBloqueado(previa.periodo, periodos)) previa.erros.push('Competência da arrecadação bloqueada. ' + TravaDigitacao.mensagemBloqueio([previa.periodo], periodos));
     }
     previa.ok = previa.erros.length === 0;
     const hashPrevia = hash({ consultaId, competencia, previa, mapeamento, plano: ctx.empresa.plano_id,

@@ -86,7 +86,7 @@ assert(server.includes("collection('relatorios_contabeis_envios')"), 'auditoria 
 assert(server.includes("collection('fechamentos_contabeis')"), 'fotografia imutável do fechamento ausente');
 assert(server.includes('fotografia.hash = hashSessao'), 'fotografia não usa hash SHA-256 no servidor');
 assert(server.includes('PERIODO_CONTABIL_FECHADO'), 'bloqueio de edição do período fechado ausente');
-assert(server.includes('assinaturaEstadoPeriodo(atual, periodo) !== assinaturaEstadoPeriodo(novo, periodo)'), 'saldos e lançamentos fechados não são protegidos juntos');
+assert(server.includes('const a = { entries: grupos[0].get(periodo) || [], relatoriosContabeis: atual.relatoriosContabeis };') && server.includes('assinaturaEstadoPeriodo(a, periodo) !== assinaturaEstadoPeriodo(b, periodo)'), 'saldos e lançamentos fechados não são protegidos juntos');
 assert(server.includes('SEM_MOVIMENTO_CONTABIL'), 'fechamento sem movimento não está bloqueado');
 assert(server.includes("dre: 'Demonstração do Resultado do Exercício'"), 'envio por e-mail da DRE não foi liberado');
 assert(server.includes("balanco: 'Balanço Patrimonial'"), 'envio por e-mail do Balanço não foi liberado');
