@@ -2,6 +2,12 @@
 
 ## Estado da entrega
 
+**Atualização de 21/10/2026:** o usuário rejeitou a arquitetura de VPN paga.
+O transporte SMB3/VPN deste PR não deve ser implantado. A integração deve ser
+revisada com base nas ferramentas nativas do UNAS, sem serviços adicionais pagos.
+Foi confirmada na interface Drive a opção Local Backup com origem Rsync Server e
+destino UNAS; a compatibilidade da origem GCS ainda precisa ser demonstrada.
+
 Implementação candidata para revisão. **Não implantada e não homologada no UNAS.**
 Nenhum export, transferência de dados reais, restauração, alteração de agenda ou
 mudança de permissão foi executado nesta entrega. Testes usam dados sintéticos.

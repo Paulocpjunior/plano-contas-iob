@@ -1,5 +1,12 @@
 # Preparação de infraestrutura — 21/10/2026
 
+> **ABORDAGEM CANCELADA pelo usuário em 21/10/2026.** Não implantar VPN paga.
+> O usuário exige aproveitar os recursos nativos do UNAS, sem contratação adicional.
+> Gateway, IP reservado e forwarding rules removidos; limpeza da VPC/sub-rede,
+> firewall e recipiente vazio de segredo iniciada. O formulário UniFi foi
+> descartado sem submissão. Nenhum túnel chegou a ser criado. Este documento
+> preserva o histórico, não constitui instrução vigente de implantação.
+
 Continuação autorizada pelo usuário após o PR #338. Este registro complementa o
 diagnóstico inicial; **não comprova túnel conectado, transferência ou restauração**.
 
@@ -41,6 +48,8 @@ Formulário Site-to-Site VPN:
 - Chave não lida nem inserida pelo agente; criação não submetida.
 
 ## Próximo passo necessário
+
+**Cancelado — não executar os passos abaixo.**
 
 O administrador insere/guarda uma chave aleatória forte no UniFi e adiciona o mesmo
 valor como versão do secret `unas-backup-vpn-psk` no Secret Manager. Não enviar
