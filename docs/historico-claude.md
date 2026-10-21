@@ -2179,3 +2179,8 @@ Componente único em notificacoes-ui.js, regras F01–F03 por empresa, competên
 - Sintoma: "Value for argument documentPath is not a valid resource path" ao salvar Dados da Empresa (PATCH `/api/empresas/:cnpj/cadastro`) e ao criar empresa. Regressão da 3.4.431 (#321).
 - Causa: `eventoRef` em `notificacoes-motor.js` chamava `doc(id||undefined)`; o SDK real só gera ID com `doc()` sem argumento. O banco falso dos testes aceitava `undefined`.
 - Correção: `id ? col.doc(id) : col.doc()`. Regressão com o SDK real (`new Firestore`, sem rede) em `scripts/test-notificacoes-automacao.js`.
+
+## 21/10/2026 — v3.4.439: CFOP do CFI sem troca no CCI e trava de reimportação por nota
+
+- Paulo: NF 285590 (NOVA ERA 09/2026) com 2407 no Livro de Entradas do CFI e 1929 no CCI. O CCI só repassa `gruposCfop`; a troca era no CFI (`movimento-nfe-contabil.js` invertia o 1º dígito sem `cfopDoLancamento`). Correção no CFI, na mesma régua do Livro.
+- CCI: `cfiLancamentoId` leva o CFOP, então a trava antiga deixava a mesma nota entrar de novo com CFOP novo. `repetidosMovimentoFiscalCfi` (em `movimento-fiscal-cfi.js`) compara também `cfiDocumentoId` e mostra CFOP antigo → novo. Competências importadas antes da correção: remover a importação e reimportar.
