@@ -325,7 +325,12 @@ function adminRequired(req, res, next) {
 }
 
 const motorNotificacoes = require('./notificacoes-motor').criar({db});
-require('./notificacoes-internal').registrar(app,{db,motor:motorNotificacoes});
+const monitorSharepoint = require('./crm-sharepoint-runtime').criar({db});
+require('./notificacoes-internal').registrar(app,{db,motor:{rodar:async()=>{
+  const resultado = await motorNotificacoes.rodar();
+  try { return {...resultado, sharepoint:await monitorSharepoint.rodar()}; }
+  catch { return {...resultado, sharepoint:{estado:'falhou',detalhe:'Consulte o histórico documental; o envio permanece sujeito à homologação.'}}; }
+}}});
 require('./backup-notifications').register({app,db,email:GraphEmail,express});
 app.use('/api', authRequired);
 app.use('/api', protegerAcoes);
@@ -358,6 +363,7 @@ app.use('/api/gemini', criarLimitador({
 app.use('/api', (req, res, next) => express.json({ limit: limiteCorpoPara(req), verify: verificarTamanhoJson })(req, res, next));
 require('./gestao-acessos.cjs').registrar(app, { db, auth: adminAuth, adminRequired, aplicativo: 'cci', efetivas: permissoesEfetivas });
 require('./crm-contabil-routes').registrar(app, { db, domain: DOMAIN, storage: { bucket: nome => admin.storage().bucket(nome) } });
+monitorSharepoint.registrar(app);
 
 app.post('/api/auditai/extrair-pdf-contabil', adminRequired, async (req, res) => {
   const base64 = String((req.body && req.body.data) || '').replace(/^data:application\/pdf;base64,/, '');

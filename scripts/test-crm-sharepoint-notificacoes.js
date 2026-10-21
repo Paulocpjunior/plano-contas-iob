@@ -29,3 +29,38 @@ test('bloqueia vinculos duplicados',()=>assert.throws(()=>prepararEvento({...bas
 test('bloqueia responsavel revogado',()=>assert.throws(()=>prepararEvento({...base,usuarios:usuarios.filter(u=>u.uid!=='u1')})));
 test('bloqueia CNPJ divergente',()=>assert.throws(()=>prepararEvento({...base,empresa:{...empresa,cnpj:'12345678000191'}})));
 test('bloqueia evento desconhecido',()=>assert.throws(()=>prepararEvento({...base,evento:'outro'})));
+
+test('delta não autoriza inferir download de documento', () => {
+ assert.throws(() => prepararEvento({...base,evento:'arquivo_baixado'}));
+});
+test('exige gestor para todos os responsáveis, inclusive apoio', () => {
+ assert.throws(() => prepararEvento({...base,gestao:undefined}), {code:'SHAREPOINT_GESTOR_AUSENTE'});
+ assert.throws(() => prepararEvento({...base,gestao:{equipes:[{lider_uid:'g1',membros:['u1']}]}}), {code:'SHAREPOINT_GESTOR_AUSENTE'});
+});
+test('bloqueia topologia com gestores divergentes', () => {
+ const duplicada={equipes:[...gestao.equipes,{lider_uid:'g2',membros:['u2']}]};
+ assert.throws(() => prepararEvento({...base,gestao:duplicada}), {code:'SHAREPOINT_GESTOR_AMBIGUO'});
+});
+test('líder responsável recebe uma única notificação por identidade', () => {
+ const r=prepararEvento({...base,empresa:{...empresa,responsaveis:[{uid:'g1',papel:'principal'},{uid:'u2',papel:'apoio'}]}});
+ assert.deepEqual(r.gestores,[{uid:'g1',email:'gestor@escritorio.com.br'}]);
+ assert.equal(r.destinatarios.length,2);
+ assert.equal(r.destinatarios.filter(d=>d.uid==='g1').length,1);
+ assert.equal(r.envio_realizado,false);
+});
+test('bloqueia endereços vazios, malformados ou de outro domínio', () => {
+ for (const email of ['@escritorio.com.br','a b@escritorio.com.br','a..b@escritorio.com.br','a@escritorio.com.br.evil.test','a@outro.com.br','a\r\nBcc:b@escritorio.com.br']) {
+  assert.throws(() => prepararEvento({...base,usuarios:usuarios.map(u=>u.uid==='u1'?{...u,email}:u)}), {code:'SHAREPOINT_EMAIL_INVALIDO'});
+ }
+});
+test('bloqueia e-mail corporativo compartilhado entre UIDs diferentes', () => {
+ assert.throws(() => prepararEvento({...base,usuarios:usuarios.map(u=>u.uid==='u2'?{...u,email:usuarios[0].email}:u)}), {code:'SHAREPOINT_EMAIL_AMBIGUO'});
+});
+test('bloqueia mais de um responsável principal e UID repetido', () => {
+ assert.throws(() => prepararEvento({...base,empresa:{...empresa,responsaveis:empresa.responsaveis.map(r=>({...r,papel:'principal'}))}}), {code:'SHAREPOINT_PRINCIPAL_INVALIDO'});
+ assert.throws(() => prepararEvento({...base,empresa:{...empresa,responsaveis:[...empresa.responsaveis,empresa.responsaveis[0]]}}), {code:'SHAREPOINT_CARTEIRA_AMBIGUA'});
+});
+test('gestor inativo interrompe a preparação', () => {
+ assert.throws(() => prepararEvento({...base,usuarios:usuarios.map(u=>u.uid==='g1'?{...u,ativo:false}:u)}), {code:'SHAREPOINT_USUARIO_INATIVO'});
+});
+

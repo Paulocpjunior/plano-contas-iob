@@ -1,0 +1,33 @@
+name: Testes documentais do CCI
+
+on:
+  pull_request:
+    paths:
+      - 'crm-sharepoint-*.js'
+      - 'carteira-contabil.js'
+      - 'crm-contabil.js'
+      - 'notificacoes-*.js'
+      - 'server.js'
+      - 'package.json'
+      - 'scripts/test-crm-sharepoint-*.js'
+      - 'scripts/helpers/sharepoint-firestore.js'
+      - '.github/workflows/test-crm-sharepoint.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Conferir sintaxe e integração com dependências simuladas
+        run: |
+          node --check server.js
+          npm run check:crm-sharepoint
+          npm run test:crm-sharepoint
