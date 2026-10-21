@@ -65,7 +65,18 @@ assert.deepStrictEqual(comEstranha.campos_totais_divergentes, ['linhas_nao_lidas
 assert.throws(() => validarVinculoCnpjRelatorioFiscal(comEstranha, OPCOES), err =>
   err.message.includes('linha "' + estranha + '" de 28/01/2026, linha fora do leiaute do relatório'));
 
-// 4) Relatório completo segue liberado, sem linhas acusadas.
+// 4) Relatório só com a nota incompleta: continua reconhecido e a mensagem
+//    aponta a NF, em vez de "PDF não reconhecido".
+const soIncompleta = parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos(relatorio([SEM_DATA],
+  'Total 775,00 0,00 0,00 0,00 0,00 11,62 0,00'));
+assert.strictEqual(soIncompleta.detectado, true);
+assert.strictEqual(soIncompleta.lancamentos.length, 0);
+assert.throws(() => validarVinculoCnpjRelatorioFiscal(soIncompleta, OPCOES), err =>
+  err.message.includes('NF 0000012 de 21/01/2026, sem data da compensação') && /permanece bloqueada/.test(err.message));
+assert.throws(() => validarVinculoCnpjRelatorioFiscal(soIncompleta, { cnpjEmpresaAtiva: '11.444.777/0001-61', movimento: 'impostos_retidos_servicos' }),
+  /difere do CNPJ da empresa ativa/);
+
+// 5) Relatório completo segue liberado, sem linhas acusadas.
 const ok = parsearTexto_IOBSageDemonstrativoImpostosRetidosServicos(relatorio([COMPLETA_1, COMPLETA_2],
   'Total 5.092,45 5.092,45 33,10 152,77 50,92 66,56 0,00'));
 assert.deepStrictEqual(ok.linhas_nao_lidas, []);

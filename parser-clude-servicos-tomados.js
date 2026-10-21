@@ -1146,7 +1146,8 @@
     const totalRetencoes = somas.pis + somas.cofins + somas.csll + somas.irrf + somas.inss;
 
     return {
-      detectado: notasFiscais.length > 0,
+      // Relatório só com notas incompletas segue reconhecido, para a tela apontar a NF.
+      detectado: notasFiscais.length > 0 || linhasNaoLidas.length > 0,
       banco_detectado: metaEmpresa.codigo,
       nome_banco_detectado: metaEmpresa.nome || 'Demonstrativo de Impostos Retidos em Servicos',
       conta_detectada: 'IMPOSTOS_RETIDOS_SERVICOS',
@@ -1652,7 +1653,8 @@
     if (resultado && resultado.detectado && resultado.total_notas_zeradas > 0 && Array.isArray(resultado.lancamentos) && !resultado.lancamentos.length && !resultado.total_divergente) {
       throw new Error('Todas as ' + resultado.total_notas_zeradas + ' notas estão zeradas. Não há valores para integrar nem lançamentos contábeis a gerar.');
     }
-    if (!resultado || !resultado.detectado || !Array.isArray(resultado.lancamentos) || !resultado.lancamentos.length) {
+    const temLinhasNaoLidas = !!(resultado && Array.isArray(resultado.linhas_nao_lidas) && resultado.linhas_nao_lidas.length);
+    if (!resultado || !resultado.detectado || !Array.isArray(resultado.lancamentos) || (!resultado.lancamentos.length && !temLinhasNaoLidas)) {
       throw new Error('O PDF nao foi reconhecido como relatorio E-Fiscal de servicos do modelo selecionado.');
     }
     if (movimentoEsperado && movimentoDetectado !== movimentoEsperado) {
