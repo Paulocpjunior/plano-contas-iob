@@ -399,9 +399,12 @@ function preferenciasImpressao(ctx, sobrescritas) {
     const periodoStatus = emIntervalo || anual ? null : statusDoPeriodo(dados.periodo);
     const statusConferido = statusAtual && statusEmpresa === String(contexto().empresa.cnpj);
     const fechado = statusConferido && periodoStatus && periodoStatus.status === 'fechado';
-    document.getElementById('rcStatusPeriodo').textContent = anual ? '📅 Visão anual ' + dados.ano : (emIntervalo ? '📅 Intervalo personalizado' : (!statusConferido ? '⚠️ Situação do período não conferida' : fechado ? '🔒 Período encerrado' : (periodoStatus && periodoStatus.status === 'reaberto' ? '🔓 Período reaberto' : '🟢 Período aberto')));
-    document.getElementById('rcFechar').style.display = anual || emIntervalo || fechado || !statusConferido ? 'none' : '';
-    const podeReabrir = fechado && statusAtual && statusAtual.is_admin;
+    const travaDigitacao = !anual && !emIntervalo && statusConferido ? situacaoTravaDigitacao(dados.periodo) : null;
+    const anteriorAoEncerramento = !!(travaDigitacao && travaDigitacao.motivo === 'anterior_encerramento');
+    document.getElementById('rcStatusPeriodo').textContent = anual ? '📅 Visão anual ' + dados.ano : (emIntervalo ? '📅 Intervalo personalizado' : (!statusConferido ? '⚠️ Situação do período não conferida' : fechado ? '🔒 Período encerrado' : anteriorAoEncerramento ? '🔒 Bloqueado para digitação (anterior ao encerramento de ' + window.CCITravaDigitacaoContabil.rotuloPeriodo(travaDigitacao.marco) + ')' : (periodoStatus && periodoStatus.status === 'reaberto' ? '🔓 Período reaberto' : '🟢 Período aberto')));
+    document.getElementById('rcFechar').style.display = anual || emIntervalo || fechado || anteriorAoEncerramento || !statusConferido ? 'none' : '';
+    // Só o encerramento mais recente pode ser reaberto; os anteriores seguem travados por ele.
+    const podeReabrir = fechado && statusAtual && statusAtual.is_admin && !(travaDigitacao && travaDigitacao.marco && travaDigitacao.marco !== dados.periodo);
     document.getElementById('rcReabrir').style.display = podeReabrir ? '' : 'none';
     document.getElementById('rcResumo').innerHTML = `
       <div class="rc-kpi"><small>Lançamentos</small><strong>${dados.validacao.quantidade}</strong></div>
@@ -420,7 +423,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     else if (tipoAtual === 'balanco') renderBalanco(dados);
     else if (tipoAtual === 'dfc_indireto') renderDFC(dados);
     else renderAnalise(dados);
-    renderHistorico(periodoStatus);
+    renderHistorico(periodoStatus, anteriorAoEncerramento ? window.CCITravaDigitacaoContabil.rotuloSituacao(dados.periodo, statusAtual.periodos || []) : '');
     if (anual) document.getElementById('rcHistorico').textContent = 'O balancete anual mostra somente competências com lançamentos, saldos cadastrados ou transporte formal do fechamento. Meses futuros não recebem projeção automática.';
     renderControleAbertura();
   }
@@ -658,6 +661,8 @@ function preferenciasImpressao(ctx, sobrescritas) {
       const ctx = contexto();
       const periodo = periodoSelecionado();
       if (statusDoPeriodo(periodo) && statusDoPeriodo(periodo).status === 'fechado') throw new Error('Reabra o período antes de alterar os saldos iniciais.');
+      const travaSaldos = situacaoTravaDigitacao(periodo);
+      if (travaSaldos && travaSaldos.bloqueado) throw new Error(window.CCITravaDigitacaoContabil.mensagemBloqueio([periodo], statusAtual.periodos || []));
       ctx.salvarSaldos(periodo, parseSaldos());
       if (typeof ctx.flush === 'function') await ctx.flush();
       if (opts.atualizarStatus !== false) await carregarStatus();
@@ -1389,13 +1394,20 @@ function preferenciasImpressao(ctx, sobrescritas) {
     }
   }
 
-  function renderHistorico(periodoStatus) {
+  function situacaoTravaDigitacao(periodo) {
+    const trava = window.CCITravaDigitacaoContabil;
+    if (!trava || !statusAtual) return null;
+    return trava.situacao(periodo, statusAtual.periodos || []);
+  }
+
+  function renderHistorico(periodoStatus, trava) {
     const el = document.getElementById('rcHistorico');
     if (!el) return;
-    if (!periodoStatus) { el.textContent = 'Esta competência ainda não possui evento de fechamento.'; return; }
+    if (!periodoStatus) { el.textContent = trava || 'Esta competência ainda não possui evento de fechamento.'; return; }
     let texto = periodoStatus.status === 'fechado'
       ? 'Encerrado por ' + (periodoStatus.fechado_por_email || '-') + (periodoStatus.fechado_em ? ' em ' + new Date(periodoStatus.fechado_em).toLocaleString('pt-BR') : '') + '. Hash: ' + (periodoStatus.hash || '-') + '.'
       : 'Reaberto por ' + (periodoStatus.reaberto_por_email || '-') + (periodoStatus.reaberto_em ? ' em ' + new Date(periodoStatus.reaberto_em).toLocaleString('pt-BR') : '') + '. Motivo: ' + (periodoStatus.motivo_reabertura || '-') + '.';
+    if (trava && periodoStatus.status !== 'fechado') texto += ' ' + trava;
     el.textContent = texto;
   }
 

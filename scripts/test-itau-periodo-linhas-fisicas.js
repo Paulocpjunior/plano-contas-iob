@@ -36,7 +36,7 @@ assert.throws(() => ler(trocados), /saldos diarios/);
 // Prévia percorre todos os registros sem alterar a lista que será importada.
 const html = fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
 const inicio = html.indexOf('        let previaImportacaoEntries = []');
-const fim = html.indexOf('        function abrirConferenciaImportacao(', inicio);
+const fim = html.indexOf('        async function abrirConferenciaImportacao(', inicio);
 const elementos = Object.fromEntries(['confImpPreview','confImpPreviewContagem','confImpPreviewMais'].map(k=>[k,{}]));
 const ctx = vm.createContext({document:{getElementById:id=>elementos[id]},escaparHtmlImportacao:String,formatarDataBR:String,moedaComSinal:String});
 vm.runInContext(html.slice(inicio,fim),ctx);

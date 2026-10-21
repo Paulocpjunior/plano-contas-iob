@@ -1,6 +1,7 @@
 'use strict';
 const { randomUUID } = require('crypto');
 const { lerFI, prepararFI, hash } = require('./importacao-fi');
+const TravaDigitacao = require('./trava-digitacao-contabil');
 const erro = mensagem => Object.assign(new Error(mensagem), { status: 409 });
 function registrar(app, deps) {
   const { db, checarAcessoEmpresa, carregarContasContabeisEmpresa, carregarSessaoAtualPorRef,
@@ -24,8 +25,8 @@ function registrar(app, deps) {
       const contas = await carregarContasContabeisEmpresa(acesso.empresa);
       const previa = prepararFI({ arquivo, contas, state, cnpj });
       const periodos = await empresaRef.collection('periodos_contabeis').get();
-      const fechados = new Set(periodos.docs.filter(d => d.data().status === 'fechado').map(d => d.id));
-      if (previa.lancamentos.some(l => fechados.has(l.data.slice(0, 7)))) previa.erros.push('Há competência encerrada. Solicite a reabertura antes de importar.');
+      const travados = Array.from(new Set(previa.lancamentos.map(l => l.data.slice(0, 7)))).filter(p => TravaDigitacao.periodoBloqueado(p, periodos));
+      if (travados.length) previa.erros.push(TravaDigitacao.mensagemBloqueio(travados, periodos));
       previa.ok = previa.erros.length === 0;
       const hashPrevia = hash(JSON.stringify({ arquivo: arquivo.fingerprint, sessao: sessao.stateJson, contas, cnpj, previa }));
       if (!confirmar) return res.json({ ...previa, hashPrevia, empresa: acesso.empresa.razao_social || '', cnpj });
