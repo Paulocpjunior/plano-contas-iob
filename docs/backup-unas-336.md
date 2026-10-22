@@ -371,3 +371,11 @@ O teste de rede anterior permanece válido. Nenhum backup/restore foi executado.
 O probe autenticado (`backup_unas/smb_probe.py`) usa o mesmo adaptador SMB3 do
 worker e `preflight(ensure_run=False)`, limitado a consultar shares existentes e
 solicitar direitos de listar/criar sem criar arquivos ou diretórios.
+
+
+Na inspeção posterior em People → conta Owner, a interface confirmou acesso Owner
+às pastas `Backup_CCI`/`Backup_CFI`, porém `File Services & Time Machine Credentials`
+estava desmarcado. Portanto, a credencial de arquivos da própria conta ainda precisa
+ser habilitada/configurada pelo administrador. Nenhuma conta adicional foi criada
+nem senha alterada. Habilitar SMB na conta e atualizar a versão do secret antes de
+repetir o teste; o login por e-mail da conta UniFi não comprova credencial SMB ativa.
