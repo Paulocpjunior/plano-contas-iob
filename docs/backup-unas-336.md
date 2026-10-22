@@ -321,3 +321,34 @@ na tabela. Ainda não houve handshake a partir do Cloud Run, teste de bloqueios,
 preflight SMB, cópia real ou restauração isolada. Permanecem pendentes conta SMB
 nas duas pastas, secrets/IAM/configuração do worker e homologação. Os números de
 exportações da tabela anterior são o levantamento de 21/10, não uma recontagem.
+
+
+## Teste real de conectividade em 22/10/2026
+
+Execução isolada `cci-unas-network-probe-78trb`, projeto CFI, região
+`southamerica-east1`, concluída com saída 0 e uma tarefa bem-sucedida.
+A conexão saiu do Cloud Run, usou o perfil dedicado via Secret Manager e alcançou
+`10.0.0.215:445` através do WireGuard do UDM. Resposta: `SMB 3.1.1` (`0x311`),
+`supports_encryption=true`. Não houve autenticação de usuário SMB, sessão de
+arquivos, leitura/escrita de backup, exportação Firestore ou restore.
+
+O job `cci-unas-network-probe` não possui Scheduler: 1 tarefa, 1 CPU, 2 GiB,
+timeout 120 s, zero retries e `UNAS_ENABLE_TRANSFERS=false`. Perfil na versão 1
+do secret `cci-unas-wireguard-profile`, acessível pela identidade existente
+`cfi-backup-automation`. Nenhum valor secreto foi incluído em código/logs.
+
+Build inicial: `9c1a8bd3-253b-486c-a153-d34ec75724a3`, imagem digest
+`sha256:f4f989c2318df8ec03ba5f6f719eabae1fff0cb526760e7a4c7aa625d239f35e`.
+O comando do job de diagnóstico foi atualizado com o conteúdo corrigido de
+`backup_unas/network_probe.py` via `python -c`. A imagem do worker de produção
+não foi atualizada. Um segundo build de diagnóstico foi concluído, mas sua imagem
+não foi promovida. Execuções anteriores falharam na interpretação da resposta SMB;
+a correção usa `Connection.supports_encryption`, que considera os contextos SMB
+3.1.1, em vez do flag legado. Teste de regressão adicionado; 35 testes Python passaram.
+
+**Limite da evidência:** suporte a criptografia negociado não comprova sessão SMB
+criptografada autenticada. As regras de bloqueio foram conferidas na configuração,
+mas não houve ensaio negativo de tráfego para todos os destinos proibidos.
+O próximo passo é validar a conta SMB e suas permissões, depois transferir uma
+exportação existente e verificar os arquivos. Não existe ainda `UNAS_VERIFIED.json`
+produzido por esta implementação nem homologação de restauração concluída.
