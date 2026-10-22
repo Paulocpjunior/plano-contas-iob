@@ -175,8 +175,9 @@ atual de restauração nativa permanece separado do ensaio da réplica UNAS.
 - `backup-notifications.js`, rota administrativa protegida em `server.js`.
 - Testes Python/Node e workflow CI dedicado, sem credenciais ou execução de nuvem.
 
-Serviços de produção modificados nesta entrega: **nenhum**. Destinos/agendas
-inspecionados permaneceram iguais.
+Aplicações CCI/CFI e jobs de produção: **não implantados**. Destinos/agendas
+inspecionados permaneceram iguais. Configuração de acesso UniFi aplicada em
+22/10/2026, conforme registro abaixo.
 
 ## Testes executados
 
@@ -287,3 +288,36 @@ Dar ao backend consulta da fila e comprovantes, sem permissão SMB.
 
 Não fechar #336 como resolvida até haver comprovantes válidos para todo o backlog
 e homologação dos dois sistemas. Publicar código/PR não atende sozinho ao aceite.
+
+
+## Etapa de rede aplicada em 22/10/2026
+
+O administrador criou e aplicou o cliente `CCI-CFI-Backup` no servidor existente
+`VPN-SP-EXTERNA.` e exportou seu perfil. Endereços atribuídos: `192.168.3.3/32`
+e `fd9b:435:5d7d:bf20::3/128`. Endpoint do perfil: WAN1 UDP 51820.
+O perfil contém credenciais e não integra o repositório.
+
+Após autorização explícita do administrador, foram aplicadas e conferidas na
+interface do UDM as seguintes regras exclusivas deste cliente:
+
+| Regra | Origem | Destino | Ação / prioridade |
+|---|---|---|---|
+| CCI-CFI Backup - SMB UNAS | VPN, 192.168.3.3 | Internal, 10.0.0.215 TCP 445 | Allow / 10000 |
+| CCI-CFI Backup - Block Internal | VPN, dois IPs do cliente | Internal, qualquer | Block / 10001 |
+| CCI-CFI Backup - Block External | VPN, dois IPs do cliente | External, qualquer | Block / 10001 |
+| CCI-CFI Backup - Block Gateway | VPN, dois IPs do cliente | Gateway, qualquer | Block / 10000 |
+| CCI-CFI Backup - Block VPN | VPN, dois IPs do cliente | VPN, qualquer | Block / 10000 |
+| CCI-CFI Backup - Block Hotspot | VPN, dois IPs do cliente | Hotspot, qualquer | Block / 10000 |
+| CCI-CFI Backup - Block DMZ | VPN, dois IPs do cliente | DMZ, qualquer | Block / 10000 |
+| CCI-CFI Backup - SMB UNAS (Return) | Internal, UNAS | VPN, 192.168.3.3 | Retorno automático / 30000 |
+
+Os seis bloqueios abrangem IPv4 e IPv6, todos os protocolos, permanentemente.
+A prioridade é por par de zonas: a exceção SMB precede o bloqueio interno.
+As regras anteriores, demais clientes e o encaminhamento SSH legado não foram
+alterados. O worker ignora DNS/rotas amplas do perfil e acessa o NAS por IPv4 fixo.
+
+**Evidência de configuração, não de tráfego:** as oito regras apareceram salvas
+na tabela. Ainda não houve handshake a partir do Cloud Run, teste de bloqueios,
+preflight SMB, cópia real ou restauração isolada. Permanecem pendentes conta SMB
+nas duas pastas, secrets/IAM/configuração do worker e homologação. Os números de
+exportações da tabela anterior são o levantamento de 21/10, não uma recontagem.
