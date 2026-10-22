@@ -69,9 +69,9 @@ Scheduler atual 00h30 -> Cloud Run Job atual (nova imagem após homologação)
 ```
 
 SMB é um serviço confirmado na interface e permite leitura/escrita por blocos,
-releitura e renomeação sem substituir o destino. O handshake SMB3 cifrado, as
-permissões da conta de serviço e a atomicidade do rename **ainda dependem de
-homologação real**. Não há fallback para protocolo sem criptografia ou IP público.
+releitura e renomeação sem substituir o destino. O handshake SMB3 cifrado e o acesso às duas pastas foram confirmados; gravação,
+rename e integridade passaram no teste CFI descrito abaixo. A conta utilizada é
+a administrativa local existente, por escolha expressa do administrador. Não há fallback para protocolo sem criptografia ou IP público.
 O worker exige Cloud Run (`CLOUD_RUN_JOB`), configuração aprovada e ativação explícita.
 Nenhuma estação ou SERVER_2019 participa da execução.
 
@@ -91,7 +91,7 @@ conforme informado pelo administrador. O perfil inicial usa um endpoint literal:
 mantém a fila retomável; o retorno do endpoint permite nova tentativa. Validar um
 segundo endpoint antes de implementar failover, sem alterar outros clientes.
 
-Antes da conexão, criar cliente dedicado e política no UDM permitindo somente
+Foi criado cliente VPN dedicado e aplicada política no UDM permitindo somente
 esse cliente → NAS TCP 445, bloqueando os demais destinos. A restrição do programa
 não substitui a regra no gateway. Não reutilizar o perfil pessoal `MAC-Paulo`.
 O processo sinaliza somente prontidão local; sucesso depende do preflight SMB real.
@@ -200,25 +200,29 @@ inspecionados permaneceram iguais. Configuração de acesso UniFi aplicada em
 - `git diff --check`: aprovado.
 
 Os testes de adaptadores usam doubles dos SDKs; os testes de transação não substituem
-ensaio concorrente contra Firestore. Não houve teste contra servidor SMB real.
+ensaio concorrente contra Firestore. A homologação real de SMB e CFI está
+registrada nas seções de evidências ao final.
 
-## Pendências concretas antes da ativação
+## Pendências concretas antes da ativação recorrente
 
-1. Criar cliente WireGuard dedicado no servidor UniFi existente, exportar perfil
-   para Secret Manager e restringir o IP atribuído no UDM ao NAS TCP 445. Confirmar
-   handshake e preflight no Cloud Run; não criar Cloud VPN, VPC ou VM para isso.
-2. Provisionar conta de serviço de arquivos no UNAS com leitura, criação, escrita e
-   rename apenas em `Backup_CCI`/`Backup_CFI`. A tela atual confirma administradores,
-   não a permissão dessa conta. Não reutilizar automaticamente a senha rsync.
-3. Criar banco Firestore de controle e IAM limitado; identidade exclusiva do
-   replicador com leitura dos dois buckets, criação dos comprovantes e acesso à fila.
-   Não conceder export/import ou escrita nos bancos de produção ao replicador.
-4. Provisionar keyring HMAC e credenciais SMB no Secret Manager; registrar versão
-   explícita para implantação e montar os arquivos no worker/backend necessário.
-5. Homologar SMB3 cifrado, leitura/escrita/rename, queda/retomada, comportamento do
-   NAS sob concorrência e ausência de sobrescrita real.
+1. Concluir CCI com recibo autenticado; a execução de homologação está em curso.
+2. Homologar restauração em bancos isolados, sem importar em bancos existentes.
+3. Implantar backend/painel/notificações com keyring, consulta da fila e identidade
+   do replicador. A aplicação publicada ainda não consome a nova prova.
+4. Revisar/mesclar PR e atualizar o job diário existente para a imagem/configuração
+   homologadas, mantendo Scheduler exatamente no horário atual.
+5. Processar e comprovar todo o backlog; a descoberta já registrou 46 exportações.
+   Parciais das primeiras tentativas foram preservados. Alguns permaneceram com
+   bloqueios de sessão SMB após timeouts; confirmar liberação pelo NAS e retomada
+   automática sem apagar arquivos nem forçar desconexões de outros usuários.
+6. Homologar indisponibilidade/retomada e observar duração do backlog. O transporte
+   ainda usa WAN1; não existe failover automático validado para WAN3.
 
-## Implantação e homologação (procedimento, não executado)
+Acesso UniFi, credencial administrativa escolhida pelo usuário, permissões dos
+shares, banco de controle, identidade do replicador e segredos versionados estão
+configurados para homologação. Nenhum valor secreto integra o repositório.
+
+## Implantação e homologação (procedimento parcialmente executado)
 
 ### Configuração
 
