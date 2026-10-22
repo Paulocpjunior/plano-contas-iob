@@ -23,7 +23,7 @@ module.exports = function registrarAlugueis(app, { db, checarAcessoEmpresa }) {
     catch(e){res.status(503).json({erro:e.message});}
   });
   router.put('/:cnpj', async(req,res)=>{
-    if(req.user?.is_admin!==true) return res.status(403).json({erro:'Somente administrador pode parametrizar os proprietários.'});
+    if(!require('./permissoes-cci').podeAcao(req.user,'editar')) return res.status(403).json({erro:'Parametrizar os proprietários exige a ação "Editar dados". Peça a liberação a um administrador em Admin → Usuários.'});
     try {
       const ps=req.body.proprietarios;
       validarProprietarios(ps,false);

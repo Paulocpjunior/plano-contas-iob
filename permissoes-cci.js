@@ -54,6 +54,10 @@ function acaoDaRota(method, url, body = {}) {
   // A CiA apenas consulta a sessão; a rota valida a carteira da empresa.
   if (verbo === 'POST' && path === '/api/cia/perguntar') return null;
   if (verbo === 'POST' && /^\/api\/empresas\/[^/]+\/ativar$/.test(path)) return 'editar';
+  // EFD-Reinf: cadastros do módulo pedem edição; cancelar a preparação do mês é reabrir.
+  if (/^\/api\/reinf\/(aplicacoes|dividendos)\/(empresa\/[^/]+(\/societario)?|registrar)$/.test(path)
+    || /^\/api\/reinf\/alugueis-planilha\/[^/]+$/.test(path)) return 'editar';
+  if (path === '/api/reinf/dividendos/cancelar-preparacao') return 'fechar';
   // Geração do extrato sem envio ou persistência.
   if (verbo === 'POST' && path === '/api/reinf/dividendos/extrato') return body.enviar === true ? 'emitir' : null;
   // Consulta oficial e prévia não alteram a escrituração; confirmar exige importação.

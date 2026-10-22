@@ -2243,3 +2243,6 @@ DAXX 1336 tomados 09/2026: "Nota 52 com numero, data ou valor invalido no CFI". 
 
 ## 22/10/2026 — Correção: salvar permissões do CCI dava 400 (3.4.451)
 Paulo não conseguia liberar o EFD-Reinf: "Nível ou ações inválidas.". Causa: `permissoes-cci-routes` era registrado no server.js ANTES do `express.json` de `/api`, então `req.body` chegava undefined e o PUT sempre caía no 400 (latente desde 06/10). Rota movida para logo após o express.json; teste de ordem em `test-permissoes-cci.js`, como já existia para `gestao-acessos`.
+
+## 22/10/2026 — Colaborador liberado trabalha no EFD-Reinf (3.4.452)
+Após liberar o módulo, o colaborador ainda esbarrava em travas antigas de admin (adminReinfCadastroRequired, checagens is_admin no index.html). Agora: `cadastroReinfRequired` (admin ou módulo) e o `protegerAcoes` decide pela ação do nível — cadastros/registrar/aluguéis = editar, solicitar/e-mail = emitir, cancelar preparação = fechar. Extrato de dividendos com envio confere `emitir` na rota (o protegerAcoes roda antes do express.json e não vê o corpo). Certificado A1 e Central de Notificações seguem só admin; botão de notificações com `data-somente-admin`.
