@@ -3,6 +3,7 @@ const { validarProprietarios, digits } = require('./reinf/reinf-alugueis-planilh
 module.exports = function registrarAlugueis(app, { db, checarAcessoEmpresa }) {
   const consultarTabela = require('./reinf-tabela-ir').criarServico({db});
   const router = express.Router();
+  router.use(require('./reinf-routes').exigirModuloReinf);
   router.use('/:cnpj', async (req,res,next) => {
     try {
       const cnpj=digits(req.params.cnpj);

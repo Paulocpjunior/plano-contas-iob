@@ -36,7 +36,7 @@ assert(!gerarEventosR4010DaPlanilha({...payload,locadores:[{...loc,deducoes:[]} 
 if(process.env.REINF_DEDUCAO_XML)fs.writeFileSync(process.env.REINF_DEDUCAO_XML,xml);
 (async()=>{
  let consultas=0;
- const app=express();app.use(express.json());require('../reinf-routes')(app,{consultarTabelaIR:async mes=>{consultas++;assert.equal(mes,'2026-08');return {descontoSimplificado:607.2};}});
+ const app=express();app.use(express.json());app.use((req,res,next)=>{req.user={uid:'teste',permissoesCci:{...require('../permissoes-cci').criarPermissoes('operacao'),modulos:{reinf:true}}};next();});require('../reinf-routes')(app,{consultarTabelaIR:async mes=>{consultas++;assert.equal(mes,'2026-08');return {descontoSimplificado:607.2};}});
  const srv=app.listen(0,'127.0.0.1');await new Promise(r=>srv.once('listening',r));
  const post=async(path,p)=>{const r=await fetch('http://127.0.0.1:'+srv.address().port+'/api/reinf/'+path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(p)});return {status:r.status,data:await r.json()};};
  try{

@@ -4,7 +4,7 @@ const registrar=require('../reinf-alugueis-routes');
 (async()=>{
  let writes=0,perfil=null;
  const db={collection:()=>({doc:()=>({get:async()=>({data:()=>({reinfAlugueisPlanilha:perfil})}),update:async d=>{writes++;perfil=d.reinfAlugueisPlanilha;}})})};
- const app=express();app.use(express.json());app.use((req,res,next)=>{req.user={uid:'teste',is_admin:req.headers['x-admin']==='1'};next();});
+ const app=express();app.use(express.json());app.use((req,res,next)=>{req.user={uid:'teste',permissoesCci:{...require('../permissoes-cci').criarPermissoes('operacao'),modulos:{reinf:true}},is_admin:req.headers['x-admin']==='1'};next();});
  registrar(app,{db,checarAcessoEmpresa:async c=>c==='07363181000160'?{ok:true}:{ok:false,status:403,erro:'Sem acesso'}});
  const srv=app.listen(0,'127.0.0.1');await new Promise(r=>srv.once('listening',r));
  const base='http://127.0.0.1:'+srv.address().port+'/api/reinf/alugueis-planilha/';
