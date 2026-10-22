@@ -377,6 +377,29 @@
     });
   }
 
+  // Oculta as contas sem movimento no período: a analítica some quando todos os
+  // valores informados estão zerados; a sintética só fica se ela própria tiver
+  // valor ou se alguma filha permanecer. Os totais não mudam, porque só saem zeros.
+  function ocultarContasSemMovimento(linhas, campos) {
+    const lista = linhas || [];
+    const valores = campos || ['saldoAnterior', 'debitos', 'creditos', 'saldoAtual'];
+    const comValor = function (linha) {
+      return valores.some(function (campo) {
+        const valor = linha[campo];
+        return Array.isArray(valor) ? valor.some(function (v) { return centavos(v) !== 0; }) : centavos(valor) !== 0;
+      });
+    };
+    const codigoDe = function (linha) { return String(linha.codigoCompleto || linha.conta || ''); };
+    const analiticasMantidas = lista.filter(function (l) { return l.analitica !== false && comValor(l); }).map(codigoDe);
+    const mantidas = lista.filter(function (linha) {
+      if (linha.analitica !== false) return comValor(linha);
+      if (comValor(linha)) return true;
+      const prefixo = codigoDe(linha) + '.';
+      return analiticasMantidas.some(function (codigo) { return codigo.indexOf(prefixo) === 0; });
+    });
+    return { linhas: mantidas, ocultas: lista.length - mantidas.length };
+  }
+
   const MESES_BALANCETE_ANUAL = [
     { numero: '01', nome: 'Janeiro' }, { numero: '02', nome: 'Fevereiro' },
     { numero: '03', nome: 'Março' }, { numero: '04', nome: 'Abril' },
@@ -786,6 +809,6 @@
 
   return {
     dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao, complementoLancamento,
-    contaCanonica, lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, saldosAnteriores, balanceteAnual, razao, totaisRazao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
+    contaCanonica, lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, ocultarContasSemMovimento, saldosAnteriores, balanceteAnual, razao, totaisRazao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
   };
 });

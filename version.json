@@ -1,7 +1,8 @@
 {
-  "version": "3.4.447",
-  "build_date": "2026-10-22T12:00:00Z",
+  "version": "3.4.448",
+  "build_date": "2026-10-22T14:00:00Z",
   "release_notes": [
+    "Balancete: nova opção \"Ocultar contas sem movimento\" em Relatórios contábeis. Com ela marcada, o Balancete e o Balancete Anual deixam de mostrar as contas com saldo anterior, débito, crédito e saldo atual zerados (e os grupos sintéticos sem nenhuma conta com valor), na tela, na impressão, no PDF e no Excel. O título informa quantas contas ficaram ocultas, os totais não mudam e a escolha fica gravada no navegador.",
     "Acesso por colaborador ao EFD-Reinf / Informes: no Admin → Usuários → Nível e ações do CCI, o administrador marca \"Acesso a módulos → EFD-Reinf / Informes\" para liberar o módulo (inclui Aplicações financeiras e Lucros e Dividendos). Colaborador sem a marcação não vê o item no menu Obrigações e o servidor recusa as rotas do Reinf com a orientação de pedir a liberação. Administradores continuam com acesso total. A alteração fica no histórico de permissões do colaborador.",
     "Extratos: novo layout PDF do banco Cora (403 — CORA SCFI). O CCI lê o extrato do período exportado pela Cora, com o sinal +/- de cada transação, a contraparte e o CPF/CNPJ, e só importa se o saldo inicial, os totais de entradas e saídas, o saldo de cada dia e o saldo final baterem. PDF incompleto ou dividido em partes é recusado com a orientação para importar o arquivo inteiro.",
     "Importação fiscal do CFI: o frete (CT-e, CFOP 1353/2353) passa a subir junto com as NF-e, a NF-e do produtor que o CFI tira do Livro de Entradas (art. 136) não entra mais, e o ICMS, o ICMS ST e o IPI de cada CFOP viram lançamentos de imposto destacado, nas entradas e nas saídas, como na importação do arquivo SAGE. A conferência mostra CT-e, ICMS, ICMS ST e IPI. Competências já importadas: remova a importação anterior e importe de novo.",

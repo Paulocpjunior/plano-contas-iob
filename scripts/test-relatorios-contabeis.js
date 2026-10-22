@@ -197,3 +197,42 @@ assert.deepStrictEqual(core.totaisRazao(core.razao(lancamentos, '2026-01', conta
 assert.deepStrictEqual(core.totaisRazao(core.razao(lancamentos, '2026-01', contas, { 111: 9000 }, '111')), { debitos: 1000, creditos: 250 });
 assert.deepStrictEqual(core.totaisRazao([{ movimentos: [{ debito: 0.1, credito: 0.2 }, { debito: 0.2, credito: 0.1 }] }]), { debitos: 0.3, creditos: 0.3 });
 assert.deepStrictEqual(core.totaisRazao(core.razao([], '2026-01', contas, { 111: 9000 })), { debitos: 0, creditos: 0 });
+
+// Contas sem movimento: some a analítica toda zerada (caso SUPERÁVIT DO EXERCÍCIO)
+// e a sintética sem filha com valor; os totais do resumo não mudam.
+{
+  const planoPL = [
+    { codigo: '1', descricao: 'ATIVO', analitica: false },
+    { codigo: '1.1', descricao: 'CIRCULANTE', analitica: false },
+    { codigo: '1.1.1', reduzido: '111', descricao: 'Banco', analitica: true },
+    { codigo: '1.1.2', reduzido: '112', descricao: 'Caixa', analitica: true },
+    { codigo: '2', descricao: 'PASSIVO', analitica: false },
+    { codigo: '2.4', descricao: 'PATRIMÔNIO LÍQUIDO', analitica: false },
+    { codigo: '2.4.7', descricao: 'RESULTADO', analitica: false },
+    { codigo: '2.4.7.01.0001', reduzido: '491', descricao: 'SUPERÁVIT DO EXERCÍCIO', analitica: true },
+    { codigo: '2.4.8', reduzido: '492', descricao: 'Capital', analitica: true },
+    { codigo: '3', descricao: 'RECEITAS', analitica: false },
+    { codigo: '3.1.1', reduzido: '501', descricao: 'Receita', analitica: true },
+  ];
+  const movs = [{ id: 'a', data: '2026-03-10', valor: 50, contaDebito: '111', contaCredito: '501' }, { id: 'b', data: '2026-03-11', valor: 20, contaDebito: '112', contaCredito: '111' }, { id: 'c', data: '2026-03-12', valor: 20, contaDebito: '111', contaCredito: '112' }];
+  const completo = core.balancete(movs, '2026-03', planoPL, { 491: 0, 111: 100, 492: -100 });
+  assert(completo.some(l => l.conta === '491'), 'cenário precisa trazer a conta zerada');
+  const { linhas, ocultas } = core.ocultarContasSemMovimento(completo);
+  const codigos = linhas.map(l => l.codigoCompleto);
+  assert(!codigos.includes('2.4.7.01.0001'), 'analítica sem movimento continua aparecendo');
+  assert(!codigos.includes('2.4.7'), 'sintética sem filha com valor continua aparecendo');
+  assert(codigos.includes('2.4') && codigos.includes('2.4.8'), 'sintética com filha movimentada sumiu');
+  assert(codigos.includes('1.1.2'), 'conta com débito e crédito no período (saldo zero) não é "sem movimento"');
+  assert.strictEqual(ocultas, completo.length - linhas.length);
+  assert(ocultas >= 2);
+  assert.deepStrictEqual(core.resumoBalancete(linhas, 0, planoPL, {}), core.resumoBalancete(completo, 0, planoPL, {}), 'ocultar zeradas não pode mudar os totais');
+  const anual = core.ocultarContasSemMovimento([
+    { codigoCompleto: '1', analitica: false, saldosMensais: [0, 0] },
+    { codigoCompleto: '1.1', analitica: true, saldosMensais: [0, 0] },
+    { codigoCompleto: '2', analitica: false, saldosMensais: [0, 5] },
+    { codigoCompleto: '2.1', analitica: true, saldosMensais: [0, 5] },
+  ], ['saldosMensais']);
+  assert.deepStrictEqual(anual.linhas.map(l => l.codigoCompleto), ['2', '2.1']);
+  assert.deepStrictEqual(core.ocultarContasSemMovimento([]), { linhas: [], ocultas: 0 });
+}
+console.log('OK: balancete oculta contas sem movimento sem alterar totais');
