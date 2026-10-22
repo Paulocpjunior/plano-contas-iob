@@ -11,7 +11,8 @@ homologados em 22/10/2026; transferência e restauração ainda estão pendentes
 
 Implementação candidata para revisão. **Replicador de produção não implantado;
 gravação e restauração ainda não homologadas.** Não foram executados novos exports,
-transferências de backups, restaurações ou alterações de agenda. Foram aplicadas
+restaurações ou alterações de agenda. A homologação iniciou transferências de
+exportações existentes; o estado individual está registrado abaixo. Foram aplicadas
 as regras UniFi autorizadas e executados diagnósticos reais de rede e acesso SMB
 no Cloud Run, conforme registros abaixo. Os testes de integridade usam dados sintéticos.
 
@@ -446,3 +447,43 @@ Descoberta `cci-unas-homologacao-x7g6z` terminou com saída 0 e enfileirou
 46 exportações existentes, sem transferir arquivos. Os manifestos de CFI
 `20261021T022039Z-2cb8f0b9` e CCI `20261021T020039Z-f5774da9` foram validados.
 O replicador diário anterior e os horários existentes não foram alterados.
+
+### Falhas encontradas no teste de gravação e progresso do diagnóstico
+
+- `cci-unas-homologacao-9ptxn`: o SDK retorna `SMBOSError` com errno ENOENT/EEXIST,
+  não as subclasses Python FileNotFoundError/FileExistsError. Adaptador corrigido
+  com testes usando os status reais do SDK; erros de permissão continuam fatais.
+- As tentativas seguintes com CFI 20/21/22 chegaram à criação de diretórios e
+  parcial vazio, mas aguardaram resposta na primeira operação SMB write. Sessões
+  interrompidas deixaram bloqueios `STATUS_SHARING_VIOLATION` nos parciais. Nenhum
+  parcial foi apagado ou sobrescrito e nenhum desses runs recebeu comprovante.
+- Encerramento corrigido para desconectar SMB antes de fechar WireGuard; transporte
+  passou a enviar datagramas separadamente. Isso isoladamente não resolveu o write.
+- `cci-unas-homologacao-ldpfl`, CFI `20261019T022016Z-9e4c2fb5`: diagnóstico limitado
+  a um arquivo real da exportação, com leituras/escritas SMB de 512 bytes, copiou
+  12.267 bytes e verificou SHA-256 na releitura. A execução encerrou deliberadamente
+  com `DIAGNOSTIC_FIRST_FILE_VERIFIED`, mantendo o backup incompleto na fila. Isso
+  comprova gravação de um arquivo, não integridade do backup completo.
+- A dependência do tamanho dos pacotes motivou teste de MTU IPv4 interno 1100;
+  não é ainda prova conclusiva da causa de rede. A alteração não afeta agendas,
+  endereços, regras, autenticação ou criptografia.
+
+Validação local nesta etapa: 38 testes Python e testes Go com detector de races
+passaram. Os resultados reais completos ainda serão registrados após a cópia e
+releitura de todos os arquivos de cada exportação.
+
+### MTU ajustado: transferência normal avançando
+
+Build `9c43f0a7-b1e9-45aa-a322-2e689f1c43d6`, SHA `db30083`, digest
+`sha256:80adb0a20ba5a1ec2ed169ecd7a9dc3c49025dc1efe6d117941f5c5eca40cb73`.
+Com MTU IPv4 1100, a execução `cci-unas-homologacao-9l277` retomou CFI
+`20261019T022016Z-9e4c2fb5` com os blocos normais, sem o limite diagnóstico de
+512 bytes. A primeira observação mostrou 21 arquivos/16.844.307 bytes já
+conferidos por releitura. Isso confirma que a redução de MTU removeu o bloqueio
+de escrita nessa execução; não identifica isoladamente qual equipamento do
+caminho impõe o limite. Ainda aguarda conferência completa e recibo autenticado.
+
+A execução CFI `cci-unas-homologacao-9l277` concluiu a fase de transferência dos
+1.028 arquivos (1.661.587.797 bytes, incluindo manifesto e marcador) e entrou em
+`verify`. Cada arquivo passou por CRC32C/generation na origem e releitura SHA-256.
+O comprovante completo ainda depende da segunda leitura e inventário finais.
