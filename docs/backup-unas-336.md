@@ -10,7 +10,8 @@ armazenamento e tráfego. A conexão WireGuard e o preflight SMB autenticado das
 homologados em 22/10/2026; transferência e restauração ainda estão pendentes.
 
 Implementação candidata para revisão. **Replicador de produção não implantado;
-gravação e restauração ainda não homologadas.** Não foram executados novos exports,
+CFI com gravação e integridade comprovadas; CCI em transferência e restauração
+ainda não homologada.** Não foram executados novos exports,
 restaurações ou alterações de agenda. A homologação iniciou transferências de
 exportações existentes; o estado individual está registrado abaixo. Foram aplicadas
 as regras UniFi autorizadas e executados diagnósticos reais de rede e acesso SMB
@@ -487,3 +488,28 @@ A execução CFI `cci-unas-homologacao-9l277` concluiu a fase de transferência 
 1.028 arquivos (1.661.587.797 bytes, incluindo manifesto e marcador) e entrou em
 `verify`. Cada arquivo passou por CRC32C/generation na origem e releitura SHA-256.
 O comprovante completo ainda depende da segunda leitura e inventário finais.
+
+### CFI — gravação e integridade comprovadas em 22/10/2026
+
+A execução `cci-unas-homologacao-9l277` terminou com saída 0, succeededCount 1,
+às 11:12:46 UTC. O run `20261019T022016Z-9e4c2fb5` está em
+`\\10.0.0.215\Backup_CFI\20261019T022016Z-9e4c2fb5`.
+
+- 1.028 arquivos; 1.661.587.797 bytes totais. Dados exportados Firestore:
+  1.026 objetos e 1.661.286.223 bytes; manifesto/marcador completam o total.
+- CRC32C/generation na origem, SHA-256 por arquivo, releituras no NAS e inventário
+  completo passaram. Recibo autenticado gravado e relido no NAS, depois publicado
+  no bucket original. Estado da fila: `verified`, data 11:12:41 UTC.
+- Verificação separada confirmou HMAC, manifesto/geração, marcador, destino, run,
+  quantidade, nomes únicos e total. SHA-256 do envelope:
+  `390b3aed9696cdc3aa9b0ee9ceadc490d0d320b1a732615826a225cc8e19a1b1`.
+- Evidência resumida: `docs/evidence/unas-336/cfi-20261019-verification.json`.
+- Nas 22 amostras coletadas durante a execução, a maior média de utilização de
+  memória foi 7,1146% de 2 GiB (~146 MiB); não equivale a pico instantâneo.
+- `restoreTested=false`: esta prova NÃO atesta restauração do banco.
+
+CCI `20261021T020039Z-f5774da9` foi iniciado na execução
+`cci-unas-homologacao-b7r8k`, usando a mesma imagem por digest e o destino
+`Backup_CCI`. Seu resultado ainda depende da verificação completa.
+O job de homologação permanece sem Scheduler e com transferências desativadas
+na configuração padrão; cada teste recebe ativação apenas na execução.
