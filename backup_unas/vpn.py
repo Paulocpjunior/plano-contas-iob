@@ -22,6 +22,9 @@ def wireguard_transport():
         yield
         require(process.poll() is None, 'WIREGUARD_PROCESS_FAILED')
     finally:
+        # Log off while the tunnel is alive; interpreter cleanup is too late.
+        from .adapters import SMB
+        SMB.close_all()
         process.terminate()
         try:
             process.wait(timeout=10)

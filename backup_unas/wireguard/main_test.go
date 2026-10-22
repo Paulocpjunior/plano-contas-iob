@@ -55,7 +55,7 @@ func TestEncryptedUserspaceForward(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		d := device.NewDevice(tun, conn.NewDefaultBind(), device.NewLogger(device.LogLevelSilent, ""))
+		d := device.NewDevice(tun, datagramBind{conn.NewDefaultBind()}, device.NewLogger(device.LogLevelSilent, ""))
 		t.Cleanup(d.Close)
 		return d, stack
 	}
@@ -132,5 +132,37 @@ func TestEncryptedUserspaceForward(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("shutdown stalled")
+	}
+}
+
+// A send batch must remain separate UDP datagrams, even when the system bind
+// advertises offload support. Stop on error instead of silently losing packets.
+type recordingBind struct {
+	conn.Bind
+	batches []int
+	failure error
+}
+
+func (b *recordingBind) Send(bufs [][]byte, endpoint conn.Endpoint) error {
+	b.batches = append(b.batches, len(bufs))
+	return b.failure
+}
+func TestDatagramsStaySeparate(t *testing.T) {
+	inner := &recordingBind{}
+	bind := datagramBind{inner}
+	if err := bind.Send([][]byte{{1}, {2}, {3}}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(inner.batches) != 3 {
+		t.Fatal("coalesced batch")
+	}
+	for _, n := range inner.batches {
+		if n != 1 {
+			t.Fatal("coalesced datagram")
+		}
+	}
+	inner.failure = io.ErrClosedPipe
+	if bind.Send([][]byte{{1}, {2}}, nil) != io.ErrClosedPipe {
+		t.Fatal("lost error")
 	}
 }

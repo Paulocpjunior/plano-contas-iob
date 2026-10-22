@@ -24,6 +24,20 @@ import (
 
 const nas = "10.0.0.215:445"
 
+// Keep UDP datagrams separate: serverless underlays may accept UDP GSO socket
+// options while dropping the resulting coalesced datagram on the network path.
+// The official bind still owns endpoints, receive batching and cryptographic I/O.
+type datagramBind struct{ conn.Bind }
+
+func (b datagramBind) Send(bufs [][]byte, endpoint conn.Endpoint) error {
+	for _, buf := range bufs {
+		if err := b.Bind.Send([][]byte{buf}, endpoint); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Import the UniFi export without logging credentials. Routes/DNS in the export
 // do not broaden access: this process exposes only one fixed destination.
 func parseProfile(raw string) (netip.Addr, string, error) {
@@ -158,7 +172,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	dev := device.NewDevice(tun, conn.NewDefaultBind(), device.NewLogger(device.LogLevelSilent, ""))
+	dev := device.NewDevice(tun, datagramBind{conn.NewDefaultBind()}, device.NewLogger(device.LogLevelSilent, ""))
 	defer dev.Close()
 	if err = dev.IpcSet(ipc); err != nil {
 		return err

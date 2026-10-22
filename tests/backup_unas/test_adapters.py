@@ -79,6 +79,19 @@ class QueueTests(unittest.TestCase):
 
 
 class AdapterTests(unittest.TestCase):
+    def setUp(self):
+        SMB._connections.clear()
+
+    def test_close_sessions_before_tunnel_shutdown_and_force_on_timeout(self):
+        first, second = Mock(), Mock()
+        first.disconnect.side_effect = [TimeoutError(), None]
+        SMB._connections = {id(first): first, id(second): second}
+        SMB.close_all()
+        self.assertEqual(first.disconnect.call_args_list[0].kwargs, {'timeout': 5})
+        self.assertEqual(first.disconnect.call_args_list[1].kwargs, {'close': False, 'timeout': 5})
+        second.disconnect.assert_called_once_with(timeout=5)
+        self.assertFalse(SMB._connections)
+
     @patch('backup_unas.adapters.smbclient')
     def test_real_sdk_missing_existing_and_denied_statuses(self, smb):
         from smbprotocol.exceptions import SMBOSError, NtStatus

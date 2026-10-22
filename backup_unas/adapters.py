@@ -157,6 +157,21 @@ class Job:
 
 
 class SMB:
+    _connections = {}
+
+    @classmethod
+    def close_all(cls):
+        for connection in list(cls._connections.values()):
+            try:
+                connection.disconnect(timeout=5)
+            except Exception:
+                try:
+                    connection.disconnect(close=False, timeout=5)
+                except Exception:
+                    pass
+            finally:
+                cls._connections.pop(id(connection), None)
+
     def __init__(self, server, share, run, credentials, wireguard=False):
         require(ipaddress.ip_address(server).is_private and share in ("Backup_CCI", "Backup_CFI") and RUN.fullmatch(run), "TARGET_CONFIG")
         if wireguard:
@@ -169,6 +184,7 @@ class SMB:
         smbclient.ClientConfig(skip_dfs=True, require_secure_negotiate=True)
         session = smbclient.register_session(transport_server, port=1445 if wireguard else 445, username=credentials["username"], password=credentials["password"],
                                             encrypt=True, require_signing=True, connection_timeout=30)
+        self._connections[id(session.connection)] = session.connection
         # smbclient's high-level I/O otherwise waits indefinitely in Connection.receive.
         # Bound the public transport method below the 300 s lease; never resolve symlinks.
         if not getattr(session.connection, '_unas_bounded', False):
