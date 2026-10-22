@@ -41,5 +41,12 @@ function ambiente(aplicativo) {
     await assert.rejects(e.service.cadastrar(autor,{nome:'Pessoa',email:'pessoa@spassessoriacontabil.com.br'}),x=>x.status===409);
     const routes=[];const gate=()=>{};registrar({post:(p,g)=>routes.push([p,g]),put:(p,g)=>routes.push([p,g])},{db:e.db,auth:e.auth,aplicativo,efetivas:x=>x,adminRequired:gate});assert.equal(routes.length,3);assert(routes.every(([,g])=>g===gate),'todas as rotas exigem admin');
   }
+  {
+    const e=ambiente('cci'),autor={uid:'admin',email:'admin@spassessoriacontabil.com.br'};
+    e.docs.set('users/target',{...e.docs.get('users/target'),permissoesCci:{versao:1,nivel:'consulta',acoes:{},modulos:{reinf:true}}});
+    await e.service.alterar(autor,'target',{ativo:true,revisao:0});
+    assert.deepEqual(e.docs.get('users/target').permissoesCci.modulos,{reinf:true},'nomear gestor preserva a liberação do EFD-Reinf');
+    assert(Object.values(e.docs.get('users/target').permissoesCci.acoes).every(Boolean));
+  }
   console.log('Gestão de acessos: nomeação, isolamento, auditoria, concorrência, revogação, cadastro seguro e retomada aprovados nos dois aplicativos.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,4 +1,4 @@
-const { protegerAcoes, permissoesEfetivas, validarAlteracaoSessao } = require('./permissoes-cci');
+const { protegerAcoes, permissoesEfetivas, validarAlteracaoSessao, MODULOS: MODULOS_CCI, podeModulo } = require('./permissoes-cci');
 const express = require('express');
 const { colecaoContas, publicarContas } = require('./planos-versionados');
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
@@ -786,7 +786,8 @@ app.get('/api/folha/checar-duplicidade', async (req, res) => {
 
 // Historicos Padrao IOB SAGE
 require('./historicos-routes')(app, db);
-app.get('/api/me', (req, res) => res.json(req.user));
+// modulosCci: módulos que a tela pode mostrar, decididos aqui (admin = todos).
+app.get('/api/me', (req, res) => res.json({ ...req.user, modulosCci: Object.keys(MODULOS_CCI).filter(m => podeModulo(req.user, m)) }));
 
 app.post('/api/validar', async (req, res) => {
   try {

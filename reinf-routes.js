@@ -4,6 +4,7 @@
 // porque e registrada abaixo de /api no server.js.
 // ============================================================================
 const express = require('express');
+const { podeModulo } = require('./permissoes-cci');
 const SaldoAta = require('./reinf/dividendos-saldo-ata');
 const DividendosHistorico = require('./reinf/dividendos-historico');
 const DividendosSocietario = require('./reinf/dividendos-societario');
@@ -377,6 +378,11 @@ async function consultarLoteAteProcessar(protocolo, tpAmb, { tentativas = 10, in
   return ultimo;
 }
 
+function exigirModuloReinf(req, res, next) {
+  if (req.internalScheduler === true || podeModulo(req.user, 'reinf')) return next();
+  return res.status(403).json({ ok: false, erro: 'Seu cadastro no CCI não tem acesso ao módulo EFD-Reinf / Informes. Peça a um administrador para liberar em Admin → Usuários → Nível e ações do CCI.', codigo: 'CCI_MODULO_NAO_PERMITIDO', modulo: 'reinf' });
+}
+
 function adminReinfRequired(req, res, next) {
   if (!req.user || req.user.is_admin !== true) {
     return res.status(403).json({ ok: false, erro: 'Apenas administradores podem atualizar o certificado Reinf.' });
@@ -696,6 +702,8 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     }
   }
   const router = express.Router();
+  // Defesa em profundidade: o protegerAcoes já barra em /api; aqui vale mesmo se a montagem mudar.
+  router.use(exigirModuloReinf);
   router.use('/dividendos', async(req,res,next)=>{
     if(req.path==='/microsoft365/status')return next();
     try{
@@ -3279,3 +3287,4 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
 }
 
 module.exports = registrarRotasReinf;
+module.exports.exigirModuloReinf = exigirModuloReinf;

@@ -39,7 +39,8 @@ function criarServico({ db, auth, aplicativo, efetivas }) {
         patch.gestorAcessos = body.ativo;
         if (body.ativo) {
           Object.assign(patch, isCci ? { is_admin: true, acessoContabilAutorizado: true } : { role: 'admin' });
-          patch[campo] = permissao('operacao');
+          // Preserva as liberações de módulo já dadas ao colaborador (valem de novo se a gestão for retirada).
+          patch[campo] = antes[campo]?.modulos ? { ...permissao('operacao'), modulos: antes[campo].modulos } : permissao('operacao');
           patch[campo + 'Revisao'] = (antes[campo + 'Revisao'] || 0) + 1;
         }
       } else {
