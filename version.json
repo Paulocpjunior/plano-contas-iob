@@ -1,7 +1,8 @@
 {
-  "version": "3.4.450",
-  "build_date": "2026-10-22T18:30:00Z",
+  "version": "3.4.451",
+  "build_date": "2026-10-22T19:50:00Z",
   "release_notes": [
+    "Correção: salvar \"Permissões do CCI\" no Admin → Usuários voltava \"Nível ou ações inválidas.\" para qualquer colaborador, porque a rota era registrada antes da leitura do corpo da requisição. Agora o nível, as ações e o acesso ao EFD-Reinf / Informes são gravados e ficam no histórico.",
     "Importação fiscal do CFI, serviços: nota com competência de um mês e emissão no seguinte (ex.: RPS de setembro convertido em NFS-e em 01/10) passa a entrar na competência informada pelo CFI quando ela é a declarada na própria nota, a do fato gerador ou uma correção registrada no CFI. O lançamento fica no último dia da competência, com \"emitida em DD/MM/AAAA\" na descrição e um aviso na prévia. Nota cuja competência saiu da própria emissão continua bloqueada, e a mensagem agora lista todas as notas recusadas com o número, o prestador, o motivo e onde corrigir.",
     "Balancete: nova opção \"Ocultar contas sem movimento\" em Relatórios contábeis. Com ela marcada, o Balancete e o Balancete Anual deixam de mostrar as contas com saldo anterior, débito, crédito e saldo atual zerados (e os grupos sintéticos sem nenhuma conta com valor), na tela, na impressão, no PDF e no Excel. O título informa quantas contas ficaram ocultas, os totais não mudam e a escolha fica gravada no navegador.",
     "Acesso por colaborador ao EFD-Reinf / Informes: no Admin → Usuários → Nível e ações do CCI, o administrador marca \"Acesso a módulos → EFD-Reinf / Informes\" para liberar o módulo (inclui Aplicações financeiras e Lucros e Dividendos). Colaborador sem a marcação não vê o item no menu Obrigações e o servidor recusa as rotas do Reinf com a orientação de pedir a liberação. Administradores continuam com acesso total. A alteração fica no histórico de permissões do colaborador.",

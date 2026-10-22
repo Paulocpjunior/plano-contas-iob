@@ -2240,3 +2240,6 @@ Pedido do Paulo (print da 2.4.7.01.0001 SUPERÁVIT DO EXERCÍCIO toda zerada). N
 
 ## 22/10/2026 — Serviços do CFI: competência declarada × emissão no mês seguinte (3.4.450)
 DAXX 1336 tomados 09/2026: "Nota 52 com numero, data ou valor invalido no CFI". O CFI escolhia a nota pela competência (dCompet do RPS) e mandava a emissão (01/10). `movimento-fiscal-cfi.js`: mensagem lista todas as recusadas (NF, prestador, motivo, ação); decisão do Paulo: aceita quando `competencia` = mês, `competenciaOrigem` ∈ declarada/fato-gerador/campo-competencia/corrigida e emissão posterior; lança no último dia, `dataEmissaoNota` + "emitida em" na descrição, ressalva em `ressalvas_cfi`, `notas_emitidas_fora_do_mes`. Depende do CFI PR #1454 (deploy antes).
+
+## 22/10/2026 — Correção: salvar permissões do CCI dava 400 (3.4.451)
+Paulo não conseguia liberar o EFD-Reinf: "Nível ou ações inválidas.". Causa: `permissoes-cci-routes` era registrado no server.js ANTES do `express.json` de `/api`, então `req.body` chegava undefined e o PUT sempre caía no 400 (latente desde 06/10). Rota movida para logo após o express.json; teste de ordem em `test-permissoes-cci.js`, como já existia para `gestao-acessos`.

@@ -107,3 +107,12 @@ assert.strictEqual(acaoDaRota('POST', '/api/reinf/dividendos/extrato', {enviar:t
   assert.strictEqual(r.code, 200); assert.deepStrictEqual(writes[0].permissoesCci.modulos, { reinf: true }); assert.deepStrictEqual(writes[1].depois.modulos, { reinf: true });
   console.log('Permissões CCI: concessão do módulo gravada com auditoria.');
 })().catch(e => { console.error(e); process.exitCode = 1; });
+
+// O PUT de permissões lê req.body: precisa ser montado depois do express.json (bug da 3.4.447: tudo virava 400).
+{
+  const srv = require('fs').readFileSync(require('path').join(__dirname, '..', 'server.js'), 'utf8');
+  const rota = srv.indexOf("require('./permissoes-cci-routes')(app, db, adminRequired)");
+  const json = srv.indexOf("express.json({ limit: limiteCorpoPara(req)");
+  assert(rota > 0 && json > 0 && rota > json, 'permissoes-cci-routes deve ser registrado após o express.json');
+  console.log('Permissões CCI: rota de gravação montada após a leitura do corpo JSON.');
+}
