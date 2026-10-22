@@ -175,3 +175,69 @@ for (const movimento of ['servicos_tomados', 'servicos_prestados']) {
   const semNome = { ...fonte, notas: fonte.notas.map(n => ({ ...n, participanteNome: '' })) };
   assert.ok(normalizarMovimentoFiscalCfi(semNome, { cnpj: payload.cnpjEmpresa, competencia: payload.competencia, movimento }).lancamentos.find(l => l.tributoRetido === 'ISS').descricao.includes('CONTRAPARTE NAO INFORMADA NO CFI'));
 }
+
+// ============================================================================
+// 22/10, DAXX 09/2026: "Nota 52 com numero, data ou valor invalido no CFI".
+// O CFI pôs a NF 52 em 09/2026 (competência), mas a data enviada era a da
+// emissão, 01/10. A regra continua bloqueando; a mensagem diz qual nota, qual
+// campo, e lista TODAS, não só a primeira.
+// ============================================================================
+{
+  const daxx = {
+    ...payload, cnpjEmpresa: '60527879000156', competencia: '2026-09', movimento: 'servicos_tomados',
+    notas: [
+      { idOrigem: 'd52', numero: '52', data: '2026-10-01', participanteNome: 'RAFAEL MARQUES', valor: 4000 },
+      { idOrigem: 'd9', numero: '9', data: '2026-09-03', participanteNome: 'CAROLINE', valor: 7375 },
+      { idOrigem: 'd33', numero: '33', data: '2026-10-03', participanteNome: 'ANDREZA', valor: 12000 },
+      { idOrigem: 'dx', numero: '', data: '', participanteNome: 'SEM NUMERO', valor: 0 },
+    ],
+    resumo: { total: 23375 },
+  };
+  let msg = '';
+  try { normalizarMovimentoFiscalCfi(daxx, { cnpj: daxx.cnpjEmpresa, competencia: '2026-09', movimento: 'servicos_tomados' }); }
+  catch (e) { msg = e.message; }
+  assert.ok(msg.startsWith('Importação bloqueada: 3 nota(s)'), msg);
+  assert.ok(msg.includes('NF 52 (RAFAEL MARQUES): data 01/10/2026, fora da competência 09/2026'), msg);
+  assert.ok(msg.includes('NF 33 (ANDREZA): data 03/10/2026, fora da competência 09/2026'), msg);
+  assert.ok(msg.includes('Nota 4 (sem número) (SEM NUMERO): sem número da nota no CFI; sem data legível no CFI; valor R$ 0,00'), msg);
+  assert.ok(!msg.includes('NF 9 '), msg);
+  assert.ok(/Nada foi importado\.$/.test(msg), msg);
+  console.log('OK: nota fora da competência bloqueia com NF, motivo e ação, listando todas.');
+}
+
+// 22/10 (decisão do Paulo): competência declarada pela nota, fato gerador ou
+// correção registrada no CFI sustentam o mês; a nota emitida DEPOIS entra no
+// último dia da competência, com a emissão no histórico e ressalva na prévia.
+// Competência pela emissão, sem origem, ou emissão ANTES do mês: bloqueia.
+{
+  const opts = { cnpj: '60527879000156', competencia: '2026-09', movimento: 'servicos_tomados' };
+  const nota = (extra) => ({ idOrigem: 'd52', numero: '52', data: '2026-10-01', participanteNome: 'RAFAEL MARQUES', valor: 4000, competencia: '2026-09', ...extra });
+  const corpo = (notas) => ({ ...payload, cnpjEmpresa: opts.cnpj, competencia: '2026-09', movimento: 'servicos_tomados', notas,
+    resumo: { total: notas.reduce((s, n) => s + n.valor, 0) } });
+
+  for (const origem of ['declarada', 'fato-gerador', 'campo-competencia', 'corrigida']) {
+    const r = normalizarMovimentoFiscalCfi(corpo([nota({ competenciaOrigem: origem }),
+      { idOrigem: 'd9', numero: '9', data: '2026-09-03', participanteNome: 'CAROLINE', valor: 7375 }]), opts);
+    const l52 = r.lancamentos.find((l) => l.documento === '52');
+    assert.strictEqual(l52.data, '2026-09-30', origem);
+    assert.strictEqual(l52.dataEmissaoNota, '2026-10-01');
+    assert.strictEqual(l52.cfiCompetenciaOrigem, origem);
+    assert.ok(l52.descricao.endsWith('NF 52 - emitida em 01/10/2026'), l52.descricao);
+    assert.strictEqual(r.lancamentos.find((l) => l.documento === '9').data, '2026-09-03');
+    assert.ok(!('dataEmissaoNota' in r.lancamentos.find((l) => l.documento === '9')));
+    assert.strictEqual(r.notas_emitidas_fora_do_mes.length, 1);
+    assert.ok(r.ressalvas_cfi.some((t) => t.startsWith('1 nota(s) emitida(s) depois de 09/2026 e lançada(s) em 30/09/2026') && t.includes('NF 52 (emitida em 01/10/2026')), r.ressalvas_cfi.join('|'));
+  }
+
+  const bloqueia = (extra, trecho) => {
+    let msg = '';
+    try { normalizarMovimentoFiscalCfi(corpo([nota(extra)]), opts); } catch (e) { msg = e.message; }
+    assert.ok(msg.includes(trecho), msg);
+  };
+  bloqueia({ competenciaOrigem: 'emissao' }, 'NF 52 (RAFAEL MARQUES): data 01/10/2026, fora da competência 09/2026 (competência pela origem "emissao"');
+  bloqueia({ competenciaOrigem: 'data-de-emissao' }, 'origem "data-de-emissao"');
+  bloqueia({ competenciaOrigem: null }, 'o CFI não informou de onde veio a competência');
+  bloqueia({ competenciaOrigem: 'declarada', competencia: '2026-10' }, 'data 01/10/2026, fora da competência 09/2026.');
+  bloqueia({ competenciaOrigem: 'declarada', data: '2026-08-31' }, 'data 31/08/2026, fora da competência 09/2026');
+  console.log('OK: competência declarada/fato gerador/corrigida lança no último dia com a emissão; emissão, sem origem e emissão anterior bloqueiam.');
+}
