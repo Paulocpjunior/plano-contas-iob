@@ -421,3 +421,28 @@ Esta evidência supera a pendência anterior de login, mas não comprova transfe
 rename, retomada, integridade ou restauração. Nenhum comprovante de backup
 `UNAS_VERIFIED.json` foi emitido por esses testes. A fila persistente, configuração
 HMAC e implantação completa continuam pendentes antes da transferência real.
+
+### Início da homologação com exportações existentes — 22/10/2026
+
+Com autorização expressa para transferir os backups em nuvem, foi criado o job
+sem agendamento `cci-unas-homologacao`, com 1 CPU/2 GiB, uma tarefa, zero retries
+automáticos, timeout 24h e orçamento interno 23h. A configuração padrão mantém
+transferências e notificações desativadas; somente a execução selecionada recebe
+`UNAS_ENABLE_TRANSFERS=true` e os argumentos de app/run.
+
+Build `63050432-11a0-4c37-9ccd-4287f567a515` concluído; imagem SHA `e09e1c4`,
+digest `sha256:b889aec3ab0b46950893cfda09405481f153532f3e3de9d05b44965fefceb5d5`.
+Banco de controle `consultorfiscalapp/backup-control` criado em southamerica-east1,
+com proteção contra exclusão. Identidade `cci-unas-replica` recebe leitura dos
+dois buckets, criação somente de comprovantes, acesso condicionado ao banco de
+controle e às quatro configurações/credenciais versionadas no Secret Manager.
+Não recebe export/import nem escrita nos bancos de produção. A criação do banco
+e a execução/tráfego usam serviços Google Cloud cobrados conforme consumo; não
+foi contratado serviço adicional de VPN ou gateway.
+
+Secrets montados: perfil WireGuard v1, credencial SMB v3, configuração v1 e
+keyring HMAC v1 (key ID `unas-20261022`). Valores secretos não são registrados.
+Descoberta `cci-unas-homologacao-x7g6z` terminou com saída 0 e enfileirou
+46 exportações existentes, sem transferir arquivos. Os manifestos de CFI
+`20261021T022039Z-2cb8f0b9` e CCI `20261021T020039Z-f5774da9` foram validados.
+O replicador diário anterior e os horários existentes não foram alterados.

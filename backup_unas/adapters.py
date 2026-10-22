@@ -1,5 +1,6 @@
 """Google Cloud e SMB3: credenciais somente em arquivos montados pelo Secret Manager."""
 import base64
+import errno
 import hashlib
 import ipaddress
 import json
@@ -195,8 +196,9 @@ class SMB:
             return
         try:
             self.client.mkdir(self.root)
-        except FileExistsError:
-            pass
+        except OSError as error:
+            if error.errno != errno.EEXIST:
+                raise
         require(stat.S_ISDIR(self.checked_stat(self.root).st_mode), "RUN_PATH_CONFLICT")
 
     def parents(self, rel):
@@ -205,8 +207,9 @@ class SMB:
             path += "\\" + segment
             try:
                 self.client.mkdir(path)
-            except FileExistsError:
-                pass
+            except OSError as error:
+                if error.errno != errno.EEXIST:
+                    raise
             require(stat.S_ISDIR(self.checked_stat(path).st_mode), "UNSAFE_PARENT")
 
     def size(self, rel):
@@ -214,7 +217,9 @@ class SMB:
             value = self.checked_stat(self.path(rel))
             require(stat.S_ISREG(value.st_mode), "DESTINATION_CONFLICT")
             return value.st_size
-        except FileNotFoundError:
+        except OSError as error:
+            if error.errno != errno.ENOENT:
+                raise
             return None
 
     def open(self, rel, mode):
@@ -226,7 +231,9 @@ class SMB:
         try:
             with self.client.open_file(self.path(rel), mode="xb", buffering=0, share_access=""):
                 pass
-        except FileExistsError:
+        except OSError as error:
+            if error.errno != errno.EEXIST:
+                raise
             self.checked_stat(self.path(rel))
 
     def commit(self, part, final):
@@ -268,7 +275,9 @@ class SMB:
                     require(n and n > 0, "SHORT_WRITE")
                     offset += n
                 stream.flush()
-        except FileExistsError:
+        except OSError as error:
+            if error.errno != errno.EEXIST:
+                raise
             # Append only after verifying the exact signed prefix; never truncate.
             partial = self.read_small(part, 16 * 1024 * 1024)
             require(partial is not None and data.startswith(partial), "RECEIPT_PARTIAL_CONFLICT")

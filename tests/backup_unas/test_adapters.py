@@ -79,6 +79,25 @@ class QueueTests(unittest.TestCase):
 
 
 class AdapterTests(unittest.TestCase):
+    @patch('backup_unas.adapters.smbclient')
+    def test_real_sdk_missing_existing_and_denied_statuses(self, smb):
+        from smbprotocol.exceptions import SMBOSError, NtStatus
+        target = SMB('10.0.0.215','Backup_CFI',RUN,{'username':'test','password':'fixture'})
+        for code in (NtStatus.STATUS_OBJECT_NAME_NOT_FOUND, NtStatus.STATUS_OBJECT_PATH_NOT_FOUND):
+            smb.stat.side_effect = SMBOSError(code, 'fixture')
+            self.assertIsNone(target.size('folder/file'))
+        smb.stat.side_effect = SMBOSError(NtStatus.STATUS_ACCESS_DENIED, 'fixture')
+        with self.assertRaises(SMBOSError): target.size('folder/file')
+        smb.stat.side_effect = None
+        smb.stat.return_value = SimpleNamespace(st_mode=stat.S_IFDIR, st_file_attributes=0)
+        smb.mkdir.side_effect = SMBOSError(NtStatus.STATUS_OBJECT_NAME_COLLISION, 'fixture')
+        target.preflight()
+        target.parents('folder/file')
+        smb.open_file.side_effect = SMBOSError(NtStatus.STATUS_OBJECT_NAME_COLLISION, 'fixture')
+        target.prepare('file.unas-part')
+        smb.open_file.side_effect = SMBOSError(NtStatus.STATUS_ACCESS_DENIED, 'fixture')
+        with self.assertRaises(SMBOSError): target.prepare('file.unas-part')
+
     def test_directory_preflight_uses_raw_sdk_handle(self):
         import smbclient
         from smbclient._io import SMBDirectoryIO

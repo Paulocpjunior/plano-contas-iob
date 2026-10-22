@@ -86,7 +86,7 @@ def main():
                 job.fail(code)
             except Exception:
                 code = "LEASE_OR_QUEUE_UNAVAILABLE"
-            print(json.dumps({"app": app, "run": run, "status": "failed", "code": code}))
+            print(json.dumps({"app": app, "run": run, "status": "failed", "code": code, "errorType": type(error).__name__}))
     notify_pending(queue)
     if failures:
         raise SystemExit(1)
