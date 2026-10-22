@@ -352,3 +352,22 @@ mas não houve ensaio negativo de tráfego para todos os destinos proibidos.
 O próximo passo é validar a conta SMB e suas permissões, depois transferir uma
 exportação existente e verificar os arquivos. Não existe ainda `UNAS_VERIFIED.json`
 produzido por esta implementação nem homologação de restauração concluída.
+
+
+## Teste SMB autenticado em 22/10/2026
+
+O administrador optou expressamente por usar sua própria conta, sem criar uma
+conta dedicada. A versão 1 de `cci-unas-smb-credentials` foi cadastrada pelo
+administrador no Secret Manager; o valor não foi registrado no repositório.
+
+Execução `cci-unas-network-probe-m68bm`: falha `LogonFailure` durante o login
+SMB, antes de consultar permissões ou abrir arquivos. Zero arquivos escritos.
+A identidade informada por e-mail não foi aceita com a credencial cadastrada.
+Isso não determina isoladamente se o motivo é usuário, senha, conta bloqueada
+ou configuração de acesso a arquivos; conferir as credenciais SMB no UniFi.
+Não repetir tentativas sem corrigir/confirmar a configuração para evitar bloqueio.
+O teste de rede anterior permanece válido. Nenhum backup/restore foi executado.
+
+O probe autenticado (`backup_unas/smb_probe.py`) usa o mesmo adaptador SMB3 do
+worker e `preflight(ensure_run=False)`, limitado a consultar shares existentes e
+solicitar direitos de listar/criar sem criar arquivos ou diretórios.
