@@ -336,7 +336,6 @@ require('./notificacoes-internal').registrar(app,{db,motor:{rodar:async()=>{
 require('./backup-notifications').register({app,db,email:GraphEmail,express});
 app.use('/api', authRequired);
 app.use('/api', protegerAcoes);
-require('./permissoes-cci-routes')(app, db, adminRequired);
 app.use('/api', criarLimitador({
   janelaMs: 60 * 1000,
   maximo: 1200,
@@ -363,6 +362,8 @@ app.use('/api/gemini', criarLimitador({
 
 // Autenticação e quotas são verificadas antes de alocar o corpo.
 app.use('/api', (req, res, next) => express.json({ limit: limiteCorpoPara(req), verify: verificarTamanhoJson })(req, res, next));
+// Depois do express.json: o PUT de permissões lê o corpo (antes daqui req.body é undefined e tudo vira 400).
+require('./permissoes-cci-routes')(app, db, adminRequired);
 require('./gestao-acessos.cjs').registrar(app, { db, auth: adminAuth, adminRequired, aplicativo: 'cci', efetivas: permissoesEfetivas });
 require('./crm-contabil-routes').registrar(app, { db, domain: DOMAIN, storage: { bucket: nome => admin.storage().bucket(nome) } });
 monitorSharepoint.registrar(app);
