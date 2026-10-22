@@ -216,6 +216,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
             <div class="rc-field" id="rcPeriodoWrap"><label>Competência</label><input type="month" id="rcPeriodo" value="${esc(periodo)}"></div>
             <div class="rc-field" id="rcAnoWrap" style="display:none"><label>Ano do Balancete Anual</label><input type="number" min="2000" max="2100" id="rcAno" value="${esc(periodo.slice(0, 4))}"></div>
             <label class="rc-check"><input type="checkbox" id="rcUsarIntervalo"> Selecionar intervalo de datas</label>
+            <label class="rc-check" id="rcOcultarSemMovimentoWrap" title="Esconde as contas com saldo anterior, débito, crédito e saldo atual zerados. Os totais não mudam."><input type="checkbox" id="rcOcultarSemMovimento"${ocultarSemMovimentoPreferido() ? ' checked' : ''}> Ocultar contas sem movimento</label>
             <div class="rc-intervalo" id="rcIntervalo"><div class="rc-field"><label>Data inicial</label><input type="date" id="rcDataInicio" value="${esc(periodo + '-01')}"></div><div class="rc-field"><label>Data final</label><input type="date" id="rcDataFim" value="${esc(periodo + '-' + String(new Date(Number(periodo.slice(0,4)), Number(periodo.slice(5,7)), 0).getDate()).padStart(2,'0'))}"></div></div>
             <div class="rc-field"><label>Formato do Balancete</label><select id="rcFormato"><option value="6">Modelo SAGE — 6 colunas</option><option value="4">4 colunas</option><option value="2">2 colunas</option></select></div>
             <div class="rc-field"><label>Conta no Razão</label><input id="rcConta" placeholder="Reduzido ou descrição"></div>
@@ -277,6 +278,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
     document.getElementById('rcAno').addEventListener('change', render);
     document.getElementById('rcUsarIntervalo').addEventListener('change', function () { atualizarModoPeriodo(); preencherSaldos(); atualizarTudo(); });
     ['rcDataInicio', 'rcDataFim'].forEach(function (id) { document.getElementById(id).addEventListener('change', function () { preencherSaldos(); atualizarTudo(); }); });
+    document.getElementById('rcOcultarSemMovimento').addEventListener('change', function (evento) { guardarOcultarSemMovimento(evento.target.checked); render(); });
     ['rcFormato', 'rcConta', 'rcBusca'].forEach(function (id) { document.getElementById(id).addEventListener(id === 'rcFormato' ? 'change' : 'input', render); });
     document.getElementById('rcAtualizar').addEventListener('click', atualizarTudo);
     document.getElementById('rcConciliacaoAvaliar').addEventListener('click', avaliarConciliacao);
@@ -332,9 +334,24 @@ function preferenciasImpressao(ctx, sobrescritas) {
       saldos,
       validacao: Core.validar(ctx.entries, filtroValidacao, ctx.contas),
       balancete,
+      contasOcultas: 0
     };
+    // Só a apresentação (tela, impressão, PDF e Excel) perde as contas zeradas;
+    // DRE, balanço e análise seguem calculados sobre o balancete completo.
+    const ocultar = ocultarSemMovimentoAtivo();
+    if (ocultar && tipoAtual === 'balancete') {
+      const filtrado = Core.ocultarContasSemMovimento(balancete);
+      dados.balancete = filtrado.linhas;
+      dados.contasOcultas = filtrado.ocultas;
+    }
     const calculos = {
-      balanceteAnual: function() { return Core.balanceteAnual(ctx.entries, ano, ctx.contas, saldosDoAno(ctx, ano)); },
+      balanceteAnual: function() {
+        const anual = Core.balanceteAnual(ctx.entries, ano, ctx.contas, saldosDoAno(ctx, ano));
+        if (!ocultar || tipoAtual !== 'balancete_anual') return anual;
+        const filtrado = Core.ocultarContasSemMovimento(anual.linhas, ['saldosMensais']);
+        dados.contasOcultas = filtrado.ocultas;
+        return Object.assign({}, anual, { linhas: filtrado.linhas });
+      },
       razao: function() { return Core.razao(ctx.entries, filtro, ctx.contas, saldos, (document.getElementById('rcConta') || {}).value || ''); },
       diario: function() { return Core.diario(ctx.entries, filtro, ctx.contas); },
       dre: function() { return Core.dre(Core.balancete(Core.lancamentosOperacionais(ctx.entries), filtro, ctx.contas, {})); },
@@ -363,12 +380,38 @@ function preferenciasImpressao(ctx, sobrescritas) {
     return dados;
   }
 
+  const CHAVE_OCULTAR_SEM_MOVIMENTO = 'cci.balancete.ocultarSemMovimento';
+  const OCULTAR_SEM_MOVIMENTO_PADRAO = true;
+
+  function ocultarSemMovimentoPreferido() {
+    try {
+      const salvo = window.localStorage.getItem(CHAVE_OCULTAR_SEM_MOVIMENTO);
+      if (salvo === '1' || salvo === '0') return salvo === '1';
+    } catch (erro) { /* navegador sem armazenamento: vale o padrão */ }
+    return OCULTAR_SEM_MOVIMENTO_PADRAO;
+  }
+
+  function guardarOcultarSemMovimento(ativo) {
+    try { window.localStorage.setItem(CHAVE_OCULTAR_SEM_MOVIMENTO, ativo ? '1' : '0'); } catch (erro) { /* mantém só nesta tela */ }
+  }
+
+  function ocultarSemMovimentoAtivo() {
+    const campo = document.getElementById('rcOcultarSemMovimento');
+    return campo ? !!campo.checked : ocultarSemMovimentoPreferido();
+  }
+
+  function avisoContasOcultas(dados) {
+    const n = dados.contasOcultas || 0;
+    return n ? ' · ' + n + (n === 1 ? ' conta sem movimento oculta' : ' contas sem movimento ocultas') : '';
+  }
+
   function atualizarModoPeriodo() {
     const anual = tipoAtual === 'balancete_anual';
     const intervalo = !!document.getElementById('rcUsarIntervalo').checked;
     document.getElementById('rcAnoWrap').style.display = anual ? '' : 'none';
     document.getElementById('rcPeriodoWrap').style.display = anual ? 'none' : '';
     document.getElementById('rcUsarIntervalo').closest('label').style.display = anual ? 'none' : '';
+    document.getElementById('rcOcultarSemMovimentoWrap').style.display = anual || tipoAtual === 'balancete' ? '' : 'none';
     document.getElementById('rcIntervalo').classList.toggle('active', !anual && intervalo);
     document.getElementById('rcPeriodo').disabled = !anual && intervalo;
     document.getElementById('rcFormato').closest('.rc-field').style.display = anual || tipoAtual === 'dfc_indireto' ? 'none' : '';
@@ -429,8 +472,10 @@ function preferenciasImpressao(ctx, sobrescritas) {
   }
 
   function renderBalanceteAnual(dados) {
-    document.getElementById('rcTituloTabela').textContent = 'Balancete Anual Analítico — ' + dados.ano;
-    document.getElementById('rcHead').innerHTML = '<tr><th>Descrição</th>' + dados.balanceteAnual.meses.map(function (mes) { return '<th class="num">' + esc(mes.nome) + '</th>'; }).join('') + '</tr>';
+    // Lê o anual antes do título: é ele que conta as contas sem movimento ocultas.
+    const anual = dados.balanceteAnual;
+    document.getElementById('rcTituloTabela').textContent = 'Balancete Anual Analítico — ' + dados.ano + avisoContasOcultas(dados);
+    document.getElementById('rcHead').innerHTML = '<tr><th>Descrição</th>' + anual.meses.map(function (mes) { return '<th class="num">' + esc(mes.nome) + '</th>'; }).join('') + '</tr>';
     const linhas = dados.balanceteAnual.linhas.filter(function (linha) { return buscaAceita([linha.codigoCompleto, linha.reduzido, linha.descricao]); });
     let html = linhas.map(function (linha) {
       const nivel = Math.max(1, Number(linha.nivel) || 1);
@@ -447,7 +492,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
   }
 
   function renderBalancete(dados, formato) {
-    document.getElementById('rcTituloTabela').textContent = 'Balancete Analítico — ' + dados.periodoLegivel;
+    document.getElementById('rcTituloTabela').textContent = 'Balancete Analítico — ' + dados.periodoLegivel + avisoContasOcultas(dados);
     const colunas = formato === '2'
       ? ['Conta', 'Descrição', 'Sdo. atual']
       : formato === '4'
