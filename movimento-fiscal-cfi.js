@@ -14,6 +14,62 @@
     return /^\d{4}-\d{2}-\d{2}$/.test(String(data || '')) && String(data).slice(0, 7) === competencia;
   }
 
+  const dataBr = (iso) => String(iso).slice(0, 10).split('-').reverse().join('/');
+  const mesBr = (comp) => String(comp).slice(5, 7) + '/' + String(comp).slice(0, 4);
+  const moeda = (v) => 'R$ ' + r2(v).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+  function rotuloNota(nota, numero, indice) {
+    const parte = String(nota.participanteNome || '').trim();
+    return (numero ? 'NF ' + numero : 'Nota ' + (indice + 1) + ' (sem número)') + (parte ? ' (' + parte + ')' : '');
+  }
+
+  // Competência que vale mais que a emissão: a que a própria nota declara
+  // (dCompet / campo Competência), a do fato gerador, ou a corrigida no CFI
+  // com autor e motivo. A que saiu da EMISSÃO não sustenta outro mês.
+  const ORIGENS_COMPETENCIA_ACEITAS = ['declarada', 'fato-gerador', 'campo-competencia', 'corrigida'];
+
+  const origemBr = (o) => ({ declarada: 'declarada na nota', 'campo-competencia': 'declarada na nota', 'fato-gerador': 'pelo fato gerador', corrigida: 'corrigida no CFI' })[o] || o;
+
+  function ultimoDia(competencia) {
+    return competencia + '-' + String(new Date(Number(competencia.slice(0, 4)), Number(competencia.slice(5, 7)), 0).getDate()).padStart(2, '0');
+  }
+
+  // 22/10, DAXX 09/2026 (decisão do Paulo): RPS de setembro convertido em
+  // NFS-e em 01/10. O CFI põe a nota em 09/2026 pela competência declarada;
+  // ela entra no último dia da competência, com a emissão no histórico e
+  // ressalva na prévia. Emissão ANTERIOR à competência continua bloqueada.
+  function competenciaSustentaData(nota, data, competencia) {
+    return String(nota.competencia || '') === competencia
+      && ORIGENS_COMPETENCIA_ACEITAS.includes(String(nota.competenciaOrigem || ''))
+      && data.slice(0, 7) > competencia;
+  }
+
+  function motivosNotaRecusada(nota, numero, valor, competencia) {
+    const motivos = [];
+    if (!numero) motivos.push('sem número da nota no CFI');
+    const data = String(nota.data || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) motivos.push('sem data legível no CFI');
+    else if (!validarDataCompetencia(data, competencia) && !competenciaSustentaData(nota, data, competencia)) {
+      motivos.push('data ' + dataBr(data) + ', fora da competência ' + mesBr(competencia)
+        + (String(nota.competencia || '') !== competencia ? ''
+          : nota.competenciaOrigem ? ' (competência pela origem "' + nota.competenciaOrigem + '", que não sustenta outro mês)'
+          : ' (o CFI não informou de onde veio a competência)'));
+    }
+    if (!(valor > 0)) motivos.push(nota.valor == null || nota.valor === '' ? 'sem valor no CFI' : 'valor ' + moeda(valor) + ' (precisa ser maior que zero)');
+    return motivos;
+  }
+
+  function mensagemNotasRecusadas(recusadas, competencia) {
+    const foraDoMes = recusadas.some(r => r.includes('fora da competência'));
+    return 'Importação bloqueada: ' + recusadas.length + ' nota(s) do CFI não podem ser lançadas em ' + mesBr(competencia) + '. '
+      + recusadas.join(' | ') + '. '
+      + (foraDoMes
+        ? 'A data é de outro mês e o CFI não mostrou que a nota é de ' + mesBr(competencia) + ' (competência declarada na nota, fato gerador ou correção registrada). '
+          + 'No CFI, confira a competência da nota: se o serviço é de outro mês, importe-a naquele mês. '
+        : '')
+      + 'Corrija a nota no CFI e clique em Consultar CFI. Nada foi importado.';
+  }
+
   // Imposto destacado POR CFOP, com o desenho do arquivo SAGE
   // (`criarLancamentoImposto`): o mesmo lançamento, venha a nota do arquivo
   // ou da consulta direta. 21/10, NOVA ERA 09/2026: o ICMS das saídas não
@@ -127,7 +183,13 @@
       throw new Error('O CFI nao encontrou notas deste tipo na competencia. Isso nao prova ausencia de movimento: confira a captura no CFI.');
     }
 
+    // 22/10, DAXX 09/2026: "Nota 52 com numero, data ou valor invalido" não
+    // dizia QUAL campo nem o que fazer, e parava na primeira nota (havia três
+    // com data de outubro). A regra não muda: toda nota exige número, data na
+    // competência e valor. Muda a frase: todas as notas, o motivo de cada uma
+    // e onde corrigir.
     const vistos = new Set();
+    const recusadas = [];
     const notas = body.notas.map(function(nota, indice) {
       const id = String(nota.idOrigem || '').trim();
       const numero = String(nota.numero || '').trim();
@@ -135,11 +197,13 @@
       if (!id) throw new Error('Nota ' + (indice + 1) + ' sem identidade de origem no CFI.');
       if (vistos.has(id)) throw new Error('O CFI devolveu a mesma nota mais de uma vez: ' + id + '.');
       vistos.add(id);
-      if (!numero || !validarDataCompetencia(nota.data, competencia) || !(valor > 0)) {
-        throw new Error('Nota ' + (numero || indice + 1) + ' com numero, data ou valor invalido no CFI.');
-      }
-      return { ...nota, idOrigem: id, numero, valor };
+      const motivos = motivosNotaRecusada(nota, numero, valor, competencia);
+      if (motivos.length) recusadas.push(rotuloNota(nota, numero, indice) + ': ' + motivos.join('; '));
+      const data = String(nota.data || '');
+      if (motivos.length || validarDataCompetencia(data, competencia)) return { ...nota, idOrigem: id, numero, valor };
+      return { ...nota, idOrigem: id, numero, valor, data: ultimoDia(competencia), dataEmissaoNota: data };
     });
+    if (recusadas.length) throw new Error(mensagemNotasRecusadas(recusadas, competencia));
     const totalCalculado = r2(notas.reduce(function(soma, nota) { return soma + nota.valor; }, 0));
     const totalInformado = r2(body.resumo && body.resumo.total);
     if (Math.round(totalCalculado * 100) !== Math.round(totalInformado * 100)) {
@@ -163,7 +227,8 @@
       const prestado = movimento === 'servicos_prestados';
       const base = {
         data: nota.data,
-        descricao: (prestado ? 'Servicos prestados' : 'Servicos tomados') + ' - ' + participante + ' - NF ' + nota.numero,
+        descricao: (prestado ? 'Servicos prestados' : 'Servicos tomados') + ' - ' + participante + ' - NF ' + nota.numero
+          + (nota.dataEmissaoNota ? ' - emitida em ' + dataBr(nota.dataEmissaoNota) : ''),
         descricao_memoria: participante,
         memoriaDescricoes: [participante, prestado ? 'Servicos prestados' : 'Servicos tomados', 'NF ' + nota.numero],
         valor: prestado ? nota.valor : -nota.valor,
@@ -196,7 +261,8 @@
         cfiDocumentoId: nota.idOrigem,
         cfiLancamentoId: nota.idOrigem + ':BRUTO',
         cfiOrigemDocumento: nota.origemDocumento || 'CFI',
-        origemDadosFiscal: 'CFI_API'
+        origemDadosFiscal: 'CFI_API',
+        ...(nota.dataEmissaoNota ? { dataEmissaoNota: nota.dataEmissaoNota, cfiCompetenciaOrigem: nota.competenciaOrigem } : {})
       };
       lancamentos.push(base);
       if (prestado && opts.importarIssDestacado === true) {
@@ -338,6 +404,7 @@
       }
     });
 
+    const emitidasForaDoMes = notas.filter(n => n.dataEmissaoNota);
     const totalIssRetido = r2(notas.reduce(function(soma, nota) { return soma + r2(nota.issRetido); }, 0));
     const totalIssDestacado = r2(lancamentos.filter((l) => l.componenteFiscal === 'IMPOSTO_DESTACADO').reduce((soma, l) => soma + l.valorImpostoFiscal, 0));
     const totalFederal = r2(Object.values(totaisFederais).reduce((soma, v) => soma + v, 0));
@@ -373,7 +440,12 @@
       total_oficial_detectado: true,
       total_divergente: false,
       documentos_lidos_cfi: Number(body.documentosLidos || 0),
-      ressalvas_cfi: Array.isArray(body.ressalvas) ? body.ressalvas : [],
+      ressalvas_cfi: (Array.isArray(body.ressalvas) ? body.ressalvas : []).concat(emitidasForaDoMes.length
+        ? [emitidasForaDoMes.length + ' nota(s) emitida(s) depois de ' + mesBr(competencia) + ' e lançada(s) em ' + dataBr(ultimoDia(competencia))
+          + ' pela competência informada no CFI: ' + emitidasForaDoMes.map(n => 'NF ' + n.numero + ' (emitida em ' + dataBr(n.dataEmissaoNota) + ', competência ' + origemBr(n.competenciaOrigem) + ')').join('; ')
+          + '. Confira antes de importar.']
+        : []),
+      notas_emitidas_fora_do_mes: emitidasForaDoMes.map(n => ({ numero: n.numero, participante: n.participanteNome || '', dataEmissao: n.dataEmissaoNota, dataLancamento: n.data, competenciaOrigem: n.competenciaOrigem, valor: n.valor })),
       lancamentos
     };
   }
