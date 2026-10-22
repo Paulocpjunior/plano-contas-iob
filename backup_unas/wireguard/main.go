@@ -24,6 +24,9 @@ import (
 
 const nas = "10.0.0.215:445"
 
+// IPv4-only tunnel: reserve headroom for WireGuard and the serverless underlay.
+const tunnelMTU = 1100
+
 // Keep UDP datagrams separate: serverless underlays may accept UDP GSO socket
 // options while dropping the resulting coalesced datagram on the network path.
 // The official bind still owns endpoints, receive batching and cryptographic I/O.
@@ -168,7 +171,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	tun, stack, err := netstack.CreateNetTUN([]netip.Addr{addr}, nil, 1280)
+	tun, stack, err := netstack.CreateNetTUN([]netip.Addr{addr}, nil, tunnelMTU)
 	if err != nil {
 		return err
 	}

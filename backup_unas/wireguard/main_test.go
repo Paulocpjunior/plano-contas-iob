@@ -51,7 +51,7 @@ func TestEncryptedUserspaceForward(t *testing.T) {
 	cp, cu := keys(t)
 	sp, su := keys(t)
 	makeDevice := func(ip string) (*device.Device, *netstack.Net) {
-		tun, stack, e := netstack.CreateNetTUN([]netip.Addr{netip.MustParseAddr(ip)}, nil, 1280)
+		tun, stack, e := netstack.CreateNetTUN([]netip.Addr{netip.MustParseAddr(ip)}, nil, tunnelMTU)
 		if e != nil {
 			t.Fatal(e)
 		}
