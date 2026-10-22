@@ -189,7 +189,7 @@ class SMB:
     def preflight(self, ensure_run=True):
         require(stat.S_ISDIR(self.checked_stat(self.share).st_mode), "SHARE_MISSING")
         # Request list/add-file/add-subdirectory rights without creating any probe file.
-        with self.client.open_file(self.share, mode="rb", file_type="dir", desired_access=0x00000007):
+        with self.client.open_file(self.share, mode="rb", buffering=0, file_type="dir", desired_access=0x00000007):
             pass
         if not ensure_run:
             return

@@ -79,6 +79,21 @@ class QueueTests(unittest.TestCase):
 
 
 class AdapterTests(unittest.TestCase):
+    def test_directory_preflight_uses_raw_sdk_handle(self):
+        import smbclient
+        from smbclient._io import SMBDirectoryIO
+        directory = SMBDirectoryIO.__new__(SMBDirectoryIO)
+        # Real SDK buffering rejects directory handles; raw mode must bypass it.
+        directory._mode = 'rb'
+        with patch('smbclient._os.SMBDirectoryIO', return_value=directory), \
+             patch.object(SMBDirectoryIO, 'open'), \
+             patch.object(SMBDirectoryIO, 'close'):
+            target = SMB.__new__(SMB)
+            target.share = r'\\server\Backup_CCI'
+            target.client = SimpleNamespace(open_file=smbclient.open_file)
+            target.checked_stat = lambda path: SimpleNamespace(st_mode=stat.S_IFDIR)
+            target.preflight(ensure_run=False)
+
     @patch('backup_unas.adapters.smbclient')
     def test_smb_reads_have_timeout_and_no_symlink_resolution(self, smb):
         original = Mock()

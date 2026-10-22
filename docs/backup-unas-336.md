@@ -6,11 +6,14 @@
 do job Cloud Run, conectado ao servidor WireGuard já existente no UDM Pro. Usa SMB3
 nativo do UNAS, sem contratar Cloud VPN, VM, gateway ou licença adicional.
 O uso dos serviços Google Cloud existentes continua sujeito à cobrança de execução,
-armazenamento e tráfego. A conexão real ainda não foi homologada.
+armazenamento e tráfego. A conexão WireGuard e o preflight SMB autenticado das duas pastas foram
+homologados em 22/10/2026; transferência e restauração ainda estão pendentes.
 
-Implementação candidata para revisão. **Não implantada e não homologada no UNAS.**
-Nenhum export, transferência de dados reais, restauração, alteração de agenda ou
-mudança de permissão foi executado nesta entrega. Testes usam dados sintéticos.
+Implementação candidata para revisão. **Replicador de produção não implantado;
+gravação e restauração ainda não homologadas.** Não foram executados novos exports,
+transferências de backups, restaurações ou alterações de agenda. Foram aplicadas
+as regras UniFi autorizadas e executados diagnósticos reais de rede e acesso SMB
+no Cloud Run, conforme registros abaixo. Os testes de integridade usam dados sintéticos.
 
 ## Diagnóstico observado em 21/10/2026
 
@@ -379,3 +382,42 @@ estava desmarcado. Portanto, a credencial de arquivos da própria conta ainda pr
 ser habilitada/configurada pelo administrador. Nenhuma conta adicional foi criada
 nem senha alterada. Habilitar SMB na conta e atualizar a versão do secret antes de
 repetir o teste; o login por e-mail da conta UniFi não comprova credencial SMB ativa.
+
+### Reteste SMB em 22/10/2026 às 10:11 UTC
+
+A conta administrativa existente teve File Services & Time Machine Credentials
+ativado pelo administrador. A interface confirma usuário local `Paulocpj`,
+credenciais vinculadas ao acesso local do administrador e acesso Owner às duas
+pastas. A versão 2 de `cci-unas-smb-credentials` foi montada no job de diagnóstico.
+Validação sem revelar valores confirmou JSON válido, usuário correto, senha
+não vazia, sem placeholder e sem espaços externos.
+
+A execução `cci-unas-network-probe-fzmd8` retornou `LogonFailure` no login SMB
+do CCI; CFI não foi tentado após essa falha. Zero arquivos escritos.
+A ativação da opção na interface não comprova autenticação SMB. É necessário
+conferir a senha de acesso local usada na versão 2; não presumir que seja a senha
+da conta UniFi na nuvem. Transferência e restauração seguem bloqueadas por
+autenticação, sem comprovante `UNAS_VERIFIED.json` emitido nesta homologação.
+
+### Acesso autenticado confirmado em 22/10/2026
+
+A versão 3 da credencial corrigiu a autenticação. A execução
+`cci-unas-network-probe-sclrg` avançou para `share_permissions`, mas o SDK
+levantou `UnsupportedOperation`: o preflight tentava envolver um handle de
+diretório em um buffer de arquivo. A correção usa `buffering=0` para esse handle,
+sem mudar direitos, criptografia ou destinos. Um teste com a classe de diretório
+do SDK real cobre a regressão; os 36 testes Python passaram.
+
+Reteste `cci-unas-network-probe-zx49c`: saída 0 e `share_access_confirmed` para
+**Backup_CCI e Backup_CFI**, com autenticação, criptografia e assinatura exigidas.
+O preflight abre as pastas existentes solicitando direitos de listar, adicionar
+arquivo e adicionar subdiretório; nenhum arquivo ou diretório é criado.
+A imagem anterior recebeu apenas a correção do diagnóstico via comando Python;
+a futura imagem de produção deverá incluir o adaptador corrigido.
+
+Credencial utilizada: conta administrativa local existente, conforme escolha
+expressa do administrador. Não é necessária nova conta para esta homologação.
+Esta evidência supera a pendência anterior de login, mas não comprova transferência,
+rename, retomada, integridade ou restauração. Nenhum comprovante de backup
+`UNAS_VERIFIED.json` foi emitido por esses testes. A fila persistente, configuração
+HMAC e implantação completa continuam pendentes antes da transferência real.
