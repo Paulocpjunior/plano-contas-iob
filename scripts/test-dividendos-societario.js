@@ -33,7 +33,7 @@ async function testarTela() {
  const ctx={document:{getElementById:id=>campos[id]},window:{CURRENT_USER:{is_admin:true},API:{reinfDividendosAlterarSocietario:async(c,b)=>{chamadas++;payload=b;return {ok:true,ataRevisao:5};}}},reinfState:{dividendosAtaRevisao:4},reinfDividendosCnpjAtual:()=> '12345678000190',reinfDividendosSociosTextoParaLista:()=>dados.socios,reinfFormatCpfCnpj:String,confirm:()=>confirmado,showToast:m=>{erro=m;},reinfDividendosInvalidar(){},carregarDividendosReinf:async()=>{carga++;},dividendosMesCarregado:{}};
  vm.createContext(ctx);vm.runInContext(html.slice(html.indexOf('        async function registrarAlteracaoSocietariaDividendos()'),html.indexOf('        async function salvarDividendosReinf()')),ctx);
  await ctx.registrarAlteracaoSocietariaDividendos();assert.equal(chamadas,0,'Cancelamento não grava');
- confirmado=true;ctx.window.CURRENT_USER.is_admin=false;await ctx.registrarAlteracaoSocietariaDividendos();assert.equal(chamadas,0);
+ confirmado=true;ctx.window.CURRENT_USER.is_admin=false;{const api=ctx.window.API.reinfDividendosAlterarSocietario;let chamouColab=0;ctx.window.API.reinfDividendosAlterarSocietario=async()=>{chamouColab++;return {ok:false,erro:'Sem a ação editar'};};await ctx.registrarAlteracaoSocietariaDividendos();assert.equal(chamouColab,1,'colaborador liberado: o servidor decide pela ação editar');ctx.window.API.reinfDividendosAlterarSocietario=api;}
  ctx.window.CURRENT_USER.is_admin=true;campos.dividendosDataContrato.value='';await ctx.registrarAlteracaoSocietariaDividendos();assert.equal(chamadas,0);
  campos.dividendosDataContrato.value='2026-06-26';campos.reinfCompetencia.value='2026-06';await ctx.registrarAlteracaoSocietariaDividendos();assert.equal(chamadas,0);
  campos.reinfCompetencia.value='2026-07';await ctx.registrarAlteracaoSocietariaDividendos();assert.equal(chamadas,1);assert.equal(carga,1);assert.equal(payload.dataContrato,'2026-06-26');assert.equal(payload.competenciaInicio,'2026-07');assert.equal(payload.ataRevisao,4);assert.equal(ctx.reinfState.dividendosAtaRevisao,5);assert.equal(campos.btnDividendosSocietario.disabled,false);
@@ -54,7 +54,7 @@ async function testarTela() {
  const call=async(path,method='GET',body,user)=>{const r=await fetch(base+path,{method,headers:{'Content-Type':'application/json',...(user?{'x-user':user}:{})},...(body?{body:JSON.stringify(body)}:{})});return {status:r.status,...await r.json()};};
  try {
   const route='/empresa/'+cnpj+'/societario';
-  assert.equal((await call(route,'POST',dados,'owner')).status,403,'Não administrador');
+  assert.equal((await call(route,'POST',dados,'owner')).status,403,'Sem liberação do módulo EFD-Reinf');
   assert.equal((await call('/mensal/'+cnpj+'/2026-06','GET',null,'outro')).status,403,'Isolamento');
   const antigo={...dados,ataSaldo:0,ataValorTotal:0};
   assert.equal((await call('/empresa/'+cnpj,'PUT',antigo)).status,400,'Salvar cadastro não contorna histórico');

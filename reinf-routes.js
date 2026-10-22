@@ -4,7 +4,7 @@
 // porque e registrada abaixo de /api no server.js.
 // ============================================================================
 const express = require('express');
-const { podeModulo } = require('./permissoes-cci');
+const { podeModulo, podeAcao } = require('./permissoes-cci');
 const SaldoAta = require('./reinf/dividendos-saldo-ata');
 const DividendosHistorico = require('./reinf/dividendos-historico');
 const DividendosSocietario = require('./reinf/dividendos-societario');
@@ -390,9 +390,11 @@ function adminReinfRequired(req, res, next) {
   next();
 }
 
-function adminReinfCadastroRequired(req, res, next) {
-  if (!req.user || req.user.is_admin !== true) {
-    return res.status(403).json({ ok: false, erro: 'Apenas administradores podem alterar cadastro Reinf/dividendos ou disparar e-mails.' });
+// Cadastros, solicitações e dividendos: admin ou colaborador liberado no módulo.
+// A ação em si (editar, emitir, fechar) é conferida pelo protegerAcoes conforme o nível dele.
+function cadastroReinfRequired(req, res, next) {
+  if (!podeModulo(req.user, 'reinf')) {
+    return res.status(403).json({ ok: false, erro: 'Seu cadastro não tem acesso ao EFD-Reinf / Informes. Peça a um administrador para liberar em Admin → Usuários → Nível e ações do CCI.' });
   }
   next();
 }
@@ -755,7 +757,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     }
   });
 
-  router.put('/aplicacoes/empresa/:cnpj', adminReinfCadastroRequired, async (req, res) => {
+  router.put('/aplicacoes/empresa/:cnpj', cadastroReinfRequired, async (req, res) => {
     try {
       if (!db) throw new Error('Banco de dados indisponível para cadastro de aplicações financeiras.');
       const cnpj = limparCnpj(req.params.cnpj);
@@ -787,7 +789,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     }
   });
 
-  router.post('/aplicacoes/registrar', adminReinfCadastroRequired, async (req, res) => {
+  router.post('/aplicacoes/registrar', cadastroReinfRequired, async (req, res) => {
     try {
       if (!db) throw new Error('Banco de dados indisponível para registrar análise de aplicações financeiras.');
       const body = req.body || {};
@@ -846,7 +848,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     }
   });
 
-  router.post('/aplicacoes/solicitar', adminReinfCadastroRequired, async (req, res) => {
+  router.post('/aplicacoes/solicitar', cadastroReinfRequired, async (req, res) => {
     try {
       if (!db) throw new Error('Banco de dados indisponível para solicitar extratos de aplicações.');
       const body = req.body || {};
@@ -903,7 +905,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     }
   });
 
-  router.get('/dividendos/microsoft365/status', adminReinfCadastroRequired, (req, res) => {
+  router.get('/dividendos/microsoft365/status', cadastroReinfRequired, (req, res) => {
     const cfg = reinfMicrosoft365Config();
     res.json({ ok: true, configured: cfg.configured, sender: cfg.sender || null });
   });
@@ -937,7 +939,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     }
   });
 
-  router.put('/dividendos/empresa/:cnpj', adminReinfCadastroRequired, async (req, res) => {
+  router.put('/dividendos/empresa/:cnpj', cadastroReinfRequired, async (req, res) => {
     try {
       if (!db) throw new Error('Banco de dados indisponível para cadastro de dividendos.');
       const cnpj = limparCnpj(req.params.cnpj);
@@ -999,7 +1001,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     }
   });
 
-  router.post('/dividendos/empresa/:cnpj/societario', adminReinfCadastroRequired, async (req, res) => {
+  router.post('/dividendos/empresa/:cnpj/societario', cadastroReinfRequired, async (req, res) => {
     try {
       const cnpj = limparCnpj(req.params.cnpj);
       if (cnpj.length !== 14) throw Error('CNPJ inválido.');
@@ -1064,7 +1066,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
       res.json({ok:true,...await DividendosHistorico.carregar(ref,snap.data().reinfDividendos||{},req.params.competencia)});
     }catch(e){respostaErro(res,400,e);}
   });
-  router.post('/dividendos/cancelar-preparacao', adminReinfCadastroRequired, async (req,res)=>{
+  router.post('/dividendos/cancelar-preparacao', cadastroReinfRequired, async (req,res)=>{
     try {
       const body=req.body||{},ref=db.collection('empresas').doc(limparCnpj(body.cnpj));
       res.json(await require('./reinf/dividendos-preparacao').cancelar(db,ref,body,req.user));
@@ -1093,7 +1095,7 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
   router.post('/dividendos/extrato', async (req, res) => {
     try {
       const body = req.body || {};
-      if (body.enviar === true && !req.user?.is_admin) return res.status(403).json({ok:false,erro:'O envio por e-mail exige administrador, como nas solicitações de dividendos.'});
+      if (body.enviar === true && !podeAcao(req.user, 'emitir')) return res.status(403).json({ok:false,erro:'O envio por e-mail exige a ação "Emitir / transmitir / enviar". Peça a liberação a um administrador em Admin → Usuários.'});
       const cnpj = limparCnpj(body.cnpj || body.cnpjFonte);
       const ref = db.collection('empresas').doc(cnpj);
       const snap = await ref.get();
@@ -1126,11 +1128,11 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
     } catch (e) { respostaErro(res, e.statusCode || 400, e); }
   });
 
-  router.post('/dividendos/registrar', adminReinfCadastroRequired, (req, res) => {
+  router.post('/dividendos/registrar', cadastroReinfRequired, (req, res) => {
     res.status(409).json({ok:false,erro:'A baixa da ATA ocorre após o aceite do R-4010 em produção, na consulta do lote. Calcular ou registrar uma prévia não consome saldo.'});
   });
 
-  router.post('/dividendos/solicitar', adminReinfCadastroRequired, async (req, res) => {
+  router.post('/dividendos/solicitar', cadastroReinfRequired, async (req, res) => {
     try {
       if (!db) throw new Error('Banco de dados indisponível para disparo de solicitações.');
       const body = req.body || {};

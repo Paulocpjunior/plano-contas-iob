@@ -116,3 +116,21 @@ assert.strictEqual(acaoDaRota('POST', '/api/reinf/dividendos/extrato', {enviar:t
   assert(rota > 0 && json > 0 && rota > json, 'permissoes-cci-routes deve ser registrado após o express.json');
   console.log('Permissões CCI: rota de gravação montada após a leitura do corpo JSON.');
 }
+
+// Colaborador liberado trabalha no módulo conforme as ações do nível (3.4.452); A1 e Central de Notificações seguem com admin.
+{
+  for (const [m, p, a] of [['PUT', '/api/reinf/aplicacoes/empresa/123', 'editar'], ['POST', '/api/reinf/aplicacoes/registrar', 'editar'],
+    ['POST', '/api/reinf/aplicacoes/solicitar', 'emitir'], ['PUT', '/api/reinf/dividendos/empresa/1', 'editar'],
+    ['POST', '/api/reinf/dividendos/empresa/1/societario', 'editar'], ['POST', '/api/reinf/dividendos/registrar', 'editar'],
+    ['POST', '/api/reinf/dividendos/cancelar-preparacao', 'fechar'], ['POST', '/api/reinf/dividendos/solicitar', 'emitir'],
+    ['PUT', '/api/reinf/alugueis-planilha/123', 'editar']]) assert.strictEqual(acaoDaRota(m, p), a, p);
+  const fs = require('fs'), path = require('path'), raiz = path.join(__dirname, '..');
+  const rotas = fs.readFileSync(path.join(raiz, 'reinf-routes.js'), 'utf8');
+  assert(!/adminReinfCadastroRequired/.test(rotas), 'cadastros do Reinf não exigem mais admin');
+  assert(/router\.post\('\/certificado', adminReinfRequired/.test(rotas), 'certificado A1 continua exclusivo de admin');
+  const index = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
+  assert(/data-somente-admin="1" style="display:none" onclick="abrirNotificacoesAplicacoesReinf\(\)"/.test(index), 'Central de Notificações só aparece para admin');
+  for (const trava of ['Apenas administradores podem salvar cadastro de dividendos', 'Somente administradores podem cancelar preparações mensais', 'Apenas administradores podem disparar e-mail aos clientes', 'Apenas administradores podem registrar alterações societárias'])
+    assert(!index.includes(trava), 'trava de admin removida: ' + trava);
+  console.log('Permissões CCI: colaborador liberado no EFD-Reinf trabalha conforme as ações do nível.');
+}
