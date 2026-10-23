@@ -255,3 +255,57 @@ assert.equal(lote.identificarAutoria({ origem: 'sage-folha', digitador_sage: 'MA
 assert.equal(lote.identificarAutoria({ origem: 'pdf-bb', editadoPor: 'Bruno' }).tipo, 'Input (importado)');
 assert.equal(lote.identificarAutoria({}).tipo, 'Não registrada');
 assert.equal(lote.identificarAutoria({ encerramentoContabil: true }).tipo, 'Automático');
+
+// Reordenar e renumerar: lançamento retroativo incluído depois volta para a posição da data.
+{
+  const estado = {
+    entries: [
+      { id: 'a', numeroLancamento: 1, data: '2026-07-01', valor: -10 },
+      { id: 'j1', numeroLancamento: 2, data: '2026-06-30', valor: -5 },
+      { id: 'b', numeroLancamento: 3, data: '2026-07-10', valor: -20 },
+      { id: 'c', numeroLancamento: 7, data: '2026-07-20', valor: 30 },
+      { id: 'ago', numeroLancamento: 8, data: '2026-08-01', valor: 1 },
+      { id: 'm', numeroLancamento: 9, data: '2026-07-05', valor: -40 }
+    ],
+    auditoriaLancamentos: []
+  };
+  assert.deepStrictEqual(lote.competenciasDosLancamentos(estado.entries),
+    [{ competencia: '2026-08', total: 1 }, { competencia: '2026-07', total: 4 }, { competencia: '2026-06', total: 1 }]);
+  const plano = lote.planoReordenacao(estado.entries, '2026-07');
+  assert.deepStrictEqual(plano.mapa.map(m => [m.id, m.de, m.para]), [['m', 9, 3], ['b', 3, 7], ['c', 7, 9]],
+    'a competência reaproveita só os números dela (1, 3, 7, 9) na ordem das datas');
+  assert.equal(estado.entries[5].numeroLancamento, 9, 'prévia não altera nada');
+
+  assert.throws(() => lote.reordenarCompetencia(estado, '2026-07', { periodos: [{ periodo: '2026-07', status: 'fechado' }] }),
+    e => e.code === 'PERIODO_CONTABIL_FECHADO', 'competência encerrada não é reordenada');
+  assert.equal(estado.auditoriaLancamentos.length, 0);
+
+  const r = lote.reordenarCompetencia(estado, '2026-07', { periodos: [], por: 'roger@sp', em: '2026-10-23T18:00:00Z' });
+  assert.equal(r.alterados, 3);
+  assert.deepStrictEqual(estado.entries.map(e => e.id + ':' + e.numeroLancamento),
+    ['a:1', 'j1:2', 'm:3', 'b:7', 'ago:8', 'c:9'], 'mesmas posições no array, outros meses intactos');
+  const evento = estado.auditoriaLancamentos[0];
+  assert.equal(evento.tipo, 'reordenacao_lancamentos');
+  assert.equal(evento.por, 'roger@sp');
+  assert.deepStrictEqual(evento.mapa.map(m => m.id + ':' + m.de + '>' + m.para), ['m:9>3', 'b:3>7', 'c:7>9'], 'número antigo fica na auditoria');
+  const numeros = estado.entries.map(e => e.numeroLancamento);
+  assert.equal(new Set(numeros).size, numeros.length, 'numeração continua única');
+
+  const deNovo = lote.reordenarCompetencia(estado, '2026-07', { periodos: [] });
+  assert.equal(deNovo.alterados, 0, 'competência já em ordem não gera auditoria');
+  assert.equal(estado.auditoriaLancamentos.length, 1);
+  assert.throws(() => lote.reordenarCompetencia(estado, '2026-01', { periodos: [] }), /Nenhum lançamento na competência/);
+
+  // Mesmo dia: mantém a ordem dos números atuais (partidas de lançamento múltiplo continuam juntas).
+  const mesmoDia = lote.planoReordenacao([
+    { id: 'p2', numeroLancamento: 11, data: '2026-09-02' }, { id: 'p1', numeroLancamento: 10, data: '2026-09-02' }
+  ], '2026-09');
+  assert.equal(mesmoDia.mapa.length, 0);
+}
+{
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert(html.includes('onclick="abrirModalReordenarLancamentos()"'), 'botão Reordenar e renumerar na tela de lançamentos');
+  assert(html.includes('CCILancamentosEdicaoLote.reordenarCompetencia(state, competencia'), 'tela usa a regra pura');
+  assert(/garantirLancamentosAbertos\(plano\.ordenados, \{ forcar: true \}\)/.test(html), 'confere a trava com os períodos atualizados');
+}
+console.log('OK: reordenar e renumerar por competência aberta, com auditoria.');
