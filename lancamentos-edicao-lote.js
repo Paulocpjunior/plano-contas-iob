@@ -118,6 +118,63 @@
         estado.auditoriaLancamentos = auditoria;
     }
 
+    // Reordenação por data dentro de UMA competência aberta. Os números já usados pela competência
+    // são redistribuídos na ordem (data, número atual): nenhum número de outro mês é tocado, a
+    // numeração continua única e as partidas de um mesmo lançamento múltiplo seguem juntas.
+    function planoReordenacao(entries, competencia) {
+        const comp = String(competencia || '');
+        const lista = (entries || []).filter(function (e) { return e && periodoLancamento(e) === comp; });
+        const numero = function (e) { const n = Number(e.numeroLancamento); return Number.isInteger(n) && n > 0 ? n : Infinity; };
+        const ordenados = lista.slice().sort(function (a, b) {
+            const pd = String(a.data || '').localeCompare(String(b.data || ''));
+            return pd || (numero(a) - numero(b));
+        });
+        const numeros = lista.map(numero).filter(Number.isFinite).sort(function (a, b) { return a - b; });
+        const mapa = [];
+        ordenados.forEach(function (e, i) {
+            const de = numero(e);
+            const para = i < numeros.length ? numeros[i] : null;
+            if (para !== null && de !== para) mapa.push({ id: e.id || null, data: e.data || '', de: Number.isFinite(de) ? de : null, para: para });
+        });
+        return { competencia: comp, total: lista.length, ordenados: ordenados, numeros: numeros, mapa: mapa };
+    }
+
+    function competenciasDosLancamentos(entries) {
+        const contagem = {};
+        (entries || []).forEach(function (e) {
+            const comp = periodoLancamento(e);
+            if (/^\d{4}-\d{2}$/.test(comp)) contagem[comp] = (contagem[comp] || 0) + 1;
+        });
+        return Object.keys(contagem).sort().reverse().map(function (comp) { return { competencia: comp, total: contagem[comp] }; });
+    }
+
+    function reordenarCompetencia(estado, competencia, metadados) {
+        if (!estado || !Array.isArray(estado.entries)) throw new Error('Estado contábil inválido.');
+        const meta = metadados || {};
+        const plano = planoReordenacao(estado.entries, competencia);
+        if (!plano.total) throw new Error('Nenhum lançamento na competência ' + plano.competencia + '. Escolha outra competência.');
+        garantirPeriodosAbertos(plano.ordenados, meta.periodos || []);
+        if (!plano.mapa.length) return { competencia: plano.competencia, total: plano.total, alterados: 0, mapa: [] };
+        // Mesmas posições no array, agora na ordem nova: a tela e o FI passam a seguir a data.
+        const posicoes = [];
+        estado.entries.forEach(function (e, i) { if (e && periodoLancamento(e) === plano.competencia) posicoes.push(i); });
+        plano.ordenados.forEach(function (e, i) {
+            if (i < plano.numeros.length) e.numeroLancamento = plano.numeros[i];
+            estado.entries[posicoes[i]] = e;
+        });
+        const auditoria = Array.isArray(estado.auditoriaLancamentos) ? estado.auditoriaLancamentos.slice(-99) : [];
+        auditoria.push({
+            tipo: 'reordenacao_lancamentos',
+            competencia: plano.competencia,
+            em: meta.em || new Date().toISOString(),
+            por: meta.por || 'usuario_nao_identificado',
+            renumerados: plano.mapa.length,
+            mapa: plano.mapa
+        });
+        estado.auditoriaLancamentos = auditoria;
+        return { competencia: plano.competencia, total: plano.total, alterados: plano.mapa.length, mapa: plano.mapa };
+    }
+
     function valorEmCentavos(valor) {
         if (typeof valor === 'number') return Number.isFinite(valor) ? Math.round(Math.abs(valor) * 100) : 0;
         let texto = String(valor == null ? '' : valor).trim().replace(/\s/g, '');
@@ -142,6 +199,29 @@
             if (partida.centavos <= 0) throw new Error('Informe um valor maior que zero na partida ' + (indice + 1) + ' em ' + lado + '.');
         });
         return lista;
+    }
+
+    // Histórico do lançamento manual a partir do Cód IOB. Enquanto o código tem menos de 4 dígitos
+    // nada é buscado (digitar "1299" não pode parar no 0001 do primeiro dígito); ao sair do campo
+    // (confirmado) o código curto é completado com zeros. Só o histórico que o próprio código
+    // preencheu é trocado: o que o usuário digitou à mão nunca é sobrescrito.
+    function historicoPorCodigoIob(entrada) {
+        const e = entrada || {};
+        const digitos = String(e.codigo || '').replace(/\D/g, '').slice(0, 4);
+        const atual = String(e.historicoAtual || '');
+        const auto = String(e.historicoAuto || '');
+        const atualAutomatico = !atual.trim() || /^(hist|historico)$/i.test(atual.trim()) || (!!auto && atual === auto);
+        const completo = digitos.length === 4 || (!!e.confirmado && digitos.length > 0);
+        const codigo = completo ? digitos.padStart(4, '0') : digitos;
+        const codigoCampo = e.confirmado && completo ? codigo : String(e.codigo || '');
+        if (!completo || codigo === '0000') {
+            return atualAutomatico
+                ? { codigo: codigoCampo, historico: auto && atual === auto ? '' : atual, historicoAuto: '' }
+                : { codigo: codigoCampo, historico: atual, historicoAuto: '' };
+        }
+        if (!atualAutomatico) return { codigo: codigoCampo, historico: atual, historicoAuto: '' };
+        const descricao = typeof e.buscarDescricao === 'function' ? String(e.buscarDescricao(codigo) || '') : '';
+        return { codigo: codigoCampo, historico: descricao || (auto && atual === auto ? '' : atual), historicoAuto: descricao };
     }
 
     function montarPartidasBalanceadas(debitos, creditos) {
@@ -274,6 +354,10 @@
         registrarExclusao: registrarExclusao,
         valorEmCentavos: valorEmCentavos,
         normalizarPartidas: normalizarPartidas,
-        montarPartidasBalanceadas: montarPartidasBalanceadas
+        montarPartidasBalanceadas: montarPartidasBalanceadas,
+        historicoPorCodigoIob: historicoPorCodigoIob,
+        planoReordenacao: planoReordenacao,
+        competenciasDosLancamentos: competenciasDosLancamentos,
+        reordenarCompetencia: reordenarCompetencia
     };
 });
