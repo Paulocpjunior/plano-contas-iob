@@ -1,7 +1,8 @@
 {
-  "version": "3.4.453",
-  "build_date": "2026-10-23T18:00:00Z",
+  "version": "3.4.454",
+  "build_date": "2026-10-26T14:00:00Z",
   "release_notes": [
+    "Importação de extrato bancário e de movimento fiscal: débito e crédito só chegam preenchidos quando há memorização da empresa (🧠) ou uma regra criada em Mapeamento. Saiu a lista padrão antiga de palavras-chave (RENDIMENTO 111/502, PIX RECEBIDO 111/501, TED/DOC 111/112...) que preenchia as mesmas contas em todas as empresas; essas regras também são descartadas das sessões já gravadas. Lançamentos já importados não mudam.",
     "Lançamentos: novo botão \"Reordenar e renumerar\". Escolhida uma competência aberta, os lançamentos dela passam para a ordem das datas e são renumerados em sequência com os mesmos números que a competência já usava (outros meses não mudam). A prévia mostra quais números trocam, a competência encerrada fica travada e a troca (número antigo → novo, quem e quando) fica na auditoria.",
     "Lançamento manual: o Cód IOB só busca o histórico com o código completo (4 dígitos) ou ao sair do campo, quando o código curto é completado com zeros. Digitar 1299 não trava mais o histórico no 0001 \"CHEQUES EMITIDOS NO MÊS\" do primeiro dígito, e trocar o código troca o histórico que ele mesmo preencheu. Histórico digitado à mão nunca é sobrescrito.",
     "EFD-Reinf / Informes: o colaborador liberado no módulo passa a trabalhar nele como os administradores, conforme as ações do nível dele: salvar o cadastro e Registrar análise das Aplicações financeiras (Editar dados), enviar solicitações e e-mails aos clientes (Emitir / transmitir / enviar), cadastro e alterações societárias dos Dividendos e proprietários dos aluguéis (Editar dados), cancelar a preparação do mês (Aprovar / fechar / reabrir). O certificado A1 e a Central de Notificações continuam exclusivos dos administradores; o botão \"Notificações — administração\" só aparece para eles.",
