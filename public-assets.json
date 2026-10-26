@@ -104,5 +104,7 @@
   "/cia-contabil.css",
   "/notificacoes-ui.js",
   "/notificacoes.css",
+  "/ficha-aplicacoes-fiscal-ui.js",
+  "/ficha-aplicacoes-fiscal.css",
   "/trava-digitacao-contabil.js"
 ]
