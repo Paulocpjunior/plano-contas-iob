@@ -1,0 +1,29 @@
+.cci-ficha-fiscal{box-sizing:border-box;width:min(1100px,96vw);max-height:94dvh;overflow:auto;border:1px solid var(--border,#d2d2d7);border-radius:18px;padding:22px;background:var(--card,#fff);color:var(--text,#1c1c1e);font:14px/1.45 var(--sp-fonte,system-ui,sans-serif)}
+.cci-ficha-fiscal::backdrop{background:rgb(0 0 0 / .45)}
+.cci-ficha-fiscal header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.cci-ficha-fiscal h2{margin:0;font-size:21px}.cci-ficha-fiscal h3{margin:20px 0 8px;font-size:16px}
+.cci-ficha-fiscal small,.cci-ficha-fiscal .ff-dica{color:var(--text-muted,#6e6e73)}
+.cci-ficha-fiscal label{display:block;font-size:12px;font-weight:600;color:var(--text-muted,#6e6e73)}
+.cci-ficha-fiscal input,.cci-ficha-fiscal select,.cci-ficha-fiscal textarea{display:block;width:100%;box-sizing:border-box;margin-top:3px;padding:8px 9px;border:1px solid var(--border,#d2d2d7);border-radius:8px;background:var(--surface,#fff);color:var(--text,#1c1c1e);font:inherit}
+.cci-ficha-fiscal textarea{min-height:80px;resize:vertical}
+.cci-ficha-fiscal input.ff-valor{text-align:right;font-variant-numeric:tabular-nums}
+.cci-ficha-fiscal button{padding:9px 14px;margin:4px 4px 4px 0;border:1px solid var(--border,#d2d2d7);border-radius:9px;background:var(--surface,#fff);color:var(--text,#1c1c1e);font:inherit;cursor:pointer;min-height:40px}
+.cci-ficha-fiscal button.ff-primario{background:var(--accent,#0071e3);border-color:var(--accent,#0071e3);color:#fff;font-weight:600}
+.cci-ficha-fiscal button:disabled{opacity:.5;cursor:not-allowed}
+.cci-ficha-fiscal :focus-visible{outline:3px solid var(--accent,#0071e3);outline-offset:2px}
+.cci-ficha-fiscal .ff-faixa{margin:12px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--border,#d2d2d7);background:var(--bg,#f5f5f7)}
+.cci-ficha-fiscal .ff-faixa[data-tipo=ok]{border-color:#86efac}
+.cci-ficha-fiscal .ff-faixa[data-tipo=alerta]{border-color:#fcd34d}
+.cci-ficha-fiscal .ff-faixa[data-tipo=erro]{border-color:#fca5a5}
+.cci-ficha-fiscal .ff-linha{margin:10px 0;padding:12px;border:1px solid var(--border,#d2d2d7);border-radius:12px}
+.cci-ficha-fiscal .ff-linha-topo{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:700}
+.cci-ficha-fiscal .ff-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 10px;margin-top:8px}
+.cci-ficha-fiscal .ff-grade .ff-largo{grid-column:span 2}
+.cci-ficha-fiscal .ff-grade.ff-valores{grid-template-columns:repeat(auto-fit,minmax(128px,1fr))}
+.cci-ficha-fiscal .ff-obrigatorio::after{content:" *";color:#c2410c}
+.cci-ficha-fiscal .ff-totais{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.cci-ficha-fiscal .ff-totais div{padding:8px 10px;border-radius:10px;background:var(--bg,#f5f5f7)}
+.cci-ficha-fiscal .ff-totais strong{display:block;font-variant-numeric:tabular-nums}
+.cci-ficha-fiscal .ff-hist article{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;margin:8px 0;border:1px solid var(--border,#d2d2d7);border-radius:12px}
+.cci-ficha-fiscal ol{padding-left:20px}.cci-ficha-fiscal code{overflow-wrap:anywhere}
+@media (max-width:640px){.cci-ficha-fiscal{padding:16px}.cci-ficha-fiscal .ff-grade .ff-largo{grid-column:auto}}

@@ -691,7 +691,7 @@ function mapaIndAquisInformados(valor) {
 // `mapaNaturezasInformadas` mora no dono (`reinf/retencao-pj-apuracao.js`) desde
 // 11/09: a natureza passou a ser POR NOTA, e a régua da chave é a mesma do ajuste.
 
-function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmailMicrosoft365, enviarEmailAplicacoes = reinfEnviarEmailMicrosoft365, consultarTabelaIR } = {}) {
+function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmailMicrosoft365, enviarEmailAplicacoes = reinfEnviarEmailMicrosoft365, consultarTabelaIR, fichaTeams } = {}) {
   const tabelaIR = consultarTabelaIR || require('./reinf-tabela-ir').criarServico({db});
   async function validarDeducoesAluguel(payload) {
     const locadores=payload.locadores||[];
@@ -718,6 +718,8 @@ function registrarRotasReinf(app, { db, enviarEmailDividendos = reinfEnviarEmail
       next();
     }catch(e){res.status(400).json({ok:false,erro:'Não foi possível validar a empresa dos dividendos.'});}
   });
+
+  require('./ficha-aplicacoes-fiscal-routes').registrarRotasFichaAplicacoes(router, { db, teams: fichaTeams });
 
   router.get('/versao', (req, res) => {
     res.json({
