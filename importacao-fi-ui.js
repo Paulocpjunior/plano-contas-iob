@@ -47,7 +47,7 @@
       try {
         vigente();
         const file = q('[data-arquivo]').files[0];
-        if (!file || !file.size || file.size > 1024 * 1024) throw Error('Selecione um arquivo FI de até 1 MB.');
+        if (!file || !file.size || file.size > 2 * 1024 * 1024) throw Error('Selecione um arquivo FI de até 2 MB. Arquivo maior: gere o FI na origem em períodos menores e importe cada parte.');
         arquivo = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = () => reject(Error('Selecione novamente o arquivo.')); reader.readAsDataURL(file); });
         previa = await api('previa'); vigente();
         status.textContent = previa.ok ? 'Conferência pronta. Revise todas as partidas antes de confirmar.' : previa.erros.join('\n');

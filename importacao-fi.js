@@ -4,11 +4,15 @@ const { createHash } = require('crypto');
 const hash = value => createHash('sha256').update(value).digest('hex');
 const falha = mensagem => { throw Object.assign(new Error(mensagem), { status: 400 }); };
 const normalizar = v => String(v || '').trim().replace(/^0+(?=\d)/, '');
+// Limite do arquivo FI: 2 MB (~6.300 registros de 328 posições + CRLF).
+const LIMITE_FI_BYTES = 2 * 1024 * 1024;
+const LIMITE_FI_BASE64 = Math.ceil(LIMITE_FI_BYTES / 3) * 4;
+const MENSAGEM_LIMITE_FI = 'Selecione um arquivo FI de até 2 MB. Arquivo maior: gere o FI na origem em períodos menores e importe cada parte.';
 
 // Espelho: exportIOB do CCI e arquivo FI real, 328 bytes, Windows-1252.
 // FPIMP, partidas compostas e centros de custo exigem outro leiaute homologado.
 function lerFI(buffer) {
-  if (!Buffer.isBuffer(buffer) || !buffer.length || buffer.length > 1024 * 1024) falha('Selecione um arquivo FI de até 1 MB.');
+  if (!Buffer.isBuffer(buffer) || !buffer.length || buffer.length > LIMITE_FI_BYTES) falha(MENSAGEM_LIMITE_FI);
   const texto = iconv.decode(buffer, 'win1252');
   const linhas = texto.split(/\r\n|\n/);
   if (linhas.at(-1) === '') linhas.pop();
@@ -69,4 +73,4 @@ function prepararFI({ arquivo, contas, state, cnpj }) {
     quantidade: lancamentos.length, totalCentavos: lancamentos.reduce((s, l) => s + l.valorCentavos, 0),
     inicio: lancamentos.map(l => l.data).sort()[0], fim: lancamentos.map(l => l.data).sort().at(-1) };
 }
-module.exports = { lerFI, prepararFI, hash };
+module.exports = { lerFI, prepararFI, hash, LIMITE_FI_BYTES, LIMITE_FI_BASE64, MENSAGEM_LIMITE_FI };
