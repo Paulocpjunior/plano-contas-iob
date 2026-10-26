@@ -31,8 +31,10 @@ const OPCOES_V2 = Object.freeze({
 });
 // Regra {37} observada no formulário: cópia literal, sem arredondamento.
 // A aplicação é explícita; não sobrescreve ajustes por efeito de outra edição.
+// Linha incluída no CCI conserva a aba de referência em fonte_base.
+const fonteDe = registro => registro.fonte_base || registro.fonte;
 function formulaSaldo(registro) {
-  if (registro.fonte !== 'contabil_v2_integral') return null;
+  if (fonteDe(registro) !== 'contabil_v2_integral') return null;
   const campos=registro.campos || [];
   const indices=nome=>campos.flatMap((c,i)=>c.nome===nome?[i]:[]);
   const entradas=indices('SALDO JANEIRO 2026'),saidas=indices('SALDO RESIDUAL');
@@ -45,7 +47,7 @@ function formulaSaldo(registro) {
     aviso:valida?'Copia o saldo de janeiro sem subtração ou arredondamento. Confira o residual atual antes de aplicar.':'Informe um número com ponto decimal no saldo de janeiro. Vazio e formatos ambíguos não alteram o residual.'};
 }
 function contratoParametros(registro) {
-  if (!['contabil_v2','contabil_v2_integral'].includes(registro.fonte)) return null;
+  if (!['contabil_v2','contabil_v2_integral'].includes(fonteDe(registro))) return null;
   const campos = registro.campos || [];
   const tributacoes = campos.filter(c=>c.nome === 'Tributação');
   const t = tributacoes.length === 1 ? tributacoes[0].valor : null;
@@ -67,6 +69,7 @@ function contratoParametros(registro) {
 function editarParametro(antes, body, user, quando) {
   if (!user.is_admin && !podeAcao(user,'editar')) throw erro('Seu perfil não permite edição.',403);
   if (body.revisao !== antes.revisao) throw erro('O registro mudou. Atualize antes de salvar.',409);
+  if (antes.excluido === true) throw erro('Esta linha foi excluída. Peça a um administrador para restaurá-la antes de editar.',409);
   const i = body.coluna;
   if (!Number.isInteger(i) || i < 0 || i >= antes.campos.length) throw erro('Selecione um parâmetro válido.');
   // Identificação e colaborador de origem são evidências, nunca permissões.
@@ -83,6 +86,73 @@ function editarParametro(antes, body, user, quando) {
   if (opcoes && !opcoes.includes(body.valor) && body.valor !== antes.campos[i].valor) throw erro('Selecione uma opção da origem. Valores legados podem ser mantidos sem alteração.');
   const campos = antes.campos.map((c,n)=>n===i ? {...c,valor:body.valor} : c);
   return {...antes,campos,revisao:antes.revisao+1,atualizado_em:quando,atualizado_por_uid:user.uid};
+}
+function motivoDe(body, acao) {
+  if (typeof body.motivo !== 'string' || !body.motivo.trim() || body.motivo.length > 1000) throw erro('Informe o motivo '+acao+', até 1.000 caracteres.');
+  return body.motivo.trim();
+}
+// Fonte própria: a linha incluída não se mistura com a contagem conferida da origem.
+const FONTE_MANUAL = 'cci_manual';
+function cnpjFormatado(c) { return c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5'); }
+function incluirRegistro(aba, body, user, quando, cnpj) {
+  if (!user.is_admin && !podeAcao(user,'editar')) throw erro('Seu perfil não permite incluir linhas.',403);
+  if (!aba || !Array.isArray(aba.cabecalhos) || !aba.cabecalhos.length) throw erro('Aba não encontrada. Atualize a página e escolha a aba novamente.',404);
+  if (!/^\d{14}$/.test(cnpj)) throw erro('Escolha uma empresa válida.');
+  const valores = body.valores;
+  if (!Array.isArray(valores) || valores.length !== aba.cabecalhos.length) throw erro('As colunas da aba mudaram. Atualize a página e preencha a linha novamente.',409);
+  const motivo = motivoDe(body, 'da inclusão');
+  const campos = aba.cabecalhos.map((nome,i)=>{
+    // O CNPJ é o da empresa aberta; não vem digitado.
+    if (nome.trim().toUpperCase() === 'CNPJ') return {nome,valor:cnpjFormatado(cnpj),original:null,protegido:true};
+    const v = valores[i];
+    if (v !== null && (typeof v !== 'string' || v.length > 10000)) throw erro('Confira a coluna '+(i+1)+' ('+nome+'): informe até 10.000 caracteres.');
+    // Ausente ≠ zero: coluna em branco fica "Não informado".
+    return {nome,valor:typeof v === 'string' && v.trim() ? v : null,original:null,protegido:false};
+  });
+  if (!aba.cabecalhos.some(n=>n.trim().toUpperCase() === 'CNPJ')) throw erro('A aba não tem coluna CNPJ. Inclua a linha em outra aba ou consulte o administrador.');
+  if (campos.every(c=>c.protegido || c.valor === null)) throw erro('Preencha ao menos um parâmetro além do CNPJ.');
+  const registro = {fonte:FONTE_MANUAL,fonte_base:aba.id,fonte_nome:aba.nome,manual:true,linha:null,cnpj,identidade_valida:true,
+    nome:String(campos.find(c=>['EMPRESA','EMPRESAS'].includes(c.nome.trim().toUpperCase()))?.valor || ''),
+    codigo:String(campos.find(c=>['N°','Nº'].includes(c.nome.trim().toUpperCase()))?.valor || ''),
+    campos,revisao:1,incluido_em:quando,incluido_por_uid:user.uid,inclusao_motivo:motivo};
+  const contrato = contratoParametros(registro);
+  campos.forEach((c,i)=>{
+    const opcoes = contrato?.campos[i]?.opcoes;
+    if (opcoes && c.valor !== null && !opcoes.includes(c.valor)) throw erro('Selecione uma opção da origem na coluna '+(i+1)+' ('+c.nome+').');
+  });
+  return registro;
+}
+// Exclusão lógica e só de administrador: a linha e o histórico ficam preservados.
+function excluirRegistro(antes, body, user, quando) {
+  if (!user.is_admin) throw erro('Somente administradores podem excluir linhas de parâmetros.',403);
+  if (body.revisao !== antes.revisao) throw erro('A linha mudou. Atualize antes de excluir.',409);
+  if (antes.excluido === true) throw erro('Esta linha já está excluída. Atualize a página.',409);
+  const motivo = motivoDe(body, 'da exclusão');
+  return {...antes,excluido:true,excluido_em:quando,excluido_por_uid:user.uid,exclusao_motivo:motivo,revisao:antes.revisao+1};
+}
+function restaurarRegistro(antes, body, user, quando) {
+  if (!user.is_admin) throw erro('Somente administradores podem restaurar linhas de parâmetros.',403);
+  if (body.revisao !== antes.revisao) throw erro('A linha mudou. Atualize antes de restaurar.',409);
+  if (antes.excluido !== true) throw erro('Esta linha não está excluída. Atualize a página.',409);
+  const motivo = motivoDe(body, 'da restauração');
+  const {excluido_em,excluido_por_uid,exclusao_motivo,...resto} = antes;
+  return {...resto,excluido:false,restaurado_em:quando,restaurado_por_uid:user.uid,restauracao_motivo:motivo,revisao:antes.revisao+1};
+}
+// Alerta, nunca contorno: aponta linhas iguais na mesma aba; quem decide é o administrador.
+function duplicidadesRegistros(registros) {
+  const grupos = new Map(), add = (k,r)=>{if(!grupos.has(k))grupos.set(k,new Set());grupos.get(k).add(r.id);};
+  for (const r of registros) {
+    if (r.excluido === true || !Array.isArray(r.campos)) continue;
+    const aba = fonteDe(r);
+    add(aba+'|atual|'+JSON.stringify(r.campos.map(c=>[c.nome,c.valor ?? null])), r);
+    if (!r.manual) add(aba+'|origem|'+JSON.stringify(r.campos.map(c=>[c.nome,c.original ?? null])), r);
+  }
+  const resultado = new Map();
+  for (const ids of grupos.values()) if (ids.size > 1) for (const id of ids) {
+    if (!resultado.has(id)) resultado.set(id,new Set());
+    ids.forEach(o=>{if(o!==id)resultado.get(id).add(o);});
+  }
+  return new Map([...resultado].map(([id,s])=>[id,[...s].sort()]));
 }
 const CLIENTES = ['ativa','suspensa','saida','baixada','nao_informada'];
 function filtrosCarteira(body = {}) {
@@ -155,4 +225,4 @@ function documentoReferencia(antes,body,user,quando){
   if(typeof body.periodo!=='string'||(body.periodo&&!/^\d{4}(-(?:0[1-9]|1[0-2]))?$/.test(body.periodo)))throw erro('Informe ano ou competência válida.');
   return {titulo,url:u.href,categoria:body.categoria,periodo:body.periodo,motivo,revisao:(antes?.revisao||0)+1,quando,por_uid:user.uid,tipo:'referencia_externa'};
 }
-module.exports={documentoReferencia,formulaSaldo,corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
+module.exports={FONTE_MANUAL,incluirRegistro,excluirRegistro,restaurarRegistro,duplicidadesRegistros,documentoReferencia,formulaSaldo,corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
