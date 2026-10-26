@@ -20,6 +20,7 @@
   "/auditai/rol-core.js",
   "/auditai/rol-reports.js",
   "/filtro-fiscal.js",
+  "/mapeamento-automatico.js",
   "/historicos-padrao.js",
   "/igrejas-conferencia-caixa.js",
   "/index.html",
