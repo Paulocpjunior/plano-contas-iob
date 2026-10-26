@@ -6,7 +6,7 @@ O arquivo não contém CNPJ. Não se deduz empresa pelo nome do arquivo: a confi
 
 ## Contrato homologado
 
-Espelho: gerador `exportIOB()` do CCI e arquivo FI financeiro fornecido para homologação, sem incorporar dados reais ao repositório. Windows-1252, registros de 328 posições, CRLF (leitura também aceita LF). Não confundir com FPIMP da folha. Limite de 1 MB.
+Espelho: gerador `exportIOB()` do CCI e arquivo FI financeiro fornecido para homologação, sem incorporar dados reais ao repositório. Windows-1252, registros de 328 posições, CRLF (leitura também aceita LF). Não confundir com FPIMP da folha. Limite de 2 MB (front, rota e `lerFI`; o JSON da rota cabe no limite padrão de 8 MB do `http-hardening.js`).
 
 | Posições (base 1) | Conteúdo |
 | --- | --- |

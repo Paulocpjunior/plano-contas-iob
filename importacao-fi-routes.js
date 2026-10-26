@@ -1,6 +1,6 @@
 'use strict';
 const { randomUUID } = require('crypto');
-const { lerFI, prepararFI, hash } = require('./importacao-fi');
+const { lerFI, prepararFI, hash, LIMITE_FI_BASE64 } = require('./importacao-fi');
 const TravaDigitacao = require('./trava-digitacao-contabil');
 const erro = mensagem => Object.assign(new Error(mensagem), { status: 409 });
 function registrar(app, deps) {
@@ -14,7 +14,7 @@ function registrar(app, deps) {
       const acesso = await checarAcessoEmpresa(cnpj, req.user);
       if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
       const body = req.body || {};
-      if (typeof body.arquivo !== 'string' || body.arquivo.length > 1400000 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(body.arquivo)) throw erro('Selecione novamente o arquivo FI (máximo 1 MB).');
+      if (typeof body.arquivo !== 'string' || body.arquivo.length > LIMITE_FI_BASE64 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(body.arquivo)) throw erro('Selecione novamente o arquivo FI (máximo 2 MB).');
       const arquivo = lerFI(Buffer.from(body.arquivo, 'base64'));
       const empresaRef = db.collection('empresas').doc(cnpj);
       ref = empresaRef.collection('sessoes').doc('current');

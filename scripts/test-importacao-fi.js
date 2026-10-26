@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('assert');
 const iconv = require('iconv-lite');
-const { lerFI, prepararFI } = require('../importacao-fi');
+const { lerFI, prepararFI, LIMITE_FI_BYTES, LIMITE_FI_BASE64 } = require('../importacao-fi');
 const { registrar } = require('../importacao-fi-routes');
 const { acaoDaRota } = require('../permissoes-cci');
 function linha(overrides = {}) {
@@ -39,6 +39,14 @@ const preparar = (extra = {}) => prepararFI({ arquivo, contas, state, cnpj, ...e
 assert.equal(preparar().totalCentavos, 2468); assert(preparar().ok);
 for (const alterado of [linha().slice(1), linha({ valor: '            ' }), linha({ data: '31/02/2026' }), linha({ d: '' }), linha({ c: 'X' }), linha().slice(0, 327) + 'S', linha().slice(0, 257) + 'X' + linha().slice(258), linha().slice(0, 237) + '6' + linha().slice(238)]) assert.throws(() => lerFI(buffer(alterado)));
 assert.throws(() => lerFI(Buffer.alloc(0)));
+// Limite de 2 MB: arquivo entre 1 e 2 MB entra; acima de 2 MB é recusado com a orientação.
+assert.equal(LIMITE_FI_BYTES, 2 * 1024 * 1024);
+const registrosGrandes = Math.floor(LIMITE_FI_BYTES / 330);
+const fiGrande = buffer((linha() + '\r\n').repeat(registrosGrandes));
+assert(fiGrande.length > 1024 * 1024 && fiGrande.length <= LIMITE_FI_BYTES);
+assert.equal(lerFI(fiGrande).lancamentos.length, registrosGrandes);
+assert.throws(() => lerFI(Buffer.concat([fiGrande, buffer((linha() + '\r\n').repeat(2))])), /até 2 MB.*períodos menores/);
+assert(Buffer.alloc(LIMITE_FI_BYTES).toString('base64').length <= LIMITE_FI_BASE64);
 assert.throws(() => preparar({ cnpj: '11111111000100' }));
 assert(!preparar({ contas: [] }).ok);
 assert(!preparar({ contas: [...contas, { ...contas[0], codigo: '1.2.01' }] }).ok);
@@ -67,6 +75,11 @@ assert.equal(acaoDaRota('POST', `/api/empresas/${cnpj}/importacao-fi/confirmar`)
     await routes[acao]({ params: { cnpj }, user: { uid: 'teste' }, body: { arquivo: buffer(linha() + '\r\n' + linha()).toString('base64'), ...body } }, res);
     return res;
   }
+  // A rota aceita o base64 de um FI de quase 2 MB e recusa o que passa do limite.
+  const previaGrande = await chamar('previa', { arquivo: fiGrande.toString('base64') });
+  assert.equal(previaGrande.code, 200); assert.equal(previaGrande.body.quantidade, registrosGrandes);
+  const acima = await chamar('previa', { arquivo: Buffer.alloc(LIMITE_FI_BYTES + 3, 32).toString('base64') });
+  assert.equal(acima.code, 409); assert.match(acima.body.erro, /máximo 2 MB/);
   autorizado = false; assert.equal((await chamar('previa')).code, 403); autorizado = true;
   fechado = true; assert.equal((await chamar('previa')).body.ok, false); fechado = false;
   const previa = (await chamar('previa')).body;
