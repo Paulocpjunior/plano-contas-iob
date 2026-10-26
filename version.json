@@ -1,7 +1,8 @@
 {
-  "version": "3.4.455",
-  "build_date": "2026-10-26T19:00:00Z",
+  "version": "3.4.456",
+  "build_date": "2026-10-26T19:30:00Z",
   "release_notes": [
+    "CRM → Parâmetros da empresa: agora dá para incluir, editar e excluir linhas. Incluir linha cria uma linha nova na aba escolhida (marcada como incluída no CCI, sem valor de origem; coluna em branco fica Não informado). Excluir linha é só para administrador, pede motivo e é lógica: a linha fica preservada, com histórico, e pode ser restaurada. Linhas iguais na mesma aba aparecem com o alerta ⚠ Possível duplicidade, para o administrador conferir e excluir a repetida.",
     "Importar FI IOB/SAGE: o limite do arquivo passou de 1 MB para 2 MB (cerca de 6.300 partidas). A conferência na tela, a rota e a leitura do arquivo usam o mesmo limite; arquivo maior que 2 MB continua recusado com a orientação de gerar o FI na origem em períodos menores e importar cada parte.",
     "Importação de extrato bancário e de movimento fiscal: débito e crédito só chegam preenchidos quando há memorização da empresa (🧠) ou uma regra criada em Mapeamento. Saiu a lista padrão antiga de palavras-chave (RENDIMENTO 111/502, PIX RECEBIDO 111/501, TED/DOC 111/112...) que preenchia as mesmas contas em todas as empresas; essas regras também são descartadas das sessões já gravadas. Lançamentos já importados não mudam.",
     "Lançamentos: novo botão \"Reordenar e renumerar\". Escolhida uma competência aberta, os lançamentos dela passam para a ordem das datas e são renumerados em sequência com os mesmos números que a competência já usava (outros meses não mudam). A prévia mostra quais números trocam, a competência encerrada fica travada e a troca (número antigo → novo, quem e quando) fica na auditoria.",

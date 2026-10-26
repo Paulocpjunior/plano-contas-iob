@@ -2,7 +2,7 @@
 const core = require('./crm-contabil');
 const crypto = require('crypto');
 const documentoId = url => crypto.createHash('sha256').update(url).digest('hex');
-const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
+const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, incluirRegistro, excluirRegistro, restaurarRegistro, duplicidadesRegistros, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
@@ -374,8 +374,11 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
   app.get(base + '/parametros', wrap(async (req,res)=>{
     await contexto(req);
     const snap = await db.collection('crm_registros').where('cnpj','==',req.params.cnpj).get();
-    const registros = snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>a.fonte.localeCompare(b.fonte)||a.linha-b.linha);
-    const documentos = documentosEmpresa(registros);
+    // Linha incluída no CCI fica junto da aba de referência, depois das linhas importadas.
+    const aba = r => r.fonte_base || r.fonte;
+    const registros = snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>aba(a).localeCompare(aba(b))||(a.linha??Infinity)-(b.linha??Infinity)||String(a.incluido_em||'').localeCompare(String(b.incluido_em||'')));
+    const documentos = documentosEmpresa(registros.filter(r=>r.excluido!==true));
+    const duplicadas = duplicidadesRegistros(registros);
     const ids = [...new Set(documentos.map(d=>documentoId(d.url)))];
     const copiados = new Set();
     // Limita concorrência das leituras sem truncar o dossiê.
@@ -384,8 +387,9 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
       metas.forEach(m=>{if(m.exists&&m.data().estado==='copiado'&&m.data().bucket===env.CCI_CRM_DOCUMENTS_BUCKET)copiados.add(m.id);});
     }
     // Reconfere após a leitura da base para não devolver parâmetros após revogação.
-    const ctx = await contexto(req);
-    res.json({ok:true,registros:registros.map(r=>({...r,contrato:contratoParametros(r)})),documentos:documentos.map(d=>({...d,copiado:copiados.has(documentoId(d.url))})),pode_editar:ctx.user.is_admin || podeAcao(ctx.user,'editar')});
+    const ctx = await contexto(req), podeEditar = ctx.user.is_admin || podeAcao(ctx.user,'editar');
+    const abas = podeEditar ? (await db.collection('crm_importacoes').get()).docs.map(d=>({id:d.id,...d.data()})).filter(f=>Array.isArray(f.cabecalhos)&&f.cabecalhos.length).map(f=>({id:f.id,nome:f.nome,cabecalhos:f.cabecalhos,opcoes:contratoParametros({fonte:f.id,campos:f.cabecalhos.map(nome=>({nome,valor:null}))})?.campos.map(c=>c.opcoes||null)||null})).sort((a,b)=>String(a.nome).localeCompare(String(b.nome))) : [];
+    res.json({ok:true,registros:registros.map(r=>({...r,contrato:contratoParametros(r),duplicidade:duplicadas.get(r.id)||[]})),documentos:documentos.map(d=>({...d,copiado:copiados.has(documentoId(d.url))})),pode_editar:podeEditar,abas});
   }));
   app.get(base + '/historico', wrap(async(req,res)=>{
     const ctx=await contexto(req);
@@ -413,6 +417,36 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
       return {...depois,id:doc.id};
     }); res.json({ok:true,registro});
   }));
+  // Inclusão, exclusão e restauração de linhas: auditadas na linha e na empresa.
+  function auditarLinha(tx,ctx,ref,depois,tipo,motivo,quando){
+    const evento=require('./notificacoes-motor').eventoRef(db,depois.cnpj,'cadastro_editado',ctx.user.uid,quando,core.hash('linha|'+ref.id+'|'+depois.revisao));
+    tx.create(evento.ref,evento.data);
+    tx.create(ref.collection('historico').doc(),{tipo,revisao:depois.revisao,quando,por_uid:ctx.user.uid,motivo});
+    tx.create(ctx.ref.collection('auditoria_contabil').doc(),{tipo,quando,por_uid:ctx.user.uid,registro_id:ref.id,aba:depois.fonte_base||depois.fonte,fonte_nome:depois.fonte_nome||'',linha:depois.linha??null,motivo});
+  }
+  app.post(base + '/parametros', wrap(async (req,res)=>{
+    const body=req.body||{};
+    if (typeof body.aba !== 'string' || !/^[a-zA-Z0-9_-]{1,150}$/.test(body.aba)) throw core.erro('Escolha a aba da nova linha.');
+    const registro = await db.runTransaction(async tx=>{
+      const ctx=await contexto(req,tx), abaDoc=await tx.get(db.collection('crm_importacoes').doc(body.aba)), quando=agora();
+      const novo=incluirRegistro(abaDoc.exists?{id:abaDoc.id,...abaDoc.data()}:null,body,ctx.user,quando,req.params.cnpj);
+      const ref=db.collection('crm_registros').doc(novo.fonte+'_'+crypto.randomUUID());
+      tx.create(ref,novo);auditarLinha(tx,ctx,ref,novo,'CRM_REGISTRO_INCLUIDO',novo.inclusao_motivo,quando);
+      return {...novo,id:ref.id};
+    }); res.status(201).json({ok:true,registro});
+  }));
+  for (const [acao,fn,tipo] of [['excluir',excluirRegistro,'CRM_REGISTRO_EXCLUIDO'],['restaurar',restaurarRegistro,'CRM_REGISTRO_RESTAURADO']]) {
+    app.post(base + '/parametros/:id/' + acao, wrap(async (req,res)=>{
+      if (!/^[a-z0-9_-]{1,100}$/.test(req.params.id || '')) throw core.erro('Registro inválido. Atualize a página.');
+      const registro = await db.runTransaction(async tx=>{
+        const ctx=await contexto(req,tx), ref=db.collection('crm_registros').doc(req.params.id), doc=await tx.get(ref), quando=agora();
+        if (!doc.exists || doc.data().cnpj!==req.params.cnpj) throw core.erro('Registro indisponível nesta empresa.',404);
+        const depois=fn(doc.data(),req.body||{},ctx.user,quando);
+        tx.set(ref,depois);auditarLinha(tx,ctx,ref,depois,tipo,req.body.motivo.trim(),quando);
+        return {...depois,id:doc.id};
+      }); res.json({ok:true,registro});
+    }));
+  }
   app.get(base + '/parametros/:id/historico', wrap(async (req,res)=>{
     await contexto(req);
     if (!/^[a-z0-9_-]{1,100}$/.test(req.params.id || '')) throw core.erro('Registro inválido.');
