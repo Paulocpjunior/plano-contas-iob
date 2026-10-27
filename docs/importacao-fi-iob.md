@@ -53,3 +53,7 @@ Espelho: Digita12.txt da 0813 FR Climatização, 12/2025 (344 lançamentos, R$ 1
 - Contas: igualdade exata da classificação com o código do plano da empresa (nunca por dígitos), analítica e com reduzido; a partida é gravada pelo reduzido.
 - O relatório traz todas as origens do mês. Se as competências já têm lançamentos na sessão, a prévia lista as origens (`movimentoExistente`) e a confirmação exige `confirmarMovimentoExistente`.
 - Gravação: origem `sage-conferencia-lancamentos`, `bancoId` `CONTABIL_SAGE`, `numeroLancamentoSage`, auditoria `IMPORTACAO_SAGE_CONFERENCIA`; reimportação bloqueada pela impressão digital.
+
+### Múltiplas partidas (3.4.467)
+
+Espelho: Digita08.txt da 1170, 01-08/2026 (1.338 lançamentos, 19 de múltiplas partidas, 1.360 partidas no CCI), não incorporado ao repositório. A linha com número traz só um lado (débito na col. 19 ou crédito na col. 36 em branco); as linhas seguintes sem número trazem as contrapartidas do outro lado, cada uma com valor, histórico e complemento. Cada contrapartida vira uma partida contra a conta única, com `numeroLancamentoSage`, `partidaSage` e `partidasSage`. Bloqueiam: soma das contrapartidas diferente do lançamento, contrapartida do mesmo lado ou com as duas contas (N contra N não é dividido por aproximação), contrapartida sem lançamento antes e lançamento de um lado sem contrapartidas. A quantidade do rodapé conta lançamentos, não partidas, e aceita milhar (`1.338`).
