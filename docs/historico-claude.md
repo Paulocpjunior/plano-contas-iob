@@ -2278,3 +2278,6 @@ Pedido do Paulo: entrada do Checklist (ex. KHAVA 1411) devia ir para a base gera
 
 ## 27/10/2026 — Checklist cadastrar: submissão corrigida não vira "já cadastrado" (3.4.463)
 Achado do Codex no PR #357: `POST /api/crm/checklist/cadastrar` devolvia `ja_cadastrado` sem comparar o registro `crm_checklist_cadastros/{submission}` com a submissão atual. Agora confere `assinatura_evento` e CNPJ (como o `aplicar`) e responde 409 pedindo revisão manual do dossiê. Tributação: mantida só como `tributacao_origem` (evidência), Topologia segue lendo `regime_tributario_*` do cadastro.
+
+## 27/10/2026 — Importar relatório Conferência de Lançamentos da SAGE (3.4.464)
+Paulo pediu validar a importação no CCI do Digita12.txt (0813 FR Climatização, 12/2025). Era o relatório impresso Conferência de Lançamentos, recusado pelo `lerFI` (328 posições). Novo leitor `importacao-sage-conferencia.js` no mesmo endpoint do FI: CNPJ do cabeçalho = empresa ativa, período, quantidade impressa, "NAO HA DIFERENCA", contas pela classificação exata (gravadas pelo reduzido) e aviso com confirmação quando a competência já tem lançamentos (o relatório mistura banco, folha e notas). Arquivo real: 344/344, R$ 1.506.496,64. Pedido do Paulo: atalhos de ECD/ECF e Validador de Obrigações ao lado do botão, na área "SAGE e obrigações acessórias". Detalhes em `docs/importacao-fi-iob.md`.

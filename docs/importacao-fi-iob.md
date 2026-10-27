@@ -40,3 +40,16 @@ O valor da partida é positivo e os lados contábeis são preservados explicitam
 - Anexo real: 288 partidas, 22 linhas repetidas, 02/01/2026 a 31/01/2026, totais de débito/crédito de 4.928.989 centavos cada.
 - Chrome local: prévia integral e confirmação testadas com API e plano sintéticos; nenhuma gravação de produção.
 - A homologação do plano da empresa real ocorre na prévia autenticada após publicação. Nenhuma conta foi criada ou presumida no cadastro.
+
+## Relatório Conferência de Lançamentos da SAGE (3.4.464)
+
+O mesmo botão (**Importar FI / relatório SAGE**, área **SAGE e obrigações acessórias**) aceita o relatório **Conferência de Lançamentos** da SAGE gravado em texto (ex.: `Digita12.txt`). Detecção pelo título do relatório; o leitor é `importacao-sage-conferencia.js` e a prévia/confirmação são as do FI.
+
+Espelho: Digita12.txt da 0813 FR Climatização, 12/2025 (344 lançamentos, R$ 1.506.496,64, 45 contas), não incorporado ao repositório. Teste com dados fictícios no mesmo leiaute: `npm run test:importacao-sage-conferencia`.
+
+- Texto Windows-1252, CRLF, SI (0x0F) no início e FF (0x0C) por folha; cabeçalho repetido por folha.
+- Lançamento: número (10), DD/MM, débito e crédito pela classificação completa, valor `1.234,56`, histórico (4; `0000` = sem histórico padrão) e complemento, com linhas de continuação a partir da coluna 78.
+- O ano vem do período do cabeçalho. Bloqueiam: mais de um CNPJ/período, CNPJ diferente da empresa ativa, data fora do período, valor zerado, lançamento com uma conta só (partida composta, não homologada), número repetido, linha fora do leiaute, falta de "QUANTIDADE DE LANCAMENTOS" ou quantidade diferente da lida, e ausência de "NAO HA DIFERENCA".
+- Contas: igualdade exata da classificação com o código do plano da empresa (nunca por dígitos), analítica e com reduzido; a partida é gravada pelo reduzido.
+- O relatório traz todas as origens do mês. Se as competências já têm lançamentos na sessão, a prévia lista as origens (`movimentoExistente`) e a confirmação exige `confirmarMovimentoExistente`.
+- Gravação: origem `sage-conferencia-lancamentos`, `bancoId` `CONTABIL_SAGE`, `numeroLancamentoSage`, auditoria `IMPORTACAO_SAGE_CONFERENCIA`; reimportação bloqueada pela impressão digital.

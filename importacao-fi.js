@@ -51,14 +51,21 @@ function prepararFI({ arquivo, contas, state, cnpj }) {
   if (String(state.info?.cnpj || '').replace(/\D/g, '') !== cnpj) falha('A sessão não corresponde à empresa. Recarregue a empresa.');
   const inicio = state.info?.periodoInicio, fim = state.info?.periodoFim;
   if (!inicio || !fim) erros.push('Confirme o período ativo da empresa antes de importar.');
-  if (state.entries.some(e => e._fingerprint_imp === arquivo.fingerprint)) erros.push('Este arquivo FI já foi importado nesta empresa. Confira os lançamentos existentes.');
+  // Relatório da SAGE traz o CNPJ no cabeçalho; o FI não traz e depende da confirmação do usuário.
+  if (arquivo.cnpj && arquivo.cnpj !== cnpj) falha(`O relatório é do CNPJ ${arquivo.cnpj} e a empresa ativa é ${cnpj}. Ative a empresa do relatório.`);
+  const porCodigo = arquivo.referenciaConta === 'codigo';
+  const rotulo = porCodigo ? 'Conta' : 'Conta reduzida';
+  if (state.entries.some(e => e._fingerprint_imp === arquivo.fingerprint)) erros.push(`Este arquivo ${porCodigo ? 'da SAGE' : 'FI'} já foi importado nesta empresa. Confira os lançamentos existentes.`);
   for (const l of arquivo.lancamentos) for (const ref of [l.contaDebito, l.contaCredito]) {
     if (usados.has(ref)) continue;
-    const candidatas = contas.filter(c => normalizar(c.reduzido) === normalizar(ref));
+    // Classificação completa casa por igualdade exata do código; nunca por dígitos, para 1.1 não virar 11.
+    const candidatas = porCodigo ? contas.filter(c => String(c.codigo).trim() === ref) : contas.filter(c => normalizar(c.reduzido) === normalizar(ref));
     const c = candidatas.length === 1 ? candidatas[0] : null;
     const analitica = c && c.analitica !== false && !contas.some(o => String(o.codigo).startsWith(String(c.codigo) + '.'));
-    if (!analitica) erros.push(`Conta reduzida ${ref}: ausente, ambígua ou sintética. Corrija o plano vinculado à empresa; nenhuma conta será presumida.`);
-    usados.set(ref, analitica ? c : null);
+    const reduzido = c && normalizar(c.reduzido) !== '' && normalizar(c.reduzido) !== '0';
+    if (!analitica) erros.push(`${rotulo} ${ref}: ausente, ambígua ou sintética. Corrija o plano vinculado à empresa; nenhuma conta será presumida.`);
+    else if (porCodigo && !reduzido) erros.push(`Conta ${ref}: sem código reduzido no plano. Informe o reduzido no plano vinculado à empresa.`);
+    usados.set(ref, analitica && (reduzido || !porCodigo) ? c : null);
   }
   if (arquivo.lancamentos.some(l => (inicio && l.data < inicio) || (fim && l.data > fim))) erros.push('Há partidas fora do período ativo. Ajuste a competência da empresa e gere uma nova prévia.');
   const lancamentos = arquivo.lancamentos.map(l => ({ ...l,
@@ -69,7 +76,14 @@ function prepararFI({ arquivo, contas, state, cnpj }) {
   const chave = l => JSON.stringify([l.data, normalizar(l.contaDebito), normalizar(l.contaCredito), Math.round(Math.abs(l.valor ?? l.valorCentavos / 100) * 100), String(l.descricao || '').trim()]);
   const existentes = new Set(state.entries.map(chave));
   const semelhantes = lancamentos.filter(l => existentes.has(chave(l))).length;
-  return { ok: !erros.length, erros, lancamentos, semelhantes, repetidos: arquivo.repetidos,
+  // O relatório da SAGE traz todas as origens do mês (banco, folha, notas): avisar o que o CCI já tem nas mesmas competências.
+  const meses = new Set(lancamentos.map(l => l.data.slice(0, 7)));
+  const movimentoExistente = {};
+  if (porCodigo) for (const e of state.entries) if (meses.has(String(e.data || '').slice(0, 7))) {
+    const origem = e.layoutNome || e.bancoNome || e.origem || 'Sem origem';
+    movimentoExistente[origem] = (movimentoExistente[origem] || 0) + 1;
+  }
+  return { ok: !erros.length, erros, lancamentos, semelhantes, movimentoExistente, repetidos: arquivo.repetidos,
     quantidade: lancamentos.length, totalCentavos: lancamentos.reduce((s, l) => s + l.valorCentavos, 0),
     inicio: lancamentos.map(l => l.data).sort()[0], fim: lancamentos.map(l => l.data).sort().at(-1) };
 }
