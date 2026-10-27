@@ -66,6 +66,9 @@ function contratoParametros(registro) {
     return meta;
   })};
 }
+// Colaborador de origem: só administrador corrige. É evidência, não concede acesso.
+const ehColaborador = campo => String(campo?.nome ?? '').trim().toUpperCase() === 'COLABORADOR';
+function campoEditavel(campo, user) { return !campo.protegido || (user.is_admin === true && ehColaborador(campo)); }
 function editarParametro(antes, body, user, quando) {
   if (!user.is_admin && !podeAcao(user,'editar')) throw erro('Seu perfil não permite edição.',403);
   if (body.revisao !== antes.revisao) throw erro('O registro mudou. Atualize antes de salvar.',409);
@@ -73,7 +76,7 @@ function editarParametro(antes, body, user, quando) {
   const i = body.coluna;
   if (!Number.isInteger(i) || i < 0 || i >= antes.campos.length) throw erro('Selecione um parâmetro válido.');
   // Identificação e colaborador de origem são evidências, nunca permissões.
-  if (antes.campos[i].protegido) throw erro('Identificação e origem são preservadas. Use a distribuição de carteira para alterar responsáveis.');
+  if (!campoEditavel(antes.campos[i], user)) throw erro(ehColaborador(antes.campos[i]) ? 'Somente administradores podem alterar o colaborador. Peça a um administrador ou use Gestão da carteira para mudar o responsável.' : 'Identificação e origem são preservadas. Use a distribuição de carteira para alterar responsáveis.',ehColaborador(antes.campos[i])?403:400);
   if(body.formula!==undefined){
     const f=formulaSaldo(antes);
     if(!f || body.formula!==f.id || !f.disponivel || i!==f.destino || body.confirmado!==true) throw erro('Confira a prévia da fórmula e confirme o destino antes de aplicar.');
@@ -225,4 +228,4 @@ function documentoReferencia(antes,body,user,quando){
   if(typeof body.periodo!=='string'||(body.periodo&&!/^\d{4}(-(?:0[1-9]|1[0-2]))?$/.test(body.periodo)))throw erro('Informe ano ou competência válida.');
   return {titulo,url:u.href,categoria:body.categoria,periodo:body.periodo,motivo,revisao:(antes?.revisao||0)+1,quando,por_uid:user.uid,tipo:'referencia_externa'};
 }
-module.exports={FONTE_MANUAL,incluirRegistro,excluirRegistro,restaurarRegistro,duplicidadesRegistros,documentoReferencia,formulaSaldo,corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
+module.exports={FONTE_MANUAL,campoEditavel,ehColaborador,incluirRegistro,excluirRegistro,restaurarRegistro,duplicidadesRegistros,documentoReferencia,formulaSaldo,corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};

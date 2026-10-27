@@ -2,7 +2,7 @@
 const core = require('./crm-contabil');
 const crypto = require('crypto');
 const documentoId = url => crypto.createHash('sha256').update(url).digest('hex');
-const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, incluirRegistro, excluirRegistro, restaurarRegistro, duplicidadesRegistros, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
+const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, campoEditavel, incluirRegistro, excluirRegistro, restaurarRegistro, duplicidadesRegistros, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
@@ -389,7 +389,7 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     // Reconfere após a leitura da base para não devolver parâmetros após revogação.
     const ctx = await contexto(req), podeEditar = ctx.user.is_admin || podeAcao(ctx.user,'editar');
     const abas = podeEditar ? (await db.collection('crm_importacoes').get()).docs.map(d=>({id:d.id,...d.data()})).filter(f=>Array.isArray(f.cabecalhos)&&f.cabecalhos.length).map(f=>({id:f.id,nome:f.nome,cabecalhos:f.cabecalhos,opcoes:contratoParametros({fonte:f.id,campos:f.cabecalhos.map(nome=>({nome,valor:null}))})?.campos.map(c=>c.opcoes||null)||null})).sort((a,b)=>String(a.nome).localeCompare(String(b.nome))) : [];
-    res.json({ok:true,registros:registros.map(r=>({...r,contrato:contratoParametros(r),duplicidade:duplicadas.get(r.id)||[]})),documentos:documentos.map(d=>({...d,copiado:copiados.has(documentoId(d.url))})),pode_editar:podeEditar,abas});
+    res.json({ok:true,registros:registros.map(r=>({...r,contrato:contratoParametros(r),duplicidade:duplicadas.get(r.id)||[],editaveis:(r.campos||[]).map(c=>podeEditar&&campoEditavel(c,ctx.user))})),documentos:documentos.map(d=>({...d,copiado:copiados.has(documentoId(d.url))})),pode_editar:podeEditar,abas});
   }));
   app.get(base + '/historico', wrap(async(req,res)=>{
     const ctx=await contexto(req);

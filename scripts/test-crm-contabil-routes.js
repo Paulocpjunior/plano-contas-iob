@@ -437,6 +437,12 @@ if(require.main===module)(async()=>{
   assert.equal((await c.call('GET',base+'/parametros',{},'admin',{cnpj:novo})).body.registros.length,1);
   assert.equal((await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'Feito',motivo:'Conferido'},'admin',{cnpj,id:'fonte_2'})).statusCode,404);
   let edit=await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'Feito',motivo:'Conferido'},'admin',{cnpj:novo,id:'fonte_2'});assert.equal(edit.statusCode,200,JSON.stringify(edit.body));assert.equal(edit.body.registro.campos[0].original,null);
+  // Colaborador importado: Editar só para admin, refletido em editaveis e no PATCH.
+  c.dados.set('crm_registros/colab_2',{...reg,campos:[{nome:'CNPJ',valor:'x',original:'x',protegido:true},{nome:'Colaborador',valor:'ERESON',original:'ERESON',protegido:true}]});
+  assert.deepEqual((await c.call('GET',base+'/parametros',{},'admin',{cnpj:novo})).body.registros.find(r=>r.id==='colab_2').editaveis,[false,true]);
+  assert.equal((await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:0,valor:'y',motivo:'teste'},'admin',{cnpj:novo,id:'colab_2'})).statusCode,400);
+  const trocaColab=await c.call('PATCH',base+'/parametros/:id',{revisao:1,coluna:1,valor:'DARIEL',motivo:'Troca'},'admin',{cnpj:novo,id:'colab_2'});
+  assert.equal(trocaColab.statusCode,200);assert.equal(c.dados.get('crm_registros/colab_2').campos[1].original,'ERESON');
   const v2={...reg,fonte:'contabil_v2_integral',campos:[{nome:'Tributação',valor:'SIMPLES-F',original:'SIMPLES-F'}]};
   c.dados.set('crm_registros/v2_2',v2);
   const parametros=(await c.call('GET',base+'/parametros',{},'admin',{cnpj:novo})).body.registros;
