@@ -1,7 +1,8 @@
 {
-  "version": "3.4.467",
-  "build_date": "2026-10-27T22:30:00Z",
+  "version": "3.4.468",
+  "build_date": "2026-10-27T23:00:00Z",
   "release_notes": [
+    "Avisos da Legalização: uma faixa recolhível logo abaixo do cabeçalho mostra o que o checklist da Legalização mudou nas empresas nos últimos 30 dias (entrou, suspensa, saiu, baixada, dados gerais e Contabilidade contratada ou retirada), com o valor antigo e o novo e, na empresa nova, a tributação e se a Contabilidade foi contratada. Os avisos vêm pelo cadastro do CFI e só mostram: nada muda sozinho no CCI. Se o CFI não responder, a faixa diz que não carregou.",
     "Importar FI / relatório SAGE: o relatório Conferência de Lançamentos agora aceita lançamentos de múltiplas partidas (uma conta contra várias). Cada contrapartida vira uma partida contra a conta única, com o mesmo número SAGE; as contrapartidas precisam somar o valor do lançamento. Lançamento com várias contas dos dois lados continua bloqueado, com o número para desdobrar na SAGE. A quantidade do rodapé com milhar (ex.: 1.338) também passa a ser lida.",
     "Planos de Contas → Importar Folha: quando o plano é compartilhado por mais de uma empresa (ex.: 1183 DAXX MIDIA com FERREIRA BRAGA HOLDING), a folha vai direto para a empresa ativa, sem a janela pedindo para digitar o número da empresa. A lista para escolher só aparece quando a empresa ativa não está vinculada ao plano.",
     "Relatórios Contábeis → Balancete, Razão e PDF: conta com saldo ou movimento que não está no plano de contas ativo saía sem nome (só o código) e fora do grupo, e o grupo não batia com o Total do balancete. Agora a linha sai em vermelho como \"CONTA NÃO CADASTRADA NO PLANO ATIVO\" (ou \"CONTA DUPLICADA NO PLANO ATIVO\", quando o código ou reduzido aparece em duas contas), entra no seu grupo pelo código, e a tela lista as contas para cadastrar em Plano de Contas ou corrigir o saldo de abertura ou o lançamento de origem.",
