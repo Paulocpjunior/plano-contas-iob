@@ -236,3 +236,32 @@ assert.deepStrictEqual(core.totaisRazao(core.razao([], '2026-01', contas, { 111:
   assert.deepStrictEqual(core.ocultarContasSemMovimento([]), { linhas: [], ocultas: 0 });
 }
 console.log('OK: balancete oculta contas sem movimento sem alterar totais');
+
+// Daxx 09/2026: saldo em conta que o plano ativo não identifica saía sem nome no
+// PDF e fora do grupo. Agora a linha diz o motivo e entra na hierarquia.
+{
+  const plano = [
+    { codigo: '1.1.2.01.00000', descricao: 'CLIENTES', analitica: false },
+    { codigo: '1.1.2.01.0012', reduzido: '0000000105', descricao: 'PLUG & SALES', analitica: true },
+    { codigo: '2.1.1.07.0010', reduzido: '0000000400', descricao: 'ADIANTAMENTO DE CLIENTES', analitica: true },
+    { codigo: '2.1.1.07.0010', reduzido: '0000000400', descricao: 'ADIANTAMENTO DE CLIENTES', analitica: true },
+    { codigo: '2.1.1.07.0020', reduzido: '0000000410', descricao: 'FORNECEDOR A', analitica: true },
+    { codigo: '2.1.1.07.0021', reduzido: '0000000410', descricao: 'FORNECEDOR B', analitica: true },
+  ];
+  const saldos = { '1.1.2.01.0012': 100, '1.1.2.01.0032': 50, '0757': 7, '400': -30, '410': -9 };
+  const linhas = core.balancete([], '2026-09', plano, saldos);
+  const por = c => linhas.find(l => l.conta === c);
+  assert.strictEqual(por('1.1.2.01.0032').descricao, 'CONTA NÃO CADASTRADA NO PLANO ATIVO');
+  assert.strictEqual(por('1.1.2.01.0032').foraPlano, 'inexistente');
+  assert.strictEqual(por('1.1.2.01.0032').codigoCompleto, '1.1.2.01.0032', 'conta fora do plano com código estruturado entra no grupo');
+  assert.strictEqual(por('0757').descricao, 'CONTA NÃO CADASTRADA NO PLANO ATIVO');
+  assert.strictEqual(por('410').descricao, 'CONTA DUPLICADA NO PLANO ATIVO', 'reduzido de duas contas diferentes é ambíguo, não some sem aviso');
+  assert.strictEqual(por('400').descricao, 'CONTA DUPLICADA NO PLANO ATIVO', 'conta gravada duas vezes no plano é avisada, não resolvida por palpite');
+  const clientes = linhas.find(l => l.codigoCompleto === '1.1.2.01' && l.analitica === false);
+  assert.strictEqual(clientes.saldoAtual, 150, 'grupo soma a conta fora do plano, igual ao total do balancete');
+  assert(linhas.every(l => l.descricao), 'nenhuma linha do balancete sai sem nome');
+  assert.deepStrictEqual(core.contasForaDoPlano(linhas).map(c => c.conta).sort(), ['0757', '1.1.2.01.0032', '400', '410']);
+  const razao = core.razao([], '2026-09', plano, saldos, '');
+  assert.strictEqual(razao.find(g => g.conta === '0757').descricao, 'CONTA NÃO CADASTRADA NO PLANO ATIVO');
+}
+console.log('OK: conta fora do plano sai identificada no balancete e no razão');

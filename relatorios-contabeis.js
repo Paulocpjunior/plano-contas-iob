@@ -98,6 +98,29 @@
     return aliasNumericoConta(preferida) || preferida;
   }
 
+  // Conta com saldo ou movimento que o plano ativo não identifica. O relatório
+  // não deixa a linha sem nome: diz o que houve para o usuário corrigir no plano.
+  const DESCRICAO_FORA_PLANO = 'CONTA NÃO CADASTRADA NO PLANO ATIVO';
+  const DESCRICAO_AMBIGUA = 'CONTA DUPLICADA NO PLANO ATIVO';
+
+  function situacaoForaPlano(conta, mapa) {
+    const normalizada = normalizarConta(conta);
+    if (!normalizada || resolverConta(normalizada, mapa)) return '';
+    const alias = aliasNumericoConta(normalizada);
+    const ambigua = (mapa.has(normalizada) && mapa.get(normalizada) === null) || (!!alias && mapa.has(alias) && mapa.get(alias) === null);
+    return ambigua ? 'duplicada' : 'inexistente';
+  }
+
+  function descricaoForaPlano(situacao) {
+    return situacao === 'duplicada' ? DESCRICAO_AMBIGUA : situacao ? DESCRICAO_FORA_PLANO : '';
+  }
+
+  function contasForaDoPlano(linhas) {
+    return (linhas || []).filter(function (l) { return l && l.foraPlano; }).map(function (l) {
+      return { conta: l.conta, situacao: l.foraPlano, saldoAnterior: l.saldoAnterior, saldoAtual: l.saldoAtual };
+    });
+  }
+
   function nomeConta(conta, mapa) {
     const item = resolverConta(conta, mapa);
     return item ? item.descricao : '';
@@ -315,11 +338,15 @@
     const analiticas = Array.from(linhas.values()).map(function (linha) {
       const saldoAtual = linha.saldoAnteriorCentavos + linha.debitosCentavos - linha.creditosCentavos;
       const meta = metadadosConta(linha.conta, mapa);
-      return {
+      const foraPlano = situacaoForaPlano(linha.conta, mapa);
+      // Fora do plano, o código estruturado (1.1.2.01.0032) ainda indica o grupo:
+      // a linha entra na hierarquia para o grupo bater com o total do balancete.
+      const codigoCompleto = meta.codigo || (foraPlano && linha.conta.indexOf('.') > 0 ? linha.conta : '');
+      return Object.assign({
         conta: linha.conta,
-        codigoCompleto: meta.codigo,
-        reduzido: reduzidoExibicao(meta.reduzido || linha.conta),
-        descricao: linha.descricao || meta.descricao,
+        codigoCompleto,
+        reduzido: foraPlano && codigoCompleto ? '' : reduzidoExibicao(meta.reduzido || linha.conta),
+        descricao: linha.descricao || meta.descricao || descricaoForaPlano(foraPlano),
         saldoAnterior: deCentavos(linha.saldoAnteriorCentavos),
         debitos: deCentavos(linha.debitosCentavos),
         creditos: deCentavos(linha.creditosCentavos),
@@ -327,8 +354,8 @@
         saldoDevedor: saldoAtual > 0 ? deCentavos(saldoAtual) : 0,
         saldoCredor: saldoAtual < 0 ? deCentavos(Math.abs(saldoAtual)) : 0,
         analitica: true,
-        nivel: nivelConta(meta.codigo)
-      };
+        nivel: nivelConta(codigoCompleto)
+      }, foraPlano ? { foraPlano } : {});
     });
 
     const sinteticas = registrosPlano(contas).filter(function (conta) { return conta.analitica === false; });
@@ -342,7 +369,7 @@
         if (existentes.has(codigo)) continue;
         existentes.add(codigo);
         const meta = resolverConta(codigo, mapa);
-        sinteticas.push({ codigo, descricao: meta && meta.analitica === false && meta.descricao || ({ '1': 'ATIVO', '2': 'PASSIVO E PATRIMÔNIO LÍQUIDO', '3': 'RECEITAS', '4': 'CUSTOS', '5': 'DESPESAS' }[codigo] || 'Grupo ' + codigo), analitica: false });
+        sinteticas.push({ codigo, descricao: meta && (meta.analitica === false || meta.codigo === codigo) && meta.descricao || ({ '1': 'ATIVO', '2': 'PASSIVO E PATRIMÔNIO LÍQUIDO', '3': 'RECEITAS', '4': 'CUSTOS', '5': 'DESPESAS' }[codigo] || 'Grupo ' + codigo), analitica: false });
       }
     });
     const consolidadas = new Map();
@@ -538,7 +565,8 @@
       .filter(function (g) { return !filtro || g.conta === filtro || g.descricao.toLocaleLowerCase('pt-BR').includes(filtro.toLocaleLowerCase('pt-BR')); })
       .map(function (g) {
         const meta = metadadosConta(g.conta, mapa);
-        return { conta: g.conta, codigoCompleto: meta.codigo, reduzido: reduzidoExibicao(meta.reduzido || g.conta), descricao: g.descricao || meta.descricao, saldoAnterior: deCentavos(g.saldoAnteriorCentavos), saldoFinal: deCentavos(g.saldoCentavos), movimentos: g.movimentos };
+        const foraPlano = situacaoForaPlano(g.conta, mapa);
+        return { conta: g.conta, codigoCompleto: meta.codigo, reduzido: reduzidoExibicao(meta.reduzido || g.conta), descricao: g.descricao || meta.descricao || descricaoForaPlano(foraPlano), saldoAnterior: deCentavos(g.saldoAnteriorCentavos), saldoFinal: deCentavos(g.saldoCentavos), movimentos: g.movimentos };
       })
       .sort(function (a, b) { return a.conta.localeCompare(b.conta, 'pt-BR', { numeric: true }); });
   }
@@ -809,6 +837,6 @@
 
   return {
     dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao, complementoLancamento,
-    contaCanonica, lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, ocultarContasSemMovimento, saldosAnteriores, balanceteAnual, razao, totaisRazao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
+    contaCanonica, contasForaDoPlano, lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, ocultarContasSemMovimento, saldosAnteriores, balanceteAnual, razao, totaisRazao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
   };
 });
