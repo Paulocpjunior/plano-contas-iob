@@ -275,6 +275,10 @@ if(require.main===module)(async()=>{
   const dossie=cad.dados.get('crm_empresas/'+cnpjNovo);assert.equal(dossie.codigo_empresa,'1411');assert.deepEqual(dossie.responsaveis,[]);assert.equal(dossie.crm_contrato,undefined);
   assert(!cad.dados.has('empresas/'+cnpjNovo));
   cadastrado=await cad.call('POST','/api/crm/checklist/cadastrar',cadBody,'admin');assert.equal(cadastrado.body.ja_cadastrado,true);assert.equal(cad.writes(),3);
+  // Submissão corrigida na origem depois do cadastro: recusa em vez de "já cadastrado".
+  const corrigida=structuredClone(fonteNova);corrigida.rows[0].answers['33'].answer='1499';corrigida.rows[0].answers['5'].answer='CNPJ: 45.123.840/0001-80';
+  const cad2=ambiente(async()=>corrigida);for(const [k,v] of cad.dados)cad2.dados.set(k,structuredClone(v));
+  assert.equal((await cad2.call('POST','/api/crm/checklist/cadastrar',{...cadBody,cnpj:'45123840000180'},'admin')).statusCode,409);assert.equal(cad2.writes(),0);
   const previaCad=await cad.call('GET','/api/crm/checklist/previa',{},'admin');
   assert.equal(previaCad.body.eventos[0].cnpj,cnpjNovo);assert.equal(previaCad.body.eventos[0].colecao,'crm_empresas');assert.equal(previaCad.body.eventos[0].cadastro_disponivel,false);
   const a=ambiente(), base='/api/crm/empresas/:cnpj';

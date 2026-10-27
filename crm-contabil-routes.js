@@ -637,9 +637,13 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
       const user = await usuario(req, tx); admin(user);
       const registro = db.collection('crm_checklist_cadastros').doc(b.submission_id);
       const feito = await tx.get(registro);
-      if (feito.exists) return { cadastrado: false, ja_cadastrado: true, cnpj: feito.data().cnpj };
       const previa = previaChecklist(fonte.questions, fonte.rows, await basesChecklist(tx));
       const evento = previa.eventos.find(e => e.submission_id === b.submission_id);
+      if (feito.exists) {
+        // Correção posterior na origem não pode passar como "já cadastrado" sobre a identidade antiga.
+        if (!evento || feito.data().assinatura_evento !== evento.assinatura || feito.data().cnpj !== b.cnpj) throw core.erro('Esta entrada foi alterada no Checklist depois do cadastro. Revise o dossiê da empresa na carteira manualmente.', 409);
+        return { cadastrado: false, ja_cadastrado: true, cnpj: feito.data().cnpj };
+      }
       const quando = agora();
       const dossie = cadastroDoEvento(evento, b, user.uid, quando);
       const ref = db.collection('crm_empresas').doc(dossie.cnpj);
