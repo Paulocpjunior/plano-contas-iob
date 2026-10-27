@@ -39,7 +39,7 @@ function semPdf(id, d) {
   return { id, ...resto };
 }
 
-function registrarRotasFichaAplicacoes(router, { db, teams = require('./notificacoes-teams'), agora = () => new Date().toISOString() } = {}) {
+function registrarRotasFichaAplicacoes(router, { db, teams = require('./notificacoes-teams'), sharepoint = require('./ficha-aplicacoes-sharepoint').criar(), agora = () => new Date().toISOString() } = {}) {
   const canalRef = () => db.collection(CANAL[0]).doc(CANAL[1]);
 
   async function empresaAcessivel(cnpjEntrada, user) {
@@ -56,25 +56,42 @@ function registrarRotasFichaAplicacoes(router, { db, teams = require('./notifica
     const snap = await canalRef().get();
     const c = snap.exists ? snap.data() : {};
     const conexao = c.conexao_teams || null;
-    return { configurado: !!(conexao && teams.versaoPermitida(conexao.versao)), conexao, destino: conexao ? conexao.destino : '', revisao: c.revisao || 0, alterado_em: c.alterado_em || '' };
+    return {
+      configurado: !!(conexao && teams.versaoPermitida(conexao.versao)), conexao, destino: conexao ? conexao.destino : '',
+      sharepoint: c.sharepoint && c.sharepoint.drive_id ? c.sharepoint : null, alertas: Array.isArray(c.alertas) ? c.alertas : [],
+      revisao: c.revisao || 0, alterado_em: c.alterado_em || '',
+    };
   }
 
-  async function publicar(ficha, docRef, dados, canal) {
+  async function salvarNoSharepoint(dados, canal) {
+    const quando = agora();
+    if (!canal.sharepoint) return { estado: 'sem_destino', detalhe: 'Pasta do SharePoint do Contábil não cadastrada. Um administrador cadastra no canal da ficha.', web_url: '', quando };
+    let r;
+    try { r = await sharepoint.salvarPdf({ driveId: canal.sharepoint.drive_id, pastaId: canal.sharepoint.item_id, nome: dados.pdf_nome, pdf: Buffer.from(dados.pdf_base64, 'base64') }); }
+    catch { r = { estado: 'falhou', detalhe: 'Gravação no SharePoint interrompida. Tente de novo pelo histórico da ficha.' }; }
+    return { estado: r.estado === 'salvo' ? 'salvo' : 'falhou', detalhe: String(r.detalhe || ''), web_url: r.web_url || '', item_id: r.item_id || '', pasta: canal.sharepoint.web_url || '', quando };
+  }
+
+  async function publicar(ficha, docRef, dados, canal, link) {
     if (!canal.configurado) return { estado: 'sem_canal', detalhe: 'Canal Teams da ficha não configurado. Um administrador cadastra em Aplicações financeiras → Canal da ficha.', destino: '' };
-    const meta = { empresa: dados.empresa, versao: dados.versao, id: docRef.id };
-    const corpo = Ficha.payloadTeams(ficha, meta, { nome: dados.pdf_nome, sha256: dados.pdf_sha256, base64: dados.pdf_base64 });
+    const meta = { empresa: dados.empresa, versao: dados.versao, id: docRef.id, responsavel: dados.criado_por_nome };
+    const corpo = Ficha.payloadTeams(ficha, meta, { nome: dados.pdf_nome, sha256: dados.pdf_sha256, base64: dados.pdf_base64 }, { link, alertas: canal.alertas });
     let r;
     try { r = await teams.postar({ versao: canal.conexao.versao, corpo }, { timeout: 20000 }); }
     catch { r = { estado: 'incerto', detalhe: 'Envio interrompido. Confira o Teams antes de repetir.' }; }
     if (!['aceito', 'recusado', 'incerto'].includes(r.estado)) r = { estado: 'incerto', detalhe: 'Resultado não reconhecido. Confira o Teams antes de repetir.' };
-    return { estado: r.estado, detalhe: String(r.detalhe || ''), destino: canal.destino };
+    return { estado: r.estado, detalhe: String(r.detalhe || ''), destino: canal.destino, alertados: canal.alertas.map(p => p.email) };
   }
 
   router.get('/aplicacoes/ficha-fiscal/canal', async (req, res) => {
     try {
       if (!db) throw erro('Banco de dados indisponível. Tente novamente em instantes.', 503);
       const c = await canalAtual();
-      res.json({ ok: true, configurado: c.configurado, destino: c.destino, alterado_em: c.alterado_em, revisao: c.revisao, tipos: Ficha.TIPOS });
+      res.json({
+        ok: true, configurado: c.configurado, destino: c.destino, alterado_em: c.alterado_em, revisao: c.revisao, tipos: Ficha.TIPOS,
+        sharepoint: c.sharepoint ? { configurado: true, web_url: c.sharepoint.web_url, nome: c.sharepoint.nome } : { configurado: false },
+        alertas: c.alertas,
+      });
     } catch (e) { falha(res, e); }
   });
 
@@ -87,17 +104,31 @@ function registrarRotasFichaAplicacoes(router, { db, teams = require('./notifica
       const motivo = String(b.motivo || '').trim().slice(0, 500);
       if (!destino) throw erro('Informe o nome do canal do Teams (ex.: Fiscal › Fichas de aplicações).', 400);
       if (!motivo) throw erro('Informe o motivo da alteração do canal.', 400);
-      const versao = await teams.salvar(String(b.webhook || ''));
+      const atualCanal = await canalAtual();
+      const webhook = String(b.webhook || '').trim();
+      if (!webhook && !atualCanal.configurado) throw erro('Cole o endereço do Workflows do canal do Teams.', 400);
+      const alertas = Object.hasOwn(b, 'alertas') ? Ficha.normalizarAlertas(b.alertas) : atualCanal.alertas;
+      let pasta = atualCanal.sharepoint;
+      if (Object.hasOwn(b, 'pastaSharepoint')) {
+        const url = String(b.pastaSharepoint || '').trim();
+        pasta = !url ? null : (pasta && (pasta.url_informada === url || pasta.web_url === url) ? pasta : { ...(await sharepoint.resolverPasta(url)), url_informada: url });
+      }
+      const versao = webhook ? await teams.salvar(webhook) : atualCanal.conexao.versao;
       const ref = canalRef();
       const quando = agora();
       await db.runTransaction(async tx => {
         const atual = await tx.get(ref);
         const anterior = atual.exists ? atual.data() : {};
         const revisao = (anterior.revisao || 0) + 1;
-        tx.set(ref, { conexao_teams: { versao, destino }, revisao, alterado_por: req.user.uid, alterado_por_nome: nomeUsuario(req.user), alterado_em: quando });
-        tx.create(ref.collection('historico').doc(), { tipo: 'conexao_teams', quando, autor: req.user.uid, autor_nome: nomeUsuario(req.user), motivo, destino, destino_anterior: anterior.conexao_teams ? anterior.conexao_teams.destino : '', revisao });
+        tx.set(ref, { conexao_teams: { versao, destino }, sharepoint: pasta, alertas, revisao, alterado_por: req.user.uid, alterado_por_nome: nomeUsuario(req.user), alterado_em: quando });
+        tx.create(ref.collection('historico').doc(), {
+          tipo: 'canal_ficha', quando, autor: req.user.uid, autor_nome: nomeUsuario(req.user), motivo, revisao,
+          destino, destino_anterior: anterior.conexao_teams ? anterior.conexao_teams.destino : '', webhook_trocado: !!webhook,
+          pasta_sharepoint: pasta ? pasta.web_url : '', pasta_anterior: anterior.sharepoint ? anterior.sharepoint.web_url : '',
+          alertas: alertas.map(p => p.email), alertas_anteriores: (anterior.alertas || []).map(p => p.email),
+        });
       });
-      res.json({ ok: true, configurado: true, destino, alterado_em: quando });
+      res.json({ ok: true, configurado: true, destino, alterado_em: quando, sharepoint: pasta ? { configurado: true, web_url: pasta.web_url, nome: pasta.nome } : { configurado: false }, alertas });
     } catch (e) { falha(res, e); }
   });
 
@@ -166,16 +197,20 @@ function registrarRotasFichaAplicacoes(router, { db, teams = require('./notifica
           pdf_bytes: pdf.length, pdf_base64: pdf.toString('base64'),
           criado_em: geradoEm, criado_por_uid: req.user.uid, criado_por_nome: responsavel,
           envio: { estado: canal.configurado ? 'pendente' : 'sem_canal', detalhe: '', destino: canal.destino, quando: geradoEm, tentativas: 0 },
+          sharepoint: { estado: canal.sharepoint ? 'pendente' : 'sem_destino', detalhe: '', web_url: '', quando: geradoEm },
         };
         tx.set(controleRef, { ultima_versao: versao, competencia: ficha.competencia, alterado_em: geradoEm });
         tx.create(docRef, d);
         return { ref: docRef, dados: d };
       });
-      const envio = await publicar(ficha, ref, dados, canal);
+      const sp = await salvarNoSharepoint(dados, canal);
+      await ref.set({ sharepoint: sp }, { merge: true });
+      await ref.collection('historico').doc().set({ tipo: 'sharepoint', ...sp, autor: req.user.uid });
+      const envio = await publicar(ficha, ref, dados, canal, sp.web_url);
       const registro = { ...envio, quando: agora(), tentativas: envio.estado === 'sem_canal' ? 0 : 1, autor: req.user.uid };
       await ref.set({ envio: registro }, { merge: true });
       await ref.collection('historico').doc().set({ tipo: 'envio_teams', ...registro });
-      res.json({ ok: true, ficha: semPdf(ref.id, { ...dados, envio: registro }), pdf_base64: dados.pdf_base64 });
+      res.json({ ok: true, ficha: semPdf(ref.id, { ...dados, sharepoint: sp, envio: registro }), pdf_base64: dados.pdf_base64 });
     } catch (e) { falha(res, e); }
   });
 
@@ -185,25 +220,43 @@ function registrarRotasFichaAplicacoes(router, { db, teams = require('./notifica
       if (!/^\d{6}-v\d{1,4}$/.test(req.params.id)) throw erro('Ficha inválida.', 400);
       const ref = emp.ref.collection(COLECAO).doc(req.params.id);
       const canal = await canalAtual();
-      if (!canal.configurado) throw erro('Canal Teams da ficha não configurado. Peça a um administrador para cadastrar em Aplicações financeiras → Canal da ficha.', 409);
-      const dados = await db.runTransaction(async tx => {
+      const { dados, refazerSp, refazerTeams } = await db.runTransaction(async tx => {
         const snap = await tx.get(ref);
         if (!snap.exists) throw erro('Ficha não encontrada.', 404);
         const d = snap.data();
-        if (!REENVIAVEL.includes(d.envio && d.envio.estado)) {
-          throw erro(d.envio && d.envio.estado === 'incerto'
-            ? 'O envio anterior ficou sem confirmação e pode já estar no Teams. Confira o canal; se não chegou, gere uma nova versão.'
-            : 'Esta ficha já foi enviada. Para mudar algo, gere uma nova versão.', 409);
+        const spEstado = d.sharepoint && d.sharepoint.estado;
+        const teamsEstado = d.envio && d.envio.estado;
+        // Gravar de novo no SharePoint é seguro (mesmo nome substitui o mesmo arquivo).
+        const sp = !!canal.sharepoint && ['falhou', 'sem_destino', undefined].includes(spEstado);
+        // Teams: só recusa explícita ou envio que nem saiu; "incerto" pode já estar no canal.
+        const tm = canal.configurado && REENVIAVEL.includes(teamsEstado);
+        if (!sp && !tm) {
+          if (teamsEstado === 'incerto') throw erro('O envio anterior ficou sem confirmação e pode já estar no Teams. Confira o canal; se não chegou, gere uma nova versão.', 409);
+          if (REENVIAVEL.includes(teamsEstado) && !canal.configurado) throw erro('Canal Teams da ficha não configurado. Peça a um administrador para cadastrar em Aplicações financeiras → Canal da ficha.', 409);
+          if (spEstado !== 'salvo' && !canal.sharepoint) throw erro('Pasta do SharePoint do Contábil não cadastrada. Peça a um administrador para cadastrar no canal da ficha.', 409);
+          throw erro('Esta ficha já foi enviada e salva. Para mudar algo, gere uma nova versão.', 409);
         }
-        tx.set(ref, { envio: { ...d.envio, estado: 'pendente', quando: agora() } }, { merge: true });
-        return d;
+        const marca = {};
+        if (sp) marca.sharepoint = { ...(d.sharepoint || {}), estado: 'pendente', quando: agora() };
+        if (tm) marca.envio = { ...d.envio, estado: 'pendente', quando: agora() };
+        tx.set(ref, marca, { merge: true });
+        return { dados: d, refazerSp: sp, refazerTeams: tm };
       });
-      const ficha = { cnpj: dados.cnpj, competencia: dados.competencia, linhas: dados.linhas, totais: dados.totais, alertas: dados.alertas, observacoes: dados.observacoes };
-      const envio = await publicar(ficha, ref, dados, canal);
-      const registro = { ...envio, quando: agora(), tentativas: ((dados.envio && dados.envio.tentativas) || 0) + 1, autor: req.user.uid };
-      await ref.set({ envio: registro }, { merge: true });
-      await ref.collection('historico').doc().set({ tipo: 'reenvio_teams', ...registro });
-      res.json({ ok: true, envio: registro });
+      let spReg = dados.sharepoint || null;
+      if (refazerSp) {
+        spReg = await salvarNoSharepoint(dados, canal);
+        await ref.set({ sharepoint: spReg }, { merge: true });
+        await ref.collection('historico').doc().set({ tipo: 'sharepoint_repetido', ...spReg, autor: req.user.uid });
+      }
+      let registro = dados.envio;
+      if (refazerTeams) {
+        const ficha = { cnpj: dados.cnpj, competencia: dados.competencia, linhas: dados.linhas, totais: dados.totais, alertas: dados.alertas, observacoes: dados.observacoes };
+        const envio = await publicar(ficha, ref, dados, canal, spReg && spReg.web_url || '');
+        registro = { ...envio, quando: agora(), tentativas: ((dados.envio && dados.envio.tentativas) || 0) + 1, autor: req.user.uid };
+        await ref.set({ envio: registro }, { merge: true });
+        await ref.collection('historico').doc().set({ tipo: 'reenvio_teams', ...registro });
+      }
+      res.json({ ok: true, envio: registro, sharepoint: spReg });
     } catch (e) { falha(res, e); }
   });
 }

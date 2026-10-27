@@ -22,6 +22,13 @@
     incerto: ['alerta', '❔ Envio sem confirmação: confira o canal'],
     pendente: ['alerta', '⏳ Envio em andamento'],
   };
+  const SP = {
+    salvo: '📁 Salvo no SharePoint',
+    sem_destino: '⚠️ Não salvo no SharePoint: pasta não cadastrada',
+    falhou: '❌ Não salvo no SharePoint',
+    pendente: '⏳ Salvando no SharePoint',
+  };
+  const linkSp = sp => sp && sp.web_url ? ' <a href="' + esc(sp.web_url) + '" target="_blank" rel="noopener">Abrir no SharePoint</a>' : '';
   const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   function centavos(v) {
@@ -165,10 +172,13 @@
       try {
         estado.canal = await api(BASE + '/canal');
         TIPOS = estado.canal.tipos || {};
-        el.dataset.tipo = estado.canal.configurado ? 'ok' : 'alerta';
-        el.innerHTML = estado.canal.configurado
-          ? '✅ Canal Teams do Fiscal: <strong>' + esc(estado.canal.destino) + '</strong>'
-          : '⚠️ Canal Teams do Fiscal não configurado. A ficha é gerada e guardada no CCI, mas não vai ao Teams até um administrador cadastrar o canal.';
+        const c = estado.canal, sp = c.sharepoint || {}, alertas = c.alertas || [];
+        el.dataset.tipo = c.configurado && sp.configurado ? 'ok' : 'alerta';
+        el.innerHTML = (c.configurado
+          ? '✅ Canal Teams do Fiscal: <strong>' + esc(c.destino) + '</strong>'
+          : '⚠️ Canal Teams do Fiscal não configurado. A ficha é gerada e guardada no CCI, mas não vai ao Teams até um administrador cadastrar o canal.')
+          + '<br>' + (sp.configurado ? '📁 PDF salvo em: <a href="' + esc(sp.web_url) + '" target="_blank" rel="noopener">' + esc(sp.nome || 'pasta do SharePoint') + '</a>' : '⚠️ Pasta do SharePoint do Contábil não cadastrada: o PDF fica só no CCI.')
+          + '<br>' + (alertas.length ? '🔔 Alerta no Teams para: ' + alertas.map(p => esc(p.nome)).join(', ') : '🔕 Ninguém cadastrado para receber alerta a cada envio.');
         if (window.CURRENT_USER && window.CURRENT_USER.is_admin) {
           el.insertAdjacentHTML('beforeend', ' <button type="button" data-config-canal>' + (estado.canal.configurado ? 'Alterar canal' : 'Configurar canal') + '</button>');
           q('[data-config-canal]').onclick = () => configurarCanal().then(carregarCanal).catch(e => status(esc(e.message), 'erro'));
@@ -185,9 +195,11 @@
         if (!r.fichas.length) { area.innerHTML = '<p class="ff-dica">Nenhuma ficha gerada nesta competência.</p>'; return; }
         area.innerHTML = (r.limitado ? '<p class="ff-dica">Mostrando as ' + r.limite + ' primeiras fichas.</p>' : '') + r.fichas.map(f => {
           const e = ESTADOS[f.envio && f.envio.estado] || ['alerta', f.envio && f.envio.estado || 'Sem registro de envio'];
+          const spEstado = f.sharepoint && f.sharepoint.estado;
+          const podeRepetir = ['recusado', 'sem_canal'].includes(f.envio && f.envio.estado) || spEstado !== 'salvo';
           const quando = new Date(f.criado_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' });
-          return `<article><div><strong>Versão ${esc(f.versao)}</strong> · ${esc(quando)} · ${esc(f.criado_por_nome)}<br><small>${esc(e[1])}${f.envio && f.envio.destino ? ' · ' + esc(f.envio.destino) : ''}${f.envio && f.envio.detalhe ? ' · ' + esc(f.envio.detalhe) : ''}</small></div>
-            <div><button type="button" data-pdf="${esc(f.id)}" data-nome="${esc(f.pdf_nome)}">Baixar PDF</button><button type="button" data-base="${esc(f.id)}">Usar como base</button>${['recusado', 'sem_canal'].includes(f.envio && f.envio.estado) ? `<button type="button" data-reenviar="${esc(f.id)}">Enviar ao Teams</button>` : ''}</div></article>`;
+          return `<article><div><strong>Versão ${esc(f.versao)}</strong> · ${esc(quando)} · ${esc(f.criado_por_nome)}<br><small>${esc(e[1])}${f.envio && f.envio.destino ? ' · ' + esc(f.envio.destino) : ''}${f.envio && f.envio.detalhe ? ' · ' + esc(f.envio.detalhe) : ''}<br>${esc(SP[spEstado] || '⚠️ Não salvo no SharePoint')}${spEstado === 'falhou' && f.sharepoint.detalhe ? ' · ' + esc(f.sharepoint.detalhe) : ''}${linkSp(f.sharepoint)}</small></div>
+            <div><button type="button" data-pdf="${esc(f.id)}" data-nome="${esc(f.pdf_nome)}">Baixar PDF</button><button type="button" data-base="${esc(f.id)}">Usar como base</button>${podeRepetir ? `<button type="button" data-reenviar="${esc(f.id)}">Tentar de novo</button>` : ''}</div></article>`;
         }).join('');
         area.querySelectorAll('[data-pdf]').forEach(b => { b.onclick = async () => {
           try {
@@ -209,8 +221,8 @@
           try {
             b.disabled = true;
             const x = await api(BASE + '/' + cnpj + '/' + encodeURIComponent(b.dataset.reenviar) + '/reenviar', { method: 'POST', body: '{}' });
-            const e = ESTADOS[x.envio.estado] || ['alerta', x.envio.estado];
-            status(esc(e[1]) + (x.envio.detalhe ? ' · ' + esc(x.envio.detalhe) : ''), e[0]);
+            const e = ESTADOS[x.envio && x.envio.estado] || ['alerta', x.envio && x.envio.estado || ''];
+            status(esc(e[1]) + (x.envio && x.envio.detalhe ? ' · ' + esc(x.envio.detalhe) : '') + '<br>' + esc(SP[x.sharepoint && x.sharepoint.estado] || '') + (x.sharepoint && x.sharepoint.estado === 'falhou' ? ' · ' + esc(x.sharepoint.detalhe) : '') + linkSp(x.sharepoint), e[0]);
             await carregarHistorico();
           } catch (e) { status(esc(e.message), 'erro'); b.disabled = false; }
         }; });
@@ -253,7 +265,9 @@
         baixar(r.ficha.pdf_nome, base64ParaBlob(r.pdf_base64));
         apagarRascunho(cnpj, estado.competencia);
         const e = ESTADOS[r.ficha.envio.estado] || ['alerta', r.ficha.envio.estado];
+        const sp = r.ficha.sharepoint || {};
         status('Ficha versão ' + esc(r.ficha.versao) + ' gerada e guardada. ' + esc(e[1]) + (r.ficha.envio.detalhe ? ' · ' + esc(r.ficha.envio.detalhe) : '')
+          + '<br>' + esc(SP[sp.estado] || '') + (sp.estado === 'falhou' ? ' · ' + esc(sp.detalhe) : '') + linkSp(sp)
           + (r.ficha.alertas.length ? '<br>Alertas na ficha: ' + r.ficha.alertas.map(esc).join(' ') : ''), e[0]);
         await carregarHistorico();
       } catch (e) { status(esc(e.message), 'erro'); }
@@ -270,14 +284,19 @@
       const d = document.createElement('dialog');
       d.className = 'cci-ficha-fiscal';
       d.setAttribute('aria-labelledby', 'cciFichaCanalTitulo');
-      d.innerHTML = `<header><div><h2 id="cciFichaCanalTitulo">Canal Teams da ficha para o Fiscal</h2><small>Vale para todas as empresas. Só administradores alteram.</small></div><button type="button" data-fechar>Fechar</button></header>
-        <p>${atual.configurado ? 'Canal atual: <strong>' + esc(atual.destino) + '</strong>. Cadastrar de novo substitui a conexão.' : 'Nenhum canal cadastrado.'}</p>
-        <h3>Como criar a conexão</h3>
-        <ol><li>No Teams, abra o canal do Fiscal → <strong>⋯</strong> → <strong>Workflows</strong> → modelo <em>"Postar em um canal quando uma solicitação de webhook for recebida"</em>. Isso publica o cartão da ficha no canal.</li>
-        <li>Para guardar o PDF no SharePoint, edite o fluxo no Power Automate e, logo depois do gatilho, inclua <strong>SharePoint → Criar arquivo</strong>: endereço do site da equipe, pasta do canal (ex.: <code>/Documentos Compartilhados/Fiscal/Fichas de aplicações</code>), nome <code>triggerBody()?['arquivo']?['nome']</code> e conteúdo <code>base64ToBinary(triggerBody()?['arquivo']?['conteudo_base64'])</code>.</li>
-        <li>Salve o fluxo, copie o endereço HTTPS do gatilho e cole abaixo.</li></ol>
-        <form><label>Nome do canal (aparece para os colaboradores)<input name="destino" required maxlength="120" value="${esc(atual.destino || '')}" placeholder="Fiscal › Fichas de aplicações"></label>
-        <label>Endereço do Workflows<input name="webhook" type="password" required autocomplete="off" placeholder="https://…logic.azure.com/…/workflows/…"></label>
+      const sp = atual.sharepoint || {};
+      d.innerHTML = `<header><div><h2 id="cciFichaCanalTitulo">Canal da ficha para o Fiscal</h2><small>Vale para todas as empresas. Só administradores alteram.</small></div><button type="button" data-fechar>Fechar</button></header>
+        <form>
+        <h3>1. Canal do Teams</h3>
+        <p class="ff-dica">No Teams, abra o canal do Fiscal → <strong>⋯</strong> → <strong>Workflows</strong> → modelo <em>"Postar em um canal quando uma solicitação de webhook for recebida"</em>, salve e copie o endereço HTTPS do gatilho.</p>
+        <label>Nome do canal (aparece para os colaboradores)<input name="destino" required maxlength="120" value="${esc(atual.destino || '')}" placeholder="Fiscal › Fichas de aplicações"></label>
+        <label>Endereço do Workflows${atual.configurado ? ' (deixe em branco para manter o atual)' : ''}<input name="webhook" type="password" ${atual.configurado ? '' : 'required'} autocomplete="off" placeholder="https://…logic.azure.com/…/workflows/…"></label>
+        <h3>2. Pasta do SharePoint do Contábil</h3>
+        <p class="ff-dica">Abra a pasta no navegador e cole o endereço. Cada ficha é salva lá automaticamente e o cartão do Teams leva o botão <em>Abrir PDF da ficha</em>. O app do CCI precisa de permissão de escrita nesse site (Sites.Selected); sem ela, o CCI avisa ao salvar.${sp.configurado ? ' Atual: <a href="' + esc(sp.web_url) + '" target="_blank" rel="noopener">' + esc(sp.nome || sp.web_url) + '</a>.' : ''}</p>
+        <label>Endereço da pasta (em branco = não salvar no SharePoint)<input name="pasta" type="url" value="${esc(sp.web_url || '')}" placeholder="https://….sharepoint.com/sites/Contabil/Documentos Compartilhados/Fichas de aplicações"></label>
+        <h3>3. Quem recebe alerta a cada envio</h3>
+        <p class="ff-dica">Cada pessoa é marcada (@) no cartão e recebe a notificação do Teams. Uma por linha, com o e-mail do Microsoft 365.</p>
+        <label>Pessoas<textarea name="alertas" placeholder="Maria Fiscal <maria@spassessoriacontabil.com.br>">${esc((atual.alertas || []).map(p => p.nome + ' <' + p.email + '>').join('\n'))}</textarea></label>
         <label>Motivo da alteração<textarea name="motivo" required maxlength="500"></textarea></label>
         <div class="ff-faixa" data-status hidden></div>
         <button class="ff-primario">Salvar canal</button></form>`;
@@ -289,7 +308,8 @@
         ev.preventDefault();
         const f = new FormData(ev.target), st = d.querySelector('[data-status]');
         try {
-          await api(BASE + '/canal', { method: 'PUT', body: JSON.stringify({ destino: f.get('destino'), webhook: f.get('webhook'), motivo: f.get('motivo') }) });
+          st.hidden = false; st.dataset.tipo = 'alerta'; st.textContent = 'Conferindo a pasta e salvando…';
+          await api(BASE + '/canal', { method: 'PUT', body: JSON.stringify({ destino: f.get('destino'), webhook: f.get('webhook'), pastaSharepoint: f.get('pasta'), alertas: f.get('alertas'), motivo: f.get('motivo') }) });
           fechar(true);
         } catch (e) { st.hidden = false; st.dataset.tipo = 'erro'; st.textContent = e.message; }
       };

@@ -286,10 +286,34 @@ function gerarPdfFicha(ficha, meta) {
   return Buffer.from(doc.output('arraybuffer'));
 }
 
+// Pessoas que recebem alerta (@menção) a cada envio. Uma por linha:
+// "Nome <email@dominio>" ou só o e-mail. O e-mail é o login Microsoft 365 da pessoa.
+function normalizarAlertas(entrada) {
+  const linhas = Array.isArray(entrada) ? entrada : String(entrada == null ? '' : entrada).split(/\r?\n/);
+  const vistos = new Set();
+  const pessoas = [];
+  for (const bruta of linhas) {
+    const item = typeof bruta === 'object' && bruta ? bruta : null;
+    const txt = item ? '' : String(bruta).trim();
+    if (!item && !txt) continue;
+    const m = item ? null : txt.match(/^(.*?)<\s*([^<>\s]+)\s*>$/);
+    const email = String(item ? item.email : (m ? m[2] : txt)).trim().toLowerCase();
+    const nome = texto(item ? item.nome : (m ? m[1].replace(/[",;]+/g, ' ') : ''), 80) || email.split('@')[0];
+    if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) throw erro('"' + (txt || email) + '" não é um e-mail válido. Use Nome <email@spassessoriacontabil.com.br>, uma pessoa por linha.');
+    if (vistos.has(email)) continue;
+    vistos.add(email);
+    pessoas.push({ nome, email });
+  }
+  if (pessoas.length > 20) throw erro('Cadastre até 20 pessoas para receber o alerta. Para avisar a equipe toda, use o próprio canal.');
+  return pessoas;
+}
+
 // Corpo do Workflows do Teams. O cartão adaptável funciona no modelo padrão
-// "Postar em um canal quando uma solicitação de webhook for recebida"; o PDF
-// segue em `arquivo` para o passo "Criar arquivo" do SharePoint no mesmo fluxo.
-function payloadTeams(ficha, meta, pdf) {
+// "Postar em um canal quando uma solicitação de webhook for recebida".
+// Com o PDF salvo no SharePoint, o cartão leva o botão para o arquivo; sem ele,
+// o PDF segue em `arquivo` para um fluxo que o grave.
+function payloadTeams(ficha, meta, pdf, extras) {
+  const { link = '', alertas = [] } = extras || {};
   const fatos = [
     { title: 'Empresa', value: (meta.empresa || '-') + ' · ' + formatarCnpj(ficha.cnpj) },
     { title: 'Competência', value: competenciaRotulo(ficha.competencia) + ' · versão ' + meta.versao },
@@ -300,16 +324,21 @@ function payloadTeams(ficha, meta, pdf) {
   ];
   const corpo = [
     { type: 'TextBlock', text: 'CCI · Ficha de aplicações financeiras para o Fiscal', weight: 'Bolder', wrap: true },
-    { type: 'FactSet', facts: fatos },
-    { type: 'TextBlock', text: 'Arquivo: ' + pdf.nome + ' (SHA-256 ' + pdf.sha256.slice(0, 16) + '…)', wrap: true, isSubtle: true },
   ];
+  if (alertas.length) corpo.push({ type: 'TextBlock', text: 'Alerta para ' + alertas.map(p => '<at>' + p.nome + '</at>').join(', '), wrap: true });
+  corpo.push({ type: 'FactSet', facts: fatos });
+  corpo.push({ type: 'TextBlock', text: 'Arquivo: ' + pdf.nome + (link ? ' · salvo no SharePoint do Contábil' : ' · não salvo no SharePoint') + ' (SHA-256 ' + pdf.sha256.slice(0, 16) + '…)', wrap: true, isSubtle: true });
   if (ficha.alertas.length) corpo.push({ type: 'TextBlock', text: '⚠ ' + ficha.alertas.length + ' alerta(s) para conferência na ficha.', wrap: true, color: 'Warning' });
-  return {
+  const card = { type: 'AdaptiveCard', $schema: 'http://adaptivecards.io/schemas/adaptive-card.json', version: '1.4', body: corpo, msteams: { width: 'Full' } };
+  if (link) card.actions = [{ type: 'Action.OpenUrl', title: 'Abrir PDF da ficha', url: link }];
+  if (alertas.length) card.msteams.entities = alertas.map(p => ({ type: 'mention', text: '<at>' + p.nome + '</at>', mentioned: { id: p.email, name: p.nome } }));
+  const corpoTeams = {
     type: 'message',
-    attachments: [{ contentType: 'application/vnd.microsoft.card.adaptive', contentUrl: null, content: { type: 'AdaptiveCard', version: '1.2', body: corpo } }],
-    arquivo: { nome: pdf.nome, tipo: 'application/pdf', sha256: pdf.sha256, conteudo_base64: pdf.base64 },
-    ficha: { cnpj: ficha.cnpj, empresa: meta.empresa || '', competencia: ficha.competencia, versao: meta.versao, id: meta.id },
+    attachments: [{ contentType: 'application/vnd.microsoft.card.adaptive', contentUrl: null, content: card }],
+    ficha: { cnpj: ficha.cnpj, empresa: meta.empresa || '', competencia: ficha.competencia, versao: meta.versao, id: meta.id, link },
   };
+  if (!link) corpoTeams.arquivo = { nome: pdf.nome, tipo: 'application/pdf', sha256: pdf.sha256, conteudo_base64: pdf.base64 };
+  return corpoTeams;
 }
 
 module.exports = {
@@ -324,6 +353,7 @@ module.exports = {
   hashConteudo,
   rotuloTotal,
   nomeArquivo,
+  normalizarAlertas,
   gerarPdfFicha,
   payloadTeams,
 };

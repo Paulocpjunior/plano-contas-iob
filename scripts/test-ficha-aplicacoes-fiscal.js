@@ -77,6 +77,26 @@ assert.equal(corpo.type, 'message');
 assert.equal(corpo.attachments[0].contentType, 'application/vnd.microsoft.card.adaptive', 'cartão compatível com o modelo padrão do Workflows');
 assert.equal(corpo.arquivo.conteudo_base64, pdf.toString('base64'), 'o PDF segue para o passo do SharePoint');
 assert.ok(JSON.stringify(corpo).includes('4 alerta(s)'));
+assert.ok(JSON.stringify(corpo).includes('Colaboradora (c@sp.com.br)'), 'preenchido por no cartão');
+
+// Alerta a cada envio: @menção de quem foi cadastrado; com o PDF no SharePoint, o cartão leva o botão.
+const pessoas = Ficha.normalizarAlertas('Maria Fiscal <Maria@SP.com.br>\n\njoao@sp.com.br\nmaria@sp.com.br');
+assert.deepEqual(pessoas, [{ nome: 'Maria Fiscal', email: 'maria@sp.com.br' }, { nome: 'joao', email: 'joao@sp.com.br' }]);
+assert.throws(() => Ficha.normalizarAlertas('Maria <sem-arroba>'), /não é um e-mail válido/);
+assert.deepEqual(Ficha.normalizarAlertas(''), []);
+const comLink = Ficha.payloadTeams(comAlertas, meta, { nome: 'x.pdf', sha256: 'a'.repeat(64), base64: 'QQ==' }, { link: 'https://sp.sharepoint.com/x.pdf', alertas: pessoas });
+const card = comLink.attachments[0].content;
+assert.deepEqual(card.actions, [{ type: 'Action.OpenUrl', title: 'Abrir PDF da ficha', url: 'https://sp.sharepoint.com/x.pdf' }]);
+assert.equal(card.msteams.entities.length, 2);
+assert.deepEqual(card.msteams.entities[0], { type: 'mention', text: '<at>Maria Fiscal</at>', mentioned: { id: 'maria@sp.com.br', name: 'Maria Fiscal' } });
+assert.ok(card.body.some(b => b.text === 'Alerta para <at>Maria Fiscal</at>, <at>joao</at>'), 'o texto do cartão cita cada menção');
+assert.equal(comLink.arquivo, undefined, 'com o link, o PDF não viaja no corpo');
+assert.equal(corpo.attachments[0].content.actions, undefined, 'sem SharePoint não há botão');
+
+// SharePoint: endereço da pasta, código de compartilhamento do Graph e gravação.
+const SP = require('../ficha-aplicacoes-sharepoint');
+assert.throws(() => SP.validarUrlPasta('https://exemplo.com/pasta'), /SharePoint do escritório/);
+assert.equal(SP.codigoCompartilhamento('https://contoso.sharepoint.com/a?b'), 'u!aHR0cHM6Ly9jb250b3NvLnNoYXJlcG9pbnQuY29tL2E_Yg');
 
 // ─── 3. Tela: carregada no index, publicada e ligada ao painel ─────────────
 const raiz = path.join(__dirname, '..');
@@ -101,6 +121,19 @@ assert.equal(soPosicao[0].valores.rendimentoBruto, undefined, 'documento só de 
 
 // ─── 4. Rotas ──────────────────────────────────────────────────────────────
 (async () => {
+  {
+    const chamadas = [];
+    const cli = SP.criar({ token: async () => 'tk', fetcher: async (u, o) => { chamadas.push({ u, o }); return u.includes('/shares/')
+      ? { ok: true, status: 200, json: async () => ({ id: 'PASTA', name: 'Fichas', webUrl: 'https://sp.sharepoint.com/Fichas', folder: {}, parentReference: { driveId: 'DRIVE' } }) }
+      : (o.headers.Authorization === 'Bearer tk' && o.method === 'PUT' ? { ok: true, status: 201, json: async () => ({ id: 'ARQ', webUrl: 'https://sp.sharepoint.com/Fichas/x.pdf' }) } : { ok: false, status: 500 }); } });
+    assert.deepEqual(await cli.resolverPasta('https://sp.sharepoint.com/sites/Contabil/Fichas'), { drive_id: 'DRIVE', item_id: 'PASTA', web_url: 'https://sp.sharepoint.com/Fichas', nome: 'Fichas' });
+    const r = await cli.salvarPdf({ driveId: 'DRIVE', pastaId: 'PASTA', nome: 'a/b.pdf', pdf: Buffer.from('%PDF-') });
+    assert.equal(r.estado, 'salvo');
+    assert.match(chamadas[1].u, /\/drives\/DRIVE\/items\/PASTA:\/a_b\.pdf:\/content\?@microsoft\.graph\.conflictBehavior=replace$/);
+    const negado = SP.criar({ token: async () => 'tk', fetcher: async () => ({ ok: false, status: 403 }) });
+    assert.match((await negado.salvarPdf({ driveId: 'D', pastaId: 'P', nome: 'x.pdf', pdf: Buffer.from('x') })).detalhe, /Sites\.Selected/);
+    await assert.rejects(negado.resolverPasta('https://sp.sharepoint.com/x'), /Sites\.Selected/);
+  }
   const db = new MemoryFirestore();
   await db.collection('empresas').doc(CNPJ).set({ razao_social: 'EMPRESA TESTE LTDA', regime_tributario_codigo: 'LUCRO_PRESUMIDO', owner_uid: 'dono' });
   const VERSAO = 'projects/gen-lang-client-0569062468/secrets/cci-notificacoes-teams/versions/7';
@@ -118,7 +151,16 @@ assert.equal(soPosicao[0].valores.rendimentoBruto, undefined, 'documento só de 
     q.user = { uid: u, email: u + '@sp.com.br', name: u === 'admin' ? 'Admin' : 'Colaboradora', is_admin: u === 'admin', permissoesCci: { ...criarPermissoes('operacao'), modulos: { reinf: u !== 'sem-modulo' } } };
     n();
   });
-  registrar(app, { db, fichaTeams: teams });
+  const gravados = [];
+  let falharSp = false;
+  const sharepoint = {
+    resolverPasta: async u => ({ drive_id: 'DRIVE', item_id: 'PASTA', web_url: 'https://sp.sharepoint.com/Contabil/Fichas', nome: 'Fichas', pedido: u }),
+    salvarPdf: async ({ driveId, pastaId, nome, pdf }) => {
+      gravados.push({ driveId, pastaId, nome, pdf });
+      return falharSp ? { estado: 'falhou', detalhe: 'O app do CCI não tem permissão de escrita (Sites.Selected).' } : { estado: 'salvo', web_url: 'https://sp.sharepoint.com/Contabil/Fichas/' + nome, item_id: 'I' + gravados.length };
+    },
+  };
+  registrar(app, { db, fichaTeams: teams, fichaSharepoint: sharepoint });
   const srv = app.listen(0, '127.0.0.1');
   await new Promise(r => srv.once('listening', r));
   const url = 'http://127.0.0.1:' + srv.address().port + '/api/reinf/aplicacoes/ficha-fiscal';
@@ -136,6 +178,8 @@ assert.equal(soPosicao[0].valores.rendimentoBruto, undefined, 'documento só de 
     assert.equal(r.ok, true, r.erro);
     assert.equal(r.ficha.id, '202609-v1');
     assert.equal(r.ficha.envio.estado, 'sem_canal');
+    assert.equal(r.ficha.sharepoint.estado, 'sem_destino');
+    assert.equal(gravados.length, 0);
     assert.equal(r.ficha.regime_tributario, 'lucro_presumido');
     assert.equal(r.ficha.criado_por_nome, 'Colaboradora (dono@sp.com.br)');
     assert.equal(r.ficha.pdf_base64, undefined, 'lista e metadados não carregam o PDF');
@@ -153,7 +197,9 @@ assert.equal(soPosicao[0].valores.rendimentoBruto, undefined, 'documento só de 
     assert.match(r.erro, /Se não houve no mês, digite 0/);
 
     // Canal: só administrador, URL protegida (nunca devolvida).
-    const canal = { destino: 'Fiscal › Fichas de aplicações', webhook: 'https://prod.westus.logic.azure.com/workflows/abc?sig=x', motivo: 'Canal do fiscal' };
+    const canal = { destino: 'Fiscal › Fichas de aplicações', webhook: 'https://prod.westus.logic.azure.com/workflows/abc?sig=x', motivo: 'Canal do fiscal',
+      pastaSharepoint: 'https://sp.sharepoint.com/sites/Contabil/Fichas', alertas: 'Maria Fiscal <maria@sp.com.br>' };
+    assert.equal((await call('/canal', { method: 'PUT', body: { ...canal, alertas: 'maria' } })).status, 400);
     assert.equal((await call('/canal', { method: 'PUT', body: canal, user: 'dono' })).status, 403);
     assert.equal((await call('/canal', { method: 'PUT', body: { ...canal, motivo: '' } })).status, 400);
     assert.equal((await call('/canal', { method: 'PUT', body: { ...canal, webhook: 'https://exemplo.com' } })).status, 400);
@@ -163,15 +209,29 @@ assert.equal(soPosicao[0].valores.rendimentoBruto, undefined, 'documento só de 
     assert.equal(r.configurado, true);
     assert.equal(r.destino, canal.destino);
     assert.ok(!JSON.stringify(r).includes('logic.azure'), 'endereço do Workflows não volta para a tela');
+    assert.deepEqual(r.sharepoint, { configurado: true, web_url: 'https://sp.sharepoint.com/Contabil/Fichas', nome: 'Fichas' });
+    assert.deepEqual(r.alertas, [{ nome: 'Maria Fiscal', email: 'maria@sp.com.br' }]);
+    // Trocar só os alertas mantém o Workflows e a pasta (sem colar o endereço de novo).
+    r = await call('/canal', { method: 'PUT', body: { destino: canal.destino, motivo: 'mais gente', pastaSharepoint: 'https://sp.sharepoint.com/Contabil/Fichas', alertas: 'Maria Fiscal <maria@sp.com.br>\nJoão <joao@sp.com.br>' } });
+    assert.equal(r.ok, true, r.erro);
+    assert.equal((await db.collection('config_cci').doc('ficha_aplicacoes_fiscal').get()).data().conexao_teams.versao, VERSAO);
     const hist = await db.collection('config_cci').doc('ficha_aplicacoes_fiscal').collection('historico').get();
-    assert.equal(hist.size, 1);
+    assert.equal(hist.size, 2);
 
     // Reenvio da v1 que ficou sem canal.
     r = await call('/' + CNPJ + '/202609-v1/reenviar', { method: 'POST', body: {}, user: 'dono' });
     assert.equal(r.envio.estado, 'aceito');
+    assert.equal(r.sharepoint.estado, 'salvo');
+    assert.equal(gravados.length, 1);
+    assert.equal(gravados[0].nome, 'Ficha-aplicacoes-fiscal_11222333000181_202609_v1.pdf');
+    assert.equal(gravados[0].pdf.subarray(0, 5).toString(), '%PDF-');
     assert.equal(postados.length, 1);
     assert.equal(postados[0].versao, VERSAO);
     assert.equal(postados[0].corpo.ficha.id, '202609-v1');
+    const cartao = postados[0].corpo.attachments[0].content;
+    assert.equal(cartao.actions[0].url, r.sharepoint.web_url, 'cartão aponta para o PDF no SharePoint');
+    assert.deepEqual(cartao.msteams.entities.map(e => e.mentioned.id), ['maria@sp.com.br', 'joao@sp.com.br'], 'alerta para quem foi cadastrado');
+    assert.deepEqual(r.envio.alertados, ['maria@sp.com.br', 'joao@sp.com.br']);
     assert.equal((await call('/' + CNPJ + '/202609-v1/reenviar', { method: 'POST', body: {}, user: 'dono' })).status, 409, 'enviada não reenvia');
 
     // Mesmo conteúdo já enviado não gera duplicata no canal.
@@ -185,7 +245,8 @@ assert.equal(soPosicao[0].valores.rendimentoBruto, undefined, 'documento só de 
     assert.equal(r.ficha.id, '202609-v2');
     assert.equal(r.ficha.envio.estado, 'recusado');
     assert.equal(postados.length, 2);
-    assert.match(postados[1].corpo.arquivo.nome, /_v2\.pdf$/);
+    assert.match(postados[1].corpo.ficha.link, /_v2\.pdf$/);
+    assert.equal(r.ficha.sharepoint.estado, 'salvo');
     resposta = { estado: 'incerto', detalhe: 'Conexão interrompida.' };
     r = await call('/' + CNPJ + '/202609-v2/reenviar', { method: 'POST', body: {}, user: 'dono' });
     assert.equal(r.envio.estado, 'incerto');
@@ -194,9 +255,25 @@ assert.equal(soPosicao[0].valores.rendimentoBruto, undefined, 'documento só de 
     assert.equal(r.status, 409, 'incerto não repete sozinho');
     assert.match(r.erro, /pode já estar no Teams/);
 
+    // SharePoint negado: a ficha vai ao Teams sem o link (com o PDF no corpo) e a gravação pode ser repetida.
+    resposta = { estado: 'aceito', detalhe: 'ok' };
+    falharSp = true;
+    r = await call('', { method: 'POST', body: { ...base, observacoes: 'v3' }, user: 'dono' });
+    assert.equal(r.ficha.sharepoint.estado, 'falhou');
+    assert.match(r.ficha.sharepoint.detalhe, /Sites\.Selected/);
+    assert.equal(r.ficha.envio.estado, 'aceito');
+    assert.equal(postados.at(-1).corpo.attachments[0].content.actions, undefined);
+    assert.ok(postados.at(-1).corpo.arquivo.conteudo_base64);
+    falharSp = false;
+    const antes = postados.length;
+    r = await call('/' + CNPJ + '/202609-v3/reenviar', { method: 'POST', body: {}, user: 'dono' });
+    assert.equal(r.sharepoint.estado, 'salvo');
+    assert.equal(postados.length, antes, 'Teams já aceito não é repetido');
+    assert.equal((await call('/' + CNPJ + '/202609-v3/reenviar', { method: 'POST', body: {}, user: 'dono' })).status, 409);
+
     // Histórico por competência e comprovante em PDF.
     r = await call('/' + CNPJ + '?competencia=2026-09', { user: 'dono' });
-    assert.deepEqual(r.fichas.map(x => x.id), ['202609-v2', '202609-v1']);
+    assert.deepEqual(r.fichas.map(x => x.id), ['202609-v3', '202609-v2', '202609-v1']);
     assert.ok(r.fichas.every(x => x.pdf_base64 === undefined));
     assert.equal((await call('/' + CNPJ + '?competencia=2026-08', { user: 'dono' })).fichas.length, 0);
     r = await call('/' + CNPJ + '/202609-v1/pdf', { user: 'dono' });
@@ -206,7 +283,7 @@ assert.equal(soPosicao[0].valores.rendimentoBruto, undefined, 'documento só de 
     assert.equal(require('crypto').createHash('sha256').update(r.pdf).digest('hex'), salvo.pdf_sha256, 'comprovante íntegro');
     assert.equal((await call('/' + CNPJ + '/..%2Fx/pdf', { user: 'dono' })).status, 400);
 
-    console.log('Ficha de aplicações para o fiscal: campos obrigatórios, ausente ≠ zero, alertas, PDF, Teams, versões, reenvio e acesso OK');
+    console.log('Ficha de aplicações para o fiscal: campos obrigatórios, ausente ≠ zero, alertas, PDF, SharePoint, Teams com link e menções, versões, reenvio e acesso OK');
   } finally {
     await new Promise(r => srv.close(r));
   }
