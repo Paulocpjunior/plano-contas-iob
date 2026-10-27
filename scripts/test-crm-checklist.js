@@ -51,3 +51,32 @@ const {orientacoesChecklist}=require('../crm-checklist');
 assert(orientacoesChecklist({problemas:['Empresa sem vínculo confirmado no CCI.']})[0].includes('Cadastro de Empresas'));
 assert(orientacoesChecklist({problemas:['Múltiplos eventos para a empresa: conferir sequência e vigências.']})[0].includes('Contrato e recorrências'));
 assert(orientacoesChecklist({problemas:['Registro não ativo na origem; não aplicar nem apagar histórico.']})[0].includes('histórico'));
+
+// Entrada sem cadastro: CNPJ declarado na origem, nunca deduzido pelo nome.
+{
+  const v='11222333000181';
+  assert(c.cnpjValido(v)); assert(!c.cnpjValido('11222333000182')); assert(!c.cnpjValido('11111111111111'));
+  const nova=(ans={})=>{const r=row('9');r.answers['33'].answer='1411';r.answers['24'].answer='NOVA LTDA';r.answers['59']={answer:'02- SIMPLES'};Object.assign(r.answers,ans);return r;};
+  const obs={'5':{answer:'<div><b>1411 - NOVA LTDA</b></div><div><b>CNPJ</b>: 11.222.333/0001-81</div>'}};
+  let e=c.previaChecklist(questions,[nova(obs)],empresas).eventos[0];
+  assert.equal(e.cnpj,null); assert.equal(e.cnpj_origem,v); assert.equal(e.cnpj_origem_fonte,'observacao'); assert.equal(e.cadastro_disponivel,true);
+  assert(e.orientacoes[0].includes('Cadastrar na carteira'));
+  e=c.previaChecklist(questions,[nova({'60':{answer:'11.222.333/0001-81'}})],empresas).eventos[0]; assert.equal(e.cnpj_origem_fonte,'campo'); assert(e.cadastro_disponivel);
+  e=c.previaChecklist(questions,[nova()],empresas).eventos[0]; assert(!e.cadastro_disponivel); assert(e.orientacoes[0].includes('campo CPF/CNPJ'));
+  e=c.previaChecklist(questions,[nova({'60':{answer:'11.222.333/0001-82'}})],empresas).eventos[0]; assert(!e.cadastro_disponivel); assert(e.problemas.some(p=>p.includes('inválido')));
+  e=c.previaChecklist(questions,[nova({...obs,'60':{answer:'45.123.840/0001-80'}})],empresas).eventos[0]; assert(!e.cadastro_disponivel); assert(e.problemas.some(p=>p.includes('diverge')));
+  e=c.previaChecklist(questions,[nova(obs)],[...empresas,{cnpj:v,codigo_empresa:'77'}]).eventos[0]; assert(!e.cadastro_disponivel); assert(e.problemas.some(p=>p.includes('Nosso Número 77')));
+  const saidaNova=nova(obs); saidaNova.answers['47'].answer='CLIENTE SAIDA'; assert(!c.previaChecklist(questions,[saidaNova],empresas).eventos[0].cadastro_disponivel);
+  const inativa=nova(obs); inativa.status='DELETED'; assert(!c.previaChecklist(questions,[inativa],empresas).eventos[0].cadastro_disponivel);
+  // Base da carteira (crm_empresas) também vincula; o cadastro contábil prevalece.
+  const bases=c.unirBases([{cnpj:v,codigo_empresa:'1411',razao_social:'Contábil'}],[{cnpj:v,codigo_empresa:'1411'},{cnpj:'99999999999999',codigo_empresa:'5'}]);
+  assert.equal(bases.length,2); assert.equal(bases.find(b=>b.cnpj===v).colecao,'empresas');
+  e=c.previaChecklist(questions,[nova(obs)],c.unirBases([],[{cnpj:v,codigo_empresa:'1411'}])).eventos[0]; assert.equal(e.cnpj,v); assert.equal(e.colecao,'crm_empresas'); assert(!e.cadastro_disponivel);
+  e=c.previaChecklist(questions,[nova(obs)],empresas).eventos[0];
+  const d=c.cadastroDoEvento(e,{confirmado:true,cnpj:v},'admin','2026-10-27T18:00:00Z');
+  assert.equal(d.codigo_empresa,'1411'); assert.equal(d.origem,'CHECKLIST'); assert.deepEqual(d.responsaveis,[]); assert.equal(d.tributacao_origem,'02- SIMPLES');
+  assert(!('crm_contrato' in d)); assert(Object.values(d).every(x=>x!==undefined));
+  assert.throws(()=>c.cadastroDoEvento(e,{confirmado:false,cnpj:v}),/Confirme/);
+  assert.throws(()=>c.cadastroDoEvento(e,{confirmado:true,cnpj:'45123840000180'}),/difere/);
+  assert.throws(()=>c.cadastroDoEvento({...e,cadastro_disponivel:false},{confirmado:true,cnpj:v}),/pendências/);
+}

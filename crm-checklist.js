@@ -6,7 +6,7 @@ const normalizar = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f
 const CAMPOS = {
   nome: ['24', 'EMPRESA NOME'], numero: ['33', 'NOSSO NUMERO'], status: ['47', 'STATUS CLIENTES'],
   cadastro: ['11', 'DATA CADASTRO ESCRITORIO'], inicio: ['30', 'RESPONSAVEL A PARTIR DE'], fim: ['40', 'RESPONSAVEL ATE'],
-  observacao: ['5', 'OBSERVACAO:']
+  observacao: ['5', 'OBSERVACAO:'], cnpj: ['60', 'CPF/CNPJ'], tributacao: ['59', 'TRIBUTACAO']
 };
 const EVENTOS = { 'CLIENTE NOVO': 'entrada', 'CLIENTE SAIDA': 'saida', 'ENCERRAMENTO CNPJ': 'baixa', 'CLIENTE ALTERACAO': 'alteracao', 'CLIENTE SUSPENSO': 'suspensao' };
 function codigo(v) { const s = String(v ?? '').trim(); return /^\d+$/.test(s) && Number(s) > 0 ? s.replace(/^0+/, '') : null; }
@@ -17,8 +17,34 @@ function lerData(v, campo, problemas) {
   if (typeof s === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(s)) s = s.split('/').reverse().join('-');
   try { return data(s, campo); } catch { problemas.push('Data inválida: ' + campo); return null; }
 }
+function cnpjValido(c) {
+  if (!/^\d{14}$/.test(c) || /^(\d)\1{13}$/.test(c)) return false;
+  const dv = n => { let soma = 0, peso = n - 7; for (let i = 0; i < n; i++) { soma += Number(c[i]) * peso--; if (peso < 2) peso = 9; } const r = soma % 11; return r < 2 ? 0 : 11 - r; };
+  return dv(12) === Number(c[12]) && dv(13) === Number(c[13]);
+}
+// CNPJ declarado na origem: campo CPF/CNPJ ou rótulo "CNPJ:" na observação. Nunca por nome.
+function cnpjDaOrigem(campo, observacao, problemas) {
+  const declarado = typeof campo === 'string' ? campo.replace(/\D/g, '') : '';
+  if (typeof campo === 'string' && campo.trim() && !cnpjValido(declarado)) { problemas.push('CPF/CNPJ do Checklist inválido. Corrija o campo no Jotform.'); return null; }
+  const texto = typeof observacao === 'string' ? observacao.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ') : '';
+  const lidos = [...new Set([...texto.matchAll(/CNPJ\s*:?\s*(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/gi)].map(m => m[1].replace(/\D/g, '')))];
+  if (lidos.some(c => !cnpjValido(c))) { problemas.push('CNPJ da observação inválido. Corrija o Checklist no Jotform.'); return null; }
+  if (declarado && lidos.some(c => c !== declarado)) { problemas.push('CNPJ do campo diverge do CNPJ da observação. Corrija o Checklist no Jotform.'); return null; }
+  if (declarado) return { cnpj: declarado, fonte: 'campo' };
+  if (lidos.length > 1) { problemas.push('Observação com mais de um CNPJ. Preencha o campo CPF/CNPJ no Jotform.'); return null; }
+  return lidos.length ? { cnpj: lidos[0], fonte: 'observacao' } : null;
+}
+// Une as duas bases da carteira; o cadastro contábil prevalece sobre o dossiê do CRM.
+function unirBases(empresas, crm) {
+  const porCnpj = new Map();
+  for (const e of crm) porCnpj.set(e.cnpj, { ...e, colecao: 'crm_empresas' });
+  for (const e of empresas) porCnpj.set(e.cnpj, { ...e, colecao: 'empresas' });
+  return [...porCnpj.values()];
+}
 function orientacoesChecklist(evento){
   const p=evento.problemas.join(' '),acoes=[];
+  if(evento.cadastro_disponivel)acoes.push('Entrada sem cadastro no CCI. Confira o CNPJ '+evento.cnpj_origem+' (lido '+(evento.cnpj_origem_fonte==='campo'?'do campo CPF/CNPJ':'da observação')+') e use "Cadastrar na carteira". A empresa entra sem equipe, para distribuição.');
+  else if(evento.tipo==='entrada'&&/vínculo/.test(p)&&!evento.cnpj_origem)acoes.push('Para cadastrar pela entrada, informe o CNPJ no campo CPF/CNPJ do Checklist no Jotform e consulte novamente.');
   if(/Número|Código interno|vínculo/.test(p))acoes.push('No Cadastro de Empresas do CCI, confira o número interno e a identidade. Não escolha uma empresa por semelhança de nome. Depois consulte novamente o Checklist.');
   if(/Status|vigência|responsabilidade|Múltiplos eventos|Data inválida/.test(p))acoes.push('No dossiê da empresa, confira Contrato e recorrências com o administrador. Registre a vigência e o motivo com base na documentação; não aplique eventos conflitantes em lote.');
   if(/não ativo/.test(p))acoes.push('Mantenha este registro como histórico. Não aplique nem exclua dados porque a origem está inativa.');
@@ -29,10 +55,11 @@ function previaChecklist(questions, rows, empresas) {
   for (const [id, rotulo] of Object.values(CAMPOS)) {
     if (normalizar(questions?.[id]?.text).replace(/\s*\*$/, '') !== rotulo) throw erro('O Checklist mudou. Revise o mapeamento de campos antes de importar.', 409);
   }
-  const porCodigo = new Map();
+  const porCodigo = new Map(), porCnpj = new Map();
   for (const e of empresas) {
     const k = codigo(e.codigo_empresa ?? e.codigo_cliente ?? e.codCliente ?? e.numero_empresa);
     if (k) porCodigo.set(k, [...(porCodigo.get(k) || []), e]);
+    porCnpj.set(e.cnpj, { ...e, codigo: k });
   }
   const ids = new Set();
   const eventos = rows.map(r => {
@@ -44,6 +71,10 @@ function previaChecklist(questions, rows, empresas) {
     const candidatas = numero ? porCodigo.get(numero) || [] : [];
     if (!numero) problemas.push('Nosso Número ausente ou inválido.');
     if (candidatas.length !== 1) problemas.push(candidatas.length ? 'Código interno corresponde a mais de uma empresa.' : 'Empresa sem vínculo confirmado no CCI.');
+    const origem = cnpjDaOrigem(a('cnpj'), a('observacao'), problemas);
+    if (origem && candidatas.length === 1 && candidatas[0].cnpj !== origem.cnpj) problemas.push('CNPJ do Checklist diverge do cadastro com este Nosso Número. Confira no Cadastro de Empresas.');
+    const jaCadastrado = origem && !candidatas.length ? porCnpj.get(origem.cnpj) : null;
+    if (jaCadastrado) problemas.push('CNPJ do Checklist já cadastrado no CCI com ' + (jaCadastrado.codigo ? 'o Nosso Número ' + jaCadastrado.codigo : 'Nosso Número em branco') + '. Corrija o número no Cadastro de Empresas ou no Checklist.');
     const status = typeof a('status') === 'string' ? normalizar(a('status')) : '';
     const tipo = EVENTOS[status] || 'pendente';
     if (tipo === 'pendente') problemas.push('Status não reconhecido. Conferir o evento.');
@@ -55,8 +86,13 @@ function previaChecklist(questions, rows, empresas) {
     if (inicio && fim && fim < inicio) problemas.push('Fim da responsabilidade anterior ao início.');
     if (['alteracao', 'suspensao'].includes(tipo)) problemas.push('Conferir vigência e efeitos antes de aplicar.');
     if (r.status !== 'ACTIVE') problemas.push('Registro não ativo na origem; não aplicar nem apagar histórico.');
+    const nome = typeof a('nome') === 'string' ? a('nome').trim() : '';
     return { submission_id: String(r.id), assinatura: hash(r), numero_original: String(a('numero') ?? ''),
-      empresa_nome: typeof a('nome') === 'string' ? a('nome') : '', cnpj: candidatas.length === 1 ? candidatas[0].cnpj : null,
+      empresa_nome: nome, cnpj: candidatas.length === 1 ? candidatas[0].cnpj : null,
+      colecao: candidatas.length === 1 ? candidatas[0].colecao || 'empresas' : null,
+      cnpj_origem: origem ? origem.cnpj : null, cnpj_origem_fonte: origem ? origem.fonte : null,
+      tributacao_origem: typeof a('tributacao') === 'string' ? a('tributacao').trim() : null,
+      cadastro_disponivel: Boolean(tipo === 'entrada' && numero && nome && origem && !candidatas.length && !jaCadastrado && r.status === 'ACTIVE'),
       tipo, status_origem: status, cadastro_em: cadastro, responsabilidade_inicio: inicio, responsabilidade_fim: fim,
       observacao: typeof a('observacao') === 'string' ? a('observacao') : '', problemas, aplicacao_automatica: false };
   });
@@ -105,6 +141,16 @@ async function carregarChecklist({ apiKey, fetchImpl = fetch, agora = () => new 
   if (first.length !== expected || second.length !== expected || quantidade(after) !== expected || assinatura(first) !== assinatura(second) || hash(questions) !== hash(questionsAfter)) throw erro('O Checklist mudou durante a leitura. Consulte novamente; nenhuma alteração foi aplicada.', 409);
   return { questions, rows: first, form_id: FORM_ID, lido_em: agora(), assinatura: assinatura(first), completo: true };
 }
+// Cadastro individual de uma entrada na base da carteira. Não cria cadastro contábil, equipe, contrato nem obrigação.
+function cadastroDoEvento(evento, body, uid, quando) {
+  if (body.confirmado !== true) throw erro('Confirme o cadastro da empresa conferida.');
+  if (!evento || !evento.cadastro_disponivel) throw erro('Esta entrada não está pronta para cadastro. Confira as pendências no Checklist.', 409);
+  if (body.cnpj !== evento.cnpj_origem) throw erro('O CNPJ conferido difere da origem. Consulte o Checklist novamente.', 409);
+  return { cnpj: evento.cnpj_origem, razao_social: evento.empresa_nome, codigo_empresa: codigo(evento.numero_original), origem: 'CHECKLIST',
+    checklist_submission_id: evento.submission_id, checklist_assinatura: evento.assinatura, cnpj_fonte: evento.cnpj_origem_fonte,
+    tributacao_origem: evento.tributacao_origem || null, responsabilidade_inicio_origem: evento.responsabilidade_inicio || null,
+    carteira_uids: [], responsaveis: [], criado_em: quando, criado_por_uid: uid };
+}
 // Aplicação individual explícita. Não cria empresa, carteira ou obrigação.
 function contratoDoEvento(evento, antes, body, hoje) {
   const { contrato } = require('./crm-planejamento');
@@ -126,4 +172,4 @@ function contratoDoEvento(evento, antes, body, hoje) {
   return contrato({ revisao:body.revisao_contrato, situacao: {entrada:'ativa',saida:'saida',baixa:'baixada'}[evento.tipo],
     inicio, fim, motivo:body.motivo }, existente);
 }
-module.exports = { orientacoesChecklist, FORM_ID, CAMPOS, previaChecklist, carregarChecklist, contratoDoEvento };
+module.exports = { orientacoesChecklist, FORM_ID, CAMPOS, previaChecklist, carregarChecklist, contratoDoEvento, cadastroDoEvento, cnpjValido, cnpjDaOrigem, unirBases };

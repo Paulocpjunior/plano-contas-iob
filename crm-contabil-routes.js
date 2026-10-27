@@ -6,7 +6,7 @@ const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmp
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
-const { carregarChecklist, previaChecklist, contratoDoEvento } = require('./crm-checklist');
+const { carregarChecklist, previaChecklist, contratoDoEvento, cadastroDoEvento, unirBases } = require('./crm-checklist');
 
 // O acesso ao aplicativo não prova vínculo com o departamento.
 async function carregarDepartamento(req, env = process.env, fetcher = globalThis.fetch) {
@@ -595,19 +595,18 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     if (fonte.completo !== true || fonte.assinatura !== b.assinatura) throw core.erro('A origem mudou ou a leitura está incompleta. Confira uma nova prévia.', 409);
     const result = await db.runTransaction(async tx => {
       const user = await usuario(req, tx); admin(user);
-      const empresas = await tx.get(db.collection('empresas'));
-      const previa = previaChecklist(fonte.questions, fonte.rows, empresas.docs.map(d => ({...d.data(),cnpj:d.id})));
+      const bases = await basesChecklist(tx);
+      const previa = previaChecklist(fonte.questions, fonte.rows, bases);
       const evento = previa.eventos.find(e => e.submission_id === b.submission_id);
       if (!evento || !evento.cnpj || evento.problemas.length) throw core.erro('Evento indisponível ou com pendências. Confira novamente.', 409);
-      const ref = db.collection('empresas').doc(evento.cnpj);
+      const ref = db.collection(evento.colecao).doc(evento.cnpj);
       const registro = db.collection('crm_checklist_eventos').doc(evento.submission_id);
       const feito = await tx.get(registro);
       if (feito.exists) {
         if (feito.data().assinatura_evento !== evento.assinatura || feito.data().cnpj !== evento.cnpj) throw core.erro('Este evento foi alterado na origem após aplicação. Revise o histórico manualmente.', 409);
         return {aplicado:false,ja_aplicado:true,cnpj:evento.cnpj};
       }
-      const doc = empresas.docs.find(d => d.id === evento.cnpj);
-      const antes = doc.data().crm_contrato || null;
+      const antes = bases.find(e => e.cnpj === evento.cnpj).crm_contrato || null;
       const quando = agora();
       const hoje = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(quando));
       const depois = contratoDoEvento(evento, antes, b, hoje);
@@ -626,9 +625,37 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     if (fonte.completo !== true) throw core.erro('Leitura incompleta. Nenhum evento pode ser aplicado.', 502);
     // Reconfere o perfil após a consulta longa, antes de devolver dados.
     admin(await usuario(req));
-    const snap = await db.collection('empresas').get();
-    const empresas = snap.docs.map(d => ({ ...d.data(), cnpj: d.id }));
-    res.json({ ok: true, form_id: fonte.form_id, lido_em: fonte.lido_em, assinatura: fonte.assinatura, ...previaChecklist(fonte.questions, fonte.rows, empresas) });
+    res.json({ ok: true, form_id: fonte.form_id, lido_em: fonte.lido_em, assinatura: fonte.assinatura, ...previaChecklist(fonte.questions, fonte.rows, await basesChecklist()) });
   }));
+  app.post('/api/crm/checklist/cadastrar', wrap(async (req, res) => {
+    admin(await usuario(req));
+    const b = req.body || {};
+    if (!/^\d{1,40}$/.test(b.submission_id || '') || !/^[a-f0-9]{64}$/.test(b.assinatura || '') || !/^\d{14}$/.test(b.cnpj || '')) throw core.erro('Selecione uma entrada de uma prévia válida.');
+    const fonte = await checklist({ apiKey: env.CCI_CHECKLIST_API_KEY });
+    if (fonte.completo !== true || fonte.assinatura !== b.assinatura) throw core.erro('A origem mudou ou a leitura está incompleta. Confira uma nova prévia.', 409);
+    const result = await db.runTransaction(async tx => {
+      const user = await usuario(req, tx); admin(user);
+      const registro = db.collection('crm_checklist_cadastros').doc(b.submission_id);
+      const feito = await tx.get(registro);
+      if (feito.exists) return { cadastrado: false, ja_cadastrado: true, cnpj: feito.data().cnpj };
+      const previa = previaChecklist(fonte.questions, fonte.rows, await basesChecklist(tx));
+      const evento = previa.eventos.find(e => e.submission_id === b.submission_id);
+      const quando = agora();
+      const dossie = cadastroDoEvento(evento, b, user.uid, quando);
+      const ref = db.collection('crm_empresas').doc(dossie.cnpj);
+      // create falha se o CNPJ surgir em paralelo; o registro global impede repetir a mesma entrada.
+      tx.create(ref, dossie);
+      tx.create(registro, { cnpj: dossie.cnpj, submission_id: evento.submission_id,
+        assinatura_evento: evento.assinatura, assinatura_leitura: fonte.assinatura, cnpj_fonte: dossie.cnpj_fonte, por_uid: user.uid, quando });
+      tx.create(ref.collection('auditoria_contabil').doc(), { tipo: 'CRM_CHECKLIST_CADASTRO', por_uid: user.uid, quando,
+        submission_id: evento.submission_id, antes: null, depois: dossie });
+      return { cadastrado: true, cnpj: dossie.cnpj, codigo_empresa: dossie.codigo_empresa };
+    });
+    res.json({ ok: true, ...result });
+  }));
+  async function basesChecklist(tx) {
+    const [empresas, crm] = await Promise.all(['empresas', 'crm_empresas'].map(n => tx ? tx.get(db.collection(n)) : db.collection(n).get()));
+    return unirBases(empresas.docs.map(d => ({ ...d.data(), cnpj: d.id })), crm.docs.map(d => ({ ...d.data(), cnpj: d.id })));
+  }
 }
 module.exports = { registrar, carregarDepartamento };
