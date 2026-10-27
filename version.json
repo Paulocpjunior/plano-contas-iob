@@ -1,7 +1,8 @@
 {
-  "version": "3.4.465",
-  "build_date": "2026-10-27T21:40:00Z",
+  "version": "3.4.466",
+  "build_date": "2026-10-27T22:00:00Z",
   "release_notes": [
+    "Planos de Contas → Importar Folha: quando o plano é compartilhado por mais de uma empresa (ex.: 1183 DAXX MIDIA com FERREIRA BRAGA HOLDING), a folha vai direto para a empresa ativa, sem a janela pedindo para digitar o número da empresa. A lista para escolher só aparece quando a empresa ativa não está vinculada ao plano.",
     "Relatórios Contábeis → Balancete, Razão e PDF: conta com saldo ou movimento que não está no plano de contas ativo saía sem nome (só o código) e fora do grupo, e o grupo não batia com o Total do balancete. Agora a linha sai em vermelho como \"CONTA NÃO CADASTRADA NO PLANO ATIVO\" (ou \"CONTA DUPLICADA NO PLANO ATIVO\", quando o código ou reduzido aparece em duas contas), entra no seu grupo pelo código, e a tela lista as contas para cadastrar em Plano de Contas ou corrigir o saldo de abertura ou o lançamento de origem.",
     "Importar Extrato ou Lançamentos → SAGE e obrigações acessórias → Importar FI / relatório SAGE: além do FI de 328 posições, o CCI agora importa o relatório Conferência de Lançamentos da SAGE gravado em texto (ex.: Digita12.txt). O CNPJ do cabeçalho precisa ser o da empresa ativa; período, quantidade impressa e \"NAO HA DIFERENCA\" são conferidos; as contas são localizadas pela classificação no plano da empresa e gravadas pelo reduzido, sem presumir conta. Se o mês já tiver lançamentos no CCI (extrato, folha, fiscal), a prévia lista as origens e exige confirmar que não haverá duplicidade. Na mesma área ficam os atalhos para ECD/ECF e para o Validador de Obrigações.",
     "CRM → Conferir Checklist → Cadastrar na carteira: se a entrada foi corrigida no Jotform depois do cadastro (outro CNPJ ou número), o CCI agora avisa para revisar o dossiê, em vez de informar que já estava cadastrada.",

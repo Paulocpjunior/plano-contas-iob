@@ -422,6 +422,21 @@
     renderTelaUpload();
   };
 
+  // Plano compartilhado por varias empresas: a folha e da empresa ativa quando
+  // ela esta entre as vinculadas ao plano. Sem empresa ativa no plano, o
+  // usuario escolhe na lista.
+  function escolherEmpresaAtivaDoPlano(empresas, cnpjAtivo) {
+    const alvo = String(cnpjAtivo || '').replace(/\D/g, '');
+    if (alvo.length !== 14) return null;
+    return (empresas || []).find(e => String(e.cnpj || '').replace(/\D/g, '') === alvo) || null;
+  }
+
+  function cnpjDaEmpresaAtiva() {
+    const st = window.state;
+    if (!st || !st.infoConfirmed || !st.info) return '';
+    return st.info.cnpj || '';
+  }
+
   window.abrirModalImportarFolhaDePlano = async function (planoId, planoNome) {
     try {
       const r = await apiGet('/api/folha/empresas-do-plano/' + encodeURIComponent(planoId));
@@ -430,8 +445,8 @@
         alert('Nenhuma empresa ativa e acessivel vinculada ao plano "' + planoNome + '".\n\nSe necessario, solicite acesso ao administrador.');
         return;
       }
-      let escolhida = empresas[0];
-      if (empresas.length > 1) {
+      let escolhida = empresas.length === 1 ? empresas[0] : escolherEmpresaAtivaDoPlano(empresas, cnpjDaEmpresaAtiva());
+      if (!escolhida) {
         const opts = empresas.map((e, i) => (i + 1) + '. ' + (e.razao_social || e.cnpj_formatado)).join('\n');
         const resp = prompt('Plano "' + planoNome + '" tem ' + empresas.length + ' empresas vinculadas.\nEscolha uma (digite o numero):\n\n' + opts);
         const idx = parseInt(resp, 10) - 1;
