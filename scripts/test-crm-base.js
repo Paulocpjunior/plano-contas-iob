@@ -140,4 +140,18 @@ assert.equal(referencia.url,docBody.url);
 for(const url of ['http://example.com/a','javascript:alert(1)','https://user:pass@example.com/a','file:///tmp/a'])assert.throws(()=>documentoReferencia(null,{...docBody,url},admin,'now'));
 for(const patch of [{periodo:'2026-13'},{categoria:'outro'},{motivo:''},{revisao:1}])assert.throws(()=>documentoReferencia(null,{...docBody,...patch},admin,'now'));
 assert.throws(()=>documentoReferencia(null,docBody,consulta,'now'),e=>e.status===403);
+// Colaborador de origem: só administrador altera; N°/CNPJ seguem protegidos.
+{
+  const {campoEditavel}=require('../crm-base');
+  const editor={uid:'e',permissoesCci:criarPermissoes('edicao')};
+  const lin={revisao:1,campos:[{nome:'CNPJ',valor:'x',original:'x',protegido:true},{nome:'Colaborador',valor:'ERESON',original:'ERESON',protegido:true},{nome:'Tributação',valor:'SIMPLES',original:'SIMPLES'}]};
+  const alt=editarParametro(lin,{revisao:1,coluna:1,valor:'DARIEL',motivo:'Troca de responsável'},admin,'now');
+  assert.equal(alt.campos[1].valor,'DARIEL'); assert.equal(alt.campos[1].original,'ERESON'); assert.equal(alt.campos[1].protegido,true); assert.equal(alt.revisao,2);
+  assert.throws(()=>editarParametro(lin,{revisao:1,coluna:1,valor:'DARIEL',motivo:'x'},editor,'now'),e=>e.status===403&&/administradores/.test(e.message));
+  assert.throws(()=>editarParametro(lin,{revisao:1,coluna:0,valor:'novo',motivo:'x'},admin,'now'),/preservadas/);
+  assert.equal(editarParametro(lin,{revisao:1,coluna:2,valor:'PRESUMIDO',motivo:'x'},editor,'now').campos[2].valor,'PRESUMIDO');
+  assert.deepEqual(lin.campos.map(c=>campoEditavel(c,admin)),[false,true,true]);
+  assert.deepEqual(lin.campos.map(c=>campoEditavel(c,editor)),[false,false,true]);
+  assert.equal(campoEditavel({nome:' COLABORADOR ',protegido:true},{is_admin:'sim'}),false);
+}
 console.log('CRM referências: HTTPS, versões, revisão, categoria, período e perfil OK');

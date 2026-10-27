@@ -44,6 +44,7 @@ assert.equal(permitido({id:'btnDadosEmpresaNav'}), false);
 
 // Regressão real: dois uploads separados por newline não podem virar uma URL.
 const ui = require('fs').readFileSync(require('path').join(__dirname, '../crm-contabil-ui.js'), 'utf8');
+assert(ui.includes('(r.editaveis?r.editaveis[i]:!c.protegido)'), 'Editar por parâmetro segue o que o servidor libera (Colaborador só admin)');
 const helpers = ui.slice(ui.indexOf("  'use strict';"), ui.indexOf('  const dataBr ='));
 const sandbox = { URL };
 require('vm').runInNewContext(helpers+';this.linksDoCampo=linksDoCampo;this.linksDocumento=linksDocumento;',sandbox);
