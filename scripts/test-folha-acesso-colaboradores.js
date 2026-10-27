@@ -34,4 +34,21 @@ assert(salvarMapeamento.includes('checarAcessoEmpresa(cnpjLimpo, req.user)'), 'g
 assert(duplicidade.includes('checarAcessoEmpresa(cnpjLimpo, req.user)'), 'historico de importacoes deve validar acesso');
 assert(modulo.includes('solicite acesso ao administrador'), 'mensagem deve orientar colaborador sem acesso');
 
+// Plano compartilhado (ex.: 1183 DAXX MIDIA com FERREIRA BRAGA HOLDING): a folha
+// vai para a empresa ativa sem pedir para digitar o numero.
+const fonteEscolha = modulo.match(/function escolherEmpresaAtivaDoPlano\([\s\S]*?\n  \}\n/);
+assert(fonteEscolha, 'escolherEmpresaAtivaDoPlano deve existir');
+const escolher = new Function(fonteEscolha[0] + '; return escolherEmpresaAtivaDoPlano;')();
+const vinculadas = [
+  { cnpj: '11775820000171', razao_social: 'DAXX MIDIA LTDA' },
+  { cnpj: '99888777000166', razao_social: 'FERREIRA BRAGA HOLDING DE PARTICIPACOES LTDA' },
+];
+assert.strictEqual(escolher(vinculadas, '11.775.820/0001-71').razao_social, 'DAXX MIDIA LTDA');
+assert.strictEqual(escolher(vinculadas, '99888777000166').razao_social, 'FERREIRA BRAGA HOLDING DE PARTICIPACOES LTDA');
+assert.strictEqual(escolher(vinculadas, '12345678000190'), null, 'empresa ativa fora do plano cai na escolha manual');
+assert.strictEqual(escolher(vinculadas, ''), null, 'sem empresa ativa cai na escolha manual');
+const fluxoPlano = modulo.slice(modulo.indexOf('window.abrirModalImportarFolhaDePlano'));
+assert(fluxoPlano.indexOf('escolherEmpresaAtivaDoPlano(empresas, cnpjDaEmpresaAtiva())') >= 0, 'fluxo deve tentar a empresa ativa');
+assert(fluxoPlano.indexOf('escolherEmpresaAtivaDoPlano') < fluxoPlano.indexOf('prompt('), 'empresa ativa vem antes da pergunta');
+
 console.log('OK: importacao de folha liberada aos colaboradores e isolada por empresa.');
