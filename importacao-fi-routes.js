@@ -32,7 +32,7 @@ function registrar(app, deps) {
       if (travados.length) previa.erros.push(TravaDigitacao.mensagemBloqueio(travados, periodos));
       previa.ok = previa.erros.length === 0;
       const hashPrevia = hash(JSON.stringify({ arquivo: arquivo.fingerprint, sessao: sessao.stateJson, contas, cnpj, previa }));
-      const origemArquivo = relatorio ? { formato: arquivo.formato, empresaRelatorio: arquivo.empresa, periodoRelatorio: [arquivo.periodoInicio, arquivo.periodoFim] } : { formato: 'fi' };
+      const origemArquivo = relatorio ? { formato: arquivo.formato, empresaRelatorio: arquivo.empresa, periodoRelatorio: [arquivo.periodoInicio, arquivo.periodoFim], lancamentosRelatorio: arquivo.quantidadeImpressa, compostosRelatorio: arquivo.compostos } : { formato: 'fi' };
       if (!confirmar) return res.json({ ...previa, ...origemArquivo, hashPrevia, empresa: acesso.empresa.razao_social || '', cnpj });
       if (!previa.ok) throw erro(previa.erros.join(' '));
       if (body.hashPrevia !== hashPrevia) throw erro('A sessão ou o plano mudou. Gere uma nova prévia.');
@@ -50,6 +50,7 @@ function registrar(app, deps) {
           origem: 'sage-conferencia-lancamentos', categoria: 'Movimento contábil', bancoId: 'CONTABIL_SAGE', bancoNome: 'Importação contábil SAGE',
           importacaoId, importacaoTitulo: 'SAGE Conferência de Lançamentos — ' + previa.inicio + ' a ' + previa.fim,
           layoutNome: 'SAGE Conferência de Lançamentos (relatório texto)', layoutParser: 'lerConferenciaSAGE', numeroLancamentoSage: l.numeroSage,
+          ...(l.partidaSage ? { partidaSage: l.partidaSage, partidasSage: l.partidasSage } : {}),
         } : {
           origem: 'iob-sage-fi', categoria: 'Movimento contábil', bancoId: 'CONTABIL_FI', bancoNome: 'Importação contábil FI',
           importacaoId, importacaoTitulo: 'IOB/SAGE FI — ' + previa.inicio + ' a ' + previa.fim,

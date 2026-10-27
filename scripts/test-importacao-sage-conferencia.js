@@ -18,6 +18,7 @@ const cabecalho = folha => [
 const lanc = (n, data, d, c, valor, hist, texto) =>
   ' ' + String(n).padStart(10, '0') + ' ' + data + ' ' + d.padEnd(17) + c.padEnd(17) + valor.padStart(15) + '    ' + hist + (hist === '0000' ? '   ' : '  ') + texto;
 const cont = texto => ' '.repeat(77) + texto;
+const sub = (d, c, valor, hist, texto) => ' '.repeat(18) + d.padEnd(17) + c.padEnd(17) + valor.padStart(15) + '    ' + hist + '  ' + texto;
 function relatorio({ linhas, quantidade, diferenca = 'NAO HA DIFERENCA' } = {}) {
   const corpo = linhas || [
     lanc(1, '01/12', '1.1.1.02.0002', '1.1.2.03.0010', '530,00', '1299', 'VR.REF A PIX TRANSF CLIENTE 01/12'),
@@ -50,7 +51,35 @@ assert.throws(() => lerFI(buf(relatorio())), /328 posições/);
 // Bloqueios: quantidade, diferença, conta faltando, data fora, linha estranha, outro relatório.
 assert.throws(() => lerConferenciaSAGE(buf(relatorio({ quantidade: 4 }))), /informa 4 lançamentos, mas foram lidos 3/);
 assert.throws(() => lerConferenciaSAGE(buf(relatorio({ diferenca: 'HA DIFERENCA DE 10,00' }))), /NAO HA DIFERENCA/);
-assert.throws(() => lerConferenciaSAGE(buf(relatorio({ linhas: [lanc(1, '01/12', '1.1.1.02.0002', '', '530,00', '1299', 'X')] }))), /partidas compostas/);
+assert.throws(() => lerConferenciaSAGE(buf(relatorio({ linhas: [lanc(1, '01/12', '1.1.1.02.0002', '', '530,00', '1299', 'X')] }))), /uma conta só e sem as contrapartidas/);
+
+// Múltiplas partidas (Digita08): a linha do número traz um lado; as linhas sem número, as contrapartidas do outro.
+const composto = lerConferenciaSAGE(buf(relatorio({ linhas: [
+  lanc(1, '01/12', '1.1.1.02.0002', '1.1.2.03.0010', '10,00', '1299', 'SIMPLES'),
+  lanc(2, '02/12', '', '1.1.1.02.0002', '4.210,88', '1303', 'PAGTO PARCELAMENTO'),
+  sub('1.1.2.03.0010', '', '4.169,18', '0900', 'PARCELA 02 PGFN'), cont('VIA PIX'),
+  sub('5.1.1.03.0004', '', '41,70', '0900', 'SELIC'),
+  lanc(3, '03/12', '1.1.1.02.0002', '', '600,00', '1399', 'RECEBIMENTO'),
+  sub('', '1.1.2.01.0001', '400,00', '1399', 'NF 712'),
+  sub('', '1.1.2.01.0001', '200,00', '1399', ''),
+] })));
+assert.equal(composto.quantidadeImpressa, 3);
+assert.equal(composto.compostos, 2);
+assert.deepEqual(composto.lancamentos.map(l => [l.numeroSage, l.partidaSage || 0, l.contaDebito, l.contaCredito, l.valorCentavos, l.codigoHistorico, l.descricao]), [
+  ['1', 0, '1.1.1.02.0002', '1.1.2.03.0010', 1000, '1299', 'SIMPLES'],
+  ['2', 1, '1.1.2.03.0010', '1.1.1.02.0002', 416918, '0900', 'PARCELA 02 PGFN VIA PIX'],
+  ['2', 2, '5.1.1.03.0004', '1.1.1.02.0002', 4170, '0900', 'SELIC'],
+  ['3', 1, '1.1.1.02.0002', '1.1.2.01.0001', 40000, '1399', 'NF 712'],
+  ['3', 2, '1.1.1.02.0002', '1.1.2.01.0001', 20000, '1399', 'RECEBIMENTO'],
+]);
+const compostoRuim = linhasSub => () => lerConferenciaSAGE(buf(relatorio({ quantidade: 1, linhas: [lanc(2, '02/12', '', '1.1.1.02.0002', '100,00', '1303', 'X'), ...linhasSub] })));
+assert.throws(compostoRuim([sub('1.1.2.03.0010', '', '60,00', '0900', 'A'), sub('5.1.1.03.0004', '', '30,00', '0900', 'B')]), /somam 90,00 e o lançamento 100,00/);
+assert.throws(compostoRuim([sub('1.1.2.03.0010', '', '50,00', '0900', 'A'), sub('', '5.1.1.03.0004', '50,00', '0900', 'B')]), /dois lados/);
+assert.throws(compostoRuim([sub('1.1.2.03.0010', '5.1.1.03.0004', '100,00', '0900', 'A')]), /dois lados/);
+assert.throws(compostoRuim([sub('1.1.1.02.0002', '', '100,00', '0900', 'A')]), /mesma conta/);
+assert.throws(() => lerConferenciaSAGE(buf(relatorio({ linhas: [lanc(1, '01/12', '1.1.1.02.0002', '1.1.2.03.0010', '1,00', '1299', 'X'), sub('5.1.1.03.0004', '', '1,00', '0900', 'Y')] }))), /contrapartida sem um lançamento de múltiplas partidas/);
+// Quantidade com milhar ("1.338" no Digita08).
+assert.throws(() => lerConferenciaSAGE(buf(relatorio({ quantidade: '1.000' }))), /informa 1000 lançamentos, mas foram lidos 3/);
 assert.throws(() => lerConferenciaSAGE(buf(relatorio({ linhas: [lanc(1, '01/11', '1.1.1.02.0002', '1.1.2.03.0010', '530,00', '1299', 'X')] }))), /fora do período/);
 assert.throws(() => lerConferenciaSAGE(buf(relatorio({ linhas: [lanc(1, '01/12', '1.1.1.02.0002', '1.1.2.03.0010', '0,00', '1299', 'X')] }))), /zerado/);
 assert.throws(() => lerConferenciaSAGE(buf(relatorio().replace(' NAO HA DIFERENCA', ' NAO HA DIFERENCA\r\n TOTAL GERAL 999'))), /fora do leiaute conhecido/);
