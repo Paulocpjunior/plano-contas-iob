@@ -261,6 +261,22 @@ if(require.main===module)(async()=>{
   assert.equal((await revogado.call('POST','/api/crm/checklist/aplicar',evtBody,'admin')).statusCode,403);assert.equal(revogado.writes(),0);
   const conc=ambiente(async()=>fonte);conc.dados.get('empresas/'+cnpj).crm_contrato={revisao:4};
   assert.equal((await conc.call('POST','/api/crm/checklist/aplicar',evtBody,'admin')).statusCode,409);assert.equal(conc.writes(),0);
+  // Entrada sem cadastro: cria só o dossiê da carteira, sem equipe nem contrato, uma única vez.
+  const cnpjNovo='11222333000181';
+  const fonteNova={completo:true,assinatura:'c'.repeat(64),questions:quest,rows:[{id:'456',form_id:ck.FORM_ID,status:'ACTIVE',answers:{
+    '24':{answer:'Nova Ltda'},'33':{answer:'1411'},'47':{answer:'CLIENTE NOVO'},'30':{answer:'2026-11-02'},'5':{answer:'CNPJ: 11.222.333/0001-81'}
+  }}]};
+  const cadBody={submission_id:'456',assinatura:fonteNova.assinatura,cnpj:cnpjNovo,confirmado:true};
+  const cad=ambiente(async()=>fonteNova);
+  assert.equal((await cad.call('POST','/api/crm/checklist/cadastrar',cadBody,'colab')).statusCode,403);assert.equal(cad.checklistCalls(),0);
+  assert.equal((await cad.call('POST','/api/crm/checklist/cadastrar',{...cadBody,cnpj:'45123840000180'},'admin')).statusCode,409);assert.equal(cad.writes(),0);
+  let cadastrado=await cad.call('POST','/api/crm/checklist/cadastrar',cadBody,'admin');
+  assert.equal(cadastrado.statusCode,200);assert.equal(cadastrado.body.cadastrado,true);assert.equal(cad.writes(),3);
+  const dossie=cad.dados.get('crm_empresas/'+cnpjNovo);assert.equal(dossie.codigo_empresa,'1411');assert.deepEqual(dossie.responsaveis,[]);assert.equal(dossie.crm_contrato,undefined);
+  assert(!cad.dados.has('empresas/'+cnpjNovo));
+  cadastrado=await cad.call('POST','/api/crm/checklist/cadastrar',cadBody,'admin');assert.equal(cadastrado.body.ja_cadastrado,true);assert.equal(cad.writes(),3);
+  const previaCad=await cad.call('GET','/api/crm/checklist/previa',{},'admin');
+  assert.equal(previaCad.body.eventos[0].cnpj,cnpjNovo);assert.equal(previaCad.body.eventos[0].colecao,'crm_empresas');assert.equal(previaCad.body.eventos[0].cadastro_disponivel,false);
   const a=ambiente(), base='/api/crm/empresas/:cnpj';
   const historicoEnv=ambiente();
   for(let i=0;i<52;i++)historicoEnv.dados.set('empresas/'+cnpj+'/auditoria_contabil/'+String(i).padStart(3,'0'),{tipo:'CRM_CONTRATO',quando:'2026-10-13',motivo:'Conferido',por_uid:'admin'});
