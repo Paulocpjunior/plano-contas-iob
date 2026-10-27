@@ -122,17 +122,44 @@ assert.equal(soPosicao[0].valores.rendimentoBruto, undefined, 'documento só de 
 // ─── 4. Rotas ──────────────────────────────────────────────────────────────
 (async () => {
   {
+    // Pasta resolvida pelo caminho (site → biblioteca → pasta), que funciona com Sites.Selected.
+    assert.deepEqual(SP.caminhoDaPasta('https://sp.sharepoint.com/sites/Contabil/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FContabil%2FShared%20Documents%2FFichas%20Fiscal&viewid=1'),
+      { host: 'sp.sharepoint.com', site: '/sites/Contabil', caminho: '/sites/Contabil/Shared Documents/Fichas Fiscal' });
+    assert.equal(SP.caminhoDaPasta('https://sp.sharepoint.com/sites/Contabil/Shared%20Documents/Fichas/').caminho, '/sites/Contabil/Shared Documents/Fichas');
+    assert.equal(SP.caminhoDaPasta('https://sp.sharepoint.com/:f:/s/Contabil/EabcXYZ'), null, 'link Copiar link não tem caminho');
+
     const chamadas = [];
-    const cli = SP.criar({ token: async () => 'tk', fetcher: async (u, o) => { chamadas.push({ u, o }); return u.includes('/shares/')
-      ? { ok: true, status: 200, json: async () => ({ id: 'PASTA', name: 'Fichas', webUrl: 'https://sp.sharepoint.com/Fichas', folder: {}, parentReference: { driveId: 'DRIVE' } }) }
-      : (o.headers.Authorization === 'Bearer tk' && o.method === 'PUT' ? { ok: true, status: 201, json: async () => ({ id: 'ARQ', webUrl: 'https://sp.sharepoint.com/Fichas/x.pdf' }) } : { ok: false, status: 500 }); } });
-    assert.deepEqual(await cli.resolverPasta('https://sp.sharepoint.com/sites/Contabil/Fichas'), { drive_id: 'DRIVE', item_id: 'PASTA', web_url: 'https://sp.sharepoint.com/Fichas', nome: 'Fichas' });
+    const resposta = (status, corpo) => ({ ok: status < 300, status, json: async () => corpo });
+    const cli = SP.criar({ token: async () => 'tk', renovar: () => {}, fetcher: async (u, o) => {
+      chamadas.push({ u, o });
+      if (o.method === 'PUT') return o.headers.Authorization === 'Bearer tk' ? resposta(201, { id: 'ARQ', webUrl: 'https://sp.sharepoint.com/Fichas/x.pdf' }) : resposta(500, {});
+      if (u.includes('/shares/')) return resposta(403, {});
+      if (u.startsWith('https://graph.microsoft.com/v1.0/sites/sp.sharepoint.com:/sites/Contabil?')) return resposta(200, { id: 'SITE' });
+      if (u.includes('/sites/SITE/drives')) return resposta(200, { value: [
+        { id: 'OUTRA', name: 'Shared', webUrl: 'https://sp.sharepoint.com/sites/Contabil/Shared' },
+        { id: 'DRIVE', name: 'Documentos', webUrl: 'https://sp.sharepoint.com/sites/Contabil/Shared%20Documents' }] });
+      if (u.includes('/drives/DRIVE/root:/Fichas%20Fiscal:')) return resposta(200, { id: 'PASTA', name: 'Fichas Fiscal', webUrl: 'https://sp.sharepoint.com/Fichas', folder: {}, parentReference: { driveId: 'DRIVE' } });
+      return resposta(404, {});
+    } });
+    assert.deepEqual(await cli.resolverPasta('https://sp.sharepoint.com/sites/Contabil/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FContabil%2FShared%20Documents%2FFichas%20Fiscal'),
+      { drive_id: 'DRIVE', item_id: 'PASTA', web_url: 'https://sp.sharepoint.com/Fichas', nome: 'Fichas Fiscal' });
+    assert.ok(!chamadas.some(c => c.u.includes('/shares/')), 'endereço com caminho não usa /shares (exige permissão no tenant inteiro)');
+    await assert.rejects(cli.resolverPasta('https://sp.sharepoint.com/sites/Contabil/Outra%20Lib/X'), /biblioteca dessa pasta no site \/sites\/Contabil/);
+    const antes = chamadas.length;
     const r = await cli.salvarPdf({ driveId: 'DRIVE', pastaId: 'PASTA', nome: 'a/b.pdf', pdf: Buffer.from('%PDF-') });
     assert.equal(r.estado, 'salvo');
-    assert.match(chamadas[1].u, /\/drives\/DRIVE\/items\/PASTA:\/a_b\.pdf:\/content\?@microsoft\.graph\.conflictBehavior=replace$/);
-    const negado = SP.criar({ token: async () => 'tk', fetcher: async () => ({ ok: false, status: 403 }) });
+    assert.match(chamadas[antes].u, /\/drives\/DRIVE\/items\/PASTA:\/a_b\.pdf:\/content\?@microsoft\.graph\.conflictBehavior=replace$/);
+
+    // Permissão liberada depois do token em cache: 403 descarta o token e tenta de novo.
+    let tokens = 0, renovados = 0;
+    const renova = SP.criar({ token: async () => 'tk' + tokens++, renovar: () => { renovados++; }, fetcher: async (u, o) =>
+      o.headers.Authorization === 'Bearer tk0' ? resposta(403, {}) : resposta(201, { id: 'ARQ', webUrl: 'https://sp.sharepoint.com/x.pdf' }) });
+    assert.equal((await renova.salvarPdf({ driveId: 'D', pastaId: 'P', nome: 'x.pdf', pdf: Buffer.from('x') })).estado, 'salvo');
+    assert.equal(renovados, 1);
+
+    const negado = SP.criar({ token: async () => 'tk', renovar: () => {}, fetcher: async () => resposta(403, {}) });
     assert.match((await negado.salvarPdf({ driveId: 'D', pastaId: 'P', nome: 'x.pdf', pdf: Buffer.from('x') })).detalhe, /Sites\.Selected/);
-    await assert.rejects(negado.resolverPasta('https://sp.sharepoint.com/x'), /Sites\.Selected/);
+    await assert.rejects(negado.resolverPasta('https://sp.sharepoint.com/sites/Contabil/Docs/X'), /site \/sites\/Contabil do SharePoint.*Sites\.Selected/);
   }
   const db = new MemoryFirestore();
   await db.collection('empresas').doc(CNPJ).set({ razao_social: 'EMPRESA TESTE LTDA', regime_tributario_codigo: 'LUCRO_PRESUMIDO', owner_uid: 'dono' });

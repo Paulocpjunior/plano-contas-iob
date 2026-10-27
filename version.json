@@ -1,7 +1,8 @@
 {
-  "version": "3.4.458",
-  "build_date": "2026-10-27T14:30:00Z",
+  "version": "3.4.459",
+  "build_date": "2026-10-27T15:30:00Z",
   "release_notes": [
+    "Ficha para o fiscal → Configurar canal: a pasta do SharePoint é localizada pelo caminho (site, biblioteca e pasta), que funciona com a permissão do app liberada só no site do Contábil. Antes, a pasta era recusada com \"sem permissão de escrita\" mesmo depois de liberada. Se o Microsoft 365 recusar, o CCI pede um token novo e tenta de novo uma vez, e a mensagem diz em qual site falta a permissão. Cole o endereço da pasta como aparece no navegador.",
     "Ficha de aplicações para o fiscal: o PDF é salvo automaticamente na pasta do SharePoint do Contábil e o cartão no Teams traz o botão Abrir PDF da ficha. Cada envio marca (@) as pessoas cadastradas para receber o alerta no Teams. O administrador configura canal, pasta e pessoas em Configurar canal, dentro da ficha. Se o SharePoint recusar (permissão do app), a ficha vai ao Teams sem o link e Tentar de novo no histórico grava o PDF depois.",
     "EFD-Reinf → Aplicações financeiras: novo botão Ficha para o fiscal. O contábil preenche, por aplicação, instituição, CNPJ da fonte pagadora, produto, classe, conta, saldo anterior, aplicações, resgates, rendimento bruto, IRRF, IOF e saldo final (rendimento e IRRF obrigatórios; em branco sai Não informado, nunca zero), com observações para o fiscal. Gerar PDF e enviar guarda o comprovante no CCI, com versões por competência, e publica no canal Teams que o administrador cadastra; o PDF segue junto para o passo Criar arquivo do SharePoint no Workflows. Dá para trazer as linhas da análise do extrato importado.",
     "CRM → Parâmetros da empresa: agora dá para incluir, editar e excluir linhas. Incluir linha cria uma linha nova na aba escolhida (marcada como incluída no CCI, sem valor de origem; coluna em branco fica Não informado). Excluir linha é só para administrador, pede motivo e é lógica: a linha fica preservada, com histórico, e pode ser restaurada. Linhas iguais na mesma aba aparecem com o alerta ⚠ Possível duplicidade, para o administrador conferir e excluir a repetida.",

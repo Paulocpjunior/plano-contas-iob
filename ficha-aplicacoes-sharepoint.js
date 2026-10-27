@@ -33,31 +33,84 @@ function nomeSeguro(nome) {
   return String(nome || '').replace(/[\\/:*?"<>|#%]/g, '_').slice(0, 180);
 }
 
-function mensagemHttp(status, acao) {
-  if (status === 401 || status === 403) return 'O app do CCI não tem permissão de escrita nesse site do SharePoint. Um administrador do Microsoft 365 precisa liberar Sites.Selected (escrita) para o app do CCI no site do Contábil.';
+function mensagemHttp(status, acao, site) {
+  if (status === 401 || status === 403) return 'O app do CCI não tem permissão de escrita no site ' + (site || 'desta pasta') + ' do SharePoint. Um administrador do Microsoft 365 precisa liberar Sites.Selected (escrita) para o app do CCI nesse site.';
   if (status === 404) return 'Pasta do SharePoint não encontrada. Confira o endereço cadastrado no canal da ficha.';
   return 'O SharePoint não ' + acao + ' (HTTP ' + status + '). Tente de novo em instantes.';
 }
 
-function criar({ token = () => require('./graph-email-provider').getGraphToken(), fetcher = globalThis.fetch } = {}) {
-  async function chamar(url, opcoes) {
+function decodificar(texto) {
+  try { return decodeURIComponent(texto); } catch { return texto; }
+}
+
+// Caminho da pasta no servidor (/sites/X/Biblioteca/Pasta). O endereço do
+// navegador pode vir direto ou como AllItems.aspx?id=/sites/X/Biblioteca/Pasta.
+// Link "Copiar link" (/:f:/s/...) não tem caminho: devolve null.
+function caminhoDaPasta(url) {
+  const u = new URL(url);
+  if (/^\/:[a-z]:\//i.test(u.pathname)) return null;
+  const id = u.searchParams.get('id') || u.searchParams.get('RootFolder');
+  const bruto = id && id.startsWith('/') ? id : decodificar(u.pathname);
+  const caminho = bruto.replace(/\/Forms\/[^/]+\.aspx$/i, '').replace(/\/[^/]+\.aspx$/i, '').replace(/\/+$/, '');
+  const m = caminho.match(/^\/(?:sites|teams)\/[^/]+/i);
+  return { host: u.hostname, site: m ? m[0] : '', caminho };
+}
+
+function criar({ token = () => require('./graph-email-provider').getGraphToken(), renovar = () => require('./graph-email-provider').invalidarTokenGraph(), fetcher = globalThis.fetch } = {}) {
+  async function chamarUmaVez(url, opcoes) {
     let accessToken;
     try { accessToken = await token(); }
     catch { throw erro('Não foi possível autenticar no Microsoft 365. Confira a integração do Graph no CCI.', 503); }
     return fetcher(url, { redirect: 'error', signal: AbortSignal.timeout(20000), ...opcoes, headers: { Authorization: 'Bearer ' + accessToken, ...(opcoes && opcoes.headers || {}) } });
   }
 
-  async function resolverPasta(urlPasta) {
-    const url = validarUrlPasta(urlPasta);
+  // Permissão liberada depois que o token foi emitido só vale num token novo:
+  // em 401/403 descarta o token em cache e tenta uma vez mais.
+  async function chamar(url, opcoes) {
+    const r = await chamarUmaVez(url, opcoes);
+    if (r.status !== 401 && r.status !== 403) return r;
+    try { renovar(); } catch { /* sem cache para descartar */ }
+    return chamarUmaVez(url, opcoes);
+  }
+
+  async function obterJson(url, acao, site, opcoes) {
     let r;
-    try { r = await chamar(GRAPH + '/shares/' + codigoCompartilhamento(url) + '/driveItem?$select=id,name,webUrl,folder,parentReference', { headers: { Prefer: 'redeemSharingLinkIfNecessary' } }); }
+    try { r = await chamar(url, opcoes); }
     catch (e) { if (e.status) throw e; throw erro('Não foi possível consultar o SharePoint. Tente de novo em instantes.', 503); }
-    if (!r.ok) throw erro(mensagemHttp(r.status, 'encontrou a pasta'), r.status === 404 ? 404 : 409);
-    const item = await r.json();
+    if (!r.ok) throw erro(mensagemHttp(r.status, acao, site), r.status === 404 ? 404 : 409);
+    return r.json();
+  }
+
+  function paraPasta(item, url) {
     if (!item.folder) throw erro('O endereço aponta para um arquivo. Cole o endereço da pasta onde as fichas ficarão.', 400);
     const driveId = item.parentReference && item.parentReference.driveId;
     if (!driveId || !item.id) throw erro('O SharePoint não identificou a biblioteca da pasta. Confira o endereço.', 409);
     return { drive_id: driveId, item_id: item.id, web_url: String(item.webUrl || url), nome: String(item.name || '') };
+  }
+
+  // Resolve pelo caminho (site → biblioteca → pasta), que funciona com
+  // Sites.Selected. O /shares exige permissão no tenant inteiro e fica só
+  // para o link "Copiar link", que não traz o caminho.
+  async function resolverPasta(urlPasta) {
+    const url = validarUrlPasta(urlPasta);
+    const campos = '$select=id,name,webUrl,folder,parentReference';
+    const alvo = caminhoDaPasta(url);
+    if (!alvo) {
+      const item = await obterJson(GRAPH + '/shares/' + codigoCompartilhamento(url) + '/driveItem?' + campos, 'encontrou a pasta', '', { headers: { Prefer: 'redeemSharingLinkIfNecessary' } });
+      return paraPasta(item, url);
+    }
+    const nomeSite = alvo.site || 'raiz';
+    const site = await obterJson(GRAPH + '/sites/' + alvo.host + (alvo.site ? ':' + alvo.site : '') + '?$select=id', 'encontrou o site', nomeSite);
+    const bibliotecas = await obterJson(GRAPH + '/sites/' + encodeURIComponent(site.id) + '/drives?$select=id,name,webUrl', 'listou as bibliotecas', nomeSite);
+    const caminhoMin = alvo.caminho.toLowerCase();
+    const drive = (bibliotecas.value || [])
+      .map(d => ({ d, base: decodificar(new URL(d.webUrl).pathname).replace(/\/+$/, '') }))
+      .filter(x => caminhoMin === x.base.toLowerCase() || caminhoMin.startsWith(x.base.toLowerCase() + '/'))
+      .sort((a, b) => b.base.length - a.base.length)[0];
+    if (!drive) throw erro('Não encontrei a biblioteca dessa pasta no site ' + nomeSite + '. Abra a pasta no navegador e copie o endereço da barra.', 404);
+    const relativo = alvo.caminho.slice(drive.base.length).replace(/^\/+/, '');
+    const item = await obterJson(GRAPH + '/drives/' + encodeURIComponent(drive.d.id) + (relativo ? '/root:/' + relativo.split('/').map(encodeURIComponent).join('/') + ':' : '/root') + '?' + campos, 'encontrou a pasta', nomeSite);
+    return paraPasta(item, url);
   }
 
   // Mesmo nome de arquivo por versão: repetir a gravação substitui o mesmo arquivo.
@@ -78,4 +131,4 @@ function criar({ token = () => require('./graph-email-provider').getGraphToken()
   return { resolverPasta, salvarPdf };
 }
 
-module.exports = { criar, validarUrlPasta, codigoCompartilhamento, nomeSeguro };
+module.exports = { criar, validarUrlPasta, codigoCompartilhamento, nomeSeguro, caminhoDaPasta };
