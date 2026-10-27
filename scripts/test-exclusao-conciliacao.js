@@ -15,6 +15,19 @@ assert.throws(()=>lib.aplicarExclusao(entries,filtros,['importacao:mesma'],{...c
 assert.throws(()=>lib.aplicarExclusao(entries,filtros,['importacao:mesma'],{...contexto,idsSelecionados:['b','b']}),/distintos/);
 assert.throws(()=>lib.montarPreviaExclusao(entries,{...filtros,conta:''},contexto),/Informe a conta/);
 const altered=entries.map(e=>({...e,valor:e.id==='a'?-20:e.valor}));assert.equal(contextoConciliacao(altered,'395',contas,[grupo]).situacoes.get('a'),false);
+// Conta reduzida 11 × grupo 1.1 (sem pontos também vira 11): o reduzido vence, como no Razão (caso Silvio Freire).
+const planoColide=[{codigo:'1.1',reduzido:'',descricao:'Ativo circulante',analitica:false},{codigo:'1.1.1.02.0002',reduzido:'0000000011',descricao:'Banco Itaú'}];
+const banco=[{id:'x',numeroLancamento:9,data:'2026-01-05',valor:30000,contaDebito:'11',contaCredito:'61'},{id:'y',numeroLancamento:10,data:'2026-01-05',valor:10,contaDebito:'895',contaCredito:'61'}];
+const ctxColide=contextoConciliacao(banco,'11',planoColide,[],'todos');
+assert.deepStrictEqual(lib.montarPreviaExclusao(banco,{dataInicial:'2026-01-01',dataFinal:'2026-12-31',conta:'11'},ctxColide).lancamentos.map(e=>e.id),['x']);
+assert.equal(contextoConciliacao(banco,'11',planoColide,[],'n').situacoes.get('x'),false);
+assert.throws(()=>contextoConciliacao(banco,'11',[...planoColide,{codigo:'1.1.1.02.0009',reduzido:'11',descricao:'Banco duplicado'}],[]),/aparece em 2 cadastros.*1\.1\.1\.02\.0009/);
+// Conta usada nos lançamentos, mas fora do plano ativo: filtra com aviso; S/N exige o cadastro.
+const ctxFora=contextoConciliacao(banco,'895',planoColide,[],'todos');
+assert.match(ctxFora.aviso,/não está no plano ativo.*1 lançamentos/);
+assert.deepStrictEqual(lib.montarPreviaExclusao(banco,{dataInicial:'2026-01-01',dataFinal:'2026-12-31',conta:'895'},ctxFora).lancamentos.map(e=>e.id),['y']);
+assert.throws(()=>contextoConciliacao(banco,'895',planoColide,[],'s'),/Situação da conciliação = Todos/);
+assert.throws(()=>contextoConciliacao(banco,'777',planoColide,[],'todos'),/nem nos lançamentos/);
 // Executa os handlers reais com armazenamento e efeitos isolados em memória.
 const server=fs.readFileSync(require('path').join(__dirname,'../server.js'),'utf8'),routes={},db=new MemoryFirestore(),ref=db.collection('empresas').doc('12345678000199'),session=ref.collection('sessoes').doc('current');
 let state=JSON.stringify({entries}),closed=false,backups=0,writes=0;
@@ -29,5 +42,5 @@ async function call(name,body){let status=200,data;await routes[name]({body,user
  await ref.collection('conciliacoes_manuais').doc('g').set({...grupo,ativo:false});let r=await call('executar',body);assert.equal(r.status,409);assert.equal(writes,0);assert.equal(backups,0);
  p=await call('preview',{cnpj:ref.id,filtros});body.previewToken=p.data.previewToken;closed=true;r=await call('executar',body);assert.equal(r.status,409);assert.equal(writes,0);
  closed=false;r=await call('executar',body);assert.equal(r.status,200,JSON.stringify(r.data));assert.equal(writes,1);assert.deepStrictEqual(JSON.parse(state).entries.map(e=>e.id),['a','c']);assert.equal(backups,2);
- console.log('OK: S/N por conta, aliases, seleção individual, duplicados, status alterado, competência fechada, backup antes da exclusão e preservação dos não selecionados.');
+ console.log('OK: S/N por conta, aliases, reduzido × grupo, reduzido duplicado, conta fora do plano, seleção individual, duplicados, status alterado, competência fechada, backup antes da exclusão e preservação dos não selecionados.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
