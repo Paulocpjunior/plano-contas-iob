@@ -3900,7 +3900,7 @@ async function contextoExclusaoConciliacao(cnpj, empresa, entries, filtros) {
   if (!filtros.conta) return { assinatura: 'sem-conta' };
   const contas = await carregarContasContabeisEmpresa(empresa);
   const snap = await db.collection('empresas').doc(cnpj).collection('conciliacoes_manuais').get();
-  return require('./exclusao-conciliacao').contextoConciliacao(entries, filtros.conta, contas, snap.docs.map(d=>({...d.data(),id:d.id})));
+  return require('./exclusao-conciliacao').contextoConciliacao(entries, filtros.conta, contas, snap.docs.map(d=>({...d.data(),id:d.id})), filtros.situacao);
 }
 
 app.post('/api/admin/exclusao-lancamentos/preview', adminRequired, async (req, res) => {
@@ -3918,7 +3918,7 @@ app.post('/api/admin/exclusao-lancamentos/preview', adminRequired, async (req, r
     res.json({
       ok: true,
       empresa: { cnpj: cnpjLimpo, razao_social: chk.empresa.razao_social || chk.empresa.nome || cnpjLimpo },
-      previa,
+      previa: contexto.aviso ? { ...previa, avisoConta: contexto.aviso } : previa,
       previewToken: tokenPreviaExclusao(sessao.stateJson, cnpjLimpo, { ...previa.filtros, conciliacao: contexto.assinatura }),
       sessaoAtualizadaEm: sessao.dados.updated_at || null,
     });

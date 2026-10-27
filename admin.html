@@ -1608,7 +1608,8 @@ function renderExclusaoPreview() {
       <div class="layout-card"><div class="bank">Correspondem aos filtros</div><div class="count">${previa.totalPeriodo}</div><div class="caption">${escapeHtml(previa.dataInicial)} a ${escapeHtml(previa.dataFinal)}</div></div>
       <div class="layout-card"><div class="bank">Datas inválidas preservadas</div><div class="count">${previa.datasInvalidas}</div><div class="caption">Nunca entram na exclusão por período</div></div>
     </div>
-    <div style="margin-bottom:16px;padding:11px 13px;border:1px solid #b8dcff;border-radius:8px;background:#f0f7ff;color:#00509f;font-size:12px"><strong>Filtros aplicados:</strong> ${escapeHtml(descricaoFiltrosExclusao(previa.filtros))}</div>`;
+    <div style="margin-bottom:16px;padding:11px 13px;border:1px solid #b8dcff;border-radius:8px;background:#f0f7ff;color:#00509f;font-size:12px"><strong>Filtros aplicados:</strong> ${escapeHtml(descricaoFiltrosExclusao(previa.filtros))}</div>
+    ${previa.avisoConta ? `<div class="exclusao-status error" style="margin-bottom:16px">${escapeHtml(previa.avisoConta)}</div>` : ''}`;
   if (!previa.importacoes.length) {
     el.innerHTML = html;
     if (confirmacao) confirmacao.classList.remove('active');
