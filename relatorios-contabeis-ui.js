@@ -456,6 +456,14 @@ function preferenciasImpressao(ctx, sobrescritas) {
       <div class="rc-kpi"><small>Validação</small><strong class="${dados.validacao.ok ? 'rc-ok' : 'rc-error'}">${dados.validacao.ok ? 'Aprovada' : dados.validacao.erros.length + ' erro(s)'}</strong></div>`;
     const mensagens = Core.resumirMensagens(dados.validacao.erros.concat(dados.validacao.avisos), 12);
     document.getElementById('rcAvisos').innerHTML = mensagens.length ? '<div class="rc-alert">' + mensagens.map(function (m) { return '• ' + esc(m.mensagem) + (m.quantidade > 1 ? ' <strong>(' + m.quantidade + ' ocorrências)</strong>' : ''); }).join('<br>') + '</div>' : '';
+    const foraPlano = Core.contasForaDoPlano(dados.balancete);
+    if (foraPlano.length) {
+      const exemplos = foraPlano.slice(0, 8).map(function (c) { return c.conta; }).join(', ');
+      const duplicadas = foraPlano.filter(function (c) { return c.situacao === 'duplicada'; }).length;
+      document.getElementById('rcAvisos').innerHTML += '<div class="rc-alert" style="margin-top:8px"><strong>' + foraPlano.length + ' conta(s) com saldo ou movimento não estão no plano de contas ativo da empresa</strong>'
+        + (duplicadas ? ' (' + duplicadas + ' aparecem duplicadas no plano)' : '') + ': ' + esc(exemplos) + (foraPlano.length > 8 ? ' — mostrando 8 de ' + foraPlano.length : '')
+        + '.<br>No relatório e no PDF, essas linhas saem em vermelho com o aviso no lugar do nome. Para corrigir, cadastre a conta (código, reduzido e descrição) em Plano de Contas, ou corrija o código no saldo de abertura ou no lançamento de origem.</div>';
+    }
     const tabela = document.querySelector('.rc-table');
     if (tabela) tabela.classList.toggle('annual', anual);
     if (tipoAtual === 'balancete') renderBalancete(dados, formato);
@@ -1216,6 +1224,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
         if (tipoAtual !== 'balancete' || cell.section !== 'body') return;
         const linha = dados.balancete[cell.row.index];
         if (linha && cell.column.index === 1) cell.cell.styles.cellPadding = { top: 1.5, bottom: 1.5, right: 1.5, left: 1.5 + Math.max(0, (linha.nivel || 1) - 1) * 2 };
+        if (linha && linha.foraPlano) cell.cell.styles.textColor = [185, 28, 28];
         if (!linha || linha.analitica === false) {
           cell.cell.styles.fontStyle = 'bold';
           cell.cell.styles.fillColor = !linha ? [219, 234, 254] : [235, 240, 247];
