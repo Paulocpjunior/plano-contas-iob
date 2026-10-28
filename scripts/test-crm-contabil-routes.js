@@ -240,11 +240,12 @@ if(require.main===module)(async()=>{
   await assert.rejects(()=>carregarDepartamento(request,{CFI_URL:'https://fixture.test'},fetcher),e=>e.status===503);
   await assert.rejects(()=>carregarDepartamento(request,{CFI_URL:'https://fixture.test'},async()=>{throw Error('offline')}),e=>e.status===503);
   const ck=require('../crm-checklist');
-  const quest=Object.fromEntries(Object.values(ck.CAMPOS).map(([id,text])=>[id,{text}]));
-  const fonte={completo:true,assinatura:'a'.repeat(64),questions:quest,rows:[{id:'123',form_id:ck.FORM_ID,status:'ACTIVE',answers:{
-    '24':{answer:'Fixture'},'33':{answer:'0012'},'47':{answer:'CLIENTE NOVO'},'30':{answer:'2026-09-01'}
-  }}]};
-  const evtBody={submission_id:'123',assinatura:fonte.assinatura,confirmado:true,revisao_contrato:0,motivo:'Conferido com a origem'};
+  // Itens do checklist do app Legalização, como o túnel do CFI entrega (28/10).
+  const fonte={completo:true,assinatura:'a'.repeat(64),rows:[{id:'nome_FIXTURE',empresaNome:'Fixture',nossoNumero:'0012',statusCliente:'CLIENTE NOVO',
+    responsavelDesde:{data:'2026-09-01',texto:null},datas:{}}]};
+  assert(ck.ID_ITEM.test('doc_11222333000181')&&!ck.ID_ITEM.test('123')&&!ck.ID_ITEM.test('doc_1/../x'));
+  assert.equal((await ambiente(async()=>fonte).call('POST','/api/crm/checklist/aplicar',{submission_id:'123',assinatura:fonte.assinatura,confirmado:true},'admin')).statusCode,400);
+  const evtBody={submission_id:'nome_FIXTURE',assinatura:fonte.assinatura,confirmado:true,revisao_contrato:0,motivo:'Conferido com a origem'};
   const ce=ambiente(async()=>fonte);
   assert.equal((await ce.call('POST','/api/crm/checklist/aplicar',evtBody,'colab')).statusCode,403);assert.equal(ce.checklistCalls(),0);
   assert.equal((await ce.call('POST','/api/crm/checklist/aplicar',{...evtBody,assinatura:'b'.repeat(64)},'admin')).statusCode,409);
@@ -255,7 +256,7 @@ if(require.main===module)(async()=>{
   assert.deepEqual(ce.dados.get('empresas/'+cnpj).responsaveis,[{uid:'colab',papel:'principal'}]);
   assert(![...ce.dados.keys()].some(p=>p.includes('/crm_controles/')));
   aplicado=await ce.call('POST','/api/crm/checklist/aplicar',evtBody,'admin');assert.equal(aplicado.body.ja_aplicado,true);assert.equal(ce.writes(),3);
-  fonte.rows[0].answers['24'].answer='Alterado';
+  fonte.rows[0].empresaNome='Alterado';
   assert.equal((await ce.call('POST','/api/crm/checklist/aplicar',evtBody,'admin')).statusCode,409);assert.equal(ce.writes(),3);
   const revogado=ambiente(async dados=>{dados.set('users/admin',{is_admin:false});return fonte;});
   assert.equal((await revogado.call('POST','/api/crm/checklist/aplicar',evtBody,'admin')).statusCode,403);assert.equal(revogado.writes(),0);
@@ -263,10 +264,9 @@ if(require.main===module)(async()=>{
   assert.equal((await conc.call('POST','/api/crm/checklist/aplicar',evtBody,'admin')).statusCode,409);assert.equal(conc.writes(),0);
   // Entrada sem cadastro: cria só o dossiê da carteira, sem equipe nem contrato, uma única vez.
   const cnpjNovo='11222333000181';
-  const fonteNova={completo:true,assinatura:'c'.repeat(64),questions:quest,rows:[{id:'456',form_id:ck.FORM_ID,status:'ACTIVE',answers:{
-    '24':{answer:'Nova Ltda'},'33':{answer:'1411'},'47':{answer:'CLIENTE NOVO'},'30':{answer:'2026-11-02'},'5':{answer:'CNPJ: 11.222.333/0001-81'}
-  }}]};
-  const cadBody={submission_id:'456',assinatura:fonteNova.assinatura,cnpj:cnpjNovo,confirmado:true};
+  const fonteNova={completo:true,assinatura:'c'.repeat(64),rows:[{id:'doc_11222333000181',empresaNome:'Nova Ltda',nossoNumero:'1411',statusCliente:'CLIENTE NOVO',
+    documento:'11222333000181',responsavelDesde:{data:'2026-11-02',texto:null},datas:{}}]};
+  const cadBody={submission_id:'doc_11222333000181',assinatura:fonteNova.assinatura,cnpj:cnpjNovo,confirmado:true};
   const cad=ambiente(async()=>fonteNova);
   assert.equal((await cad.call('POST','/api/crm/checklist/cadastrar',cadBody,'colab')).statusCode,403);assert.equal(cad.checklistCalls(),0);
   assert.equal((await cad.call('POST','/api/crm/checklist/cadastrar',{...cadBody,cnpj:'45123840000180'},'admin')).statusCode,409);assert.equal(cad.writes(),0);
@@ -276,7 +276,7 @@ if(require.main===module)(async()=>{
   assert(!cad.dados.has('empresas/'+cnpjNovo));
   cadastrado=await cad.call('POST','/api/crm/checklist/cadastrar',cadBody,'admin');assert.equal(cadastrado.body.ja_cadastrado,true);assert.equal(cad.writes(),3);
   // Submissão corrigida na origem depois do cadastro: recusa em vez de "já cadastrado".
-  const corrigida=structuredClone(fonteNova);corrigida.rows[0].answers['33'].answer='1499';corrigida.rows[0].answers['5'].answer='CNPJ: 45.123.840/0001-80';
+  const corrigida=structuredClone(fonteNova);corrigida.rows[0].nossoNumero='1499';corrigida.rows[0].documento='45123840000180';
   const cad2=ambiente(async()=>corrigida);for(const [k,v] of cad.dados)cad2.dados.set(k,structuredClone(v));
   assert.equal((await cad2.call('POST','/api/crm/checklist/cadastrar',{...cadBody,cnpj:'45123840000180'},'admin')).statusCode,409);assert.equal(cad2.writes(),0);
   const previaCad=await cad.call('GET','/api/crm/checklist/previa',{},'admin');

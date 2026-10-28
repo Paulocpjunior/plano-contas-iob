@@ -1,4 +1,6 @@
 'use strict';
+// 28/10: o Checklist vem do app Legalização pelo CFI, que só entrega a um usuário logado. A consulta agendada (sem usuário) fica suspensa até existir credencial de serviço no CFI.
+const CONSULTA_SUSPENSA='A consulta agendada do Checklist está suspensa: a leitura agora vem do app Legalização e exige login. Use Conferir Checklist no CRM.';
 const core=require('./crm-contabil'),auto=require('./crm-automacoes'),agenda=require('./notificacoes-agenda');
 const {JOBS,FUTURO,FILA}=require('./notificacoes-motor');
 function registrar({app,db,path,modulo,escopoEmpresa,wrap,acesso,contexto,admin,refRegra,agora,env,teams=require('./notificacoes-teams')}){
@@ -37,7 +39,7 @@ function registrar({app,db,path,modulo,escopoEmpresa,wrap,acesso,contexto,admin,
         if(e.ativa&&cfg.canal==='teams'&&(cfg.destinatarios.length!==1||cfg.conexao_teams?.destino!==cfg.destinatarios[0]))throw core.erro('Cadastre a conexão Teams do destino antes de ativar.');
         if(e.ativa&&cfg.canal==='email'&&!require('./notificacoes-entrega').disponibilidade(env).email)throw core.erro('Integração de e-mail indisponível. Confira a conexão antes de ativar.');
         auto.preparar(req.params.id,cfg,agenda.parametros(e,e.proximo||quando),{...c.empresa,cnpj:e.cnpj},modulo);
-      }else if(e.ativa&&!env.CCI_CHECKLIST_API_KEY)throw core.erro('A credencial de consulta do Checklist ainda não está configurada.',409);
+      }else if(e.ativa)throw core.erro(CONSULTA_SUSPENSA,409);
       const j={...e,id,modulo,regra:req.params.id,config_path:ref.path,config_revisao:cfg.revisao,revisao:(old.data()?.revisao||0)+1,autor:user.uid,vigente_desde:quando,pausada:!e.ativa,proximo:e.ativa&&e.tipo==='agenda'?e.proximo:FUTURO,alterado_em:quando,ultimo_erro:null};
       tx.set(jr,j);tx.create(ref.collection('historico').doc(),{tipo:'execucao_configurada',quando,autor:user.uid,execucao:id,depois:j,motivo:e.motivo});return j;
     });res.json({ok:true,execucao:result});

@@ -99,14 +99,11 @@ const {ambiente}=require('./test-crm-contabil-routes');
   const row=[...n.dados].find(([key,v])=>key.startsWith(FILA+'/')&&v.estado==='recusado');assert(row);
   const retry=await n.call('POST','/api/crm/automacoes/:id/execucoes/:execucao/repetir',{fila_id:row[0].split('/')[1],tentativas:1},'admin',{id:'A02',execucao:e.body.execucao.id});assert.equal(retry.statusCode,200,JSON.stringify(retry.body));
   await motor2.rodar();assert.equal(envios,3);
-  // Checklist only reads: preserves company/contract data and reports a verifiable summary.
+  // 28/10: o Checklist vem do app Legalização pelo CFI e exige usuário logado; a consulta agendada não pode ser ligada.
   const cs=ambiente(null,null,{env:{CCI_CHECKLIST_API_KEY:'fixture'}}),cp='/api/crm/automacoes';
   await cs.call('PUT',cp+'/:id',{revisao:0,modelo:'Consulta',destinatarios:[],motivo:'Teste'},'admin',{id:'A08'});
-  const cj=await cs.call('POST',cp+'/:id/execucoes',{tipo:'agenda',frequencia:'unica',inicio:'2026-10-20T09:00',config_revisao:1,revisao:0,ativa:true,motivo:'Teste'},'admin',{id:'A08'});assert.equal(cj.statusCode,200);
-  const initial=JSON.stringify(cs.dados.get('empresas/'+cnpj));let consultas=0;
-  const questions=Object.fromEntries(Object.values(require('../crm-checklist').CAMPOS).map(([id,label])=>[id,{text:label}]));
-  const cm=criar({db:cs.db,agora:()=>clock,checklist:async()=>{consultas++;return {completo:true,questions,rows:[],assinatura:'fixture'};}});
-  await cm.rodar();await cm.rodar();assert.equal(consultas,1);assert.equal(JSON.stringify(cs.dados.get('empresas/'+cnpj)),initial);assert([...cs.dados.values()].some(x=>x.estado==='consultado'&&x.somente_previa));
+  const cj=await cs.call('POST',cp+'/:id/execucoes',{tipo:'agenda',frequencia:'unica',inicio:'2026-10-20T09:00',config_revisao:1,revisao:0,ativa:true,motivo:'Teste'},'admin',{id:'A08'});
+  assert.equal(cj.statusCode,409);assert.match(cj.body.erro||cj.body.error||'',/exige login/);
   // Internal endpoint accepts only its pinned scheduler identity, releases its lock before responding.
   let handler,identity={email:'wrong',email_verified:true},runs=0;
   require('../notificacoes-internal').registrar({post:(p,h)=>handler=h},{db:cs.db,motor:{rodar:async()=>{runs++;return {eventos:0};}},verify:async()=>identity,agora:()=>100});

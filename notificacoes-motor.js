@@ -90,12 +90,13 @@ function criar({db,entrega=require('./notificacoes-entrega'),checklist=require('
       const {item,j,c,hist}=claimed;let result;
       try{
         if(item.consulta){
-          const f=await checklist({apiKey:env.CCI_CHECKLIST_API_KEY});if(f.completo!==true)throw Error('Leitura incompleta');
+          // Sem usuário não há token: o CFI recusa e a consulta registra a falha com o motivo (28/10).
+          const f=await checklist({env});if(f.completo!==true)throw Error('Leitura incompleta');
           const empresas=await db.collection('empresas').limit(5001).get();if(empresas.docs.length>5000)throw Error('Limite excedido');
-          const p=require('./crm-checklist').previaChecklist(f.questions,f.rows,empresas.docs.map(x=>({...x.data(),cnpj:x.id})));
+          const p=require('./crm-checklist').previaChecklist(f.rows,empresas.docs.map(x=>({...x.data(),cnpj:x.id})));
           result={estado:'consultado',detalhe:'Checklist consultado. Abra Conferir Checklist para revisar; nenhuma alteração aplicada.',total:p.total,com_pendencias:p.com_pendencias,assinatura:f.assinatura,somente_previa:true};resumo.consultas++;
         }else {result=await entrega.enviar({destino:item.destino,previa:item.previa,emailColaborador:c.user.last_email||c.user.email||''});resumo.envios++;}
-      }catch{result={estado:item.consulta?'falhou':'incerto',detalhe:item.consulta?'Consulta não concluída. Confira a integração e consulte novamente.':'Resultado não confirmado. Confira o provedor antes de repetir.'};}
+      }catch(erroConsulta){result={estado:item.consulta?'falhou':'incerto',detalhe:item.consulta?(erroConsulta&&erroConsulta.status===401?'Consulta agendada suspensa: o Checklist agora vem do app Legalização e exige login. Use Conferir Checklist no CRM.':'Consulta não concluída. Confira a integração e consulte novamente.'):'Resultado não confirmado. Confira o provedor antes de repetir.'};}
       if(!['consultado','falhou','aceito','recusado','incerto'].includes(result.estado))result={estado:'incerto',detalhe:'Resultado não reconhecido.'};
       const batch=db.batch();batch.set(d.ref,{...result,concluido_em:agora()},{merge:true});batch.set(hist,{...result,concluido_em:agora()},{merge:true});batch.set(c.ref.collection('historico').doc('tentativa_'+d.id+'_'+item.tentativas),{...result,tipo:'tentativa_automatica',quando:agora(),autor:j.autor,destino:item.destino||'',tentativas:item.tentativas,execucao:item.job});await batch.commit();
     }
