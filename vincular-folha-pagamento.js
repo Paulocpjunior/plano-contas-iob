@@ -131,6 +131,9 @@
           const cnpj = String(e.target.value || '').replace(/\D/g, '');
           estado.filial = est.opcoes.find((o) => o.papel === 'filial' && o.cnpj === cnpj) || null;
           estado.cnpjOrigem = estado.filial ? estado.filial.cnpj : estado.cnpjLimpo;
+          // O nº da filial do .02 (231-237) é do estabelecimento: o da matriz
+          // não serve à filial; vem do mapeamento dela ou é digitado.
+          estado.numeroFilial = estado.filial ? '' : estado.numeroFilialMatriz;
           estado.folhaParsed = null;
           const input = document.getElementById('folha-pdf-input');
           if (input) input.value = '';
@@ -189,7 +192,7 @@
         const m = await apiGet('/api/folha/mapeamento/' + cnpjOrigemFolha());
         estado.mapeamento = m.encontrado ? m : { regras: {}, encargos: {} };
         if (m.encontrado) {
-          if (m.numero_filial && !estado.numeroFilial) estado.numeroFilial = m.numero_filial;
+          if (m.numero_filial && (!estado.numeroFilial || estado.filial)) estado.numeroFilial = m.numero_filial;
           if (m.origem_padrao) estado.origemPadrao = m.origem_padrao;
         }
 
@@ -457,6 +460,7 @@
       empresaNome, cnpjFmt, planoId,
       codigoEmpresa: codigoEmpresa || '',
       numeroFilial: numeroFilial || '',
+      numeroFilialMatriz: numeroFilial || '',
       origemPadrao: 'IMP_FOLHA_FILIAL',
       folhaParsed: null, mapeamento: null,
     };

@@ -59,6 +59,8 @@ assert(parseResumo.includes('resultado.integrado_na_matriz = cnpjLimpo'), 'servi
 assert(parseResumo.includes('não dá para confirmar que a folha é da filial'), 'PDF sem CNPJ nao entra como filial');
 assert(modulo.includes("fd.append('filial', cnpjOrigemFolha())"), 'modal envia a filial escolhida');
 assert(modulo.includes('carregarEstabelecimentosFolha();'), 'modal carrega matriz e filiais');
+assert(modulo.includes("estado.numeroFilial = estado.filial ? '' : estado.numeroFilialMatriz;"), 'n da filial do .02 nao herda o da matriz');
+assert(modulo.includes('(!estado.numeroFilial || estado.filial)'), 'mapeamento da filial aplica o n dela');
 assert(modulo.includes("'/api/folha/checar-duplicidade?cnpj=' + cnpjOrigemFolha()"), 'duplicidade da folha e por estabelecimento');
 const importarSessao = index.slice(index.indexOf('window.CCIImportarFolhaSage = async function'), index.indexOf("formato: 'SAGE FPIMP'"));
 assert(importarSessao.includes("String(folha.integrado_na_matriz || '').replace(/\\D/g, '') === cnpjAtivo"), 'sessao so aceita filial marcada para esta matriz');
