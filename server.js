@@ -620,8 +620,20 @@ app.post('/api/folha/parse-resumo', uploadFolha.fields([{ name: 'arquivo', maxCo
     if (!arquivo) return res.status(400).json({ erro: 'arquivo não enviado' });
     const cnpjLimpo = String(req.body && req.body.cnpj || '').replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) return res.status(400).json({ erro: 'CNPJ da empresa ativa não informado' });
-    const acesso = await checarAcessoEmpresa(cnpjLimpo, req.user);
-    if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
+    const acessoAtiva = await checarAcessoEmpresa(cnpjLimpo, req.user);
+    if (!acessoAtiva.ok) return res.status(acessoAtiva.status).json({ erro: acessoAtiva.erro });
+    // Folha da filial integrada na matriz (modelo SAGE, 3.4.472): o arquivo é
+    // da filial, conferido pelo cadastro dela, e só sai se ela apontar para a
+    // matriz ativa.
+    const filialCnpj = String(req.body && req.body.filial || '').replace(/\D/g, '');
+    let acesso = acessoAtiva, origemCnpj = cnpjLimpo;
+    if (filialCnpj && filialCnpj !== cnpjLimpo) {
+      acesso = await checarAcessoEmpresa(filialCnpj, req.user);
+      if (!acesso.ok) return res.status(acesso.status).json({ erro: acesso.erro });
+      const vinculo = conferirFilialDaMatriz(acesso.empresa, cnpjLimpo);
+      if (!vinculo.ok) return res.status(409).json({ erro: vinculo.erro });
+      origemCnpj = filialCnpj;
+    }
     const ehPdf = arquivo.buffer.slice(0, 5).toString('ascii') === '%PDF-';
     let resultado;
     if (ehPdf) {
@@ -629,16 +641,25 @@ app.post('/api/folha/parse-resumo', uploadFolha.fields([{ name: 'arquivo', maxCo
       resultado.formato = 'resumo_geral_pdf';
       resultado.layout = 'Resumo Geral IOB/SAGE (PDF)';
       resultado.nome_arquivo = arquivo.originalname;
-      if (resultado.cnpj && resultado.cnpj.replace(/\D/g, '') !== cnpjLimpo) {
-        return res.status(409).json({ erro: 'O CNPJ do PDF não corresponde à empresa ativa.' });
+      if (!resultado.cnpj && origemCnpj !== cnpjLimpo) {
+        return res.status(409).json({ erro: 'O PDF não traz o CNPJ, então não dá para confirmar que a folha é da filial. Use o arquivo FPIMP da filial ou o Resumo Geral com CNPJ.' });
+      }
+      if (resultado.cnpj && resultado.cnpj.replace(/\D/g, '') !== origemCnpj) {
+        return res.status(409).json({ erro: origemCnpj === cnpjLimpo
+          ? 'O CNPJ do PDF não corresponde à empresa ativa.'
+          : 'O CNPJ do PDF não corresponde à filial escolhida.' });
       }
     } else {
       resultado = parseSageFolhaFpimp(arquivo.buffer, {
         nomeArquivo: arquivo.originalname,
         codigoEmpresa: codigoEmpresaDe(acesso.empresa)
       });
-      resultado.cnpj = cnpjLimpo;
+      resultado.cnpj = origemCnpj;
       resultado.empresa = acesso.empresa.razao_social || '';
+    }
+    if (origemCnpj !== cnpjLimpo) {
+      resultado.integrado_na_matriz = cnpjLimpo;
+      resultado.filial_codigo_empresa = codigoEmpresaDe(acesso.empresa) || '';
     }
     res.json(resultado);
   } catch (err) {

@@ -51,4 +51,21 @@ const fluxoPlano = modulo.slice(modulo.indexOf('window.abrirModalImportarFolhaDe
 assert(fluxoPlano.indexOf('escolherEmpresaAtivaDoPlano(empresas, cnpjDaEmpresaAtiva())') >= 0, 'fluxo deve tentar a empresa ativa');
 assert(fluxoPlano.indexOf('escolherEmpresaAtivaDoPlano') < fluxoPlano.indexOf('prompt('), 'empresa ativa vem antes da pergunta');
 
+// Folha da filial integrada na matriz (3.4.472, modelo SAGE).
+const parseResumo = blocoEntre("app.post('/api/folha/parse-resumo'", "// POST /api/folha/registrar-importacao");
+assert(parseResumo.includes('conferirFilialDaMatriz(acesso.empresa, cnpjLimpo)'), 'servidor confere que a filial aponta para a matriz ativa');
+assert(parseResumo.includes('codigoEmpresa: codigoEmpresaDe(acesso.empresa)'), 'FPIMP da filial e conferido pelo codigo SAGE da filial');
+assert(parseResumo.includes('resultado.integrado_na_matriz = cnpjLimpo'), 'servidor marca a matriz de destino');
+assert(parseResumo.includes('não dá para confirmar que a folha é da filial'), 'PDF sem CNPJ nao entra como filial');
+assert(modulo.includes("fd.append('filial', cnpjOrigemFolha())"), 'modal envia a filial escolhida');
+assert(modulo.includes('carregarEstabelecimentosFolha();'), 'modal carrega matriz e filiais');
+assert(modulo.includes("'/api/folha/checar-duplicidade?cnpj=' + cnpjOrigemFolha()"), 'duplicidade da folha e por estabelecimento');
+const importarSessao = index.slice(index.indexOf('window.CCIImportarFolhaSage = async function'), index.indexOf("formato: 'SAGE FPIMP'"));
+assert(importarSessao.includes("String(folha.integrado_na_matriz || '').replace(/\\D/g, '') === cnpjAtivo"), 'sessao so aceita filial marcada para esta matriz');
+assert(importarSessao.includes('estabelecimentoFiscalCnpj: cnpjArquivo'), 'lancamento da folha guarda a filial de origem');
+const { estabelecimentosDoMovimentoFiscal } = require('../movimento-fiscal-escopo');
+const avisoFolha = estabelecimentosDoMovimentoFiscal({ cnpj: '29240822000202', tipo_estabelecimento: 'FILIAL', matriz: { cnpj: '29240822000121', codigo_empresa: '1154' } },
+  '29240822000202', { objeto: 'a folha de pagamento', onde: 'Importar Folha', campo: 'Estabelecimento da folha' }).aviso;
+assert(/integrar a folha de pagamento na matriz/.test(avisoFolha) && /Importar Folha/.test(avisoFolha) && /Estabelecimento da folha/.test(avisoFolha), 'aviso da filial fala da folha');
+
 console.log('OK: importacao de folha liberada aos colaboradores e isolada por empresa.');
