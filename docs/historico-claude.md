@@ -2318,3 +2318,10 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Extensão da 3.4.471 para Importar Folha (pedido do Paulo). Matriz com filial vinculada: "Estabelecimento da folha" no modal; `parse-resumo` recebe `filial`, confere `conferirFilialDaMatriz`, lê o FPIMP com o código SAGE da filial (PDF: CNPJ da filial, PDF sem CNPJ recusado) e marca `integrado_na_matriz`. `CCIImportarFolhaSage` só aceita filial marcada para a matriz ativa e grava `estabelecimentoFiscalCnpj`.
 - Duplicidade, mapeamento e registro da folha ficam pelo CNPJ da filial. O .02 do PDF segue o nome da matriz.
 - Teste: `scripts/test-folha-acesso-colaboradores.js`.
+
+## 28/10/2026 — v3.4.473: Classificar com IA respeita o filtro
+
+- Flanacar (soraia): 11 filtrados de 20711, toast "Classificando 20711" e aba caiu (RESULT_CODE_HUNG). `classificarComIA` usava `state.entries` em tudo (memória, sentido bancário, lotes da IA), reclassificando a base inteira.
+- Novo `classificacao-ia-escopo.js`: escopo = selecionados > filtrados > base (só se couber); limite 500 por execução, acima disso recusa com a ação. Sentido bancário segue calculado na base (conta dominante), mas só o escopo recebe a correção (`mesclarNoEscopo`, no próprio objeto). `garantirLancamentosAbertos` no escopo e `confirm` com a contagem.
+- `aplicarMemoriaEmLancamentos` cede a vez ao navegador a cada 25 linhas.
+- Teste: `scripts/test-classificacao-ia-escopo.js`.

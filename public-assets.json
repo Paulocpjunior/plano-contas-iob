@@ -26,6 +26,7 @@
   "/index.html",
   "/iob-sentido-bancario.js",
   "/lancamentos-edicao-lote.js",
+  "/classificacao-ia-escopo.js",
   "/layouts-fiscais-padrao.js",
   "/manual-cci.js",
   "/migracao-sage-ui.js",
