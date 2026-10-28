@@ -455,7 +455,15 @@
   // quando o CFOP mudou no CFI (21/10, NF 285590: 1929 → 2407) e o mês
   // dobrava. A nota (cfiDocumentoId) também conta.
   function repetidosMovimentoFiscalCfi(existentes, novos) {
-    const doCfi = (existentes || []).filter(e => e && e.origemDadosFiscal === 'CFI_API');
+    // Matriz que recebe a filial guarda dois estabelecimentos na mesma sessão:
+    // a mesma nota (ex.: transferência 5152/1152) é de cada um. Só repete no
+    // MESMO CNPJ; lançamento antigo sem CNPJ continua contando.
+    const cnpjsNovos = new Set((novos || []).map(n => digitos(n.empresaCnpjFiscal)).filter(c => c.length === 14));
+    const doCfi = (existentes || []).filter(e => {
+      if (!e || e.origemDadosFiscal !== 'CFI_API') return false;
+      const cnpj = digitos(e.empresaCnpjFiscal || e.cnpjEmpresaFiscalValidado);
+      return cnpj.length !== 14 || !cnpjsNovos.size || cnpjsNovos.has(cnpj);
+    });
     const lancs = new Set(doCfi.map(e => String(e.cfiLancamentoId || '')).filter(Boolean));
     const docs = new Map();
     doCfi.forEach(e => { const id = String(e.cfiDocumentoId || ''); if (id && !docs.has(id)) docs.set(id, e); });
