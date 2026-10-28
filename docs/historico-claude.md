@@ -2312,3 +2312,9 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Desenho: com a MATRIZ ativa, Importações › Movimento Fiscal mostra "Estabelecimento do movimento" (matriz + filiais com `matriz_cnpj` = ela). Filial escolhida: CFI consultado pelo CNPJ da filial, lançamentos na matriz com `estabelecimentoFiscalCnpj`/`integradoNaMatrizCnpj` e "Filial ..." na descrição. Só sincronização direta do CFI (arquivo SAGE segue CNPJ = empresa ativa). Com a FILIAL ativa, só aviso apontando a matriz; importar na própria filial continua possível.
 - Travas: `movimento-fiscal-escopo.js` (`estabelecimentosDoMovimentoFiscal`, `conferirFilialDaMatriz`, escopo por CNPJ de origem: matriz e filial coexistem no mês, mesma filial não repete). Servidor (`/api/fiscal/movimento-cfi?matriz=`) recusa filial que não aponta para a matriz. Teste: `scripts/test-movimento-fiscal-escopo.js`.
 - Pendente: folha de pagamento na matriz (quando o módulo existir). Duplicidade cruzada (filial importada nela mesma E na matriz) não é detectada: livros diferentes.
+
+## 28/10/2026 — v3.4.472: folha da filial integrada na matriz
+
+- Extensão da 3.4.471 para Importar Folha (pedido do Paulo). Matriz com filial vinculada: "Estabelecimento da folha" no modal; `parse-resumo` recebe `filial`, confere `conferirFilialDaMatriz`, lê o FPIMP com o código SAGE da filial (PDF: CNPJ da filial, PDF sem CNPJ recusado) e marca `integrado_na_matriz`. `CCIImportarFolhaSage` só aceita filial marcada para a matriz ativa e grava `estabelecimentoFiscalCnpj`.
+- Duplicidade, mapeamento e registro da folha ficam pelo CNPJ da filial. O .02 do PDF segue o nome da matriz.
+- Teste: `scripts/test-folha-acesso-colaboradores.js`.

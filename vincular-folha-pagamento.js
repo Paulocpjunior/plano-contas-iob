@@ -76,6 +76,7 @@
     cnpjLimpo: null, empresaNome: null, cnpjFmt: null,
     planoId: null, codigoEmpresa: '', numeroFilial: '', origemPadrao: 'IMP_FOLHA_FILIAL',
     folhaParsed: null, mapeamento: null,
+    cnpjOrigem: '', filial: null, estabelecimentos: null,
   };
 
   const esc = (valor) => String(valor == null ? '' : valor).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
@@ -101,9 +102,56 @@
     document.getElementById('btn-fechar-folha').onclick = () => modal.remove();
   }
 
+  // Folha da filial integrada na matriz (modelo SAGE, 3.4.472): mesma régua
+  // do Movimento Fiscal. Na matriz com filial vinculada, escolhe-se de quem é
+  // o arquivo; os lançamentos entram na matriz ativa.
+  const cnpjOrigemFolha = () => estado.cnpjOrigem || estado.cnpjLimpo;
+
+  async function carregarEstabelecimentosFolha() {
+    const alvo = document.getElementById('folha-estabelecimento');
+    if (!alvo) return;
+    try {
+      if (!window.API || typeof window.API.consultarEstruturaMatrizFilial !== 'function' || typeof window.estabelecimentosDoMovimentoFiscal !== 'function') {
+        throw new Error('estrutura de matriz e filiais não carregada; atualize a página');
+      }
+      const estrutura = await window.API.consultarEstruturaMatrizFilial(estado.cnpjLimpo);
+      const est = window.estabelecimentosDoMovimentoFiscal(estrutura, estado.cnpjLimpo,
+        { objeto: 'a folha de pagamento', onde: 'Importar Folha', campo: 'Estabelecimento da folha' });
+      estado.estabelecimentos = est;
+      if (est.aviso) {
+        alvo.innerHTML = '<div style="padding:10px 12px;background:#f0f7ff;border:1px solid #b8dcff;border-radius:8px;color:#003e7a;font-size:12px;margin-bottom:12px">' + esc(est.aviso) + '</div>';
+      } else if (est.opcoes.length) {
+        alvo.innerHTML =
+          '<label for="folha-estabelecimento-select" style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;color:#6e6e73;margin-bottom:5px">Estabelecimento da folha</label>' +
+          '<select id="folha-estabelecimento-select" style="width:100%;padding:9px;border:1px solid #d2d2d7;border-radius:8px;font:inherit;font-size:13px">' +
+            est.opcoes.map((o) => '<option value="' + esc(o.cnpj) + '">' + esc(o.rotulo) + '</option>').join('') +
+          '</select>' +
+          '<div style="font-size:12px;color:#6e6e73;margin:6px 0 12px">Filial vinculada a esta matriz: o arquivo é conferido pelo cadastro da filial (código SAGE ou CNPJ do PDF) e os lançamentos entram nesta matriz, como na SAGE. Use as contas do plano da matriz.</div>';
+        document.getElementById('folha-estabelecimento-select').onchange = (e) => {
+          const cnpj = String(e.target.value || '').replace(/\D/g, '');
+          estado.filial = est.opcoes.find((o) => o.papel === 'filial' && o.cnpj === cnpj) || null;
+          estado.cnpjOrigem = estado.filial ? estado.filial.cnpj : estado.cnpjLimpo;
+          // O nº da filial do .02 (231-237) é do estabelecimento: o da matriz
+          // não serve à filial; vem do mapeamento dela ou é digitado.
+          estado.numeroFilial = estado.filial ? '' : estado.numeroFilialMatriz;
+          estado.folhaParsed = null;
+          const input = document.getElementById('folha-pdf-input');
+          if (input) input.value = '';
+          const status = document.getElementById('folha-status');
+          if (status) status.textContent = '';
+        };
+      }
+    } catch (err) {
+      alvo.innerHTML = '<div style="font-size:12px;color:#6e6e73;margin-bottom:12px">Não foi possível ler a estrutura de matriz e filiais (' + esc(err.message || err) + '). A folha será conferida só pelo cadastro da empresa ativa.</div>';
+    }
+  }
+
   function renderTelaUpload() {
     const c = document.getElementById('folha-container');
+    estado.cnpjOrigem = estado.cnpjLimpo;
+    estado.filial = null;
     c.innerHTML =
+      '<div id="folha-estabelecimento"></div>' +
       '<div style="background:#f8f9fa;border:2px dashed #c8d0d8;border-radius:8px;padding:40px;text-align:center;">' +
         '<div style="font-size:14px;margin-bottom:6px;">Selecione o arquivo da folha de pagamento</div>' +
         '<div style="font-size:12px;color:#6e6e73;margin-bottom:12px;"><strong>SAGE Folha:</strong> FPIMP + código da empresa + .mês (ex.: FPIMP0040.01)<br>Também é aceito o Resumo Geral em PDF.</div>' +
@@ -120,15 +168,16 @@
         const fd = new FormData();
         fd.append('arquivo', file);
         fd.append('cnpj', estado.cnpjLimpo);
+        if (cnpjOrigemFolha() !== estado.cnpjLimpo) fd.append('filial', cnpjOrigemFolha());
         const folha = await apiPost('/api/folha/parse-resumo', fd, true);
         estado.folhaParsed = folha;
 
         if (estado.cnpjLimpo && folha.cnpj) {
           const cnpjArquivoLimpo = folha.cnpj.replace(/\D/g, '');
-          if (cnpjArquivoLimpo !== estado.cnpjLimpo) throw new Error('O arquivo não pertence à empresa ativa.');
+          if (cnpjArquivoLimpo !== cnpjOrigemFolha()) throw new Error(estado.filial ? 'O arquivo não pertence à filial escolhida.' : 'O arquivo não pertence à empresa ativa.');
         }
 
-        const dup = await apiGet('/api/folha/checar-duplicidade?cnpj=' + estado.cnpjLimpo + '&competencia=' + encodeURIComponent(folha.competencia) + '&hash=' + folha.raw_text_hash);
+        const dup = await apiGet('/api/folha/checar-duplicidade?cnpj=' + cnpjOrigemFolha() + '&competencia=' + encodeURIComponent(folha.competencia) + '&hash=' + folha.raw_text_hash);
         if (dup.ja_importado) {
           const ult = dup.importacoes[0];
           const dataFmt = ult.criado_em ? new Date(ult.criado_em).toLocaleString('pt-BR') : '?';
@@ -140,10 +189,10 @@
           return;
         }
 
-        const m = await apiGet('/api/folha/mapeamento/' + estado.cnpjLimpo);
+        const m = await apiGet('/api/folha/mapeamento/' + cnpjOrigemFolha());
         estado.mapeamento = m.encontrado ? m : { regras: {}, encargos: {} };
         if (m.encontrado) {
-          if (m.numero_filial && !estado.numeroFilial) estado.numeroFilial = m.numero_filial;
+          if (m.numero_filial && (!estado.numeroFilial || estado.filial)) estado.numeroFilial = m.numero_filial;
           if (m.origem_padrao) estado.origemPadrao = m.origem_padrao;
         }
 
@@ -198,7 +247,7 @@
       }
       try {
         await apiPost('/api/folha/registrar-importacao', {
-          cnpj: estado.cnpjLimpo,
+          cnpj: cnpjOrigemFolha(),
           competencia: f.competencia,
           raw_text_hash: f.raw_text_hash,
           total_lancamentos: f.lancamentos.length,
@@ -360,7 +409,7 @@
         if (!obj.debito && !obj.credito) return;
         if (tipo === 'rubrica') regras[codigo] = obj; else encargos[codigo] = obj;
       });
-      const r = await apiPut('/api/folha/mapeamento/' + estado.cnpjLimpo, {
+      const r = await apiPut('/api/folha/mapeamento/' + cnpjOrigemFolha(), {
         regras, encargos,
         origem_padrao: document.getElementById('folha-origem').value.trim(),
         numero_filial: document.getElementById('folha-num-filial').value.trim(),
@@ -396,7 +445,7 @@
       URL.revokeObjectURL(url);
       try {
         await apiPost('/api/folha/registrar-importacao', {
-          cnpj: estado.cnpjLimpo, competencia: f.competencia,
+          cnpj: cnpjOrigemFolha(), competencia: f.competencia,
           raw_text_hash: f.raw_text_hash,
           total_lancamentos: lancs.length, total_valor: totD,
         }, false);
@@ -411,6 +460,7 @@
       empresaNome, cnpjFmt, planoId,
       codigoEmpresa: codigoEmpresa || '',
       numeroFilial: numeroFilial || '',
+      numeroFilialMatriz: numeroFilial || '',
       origemPadrao: 'IMP_FOLHA_FILIAL',
       folhaParsed: null, mapeamento: null,
     };
@@ -420,6 +470,7 @@
     }
     renderModalShell();
     renderTelaUpload();
+    carregarEstabelecimentosFolha();
   };
 
   // Plano compartilhado por varias empresas: a folha e da empresa ativa quando

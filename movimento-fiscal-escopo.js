@@ -30,8 +30,10 @@
   // Matriz e filiais (`matriz_cnpj`). Na matriz, cada filial vinculada vira
   // um estabelecimento escolhível; na filial, só um aviso (alerta, nunca
   // contorno): o movimento próprio continua possível.
-  function estabelecimentosDoMovimentoFiscal(estrutura, cnpjAtivoBruto) {
+  // `tela` adapta o aviso a outra importação (ex.: Importar Folha).
+  function estabelecimentosDoMovimentoFiscal(estrutura, cnpjAtivoBruto, tela) {
     const cnpjAtivo = digitos(cnpjAtivoBruto);
+    const t = { objeto: 'o movimento fiscal', onde: 'Importações › Movimento Fiscal', campo: 'Estabelecimento do movimento', ...(tela || {}) };
     const e = estrutura || {};
     if (digitos(e.cnpj) !== cnpjAtivo) return { opcoes: [], filiais: [], aviso: '' };
     if (String(e.tipo_estabelecimento || '').toUpperCase() === 'FILIAL') {
@@ -40,7 +42,7 @@
         opcoes: [], filiais: [],
         aviso: matriz
           ? 'Esta empresa é FILIAL da matriz ' + rotuloEmpresa({ ...matriz, cnpj: digitos(matriz.cnpj) }) + '. '
-            + 'Para integrar o movimento fiscal na matriz (como na SAGE), abra a matriz e, em Importações › Movimento Fiscal, escolha esta filial em "Estabelecimento do movimento". '
+            + 'Para integrar ' + t.objeto + ' na matriz (como na SAGE), abra a matriz e, em ' + t.onde + ', escolha esta filial em "' + t.campo + '". '
             + 'Importar aqui lança na contabilidade própria da filial.'
           : 'Esta empresa está cadastrada como FILIAL, mas a matriz não está visível para você. Confira a aba Matriz e filiais em Dados da Empresa.'
       };
