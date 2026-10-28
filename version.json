@@ -1,7 +1,8 @@
 {
-  "version": "3.4.473",
-  "build_date": "2026-10-28T22:00:00Z",
+  "version": "3.4.474",
+  "build_date": "2026-10-28T23:00:00Z",
   "release_notes": [
+    "Carnê-Leão (Aluguéis por planilha): a taxa de administração volta a ser deduzida sozinha mesmo quando a planilha não traz o percentual na célula acima da coluna \"taxa\" (ou o traz como texto \"20%\"). O CCI passa a conferir também a conta da própria planilha (taxa ÷ aluguel da cota). Se o percentual informado e a conta divergirem, a tela avisa e pede o valor, sem presumir percentual.",
     "Classificar com IA: a IA classifica só o que a tela mostra. Com linhas selecionadas, só as selecionadas; senão, só os lançamentos filtrados (antes ia a base inteira, e com 20 mil lançamentos a aba travava). O limite é de 500 por vez: acima disso a tela pede para filtrar ou selecionar. Lançamento de período encerrado não é alterado, e a tela confirma quantos serão classificados antes de começar.",
     "Importar Folha: folha da filial integrada na matriz, como na SAGE. Na matriz que tem filial vinculada (aba Matriz e filiais), o campo Estabelecimento da folha deixa escolher a filial: o arquivo FPIMP é conferido pelo código SAGE da filial (ou o PDF pelo CNPJ dela) e os lançamentos entram na matriz. O servidor só libera se a filial apontar para a matriz ativa. Na filial, a tela avisa qual é a matriz.",
     "Importações → Movimento Fiscal: filial integrada na matriz, como na SAGE. Na matriz que tem filial vinculada (aba Matriz e filiais), o campo Estabelecimento do movimento deixa escolher a filial: o CFI é consultado pelo CNPJ da filial e os lançamentos entram na matriz, com a filial na descrição. O servidor só libera se a filial apontar para a matriz ativa. Na filial, a tela avisa qual é a matriz e onde integrar.",

@@ -9,5 +9,13 @@ const rev={[r.id]:{conferido:true,justificativa:'Repasse IPTU e administração 
 const out=P.preparar({...a,registros:[r]},ps,i,rev,{outros:0,deducoes:0,simplificado:true},t);
 assert.equal(out.rendimento,337820);assert.equal(out.pagamentos[0].exclusoes,129406);assert(P.csv(out).includes(';4672,26;1294,06;'));assert.equal(out.calculo.deducao,607.2);
 rev[r.id].pagamentos[0].taxa=null;assert.throws(()=>P.preparar({...a,registros:[r]},ps,i,rev,{outros:0,deducoes:0,simplificado:true},t),/Taxa de administração/);
-const sem=structuredClone(fixture.abas);sem.find(a=>U.norm(a.nome)==='IRPFXPF').rows[0][15]=null;assert.equal(U.analisar(sem).registros.find(r=>r.tipo==='carne_leao').taxaAdministracaoPercentual,null);
+const pf=abas=>abas.find(a=>U.norm(a.nome)==='IRPFXPF'),taxaDe=abas=>U.analisar(abas).registros.find(r=>r.tipo==='carne_leao').taxaAdministracaoPercentual;
+// Sem a célula do percentual, a conta da própria planilha (taxa ÷ aluguel X%) identifica os 20%.
+let sem=structuredClone(fixture.abas);pf(sem).rows[0][15]=null;assert.equal(taxaDe(sem),20);
+// Percentual digitado como texto também vale.
+sem=structuredClone(fixture.abas);pf(sem).rows[0][15]='20%';assert.equal(taxaDe(sem),20);
+// Sem percentual e sem colunas calculadas: nada presumido.
+sem=structuredClone(fixture.abas);pf(sem).rows.forEach((r,i)=>{if(i===0||i>4){r[15]=null;r[18]=null;}});assert.equal(taxaDe(sem),null);
+// Percentual informado diverge da conta: alerta e valor manual.
+sem=structuredClone(fixture.abas);pf(sem).rows[0][15]=0.25;const div=U.analisar(sem);assert.equal(div.registros.find(r=>r.tipo==='carne_leao').taxaAdministracaoPercentual,null);assert(div.avisos.some(a=>/Taxa de administração divergente.*20%.*25%|25%.*20%/.test(a)));
 console.log('OK Carnê-Leão: IPTU e administração reduzem base e CSV; taxa identificada na planilha, sem percentual presumido.');

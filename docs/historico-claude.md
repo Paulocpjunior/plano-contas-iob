@@ -2325,3 +2325,9 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Novo `classificacao-ia-escopo.js`: escopo = selecionados > filtrados > base (só se couber); limite 500 por execução, acima disso recusa com a ação. Sentido bancário segue calculado na base (conta dominante), mas só o escopo recebe a correção (`mesclarNoEscopo`, no próprio objeto). `garantirLancamentosAbertos` no escopo e `confirm` com a contagem.
 - `aplicarMemoriaEmLancamentos` cede a vez ao navegador a cada 25 linhas.
 - Teste: `scripts/test-classificacao-ia-escopo.js`.
+
+## 28/10/2026 — v3.4.474: Carnê-Leão identifica a taxa de administração pela conta da planilha
+
+- PEC (Nicolellis) 09/2026: tela "Aluguéis por planilha" mostrou "Administração não identificada" e o Paulo digitou a taxa à mão. A leitura (46ff9d4, 25/09) dependia só do percentual numérico na célula acima da coluna "taxa" (P1 = 0,2). Com a planilha anexada e o código atual, a tela preenche 20% (Playwright); a cópia importada provavelmente não tinha o P1 numérico.
+- `taxaAdministracao()` em `reinf/reinf-alugueis-planilha.js`: aceita P1 numérico ou texto "20%" e confere também taxa ÷ "aluguel X%" (coluna à esquerda) nas linhas. Um único percentual → usa; divergentes → null + aviso; nenhum → null (nada presumido).
+- Teste: `scripts/test-carne-leao-exclusoes.js` (sem P1, "20%", sem sinal, divergência).

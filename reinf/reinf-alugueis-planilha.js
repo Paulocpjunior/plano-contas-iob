@@ -29,6 +29,26 @@
     };
     return calcular(d.slice(0,-2))===Number(d.at(-2)) && calcular(d.slice(0,-1))===Number(d.at(-1));
   }
+  // Percentual da administração do carnê-leão: a célula acima da coluna "taxa" (0,2 ou "20%")
+  // e/ou a própria conta da planilha (taxa ÷ "aluguel X%" ao lado). Sem sinal ou com sinais
+  // divergentes, fica null e a tela pede o valor: nunca se presume percentual.
+  function taxaAdministracao(rows,h,nomeAba,avisos) {
+    const sub=rows[h+1]||[],fracao=v=>{
+      if(typeof v==='number')return v>0&&v<=1?v:null;
+      const m=String(v??'').trim().match(/^(\d{1,2}(?:[.,]\d+)?)\s*%$/);
+      const n=m?Number(m[1].replace(',','.'))/100:null;return n>0&&n<=1?n:null;
+    };
+    const chave=f=>Math.round(f*10000)/100;
+    const colunas=sub.map((v,c)=>norm(v)==='TAXA'?c:-1).filter(c=>c>=0);
+    const informadas=new Set(colunas.flatMap(c=>rows.slice(0,h).map(row=>fracao(row[c])).filter(v=>v!==null).map(chave)));
+    const calculadas=new Set(colunas.filter(c=>c>0&&norm(sub[c-1]).startsWith('ALUGUEL')).flatMap(c=>rows.slice(h+2).map(row=>{
+      const base=row[c-1],taxa=row[c];return typeof base==='number'&&typeof taxa==='number'&&base>0&&taxa>0&&taxa<=base?chave(taxa/base):null;
+    }).filter(v=>v!==null)));
+    const todas=new Set([...informadas,...calculadas]);
+    if(todas.size===1)return [...todas][0];
+    if(todas.size>1)avisos.push('Taxa de administração divergente na aba '+nomeAba.trim()+' ('+[...todas].join('%, ')+'%): confira o percentual da administradora e informe o valor na preparação do Carnê-Leão.');
+    return null;
+  }
   function analisar(abas) {
     const igrejas=analisarIgrejas(abas);
     if(igrejas) return igrejas;
@@ -41,8 +61,7 @@
       const rows=aba.rows;
       const h=rows.findIndex(r=>r.some(c=>norm(c)==='ENDERECO')&&r.some(c=>norm(c)==='DATARECEBIMENTO'));
       if(h<0) throw Error('Cabeçalho não reconhecido na aba '+aba.nome+'.');
-      const taxas=(rows[h+1]||[]).flatMap((v,c)=>norm(v)==='TAXA'?rows.slice(0,h).map(row=>row[c]).filter(v=>typeof v==='number'&&v>0&&v<=1):[]);
-      const taxaAdministracaoPercentual=tipo==='carne_leao'&&new Set(taxas).size===1?taxas[0]*100:null;
+      const taxaAdministracaoPercentual=tipo==='carne_leao'?taxaAdministracao(rows,h,aba.nome,avisos):null;
       const headers=rows[h].map(norm);
       const col=aliases=>headers.findIndex(c=>aliases.includes(c));
       const ix={endereco:col(['ENDERECO']),nome:col(['LOCATARIOA','LOCATARIO']),aluguel:col(['VALORALUGUEL']),iptu:col(['VALORIPTU','IPTU']),irrf:col(['IRRETIDOFONTE','IRRETIDONAFONTE']),previsto:col(['TOTALARECEBER']),recebido:col(['VALORRECEBIDO']),data:col(['DATARECEBIMENTO']),liquido:col(['ALUGUELLIQUIDORECEBIDO','VALORALUGUELLIQUIDO']),iptuRecebido:col(['IPTURECEBIDO']),documento:col(['CPFCNPJLOCATARIOS','CPFCNPJLOCATARIO']),obs:col(['OBSERVACOES'])};
