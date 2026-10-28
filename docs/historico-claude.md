@@ -2305,3 +2305,10 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 
 - Paulo viu "Avisos da Legalização (0)". Causa no CFI (eventos antigos sem `contabil` nos destinos); corrigido lá (`destinosDoEvento`). Nada mudou aqui além da novidade.
 - Achado do Codex no #364: a linha do app é a mesma a vida toda, e `crm_checklist_eventos` era chaveado só pelo id → depois da entrada, a saída/baixa da mesma empresa dava 409. Chave agora é `chaveEvento()` = id + passo + data de vigência; já aplicado compara só o CNPJ.
+
+## 28/10/2026 — v3.4.471: movimento fiscal da filial integrado na matriz (modelo SAGE)
+
+- Pedido do Paulo: na SAGE a filial aponta para a matriz ("Integração com o Contábil") e a exportação fiscal cai na matriz. Caso NOVA ERA: filial 1164 (0002-02) → matriz 1154 (0001-21).
+- Desenho: com a MATRIZ ativa, Importações › Movimento Fiscal mostra "Estabelecimento do movimento" (matriz + filiais com `matriz_cnpj` = ela). Filial escolhida: CFI consultado pelo CNPJ da filial, lançamentos na matriz com `estabelecimentoFiscalCnpj`/`integradoNaMatrizCnpj` e "Filial ..." na descrição. Só sincronização direta do CFI (arquivo SAGE segue CNPJ = empresa ativa). Com a FILIAL ativa, só aviso apontando a matriz; importar na própria filial continua possível.
+- Travas: `movimento-fiscal-escopo.js` (`estabelecimentosDoMovimentoFiscal`, `conferirFilialDaMatriz`, escopo por CNPJ de origem: matriz e filial coexistem no mês, mesma filial não repete). Servidor (`/api/fiscal/movimento-cfi?matriz=`) recusa filial que não aponta para a matriz. Teste: `scripts/test-movimento-fiscal-escopo.js`.
+- Pendente: folha de pagamento na matriz (quando o módulo existir). Duplicidade cruzada (filial importada nela mesma E na matriz) não é detectada: livros diferentes.

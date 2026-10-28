@@ -36,8 +36,15 @@ assert(index.includes('PDF aceito somente quando gerado pela SAGE / E-Fiscal.'),
 assert(index.includes("origemIntegracaoFiscal: diretoCfi ? 'CFI_API' : 'ARQUIVO_SAGE'"), 'origem direta e arquivo SAGE devem permanecer auditaveis');
 assert(index.includes('window.repetidosMovimentoFiscalCfi(state.entries') && index.includes('Remova a importação anterior antes de sincronizar novamente.'), 'sincronizacao CFI deve bloquear repeticao da mesma nota');
 assert(index.includes('validarEscopoFiscalAntesDeGravar(resultado, vinculo, layout, cnpjAtivo)'), 'validacao inicial deve vetar CNPJ ou competencia divergente');
-assert(index.includes('validarEscopoFiscalAntesDeGravar(resultado, vinculo, validacao.layout, cnpjAtivoAgora)'), 'escopo deve ser conferido novamente antes da gravacao');
+assert(index.includes('validarEscopoFiscalAntesDeGravar(resultado, vinculo, validacao.layout, cnpjAtivoAgora, modalRetencoesTomados ? [] : movimentoFiscalEstabelecimentos.filiais)'), 'escopo deve ser conferido novamente antes da gravacao');
 assert(index.includes('competenciaFiscalValidada: competencia'), 'lancamento deve preservar competencia fiscal validada');
+assert(index.includes('id="movFiscalEstabelecimento"'), 'matriz com filiais escolhe o estabelecimento do movimento');
+assert(index.includes('carregarEstabelecimentosMovimentoFiscal(cnpj)'), 'modal carrega matriz e filiais ao abrir');
+assert(index.includes("consultarMovimentoFiscalCfi(layout, cnpjOrigem, competenciaCfi, cnpjAtivo)"), 'CFI e consultado pelo CNPJ da filial, com a matriz de destino');
+assert(index.includes("if (cnpjMatriz && cnpjMatriz !== cnpj) qs.set('matriz', cnpjMatriz);"), 'consulta da filial leva a matriz para a trava do servidor');
+assert(index.includes('estabelecimentoFiscalCnpj: filialNaMatriz.cnpj'), 'lancamento integrado guarda a filial de origem');
+assert(index.includes('estabelecimentoMudou'), 'troca de estabelecimento apos validar exige nova validacao');
+assert(server.includes('conferirFilialDaMatriz(chk.empresa, matriz)'), 'servidor confere o vinculo filial -> matriz antes de consultar o CFI');
 assert(index.includes('movimentoFiscalTipo: validacao.layout.movimento'), 'lancamento deve preservar tipo fiscal para bloquear repeticao');
 assert(server.includes("app.get('/api/fiscal/movimento-cfi'"), 'CCI deve expor consulta autenticada ao movimento direto do CFI');
 assert(index.includes("validacao.layout.codigoEmpresa !== 'GEN'"), 'modelo geral de servicos nao pode ser limitado ao codigo de uma empresa');

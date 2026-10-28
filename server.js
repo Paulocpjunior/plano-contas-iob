@@ -19,6 +19,7 @@ const cryptoAdmin = require('crypto');
 const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados } = require('./admin-exclusao-lancamentos');
 const { aplicarNoEstado: aplicarMigracaoSageNoEstado, prepararStaging: prepararStagingMigracaoSage, removerLoteDoEstado: removerMigracaoSageDoEstado, sha256: hashMigracaoSage } = require('./migracao-sage-executor');
 const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
+const { conferirFilialDaMatriz } = require('./movimento-fiscal-escopo');
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
 const { buscarRegimeNoCfi } = require('./cfi-regime-client');
 const { buscarAvisosLegalizacao } = require('./avisos-legalizacao');
@@ -2789,6 +2790,15 @@ app.get('/api/fiscal/movimento-cfi', async (req, res) => {
     if (cnpj.length !== 14) return res.status(400).json({ erro: 'CNPJ invalido.' });
     const chk = await checarAcessoEmpresa(cnpj, req.user);
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    // Filial integrada na matriz: a consulta usa o CNPJ da filial, mas só sai
+    // se a filial apontar para a matriz ativa e o usuário puder abrir a matriz.
+    const matriz = String(req.query.matriz || '').replace(/\D/g, '');
+    if (matriz && matriz !== cnpj) {
+      const chkMatriz = await checarAcessoEmpresa(matriz, req.user);
+      if (!chkMatriz.ok) return res.status(chkMatriz.status).json({ erro: chkMatriz.erro });
+      const vinculo = conferirFilialDaMatriz(chk.empresa, matriz);
+      if (!vinculo.ok) return res.status(409).json({ erro: vinculo.erro });
+    }
     const payload = await buscarMovimentoFiscalNoCfi({
       cnpj, competencia, movimento, token: tokenDoUsuario(req),
     });
