@@ -118,6 +118,13 @@ async function carregarChecklist({ token, fetchImpl = fetch, env, agora = () => 
   const rows = [...b.itens].sort((x, y) => String(x.id).localeCompare(String(y.id)));
   return { rows, form_id: FORM_ID, lido_em: agora(), assinatura: hash(rows), completo: true };
 }
+// Chave do evento aplicado: a mesma linha do app (uma por empresa) passa por entrada,
+// saída e baixa. Cada passo, com a sua data de vigência, é um evento próprio; só o
+// mesmo passo com a mesma data é "já aplicado" (achado do Codex no #364, 28/10).
+function chaveEvento(evento) {
+  const data = evento.tipo === 'entrada' ? evento.responsabilidade_inicio : evento.responsabilidade_fim;
+  return evento.submission_id + '__' + evento.tipo + '__' + (data || 'sem-data');
+}
 // Cadastro individual de uma entrada na base da carteira. Não cria cadastro contábil, equipe, contrato nem obrigação.
 function cadastroDoEvento(evento, body, uid, quando) {
   if (body.confirmado !== true) throw erro('Confirme o cadastro da empresa conferida.');
@@ -149,4 +156,4 @@ function contratoDoEvento(evento, antes, body, hoje) {
   return contrato({ revisao:body.revisao_contrato, situacao: {entrada:'ativa',saida:'saida',baixa:'baixada'}[evento.tipo],
     inicio, fim, motivo:body.motivo }, existente);
 }
-module.exports = { orientacoesChecklist, FORM_ID, ID_ITEM, previaChecklist, carregarChecklist, contratoDoEvento, cadastroDoEvento, cnpjValido, cnpjDaOrigem, unirBases };
+module.exports = { orientacoesChecklist, FORM_ID, ID_ITEM, chaveEvento, previaChecklist, carregarChecklist, contratoDoEvento, cadastroDoEvento, cnpjValido, cnpjDaOrigem, unirBases };

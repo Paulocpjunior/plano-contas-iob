@@ -1,7 +1,8 @@
 {
-  "version": "3.4.469",
-  "build_date": "2026-10-28T12:00:00Z",
+  "version": "3.4.470",
+  "build_date": "2026-10-28T13:00:00Z",
   "release_notes": [
+    "Avisos da Legalização e CRM → Conferir Checklist: a faixa de avisos passa a trazer também os avisos gravados antes de o Contábil entrar na lista (mostrava 0). E, na Conferir Checklist, depois de aplicar a entrada de uma empresa, a saída ou a baixa da mesma empresa agora pode ser aplicada; antes a tela recusava como \"alterado na origem\".",
     "CRM → Conferir Checklist: o checklist agora vem do app Legalização, pelo cadastro do CFI, e não mais do formulário do Jotform (que foi aposentado). Cada empresa aparece uma vez, com o status, o Nosso Número, o CNPJ, as datas de responsabilidade e a última observação do Legal. Corrigir número ou CNPJ é no checklist do app Legalização. A consulta agendada do Checklist (Automações A08) fica suspensa: o CFI só entrega o checklist a quem está logado.",
     "Avisos da Legalização: uma faixa recolhível logo abaixo do cabeçalho mostra o que o checklist da Legalização mudou nas empresas nos últimos 30 dias (entrou, suspensa, saiu, baixada, dados gerais e Contabilidade contratada ou retirada), com o valor antigo e o novo e, na empresa nova, a tributação e se a Contabilidade foi contratada. Os avisos vêm pelo cadastro do CFI e só mostram: nada muda sozinho no CCI. Se o CFI não responder, a faixa diz que não carregou.",
     "Importar FI / relatório SAGE: o relatório Conferência de Lançamentos agora aceita lançamentos de múltiplas partidas (uma conta contra várias). Cada contrapartida vira uma partida contra a conta única, com o mesmo número SAGE; as contrapartidas precisam somar o valor do lançamento. Lançamento com várias contas dos dois lados continua bloqueado, com o número para desdobrar na SAGE. A quantidade do rodapé com milhar (ex.: 1.338) também passa a ser lida.",

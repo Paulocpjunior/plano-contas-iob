@@ -256,8 +256,14 @@ if(require.main===module)(async()=>{
   assert.deepEqual(ce.dados.get('empresas/'+cnpj).responsaveis,[{uid:'colab',papel:'principal'}]);
   assert(![...ce.dados.keys()].some(p=>p.includes('/crm_controles/')));
   aplicado=await ce.call('POST','/api/crm/checklist/aplicar',evtBody,'admin');assert.equal(aplicado.body.ja_aplicado,true);assert.equal(ce.writes(),3);
+  // Linha do app muda por outro motivo (nome, observação): o mesmo passo segue "já aplicado".
   fonte.rows[0].empresaNome='Alterado';
-  assert.equal((await ce.call('POST','/api/crm/checklist/aplicar',evtBody,'admin')).statusCode,409);assert.equal(ce.writes(),3);
+  aplicado=await ce.call('POST','/api/crm/checklist/aplicar',evtBody,'admin');assert.equal(aplicado.body.ja_aplicado,true);assert.equal(ce.writes(),3);
+  // A mesma linha passa a saída: é outro evento e precisa poder ser aplicado (achado do Codex, 28/10).
+  fonte.rows[0].statusCliente='CLIENTE SAIDA';fonte.rows[0].responsavelAte={data:'2026-10-01',texto:null};
+  const saiu=await ce.call('POST','/api/crm/checklist/aplicar',{...evtBody,revisao_contrato:ce.dados.get('empresas/'+cnpj).crm_contrato.revisao},'admin');
+  assert.equal(saiu.statusCode,200,JSON.stringify(saiu.body));assert.equal(saiu.body.aplicado,true);assert.equal(ce.dados.get('empresas/'+cnpj).crm_contrato.situacao,'saida');assert.equal(ce.writes(),6);
+  fonte.rows[0].statusCliente='CLIENTE NOVO';fonte.rows[0].responsavelAte=null;fonte.rows[0].empresaNome='Fixture';
   const revogado=ambiente(async dados=>{dados.set('users/admin',{is_admin:false});return fonte;});
   assert.equal((await revogado.call('POST','/api/crm/checklist/aplicar',evtBody,'admin')).statusCode,403);assert.equal(revogado.writes(),0);
   const conc=ambiente(async()=>fonte);conc.dados.get('empresas/'+cnpj).crm_contrato={revisao:4};

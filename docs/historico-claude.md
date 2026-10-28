@@ -2300,3 +2300,8 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Uma linha por empresa; id `doc_<cnpj>`/`nome_<CHAVE>` vira o `submission_id` (os registros numéricos antigos em `crm_checklist_eventos`/`crm_checklist_cadastros` ficam como histórico).
 - Consulta agendada A08 suspensa (sem usuário não há token); ligar exige credencial de serviço no CFI. `CCI_CHECKLIST_API_KEY` não é mais lida.
 - Travas: `scripts/test-crm-checklist.js`, `test-crm-contabil-routes.js`, `test-notificacoes-automacao.js`.
+
+## 28/10/2026 — v3.4.470: avisos com 0 e saída depois da entrada
+
+- Paulo viu "Avisos da Legalização (0)". Causa no CFI (eventos antigos sem `contabil` nos destinos); corrigido lá (`destinosDoEvento`). Nada mudou aqui além da novidade.
+- Achado do Codex no #364: a linha do app é a mesma a vida toda, e `crm_checklist_eventos` era chaveado só pelo id → depois da entrada, a saída/baixa da mesma empresa dava 409. Chave agora é `chaveEvento()` = id + passo + data de vigência; já aplicado compara só o CNPJ.
