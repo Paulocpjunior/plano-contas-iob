@@ -40,6 +40,11 @@ const payload = { ok:true, contrato:'movimento_fiscal_cfi_v1',cnpjEmpresa:opts.c
  assert.equal(repetidosMovimentoFiscalCfi(antes, antes).length, 1);
  assert.equal(repetidosMovimentoFiscalCfi(antes.map(l=>({...l,origemDadosFiscal:'ARQUIVO'})), depois).length, 0, 'só lançamentos do CFI contam');
  assert.equal(repetidosMovimentoFiscalCfi([], depois).length, 0);
+ // Filial integrada na matriz (28/10): a mesma nota em outro estabelecimento (transferência) não é repetição.
+ const daFilial = depois.map(l=>({...l,empresaCnpjFiscal:'29240822000202'}));
+ assert.equal(repetidosMovimentoFiscalCfi(antes, daFilial).length, 0, 'outro CNPJ do grupo não bloqueia');
+ assert.equal(repetidosMovimentoFiscalCfi(daFilial.map(l=>({...l,origemDadosFiscal:'CFI_API'})), daFilial).length, 1, 'a mesma filial repete');
+ assert.equal(repetidosMovimentoFiscalCfi(antes.map(l=>({...l,empresaCnpjFiscal:''})), daFilial).length, 1, 'lançamento antigo sem CNPJ continua contando');
  // NOVA ERA 09/2026 (21/10): o frete (CT-e) sobe e o ICMS/ST/IPI vira linha de imposto destacado por CFOP.
  const T='77888999000155', E=opts.cnpj;
  const chaveDe=(emit,mod,n)=>{const c='3526'+'09'+emit+mod+'001'+String(n).padStart(9,'0')+'1'+'00000001';let s=0,w=2;for(let i=42;i>=0;i--){s+=Number(c[i])*w;w=w===9?2:w+1;}const d=11-s%11;return c+String(d>=10?0:d);};
