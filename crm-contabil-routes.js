@@ -6,7 +6,7 @@ const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmp
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
-const { carregarChecklist, previaChecklist, contratoDoEvento, cadastroDoEvento, unirBases, ID_ITEM } = require('./crm-checklist');
+const { carregarChecklist, previaChecklist, contratoDoEvento, cadastroDoEvento, unirBases, ID_ITEM, chaveEvento } = require('./crm-checklist');
 // Token de quem está logado: o CFI só entrega o checklist da Legalização a um usuário identificado.
 const tokenDe = req => { const a = String(req?.headers?.authorization || ''); return a.startsWith('Bearer ') ? a.slice(7) : ''; };
 
@@ -602,10 +602,11 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
       const evento = previa.eventos.find(e => e.submission_id === b.submission_id);
       if (!evento || !evento.cnpj || evento.problemas.length) throw core.erro('Evento indisponível ou com pendências. Confira novamente.', 409);
       const ref = db.collection(evento.colecao).doc(evento.cnpj);
-      const registro = db.collection('crm_checklist_eventos').doc(evento.submission_id);
+      // Um registro por passo (entrada, saída, baixa) e vigência: a linha do app é a mesma a vida toda.
+      const registro = db.collection('crm_checklist_eventos').doc(chaveEvento(evento));
       const feito = await tx.get(registro);
       if (feito.exists) {
-        if (feito.data().assinatura_evento !== evento.assinatura || feito.data().cnpj !== evento.cnpj) throw core.erro('Este evento foi alterado na origem após aplicação. Revise o histórico manualmente.', 409);
+        if (feito.data().cnpj !== evento.cnpj) throw core.erro('Este evento foi alterado na origem após aplicação. Revise o histórico manualmente.', 409);
         return {aplicado:false,ja_aplicado:true,cnpj:evento.cnpj};
       }
       const antes = bases.find(e => e.cnpj === evento.cnpj).crm_contrato || null;
