@@ -2290,3 +2290,13 @@ Paulo reportou como regressão: Importar Folha no plano 1183 DAXX MIDIA (Josilai
 
 ## 27/10/2026 — Relatório SAGE: lançamentos de múltiplas partidas (3.4.467)
 Paulo testou o Digita08 (1170 JG Soluções, 01-08/2026): linha 556 recusada como partida composta. São 19 lançamentos de uma conta contra várias, todos com soma conferida. `importacao-sage-conferencia.js` passou a ler por posição e desdobrar cada contrapartida em partida contra a conta única (mesmo número SAGE, `partidaSage`). N contra N e soma divergente bloqueiam. Rodapé com milhar (1.338) aceito. Arquivo real: 1.338 lançamentos → 1.360 partidas, R$ 14.318.325,81; Digita12 segue 344/344.
+
+## 27/10/2026 — 📣 Avisos da Legalização no Contábil (3.4.468)
+Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consultor contábil!"): o Contábil não recebia nenhum aviso. Agora o legaliza-o grava `contabil` nos destinos (situação, dados gerais e Contabilidade contratada/retirada) e o CFI aceita `destino=contabil` no túnel `/api/admin/cadastro/avisos-legalizacao` (o projeto `projetos-app-sp` já era aceito). Aqui: `avisos-legalizacao.js` (puro + fetch com o token de quem está logado), rota `GET /api/legalizacao/avisos` (recusa do CFI volta 502, não 401) e a faixa recolhível `mostrarAvisosLegalizacao` abaixo do cabeçalho. Só mostra. Trava: `scripts/test-avisos-legalizacao.js`. Pendente (decisão do Paulo): o `crm-checklist.js` ainda lê o Checklist do Jotform 210135417457653, que foi desativado; empresa criada no checklist do app não chega ao Conferir Checklist do CRM.
+
+## 28/10/2026 — CRM › Conferir Checklist lê o app Legalização (v3.4.469)
+
+- Paulo: "todos apps passam a ler o checklist do app legalizacao, jotform morre". `crm-checklist.js` deixa o Jotform 210135417457653 e lê `GET /api/admin/cadastro/checklist-legalizacao` no CFI com o token de quem está logado (o CFI libera Nosso Número ao projeto `projetos-app-sp`; honorários não vêm).
+- Uma linha por empresa; id `doc_<cnpj>`/`nome_<CHAVE>` vira o `submission_id` (os registros numéricos antigos em `crm_checklist_eventos`/`crm_checklist_cadastros` ficam como histórico).
+- Consulta agendada A08 suspensa (sem usuário não há token); ligar exige credencial de serviço no CFI. `CCI_CHECKLIST_API_KEY` não é mais lida.
+- Travas: `scripts/test-crm-checklist.js`, `test-crm-contabil-routes.js`, `test-notificacoes-automacao.js`.

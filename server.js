@@ -21,6 +21,7 @@ const { aplicarNoEstado: aplicarMigracaoSageNoEstado, prepararStaging: prepararS
 const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
 const { buscarRegimeNoCfi } = require('./cfi-regime-client');
+const { buscarAvisosLegalizacao } = require('./avisos-legalizacao');
 const { exigeSaldoAbertura, periodoInicialEmpresa, validarSaldosAbertura, proximoPeriodo, saldosParaTransporte } = require('./implantacao-contabil');
 const { avaliarProntidaoContabil } = require('./prontidao-contabil');
 const { avaliarProgressaoEmpresa, resumirProgressao, usuarioAtribuido } = require('./progressao-contabil');
@@ -1150,6 +1151,18 @@ function hashSaldosAbertura(saldos) {
 }
 
 // EMPRESAS - COLABORATIVO
+// 📣 Avisos do checklist da Legalização (27/10), lidos pelo túnel do CFI com o
+// token de quem está logado. Só leitura: nada muda sozinho no CCI. Recusa do CFI
+// volta 502 (não 401), para não derrubar a sessão daqui.
+app.get('/api/legalizacao/avisos', async (req, res) => {
+  try {
+    const r = await buscarAvisosLegalizacao({ token: tokenBearerRequisicao(req), dias: req.query.dias });
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    res.status(e.status === 401 && !tokenBearerRequisicao(req) ? 401 : 502).json({ ok: false, error: e.message });
+  }
+});
+
 app.get('/api/empresas', async (req, res) => {
   try {
     const docs = await listarEmpresasAcessiveis(req.user);

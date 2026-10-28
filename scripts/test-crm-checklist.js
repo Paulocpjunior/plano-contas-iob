@@ -1,20 +1,21 @@
 'use strict';
 const assert = require('assert');
 const c = require('../crm-checklist');
-const questions = Object.fromEntries(Object.values(c.CAMPOS).map(([id,text]) => [id,{text}]));
-function row(id='1') { return { id, form_id:c.FORM_ID, status:'ACTIVE', answers:{'24':{answer:'Empresa'},'33':{answer:'0012'},'47':{answer:'CLIENTE NOVO'},'11':{answer:'2026-10-10'},'30':{answer:{year:'2026',month:'09',day:'01'}}} }; }
+// Itens do checklist do app Legalização (túnel do CFI, 28/10): uma linha por empresa.
+function row(id='nome_EMPRESA') { return { id, empresaNome:'Empresa', nossoNumero:'0012', statusCliente:'CLIENTE NOVO', datas:{cadastro:'2026-10-10'}, responsavelDesde:{data:'2026-09-01',texto:null}, responsavelAte:null, observacao:null }; }
 const empresas = [{cnpj:'12345678901234',codigo_empresa:'12'}];
-let p=c.previaChecklist(questions,[row()],empresas); assert.equal(p.eventos[0].responsabilidade_inicio,'2026-09-01'); assert.equal(p.eventos[0].cadastro_em,'2026-10-10'); assert.equal(p.com_pendencias,0); assert.equal(p.eventos[0].aplicacao_automatica,false);
-const semInicio = row(); delete semInicio.answers['30'];
-p=c.previaChecklist(questions,[semInicio],empresas); assert.equal(p.eventos[0].responsabilidade_inicio,null); assert(p.com_pendencias);
-p=c.previaChecklist(questions,[row()], [...empresas,{cnpj:'99999999999999',codigo_empresa:'0012'}]); assert.equal(p.eventos[0].cnpj,null); assert(p.com_pendencias);
-p=c.previaChecklist(questions,[row('1'),row('2')],empresas); assert.equal(p.com_pendencias,2);
-assert.throws(()=>c.previaChecklist(questions,[row(),row()],empresas));
-assert.throws(()=>c.previaChecklist({...questions,'30':{text:'Outro campo'}},[row()],empresas),/mudou/);
-const saida=row(); saida.answers['47'].answer='CLIENTE SAIDA'; saida.answers['40']={answer:'2026-08-01'};
-p=c.previaChecklist(questions,[saida],empresas); assert(p.eventos[0].problemas.some(s=>s.includes('anterior')));
-const excluido=row(); excluido.status='DELETED'; p=c.previaChecklist(questions,[excluido],empresas); assert(p.com_pendencias);
-const evento = c.previaChecklist(questions,[row()],empresas).eventos[0];
+let p=c.previaChecklist([row()],empresas); assert.equal(p.eventos[0].responsabilidade_inicio,'2026-09-01'); assert.equal(p.eventos[0].cadastro_em,'2026-10-10'); assert.equal(p.com_pendencias,0); assert.equal(p.eventos[0].aplicacao_automatica,false);
+const semInicio = row(); semInicio.responsavelDesde=null;
+p=c.previaChecklist([semInicio],empresas); assert.equal(p.eventos[0].responsabilidade_inicio,null); assert(p.com_pendencias);
+const textoSolto = row(); textoSolto.responsavelDesde={data:null,texto:'desde o contrato'};
+p=c.previaChecklist([textoSolto],empresas); assert.equal(p.eventos[0].responsabilidade_inicio,null); assert(p.eventos[0].problemas.some(s=>s.includes('Data inválida')),'texto que não é data vira pendência, nunca palpite');
+p=c.previaChecklist([row()], [...empresas,{cnpj:'99999999999999',codigo_empresa:'0012'}]); assert.equal(p.eventos[0].cnpj,null); assert(p.com_pendencias);
+p=c.previaChecklist([row('nome_A'),row('nome_B')],empresas); assert.equal(p.com_pendencias,2);
+assert.throws(()=>c.previaChecklist([row(),row()],empresas));
+assert.throws(()=>c.previaChecklist([row('123')],empresas),/incompleta/);
+const saida=row(); saida.statusCliente='CLIENTE SAIDA'; saida.responsavelAte={data:'2026-08-01',texto:null};
+p=c.previaChecklist([saida],empresas); assert(p.eventos[0].problemas.some(s=>s.includes('anterior')));
+const evento = c.previaChecklist([row()],empresas).eventos[0];
 const body={confirmado:true,revisao_contrato:0,motivo:'Vigência conferida'};
 const contrato=c.contratoDoEvento(evento,null,body,'2026-10-15');
 assert.equal(contrato.situacao,'ativa');assert.equal(contrato.inicio,'2026-09-01');
@@ -31,20 +32,18 @@ assert.throws(()=>c.contratoDoEvento({...evSaida,responsabilidade_fim:'2025-01-0
 assert.throws(()=>c.contratoDoEvento({...evento,problemas:['pendente']},null,body,'2026-10-15'),/pendências/);
 assert.throws(()=>c.contratoDoEvento({...evento,tipo:'suspensao'},null,body,'2026-10-15'),/manualmente/);
 (async()=>{
-  await assert.rejects(c.carregarChecklist({apiKey:''}), /credencial/);
-  const mock = (changed=false, count=1) => { let scans=0; return async (url,opts)=>{
-    assert.equal(opts.redirect,'error'); assert(opts.signal); assert.equal(opts.headers.APIKEY,'fixture');
-    let content;
-    if (url.endsWith('/questions')) content=questions;
-    else if (url.includes('/submissions')) { scans++; const r=row(); if(changed && scans===2) r.answers['24'].answer='Mudou'; content=[r]; }
-    else content={submission_count:String(count)};
-    return {ok:true,json:async()=>({responseCode:200,content})};
-  }; };
-  const fonte=await c.carregarChecklist({apiKey:'fixture',fetchImpl:mock()}); assert(fonte.completo); assert.equal(fonte.rows.length,1);
-  await assert.rejects(c.carregarChecklist({apiKey:'fixture',fetchImpl:mock(true)}),/mudou/);
-  await assert.rejects(c.carregarChecklist({apiKey:'fixture',fetchImpl:mock(false,2)}),/mudou/);
-  await assert.rejects(c.carregarChecklist({apiKey:'fixture',fetchImpl:async()=>{throw Error('segredo nunca devolvido');}}),e=>!e.message.includes('segredo'));
-  console.log('Checklist: datas contratuais, identidade, duplicidades, esquema, leitura completa e deriva OK');
+  await assert.rejects(c.carregarChecklist({token:''}), e=>/login/.test(e.message)&&e.status===401,'sem usuário (consulta agendada) a falha diz o motivo');
+  const env={CFI_URL:'https://cfi.fixture'};
+  const mock=(corpo,status=200)=>async(url,opts)=>{ assert.equal(url,'https://cfi.fixture/api/admin/cadastro/checklist-legalizacao'); assert.equal(opts.headers.Authorization,'Bearer tk'); assert.equal(opts.redirect,'error'); assert(opts.signal); return {ok:status===200,status,json:async()=>corpo}; };
+  const corpo={ok:true,itens:[row('nome_B'),row('nome_A')],cortado:false,nossoNumero:true,honorarios:false};
+  const fonte=await c.carregarChecklist({token:'tk',env,fetchImpl:mock(corpo)}); assert(fonte.completo); assert.equal(fonte.rows.length,2); assert.equal(fonte.rows[0].id,'nome_A'); assert.equal(fonte.form_id,'legalizacao:checklist'); assert.match(fonte.assinatura,/^[a-f0-9]{64}$/);
+  assert.equal((await c.carregarChecklist({token:'tk',env,fetchImpl:mock({...corpo,itens:[row('nome_A'),row('nome_B')]})})).assinatura,fonte.assinatura,'mesma leitura em outra ordem, mesma assinatura');
+  await assert.rejects(c.carregarChecklist({token:'tk',env,fetchImpl:mock({...corpo,cortado:true})}),/parcial/);
+  await assert.rejects(c.carregarChecklist({token:'tk',env,fetchImpl:mock({...corpo,nossoNumero:false})}),/Nosso Número/);
+  await assert.rejects(c.carregarChecklist({token:'tk',env,fetchImpl:mock({ok:false,error:'x'},403)}),/recusou/);
+  await assert.rejects(c.carregarChecklist({token:'tk',env:{},fetchImpl:mock(corpo)}),/CFI_URL/);
+  await assert.rejects(c.carregarChecklist({token:'tk',env,fetchImpl:async()=>{throw Error('segredo nunca devolvido');}}),e=>!e.message.includes('segredo'));
+  console.log('Checklist: datas contratuais, identidade, duplicidades, leitura completa pelo CFI e deriva OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});
 
 const {orientacoesChecklist}=require('../crm-checklist');
@@ -56,23 +55,22 @@ assert(orientacoesChecklist({problemas:['Registro não ativo na origem; não apl
 {
   const v='11222333000181';
   assert(c.cnpjValido(v)); assert(!c.cnpjValido('11222333000182')); assert(!c.cnpjValido('11111111111111'));
-  const nova=(ans={})=>{const r=row('9');r.answers['33'].answer='1411';r.answers['24'].answer='NOVA LTDA';r.answers['59']={answer:'02- SIMPLES'};Object.assign(r.answers,ans);return r;};
-  const obs={'5':{answer:'<div><b>1411 - NOVA LTDA</b></div><div><b>CNPJ</b>: 11.222.333/0001-81</div>'}};
-  let e=c.previaChecklist(questions,[nova(obs)],empresas).eventos[0];
+  const nova=(campos={})=>({...row('nome_NOVA'),nossoNumero:'1411',empresaNome:'NOVA LTDA',tributacao:'02- SIMPLES',...campos});
+  const obs={observacao:{texto:'1411 - NOVA LTDA\nCNPJ: 11.222.333/0001-81',em:'2026-10-27'}};
+  let e=c.previaChecklist([nova(obs)],empresas).eventos[0];
   assert.equal(e.cnpj,null); assert.equal(e.cnpj_origem,v); assert.equal(e.cnpj_origem_fonte,'observacao'); assert.equal(e.cadastro_disponivel,true);
   assert(e.orientacoes[0].includes('Cadastrar na carteira'));
-  e=c.previaChecklist(questions,[nova({'60':{answer:'11.222.333/0001-81'}})],empresas).eventos[0]; assert.equal(e.cnpj_origem_fonte,'campo'); assert(e.cadastro_disponivel);
-  e=c.previaChecklist(questions,[nova()],empresas).eventos[0]; assert(!e.cadastro_disponivel); assert(e.orientacoes[0].includes('campo CPF/CNPJ'));
-  e=c.previaChecklist(questions,[nova({'60':{answer:'11.222.333/0001-82'}})],empresas).eventos[0]; assert(!e.cadastro_disponivel); assert(e.problemas.some(p=>p.includes('inválido')));
-  e=c.previaChecklist(questions,[nova({...obs,'60':{answer:'45.123.840/0001-80'}})],empresas).eventos[0]; assert(!e.cadastro_disponivel); assert(e.problemas.some(p=>p.includes('diverge')));
-  e=c.previaChecklist(questions,[nova(obs)],[...empresas,{cnpj:v,codigo_empresa:'77'}]).eventos[0]; assert(!e.cadastro_disponivel); assert(e.problemas.some(p=>p.includes('Nosso Número 77')));
-  const saidaNova=nova(obs); saidaNova.answers['47'].answer='CLIENTE SAIDA'; assert(!c.previaChecklist(questions,[saidaNova],empresas).eventos[0].cadastro_disponivel);
-  const inativa=nova(obs); inativa.status='DELETED'; assert(!c.previaChecklist(questions,[inativa],empresas).eventos[0].cadastro_disponivel);
+  e=c.previaChecklist([nova({documento:'11222333000181'})],empresas).eventos[0]; assert.equal(e.cnpj_origem_fonte,'campo'); assert(e.cadastro_disponivel);
+  e=c.previaChecklist([nova()],empresas).eventos[0]; assert(!e.cadastro_disponivel); assert(e.orientacoes[0].includes('app Legalização'));
+  e=c.previaChecklist([nova({documento:'11222333000182'})],empresas).eventos[0]; assert(!e.cadastro_disponivel); assert(e.problemas.some(p=>p.includes('inválido')));
+  e=c.previaChecklist([nova({...obs,documento:'45123840000180'})],empresas).eventos[0]; assert(!e.cadastro_disponivel); assert(e.problemas.some(p=>p.includes('diverge')));
+  e=c.previaChecklist([nova(obs)],[...empresas,{cnpj:v,codigo_empresa:'77'}]).eventos[0]; assert(!e.cadastro_disponivel); assert(e.problemas.some(p=>p.includes('Nosso Número 77')));
+  assert(!c.previaChecklist([nova({...obs,statusCliente:'CLIENTE SAIDA'})],empresas).eventos[0].cadastro_disponivel);
   // Base da carteira (crm_empresas) também vincula; o cadastro contábil prevalece.
   const bases=c.unirBases([{cnpj:v,codigo_empresa:'1411',razao_social:'Contábil'}],[{cnpj:v,codigo_empresa:'1411'},{cnpj:'99999999999999',codigo_empresa:'5'}]);
   assert.equal(bases.length,2); assert.equal(bases.find(b=>b.cnpj===v).colecao,'empresas');
-  e=c.previaChecklist(questions,[nova(obs)],c.unirBases([],[{cnpj:v,codigo_empresa:'1411'}])).eventos[0]; assert.equal(e.cnpj,v); assert.equal(e.colecao,'crm_empresas'); assert(!e.cadastro_disponivel);
-  e=c.previaChecklist(questions,[nova(obs)],empresas).eventos[0];
+  e=c.previaChecklist([nova(obs)],c.unirBases([],[{cnpj:v,codigo_empresa:'1411'}])).eventos[0]; assert.equal(e.cnpj,v); assert.equal(e.colecao,'crm_empresas'); assert(!e.cadastro_disponivel);
+  e=c.previaChecklist([nova(obs)],empresas).eventos[0];
   const d=c.cadastroDoEvento(e,{confirmado:true,cnpj:v},'admin','2026-10-27T18:00:00Z');
   assert.equal(d.codigo_empresa,'1411'); assert.equal(d.origem,'CHECKLIST'); assert.deepEqual(d.responsaveis,[]); assert.equal(d.tributacao_origem,'02- SIMPLES');
   assert(!('crm_contrato' in d)); assert(Object.values(d).every(x=>x!==undefined));

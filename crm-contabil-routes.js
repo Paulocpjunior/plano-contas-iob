@@ -6,7 +6,9 @@ const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmp
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
-const { carregarChecklist, previaChecklist, contratoDoEvento, cadastroDoEvento, unirBases } = require('./crm-checklist');
+const { carregarChecklist, previaChecklist, contratoDoEvento, cadastroDoEvento, unirBases, ID_ITEM } = require('./crm-checklist');
+// Token de quem está logado: o CFI só entrega o checklist da Legalização a um usuário identificado.
+const tokenDe = req => { const a = String(req?.headers?.authorization || ''); return a.startsWith('Bearer ') ? a.slice(7) : ''; };
 
 // O acesso ao aplicativo não prova vínculo com o departamento.
 async function carregarDepartamento(req, env = process.env, fetcher = globalThis.fetch) {
@@ -590,13 +592,13 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
   app.post('/api/crm/checklist/aplicar', wrap(async (req, res) => {
     admin(await usuario(req));
     const b = req.body || {};
-    if (!/^\d{1,40}$/.test(b.submission_id || '') || !/^[a-f0-9]{64}$/.test(b.assinatura || '')) throw core.erro('Selecione um evento de uma prévia válida.');
-    const fonte = await checklist({ apiKey: env.CCI_CHECKLIST_API_KEY });
+    if (!ID_ITEM.test(b.submission_id || '') || !/^[a-f0-9]{64}$/.test(b.assinatura || '')) throw core.erro('Selecione um evento de uma prévia válida.');
+    const fonte = await checklist({ token: tokenDe(req), env });
     if (fonte.completo !== true || fonte.assinatura !== b.assinatura) throw core.erro('A origem mudou ou a leitura está incompleta. Confira uma nova prévia.', 409);
     const result = await db.runTransaction(async tx => {
       const user = await usuario(req, tx); admin(user);
       const bases = await basesChecklist(tx);
-      const previa = previaChecklist(fonte.questions, fonte.rows, bases);
+      const previa = previaChecklist(fonte.rows, bases);
       const evento = previa.eventos.find(e => e.submission_id === b.submission_id);
       if (!evento || !evento.cnpj || evento.problemas.length) throw core.erro('Evento indisponível ou com pendências. Confira novamente.', 409);
       const ref = db.collection(evento.colecao).doc(evento.cnpj);
@@ -621,23 +623,23 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
   }));
   app.get('/api/crm/checklist/previa', wrap(async (req, res) => {
     admin(await usuario(req));
-    const fonte = await checklist({ apiKey: env.CCI_CHECKLIST_API_KEY });
+    const fonte = await checklist({ token: tokenDe(req), env });
     if (fonte.completo !== true) throw core.erro('Leitura incompleta. Nenhum evento pode ser aplicado.', 502);
     // Reconfere o perfil após a consulta longa, antes de devolver dados.
     admin(await usuario(req));
-    res.json({ ok: true, form_id: fonte.form_id, lido_em: fonte.lido_em, assinatura: fonte.assinatura, ...previaChecklist(fonte.questions, fonte.rows, await basesChecklist()) });
+    res.json({ ok: true, form_id: fonte.form_id, lido_em: fonte.lido_em, assinatura: fonte.assinatura, ...previaChecklist(fonte.rows, await basesChecklist()) });
   }));
   app.post('/api/crm/checklist/cadastrar', wrap(async (req, res) => {
     admin(await usuario(req));
     const b = req.body || {};
-    if (!/^\d{1,40}$/.test(b.submission_id || '') || !/^[a-f0-9]{64}$/.test(b.assinatura || '') || !/^\d{14}$/.test(b.cnpj || '')) throw core.erro('Selecione uma entrada de uma prévia válida.');
-    const fonte = await checklist({ apiKey: env.CCI_CHECKLIST_API_KEY });
+    if (!ID_ITEM.test(b.submission_id || '') || !/^[a-f0-9]{64}$/.test(b.assinatura || '') || !/^\d{14}$/.test(b.cnpj || '')) throw core.erro('Selecione uma entrada de uma prévia válida.');
+    const fonte = await checklist({ token: tokenDe(req), env });
     if (fonte.completo !== true || fonte.assinatura !== b.assinatura) throw core.erro('A origem mudou ou a leitura está incompleta. Confira uma nova prévia.', 409);
     const result = await db.runTransaction(async tx => {
       const user = await usuario(req, tx); admin(user);
       const registro = db.collection('crm_checklist_cadastros').doc(b.submission_id);
       const feito = await tx.get(registro);
-      const previa = previaChecklist(fonte.questions, fonte.rows, await basesChecklist(tx));
+      const previa = previaChecklist(fonte.rows, await basesChecklist(tx));
       const evento = previa.eventos.find(e => e.submission_id === b.submission_id);
       if (feito.exists) {
         // Correção posterior na origem não pode passar como "já cadastrado" sobre a identidade antiga.
