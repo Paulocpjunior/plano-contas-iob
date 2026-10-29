@@ -2331,3 +2331,10 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - PEC (Nicolellis) 09/2026: tela "Aluguéis por planilha" mostrou "Administração não identificada" e o Paulo digitou a taxa à mão. A leitura (46ff9d4, 25/09) dependia só do percentual numérico na célula acima da coluna "taxa" (P1 = 0,2). Com a planilha anexada e o código atual, a tela preenche 20% (Playwright); a cópia importada provavelmente não tinha o P1 numérico.
 - `taxaAdministracao()` em `reinf/reinf-alugueis-planilha.js`: aceita P1 numérico ou texto "20%" e confere também taxa ÷ "aluguel X%" (coluna à esquerda) nas linhas. Um único percentual → usa; divergentes → null + aviso; nenhum → null (nada presumido).
 - Teste: `scripts/test-carne-leao-exclusoes.js` (sem P1, "20%", sem sinal, divergência).
+
+## 29/10/2026 — v3.4.475 Entrada aproveitada em competência posterior (CFI → CCI)
+
+- Print FLANACAR 09/2026 (sincronização direta, NF-e de entrada): 159 notas "Data de emissão ausente ou fora da competência". A pendência nasce no CFI (`sefaz-backend/movimento-nfe-contabil.js`) e o CCI (`movimento-fiscal-cfi.js`) repetia a exigência.
+- Regra do Paulo: por lei a nota de entrada pode ser aproveitada depois da emissão. Decisão (cartão, 29/10): liberar sempre, com ressalva; o Fim de Mês do CFI é mostrado na prévia (`fechamento_cfi`), sem barrar.
+- CFI marca `competenciaOrigem: 'aproveitamento-entrada'`; CCI só aceita com essa marca, emissão ANTES da competência e movimento entrada; lança no último dia, "emitida em" no histórico, lista na prévia. Saída, emissão posterior e sem data seguem bloqueadas. Deploy: CFI antes do CCI.
+- Trava: `scripts/test-movimento-fiscal-nfe-cfi.js`.
