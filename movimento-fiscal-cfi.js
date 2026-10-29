@@ -28,7 +28,7 @@
   // com autor e motivo. A que saiu da EMISSÃO não sustenta outro mês.
   const ORIGENS_COMPETENCIA_ACEITAS = ['declarada', 'fato-gerador', 'campo-competencia', 'corrigida'];
 
-  const origemBr = (o) => ({ declarada: 'declarada na nota', 'campo-competencia': 'declarada na nota', 'fato-gerador': 'pelo fato gerador', corrigida: 'corrigida no CFI' })[o] || o;
+  const origemBr = (o) => ({ declarada: 'declarada na nota', 'campo-competencia': 'declarada na nota', 'fato-gerador': 'pelo fato gerador', corrigida: 'corrigida no CFI', 'aproveitamento-entrada': 'do Livro de Entradas do CFI' })[o] || o;
 
   function ultimoDia(competencia) {
     return competencia + '-' + String(new Date(Number(competencia.slice(0, 4)), Number(competencia.slice(5, 7)), 0).getDate()).padStart(2, '0');
@@ -38,18 +38,24 @@
   // NFS-e em 01/10. O CFI põe a nota em 09/2026 pela competência declarada;
   // ela entra no último dia da competência, com a emissão no histórico e
   // ressalva na prévia. Emissão ANTERIOR à competência continua bloqueada.
-  function competenciaSustentaData(nota, data, competencia) {
-    return String(nota.competencia || '') === competencia
-      && ORIGENS_COMPETENCIA_ACEITAS.includes(String(nota.competenciaOrigem || ''))
-      && data.slice(0, 7) > competencia;
+  // 29/10, FLANACAR 09/2026 (decisão do Paulo): por força de lei, a NF-e de
+  // ENTRADA pode ser aproveitada em competência posterior à da emissão. O CFI
+  // marca a nota que está no Livro da competência com emissão ANTERIOR
+  // ('aproveitamento-entrada'); ela entra no último dia da competência, com a
+  // emissão no histórico e ressalva na prévia. Só vale para entrada.
+  function competenciaSustentaData(nota, data, competencia, movimento) {
+    if (String(nota.competencia || '') !== competencia) return false;
+    const origem = String(nota.competenciaOrigem || '');
+    if (origem === 'aproveitamento-entrada') return movimento === 'entrada' && data.slice(0, 7) < competencia;
+    return ORIGENS_COMPETENCIA_ACEITAS.includes(origem) && data.slice(0, 7) > competencia;
   }
 
-  function motivosNotaRecusada(nota, numero, valor, competencia) {
+  function motivosNotaRecusada(nota, numero, valor, competencia, movimento) {
     const motivos = [];
     if (!numero) motivos.push('sem número da nota no CFI');
     const data = String(nota.data || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) motivos.push('sem data legível no CFI');
-    else if (!validarDataCompetencia(data, competencia) && !competenciaSustentaData(nota, data, competencia)) {
+    else if (!validarDataCompetencia(data, competencia) && !competenciaSustentaData(nota, data, competencia, movimento)) {
       motivos.push('data ' + dataBr(data) + ', fora da competência ' + mesBr(competencia)
         + (String(nota.competencia || '') !== competencia ? ''
           : nota.competenciaOrigem ? ' (competência pela origem "' + nota.competenciaOrigem + '", que não sustenta outro mês)'
@@ -112,7 +118,8 @@
         const principal = { data: nota.data, valor: (saida ? 1 : -1) * r2(g.valor), valorContabil: r2(g.valor), valorNota: nota.valor,
           baseIcms: r2(g.baseIcms), valorIcms: r2(g.icms), isentasIcms: r2(g.isentas), outrasIcms: r2(g.outras), valorIcmsSt: r2(g.icmsSt), valorIpi: r2(g.ipi),
           especie: cte ? 'CTE' : (nota.modelo === '65' ? 'NFCE' : 'NFE'),
-          descricao: (saida ? 'Saída' : 'Entrada') + ' - ' + rotulo + ' - CFOP ' + g.cfop + ' - ' + participante,
+          descricao: (saida ? 'Saída' : 'Entrada') + ' - ' + rotulo + ' - CFOP ' + g.cfop + ' - ' + participante
+            + (nota.dataEmissaoNota ? ' - emitida em ' + dataBr(nota.dataEmissaoNota) : ''),
           descricao_memoria: participante, memoriaDescricoes: [participante, 'CFOP ' + g.cfop],
           documento: nota.numero, numero_nf: nota.numero, chave_nfe: chave, cfop: g.cfop, cfops: [g.cfop], cfopsNota: grupos.map(g => g.cfop),
           categoria: saida ? 'Saídas de Mercadorias' : 'Entradas de Mercadorias', categoriaFiscal: saida ? 'SAIDA_MERCADORIAS' : 'ENTRADA_MERCADORIAS',
@@ -121,7 +128,8 @@
           empresaCnpjFiscal: cnpj, empresaNomeFiscal: body.empresa?.nome || '', periodo_inicio: inicio, periodo_fim: fim,
           cfiDocumentoId: nota.idOrigem, cfiLancamentoId: nota.idOrigem + ':CFOP:' + g.cfop,
           cfiOrigemDocumento: nota.origemDocumento || 'CFI', origemDadosFiscal: 'CFI_API',
-          conta: 'Fiscal CFI - ' + movimento, nome_conta: 'Fiscal CFI - ' + movimento
+          conta: 'Fiscal CFI - ' + movimento, nome_conta: 'Fiscal CFI - ' + movimento,
+          ...(nota.dataEmissaoNota ? { dataEmissaoNota: nota.dataEmissaoNota, cfiCompetenciaOrigem: nota.competenciaOrigem } : {})
         };
         lancamentos.push(principal);
         IMPOSTOS_DO_GRUPO.forEach(cfg => {
@@ -160,7 +168,9 @@
       total_divergente: false, total_notas_fiscais: notas.length, total_nfe: notas.filter(n => n.modelo === '55').length, total_nfce: notas.filter(n => n.modelo === '65').length,
       total_cte: notas.filter(n => n.especie === 'CTE').length, total_impostos_destacados: impostos,
       notas_fora_do_livro_cfi: Array.isArray(body.foraDoLivro) ? body.foraDoLivro : [], total_lancamentos_fiscais: lancamentos.length,
-      documentos_lidos_cfi: body.documentosLidos || 0, ressalvas_cfi: body.ressalvas || [], lancamentos };
+      documentos_lidos_cfi: body.documentosLidos || 0, ressalvas_cfi: body.ressalvas || [],
+      notas_emitidas_fora_do_mes: notas.filter(n => n.dataEmissaoNota).map(n => ({ numero: n.numero, participante: n.participanteNome || '', dataEmissao: n.dataEmissaoNota, dataLancamento: n.data, competenciaOrigem: n.competenciaOrigem })),
+      fechamento_cfi: body.fechamentoCfi || null, lancamentos };
   }
 
   function normalizarMovimentoFiscalCfi(payload, esperado) {
@@ -197,7 +207,7 @@
       if (!id) throw new Error('Nota ' + (indice + 1) + ' sem identidade de origem no CFI.');
       if (vistos.has(id)) throw new Error('O CFI devolveu a mesma nota mais de uma vez: ' + id + '.');
       vistos.add(id);
-      const motivos = motivosNotaRecusada(nota, numero, valor, competencia);
+      const motivos = motivosNotaRecusada(nota, numero, valor, competencia, movimento);
       if (motivos.length) recusadas.push(rotuloNota(nota, numero, indice) + ': ' + motivos.join('; '));
       const data = String(nota.data || '');
       if (motivos.length || validarDataCompetencia(data, competencia)) return { ...nota, idOrigem: id, numero, valor };

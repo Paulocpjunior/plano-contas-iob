@@ -72,5 +72,24 @@ const payload = { ok:true, contrato:'movimento_fiscal_cfi_v1',cnpjEmpresa:opts.c
  assert.throws(()=>normalizarMovimentoFiscalCfi({...payload,movimento:'entrada',notas:[{...frete,especie:'NFE'}],resumo:{notas:1,total:1500,foraPorLacuna:0,icms:180,icmsSt:0,ipi:0}},{...opts,movimento:'entrada'}),/espécie/);
  const fonte = fs.readFileSync(require('path').join(__dirname,'..','index.html'),'utf8');
  assert.ok(fonte.includes('window.repetidosMovimentoFiscalCfi(state.entries'), 'importação direta usa a trava por nota');
+ // 29/10, FLANACAR 09/2026: NF-e de ENTRADA aproveitada em competência posterior à emissão.
+ const optsE={...opts,movimento:'entrada'};
+ const aproveitada={...nota,data:'2026-06-15',competencia:'2026-08',competenciaOrigem:'aproveitamento-entrada',dataEmissao:'2026-06-15',gruposCfop:[{...Z,cfop:'1102',valor:150}]};
+ const payE={...payload,movimento:'entrada',notas:[aproveitada],fechamentoCfi:{estado:'aberta'},ressalvas:['1 nota(s) de entrada emitida(s) antes de 08/2026']};
+ const rE=normalizarMovimentoFiscalCfi(payE,optsE);
+ assert.equal(rE.lancamentos[0].data,'2026-08-31','lança no último dia da competência');
+ assert.equal(rE.lancamentos[0].dataEmissaoNota,'2026-06-15');
+ assert.equal(rE.lancamentos[0].cfiCompetenciaOrigem,'aproveitamento-entrada');
+ assert.ok(rE.lancamentos[0].descricao.endsWith(' - emitida em 15/06/2026'),rE.lancamentos[0].descricao);
+ assert.equal(rE.notas_emitidas_fora_do_mes.length,1);
+ assert.deepEqual(rE.fechamento_cfi,{estado:'aberta'});
+ assert.equal(rE.ressalvas_cfi.length,1);
+ assert.equal(normalizarMovimentoFiscalCfi({...payload,movimento:'entrada',notas:[{...nota,gruposCfop:[{...Z,cfop:'1102',valor:150}]}]},optsE).notas_emitidas_fora_do_mes.length,0,'nota do próprio mês segue como antes');
+ // Sem a marca do CFI, emissão anterior continua barrada; saída e emissão POSTERIOR também.
+ assert.throws(()=>normalizarMovimentoFiscalCfi({...payE,notas:[{...aproveitada,competenciaOrigem:null}]},optsE),/fora da competência/);
+ assert.throws(()=>normalizarMovimentoFiscalCfi({...payE,notas:[{...aproveitada,data:'2026-09-02'}]},optsE),/fora da competência/);
+ assert.throws(()=>normalizarMovimentoFiscalCfi({...payload,notas:[{...nota,data:'2026-06-15',competencia:'2026-08',competenciaOrigem:'aproveitamento-entrada'}]},opts),/fora da competência/);
+ // A tela lista as notas emitidas antes para conferência.
+ assert.ok(fonte.includes('resultado.notas_emitidas_fora_do_mes.map'),'prévia lista as notas emitidas antes da competência');
  console.log('OK: modal NF-e, contrato, CFOPs, sinais, CNPJ, competência, incompletas, reconsulta, CT-e e ICMS/ST/IPI por CFOP.');
 })().catch(e=>{console.error(e);process.exitCode=1});
