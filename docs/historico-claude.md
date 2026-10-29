@@ -2338,3 +2338,10 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Regra do Paulo: por lei a nota de entrada pode ser aproveitada depois da emissão. Decisão (cartão, 29/10): liberar sempre, com ressalva; o Fim de Mês do CFI é mostrado na prévia (`fechamento_cfi`), sem barrar.
 - CFI marca `competenciaOrigem: 'aproveitamento-entrada'`; CCI só aceita com essa marca, emissão ANTES da competência e movimento entrada; lança no último dia, "emitida em" no histórico, lista na prévia. Saída, emissão posterior e sem data seguem bloqueadas. Deploy: CFI antes do CCI.
 - Trava: `scripts/test-movimento-fiscal-nfe-cfi.js`.
+
+## 29/10/2026 — v3.4.476 Classificar com IA não troca conta definida por pessoa
+
+- Print Paulo: lançamentos manuais do Rafael (07–09/2026: INSS, Simples, multa, juros) todos com débito 893 / crédito 17 / Cód IOB 1999 e marca 🧠. Causa: `classificarComIA` roda `aplicarMemoriaEmLancamentos` (sobrescreve débito/crédito sem auditoria) e manda à IA tudo que não tem `_memorizado`, inclusive manuais já classificados. Até a v3.4.472 isso rodava na base inteira.
+- Correção: `classificacaoDeUsuario`/`separarClassificadosPorUsuario` em `classificacao-ia-escopo.js` (manual classificado, `historicoEdicoes` ou `auditoriaAlteracoes` com conta) saem do escopo da IA; `aplicarMemoriaEmLancamentos` também pula. Confirmação informa quantos ficaram.
+- Dados já alterados não voltam sozinhos (sobrescrita não tinha auditoria): corrigir pelo ✏️/Alterar selecionados ou ler o backup diário de antes da execução da IA. Memória que aponta 893 para essas descrições deve ser corrigida pelo admin (✏️🧠).
+- Trava: `scripts/test-classificacao-ia-escopo.js`.

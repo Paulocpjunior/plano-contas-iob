@@ -74,6 +74,29 @@
         return { aplicados: aplicados };
     }
 
+    function alterouContas(evento) {
+        const campos = (evento && evento.campos) || [];
+        return campos.indexOf('contaDebito') >= 0 || campos.indexOf('contaCredito') >= 0;
+    }
+
+    // Débito e crédito que uma PESSOA decidiu (lançamento manual, edição na
+    // tela ou alteração em lote) não são da IA nem da memória: caso Rafael
+    // 09/2026, INSS/Simples/multa/juros digitados viraram todos 893.
+    function classificacaoDeUsuario(entry) {
+        const e = entry || {};
+        if (!e.contaDebito || !e.contaCredito) return false;
+        if (String(e.origem || '').toLowerCase() === 'manual' || e.criadoManualEm) return true;
+        return (Array.isArray(e.historicoEdicoes) && e.historicoEdicoes.some(alterouContas))
+            || (Array.isArray(e.auditoriaAlteracoes) && e.auditoriaAlteracoes.some(alterouContas));
+    }
+
+    function separarClassificadosPorUsuario(itens) {
+        const livres = [];
+        const preservados = [];
+        (itens || []).forEach(function (e) { (classificacaoDeUsuario(e) ? preservados : livres).push(e); });
+        return { livres: livres, preservados: preservados };
+    }
+
     function descreverEscopo(escopo) {
         const n = escopo.itens.length;
         const rotulo = escopo.origem === 'selecionados' ? 'selecionado' : escopo.origem === 'filtrados' ? 'filtrado' : '';
@@ -85,6 +108,8 @@
         LIMITE_POR_EXECUCAO: LIMITE_POR_EXECUCAO,
         definirEscopo: definirEscopo,
         mesclarNoEscopo: mesclarNoEscopo,
+        classificacaoDeUsuario: classificacaoDeUsuario,
+        separarClassificadosPorUsuario: separarClassificadosPorUsuario,
         descreverEscopo: descreverEscopo
     };
 });
