@@ -1,7 +1,8 @@
 {
-  "version": "3.4.475",
-  "build_date": "2026-10-29T13:00:00Z",
+  "version": "3.4.476",
+  "build_date": "2026-10-29T22:00:00Z",
   "release_notes": [
+    "Lançamentos → 🤖 Classificar com IA: o débito e o crédito definidos por uma pessoa (lançamento manual, conta editada na linha ou em \"Alterar selecionados\") não são mais trocados pela memória nem pela IA. Antes, rodar a IA sobre um filtro que incluía lançamentos manuais reaplicava a memória da empresa e podia pôr a mesma conta em todos (caso INSS/Simples/multa/juros que viraram 893). A confirmação diz quantos ficam como estão. Lançamentos já alterados não voltam sozinhos: corrija pelo ✏️ ou por \"Alterar selecionados\".",
     "Importações → Movimento Fiscal (NF-e de entrada, sincronização direta do CFI): a nota de entrada emitida em mês anterior e aproveitada na competência pelo Livro do CFI deixa de barrar a importação, porque por lei a nota de compra pode ser aproveitada depois. Ela é lançada no último dia da competência, com \"emitida em\" no histórico, e a prévia lista essas notas e diz se a competência já teve Fim de Mês no CFI, sem barrar por isso. Nota de saída fora do mês, nota de entrada emitida depois da competência e nota sem data continuam bloqueadas. Requer o CFI atualizado.",
     "Carnê-Leão (Aluguéis por planilha): a taxa de administração volta a ser deduzida sozinha mesmo quando a planilha não traz o percentual na célula acima da coluna \"taxa\" (ou o traz como texto \"20%\"). O CCI passa a conferir também a conta da própria planilha (taxa ÷ aluguel da cota). Se o percentual informado e a conta divergirem, a tela avisa e pede o valor, sem presumir percentual.",
     "Classificar com IA: a IA classifica só o que a tela mostra. Com linhas selecionadas, só as selecionadas; senão, só os lançamentos filtrados (antes ia a base inteira, e com 20 mil lançamentos a aba travava). O limite é de 500 por vez: acima disso a tela pede para filtrar ou selecionar. Lançamento de período encerrado não é alterado, e a tela confirma quantos serão classificados antes de começar.",
