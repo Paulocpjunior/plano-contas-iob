@@ -2345,3 +2345,9 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Correção: `classificacaoDeUsuario`/`separarClassificadosPorUsuario` em `classificacao-ia-escopo.js` (manual classificado, `historicoEdicoes` ou `auditoriaAlteracoes` com conta) saem do escopo da IA; `aplicarMemoriaEmLancamentos` também pula. Confirmação informa quantos ficaram.
 - Dados já alterados não voltam sozinhos (sobrescrita não tinha auditoria): corrigir pelo ✏️/Alterar selecionados ou ler o backup diário de antes da execução da IA. Memória que aponta 893 para essas descrições deve ser corrigida pelo admin (✏️🧠).
 - Trava: `scripts/test-classificacao-ia-escopo.js`.
+
+## 30/10/2026 — v3.4.477 Nome de conta cortado no balancete (importação do plano)
+- Balancete 01–08/2026 do CNPJ 14.583.444/0001-01: grupos com nome de mais de 24 letras perdiam exatamente as 24 primeiras ("GENS" = MATÉRIAS PRIMAS E EMBALAGENS, "NGO PRAZO", "O PRAZO", "NTOS", "ZADO", "ERÁVEIS", "NISTRATIVAS", "LL", "CIAL"). O relatório só repete o `desc` gravado no plano.
+- Causa: `parsearPlanoTXT` (index.html, também usado no PDF). Linha "código - descrição   reduzido" sem descrição em coluna própria caía na Estratégia B, `line.substring(40, 77)` cortando no meio da palavra (descrição começa na coluna 16 → 24 letras perdidas); nome ≤ 24 caía no `substring(14, 54)` e saía inteiro. O reduzido posicional (`substring(54)`) também podia gravar texto ("PRAZO") como reduzido.
+- Correção: Estratégia A2 tira a descrição da 1ª coluna depois do código; posições fixas só valem em início de coluna; reduzido posicional só se for numérico/5G. Planos SAGE de referência (Comércio, Comércio/Indústria, Serviços) dão o mesmo resultado de antes. Teste `scripts/test-plano-descricao-numerica.js` agora registrado no `check`.
+- Dado já gravado não se corrige sozinho (sem acesso ao Firestore para conferir a origem): reimportar o plano da empresa com sobrescrever (mantém ID e vínculos).
