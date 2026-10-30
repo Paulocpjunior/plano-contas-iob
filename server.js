@@ -5166,6 +5166,11 @@ app.get('/api/admin/backups/:app/:run/manifest', adminRequired, async (req,res) 
   try { res.json(await backupAdmin.manifest(req.params.app,req.params.run)); }
   catch (_) { res.status(409).json({erro:'Manifesto indisponível ou não conferido.'}); }
 });
+app.get('/api/admin/backups/:app/:run/unas', adminRequired, async (req,res) => {
+  res.set('Cache-Control','no-store');
+  try { res.json(await backupAdmin.unas(req.params.app,req.params.run)); }
+  catch (_) { res.status(409).json({erro:'Comprovante UNAS indisponível ou não conferido.'}); }
+});
 app.post('/api/admin/backups/action', adminRequired, async (req,res) => {
   const {app,action,backup,confirmation,requestId}=req.body||{};
   if(!['CCI','CFI'].includes(app)||!['backup','restore-test'].includes(action))return res.status(400).json({erro:'Ação inválida.'});

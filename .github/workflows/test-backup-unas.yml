@@ -1,0 +1,48 @@
+name: Replicação UNAS verificável
+on:
+  pull_request:
+    paths:
+      - 'backup_unas/**'
+      - 'tests/backup_unas/**'
+      - '*backups*.js'
+      - 'unas-receipt.js'
+      - 'backup-notifications.js'
+      - 'scripts/test-*backup*.js'
+      - 'scripts/test-unas-*.js'
+      - 'server.js'
+      - '.github/workflows/test-backup-unas.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.6'
+          cache-dependency-path: backup_unas/wireguard/go.sum
+      - run: go test -race ./...
+        working-directory: backup_unas/wireguard
+      - run: pip install -r backup_unas/requirements.lock
+      - run: npm ci --no-audit --no-fund
+      - run: python -m unittest discover -s tests/backup_unas -v
+      - run: |
+          node --check server.js
+          node --check admin-backups-ui.js
+          node scripts/test-admin-backups.js
+          node scripts/test-backup-notifications.js
+          node scripts/test-unas-receipt.js
+          node scripts/test-unas-notifications.js
+          node scripts/test-unas-ui.js
