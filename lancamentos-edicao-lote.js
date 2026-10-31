@@ -120,7 +120,8 @@
 
     // Substituição de um movimento do CFI já importado (28/10, Ferrante 09/2026):
     // UM evento na auditoria com o resumo de cada linha removida. Um evento por
-    // linha empurraria para fora os 100 últimos registros de uma vez só.
+    // linha empurraria para fora os 100 últimos registros de uma vez só. O
+    // servidor aceita a ausência dessas linhas pelo id listado aqui.
     const CAMPOS_SUBSTITUICAO = ['id', 'numeroLancamento', 'data', 'valor', 'documento', 'cfop', 'descricao',
         'contaDebito', 'contaCredito', 'codigoHistorico', 'cfiLancamentoId', 'importacaoId', 'importacaoTitulo'];
     function registrarSubstituicao(estado, removidos, metadados) {
@@ -137,6 +138,8 @@
                 CAMPOS_SUBSTITUICAO.forEach(function (campo) {
                     if (entry && entry[campo] !== undefined) resumo[campo] = entry[campo];
                 });
+                // Sem id, o servidor (session-loss-guard) só reconhece a linha inteira.
+                if (entry && entry.id == null) resumo.completo = copiar(entry);
                 return resumo;
             })
         };
