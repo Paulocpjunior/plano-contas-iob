@@ -1,6 +1,6 @@
 const assert = require('assert/strict');
 const fs = require('fs'), vm = require('vm');
-const { normalizarMovimentoFiscalCfi, repetidosMovimentoFiscalCfi } = require('../movimento-fiscal-cfi');
+const { normalizarMovimentoFiscalCfi, repetidosMovimentoFiscalCfi, substituicaoMovimentoFiscalCfi } = require('../movimento-fiscal-cfi');
 const { buscarMovimentoFiscalNoCfi } = require('../reinf/cfi-notas-client');
 const { validarVinculoCnpjFiscal } = require('../parser-flanacar-registro-entradas');
 const chave = '35260832602701000197550100000111941000392711';
@@ -45,6 +45,26 @@ const payload = { ok:true, contrato:'movimento_fiscal_cfi_v1',cnpjEmpresa:opts.c
  assert.equal(repetidosMovimentoFiscalCfi(antes, daFilial).length, 0, 'outro CNPJ do grupo não bloqueia');
  assert.equal(repetidosMovimentoFiscalCfi(daFilial.map(l=>({...l,origemDadosFiscal:'CFI_API'})), daFilial).length, 1, 'a mesma filial repete');
  assert.equal(repetidosMovimentoFiscalCfi(antes.map(l=>({...l,empresaCnpjFiscal:''})), daFilial).length, 1, 'lançamento antigo sem CNPJ continua contando');
+ // FERRANTE 09/2026 (28/10, NF 66423 1101 → 1102): a importação anterior à correção é SUBSTITUÍDA pela atual.
+ const escopoE={cnpj:opts.cnpj,competencia:'2026-08',movimento:'entrada'};
+ const gravado=(l,o={})=>({...l,origemDadosFiscal:'CFI_API',competenciaFiscalValidada:'2026-08',movimentoFiscalTipo:'entrada',cnpjEmpresaFiscalValidado:opts.cnpj,...o});
+ const chProdutor='35260812345678000190550010000000181000000018';
+ const produtor=gravado(antes[0],{cfiDocumentoId:chProdutor,cfiLancamentoId:chProdutor+':CFOP:1101',documento:'18',cfop:'1101'});
+ const outroMes=gravado(antes[0],{cfiDocumentoId:'outra',cfiLancamentoId:'outra:CFOP:1102',competenciaFiscalValidada:'2026-07'});
+ const saidaMesmoMes=gravado(antes[0],{cfiDocumentoId:'venda',cfiLancamentoId:'venda:CFOP:5102',movimentoFiscalTipo:'saida'});
+ const manual={id:'m1',data:'2026-08-10',valor:-10,origem:'manual'};
+ const editado=gravado(antes[0],{editadoEm:'2026-08-20'});
+ const plano=substituicaoMovimentoFiscalCfi([editado,produtor,outroMes,saidaMesmoMes,manual],depois,escopoE);
+ assert.deepEqual(plano.remover,[editado,produtor],'sai a nota repetida (CFOP antigo) e a que o CFI não manda mais; outro mês, outro movimento e manual ficam');
+ assert.deepEqual(plano.notas,[{numero:'11194',cfopNovo:'2407',cfopAnterior:'1929'}]);
+ assert.deepEqual(plano.semNotaNova,[{numero:'18',cfop:'1101'}]);
+ assert.equal(plano.editadosAMao,1);
+ assert.equal(substituicaoMovimentoFiscalCfi([outroMes,saidaMesmoMes,manual],depois,escopoE).remover.length,0,'sem importação anterior não pergunta nada');
+ assert.equal(substituicaoMovimentoFiscalCfi([produtor],depois,{...escopoE,cnpj:'29240822000202'}).remover.length,0,'outro estabelecimento não é substituído');
+ assert.equal(substituicaoMovimentoFiscalCfi([produtor],depois,{}).remover.length,0,'sem escopo, só a mesma nota é substituída');
+ // Linha antiga sem cfiDocumentoId: a nota sai do id do lançamento.
+ const semDoc=gravado(antes[0]); delete semDoc.cfiDocumentoId;
+ assert.deepEqual(substituicaoMovimentoFiscalCfi([semDoc],depois,{}).remover,[semDoc]);
  // NOVA ERA 09/2026 (21/10): o frete (CT-e) sobe e o ICMS/ST/IPI vira linha de imposto destacado por CFOP.
  const T='77888999000155', E=opts.cnpj;
  const chaveDe=(emit,mod,n)=>{const c='3526'+'09'+emit+mod+'001'+String(n).padStart(9,'0')+'1'+'00000001';let s=0,w=2;for(let i=42;i>=0;i--){s+=Number(c[i])*w;w=w===9?2:w+1;}const d=11-s%11;return c+String(d>=10?0:d);};
@@ -71,7 +91,7 @@ const payload = { ok:true, contrato:'movimento_fiscal_cfi_v1',cnpjEmpresa:opts.c
  assert.throws(()=>normalizarMovimentoFiscalCfi({...payload,notas:[{...nota,gruposCfop:[{...Z,cfop:'5102',valor:150,icms:-1}]}]},opts),/não enviou ICMS/);
  assert.throws(()=>normalizarMovimentoFiscalCfi({...payload,movimento:'entrada',notas:[{...frete,especie:'NFE'}],resumo:{notas:1,total:1500,foraPorLacuna:0,icms:180,icmsSt:0,ipi:0}},{...opts,movimento:'entrada'}),/espécie/);
  const fonte = fs.readFileSync(require('path').join(__dirname,'..','index.html'),'utf8');
- assert.ok(fonte.includes('window.repetidosMovimentoFiscalCfi(state.entries'), 'importação direta usa a trava por nota');
+ assert.ok(fonte.includes('window.substituicaoMovimentoFiscalCfi(state.entries'), 'importação direta usa a trava por nota');
  // 29/10, FLANACAR 09/2026: NF-e de ENTRADA aproveitada em competência posterior à emissão.
  const optsE={...opts,movimento:'entrada'};
  const aproveitada={...nota,data:'2026-06-15',competencia:'2026-08',competenciaOrigem:'aproveitamento-entrada',dataEmissao:'2026-06-15',gruposCfop:[{...Z,cfop:'1102',valor:150}]};

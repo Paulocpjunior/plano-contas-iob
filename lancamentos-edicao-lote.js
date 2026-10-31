@@ -118,6 +118,33 @@
         estado.auditoriaLancamentos = auditoria;
     }
 
+    // Substituição de um movimento do CFI já importado (28/10, Ferrante 09/2026):
+    // UM evento na auditoria com o resumo de cada linha removida. Um evento por
+    // linha empurraria para fora os 100 últimos registros de uma vez só.
+    const CAMPOS_SUBSTITUICAO = ['id', 'numeroLancamento', 'data', 'valor', 'documento', 'cfop', 'descricao',
+        'contaDebito', 'contaCredito', 'codigoHistorico', 'cfiLancamentoId', 'importacaoId', 'importacaoTitulo'];
+    function registrarSubstituicao(estado, removidos, metadados) {
+        const meta = metadados || {};
+        garantirPeriodosAbertos(removidos, meta.periodos || []);
+        const auditoria = Array.isArray(estado.auditoriaLancamentos) ? estado.auditoriaLancamentos.slice(-99) : [];
+        const evento = {
+            tipo: 'substituicao_movimento_cfi',
+            em: meta.em || new Date().toISOString(),
+            por: meta.por || 'usuario_nao_identificado',
+            motivo: meta.motivo || '',
+            lancamentos: (removidos || []).map(function (entry) {
+                const resumo = {};
+                CAMPOS_SUBSTITUICAO.forEach(function (campo) {
+                    if (entry && entry[campo] !== undefined) resumo[campo] = entry[campo];
+                });
+                return resumo;
+            })
+        };
+        auditoria.push(evento);
+        estado.auditoriaLancamentos = auditoria;
+        return evento;
+    }
+
     // Reordenação por data dentro de UMA competência aberta. Os números já usados pela competência
     // são redistribuídos na ordem (data, número atual): nenhum número de outro mês é tocado, a
     // numeração continua única e as partidas de um mesmo lançamento múltiplo seguem juntas.
@@ -352,6 +379,7 @@
         executarComRollback: executarComRollback,
         aplicarEdicaoIndividual: aplicarEdicaoIndividual,
         registrarExclusao: registrarExclusao,
+        registrarSubstituicao: registrarSubstituicao,
         valorEmCentavos: valorEmCentavos,
         normalizarPartidas: normalizarPartidas,
         montarPartidasBalanceadas: montarPartidasBalanceadas,
