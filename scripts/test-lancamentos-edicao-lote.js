@@ -237,6 +237,22 @@ assert(pacote.scripts.precheck.includes('npm run test:lancamentos-lote'), 'deplo
   estado.entries.splice(0, 1);
   assert.strictEqual(estado.auditoriaLancamentos.length, 1);
   assert.strictEqual(estado.auditoriaLancamentos[0].lancamento.descricao, 'Depois');
+
+  // Substituição de movimento do CFI (28/10, Ferrante 09/2026): um evento só, com o resumo de cada linha.
+  const antigos = [
+    { id: 'a1', numeroLancamento: 7, data: '2026-09-30', valor: -100, documento: '66423', cfop: '1101', contaDebito: '1.1.3', contaCredito: '2.1.1', descricao: 'Entrada - NF 66423 - CFOP 1101', chave_nfe: 'x'.repeat(44), historicoEdicoes: [{ por: 'Ana' }] },
+    { id: 'a2', numeroLancamento: 8, data: '2026-09-30', valor: -12, documento: '66423', cfop: '1101', cfiLancamentoId: 'ch:CFOP:1101:ICMS' }
+  ];
+  const evento = lote.registrarSubstituicao(estado, antigos, { periodos: [], por: 'colaborador@empresa.com', motivo: 'Substituído pela versão atual do CFI' });
+  assert.strictEqual(estado.auditoriaLancamentos.length, 2, 'uma substituição é UM evento, não um por linha');
+  assert.strictEqual(evento.tipo, 'substituicao_movimento_cfi');
+  assert.deepStrictEqual(evento.lancamentos.map(function (l) { return [l.id, l.numeroLancamento, l.cfop, l.valor]; }), [['a1', 7, '1101', -100], ['a2', 8, '1101', -12]]);
+  assert.strictEqual(evento.lancamentos[0].contaDebito, '1.1.3', 'a classificação removida fica na auditoria');
+  assert.strictEqual(evento.lancamentos[0].chave_nfe, undefined, 'resumo enxuto: o evento não copia a linha inteira');
+  assert.throws(function () {
+    lote.registrarSubstituicao(estado, antigos, { periodos: [{ periodo: '2026-09', status: 'fechado' }] });
+  }, function (erro) { return erro.code === 'PERIODO_CONTABIL_FECHADO'; }, 'competência encerrada não é substituída');
+  assert.strictEqual(estado.auditoriaLancamentos.length, 2, 'bloqueio não registra nada');
 })().then(function () {
   console.log('OK: edição, bloqueio, auditoria, persistência e rollback validados.');
 }).catch(function (erro) {

@@ -4,6 +4,7 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.normalizarMovimentoFiscalCfi = api.normalizarMovimentoFiscalCfi;
   root.repetidosMovimentoFiscalCfi = api.repetidosMovimentoFiscalCfi;
+  root.substituicaoMovimentoFiscalCfi = api.substituicaoMovimentoFiscalCfi;
 })(typeof window !== 'undefined' ? window : globalThis, function() {
   'use strict';
 
@@ -464,16 +465,20 @@
   // (`:CFOP:2407`), então comparar só ele deixava reimportar a MESMA nota
   // quando o CFOP mudou no CFI (21/10, NF 285590: 1929 → 2407) e o mês
   // dobrava. A nota (cfiDocumentoId) também conta.
-  function repetidosMovimentoFiscalCfi(existentes, novos) {
-    // Matriz que recebe a filial guarda dois estabelecimentos na mesma sessão:
-    // a mesma nota (ex.: transferência 5152/1152) é de cada um. Só repete no
-    // MESMO CNPJ; lançamento antigo sem CNPJ continua contando.
+  // Matriz que recebe a filial guarda dois estabelecimentos na mesma sessão:
+  // a mesma nota (ex.: transferência 5152/1152) é de cada um. Só repete no
+  // MESMO CNPJ; lançamento antigo sem CNPJ continua contando.
+  function lancamentosCfiDoEstabelecimento(existentes, novos) {
     const cnpjsNovos = new Set((novos || []).map(n => digitos(n.empresaCnpjFiscal)).filter(c => c.length === 14));
-    const doCfi = (existentes || []).filter(e => {
+    return (existentes || []).filter(e => {
       if (!e || e.origemDadosFiscal !== 'CFI_API') return false;
       const cnpj = digitos(e.empresaCnpjFiscal || e.cnpjEmpresaFiscalValidado);
       return cnpj.length !== 14 || !cnpjsNovos.size || cnpjsNovos.has(cnpj);
     });
+  }
+
+  function repetidosMovimentoFiscalCfi(existentes, novos) {
+    const doCfi = lancamentosCfiDoEstabelecimento(existentes, novos);
     const lancs = new Set(doCfi.map(e => String(e.cfiLancamentoId || '')).filter(Boolean));
     const docs = new Map();
     doCfi.forEach(e => { const id = String(e.cfiDocumentoId || ''); if (id && !docs.has(id)) docs.set(id, e); });
@@ -488,5 +493,38 @@
     return [...notas.values()];
   }
 
-  return { normalizarMovimentoFiscalCfi, repetidosMovimentoFiscalCfi };
+  // 28/10, FERRANTE 09/2026 (NF 66423: Livro 1102, CCI 1101): a importação
+  // feita antes da correção de 21/10 ficou com o CFOP antigo, e a trava acima
+  // só mandava "remover a importação anterior", linha a linha pelo 🗑️.
+  // A substituição troca, de uma vez, o que o CFI já tinha entregue para o
+  // MESMO estabelecimento, competência e movimento pela versão atual do Livro:
+  // as notas repetidas (pela nota, qualquer que seja o CFOP antigo) e as que o
+  // CFI não manda mais (ex.: NF do produtor que o Livro tirou pelo art. 136).
+  function substituicaoMovimentoFiscalCfi(existentes, novos, escopo) {
+    const esc = escopo || {};
+    const cnpjEscopo = digitos(esc.cnpj);
+    const doCfi = lancamentosCfiDoEstabelecimento(existentes, novos);
+    const docOf = e => String(e.cfiDocumentoId || String(e.cfiLancamentoId || '').split(':')[0] || '');
+    const docsNovos = new Set((novos || []).map(docOf).filter(Boolean));
+    const lancsNovos = new Set((novos || []).map(n => String(n.cfiLancamentoId || '')).filter(Boolean));
+    const mesmoEscopo = e => !!esc.competencia && !!esc.movimento && cnpjEscopo.length === 14
+      && String(e.competenciaFiscalValidada || '') === esc.competencia
+      && String(e.movimentoFiscalTipo || '') === esc.movimento
+      && digitos(e.cnpjEmpresaFiscalValidado || e.empresaCnpjFiscal) === cnpjEscopo;
+    const remover = doCfi.filter(e => docsNovos.has(docOf(e)) || lancsNovos.has(String(e.cfiLancamentoId || '')) || mesmoEscopo(e));
+    const semNotaNova = new Map();
+    remover.forEach(e => {
+      const doc = docOf(e);
+      if (docsNovos.has(doc) || semNotaNova.has(doc || e)) return;
+      semNotaNova.set(doc || e, { numero: String(e.documento || e.numero_nf || ''), cfop: String(e.cfop || '') });
+    });
+    return {
+      notas: repetidosMovimentoFiscalCfi(existentes, novos),
+      remover,
+      semNotaNova: [...semNotaNova.values()],
+      editadosAMao: remover.filter(e => e.editadoEm || (Array.isArray(e.historicoEdicoes) && e.historicoEdicoes.length)).length
+    };
+  }
+
+  return { normalizarMovimentoFiscalCfi, repetidosMovimentoFiscalCfi, substituicaoMovimentoFiscalCfi };
 });

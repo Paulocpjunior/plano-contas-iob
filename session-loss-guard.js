@@ -18,9 +18,15 @@ function validarPerdaLancamentos(antes, depois, resumo, usuario) {
     semId.splice(i, 1); return false;
   });
   const anteriores = antes.auditoriaLancamentos || [];
-  const eventos = (depois.auditoriaLancamentos || []).filter(e => e.tipo === 'exclusao_lancamento' &&
-    !anteriores.some(a => isDeepStrictEqual(a, e)));
-  const semExclusao = removidos.filter(e => !eventos.some(a => isDeepStrictEqual(a.lancamento, e)));
+  const novosEventos = (depois.auditoriaLancamentos || []).filter(e => e && !anteriores.some(a => isDeepStrictEqual(a, e)));
+  const eventos = novosEventos.filter(e => e.tipo === 'exclusao_lancamento');
+  // Substituição de movimento do CFI: UM evento lista as linhas que saem
+  // (resumo com id; a linha sem id vai inteira em `completo`).
+  const substituidos = novosEventos.filter(e => e.tipo === 'substituicao_movimento_cfi' && Array.isArray(e.lancamentos))
+    .flatMap(e => e.lancamentos);
+  const autorizado = e => eventos.some(a => isDeepStrictEqual(a.lancamento, e))
+    || substituidos.some(s => s && (e.id != null ? s.id != null && String(s.id) === String(e.id) : isDeepStrictEqual(s.completo, e)));
+  const semExclusao = removidos.filter(e => !autorizado(e));
   return semExclusao.length
     ? { ok: false, codigo: 'PERDA_LANCAMENTOS_BLOQUEADA', erro: 'O salvamento omitiu ' + semExclusao.length + ' lançamento(s) sem exclusão registrada. Os dados online foram preservados. Reabra a empresa após conferir as alterações pendentes.' }
     : { ok: true };

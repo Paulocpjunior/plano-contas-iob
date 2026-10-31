@@ -34,7 +34,7 @@ assert(index.includes('Sincronização direta do CFI — sem PDF'), 'CFI deve ap
 assert(index.includes('Arquivo fiscal da SAGE / E-Fiscal'), 'arquivo deve ficar identificado como origem exclusiva SAGE/E-Fiscal');
 assert(index.includes('PDF aceito somente quando gerado pela SAGE / E-Fiscal.'), 'regra de PDF exclusivo SAGE deve ficar explicita no modal');
 assert(index.includes("origemIntegracaoFiscal: diretoCfi ? 'CFI_API' : 'ARQUIVO_SAGE'"), 'origem direta e arquivo SAGE devem permanecer auditaveis');
-assert(index.includes('window.repetidosMovimentoFiscalCfi(state.entries') && index.includes('Remova a importação anterior antes de sincronizar novamente.'), 'sincronizacao CFI deve bloquear repeticao da mesma nota');
+assert(index.includes('window.substituicaoMovimentoFiscalCfi(state.entries') && index.includes('registrarSubstituicao(state, substituicaoCfi.remover'), 'sincronizacao CFI repetida so grava substituindo a importacao anterior, com auditoria');
 assert(index.includes('validarEscopoFiscalAntesDeGravar(resultado, vinculo, layout, cnpjAtivo)'), 'validacao inicial deve vetar CNPJ ou competencia divergente');
 assert(index.includes('validarEscopoFiscalAntesDeGravar(resultado, vinculo, validacao.layout, cnpjAtivoAgora, modalRetencoesTomados ? [] : movimentoFiscalEstabelecimentos.filiais)'), 'escopo deve ser conferido novamente antes da gravacao');
 assert(index.includes('competenciaFiscalValidada: competencia'), 'lancamento deve preservar competencia fiscal validada');
