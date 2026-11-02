@@ -40,7 +40,33 @@ function capacidade(body, antes={}) {
   if(!Array.isArray(ausencias)||ausencias.length>24)throw erro('Informe até 24 períodos de ausência.');
   const periodos=ausencias.map(a=>({inicio:data(a.inicio,'início da ausência',true),fim:data(a.fim,'fim da ausência',true)})).sort((a,b)=>a.inicio.localeCompare(b.inicio));
   periodos.forEach((a,i)=>{if(a.fim<a.inicio||i&&a.inicio<=periodos[i-1].fim)throw erro('Confira os períodos de ausência: datas invertidas ou sobrepostas.');});
-  return {horas_semanais,ausencias:periodos,revisao:(antes.revisao||0)+1};
+  // Pausas: corpo sem o campo (tela antiga em cache) preserva o que já estava gravado.
+  const pausas=body.pausas===undefined?(antes.pausas||{manha:null,tarde:null}):pausasColaborador(body.pausas);
+  return {horas_semanais,ausencias:periodos,pausas,revisao:(antes.revisao||0)+1};
+}
+// Cada colaborador tem direito a 10 minutos de pausa de manhã e 10 à tarde.
+// Horário não informado fica null ("não definida"), nunca um horário presumido.
+const PAUSA_MAX_MINUTOS=10;
+const PERIODOS_PAUSA={manha:{nome:'manhã',de:0,ate:12*60},tarde:{nome:'tarde',de:12*60,ate:24*60}};
+function minutosHora(v,rotulo){
+  if(typeof v!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(v))throw erro('Informe o '+rotulo+' no formato HH:MM.');
+  const [h,m]=v.split(':').map(Number);return h*60+m;
+}
+function pausasColaborador(entrada){
+  if(entrada===null)return {manha:null,tarde:null};
+  if(typeof entrada!=='object'||Array.isArray(entrada))throw erro('Pausas inválidas. Atualize a página e preencha de novo.');
+  const saida={};
+  for(const [chave,p] of Object.entries(PERIODOS_PAUSA)){
+    const v=entrada[chave];
+    if(v==null||(v.inicio===''&&v.fim==='')||(v.inicio==null&&v.fim==null)){saida[chave]=null;continue;}
+    if(typeof v!=='object'||!v.inicio||!v.fim)throw erro('Informe início e fim da pausa da '+p.nome+', ou deixe os dois em branco.');
+    const ini=minutosHora(v.inicio,'início da pausa da '+p.nome),fim=minutosHora(v.fim,'fim da pausa da '+p.nome);
+    if(fim<=ini)throw erro('A pausa da '+p.nome+' termina antes de começar. Confira os horários.');
+    if(fim-ini>PAUSA_MAX_MINUTOS)throw erro('A pausa da '+p.nome+' tem '+(fim-ini)+' minutos; o limite é '+PAUSA_MAX_MINUTOS+'. Ajuste o horário de fim.');
+    if(ini<p.de||fim>p.ate)throw erro(chave==='manha'?'A pausa da manhã precisa terminar até 12:00.':'A pausa da tarde precisa começar a partir de 12:00.');
+    saida[chave]={inicio:v.inicio,fim:v.fim,minutos:fim-ini};
+  }
+  return saida;
 }
 function regra(body,antes={}) {
   if(body.revisao!==(antes.revisao||0))throw erro('A recorrência mudou. Atualize antes de salvar.',409);
@@ -77,13 +103,13 @@ function candidatos(regras, responsabilidade, de, ate, usuario, agora) {
 function semana(inicio) {data(inicio,'início da semana',true);const d=new Date(inicio+'T12:00:00Z');if(d.getUTCDay()!==1)throw erro('Selecione uma segunda-feira para a carga semanal.');return Array.from({length:7},(_,i)=>new Date(d.getTime()+i*86400000).toISOString().slice(0,10));}
 function carga(controles,disponibilidades,inicio) {
   const dias=semana(inicio),fim=dias[6],mapa=new Map();
-  for(const d of disponibilidades)mapa.set(d.uid,{uid:d.uid,nome:d.nome,horas_disponiveis:d.horas_semanais==null?null:d.horas_semanais*(dias.slice(0,5).filter(dia=>!(d.ausencias||[]).some(a=>a.inicio<=dia&&a.fim>=dia)).length/5),horas_planejadas:0,sem_estimativa:0,pendentes:0});
+  for(const d of disponibilidades)mapa.set(d.uid,{uid:d.uid,nome:d.nome,horas_disponiveis:d.horas_semanais==null?null:d.horas_semanais*(dias.slice(0,5).filter(dia=>!(d.ausencias||[]).some(a=>a.inicio<=dia&&a.fim>=dia)).length/5),horas_planejadas:0,sem_estimativa:0,pendentes:0,pausas:{manha:d.pausas?.manha||null,tarde:d.pausas?.tarde||null}});
   const sem_executor=controles.filter(c=>!TERMINAIS.includes(c.status)&&!c.executor_uid).length;
   for(const c of controles.filter(c=>!TERMINAIS.includes(c.status))){
     const dia=c.prazo_interno||c.prazo;if(!dia||dia<inicio||dia>fim||!c.executor_uid)continue;
-    if(!mapa.has(c.executor_uid))mapa.set(c.executor_uid,{uid:c.executor_uid,nome:c.executor_uid,horas_disponiveis:null,horas_planejadas:0,sem_estimativa:0,pendentes:0});
+    if(!mapa.has(c.executor_uid))mapa.set(c.executor_uid,{uid:c.executor_uid,nome:c.executor_uid,horas_disponiveis:null,horas_planejadas:0,sem_estimativa:0,pendentes:0,pausas:{manha:null,tarde:null}});
     const r=mapa.get(c.executor_uid);r.pendentes++;if(c.horas_estimadas==null)r.sem_estimativa++;else r.horas_planejadas+=c.horas_estimadas;
   }
   return {inicio,fim,sem_executor,criterio:'Estimativa integral alocada na semana do prazo interno ou vencimento; disponibilidade distribuída de segunda a sexta.',colaboradores:[...mapa.values()].map(r=>({...r,sobrecarga:r.horas_disponiveis==null?null:r.horas_planejadas>r.horas_disponiveis}))};
 }
-module.exports={contrato,planejamento,capacidade,regra,candidatos,carga,semana};
+module.exports={PAUSA_MAX_MINUTOS,pausasColaborador,contrato,planejamento,capacidade,regra,candidatos,carga,semana};

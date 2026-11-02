@@ -353,6 +353,16 @@ if(require.main===module)(async()=>{
   assert.equal(combinado.body.total,1);
   combinado=await filtrosEnv.call('GET','/api/crm/carteira',{},'colab',{}, {equipe:'sem_equipe'});assert.equal(combinado.body.total,0);
   combinado=await filtrosEnv.call('GET','/api/crm/carteira',{},'legado',{}, {equipe:'colab',cliente:'ativa'});assert.equal(combinado.body.total,0);assert.equal(combinado.body.equipes.length,0);
+  // Minha carteira: a fatia de quem está logado; admin vê o bolo só quando escolhe "Todas as equipes".
+  let fatia=await filtrosEnv.call('GET','/api/crm/carteira',{},'admin',{}, {equipe:'minha_carteira'});
+  assert.equal(fatia.body.total,0,'admin sem empresas próprias não vê o bolo na Minha carteira');assert.equal(fatia.body.minha_carteira,0);
+  assert.equal((await filtrosEnv.call('GET','/api/crm/carteira',{},'admin')).body.total,2,'Todas as equipes continua mostrando a base inteira ao admin');
+  filtrosEnv.dados.get('empresas/'+outro).responsaveis=[{uid:'admin',papel:'principal'}];
+  fatia=await filtrosEnv.call('GET','/api/crm/carteira',{},'admin',{}, {equipe:'minha_carteira'});
+  assert.deepEqual(fatia.body.empresas.map(e=>e.cnpj),[outro]);assert.equal(fatia.body.minha_carteira,1);
+  fatia=await filtrosEnv.call('GET','/api/crm/carteira',{},'colab',{}, {equipe:'minha_carteira'});
+  assert.deepEqual(fatia.body.empresas.map(e=>e.cnpj),[cnpj],'colaborador vê só a própria fatia');
+  assert.equal((await filtrosEnv.call('GET','/api/crm/carteira',{},'legado',{}, {equipe:'minha_carteira'})).body.total,0);
   const trabalhoEnv=ambiente();
   trabalhoEnv.dados.set('empresas/'+cnpj+'/crm_controles/um',{titulo:'Permitido',status:'pendente'});
   trabalhoEnv.dados.set('empresas/'+outro+'/crm_controles/dois',{titulo:'Restrito',status:'pendente'});
@@ -366,6 +376,10 @@ if(require.main===module)(async()=>{
   const pagina=await trabalhoEnv.call('GET','/api/crm/trabalho',{},'admin');assert.equal(pagina.body.empresas_lidas,10);assert(pagina.body.proximo);
   const seguinte=await trabalhoEnv.call('GET','/api/crm/trabalho',{},'admin',{}, {cursor:pagina.body.proximo});assert.equal(seguinte.body.empresas_lidas,3);assert.equal(seguinte.body.proximo,null);
   assert.equal((await trabalhoEnv.call('GET','/api/crm/trabalho',{},'admin',{}, {cursor:'../'})).statusCode,400);
+  // Meu dia lê só a carteira da pessoa, inclusive para admin (sem percorrer a base inteira).
+  assert.equal((await trabalhoEnv.call('GET','/api/crm/trabalho',{},'admin',{}, {carteira:'minha'})).body.total_empresas,0);
+  let minhaTrab=await trabalhoEnv.call('GET','/api/crm/trabalho',{},'colab',{}, {carteira:'minha'});assert.equal(minhaTrab.body.total_empresas,1);assert(minhaTrab.body.itens.every(i=>i.cnpj===cnpj));
+  assert.equal((await trabalhoEnv.call('GET','/api/crm/trabalho',{},'admin',{}, {carteira:'todas'})).statusCode,400);
   const planejamentoEnv=ambiente();
   let p=await planejamentoEnv.call('PUT',base+'/contrato',{revisao:0,situacao:'ativa',inicio:'2026-01-01',motivo:'Contrato conferido'},'admin');assert.equal(p.statusCode,200);
   assert.equal((await planejamentoEnv.call('PUT',base+'/contrato',{revisao:1},'colab')).statusCode,403);
@@ -377,6 +391,11 @@ if(require.main===module)(async()=>{
   p=await planejamentoEnv.call('POST',base+'/recorrencias/previa',periodo,'admin');assert.equal(p.body.novos.length,0);assert.equal(p.body.existentes,2);
   p=await planejamentoEnv.call('GET','/api/crm/agenda',{},'legado',{}, {de:'2026-01-01',ate:'2026-03-31'});assert.equal(p.body.total,0);
   p=await planejamentoEnv.call('GET','/api/crm/agenda',{},'colab',{}, {de:'2026-01-01',ate:'2026-03-31'});assert.equal(p.body.total,2);assert(p.body.completo);
+  // Calendário da Minha carteira: admin sem empresas próprias não recebe os vencimentos da base.
+  assert.equal((await planejamentoEnv.call('GET','/api/crm/agenda',{},'colab',{}, {de:'2026-01-01',ate:'2026-03-31',carteira:'minha'})).body.total,2);
+  assert.equal((await planejamentoEnv.call('GET','/api/crm/agenda',{},'admin',{}, {de:'2026-01-01',ate:'2026-03-31',carteira:'minha'})).body.total,0);
+  assert.equal((await planejamentoEnv.call('GET','/api/crm/agenda',{},'admin',{}, {de:'2026-01-01',ate:'2026-03-31'})).body.total,2);
+  assert.equal((await planejamentoEnv.call('GET','/api/crm/agenda',{},'admin',{}, {de:'2026-01-01',ate:'2026-03-31',carteira:'x'})).statusCode,400);
   const agendaQuery={de:'2026-01-01',ate:'2026-03-31'};
   let leiturasPorEmpresa=0;
   const rapida=ambiente(null,path=>{if(path.startsWith('empresas/')&&path.endsWith('/crm_controles'))leiturasPorEmpresa++;});
@@ -394,14 +413,21 @@ if(require.main===module)(async()=>{
     const resposta=await rev.call('GET','/api/crm/agenda',{},'colab',{},agendaQuery);
     if(revogar==='usuario')assert.equal(resposta.statusCode,403);else assert.equal(resposta.body.total,0);
   }
+  // Apoio temporário vigente HOJE: a vigência é conferida contra a data real, não contra o agora() do fixture.
+  const diaIso=n=>new Date(Date.now()+n*86400000).toISOString().slice(0,10), apoioInicio=diaIso(-2), apoioFim=diaIso(28);
   const grande=ambiente();for(let i=0;i<20001;i++)grande.dados.set('empresas/'+cnpj+'/crm_controles/'+i,{prazo:'2026-01-20'});
   assert.equal((await grande.call('GET','/api/crm/agenda',{},'admin',{},agendaQuery)).statusCode,409,'não apresenta totais incompletos');
   assert.equal((await planejamentoEnv.call('GET','/api/crm/carga',{},'colab',{}, {inicio:'2026-10-12'})).statusCode,403);
-  p=await planejamentoEnv.call('PUT','/api/crm/capacidades/:uid',{revisao:0,horas_semanais:40,ausencias:[]},'admin',{uid:'colab'});assert.equal(p.statusCode,200);
+  assert.deepEqual((await planejamentoEnv.call('GET','/api/crm/capacidades/minha')).body.pausas,{manha:null,tarde:null},'sem ficha: pausas não definidas');
+  p=await planejamentoEnv.call('PUT','/api/crm/capacidades/:uid',{revisao:0,horas_semanais:40,ausencias:[],pausas:{manha:{inicio:'09:30',fim:'09:40'},tarde:{inicio:'',fim:''}}},'colab',{uid:'colab'});assert.equal(p.statusCode,403,'colaborador não edita a própria ficha');
+  p=await planejamentoEnv.call('PUT','/api/crm/capacidades/:uid',{revisao:0,horas_semanais:40,ausencias:[],pausas:{manha:{inicio:'09:30',fim:'09:45'}}},'admin',{uid:'colab'});assert.equal(p.statusCode,400,'pausa acima de 10 minutos');
+  p=await planejamentoEnv.call('PUT','/api/crm/capacidades/:uid',{revisao:0,horas_semanais:40,ausencias:[],pausas:{manha:{inicio:'09:30',fim:'09:40'},tarde:{inicio:'',fim:''}}},'admin',{uid:'colab'});assert.equal(p.statusCode,200);
+  let minhaFicha=(await planejamentoEnv.call('GET','/api/crm/capacidades/minha')).body;assert.deepEqual(minhaFicha.pausas,{manha:{inicio:'09:30',fim:'09:40',minutos:10},tarde:null});assert.equal(minhaFicha.limite_minutos,10);
+  assert.deepEqual((await planejamentoEnv.call('GET','/api/crm/capacidades/minha',{},'apoio')).body.pausas,{manha:null,tarde:null},'cada um lê só a própria ficha');
   p=await planejamentoEnv.call('PUT',base+'/controles/:id/planejamento',{revisao:1,executor_uid:'colab',revisor_uid:'',prioridade:'alta',horas_estimadas:5,dependencias:[]},'admin',{id:'obrigacao_FISCAL_2026-01'});assert.equal(p.statusCode,200);assert.equal(p.body.controle.revisao,2);
   const antesLote=planejamentoEnv.writes();p=await planejamentoEnv.call('POST','/api/crm/carteira/lote',{empresas:[{cnpj,revisao_carteira:'velha'}],principal_uid:'apoio',motivo:'Teste'},'admin');assert.equal(p.statusCode,409);assert.equal(planejamentoEnv.writes(),antesLote);
   p=await planejamentoEnv.call('POST','/api/crm/carteira/lote',{empresas:[{cnpj,revisao_carteira:versaoCarteira(planejamentoEnv.dados.get('empresas/'+cnpj))}],principal_uid:'apoio',motivo:'Teste'},'admin');assert.equal(p.statusCode,200);assert.equal(p.body.alteradas,1);
-  p=await planejamentoEnv.call('PUT',base+'/substituicao',{revisao_carteira:versaoCarteira(planejamentoEnv.dados.get('empresas/'+cnpj)),uid:'legado',inicio:'2026-10-01',fim:'2026-10-31',motivo:'Ausência'},'admin');assert.equal(p.statusCode,200);
+  p=await planejamentoEnv.call('PUT',base+'/substituicao',{revisao_carteira:versaoCarteira(planejamentoEnv.dados.get('empresas/'+cnpj)),uid:'legado',inicio:apoioInicio,fim:apoioFim,motivo:'Ausência'},'admin');assert.equal(p.statusCode,200);
   const carteiraTemporaria=await planejamentoEnv.call('GET','/api/crm/carteira',{},'admin');
   assert(carteiraTemporaria.body.empresas.find(e=>e.cnpj===cnpj).responsaveis.find(p=>p.uid==='legado').temporario,'apoio deve ser distinguido do vínculo permanente');
   const cancelBody={revisao_carteira:versaoCarteira(planejamentoEnv.dados.get('empresas/'+cnpj)),motivo:'Retorno antecipado'};

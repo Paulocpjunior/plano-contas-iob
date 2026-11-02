@@ -158,6 +158,7 @@ function duplicidadesRegistros(registros) {
   return new Map([...resultado].map(([id,s])=>[id,[...s].sort()]));
 }
 const CLIENTES = ['ativa','suspensa','saida','baixada','nao_informada'];
+const MINHA_CARTEIRA = 'minha_carteira';
 function filtrosCarteira(body = {}) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw erro('Filtros inválidos.');
   const campos = { busca:120, equipe:128, origem:20, cliente:30, periodo:7, obrigacao:40, atraso:20 };
@@ -169,6 +170,7 @@ function filtrosCarteira(body = {}) {
   if (f.origem && !['contabil','crm'].includes(f.origem)) throw erro('Origem inválida.');
   if (f.cliente && !CLIENTES.includes(f.cliente)) throw erro('Situação do cliente inválida.');
   if (f.equipe.includes('/')) throw erro('Responsável inválido.');
+  // MINHA_CARTEIRA é um valor reservado: a fatia de quem está logado, nunca um uid.
   if (f.periodo && !/^\d{4}(-(?:0[1-9]|1[0-2]))?$/.test(f.periodo)) throw erro('Informe ano ou competência válida.');
   if (f.obrigacao && !['pendente','em_andamento','aguardando_documentos','em_revisao','concluida','nao_aplicavel'].includes(f.obrigacao)) throw erro('Situação da obrigação inválida.');
   if (f.atraso && !['atrasado','no_prazo','sem_prazo','encerrado'].includes(f.atraso)) throw erro('Filtro de prazo inválido.');
@@ -228,4 +230,4 @@ function documentoReferencia(antes,body,user,quando){
   if(typeof body.periodo!=='string'||(body.periodo&&!/^\d{4}(-(?:0[1-9]|1[0-2]))?$/.test(body.periodo)))throw erro('Informe ano ou competência válida.');
   return {titulo,url:u.href,categoria:body.categoria,periodo:body.periodo,motivo,revisao:(antes?.revisao||0)+1,quando,por_uid:user.uid,tipo:'referencia_externa'};
 }
-module.exports={FONTE_MANUAL,campoEditavel,ehColaborador,incluirRegistro,excluirRegistro,restaurarRegistro,duplicidadesRegistros,documentoReferencia,formulaSaldo,corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
+module.exports={FONTE_MANUAL,MINHA_CARTEIRA,campoEditavel,ehColaborador,incluirRegistro,excluirRegistro,restaurarRegistro,duplicidadesRegistros,documentoReferencia,formulaSaldo,corrigirIdentificacao,compararBusca,documentosEmpresa,contratoParametros,normalizarBusca,editarParametro,filtrosCarteira,situacaoCliente,prazoControle,atualizarVisualizacao};
