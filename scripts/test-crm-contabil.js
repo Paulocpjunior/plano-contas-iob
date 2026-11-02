@@ -3,6 +3,11 @@ const assert = require('assert');
 const c = require('../crm-contabil');
 const { criarPermissoes } = require('../permissoes-cci');
 const admin = { uid: 'admin', is_admin: true }, operador = { uid: 'u', permissoesCci: criarPermissoes('operacao') };
+// Minha carteira: admin acessa tudo (temCarteira), mas a fatia dele é só onde é responsável.
+{ const emp={responsaveis:[{uid:'u',papel:'principal'}],crm_substituicoes:[{uid:'t',inicio:'2000-01-01',fim:'2999-12-31'}]};
+  assert.equal(c.temCarteira(emp,admin),true); assert.equal(c.naMinhaCarteira(emp,'admin'),false);
+  assert.equal(c.naMinhaCarteira(emp,'u'),true); assert.equal(c.naMinhaCarteira(emp,'t'),true,'apoio temporário vigente entra na fatia');
+  assert.equal(c.naMinhaCarteira(emp,''),false); }
 const empresa = { owner_uid: 'legado', vinculado_por_uid: 'legado', acesso_uids: ['legado'], carteira_uids: ['indice-velho'], responsaveis: [{ uid: 'u', papel: 'principal' }] };
 assert(c.temCarteira(empresa, operador)); assert(c.temCarteira(empresa, admin));
 for (const uid of ['legado', 'indice-velho', 'outro']) assert(!c.temCarteira(empresa, { uid }));

@@ -22,4 +22,19 @@ assert.equal(p.carga([],[{uid:'b'}],'2026-10-12').colaboradores[0].horas_disponi
 const emp={responsaveis:[{uid:'a'}],crm_substituicoes:[{uid:'b',inicio:'2026-10-10',fim:'2026-10-20'}]};
 assert.equal(core.equipeVigente(emp,'2026-10-09').length,1);assert.equal(core.equipeVigente(emp,'2026-10-15').length,2);assert.equal(core.equipeVigente(emp,'2026-10-21').length,1);
 assert.notEqual(core.versaoCarteira(emp),core.versaoCarteira({responsaveis:emp.responsaveis}));
-console.log('CRM planejamento: vigências, datas, dependências, capacidade, ausência e recorrência OK');
+// Pausas: 10 minutos de manhã e 10 à tarde; em branco = não definida (null), nunca horário presumido.
+assert.deepEqual(cap.pausas,{manha:null,tarde:null},'tela antiga sem pausas não inventa horário');
+const comPausa=p.capacidade({revisao:1,horas_semanais:40,ausencias:[],pausas:{manha:{inicio:'09:30',fim:'09:40'},tarde:{inicio:'15:00',fim:'15:10'}}},cap);
+assert.deepEqual(comPausa.pausas,{manha:{inicio:'09:30',fim:'09:40',minutos:10},tarde:{inicio:'15:00',fim:'15:10',minutos:10}});
+assert.deepEqual(p.capacidade({revisao:2,horas_semanais:30,ausencias:[]},comPausa).pausas,comPausa.pausas,'salvar sem o campo preserva as pausas gravadas');
+assert.deepEqual(p.capacidade({revisao:2,horas_semanais:30,ausencias:[],pausas:{manha:{inicio:'',fim:''},tarde:{inicio:'16:00',fim:'16:05'}}},comPausa).pausas,{manha:null,tarde:{inicio:'16:00',fim:'16:05',minutos:5}});
+assert.throws(()=>p.pausasColaborador({manha:{inicio:'09:30',fim:'09:45'}}),/limite é 10/);
+assert.throws(()=>p.pausasColaborador({manha:{inicio:'09:40',fim:'09:30'}}),/termina antes/);
+assert.throws(()=>p.pausasColaborador({manha:{inicio:'11:55',fim:'12:05'}}),/até 12:00/);
+assert.throws(()=>p.pausasColaborador({tarde:{inicio:'11:58',fim:'12:05'}}),/a partir de 12:00/);
+assert.throws(()=>p.pausasColaborador({tarde:{inicio:'15:00',fim:''}}),/início e fim/);
+assert.throws(()=>p.pausasColaborador({manha:{inicio:'9h30',fim:'09:40'}}),/HH:MM/);
+assert.equal(p.PAUSA_MAX_MINUTOS,10);
+const cargaPausa=p.carga([],[{uid:'a',...comPausa},{uid:'b',horas_semanais:40}],'2026-10-12');
+assert.deepEqual(cargaPausa.colaboradores.map(c=>c.pausas),[comPausa.pausas,{manha:null,tarde:null}]);
+console.log('CRM planejamento: vigências, datas, dependências, capacidade, pausas, ausência e recorrência OK');

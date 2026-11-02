@@ -43,6 +43,9 @@ function equipeVigente(empresa, hoje = new Intl.DateTimeFormat('en-CA',{timeZone
 function temCarteira(empresa, usuario) {
   return !!usuario?.uid && (usuario.is_admin === true || equipeVigente(empresa).some(p => p.uid === usuario.uid));
 }
+// Fatia do colaborador: empresas em que ele é responsável (principal, apoio ou
+// apoio temporário vigente). Vale também para admin, que por padrão vê o bolo todo.
+function naMinhaCarteira(empresa, uid) { return !!uid && equipeVigente(empresa).some(p => p.uid === uid); }
 function versaoCarteira(empresa) { return hash({equipe:normalizarResponsaveis(empresa?.responsaveis).sort((a,b) => a.uid.localeCompare(b.uid)),substituicoes:empresa?.crm_substituicoes||[]}); }
 function exigirEdicao(usuario) {
   if (!usuario?.uid || (!usuario.is_admin && !podeAcao(usuario, 'editar'))) throw erro('Peça ao administrador permissão de edição no CCI.', 403);
@@ -97,4 +100,4 @@ function resumir(controles, hoje) {
     atrasados: controles.filter(c => !TERMINAIS.includes(c.status) && c.prazo && c.prazo < hoje).length,
     percentual: exigiveis.length ? Math.round(concluidos / exigiveis.length * 100) : null };
 }
-module.exports = { equipeVigente, CATALOGO, STATUS, TERMINAIS, erro, hash, texto, data, temCarteira, versaoCarteira, criarControle, atualizarControle, resumir };
+module.exports = { equipeVigente, CATALOGO, STATUS, TERMINAIS, erro, hash, texto, data, temCarteira, naMinhaCarteira, versaoCarteira, criarControle, atualizarControle, resumir };

@@ -58,12 +58,14 @@ function registrarPlanejamento(app,{db,domain,wrap,usuario,contexto,admin,agora}
    return {revisao_carteira:core.versaoCarteira({...c.empresa,crm_substituicoes:depois})};
   });res.json({ok:true,...result});
  }));
+ // Ficha do próprio colaborador (pausas): qualquer usuário lê só a sua.
+ app.get('/api/crm/capacidades/minha',wrap(async(req,res)=>{const user=await usuario(req);const d=await db.collection('crm_capacidades').doc(user.uid).get();const c=d.exists?d.data():{};res.json({ok:true,uid:user.uid,cadastrada:d.exists,pausas:{manha:c.pausas?.manha||null,tarde:c.pausas?.tarde||null},limite_minutos:plano.PAUSA_MAX_MINUTOS});}));
  app.get('/api/crm/capacidades',wrap(async(req,res)=>{admin(await usuario(req));const s=await db.collection('crm_capacidades').get();res.json({ok:true,itens:s.docs.map(d=>({uid:d.id,...d.data()}))});}));
  app.put('/api/crm/capacidades/:uid',wrap(async(req,res)=>{
   const result=await db.runTransaction(async tx=>{const user=await usuario(req,tx);admin(user);const id=core.texto(req.params.uid,128,'colaborador',true);if(id.includes('/'))throw core.erro('Colaborador inválido.');const u=await tx.get(db.collection('users').doc(id));if(!u.exists||!String(u.data().last_email||u.data().email||'').toLowerCase().endsWith(domain))throw core.erro('Selecione um colaborador corporativo.');const ref=db.collection('crm_capacidades').doc(id),doc=await tx.get(ref),antes=doc.exists?doc.data():{},depois=plano.capacidade(req.body||{},antes);tx.set(ref,depois);auditar(tx,ref,user,'CRM_CAPACIDADE',antes,depois,'Disponibilidade de trabalho e ausências');return depois;});res.json({ok:true,capacidade:result});
  }));
  // Leitura completa para totais: agregação não depende das páginas abertas pelo navegador.
- async function universo(req){
+ async function universo(req,soMinha=false){
   await usuario(req);
   // Uma leitura do grupo substitui uma consulta por empresa, inclusive as vazias.
   // O grupo pode conter documentos fora do CRM: caminho e carteira são conferidos abaixo.
@@ -72,7 +74,7 @@ function registrarPlanejamento(app,{db,domain,wrap,usuario,contexto,admin,agora}
   const ss=await Promise.all(['crm_empresas','empresas'].map(n=>db.collection(n).get()));
   const user=await usuario(req),mapa=new Map();
   ss.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d.data())));
-  for(const [id,empresa] of mapa)if(!core.temCarteira(empresa,user))mapa.delete(id);
+  for(const [id,empresa] of mapa)if(!core.temCarteira(empresa,user)||(soMinha&&!core.naMinhaCarteira(empresa,user.uid)))mapa.delete(id);
   const itens=[];
   for(const doc of controles.docs){
    const caminho=doc.ref.path.split('/');
@@ -82,7 +84,7 @@ function registrarPlanejamento(app,{db,domain,wrap,usuario,contexto,admin,agora}
   }
   return {user,itens,empresas:mapa.size};
  }
- app.get('/api/crm/agenda',wrap(async(req,res)=>{const de=core.data(req.query.de,'início',true),ate=core.data(req.query.ate,'fim',true);if(de>ate||Date.parse(ate)-Date.parse(de)>92*86400000)throw core.erro('Consulte até 92 dias de agenda.');const d=await universo(req);const itens=d.itens.filter(c=>[c.inicio,c.prazo_interno,c.prazo].some(v=>v&&v>=de&&v<=ate));res.json({ok:true,itens:itens.slice(0,2000),total:itens.length,completo:itens.length<=2000,empresas:d.empresas,sem_prazo:d.itens.filter(c=>!c.prazo&&!core.TERMINAIS.includes(c.status)).length});}));
+ app.get('/api/crm/agenda',wrap(async(req,res)=>{const de=core.data(req.query.de,'início',true),ate=core.data(req.query.ate,'fim',true);if(de>ate||Date.parse(ate)-Date.parse(de)>92*86400000)throw core.erro('Consulte até 92 dias de agenda.');if(req.query.carteira!=null&&req.query.carteira!=='minha')throw core.erro('Escolha a carteira a consultar: a sua ou toda a base.');const d=await universo(req,req.query.carteira==='minha');const itens=d.itens.filter(c=>[c.inicio,c.prazo_interno,c.prazo].some(v=>v&&v>=de&&v<=ate));res.json({ok:true,itens:itens.slice(0,2000),total:itens.length,completo:itens.length<=2000,empresas:d.empresas,sem_prazo:d.itens.filter(c=>!c.prazo&&!core.TERMINAIS.includes(c.status)).length});}));
  app.get('/api/crm/carga',wrap(async(req,res)=>{admin(await usuario(req));plano.semana(req.query.inicio);const d=await universo(req),[caps,users]=await Promise.all([db.collection('crm_capacidades').get(),db.collection('users').get()]);admin(await usuario(req));const configs=new Map(caps.docs.map(x=>[x.id,x.data()]));const disponibilidades=users.docs.filter(u=>String(u.data().last_email||u.data().email||'').toLowerCase().endsWith(domain)).map(u=>({uid:u.id,nome:u.data().last_name||u.data().name||u.data().email||u.id,...(configs.get(u.id)||{})}));res.json({ok:true,completo:true,empresas:d.empresas,...plano.carga(d.itens,disponibilidades,req.query.inicio)});}));
  app.post('/api/crm/carteira/lote',wrap(async(req,res)=>{
   const b=req.body||{},alvos=b.empresas;

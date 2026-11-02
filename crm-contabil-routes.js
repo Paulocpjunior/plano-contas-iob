@@ -2,7 +2,7 @@
 const core = require('./crm-contabil');
 const crypto = require('crypto');
 const documentoId = url => crypto.createHash('sha256').update(url).digest('hex');
-const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, campoEditavel, incluirRegistro, excluirRegistro, restaurarRegistro, duplicidadesRegistros, filtrosCarteira, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
+const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmpresa, contratoParametros, normalizarBusca, editarParametro, campoEditavel, incluirRegistro, excluirRegistro, restaurarRegistro, duplicidadesRegistros, filtrosCarteira, MINHA_CARTEIRA, situacaoCliente, atualizarVisualizacao, prazoControle } = require('./crm-base');
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
@@ -273,9 +273,10 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     const busca = normalizarBusca(filtros.busca), cursor = cursorId(req.query.cursor, /^\d{14}$/);
     const acessiveis = [...mapa.values()].filter(v=>core.temCarteira(v.doc.data(),user)).map(v=>empresaPublica(v.doc,user,v.origem));
     const equipes = [...new Map(acessiveis.flatMap(e=>e.responsaveis).map(p=>[p.uid,{uid:p.uid,nome:p.nome||p.uid}])).values()];
+    const minha = e=>e.responsaveis.some(p=>p.uid===user.uid), minhaCarteira = acessiveis.filter(minha).length;
     const todas = acessiveis.filter(e=>(!filtros.origem || e.origem===filtros.origem)
       && (!filtros.cliente || e.situacao_cliente===filtros.cliente)
-      && (!filtros.equipe || (filtros.equipe==='sem_equipe' ? !e.responsaveis.length : e.responsaveis.some(p=>p.uid===filtros.equipe))))
+      && (!filtros.equipe || (filtros.equipe==='sem_equipe' ? !e.responsaveis.length : filtros.equipe===MINHA_CARTEIRA ? minha(e) : e.responsaveis.some(p=>p.uid===filtros.equipe))))
       .filter(e=>!busca || (/^\d+$/.test(busca)&&String(e.codigo_empresa||'').replace(/^0+(?=\d)/,'')===busca.replace(/^0+(?=\d)/,'')) || normalizarBusca([e.cnpj,e.razao_social,e.codigo_empresa].join(' ')).includes(busca)
         || (busca.replace(/\D/g,'').length>=8 && e.cnpj.includes(busca.replace(/\D/g,''))))
       .sort((a,b)=>compararBusca(a,b,busca));
@@ -300,15 +301,18 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
        empresas.push(...resultados.filter(Boolean));
       }
     }
-    res.json({ ok:true, empresas, equipes, total:operacional?null:todas.length, consultadas:posicao+1+lote.length,total_candidatas:todas.length,filtro_operacional:operacional, proximo:restantes.length>50 ? lote[49].cnpj : null,
+    res.json({ ok:true, empresas, equipes, minha_carteira:minhaCarteira, total:operacional?null:todas.length, consultadas:posicao+1+lote.length,total_candidatas:todas.length,filtro_operacional:operacional, proximo:restantes.length>50 ? lote[49].cnpj : null,
       topologia:user.is_admin||(await gestao(req)).lider, admin:user.is_admin, pode_editar:user.is_admin || podeAcao(user,'editar'), pode_concluir:user.is_admin || podeAcao(user,'fechar'), catalogo:core.CATALOGO });
   }));
   // Leitura operacional limitada por lote; nenhuma baixa ou distribuição automática.
   app.get('/api/crm/trabalho', wrap(async (req,res)=>{
     const user=await usuario(req), cursor=cursorId(req.query.cursor,/^\d{14}$/);
+    // carteira=minha: só a fatia do colaborador (admin incluso); sem o parâmetro, tudo o que ele acessa.
+    if(req.query.carteira!=null&&req.query.carteira!=='minha')throw core.erro('Escolha a carteira a consultar: a sua ou toda a base.');
+    const soMinha=req.query.carteira==='minha';
     const snapshots=await Promise.all(['crm_empresas','empresas'].map(c=>db.collection(c).get()));
     const mapa=new Map();snapshots.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
-    const todas=[...mapa.values()].filter(d=>core.temCarteira(d.data(),user)).sort((a,b)=>a.id.localeCompare(b.id));
+    const todas=[...mapa.values()].filter(d=>core.temCarteira(d.data(),user)&&(!soMinha||core.naMinhaCarteira(d.data(),user.uid))).sort((a,b)=>a.id.localeCompare(b.id));
     const restantes=todas.filter(d=>!cursor||d.id>cursor), lote=restantes.slice(0,10), itens=[], truncadas=[];
     const resultados=await Promise.all(lote.map(async doc=>{
       const snap=await db.collection('empresas').doc(doc.id).collection('crm_controles').orderBy('__name__').limit(101).get();

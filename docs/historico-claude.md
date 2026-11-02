@@ -2358,3 +2358,11 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Sem acesso ao Firestore daqui: a correção dos dados é o usuário sincronizar de novo a competência e escolher substituir.
 - O servidor (`session-loss-guard.js`) só aceitava linha sumida com evento `exclusao_lancamento` de cópia idêntica; agora aceita também a que um `substituicao_movimento_cfi` NOVO lista pelo id (linha sem id: cópia inteira em `completo`). Achado do review do PR #373.
 - Travas: `scripts/test-movimento-fiscal-nfe-cfi.js`, `scripts/test-lancamentos-edicao-lote.js` e `scripts/test-session-loss-guard.js` (inclui o evento que a tela grava passando no servidor).
+
+## 02/11/2026 — v3.4.479 CRM: Minha carteira por colaborador + pausas na ficha
+- Paulo: cada colaborador deve ver só a sua carteira (o "bolo" do admin fatiado), como no Jotform, e a ficha do colaborador precisa das pausas (10 min manhã + 10 min tarde).
+- Já existia: `temCarteira` restringe o não admin às empresas em que é responsável. Faltava a fatia para admin (21 de 38 colaboradores são is_admin e viam as 993 empresas).
+- Feito: filtro reservado `equipe=minha_carteira` (crm-base `MINHA_CARTEIRA`, `core.naMinhaCarteira`), padrão da tela e do "Limpar filtros"; `/api/crm/carteira` devolve `minha_carteira` (contagem). `/api/crm/trabalho?carteira=minha` e `/api/crm/agenda?carteira=minha` no Meu dia, demandas e Calendário; admin tem "Toda a base". Distribuir em lote troca para Todas as equipes antes de montar a lista.
+- Pausas: `crm_capacidades/{uid}.pausas.{manha,tarde}` = {inicio,fim,minutos} ou null; `pausasColaborador` valida HH:MM, até 10 min, manhã termina até 12:00, tarde começa a partir de 12:00; PUT sem o campo preserva o gravado. `GET /api/crm/capacidades/minha` (cada um lê a sua) alimenta o Meu dia.
+- Test fix: `test-crm-contabil-routes.js` tinha apoio temporário fixo em 10/2026 e quebrava a partir de 01/11 (vigência conferida contra a data real); agora usa datas relativas a hoje.
+
