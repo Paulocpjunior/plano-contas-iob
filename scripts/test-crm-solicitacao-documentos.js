@@ -180,6 +180,32 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   const hist = await n.call('GET', '/api/crm/empresas/:cnpj/solicitacoes', {}, 'colab');
   assert.equal(hist.body.historico.length, 3);
 
+  // Situação na carteira do CRM (v3.4.484): cada envio atualiza a empresa para os admins acompanharem.
+  const st = () => n.dados.get('crm_solicitacao_status/' + cnpj);
+  assert.equal(st().solicitacao_id, 'solicitacao-fixture-0003', 'a última solicitação manda na situação');
+  assert.equal(st().situacao, 'aguardando');
+  assert.equal(hist.body.situacao.situacao, 'aguardando');
+  const carteira = f => n.call('GET', '/api/crm/carteira', {}, 'admin', {}, { equipe: '', ...f });
+  const naCarteira = (await carteira({})).body.empresas.find(e => e.cnpj === cnpj);
+  assert.equal(naCarteira.solicitacao.situacao, 'aguardando');
+  assert.equal(naCarteira.solicitacao.prazo, '2026-11-10');
+  assert.equal((await carteira({ solicitacao: 'aguardando' })).body.empresas.filter(e => e.cnpj === cnpj).length, 1);
+  assert.equal((await carteira({ solicitacao: 'recebida' })).body.empresas.filter(e => e.cnpj === cnpj).length, 0);
+  assert.equal((await carteira({ solicitacao: 'qualquer' })).statusCode, 400);
+  assert((await carteira({ solicitacao: 'sem' })).body.empresas.every(e => e.solicitacao.situacao === 'sem'), 'empresa sem envio aparece como sem solicitação');
+  assert.equal((await n.call('POST', '/api/crm/empresas/:cnpj/solicitacoes/:id/recebida', {}, 'leitor', { id: 'solicitacao-fixture-0003' })).statusCode, 403);
+  assert.equal((await n.call('POST', '/api/crm/empresas/:cnpj/solicitacoes/:id/recebida', {}, 'colab', { id: 'solicitacao-fixture-0002' })).statusCode, 409, 'e-mail não confirmado não vira recebido');
+  assert.equal((await n.call('POST', '/api/crm/empresas/:cnpj/solicitacoes/:id/recebida', {}, 'colab', { id: 'solicitacao-fixture-0001' })).statusCode, 200);
+  assert.equal(st().situacao, 'aguardando', 'marcar uma solicitação antiga não muda a situação da última');
+  const recebida = await n.call('POST', '/api/crm/empresas/:cnpj/solicitacoes/:id/recebida', {}, 'colab', { id: 'solicitacao-fixture-0003' });
+  assert.equal(recebida.statusCode, 200, JSON.stringify(recebida.body));
+  assert.equal(st().situacao, 'recebida');
+  assert.equal(n.dados.get('empresas/' + cnpj + '/crm_solicitacoes/solicitacao-fixture-0003').recebida_por_email, 'colab@fixture.test');
+  assert.equal((await carteira({ solicitacao: 'recebida' })).body.empresas.filter(e => e.cnpj === cnpj).length, 1);
+  assert.equal(S.situacaoSolicitacao({ solicitacao_id: 'x', situacao: 'aguardando', prazo: '2026-10-01' }, '2026-10-13'), 'atrasada', 'prazo vencido sem recebimento = cliente atrasado');
+  assert.equal(S.situacaoSolicitacao({ solicitacao_id: 'x', situacao: 'recebida', prazo: '2026-10-01' }, '2026-10-13'), 'recebida');
+  assert.equal(S.situacaoSolicitacao(undefined, '2026-10-13'), 'sem');
+
   // E-mail sem integração: alerta claro, nada gravado.
   const sem = ambiente(null, null, { solicitacaoEmail: { ...email, GraphEmail: { ...email.GraphEmail, configurado: () => false } } });
   sem.dados.set('empresas/' + cnpj, { ...sem.dados.get('empresas/' + cnpj), email: 'cliente@fixture-cliente.test' });

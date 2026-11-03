@@ -7,6 +7,7 @@ const { podeAcao } = require('./permissoes-cci');
 
 const MODELOS = 'crm_solicitacao_modelos';
 const REGISTROS = 'crm_solicitacoes';
+const STATUS = 'crm_solicitacao_status';
 
 function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = process.env, email = {} }) {
   const GraphEmail = email.GraphEmail || require('./graph-email-provider');
@@ -63,6 +64,7 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
     const snap = await c.controlesRef.collection(REGISTROS).orderBy('quando', 'desc').limit(20).get();
     res.json({
       ok: true,
+      situacao: S.solicitacaoPublica((await db.collection(STATUS).doc(req.params.cnpj).get()).data(), hoje()),
       empresa: { cnpj: req.params.cnpj, razao_social: c.empresa.razao_social || '' },
       contato: S.contatoEmpresa(c.empresa),
       pode_enviar: podeEnviar(c.user),
@@ -70,7 +72,7 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
       hoje: hoje(),
       historico: snap.docs.map(d => {
         const r = d.data();
-        return { id: d.id, quando: r.quando, canal: r.canal, estado: r.estado, destino_exibicao: r.destino_exibicao, modelo_nome: r.modelo_nome, competencia: r.competencia, prazo: r.prazo, autor_email: r.autor_email, detalhe: r.detalhe || '' };
+        return { id: d.id, quando: r.quando, canal: r.canal, estado: r.estado, destino_exibicao: r.destino_exibicao, modelo_nome: r.modelo_nome, competencia: r.competencia, prazo: r.prazo, autor_email: r.autor_email, detalhe: r.detalhe || '', recebida_em: r.recebida_em || null, recebida_por_email: r.recebida_por_email || null };
       })
     });
   }));
@@ -113,6 +115,8 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
       const d = await tx.get(ref);
       if (d.exists) return { repetido: true, item: d.data() };
       tx.create(ref, registro);
+      // WhatsApp não tem confirmação posterior: a situação na carteira sai já aqui.
+      if (registro.estado === 'whatsapp_aberto') tx.set(db.collection(STATUS).doc(req.params.cnpj), S.resumoSolicitacao(ref.id, registro));
       return { repetido: false, item: registro };
     });
     if (claim.repetido) {
@@ -144,8 +148,32 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
     }
     final.concluido_em = agora();
     await ref.set(S.semIndefinidos(final), { merge: true });
+    await db.collection(STATUS).doc(req.params.cnpj).set(S.resumoSolicitacao(ref.id, { ...registro, ...final }));
     res.status(final.estado === 'enviado' ? 200 : 502).json({ ok: final.estado === 'enviado', erro: final.estado === 'enviado' ? undefined : final.detalhe, solicitacao: { id: ref.id, ...registro, ...final } });
+  }));
+
+  // Quem acompanha a empresa marca que o cliente mandou os documentos.
+  app.post(base + '/:id/recebida', wrap(async (req, res) => {
+    if (!/^[a-zA-Z0-9_-]{16,80}$/.test(String(req.params.id || ''))) throw erro('Solicitação inválida. Atualize o histórico.', 404);
+    const quem = await colaborador((await usuario(req)).uid);
+    const resultado = await db.runTransaction(async tx => {
+      const c = await contexto(req, tx);
+      if (!podeEnviar(c.user)) throw erro('Seu nível no CCI não permite atualizar solicitações (ação Emitir). Peça ao administrador para liberar em Admin → Usuários.', 403);
+      const ref = c.controlesRef.collection(REGISTROS).doc(req.params.id);
+      const statusRef = db.collection(STATUS).doc(req.params.cnpj);
+      const [d, st] = await Promise.all([tx.get(ref), tx.get(statusRef)]);
+      if (!d.exists) throw erro('Solicitação não encontrada nesta empresa. Atualize o histórico.', 404);
+      const r = d.data();
+      if (r.estado === 'falhou') throw erro('Este e-mail não foi confirmado. Envie de novo antes de marcar como recebida.', 409);
+      if (r.recebida_em) return { ...r, id: ref.id };
+      const marca = { recebida_em: agora(), recebida_por: c.user.uid, recebida_por_email: quem.email };
+      tx.set(ref, marca, { merge: true });
+      // A carteira só muda se esta ainda for a última solicitação da empresa.
+      if (st.exists && st.data().solicitacao_id === ref.id) tx.set(statusRef, S.resumoSolicitacao(ref.id, { ...r, ...marca }));
+      return { ...r, ...marca, id: ref.id };
+    });
+    res.json({ ok: true, solicitacao: resultado });
   }));
 }
 
-module.exports = { registrar, MODELOS, REGISTROS };
+module.exports = { registrar, MODELOS, REGISTROS, STATUS };
