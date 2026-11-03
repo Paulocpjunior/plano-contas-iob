@@ -11,24 +11,25 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
 // ── Puro: modelos padrão e edição ───────────────────────────────────────────
 {
   const lista = S.modelosEfetivos([]);
-  assert.deepEqual(lista.map(m => m.id), ['S01', 'S02', 'S03', 'S04']);
+  assert.deepEqual(lista.map(m => m.id), ['S01', 'S02', 'S03', 'S04', 'S05', 'S06', 'S07', 'S08', 'S09', 'S10', 'S11']);
+  assert(['DITR', 'DIMOB', 'Aluguel', 'lucros', 'Inventário', 'aplicações financeiras'].every(t => lista.some(m => m.nome.includes(t))), 'modelos do CFI viram padrão no CCI');
   assert(lista.every(m => m.ativo && m.revisao === 0 && m.texto.includes('{{documentos}}')));
-  assert.equal(S.proximoId([]), 'S05');
+  assert.equal(S.proximoId([]), 'S12');
 
-  const novo = S.configurarModelo('S05', {}, { revisao: 0, nome: 'Folha', assunto: 'Folha de {{competencia}}', texto: 'Precisamos de:\n{{documentos}}', documentos: '• Ponto\nPonto\n- Atestados' }, 'admin', 'q');
+  const novo = S.configurarModelo('S12', {}, { revisao: 0, nome: 'Folha', assunto: 'Folha de {{competencia}}', texto: 'Precisamos de:\n{{documentos}}', documentos: '• Ponto\nPonto\n- Atestados' }, 'admin', 'q');
   assert.deepEqual(novo.documentos, ['Ponto', 'Atestados'], 'lista sem marcador e sem repetição');
   assert.equal(novo.revisao, 1);
-  falha(() => S.configurarModelo('S05', novo, { revisao: 0, nome: 'x', assunto: 'x', texto: '{{documentos}}' }), /alterado/);
-  falha(() => S.configurarModelo('S05', {}, { revisao: 0, nome: 'x', assunto: 'x', texto: 'sem lista' }), /\{\{documentos\}\}/);
-  falha(() => S.configurarModelo('S05', {}, { revisao: 0, nome: 'x', assunto: 'x', texto: '{{documentos}} {{senha}}' }), /desconhecida/);
-  falha(() => S.configurarModelo('S05', {}, { revisao: 0, nome: 'x', assunto: '{{documentos}}', texto: '{{documentos}}' }), /não pode ser usada no assunto/);
+  falha(() => S.configurarModelo('S12', novo, { revisao: 0, nome: 'x', assunto: 'x', texto: '{{documentos}}' }), /alterado/);
+  falha(() => S.configurarModelo('S12', {}, { revisao: 0, nome: 'x', assunto: 'x', texto: 'sem lista' }), /\{\{documentos\}\}/);
+  falha(() => S.configurarModelo('S12', {}, { revisao: 0, nome: 'x', assunto: 'x', texto: '{{documentos}} {{senha}}' }), /desconhecida/);
+  falha(() => S.configurarModelo('S12', {}, { revisao: 0, nome: 'x', assunto: '{{documentos}}', texto: '{{documentos}}' }), /não pode ser usada no assunto/);
   falha(() => S.configurarModelo('S21', {}, { revisao: 0 }), /inválido/);
 
   const sobrescrito = S.modelosEfetivos([{ id: 'S01', nome: 'Meu fechamento', assunto: 'A', texto: '{{documentos}}', documentos: ['X'], ativo: false, revisao: 3 }, novo]);
   assert.equal(sobrescrito[0].nome, 'Meu fechamento');
   assert.equal(sobrescrito[0].ativo, false);
-  assert.equal(sobrescrito.at(-1).id, 'S05');
-  assert.equal(S.proximoId([novo]), 'S06');
+  assert.equal(sobrescrito.at(-1).id, 'S12');
+  assert.equal(S.proximoId([novo]), 'S13');
 }
 
 // ── Puro: preparar a solicitação ────────────────────────────────────────────
@@ -107,7 +108,7 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   // Modelos: todos leem, só admin edita.
   const lista = await n.call('GET', '/api/crm/solicitacoes/modelos', {}, 'colab');
   assert.equal(lista.statusCode, 200);
-  assert.equal(lista.body.modelos.length, 4);
+  assert.equal(lista.body.modelos.length, 11);
   assert.equal(lista.body.admin, false, 'is_admin forjado no token não vale');
   const edicao = { revisao: 0, nome: 'Fechamento SP', assunto: 'Fechamento {{competencia}}', texto: 'Oi {{empresa}}, envie:\n{{documentos}}\nAté {{prazo}}.\n{{responsavel}}', documentos: ['Extratos', 'Notas'] };
   assert.equal((await n.call('PUT', '/api/crm/solicitacoes/modelos/:id', edicao, 'colab', { id: 'S01' })).statusCode, 403);
