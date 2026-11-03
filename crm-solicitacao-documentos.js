@@ -86,6 +86,7 @@ const ROTULOS = {
   observacao: 'a observação'
 };
 const CANAIS = ['email', 'whatsapp'];
+const { listaEmails } = require('./empresa-cadastro');
 const RE_EMAIL = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
 
 function erro(mensagem, status = 400) {
@@ -214,11 +215,13 @@ function whatsappFormatado(n) {
 /** Contato do cadastro da empresa, sem deduzir nada de outro campo. */
 function contatoEmpresa(empresa) {
   const e = empresa || {};
-  const email = String(e.email || '').trim().toLowerCase();
+  const lista = listaEmails(e.email);
+  const emails = lista.filter(x => RE_EMAIL.test(x));
   const whatsapp = normalizarWhatsapp(e.whatsapp || e.whatsapp_cliente || '');
   return {
-    email: RE_EMAIL.test(email) ? email : '',
-    email_invalido: !!email && !RE_EMAIL.test(email),
+    email: emails.join('; '),
+    emails,
+    email_invalido: emails.length !== lista.length,
     whatsapp: whatsapp || '',
     whatsapp_exibicao: whatsapp ? whatsappFormatado(whatsapp) : '',
     whatsapp_invalido: whatsapp === null,
@@ -233,20 +236,22 @@ function resolverDestino(canal, b, empresa) {
     if (tipo === 'cadastro') {
       if (c.email_invalido) throw erro('O e-mail do cadastro desta empresa é inválido. Corrija em Empresas → Dados da empresa → E-mail, ou informe outro e-mail para este envio.');
       if (!c.email) throw erro('Esta empresa não tem e-mail no cadastro. Cadastre em Empresas → Dados da empresa → E-mail, ou informe outro e-mail para este envio.');
-      return { destino: c.email, destino_tipo: tipo };
+      return { destino: c.email, destinos: c.emails, destino_tipo: tipo };
     }
-    const email = texto(b.destino, 160, 'o e-mail do cliente', true).toLowerCase();
-    if (!RE_EMAIL.test(email)) throw erro('Informe um único e-mail válido do cliente.');
-    return { destino: email, destino_tipo: tipo };
+    const lista = listaEmails(texto(b.destino, 600, 'o e-mail do cliente', true));
+    const invalidos = lista.filter(x => !RE_EMAIL.test(x));
+    if (invalidos.length) throw erro('E-mail inválido: ' + invalidos.join(', ') + '. Para mais de um, separe com ponto e vírgula (;).');
+    if (lista.length > 10) throw erro('Informe até 10 e-mails por envio.');
+    return { destino: lista.join('; '), destinos: lista, destino_tipo: tipo };
   }
   if (tipo === 'cadastro') {
     if (c.whatsapp_invalido) throw erro('O WhatsApp do cadastro desta empresa é inválido. Corrija em Empresas → Dados da empresa → WhatsApp API, ou informe outro número para este envio.');
     if (!c.whatsapp) throw erro('Esta empresa não tem WhatsApp no cadastro. Cadastre em Empresas → Dados da empresa → WhatsApp API, ou informe outro número para este envio.');
-    return { destino: c.whatsapp, destino_tipo: tipo };
+    return { destino: c.whatsapp, destinos: [c.whatsapp], destino_tipo: tipo };
   }
   const numero = normalizarWhatsapp(texto(b.destino, 30, 'o WhatsApp do cliente', true));
   if (!numero) throw erro('WhatsApp inválido: informe DDD + número, com 10 ou 11 dígitos.');
-  return { destino: numero, destino_tipo: tipo };
+  return { destino: numero, destinos: [numero], destino_tipo: tipo };
 }
 
 function preencher(t, dados) {
@@ -299,7 +304,7 @@ function prepararSolicitacao(modelo, b, ctx) {
   for (const v of usadas) {
     if (v !== 'observacao' && !dados[v]) throw erro('Informe ' + (ROTULOS[v] || v) + ': o modelo usa {{' + v + '}}.');
   }
-  const { destino, destino_tipo } = resolverDestino(canal, corpo, empresa);
+  const { destino, destinos, destino_tipo } = resolverDestino(canal, corpo, empresa);
   const mensagem = limparTexto(preencher(modelo.texto, dados));
   if (mensagem.length > 4000) throw erro('A mensagem passou de 4.000 caracteres. Reduza a lista de documentos ou a observação.');
   const assunto = canal === 'email' ? preencher(modelo.assunto, dados).replace(/\s+/g, ' ').trim().slice(0, 180) : '';
@@ -309,8 +314,9 @@ function prepararSolicitacao(modelo, b, ctx) {
     modelo_revisao: modelo.revisao || 0,
     canal,
     destino,
+    destinos,
     destino_tipo,
-    destino_exibicao: canal === 'whatsapp' ? whatsappFormatado(destino) : destino,
+    destino_exibicao: canal === 'whatsapp' ? whatsappFormatado(destino) : destinos.join(', '),
     assunto,
     mensagem,
     competencia,

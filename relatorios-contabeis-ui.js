@@ -248,7 +248,7 @@ function preferenciasImpressao(ctx, sobrescritas) {
       <div class="rc-modal" id="rcEmailModal" hidden role="dialog" aria-modal="true" aria-labelledby="rcEmailTitulo">
         <div class="rc-modal-panel">
           <div class="rc-modal-head"><div><h3 id="rcEmailTitulo">Envio por e-mail — Departamento Contábil</h3><p>O relatório será enviado em PDF usando o layout contábil atual.</p></div><button class="rc-modal-close" id="rcEmailFechar" type="button" aria-label="Fechar">×</button></div>
-          <div class="rc-field"><label>E-mail do destinatário</label><input type="email" id="rcEmailDestinatario" autocomplete="email" placeholder="cliente@empresa.com.br"></div>
+          <div class="rc-field"><label>E-mail do destinatário</label><input type="text" inputmode="email" id="rcEmailDestinatario" autocomplete="email" placeholder="cliente@empresa.com.br; outro@empresa.com.br"></div>
           <div class="rc-field" style="margin-top:12px"><label>Assunto</label><input id="rcEmailAssunto"></div>
           <div class="rc-field" style="margin-top:12px"><label>Mensagem</label><textarea id="rcEmailMensagem" style="font-family:inherit"></textarea></div>
           <div class="rc-field" style="margin-top:12px"><label>Vencimento (opcional, quando o documento exigir ação até uma data)</label><input type="date" id="rcEmailVencimento"><small>O e-mail incluirá um convite de agenda com o assunto acima. Relatórios sem vencimento não precisam de data.</small></div>
@@ -1377,8 +1377,9 @@ function preferenciasImpressao(ctx, sobrescritas) {
 
   async function enviarPDFEmail() {
     const email = String(document.getElementById('rcEmailDestinatario').value || '').trim();
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
-      window.showToast('Informe um e-mail válido para o destinatário.', 'warning');
+    const emails = email.split(/[;,\s]+/).filter(Boolean);
+    if (!emails.length || emails.some(function (e) { return !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(e); })) {
+      window.showToast('Informe um e-mail válido para o destinatário. Para mais de um, separe com ponto e vírgula (;).', 'warning');
       return;
     }
     const botao = document.getElementById('rcEmailEnviar');

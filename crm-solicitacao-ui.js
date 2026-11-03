@@ -116,7 +116,7 @@
         + (valor ? 'Do cadastro da empresa: <b>' + esc(exib) + '</b>' : '<span class="cci-sol-falta">⚠️ ' + (invalido ? campo + ' do cadastro inválido' : 'Sem ' + (canal === 'email' ? 'e-mail' : 'WhatsApp') + ' no cadastro')
           + '. Corrija em <b>Empresas → Dados da empresa → ' + campo + '</b>.</span>') + '</span></label>'
         + '<label><input type="radio" name="destino_tipo" value="outro"' + (valor ? '' : ' checked') + '><span>Outro ' + (canal === 'email' ? 'e-mail' : 'número') + ' só para este envio</span></label>'
-        + '<label class="cci-sol-campo">' + (canal === 'email' ? 'E-mail do cliente' : 'WhatsApp do cliente (DDD + número)') + '<input name="destino_outro" ' + (canal === 'email' ? 'type="email" placeholder="contato@cliente.com.br"' : 'type="tel" placeholder="(11) 98765-4321"') + ' maxlength="160"></label>';
+        + '<label class="cci-sol-campo">' + (canal === 'email' ? 'E-mail(s) do cliente (para mais de um, separe com ;)' : 'WhatsApp do cliente (DDD + número)') + '<input name="destino_outro" ' + (canal === 'email' ? 'type="text" inputmode="email" placeholder="contato@cliente.com.br; outro@cliente.com.br"' : 'type="tel" placeholder="(11) 98765-4321"') + ' maxlength="600"></label>';
       q('[name=destino_outro]').closest('label').hidden = !!valor;
       q('[data-destino]').querySelectorAll('[name=destino_tipo]').forEach(r => { r.onchange = () => { q('[name=destino_outro]').closest('label').hidden = r.value === 'cadastro' && r.checked; }; });
       if (canal === 'email' && !info.email_disponivel) q('[data-destino]').insertAdjacentHTML('afterbegin', '<p class="cci-sol-falta">⚠️ O envio de e-mail está indisponível (integração Microsoft 365). Use o WhatsApp ou copie o texto da prévia.</p>');

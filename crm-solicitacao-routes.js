@@ -133,7 +133,7 @@ function registrar(app, { db, wrap, usuario, contexto, admin, erro, agora, env =
         enviar: GraphEmail.enviarEmail,
         emailColaborador: quem.email,
         env,
-        mensagem: { para: previa.destino, assunto: previa.assunto, html, anexos: EmailLayout.anexoLogo(), identidade: req.params.cnpj + '|solicitacao|' + b.chave }
+        mensagem: { para: previa.destinos, assunto: previa.assunto, html, anexos: EmailLayout.anexoLogo(), identidade: req.params.cnpj + '|solicitacao|' + b.chave }
       });
       final = envio.ok
         ? { estado: 'enviado', remetente: envio.remetente, fonte_remetente: envio.fonteRemetente, detalhe: 'Aceito pelo Microsoft 365, saindo de ' + envio.remetente + (envio.refeitoPelaInstitucional ? ' (sua caixa não existe no Microsoft 365; saiu pela institucional)' : '') + '. A cópia fica em Itens enviados.' }
