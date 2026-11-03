@@ -2380,3 +2380,8 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - `empresa-cadastro.js`: `listaEmails`/`normalizarEmailsCadastro` aceitam ; , espaço ou quebra de linha, sem repetir, até 10, gravando "a@x; b@x" (limite 600). Erro cita o endereço inválido.
 - Solicitar documentos envia para todos (`previa.destinos`, Graph `para` em lista); "outro e-mail" também aceita vários. Relatório contábil por e-mail (`/contabilidade/relatorios/enviar-email` e a tela) aceita vários.
 - Fora do escopo: Reinf (aplicações/dividendos) segue com um único e-mail por envio, travado em `test-reinf-aplicacoes-email-tela.js`; com vários no cadastro, a solicitação automática de aplicações pula a empresa ("sem e-mail válido") até ter o e-mail próprio do Reinf.
+
+## 03/11/2026 — v3.4.482 Solicitar documentos: modelos DITR, DIMOB e afins
+
+- Colaboradora não achava os modelos (DITR, DIMOB, extratos anuais, aluguel PF, lucros, inventário, informes de aplicações) gravados no painel ✉️ Templates e agendamentos. O painel é do contábil mas roda no servidor do CFI, então o CRM do CCI não os enxerga.
+- Viraram modelos padrão S05–S11 em `crm-solicitacao-documentos.js`; personalizados do admin passam a começar em S12. Admin ajusta os textos em Automações do CRM → Modelos de solicitação ao cliente.

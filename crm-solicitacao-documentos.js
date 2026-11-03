@@ -72,6 +72,90 @@ const MODELOS_PADRAO = [
       'Contratos de empréstimos e financiamentos com saldo em 31/12',
       'Relação de contas a receber e a pagar em 31/12'
     ]
+  },
+  {
+    id: 'S05',
+    nome: 'DITR (imóvel rural)',
+    assunto: 'Documentos para a DITR — {{empresa}}',
+    texto: 'Olá! Tudo bem?\n\nPara entregarmos a DITR (declaração do ITR) de {{empresa}} (CNPJ {{cnpj}}), referência {{competencia}}, precisamos dos documentos abaixo de cada imóvel rural:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}' + ASSINATURA,
+    documentos: [
+      'Recibo e cópia da DITR do ano anterior',
+      'CCIR e número do CIB/NIRF de cada imóvel',
+      'Recibo do CAR (Cadastro Ambiental Rural)',
+      'Área total, área utilizada e áreas de preservação, em hectares',
+      'Valor da terra nua (VTN) informado pela prefeitura ou laudo'
+    ]
+  },
+  {
+    id: 'S06',
+    nome: 'DIMOB (imóveis e aluguéis)',
+    assunto: 'Documentos para a DIMOB — {{empresa}}',
+    texto: 'Olá! Tudo bem?\n\nPara entregarmos a DIMOB de {{empresa}} (CNPJ {{cnpj}}), referência {{competencia}}, precisamos das informações abaixo:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}' + ASSINATURA,
+    documentos: [
+      'Relação dos contratos de locação do ano, com locador, locatário e CPF/CNPJ',
+      'Valores de aluguel pagos e recebidos mês a mês',
+      'Comissões e taxas de administração cobradas',
+      'Relação das vendas e intermediações de imóveis no ano',
+      'Endereço completo e inscrição municipal de cada imóvel'
+    ]
+  },
+  {
+    id: 'S07',
+    nome: 'Extratos bancários anuais (informes)',
+    assunto: 'Extratos e informes bancários de {{competencia}} — {{empresa}}',
+    texto: 'Olá! Tudo bem?\n\nPara o fechamento anual de {{empresa}} (CNPJ {{cnpj}}), referência {{competencia}}, precisamos dos documentos bancários abaixo:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}' + ASSINATURA,
+    documentos: [
+      'Extratos de todas as contas com o saldo em 31/12',
+      'Informe de rendimentos de cada banco',
+      'Extrato de empréstimos e financiamentos com o saldo devedor em 31/12',
+      'Extrato do cartão de crédito empresarial de dezembro'
+    ]
+  },
+  {
+    id: 'S08',
+    nome: 'Aluguel recebido de pessoa física',
+    assunto: 'Aluguéis recebidos em {{competencia}} — {{empresa}}',
+    texto: 'Olá! Tudo bem?\n\nPara apurarmos os aluguéis recebidos de pessoa física por {{empresa}} (CPF/CNPJ {{cnpj}}) em {{competencia}}, precisamos de:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}' + ASSINATURA,
+    documentos: [
+      'Recibos ou comprovantes dos aluguéis recebidos',
+      'Contrato de locação de cada imóvel (se novo ou renovado)',
+      'Demonstrativo da imobiliária com a taxa de administração',
+      'Comprovantes de IPTU e condomínio pagos pelo proprietário'
+    ]
+  },
+  {
+    id: 'S09',
+    nome: 'Distribuição de lucros aos sócios',
+    assunto: 'Lucros distribuídos em {{competencia}} — {{empresa}}',
+    texto: 'Olá! Tudo bem?\n\nPara registrarmos a distribuição de lucros de {{empresa}} (CNPJ {{cnpj}}) referente a {{competencia}}, precisamos de:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}' + ASSINATURA,
+    documentos: [
+      'Valor distribuído a cada sócio, com a data de cada pagamento',
+      'Comprovantes das transferências aos sócios',
+      'Ata ou deliberação dos sócios aprovando a distribuição (se houver)'
+    ]
+  },
+  {
+    id: 'S10',
+    nome: 'Inventário anual de estoques',
+    assunto: 'Inventário de estoques de {{competencia}} — {{empresa}}',
+    texto: 'Olá! Tudo bem?\n\nPara o encerramento de {{empresa}} (CNPJ {{cnpj}}), referência {{competencia}}, precisamos do inventário de estoques:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}' + ASSINATURA,
+    documentos: [
+      'Relação dos itens em estoque em 31/12, com quantidade, unidade e custo unitário',
+      'Valor total do estoque por tipo (mercadorias, matéria-prima, produtos acabados)',
+      'Estoque em poder de terceiros ou de terceiros em seu poder (se houver)',
+      'Assinatura do responsável pela contagem'
+    ]
+  },
+  {
+    id: 'S11',
+    nome: 'Informes de rendimento de aplicações financeiras',
+    assunto: 'Informes de aplicações de {{competencia}} — {{empresa}}',
+    texto: 'Olá! Tudo bem?\n\nPara conciliarmos as aplicações financeiras de {{empresa}} (CNPJ {{cnpj}}), referência {{competencia}}, precisamos de:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}' + ASSINATURA,
+    documentos: [
+      'Informe de rendimentos de cada banco ou corretora',
+      'Extrato das aplicações com saldo, rendimento e IR retido',
+      'Notas de corretagem e resgates do período (se houver)'
+    ]
   }
 ];
 
