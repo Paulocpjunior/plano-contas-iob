@@ -8,7 +8,7 @@ const { podeAcao } = require('./permissoes-cci');
 const MODELOS = 'crm_solicitacao_modelos';
 const REGISTROS = 'crm_solicitacoes';
 
-function registrar(app, { db, wrap, usuario, contexto, admin, erro, agora, env = process.env, email = {} }) {
+function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = process.env, email = {} }) {
   const GraphEmail = email.GraphEmail || require('./graph-email-provider');
   const GraphRemetente = email.GraphRemetente || require('./graph-remetente');
   const EmailLayout = email.EmailLayout || require('./email-layout');
@@ -38,7 +38,7 @@ function registrar(app, { db, wrap, usuario, contexto, admin, erro, agora, env =
   app.get('/api/crm/solicitacoes/modelos', wrap(async (req, res) => {
     const user = await usuario(req);
     const lista = await salvos();
-    res.json({ ok: true, admin: user.is_admin, variaveis: S.VARIAVEIS, modelos: S.modelosEfetivos(lista), proximo_id: S.proximoId(lista) });
+    res.json({ ok: true, admin: user.is_admin, pode_editar: podeEnviar(user), variaveis: S.VARIAVEIS, modelos: S.modelosEfetivos(lista), proximo_id: S.proximoId(lista) });
   }));
 
   app.put('/api/crm/solicitacoes/modelos/:id', wrap(async (req, res) => {
@@ -46,7 +46,8 @@ function registrar(app, { db, wrap, usuario, contexto, admin, erro, agora, env =
     const ref = db.collection(MODELOS).doc(req.params.id);
     const modelo = await db.runTransaction(async tx => {
       const user = await usuario(req, tx);
-      admin(user);
+      // Mesma régua do envio: quem pode enviar ao cliente também ajusta os modelos.
+      if (!podeEnviar(user)) throw erro('Seu nível no CCI não permite editar modelos de solicitação (ação Emitir). Peça ao administrador para liberar em Admin → Usuários → Nível e ações do CCI.', 403);
       const d = await tx.get(ref);
       const antes = d.exists ? d.data() : {};
       const depois = S.configurarModelo(req.params.id, antes, req.body || {}, user.uid, agora());

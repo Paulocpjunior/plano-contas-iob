@@ -2385,3 +2385,8 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 
 - Colaboradora não achava os modelos (DITR, DIMOB, extratos anuais, aluguel PF, lucros, inventário, informes de aplicações) gravados no painel ✉️ Templates e agendamentos. O painel é do contábil mas roda no servidor do CFI, então o CRM do CCI não os enxerga.
 - Viraram modelos padrão S05–S11 em `crm-solicitacao-documentos.js`; personalizados do admin passam a começar em S12. Admin ajusta os textos em Automações do CRM → Modelos de solicitação ao cliente.
+
+## 03/11/2026 — v3.4.483 Solicitar documentos: editar no CRM e aluguel pago a PF
+
+- S08 estava como aluguel recebido; o pedido real é aluguéis PAGOS a pessoa física (Reinf). Texto corrigido e travado no teste.
+- Edição de modelos sai do "só admin": quem pode enviar (admin ou Emitir) cria e edita; botões no próprio Solicitar documentos (`abrirModelosSolicitacao({editar, aoSalvar})`).
