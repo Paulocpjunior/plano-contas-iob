@@ -18,7 +18,7 @@ const registrarRotasReinf = require('./reinf-routes');
 const cryptoAdmin = require('crypto');
 const { montarPreviaExclusao, aplicarExclusao, fingerprintsImportacaoLiberados } = require('./admin-exclusao-lancamentos');
 const { aplicarNoEstado: aplicarMigracaoSageNoEstado, prepararStaging: prepararStagingMigracaoSage, removerLoteDoEstado: removerMigracaoSageDoEstado, sha256: hashMigracaoSage } = require('./migracao-sage-executor');
-const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca } = require('./empresa-cadastro');
+const { camposCadastroEmpresa, codigoEmpresaDe, empresaBateBusca, listaEmails } = require('./empresa-cadastro');
 const { conferirFilialDaMatriz } = require('./movimento-fiscal-escopo');
 const { statusWhatsappCfi, enviarWhatsappCfi } = require('./whatsapp-cfi-client');
 const { buscarRegimeNoCfi } = require('./cfi-regime-client');
@@ -4809,11 +4809,13 @@ app.post('/api/empresas/:cnpj/contabilidade/relatorios/enviar-email', async (req
     if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
 
     const entrada = req.body || {};
-    const destinatario = String(entrada.email || '').trim().toLowerCase();
+    // Aceita mais de um e-mail separado por ; (cadastro da empresa com vários contatos).
+    const destinatarios = listaEmails(entrada.email);
+    const destinatario = destinatarios.join('; ');
     const periodo = String(entrada.periodo || '').trim();
     const tipo = String(entrada.tipo || '').trim().toLowerCase();
     const tiposPermitidos = { balancete: 'Balancete', balancete_anual: 'Balancete Anual Analítico', razao: 'Razão Analítico', diario: 'Livro Diário', dre: 'Demonstração do Resultado do Exercício', balanco: 'Balanço Patrimonial', analise: 'Análise Econômico-Financeira' };
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinatario)) return res.status(400).json({ erro: 'E-mail do destinatário inválido.' });
+    if (!destinatarios.length || destinatarios.length > 10 || destinatarios.some((e) => !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(e))) return res.status(400).json({ erro: 'E-mail do destinatário inválido. Para mais de um, separe com ponto e vírgula (;).' });
     if (!tiposPermitidos[tipo]) return res.status(400).json({ erro: 'Tipo de relatório inválido.' });
     const periodoValido = tipo === 'balancete_anual' ? /^\d{4}$/.test(periodo) : RelatoriosContabeis.periodoValido(periodo);
     if (!periodoValido) return res.status(400).json({ erro: tipo === 'balancete_anual' ? 'Ano inválido. Use AAAA.' : 'Competência inválida. Use AAAA-MM.' });
@@ -4843,7 +4845,7 @@ app.post('/api/empresas/:cnpj/contabilidade/relatorios/enviar-email', async (req
       enviar: GraphEmail.enviarEmail,
       emailColaborador: req.user.email,
       mensagem: {
-        para: destinatario,
+        para: destinatarios,
         assunto,
         html,
         vencimento: entrada.vencimento || undefined,

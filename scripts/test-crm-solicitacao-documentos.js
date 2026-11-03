@@ -77,6 +77,15 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   // Responsável sem nome usa o e-mail (é verdade, não é dedução).
   assert(S.prepararSolicitacao(modelo, b, { ...ctx, colaborador: { email: 'ana@sp.test' } }).mensagem.includes('ana@sp.test'));
 
+  // Mais de um e-mail no cadastro (03/11/2026): vai para todos.
+  const varios = S.prepararSolicitacao(modelo, b, { ...ctx, empresa: { ...empresa, email: 'bete@gmx.com.br; Gisele@gmx.com.br' } });
+  assert.deepEqual(varios.destinos, ['bete@gmx.com.br', 'gisele@gmx.com.br']);
+  assert.equal(varios.destino_exibicao, 'bete@gmx.com.br, gisele@gmx.com.br');
+  const variosOutro = S.prepararSolicitacao(modelo, { ...b, destino_tipo: 'outro', destino: 'a@x.com, b@x.com;a@x.com' }, ctx);
+  assert.deepEqual(variosOutro.destinos, ['a@x.com', 'b@x.com'], 'sem repetir');
+  falha(() => S.prepararSolicitacao(modelo, { ...b, destino_tipo: 'outro', destino: 'a@x.com; quebrado' }, ctx), /quebrado/);
+  falha(() => S.prepararSolicitacao(modelo, b, { ...ctx, empresa: { ...empresa, email: 'a@x.com; ruim' } }), /inválido/);
+
   assert.equal(S.htmlDaMensagem('<b>x</b>\ny'), '<div style="margin:0; white-space:normal;">&lt;b&gt;x&lt;/b&gt;<br>y</div>');
   assert.deepEqual(S.semIndefinidos({ a: undefined, b: { c: undefined } }), { a: null, b: { c: null } });
 }
@@ -90,7 +99,7 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
     GraphRemetente: { enviarComoColaborador: async ({ enviar, emailColaborador, mensagem }) => { const r = await enviar({ ...mensagem, remetente: emailColaborador }); return { ...r, remetente: emailColaborador, fonteRemetente: 'colaborador' }; } }
   };
   const n = ambiente(null, null, { solicitacaoEmail: email });
-  n.dados.set('empresas/' + cnpj, { ...n.dados.get('empresas/' + cnpj), razao_social: 'Fixture LTDA', email: 'cliente@fixture-cliente.test', whatsapp: '5511987654321' });
+  n.dados.set('empresas/' + cnpj, { ...n.dados.get('empresas/' + cnpj), razao_social: 'Fixture LTDA', email: 'cliente@fixture-cliente.test; socio@fixture-cliente.test', whatsapp: '5511987654321' });
   n.dados.set('users/colab', { ...n.dados.get('users/colab'), last_name: 'Colab Teste' });
   n.dados.set('users/leitor', { email: 'leitor@fixture.test', permissoesCci: criarPermissoes('consulta') });
   n.dados.set('empresas/' + cnpj, { ...n.dados.get('empresas/' + cnpj), carteira_uids: [...n.dados.get('empresas/' + cnpj).carteira_uids, 'leitor'], responsaveis: [...n.dados.get('empresas/' + cnpj).responsaveis, { uid: 'leitor', papel: 'apoio' }] });
@@ -114,7 +123,7 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   // Empresa: contato do cadastro e permissão.
   const info = await n.call('GET', '/api/crm/empresas/:cnpj/solicitacoes', {}, 'colab');
   assert.equal(info.statusCode, 200, JSON.stringify(info.body));
-  assert.equal(info.body.contato.email, 'cliente@fixture-cliente.test');
+  assert.equal(info.body.contato.email, 'cliente@fixture-cliente.test; socio@fixture-cliente.test');
   assert.equal(info.body.contato.whatsapp, '5511987654321');
   assert.equal(info.body.pode_enviar, true);
   assert.equal((await n.call('GET', '/api/crm/empresas/:cnpj/solicitacoes', {}, 'colab', { cnpj: '99999999999999' })).statusCode, 403, 'fora da carteira');
@@ -135,7 +144,7 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   assert.equal(ok.statusCode, 200, JSON.stringify(ok.body));
   assert.equal(ok.body.solicitacao.estado, 'enviado');
   assert.equal(enviados.length, 1);
-  assert.equal(enviados[0].para, 'cliente@fixture-cliente.test');
+  assert.deepEqual(enviados[0].para, ['cliente@fixture-cliente.test', 'socio@fixture-cliente.test'], 'vai para todos os e-mails do cadastro');
   assert.equal(enviados[0].remetente, 'colab@fixture.test', 'sai da caixa de quem pediu');
   assert(enviados[0].html.includes('• Extratos'));
   const reg = n.dados.get('empresas/' + cnpj + '/crm_solicitacoes/' + envio.chave);
@@ -171,6 +180,14 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   const r503 = await sem.call('POST', '/api/crm/empresas/:cnpj/solicitacoes/enviar', envio, 'colab');
   assert.equal(r503.statusCode, 503);
   assert.match(r503.body.erro, /Microsoft 365/);
+
+  // Cadastro da empresa aceita vários e-mails (antes: "E-mail cadastral invalido").
+  const Cad = require('../empresa-cadastro');
+  const cad = Cad.camposCadastroEmpresa({ email: 'Bete@gmxuniformes.com.br; gisele@gmxuniformes.com.br' });
+  assert.equal(cad.ok, true, JSON.stringify(cad));
+  assert.equal(cad.campos.email, 'bete@gmxuniformes.com.br; gisele@gmxuniformes.com.br');
+  assert.equal(Cad.camposCadastroEmpresa({ email: 'contato@empresa.com.br' }).campos.email, 'contato@empresa.com.br');
+  assert.match(Cad.camposCadastroEmpresa({ email: 'a@b.com; semarroba' }).erro, /semarroba/);
 
   // A tela existe nas duas páginas, publicada e ligada ao CRM e à central.
   const fs = require('fs');

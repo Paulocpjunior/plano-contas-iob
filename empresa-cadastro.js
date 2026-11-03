@@ -32,6 +32,28 @@ function normalizarWhatsappBr(bruto) {
   return { ok: true, valor: digitos };
 }
 
+// Mais de um e-mail por cliente (Paulo, 03/11/2026): "a@x.com; b@x.com".
+// Aceita ; , espaço ou quebra de linha como separador e grava "a@x.com; b@x.com".
+const RE_EMAIL_CADASTRO = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
+function listaEmails(bruto) {
+  const vistos = new Set();
+  const lista = [];
+  for (const parte of String(bruto || '').split(/[;,\s]+/)) {
+    const email = parte.trim().toLowerCase();
+    if (!email || vistos.has(email)) continue;
+    vistos.add(email);
+    lista.push(email);
+  }
+  return lista;
+}
+function normalizarEmailsCadastro(bruto) {
+  const lista = listaEmails(bruto);
+  const invalidos = lista.filter((e) => !RE_EMAIL_CADASTRO.test(e));
+  if (invalidos.length) return { ok: false, erro: 'E-mail cadastral invalido: ' + invalidos.join(', ') + '. Para mais de um, separe com ponto e virgula (;).' };
+  if (lista.length > 10) return { ok: false, erro: 'Informe ate 10 e-mails no cadastro da empresa.' };
+  return { ok: true, valor: lista.join('; '), lista };
+}
+
 function normalizarTextoCadastro(bruto, limite) {
   if (bruto === undefined) return { ok: true, ausente: true };
   const valor = String(bruto || '').trim().replace(/\s+/g, ' ');
@@ -141,7 +163,7 @@ function camposCadastroEmpresa(payload) {
     cnae_secundario: 20,
     registro_orgao: 40,
     registro_numero: 50,
-    email: 160,
+    email: 600,
     contato: 120
   };
   for (const [campo, limite] of Object.entries(textos)) {
@@ -155,7 +177,11 @@ function camposCadastroEmpresa(payload) {
     campos.cep = campos.cep.replace(/\D/g, '');
     if (campos.cep && campos.cep.length !== 8) return { ok: false, erro: 'CEP deve ter 8 digitos.' };
   }
-  if (campos.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(campos.email)) return { ok: false, erro: 'E-mail cadastral invalido.' };
+  if (campos.email) {
+    const emails = normalizarEmailsCadastro(campos.email);
+    if (!emails.ok) return emails;
+    campos.email = emails.valor;
+  }
   const datas = {
     data_abertura: 'Data de abertura',
     inicio_atividades: 'Inicio das atividades',
@@ -174,6 +200,8 @@ function camposCadastroEmpresa(payload) {
 }
 
 module.exports = {
+  listaEmails,
+  normalizarEmailsCadastro,
   normalizarCodigoEmpresa,
   normalizarWhatsappBr,
   normalizarTipoEstabelecimento,

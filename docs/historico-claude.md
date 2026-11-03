@@ -2374,3 +2374,9 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - E-mail: Graph pela caixa do colaborador (`enviarComoColaborador`) com `montarEmailSolicitacao`. WhatsApp: link wa.me com o texto pronto (abre o WhatsApp do colaborador; envio confirmado por ele). Não usa o gateway oficial (Meta exige template aprovado por empresa; fica como evolução).
 - Contato vem só do cadastro (Empresas → Dados da empresa: E-mail / WhatsApp API); ausente/inválido = alerta com o caminho, ou "outro contato só para este envio" digitado pelo colaborador.
 - Tela `crm-solicitacao-ui.js`: botão "📨 Solicitar documentos" no dossiê da empresa; "Modelos de solicitação ao cliente" na central Automações do CRM. Teste `scripts/test-crm-solicitacao-documentos.js`.
+
+## 03/11/2026 — v3.4.481 Cadastro: mais de um e-mail por cliente
+- Paulo (print GMX Uniformes): "bete@...; gisele@..." no E-mail de Dados da empresa dava "E-mail cadastral invalido".
+- `empresa-cadastro.js`: `listaEmails`/`normalizarEmailsCadastro` aceitam ; , espaço ou quebra de linha, sem repetir, até 10, gravando "a@x; b@x" (limite 600). Erro cita o endereço inválido.
+- Solicitar documentos envia para todos (`previa.destinos`, Graph `para` em lista); "outro e-mail" também aceita vários. Relatório contábil por e-mail (`/contabilidade/relatorios/enviar-email` e a tela) aceita vários.
+- Fora do escopo: Reinf (aplicações/dividendos) segue com um único e-mail por envio, travado em `test-reinf-aplicacoes-email-tela.js`; com vários no cadastro, a solicitação automática de aplicações pula a empresa ("sem e-mail válido") até ter o e-mail próprio do Reinf.
