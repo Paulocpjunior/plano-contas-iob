@@ -2366,3 +2366,11 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Pausas: `crm_capacidades/{uid}.pausas.{manha,tarde}` = {inicio,fim,minutos} ou null; `pausasColaborador` valida HH:MM, até 10 min, manhã termina até 12:00, tarde começa a partir de 12:00; PUT sem o campo preserva o gravado. `GET /api/crm/capacidades/minha` (cada um lê a sua) alimenta o Meu dia.
 - Test fix: `test-crm-contabil-routes.js` tinha apoio temporário fixo em 10/2026 e quebrava a partir de 01/11 (vigência conferida contra a data real); agora usa datas relativas a hoje.
 
+
+## 03/11/2026 — v3.4.480 CRM: Solicitar documentos ao cliente (e-mail ou WhatsApp)
+- Paulo (print de Automações do CRM): colaboradores perguntavam onde ficam os modelos de solicitação de documentos e queriam o template pronto, por e-mail ou WhatsApp.
+- Módulo puro `crm-solicitacao-documentos.js`: modelos S01–S04 padrão (fechamento mensal, extratos, pendências da conciliação, balanço) + até S20 criados pelo admin (`crm_solicitacao_modelos/{id}`, revisão + histórico). Variáveis `{{empresa}} {{cnpj}} {{competencia}} {{documentos}} {{prazo}} {{responsavel}} {{observacao}}`; só a observação é opcional; `{{documentos}}` obrigatória no texto.
+- Rotas `crm-solicitacao-routes.js` (registradas no crm-contabil-routes): modelos (todos leem, admin edita), `/api/crm/empresas/:cnpj/solicitacoes` (contato do cadastro + histórico), `/previa`, `/enviar` (carteira + ação Emitir; idempotente pela chave). Registro em `empresas/{cnpj}/crm_solicitacoes`.
+- E-mail: Graph pela caixa do colaborador (`enviarComoColaborador`) com `montarEmailSolicitacao`. WhatsApp: link wa.me com o texto pronto (abre o WhatsApp do colaborador; envio confirmado por ele). Não usa o gateway oficial (Meta exige template aprovado por empresa; fica como evolução).
+- Contato vem só do cadastro (Empresas → Dados da empresa: E-mail / WhatsApp API); ausente/inválido = alerta com o caminho, ou "outro contato só para este envio" digitado pelo colaborador.
+- Tela `crm-solicitacao-ui.js`: botão "📨 Solicitar documentos" no dossiê da empresa; "Modelos de solicitação ao cliente" na central Automações do CRM. Teste `scripts/test-crm-solicitacao-documentos.js`.
