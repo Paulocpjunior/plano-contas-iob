@@ -1,7 +1,8 @@
 {
-  "version": "3.4.482",
-  "build_date": "2026-11-03T17:00:00Z",
+  "version": "3.4.483",
+  "build_date": "2026-11-03T18:00:00Z",
   "release_notes": [
+    "CRM → Solicitar documentos: o modelo de aluguel passa a ser \"Aluguéis pagos a pessoa física\" (EFD-Reinf), e não mais aluguéis recebidos. Os botões \"✏️ Editar este modelo\" e \"＋ Novo modelo\" ficam na própria tela, e quem pode enviar ao cliente (admin ou ação Emitir) também cria e edita os modelos. A alteração vale para toda a equipe e fica no histórico do modelo.",
     "CRM → Solicitar documentos: os modelos que estavam só nos Templates e agendamentos do CFI (DITR, DIMOB, extratos bancários anuais, aluguel de pessoa física, distribuição de lucros, inventário de estoques e informes de aplicações financeiras) agora são modelos padrão do CCI, prontos para qualquer colaborador enviar ao cliente por e-mail ou WhatsApp. O administrador ajusta os textos em Automações do CRM → Modelos de solicitação ao cliente.",
     "Empresas → Dados da empresa → E-mail: o cadastro aceita mais de um e-mail por cliente, separados por ponto e vírgula (ex.: bete@cliente.com.br; gisele@cliente.com.br). Antes dava \"E-mail cadastral inválido\". O CRM → Solicitar documentos envia para todos os e-mails do cadastro, e o envio de relatório contábil por e-mail também aceita vários destinatários.",
     "CRM → Solicitar documentos: os modelos de solicitação de documentos ao cliente agora moram no CCI. No CRM, abra a empresa e use \"📨 Solicitar documentos\": escolha o modelo (fechamento mensal, extratos, pendências da conciliação ou balanço), a competência e o prazo, marque o que o cliente precisa mandar e envie por e-mail (sai da sua caixa do Microsoft 365) ou abra o WhatsApp já na conversa do cliente com o texto pronto. Empresa, CNPJ, competência, prazo e o seu nome entram sozinhos. Sem e-mail ou WhatsApp no cadastro, o CCI avisa onde corrigir (Empresas → Dados da empresa) e permite informar outro contato só para aquele envio. Cada solicitação fica no histórico da empresa. O administrador edita e cria modelos em Automações do CRM → Modelos de solicitação ao cliente.",

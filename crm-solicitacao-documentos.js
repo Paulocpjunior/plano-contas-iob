@@ -113,14 +113,15 @@ const MODELOS_PADRAO = [
   },
   {
     id: 'S08',
-    nome: 'Aluguel recebido de pessoa física',
-    assunto: 'Aluguéis recebidos em {{competencia}} — {{empresa}}',
-    texto: 'Olá! Tudo bem?\n\nPara apurarmos os aluguéis recebidos de pessoa física por {{empresa}} (CPF/CNPJ {{cnpj}}) em {{competencia}}, precisamos de:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}' + ASSINATURA,
+    nome: 'Aluguéis pagos a pessoa física',
+    assunto: 'Aluguéis pagos a pessoa física em {{competencia}} — {{empresa}}',
+    texto: 'Olá! Tudo bem?\n\nPara a EFD-Reinf de {{empresa}} (CNPJ {{cnpj}}), precisamos das informações sobre os aluguéis pagos a pessoas físicas (CPF) em {{competencia}}:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}' + ASSINATURA,
     documentos: [
-      'Recibos ou comprovantes dos aluguéis recebidos',
+      'Comprovantes dos aluguéis pagos no mês',
+      'Nome e CPF de cada locador (proprietário)',
       'Contrato de locação de cada imóvel (se novo ou renovado)',
-      'Demonstrativo da imobiliária com a taxa de administração',
-      'Comprovantes de IPTU e condomínio pagos pelo proprietário'
+      'Valor do IRRF retido, se houver, com o comprovante do recolhimento',
+      'Demonstrativo da imobiliária com a taxa de administração (se houver)'
     ]
   },
   {

@@ -1,7 +1,8 @@
 /* Solicitação de documentos ao cliente (CRM, v3.4.480).
    - window.abrirSolicitacaoDocumentos({cnpj, razao}): o colaborador, no dossiê da empresa,
      escolhe o modelo, marca os documentos e envia por e-mail ou abre o WhatsApp com o texto pronto.
-   - window.abrirModelosSolicitacao(): lista dos modelos (todos veem; só administrador edita).
+   - window.abrirModelosSolicitacao({editar, aoSalvar}): lista dos modelos. Quem pode enviar ao cliente
+     (admin ou ação Emitir) também cria e edita; o próprio Solicitar documentos abre o editor (v3.4.483).
    O texto final é sempre montado no servidor a partir do modelo salvo. */
 (function () {
   'use strict';
@@ -96,6 +97,23 @@
       };
     }
 
+    function preencherModelos(escolhido) {
+      const sel = q('[name=modelo]');
+      const atual = escolhido || sel.value;
+      sel.innerHTML = modelos.map(x => '<option value="' + esc(x.id) + '">' + esc(x.nome) + '</option>').join('');
+      if (modelos.some(x => x.id === atual)) sel.value = atual;
+    }
+
+    // Depois de salvar no editor: a lista e os documentos refletem a versão nova.
+    async function recarregarModelos(salvo) {
+      if (!q('[name=modelo]')) return;
+      const m = await api('/api/crm/solicitacoes/modelos');
+      modelos = m.modelos.filter(x => x.ativo);
+      preencherModelos(salvo && salvo.ativo !== false ? salvo.id : undefined);
+      renderDocs();
+      status('✅ Modelo atualizado. Gere a prévia de novo.');
+    }
+
     function renderDocs() {
       const m = modelos.find(x => x.id === q('[name=modelo]').value);
       q('[data-docs]').innerHTML = m && m.documentos.length
@@ -176,7 +194,8 @@
       q('[data-corpo]').innerHTML = '<div class="cci-not-guia"><strong>Como funciona</strong><ol><li>Escolha o <b>modelo</b> e a competência.</li><li>Marque o que o cliente precisa mandar (ou escreva outros itens).</li><li>Escolha <b>e-mail</b> ou <b>WhatsApp</b>.</li><li><b>Veja a prévia</b> e envie. Fica tudo no histórico abaixo.</li></ol></div>'
         + '<form data-sol novalidate>'
         + '<h3><span class="cci-sol-num">1</span>Modelo e competência</h3>'
-        + '<label>Modelo<select name="modelo">' + modelos.map(x => '<option value="' + esc(x.id) + '">' + esc(x.nome) + '</option>').join('') + '</select></label>'
+        + '<label>Modelo<select name="modelo"></select></label>'
+        + (d.pode_enviar ? '<div class="cci-not-acoes"><button type="button" data-editar-modelo>✏️ Editar este modelo</button><button type="button" data-novo-modelo>＋ Novo modelo</button></div>' : '')
         + '<div class="cci-sol-grade"><label>Competência<input type="month" name="competencia" value="' + competenciaAnterior() + '" required></label>'
         + '<label>Prazo para o cliente enviar<input type="date" name="prazo" value="' + prazo + '" min="' + esc(d.hoje) + '" required></label></div>'
         + '<h3><span class="cci-sol-num">2</span>O que o cliente precisa mandar</h3>'
@@ -187,7 +206,14 @@
         + '<fieldset class="cci-sol-canal"><legend>Enviar por</legend><label><input type="radio" name="canal" value="email" checked><span>✉️ E-mail</span></label><label><input type="radio" name="canal" value="whatsapp"><span>💬 WhatsApp</span></label><div data-destino></div></fieldset>'
         + '<div class="cci-not-acoes"><button class="cci-not-primario">👁️ Ver prévia</button></div></form>'
         + '<section data-previa></section><h3>Solicitações desta empresa</h3><div data-hist></div>';
+      preencherModelos();
       q('[name=modelo]').onchange = renderDocs;
+      const abrirEditor = editar => executar(async () => {
+        if (typeof window.abrirModelosSolicitacao !== 'function') throw new Error('Recarregue a página para editar os modelos.');
+        await window.abrirModelosSolicitacao({ editar, aoSalvar: recarregarModelos });
+      });
+      q('[data-editar-modelo]')?.addEventListener('click', () => abrirEditor(q('[name=modelo]').value));
+      q('[data-novo-modelo]')?.addEventListener('click', () => abrirEditor('novo'));
       q('form[data-sol]').querySelectorAll('[name=canal]').forEach(r => { r.onchange = renderDestino; });
       q('form[data-sol]').addEventListener('input', e => { if (e.target.name !== 'canal' && previaAtual) { previaAtual = null; q('[data-previa]').innerHTML = '<p class="cci-not-dica">Você alterou o formulário. Gere a prévia de novo.</p>'; } });
       q('form[data-sol]').onsubmit = e => { e.preventDefault(); executar(async () => { const r = await api(base + '/previa', corpoAtual()); mostrarPrevia(r.previa); }); };
@@ -198,7 +224,7 @@
   };
 
   // ── Administrador: modelos de solicitação ─────────────────────────────────
-  window.abrirModelosSolicitacao = async function () {
+  window.abrirModelosSolicitacao = async function ({ editar: editarId, aoSalvar } = {}) {
     const ui = criarDialog('cciModelosSolicitacaoDialog', 'Modelos de solicitação ao cliente', 'Textos usados em CRM → empresa → Solicitar documentos');
     const { q, status, executar } = ui;
     let dados = null;
@@ -208,7 +234,7 @@
         + esc(m.id) + ' · ' + (m.padrao ? 'Modelo padrão' : '<span class="cci-not-tag">Criado pelo administrador</span>') + ' · ' + m.documentos.length + ' documento(s) sugerido(s)' + (m.revisao ? ' · revisão ' + m.revisao : '') + '</small></div>'
         + '<span class="cci-not-selo cci-not-' + (m.ativo ? 'ok' : 'alerta') + '">' + (m.ativo ? '✅ Ativo' : '⏸️ Desativado') + '</span></div>'
         + '<details><summary>Ver texto</summary><p><b>Assunto:</b> ' + esc(m.assunto) + '</p><div class="cci-sol-previa">' + esc(m.texto) + '</div></details>'
-        + (dados.admin ? '<div class="cci-not-acoes"><button type="button" data-editar="' + esc(m.id) + '">✏️ Editar modelo</button></div>' : '') + '</article>';
+        + (dados.pode_editar ? '<div class="cci-not-acoes"><button type="button" data-editar="' + esc(m.id) + '">✏️ Editar modelo</button></div>' : '') + '</article>';
     }
 
     function editar(m, novo) {
@@ -220,14 +246,15 @@
         + '<label>Documentos sugeridos (um por linha; o colaborador desmarca o que não precisar)<textarea name="documentos" rows="6" maxlength="6000">' + esc(m.documentos.join('\n')) + '</textarea></label>'
         + '<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="ativo" style="width:18px;height:18px"' + (m.ativo ? ' checked' : '') + '> Ativo (aparece para os colaboradores)</label>'
         + '<div class="cci-not-acoes"><button class="cci-not-primario">Salvar modelo</button><button type="button" data-cancelar>Cancelar</button></div></form>';
-      q('[data-cancelar]').onclick = () => executar(listar);
+      q('[data-cancelar]').onclick = () => (typeof aoSalvar === 'function' ? ui.dialog.close() : executar(listar));
       q('[data-corpo] form').onsubmit = e => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
         executar(async () => {
-          await api('/api/crm/solicitacoes/modelos/' + encodeURIComponent(m.id), { revisao: m.revisao, nome: fd.get('nome'), assunto: fd.get('assunto'), texto: fd.get('texto'), documentos: fd.get('documentos'), ativo: fd.get('ativo') === 'on' }, 'PUT');
+          const r = await api('/api/crm/solicitacoes/modelos/' + encodeURIComponent(m.id), { revisao: m.revisao, nome: fd.get('nome'), assunto: fd.get('assunto'), texto: fd.get('texto'), documentos: fd.get('documentos'), ativo: fd.get('ativo') === 'on' }, 'PUT');
+          if (typeof aoSalvar === 'function') { ui.dialog.close(); await aoSalvar({ ...r.modelo, id: m.id }); return; }
           await listar();
-          status('✅ Modelo salvo. Os colaboradores já veem a versão nova.');
+          status('✅ Modelo salvo. Toda a equipe já vê a versão nova.');
         });
       };
     }
@@ -235,11 +262,22 @@
     async function listar() {
       dados = await api('/api/crm/solicitacoes/modelos');
       q('[data-corpo]').innerHTML = '<div class="cci-not-guia"><strong>Onde o colaborador usa</strong><ol><li>CRM → Carteira → abra a empresa.</li><li>Botão <b>📨 Solicitar documentos</b>.</li><li>Escolhe o modelo, marca os documentos e envia por <b>e-mail</b> ou <b>WhatsApp</b>.</li></ol></div>'
-        + '<div class="cci-not-secao"><h3>Modelos</h3>' + (dados.admin && dados.proximo_id ? '<button type="button" class="cci-not-primario" data-novo>＋ Novo modelo</button>' : '') + '</div>'
+        + '<div class="cci-not-secao"><h3>Modelos</h3>' + (dados.pode_editar && dados.proximo_id ? '<button type="button" class="cci-not-primario" data-novo>＋ Novo modelo</button>' : '') + '</div>'
         + dados.modelos.map(cartao).join('');
       q('[data-novo]')?.addEventListener('click', () => editar({ id: dados.proximo_id, nome: '', assunto: '{{empresa}} — documentos de {{competencia}}', texto: 'Olá! Tudo bem?\n\nPrecisamos dos documentos abaixo de {{empresa}}, referentes a {{competencia}}:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}\n\n{{responsavel}}\nSP Assessoria Contábil', documentos: [], ativo: true, revisao: 0 }, true));
       q('[data-corpo]').querySelectorAll('[data-editar]').forEach(b => { b.onclick = () => editar(dados.modelos.find(m => m.id === b.dataset.editar), false); });
     }
-    await executar(listar);
+    await executar(async () => {
+      await listar();
+      if (!editarId) return;
+      if (!dados.pode_editar) throw new Error('Seu nível no CCI não permite editar modelos (ação Emitir). Peça ao administrador para liberar em Admin → Usuários.');
+      if (editarId === 'novo') {
+        if (!dados.proximo_id) throw new Error('Limite de 20 modelos atingido. Edite ou desative um modelo existente.');
+        q('[data-novo]').click();
+        return;
+      }
+      const m = dados.modelos.find(x => x.id === editarId);
+      if (m) editar(m, false);
+    });
   };
 })();

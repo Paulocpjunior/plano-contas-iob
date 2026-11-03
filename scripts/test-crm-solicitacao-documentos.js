@@ -12,8 +12,10 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
 {
   const lista = S.modelosEfetivos([]);
   assert.deepEqual(lista.map(m => m.id), ['S01', 'S02', 'S03', 'S04', 'S05', 'S06', 'S07', 'S08', 'S09', 'S10', 'S11']);
-  assert(['DITR', 'DIMOB', 'Aluguel', 'lucros', 'Inventário', 'aplicações financeiras'].every(t => lista.some(m => m.nome.includes(t))), 'modelos do CFI viram padrão no CCI');
+  assert(['DITR', 'DIMOB', 'Aluguéis pagos a pessoa física', 'lucros', 'Inventário', 'aplicações financeiras'].every(t => lista.some(m => m.nome.includes(t))), 'modelos do CFI viram padrão no CCI');
   assert(lista.every(m => m.ativo && m.revisao === 0 && m.texto.includes('{{documentos}}')));
+  const aluguel = lista.find(m => m.id === 'S08');
+  assert(!/recebid/i.test(aluguel.nome + aluguel.assunto + aluguel.texto + aluguel.documentos.join(' ')), 'S08 é aluguel PAGO a pessoa física (Reinf), não recebido');
   assert.equal(S.proximoId([]), 'S12');
 
   const novo = S.configurarModelo('S12', {}, { revisao: 0, nome: 'Folha', assunto: 'Folha de {{competencia}}', texto: 'Precisamos de:\n{{documentos}}', documentos: '• Ponto\nPonto\n- Atestados' }, 'admin', 'q');
@@ -105,14 +107,18 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   n.dados.set('users/leitor', { email: 'leitor@fixture.test', permissoesCci: criarPermissoes('consulta') });
   n.dados.set('empresas/' + cnpj, { ...n.dados.get('empresas/' + cnpj), carteira_uids: [...n.dados.get('empresas/' + cnpj).carteira_uids, 'leitor'], responsaveis: [...n.dados.get('empresas/' + cnpj).responsaveis, { uid: 'leitor', papel: 'apoio' }] });
 
-  // Modelos: todos leem, só admin edita.
+  // Modelos: todos leem; quem pode enviar ao cliente (admin ou Emitir) também edita.
   const lista = await n.call('GET', '/api/crm/solicitacoes/modelos', {}, 'colab');
   assert.equal(lista.statusCode, 200);
   assert.equal(lista.body.modelos.length, 11);
   assert.equal(lista.body.admin, false, 'is_admin forjado no token não vale');
+  assert.equal(lista.body.pode_editar, true, 'colaborador com Emitir edita modelos');
+  assert.equal((await n.call('GET', '/api/crm/solicitacoes/modelos', {}, 'leitor')).body.pode_editar, false);
   const edicao = { revisao: 0, nome: 'Fechamento SP', assunto: 'Fechamento {{competencia}}', texto: 'Oi {{empresa}}, envie:\n{{documentos}}\nAté {{prazo}}.\n{{responsavel}}', documentos: ['Extratos', 'Notas'] };
-  assert.equal((await n.call('PUT', '/api/crm/solicitacoes/modelos/:id', edicao, 'colab', { id: 'S01' })).statusCode, 403);
-  const salvo = await n.call('PUT', '/api/crm/solicitacoes/modelos/:id', edicao, 'admin', { id: 'S01' });
+  const negado = await n.call('PUT', '/api/crm/solicitacoes/modelos/:id', edicao, 'leitor', { id: 'S01' });
+  assert.equal(negado.statusCode, 403);
+  assert(/Emitir/.test(negado.body.erro), 'erro diz onde liberar');
+  const salvo = await n.call('PUT', '/api/crm/solicitacoes/modelos/:id', edicao, 'colab', { id: 'S01' });
   assert.equal(salvo.statusCode, 200, JSON.stringify(salvo.body));
   assert.equal(salvo.body.modelo.revisao, 1);
   assert.equal((await n.call('PUT', '/api/crm/solicitacoes/modelos/:id', edicao, 'admin', { id: 'S01' })).statusCode, 409, 'revisão velha');
@@ -200,5 +206,8 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   }
   assert(fs.readFileSync(require('path').join(__dirname, '../crm-contabil-ui.js'), 'utf8').includes('abrirSolicitacaoDocumentos'), 'botão no dossiê da empresa');
   assert(fs.readFileSync(require('path').join(__dirname, '../notificacoes-ui.js'), 'utf8').includes('abrirModelosSolicitacao'), 'modelos na central de automações');
+  const ui = fs.readFileSync(require('path').join(__dirname, '../crm-solicitacao-ui.js'), 'utf8');
+  assert(ui.includes('data-editar-modelo') && ui.includes('data-novo-modelo'), 'editar e criar modelo direto no Solicitar documentos');
+  assert(!ui.includes('dados.admin'), 'edição de modelos segue pode_editar, não só admin');
   console.log('✓ solicitação de documentos ao cliente: modelos, prévia, e-mail e WhatsApp');
 })().catch(e => { console.error(e); process.exit(1); });
