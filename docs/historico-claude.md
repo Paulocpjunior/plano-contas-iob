@@ -2396,3 +2396,9 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Paulo: cada envio deve atualizar o status da empresa no CRM para os admins acompanharem.
 - Resumo da última solicitação em `crm_solicitacao_status/{cnpj}` (gravado no envio; WhatsApp na mesma transação). Atraso calculado na leitura pelo prazo. Rota `POST .../solicitacoes/:id/recebida` (admin/Emitir) marca recebida; só muda a carteira se for a última.
 - Carteira: coluna e filtro `solicitacao` (aguardando, atrasada, recebida, falhou, sem); coluna entra nas visualizações salvas.
+
+## 03/11/2026 — v3.4.485 Admin volta a abrir em Todas as empresas; Topologia carrega sozinha
+- Paulo (03/11): depois da 3.4.479 a admin só via as empresas no próprio nome ("antes aparecia todas, por conta do acesso do adm"), e a Topologia do CRM não trazia o que ele preencheu.
+- Carteira: admin abre com `equipe=''` (Todas as equipes) e ganha botões visíveis Todas as empresas / Só a minha carteira (`data-carteira-visao`, fora do details de filtros); Limpar filtros respeita o perfil; Calendário do admin abre em Toda a base. Não admin segue em Minha carteira.
+- Topologia: carrega ao abrir a área; botão admin "Abrir organograma" usa `/api/admin/topologia/passe` (já existia, sem UI desde 3.4.413). O organograma (células, cargos, vagas, e-mails) vive só no serviço externo topologia-contabil; `crm_topologia/gestao` (líderes/equipes do CRM) é outro cadastro, não sincronizado.
+
