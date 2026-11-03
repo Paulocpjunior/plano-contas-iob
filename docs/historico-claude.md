@@ -2390,3 +2390,9 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 
 - S08 estava como aluguel recebido; o pedido real é aluguéis PAGOS a pessoa física (Reinf). Texto corrigido e travado no teste.
 - Edição de modelos sai do "só admin": quem pode enviar (admin ou Emitir) cria e edita; botões no próprio Solicitar documentos (`abrirModelosSolicitacao({editar, aoSalvar})`).
+
+## 03/11/2026 — v3.4.484 Situação da solicitação ao cliente na carteira
+
+- Paulo: cada envio deve atualizar o status da empresa no CRM para os admins acompanharem.
+- Resumo da última solicitação em `crm_solicitacao_status/{cnpj}` (gravado no envio; WhatsApp na mesma transação). Atraso calculado na leitura pelo prazo. Rota `POST .../solicitacoes/:id/recebida` (admin/Emitir) marca recebida; só muda a carteira se for a última.
+- Carteira: coluna e filtro `solicitacao` (aguardando, atrasada, recebida, falhou, sem); coluna entra nas visualizações salvas.

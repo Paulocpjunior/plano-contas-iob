@@ -13,7 +13,7 @@
     + '.cci-sol .cci-sol-grade{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}@media(max-width:600px){.cci-sol .cci-sol-grade{grid-template-columns:1fr}}'
     + '.cci-sol .cci-sol-previa{white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--not-line);border-radius:12px;padding:14px;margin:10px 0;font:inherit}'
     + '.cci-sol [hidden]{display:none!important}.cci-sol .cci-sol-canal label.cci-sol-campo{display:block}.cci-sol .cci-sol-sub{margin:14px 0 4px;font-weight:600}'
-    + '.cci-sol .cci-sol-falta{color:var(--not-alerta,#b25000)}.cci-sol .cci-sol-hist li{margin:6px 0}.cci-sol .cci-sol-num{display:inline-flex;width:24px;height:24px;border-radius:50%;align-items:center;justify-content:center;background:#0071e3;color:#fff;font-size:13px;margin-right:6px}';
+    + '.cci-sol .cci-sol-falta{color:var(--not-alerta,#b25000)}.cci-sol .cci-sol-hist li{margin:6px 0}.cci-sol .cci-sol-hist button{margin-left:6px;padding:2px 10px;font-size:13px}.cci-sol .cci-sol-situacao{margin:6px 0 10px}.cci-sol .cci-sol-num{display:inline-flex;width:24px;height:24px;border-radius:50%;align-items:center;justify-content:center;background:#0071e3;color:#fff;font-size:13px;margin-right:6px}';
 
   function chave() {
     const a = new Uint8Array(12);
@@ -144,12 +144,25 @@
 
     async function historico() {
       const d = await api(base);
-      info = { ...info, historico: d.historico };
+      info = { ...info, historico: d.historico, situacao: d.situacao };
       const NOMES = { enviado: '✅ E-mail enviado', falhou: '⚠️ E-mail não confirmado', processando: '⏳ Enviando', whatsapp_aberto: '💬 Aberto no WhatsApp' };
-      q('[data-hist]').innerHTML = d.historico.length
+      const SIT = { aguardando: '📨 Aguardando cliente', atrasada: '⏰ Cliente atrasado (prazo vencido)', recebida: '✅ Documentos recebidos', falhou: '⚠️ Último envio não confirmado', sem: 'Sem solicitação enviada' };
+      const sit = d.situacao || { situacao: 'sem' };
+      q('[data-hist]').innerHTML = '<p class="cci-sol-situacao"><b>Situação na carteira do CRM:</b> ' + esc(SIT[sit.situacao] || sit.situacao) + (sit.prazo && sit.situacao !== 'recebida' ? ' · prazo ' + esc(sit.prazo.split('-').reverse().join('/')) : '') + '</p>'
+        + (d.historico.length
         ? '<ul class="cci-sol-hist">' + d.historico.map(h => '<li><b>' + esc(NOMES[h.estado] || h.estado) + '</b> · ' + esc(h.modelo_nome) + (h.competencia ? ' · ' + esc(h.competencia.slice(5) + '/' + h.competencia.slice(0, 4)) : '')
-          + ' · para ' + esc(h.destino_exibicao) + ' · ' + esc(new Date(h.quando).toLocaleString('pt-BR')) + ' · ' + esc(h.autor_email || '') + (h.detalhe && h.estado === 'falhou' ? '<br><small>' + esc(h.detalhe) + '</small>' : '') + '</li>').join('') + '</ul>'
-        : '<p class="cci-not-vazio">Nenhuma solicitação registrada para esta empresa.</p>';
+          + ' · para ' + esc(h.destino_exibicao) + ' · ' + esc(new Date(h.quando).toLocaleString('pt-BR')) + ' · ' + esc(h.autor_email || '') + (h.detalhe && h.estado === 'falhou' ? '<br><small>' + esc(h.detalhe) + '</small>' : '')
+          + (h.recebida_em ? '<br><small>✅ Documentos recebidos em ' + esc(new Date(h.recebida_em).toLocaleString('pt-BR')) + (h.recebida_por_email ? ' · ' + esc(h.recebida_por_email) : '') + '</small>'
+            : (info.pode_enviar && h.estado !== 'falhou' && h.estado !== 'processando' ? ' <button type="button" data-recebida="' + esc(h.id) + '">✅ Cliente enviou os documentos</button>' : ''))
+          + '</li>').join('') + '</ul>'
+        : '<p class="cci-not-vazio">Nenhuma solicitação registrada para esta empresa.</p>');
+      q('[data-hist]').querySelectorAll('[data-recebida]').forEach(b => {
+        b.onclick = () => executar(async () => {
+          await api(base + '/' + encodeURIComponent(b.dataset.recebida) + '/recebida', {});
+          await historico();
+          status('✅ Marcado como recebido. A carteira do CRM já mostra a situação nova.');
+        });
+      });
     }
 
     function mostrarPrevia(p) {

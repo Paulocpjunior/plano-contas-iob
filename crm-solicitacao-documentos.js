@@ -426,8 +426,52 @@ function semIndefinidos(obj) {
   return JSON.parse(JSON.stringify(obj, (k, v) => (v === undefined ? null : v)));
 }
 
+// ── Situação da empresa na carteira (v3.4.484) ──────────────────────────────
+// Cada envio grava um resumo da última solicitação por empresa; a carteira mostra
+// a situação para os administradores acompanharem. Ausência de envio é "sem".
+const SITUACOES_SOLICITACAO = {
+  aguardando: 'Aguardando cliente',
+  atrasada: 'Cliente atrasado',
+  recebida: 'Documentos recebidos',
+  falhou: 'Envio não confirmado',
+  sem: 'Sem solicitação'
+};
+
+/** Resumo gravado em crm_solicitacao_status/{cnpj} a partir do registro do envio. */
+function resumoSolicitacao(id, registro) {
+  const r = registro || {};
+  return semIndefinidos({
+    cnpj: r.cnpj,
+    solicitacao_id: id,
+    situacao: r.estado === 'falhou' ? 'falhou' : r.recebida_em ? 'recebida' : 'aguardando',
+    canal: r.canal,
+    modelo_nome: r.modelo_nome,
+    competencia: r.competencia || null,
+    prazo: r.prazo || null,
+    quando: r.quando,
+    autor_email: r.autor_email || '',
+    destino_exibicao: r.destino_exibicao || '',
+    recebida_em: r.recebida_em || null,
+    recebida_por: r.recebida_por || null
+  });
+}
+
+/** Situação para a tela: o atraso é calculado na leitura, nunca gravado. */
+function situacaoSolicitacao(resumo, hoje) {
+  if (!resumo || !resumo.solicitacao_id) return 'sem';
+  if (resumo.situacao === 'recebida' || resumo.situacao === 'falhou') return resumo.situacao;
+  return resumo.prazo && hoje && resumo.prazo < hoje ? 'atrasada' : 'aguardando';
+}
+
+function solicitacaoPublica(resumo, hoje) {
+  const situacao = situacaoSolicitacao(resumo, hoje);
+  if (situacao === 'sem') return { situacao };
+  return { situacao, rotulo: SITUACOES_SOLICITACAO[situacao], modelo_nome: resumo.modelo_nome || '', competencia: resumo.competencia || null, prazo: resumo.prazo || null, quando: resumo.quando || null, canal: resumo.canal || '', recebida_em: resumo.recebida_em || null };
+}
+
 module.exports = {
   MAX_MODELOS, IDS, MODELOS_PADRAO, VARIAVEIS, idValido, modelosEfetivos, proximoId, configurarModelo,
   contatoEmpresa, prepararSolicitacao, normalizarWhatsapp, whatsappFormatado, linkWhatsapp, htmlDaMensagem,
-  semIndefinidos, competenciaBr, dataBr
+  semIndefinidos, competenciaBr, dataBr,
+  SITUACOES_SOLICITACAO, resumoSolicitacao, situacaoSolicitacao, solicitacaoPublica
 };

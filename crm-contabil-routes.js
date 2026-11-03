@@ -7,6 +7,8 @@ const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require(
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
 const { carregarChecklist, previaChecklist, contratoDoEvento, cadastroDoEvento, unirBases, ID_ITEM, chaveEvento } = require('./crm-checklist');
+const Solicitacao = require('./crm-solicitacao-routes');
+const SolicitacaoDocs = require('./crm-solicitacao-documentos');
 // Token de quem está logado: o CFI só entrega o checklist da Legalização a um usuário identificado.
 const tokenDe = req => { const a = String(req?.headers?.authorization || ''); return a.startsWith('Bearer ') ? a.slice(7) : ''; };
 
@@ -268,15 +270,19 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     const user = await usuario(req);
     // Consulta unificada: cadastro contábil prevalece sobre o dossiê importado.
     // A autorização usa o documento atual, nunca o nome do colaborador no Jotform.
-    const snapshots = await Promise.all(['crm_empresas','empresas'].map(c=>db.collection(c).get()));
+    const [snapshots, statusSnap] = await Promise.all([Promise.all(['crm_empresas','empresas'].map(c=>db.collection(c).get())), db.collection(Solicitacao.STATUS).get()]);
     const mapa = new Map(); snapshots.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,{doc:d,origem:s===snapshots[0]?'crm':'contabil'})));
     const filtros=filtrosCarteira(req.query);
+    const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(agora()));
+    // Última solicitação de documentos ao cliente: situação visível na carteira (v3.4.484).
+    const solicitacoes = new Map(statusSnap.docs.map(d=>[d.id, SolicitacaoDocs.solicitacaoPublica(d.data(), hoje)]));
     const busca = normalizarBusca(filtros.busca), cursor = cursorId(req.query.cursor, /^\d{14}$/);
-    const acessiveis = [...mapa.values()].filter(v=>core.temCarteira(v.doc.data(),user)).map(v=>empresaPublica(v.doc,user,v.origem));
+    const acessiveis = [...mapa.values()].filter(v=>core.temCarteira(v.doc.data(),user)).map(v=>({...empresaPublica(v.doc,user,v.origem), solicitacao: solicitacoes.get(v.doc.id) || { situacao:'sem' }}));
     const equipes = [...new Map(acessiveis.flatMap(e=>e.responsaveis).map(p=>[p.uid,{uid:p.uid,nome:p.nome||p.uid}])).values()];
     const minha = e=>e.responsaveis.some(p=>p.uid===user.uid), minhaCarteira = acessiveis.filter(minha).length;
     const todas = acessiveis.filter(e=>(!filtros.origem || e.origem===filtros.origem)
       && (!filtros.cliente || e.situacao_cliente===filtros.cliente)
+      && (!filtros.solicitacao || e.solicitacao.situacao===filtros.solicitacao)
       && (!filtros.equipe || (filtros.equipe==='sem_equipe' ? !e.responsaveis.length : filtros.equipe===MINHA_CARTEIRA ? minha(e) : e.responsaveis.some(p=>p.uid===filtros.equipe))))
       .filter(e=>!busca || (/^\d+$/.test(busca)&&String(e.codigo_empresa||'').replace(/^0+(?=\d)/,'')===busca.replace(/^0+(?=\d)/,'')) || normalizarBusca([e.cnpj,e.razao_social,e.codigo_empresa].join(' ')).includes(busca)
         || (busca.replace(/\D/g,'').length>=8 && e.cnpj.includes(busca.replace(/\D/g,''))))
@@ -285,7 +291,6 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     if(cursor && posicao<0)throw core.erro('A carteira mudou. Atualize a busca antes de continuar.',409);
     const restantes = todas.slice(posicao+1), lote=restantes.slice(0,50);
     const operacional=Boolean(filtros.periodo || filtros.obrigacao || filtros.atraso);
-    const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(agora()));
     let empresas=lote;
     if (operacional) {
       empresas=[];

@@ -161,7 +161,7 @@ const CLIENTES = ['ativa','suspensa','saida','baixada','nao_informada'];
 const MINHA_CARTEIRA = 'minha_carteira';
 function filtrosCarteira(body = {}) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw erro('Filtros inválidos.');
-  const campos = { busca:120, equipe:128, origem:20, cliente:30, periodo:7, obrigacao:40, atraso:20 };
+  const campos = { busca:120, equipe:128, origem:20, cliente:30, periodo:7, obrigacao:40, atraso:20, solicitacao:20 };
   const f = {};
   for (const [k,max] of Object.entries(campos)) {
     if (body[k] != null && (typeof body[k] !== 'string' || body[k].length > max)) throw erro('Filtro inválido: '+k);
@@ -174,6 +174,7 @@ function filtrosCarteira(body = {}) {
   if (f.periodo && !/^\d{4}(-(?:0[1-9]|1[0-2]))?$/.test(f.periodo)) throw erro('Informe ano ou competência válida.');
   if (f.obrigacao && !['pendente','em_andamento','aguardando_documentos','em_revisao','concluida','nao_aplicavel'].includes(f.obrigacao)) throw erro('Situação da obrigação inválida.');
   if (f.atraso && !['atrasado','no_prazo','sem_prazo','encerrado'].includes(f.atraso)) throw erro('Filtro de prazo inválido.');
+  if (f.solicitacao && !['aguardando','atrasada','recebida','falhou','sem'].includes(f.solicitacao)) throw erro('Filtro de solicitação ao cliente inválido.');
   return f;
 }
 function situacaoCliente(d) {
@@ -193,7 +194,7 @@ function atualizarVisualizacao(antes, body, quando) {
   if(i<0 && itens.length>=20) throw erro('Limite de 20 visualizações. Use o nome de uma existente para atualizá-la.');
   // Clientes antigos não enviam colunas: preservar a escolha já salva.
   const recebidas=body.colunas===undefined?(i<0?undefined:itens[i].colunas):body.colunas;
-  const colunas={cnpj:true,equipe:true,cliente:true};
+  const colunas={cnpj:true,equipe:true,cliente:true,solicitacao:true};
   if(recebidas!==undefined){
     if(!recebidas || typeof recebidas!=='object' || Array.isArray(recebidas) || Object.keys(recebidas).some(k=>!Object.hasOwn(colunas,k))) throw erro('Colunas inválidas. Atualize a tela e escolha novamente.');
     for(const k of Object.keys(colunas)){
