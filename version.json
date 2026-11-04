@@ -1,7 +1,8 @@
 {
-  "version": "3.4.488",
-  "build_date": "2026-11-04T21:00:00Z",
+  "version": "3.4.489",
+  "build_date": "2026-11-04T19:00:00Z",
   "release_notes": [
+    "CRM → Checklist (Legalização): o CCI passa a ler o Checklist direto do app Legalização, sem passar pelo CFI. Nada muda na tela; a leitura depende da variável LEGALIZACAO_URL no Cloud Run.",
     "CRM → Checklist do app Legalização: os documentos de cada linha (contrato, cartão CNPJ etc.) chegam como LINK, não como arquivo. Na prévia aparece \"📎 N documento(s) por link\" e o botão \"Trazer links para os dossiês\" grava cada link nos Documentos do dossiê da empresa, sem duplicar ao repetir. Link sem https, com usuário/senha ou sem título é recusado e contado. Aplicar ou cadastrar pelo Checklist também leva os links.",
     "CRM → Solicitar documentos: depois da prévia por e-mail, \"🔁 Repetir este envio todo mês\" programa o envio automático (dia do mês, horário e prazo do cliente em dias). O CCI envia da caixa de quem programou, com a competência do mês anterior, atualiza a situação na carteira e registra no histórico. Pausar, retomar e excluir ficam em \"Envios automáticos desta empresa\". Só por e-mail: no WhatsApp quem envia precisa tocar em Enviar.",
     "Ativo Imobilizado → Bens cadastrados: pesquisa por nº do patrimônio, descrição ou conta, filtros de classe e situação e ordem por nº do patrimônio (padrão), descrição, classe ou data. Novo botão \"Gerar relatório PDF\": Relação completa dos bens no modelo do SAGE (um bloco por bem) ou resumida (uma linha por bem), com a posição no fim do mês escolhido: depreciação acumulada, valor contábil, % depreciado e a última depreciação aprovada no CCI. Respeita a pesquisa e os filtros; sem filtro, sai a relação completa.",

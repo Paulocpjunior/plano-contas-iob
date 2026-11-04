@@ -1,9 +1,11 @@
 'use strict';
 const { hash, data, erro } = require('./crm-contabil');
-// Checklist do app Legalização, lido pelo túnel do cadastro do CFI (Paulo, 28/10:
-// "todos apps passam a ler o checklist do app legalizacao, jotform morre").
+// Checklist do app Legalização, lido DIRETO do app Legalização (Paulo, 28/10:
+// "todos apps passam a ler o checklist do app legalizacao, jotform morre"; 04/11:
+// "cada dpto/app são autônomos, não fique pendurando um no outro" — sem o CFI no meio).
 // O formulário Jotform 210135417457653 não é mais lido. Uma linha por empresa.
-const { baseCfi } = require('./whatsapp-cfi-client');
+// Endereço do app Legalização (env LEGALIZACAO_URL, derivado do Cloud Run no deploy). Sem ele, não há leitura.
+const baseLegalizacao = (env = process.env) => String((env && env.LEGALIZACAO_URL) || '').trim().replace(/\/+$/, '');
 const FORM_ID = 'legalizacao:checklist';
 const ID_ITEM = /^(doc|nome)_[A-Za-z0-9_]{1,200}$/;
 const normalizar = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase().replace(/\s+/g, ' ');
@@ -54,7 +56,7 @@ function orientacoesChecklist(evento){
 const dataDoResponsavel = r => (r && typeof r === 'object' ? (r.data || r.texto || null) : r || null);
 // Documentos do Checklist chegam como LINK (SharePoint/Jotform), nunca o arquivo:
 // cada departamento abre o mesmo anexo sem duplicar rede e armazenamento (v3.4.488).
-// O CFI já filtra, mas o CCI confere de novo: só HTTPS sem credencial, categoria conhecida.
+// A Legalização já filtra, mas o CCI confere de novo: só HTTPS sem credencial, categoria conhecida.
 const CATEGORIAS_DOC = ['CONTRATO', 'DITR', 'DEFIS', 'ECD', 'ECF', 'OUTROS'];
 function documentosDoItem(r) {
   const lista = Array.isArray(r && r.documentos) ? r.documentos : [];
@@ -132,21 +134,21 @@ function previaChecklist(itens, empresas) {
   return { eventos, total: eventos.length, com_pendencias: eventos.filter(e => e.problemas.length).length, somente_previa: true };
 }
 
-// Lê o checklist do app Legalização pelo túnel do CFI, com o token de quem está logado.
-// Sem token não há leitura: a consulta agendada (sem usuário) não tem como se identificar no CFI.
+// Lê o checklist direto do app Legalização, com o token de quem está logado (a Legalização
+// confere o projeto do token). Sem token não há leitura: a consulta agendada não se identifica.
 async function carregarChecklist({ token, fetchImpl = fetch, env, agora = () => new Date().toISOString() } = {}) {
   if (!token) throw erro('A leitura do Checklist vem do app Legalização e exige login. Abra Conferir Checklist com a sua conta.', 401);
-  const base = baseCfi(env);
-  if (!base) throw erro('Defina CFI_URL para ler o Checklist do app Legalização.', 503);
+  const base = baseLegalizacao(env);
+  if (!base) throw erro('Defina LEGALIZACAO_URL (endereço do app Legalização) para ler o Checklist.', 503);
   let r, b;
   try {
-    r = await fetchImpl(base + '/api/admin/cadastro/checklist-legalizacao', { headers: { Authorization: 'Bearer ' + token }, redirect: 'error', signal: AbortSignal.timeout(90000) });
+    r = await fetchImpl(base + '/api/legalizacao/checklist-apps', { headers: { Authorization: 'Bearer ' + token }, redirect: 'error', signal: AbortSignal.timeout(90000) });
     b = await r.json();
-  } catch { throw erro('Não foi possível confirmar a leitura do Checklist no CFI. Tente novamente; nenhuma alteração foi aplicada.', 502); }
-  if (r.status === 401 || r.status === 403) throw erro('O CFI recusou a leitura do Checklist. Faça login novamente ou confira o acesso entre os sistemas.', 502);
-  if (!r.ok || !b || b.ok !== true || !Array.isArray(b.itens)) throw erro('Não foi possível confirmar a leitura do Checklist no CFI. Tente novamente; nenhuma alteração foi aplicada.', 502);
+  } catch { throw erro('Não foi possível confirmar a leitura do Checklist no app Legalização. Tente novamente; nenhuma alteração foi aplicada.', 502); }
+  if (r.status === 401 || r.status === 403) throw erro('O app Legalização recusou a leitura do Checklist. Faça login novamente ou confira o acesso entre os sistemas.', 502);
+  if (!r.ok || !b || b.ok !== true || !Array.isArray(b.itens)) throw erro('Não foi possível confirmar a leitura do Checklist no app Legalização. Tente novamente; nenhuma alteração foi aplicada.', 502);
   if (b.cortado === true) throw erro('Limite de leitura atingido. Não utilize uma lista parcial.', 502);
-  if (b.nossoNumero !== true) throw erro('O CFI não liberou o Nosso Número para o Consultor Contábil. Confira o acesso entre os sistemas.', 502);
+  if (b.nossoNumero !== true) throw erro('O app Legalização não liberou o Nosso Número para o Consultor Contábil. Confira o acesso entre os sistemas.', 502);
   const rows = [...b.itens].sort((x, y) => String(x.id).localeCompare(String(y.id)));
   return { rows, form_id: FORM_ID, lido_em: agora(), assinatura: hash(rows), completo: true };
 }
