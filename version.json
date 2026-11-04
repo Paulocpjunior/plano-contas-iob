@@ -1,7 +1,8 @@
 {
-  "version": "3.4.485",
-  "build_date": "2026-11-03T20:30:00Z",
+  "version": "3.4.486",
+  "build_date": "2026-11-04T18:30:00Z",
   "release_notes": [
+    "Ativo Imobilizado → Bens cadastrados: pesquisa por nº do patrimônio, descrição ou conta, filtros de classe e situação e ordem por nº do patrimônio (padrão), descrição, classe ou data. Novo botão \"Gerar relatório PDF\": Relação completa dos bens no modelo do SAGE (um bloco por bem) ou resumida (uma linha por bem), com a posição no fim do mês escolhido: depreciação acumulada, valor contábil, % depreciado e a última depreciação aprovada no CCI. Respeita a pesquisa e os filtros; sem filtro, sai a relação completa.",
     "CRM → Minha carteira: administrador volta a abrir com todas as empresas, como antes da 3.4.479. No topo da lista, os botões \"Todas as empresas\" e \"Só a minha carteira\" trocam a visão sem abrir os filtros; o Calendário do administrador também abre na base toda. O colaborador continua vendo só a própria carteira. CRM → Topologia: a tela carrega sozinha ao abrir (antes ficava em \"Consulte para carregar a carteira real\") e o administrador ganha o botão \"Abrir organograma (Topologia Contábil)\", que abre o organograma com líderes, células e vagas sem novo login.",
     "CRM → Minha carteira: nova coluna e filtro \"Solicitação ao cliente\". Cada envio do Solicitar documentos atualiza a situação da empresa: Aguardando cliente, Cliente atrasado (prazo vencido), Documentos recebidos ou Envio não confirmado. Quem acompanha a empresa marca \"Cliente enviou os documentos\" no histórico da solicitação.",
     "CRM → Solicitar documentos: o modelo de aluguel passa a ser \"Aluguéis pagos a pessoa física\" (EFD-Reinf), e não mais aluguéis recebidos. Os botões \"✏️ Editar este modelo\" e \"＋ Novo modelo\" ficam na própria tela, e quem pode enviar ao cliente (admin ou ação Emitir) também cria e edita os modelos. A alteração vale para toda a equipe e fica no histórico do modelo.",

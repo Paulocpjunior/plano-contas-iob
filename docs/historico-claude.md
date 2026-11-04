@@ -2402,3 +2402,10 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Carteira: admin abre com `equipe=''` (Todas as equipes) e ganha botões visíveis Todas as empresas / Só a minha carteira (`data-carteira-visao`, fora do details de filtros); Limpar filtros respeita o perfil; Calendário do admin abre em Toda a base. Não admin segue em Minha carteira.
 - Topologia: carrega ao abrir a área; botão admin "Abrir organograma" usa `/api/admin/topologia/passe` (já existia, sem UI desde 3.4.413). O organograma (células, cargos, vagas, e-mails) vive só no serviço externo topologia-contabil; `crm_topologia/gestao` (líderes/equipes do CRM) é outro cadastro, não sincronizado.
 
+
+## 04/11/2026 — v3.4.486 Ativo: pesquisa de bens e Relação completa dos bens (PDF)
+- Paulo (04/11): Nova Era tem muitos bens sem ordem; pediu pesquisa por nº/tipo/descrição em Bens cadastrados e um PDF da relação completa como o do SAGE (dados do bem + posição após a última depreciação: acumulada e % depreciado).
+- Módulo puro `ativo-imobilizado-relatorio.js` (UMD, também no navegador): `filtrar` (nº com zeros à esquerda, palavras sem acento, conta, classe), `ordenar` (nº patrimônio é o padrão), `ultimasDepreciacoes`, `posicao`, `relacao`. Teste `scripts/test-ativo-imobilizado-relatorio.js`.
+- Acumulada do relatório = soma das quotas mensais ARREDONDADAS (o que a depreciação lança), não custo/vida×meses: bate com o SAGE (armário 13.095,62 em 09/2026 = 5.674,76 / 43,33%). A lista da tela segue com o cálculo antigo até hoje.
+- Rota só leitura `GET /api/empresas/:cnpj/ativos-imobilizados/depreciacao/ultimas` (`ativos_lancamentos` tipo depreciacao, `select`). Posição padrão = última competência aprovada; bem com quota depois da última aprovada ou nunca aprovado sai com OBSERVAÇÃO. Lista agora devolve `total` (aviso quando passa de 1.000).
+- PDF na tela (jsPDF local): Completo retrato (bloco por bem + resumo) e Resumido paisagem (autoTable). Respeita pesquisa e filtros.
