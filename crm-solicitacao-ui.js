@@ -13,7 +13,7 @@
     + '.cci-sol .cci-sol-grade{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}@media(max-width:600px){.cci-sol .cci-sol-grade{grid-template-columns:1fr}}'
     + '.cci-sol .cci-sol-previa{white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--not-line);border-radius:12px;padding:14px;margin:10px 0;font:inherit}'
     + '.cci-sol [hidden]{display:none!important}.cci-sol .cci-sol-canal label.cci-sol-campo{display:block}.cci-sol .cci-sol-sub{margin:14px 0 4px;font-weight:600}'
-    + '.cci-sol .cci-sol-falta{color:var(--not-alerta,#b25000)}.cci-sol .cci-sol-hist li{margin:6px 0}.cci-sol .cci-sol-hist button{margin-left:6px;padding:2px 10px;font-size:13px}.cci-sol .cci-sol-situacao{margin:6px 0 10px}.cci-sol .cci-sol-num{display:inline-flex;width:24px;height:24px;border-radius:50%;align-items:center;justify-content:center;background:#0071e3;color:#fff;font-size:13px;margin-right:6px}';
+    + '.cci-sol .cci-sol-falta{color:var(--not-alerta,#b25000)}.cci-sol .cci-sol-hist li{margin:6px 0}.cci-sol .cci-sol-hist button{margin-left:6px;padding:2px 10px;font-size:13px}.cci-sol .cci-sol-situacao{margin:6px 0 10px}.cci-sol .cci-sol-rec{border:1px solid var(--not-line);border-radius:12px;padding:10px 14px;margin:12px 0}.cci-sol .cci-sol-rec summary{cursor:pointer;font-weight:600}.cci-sol h4{margin:14px 0 6px}.cci-sol .cci-sol-num{display:inline-flex;width:24px;height:24px;border-radius:50%;align-items:center;justify-content:center;background:#0071e3;color:#fff;font-size:13px;margin-right:6px}';
 
   function chave() {
     const a = new Uint8Array(12);
@@ -143,7 +143,7 @@
     }
 
     async function historico() {
-      const d = await api(base);
+      const [d, rec] = await Promise.all([api(base), api(base + '/recorrencias').catch(() => ({ recorrencias: null }))]);
       info = { ...info, historico: d.historico, situacao: d.situacao };
       const NOMES = { enviado: '✅ E-mail enviado', falhou: '⚠️ E-mail não confirmado', processando: '⏳ Enviando', whatsapp_aberto: '💬 Aberto no WhatsApp' };
       const SIT = { aguardando: '📨 Aguardando cliente', atrasada: '⏰ Cliente atrasado (prazo vencido)', recebida: '✅ Documentos recebidos', falhou: '⚠️ Último envio não confirmado', sem: 'Sem solicitação enviada' };
@@ -156,6 +156,21 @@
             : (info.pode_enviar && h.estado !== 'falhou' && h.estado !== 'processando' ? ' <button type="button" data-recebida="' + esc(h.id) + '">✅ Cliente enviou os documentos</button>' : ''))
           + '</li>').join('') + '</ul>'
         : '<p class="cci-not-vazio">Nenhuma solicitação registrada para esta empresa.</p>');
+      const recs = rec.recorrencias;
+      const EST = { enviado: '✅ último enviado', falhou: '⚠️ último não enviado' };
+      q('[data-hist] .cci-sol-situacao').insertAdjacentHTML('afterend', '<h4>🔁 Envios automáticos desta empresa</h4>' + (recs === null ? '<p class="cci-sol-falta">Não foi possível carregar os envios automáticos. Atualize a tela.</p>'
+        : recs.length ? '<ul class="cci-sol-hist">' + recs.map(r => '<li><b>' + esc(r.modelo_nome) + '</b> · todo dia ' + esc(r.dia) + ' às ' + esc(r.hora) + ' · para ' + esc(r.destino_exibicao) + ' · prazo ' + esc(r.prazo_dias) + ' dia(s) · ' + esc(r.autor_email)
+          + '<br><small>' + (r.ativo ? 'Próximo envio: ' + esc(new Date(r.proxima).toLocaleString('pt-BR')) : '⏸️ Pausado') + (r.ultimo_estado ? ' · ' + esc(EST[r.ultimo_estado] || r.ultimo_estado) : '') + (r.ultimo_estado === 'falhou' && r.ultimo_detalhe ? ': ' + esc(r.ultimo_detalhe) : '') + '</small>'
+          + (info.pode_enviar ? ' <button type="button" data-rec-acao="' + (r.ativo ? 'pausar' : 'retomar') + '" data-rec-id="' + esc(r.id) + '">' + (r.ativo ? '⏸️ Pausar' : '▶️ Retomar') + '</button><button type="button" data-rec-acao="excluir" data-rec-id="' + esc(r.id) + '">🗑️ Excluir</button>' : '') + '</li>').join('') + '</ul>'
+        : '<p class="cci-not-vazio">Nenhum envio automático. Para criar, gere a prévia por e-mail e use "🔁 Repetir este envio todo mês".</p>') + '<h4>Solicitações enviadas</h4>');
+      q('[data-hist]').querySelectorAll('[data-rec-acao]').forEach(b => {
+        b.onclick = () => executar(async () => {
+          if (b.dataset.recAcao === 'excluir' && !window.confirm('Excluir este envio automático? Os envios já feitos continuam no histórico.')) return;
+          await api(base + '/recorrencias/' + encodeURIComponent(b.dataset.recId) + '/estado', { acao: b.dataset.recAcao });
+          await historico();
+          status({ pausar: '⏸️ Envio automático pausado.', retomar: '▶️ Envio automático retomado.', excluir: '🗑️ Envio automático excluído.' }[b.dataset.recAcao]);
+        });
+      });
       q('[data-hist]').querySelectorAll('[data-recebida]').forEach(b => {
         b.onclick = () => executar(async () => {
           await api(base + '/' + encodeURIComponent(b.dataset.recebida) + '/recebida', {});
@@ -174,8 +189,22 @@
         + '<div class="cci-not-acoes">'
         + (info.pode_enviar ? (email ? '<button type="button" class="cci-not-primario" data-enviar>✉️ Enviar e-mail ao cliente</button>' : '<button type="button" class="cci-not-primario" data-enviar>💬 Abrir no WhatsApp</button>') : '')
         + '<button type="button" data-copiar>📋 Copiar texto</button></div>'
+        + (email && info.pode_enviar ? '<details class="cci-sol-rec" data-rec-form><summary>🔁 Repetir este envio todo mês</summary>'
+          + '<p class="cci-not-dica">O CCI envia sozinho, da sua caixa, com este modelo, os documentos marcados e o mesmo destinatário. Em cada envio a competência é o mês anterior e o prazo conta a partir do dia do envio.</p>'
+          + '<div class="cci-sol-grade"><label>Dia do mês (1 a 28)<input type="number" name="rec_dia" min="1" max="28" value="' + Math.min(28, Number(String(info.hoje || '').slice(8, 10)) || 5) + '"></label>'
+          + '<label>Horário (Brasília)<input type="time" name="rec_hora" value="09:00" min="06:00" max="20:59"></label>'
+          + '<label>Prazo do cliente (dias)<input type="number" name="rec_prazo" min="1" max="30" value="5"></label></div>'
+          + '<div class="cci-not-acoes"><button type="button" data-programar>🔁 Programar envio mensal</button></div></details>' : '')
         + (info.pode_enviar ? (email ? '<p class="cci-not-dica">O e-mail sai da sua caixa do Microsoft 365, e a resposta do cliente volta para você.</p>' : '<p class="cci-not-dica">Abre o WhatsApp (Web ou aplicativo) já na conversa do cliente, com o texto pronto. Você só confere e toca em Enviar.</p>')
           : '<p class="cci-sol-falta">Seu nível no CCI não permite enviar ao cliente (ação Emitir). Copie o texto ou peça ao administrador para liberar em Admin → Usuários.</p>');
+      q('[data-programar]')?.addEventListener('click', () => executar(async () => {
+        const f = q('[data-rec-form]');
+        const corpo = { ...corpoAtual(), dia: Number(f.querySelector('[name=rec_dia]').value), hora: f.querySelector('[name=rec_hora]').value, prazo_dias: Number(f.querySelector('[name=rec_prazo]').value) };
+        if (!window.confirm('Programar o envio automático todo dia ' + corpo.dia + ', às ' + corpo.hora + ', para ' + p.destino_exibicao + '?')) return;
+        const r = await api(base + '/recorrencias', corpo);
+        await historico();
+        status('🔁 Envio mensal programado. Próximo: ' + new Date(r.recorrencia.proxima).toLocaleString('pt-BR') + '. Acompanhe em "Envios automáticos desta empresa".');
+      }));
       q('[data-copiar]').onclick = () => executar(async () => { await navigator.clipboard.writeText((email ? 'Assunto: ' + p.assunto + '\n\n' : '') + p.mensagem); status('📋 Texto copiado.'); });
       const btn = q('[data-enviar]');
       if (btn) btn.onclick = () => executar(async () => {

@@ -3,29 +3,68 @@
 // em crm-solicitacao-documentos.js. Registrada por crm-contabil-routes.js,
 // que fornece usuario/contexto (carteira) e o wrap padrão do CRM.
 const S = require('./crm-solicitacao-documentos');
-const { podeAcao } = require('./permissoes-cci');
+const R = require('./crm-solicitacao-recorrencia');
+const { podeAcao, permissoesEfetivas } = require('./permissoes-cci');
+const crypto = require('crypto');
 
 const MODELOS = 'crm_solicitacao_modelos';
 const REGISTROS = 'crm_solicitacoes';
 const STATUS = 'crm_solicitacao_status';
+const RECORRENCIAS = 'crm_solicitacao_recorrencias';
 
-function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = process.env, email = {} }) {
+// Envio do e-mail pela caixa do colaborador. Compartilhado pelo envio manual
+// e pela execução mensal agendada. Nunca lança: devolve o estado final.
+function criarDespacho({ env, email = {}, agora }) {
   const GraphEmail = email.GraphEmail || require('./graph-email-provider');
   const GraphRemetente = email.GraphRemetente || require('./graph-remetente');
   const EmailLayout = email.EmailLayout || require('./email-layout');
+  async function despachar({ previa, empresaNome, remetente, identidade }) {
+    let final;
+    try {
+      const html = EmailLayout.montarEmailSolicitacao({
+        titulo: previa.assunto,
+        empresaNome: empresaNome || '',
+        competencia: previa.competencia ? S.competenciaBr(previa.competencia) : '',
+        conteudoHtml: S.htmlDaMensagem(previa.mensagem),
+        enviadoPor: remetente
+      });
+      const envio = await GraphRemetente.enviarComoColaborador({
+        enviar: GraphEmail.enviarEmail,
+        emailColaborador: remetente,
+        env,
+        mensagem: { para: previa.destinos, assunto: previa.assunto, html, anexos: EmailLayout.anexoLogo(), identidade }
+      });
+      final = envio.ok
+        ? { estado: 'enviado', remetente: envio.remetente, fonte_remetente: envio.fonteRemetente, detalhe: 'Aceito pelo Microsoft 365, saindo de ' + envio.remetente + (envio.refeitoPelaInstitucional ? ' (sua caixa não existe no Microsoft 365; saiu pela institucional)' : '') + '. A cópia fica em Itens enviados.' }
+        : { estado: 'falhou', remetente: envio.remetente || '', detalhe: 'Não confirmado: ' + (envio.error || 'falha no envio') + '. Confira os Itens enviados antes de tentar de novo.' };
+    } catch (e) {
+      final = { estado: 'falhou', detalhe: 'Não confirmado: a conexão caiu durante o envio. Confira os Itens enviados antes de tentar de novo.' };
+    }
+    final.concluido_em = agora();
+    return final;
+  }
+  return { despachar, configurado: () => GraphEmail.configurado(env) };
+}
+
+async function lerModelos(db, tx) {
+  const refs = S.IDS.map(id => db.collection(MODELOS).doc(id));
+  const docs = tx && tx.getAll ? await tx.getAll(...refs) : await Promise.all(refs.map(r => (tx ? tx.get(r) : r.get())));
+  return docs.filter(d => d.exists).map(d => ({ ...d.data(), id: d.id }));
+}
+
+async function lerColaborador(db, uid) {
+  const d = await db.collection('users').doc(uid).get();
+  const u = d.exists ? d.data() : {};
+  return { existe: d.exists, dados: u, nome: String(u.last_name || u.name || u.nome || '').trim(), email: String(u.last_email || u.email || '').trim().toLowerCase() };
+}
+
+function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = process.env, email = {} }) {
+  const GraphEmail = email.GraphEmail || require('./graph-email-provider');
+  const despacho = criarDespacho({ env, email, agora });
   const base = '/api/crm/empresas/:cnpj/solicitacoes';
 
-  async function salvos(tx) {
-    const refs = S.IDS.map(id => db.collection(MODELOS).doc(id));
-    const docs = tx && tx.getAll ? await tx.getAll(...refs) : await Promise.all(refs.map(r => (tx ? tx.get(r) : r.get())));
-    return docs.filter(d => d.exists).map(d => ({ ...d.data(), id: d.id }));
-  }
-
-  async function colaborador(uid) {
-    const d = await db.collection('users').doc(uid).get();
-    const u = d.exists ? d.data() : {};
-    return { nome: String(u.last_name || u.name || u.nome || '').trim(), email: String(u.last_email || u.email || '').trim().toLowerCase() };
-  }
+  const salvos = tx => lerModelos(db, tx);
+  const colaborador = uid => lerColaborador(db, uid);
 
   function podeEnviar(user) {
     return user.is_admin || podeAcao(user, 'emitir');
@@ -125,31 +164,60 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
     if (previa.canal === 'whatsapp') {
       return res.json({ ok: true, solicitacao: { id: ref.id, ...registro }, whatsapp_link: previa.whatsapp_link });
     }
-    let final;
-    try {
-      const html = EmailLayout.montarEmailSolicitacao({
-        titulo: previa.assunto,
-        empresaNome: c.empresa.razao_social || '',
-        competencia: previa.competencia ? S.competenciaBr(previa.competencia) : '',
-        conteudoHtml: S.htmlDaMensagem(previa.mensagem),
-        enviadoPor: quem.email
-      });
-      const envio = await GraphRemetente.enviarComoColaborador({
-        enviar: GraphEmail.enviarEmail,
-        emailColaborador: quem.email,
-        env,
-        mensagem: { para: previa.destinos, assunto: previa.assunto, html, anexos: EmailLayout.anexoLogo(), identidade: req.params.cnpj + '|solicitacao|' + b.chave }
-      });
-      final = envio.ok
-        ? { estado: 'enviado', remetente: envio.remetente, fonte_remetente: envio.fonteRemetente, detalhe: 'Aceito pelo Microsoft 365, saindo de ' + envio.remetente + (envio.refeitoPelaInstitucional ? ' (sua caixa não existe no Microsoft 365; saiu pela institucional)' : '') + '. A cópia fica em Itens enviados.' }
-        : { estado: 'falhou', remetente: envio.remetente || '', detalhe: 'Não confirmado: ' + (envio.error || 'falha no envio') + '. Confira os Itens enviados antes de tentar de novo.' };
-    } catch (e) {
-      final = { estado: 'falhou', detalhe: 'Não confirmado: a conexão caiu durante o envio. Confira os Itens enviados antes de tentar de novo.' };
-    }
-    final.concluido_em = agora();
+    const final = await despacho.despachar({ previa, empresaNome: c.empresa.razao_social, remetente: quem.email, identidade: req.params.cnpj + '|solicitacao|' + b.chave });
     await ref.set(S.semIndefinidos(final), { merge: true });
     await db.collection(STATUS).doc(req.params.cnpj).set(S.resumoSolicitacao(ref.id, { ...registro, ...final }));
     res.status(final.estado === 'enviado' ? 200 : 502).json({ ok: final.estado === 'enviado', erro: final.estado === 'enviado' ? undefined : final.detalhe, solicitacao: { id: ref.id, ...registro, ...final } });
+  }));
+
+  // ── Envio automático todo mês (v3.4.486) ─────────────────────────────────
+  app.get(base + '/recorrencias', wrap(async (req, res) => {
+    await contexto(req);
+    const snap = await db.collection(RECORRENCIAS).where('cnpj', '==', req.params.cnpj).get();
+    const itens = snap.docs.filter(d => d.data().excluida !== true).map(d => R.recorrenciaPublica(d.id, d.data()))
+      .sort((a, b) => String(a.proxima || 'z').localeCompare(String(b.proxima || 'z')));
+    res.json({ ok: true, recorrencias: itens });
+  }));
+
+  app.post(base + '/recorrencias', wrap(async (req, res) => {
+    const c = await contexto(req);
+    if (!podeEnviar(c.user)) throw erro('Seu nível no CCI não permite enviar ao cliente (ação Emitir). Peça ao administrador para liberar em Admin → Usuários → Nível e ações do CCI.', 403);
+    if (!GraphEmail.configurado(env)) throw erro('Envio de e-mail indisponível: a integração com o Microsoft 365 não está configurada. Avise o administrador.', 503);
+    const b = req.body || {};
+    const quem = await colaborador(c.user.uid);
+    // Confere agora o que a execução mensal vai montar: modelo, documentos e destinatário.
+    const teste = R.configurarRecorrencia(b, { agora: agora(), cnpj: req.params.cnpj, uid: c.user.uid, email: quem.email });
+    const modelos = S.modelosEfetivos(await salvos());
+    const modelo = modelos.find(m => m.id === teste.modelo);
+    if (!modelo) throw erro('Escolha um modelo de solicitação.', 404);
+    const previa = S.prepararSolicitacao(modelo, R.corpoDaExecucao(teste, teste.proxima), { cnpj: req.params.cnpj, empresa: c.empresa, colaborador: quem, hoje: hoje() });
+    const ativas = (await db.collection(RECORRENCIAS).where('cnpj', '==', req.params.cnpj).get()).docs.filter(d => d.data().ativo === true);
+    if (ativas.length >= 10) throw erro('Esta empresa já tem 10 envios automáticos ativos. Pause ou exclua um antes de criar outro.', 409);
+    const id = 'rec-' + crypto.randomBytes(8).toString('hex');
+    const rec = S.semIndefinidos({ ...teste, modelo_nome: modelo.nome, destino_exibicao: previa.destino_exibicao });
+    await db.collection(RECORRENCIAS).doc(id).set(rec);
+    res.json({ ok: true, recorrencia: R.recorrenciaPublica(id, rec), previa });
+  }));
+
+  app.post(base + '/recorrencias/:id/estado', wrap(async (req, res) => {
+    if (!R.ID.test(String(req.params.id || ''))) throw erro('Envio automático inválido. Atualize a lista.', 404);
+    const acao = (req.body || {}).acao;
+    if (!['pausar', 'retomar', 'excluir'].includes(acao)) throw erro('Escolha pausar, retomar ou excluir.');
+    const ref = db.collection(RECORRENCIAS).doc(req.params.id);
+    const final = await db.runTransaction(async tx => {
+      const c = await contexto(req, tx);
+      if (!podeEnviar(c.user)) throw erro('Seu nível no CCI não permite alterar envios ao cliente (ação Emitir).', 403);
+      const d = await tx.get(ref);
+      if (!d.exists || d.data().cnpj !== req.params.cnpj || d.data().excluida === true) throw erro('Envio automático não encontrado nesta empresa. Atualize a lista.', 404);
+      const r = d.data();
+      const mudanca = acao === 'retomar'
+        ? { ativo: true, proxima: R.proximaExecucao(r.dia, r.hora, agora()) }
+        : { ativo: false, proxima: null, ...(acao === 'excluir' ? { excluida: true } : {}) };
+      const depois = { ...r, ...mudanca, alterada_em: agora(), alterada_por: c.user.uid };
+      tx.set(ref, depois);
+      return depois;
+    });
+    res.json({ ok: true, recorrencia: R.recorrenciaPublica(req.params.id, final) });
   }));
 
   // Quem acompanha a empresa marca que o cliente mandou os documentos.
@@ -176,4 +244,73 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
   }));
 }
 
-module.exports = { registrar, MODELOS, REGISTROS, STATUS };
+// Execução mensal: chamada pelo agendador interno das notificações.
+function criarRecorrencias({ db, agora = () => new Date().toISOString(), env = process.env, email = {}, limite = 25 }) {
+  const despacho = criarDespacho({ env, email, agora });
+  const { temCarteira } = require('./crm-contabil');
+
+  async function executar(ref) {
+    const agoraIso = agora();
+    const claim = await db.runTransaction(async tx => {
+      const d = await tx.get(ref);
+      const r = d.exists ? d.data() : null;
+      if (!r || r.ativo !== true || !r.proxima || r.proxima > agoraIso) return null;
+      tx.set(ref, { ...r, proxima: R.proximaExecucao(r.dia, r.hora, agoraIso), ultima_execucao: agoraIso, execucoes: (r.execucoes || 0) + 1 });
+      return { r, quando: r.proxima };
+    });
+    if (!claim) return null;
+    const { r, quando } = claim;
+    const corpo = R.corpoDaExecucao(r, quando);
+    const chave = ref.id + '-' + corpo.competencia;
+    const registroRef = db.collection('empresas').doc(r.cnpj).collection(REGISTROS).doc(chave);
+    let registro, previa = null, falha = null;
+    try {
+      const quem = await lerColaborador(db, r.autor_uid);
+      const user = { uid: r.autor_uid, is_admin: quem.dados.is_admin === true, permissoesCci: permissoesEfetivas(quem.dados) };
+      if (!quem.existe || quem.dados.active === false) throw new Error('Quem programou o envio não está mais ativo no CCI. Programe de novo com outro colaborador.');
+      if (!(user.is_admin || podeAcao(user, 'emitir'))) throw new Error('Quem programou o envio perdeu a ação Emitir. Peça ao administrador para liberar ou programe com outro colaborador.');
+      let emp = await db.collection('empresas').doc(r.cnpj).get();
+      if (!emp.exists) emp = await db.collection('crm_empresas').doc(r.cnpj).get();
+      if (!emp.exists) throw new Error('Empresa não encontrada no cadastro.');
+      if (!temCarteira(emp.data(), user)) throw new Error('A empresa saiu da carteira de quem programou o envio. Programe de novo com o responsável atual.');
+      const modelo = S.modelosEfetivos(await lerModelos(db)).find(m => m.id === r.modelo);
+      if (!modelo) throw new Error('O modelo deste envio não existe mais. Programe de novo.');
+      previa = S.prepararSolicitacao(modelo, corpo, { cnpj: r.cnpj, empresa: emp.data(), colaborador: quem, hoje: R.dataLocal(agoraIso) });
+      if (!despacho.configurado()) throw new Error('Integração com o Microsoft 365 indisponível.');
+      registro = { ...previa, empresa_nome: emp.data().razao_social || '', remetente_programado: quem.email };
+    } catch (e) {
+      falha = 'Envio automático não feito: ' + (e && e.message ? e.message : 'falha ao montar a solicitação') + ' Corrija e use Enviar agora, se ainda fizer sentido.';
+    }
+    const base = S.semIndefinidos({
+      ...(registro || { modelo: r.modelo, modelo_nome: r.modelo_nome, canal: 'email', destino_exibicao: r.destino_exibicao, competencia: corpo.competencia, prazo: corpo.prazo, documentos: corpo.documentos }),
+      whatsapp_link: null, cnpj: r.cnpj, quando: agoraIso, autor_uid: r.autor_uid, autor_email: r.autor_email,
+      origem: 'recorrencia', recorrencia_id: ref.id,
+      estado: falha ? 'falhou' : 'processando', detalhe: falha || ''
+    });
+    const novo = await db.runTransaction(async tx => {
+      const d = await tx.get(registroRef);
+      if (d.exists) return false;
+      tx.create(registroRef, base);
+      return true;
+    });
+    if (!novo) return { id: ref.id, estado: 'repetido' };
+    let final = falha ? { estado: 'falhou', detalhe: falha } : await despacho.despachar({ previa, empresaNome: registro.empresa_nome, remetente: registro.remetente_programado, identidade: r.cnpj + '|solicitacao|' + chave });
+    if (!falha) await registroRef.set(S.semIndefinidos(final), { merge: true });
+    await db.collection(STATUS).doc(r.cnpj).set(S.resumoSolicitacao(chave, { ...base, ...final }));
+    await ref.set({ ultimo_estado: final.estado, ultimo_detalhe: final.detalhe || '' }, { merge: true });
+    return { id: ref.id, estado: final.estado };
+  }
+
+  async function rodar() {
+    const snap = await db.collection(RECORRENCIAS).where('proxima', '<=', agora()).limit(limite).get();
+    const resultados = [];
+    for (const d of snap.docs) {
+      try { const r = await executar(d.ref || db.collection(RECORRENCIAS).doc(d.id)); if (r) resultados.push(r); }
+      catch { resultados.push({ id: d.id, estado: 'erro' }); }
+    }
+    return { processadas: resultados.length, enviadas: resultados.filter(r => r.estado === 'enviado').length, falhas: resultados.filter(r => r.estado !== 'enviado' && r.estado !== 'repetido').length };
+  }
+  return { rodar, executar };
+}
+
+module.exports = { registrar, criarRecorrencias, MODELOS, REGISTROS, STATUS, RECORRENCIAS };

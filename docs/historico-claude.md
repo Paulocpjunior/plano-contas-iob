@@ -2409,3 +2409,10 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Acumulada do relatório = soma das quotas mensais ARREDONDADAS (o que a depreciação lança), não custo/vida×meses: bate com o SAGE (armário 13.095,62 em 09/2026 = 5.674,76 / 43,33%). A lista da tela segue com o cálculo antigo até hoje.
 - Rota só leitura `GET /api/empresas/:cnpj/ativos-imobilizados/depreciacao/ultimas` (`ativos_lancamentos` tipo depreciacao, `select`). Posição padrão = última competência aprovada; bem com quota depois da última aprovada ou nunca aprovado sai com OBSERVAÇÃO. Lista agora devolve `total` (aviso quando passa de 1.000).
 - PDF na tela (jsPDF local): Completo retrato (bloco por bem + resumo) e Resumido paisagem (autoTable). Respeita pesquisa e filtros.
+
+## 04/11/2026 — v3.4.487 Solicitar documentos: envio automático todo mês
+
+- Paulo: no CRM não havia recorrência, só no painel Templates e agendamentos (admin, hospedado no CFI).
+- `crm-solicitacao-recorrencia.js` (puro: dia 1–28, hora 06:00–20:59 Brasília, prazo 1–30 dias, competência = mês anterior ao envio, só e-mail). Coleção `crm_solicitacao_recorrencias` (top-level, campo `cnpj`; pausada/excluída = `proxima: null`). Rotas GET/POST `.../solicitacoes/recorrencias` e POST `.../recorrencias/:id/estado` (pausar/retomar/excluir).
+- Execução: `criarRecorrencias({db}).rodar()` dentro do agendador interno `/api/internal/notificacoes/processar` (job `cci-notificacoes-processar`, a cada 5 min; o script de infra cria o job PAUSADO). Registro idempotente `{rec-id}-{AAAA-MM}`; confere de novo autor ativo, ação Emitir e carteira; falha vira registro `falhou` + situação na carteira.
+- CRM por departamento com documentos do Checklist por link: o Checklist da Legalização hoje não traz documentos; o dossiê do CRM já guarda documento como link (`referencia_externa`). Formato proposto à thread do CFI: `itens[].documentos[{titulo,url,categoria,periodo,atualizado_em}]` na rota `/api/admin/cadastro/checklist-legalizacao`.
