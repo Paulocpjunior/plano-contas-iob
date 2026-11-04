@@ -82,6 +82,8 @@
   "/auditai/auth-client.js",
   "/plano-consulta.js",
   "/conciliacao-manual-ui.js",
+  "/composicao-saldos.js",
+  "/composicao-saldos-ui.js",
   "/planos-gerenciamento-ui.js",
   "/reinf/reinf-alugueis-planilha.js",
   "/reinf/alugueis-conferencia.js",

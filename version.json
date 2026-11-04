@@ -1,7 +1,8 @@
 {
-  "version": "3.4.489",
-  "build_date": "2026-11-04T19:00:00Z",
+  "version": "3.4.490",
+  "build_date": "2026-11-04T21:00:00Z",
   "release_notes": [
+    "Conciliação de provisões e pagamentos → novo botão \"📊 Composição de saldo em aberto\": depois de consultar a conta, mostra as notas pagas no mês e as que ficaram em aberto (inclusive de meses anteriores), direto dos lançamentos do CCI, no critério do antigo relatório do razão do SAGE (nº da nota, CNPJ e fornecedor; pagamento + retenções fecham o bruto). Compensações da Conciliação vinculam nota e baixa sem adivinhação. Mostra a composição do saldo contábil (notas abertas, saldo inicial sem detalhe e baixas sem nota vinculada) e exporta PDF e planilha Excel com a aba \"Em aberto\" para o cliente. Conta do Passivo: créditos são as notas; do Ativo: débitos são os títulos.",
     "CRM → Checklist (Legalização): o CCI passa a ler o Checklist direto do app Legalização, sem passar pelo CFI. Nada muda na tela; a leitura depende da variável LEGALIZACAO_URL no Cloud Run.",
     "CRM → Checklist do app Legalização: os documentos de cada linha (contrato, cartão CNPJ etc.) chegam como LINK, não como arquivo. Na prévia aparece \"📎 N documento(s) por link\" e o botão \"Trazer links para os dossiês\" grava cada link nos Documentos do dossiê da empresa, sem duplicar ao repetir. Link sem https, com usuário/senha ou sem título é recusado e contado. Aplicar ou cadastrar pelo Checklist também leva os links.",
     "CRM → Solicitar documentos: depois da prévia por e-mail, \"🔁 Repetir este envio todo mês\" programa o envio automático (dia do mês, horário e prazo do cliente em dias). O CCI envia da caixa de quem programou, com a competência do mês anterior, atualiza a situação na carteira e registra no histórico. Pausar, retomar e excluir ficam em \"Envios automáticos desta empresa\". Só por e-mail: no WhatsApp quem envia precisa tocar em Enviar.",

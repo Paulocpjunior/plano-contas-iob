@@ -2427,3 +2427,10 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Paulo: "cada dpto/app são autônomos, não fique pendurando um no outro". `crm-checklist.js` `carregarChecklist` troca o túnel do CFI (`/api/admin/cadastro/checklist-legalizacao`) por `GET {LEGALIZACAO_URL}/api/legalizacao/checklist-apps` (legaliza-o, mesmo formato, inclusive `documentos` por link; token do CCI conferido pelo projeto `projetos-app-sp`).
 - Exige env `LEGALIZACAO_URL` no Cloud Run (`--update-env-vars`, URL derivada do serviço `legalizacao`, projeto `consultorfiscalapp`, us-west1). Sem ela: 503 com a ação.
 - Trava: `scripts/test-crm-checklist.js`.
+
+## 04/11/2026 — v3.4.490 Composição de saldo em aberto (notas pagas no mês e em aberto)
+
+- Paulo/Clude (Odete pede todo mês): o relatório saía do razão SAGE exportado (`analisarRazaoSaldosNotas` no index.html). Agora sai dos lançamentos do CCI.
+- `composicao-saldos.js` (puro): mesmo critério do extrator antigo; baixa só quita nota do mesmo mês ou anterior; compensação da Conciliação (`conciliacoes_manuais`, modo compensacao) vincula sem heurística; conferência manual não quita. Abertura de `saldosIniciais` vira linha "sem detalhe" e corta lançamentos anteriores (transportes de encerramento ignorados). Equação: notas abertas + abertura − baixas sem vínculo + centavos = saldo contábil.
+- Tela `composicao-saldos-ui.js`: botão na Conciliação de provisões e pagamentos (usa as linhas já consultadas). PDF no layout antigo + Excel (abas Em aberto, Composição, Relação completa, Baixas sem vínculo).
+- Paridade com o PDF de 06/2026 (141/117/24, R$ 64.530,30; 46 baixas sem vínculo R$ 67.175,98) em `scripts/test-composicao-saldos.js` (bloco real pulado sem o arquivo; env `CLUDE_RAZAO_062026`).
