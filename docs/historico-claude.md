@@ -2427,3 +2427,7 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Paulo: "cada dpto/app são autônomos, não fique pendurando um no outro". `crm-checklist.js` `carregarChecklist` troca o túnel do CFI (`/api/admin/cadastro/checklist-legalizacao`) por `GET {LEGALIZACAO_URL}/api/legalizacao/checklist-apps` (legaliza-o, mesmo formato, inclusive `documentos` por link; token do CCI conferido pelo projeto `projetos-app-sp`).
 - Exige env `LEGALIZACAO_URL` no Cloud Run (`--update-env-vars`, URL derivada do serviço `legalizacao`, projeto `consultorfiscalapp`, us-west1). Sem ela: 503 com a ação.
 - Trava: `scripts/test-crm-checklist.js`.
+
+## 04/11/2026 — v3.4.490: avisos da Legalização direto do app Legalização
+
+- Mesmo princípio da 3.4.489: `avisos-legalizacao.js` troca `/api/admin/cadastro/avisos-legalizacao?destino=contabil` (CFI) por `{LEGALIZACAO_URL}/api/legalizacao/avisos-apps` (legaliza-o: destino `contabil` sai do projeto `projetos-app-sp` do token). Trava: `scripts/test-avisos-legalizacao.js`.

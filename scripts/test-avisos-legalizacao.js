@@ -1,13 +1,13 @@
 'use strict';
-// 📣 Avisos da Legalização no Contábil (27/10): pede só os do Contábil pelo
-// túnel do CFI, mostra o "de → para" e falha nunca vira "nenhum aviso".
+// 📣 Avisos da Legalização no Contábil (27/10): pede direto ao app Legalização
+// (04/11, sem o CFI; o destino sai do token), mostra o "de → para" e falha nunca vira "nenhum aviso".
 const assert = require('assert');
 const A = require('../avisos-legalizacao');
 
 (async () => {
-  const env = { CFI_URL: 'https://cfi.example/' };
-  assert.strictEqual(A.urlAvisosLegalizacao(undefined, env), 'https://cfi.example/api/admin/cadastro/avisos-legalizacao?destino=contabil&dias=30');
-  assert.throws(() => A.urlAvisosLegalizacao(30, {}), /CFI_URL/);
+  const env = { LEGALIZACAO_URL: 'https://legalizacao.example/' };
+  assert.strictEqual(A.urlAvisosLegalizacao(undefined, env), 'https://legalizacao.example/api/legalizacao/avisos-apps?dias=30');
+  assert.throws(() => A.urlAvisosLegalizacao(30, {}), /LEGALIZACAO_URL/);
 
   const base = { id: 'a', tipo: 'empresa_entrou', campos: [] };
   assert.deepStrictEqual(A.detalheAviso(base), []);
@@ -24,7 +24,7 @@ const A = require('../avisos-legalizacao');
     env,
     fetchImpl: async (u, o) => { url = u; assert.strictEqual(o.headers.Authorization, 'Bearer tok'); return { status: 200, json: async () => ({ ok: true, dias: 30, cortado: true, avisos: [Object.assign({}, base, { campos: ['tributacao'] })] }) }; }
   });
-  assert.match(url, /destino=contabil&dias=30$/);
+  assert.match(url, /avisos-apps\?dias=30$/);
   assert.strictEqual(r.cortado, true);
   assert.deepStrictEqual(r.avisos[0].campos, ['tributação']);
 

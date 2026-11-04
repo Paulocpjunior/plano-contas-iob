@@ -6,12 +6,13 @@
 // A Legalização é dona do cadastro geral das empresas (27/10). Cada
 // movimentação no checklist dela (entrou, suspensa, saiu, baixada, dados
 // gerais, Contabilidade contratada ou retirada) vira um aviso. O Contábil está
-// em outro projeto Firebase: lê pelo túnel do cadastro do CFI
-// (GET /api/admin/cadastro/avisos-legalizacao?destino=contabil), com o token
-// de quem está logado. SÓ MOSTRA: nada muda sozinho no CCI.
+// em outro projeto Firebase: lê DIRETO do app Legalização
+// (GET {LEGALIZACAO_URL}/api/legalizacao/avisos-apps; até 04/11 vinha pelo túnel
+// do CFI), com o token de quem está logado: o destino "contabil" sai do projeto
+// do token. SÓ MOSTRA: nada muda sozinho no CCI.
 // ============================================================================
 
-const { baseCfi } = require('./whatsapp-cfi-client');
+const baseLegalizacao = (env = process.env) => String((env && env.LEGALIZACAO_URL) || '').trim().replace(/\/+$/, '');
 
 const CAMPO_AVISO = {
   empresaNome: 'nome', documento: 'CNPJ', tributacao: 'tributação', statusCliente: 'status',
@@ -19,10 +20,10 @@ const CAMPO_AVISO = {
 };
 
 function urlAvisosLegalizacao(dias, env) {
-  const base = baseCfi(env);
-  if (!base) throw new Error('Defina CFI_URL para ler os avisos da Legalização.');
+  const base = baseLegalizacao(env);
+  if (!base) throw new Error('Defina LEGALIZACAO_URL (endereço do app Legalização) para ler os avisos.');
   const d = Math.min(Math.max(parseInt(String(dias || '30'), 10) || 30, 1), 365);
-  return base + '/api/admin/cadastro/avisos-legalizacao?destino=contabil&dias=' + d;
+  return base + '/api/legalizacao/avisos-apps?dias=' + d;
 }
 
 /**
@@ -45,12 +46,12 @@ function detalheAviso(a) {
 function interpretarAvisos(status, corpo) {
   const body = corpo || {};
   if (status === 401 || status === 403) {
-    const erro = new Error('O CFI recusou a leitura dos avisos da Legalização. Faça login novamente ou confira o acesso entre os sistemas.');
+    const erro = new Error('O app Legalização recusou a leitura dos avisos. Faça login novamente ou confira o acesso entre os sistemas.');
     erro.status = status;
     throw erro;
   }
   if (status !== 200 || body.ok !== true || !Array.isArray(body.avisos)) {
-    const erro = new Error('O CFI respondeu ' + status + ' aos avisos da Legalização: ' + (body.error || 'resposta incompleta') + '.');
+    const erro = new Error('O app Legalização respondeu ' + status + ' aos avisos: ' + (body.error || 'resposta incompleta') + '.');
     erro.status = 502;
     throw erro;
   }
@@ -73,7 +74,7 @@ async function buscarAvisosLegalizacao(input, deps) {
   try {
     resposta = await fetchImpl(url, { headers: { Authorization: 'Bearer ' + input.token } });
   } catch (e) {
-    throw Object.assign(new Error('Não consegui ler os avisos da Legalização no CFI. Tente novamente em instantes.'), { status: 502 });
+    throw Object.assign(new Error('Não consegui ler os avisos no app Legalização. Tente novamente em instantes.'), { status: 502 });
   }
   const corpo = await resposta.json().catch(() => ({}));
   return interpretarAvisos(resposta.status, corpo);
