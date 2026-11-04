@@ -9,7 +9,19 @@ const baseLegalizacao = (env = process.env) => String((env && env.LEGALIZACAO_UR
 const FORM_ID = 'legalizacao:checklist';
 const ID_ITEM = /^(doc|nome)_[A-Za-z0-9_]{1,200}$/;
 const normalizar = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase().replace(/\s+/g, ' ');
-const EVENTOS = { 'CLIENTE NOVO': 'entrada', 'CLIENTE SAIDA': 'saida', 'ENCERRAMENTO CNPJ': 'baixa', 'CLIENTE ALTERACAO': 'alteracao', 'CLIENTE SUSPENSO': 'suspensao' };
+// Status da lista do app Legalização (services/checklistLogic.ts STATUS_OPCOES). "Cliente ativo" é
+// SITUAÇÃO, não evento: não gera pendência nem aplicação. "Paralisado" segue a suspensão (v3.4.492).
+const EVENTOS = { 'CLIENTE NOVO': 'entrada', 'CLIENTE ATIVO': 'ativo', 'CLIENTE SAIDA': 'saida', 'ENCERRAMENTO CNPJ': 'baixa', 'CLIENTE ALTERACAO': 'alteracao', 'CLIENTE SUSPENSO': 'suspensao', 'CLIENTE PARALISADO': 'suspensao' };
+// Serviços contratados (lista do app Legalização: Folha de Pagamentos, Contabilidade, Fiscal).
+// Texto ausente = não informado (null), nunca "sem contabilidade".
+function servicosDoItem(v) {
+  if (typeof v !== 'string' || !v.trim()) return null;
+  return v.split(/[·•;,\n/+]|\s+e\s+/i).map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 10);
+}
+const semAcento = x => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// true/false só quando a lista traz algum serviço conhecido; texto livre ("todos") = null (não se chuta).
+const contrataContabilidade = lista => (lista.some(x => /^(contab|fisca|folha|dp\b|departamento pessoal)/.test(semAcento(x)))
+  ? lista.some(x => /^contab/.test(semAcento(x))) : null);
 function codigo(v) { const s = String(v ?? '').trim(); return /^\d+$/.test(s) && Number(s) > 0 ? s.replace(/^0+/, '') : null; }
 function lerData(v, campo, problemas) {
   if (v == null || v === '') return null;
@@ -49,6 +61,9 @@ function orientacoesChecklist(evento){
   if(/Número|Código interno|vínculo/.test(p))acoes.push('No Cadastro de Empresas do CCI, confira o número interno e a identidade. Não escolha uma empresa por semelhança de nome. Depois consulte novamente o Checklist.');
   if(/Status|vigência|responsabilidade|Múltiplos eventos|Data inválida/.test(p))acoes.push('No dossiê da empresa, confira Contrato e recorrências com o administrador. Registre a vigência e o motivo com base na documentação; não aplique eventos conflitantes em lote.');
   if(/não ativo/.test(p))acoes.push('Mantenha este registro como histórico. Não aplique nem exclua dados porque a origem está inativa.');
+  if(/Serviços contratados/.test(p))acoes.push('No app Legalização, confira em Checklist → empresa → Serviços contratados se a Contabilidade foi contratada. Sem Contabilidade, a empresa não entra na carteira contábil.');
+  if(/Status/.test(p)&&/lista/.test(p))acoes.push('O status é escolhido pela Legalização no Checklist do app Legalização. O CCI só lê.');
+  if(evento.tipo==='ativo'&&!evento.problemas.length)acoes.push('Cliente ativo, sem movimentação a aplicar. Nada a fazer no contrato.');
   if(!acoes.length)acoes.push('Compare o evento com o contrato atual antes da confirmação individual.');
   return acoes;
 }
@@ -107,7 +122,9 @@ function previaChecklist(itens, empresas) {
     if (jaCadastrado) problemas.push('CNPJ do Checklist já cadastrado no CCI com ' + (jaCadastrado.codigo ? 'o Nosso Número ' + jaCadastrado.codigo : 'Nosso Número em branco') + '. Corrija o número no Cadastro de Empresas ou no Checklist.');
     const status = typeof r.statusCliente === 'string' ? normalizar(r.statusCliente) : '';
     const tipo = EVENTOS[status] || 'pendente';
-    if (tipo === 'pendente') problemas.push('Status não reconhecido. Conferir o evento.');
+    if (tipo === 'pendente') problemas.push(status ? 'Status "' + status + '" não reconhecido. Escolha um status da lista no Checklist do app Legalização.' : 'Status em branco no Checklist. Escolha um status da lista no app Legalização.');
+    const servicos = servicosDoItem(r.servicosContratados);
+    if (tipo === 'entrada' && servicos && contrataContabilidade(servicos) === false) problemas.push('Serviços contratados não incluem Contabilidade (' + servicos.join(', ') + '). Confira com a Legalização antes de cadastrar na carteira contábil.');
     const inicio = lerData(dataDoResponsavel(r.responsavelDesde), 'início da responsabilidade', problemas);
     const fim = lerData(dataDoResponsavel(r.responsavelAte), 'fim da responsabilidade', problemas);
     const cadastro = lerData(r.datas?.cadastro, 'cadastro', problemas);
@@ -122,7 +139,8 @@ function previaChecklist(itens, empresas) {
       colecao: candidatas.length === 1 ? candidatas[0].colecao || 'empresas' : null,
       cnpj_origem: origem ? origem.cnpj : null, cnpj_origem_fonte: origem ? origem.fonte : null,
       tributacao_origem: typeof r.tributacao === 'string' ? r.tributacao.trim() : null,
-      cadastro_disponivel: Boolean(tipo === 'entrada' && numero && nome && origem && !candidatas.length && !jaCadastrado),
+      servicos_contratados: servicos, contabilidade_contratada: servicos ? contrataContabilidade(servicos) : null,
+      cadastro_disponivel: Boolean(tipo === 'entrada' && numero && nome && origem && !candidatas.length && !jaCadastrado && !(servicos && contrataContabilidade(servicos) === false)),
       tipo, status_origem: status, cadastro_em: cadastro, responsabilidade_inicio: inicio, responsabilidade_fim: fim,
       observacao, problemas, aplicacao_automatica: false,
       documentos: docs.documentos, documentos_total: docs.total, documentos_cortado: docs.cortado, documentos_recusados: docs.recusados };

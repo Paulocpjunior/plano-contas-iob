@@ -78,3 +78,41 @@ assert(orientacoesChecklist({problemas:['Registro não ativo na origem; não apl
   assert.throws(()=>c.cadastroDoEvento(e,{confirmado:true,cnpj:'45123840000180'}),/difere/);
   assert.throws(()=>c.cadastroDoEvento({...e,cadastro_disponivel:false},{confirmado:true,cnpj:v}),/pendências/);
 }
+// v3.4.492: status e serviços da lista do app Legalização.
+{
+  // "Cliente ativo" é situação, não evento: sem pendência e sem aplicação.
+  const ativo={...row(),statusCliente:'CLIENTE ATIVO'};
+  let e=c.previaChecklist([ativo],empresas).eventos[0];
+  assert.equal(e.tipo,'ativo'); assert.deepEqual(e.problemas,[]); assert(e.orientacoes.some(o=>o.includes('sem movimentação')));
+  assert.throws(()=>c.contratoDoEvento(e,null,{confirmado:true},'2026-10-15'),/manualmente/);
+  // "Paralisado" segue a suspensão (conferência manual), nunca "não reconhecido".
+  e=c.previaChecklist([{...row(),statusCliente:'Cliente Paralisado'}],empresas).eventos[0];
+  assert.equal(e.tipo,'suspensao'); assert(!e.problemas.some(p=>p.includes('não reconhecido')));
+  // Status em branco ou fora da lista: pendência que diz ONDE corrigir.
+  e=c.previaChecklist([{...row(),statusCliente:null}],empresas).eventos[0];
+  assert.equal(e.tipo,'pendente'); assert(e.problemas.some(p=>p.includes('em branco')&&p.includes('app Legalização')));
+  e=c.previaChecklist([{...row(),statusCliente:'VIP'}],empresas).eventos[0];
+  assert(e.problemas.some(p=>p.includes('"VIP"')));
+  // Serviços: lidos da lista; ausente = não informado (null), nunca "sem contabilidade".
+  e=c.previaChecklist([{...row(),servicosContratados:'Contabilidade · Fiscal'}],empresas).eventos[0];
+  assert.deepEqual(e.servicos_contratados,['Contabilidade','Fiscal']); assert.equal(e.contabilidade_contratada,true); assert.equal(e.problemas.length,0);
+  e=c.previaChecklist([row()],empresas).eventos[0];
+  assert.equal(e.servicos_contratados,null); assert.equal(e.contabilidade_contratada,null); assert.equal(e.problemas.length,0);
+  // Entrada só com Folha: alerta e não oferece cadastro na carteira contábil.
+  const v='11222333000181';
+  const soFolha={...row('nome_FOLHA'),nossoNumero:'1411',empresaNome:'FOLHA LTDA',documento:v,servicosContratados:'Folha de Pagamentos'};
+  e=c.previaChecklist([soFolha],empresas).eventos[0];
+  assert.equal(e.contabilidade_contratada,false); assert(!e.cadastro_disponivel);
+  assert(e.problemas.some(p=>p.includes('não incluem Contabilidade'))); assert(e.orientacoes.some(o=>o.includes('Serviços contratados')));
+  assert(c.previaChecklist([{...soFolha,servicosContratados:'Folha de Pagamentos · Contabilidade'}],empresas).eventos[0].cadastro_disponivel);
+}
+console.log('✓ crm-checklist: status ativo/paralisado e serviços contratados');
+{
+  // Texto livre do Jotform antigo ("Todos") não vira "sem contabilidade"; "Contábil e DP" é lido.
+  let e=c.previaChecklist([{...row(),servicosContratados:'Todos'}],empresas).eventos[0];
+  assert.equal(e.contabilidade_contratada,null); assert(!e.problemas.some(p=>p.includes('Contabilidade')));
+  e=c.previaChecklist([{...row(),servicosContratados:'Contábil e DP'}],empresas).eventos[0];
+  assert.equal(e.contabilidade_contratada,true);
+  e=c.previaChecklist([{...row(),servicosContratados:'DP/Fiscal'}],empresas).eventos[0];
+  assert.equal(e.contabilidade_contratada,false);
+}

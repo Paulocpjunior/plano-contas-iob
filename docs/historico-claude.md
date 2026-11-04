@@ -2438,3 +2438,10 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - `composicao-saldos.js` (puro): mesmo critério do extrator antigo; baixa só quita nota do mesmo mês ou anterior; compensação da Conciliação (`conciliacoes_manuais`, modo compensacao) vincula sem heurística; conferência manual não quita. Abertura de `saldosIniciais` vira linha "sem detalhe" e corta lançamentos anteriores (transportes de encerramento ignorados). Equação: notas abertas + abertura − baixas sem vínculo + centavos = saldo contábil.
 - Tela `composicao-saldos-ui.js`: botão na Conciliação de provisões e pagamentos (usa as linhas já consultadas). PDF no layout antigo + Excel (abas Em aberto, Composição, Relação completa, Baixas sem vínculo).
 - Paridade com o PDF de 06/2026 (141/117/24, R$ 64.530,30; 46 baixas sem vínculo R$ 67.175,98) em `scripts/test-composicao-saldos.js` (bloco real pulado sem o arquivo; env `CLUDE_RAZAO_062026`).
+
+## 04/11/2026 — v3.4.492 Conferir Checklist: cliente ativo, serviços contratados, filtro por evento
+
+- Paulo pediu manuais do Checklist (CCI e Legalização) e garantir que o novo Checklist cumpra as funções do Jotform com melhorias. Conferência campo a campo: o app Legalização cobre todos os campos do formulário antigo; a lacuna estava na leitura do CCI.
+- `crm-checklist.js`: `EVENTOS` não tinha `CLIENTE ATIVO` nem `CLIENTE PARALISADO` (opções da lista do app Legalização), e toda empresa ativa virava "Status não reconhecido". Agora ATIVO = tipo `ativo` (sem pendência, sem aplicação) e PARALISADO = `suspensao`. Status em branco ou fora da lista diz onde corrigir.
+- `servicosContratados` (lido e ignorado até aqui) entra na prévia como `servicos_contratados`/`contabilidade_contratada`. É `null` quando o texto não traz serviço conhecido (não se chuta). Entrada sem Contabilidade ganha alerta e `cadastro_disponivel` falso.
+- `crm-contabil-ui.js`: a coluna Evento mostra rótulo, tributação e serviços; novo filtro Evento ("Só movimentações"); sem "Revisar aplicação" para cliente ativo. Trava: `scripts/test-crm-checklist.js`.
