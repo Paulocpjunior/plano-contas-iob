@@ -2416,3 +2416,8 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - `crm-solicitacao-recorrencia.js` (puro: dia 1–28, hora 06:00–20:59 Brasília, prazo 1–30 dias, competência = mês anterior ao envio, só e-mail). Coleção `crm_solicitacao_recorrencias` (top-level, campo `cnpj`; pausada/excluída = `proxima: null`). Rotas GET/POST `.../solicitacoes/recorrencias` e POST `.../recorrencias/:id/estado` (pausar/retomar/excluir).
 - Execução: `criarRecorrencias({db}).rodar()` dentro do agendador interno `/api/internal/notificacoes/processar` (job `cci-notificacoes-processar`, a cada 5 min; o script de infra cria o job PAUSADO). Registro idempotente `{rec-id}-{AAAA-MM}`; confere de novo autor ativo, ação Emitir e carteira; falha vira registro `falhou` + situação na carteira.
 - CRM por departamento com documentos do Checklist por link: o Checklist da Legalização hoje não traz documentos; o dossiê do CRM já guarda documento como link (`referencia_externa`). Formato proposto à thread do CFI: `itens[].documentos[{titulo,url,categoria,periodo,atualizado_em}]` na rota `/api/admin/cadastro/checklist-legalizacao`.
+
+## 04/11/2026 — v3.4.488 Checklist: documentos por link nos dossiês
+- Pedido do Paulo: o Checklist da Legalização abastece os CRMs e manda documentos por link (como o Jotform), não o arquivo.
+- CCI lê `itens[].documentos` (opcional até o deploy do patch do CFI): `documentosDoItem` valida https/sem credencial/título, categoria CONTRATO|DITR|DEFIS|ECD|ECF|OUTROS, máx 50.
+- Grava `empresas/{cnpj}/crm_documentos/chk-<sha>` como `referencia_externa`, origem checklist (idempotente). Rota admin `POST /api/crm/checklist/documentos` {assinatura}; aplicar/cadastrar também gravam.

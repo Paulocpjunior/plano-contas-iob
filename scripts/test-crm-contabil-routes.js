@@ -259,6 +259,37 @@ if(require.main===module)(async()=>{
   // Linha do app muda por outro motivo (nome, observação): o mesmo passo segue "já aplicado".
   fonte.rows[0].empresaNome='Alterado';
   aplicado=await ce.call('POST','/api/crm/checklist/aplicar',evtBody,'admin');assert.equal(aplicado.body.ja_aplicado,true);assert.equal(ce.writes(),3);
+  // Documentos do Checklist por link (v3.4.488): só o link vai ao dossiê, sem arquivo; repetir não duplica.
+  {
+    const docs=[{titulo:'Contrato social',url:'https://sp.sharepoint.com/sites/Leg/Contrato.pdf',categoria:'CONTRATO',periodo:'',atualizado_em:'2026-10-01T10:00:00Z',origem:'app'},
+      {titulo:'Cartão CNPJ',url:'https://sp.sharepoint.com/sites/Leg/Cartao.pdf',categoria:'XPTO',origem:'jotform'},
+      {titulo:'Repetido',url:'https://sp.sharepoint.com/sites/Leg/Contrato.pdf'},
+      {titulo:'Inseguro',url:'http://exemplo.test/a.pdf'},{titulo:'Com senha',url:'https://u:p@exemplo.test/a.pdf'}];
+    const lido=ck.documentosDoItem({documentos:docs});
+    assert.deepEqual(lido.documentos.map(d=>d.categoria),['CONTRATO','OUTROS'],'categoria desconhecida vira OUTROS; link repetido sai');
+    assert.equal(lido.recusados,2,'HTTP e link com credencial não entram');
+    assert.equal(ck.documentosDoItem({}).documentos.length,0,'sem campo = sem documentos');
+    assert.equal(ck.documentosDoItem({documentos:docs.slice(0,1),documentosTotal:80,documentosCortado:true}).cortado,true);
+    const fd={completo:true,assinatura:'d'.repeat(64),rows:[{...structuredClone(fonte.rows[0]),empresaNome:'Fixture',documentos:docs}]};
+    const cd=ambiente(async()=>fd);
+    assert.equal((await cd.call('POST','/api/crm/checklist/documentos',{assinatura:fd.assinatura},'colab')).statusCode,403);
+    assert.equal((await cd.call('POST','/api/crm/checklist/documentos',{assinatura:'e'.repeat(64)},'admin')).statusCode,409);
+    const prev=await cd.call('GET','/api/crm/checklist/previa',{},'admin');
+    assert.equal(prev.body.eventos[0].documentos.length,2);
+    const r1=await cd.call('POST','/api/crm/checklist/documentos',{assinatura:fd.assinatura},'admin');
+    assert.equal(r1.statusCode,200,JSON.stringify(r1.body));
+    assert.deepEqual([r1.body.empresas,r1.body.links,r1.body.recusados],[1,2,2]);
+    const chaves=()=>[...cd.dados.keys()].filter(k=>k.startsWith('empresas/'+cnpj+'/crm_documentos/chk-'));
+    assert.equal(chaves().length,2);
+    const salvo=cd.dados.get(chaves().find(k=>cd.dados.get(k).categoria==='CONTRATO'));
+    assert.equal(salvo.tipo,'referencia_externa');assert.equal(salvo.origem,'checklist');assert.equal(salvo.url,'https://sp.sharepoint.com/sites/Leg/Contrato.pdf');
+    assert(!Object.values(salvo).some(v=>v===undefined));
+    await cd.call('POST','/api/crm/checklist/documentos',{assinatura:fd.assinatura},'admin');
+    assert.equal(chaves().length,2,'trazer de novo não duplica');
+    const lista=await cd.call('GET','/api/crm/empresas/:cnpj/documentos-referencias',{},'colab');
+    assert.equal(lista.statusCode,200,JSON.stringify(lista.body));
+    assert(lista.body.documentos.some(d=>d.url==='https://sp.sharepoint.com/sites/Leg/Contrato.pdf'),'aparece nos Documentos do dossiê');
+  }
   // A mesma linha passa a saída: é outro evento e precisa poder ser aplicado (achado do Codex, 28/10).
   fonte.rows[0].statusCliente='CLIENTE SAIDA';fonte.rows[0].responsavelAte={data:'2026-10-01',texto:null};
   const saiu=await ce.call('POST','/api/crm/checklist/aplicar',{...evtBody,revisao_contrato:ce.dados.get('empresas/'+cnpj).crm_contrato.revisao},'admin');

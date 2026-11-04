@@ -6,7 +6,7 @@ const { documentoReferencia, corrigirIdentificacao, compararBusca, documentosEmp
 const { normalizarResponsaveis, atribuirResponsavel, camposCarteira } = require('./carteira-contabil');
 const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
-const { carregarChecklist, previaChecklist, contratoDoEvento, cadastroDoEvento, unirBases, ID_ITEM, chaveEvento } = require('./crm-checklist');
+const { carregarChecklist, previaChecklist, contratoDoEvento, cadastroDoEvento, unirBases, ID_ITEM, chaveEvento, referenciaDoChecklist } = require('./crm-checklist');
 const Solicitacao = require('./crm-solicitacao-routes');
 const SolicitacaoDocs = require('./crm-solicitacao-documentos');
 // Token de quem está logado: o CFI só entrega o checklist da Legalização a um usuário identificado.
@@ -626,6 +626,7 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
       tx.set(ref,{crm_contrato:depois,crm_situacao_cliente:depois.situacao},{merge:true});
       tx.create(registro,{cnpj:evento.cnpj,submission_id:evento.submission_id,assinatura_evento:evento.assinatura,
         assinatura_leitura:fonte.assinatura,por_uid:user.uid,quando,antes,depois});
+      gravarDocumentosChecklist(tx,evento.cnpj,evento,user.uid,quando);
       tx.create(ref.collection('auditoria_contabil').doc(),{tipo:'CRM_CHECKLIST',por_uid:user.uid,quando,
         submission_id:evento.submission_id,antes,depois,motivo:depois.motivo});
       return {aplicado:true,ja_aplicado:false,cnpj:evento.cnpj,contrato:depois};
@@ -664,11 +665,44 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
       tx.create(ref, dossie);
       tx.create(registro, { cnpj: dossie.cnpj, submission_id: evento.submission_id,
         assinatura_evento: evento.assinatura, assinatura_leitura: fonte.assinatura, cnpj_fonte: dossie.cnpj_fonte, por_uid: user.uid, quando });
+      gravarDocumentosChecklist(tx, dossie.cnpj, evento, user.uid, quando);
       tx.create(ref.collection('auditoria_contabil').doc(), { tipo: 'CRM_CHECKLIST_CADASTRO', por_uid: user.uid, quando,
         submission_id: evento.submission_id, antes: null, depois: dossie });
       return { cadastrado: true, cnpj: dossie.cnpj, codigo_empresa: dossie.codigo_empresa };
     });
     res.json({ ok: true, ...result });
+  }));
+  // Links dos anexos do Checklist no dossiê da empresa: id fixo pelo link, então repetir não duplica.
+  function documentoChecklistRef(cnpj, url) { return db.collection('empresas').doc(cnpj).collection('crm_documentos').doc('chk-' + documentoId(url).slice(0, 40)); }
+  function gravarDocumentosChecklist(escrita, cnpj, evento, uid, quando) {
+    for (const d of evento.documentos || []) escrita.set(documentoChecklistRef(cnpj, d.url), referenciaDoChecklist(d, evento, uid, quando), { merge: true });
+    return (evento.documentos || []).length;
+  }
+  // Vínculo seguro: um só cadastro pelo Nosso Número e o CNPJ da origem (se houver) é o mesmo.
+  const vinculoDocumentos = e => e.cnpj && (!e.cnpj_origem || e.cnpj_origem === e.cnpj) ? e.cnpj : null;
+  app.post('/api/crm/checklist/documentos', wrap(async (req, res) => {
+    admin(await usuario(req));
+    const b = req.body || {};
+    if (!/^[a-f0-9]{64}$/.test(b.assinatura || '')) throw core.erro('Confira uma prévia do Checklist antes de trazer os documentos.');
+    const fonte = await checklist({ token: tokenDe(req), env });
+    if (fonte.completo !== true || fonte.assinatura !== b.assinatura) throw core.erro('A origem mudou ou a leitura está incompleta. Confira uma nova prévia.', 409);
+    const user = await usuario(req); admin(user);
+    const previa = previaChecklist(fonte.rows, await basesChecklist());
+    const quando = agora();
+    let empresas = 0, links = 0, semVinculo = 0, lote = db.batch(), noLote = 0;
+    for (const e of previa.eventos) {
+      if (!(e.documentos || []).length) continue;
+      const cnpj = vinculoDocumentos(e);
+      if (!cnpj) { semVinculo++; continue; }
+      for (const d of e.documentos) {
+        lote.set(documentoChecklistRef(cnpj, d.url), referenciaDoChecklist(d, e, user.uid, quando), { merge: true });
+        links++;
+        if (++noLote >= 400) { await lote.commit(); lote = db.batch(); noLote = 0; }
+      }
+      empresas++;
+    }
+    if (noLote) await lote.commit();
+    res.json({ ok: true, empresas, links, sem_vinculo: semVinculo, cortados: previa.eventos.filter(e => e.documentos_cortado).length, recusados: previa.eventos.reduce((t, e) => t + (e.documentos_recusados || 0), 0) });
   }));
   async function basesChecklist(tx) {
     const [empresas, crm] = await Promise.all(['empresas', 'crm_empresas'].map(n => tx ? tx.get(db.collection(n)) : db.collection(n).get()));
