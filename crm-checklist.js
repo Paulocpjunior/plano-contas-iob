@@ -52,6 +52,36 @@ function orientacoesChecklist(evento){
 }
 // Responsável "a partir de/até" do app: {data, texto}. Texto que não é data vira pendência, nunca palpite.
 const dataDoResponsavel = r => (r && typeof r === 'object' ? (r.data || r.texto || null) : r || null);
+// Documentos do Checklist chegam como LINK (SharePoint/Jotform), nunca o arquivo:
+// cada departamento abre o mesmo anexo sem duplicar rede e armazenamento (v3.4.488).
+// O CFI já filtra, mas o CCI confere de novo: só HTTPS sem credencial, categoria conhecida.
+const CATEGORIAS_DOC = ['CONTRATO', 'DITR', 'DEFIS', 'ECD', 'ECF', 'OUTROS'];
+function documentosDoItem(r) {
+  const lista = Array.isArray(r && r.documentos) ? r.documentos : [];
+  const vistos = new Set(), documentos = [];
+  let recusados = 0;
+  for (const d of lista) {
+    let u = null;
+    try { u = new URL(String(d && d.url || '')); } catch { u = null; }
+    const titulo = String(d && d.titulo || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+    if (!u || u.protocol !== 'https:' || u.username || u.password || u.href.length > 2000 || !titulo) { recusados++; continue; }
+    if (vistos.has(u.href)) continue;
+    vistos.add(u.href);
+    const periodo = typeof d.periodo === 'string' && /^\d{4}(-(?:0[1-9]|1[0-2]))?$/.test(d.periodo) ? d.periodo : '';
+    documentos.push({ titulo, url: u.href, categoria: CATEGORIAS_DOC.includes(d.categoria) ? d.categoria : 'OUTROS', periodo,
+      atualizado_em: typeof d.atualizado_em === 'string' ? d.atualizado_em.slice(0, 40) : null, origem: ['app', 'jotform'].includes(d.origem) ? d.origem : null });
+    if (documentos.length >= 50) break;
+  }
+  const total = Number.isInteger(r && r.documentosTotal) ? Math.max(r.documentosTotal, documentos.length) : documentos.length;
+  return { documentos, total, cortado: r && r.documentosCortado === true || total > documentos.length, recusados: recusados + (Number.isInteger(r && r.documentosRecusados) ? r.documentosRecusados : 0) };
+}
+// Referência gravada no dossiê do CRM (empresas/{cnpj}/crm_documentos), mesmo formato do link manual.
+function referenciaDoChecklist(doc, evento, uid, quando) {
+  return { titulo: doc.titulo, url: doc.url, categoria: doc.categoria, periodo: doc.periodo || '', motivo: 'Anexo do Checklist do app Legalização',
+    revisao: 1, quando, por_uid: uid, tipo: 'referencia_externa', origem: 'checklist', origem_arquivo: doc.origem || null,
+    atualizado_em_origem: doc.atualizado_em || null, submission_id: evento.submission_id };
+}
+
 function previaChecklist(itens, empresas) {
   const porCodigo = new Map(), porCnpj = new Map();
   for (const e of empresas) {
@@ -84,6 +114,7 @@ function previaChecklist(itens, empresas) {
     if (inicio && fim && fim < inicio) problemas.push('Fim da responsabilidade anterior ao início.');
     if (['alteracao', 'suspensao'].includes(tipo)) problemas.push('Conferir vigência e efeitos antes de aplicar.');
     const nome = typeof r.empresaNome === 'string' ? r.empresaNome.trim() : '';
+    const docs = documentosDoItem(r);
     return { submission_id: String(r.id), assinatura: hash(r), numero_original: String(r.nossoNumero ?? ''),
       empresa_nome: nome, cnpj: candidatas.length === 1 ? candidatas[0].cnpj : null,
       colecao: candidatas.length === 1 ? candidatas[0].colecao || 'empresas' : null,
@@ -91,7 +122,8 @@ function previaChecklist(itens, empresas) {
       tributacao_origem: typeof r.tributacao === 'string' ? r.tributacao.trim() : null,
       cadastro_disponivel: Boolean(tipo === 'entrada' && numero && nome && origem && !candidatas.length && !jaCadastrado),
       tipo, status_origem: status, cadastro_em: cadastro, responsabilidade_inicio: inicio, responsabilidade_fim: fim,
-      observacao, problemas, aplicacao_automatica: false };
+      observacao, problemas, aplicacao_automatica: false,
+      documentos: docs.documentos, documentos_total: docs.total, documentos_cortado: docs.cortado, documentos_recusados: docs.recusados };
   });
   const contagem = new Map();
   eventos.forEach(e => { if (e.cnpj) contagem.set(e.cnpj, (contagem.get(e.cnpj) || 0) + 1); });
@@ -156,4 +188,4 @@ function contratoDoEvento(evento, antes, body, hoje) {
   return contrato({ revisao:body.revisao_contrato, situacao: {entrada:'ativa',saida:'saida',baixa:'baixada'}[evento.tipo],
     inicio, fim, motivo:body.motivo }, existente);
 }
-module.exports = { orientacoesChecklist, FORM_ID, ID_ITEM, chaveEvento, previaChecklist, carregarChecklist, contratoDoEvento, cadastroDoEvento, cnpjValido, cnpjDaOrigem, unirBases };
+module.exports = { documentosDoItem, referenciaDoChecklist, CATEGORIAS_DOC, orientacoesChecklist, FORM_ID, ID_ITEM, chaveEvento, previaChecklist, carregarChecklist, contratoDoEvento, cadastroDoEvento, cnpjValido, cnpjDaOrigem, unirBases };
