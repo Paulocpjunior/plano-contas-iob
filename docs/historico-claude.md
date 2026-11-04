@@ -2421,3 +2421,9 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - Pedido do Paulo: o Checklist da Legalização abastece os CRMs e manda documentos por link (como o Jotform), não o arquivo.
 - CCI lê `itens[].documentos` (opcional até o deploy do patch do CFI): `documentosDoItem` valida https/sem credencial/título, categoria CONTRATO|DITR|DEFIS|ECD|ECF|OUTROS, máx 50.
 - Grava `empresas/{cnpj}/crm_documentos/chk-<sha>` como `referencia_externa`, origem checklist (idempotente). Rota admin `POST /api/crm/checklist/documentos` {assinatura}; aplicar/cadastrar também gravam.
+
+## 04/11/2026 — v3.4.489: Checklist lido direto do app Legalização (sem o CFI)
+
+- Paulo: "cada dpto/app são autônomos, não fique pendurando um no outro". `crm-checklist.js` `carregarChecklist` troca o túnel do CFI (`/api/admin/cadastro/checklist-legalizacao`) por `GET {LEGALIZACAO_URL}/api/legalizacao/checklist-apps` (legaliza-o, mesmo formato, inclusive `documentos` por link; token do CCI conferido pelo projeto `projetos-app-sp`).
+- Exige env `LEGALIZACAO_URL` no Cloud Run (`--update-env-vars`, URL derivada do serviço `legalizacao`, projeto `consultorfiscalapp`, us-west1). Sem ela: 503 com a ação.
+- Trava: `scripts/test-crm-checklist.js`.

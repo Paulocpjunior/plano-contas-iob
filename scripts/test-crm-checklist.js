@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('assert');
 const c = require('../crm-checklist');
-// Itens do checklist do app Legalização (túnel do CFI, 28/10): uma linha por empresa.
+// Itens do checklist do app Legalização (direto do app Legalização, 04/11): uma linha por empresa.
 function row(id='nome_EMPRESA') { return { id, empresaNome:'Empresa', nossoNumero:'0012', statusCliente:'CLIENTE NOVO', datas:{cadastro:'2026-10-10'}, responsavelDesde:{data:'2026-09-01',texto:null}, responsavelAte:null, observacao:null }; }
 const empresas = [{cnpj:'12345678901234',codigo_empresa:'12'}];
 let p=c.previaChecklist([row()],empresas); assert.equal(p.eventos[0].responsabilidade_inicio,'2026-09-01'); assert.equal(p.eventos[0].cadastro_em,'2026-10-10'); assert.equal(p.com_pendencias,0); assert.equal(p.eventos[0].aplicacao_automatica,false);
@@ -33,17 +33,17 @@ assert.throws(()=>c.contratoDoEvento({...evento,problemas:['pendente']},null,bod
 assert.throws(()=>c.contratoDoEvento({...evento,tipo:'suspensao'},null,body,'2026-10-15'),/manualmente/);
 (async()=>{
   await assert.rejects(c.carregarChecklist({token:''}), e=>/login/.test(e.message)&&e.status===401,'sem usuário (consulta agendada) a falha diz o motivo');
-  const env={CFI_URL:'https://cfi.fixture'};
-  const mock=(corpo,status=200)=>async(url,opts)=>{ assert.equal(url,'https://cfi.fixture/api/admin/cadastro/checklist-legalizacao'); assert.equal(opts.headers.Authorization,'Bearer tk'); assert.equal(opts.redirect,'error'); assert(opts.signal); return {ok:status===200,status,json:async()=>corpo}; };
+  const env={LEGALIZACAO_URL:'https://legalizacao.fixture/'};
+  const mock=(corpo,status=200)=>async(url,opts)=>{ assert.equal(url,'https://legalizacao.fixture/api/legalizacao/checklist-apps'); assert.equal(opts.headers.Authorization,'Bearer tk'); assert.equal(opts.redirect,'error'); assert(opts.signal); return {ok:status===200,status,json:async()=>corpo}; };
   const corpo={ok:true,itens:[row('nome_B'),row('nome_A')],cortado:false,nossoNumero:true,honorarios:false};
   const fonte=await c.carregarChecklist({token:'tk',env,fetchImpl:mock(corpo)}); assert(fonte.completo); assert.equal(fonte.rows.length,2); assert.equal(fonte.rows[0].id,'nome_A'); assert.equal(fonte.form_id,'legalizacao:checklist'); assert.match(fonte.assinatura,/^[a-f0-9]{64}$/);
   assert.equal((await c.carregarChecklist({token:'tk',env,fetchImpl:mock({...corpo,itens:[row('nome_A'),row('nome_B')]})})).assinatura,fonte.assinatura,'mesma leitura em outra ordem, mesma assinatura');
   await assert.rejects(c.carregarChecklist({token:'tk',env,fetchImpl:mock({...corpo,cortado:true})}),/parcial/);
   await assert.rejects(c.carregarChecklist({token:'tk',env,fetchImpl:mock({...corpo,nossoNumero:false})}),/Nosso Número/);
   await assert.rejects(c.carregarChecklist({token:'tk',env,fetchImpl:mock({ok:false,error:'x'},403)}),/recusou/);
-  await assert.rejects(c.carregarChecklist({token:'tk',env:{},fetchImpl:mock(corpo)}),/CFI_URL/);
+  await assert.rejects(c.carregarChecklist({token:'tk',env:{},fetchImpl:mock(corpo)}),/LEGALIZACAO_URL/);
   await assert.rejects(c.carregarChecklist({token:'tk',env,fetchImpl:async()=>{throw Error('segredo nunca devolvido');}}),e=>!e.message.includes('segredo'));
-  console.log('Checklist: datas contratuais, identidade, duplicidades, leitura completa pelo CFI e deriva OK');
+  console.log('Checklist: datas contratuais, identidade, duplicidades, leitura completa direto da Legalização e deriva OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});
 
 const {orientacoesChecklist}=require('../crm-checklist');

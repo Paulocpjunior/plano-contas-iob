@@ -90,7 +90,7 @@ function criar({db,entrega=require('./notificacoes-entrega'),checklist=require('
       const {item,j,c,hist}=claimed;let result;
       try{
         if(item.consulta){
-          // Sem usuário não há token: o CFI recusa e a consulta registra a falha com o motivo (28/10).
+          // Sem usuário não há token: a Legalização recusa e a consulta registra a falha com o motivo (28/10).
           const f=await checklist({env});if(f.completo!==true)throw Error('Leitura incompleta');
           const empresas=await db.collection('empresas').limit(5001).get();if(empresas.docs.length>5000)throw Error('Limite excedido');
           const p=require('./crm-checklist').previaChecklist(f.rows,empresas.docs.map(x=>({...x.data(),cnpj:x.id})));

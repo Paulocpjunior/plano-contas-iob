@@ -9,7 +9,7 @@ const { codigoEmpresaDe } = require('./empresa-cadastro');
 const { carregarChecklist, previaChecklist, contratoDoEvento, cadastroDoEvento, unirBases, ID_ITEM, chaveEvento, referenciaDoChecklist } = require('./crm-checklist');
 const Solicitacao = require('./crm-solicitacao-routes');
 const SolicitacaoDocs = require('./crm-solicitacao-documentos');
-// Token de quem está logado: o CFI só entrega o checklist da Legalização a um usuário identificado.
+// Token de quem está logado: a Legalização só entrega o checklist a um usuário identificado.
 const tokenDe = req => { const a = String(req?.headers?.authorization || ''); return a.startsWith('Bearer ') ? a.slice(7) : ''; };
 
 // O acesso ao aplicativo não prova vínculo com o departamento.
