@@ -1,7 +1,11 @@
 (function () {
   'use strict';
   const Core = window.CCIAtivoImobilizado;
+  const Rel = window.CCIAtivoImobilizadoRelatorio;
   let itens = [];
+  let totalBens = 0;
+  let ultimasDepreciacoes = null;
+  let cnpjCarregado = '';
   let referencias = Core ? Core.CLASSES_FISCAIS : [];
   let editandoId = '';
   let previaContabil = null;
@@ -21,6 +25,9 @@
     style.textContent = `
       .ai-shell{display:grid;gap:18px}.ai-hero{padding:22px;border-radius:16px;background:linear-gradient(135deg,#00264d,#0066cc);color:#fff;display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}.ai-hero h2{margin:4px 0}.ai-hero p{margin:0;color:#e0efff;max-width:850px}.ai-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ai-kpi{padding:16px;border:1px solid #e8e8ed;border-radius:12px;background:#fff}.ai-kpi small{display:block;color:#6e6e73;font-weight:800;text-transform:uppercase;font-size:10px}.ai-kpi strong{display:block;margin-top:7px;font-size:20px}.ai-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ai-field label{display:block;font-size:11px;font-weight:900;text-transform:uppercase;color:#515154;margin-bottom:5px}.ai-field input,.ai-field select,.ai-field textarea{width:100%;padding:10px;border:1px solid #d2d2d7;border-radius:8px;background:#fff;color:#1c1c1e}.ai-field textarea{min-height:76px;resize:vertical}.ai-span-2{grid-column:span 2}.ai-span-4{grid-column:1/-1}.ai-actions{display:flex;gap:8px;flex-wrap:wrap}.ai-btn{border:0;border-radius:8px;padding:10px 14px;font-weight:800;cursor:pointer}.ai-primary{background:#0071e3;color:#fff}.ai-light{background:#e8e8ed;color:#1c1c1e}.ai-warn{background:#f59e0b;color:#fff}.ai-danger{background:#d70015;color:#fff}.ai-dup{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:#fff4e5;color:#9a5b00;font-weight:800;font-size:12px}.ai-table-wrap{overflow:auto}.ai-table{width:100%;border-collapse:collapse;font-size:12px}.ai-table th,.ai-table td{padding:10px;border-bottom:1px solid #e8e8ed;text-align:left;white-space:nowrap}.ai-table th{background:#f0f7ff;color:#003e7a}.ai-note{padding:12px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:12px;line-height:1.5}.ai-schedule{max-height:300px;overflow:auto}.ai-status{padding:3px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:800}.ai-status.baixado{background:#fee2e2;color:#991b1b}
       html[data-theme="dark"] .ai-kpi,html[data-theme="dark"] .ai-field input,html[data-theme="dark"] .ai-field select,html[data-theme="dark"] .ai-field textarea{background:#1c1c1e;color:#fbfbfd;border-color:#3a3a3c}html[data-theme="dark"] .ai-field label{color:#d2d2d7}html[data-theme="dark"] .ai-table th{background:#00264d;color:#b8dcff}html[data-theme="dark"] .ai-table td{border-color:#3a3a3c}html[data-theme="dark"] .ai-note{background:#431407;color:#fed7aa;border-color:#9a3412}
+      .ai-filtros{display:grid;grid-template-columns:minmax(220px,2fr) repeat(3,minmax(150px,1fr)) auto;gap:10px;align-items:end;margin-top:12px}.ai-contagem{margin-top:10px;font-size:12px;color:#515154;font-weight:700}.ai-contagem.ai-cortada{color:#9a3412}.ai-relatorio{margin-top:12px;padding:12px;border:1px solid #e8e8ed;border-radius:12px;background:#fbfbfd;display:flex;gap:10px;align-items:end;flex-wrap:wrap}.ai-relatorio .ai-field{min-width:150px}.ai-relatorio small{flex-basis:100%;color:#6e6e73}.ai-table tr.ai-achado td{background:#f0f7ff}
+      html[data-theme="dark"] .ai-relatorio{background:#1c1c1e;border-color:#3a3a3c}html[data-theme="dark"] .ai-relatorio small,html[data-theme="dark"] .ai-contagem{color:#d2d2d7}html[data-theme="dark"] .ai-contagem.ai-cortada{color:#fed7aa}html[data-theme="dark"] .ai-table tr.ai-achado td{background:#00264d}
+      @media(max-width:1000px){.ai-filtros{grid-template-columns:repeat(2,minmax(0,1fr))}.ai-busca{grid-column:1/-1}}
       @media(max-width:1000px){.ai-grid,.ai-form{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.ai-grid,.ai-form{grid-template-columns:1fr}.ai-span-2,.ai-span-4{grid-column:auto}}
     `;
     document.head.appendChild(style);
@@ -64,7 +71,23 @@
           <div class="ai-field ai-span-2"><label>Observações</label><textarea id="aiObservacoes"></textarea></div>
           <div class="ai-span-4 ai-actions"><button class="ai-btn ai-primary" id="aiSalvar">Salvar bem</button><button class="ai-btn ai-light" id="aiCancelar">Limpar</button><button class="ai-btn ai-light" id="aiCalcular">Prévia da depreciação</button></div>
         </div><div id="aiValidacao" style="margin-top:12px"></div><div id="aiCronograma" class="ai-schedule" style="margin-top:12px"></div></section>
-        <section class="card" style="padding:20px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Bens cadastrados</h3><button class="ai-btn ai-light" id="aiAtualizar">Atualizar</button></div><div class="ai-table-wrap" style="margin-top:12px"><table class="ai-table"><thead><tr><th>Patrimônio</th><th>Bem</th><th>Classe</th><th>Disponível</th><th>Custo</th><th>Depreciação acumulada</th><th>Valor contábil</th><th>Status</th><th>Ações</th></tr></thead><tbody id="aiBody"></tbody></table></div></section>
+        <section class="card" style="padding:20px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Bens cadastrados</h3><button class="ai-btn ai-light" id="aiAtualizar">Atualizar</button></div>
+          <div class="ai-filtros">
+            <div class="ai-field ai-busca"><label for="aiBusca">Pesquisar bem</label><input id="aiBusca" type="search" autocomplete="off" placeholder="Nº do patrimônio, descrição ou conta"></div>
+            <div class="ai-field"><label for="aiFiltroClasse">Classe</label><select id="aiFiltroClasse"><option value="">Todas as classes</option>${referencias.map(function (r) { return '<option value="' + esc(r.id) + '">' + esc(r.nome) + '</option>'; }).join('')}</select></div>
+            <div class="ai-field"><label for="aiFiltroStatus">Situação</label><select id="aiFiltroStatus"><option value="">Todas</option><option value="em_uso">Em uso (sem os baixados)</option><option value="ativo">Ativo</option><option value="em_construcao">Em construção</option><option value="mantido_venda">Mantido para venda</option><option value="baixado">Baixado</option></select></div>
+            <div class="ai-field"><label for="aiOrdem">Ordenar por</label><select id="aiOrdem"><option value="patrimonio">Nº do patrimônio</option><option value="descricao">Descrição</option><option value="classe">Classe</option><option value="data">Data disponível para uso</option></select></div>
+            <button class="ai-btn ai-light" id="aiLimparFiltros">Limpar filtros</button>
+          </div>
+          <div class="ai-contagem" id="aiContagem" aria-live="polite"></div>
+          <div class="ai-relatorio">
+            <strong style="flex-basis:100%">📄 Relação completa dos bens (PDF)</strong>
+            <div class="ai-field"><label for="aiPosicaoRelatorio">Posição em</label><input id="aiPosicaoRelatorio" type="month"></div>
+            <div class="ai-field"><label for="aiModeloRelatorio">Modelo</label><select id="aiModeloRelatorio"><option value="completo">Completo (um bloco por bem)</option><option value="resumido">Resumido (uma linha por bem)</option></select></div>
+            <button class="ai-btn ai-primary" id="aiGerarPDF">Gerar relatório PDF</button>
+            <small id="aiRelatorioAjuda">Traz os dados de cada bem e a posição no fim do mês escolhido: depreciação acumulada, valor contábil e % depreciado. Respeita a pesquisa e os filtros acima; sem filtro, sai a relação completa.</small>
+          </div>
+          <div class="ai-table-wrap" style="margin-top:12px"><table class="ai-table"><thead><tr><th>Patrimônio</th><th>Bem</th><th>Classe</th><th>Disponível</th><th>Custo</th><th>Depreciação acumulada</th><th>Valor contábil</th><th>Status</th><th>Ações</th></tr></thead><tbody id="aiBody"></tbody></table></div></section>
       </div>`;
     campo('aiPeriodoContabil').addEventListener('change', invalidarPrevia);
     campo('ativoImobilizadoRoot').querySelector('.ai-form').addEventListener('input', invalidarPrevia);
@@ -75,6 +98,11 @@
     campo('aiCancelar').addEventListener('click', limpar);
     campo('aiCalcular').addEventListener('click', mostrarCronograma);
     campo('aiAtualizar').addEventListener('click', carregar);
+    campo('aiBusca').addEventListener('input', renderLista);
+    ['aiFiltroClasse', 'aiFiltroStatus', 'aiOrdem'].forEach(function (id) { campo(id).addEventListener('change', renderLista); });
+    campo('aiLimparFiltros').addEventListener('click', function () { campo('aiBusca').value = ''; campo('aiFiltroClasse').value = ''; campo('aiFiltroStatus').value = ''; campo('aiOrdem').value = 'patrimonio'; renderLista(); campo('aiBusca').focus(); });
+    campo('aiGerarPDF').addEventListener('click', gerarRelatorioPDF);
+    campo('aiPosicaoRelatorio').addEventListener('change', function () { campo('aiPosicaoRelatorio').dataset.alterado = '1'; });
     campo('aiPreviaContabil').addEventListener('click', gerarPreviaContabil);
     campo('aiAprovarContabil').addEventListener('click', aprovarPreviaContabil);
     inicializado = true;
@@ -263,7 +291,34 @@
     let custo = 0, acumulada = 0, valor = 0, ativos = 0;
     itens.forEach(function (bem) { if (bem.status === 'baixado') return; const c = Core.calcular(bem); custo += Number(bem.custo || 0); acumulada += c.depreciacao_acumulada; valor += c.valor_contabil; ativos += 1; });
     campo('aiResumo').innerHTML = '<div class="ai-kpi"><small>Bens ativos</small><strong>' + ativos + '</strong></div><div class="ai-kpi"><small>Custo histórico</small><strong>' + moeda(custo) + '</strong></div><div class="ai-kpi"><small>Depreciação acumulada</small><strong>' + moeda(acumulada) + '</strong></div><div class="ai-kpi"><small>Valor contábil</small><strong>' + moeda(valor) + '</strong></div>';
-    campo('aiBody').innerHTML = itens.map(function (bem) { const calc = Core.calcular(bem); const ref = Core.classeFiscal(bem.classe_fiscal); const acoes = bem.status === 'baixado' ? '<small>Histórico preservado</small>' : '<button class="ai-btn ai-light" data-ai-editar="' + esc(bem.id) + '">Editar</button> <button class="ai-btn ai-light" data-ai-aquisicao="' + esc(bem.id) + '">Aquisição</button> <button class="ai-btn ai-light" data-ai-transferir="' + esc(bem.id) + '">Transferir</button> <button class="ai-btn ai-warn" data-ai-baixar="' + esc(bem.id) + '">Baixar</button>' + (podeExcluir ? ' <button class="ai-btn ai-danger" data-ai-excluir="' + esc(bem.id) + '" title="Excluir cadastro feito por engano (somente administradores)">Excluir</button>' : ''); const dup = (bem.possiveis_duplicados || []).map(function (d) { return 'nº ' + (d.patrimonio || '(sem número)'); }); return '<tr><td>' + esc(bem.patrimonio || '-') + '</td><td><strong>' + esc(bem.descricao) + '</strong><br><small>' + esc(bem.conta_ativo || 'Conta não vinculada') + '</small>' + (dup.length ? '<br><span class="ai-dup">⚠ Possível duplicidade: ' + esc(dup.join(', ')) + '</span>' : '') + '</td><td>' + esc(ref.nome) + '</td><td>' + dataBR(bem.data_disponivel_uso) + '</td><td>' + moeda(bem.custo) + '</td><td>' + moeda(calc.depreciacao_acumulada) + '</td><td>' + moeda(calc.valor_contabil) + '</td><td><span class="ai-status ' + esc(bem.status) + '">' + esc(bem.status) + '</span></td><td>' + acoes + '</td></tr>'; }).join('') || '<tr><td colspan="9">Nenhum bem cadastrado.</td></tr>';
+    renderLista();
+  }
+
+  function filtroAtual() {
+    return { texto: campo('aiBusca').value, classe: campo('aiFiltroClasse').value, status: campo('aiFiltroStatus').value };
+  }
+
+  function bensFiltrados() {
+    const filtro = filtroAtual();
+    return Rel.ordenar(Rel.filtrar(itens, filtro), campo('aiOrdem').value, filtro.texto);
+  }
+
+  function descricaoFiltro() {
+    const f = filtroAtual(), partes = [];
+    if (String(f.texto || '').trim()) partes.push('pesquisa "' + String(f.texto).trim() + '"');
+    if (f.classe) partes.push('classe ' + Core.classeFiscal(f.classe).nome);
+    if (f.status) partes.push('situação ' + (f.status === 'em_uso' ? 'em uso' : Rel.nomeStatus(f.status)));
+    return partes.join(' · ');
+  }
+
+  function renderLista() {
+    const lista = bensFiltrados();
+    const busca = campo('aiBusca').value;
+    const filtrando = !!descricaoFiltro();
+    const cortada = totalBens > itens.length;
+    campo('aiContagem').className = 'ai-contagem' + (cortada ? ' ai-cortada' : '');
+    campo('aiContagem').textContent = (filtrando ? 'Mostrando ' + lista.length + ' de ' + itens.length + ' bens' : itens.length + ' bens cadastrados') + (cortada ? ' · Atenção: a lista traz os primeiros ' + itens.length + ' de ' + totalBens + ' bens; a pesquisa e o relatório valem só para eles.' : '');
+    campo('aiBody').innerHTML = lista.map(function (bem) { const calc = Core.calcular(bem); const ref = Core.classeFiscal(bem.classe_fiscal); const acoes = bem.status === 'baixado' ? '<small>Histórico preservado</small>' : '<button class="ai-btn ai-light" data-ai-editar="' + esc(bem.id) + '">Editar</button> <button class="ai-btn ai-light" data-ai-aquisicao="' + esc(bem.id) + '">Aquisição</button> <button class="ai-btn ai-light" data-ai-transferir="' + esc(bem.id) + '">Transferir</button> <button class="ai-btn ai-warn" data-ai-baixar="' + esc(bem.id) + '">Baixar</button>' + (podeExcluir ? ' <button class="ai-btn ai-danger" data-ai-excluir="' + esc(bem.id) + '" title="Excluir cadastro feito por engano (somente administradores)">Excluir</button>' : ''); const dup = (bem.possiveis_duplicados || []).map(function (d) { return 'nº ' + (d.patrimonio || '(sem número)'); }); return '<tr' + (busca && Rel.mesmoPatrimonio(bem.patrimonio, busca) ? ' class="ai-achado"' : '') + '><td>' + esc(bem.patrimonio || '-') + '</td><td><strong>' + esc(bem.descricao) + '</strong><br><small>' + esc(bem.conta_ativo || 'Conta não vinculada') + '</small>' + (dup.length ? '<br><span class="ai-dup">⚠ Possível duplicidade: ' + esc(dup.join(', ')) + '</span>' : '') + '</td><td>' + esc(ref.nome) + '</td><td>' + dataBR(bem.data_disponivel_uso) + '</td><td>' + moeda(bem.custo) + '</td><td>' + moeda(calc.depreciacao_acumulada) + '</td><td>' + moeda(calc.valor_contabil) + '</td><td><span class="ai-status ' + esc(bem.status) + '">' + esc(bem.status) + '</span></td><td>' + acoes + '</td></tr>'; }).join('') || '<tr><td colspan="9">' + (itens.length ? 'Nenhum bem encontrado com esta pesquisa. Confira o número ou a descrição, ou clique em Limpar filtros.' : 'Nenhum bem cadastrado.') + '</td></tr>';
     campo('aiBody').querySelectorAll('[data-ai-editar]').forEach(function (b) { b.addEventListener('click', function () { editar(b.dataset.aiEditar); }); });
     campo('aiBody').querySelectorAll('[data-ai-baixar]').forEach(function (b) { b.addEventListener('click', function () { baixar(b.dataset.aiBaixar); }); });
     campo('aiBody').querySelectorAll('[data-ai-aquisicao]').forEach(function (b) { b.addEventListener('click', function () { contabilizarAquisicao(b.dataset.aiAquisicao); }); });
@@ -271,10 +326,208 @@
     campo('aiBody').querySelectorAll('[data-ai-transferir]').forEach(function (b) { b.addEventListener('click', function () { transferir(b.dataset.aiTransferir); }); });
   }
 
+  // ---- Relação completa dos bens (PDF) ----
+  async function carregarUltimasDepreciacoes(cnpj) {
+    try {
+      const resposta = await window.API.ultimasDepreciacoesAtivo(cnpj);
+      if (cnpj !== cnpjCarregado) return; // trocou de empresa no meio da consulta
+      ultimasDepreciacoes = resposta;
+      const entrada = campo('aiPosicaoRelatorio');
+      if (entrada && !entrada.dataset.alterado) entrada.value = Rel.competenciaPadrao(ultimasDepreciacoes);
+      campo('aiRelatorioAjuda').textContent = (ultimasDepreciacoes.ultima_competencia ? 'Última depreciação aprovada no CCI: ' + Rel.competenciaBR(ultimasDepreciacoes.ultima_competencia) + '. ' : 'Nenhuma depreciação aprovada no CCI até agora: os saldos saem calculados pelo cadastro. ') + 'Traz os dados de cada bem e a posição no fim do mês escolhido: depreciação acumulada, valor contábil e % depreciado. Respeita a pesquisa e os filtros acima; sem filtro, sai a relação completa.';
+    } catch (e) { ultimasDepreciacoes = null; }
+  }
+
+  let bibliotecaPDF = null;
+  function carregarScript(src) {
+    return new Promise(function (resolve, reject) {
+      const s = document.createElement('script');
+      s.src = src; s.async = true;
+      const timer = setTimeout(function () { s.remove(); reject(new Error('A biblioteca de PDF demorou mais de 30 segundos para carregar. Tente de novo.')); }, 30000);
+      s.onload = function () { clearTimeout(timer); resolve(); };
+      s.onerror = function () { clearTimeout(timer); s.remove(); reject(new Error('Não foi possível carregar a biblioteca de PDF. Atualize a página e tente de novo.')); };
+      document.head.appendChild(s);
+    });
+  }
+  async function garantirPDF() {
+    if (!bibliotecaPDF) bibliotecaPDF = (async function () {
+      if (!(window.jspdf && window.jspdf.jsPDF)) await carregarScript('/vendor/jspdf/jspdf.umd.min.js');
+      if (typeof window.jspdf.jsPDF.API.autoTable !== 'function') await carregarScript('/vendor/jspdf-autotable/jspdf.plugin.autotable.min.js');
+      return window.jspdf.jsPDF;
+    })().catch(function (e) { bibliotecaPDF = null; throw e; });
+    return bibliotecaPDF;
+  }
+
+  function usuarioGerador() { const u = window.CURRENT_USER || {}; return u.nome || u.name || u.displayName || u.email || 'Usuário autenticado'; }
+  function numBR(v, casas) { return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: casas == null ? 2 : casas, maximumFractionDigits: casas == null ? 2 : casas }).format(Number(v || 0)); }
+  function pctBR(v) { return v == null ? '—' : numBR(v) + '%'; }
+
+  function nomesDasContas() {
+    const ctx = contexto(), mapa = {};
+    ((ctx && ctx.contas) || []).forEach(function (c) {
+      const nome = String(c.descricao || c.desc || c.nome || '').trim();
+      [c.classificacao, c.codigo, c.cod, c.reduzido].forEach(function (k) { if (k != null && String(k).trim() && nome) mapa[String(k).trim()] = nome; });
+    });
+    return function (codigo) { const c = String(codigo || '').trim(); if (!c) return 'Não vinculada'; return mapa[c] ? c + ' - ' + mapa[c] : c + ' - (conta fora do plano ativo)'; };
+  }
+
+  function cabecalhoPDF(doc, dados, titulo) {
+    const largura = doc.internal.pageSize.getWidth();
+    const pagina = doc.internal.getCurrentPageInfo().pageNumber;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text(titulo, 10, 10);
+    doc.setFontSize(8); doc.text(dados.empresa, 10, 15);
+    doc.setFont('helvetica', 'normal');
+    doc.text('CNPJ: ' + dados.cnpj, 10, 19);
+    doc.text('FOLHA: ' + String(pagina).padStart(4, '0'), largura - 10, 10, { align: 'right' });
+    doc.text('DATA: ' + new Date().toLocaleDateString('pt-BR'), largura - 10, 15, { align: 'right' });
+    doc.text('POSIÇÃO EM: ' + Rel.competenciaBR(dados.relacao.competencia) + ' (' + dataBR(dados.relacao.data_posicao) + ')', largura - 10, 19, { align: 'right' });
+    if (dados.filtro) { doc.setFontSize(7); doc.text('Filtro: ' + dados.filtro, 10, 23); }
+    doc.setDrawColor(0); doc.setLineWidth(0.3); doc.line(10, 25, largura - 10, 25);
+  }
+
+  function rodapesPDF(doc) {
+    const total = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= total; p += 1) {
+      doc.setPage(p);
+      const altura = doc.internal.pageSize.getHeight(), largura = doc.internal.pageSize.getWidth();
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
+      doc.text('Gerado por ' + usuarioGerador() + ' em ' + new Date().toLocaleString('pt-BR') + ' · Desenvolvido by SP Assessoria Contábil.', 10, altura - 5);
+      doc.text('Página ' + p + ' de ' + total, largura - 10, altura - 5, { align: 'right' });
+    }
+  }
+
+  function blocoBemPDF(doc, l, y, conta, dados) {
+    const largura = doc.internal.pageSize.getWidth();
+    const D = largura - 10;
+    const rot = function (texto, x, yy) { doc.setFont('helvetica', 'bold'); doc.text(texto, x, yy); };
+    const val = function (texto, x, yy, opc) { doc.setFont('helvetica', 'normal'); doc.text(String(texto), x, yy, opc); };
+    doc.setFontSize(8); doc.setTextColor(0, 0, 0);
+    const titulo = doc.splitTextToSize('CÓDIGO ' + (l.patrimonio || '(sem nº)') + '   ' + l.descricao, D - 10);
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 38, 77); doc.text(titulo, 10, y); doc.setTextColor(0, 0, 0);
+    y += titulo.length * 3.6 + 1.5;
+    doc.setFontSize(7.2);
+    const linha = function (pares) { pares.forEach(function (p) { rot(p[0], p[1], y); val(p[2], p[3], y); }); y += 3.8; };
+    linha([['CONTA CONTÁBIL', 10, conta(l.conta_ativo), 42]]);
+    linha([['CONTA DEPREC.', 10, conta(l.conta_depreciacao_acumulada), 42]]);
+    linha([['CLASSE', 10, l.classe, 42], ['SITUAÇÃO', 140, l.status + (l.data_baixa ? ' em ' + dataBR(l.data_baixa) : ''), 160]]);
+    linha([['DATA AQUISIÇÃO', 10, dataBR(l.data_aquisicao), 42], ['DISPONÍVEL P/ USO', 72, dataBR(l.data_disponivel_uso), 102], ['INÍCIO DEPRECIAÇÃO', 140, l.inicio_depreciacao ? Rel.competenciaBR(l.inicio_depreciacao) : '—', 172]]);
+    linha([['VALOR ORIGINAL', 10, numBR(l.custo), 42], ['VALOR RESIDUAL', 72, numBR(l.valor_residual), 102], ['VIDA ÚTIL', 140, l.vida_util_meses ? l.vida_util_meses + ' meses' : '—', 160], ['% DEP. A.A.', 178, l.taxa_anual == null ? '—' : numBR(l.taxa_anual), 194]]);
+    if (l.centro_custo || l.taxa_fiscal_anual != null) linha([['CENTRO DE CUSTO', 10, l.centro_custo || '—', 42], ['TAXA FISCAL DE REFERÊNCIA', 72, pctBR(l.taxa_fiscal_anual), 113]]);
+    y += 0.5;
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 113, 227); doc.text('SALDOS EM ' + dataBR(dados.relacao.data_posicao), 10, y); doc.setTextColor(0, 0, 0);
+    doc.setDrawColor(150); doc.setLineWidth(0.15); doc.line(50, y - 1, D, y - 1);
+    y += 3.6;
+    const cols = [['Valor original', 52], ['Dep. acumulada $', 86], ['Valor contábil', 118], ['% depreciado', 143], ['Meses deprec.', 165], ['Últ. deprec. aprovada', D]];
+    doc.setFont('helvetica', 'bold'); cols.forEach(function (c) { doc.text(c[0], c[1], y, { align: 'right' }); });
+    y += 3.6;
+    [numBR(l.custo), numBR(l.depreciacao_acumulada), numBR(l.valor_contabil), numBR(l.percentual_depreciado), String(l.meses_depreciados), l.ultima_depreciacao ? Rel.competenciaBR(l.ultima_depreciacao) : 'nenhuma'].forEach(function (v, i) { val(v, cols[i][1], y, { align: 'right' }); });
+    y += 4.4;
+    rot('DESPESAS DE DEPRECIAÇÃO', 10, y); y += 3.8;
+    linha([['CONTA A DÉBITO:', 14, conta(l.conta_despesa_depreciacao), 42]]);
+    linha([['CONTA A CRÉDITO:', 14, conta(l.conta_depreciacao_acumulada), 42]]);
+    linha([['HISTÓRICO:', 10, (l.historico.codigoHistorico || '') + ' - ' + (l.historico.historicoPadraoDescricao || ''), 42]]);
+    if (l.motivo_baixa) { const m = doc.splitTextToSize(l.motivo_baixa, D - 42); rot('MOTIVO DA BAIXA:', 10, y); val(m, 42, y); y += m.length * 3.4 + 0.4; }
+    if (l.avisos.length) { const a = doc.splitTextToSize(l.avisos.join(' '), D - 42); doc.setTextColor(154, 52, 18); rot('OBSERVAÇÃO:', 10, y); val(a, 42, y); doc.setTextColor(0, 0, 0); y += a.length * 3.4 + 0.4; }
+    doc.setDrawColor(200); doc.setLineWidth(0.1); doc.line(10, y, D, y);
+    return y + 5;
+  }
+
+  function alturaBloco(doc, l) {
+    doc.setFontSize(8);
+    const titulo = doc.splitTextToSize('CÓDIGO ' + (l.patrimonio || '(sem nº)') + '   ' + l.descricao, doc.internal.pageSize.getWidth() - 30).length;
+    return titulo * 3.6 + 70 + (l.motivo_baixa ? 8 : 0) + (l.avisos.length ? 8 : 0);
+  }
+
+  function resumoPDF(doc, dados, y) {
+    const t = dados.relacao.totais;
+    const altura = doc.internal.pageSize.getHeight();
+    if (y > altura - 60) { doc.addPage(); cabecalhoPDF(doc, dados, dados.titulo); y = 31; }
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.text('RESUMO DA POSIÇÃO EM ' + dataBR(dados.relacao.data_posicao), 10, y); y += 5;
+    doc.setFontSize(7.5);
+    [['Bens na relação', String(t.quantidade)], ['Em uso na data', String(t.em_uso)], ['Baixados até a data', String(t.baixados)], ['Valor original dos bens em uso', moeda(t.custo)], ['Depreciação acumulada', moeda(t.depreciacao_acumulada)], ['Valor contábil', moeda(t.valor_contabil)], ['% depreciado', numBR(t.percentual_depreciado) + '%']].forEach(function (p) {
+      doc.setFont('helvetica', 'bold'); doc.text(p[0], 10, y); doc.setFont('helvetica', 'normal'); doc.text(p[1], 90, y, { align: 'right' }); y += 4;
+    });
+    if (dados.relacao.avisos.length) {
+      y += 2; doc.setFont('helvetica', 'bold'); doc.setTextColor(154, 52, 18); doc.text('ATENÇÃO', 10, y); y += 4; doc.setFont('helvetica', 'normal');
+      dados.relacao.avisos.forEach(function (a) { const t2 = doc.splitTextToSize('• ' + a, doc.internal.pageSize.getWidth() - 20); if (y + t2.length * 3.6 > altura - 10) { doc.addPage(); cabecalhoPDF(doc, dados, dados.titulo); y = 31; } doc.text(t2, 10, y); y += t2.length * 3.6 + 0.6; });
+      doc.setTextColor(0, 0, 0);
+    }
+  }
+
+  function pdfCompleto(jsPDF, dados) {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const conta = nomesDasContas();
+    const altura = doc.internal.pageSize.getHeight();
+    cabecalhoPDF(doc, dados, dados.titulo);
+    let y = 31;
+    dados.relacao.linhas.forEach(function (l) {
+      if (y + alturaBloco(doc, l) > altura - 10) { doc.addPage(); cabecalhoPDF(doc, dados, dados.titulo); y = 31; }
+      y = blocoBemPDF(doc, l, y, conta, dados);
+    });
+    resumoPDF(doc, dados, y + 2);
+    return doc;
+  }
+
+  function pdfResumido(jsPDF, dados) {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const t = dados.relacao.totais;
+    doc.autoTable({
+      startY: 29,
+      margin: { top: 29, left: 10, right: 10, bottom: 12 },
+      head: [['Nº', 'Bem', 'Classe', 'Conta do ativo', 'Aquisição', 'Início dep.', 'Valor original', '% a.a.', 'Dep. acumulada', '% deprec.', 'Valor contábil', 'Situação', 'Últ. deprec.']],
+      body: dados.relacao.linhas.map(function (l) { return [l.patrimonio || '—', l.descricao + (l.avisos.length ? ' (*)' : ''), l.classe, l.conta_ativo || '—', dataBR(l.data_aquisicao), l.inicio_depreciacao ? Rel.competenciaBR(l.inicio_depreciacao) : '—', numBR(l.custo), l.taxa_anual == null ? '—' : numBR(l.taxa_anual), numBR(l.depreciacao_acumulada), numBR(l.percentual_depreciado), numBR(l.valor_contabil), l.status, l.ultima_depreciacao ? Rel.competenciaBR(l.ultima_depreciacao) : 'nenhuma']; }),
+      foot: [['', 'Total dos bens em uso (' + t.em_uso + ')', '', '', '', '', numBR(t.custo), '', numBR(t.depreciacao_acumulada), numBR(t.percentual_depreciado), numBR(t.valor_contabil), '', '']],
+      showHead: 'everyPage', showFoot: 'lastPage', theme: 'grid',
+      styles: { fontSize: 6.3, cellPadding: 1, overflow: 'linebreak', lineColor: [210, 210, 215], lineWidth: 0.1 },
+      headStyles: { fillColor: [0, 38, 77], textColor: [255, 255, 255], fontStyle: 'bold' },
+      footStyles: { fillColor: [232, 232, 237], textColor: [0, 0, 0], fontStyle: 'bold' },
+      columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 70 }, 2: { cellWidth: 28 }, 3: { cellWidth: 20 }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' }, 10: { halign: 'right' } },
+      didDrawPage: function () { cabecalhoPDF(doc, dados, dados.titulo); }
+    });
+    if (dados.relacao.linhas.some(function (l) { return l.avisos.length; })) dados.relacao.avisos.push('(*) Bem com observação: cadastro incompleto ou depreciação não aprovada no CCI até a posição. O modelo Completo mostra o detalhe de cada um.');
+    if (dados.relacao.avisos.length) {
+      let y = (doc.lastAutoTable && doc.lastAutoTable.finalY || 30) + 6;
+      const altura = doc.internal.pageSize.getHeight();
+      doc.setFontSize(7.5); doc.setTextColor(154, 52, 18);
+      dados.relacao.avisos.forEach(function (a) { const t2 = doc.splitTextToSize('• ' + a, doc.internal.pageSize.getWidth() - 20); if (y + t2.length * 3.6 > altura - 10) { doc.addPage(); cabecalhoPDF(doc, dados, dados.titulo); y = 31; doc.setFontSize(7.5); doc.setTextColor(154, 52, 18); } doc.text(t2, 10, y); y += t2.length * 3.6 + 0.6; });
+      doc.setTextColor(0, 0, 0);
+    }
+    return doc;
+  }
+
+  async function gerarRelatorioPDF() {
+    const ctx = contexto();
+    if (!ctx || !ctx.empresa || !ctx.empresa.cnpj) return window.showToast('Ative uma empresa para gerar o relatório.', 'warn');
+    const botao = campo('aiGerarPDF');
+    try {
+      botao.disabled = true; botao.textContent = 'Gerando...';
+      if (!itens.length) throw new Error('Nenhum bem cadastrado nesta empresa. Cadastre os bens antes de gerar a relação.');
+      const lista = bensFiltrados();
+      if (!lista.length) throw new Error('A pesquisa e os filtros não trouxeram nenhum bem. Clique em Limpar filtros para gerar a relação completa.');
+      // Sem as depreciações aprovadas o relatório não sabe dizer até onde o CCI contabilizou: não gera às cegas.
+      if (!ultimasDepreciacoes) await carregarUltimasDepreciacoes(ctx.empresa.cnpj);
+      if (!ultimasDepreciacoes) throw new Error('Não foi possível consultar as depreciações aprovadas desta empresa. Clique em Atualizar e tente de novo.');
+      const competencia = campo('aiPosicaoRelatorio').value || Rel.competenciaPadrao(ultimasDepreciacoes);
+      const relacao = Rel.relacao(lista, { competencia, ultimas: ultimasDepreciacoes });
+      if (!relacao.linhas.length) throw new Error('Nenhum bem tinha sido adquirido até ' + Rel.competenciaBR(competencia) + '. Escolha uma posição mais recente.');
+      const modelo = campo('aiModeloRelatorio').value;
+      const dados = { relacao, filtro: descricaoFiltro(), empresa: String(ctx.empresa.razao_social || ctx.empresa.empresa || ctx.empresa.nome || 'Empresa'), cnpj: String(ctx.empresa.cnpj || ''), titulo: modelo === 'resumido' ? 'RELAÇÃO DOS BENS (RESUMIDA)' : 'RELAÇÃO COMPLETA DOS BENS' };
+      const jsPDF = await garantirPDF();
+      const doc = modelo === 'resumido' ? pdfResumido(jsPDF, dados) : pdfCompleto(jsPDF, dados);
+      rodapesPDF(doc);
+      doc.save(Rel.nomeArquivo(ctx.empresa, competencia));
+      window.showToast('Relatório gerado com ' + relacao.linhas.length + ' bem(ns).' + (relacao.avisos.length ? ' Confira os avisos no fim do PDF.' : ''), relacao.avisos.length ? 'warn' : 'success');
+    } catch (e) { window.showToast(e.message || String(e), 'error'); }
+    finally { botao.disabled = false; botao.textContent = 'Gerar relatório PDF'; }
+  }
+
   async function carregar() {
     const ctx = contexto();
     if (!ctx || !ctx.empresa || !ctx.empresa.cnpj) return;
-    try { const resposta = await window.API.listarAtivosImobilizados(ctx.empresa.cnpj); itens = resposta.itens || []; podeExcluir = resposta.pode_excluir === true; referencias = resposta.referencias_fiscais || Core.CLASSES_FISCAIS; render(); }
+    ultimasDepreciacoes = null;
+    if (cnpjCarregado !== ctx.empresa.cnpj) { cnpjCarregado = ctx.empresa.cnpj; delete campo('aiPosicaoRelatorio').dataset.alterado; }
+    try { const resposta = await window.API.listarAtivosImobilizados(ctx.empresa.cnpj); itens = resposta.itens || []; totalBens = Number(resposta.total) || itens.length; podeExcluir = resposta.pode_excluir === true; referencias = resposta.referencias_fiscais || Core.CLASSES_FISCAIS; render(); carregarUltimasDepreciacoes(ctx.empresa.cnpj); }
     catch (e) { campo('aiBody').innerHTML = '<tr><td colspan="9">' + esc(e.message || String(e)) + '</td></tr>'; }
   }
 

@@ -469,6 +469,14 @@
     return body;
   }
 
+  async function ultimasDepreciacoesAtivo(cnpj) {
+    const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
+    const r = await apiFetch(API_BASE + '/api/empresas/' + cnpjLimpo + '/ativos-imobilizados/depreciacao/ultimas');
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.erro || ('Erro ' + r.status));
+    return body;
+  }
+
   async function salvarAtivoImobilizado(cnpj, dados, id) {
     const cnpjLimpo = String(cnpj || '').replace(/\D/g, '');
     const caminho = API_BASE + '/api/empresas/' + cnpjLimpo + '/ativos-imobilizados' + (id ? '/' + encodeURIComponent(id) : '');
@@ -1121,7 +1129,7 @@
     return await r.json();
   }
 
-  window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, consultarCadastroCnpj, consultarEstruturaMatrizFilial, sincronizarRegimeCfi, consultarParametrizacaoRegime, salvarParametrizacaoRegime, validarRegimeCnaeIA, aprovarSaldosAbertura, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, adotarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarPeriodosContabeis, consultarHomologacaoPiloto, avaliarConciliacaoBancaria, aprovarConciliacaoBancaria, avaliarConciliacaoDetalhada, aprovarConciliacaoDetalhada, listarAtivosImobilizados, salvarAtivoImobilizado, baixarAtivoImobilizado, previaDepreciacaoAtivo, aprovarDepreciacaoAtivo, previaEventoAtivo, aprovarEventoAtivo, previaExclusaoAtivo, excluirAtivoImobilizado, enviarRelatorioContabilEmail, fecharPeriodoContabil, reabrirPeriodoContabil, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalFechamentosCfi, fiscalImportarFechamentoCfi, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAjustarRetencao, reinfTransmitirRetencoesPJ, reinfAquisicaoRural,
+  window.API = { me, gateDepartamento, loadPlanos, loadPlanoEmpresa, verificarCNPJ, validarLancamento, health, listarUsuarios, promoverAdmin, despromoverAdmin, carteiraResponsaveis, atribuirResponsavelEmpresa, removerResponsavelEmpresa, getToken, apiFetch, registrarAcesso, listarAccessLogs, getAdminSummary, vincularEmpresaPlano, atualizarCadastroEmpresa, consultarCadastroCnpj, consultarEstruturaMatrizFilial, sincronizarRegimeCfi, consultarParametrizacaoRegime, salvarParametrizacaoRegime, validarRegimeCnaeIA, aprovarSaldosAbertura, statusWhatsapp, enviarWhatsappEmpresa, callGemini, salvarSessaoEmpresa, carregarSessaoEmpresa, adotarSessaoEmpresa, getSessaoRevision, adminPrevisualizarExclusaoLancamentos, adminExecutarExclusaoLancamentos, listarMinhasEmpresas, fecharRelatorio, listarRelatorios, listarPeriodosContabeis, consultarHomologacaoPiloto, avaliarConciliacaoBancaria, aprovarConciliacaoBancaria, avaliarConciliacaoDetalhada, aprovarConciliacaoDetalhada, listarAtivosImobilizados, ultimasDepreciacoesAtivo, salvarAtivoImobilizado, baixarAtivoImobilizado, previaDepreciacaoAtivo, aprovarDepreciacaoAtivo, previaEventoAtivo, aprovarEventoAtivo, previaExclusaoAtivo, excluirAtivoImobilizado, enviarRelatorioContabilEmail, fecharPeriodoContabil, reabrirPeriodoContabil, listarEmpresasFiltrado, fiscalCertificadoStatus, fiscalSerproStatus, fiscalListarImpostos, fiscalFechamentosCfi, fiscalImportarFechamentoCfi, fiscalSalvarImposto, fiscalExcluirImposto, fiscalSincronizarSerpro, mercadoPagoStatus, mercadoPagoOAuthUrl, mercadoPagoPreviewReport, mercadoPagoSolicitarRelatorio, reinfVersao, reinfRetencoesPJ, reinfAjustarRetencao, reinfTransmitirRetencoesPJ, reinfAquisicaoRural,
     reinfServicosTomados,
     reinfServicoTomadoPrestador,
     reinfServicosTomadosTransmitir,

@@ -35,6 +35,7 @@ const TravaDigitacao = require('./trava-digitacao-contabil');
 const AtivoImobilizado = require('./ativo-imobilizado');
 const AtivoImobilizadoContabil = require('./ativo-imobilizado-contabil');
 const AtivoExclusao = require('./ativo-imobilizado-exclusao');
+const AtivoRelatorio = require('./ativo-imobilizado-relatorio');
 const ConciliacaoContabil = require('./conciliacao-contabil');
 const ConciliacaoDetalhada = require('./conciliacao-detalhada');
 const HomologacaoPiloto = require('./homologacao-piloto');
@@ -4147,12 +4148,25 @@ app.get('/api/empresas/:cnpj/ativos-imobilizados', async (req, res) => {
     // Bem excluído por engano (exclusão lógica) não aparece; o registro fica no Firestore e na auditoria.
     // O limite vale para os vigentes: filtra antes de cortar, para o excluído não ocupar vaga na lista.
     const snap = await db.collection('empresas').doc(cnpj).collection('ativos_imobilizados').orderBy('descricao').get();
-    const vigentes = AtivoExclusao.ativosVigentes(snap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; })).slice(0, 1000);
+    const todosVigentes = AtivoExclusao.ativosVigentes(snap.docs.map(function (doc) { return { id: doc.id, ...(doc.data() || {}) }; }));
+    const vigentes = todosVigentes.slice(0, 1000);
     const itens = vigentes.map(function (dados) {
       return { ...dados, criado_em: serializarDataSegura(dados.criado_em), atualizado_em: serializarDataSegura(dados.atualizado_em), baixa_em: serializarDataSegura(dados.baixa_em), possiveis_duplicados: AtivoExclusao.possiveisDuplicados(dados, vigentes) };
     });
-    res.json({ itens, referencias_fiscais: AtivoImobilizado.CLASSES_FISCAIS, pode_excluir: !!req.user.is_admin });
+    res.json({ itens, total: todosVigentes.length, referencias_fiscais: AtivoImobilizado.CLASSES_FISCAIS, pode_excluir: !!req.user.is_admin });
   } catch (e) { console.error('listar ativos imobilizados erro:', e); res.status(500).json({ erro: e.message }); }
+});
+
+// Relação Completa dos Bens (PDF): última competência de depreciação aprovada, no geral e por bem.
+// Só leitura; a posição de cada bem é calculada na tela pelo mesmo motor da depreciação.
+app.get('/api/empresas/:cnpj/ativos-imobilizados/depreciacao/ultimas', async (req, res) => {
+  try {
+    const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+    const chk = await checarAcessoEmpresa(cnpj, req.user);
+    if (!chk.ok) return res.status(chk.status).json({ erro: chk.erro });
+    const snap = await db.collection('empresas').doc(cnpj).collection('ativos_lancamentos').where('tipo_evento', '==', 'depreciacao').select('bem_id', 'periodo', 'tipo_evento').get();
+    res.json(AtivoRelatorio.ultimasDepreciacoes(snap.docs.map(function (doc) { return doc.data() || {}; })));
+  } catch (e) { console.error('ultimas depreciacoes ativo erro:', e); res.status(500).json({ erro: 'Não foi possível consultar as depreciações aprovadas. Tente de novo em instantes.' }); }
 });
 
 app.post('/api/empresas/:cnpj/ativos-imobilizados', async (req, res) => {
