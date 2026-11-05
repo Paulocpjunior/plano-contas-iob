@@ -48,6 +48,7 @@ const { ambiente } = require('./test-crm-contabil-routes');
       { cnpj: '4', razao_social: 'Baixada', situacao_cliente: 'baixada', responsaveis: [] }
     ],
     solicitacoes: [{ cnpj: '1', estado: 'enviado', recebida_em: '2026-11-02' }, { cnpj: '2', estado: 'enviado', prazo: '2026-11-30' }],
+    obrigacoes: [{ cnpj: '2', status: 'pendente', prazo: '2026-10-31' }, { cnpj: '2', status: 'em_andamento' }, { cnpj: '2', status: 'concluida', prazo: '2026-01-01' }, { cnpj: '1', status: 'pendente', prazo: '2026-12-01' }],
     movimentos: { 1: { tipo: 'documento', rotulo: '📎 Documento registrado', por_nome: 'Ana', dias: 0 } },
     equipes: [{ nome: 'Equipe A', lider_uid: 'chefe', membros: ['ana'] }]
   });
@@ -64,10 +65,12 @@ const { ambiente } = require('./test-crm-contabil-routes');
   assert.deepEqual([ana.total, ana.fechadas, ana.ressalva, ana.pendentes], [2, 1, 1, 0]);
   assert.deepEqual(ana.paradas_em, { e1: 0, e2: 1 });
   assert.equal(ana.sem_movimento_15, 1, 'Alfa sem movimentação conta como parada');
+  assert.deepEqual(alfa.obrigacoes, { abertas: 2, atrasadas: 1, sem_prazo: 1 }, 'obrigações de todos os períodos, como na Topologia');
+  assert.deepEqual([ana.obrigacoes_abertas, ana.atrasadas, ana.sem_prazo], [3, 1, 1]);
 
   const csv = P.painelParaCsv(r);
-  assert(csv.startsWith('﻿"Empresa";"CNPJ";"Responsável";"1 Solicitação";"2 Documentos";"Situação";"Última movimentação"'));
-  assert(csv.includes('"Beta";"1";"Ana";"feito";"feito";"FECHADA";"📎 Documento registrado · Ana · hoje"'));
+  assert(csv.startsWith('﻿"Empresa";"CNPJ";"Responsável";"1 Solicitação";"2 Documentos";"Situação";"Obrigações em aberto";"Atrasadas";"Última movimentação"'));
+  assert(csv.includes('"Beta";"1";"Ana";"feito";"feito";"FECHADA";"1";"0";"📎 Documento registrado · Ana · hoje"'));
   assert(csv.includes('"Sem movimentação registrada"'));
   assert(csv.endsWith('\r\n'));
 }
@@ -89,7 +92,7 @@ const { ambiente } = require('./test-crm-contabil-routes');
   const fx = r.body.linhas.find(l => l.cnpj === cnpj);
   assert.deepEqual(fx.etapas, { e1: 'concluida', e2: 'atencao', e3: 'sem-dado', e4: 'concluida', e5: 'sem-dado' }, 'solicitação de 09/2026 não conta para 10/2026');
   assert.equal(fx.parada_em, 'e2');
-  assert.equal(fx.movimentacao.tipo, 'sem');
+  assert.equal(fx.movimentacao.tipo, 'solicitacao_recebida', 'recebimento de 09/2026 (antes da 3.4.497) aparece como última movimentação');
   assert.equal((await n.call('GET', rota, {}, 'admin', {}, { competencia: '10/2026' })).statusCode, 400);
 
   const csv = await n.call('GET', rota, {}, 'admin', {}, { formato: 'csv' });
@@ -98,6 +101,32 @@ const { ambiente } = require('./test-crm-contabil-routes');
   const pdf = await n.call('GET', rota, {}, 'admin', {}, { formato: 'pdf' });
   assert.equal(pdf.headers['Content-Type'], 'application/pdf');
   assert.equal(pdf.body.slice(0, 4).toString(), '%PDF');
+
+  // O que o CRM já tinha antes da 3.4.497 aparece no painel, sem migração.
+  n.dados.set('users/colab', { ...n.dados.get('users/colab'), last_name: 'Colab Teste' });
+  n.dados.set('empresas/' + cnpj + '/crm_controles/c2', { titulo: 'DCTFWeb', codigo: 'FISCAL', periodo: '2026-09', status: 'pendente', prazo: '2026-10-01', criado_em: '2026-09-20T12:00:00Z', criado_por_uid: 'colab', atualizado_em: '2026-10-05T12:00:00Z', atualizado_por_uid: 'colab' });
+  n.dados.set('empresas/' + cnpj + '/crm_documentos/d1', { titulo: 'Contrato social', categoria: 'CONTRATO', quando: '2026-09-01T12:00:00Z', por_uid: 'colab' });
+  r = await n.call('GET', rota, {}, 'admin');
+  const hist = r.body.linhas.find(l => l.cnpj === cnpj);
+  assert.equal(hist.movimentacao.tipo, 'demanda_status');
+  assert.equal(hist.movimentacao.por_nome, 'Colab Teste', 'mostra quem movimentou, pelo cadastro do colaborador');
+  assert.equal(hist.movimentacao.dias, 8);
+  assert.deepEqual(hist.obrigacoes, { abertas: 1, atrasadas: 1, sem_prazo: 0 }, 'obrigação de setembro atrasada entra no placar de outubro');
+  assert.equal(r.body.placar.find(p => p.uid === 'colab').atrasadas, 1);
+
+  // Admin grava esse histórico na linha do tempo e na carteira; repetir não duplica.
+  assert.equal((await n.call('POST', rota + '/recuperar-historico', {}, 'colab')).statusCode, 403);
+  let h = await n.call('POST', rota + '/recuperar-historico', {}, 'admin');
+  assert.equal(h.statusCode, 200, JSON.stringify(h.body));
+  assert.deepEqual([h.body.linhas, h.body.resumos], [4, 1]);
+  const linhasTempo = () => [...n.dados.keys()].filter(k => k.startsWith('empresas/' + cnpj + '/crm_movimentos/'));
+  assert.deepEqual(linhasTempo().map(k => k.split('/').pop()).sort(), ['h_ctl_c2', 'h_ctu_c2', 'h_doc_d1', 'h_rec_velha']);
+  assert.equal(n.dados.get('crm_movimentacao/' + cnpj).origem, 'historico');
+  h = await n.call('POST', rota + '/recuperar-historico', {}, 'admin');
+  assert.equal(linhasTempo().length, 4, 'repetir não duplica');
+  assert.equal(h.body.resumos, 0, 'resumo já atualizado não é regravado');
+  const carteira = await n.call('GET', '/api/crm/carteira', {}, 'colab');
+  assert.equal(carteira.body.empresas.find(e => e.cnpj === cnpj).movimentacao.tipo, 'demanda_status', 'carteira mostra o histórico trazido');
 
   // Etapas parametrizadas: só admin grava, com histórico.
   const etapas = [{ nome: 'Pedido', tipo: 'solicitacao' }, { nome: 'Conciliação', tipo: 'controle', codigos: ['CONCILIACAO'] }];

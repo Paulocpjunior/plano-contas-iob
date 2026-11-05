@@ -128,29 +128,40 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
   // Painel do gestor (v3.4.497): o mesmo modelo do CFI, com etapas parametrizadas
   // pelo admin. Admin vê a carteira toda; líder, só a equipe dele.
   const painelCfgRef=db.collection('crm_painel_gestor').doc('config');
+  // Tudo o que o CRM já registra por empresa: solicitações, obrigações/demandas,
+  // documentos e o resumo da movimentação. O histórico anterior à 3.4.497 sai
+  // dos próprios registros (movimentosDoHistorico), sem depender de migração.
+  async function baseDoPainel(g){
+    const [sol,ctl,docs,mov,cfg,...ss]=await Promise.all([db.collectionGroup('crm_solicitacoes').limit(20001).get(),db.collectionGroup('crm_controles').limit(20001).get(),db.collectionGroup('crm_documentos').limit(20001).get(),db.collection(Movimentacao.RESUMO).get(),painelCfgRef.get(),...['crm_empresas','empresas','users'].map(n=>db.collection(n).limit(5001).get())]);
+    if([sol,ctl,docs].some(v=>v.docs.length>20000))throw core.erro('Há mais de 20 mil registros para cruzar. Totais não calculados; avise o suporte.',409);
+    if(ss.some(v=>v.docs.length>5000))throw core.erro('O cadastro excedeu o limite desta consulta. Totais não calculados.',409);
+    const mapa=new Map();ss.slice(0,2).forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
+    const empresas=[...mapa.values()].filter(d=>podeGerirEmpresa(g,d.data())).map(d=>({...empresaPublica(d,g.user,'crm'),regime:d.data().regime_tributario_nome||d.data().regime_tributario_codigo||''}));
+    const visiveis=new Set(empresas.map(e=>e.cnpj));
+    const daEmpresa=snap=>{const out=[];for(const d of snap.docs){const p=d.ref.path.split('/');if(p.length!==4||p[0]!=='empresas'||!visiveis.has(p[1]))continue;out.push({...d.data(),id:d.id,cnpj:p[1]});}return out;};
+    const nomes=new Map(ss[2].docs.map(d=>{const u=d.data();return [d.id,{nome:u.last_name||u.name||u.email||'',email:String(u.last_email||u.email||'').toLowerCase()}];}));
+    const solicitacoes=daEmpresa(sol),controles=daEmpresa(ctl),documentos=daEmpresa(docs);
+    return {empresas,solicitacoes,controles,cfg:cfg.exists?cfg.data():null,resumos:new Map(mov.docs.filter(d=>visiveis.has(d.id)).map(d=>[d.id,d.data()])),
+      historico:Movimentacao.movimentosDoHistorico({solicitacoes,controles,documentos,nomes})};
+  }
   app.get('/api/crm/painel-gestor',wrap(async(req,res)=>{
     let g=await gestao(req);if(!g.user.is_admin&&!g.lider)throw core.erro('O painel do gestor é para administradores e líderes de equipe (Topologia do CRM).',403);
     const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(agora()));
     const competencia=String((req.query||{}).competencia||hoje.slice(0,7));
     if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(competencia))throw core.erro('Escolha a competência no formato AAAA-MM.');
-    const [sol,ctl,mov,cfg,...ss]=await Promise.all([db.collectionGroup('crm_solicitacoes').limit(20001).get(),db.collectionGroup('crm_controles').limit(20001).get(),db.collection(Movimentacao.RESUMO).get(),painelCfgRef.get(),...['crm_empresas','empresas'].map(n=>db.collection(n).limit(5001).get())]);
-    if(sol.docs.length>20000||ctl.docs.length>20000)throw core.erro('Há mais de 20 mil registros para cruzar. Totais não calculados; avise o suporte.',409);
-    if(ss.some(v=>v.docs.length>5000))throw core.erro('O cadastro excedeu o limite desta consulta. Totais não calculados.',409);
-    const mapa=new Map();ss.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
-    const empresas=[...mapa.values()].filter(d=>podeGerirEmpresa(g,d.data())).map(d=>empresaPublica(d,g.user,'crm'));
-    const daEmpresa=(snap,filtro)=>{const out=[];for(const d of snap.docs){const p=d.ref.path.split('/');if(p.length!==4||p[0]!=='empresas')continue;const x=d.data();if(filtro(x))out.push({...x,cnpj:p[1]});}return out;};
-    const solicitacoes=daEmpresa(sol,x=>x.competencia===competencia);
-    const controles=daEmpresa(ctl,x=>x.periodo===competencia||x.periodo===competencia.slice(0,4));
-    const movimentos={};mov.docs.forEach(d=>{movimentos[d.id]=Movimentacao.movimentoPublico(d.data(),hoje);});
-    const etapas=Painel.etapasEfetivas(cfg.exists?cfg.data():null);
+    const base=await baseDoPainel(g);
+    const solicitacoes=base.solicitacoes.filter(x=>x.competencia===competencia);
+    const controles=base.controles.filter(x=>x.periodo===competencia||x.periodo===competencia.slice(0,4));
+    const movimentos={};for(const e of base.empresas){const m=Movimentacao.maisRecente(base.resumos.get(e.cnpj),(base.historico[e.cnpj]||[])[0]);movimentos[e.cnpj]=Movimentacao.movimentoPublico(m,hoje);}
+    const etapas=Painel.etapasEfetivas(base.cfg);
     const equipes=g.user.is_admin?(g.cfg.equipes||[]):(g.cfg.equipes||[]).filter(e=>e.lider_uid===g.user.uid);
-    const r=Painel.montarPainel({empresas,solicitacoes,controles,movimentos,etapas,equipes,hoje});
+    const r=Painel.montarPainel({empresas:base.empresas,solicitacoes,controles,obrigacoes:base.controles,movimentos,etapas,equipes,hoje});
     const formato=(req.query||{}).formato;
     if(formato==='csv'){res.setHeader('Content-Type','text/csv; charset=utf-8');res.setHeader('Content-Disposition','attachment; filename="painel-gestor-'+competencia+'.csv"');return res.send(Painel.painelParaCsv(r));}
     if(formato==='pdf'){
       const {jsPDF}=require('jspdf'),pdf=new jsPDF({orientation:'landscape'});
-      const cab=['Empresa','CNPJ','Responsável',...r.etapas.map((e,i)=>(i+1)+' '+e.nome),'Situação','Última movimentação'];
-      const larg=[60,30,35,...r.etapas.map(()=>18),20,0];larg[larg.length-1]=Math.max(30,277-larg.slice(0,-1).reduce((a,b)=>a+b,0));
+      const cab=['Empresa','CNPJ','Responsável',...r.etapas.map((e,i)=>(i+1)+' '+e.nome),'Situação','Em aberto','Atrasadas','Última movimentação'];
+      const larg=[55,28,32,...r.etapas.map(()=>17),18,14,14,0];larg[larg.length-1]=Math.max(30,277-larg.slice(0,-1).reduce((a,b)=>a+b,0));
       let y=14;pdf.setFontSize(12);pdf.text('Painel do gestor — CRM contábil · competência '+competencia.split('-').reverse().join('/'),10,y);y+=6;pdf.setFontSize(8);
       pdf.text((g.user.is_admin?'Carteira inteira':'Equipe do líder')+' · '+r.linhas.length+' empresa(s) · '+r.fora_da_regra+' fora da regra (saída, baixa ou suspensa) · gerado em '+new Date(agora()).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),10,y);y+=6;
       const linha=(cels,neg)=>{pdf.setFont('helvetica',neg?'bold':'normal');let x=10;cels.forEach((c,i)=>{pdf.text(String(c||'').slice(0,Math.floor(larg[i]/1.6)),x,y);x+=larg[i];});y+=5;if(y>200){pdf.addPage();y=14;}};
@@ -166,6 +177,20 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     await painelCfgRef.set({etapas,atualizado_em:quando,atualizado_por:user.uid});
     await painelCfgRef.collection('historico').doc().set({antes:antes.exists?antes.data():null,depois:etapas,quando,por_uid:user.uid});
     res.json({ok:true,etapas});
+  }));
+  // Admin grava na linha do tempo e na coluna da carteira o que o CRM já tinha
+  // antes da 3.4.497. Ids fixos por registro: repetir não duplica.
+  app.post('/api/crm/painel-gestor/recuperar-historico',wrap(async(req,res)=>{
+    const g=await gestao(req);if(!g.user.is_admin)throw core.erro('Só o administrador traz o histórico anterior para as empresas.',403);
+    const base=await baseDoPainel(g);let linhas=0,resumos=0,lote=db.batch(),n=0;
+    const fechar=async()=>{if(n){await lote.commit();lote=db.batch();n=0;}};
+    for(const [cnpj,lista] of Object.entries(base.historico)){
+      for(const m of lista){const {id_linha,...dados}=m;lote.set(db.collection('empresas').doc(cnpj).collection(Movimentacao.LINHA).doc(id_linha),dados);linhas++;if(++n>=400)await fechar();}
+      const atual=base.resumos.get(cnpj),ultimo=Movimentacao.maisRecente(atual,lista[0]);
+      if(ultimo&&ultimo!==atual){const {id_linha,...dados}=ultimo;lote.set(db.collection(Movimentacao.RESUMO).doc(cnpj),dados);resumos++;if(++n>=400)await fechar();}
+    }
+    await fechar();
+    res.json({ok:true,empresas:Object.keys(base.historico).length,linhas,resumos});
   }));
   // Entrada leve: não consulta coleções de empresas nem controles.
   app.get('/api/crm/contexto', wrap(async(req,res)=>{
