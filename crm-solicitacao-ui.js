@@ -151,7 +151,7 @@
       q('[data-hist]').innerHTML = '<p class="cci-sol-situacao"><b>Situação na carteira do CRM:</b> ' + esc(SIT[sit.situacao] || sit.situacao) + (sit.prazo && sit.situacao !== 'recebida' ? ' · prazo ' + esc(sit.prazo.split('-').reverse().join('/')) : '') + '</p>'
         + (d.historico.length
         ? '<ul class="cci-sol-hist">' + d.historico.map(h => '<li><b>' + esc(NOMES[h.estado] || h.estado) + '</b> · ' + esc(h.modelo_nome) + (h.competencia ? ' · ' + esc(h.competencia.slice(5) + '/' + h.competencia.slice(0, 4)) : '')
-          + ' · para ' + esc(h.destino_exibicao) + ' · ' + esc(new Date(h.quando).toLocaleString('pt-BR')) + ' · ' + esc(h.autor_email || '') + (h.detalhe && h.estado === 'falhou' ? '<br><small>' + esc(h.detalhe) + '</small>' : '')
+          + ' · para ' + esc(h.destino_exibicao) + ' · ' + esc(new Date(h.quando).toLocaleString('pt-BR')) + ' · ' + esc(h.autor_email || '') + ((h.copias || []).length ? ' · 📬 cópia para ' + esc(h.copias.join(', ')) : '') + (h.detalhe && h.estado === 'falhou' ? '<br><small>' + esc(h.detalhe) + '</small>' : '')
           + (h.recebida_em ? '<br><small>✅ Documentos recebidos em ' + esc(new Date(h.recebida_em).toLocaleString('pt-BR')) + (h.recebida_por_email ? ' · ' + esc(h.recebida_por_email) : '') + '</small>'
             : (info.pode_enviar && h.estado !== 'falhou' && h.estado !== 'processando' ? ' <button type="button" data-recebida="' + esc(h.id) + '">✅ Cliente enviou os documentos</button>' : ''))
           + '</li>').join('') + '</ul>'
@@ -185,6 +185,7 @@
       const email = p.canal === 'email';
       q('[data-previa]').innerHTML = '<h3><span class="cci-sol-num">4</span>Confira e envie</h3>'
         + '<p>' + (email ? '✉️ Para: <b>' + esc(p.destino_exibicao) + '</b><br>Assunto: <b>' + esc(p.assunto) + '</b>' : '💬 WhatsApp: <b>' + esc(p.destino_exibicao) + '</b>') + '</p>'
+        + (email ? '<p class="cci-not-dica">📬 ' + ((p.copias || []).length ? 'Cópia oculta automática para: <b>' + esc(p.copias.join(', ')) + '</b>' : 'Sem cópia automática. O administrador define em CRM → Automações do CRM → Modelos de solicitação → <b>Cópias automáticas</b>.') + '</p>' : '')
         + '<div class="cci-sol-previa" data-texto>' + esc(p.mensagem) + '</div>'
         + '<div class="cci-not-acoes">'
         + (info.pode_enviar ? (email ? '<button type="button" class="cci-not-primario" data-enviar>✉️ Enviar e-mail ao cliente</button>' : '<button type="button" class="cci-not-primario" data-enviar>💬 Abrir no WhatsApp</button>') : '')
@@ -301,13 +302,34 @@
       };
     }
 
+    async function cartaoCopias() {
+      const c = await api('/api/crm/solicitacoes/copias').catch(() => null);
+      if (!c) return '<p class="cci-sol-falta">Não foi possível carregar as cópias automáticas. Atualize a tela.</p>';
+      const lista = c.copias.emails;
+      return '<article class="crm-card cci-not-card" data-copias><div class="cci-not-topo"><span class="cci-not-icone" aria-hidden="true">📬</span><div class="cci-not-titulo"><h4>Cópias automáticas das solicitações</h4>'
+        + '<small>Todo e-mail de solicitação ao cliente (manual ou mensal) vai com estas pessoas em <b>cópia oculta</b>. Ninguém precisa lembrar de incluir. WhatsApp não tem cópia.</small></div></div>'
+        + (c.admin
+          ? '<label>E-mails de líderes, gestores e admins (separe com ;)<textarea name="copias_emails" rows="2" placeholder="gestor@spassessoriacontabil.com.br; lider@spassessoriacontabil.com.br">' + esc(lista.join('; ')) + '</textarea></label>'
+            + '<label><input type="checkbox" name="copias_lider"' + (c.copias.lider_da_equipe ? ' checked' : '') + '> Incluir também o líder da equipe de quem envia (Topologia do CRM)</label>'
+            + '<div class="cci-not-acoes"><button type="button" class="cci-not-primario" data-salvar-copias>💾 Salvar cópias</button></div>'
+          : '<p>' + (lista.length ? 'Recebem cópia: <b>' + esc(lista.join(', ')) + '</b>' : 'Nenhum e-mail fixo definido.') + (c.copias.lider_da_equipe ? ' + líder da equipe de quem envia.' : '') + '</p><p class="cci-not-dica">Só o administrador altera esta lista.</p>')
+        + '</article>';
+    }
+
     async function listar() {
       dados = await api('/api/crm/solicitacoes/modelos');
+      const copiasHtml = await cartaoCopias();
       q('[data-corpo]').innerHTML = '<div class="cci-not-guia"><strong>Onde o colaborador usa</strong><ol><li>CRM → Carteira → abra a empresa.</li><li>Botão <b>📨 Solicitar documentos</b>.</li><li>Escolhe o modelo, marca os documentos e envia por <b>e-mail</b> ou <b>WhatsApp</b>.</li></ol></div>'
+        + copiasHtml
         + '<div class="cci-not-secao"><h3>Modelos</h3>' + (dados.pode_editar && dados.proximo_id ? '<button type="button" class="cci-not-primario" data-novo>＋ Novo modelo</button>' : '') + '</div>'
         + dados.modelos.map(cartao).join('');
       q('[data-novo]')?.addEventListener('click', () => editar({ id: dados.proximo_id, nome: '', assunto: '{{empresa}} — documentos de {{competencia}}', texto: 'Olá! Tudo bem?\n\nPrecisamos dos documentos abaixo de {{empresa}}, referentes a {{competencia}}:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}\n\n{{responsavel}}\nSP Assessoria Contábil', documentos: [], ativo: true, revisao: 0 }, true));
       q('[data-corpo]').querySelectorAll('[data-editar]').forEach(b => { b.onclick = () => editar(dados.modelos.find(m => m.id === b.dataset.editar), false); });
+      q('[data-salvar-copias]')?.addEventListener('click', () => executar(async () => {
+        const r = await api('/api/crm/solicitacoes/copias', { emails: q('[name=copias_emails]').value, lider_da_equipe: q('[name=copias_lider]').checked }, 'PUT');
+        await listar();
+        status('📬 Cópias salvas: ' + (r.copias.emails.length ? r.copias.emails.join(', ') : 'nenhum e-mail fixo') + (r.copias.lider_da_equipe ? ' + líder da equipe.' : '.'));
+      }));
     }
     await executar(async () => {
       await listar();

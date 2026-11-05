@@ -469,9 +469,40 @@ function solicitacaoPublica(resumo, hoje) {
   return { situacao, rotulo: SITUACOES_SOLICITACAO[situacao], modelo_nome: resumo.modelo_nome || '', competencia: resumo.competencia || null, prazo: resumo.prazo || null, quando: resumo.quando || null, canal: resumo.canal || '', recebida_em: resumo.recebida_em || null };
 }
 
+// ── Cópias automáticas (v3.4.495) ───────────────────────────────────────────
+// Mesmo modelo do app Legalização ("Cópias automáticas dos alertas"): o admin
+// define uma vez quem recebe cópia OCULTA de todo e-mail de solicitação ao
+// cliente, e o líder da equipe de quem envia (Topologia do CRM) entra sozinho.
+// Ninguém precisa lembrar de incluir. WhatsApp não tem cópia.
+const MAX_COPIAS = 20;
+
+function configurarCopias(b, uid, quando) {
+  const corpo = b || {};
+  const bruto = Array.isArray(corpo.emails) ? corpo.emails.join(';') : String(corpo.emails || '');
+  const lista = listaEmails(bruto);
+  const invalidos = lista.filter(x => !RE_EMAIL.test(x));
+  if (invalidos.length) throw erro('E-mail inválido nas cópias: ' + invalidos.join(', ') + '. Corrija e salve de novo.');
+  if (lista.length > MAX_COPIAS) throw erro('Informe até ' + MAX_COPIAS + ' e-mails nas cópias automáticas.');
+  return { emails: lista, lider_da_equipe: corpo.lider_da_equipe !== false, atualizado_em: quando, atualizado_por: uid };
+}
+
+function copiasConfiguradas(d) {
+  const c = d || {};
+  return { emails: Array.isArray(c.emails) ? listaEmails(c.emails.join(';')).filter(x => RE_EMAIL.test(x)) : [], lider_da_equipe: c.lider_da_equipe !== false, atualizado_em: c.atualizado_em || null };
+}
+
+/** Cópias ocultas do envio: configuradas + líder(es), sem repetir remetente nem cliente. */
+function copiasDoEnvio({ config, lideres = [], remetente = '', destinos = [] }) {
+  const c = copiasConfiguradas(config);
+  const fora = new Set([String(remetente || '').toLowerCase(), ...destinos.map(x => String(x || '').toLowerCase())]);
+  const todos = [...c.emails, ...(c.lider_da_equipe ? lideres : [])].map(x => String(x || '').trim().toLowerCase()).filter(x => RE_EMAIL.test(x));
+  return [...new Set(todos)].filter(x => !fora.has(x)).slice(0, MAX_COPIAS + 5);
+}
+
 module.exports = {
   MAX_MODELOS, IDS, MODELOS_PADRAO, VARIAVEIS, idValido, modelosEfetivos, proximoId, configurarModelo,
   contatoEmpresa, prepararSolicitacao, normalizarWhatsapp, whatsappFormatado, linkWhatsapp, htmlDaMensagem,
   semIndefinidos, competenciaBr, dataBr,
-  SITUACOES_SOLICITACAO, resumoSolicitacao, situacaoSolicitacao, solicitacaoPublica
+  SITUACOES_SOLICITACAO, resumoSolicitacao, situacaoSolicitacao, solicitacaoPublica,
+  MAX_COPIAS, configurarCopias, copiasConfiguradas, copiasDoEnvio
 };

@@ -11,6 +11,27 @@ const MODELOS = 'crm_solicitacao_modelos';
 const REGISTROS = 'crm_solicitacoes';
 const STATUS = 'crm_solicitacao_status';
 const RECORRENCIAS = 'crm_solicitacao_recorrencias';
+const CONFIG = 'crm_solicitacao_config';
+
+// Cópias ocultas do envio (v3.4.495): lista do admin + líder da equipe de quem
+// envia, pela Topologia do CRM. Falha de leitura não bloqueia o envio ao
+// cliente, mas fica registrada no envio (farol honesto).
+async function copiasPara(db, uid, remetente, destinos) {
+  const [cfg, gestao] = await Promise.all([
+    db.collection(CONFIG).doc('copias').get(),
+    db.collection('crm_topologia').doc('gestao').get().catch(() => null)
+  ]);
+  const config = cfg.exists ? cfg.data() : {};
+  const lideresUid = gestao && gestao.exists
+    ? [...new Set((gestao.data().equipes || []).filter(e => Array.isArray(e.membros) && e.membros.includes(uid) && e.lider_uid && e.lider_uid !== uid).map(e => e.lider_uid))]
+    : [];
+  const lideres = [];
+  for (const l of lideresUid.slice(0, 5)) {
+    const q = await lerColaborador(db, l);
+    if (q.existe && q.dados.active !== false && q.email) lideres.push(q.email);
+  }
+  return S.copiasDoEnvio({ config, lideres, remetente, destinos });
+}
 
 // Envio do e-mail pela caixa do colaborador. Compartilhado pelo envio manual
 // e pela execução mensal agendada. Nunca lança: devolve o estado final.
@@ -18,7 +39,7 @@ function criarDespacho({ env, email = {}, agora }) {
   const GraphEmail = email.GraphEmail || require('./graph-email-provider');
   const GraphRemetente = email.GraphRemetente || require('./graph-remetente');
   const EmailLayout = email.EmailLayout || require('./email-layout');
-  async function despachar({ previa, empresaNome, remetente, identidade }) {
+  async function despachar({ previa, empresaNome, remetente, identidade, copias = [] }) {
     let final;
     try {
       const html = EmailLayout.montarEmailSolicitacao({
@@ -32,7 +53,7 @@ function criarDespacho({ env, email = {}, agora }) {
         enviar: GraphEmail.enviarEmail,
         emailColaborador: remetente,
         env,
-        mensagem: { para: previa.destinos, assunto: previa.assunto, html, anexos: EmailLayout.anexoLogo(), identidade }
+        mensagem: { para: previa.destinos, bcc: copias, assunto: previa.assunto, html, anexos: EmailLayout.anexoLogo(), identidade }
       });
       final = envio.ok
         ? { estado: 'enviado', remetente: envio.remetente, fonte_remetente: envio.fonteRemetente, detalhe: 'Aceito pelo Microsoft 365, saindo de ' + envio.remetente + (envio.refeitoPelaInstitucional ? ' (sua caixa não existe no Microsoft 365; saiu pela institucional)' : '') + '. A cópia fica em Itens enviados.' }
@@ -81,6 +102,23 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
     res.json({ ok: true, admin: user.is_admin, pode_editar: podeEnviar(user), variaveis: S.VARIAVEIS, modelos: S.modelosEfetivos(lista), proximo_id: S.proximoId(lista) });
   }));
 
+  app.get('/api/crm/solicitacoes/copias', wrap(async (req, res) => {
+    const user = await usuario(req);
+    const d = await db.collection(CONFIG).doc('copias').get();
+    res.json({ ok: true, admin: user.is_admin === true, max: S.MAX_COPIAS, copias: S.copiasConfiguradas(d.exists ? d.data() : {}) });
+  }));
+
+  app.put('/api/crm/solicitacoes/copias', wrap(async (req, res) => {
+    const user = await usuario(req);
+    if (!user.is_admin) throw erro('Só o administrador define as cópias automáticas. Peça a um administrador do CRM.', 403);
+    const depois = S.configurarCopias(req.body || {}, user.uid, agora());
+    const ref = db.collection(CONFIG).doc('copias');
+    const antes = await ref.get();
+    await ref.set(depois);
+    await ref.collection('historico').doc().set(S.semIndefinidos({ antes: antes.exists ? antes.data() : null, depois, quando: agora(), autor: user.uid }));
+    res.json({ ok: true, copias: S.copiasConfiguradas(depois) });
+  }));
+
   app.put('/api/crm/solicitacoes/modelos/:id', wrap(async (req, res) => {
     if (!S.idValido(req.params.id)) throw erro('Modelo inválido. Atualize a lista de modelos.', 404);
     const ref = db.collection(MODELOS).doc(req.params.id);
@@ -111,7 +149,7 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
       hoje: hoje(),
       historico: snap.docs.map(d => {
         const r = d.data();
-        return { id: d.id, quando: r.quando, canal: r.canal, estado: r.estado, destino_exibicao: r.destino_exibicao, modelo_nome: r.modelo_nome, competencia: r.competencia, prazo: r.prazo, autor_email: r.autor_email, detalhe: r.detalhe || '', recebida_em: r.recebida_em || null, recebida_por_email: r.recebida_por_email || null };
+        return { id: d.id, quando: r.quando, canal: r.canal, estado: r.estado, destino_exibicao: r.destino_exibicao, modelo_nome: r.modelo_nome, competencia: r.competencia, prazo: r.prazo, autor_email: r.autor_email, detalhe: r.detalhe || '', recebida_em: r.recebida_em || null, recebida_por_email: r.recebida_por_email || null, copias: Array.isArray(r.copias) ? r.copias : [] };
       })
     });
   }));
@@ -126,7 +164,9 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
 
   app.post(base + '/previa', wrap(async (req, res) => {
     const c = await contexto(req);
-    res.json({ ok: true, previa: await montar(req, c) });
+    const previa = await montar(req, c);
+    const copias = previa.canal === 'email' ? await copiasPara(db, c.user.uid, (await colaborador(c.user.uid)).email, previa.destinos || []) : [];
+    res.json({ ok: true, previa: { ...previa, copias } });
   }));
 
   app.post(base + '/enviar', wrap(async (req, res) => {
@@ -138,8 +178,10 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
     const quem = await colaborador(c.user.uid);
     if (previa.canal === 'email' && !GraphEmail.configurado(env)) throw erro('Envio de e-mail indisponível no momento: a integração com o Microsoft 365 não está configurada. Use o WhatsApp ou avise o administrador.', 503);
     const ref = c.controlesRef.collection(REGISTROS).doc(b.chave);
+    const copias = previa.canal === 'email' ? await copiasPara(db, c.user.uid, quem.email, previa.destinos || []) : [];
     const registro = S.semIndefinidos({
       ...previa,
+      copias,
       whatsapp_link: null,
       cnpj: req.params.cnpj,
       quando: agora(),
@@ -164,7 +206,7 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
     if (previa.canal === 'whatsapp') {
       return res.json({ ok: true, solicitacao: { id: ref.id, ...registro }, whatsapp_link: previa.whatsapp_link });
     }
-    const final = await despacho.despachar({ previa, empresaNome: c.empresa.razao_social, remetente: quem.email, identidade: req.params.cnpj + '|solicitacao|' + b.chave });
+    const final = await despacho.despachar({ previa, empresaNome: c.empresa.razao_social, remetente: quem.email, identidade: req.params.cnpj + '|solicitacao|' + b.chave, copias });
     await ref.set(S.semIndefinidos(final), { merge: true });
     await db.collection(STATUS).doc(req.params.cnpj).set(S.resumoSolicitacao(ref.id, { ...registro, ...final }));
     res.status(final.estado === 'enviado' ? 200 : 502).json({ ok: final.estado === 'enviado', erro: final.estado === 'enviado' ? undefined : final.detalhe, solicitacao: { id: ref.id, ...registro, ...final } });
@@ -277,7 +319,7 @@ function criarRecorrencias({ db, agora = () => new Date().toISOString(), env = p
       if (!modelo) throw new Error('O modelo deste envio não existe mais. Programe de novo.');
       previa = S.prepararSolicitacao(modelo, corpo, { cnpj: r.cnpj, empresa: emp.data(), colaborador: quem, hoje: R.dataLocal(agoraIso) });
       if (!despacho.configurado()) throw new Error('Integração com o Microsoft 365 indisponível.');
-      registro = { ...previa, empresa_nome: emp.data().razao_social || '', remetente_programado: quem.email };
+      registro = { ...previa, empresa_nome: emp.data().razao_social || '', remetente_programado: quem.email, copias: await copiasPara(db, r.autor_uid, quem.email, previa.destinos || []) };
     } catch (e) {
       falha = 'Envio automático não feito: ' + (e && e.message ? e.message : 'falha ao montar a solicitação') + ' Corrija e use Enviar agora, se ainda fizer sentido.';
     }
@@ -294,7 +336,7 @@ function criarRecorrencias({ db, agora = () => new Date().toISOString(), env = p
       return true;
     });
     if (!novo) return { id: ref.id, estado: 'repetido' };
-    let final = falha ? { estado: 'falhou', detalhe: falha } : await despacho.despachar({ previa, empresaNome: registro.empresa_nome, remetente: registro.remetente_programado, identidade: r.cnpj + '|solicitacao|' + chave });
+    let final = falha ? { estado: 'falhou', detalhe: falha } : await despacho.despachar({ previa, empresaNome: registro.empresa_nome, remetente: registro.remetente_programado, identidade: r.cnpj + '|solicitacao|' + chave, copias: registro.copias });
     if (!falha) await registroRef.set(S.semIndefinidos(final), { merge: true });
     await db.collection(STATUS).doc(r.cnpj).set(S.resumoSolicitacao(chave, { ...base, ...final }));
     await ref.set({ ultimo_estado: final.estado, ultimo_detalhe: final.detalhe || '' }, { merge: true });
@@ -313,4 +355,4 @@ function criarRecorrencias({ db, agora = () => new Date().toISOString(), env = p
   return { rodar, executar };
 }
 
-module.exports = { registrar, criarRecorrencias, MODELOS, REGISTROS, STATUS, RECORRENCIAS };
+module.exports = { registrar, criarRecorrencias, MODELOS, REGISTROS, STATUS, RECORRENCIAS, CONFIG };
