@@ -111,5 +111,6 @@
   "/notificacoes.css",
   "/ficha-aplicacoes-fiscal-ui.js",
   "/ficha-aplicacoes-fiscal.css",
-  "/trava-digitacao-contabil.js"
+  "/trava-digitacao-contabil.js",
+  "/datas-extrato-plausiveis.js"
 ]
