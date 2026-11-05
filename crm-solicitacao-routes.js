@@ -4,6 +4,13 @@
 // que fornece usuario/contexto (carteira) e o wrap padrão do CRM.
 const S = require('./crm-solicitacao-documentos');
 const R = require('./crm-solicitacao-recorrencia');
+const Mov = require('./crm-movimentacao');
+
+// Linha do tempo da empresa (v3.4.497): o que o colaborador fez na solicitação.
+function movSolicitacao(tipo, reg, user, quando, origem) {
+  const comp = reg.competencia ? ' · competência ' + S.competenciaBr(reg.competencia) : '';
+  return Mov.movimento({ tipo, titulo: (reg.modelo_nome || 'Solicitação de documentos') + comp, detalhe: reg.destino_exibicao ? 'Para ' + reg.destino_exibicao : '', user, quando, origem: origem || 'colaborador' });
+}
 const { podeAcao, permissoesEfetivas } = require('./permissoes-cci');
 const crypto = require('crypto');
 
@@ -197,7 +204,10 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
       if (d.exists) return { repetido: true, item: d.data() };
       tx.create(ref, registro);
       // WhatsApp não tem confirmação posterior: a situação na carteira sai já aqui.
-      if (registro.estado === 'whatsapp_aberto') tx.set(db.collection(STATUS).doc(req.params.cnpj), S.resumoSolicitacao(ref.id, registro));
+      if (registro.estado === 'whatsapp_aberto') {
+        tx.set(db.collection(STATUS).doc(req.params.cnpj), S.resumoSolicitacao(ref.id, registro));
+        Mov.gravar(db, tx, req.params.cnpj, movSolicitacao('solicitacao_whatsapp', registro, { ...atual.user, nome: quem.nome, email: quem.email }, registro.quando));
+      }
       return { repetido: false, item: registro };
     });
     if (claim.repetido) {
@@ -209,6 +219,7 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
     const final = await despacho.despachar({ previa, empresaNome: c.empresa.razao_social, remetente: quem.email, identidade: req.params.cnpj + '|solicitacao|' + b.chave, copias });
     await ref.set(S.semIndefinidos(final), { merge: true });
     await db.collection(STATUS).doc(req.params.cnpj).set(S.resumoSolicitacao(ref.id, { ...registro, ...final }));
+    await Mov.gravar(db, null, req.params.cnpj, movSolicitacao(final.estado === 'enviado' ? 'solicitacao_enviada' : 'solicitacao_falhou', registro, { uid: c.user.uid, nome: quem.nome, email: quem.email }, final.concluido_em || agora()));
     res.status(final.estado === 'enviado' ? 200 : 502).json({ ok: final.estado === 'enviado', erro: final.estado === 'enviado' ? undefined : final.detalhe, solicitacao: { id: ref.id, ...registro, ...final } });
   }));
 
@@ -238,6 +249,7 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
     const id = 'rec-' + crypto.randomBytes(8).toString('hex');
     const rec = S.semIndefinidos({ ...teste, modelo_nome: modelo.nome, destino_exibicao: previa.destino_exibicao });
     await db.collection(RECORRENCIAS).doc(id).set(rec);
+    await Mov.gravar(db, null, req.params.cnpj, Mov.movimento({ tipo: 'recorrencia', titulo: 'Programou envio todo dia ' + rec.dia + ' às ' + rec.hora + ': ' + modelo.nome, detalhe: 'Para ' + (rec.destino_exibicao || ''), user: { uid: c.user.uid, nome: quem.nome, email: quem.email }, quando: agora() }));
     res.json({ ok: true, recorrencia: R.recorrenciaPublica(id, rec), previa });
   }));
 
@@ -257,6 +269,7 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
         : { ativo: false, proxima: null, ...(acao === 'excluir' ? { excluida: true } : {}) };
       const depois = { ...r, ...mudanca, alterada_em: agora(), alterada_por: c.user.uid };
       tx.set(ref, depois);
+      Mov.gravar(db, tx, req.params.cnpj, Mov.movimento({ tipo: 'recorrencia', titulo: { pausar: 'Pausou', retomar: 'Retomou', excluir: 'Excluiu' }[acao] + ' o envio automático: ' + (r.modelo_nome || r.modelo), user: c.user, quando: agora() }));
       return depois;
     });
     res.json({ ok: true, recorrencia: R.recorrenciaPublica(req.params.id, final) });
@@ -278,6 +291,7 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
       if (r.recebida_em) return { ...r, id: ref.id };
       const marca = { recebida_em: agora(), recebida_por: c.user.uid, recebida_por_email: quem.email };
       tx.set(ref, marca, { merge: true });
+      Mov.gravar(db, tx, req.params.cnpj, movSolicitacao('solicitacao_recebida', r, { uid: c.user.uid, nome: quem.nome, email: quem.email }, marca.recebida_em));
       // A carteira só muda se esta ainda for a última solicitação da empresa.
       if (st.exists && st.data().solicitacao_id === ref.id) tx.set(statusRef, S.resumoSolicitacao(ref.id, { ...r, ...marca }));
       return { ...r, ...marca, id: ref.id };
@@ -340,6 +354,7 @@ function criarRecorrencias({ db, agora = () => new Date().toISOString(), env = p
     if (!falha) await registroRef.set(S.semIndefinidos(final), { merge: true });
     await db.collection(STATUS).doc(r.cnpj).set(S.resumoSolicitacao(chave, { ...base, ...final }));
     await ref.set({ ultimo_estado: final.estado, ultimo_detalhe: final.detalhe || '' }, { merge: true });
+    await Mov.gravar(db, null, r.cnpj, movSolicitacao(final.estado === 'enviado' ? 'solicitacao_enviada' : 'solicitacao_falhou', base, { uid: r.autor_uid, nome: (registro && registro.remetente_programado) || r.autor_email, email: r.autor_email }, agora(), 'automatico'));
     return { id: ref.id, estado: final.estado };
   }
 

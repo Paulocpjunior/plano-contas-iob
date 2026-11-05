@@ -374,7 +374,7 @@ if(require.main===module)(async()=>{
   r=await a.call('PUT','/api/crm/visualizacoes',{revisao:0,nome:'Minha carteira',uid:'admin',filtros:{equipe:'colab',origem:'contabil'},colunas:{cnpj:false,equipe:true,cliente:false}});
   assert.equal(r.statusCode,200);assert(a.dados.has('users/colab/crm_preferencias/visualizacoes'));assert(!a.dados.has('users/admin/crm_preferencias/visualizacoes'));
   assert.equal((await a.call('GET','/api/crm/visualizacoes',{},'admin')).body.itens.length,0);
-  assert.deepStrictEqual((await a.call('GET','/api/crm/visualizacoes')).body.itens[0].colunas,{cnpj:false,equipe:true,cliente:false,solicitacao:true});
+  assert.deepStrictEqual((await a.call('GET','/api/crm/visualizacoes')).body.itens[0].colunas,{cnpj:false,equipe:true,cliente:false,solicitacao:true,movimentacao:true});
   assert.equal((await a.call('PUT','/api/crm/visualizacoes',{revisao:1,nome:'Inválida',filtros:{},colunas:{cnpj:'false'}})).statusCode,400);
   assert.equal((await a.call('GET','/api/crm/visualizacoes')).body.revisao,1,'entrada inválida não grava');
   assert.equal((await a.call('PUT','/api/crm/visualizacoes',{revisao:0,nome:'Antiga',filtros:{}})).statusCode,409);
@@ -479,7 +479,7 @@ if(require.main===module)(async()=>{
   const body={categoria:'obrigacao',codigo:'FISCAL',periodo:'2026-09',prazo:'2026-10-15'};
   assert.equal((await a.call('POST',base+'/controles',body)).statusCode,403);
   r=await a.call('POST',base+'/controles',body,'admin');assert.equal(r.statusCode,201);const id=r.body.controle.id;
-  assert.equal(a.writes(),3); assert.equal((await a.call('POST',base+'/controles',body,'admin')).statusCode,409);assert.equal(a.writes(),3);
+  assert.equal(a.writes(),5,'controle + histórico + movimentação (resumo e linha do tempo)'); assert.equal((await a.call('POST',base+'/controles',body,'admin')).statusCode,409);assert.equal(a.writes(),5);
   r=await a.call('PATCH',base+'/controles/:id',{revisao:1,status:'concluida',protocolo:'R-001'},'colab',{id}); assert.equal(r.statusCode,200,JSON.stringify(r.body));assert.equal(r.body.controle.concluido_por_uid,'colab');
   assert.equal((await a.call('PATCH',base+'/controles/:id',{revisao:1,status:'pendente'},'admin',{id})).statusCode,409);
   let hist=await a.call('GET',base+'/controles/:id/historico',{},'colab',{id});assert.equal(hist.body.historico.length,2);assert.equal(hist.body.historico[1].antes.status,'pendente');
