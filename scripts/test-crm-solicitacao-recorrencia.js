@@ -75,6 +75,7 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   const id = criada.body.recorrencia.id;
   assert(R.ID.test(id));
   assert.equal(criada.body.recorrencia.proxima, '2026-11-05T12:00:00.000Z');
+  assert.equal(n.dados.get('crm_movimentacao/' + cnpj).tipo, 'recorrencia', 'programar envio aparece na movimentação da empresa');
   assert.equal(criada.body.recorrencia.destino_exibicao, 'cliente@fixture-cliente.test');
   assert.equal(n.dados.get('crm_solicitacao_recorrencias/' + id).autor_email, 'colab@fixture.test');
   assert(!JSON.stringify(n.dados.get('crm_solicitacao_recorrencias/' + id)).includes('undefined'));
@@ -98,6 +99,10 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   assert.equal(reg.estado, 'enviado');
   assert.equal(reg.origem, 'recorrencia');
   assert.equal(reg.copias.length, 3, 'cópias registradas no histórico');
+  const mov = n.dados.get('crm_movimentacao/' + cnpj);
+  assert.equal(mov.tipo, 'solicitacao_enviada');
+  assert.equal(mov.origem, 'automatico');
+  assert.equal(mov.por_email, 'colab@fixture.test');
   assert.equal(reg.competencia, '2026-10');
   assert.equal(reg.prazo, '2026-11-10');
   assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj).situacao, 'aguardando', 'carteira mostra a solicitação automática');

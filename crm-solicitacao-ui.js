@@ -98,6 +98,133 @@
     });
   }
 
+  // ── Painel do gestor (v3.4.497) ───────────────────────────────────────────
+  // Mesmo modelo do Painel do gestor do CFI: placar por colaborador + matriz
+  // empresa × etapas do mês. As etapas são parametrizadas pelo admin.
+  window.renderPainelGestor = async function (alvo, { executar = fn => fn(), mensagem = () => {} } = {}) {
+    if (!alvo) return;
+    const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const meses = []; { const d = new Date(hoje + 'T12:00:00Z'); for (let i = 0; i < 12; i++) { meses.push(d.toISOString().slice(0, 7)); d.setUTCMonth(d.getUTCMonth() - 1); } }
+    const fmt = c => c.split('-').reverse().join('/');
+    const ICONE = { concluida: '✓', atencao: '!', pendente: '•', 'sem-dado': '?' };
+    const NOME = { concluida: 'feito', atencao: 'ressalva', pendente: 'pendente', 'sem-dado': 'sem dado (nenhuma obrigação registrada)' };
+    const SIT = { fechada: 'FECHADA', ressalva: 'RESSALVA', pendente: 'PENDENTE' };
+    let painel = null; const f = { colab: '', etapa: '', equipe: '', busca: '', abertas: true };
+    alvo.innerHTML = '<div class="crm-card cci-pg"><div class="cci-pg-topo"><div><h3>📊 Painel do gestor</h3><p class="crm-muted" data-pg-sub>Cada etapa só fica verde com prova no CRM.</p></div>'
+      + '<div class="cci-pg-acoes"><select data-pg-comp aria-label="Competência">' + meses.map(m => '<option value="' + m + '">' + fmt(m) + '</option>').join('') + '</select>'
+      + '<button type="button" data-pg-atualizar>↻ Atualizar</button><button type="button" data-pg-baixar="csv">⬇ CSV</button><button type="button" data-pg-baixar="pdf">⬇ PDF</button><button type="button" data-pg-etapas hidden>⚙️ Etapas do painel</button></div></div>'
+      + '<div data-pg-editor></div><div data-pg-placar class="crm-scroll"></div></div>'
+      + '<div class="crm-bar cci-pg-filtros"><select data-pg-equipe aria-label="Equipe"></select><select data-pg-colab aria-label="Responsável"></select><select data-pg-etapa aria-label="Parada em"></select>'
+      + '<input data-pg-busca placeholder="Buscar empresa ou CNPJ"><label><input type="checkbox" data-pg-abertas checked> esconder fechadas</label></div>'
+      + '<p class="crm-muted" data-pg-resumo role="status"></p><div data-pg-matriz class="crm-scroll"></div>';
+    const q = s => alvo.querySelector(s);
+    const comp = () => q('[data-pg-comp]').value;
+    const visiveis = () => painel.linhas.filter(l => (!f.colab || l.responsavel_uid === f.colab) && (!f.etapa || l.parada_em === f.etapa) && (!f.equipe || (f.equipe === '__sem' ? !l.equipe : l.equipe === f.equipe)) && (!f.abertas || l.situacao !== 'fechada')
+      && (!f.busca || (l.nome + ' ' + l.cnpj + ' ' + l.codigo).toLowerCase().includes(f.busca.toLowerCase())));
+    const quando = m => !m || m.tipo === 'sem' ? '<span class="crm-muted">Sem movimentação</span>' : esc(m.rotulo) + '<br><small class="crm-muted">' + esc(m.por_nome || m.por_email || '') + ' · ' + (m.dias === 0 ? 'hoje' : 'há ' + m.dias + ' dia(s)') + '</small>';
+    function render() {
+      const et = painel.etapas;
+      const placar = painel.placar.filter(p => !f.equipe || (f.equipe === '__sem' ? !p.equipe : p.equipe === f.equipe));
+      q('[data-pg-placar]').innerHTML = placar.length ? '<table class="cci-pg-placar"><thead><tr><th>Responsável</th><th>Empresas</th><th>Fechadas</th><th>Ressalva</th><th>Pendentes</th>'
+        + et.map((e, i) => '<th title="Paradas em ' + esc(e.nome) + '">' + (i + 1) + '</th>').join('') + '<th title="Sem movimentação há 15 dias ou mais">Parada 15d+</th></tr></thead><tbody>'
+        + placar.map(p => '<tr data-pg-linha="' + esc(p.uid) + '"' + (f.colab === p.uid ? ' aria-selected="true"' : '') + (p.uid === '__sem_responsavel' ? ' data-alerta' : '') + '><td>' + esc(p.nome) + (p.equipe ? ' <span class="crm-muted">· ' + esc(p.equipe) + '</span>' : '') + '</td><td><b>' + p.total + '</b></td><td>' + p.fechadas + '</td><td>' + p.ressalva + '</td><td>' + p.pendentes + '</td>'
+          + et.map(e => '<td>' + (p.paradas_em[e.id] || '') + '</td>').join('') + '<td>' + (p.sem_movimento_15 || '') + '</td></tr>').join('')
+        + '</tbody></table><p class="crm-muted cci-pg-nota">As colunas ' + et.map((e, i) => (i + 1) + ' = ' + esc(e.nome)).join(', ') + ' contam as empresas paradas em cada etapa (o próximo passo delas). Clique numa linha para filtrar.</p>'
+        : '<p class="crm-muted">Nenhuma empresa ativa na carteira que você acompanha.</p>';
+      q('[data-pg-placar]').querySelectorAll('[data-pg-linha]').forEach(tr => { tr.onclick = () => { f.colab = f.colab === tr.dataset.pgLinha ? '' : tr.dataset.pgLinha; q('[data-pg-colab]').value = f.colab; render(); }; });
+      const v = visiveis();
+      q('[data-pg-resumo]').textContent = 'Mostrando ' + v.length + ' de ' + painel.linhas.length + ' empresa(s)' + (f.abertas ? ' · sem as fechadas' : '') + ' · ' + painel.fora_da_regra + ' fora da regra (saída, baixa ou suspensa).';
+      q('[data-pg-matriz]').innerHTML = '<table class="cci-pg-matriz"><thead><tr><th>Empresa</th><th>Responsável</th>' + et.map((e, i) => '<th>' + (i + 1) + ' ' + esc(e.nome) + '</th>').join('') + '<th>Última movimentação</th><th>Situação</th></tr></thead><tbody>'
+        + v.slice(0, 500).map(l => '<tr><td><b>' + esc(l.nome) + '</b><br><small class="crm-muted">' + esc(l.codigo ? l.codigo + ' · ' : '') + esc(l.cnpj) + '</small></td><td' + (l.responsavel_uid === '__sem_responsavel' ? ' data-alerta' : '') + '>' + esc(l.responsavel_nome) + (l.apoio.length ? '<br><small class="crm-muted">(apoio ' + esc(l.apoio.join(', ')) + ')</small>' : '') + '</td>'
+          + et.map(e => '<td class="cci-pg-cel"><span class="cci-pg-bola" data-st="' + l.etapas[e.id] + '" title="' + esc(e.nome + ': ' + NOME[l.etapas[e.id]]) + '">' + ICONE[l.etapas[e.id]] + '</span></td>').join('')
+          + '<td>' + quando(l.movimentacao) + '</td><td><b class="cci-pg-sit" data-sit="' + l.situacao + '">' + SIT[l.situacao] + '</b></td></tr>').join('') + '</tbody></table>'
+        + (v.length > 500 ? '<p class="crm-muted">Mostrando 500 de ' + v.length + '. Use os filtros ou baixe o CSV para a lista completa.</p>' : '');
+    }
+    function preencherFiltros() {
+      q('[data-pg-equipe]').innerHTML = '<option value="">Todas as equipes</option>' + painel.equipes.map(n => '<option>' + esc(n) + '</option>').join('') + '<option value="__sem">Sem equipe</option>';
+      q('[data-pg-colab]').innerHTML = '<option value="">Todos os responsáveis</option>' + painel.placar.map(p => '<option value="' + esc(p.uid) + '">' + esc(p.nome) + '</option>').join('');
+      q('[data-pg-etapa]').innerHTML = '<option value="">Qualquer etapa</option>' + painel.etapas.map(e => '<option value="' + e.id + '">Parada em ' + esc(e.nome) + '</option>').join('');
+      q('[data-pg-equipe]').value = f.equipe; q('[data-pg-colab]').value = f.colab; q('[data-pg-etapa]').value = f.etapa;
+    }
+    async function carregar() {
+      q('[data-pg-sub]').textContent = 'Lendo a carteira…';
+      painel = await api('/api/crm/painel-gestor?competencia=' + comp());
+      q('[data-pg-sub]').textContent = 'Cada etapa só fica verde com prova no CRM: solicitação enviada, documentos recebidos ou obrigação concluída. Lido às ' + new Date(painel.lido_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.';
+      q('[data-pg-etapas]').hidden = !painel.admin;
+      preencherFiltros(); render();
+    }
+    function editorEtapas() {
+      const linha = (e, i) => '<fieldset data-pg-et><legend>Etapa ' + (i + 1) + '</legend><label>Nome<input name="nome" maxlength="30" value="' + esc(e.nome) + '"></label>'
+        + '<label>Conta como feito quando<select name="tipo">' + Object.entries(painel.tipos).map(([k, n]) => '<option value="' + k + '"' + (e.tipo === k ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></label>'
+        + '<label data-pg-so="solicitacao"' + (e.tipo === 'controle' ? ' hidden' : '') + '>Modelo da solicitação (vazio = qualquer)<input name="modelo" maxlength="3" placeholder="S01" value="' + esc(e.modelo || '') + '"></label>'
+        + '<label data-pg-so="controle"' + (e.tipo === 'controle' ? '' : ' hidden') + '>Obrigações (códigos do CRM, separados por vírgula)<input name="codigos" value="' + esc((e.codigos || []).join(', ')) + '" placeholder="CONCILIACAO"></label>'
+        + '<button type="button" data-pg-remover>Remover</button></fieldset>';
+      const ed = q('[data-pg-editor]');
+      const desenhar = lista => {
+        ed.innerHTML = '<div class="cci-pg-editor"><h4>⚙️ Etapas do painel</h4><p class="crm-muted">Vale para todos os líderes e para a carteira inteira. Códigos disponíveis: ' + painel.catalogo.map(c => esc(c.codigo)).join(', ') + '.</p>'
+          + lista.map(linha).join('') + '<div class="crm-bar"><button type="button" data-pg-mais' + (lista.length >= 6 ? ' disabled' : '') + '>＋ Etapa</button><button type="button" class="crm-primary" data-pg-salvar>Salvar etapas</button><button type="button" data-pg-cancelar>Cancelar</button></div></div>';
+        const ler = () => [...ed.querySelectorAll('[data-pg-et]')].map(fs => ({ nome: fs.querySelector('[name=nome]').value, tipo: fs.querySelector('[name=tipo]').value, modelo: fs.querySelector('[name=modelo]').value.trim().toUpperCase(), codigos: fs.querySelector('[name=codigos]').value }));
+        ed.querySelectorAll('[data-pg-et] [name=tipo]').forEach(sel => { sel.onchange = () => { const fs = sel.closest('[data-pg-et]'); fs.querySelector('[data-pg-so=solicitacao]').hidden = sel.value === 'controle'; fs.querySelector('[data-pg-so=controle]').hidden = sel.value !== 'controle'; }; });
+        ed.querySelectorAll('[data-pg-remover]').forEach((b, i) => { b.onclick = () => { const l = ler(); l.splice(i, 1); desenhar(l); }; });
+        ed.querySelector('[data-pg-mais]').onclick = () => desenhar([...ler(), { nome: '', tipo: 'controle', modelo: '', codigos: [] }]);
+        ed.querySelector('[data-pg-cancelar]').onclick = () => { ed.innerHTML = ''; };
+        ed.querySelector('[data-pg-salvar]').onclick = () => executar(async () => { await api('/api/crm/painel-gestor/etapas', { etapas: ler() }, 'PUT'); ed.innerHTML = ''; await carregar(); mensagem('⚙️ Etapas do painel salvas.'); });
+      };
+      desenhar(painel.etapas.map(e => ({ ...e })));
+    }
+    q('[data-pg-comp]').onchange = () => executar(carregar);
+    q('[data-pg-atualizar]').onclick = () => executar(carregar);
+    q('[data-pg-etapas]').onclick = editorEtapas;
+    q('[data-pg-equipe]').onchange = e => { f.equipe = e.target.value; render(); };
+    q('[data-pg-colab]').onchange = e => { f.colab = e.target.value; render(); };
+    q('[data-pg-etapa]').onchange = e => { f.etapa = e.target.value; render(); };
+    q('[data-pg-busca]').oninput = e => { f.busca = e.target.value.trim(); render(); };
+    q('[data-pg-abertas]').onchange = e => { f.abertas = e.target.checked; render(); };
+    alvo.querySelectorAll('[data-pg-baixar]').forEach(b => { b.onclick = () => executar(async () => {
+      const r = await window.API.apiFetch('/api/crm/painel-gestor?competencia=' + comp() + '&formato=' + b.dataset.pgBaixar, {});
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.erro || 'Não foi possível gerar o arquivo.'); }
+      const url = URL.createObjectURL(await r.blob()); const a = document.createElement('a');
+      a.href = url; a.download = 'painel-gestor-' + comp() + '.' + b.dataset.pgBaixar; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+      mensagem('⬇ Arquivo gerado.');
+    }); });
+    if (!document.getElementById('cciPainelGestorCss')) {
+      const st = document.createElement('style'); st.id = 'cciPainelGestorCss';
+      st.textContent = '.cci-pg{padding:16px;margin-bottom:12px}.cci-pg-topo{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.cci-pg-topo h3{margin:0}.cci-pg-acoes{display:flex;gap:8px;flex-wrap:wrap;align-items:center}'
+        + '.cci-pg table{width:100%;border-collapse:collapse;font-size:13px}.cci-pg-placar th,.cci-pg-placar td{padding:4px 8px;text-align:right}.cci-pg-placar th:first-child,.cci-pg-placar td:first-child{text-align:left}'
+        + '.cci-pg-placar tbody tr{cursor:pointer;border-top:1px solid var(--crm-line,#e5e5ea)}.cci-pg-placar tbody tr[aria-selected=true]{background:rgba(0,113,227,.08)}[data-alerta]{color:#c4291c}.cci-pg-nota{font-size:11px}'
+        + '.cci-pg-filtros{margin:8px 0}.cci-pg-matriz{width:100%;border-collapse:collapse;font-size:13px}.cci-pg-matriz th,.cci-pg-matriz td{padding:8px;border-top:1px solid var(--crm-line,#e5e5ea);vertical-align:middle}.cci-pg-cel{text-align:center}'
+        + '.cci-pg-bola{display:inline-flex;width:24px;height:24px;border-radius:50%;align-items:center;justify-content:center;font-weight:700;font-size:13px}'
+        + '.cci-pg-bola[data-st=concluida]{background:#34c759;color:#fff}.cci-pg-bola[data-st=atencao]{background:#ffcc00;color:#3a2e00}.cci-pg-bola[data-st=pendente]{background:#ff3b30;color:#fff}.cci-pg-bola[data-st=sem-dado]{background:#e5e5ea;color:#8e8e93}'
+        + '.cci-pg-sit[data-sit=pendente]{color:#c4291c}.cci-pg-sit[data-sit=ressalva]{color:#a05a00}.cci-pg-sit[data-sit=fechada]{color:#1d7d3a}.cci-pg-editor fieldset{border:1px solid var(--crm-line,#e5e5ea);border-radius:12px;padding:8px 12px;margin:8px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;align-items:end}.cci-pg-editor fieldset select,.cci-pg-editor fieldset input{width:100%;min-width:0;box-sizing:border-box}.cci-pg-editor [hidden]{display:none}';
+      document.head.appendChild(st);
+    }
+    await carregar();
+  };
+
+  // ── Cópias automáticas (v3.4.495/496) ────────────────────────────────────
+  // Um único cartão, mostrado no próprio Solicitar documentos, no editor de
+  // modelo e na lista de modelos: o admin acha o campo onde estiver.
+  async function montarCopias(alvo, { executar, status }) {
+    if (!alvo) return;
+    const c = await api('/api/crm/solicitacoes/copias').catch(() => null);
+    if (!c) { alvo.innerHTML = '<p class="cci-sol-falta">Não foi possível carregar as cópias automáticas. Atualize a tela.</p>'; return; }
+    const lista = c.copias.emails;
+    alvo.innerHTML = '<article class="crm-card cci-not-card" data-copias><div class="cci-not-topo"><span class="cci-not-icone" aria-hidden="true">📬</span><div class="cci-not-titulo"><h4>Cópias automáticas (líderes, gestores e admins)</h4>'
+      + '<small>Todo e-mail de solicitação ao cliente, manual ou mensal, vai com estas pessoas em <b>cópia oculta</b>. O colaborador não precisa incluir ninguém. WhatsApp não tem cópia.</small></div></div>'
+      + (c.admin
+        ? '<label>E-mails que recebem cópia (separe com ;)<textarea name="copias_emails" rows="2" placeholder="gestor@spassessoriacontabil.com.br; lider@spassessoriacontabil.com.br">' + esc(lista.join('; ')) + '</textarea></label>'
+          + '<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="copias_lider" style="width:18px;height:18px"' + (c.copias.lider_da_equipe ? ' checked' : '') + '> Incluir também o líder da equipe de quem envia (Topologia do CRM)</label>'
+          + '<div class="cci-not-acoes"><button type="button" class="cci-not-primario" data-salvar-copias>💾 Salvar cópias</button></div>'
+        : '<p>' + (lista.length ? 'Recebem cópia: <b>' + esc(lista.join(', ')) + '</b>' : 'Nenhum e-mail definido ainda.') + (c.copias.lider_da_equipe ? ' + líder da equipe de quem envia.' : '') + '</p><p class="cci-not-dica">Só o administrador altera esta lista.</p>')
+      + '</article>';
+    const btn = alvo.querySelector('[data-salvar-copias]');
+    if (btn) btn.onclick = () => executar(async () => {
+      const r = await api('/api/crm/solicitacoes/copias', { emails: alvo.querySelector('[name=copias_emails]').value, lider_da_equipe: alvo.querySelector('[name=copias_lider]').checked }, 'PUT');
+      await montarCopias(alvo, { executar, status });
+      status('📬 Cópias salvas: ' + (r.copias.emails.length ? r.copias.emails.join(', ') : 'nenhum e-mail') + (r.copias.lider_da_equipe ? ' + líder da equipe.' : '.') + ' Os próximos e-mails já saem com elas.');
+    });
+  }
+
   // ── Colaborador: solicitar documentos da empresa ──────────────────────────
   window.abrirSolicitacaoDocumentos = async function ({ cnpj, razao } = {}) {
     const id = String(cnpj || '').replace(/\D/g, '');

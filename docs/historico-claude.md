@@ -2463,3 +2463,10 @@ Paulo viu "saldo anterior" R$ 12.164,00 D na 1.2.1.02.0001 / 161 da Daxx sem ori
 ## 05/11/2026 — v3.4.496 Cópias automáticas: campo visível onde o admin usa
 - Paulo não achou o campo da 3.4.495: ele só aparecia na lista de modelos, e o "Editar este modelo" do Solicitar documentos abre direto o editor. O print dele era do editor e do painel Templates e agendamentos (outro sistema).
 - O cartão `montarCopias` passa a aparecer no Solicitar documentos (abaixo de Ver prévia), no editor e na lista.
+
+## 05/11/2026 — v3.4.497 CRM: Painel do gestor (modelo CFI) + movimentação
+- Paulo: envios de solicitação e de distribuição de lucros são OBRIGATÓRIOS para todas as empresas; líderes precisam ver quem não enviou (prazo com multa). Depois pediu: "parametrizar e aproveitar o que fizemos de melhor no CFI" (Carteira de Clientes → Painel do gestor).
+- `crm-painel-gestor.js` (puro): etapas parametrizadas (até 6; tipo solicitacao | recebida | controle com códigos do CATALOGO), padrão Solicitação/Documentos/Importações(FOLHA,FISCAL,FINANCEIRO)/Conciliação/Balanço; status concluida/atencao/pendente/sem-dado; placar por colaborador; CSV.
+- `GET /api/crm/painel-gestor?competencia=AAAA-MM[&formato=csv|pdf]` (admin ou líder; líder só a equipe), `PUT /api/crm/painel-gestor/etapas` (só admin, config `crm_painel_gestor/config` + histórico). Lê collectionGroup `crm_solicitacoes` e `crm_controles` (teto 20 mil). Saída/baixada/suspensa fora da regra.
+- Área "📊 Painel do gestor" no menu do CRM (substituiu o rascunho "Envios ao cliente", não publicado).
+- Mesma versão, regra do Paulo: toda movimentação do colaborador evidenciada no status da empresa. `crm-movimentacao.js`: resumo `crm_movimentacao/{cnpj}` + linha do tempo `empresas/{cnpj}/crm_movimentos`; gravado em controles (POST/PATCH), documentos-referencias, solicitação (enviar/WhatsApp/falha/recebida), recorrências (programar/pausar/retomar/excluir/execução). Carteira: coluna + filtro `movimentacao` (sem|7|15|30); dossiê → Histórico; o Painel do gestor mostra a última movimentação. Não cobre ações anteriores à 3.4.497 nem checklist/planejamento/equipe (ações de admin).

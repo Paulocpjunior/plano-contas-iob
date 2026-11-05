@@ -8,6 +8,8 @@ const { permissoesEfetivas, podeAcao } = require('./permissoes-cci');
 const { codigoEmpresaDe } = require('./empresa-cadastro');
 const { carregarChecklist, previaChecklist, contratoDoEvento, cadastroDoEvento, unirBases, ID_ITEM, chaveEvento, referenciaDoChecklist } = require('./crm-checklist');
 const Solicitacao = require('./crm-solicitacao-routes');
+const Painel = require('./crm-painel-gestor');
+const Movimentacao = require('./crm-movimentacao');
 const SolicitacaoDocs = require('./crm-solicitacao-documentos');
 // Token de quem está logado: a Legalização só entrega o checklist a um usuário identificado.
 const tokenDe = req => { const a = String(req?.headers?.authorization || ''); return a.startsWith('Bearer ') ? a.slice(7) : ''; };
@@ -45,7 +47,7 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     const doc = await (tx ? tx.get(ref) : ref.get());
     if (!doc.exists) throw core.erro('Peça ao administrador a liberação do seu cadastro.', 403);
     const d = doc.data();
-    return { uid: req.user.uid, is_admin: d.is_admin === true, permissoesCci: permissoesEfetivas(d) };
+    return { uid: req.user.uid, is_admin: d.is_admin === true, permissoesCci: permissoesEfetivas(d), nome: String(d.last_name || d.name || d.nome || '').trim(), email: String(d.last_email || d.email || '').trim().toLowerCase() };
   }
   const pertence = (d, emails) => d.active !== false && emails.has(String(d.last_email || d.email || '').trim().toLowerCase());
   async function equipeDepartamento(req) {
@@ -122,6 +124,48 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
       return {regimes,uid:d.id,nome:d.data().last_name||d.data().name||d.data().email||d.id,empresas:carteira.length,principais:carteira.filter(e=>e.responsaveis.some(p=>p.uid===d.id&&p.papel==='principal')).length,obrigacoes_abertas:abertas.length,atrasadas:abertas.filter(c=>c.atrasado).length,sem_prazo:abertas.filter(c=>!c.prazo).length,execucao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.executor_uid===d.id).length,revisao:empresas.flatMap(e=>e.controles).filter(c=>!core.TERMINAIS.includes(c.status)&&c.revisor_uid===d.id).length};
     });
     res.json({ok:true,admin:g.user.is_admin,completo:true,lido_em:agora(),empresas,pessoas,identidades_pendentes:g.user.is_admin?ambiguos:0,gestao:g.user.is_admin?g.cfg:{equipes:(g.cfg.equipes||[]).filter(e=>e.lider_uid===g.user.uid)}});
+  }));
+  // Painel do gestor (v3.4.497): o mesmo modelo do CFI, com etapas parametrizadas
+  // pelo admin. Admin vê a carteira toda; líder, só a equipe dele.
+  const painelCfgRef=db.collection('crm_painel_gestor').doc('config');
+  app.get('/api/crm/painel-gestor',wrap(async(req,res)=>{
+    let g=await gestao(req);if(!g.user.is_admin&&!g.lider)throw core.erro('O painel do gestor é para administradores e líderes de equipe (Topologia do CRM).',403);
+    const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(agora()));
+    const competencia=String((req.query||{}).competencia||hoje.slice(0,7));
+    if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(competencia))throw core.erro('Escolha a competência no formato AAAA-MM.');
+    const [sol,ctl,mov,cfg,...ss]=await Promise.all([db.collectionGroup('crm_solicitacoes').limit(20001).get(),db.collectionGroup('crm_controles').limit(20001).get(),db.collection(Movimentacao.RESUMO).get(),painelCfgRef.get(),...['crm_empresas','empresas'].map(n=>db.collection(n).limit(5001).get())]);
+    if(sol.docs.length>20000||ctl.docs.length>20000)throw core.erro('Há mais de 20 mil registros para cruzar. Totais não calculados; avise o suporte.',409);
+    if(ss.some(v=>v.docs.length>5000))throw core.erro('O cadastro excedeu o limite desta consulta. Totais não calculados.',409);
+    const mapa=new Map();ss.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,d)));
+    const empresas=[...mapa.values()].filter(d=>podeGerirEmpresa(g,d.data())).map(d=>empresaPublica(d,g.user,'crm'));
+    const daEmpresa=(snap,filtro)=>{const out=[];for(const d of snap.docs){const p=d.ref.path.split('/');if(p.length!==4||p[0]!=='empresas')continue;const x=d.data();if(filtro(x))out.push({...x,cnpj:p[1]});}return out;};
+    const solicitacoes=daEmpresa(sol,x=>x.competencia===competencia);
+    const controles=daEmpresa(ctl,x=>x.periodo===competencia||x.periodo===competencia.slice(0,4));
+    const movimentos={};mov.docs.forEach(d=>{movimentos[d.id]=Movimentacao.movimentoPublico(d.data(),hoje);});
+    const etapas=Painel.etapasEfetivas(cfg.exists?cfg.data():null);
+    const equipes=g.user.is_admin?(g.cfg.equipes||[]):(g.cfg.equipes||[]).filter(e=>e.lider_uid===g.user.uid);
+    const r=Painel.montarPainel({empresas,solicitacoes,controles,movimentos,etapas,equipes,hoje});
+    const formato=(req.query||{}).formato;
+    if(formato==='csv'){res.setHeader('Content-Type','text/csv; charset=utf-8');res.setHeader('Content-Disposition','attachment; filename="painel-gestor-'+competencia+'.csv"');return res.send(Painel.painelParaCsv(r));}
+    if(formato==='pdf'){
+      const {jsPDF}=require('jspdf'),pdf=new jsPDF({orientation:'landscape'});
+      const cab=['Empresa','CNPJ','Responsável',...r.etapas.map((e,i)=>(i+1)+' '+e.nome),'Situação','Última movimentação'];
+      const larg=[60,30,35,...r.etapas.map(()=>18),20,0];larg[larg.length-1]=Math.max(30,277-larg.slice(0,-1).reduce((a,b)=>a+b,0));
+      let y=14;pdf.setFontSize(12);pdf.text('Painel do gestor — CRM contábil · competência '+competencia.split('-').reverse().join('/'),10,y);y+=6;pdf.setFontSize(8);
+      pdf.text((g.user.is_admin?'Carteira inteira':'Equipe do líder')+' · '+r.linhas.length+' empresa(s) · '+r.fora_da_regra+' fora da regra (saída, baixa ou suspensa) · gerado em '+new Date(agora()).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),10,y);y+=6;
+      const linha=(cels,neg)=>{pdf.setFont('helvetica',neg?'bold':'normal');let x=10;cels.forEach((c,i)=>{pdf.text(String(c||'').slice(0,Math.floor(larg[i]/1.6)),x,y);x+=larg[i];});y+=5;if(y>200){pdf.addPage();y=14;}};
+      linha(cab,true);Painel.linhasParaTabela(r).forEach(l=>linha(l));
+      pdf.text('Cada etapa só fica "feito" com prova no CRM (solicitação enviada, documentos recebidos ou obrigação concluída). Sem dado = nenhuma obrigação registrada para a etapa.',10,Math.min(y+4,205));
+      res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition','attachment; filename="painel-gestor-'+competencia+'.pdf"');return res.send(Buffer.from(pdf.output('arraybuffer')));
+    }
+    res.json({ok:true,admin:g.user.is_admin,lido_em:agora(),hoje,competencia,tipos:Painel.TIPOS,catalogo:core.CATALOGO,equipes:equipes.map(e=>e.nome),...r});
+  }));
+  app.put('/api/crm/painel-gestor/etapas',wrap(async(req,res)=>{
+    const user=await usuario(req);if(!user.is_admin)throw core.erro('Só o administrador parametriza as etapas do painel.',403);
+    const etapas=Painel.configurarEtapas((req.body||{}).etapas),antes=await painelCfgRef.get(),quando=agora();
+    await painelCfgRef.set({etapas,atualizado_em:quando,atualizado_por:user.uid});
+    await painelCfgRef.collection('historico').doc().set({antes:antes.exists?antes.data():null,depois:etapas,quando,por_uid:user.uid});
+    res.json({ok:true,etapas});
   }));
   // Entrada leve: não consulta coleções de empresas nem controles.
   app.get('/api/crm/contexto', wrap(async(req,res)=>{
@@ -270,19 +314,22 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     const user = await usuario(req);
     // Consulta unificada: cadastro contábil prevalece sobre o dossiê importado.
     // A autorização usa o documento atual, nunca o nome do colaborador no Jotform.
-    const [snapshots, statusSnap] = await Promise.all([Promise.all(['crm_empresas','empresas'].map(c=>db.collection(c).get())), db.collection(Solicitacao.STATUS).get()]);
+    const [snapshots, statusSnap, movSnap] = await Promise.all([Promise.all(['crm_empresas','empresas'].map(c=>db.collection(c).get())), db.collection(Solicitacao.STATUS).get(), db.collection(Movimentacao.RESUMO).get()]);
     const mapa = new Map(); snapshots.forEach(s=>s.docs.forEach(d=>mapa.set(d.id,{doc:d,origem:s===snapshots[0]?'crm':'contabil'})));
     const filtros=filtrosCarteira(req.query);
     const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(agora()));
     // Última solicitação de documentos ao cliente: situação visível na carteira (v3.4.484).
     const solicitacoes = new Map(statusSnap.docs.map(d=>[d.id, SolicitacaoDocs.solicitacaoPublica(d.data(), hoje)]));
+    // Última movimentação do colaborador na empresa (v3.4.497).
+    const movimentos = new Map(movSnap.docs.map(d=>[d.id, Movimentacao.movimentoPublico(d.data(), hoje)]));
     const busca = normalizarBusca(filtros.busca), cursor = cursorId(req.query.cursor, /^\d{14}$/);
-    const acessiveis = [...mapa.values()].filter(v=>core.temCarteira(v.doc.data(),user)).map(v=>({...empresaPublica(v.doc,user,v.origem), solicitacao: solicitacoes.get(v.doc.id) || { situacao:'sem' }}));
+    const acessiveis = [...mapa.values()].filter(v=>core.temCarteira(v.doc.data(),user)).map(v=>({...empresaPublica(v.doc,user,v.origem), solicitacao: solicitacoes.get(v.doc.id) || { situacao:'sem' }, movimentacao: movimentos.get(v.doc.id) || Movimentacao.movimentoPublico(null, hoje)}));
     const equipes = [...new Map(acessiveis.flatMap(e=>e.responsaveis).map(p=>[p.uid,{uid:p.uid,nome:p.nome||p.uid}])).values()];
     const minha = e=>e.responsaveis.some(p=>p.uid===user.uid), minhaCarteira = acessiveis.filter(minha).length;
     const todas = acessiveis.filter(e=>(!filtros.origem || e.origem===filtros.origem)
       && (!filtros.cliente || e.situacao_cliente===filtros.cliente)
       && (!filtros.solicitacao || e.solicitacao.situacao===filtros.solicitacao)
+      && (!filtros.movimentacao || (filtros.movimentacao==='sem' ? e.movimentacao.tipo==='sem' : e.movimentacao.tipo==='sem' || e.movimentacao.dias>=Number(filtros.movimentacao)))
       && (!filtros.equipe || (filtros.equipe==='sem_equipe' ? !e.responsaveis.length : filtros.equipe===MINHA_CARTEIRA ? minha(e) : e.responsaveis.some(p=>p.uid===filtros.equipe))))
       .filter(e=>!busca || (/^\d+$/.test(busca)&&String(e.codigo_empresa||'').replace(/^0+(?=\d)/,'')===busca.replace(/^0+(?=\d)/,'')) || normalizarBusca([e.cnpj,e.razao_social,e.codigo_empresa].join(' ')).includes(busca)
         || (busca.replace(/\D/g,'').length>=8 && e.cnpj.includes(busca.replace(/\D/g,''))))
@@ -361,6 +408,13 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
     res.setHeader('Content-Disposition','attachment; filename="documento"');
     res.send(buffer);
   }));
+  // Linha do tempo da empresa: toda movimentação dos colaboradores (v3.4.497).
+  app.get(base+'/movimentos',wrap(async(req,res)=>{
+    const ctx=await contexto(req);
+    const snap=await ctx.controlesRef.collection(Movimentacao.LINHA).orderBy('quando','desc').limit(51).get();
+    const itens=snap.docs.slice(0,50).map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.quando).localeCompare(String(a.quando)));
+    res.json({ok:true,movimentos:itens,mostrando:itens.length,mais:snap.docs.length>50});
+  }));
   app.get(base+'/documentos-referencias',wrap(async(req,res)=>{
     const ctx=await contexto(req);let query=ctx.controlesRef.collection('crm_documentos').orderBy('__name__');
     const cursor=cursorId(req.query.cursor,/^[a-zA-Z0-9_-]{1,100}$/);if(cursor)query=query.startAfter(cursor);
@@ -369,13 +423,13 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
   }));
   app.post(base+'/documentos-referencias',wrap(async(req,res)=>{
     const result=await db.runTransaction(async tx=>{const ctx=await contexto(req,tx),d=documentoReferencia(null,req.body||{},ctx.user,agora()),ref=ctx.controlesRef.collection('crm_documentos').doc();
-      tx.create(ref,d);tx.create(ref.collection('historico').doc(),d);return {...d,id:ref.id};});res.status(201).json({ok:true,documento:result});
+      tx.create(ref,d);tx.create(ref.collection('historico').doc(),d);Movimentacao.gravar(db,tx,req.params.cnpj,Movimentacao.movimento({tipo:'documento',titulo:d.titulo,detalhe:d.categoria||'',user:ctx.user,quando:d.quando||agora()}));return {...d,id:ref.id};});res.status(201).json({ok:true,documento:result});
   }));
   app.put(base+'/documentos-referencias/:id',wrap(async(req,res)=>{
     if(!/^[a-zA-Z0-9_-]{1,100}$/.test(req.params.id||''))throw core.erro('Selecione um documento válido.');
     const result=await db.runTransaction(async tx=>{const ctx=await contexto(req,tx),ref=ctx.controlesRef.collection('crm_documentos').doc(req.params.id),doc=await tx.get(ref);
       if(!doc.exists)throw core.erro('Documento indisponível nesta empresa.',404);
-      const d=documentoReferencia(doc.data(),req.body||{},ctx.user,agora());tx.set(ref,d);tx.create(ref.collection('historico').doc(),d);return {...d,id:ref.id};});res.json({ok:true,documento:result});
+      const d=documentoReferencia(doc.data(),req.body||{},ctx.user,agora());tx.set(ref,d);tx.create(ref.collection('historico').doc(),d);Movimentacao.gravar(db,tx,req.params.cnpj,Movimentacao.movimento({tipo:'documento',titulo:d.titulo,detalhe:'Revisão '+(d.revisao||''),user:ctx.user,quando:d.quando||agora()}));return {...d,id:ref.id};});res.json({ok:true,documento:result});
   }));
   app.get(base+'/documentos-referencias/:id/historico',wrap(async(req,res)=>{
     if(!/^[a-zA-Z0-9_-]{1,100}$/.test(req.params.id||''))throw core.erro('Selecione um documento válido.');
@@ -565,6 +619,7 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
       if (anterior.exists) throw core.erro('Já existe este controle para o período. Abra o registro existente.', 409);
       tx.create(ref, novo.registro);
       tx.create(ref.collection('historico').doc(), { revisao: 1, acao: 'criacao', quando: novo.registro.criado_em, por_uid: ctx.user.uid, antes: null, depois: novo.registro });
+      Movimentacao.gravar(db, tx, req.params.cnpj, Movimentacao.movimentoDemanda(null, novo.registro, ctx.user, novo.registro.criado_em));
       return { id: novo.id, ...novo.registro };
     }); res.status(201).json({ ok: true, controle: result });
   }));
@@ -586,6 +641,7 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
       tx.set(ref, depois);
       tx.create(ref.collection('historico').doc(), { revisao: depois.revisao, acao: core.TERMINAIS.includes(antes.status) ? 'reabertura' : 'atualizacao',
         quando: depois.atualizado_em, por_uid: ctx.user.uid, antes, depois });
+      Movimentacao.gravar(db, tx, req.params.cnpj, Movimentacao.movimentoDemanda(antes, depois, ctx.user, depois.atualizado_em));
       return { id: doc.id, ...depois };
     }); res.json({ ok: true, controle: result });
   }));
