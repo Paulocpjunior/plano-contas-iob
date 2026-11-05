@@ -166,17 +166,42 @@
     return mapa;
   }
 
+  // Agrupa avisos iguais. Erro ligado a lançamento traz `resumo` (texto sem o
+  // nº) e `lancamento` (referência); o grupo guarda a lista completa para a
+  // tela mostrar Nº, data e histórico de cada ocorrência, não só a primeira.
   function resumirMensagens(itens, limite) {
     const grupos = new Map();
     (itens || []).forEach(function (item) {
       const mensagem = texto(item && item.mensagem);
       if (!mensagem) return;
-      const chave = texto(item.codigo) + '|' + mensagem.replace(/Lançamento\s+[^\s]+/i, 'Lançamento');
-      const atual = grupos.get(chave) || { codigo: item.codigo || '', mensagem, quantidade: 0 };
+      const resumo = texto(item.resumo) || mensagem.replace(/Lançamento\s+[^\s]+/i, 'Lançamento');
+      const chave = texto(item.codigo) + '|' + resumo;
+      const atual = grupos.get(chave) || { codigo: item.codigo || '', mensagem, resumo, quantidade: 0, lancamentos: [] };
       atual.quantidade += 1;
+      if (item.lancamento) atual.lancamentos.push(item.lancamento);
       grupos.set(chave, atual);
     });
     return Array.from(grupos.values()).slice(0, Math.max(1, Number(limite) || 12));
+  }
+
+  // Referência que o usuário reconhece: o Nº permanente da lista de
+  // lançamentos, a data e o histórico. O id interno só aparece se faltar o Nº.
+  function referenciaLancamento(lancamento, id) {
+    const numero = Number(lancamento && lancamento.numeroLancamento);
+    const iso = dataISO(lancamento && lancamento.data);
+    return {
+      id,
+      numero: Number.isInteger(numero) && numero > 0 ? numero : null,
+      data: iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '',
+      descricao: texto(lancamento && lancamento.descricao).replace(/\s+/g, ' ').slice(0, 80),
+      valor: deCentavos(Math.abs(centavos(lancamento && lancamento.valor))),
+      contaDebito: normalizarConta(lancamento && lancamento.contaDebito),
+      contaCredito: normalizarConta(lancamento && lancamento.contaCredito)
+    };
+  }
+
+  function rotuloLancamento(ref) {
+    return (ref.numero ? 'Lançamento nº ' + ref.numero : 'Lançamento sem nº (id ' + ref.id + ')') + (ref.data ? ' de ' + ref.data : '');
   }
 
   function lancamentosDoPeriodo(lancamentos, periodo) {
@@ -287,15 +312,17 @@
       const valor = Math.abs(centavos(lancamento.valor));
       const debito = normalizarConta(lancamento.contaDebito);
       const credito = normalizarConta(lancamento.contaCredito);
+      const ref = referenciaLancamento(lancamento, id);
+      const rotulo = rotuloLancamento(ref);
       if (ids.has(id)) avisos.push({ codigo: 'ID_DUPLICADO', id, mensagem: 'Identificador repetido: ' + id + '.' });
       ids.add(id);
-      if (!dataISO(lancamento.data)) erros.push({ codigo: 'DATA_INVALIDA', id, mensagem: 'Lançamento ' + id + ' sem data válida.' });
-      if (!valor) erros.push({ codigo: 'VALOR_ZERO', id, mensagem: 'Lançamento ' + id + ' possui valor zero.' });
-      if (!debito) erros.push({ codigo: 'DEBITO_AUSENTE', id, mensagem: 'Lançamento ' + id + ' sem conta de débito.' });
-      if (!credito) erros.push({ codigo: 'CREDITO_AUSENTE', id, mensagem: 'Lançamento ' + id + ' sem conta de crédito.' });
-      if (debito && credito && contaCanonica(debito, mapa) === contaCanonica(credito, mapa)) erros.push({ codigo: 'MESMA_CONTA', id, mensagem: 'Lançamento ' + id + ' usa a mesma conta no débito e no crédito.' });
-      if (mapa.size && debito && !resolverConta(debito, mapa)) erros.push({ codigo: 'DEBITO_FORA_PLANO', id, mensagem: 'Conta de débito ' + debito + ' não existe no plano ativo.' });
-      if (mapa.size && credito && !resolverConta(credito, mapa)) erros.push({ codigo: 'CREDITO_FORA_PLANO', id, mensagem: 'Conta de crédito ' + credito + ' não existe no plano ativo.' });
+      if (!dataISO(lancamento.data)) erros.push({ codigo: 'DATA_INVALIDA', id, lancamento: ref, resumo: 'Lançamento sem data válida.', mensagem: rotulo + ' sem data válida.' });
+      if (!valor) erros.push({ codigo: 'VALOR_ZERO', id, lancamento: ref, resumo: 'Lançamento possui valor zero.', mensagem: rotulo + ' possui valor zero.' });
+      if (!debito) erros.push({ codigo: 'DEBITO_AUSENTE', id, lancamento: ref, resumo: 'Lançamento sem conta de débito.', mensagem: rotulo + ' sem conta de débito.' });
+      if (!credito) erros.push({ codigo: 'CREDITO_AUSENTE', id, lancamento: ref, resumo: 'Lançamento sem conta de crédito.', mensagem: rotulo + ' sem conta de crédito.' });
+      if (debito && credito && contaCanonica(debito, mapa) === contaCanonica(credito, mapa)) erros.push({ codigo: 'MESMA_CONTA', id, lancamento: ref, resumo: 'Lançamento usa a mesma conta no débito e no crédito.', mensagem: rotulo + ' usa a mesma conta (' + debito + ') no débito e no crédito.' });
+      if (mapa.size && debito && !resolverConta(debito, mapa)) erros.push({ codigo: 'DEBITO_FORA_PLANO', id, lancamento: ref, mensagem: 'Conta de débito ' + debito + ' não existe no plano ativo.' });
+      if (mapa.size && credito && !resolverConta(credito, mapa)) erros.push({ codigo: 'CREDITO_FORA_PLANO', id, lancamento: ref, mensagem: 'Conta de crédito ' + credito + ' não existe no plano ativo.' });
       debitos += valor;
       creditos += valor;
     });
@@ -836,7 +863,7 @@
   }
 
   return {
-    dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao, complementoLancamento,
+    dinheiroNumero, centavos, dataISO, periodoDaData, periodoValido, intervaloValido, mapaContas, resumirMensagens, referenciaLancamento, rotuloLancamento, lancamentosDoPeriodo, lancamentosDoFiltro, rotuloFiltro, reduzidoExibicao, complementoLancamento,
     contaCanonica, contasForaDoPlano, lancamentosOperacionais, previaEncerramento, resumoBalancete, validar, balancete, ocultarContasSemMovimento, saldosAnteriores, balanceteAnual, razao, totaisRazao, diario, dre, balanco, analiseEconomica, snapshot, assinaturaPeriodo, hashTexto
   };
 });

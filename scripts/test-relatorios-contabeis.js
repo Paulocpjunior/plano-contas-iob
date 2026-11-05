@@ -185,6 +185,33 @@ const resumidos = core.resumirMensagens([
 assert.strictEqual(resumidos.length, 1);
 assert.strictEqual(resumidos[0].quantidade, 2);
 
+// Mesma conta no débito e no crédito: o alerta mostra o Nº da lista de
+// lançamentos (não o id interno) e lista TODAS as ocorrências do grupo.
+const mesmaConta = core.validar([
+  { id: '7491448c-a69c-449a-a530-37002a495a15', numeroLancamento: 3, data: '31/01/2026', descricao: '01/2026 Ocor.: 09860 - I.N.S.S.', valor: -849.19, contaDebito: '111', contaCredito: '111' },
+  { id: 'b2', numeroLancamento: 4, data: '31/01/2026', descricao: '01/2026 Ocor.: 09870 - I.R.R.F.', valor: -980.72, contaDebito: '111', contaCredito: '111' },
+  { id: 'b3', numeroLancamento: 9, data: '2026-01-15', descricao: 'OK', valor: 10, contaDebito: '111', contaCredito: '211' },
+  { id: 'b4', data: '20/01/2026', descricao: 'SEM NUMERO', valor: 5, contaDebito: '111', contaCredito: '111' }
+], '2026-01', contas);
+const errosMesma = mesmaConta.erros.filter(e => e.codigo === 'MESMA_CONTA');
+assert.strictEqual(errosMesma.length, 3);
+assert.strictEqual(errosMesma[0].mensagem, 'Lançamento nº 3 de 31/01/2026 usa a mesma conta (111) no débito e no crédito.');
+assert(!errosMesma[0].mensagem.includes('7491448c'), 'o id interno não pode aparecer quando há Nº');
+assert.strictEqual(errosMesma[2].mensagem, 'Lançamento sem nº (id b4) de 20/01/2026 usa a mesma conta (111) no débito e no crédito.');
+const grupoMesma = core.resumirMensagens(mesmaConta.erros).find(g => g.codigo === 'MESMA_CONTA');
+assert.strictEqual(grupoMesma.quantidade, 3);
+assert.strictEqual(grupoMesma.resumo, 'Lançamento usa a mesma conta no débito e no crédito.');
+assert.deepStrictEqual(grupoMesma.lancamentos.map(r => r.numero), [3, 4, null]);
+assert.deepStrictEqual(grupoMesma.lancamentos[0], { id: '7491448c-a69c-449a-a530-37002a495a15', numero: 3, data: '31/01/2026', descricao: '01/2026 Ocor.: 09860 - I.N.S.S.', valor: 849.19, contaDebito: '111', contaCredito: '111' });
+// Débito ausente agrupa por código mesmo com nº/data diferentes.
+const ausentes = core.validar([
+  { id: 'c1', numeroLancamento: 1, data: '01/01/2026', valor: 1, contaDebito: '', contaCredito: '211' },
+  { id: 'c2', numeroLancamento: 2, data: '02/01/2026', valor: 1, contaDebito: '', contaCredito: '211' }
+], '2026-01', contas);
+const grupoAusente = core.resumirMensagens(ausentes.erros).find(g => g.codigo === 'DEBITO_AUSENTE');
+assert.strictEqual(grupoAusente.quantidade, 2);
+assert.deepStrictEqual(grupoAusente.lancamentos.map(r => r.numero), [1, 2]);
+
 const snap1 = core.snapshot({ periodo: '2026-01', lancamentos, contas, saldosIniciais: { 111: 100 }, empresa: { cnpj: '1' } });
 const snap2 = core.snapshot({ periodo: '2026-01', lancamentos: lancamentos.slice().reverse(), contas, saldosIniciais: { 111: 100 }, empresa: { cnpj: '1' } });
 assert.strictEqual(snap1.hash, snap2.hash, 'snapshot deve ser determinístico');
