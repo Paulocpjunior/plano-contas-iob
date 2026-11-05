@@ -52,6 +52,20 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   n.dados.set('users/leitor', { email: 'leitor@fixture.test', permissoesCci: criarPermissoes('consulta') });
   n.dados.set('empresas/' + cnpj, { ...n.dados.get('empresas/' + cnpj), carteira_uids: [...n.dados.get('empresas/' + cnpj).carteira_uids, 'leitor'], responsaveis: [...n.dados.get('empresas/' + cnpj).responsaveis, { uid: 'leitor', papel: 'apoio' }] });
 
+  // Cópias automáticas (v3.4.495): lista do admin + líder da equipe de quem envia, em cópia oculta.
+  const S = require('../crm-solicitacao-documentos');
+  falha(() => S.configurarCopias({ emails: 'gestor@fixture.test; nao-e-email' }, 'admin', 'x'), /inválido/);
+  assert.deepEqual(S.copiasDoEnvio({ config: { emails: ['Gestor@fixture.test', 'colab@fixture.test'] }, lideres: ['lider@fixture.test', 'gestor@fixture.test'], remetente: 'colab@fixture.test', destinos: ['cliente@fixture-cliente.test'] }), ['gestor@fixture.test', 'lider@fixture.test']);
+  assert.deepEqual(S.copiasDoEnvio({ config: { emails: ['g@fixture.test'], lider_da_equipe: false }, lideres: ['lider@fixture.test'] }), ['g@fixture.test']);
+  assert.equal((await n.call('PUT', '/api/crm/solicitacoes/copias', { emails: 'gestor@fixture.test' }, 'colab')).statusCode, 403, 'só admin define as cópias');
+  const salvaCopias = await n.call('PUT', '/api/crm/solicitacoes/copias', { emails: 'Gestor@fixture.test; admin2@fixture.test', lider_da_equipe: true }, 'admin');
+  assert.equal(salvaCopias.statusCode, 200, JSON.stringify(salvaCopias.body));
+  assert.deepEqual((await n.call('GET', '/api/crm/solicitacoes/copias', {}, 'colab')).body.copias.emails, ['gestor@fixture.test', 'admin2@fixture.test']);
+  n.dados.set('crm_topologia/gestao', { equipes: [{ nome: 'Contábil A', lider_uid: 'leitor', membros: ['colab'] }] });
+  const prev = await n.call('POST', '/api/crm/empresas/:cnpj/solicitacoes/previa', { modelo: 'S01', canal: 'email', documentos: ['Extratos'], destino_tipo: 'cadastro', competencia: '2026-09', prazo: '2026-10-20' }, 'colab');
+  assert.equal(prev.statusCode, 200, JSON.stringify(prev.body));
+  assert.deepEqual(prev.body.previa.copias, ['gestor@fixture.test', 'admin2@fixture.test', 'leitor@fixture.test'], 'prévia mostra quem recebe a cópia');
+
   const pedido = { modelo: 'S01', canal: 'email', documentos: ['Extratos'], destino_tipo: 'cadastro', dia: 5, hora: '09:00', prazo_dias: 5 };
   assert.equal((await n.call('POST', '/api/crm/empresas/:cnpj/solicitacoes/recorrencias', pedido, 'leitor')).statusCode, 403, 'sem Emitir não programa');
   assert.equal((await n.call('POST', '/api/crm/empresas/:cnpj/solicitacoes/recorrencias', { ...pedido, canal: 'whatsapp' }, 'colab')).statusCode, 400);
@@ -79,9 +93,11 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   assert.equal(enviados.length, 1);
   assert.equal(enviados[0].remetente, 'colab@fixture.test');
   assert.deepEqual(enviados[0].para, ['cliente@fixture-cliente.test']);
+  assert.deepEqual(enviados[0].bcc, ['gestor@fixture.test', 'admin2@fixture.test', 'leitor@fixture.test'], 'envio mensal leva as cópias ocultas');
   const reg = n.dados.get('empresas/' + cnpj + '/crm_solicitacoes/' + id + '-2026-10');
   assert.equal(reg.estado, 'enviado');
   assert.equal(reg.origem, 'recorrencia');
+  assert.equal(reg.copias.length, 3, 'cópias registradas no histórico');
   assert.equal(reg.competencia, '2026-10');
   assert.equal(reg.prazo, '2026-11-10');
   assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj).situacao, 'aguardando', 'carteira mostra a solicitação automática');

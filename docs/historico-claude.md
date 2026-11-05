@@ -2455,3 +2455,7 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 ## 05/11/2026 — v3.4.494 Data impossível bloqueia a importação de extrato (Daxx 1183)
 
 Paulo viu "saldo anterior" R$ 12.164,00 D na 1.2.1.02.0001 / 161 da Daxx sem origem na composição nem no razão. Leitura do Firestore (gen-lang-client-0569062468, só leitura): lançamento nº 1413 com data 09/06/1900 = série 161 do Excel (o código da conta foi lido como data), lote Extrato Conciliado XLSX 07/2026; mais 3 com data 1900/1901 (nº 1341, 1524, 1606). Antes de 2026 não havia âncora, então `saldosAnteriores` somava o valor. Correção: `datas-extrato-plausiveis.js` (puro) bloqueia em `processFile` e na importação fiscal todo movimento com ano < 2000 ou > ano atual + 1, listando aba/linha (`linha_origem` nos dois leitores do Extrato Conciliado), data, valor e histórico; nada é gravado e não conta como layout rejeitado. Teste `scripts/test-datas-extrato-plausiveis.js`. Os 4 lançamentos da Daxx precisam de correção manual na tela (datas propostas na thread).
+
+## 05/11/2026 — v3.4.495 Solicitar documentos: cópias automáticas
+- Pedido do Paulo: líderes, gestores e admins recebem cópia dos envios sem depender de lembrar, no modelo do app Legalização (Ajustes → "Cópias automáticas dos alertas", BCC + gestor fixo).
+- `crm_solicitacao_config/copias` {emails, lider_da_equipe}; só admin edita (GET/PUT `/api/crm/solicitacoes/copias`, histórico). Cópia OCULTA no manual e no mensal + líder da equipe de quem envia (`crm_topologia/gestao`). Registro guarda `copias`; prévia mostra.
