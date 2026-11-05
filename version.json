@@ -1,7 +1,8 @@
 {
-  "version": "3.4.495",
-  "build_date": "2026-11-05T19:00:00Z",
+  "version": "3.4.496",
+  "build_date": "2026-11-05T20:00:00Z",
   "release_notes": [
+    "CRM → Solicitar documentos: o campo \"📬 Cópias automáticas (líderes, gestores e admins)\" agora aparece no próprio Solicitar documentos (abaixo de Ver prévia) e no editor de modelo, além da lista de modelos. O administrador digita os e-mails e salva ali mesmo; os colaboradores veem quem recebe a cópia.",
     "CRM → Solicitar documentos: cópias automáticas, no modelo do app Legalização. O administrador define em Automações do CRM → Modelos de solicitação → \"📬 Cópias automáticas das solicitações\" os e-mails de líderes, gestores e admins; todo e-mail ao cliente (manual ou mensal) vai com eles em cópia oculta, mais o líder da equipe de quem envia (Topologia do CRM). A prévia mostra quem recebe a cópia e o histórico registra. WhatsApp não tem cópia.",
     "Importar extrato → planilha com número pequeno na coluna DATA (ex.: o código da conta 161 digitado no lugar da data) virava lançamento em 1900 e aparecia como \"saldo anterior\" sem origem nos relatórios. Agora a importação é bloqueada antes de gravar, listando aba, linha, data lida, valor e histórico de cada movimento com data impossível (antes de 2000 ou mais de um ano à frente) para corrigir a planilha e importar de novo.",
     "Relatórios contábeis → alerta de validação: lançamento com a mesma conta no débito e no crédito (e sem conta de débito/crédito, sem data, valor zero ou conta fora do plano) passa a ser identificado pelo Nº da lista de lançamentos, com data, valor, histórico e contas, em vez do código interno do sistema. Quando há várias ocorrências, todas são listadas (até 20, com \"mostrando X de N\"), cada uma com o atalho \"abrir na lista\", que filtra a lista de lançamentos pelo Nº.",

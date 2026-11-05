@@ -145,5 +145,6 @@ const falha = (fn, re) => assert.throws(fn, e => re.test(e.message), 'esperava e
   assert(server.includes('criarRecorrencias({db})') && server.includes('solicitacoesRecorrentes.rodar()'), 'execução ligada ao agendador interno');
   const ui = fs.readFileSync(path.join(__dirname, '..', 'crm-solicitacao-ui.js'), 'utf8');
   assert(ui.includes('data-programar') && ui.includes('data-rec-acao'), 'programar, pausar e excluir no Solicitar documentos');
+  assert(ui.includes('data-copias-sol') && ui.includes('data-copias-editor') && ui.includes('data-copias-lista'), 'campo das cópias no Solicitar documentos, no editor e na lista de modelos');
   console.log('✓ solicitação recorrente: agenda mensal, execução única, pausa, falhas registradas');
 })().catch(e => { console.error(e); process.exit(1); });

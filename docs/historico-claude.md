@@ -2459,3 +2459,7 @@ Paulo viu "saldo anterior" R$ 12.164,00 D na 1.2.1.02.0001 / 161 da Daxx sem ori
 ## 05/11/2026 — v3.4.495 Solicitar documentos: cópias automáticas
 - Pedido do Paulo: líderes, gestores e admins recebem cópia dos envios sem depender de lembrar, no modelo do app Legalização (Ajustes → "Cópias automáticas dos alertas", BCC + gestor fixo).
 - `crm_solicitacao_config/copias` {emails, lider_da_equipe}; só admin edita (GET/PUT `/api/crm/solicitacoes/copias`, histórico). Cópia OCULTA no manual e no mensal + líder da equipe de quem envia (`crm_topologia/gestao`). Registro guarda `copias`; prévia mostra.
+
+## 05/11/2026 — v3.4.496 Cópias automáticas: campo visível onde o admin usa
+- Paulo não achou o campo da 3.4.495: ele só aparecia na lista de modelos, e o "Editar este modelo" do Solicitar documentos abre direto o editor. O print dele era do editor e do painel Templates e agendamentos (outro sistema).
+- O cartão `montarCopias` passa a aparecer no Solicitar documentos (abaixo de Ver prévia), no editor e na lista.
