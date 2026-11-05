@@ -132,3 +132,25 @@ saídasRazao.renderRazao(amostraRazao);
 assert(elementosRazao.rcBody.innerHTML.includes('TOTAL DO RAZÃO'));
 assert(elementosRazao.rcBody.innerHTML.includes('100,10'));
 console.log('OK: totais do razão na tela, PDF e Excel');
+
+// Alerta de validação lista cada lançamento pelo Nº da lista, com atalho.
+{
+  const vm = require('vm');
+  const ctxAviso = {};
+  vm.createContext(ctxAviso);
+  const trechoEsc = ui.slice(ui.indexOf('  function esc(valor)'), ui.indexOf('  function moedaPDF('));
+  const trechoAviso = ui.slice(ui.indexOf('  const LIMITE_LANCAMENTOS_AVISO'), ui.indexOf('  function abrirLancamentoNaLista('));
+  vm.runInContext(trechoEsc + trechoAviso + ';this.htmlMensagemValidacao = htmlMensagemValidacao;', ctxAviso);
+  const refs = Array.from({ length: 22 }, (_, i) => ({ id: 'id' + i, numero: i + 1, data: '31/01/2026', descricao: 'I.N.S.S. <x>', valor: 849.19, contaDebito: '367', contaCredito: '367' }));
+  const html = ctxAviso.htmlMensagemValidacao({ codigo: 'MESMA_CONTA', mensagem: 'Lançamento nº 1 de 31/01/2026 usa a mesma conta (367) no débito e no crédito.', resumo: 'Lançamento usa a mesma conta no débito e no crédito.', quantidade: 22, lancamentos: refs });
+  assert(html.includes('Lançamento usa a mesma conta no débito e no crédito. <strong>(22 ocorrências)</strong>'), 'grupo deve mostrar o resumo e a quantidade');
+  assert(html.includes('<strong>nº 1</strong> · 31/01/2026 · R$ 849,19 · I.N.S.S. &lt;x&gt; · D 367 / C 367'), 'cada lançamento sai com Nº, data, valor, histórico e contas');
+  assert(html.includes('data-rc-abrir-lancamento="20"') && !html.includes('data-rc-abrir-lancamento="21"'), 'lista cortada em 20');
+  assert(html.includes('mostrando 20 de 22 lançamentos'), 'lista cortada precisa dizer "mostrando X de N"');
+  assert(!html.includes('id0'), 'id interno não aparece quando há Nº');
+  const semNumero = ctxAviso.htmlMensagemValidacao({ codigo: 'MESMA_CONTA', mensagem: 'x', resumo: 'y', quantidade: 1, lancamentos: [{ id: 'abc', numero: null, data: '', valor: 1 }] });
+  assert(semNumero.includes('sem nº') && semNumero.includes('(id abc)') && !semNumero.includes('abrir na lista'), 'sem Nº mostra o id e não oferece atalho');
+  assert(ui.includes("closest('[data-rc-abrir-lancamento]')") && ui.includes("getElementById('filterNumeroLancamento')"), 'atalho deve filtrar a lista pelo Nº');
+  assert(index.includes('id="filterNumeroLancamento"'), 'filtro Nº da lista de lançamentos ausente');
+  console.log('OK: alerta de validação mostra Nº, data e histórico de cada lançamento');
+}

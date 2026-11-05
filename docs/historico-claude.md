@@ -2445,3 +2445,9 @@ Auditoria do checklist da Legalização (Paulo: "Você não relaciona o consulto
 - `crm-checklist.js`: `EVENTOS` não tinha `CLIENTE ATIVO` nem `CLIENTE PARALISADO` (opções da lista do app Legalização), e toda empresa ativa virava "Status não reconhecido". Agora ATIVO = tipo `ativo` (sem pendência, sem aplicação) e PARALISADO = `suspensao`. Status em branco ou fora da lista diz onde corrigir.
 - `servicosContratados` (lido e ignorado até aqui) entra na prévia como `servicos_contratados`/`contabilidade_contratada`. É `null` quando o texto não traz serviço conhecido (não se chuta). Entrada sem Contabilidade ganha alerta e `cadastro_disponivel` falso.
 - `crm-contabil-ui.js`: a coluna Evento mostra rótulo, tributação e serviços; novo filtro Evento ("Só movimentações"); sem "Revisar aplicação" para cliente ativo. Trava: `scripts/test-crm-checklist.js`.
+
+## 05/11/2026 — v3.4.493 Alerta de validação dos relatórios com o Nº do lançamento
+
+- Paulo (Técnica Denardo, 701): o alerta "Lançamento <uuid> usa a mesma conta no débito e no crédito. (4 ocorrências)" mostrava o id interno e só o PRIMEIRO lançamento: `resumirMensagens` agrupava tirando o id e guardava só a primeira mensagem. As "4 ocorrências" eram 4 lançamentos distintos.
+- `relatorios-contabeis.js`: `referenciaLancamento`/`rotuloLancamento` (Nº permanente `numeroLancamento`, data, valor, histórico, contas); erros por lançamento levam `lancamento` e `resumo`; o grupo acumula `lancamentos`. Id interno só aparece quando falta o Nº.
+- `relatorios-contabeis-ui.js`: `htmlMensagemValidacao` lista até 20 ("mostrando X de N") com "abrir na lista" (preenche `filterNumeroLancamento` e abre Lançamentos). Travas em `test-relatorios-contabeis.js` e `test-relatorios-contabeis-integracao.js`.

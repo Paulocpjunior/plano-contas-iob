@@ -1,7 +1,8 @@
 {
-  "version": "3.4.492",
-  "build_date": "2026-11-04T23:00:00Z",
+  "version": "3.4.493",
+  "build_date": "2026-11-05T16:30:00Z",
   "release_notes": [
+    "Relatórios contábeis → alerta de validação: lançamento com a mesma conta no débito e no crédito (e sem conta de débito/crédito, sem data, valor zero ou conta fora do plano) passa a ser identificado pelo Nº da lista de lançamentos, com data, valor, histórico e contas, em vez do código interno do sistema. Quando há várias ocorrências, todas são listadas (até 20, com \"mostrando X de N\"), cada uma com o atalho \"abrir na lista\", que filtra a lista de lançamentos pelo Nº.",
     "CRM → Conferir Checklist: \"Cliente ativo\" deixa de virar pendência (é situação, sem nada a aplicar) e \"Cliente paralisado\" segue a suspensão. A coluna Evento mostra tributação e serviços contratados; entrada sem Contabilidade contratada ganha alerta e não oferece \"Cadastrar na carteira\". Novo filtro Evento (\"Só movimentações\").",
     "Conciliação de provisões e pagamentos → novo botão \"📊 Composição de saldo em aberto\": depois de consultar a conta, mostra as notas pagas no mês e as que ficaram em aberto (inclusive de meses anteriores), direto dos lançamentos do CCI, no critério do antigo relatório do razão do SAGE (nº da nota, CNPJ e fornecedor; pagamento + retenções fecham o bruto). Compensações da Conciliação vinculam nota e baixa sem adivinhação. Mostra a composição do saldo contábil (notas abertas, saldo inicial sem detalhe e baixas sem nota vinculada) e exporta PDF e planilha Excel com a aba \"Em aberto\" para o cliente. Conta do Passivo: créditos são as notas; do Ativo: débitos são os títulos.",
     "CRM → Avisos da Legalização: os avisos do checklist (empresa entrou, saiu, serviços mudaram) também vêm direto do app Legalização, sem passar pelo CFI. Nada muda na tela.",
