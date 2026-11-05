@@ -112,7 +112,7 @@
     let painel = null; const f = { colab: '', etapa: '', equipe: '', busca: '', abertas: true };
     alvo.innerHTML = '<div class="crm-card cci-pg"><div class="cci-pg-topo"><div><h3>📊 Painel do gestor</h3><p class="crm-muted" data-pg-sub>Cada etapa só fica verde com prova no CRM.</p></div>'
       + '<div class="cci-pg-acoes"><select data-pg-comp aria-label="Competência">' + meses.map(m => '<option value="' + m + '">' + fmt(m) + '</option>').join('') + '</select>'
-      + '<button type="button" data-pg-atualizar>↻ Atualizar</button><button type="button" data-pg-baixar="csv">⬇ CSV</button><button type="button" data-pg-baixar="pdf">⬇ PDF</button><button type="button" data-pg-etapas hidden>⚙️ Etapas do painel</button></div></div>'
+      + '<button type="button" data-pg-atualizar>↻ Atualizar</button><button type="button" data-pg-baixar="csv">⬇ CSV</button><button type="button" data-pg-baixar="pdf">⬇ PDF</button><button type="button" data-pg-etapas hidden>⚙️ Etapas do painel</button><button type="button" data-pg-historico hidden title="Grava na linha do tempo e na carteira as ações registradas antes da 3.4.497">🕘 Trazer histórico anterior</button></div></div>'
       + '<div data-pg-editor></div><div data-pg-placar class="crm-scroll"></div></div>'
       + '<div class="crm-bar cci-pg-filtros"><select data-pg-equipe aria-label="Equipe"></select><select data-pg-colab aria-label="Responsável"></select><select data-pg-etapa aria-label="Parada em"></select>'
       + '<input data-pg-busca placeholder="Buscar empresa ou CNPJ"><label><input type="checkbox" data-pg-abertas checked> esconder fechadas</label></div>'
@@ -126,17 +126,18 @@
       const et = painel.etapas;
       const placar = painel.placar.filter(p => !f.equipe || (f.equipe === '__sem' ? !p.equipe : p.equipe === f.equipe));
       q('[data-pg-placar]').innerHTML = placar.length ? '<table class="cci-pg-placar"><thead><tr><th>Responsável</th><th>Empresas</th><th>Fechadas</th><th>Ressalva</th><th>Pendentes</th>'
-        + et.map((e, i) => '<th title="Paradas em ' + esc(e.nome) + '">' + (i + 1) + '</th>').join('') + '<th title="Sem movimentação há 15 dias ou mais">Parada 15d+</th></tr></thead><tbody>'
+        + et.map((e, i) => '<th title="Paradas em ' + esc(e.nome) + '">' + (i + 1) + '</th>').join('') + '<th title="Sem movimentação há 15 dias ou mais">Parada 15d+</th><th title="Obrigações e demandas em aberto na carteira, todos os períodos">Em aberto</th><th>Atrasadas</th><th title="Em aberto sem prazo definido">Sem prazo</th></tr></thead><tbody>'
         + placar.map(p => '<tr data-pg-linha="' + esc(p.uid) + '"' + (f.colab === p.uid ? ' aria-selected="true"' : '') + (p.uid === '__sem_responsavel' ? ' data-alerta' : '') + '><td>' + esc(p.nome) + (p.equipe ? ' <span class="crm-muted">· ' + esc(p.equipe) + '</span>' : '') + '</td><td><b>' + p.total + '</b></td><td>' + p.fechadas + '</td><td>' + p.ressalva + '</td><td>' + p.pendentes + '</td>'
-          + et.map(e => '<td>' + (p.paradas_em[e.id] || '') + '</td>').join('') + '<td>' + (p.sem_movimento_15 || '') + '</td></tr>').join('')
+          + et.map(e => '<td>' + (p.paradas_em[e.id] || '') + '</td>').join('') + '<td>' + (p.sem_movimento_15 || '') + '</td><td>' + (p.obrigacoes_abertas || '') + '</td><td' + (p.atrasadas ? ' data-alerta' : '') + '>' + (p.atrasadas || '') + '</td><td>' + (p.sem_prazo || '') + '</td></tr>').join('')
         + '</tbody></table><p class="crm-muted cci-pg-nota">As colunas ' + et.map((e, i) => (i + 1) + ' = ' + esc(e.nome)).join(', ') + ' contam as empresas paradas em cada etapa (o próximo passo delas). Clique numa linha para filtrar.</p>'
         : '<p class="crm-muted">Nenhuma empresa ativa na carteira que você acompanha.</p>';
       q('[data-pg-placar]').querySelectorAll('[data-pg-linha]').forEach(tr => { tr.onclick = () => { f.colab = f.colab === tr.dataset.pgLinha ? '' : tr.dataset.pgLinha; q('[data-pg-colab]').value = f.colab; render(); }; });
       const v = visiveis();
       q('[data-pg-resumo]').textContent = 'Mostrando ' + v.length + ' de ' + painel.linhas.length + ' empresa(s)' + (f.abertas ? ' · sem as fechadas' : '') + ' · ' + painel.fora_da_regra + ' fora da regra (saída, baixa ou suspensa).';
-      q('[data-pg-matriz]').innerHTML = '<table class="cci-pg-matriz"><thead><tr><th>Empresa</th><th>Responsável</th>' + et.map((e, i) => '<th>' + (i + 1) + ' ' + esc(e.nome) + '</th>').join('') + '<th>Última movimentação</th><th>Situação</th></tr></thead><tbody>'
-        + v.slice(0, 500).map(l => '<tr><td><b>' + esc(l.nome) + '</b><br><small class="crm-muted">' + esc(l.codigo ? l.codigo + ' · ' : '') + esc(l.cnpj) + '</small></td><td' + (l.responsavel_uid === '__sem_responsavel' ? ' data-alerta' : '') + '>' + esc(l.responsavel_nome) + (l.apoio.length ? '<br><small class="crm-muted">(apoio ' + esc(l.apoio.join(', ')) + ')</small>' : '') + '</td>'
+      q('[data-pg-matriz]').innerHTML = '<table class="cci-pg-matriz"><thead><tr><th>Empresa</th><th>Responsável</th>' + et.map((e, i) => '<th>' + (i + 1) + ' ' + esc(e.nome) + '</th>').join('') + '<th title="Obrigações e demandas em aberto, todos os períodos">Obrigações</th><th>Última movimentação</th><th>Situação</th></tr></thead><tbody>'
+        + v.slice(0, 500).map(l => '<tr><td><b>' + esc(l.nome) + '</b><br><small class="crm-muted">' + esc(l.codigo ? l.codigo + ' · ' : '') + esc(l.cnpj) + (l.regime ? ' · ' + esc(l.regime) : '') + '</small></td><td' + (l.responsavel_uid === '__sem_responsavel' ? ' data-alerta' : '') + '>' + esc(l.responsavel_nome) + (l.apoio.length ? '<br><small class="crm-muted">(apoio ' + esc(l.apoio.join(', ')) + ')</small>' : '') + '</td>'
           + et.map(e => '<td class="cci-pg-cel"><span class="cci-pg-bola" data-st="' + l.etapas[e.id] + '" title="' + esc(e.nome + ': ' + NOME[l.etapas[e.id]]) + '">' + ICONE[l.etapas[e.id]] + '</span></td>').join('')
+          + '<td>' + (l.obrigacoes && l.obrigacoes.abertas ? l.obrigacoes.abertas + ' em aberto' + (l.obrigacoes.atrasadas ? '<br><small data-alerta>' + l.obrigacoes.atrasadas + ' atrasada(s)</small>' : '') : '<span class="crm-muted">—</span>') + '</td>'
           + '<td>' + quando(l.movimentacao) + '</td><td><b class="cci-pg-sit" data-sit="' + l.situacao + '">' + SIT[l.situacao] + '</b></td></tr>').join('') + '</tbody></table>'
         + (v.length > 500 ? '<p class="crm-muted">Mostrando 500 de ' + v.length + '. Use os filtros ou baixe o CSV para a lista completa.</p>' : '');
     }
@@ -151,6 +152,7 @@
       painel = await api('/api/crm/painel-gestor?competencia=' + comp());
       q('[data-pg-sub]').textContent = 'Cada etapa só fica verde com prova no CRM: solicitação enviada, documentos recebidos ou obrigação concluída. Lido às ' + new Date(painel.lido_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.';
       q('[data-pg-etapas]').hidden = !painel.admin;
+      q('[data-pg-historico]').hidden = !painel.admin;
       preencherFiltros(); render();
     }
     function editorEtapas() {
@@ -175,6 +177,12 @@
     q('[data-pg-comp]').onchange = () => executar(carregar);
     q('[data-pg-atualizar]').onclick = () => executar(carregar);
     q('[data-pg-etapas]').onclick = editorEtapas;
+    q('[data-pg-historico]').onclick = () => executar(async () => {
+      if (!confirm('Gravar na linha do tempo de cada empresa as solicitações, demandas e documentos registrados antes da 3.4.497? Repetir não duplica.')) return;
+      const r = await api('/api/crm/painel-gestor/recuperar-historico', {}, 'POST');
+      await carregar();
+      mensagem('🕘 Histórico trazido: ' + r.linhas + ' movimentação(ões) em ' + r.empresas + ' empresa(s); ' + r.resumos + ' empresa(s) com a última movimentação atualizada na carteira.');
+    });
     q('[data-pg-equipe]').onchange = e => { f.equipe = e.target.value; render(); };
     q('[data-pg-colab]').onchange = e => { f.colab = e.target.value; render(); };
     q('[data-pg-etapa]').onchange = e => { f.etapa = e.target.value; render(); };

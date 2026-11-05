@@ -19,6 +19,23 @@ const { ambiente } = require('./test-crm-contabil-routes');
   assert.equal(fim.detalhe, 'Em andamento → Concluída');
   assert.equal(M.movimentoPublico({ ...m, quando: '2026-10-20T15:00:00.000Z' }, '2026-11-05').dias, 16);
   assert.equal(M.movimentoPublico(null, '2026-11-05').tipo, 'sem');
+  // Histórico anterior à 3.4.497, lido dos próprios registros.
+  const nomes = new Map([['ana', { nome: 'Ana Souza', email: 'ana@x.test' }]]);
+  const h = M.movimentosDoHistorico({
+    nomes,
+    solicitacoes: [{ id: 's1', cnpj: '1', estado: 'enviado', quando: '2026-10-01T12:00:00Z', autor_uid: 'ana', autor_email: 'ana@x.test', modelo_nome: 'Lucros', competencia: '2026-09', recebida_em: '2026-10-03T12:00:00Z', recebida_por: 'ana' },
+      { id: 's2', cnpj: '1', estado: 'enviando', quando: '2026-10-02T12:00:00Z' }],
+    controles: [{ id: 'c1', cnpj: '1', titulo: 'DCTFWeb', status: 'concluida', criado_em: '2026-10-01T10:00:00Z', criado_por_uid: 'ana', atualizado_em: '2026-10-04T10:00:00Z', atualizado_por_uid: 'ana' },
+      { id: 'c2', cnpj: '2', titulo: 'Sem data', status: 'pendente' }],
+    documentos: [{ id: 'd1', cnpj: '2', titulo: 'Contrato', quando: '2026-09-01T12:00:00Z', por_uid: 'x' }]
+  });
+  assert.deepEqual(h['1'].map(x => x.tipo), ['demanda_concluida', 'solicitacao_recebida', 'solicitacao_enviada', 'demanda_criada'], 'mais recente primeiro; estado intermediário não conta');
+  assert.equal(h['1'][0].por_nome, 'Ana Souza');
+  assert.equal(h['1'][0].origem, 'historico');
+  assert.deepEqual(h['2'].map(x => x.id_linha), ['h_doc_d1'], 'registro sem data não vira movimentação');
+  assert(!h['1'].some(x => Object.values(x).some(v => v === undefined)), 'sem undefined (Firestore)');
+  assert.equal(M.maisRecente({ quando: '2026-10-01T00:00:00Z', tipo: 'a' }, { quando: '2026-10-02T00:00:00Z', tipo: 'b' }).tipo, 'b');
+  assert.equal(M.maisRecente(null, undefined), null);
 }
 
 // ── Rotas ───────────────────────────────────────────────────────────────────

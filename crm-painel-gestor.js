@@ -98,9 +98,15 @@ function responsavelDe(e) {
  * empresas: empresaPublica[] · solicitacoes/controles: [{cnpj, ...}] da competência
  * movimentos: {cnpj: movimentoPublico} · equipes: [{nome, membros:[uid]}]
  */
-function montarPainel({ empresas = [], solicitacoes = [], controles = [], movimentos = {}, etapas = ETAPAS_PADRAO, equipes = [], hoje }) {
+/** Obrigações/demandas da carteira em todos os períodos (o que a Topologia já mostrava). */
+function resumoObrigacoes(lista, hoje) {
+  const abertas = lista.filter(c => !TERMINAIS.has(c.status));
+  return { abertas: abertas.length, atrasadas: abertas.filter(c => c.prazo && c.prazo < hoje).length, sem_prazo: abertas.filter(c => !c.prazo).length };
+}
+
+function montarPainel({ empresas = [], solicitacoes = [], controles = [], obrigacoes = [], movimentos = {}, etapas = ETAPAS_PADRAO, equipes = [], hoje }) {
   const agrupar = lista => lista.reduce((m, x) => { (m[x.cnpj] = m[x.cnpj] || []).push(x); return m; }, {});
-  const sol = agrupar(solicitacoes), ctl = agrupar(controles);
+  const sol = agrupar(solicitacoes), ctl = agrupar(controles), obr = agrupar(obrigacoes);
   const equipeDe = uid => (equipes.find(e => (e.membros || []).includes(uid) || e.lider_uid === uid) || {}).nome || '';
   let foraDaRegra = 0;
   const linhas = [];
@@ -121,6 +127,8 @@ function montarPainel({ empresas = [], solicitacoes = [], controles = [], movime
       etapas: status,
       parada_em: parada ? parada.id : null,
       situacao: situacaoLinha(status),
+      regime: emp.regime || '',
+      obrigacoes: resumoObrigacoes(obr[emp.cnpj] || [], hoje),
       movimentacao: movimentos[emp.cnpj] || { tipo: 'sem', dias: null }
     });
   }
@@ -131,12 +139,13 @@ function montarPainel({ empresas = [], solicitacoes = [], controles = [], movime
 function placarPorColaborador(linhas, etapas) {
   const m = new Map();
   for (const l of linhas) {
-    if (!m.has(l.responsavel_uid)) m.set(l.responsavel_uid, { uid: l.responsavel_uid, nome: l.responsavel_nome, equipe: l.equipe, total: 0, fechadas: 0, ressalva: 0, pendentes: 0, paradas_em: Object.fromEntries(etapas.map(e => [e.id, 0])), sem_movimento_15: 0 });
+    if (!m.has(l.responsavel_uid)) m.set(l.responsavel_uid, { uid: l.responsavel_uid, nome: l.responsavel_nome, equipe: l.equipe, total: 0, fechadas: 0, ressalva: 0, pendentes: 0, paradas_em: Object.fromEntries(etapas.map(e => [e.id, 0])), sem_movimento_15: 0, obrigacoes_abertas: 0, atrasadas: 0, sem_prazo: 0 });
     const p = m.get(l.responsavel_uid);
     p.total++;
     if (l.situacao === 'fechada') p.fechadas++; else if (l.situacao === 'ressalva') p.ressalva++; else p.pendentes++;
     if (l.parada_em) p.paradas_em[l.parada_em]++;
     if (l.movimentacao.tipo === 'sem' || l.movimentacao.dias >= 15) p.sem_movimento_15++;
+    if (l.obrigacoes) { p.obrigacoes_abertas += l.obrigacoes.abertas; p.atrasadas += l.obrigacoes.atrasadas; p.sem_prazo += l.obrigacoes.sem_prazo; }
   }
   return [...m.values()].sort((a, b) => (a.uid === SEM_RESPONSAVEL ? -1 : b.uid === SEM_RESPONSAVEL ? 1 : b.total - a.total || a.nome.localeCompare(b.nome)));
 }
@@ -150,13 +159,13 @@ function movimentoTexto(m) {
 }
 
 function linhasParaTabela(r) {
-  return r.linhas.map(l => [l.nome + (l.codigo ? ' (' + l.codigo + ')' : ''), l.cnpj, l.responsavel_nome, ...r.etapas.map(e => ROTULO[l.etapas[e.id]]), SITUACAO[l.situacao], movimentoTexto(l.movimentacao)]);
+  return r.linhas.map(l => [l.nome + (l.codigo ? ' (' + l.codigo + ')' : ''), l.cnpj, l.responsavel_nome, ...r.etapas.map(e => ROTULO[l.etapas[e.id]]), SITUACAO[l.situacao], l.obrigacoes ? l.obrigacoes.abertas : '', l.obrigacoes ? l.obrigacoes.atrasadas : '', movimentoTexto(l.movimentacao)]);
 }
 
 function painelParaCsv(r) {
   const cel = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const cab = ['Empresa', 'CNPJ', 'Responsável', ...r.etapas.map((e, i) => (i + 1) + ' ' + e.nome), 'Situação', 'Última movimentação'];
+  const cab = ['Empresa', 'CNPJ', 'Responsável', ...r.etapas.map((e, i) => (i + 1) + ' ' + e.nome), 'Situação', 'Obrigações em aberto', 'Atrasadas', 'Última movimentação'];
   return '﻿' + [cab, ...linhasParaTabela(r)].map(l => l.map(cel).join(';')).join('\r\n') + '\r\n';
 }
 
-module.exports = { TIPOS, MAX_ETAPAS, SEM_RESPONSAVEL, ETAPAS_PADRAO, ROTULO, SITUACAO, configurarEtapas, etapasEfetivas, statusEtapa, montarPainel, placarPorColaborador, linhasParaTabela, painelParaCsv };
+module.exports = { TIPOS, MAX_ETAPAS, SEM_RESPONSAVEL, ETAPAS_PADRAO, ROTULO, SITUACAO, configurarEtapas, etapasEfetivas, statusEtapa, resumoObrigacoes, montarPainel, placarPorColaborador, linhasParaTabela, painelParaCsv };

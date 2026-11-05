@@ -2470,3 +2470,9 @@ Paulo viu "saldo anterior" R$ 12.164,00 D na 1.2.1.02.0001 / 161 da Daxx sem ori
 - `GET /api/crm/painel-gestor?competencia=AAAA-MM[&formato=csv|pdf]` (admin ou líder; líder só a equipe), `PUT /api/crm/painel-gestor/etapas` (só admin, config `crm_painel_gestor/config` + histórico). Lê collectionGroup `crm_solicitacoes` e `crm_controles` (teto 20 mil). Saída/baixada/suspensa fora da regra.
 - Área "📊 Painel do gestor" no menu do CRM (substituiu o rascunho "Envios ao cliente", não publicado).
 - Mesma versão, regra do Paulo: toda movimentação do colaborador evidenciada no status da empresa. `crm-movimentacao.js`: resumo `crm_movimentacao/{cnpj}` + linha do tempo `empresas/{cnpj}/crm_movimentos`; gravado em controles (POST/PATCH), documentos-referencias, solicitação (enviar/WhatsApp/falha/recebida), recorrências (programar/pausar/retomar/excluir/execução). Carteira: coluna + filtro `movimentacao` (sem|7|15|30); dossiê → Histórico; o Painel do gestor mostra a última movimentação. Não cobre ações anteriores à 3.4.497 nem checklist/planejamento/equipe (ações de admin).
+
+## 05/11/2026 — v3.4.498 Painel do gestor com o histórico que o CRM já tinha
+- Paulo: o painel copiou o layout do CFI mas não trouxe as informações que o CCI já tinha.
+- `Movimentacao.movimentosDoHistorico` deriva movimentos dos registros existentes (crm_solicitacoes: quando/autor, recebida_em; crm_controles: criado_em/atualizado_em + uid; crm_documentos: quando/por_uid), nomes de `users`. Painel usa o mais recente entre resumo e histórico.
+- Placar com obrigações em aberto/atrasadas/sem prazo de todos os períodos (mesma conta da Topologia); matriz com regime e obrigações; CSV/PDF.
+- `POST /api/crm/painel-gestor/recuperar-historico` (só admin): grava linhas `h_<tipo>_<id>` em `empresas/{cnpj}/crm_movimentos` e o resumo quando mais recente; idempotente.
