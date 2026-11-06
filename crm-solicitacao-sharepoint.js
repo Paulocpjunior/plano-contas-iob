@@ -20,13 +20,31 @@ function cnpjDoNome(nome) {
   return null;
 }
 
+function decodificar(t) { try { return decodeURIComponent(t); } catch { return t; } }
+
+/**
+ * Caminho dentro da biblioteca. O Graph escreve a raiz de dois jeitos:
+ * "/drive/root:" (item raiz, sem parentReference.path) e "/drives/{id}/root:".
+ * Quando a pasta configurada é a própria biblioteca (v3.4.502, caso Clientes SP),
+ * os dois lados precisam do mesmo formato, senão nenhum arquivo casa.
+ */
+function relativoDaBiblioteca(caminho) {
+  const c = String(caminho || '');
+  const m = c.match(/^\/drives?\/(?:[^/]+\/)?root:/i);
+  if (!m) return null;
+  return decodificar(c.slice(m[0].length)).replace(/\/+$/, '').replace(/^\/*/, '/');
+}
+
 /** Primeira pasta abaixo da raiz configurada (a pasta da empresa). */
 function pastaDaEmpresa(caminhoPai, raiz) {
-  const p = String(caminhoPai || ''), r = String(raiz || '').replace(/\/+$/, '');
-  if (!r || (p !== r && !p.startsWith(r + '/'))) return null;
-  const resto = p.slice(r.length).replace(/^\/+/, '');
+  if (!raiz) return null;
+  const p = relativoDaBiblioteca(caminhoPai), r = relativoDaBiblioteca(raiz);
+  if (p === null || r === null) return null;
+  const base = r === '/' ? '' : r;
+  if (p !== base && p !== r && !p.startsWith(base + '/')) return null;
+  const resto = p.slice(base.length).replace(/^\/+/, '');
   if (!resto) return null; // arquivo solto na raiz: não é de nenhuma empresa
-  return decodeURIComponent(resto.split('/')[0]);
+  return resto.split('/')[0];
 }
 
 /**
@@ -155,4 +173,4 @@ function criarBaixaSharepoint({ db, graph = criarGraph(), agora = () => new Date
   return { rodar };
 }
 
-module.exports = { cnpjDoNome, pastaDaEmpresa, baixasPorArquivos, detalheBaixa, criarGraph, criarBaixaSharepoint, CONFIG_DOC, GRAPH };
+module.exports = { cnpjDoNome, pastaDaEmpresa, relativoDaBiblioteca, baixasPorArquivos, detalheBaixa, criarGraph, criarBaixaSharepoint, CONFIG_DOC, GRAPH };
