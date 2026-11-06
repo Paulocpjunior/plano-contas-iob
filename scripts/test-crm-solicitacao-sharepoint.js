@@ -179,7 +179,7 @@ assert.equal(SP.pastaDaEmpresa('/drives/d1/root:/Clientes/x', ''), null, 'sem ra
   const ui = fs.readFileSync(path.join(__dirname, '..', 'crm-solicitacao-ui.js'), 'utf8');
   assert(ui.includes('montarSharepoint') && ui.includes('data-desfazer'), 'cartão do SharePoint e botão de desfazer');
   const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
-  assert(server.includes('criarBaixaSharepoint({db})') && server.includes('baixaSharepoint.rodar()'), 'ligado ao agendador interno');
+  assert(server.includes('criarBaixaSharepoint({db})') && server.includes('baixaSharepoint.rodar()') && server.includes('correcaoCarteira.rodar()'), 'ligado ao agendador interno');
   relogio = '';
   console.log('✓ baixa automática pelo SharePoint: CNPJ da pasta, arquivo depois do envio, desfazer e agendador');
 })().catch(e => { console.error(e); process.exit(1); });

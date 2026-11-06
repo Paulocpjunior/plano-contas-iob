@@ -429,4 +429,42 @@ function criarRecorrencias({ db, agora = () => new Date().toISOString(), env = p
   return { rodar, executar };
 }
 
-module.exports = { registrar, criarRecorrencias, MODELOS, REGISTROS, STATUS, RECORRENCIAS, CONFIG };
+/**
+ * Correção única (v3.4.506): toda empresa com solicitação enviada e sem resumo
+ * na carteira ganha o resumo do envio mais recente. Antes da 3.4.484 o envio não
+ * gravava o resumo (casos Monica 0063 e Parnassah, e-mails de 03/11), e a
+ * carteira mostrava "Sem solicitação". Roda no agendador interno até concluir.
+ */
+function criarCorrecaoCarteira({ db, agora = () => new Date().toISOString(), limite = 20000 }) {
+  const marca = db.collection(CONFIG).doc('correcao_carteira');
+  async function rodar() {
+    const m = await marca.get();
+    if (m.exists && m.data().concluida_em) return { estado: 'concluida' };
+    const [sol, st] = await Promise.all([db.collectionGroup(REGISTROS).limit(limite + 1).get(), db.collection(STATUS).get()]);
+    if (sol.docs.length > limite) {
+      await marca.set({ ultimo_resultado: 'Mais de ' + limite + ' solicitações; correção não aplicada. Avise o suporte.', ultima_execucao: agora() }, { merge: true });
+      return { estado: 'falhou' };
+    }
+    const comResumo = new Set(st.docs.filter(d => d.data() && d.data().solicitacao_id).map(d => d.id));
+    const porEmpresa = new Map();
+    for (const d of sol.docs) {
+      const p = d.ref.path.split('/');
+      if (p.length !== 4 || p[0] !== 'empresas' || comResumo.has(p[1])) continue;
+      if (!porEmpresa.has(p[1])) porEmpresa.set(p[1], []);
+      porEmpresa.get(p[1]).push({ ...d.data(), id: d.id, cnpj: p[1] });
+    }
+    let empresas = 0, lote = db.batch(), n = 0;
+    for (const [cnpj, lista] of porEmpresa) {
+      const resumo = S.resumoDoHistorico(lista);
+      if (!resumo) continue;
+      lote.set(db.collection(STATUS).doc(cnpj), resumo); empresas++;
+      if (++n >= 400) { await lote.commit(); lote = db.batch(); n = 0; }
+    }
+    if (n) await lote.commit();
+    await marca.set({ concluida_em: agora(), empresas });
+    return { estado: 'ok', empresas };
+  }
+  return { rodar };
+}
+
+module.exports = { registrar, criarRecorrencias, criarCorrecaoCarteira, MODELOS, REGISTROS, STATUS, RECORRENCIAS, CONFIG };

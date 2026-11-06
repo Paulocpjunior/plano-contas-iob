@@ -334,11 +334,14 @@ const monitorSharepoint = require('./crm-sharepoint-runtime').criar({db});
 // Solicitação de documentos ao cliente programada todo mês (v3.4.486): mesma agenda das notificações.
 const solicitacoesRecorrentes = require('./crm-solicitacao-routes').criarRecorrencias({db});
 const baixaSharepoint = require('./crm-solicitacao-sharepoint').criarBaixaSharepoint({db});
+const correcaoCarteira = require('./crm-solicitacao-routes').criarCorrecaoCarteira({db});
 require('./notificacoes-internal').registrar(app,{db,motor:{rodar:async()=>{
   const resultado = await motorNotificacoes.rodar();
   let recorrentes;
   try { recorrentes = await solicitacoesRecorrentes.rodar(); }
   catch { recorrentes = {estado:'falhou',detalhe:'Consulte o histórico das solicitações de cada empresa.'}; }
+  try { recorrentes = {...recorrentes, correcao_carteira: await correcaoCarteira.rodar()}; }
+  catch { recorrentes = {...recorrentes, correcao_carteira:{estado:'falhou'}}; }
   try { recorrentes = {...recorrentes, baixa_sharepoint: await baixaSharepoint.rodar()}; }
   catch { recorrentes = {...recorrentes, baixa_sharepoint:{estado:'falhou',detalhe:'Confira a baixa automática em Solicitar documentos.'}}; }
   try { return {...resultado, solicitacoes:recorrentes, sharepoint:await monitorSharepoint.rodar()}; }
