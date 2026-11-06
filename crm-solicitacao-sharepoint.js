@@ -132,6 +132,8 @@ function criarBaixaSharepoint({ db, graph = criarGraph(), agora = () => new Date
       }
       let url = cfg.delta_link, proximo = null, fim = null, n = 0;
       const arquivos = [], cache = new Map(), conta = { n: 0 };
+      // Diagnóstico na tela (v3.4.503): o que foi lido e por que não deu baixa.
+      const lidos = { total: 0, fora: 0, sem_cnpj: 0, exemplos: [] };
       let parouEm = null;
       while (url && n < paginas && !parouEm) {
         const atual = url;
@@ -141,9 +143,11 @@ function criarBaixaSharepoint({ db, graph = criarGraph(), agora = () => new Date
           const caminho = await pastaDe(cfg.drive_id, it.parentReference.id, cache, conta);
           // Limite de consultas da rodada: relê esta página na próxima (a baixa não repete).
           if (caminho === undefined) { parouEm = atual; break; }
+          lidos.total++;
           const pasta = pastaDaEmpresa(caminho, cfg.raiz_caminho);
           const cnpj = pasta && cnpjDoNome(pasta);
-          if (!cnpj) continue;
+          if (!pasta) { lidos.fora++; continue; }
+          if (!cnpj) { lidos.sem_cnpj++; if (lidos.exemplos.length < 3 && !lidos.exemplos.includes(pasta)) lidos.exemplos.push(pasta.slice(0, 80)); continue; }
           arquivos.push({ cnpj, nome: it.name, url: it.webUrl, criado_em: it.createdDateTime });
         }
         if (parouEm) break;
@@ -158,7 +162,10 @@ function criarBaixaSharepoint({ db, graph = criarGraph(), agora = () => new Date
       let baixas = 0;
       for (const b of baixasPorArquivos({ arquivos, abertas })) if (await darBaixa(b)) baixas++;
       const resultado = { estado: 'ok', arquivos: arquivos.length, empresas: cnpjs.length, baixas, pendente: !!(proximo || parouEm),
-        detalhe: baixas + ' solicitação(ões) com baixa · ' + arquivos.length + ' arquivo(s) novo(s) em ' + cnpjs.length + ' pasta(s) de empresa' + (proximo || parouEm ? ' · ainda há novidades; continuam na próxima rodada' : '') };
+        lidos: lidos.total, fora_da_pasta: lidos.fora, sem_cnpj: lidos.sem_cnpj, pastas_sem_cnpj: lidos.exemplos,
+        detalhe: baixas + ' solicitação(ões) com baixa · ' + arquivos.length + ' arquivo(s) novo(s) em ' + cnpjs.length + ' pasta(s) de empresa'
+          + (lidos.total > arquivos.length ? ' · ' + lidos.total + ' arquivo(s) alterado(s) na biblioteca' + (lidos.fora ? ', ' + lidos.fora + ' fora da pasta configurada' : '') + (lidos.sem_cnpj ? ', ' + lidos.sem_cnpj + ' em pasta sem CNPJ de 14 dígitos no nome (ex.: ' + lidos.exemplos.join('; ') + ')' : '') : '')
+          + (proximo || parouEm ? ' · ainda há novidades; continuam na próxima rodada' : '') };
       // Só avança o ponto de leitura quando a página inteira foi tratada.
       const link = parouEm || proximo || fim || cfg.delta_link;
       await cfgRef.set({ delta_link: link, ultima_execucao: inicio, ultimo_resultado: resultado }, { merge: true });

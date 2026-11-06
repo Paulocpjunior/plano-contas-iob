@@ -205,10 +205,10 @@
     q('[data-pg-atualizar]').onclick = () => executar(carregar);
     q('[data-pg-etapas]').onclick = editorEtapas;
     q('[data-pg-historico]').onclick = () => executar(async () => {
-      if (!confirm('Gravar na linha do tempo de cada empresa as solicitações, demandas e documentos registrados antes da 3.4.497? Repetir não duplica.')) return;
+      if (!confirm('Gravar na linha do tempo e na carteira de cada empresa as solicitações, demandas e documentos registrados antes da 3.4.497? Repetir não duplica.')) return;
       const r = await api('/api/crm/painel-gestor/recuperar-historico', {}, 'POST');
       await carregar();
-      mensagem('🕘 Histórico trazido: ' + r.linhas + ' movimentação(ões) em ' + r.empresas + ' empresa(s); ' + r.resumos + ' empresa(s) com a última movimentação atualizada na carteira.');
+      mensagem('🕘 Histórico trazido: ' + r.linhas + ' movimentação(ões) em ' + r.empresas + ' empresa(s); ' + r.resumos + ' empresa(s) com a última movimentação atualizada na carteira; ' + (r.situacoes || 0) + ' empresa(s) passaram a mostrar a solicitação enviada.');
     });
     q('[data-pg-equipe]').onchange = e => { f.equipe = e.target.value; render(); };
     q('[data-pg-colab]').onchange = e => { f.colab = e.target.value; render(); };

@@ -116,6 +116,9 @@ assert.equal(SP.pastaDaEmpresa('/drives/d1/root:/Clientes/x', ''), null, 'sem ra
   r = await motor.rodar();
   assert.equal(r.estado, 'ok', JSON.stringify(r));
   assert.equal(r.baixas, 1);
+  assert.equal(r.lidos, 3, 'conta os arquivos lidos (extrato, antigo e solto)');
+  assert.equal(r.fora_da_pasta, 1, 'arquivo solto na raiz aparece como fora da pasta');
+  assert.match(r.detalhe, /3 arquivo\(s\) alterado\(s\) na biblioteca, 1 fora da pasta configurada/);
   const reg = n.dados.get('empresas/' + cnpj + '/crm_solicitacoes/' + ID);
   assert.equal(reg.recebida_via, 'sharepoint');
   assert.deepEqual(reg.arquivos_recebidos.map(a => a.nome), ['extrato-outubro.pdf'], 'só o arquivo salvo depois do envio; apagado e solto na raiz ficam de fora');

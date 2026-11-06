@@ -182,15 +182,19 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
   // antes da 3.4.497. Ids fixos por registro: repetir não duplica.
   app.post('/api/crm/painel-gestor/recuperar-historico',wrap(async(req,res)=>{
     const g=await gestao(req);if(!g.user.is_admin)throw core.erro('Só o administrador traz o histórico anterior para as empresas.',403);
-    const base=await baseDoPainel(g);let linhas=0,resumos=0,lote=db.batch(),n=0;
+    const [base,statusSnap]=await Promise.all([baseDoPainel(g),db.collection(Solicitacao.STATUS).get()]);let linhas=0,resumos=0,situacoes=0,lote=db.batch(),n=0;
     const fechar=async()=>{if(n){await lote.commit();lote=db.batch();n=0;}};
+    // Envios anteriores à 3.4.484 sem resumo na carteira ("Sem solicitação" com e-mail enviado).
+    const comResumo=new Set(statusSnap.docs.filter(d=>d.data()&&d.data().solicitacao_id).map(d=>d.id)),porEmpresa=new Map();
+    for(const r of base.solicitacoes){if(comResumo.has(r.cnpj))continue;if(!porEmpresa.has(r.cnpj))porEmpresa.set(r.cnpj,[]);porEmpresa.get(r.cnpj).push(r);}
+    for(const [cnpj,lista] of porEmpresa){const resumo=SolicitacaoDocs.resumoDoHistorico(lista);if(!resumo)continue;lote.set(db.collection(Solicitacao.STATUS).doc(cnpj),resumo);situacoes++;if(++n>=400)await fechar();}
     for(const [cnpj,lista] of Object.entries(base.historico)){
       for(const m of lista){const {id_linha,...dados}=m;lote.set(db.collection('empresas').doc(cnpj).collection(Movimentacao.LINHA).doc(id_linha),dados);linhas++;if(++n>=400)await fechar();}
       const atual=base.resumos.get(cnpj),ultimo=Movimentacao.maisRecente(atual,lista[0]);
       if(ultimo&&ultimo!==atual){const {id_linha,...dados}=ultimo;lote.set(db.collection(Movimentacao.RESUMO).doc(cnpj),dados);resumos++;if(++n>=400)await fechar();}
     }
     await fechar();
-    res.json({ok:true,empresas:Object.keys(base.historico).length,linhas,resumos});
+    res.json({ok:true,empresas:Object.keys(base.historico).length,linhas,resumos,situacoes});
   }));
   // Entrada leve: não consulta coleções de empresas nem controles.
   app.get('/api/crm/contexto', wrap(async(req,res)=>{
