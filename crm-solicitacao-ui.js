@@ -102,17 +102,17 @@
   async function montarSharepoint(alvo, { executar, status }) {
     if (!alvo) return;
     const c = await api('/api/crm/solicitacoes/sharepoint').catch(() => null);
-    if (!c) { alvo.innerHTML = '<p class="cci-sol-falta">Não foi possível carregar a baixa automática pelo SharePoint. Atualize a tela.</p>'; return; }
+    if (!c) { alvo.innerHTML = '<p class="cci-sol-falta">Não foi possível carregar o aviso de arquivos pelo SharePoint. Atualize a tela.</p>'; return; }
     const cfg = c.config, ult = cfg.ultimo_resultado;
-    const situacao = !cfg.web_url ? 'Ainda não configurada: as baixas são feitas à mão, em "✅ Cliente enviou os documentos".'
+    const situacao = !cfg.web_url ? 'Ainda não configurado: sem aviso de arquivos; a baixa é feita em "✅ Cliente enviou os documentos".'
       : !cfg.habilitado ? '⏸️ Desligada.' : '✅ Ligada na pasta <b>' + esc(cfg.nome || cfg.web_url) + '</b>.'
         + (cfg.ultima_execucao ? ' Última leitura: ' + esc(new Date(cfg.ultima_execucao).toLocaleString('pt-BR')) + (ult ? ' · ' + esc(ult.detalhe || ult.estado) : '') : ' Primeira leitura na próxima rodada do agendador.');
-    alvo.innerHTML = '<article class="crm-card cci-not-card" data-sharepoint><div class="cci-not-topo"><span class="cci-not-icone" aria-hidden="true">📂</span><div class="cci-not-titulo"><h4>Baixa automática pelo SharePoint</h4>'
-      + '<small>Quando o cliente salva um arquivo na pasta da empresa (uma pasta por empresa, com o CNPJ no nome) depois do envio, a solicitação em aberto recebe baixa sozinha, com o nome dos arquivos. Quem acompanha pode desfazer se chegou incompleto.</small></div></div>'
+    alvo.innerHTML = '<article class="crm-card cci-not-card" data-sharepoint><div class="cci-not-topo"><span class="cci-not-icone" aria-hidden="true">📂</span><div class="cci-not-titulo"><h4>Aviso de arquivos pelo SharePoint</h4>'
+      + '<small>Quando o cliente salva um arquivo na pasta da empresa (uma pasta por empresa, com o CNPJ no nome) depois do envio, a solicitação em aberto passa a "📂 Arquivos no SharePoint · conferir", com o nome e o link dos arquivos. A baixa continua com quem acompanha, em "✅ Cliente enviou os documentos", depois de conferir se chegou tudo.</small></div></div>'
       + '<p>' + situacao + '</p>'
       + (c.admin
         ? '<label>Endereço da pasta Clientes (site Contábil), copiado da barra do navegador<input name="sp_url" value="' + esc(cfg.web_url) + '" placeholder="https://…sharepoint.com/sites/Contabil/Clientes"></label>'
-          + '<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="sp_ligado" style="width:18px;height:18px"' + (cfg.habilitado || !cfg.web_url ? ' checked' : '') + '> Dar baixa automática</label>'
+          + '<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="sp_ligado" style="width:18px;height:18px"' + (cfg.habilitado || !cfg.web_url ? ' checked' : '') + '> Avisar quando o cliente salvar arquivos</label>'
           + '<p class="cci-not-dica">Vale o endereço da pasta aberta pelo site ou pelo OneDrive (Compartilhado). O app do CCI precisa de permissão de leitura (Sites.Selected) no site onde a pasta Clientes está; sem ela, o CCI diz qual site liberar.</p>'
           + '<div class="cci-not-acoes"><button type="button" class="cci-not-primario" data-salvar-sp>💾 Salvar</button></div>'
         : '<p class="cci-not-dica">Só o administrador altera esta configuração.</p>')
@@ -121,7 +121,7 @@
     if (btn) btn.onclick = () => executar(async () => {
       const r = await api('/api/crm/solicitacoes/sharepoint', { url: alvo.querySelector('[name=sp_url]').value.trim(), habilitado: alvo.querySelector('[name=sp_ligado]').checked }, 'PUT');
       await montarSharepoint(alvo, { executar, status });
-      status(r.config.habilitado ? '📂 Baixa automática ligada em ' + (r.config.nome || 'Clientes') + '. Vale para arquivos salvos a partir de agora.' : '⏸️ Baixa automática desligada.');
+      status(r.config.habilitado ? '📂 Aviso de arquivos ligado em ' + (r.config.nome || 'Clientes') + '. Vale para arquivos salvos a partir de agora.' : '⏸️ Aviso de arquivos desligado.');
     });
   }
 
@@ -138,7 +138,7 @@
     const SIT = { fechada: 'FECHADA', ressalva: 'RESSALVA', pendente: 'PENDENTE' };
     let painel = null; const f = { colab: '', etapa: '', equipe: '', busca: '', abertas: true };
     alvo.innerHTML = '<div class="crm-card cci-pg"><div class="cci-pg-topo"><div><h3>📊 Painel do gestor</h3><p class="crm-muted" data-pg-sub>Cada etapa só fica verde com prova no CRM.</p></div>'
-      + '<div class="cci-pg-acoes"><select data-pg-comp aria-label="Competência">' + meses.map(m => '<option value="' + m + '">' + fmt(m) + '</option>').join('') + '</select>'
+      + '<div class="cci-pg-acoes"><select data-pg-comp aria-label="Competência">' + meses.map((m, i) => '<option value="' + m + '"' + (i === 1 ? ' selected' : '') + '>' + fmt(m) + (i === 1 ? ' (fechamento)' : '') + '</option>').join('') + '</select>'
       + '<button type="button" data-pg-atualizar>↻ Atualizar</button><button type="button" data-pg-baixar="csv">⬇ CSV</button><button type="button" data-pg-baixar="pdf">⬇ PDF</button><button type="button" data-pg-etapas hidden>⚙️ Etapas do painel</button><button type="button" data-pg-historico hidden title="Grava na linha do tempo e na carteira as ações registradas antes da 3.4.497">🕘 Trazer histórico anterior</button></div></div>'
       + '<div data-pg-editor></div><div data-pg-placar class="crm-scroll"></div></div>'
       + '<div class="crm-bar cci-pg-filtros"><select data-pg-equipe aria-label="Equipe"></select><select data-pg-colab aria-label="Responsável"></select><select data-pg-etapa aria-label="Parada em"></select>'
@@ -308,14 +308,15 @@
       const [d, rec] = await Promise.all([api(base), api(base + '/recorrencias').catch(() => ({ recorrencias: null }))]);
       info = { ...info, historico: d.historico, situacao: d.situacao };
       const NOMES = { enviado: '✅ E-mail enviado', falhou: '⚠️ E-mail não confirmado', processando: '⏳ Enviando', whatsapp_aberto: '💬 Aberto no WhatsApp' };
-      const SIT = { aguardando: '📨 Aguardando cliente', atrasada: '⏰ Cliente atrasado (prazo vencido)', recebida: '✅ Documentos recebidos', falhou: '⚠️ Último envio não confirmado', sem: 'Sem solicitação enviada' };
+      const SIT = { aguardando: '📨 Aguardando cliente', arquivos: '📂 Arquivos no SharePoint · conferir se chegou tudo e dar baixa', atrasada: '⏰ Cliente atrasado (prazo vencido)', recebida: '✅ Documentos recebidos', falhou: '⚠️ Último envio não confirmado', sem: 'Sem solicitação enviada' };
       const sit = d.situacao || { situacao: 'sem' };
       q('[data-hist]').innerHTML = '<p class="cci-sol-situacao"><b>Situação na carteira do CRM:</b> ' + esc(SIT[sit.situacao] || sit.situacao) + (sit.prazo && sit.situacao !== 'recebida' ? ' · prazo ' + esc(sit.prazo.split('-').reverse().join('/')) : '') + '</p>'
         + (d.historico.length
         ? '<ul class="cci-sol-hist">' + d.historico.map(h => '<li><b>' + esc(NOMES[h.estado] || h.estado) + '</b> · ' + esc(h.modelo_nome) + (h.competencia ? ' · ' + esc(h.competencia.slice(5) + '/' + h.competencia.slice(0, 4)) : '')
           + ' · para ' + esc(h.destino_exibicao) + ' · ' + esc(new Date(h.quando).toLocaleString('pt-BR')) + ' · ' + esc(h.autor_email || '') + ((h.copias || []).length ? ' · 📬 cópia para ' + esc(h.copias.join(', ')) : '') + (h.detalhe && h.estado === 'falhou' ? '<br><small>' + esc(h.detalhe) + '</small>' : '')
-          + (h.recebida_em ? '<br><small>' + (h.recebida_via === 'sharepoint' ? '📂 Cliente salvou no SharePoint · baixa automática em ' : '✅ Documentos recebidos em ') + esc(new Date(h.recebida_em).toLocaleString('pt-BR')) + (h.recebida_por_email ? ' · ' + esc(h.recebida_por_email) : '')
-              + ((h.arquivos_recebidos || []).length ? '<br>' + h.arquivos_recebidos.map(a => /^https:\/\//.test(a.url || '') ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.nome) + '</a>' : esc(a.nome)).join(' · ') + (h.arquivos_total > h.arquivos_recebidos.length ? ' (mostrando ' + h.arquivos_recebidos.length + ' de ' + h.arquivos_total + ')' : '') : '') + '</small>'
+          + ((h.arquivos_recebidos || []).length ? '<br><small>📂 Cliente salvou ' + esc(h.arquivos_total || h.arquivos_recebidos.length) + ' arquivo(s) no SharePoint' + (h.arquivos_sharepoint_em ? ' · último em ' + esc(new Date(h.arquivos_sharepoint_em).toLocaleString('pt-BR')) : '') + (h.recebida_em ? '' : ' · confira se chegou tudo antes de dar baixa') + ':<br>'
+              + h.arquivos_recebidos.map(a => /^https:\/\//.test(a.url || '') ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.nome) + '</a>' : esc(a.nome)).join(' · ') + (h.arquivos_total > h.arquivos_recebidos.length ? ' (mostrando ' + h.arquivos_recebidos.length + ' de ' + h.arquivos_total + ')' : '') + '</small>' : '')
+          + (h.recebida_em ? '<br><small>' + (h.recebida_via === 'sharepoint' ? '📂 Baixa automática pelo SharePoint (versão anterior) em ' : '✅ Documentos recebidos em ') + esc(new Date(h.recebida_em).toLocaleString('pt-BR')) + (h.recebida_por_email ? ' · ' + esc(h.recebida_por_email) : '') + '</small>'
               + (info.pode_enviar ? ' <button type="button" data-desfazer="' + esc(h.id) + '">↩️ Desfazer baixa</button>' : '')
             : (info.pode_enviar && h.estado !== 'falhou' && h.estado !== 'processando' ? ' <button type="button" data-recebida="' + esc(h.id) + '">✅ Cliente enviou os documentos</button>' : ''))
           + '</li>').join('') + '</ul>'

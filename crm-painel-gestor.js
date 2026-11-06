@@ -74,6 +74,7 @@ function statusEtapa(etapa, { solicitacoes = [], controles = [] }, hoje) {
     }
     if (enviadas.some(s => s.recebida_em)) return 'concluida';
     if (!enviadas.length) return 'pendente';
+    if (enviadas.some(s => Number(s.arquivos_total) > 0)) return 'atencao'; // chegou arquivo: conferir
     return enviadas.some(s => s.prazo && s.prazo < hoje) ? 'pendente' : 'atencao';
   }
   const doCodigo = controles.filter(c => etapa.codigos.includes(c.codigo));

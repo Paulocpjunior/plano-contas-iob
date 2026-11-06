@@ -431,6 +431,7 @@ function semIndefinidos(obj) {
 // a situação para os administradores acompanharem. Ausência de envio é "sem".
 const SITUACOES_SOLICITACAO = {
   aguardando: 'Aguardando cliente',
+  arquivos: 'Arquivos no SharePoint · conferir',
   atrasada: 'Cliente atrasado',
   recebida: 'Documentos recebidos',
   falhou: 'Envio não confirmado',
@@ -443,7 +444,9 @@ function resumoSolicitacao(id, registro) {
   return semIndefinidos({
     cnpj: r.cnpj,
     solicitacao_id: id,
-    situacao: r.estado === 'falhou' ? 'falhou' : r.recebida_em ? 'recebida' : 'aguardando',
+    // Arquivo no SharePoint não prova que chegou tudo (Paulo, 06/11): sinaliza
+    // "conferir" e a baixa continua com o colaborador.
+    situacao: r.estado === 'falhou' ? 'falhou' : r.recebida_em ? 'recebida' : Number(r.arquivos_total) > 0 ? 'arquivos' : 'aguardando',
     canal: r.canal,
     modelo_nome: r.modelo_nome,
     competencia: r.competencia || null,
@@ -452,7 +455,9 @@ function resumoSolicitacao(id, registro) {
     autor_email: r.autor_email || '',
     destino_exibicao: r.destino_exibicao || '',
     recebida_em: r.recebida_em || null,
-    recebida_por: r.recebida_por || null
+    recebida_por: r.recebida_por || null,
+    arquivos_total: Number(r.arquivos_total) || 0,
+    arquivos_sharepoint_em: r.arquivos_sharepoint_em || null
   });
 }
 
@@ -472,14 +477,14 @@ function resumoDoHistorico(lista) {
 /** Situação para a tela: o atraso é calculado na leitura, nunca gravado. */
 function situacaoSolicitacao(resumo, hoje) {
   if (!resumo || !resumo.solicitacao_id) return 'sem';
-  if (resumo.situacao === 'recebida' || resumo.situacao === 'falhou') return resumo.situacao;
+  if (resumo.situacao === 'recebida' || resumo.situacao === 'falhou' || resumo.situacao === 'arquivos') return resumo.situacao;
   return resumo.prazo && hoje && resumo.prazo < hoje ? 'atrasada' : 'aguardando';
 }
 
 function solicitacaoPublica(resumo, hoje) {
   const situacao = situacaoSolicitacao(resumo, hoje);
   if (situacao === 'sem') return { situacao };
-  return { situacao, rotulo: SITUACOES_SOLICITACAO[situacao], modelo_nome: resumo.modelo_nome || '', competencia: resumo.competencia || null, prazo: resumo.prazo || null, quando: resumo.quando || null, canal: resumo.canal || '', recebida_em: resumo.recebida_em || null };
+  return { situacao, rotulo: SITUACOES_SOLICITACAO[situacao], modelo_nome: resumo.modelo_nome || '', competencia: resumo.competencia || null, prazo: resumo.prazo || null, quando: resumo.quando || null, canal: resumo.canal || '', recebida_em: resumo.recebida_em || null, arquivos_total: Number(resumo.arquivos_total) || 0, arquivos_sharepoint_em: resumo.arquivos_sharepoint_em || null };
 }
 
 // ── Cópias automáticas (v3.4.495) ───────────────────────────────────────────
