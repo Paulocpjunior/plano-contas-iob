@@ -293,7 +293,7 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
     const antes = await spRef.get(), atual = antes.exists ? antes.data() : {};
     let dados;
     if (b.url && String(b.url).trim() !== (atual.web_url || '')) {
-      const sp = sharepoint || { pasta: require('./ficha-aplicacoes-sharepoint').criar(), graph: SP.criarGraph() };
+      const sp = sharepoint || { pasta: require('./ficha-aplicacoes-sharepoint').criar({ uso: 'leitura' }), graph: SP.criarGraph() };
       const pasta = await sp.pasta.resolverPasta(b.url);
       const it = await sp.graph.get(SP.GRAPH + '/drives/' + encodeURIComponent(pasta.drive_id) + '/items/' + encodeURIComponent(pasta.item_id) + '?$select=name,parentReference');
       const raiz = it.parentReference && it.parentReference.path ? it.parentReference.path + '/' + it.name : '/drive/root:';

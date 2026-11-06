@@ -39,6 +39,26 @@ assert.equal(SP.pastaDaEmpresa('/drives/d1/root:/Clientes2/x', raiz), null);
   assert.match(SP.detalheBaixa(m), /12 arquivo\(s\).*mostrando 10 de 12/);
 }
 
+// ── Endereço do OneDrive e mensagens de leitura (v3.4.501) ─────────────────
+{
+  const F = require('../ficha-aplicacoes-sharepoint');
+  const od = F.caminhoDaPasta('https://empresa-my.sharepoint.com/shared?id=%2Fsites%2FClientesSP%2FDocumentos%20Compartilhados%2FClientes&listurl=x');
+  assert.deepEqual(od, { host: 'empresa.sharepoint.com', site: '/sites/ClientesSP', caminho: '/sites/ClientesSP/Documentos Compartilhados/Clientes' }, 'link do OneDrive vai ao site no host principal');
+  assert.equal(F.caminhoDaPasta('https://empresa-my.sharepoint.com/personal/joao/Documents/X').host, 'empresa-my.sharepoint.com', 'pasta pessoal do OneDrive fica no OneDrive');
+  assert.match(F.mensagemHttp(403, 'x', '/sites/ClientesSP', 'leitura'), /leitura no site \/sites\/ClientesSP.*Sites\.Selected \(leitura\)/);
+  assert.doesNotMatch(F.mensagemHttp(404, 'x', '/sites/ClientesSP', 'leitura'), /ficha/, 'mensagem da solicitação não fala da ficha');
+  assert.match(F.mensagemHttp(403, 'x', '/sites/C'), /escrita/, 'ficha continua pedindo escrita');
+  // resolverPasta com Graph simulado: consulta o site no host principal e devolve a mensagem de leitura.
+  const urls = [];
+  const pasta = F.criar({ uso: 'leitura', token: async () => 't', renovar: () => {}, fetcher: async url => { urls.push(url); return { ok: false, status: 403, json: async () => ({}) }; } });
+  (async () => {
+    await assert.rejects(pasta.resolverPasta('https://empresa-my.sharepoint.com/shared?id=%2Fsites%2FClientesSP%2FClientes'), /leitura no site \/sites\/ClientesSP/);
+    assert(urls[0].startsWith('https://graph.microsoft.com/v1.0/sites/empresa.sharepoint.com:/sites/ClientesSP?'), urls[0]);
+  })().catch(e => { console.error(e); process.exit(1); });
+  const rotas = fs.readFileSync(path.join(__dirname, '..', 'crm-solicitacao-routes.js'), 'utf8');
+  assert(rotas.includes("criar({ uso: 'leitura' })"), 'rota da solicitação pede leitura');
+}
+
 // ── Execução com Graph simulado ─────────────────────────────────────────────
 (async () => {
   const cnpj = '12345678901234';

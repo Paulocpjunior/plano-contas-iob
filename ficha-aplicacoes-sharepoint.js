@@ -33,9 +33,14 @@ function nomeSeguro(nome) {
   return String(nome || '').replace(/[\\/:*?"<>|#%]/g, '_').slice(0, 180);
 }
 
-function mensagemHttp(status, acao, site) {
-  if (status === 401 || status === 403) return 'O app do CCI não tem permissão de escrita no site ' + (site || 'desta pasta') + ' do SharePoint. Um administrador do Microsoft 365 precisa liberar Sites.Selected (escrita) para o app do CCI nesse site.';
-  if (status === 404) return 'Pasta do SharePoint não encontrada. Confira o endereço cadastrado no canal da ficha.';
+// uso 'escrita' (ficha de aplicações grava o PDF) ou 'leitura' (baixa da
+// solicitação pelo SharePoint só lê a biblioteca).
+function mensagemHttp(status, acao, site, uso = 'escrita') {
+  const lugar = site && site !== 'raiz' ? site : 'desta pasta';
+  if (status === 401 || status === 403) return 'O app do CCI não tem permissão de ' + uso + ' no site ' + lugar + ' do SharePoint. Um administrador do Microsoft 365 precisa liberar Sites.Selected (' + uso + ') para o app do CCI nesse site.';
+  if (status === 404) return uso === 'leitura'
+    ? 'Pasta do SharePoint não encontrada no site ' + lugar + '. Abra a pasta no navegador, copie o endereço da barra e cole de novo.'
+    : 'Pasta do SharePoint não encontrada. Confira o endereço cadastrado no canal da ficha.';
   return 'O SharePoint não ' + acao + ' (HTTP ' + status + '). Tente de novo em instantes.';
 }
 
@@ -53,10 +58,13 @@ function caminhoDaPasta(url) {
   const bruto = id && id.startsWith('/') ? id : decodificar(u.pathname);
   const caminho = bruto.replace(/\/Forms\/[^/]+\.aspx$/i, '').replace(/\/[^/]+\.aspx$/i, '').replace(/\/+$/, '');
   const m = caminho.match(/^\/(?:sites|teams)\/[^/]+/i);
-  return { host: u.hostname, site: m ? m[0] : '', caminho };
+  // Endereço aberto pelo OneDrive ("Compartilhado", host empresa-my.sharepoint.com)
+  // com a pasta num site (/sites/X): o site mora no host principal, sem "-my".
+  const host = m ? u.hostname.replace(/-my\.sharepoint\.com$/i, '.sharepoint.com') : u.hostname;
+  return { host, site: m ? m[0] : '', caminho };
 }
 
-function criar({ token = () => require('./graph-email-provider').getGraphToken(), renovar = () => require('./graph-email-provider').invalidarTokenGraph(), fetcher = globalThis.fetch } = {}) {
+function criar({ token = () => require('./graph-email-provider').getGraphToken(), renovar = () => require('./graph-email-provider').invalidarTokenGraph(), fetcher = globalThis.fetch, uso = 'escrita' } = {}) {
   async function chamarUmaVez(url, opcoes) {
     let accessToken;
     try { accessToken = await token(); }
@@ -77,7 +85,7 @@ function criar({ token = () => require('./graph-email-provider').getGraphToken()
     let r;
     try { r = await chamar(url, opcoes); }
     catch (e) { if (e.status) throw e; throw erro('Não foi possível consultar o SharePoint. Tente de novo em instantes.', 503); }
-    if (!r.ok) throw erro(mensagemHttp(r.status, acao, site), r.status === 404 ? 404 : 409);
+    if (!r.ok) throw erro(mensagemHttp(r.status, acao, site, uso), r.status === 404 ? 404 : 409);
     return r.json();
   }
 
@@ -131,4 +139,4 @@ function criar({ token = () => require('./graph-email-provider').getGraphToken()
   return { resolverPasta, salvarPdf };
 }
 
-module.exports = { criar, validarUrlPasta, codigoCompartilhamento, nomeSeguro, caminhoDaPasta };
+module.exports = { criar, validarUrlPasta, codigoCompartilhamento, nomeSeguro, caminhoDaPasta, mensagemHttp };
