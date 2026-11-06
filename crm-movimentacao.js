@@ -14,6 +14,7 @@ const TIPOS = {
   solicitacao_whatsapp: '💬 Solicitação no WhatsApp',
   solicitacao_falhou: '⚠️ Solicitação não confirmada',
   solicitacao_recebida: '📥 Cliente enviou os documentos',
+  solicitacao_arquivos: '📂 Cliente salvou arquivos no SharePoint',
   solicitacao_reaberta: '↩️ Recebimento desfeito',
   recorrencia: '🔁 Envio automático'
 };

@@ -163,7 +163,7 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
       hoje: hoje(),
       historico: snap.docs.map(d => {
         const r = d.data();
-        return { id: d.id, quando: r.quando, canal: r.canal, estado: r.estado, destino_exibicao: r.destino_exibicao, modelo_nome: r.modelo_nome, competencia: r.competencia, prazo: r.prazo, autor_email: r.autor_email, detalhe: r.detalhe || '', recebida_em: r.recebida_em || null, recebida_por_email: r.recebida_por_email || null, recebida_via: r.recebida_via || null, arquivos_recebidos: Array.isArray(r.arquivos_recebidos) ? r.arquivos_recebidos : [], arquivos_total: r.arquivos_total || 0, copias: Array.isArray(r.copias) ? r.copias : [] };
+        return { id: d.id, quando: r.quando, canal: r.canal, estado: r.estado, destino_exibicao: r.destino_exibicao, modelo_nome: r.modelo_nome, competencia: r.competencia, prazo: r.prazo, autor_email: r.autor_email, detalhe: r.detalhe || '', recebida_em: r.recebida_em || null, recebida_por_email: r.recebida_por_email || null, recebida_via: r.recebida_via || null, arquivos_sharepoint_em: r.arquivos_sharepoint_em || null, arquivos_recebidos: Array.isArray(r.arquivos_recebidos) ? r.arquivos_recebidos : [], arquivos_total: r.arquivos_total || 0, copias: Array.isArray(r.copias) ? r.copias : [] };
       })
     });
   }));

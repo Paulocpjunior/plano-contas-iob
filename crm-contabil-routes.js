@@ -147,7 +147,9 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
   app.get('/api/crm/painel-gestor',wrap(async(req,res)=>{
     let g=await gestao(req);if(!g.user.is_admin&&!g.lider)throw core.erro('O painel do gestor é para administradores e líderes de equipe (Topologia do CRM).',403);
     const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(agora()));
-    const competencia=String((req.query||{}).competencia||hoje.slice(0,7));
+    // Padrão = mês anterior: em novembro o escritório fecha outubro (caso GMX, 06/11).
+    const anterior=(()=>{const [a,m]=hoje.slice(0,7).split('-').map(Number);return m===1?(a-1)+'-12':a+'-'+String(m-1).padStart(2,'0');})();
+    const competencia=String((req.query||{}).competencia||anterior);
     if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(competencia))throw core.erro('Escolha a competência no formato AAAA-MM.');
     const base=await baseDoPainel(g);
     const solicitacoes=base.solicitacoes.filter(x=>x.competencia===competencia);

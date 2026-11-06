@@ -120,29 +120,46 @@ assert.equal(SP.pastaDaEmpresa('/drives/d1/root:/Clientes/x', ''), null, 'sem ra
   assert.equal(r.fora_da_pasta, 1, 'arquivo solto na raiz aparece como fora da pasta');
   assert.match(r.detalhe, /3 arquivo\(s\) alterado\(s\) na biblioteca, 1 fora da pasta configurada/);
   const reg = n.dados.get('empresas/' + cnpj + '/crm_solicitacoes/' + ID);
-  assert.equal(reg.recebida_via, 'sharepoint');
+  // v3.4.505 (Paulo): arquivo no SharePoint NÃO dá baixa; sinaliza para conferir.
+  assert.equal(reg.recebida_em, undefined, 'sem baixa automática');
+  assert.equal(reg.recebida_via, undefined);
+  assert.equal(reg.arquivos_total, 1);
+  assert(reg.arquivos_sharepoint_em, 'registra quando chegou');
   assert.deepEqual(reg.arquivos_recebidos.map(a => a.nome), ['extrato-outubro.pdf'], 'só o arquivo salvo depois do envio; apagado e solto na raiz ficam de fora');
-  assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj).situacao, 'recebida', 'carteira mostra documentos recebidos');
+  assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj).situacao, 'arquivos', 'carteira mostra Arquivos no SharePoint · conferir');
   const mov = n.dados.get('crm_movimentacao/' + cnpj);
-  assert.equal(mov.tipo, 'solicitacao_recebida'); assert.equal(mov.origem, 'sharepoint'); assert.match(mov.detalhe, /extrato-outubro\.pdf/);
+  assert.equal(mov.tipo, 'solicitacao_arquivos'); assert.equal(mov.origem, 'sharepoint'); assert.match(mov.detalhe, /extrato-outubro\.pdf.*Confira se chegou tudo/);
   assert(!Object.values(reg).some(v => v === undefined), 'sem undefined (Firestore)');
   assert.equal(n.dados.get('crm_solicitacao_config/sharepoint').delta_link, 'DELTA2', 'avança o ponto de leitura');
   assert.equal(chamadas.filter(u => u.includes('/items/p1')).length, 1, 'pasta consultada uma vez por rodada');
+  {
+    const P = require('../crm-painel-gestor');
+    const etapa = { tipo: 'recebida', modelo: '', codigos: [] };
+    assert.equal(P.statusEtapa(etapa, { solicitacoes: [reg] }, '2026-12-31'), 'atencao', 'painel: arquivo chegou = ressalva (conferir), mesmo com prazo vencido');
+  }
 
-  // Repetir não dá baixa de novo.
+  // Repetir não registra de novo.
   r = await motor.rodar();
   assert.equal(r.baixas, 0);
+  // Cliente complementa: o mesmo arquivo não duplica, o novo soma.
+  {
+    const S2 = SP.baixasPorArquivos({ arquivos: [{ cnpj, nome: 'extrato-outubro.pdf', url: reg.arquivos_recebidos[0].url, criado_em: '2026-10-12T09:00:00Z' }, { cnpj, nome: 'folha.pdf', url: 'https://sp/folha.pdf', criado_em: '2026-10-14T09:00:00Z' }], abertas: [{ ...reg, id: ID, cnpj }] });
+    assert.deepEqual(S2[0].arquivos.map(a => a.nome), ['folha.pdf'], 'complemento do cliente entra, repetido não');
+  }
 
-  // Colaborador desfaz (chegou incompleto); a solicitação volta a aguardar.
-  n.dados.set('empresas/' + cnpj + '/crm_solicitacoes/' + ID, reg);
-  const base = '/api/crm/empresas/:cnpj/solicitacoes/:id/recebida/desfazer';
+  // Tela: mostra os arquivos e o botão de dar baixa; colaborador confirma, depois desfaz.
   const hist0 = await n.call('GET', '/api/crm/empresas/:cnpj/solicitacoes', {}, 'colab');
-  assert.equal(hist0.body.historico[0].recebida_via, 'sharepoint');
+  assert.equal(hist0.body.situacao.situacao, 'arquivos');
   assert.equal(hist0.body.historico[0].arquivos_recebidos.length, 1);
+  assert(hist0.body.historico[0].arquivos_sharepoint_em);
+  const ok = await n.call('POST', '/api/crm/empresas/:cnpj/solicitacoes/:id/recebida', {}, 'colab', { id: ID });
+  assert.equal(ok.statusCode, 200, JSON.stringify(ok.body));
+  assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj).situacao, 'recebida', 'baixa é do colaborador');
+  const base = '/api/crm/empresas/:cnpj/solicitacoes/:id/recebida/desfazer';
   const des = await n.call('POST', base, {}, 'colab', { id: ID });
   assert.equal(des.statusCode, 200, JSON.stringify(des.body));
   assert.equal(n.dados.get('empresas/' + cnpj + '/crm_solicitacoes/' + ID).recebida_em, null);
-  assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj).situacao, 'aguardando');
+  assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj).situacao, 'arquivos', 'desfeita, volta a Arquivos no SharePoint · conferir');
   assert.equal(n.dados.get('crm_movimentacao/' + cnpj).tipo, 'solicitacao_reaberta');
 
   // Limite de consultas: relê a página na próxima rodada, sem perder arquivos.

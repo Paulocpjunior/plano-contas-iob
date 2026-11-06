@@ -47,25 +47,32 @@ function pastaDaEmpresa(caminhoPai, raiz) {
   return resto.split('/')[0];
 }
 
+const chaveArquivo = a => String(a.url || '') || String(a.nome || '') + '|' + String(a.quando || a.criado_em || '');
+
 /**
- * arquivos: [{cnpj, nome, url, criado_em}] · abertas: [{id, cnpj, quando, estado, recebida_em}]
- * Só dá baixa com arquivo criado DEPOIS do envio da solicitação.
+ * arquivos: [{cnpj, nome, url, criado_em}] · abertas: [{id, cnpj, quando, estado, recebida_em, arquivos_recebidos}]
+ * Só conta arquivo criado DEPOIS do envio da solicitação e ainda não registrado.
+ * v3.4.505 (Paulo, 06/11): arquivo no SharePoint NÃO dá baixa — "quem garante
+ * que foi tudo postado?". Vira sinal "conferir"; a baixa é do colaborador.
  */
 function baixasPorArquivos({ arquivos = [], abertas = [] }) {
   const out = [];
   for (const s of abertas) {
     if (!ABERTAS.has(s.estado) || s.recebida_em || !s.quando) continue;
+    const ja = new Set((Array.isArray(s.arquivos_recebidos) ? s.arquivos_recebidos : []).map(chaveArquivo));
     const novos = arquivos.filter(a => a.cnpj === s.cnpj && a.criado_em && Date.parse(a.criado_em) >= Date.parse(s.quando))
-      .sort((a, b) => Date.parse(a.criado_em) - Date.parse(b.criado_em));
+      .map(a => ({ nome: String(a.nome || '').slice(0, 180), url: String(a.url || '').slice(0, 2000), quando: a.criado_em }))
+      .filter(a => !ja.has(chaveArquivo(a)))
+      .sort((a, b) => Date.parse(a.quando) - Date.parse(b.quando));
     if (!novos.length) continue;
-    out.push({ cnpj: s.cnpj, id: s.id, total: novos.length, arquivos: novos.slice(0, MAX_ARQUIVOS).map(a => ({ nome: String(a.nome || '').slice(0, 180), url: String(a.url || '').slice(0, 2000), quando: a.criado_em })) });
+    out.push({ cnpj: s.cnpj, id: s.id, total: novos.length, arquivos: novos.slice(0, MAX_ARQUIVOS) });
   }
   return out;
 }
 
 function detalheBaixa(b) {
   const nomes = b.arquivos.map(a => a.nome).join(', ');
-  return b.total + ' arquivo(s) na pasta do SharePoint: ' + nomes + (b.total > b.arquivos.length ? ' (mostrando ' + b.arquivos.length + ' de ' + b.total + ')' : '');
+  return b.total + ' arquivo(s) na pasta do SharePoint: ' + nomes + (b.total > b.arquivos.length ? ' (mostrando ' + b.arquivos.length + ' de ' + b.total + ')' : '') + '. Confira se chegou tudo antes de dar baixa.';
 }
 
 // ── Graph ──────────────────────────────────────────────────────────────────
@@ -109,10 +116,16 @@ function criarBaixaSharepoint({ db, graph = criarGraph(), agora = () => new Date
       if (!d.exists) return false;
       const r = d.data();
       if (r.recebida_em || !ABERTAS.has(r.estado)) return false;
-      const marca = { recebida_em: agora(), recebida_por: 'sharepoint', recebida_por_email: '', recebida_via: 'sharepoint', arquivos_recebidos: b.arquivos, arquivos_total: b.total };
+      // Acumula: o cliente pode complementar depois. Guarda os 10 mais recentes e o total.
+      const antes = Array.isArray(r.arquivos_recebidos) ? r.arquivos_recebidos : [];
+      const ja = new Set(antes.map(chaveArquivo));
+      const novos = b.arquivos.filter(a => !ja.has(chaveArquivo(a)));
+      if (!novos.length) return false;
+      const quando = agora();
+      const marca = { arquivos_recebidos: [...antes, ...novos].slice(-MAX_ARQUIVOS), arquivos_total: (Number(r.arquivos_total) || antes.length) + b.total - (b.arquivos.length - novos.length), arquivos_sharepoint_em: quando, arquivos_sharepoint_primeiro_em: r.arquivos_sharepoint_primeiro_em || quando };
       tx.set(ref, marca, { merge: true });
       const comp = r.competencia ? ' · competência ' + S.competenciaBr(r.competencia) : '';
-      Mov.gravar(db, tx, b.cnpj, Mov.movimento({ tipo: 'solicitacao_recebida', titulo: (r.modelo_nome || 'Solicitação de documentos') + comp, detalhe: detalheBaixa(b), user: { uid: 'sharepoint', nome: 'Cliente pelo SharePoint' }, quando: marca.recebida_em, origem: 'sharepoint', referencia: b.id }));
+      Mov.gravar(db, tx, b.cnpj, Mov.movimento({ tipo: 'solicitacao_arquivos', titulo: (r.modelo_nome || 'Solicitação de documentos') + comp, detalhe: detalheBaixa({ ...b, arquivos: novos, total: b.total - (b.arquivos.length - novos.length) }), user: { uid: 'sharepoint', nome: 'Cliente pelo SharePoint' }, quando, origem: 'sharepoint', referencia: b.id }));
       if (st.exists && st.data().solicitacao_id === b.id) tx.set(statusRef, S.resumoSolicitacao(b.id, { ...r, ...marca }));
       return true;
     });
@@ -127,7 +140,7 @@ function criarBaixaSharepoint({ db, graph = criarGraph(), agora = () => new Date
       if (!cfg.delta_link) {
         // Primeira leitura: marca o ponto de partida sem varrer a biblioteca inteira.
         const r = await graph.get(GRAPH + '/drives/' + encodeURIComponent(cfg.drive_id) + '/root/delta?token=latest');
-        await cfgRef.set({ delta_link: r['@odata.deltaLink'] || '', ultima_execucao: inicio, ultimo_resultado: { estado: 'iniciado', detalhe: 'Leitura iniciada. Arquivos salvos a partir de agora dão baixa nas solicitações em aberto.' } }, { merge: true });
+        await cfgRef.set({ delta_link: r['@odata.deltaLink'] || '', ultima_execucao: inicio, ultimo_resultado: { estado: 'iniciado', detalhe: 'Leitura iniciada. Arquivos salvos a partir de agora aparecem nas solicitações em aberto para conferir.' } }, { merge: true });
         return { estado: 'iniciado' };
       }
       let url = cfg.delta_link, proximo = null, fim = null, n = 0;
@@ -163,7 +176,7 @@ function criarBaixaSharepoint({ db, graph = criarGraph(), agora = () => new Date
       for (const b of baixasPorArquivos({ arquivos, abertas })) if (await darBaixa(b)) baixas++;
       const resultado = { estado: 'ok', arquivos: arquivos.length, empresas: cnpjs.length, baixas, pendente: !!(proximo || parouEm),
         lidos: lidos.total, fora_da_pasta: lidos.fora, sem_cnpj: lidos.sem_cnpj, pastas_sem_cnpj: lidos.exemplos,
-        detalhe: baixas + ' solicitação(ões) com baixa · ' + arquivos.length + ' arquivo(s) novo(s) em ' + cnpjs.length + ' pasta(s) de empresa'
+        detalhe: baixas + ' solicitação(ões) sinalizada(s) para conferir · ' + arquivos.length + ' arquivo(s) novo(s) em ' + cnpjs.length + ' pasta(s) de empresa'
           + (lidos.total > arquivos.length ? ' · ' + lidos.total + ' arquivo(s) alterado(s) na biblioteca' + (lidos.fora ? ', ' + lidos.fora + ' fora da pasta configurada' : '') + (lidos.sem_cnpj ? ', ' + lidos.sem_cnpj + ' em pasta sem CNPJ de 14 dígitos no nome (ex.: ' + lidos.exemplos.join('; ') + ')' : '') : '')
           + (proximo || parouEm ? ' · ainda há novidades; continuam na próxima rodada' : '') };
       // Só avança o ponto de leitura quando a página inteira foi tratada.

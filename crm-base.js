@@ -174,7 +174,7 @@ function filtrosCarteira(body = {}) {
   if (f.periodo && !/^\d{4}(-(?:0[1-9]|1[0-2]))?$/.test(f.periodo)) throw erro('Informe ano ou competência válida.');
   if (f.obrigacao && !['pendente','em_andamento','aguardando_documentos','em_revisao','concluida','nao_aplicavel'].includes(f.obrigacao)) throw erro('Situação da obrigação inválida.');
   if (f.atraso && !['atrasado','no_prazo','sem_prazo','encerrado'].includes(f.atraso)) throw erro('Filtro de prazo inválido.');
-  if (f.solicitacao && !['aguardando','atrasada','recebida','falhou','sem'].includes(f.solicitacao)) throw erro('Filtro de solicitação ao cliente inválido.');
+  if (f.solicitacao && !['aguardando','arquivos','atrasada','recebida','falhou','sem'].includes(f.solicitacao)) throw erro('Filtro de solicitação ao cliente inválido.');
   if (f.movimentacao && !['sem','7','15','30'].includes(f.movimentacao)) throw erro('Filtro de movimentação inválido.');
   return f;
 }
