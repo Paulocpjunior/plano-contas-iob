@@ -19,6 +19,13 @@ assert.equal(SP.pastaDaEmpresa(raiz + '/12345678000190%20-%20PADARIA', raiz), '1
 assert.equal(SP.pastaDaEmpresa(raiz, raiz), null, 'arquivo solto na raiz');
 assert.equal(SP.pastaDaEmpresa('/drives/d1/root:/Outra/1234', raiz), null, 'fora da pasta Clientes');
 assert.equal(SP.pastaDaEmpresa('/drives/d1/root:/Clientes2/x', raiz), null);
+// Pasta configurada = a própria biblioteca (Clientes SP): raiz "/drive/root:" × itens "/drives/{id}/root:".
+assert.equal(SP.pastaDaEmpresa('/drives/b!Xy-1/root:/00000509000134 - CONDEC REFORMAS', '/drive/root:'), '00000509000134 - CONDEC REFORMAS', 'biblioteca como raiz');
+assert.equal(SP.pastaDaEmpresa('/drives/b!Xy-1/root:/00000509000134 - CONDEC/2026-11', '/drive/root:'), '00000509000134 - CONDEC');
+assert.equal(SP.pastaDaEmpresa('/drive/root:', '/drive/root:'), null, 'arquivo solto na biblioteca');
+assert.equal(SP.pastaDaEmpresa('/drives/b!Xy-1/root:', '/drives/b!Xy-1/root:'), null);
+assert.equal(SP.pastaDaEmpresa('/drive/root:/Clientes/12345678000190 - X', '/drives/b!Q/root:/Clientes'), '12345678000190 - X', 'formatos misturados numa subpasta');
+assert.equal(SP.pastaDaEmpresa('/drives/d1/root:/Clientes/x', ''), null, 'sem raiz configurada não casa');
 {
   const abertas = [
     { id: 'a', cnpj: '1', estado: 'enviado', quando: '2026-11-01T12:00:00Z' },

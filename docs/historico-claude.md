@@ -2487,3 +2487,6 @@ Paulo (migração da IOB): DIGITACAO da 1374 Cadeiras Gennaro recusada na "Linha
 
 ### 06/11/2026 · v3.4.501 · SharePoint da solicitação: link do OneDrive e mensagem de leitura
 Paulo colou o endereço da pasta aberta pelo OneDrive (`empresa-my.sharepoint.com/shared?id=/sites/Clientes…`): deu "Pasta não encontrada" (o site foi procurado no host `-my`) e, noutra tentativa, 403 pedindo "escrita" (o app do CCI só tem Sites.Selected no site do Contábil; a pasta Clientes está noutro site). `caminhoDaPasta` troca o host `-my` pelo principal quando o caminho é `/sites|/teams`; `criar({uso:'leitura'})` na rota da solicitação gera mensagens de leitura com o nome do site. Pendente: admin M365 liberar Sites.Selected (read) para o app 59fd4ec9 no site da pasta Clientes.
+
+### 06/11/2026 · v3.4.502 · Baixa pelo SharePoint com a biblioteca como raiz
+Teste do Paulo (CONDEC, arquivo salvo na pasta) sem baixa, agendador OK (16:25 UTC, sem erro). Causa: a pasta Clientes configurada é a raiz da biblioteca do site Clientes SP; o item raiz não tem `parentReference.path`, então `raiz_caminho` ficava `/drive/root:`, enquanto os pais dos arquivos vêm como `/drives/{id}/root:/…` — nunca casavam. `pastaDaEmpresa` compara pelo caminho relativo à biblioteca (`relativoDaBiblioteca`). Arquivos já consumidos pelo delta antes do fix não são relidos.
