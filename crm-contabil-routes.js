@@ -35,7 +35,7 @@ async function carregarDepartamento(req, env = process.env, fetcher = globalThis
   } catch (_) { throw core.erro('Não foi possível confirmar a equipe contábil. Confira o cadastro central e tente novamente; a lista geral não será usada.', 503); }
 }
 
-function registrar(app, { db, domain, storage, checklist = carregarChecklist, departamento = carregarDepartamento, env = process.env, conexaoTeams = require('./notificacoes-teams'), entrega = require('./notificacoes-entrega'), solicitacaoEmail = {}, agora = () => new Date().toISOString() }) {
+function registrar(app, { db, domain, storage, checklist = carregarChecklist, departamento = carregarDepartamento, env = process.env, conexaoTeams = require('./notificacoes-teams'), entrega = require('./notificacoes-entrega'), solicitacaoEmail = {}, solicitacaoSharepoint = null, agora = () => new Date().toISOString() }) {
   const base = '/api/crm/empresas/:cnpj';
   const wrap = fn => async (req, res) => {
     try { res.setHeader('Cache-Control', 'private, no-store'); await fn(req, res); }
@@ -327,7 +327,7 @@ function registrar(app, { db, domain, storage, checklist = carregarChecklist, de
   }
   registrarNotificacoes('crm','/api/crm/automacoes',false);
   registrarNotificacoes('aplicacoes',base+'/notificacoes/aplicacoes',true);
-  require('./crm-solicitacao-routes').registrar(app,{db,wrap,usuario,contexto,admin,erro:core.erro,agora,env,email:solicitacaoEmail});
+  require('./crm-solicitacao-routes').registrar(app,{db,wrap,usuario,contexto,admin,erro:core.erro,agora,env,email:solicitacaoEmail,sharepoint:solicitacaoSharepoint});
   function empresaPublica(doc, user, origem) {
     const d = doc.data();
     return { origem, situacao_cliente:situacaoCliente(d), cnpj: doc.id, razao_social: d.razao_social || '', codigo_empresa: codigoEmpresaDe(d),

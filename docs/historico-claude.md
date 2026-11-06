@@ -2479,3 +2479,8 @@ Paulo viu "saldo anterior" R$ 12.164,00 D na 1.2.1.02.0001 / 161 da Daxx sem ori
 
 ## 06/11/2026 — Relatório SAGE com contas pelo reduzido (3.4.499)
 Paulo (migração da IOB): DIGITACAO da 1374 Cadeiras Gennaro recusada na "Linha 4 ... CONFERENCIA DE LANCAMENTOS". Diferenças dessa emissão: "Pagina ..:" no cabeçalho, contas pelo reduzido (0000000062) e 2 lançamentos sem histórico. `importacao-sage-conferencia.js` aceita os dois cabeçalhos, detecta reduzido × classificação (mistura bloqueia) e lê o histórico por posição; `prepararFI` usa `formato` para aviso de movimento existente e mensagem de reimportação. Real: 5.770 lançamentos → 5.831 partidas, R$ 30.465.274,74; Digita08 e Digita12 inalterados.
+
+## 06/11/2026 — v3.4.500 Baixa automática da solicitação pelo SharePoint
+- Paulo: o cliente salva no SharePoint (site Contábil → Clientes → pasta "CNPJ/nome"); a solicitação deve receber baixa sozinha.
+- `crm-solicitacao-sharepoint.js`: Delta do Graph na biblioteca (1ª leitura `token=latest`, sem varrer o acervo), pasta da empresa = 1º nível abaixo da raiz configurada, CNPJ pelo nome (14 dígitos), baixa só para arquivo criado depois do envio (`recebida_via: 'sharepoint'`, até 10 arquivos com link). Roda no agendador interno junto das recorrências. Limite de consultas relê a página na rodada seguinte; 410 recomeça a leitura.
+- Config em `crm_solicitacao_config/sharepoint` (GET/PUT `/api/crm/solicitacoes/sharepoint`, só admin altera; resolve a pasta pelo mesmo caminho da ficha de aplicações, Sites.Selected do site Contábil). `POST .../:id/recebida/desfazer` volta a aguardar (movimento `solicitacao_reaberta`).
