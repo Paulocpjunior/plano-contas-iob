@@ -128,6 +128,24 @@ const { ambiente } = require('./test-crm-contabil-routes');
   const carteira = await n.call('GET', '/api/crm/carteira', {}, 'colab');
   assert.equal(carteira.body.empresas.find(e => e.cnpj === cnpj).movimentacao.tipo, 'demanda_status', 'carteira mostra o histórico trazido');
 
+  // v3.4.503: e-mail enviado antes da 3.4.484 (sem resumo) aparece na carteira (caso Monica Moromizato).
+  assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj), undefined);
+  assert.equal(carteira.body.empresas.find(e => e.cnpj === cnpj).solicitacao.situacao, 'sem');
+  n.dados.set('empresas/' + cnpj + '/crm_solicitacoes/antiga', { cnpj, canal: 'email', estado: 'enviado', modelo_nome: 'Documentos do fechamento mensal', competencia: '2026-10', quando: '2026-10-03T13:21:47Z', autor_email: 'colab@fixture.test' });
+  h = await n.call('POST', rota + '/recuperar-historico', {}, 'admin');
+  assert.equal(h.body.situacoes, 1, 'grava o resumo da solicitação mais recente');
+  assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj).solicitacao_id, 'antiga');
+  assert.equal((await n.call('GET', '/api/crm/carteira', {}, 'colab')).body.empresas.find(e => e.cnpj === cnpj).solicitacao.situacao, 'aguardando', 'carteira mostra Aguardando cliente');
+  assert.equal((await n.call('POST', rota + '/recuperar-historico', {}, 'admin')).body.situacoes, 0, 'resumo existente não é regravado');
+  // Abrir a empresa também corrige, sem esperar o administrador.
+  n.dados.delete('crm_solicitacao_status/' + cnpj);
+  const indiv = await n.call('GET', '/api/crm/empresas/:cnpj/solicitacoes', {}, 'colab');
+  assert.equal(indiv.statusCode, 200, JSON.stringify(indiv.body));
+  assert.equal(indiv.body.situacao.situacao, 'aguardando', 'tela da empresa mostra a solicitação enviada');
+  assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj).solicitacao_id, 'antiga', 'e grava o resumo para a carteira');
+  n.dados.delete('empresas/' + cnpj + '/crm_solicitacoes/antiga');
+  n.dados.delete('crm_solicitacao_status/' + cnpj);
+
   // Etapas parametrizadas: só admin grava, com histórico.
   const etapas = [{ nome: 'Pedido', tipo: 'solicitacao' }, { nome: 'Conciliação', tipo: 'controle', codigos: ['CONCILIACAO'] }];
   assert.equal((await n.call('PUT', rota + '/etapas', { etapas }, 'colab')).statusCode, 403);

@@ -146,9 +146,16 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
   app.get(base, wrap(async (req, res) => {
     const c = await contexto(req);
     const snap = await c.controlesRef.collection(REGISTROS).orderBy('quando', 'desc').limit(20).get();
+    const statusRef = db.collection(STATUS).doc(req.params.cnpj);
+    let resumo = (await statusRef.get()).data();
+    if ((!resumo || !resumo.solicitacao_id) && snap.docs.length) {
+      // Envio anterior à 3.4.484: grava o resumo agora para a carteira mostrar.
+      resumo = S.resumoDoHistorico(snap.docs.map(d => ({ ...d.data(), id: d.id, cnpj: req.params.cnpj })));
+      if (resumo) await statusRef.set(resumo);
+    }
     res.json({
       ok: true,
-      situacao: S.solicitacaoPublica((await db.collection(STATUS).doc(req.params.cnpj).get()).data(), hoje()),
+      situacao: S.solicitacaoPublica(resumo, hoje()),
       empresa: { cnpj: req.params.cnpj, razao_social: c.empresa.razao_social || '' },
       contato: S.contatoEmpresa(c.empresa),
       pode_enviar: podeEnviar(c.user),

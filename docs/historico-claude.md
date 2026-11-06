@@ -2490,3 +2490,6 @@ Paulo colou o endereço da pasta aberta pelo OneDrive (`empresa-my.sharepoint.co
 
 ### 06/11/2026 · v3.4.502 · Baixa pelo SharePoint com a biblioteca como raiz
 Teste do Paulo (CONDEC, arquivo salvo na pasta) sem baixa, agendador OK (16:25 UTC, sem erro). Causa: a pasta Clientes configurada é a raiz da biblioteca do site Clientes SP; o item raiz não tem `parentReference.path`, então `raiz_caminho` ficava `/drive/root:`, enquanto os pais dos arquivos vêm como `/drives/{id}/root:/…` — nunca casavam. `pastaDaEmpresa` compara pelo caminho relativo à biblioteca (`relativoDaBiblioteca`). Arquivos já consumidos pelo delta antes do fix não são relidos.
+
+### 06/11/2026 · v3.4.503 · Carteira sem a solicitação antiga + diagnóstico do SharePoint
+Monica Moromizato (0063): e-mail de 03/11 10:21 (antes da 3.4.484) sem `crm_solicitacao_status` → carteira "Sem solicitação". `resumoDoHistorico` grava o resumo do envio mais recente: no GET da tela da empresa (autocorreção) e no POST recuperar-historico (todas; campo `situacoes`). Cartão 📂: a pasta configurada é `/sites/ClientesSP2/Documentos Compartilhados/Empresas` (subpasta, não a raiz da biblioteca — a 3.4.502 não era a causa do teste da CONDEC; provável arquivo salvo antes da primeira leitura). `ultimo_resultado` agora traz lidos/fora/sem CNPJ com exemplos de pasta.

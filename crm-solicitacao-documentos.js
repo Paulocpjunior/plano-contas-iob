@@ -456,6 +456,19 @@ function resumoSolicitacao(id, registro) {
   });
 }
 
+/**
+ * Envios anteriores à 3.4.484 não gravaram o resumo da carteira (caso Monica
+ * Moromizato, e-mail de 03/11): o resumo sai do envio mais recente da empresa.
+ * lista: [{id, quando, ...registro}] · devolve o resumo ou null.
+ */
+function resumoDoHistorico(lista) {
+  const ultimo = (lista || []).filter(r => r && r.id && r.quando && !Number.isNaN(Date.parse(r.quando)))
+    .sort((a, b) => Date.parse(b.quando) - Date.parse(a.quando))[0];
+  if (!ultimo) return null;
+  const { id, ...registro } = ultimo;
+  return resumoSolicitacao(id, registro);
+}
+
 /** Situação para a tela: o atraso é calculado na leitura, nunca gravado. */
 function situacaoSolicitacao(resumo, hoje) {
   if (!resumo || !resumo.solicitacao_id) return 'sem';
@@ -503,6 +516,6 @@ module.exports = {
   MAX_MODELOS, IDS, MODELOS_PADRAO, VARIAVEIS, idValido, modelosEfetivos, proximoId, configurarModelo,
   contatoEmpresa, prepararSolicitacao, normalizarWhatsapp, whatsappFormatado, linkWhatsapp, htmlDaMensagem,
   semIndefinidos, competenciaBr, dataBr,
-  SITUACOES_SOLICITACAO, resumoSolicitacao, situacaoSolicitacao, solicitacaoPublica,
+  SITUACOES_SOLICITACAO, resumoSolicitacao, resumoDoHistorico, situacaoSolicitacao, solicitacaoPublica,
   MAX_COPIAS, configurarCopias, copiasConfiguradas, copiasDoEnvio
 };

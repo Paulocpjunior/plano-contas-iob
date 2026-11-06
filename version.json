@@ -1,7 +1,8 @@
 {
-  "version": "3.4.502",
-  "build_date": "2026-11-06T17:00:00Z",
+  "version": "3.4.503",
+  "build_date": "2026-11-06T17:30:00Z",
   "release_notes": [
+    "CRM → carteira: empresas com solicitação enviada antes da 3.4.484 (ex.: e-mail de 03/11) apareciam como \"Sem solicitação\". Agora a situação é corrigida ao abrir a empresa em Solicitar documentos, e o botão \"🕘 Trazer histórico anterior\" do Painel do gestor corrige todas de uma vez. O cartão 📂 Baixa automática pelo SharePoint passa a mostrar quantos arquivos foram lidos na biblioteca e por que não deram baixa (fora da pasta configurada ou pasta sem CNPJ de 14 dígitos no nome, com exemplos).",
     "CRM → Solicitar documentos → 📂 Baixa automática pelo SharePoint: corrige a leitura quando a pasta configurada é a própria biblioteca do site (caso Clientes SP). Antes, nenhum arquivo era reconhecido como estando na pasta da empresa e a solicitação não recebia baixa. Arquivos salvos a partir desta versão dão baixa normalmente.",
     "CRM → Solicitar documentos → 📂 Baixa automática pelo SharePoint: aceita o endereço da pasta aberta pelo OneDrive (Compartilhado, endereço com \"-my.sharepoint.com/shared?id=/sites/…\"), que antes dava \"Pasta não encontrada\". As mensagens passam a falar de permissão de LEITURA e citam o site que o administrador do Microsoft 365 precisa liberar (Sites.Selected) para o app do CCI; não falam mais do canal da ficha.",
     "CRM → Solicitar documentos: baixa automática pelo SharePoint. O administrador cola o endereço da pasta Clientes do site Contábil no cartão \"📂 Baixa automática pelo SharePoint\". Quando o cliente salva um arquivo na pasta da empresa (uma pasta por empresa, com o CNPJ no nome) depois do envio, a solicitação em aberto recebe baixa sozinha: o histórico mostra os arquivos com link, a carteira passa a Documentos recebidos, a etapa Documentos do Painel do gestor fica verde e a movimentação registra \"Cliente pelo SharePoint\". Vale para arquivos salvos a partir da ativação. Quem acompanha pode clicar em \"↩️ Desfazer baixa\" se o que chegou estiver incompleto (vale também para a baixa manual).",
