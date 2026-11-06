@@ -2476,3 +2476,6 @@ Paulo viu "saldo anterior" R$ 12.164,00 D na 1.2.1.02.0001 / 161 da Daxx sem ori
 - `Movimentacao.movimentosDoHistorico` deriva movimentos dos registros existentes (crm_solicitacoes: quando/autor, recebida_em; crm_controles: criado_em/atualizado_em + uid; crm_documentos: quando/por_uid), nomes de `users`. Painel usa o mais recente entre resumo e histórico.
 - Placar com obrigações em aberto/atrasadas/sem prazo de todos os períodos (mesma conta da Topologia); matriz com regime e obrigações; CSV/PDF.
 - `POST /api/crm/painel-gestor/recuperar-historico` (só admin): grava linhas `h_<tipo>_<id>` em `empresas/{cnpj}/crm_movimentos` e o resumo quando mais recente; idempotente.
+
+## 06/11/2026 — Relatório SAGE com contas pelo reduzido (3.4.499)
+Paulo (migração da IOB): DIGITACAO da 1374 Cadeiras Gennaro recusada na "Linha 4 ... CONFERENCIA DE LANCAMENTOS". Diferenças dessa emissão: "Pagina ..:" no cabeçalho, contas pelo reduzido (0000000062) e 2 lançamentos sem histórico. `importacao-sage-conferencia.js` aceita os dois cabeçalhos, detecta reduzido × classificação (mistura bloqueia) e lê o histórico por posição; `prepararFI` usa `formato` para aviso de movimento existente e mensagem de reimportação. Real: 5.770 lançamentos → 5.831 partidas, R$ 30.465.274,74; Digita08 e Digita12 inalterados.

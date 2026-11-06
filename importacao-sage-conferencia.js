@@ -7,17 +7,20 @@ const ORIENTACAO = 'Gere de novo na SAGE o relatório Conferência de Lançament
 
 // Espelho: relatório "Conferência de Lançamentos" da SAGE gravado em texto
 // (Digita12.txt da 0813, 12/2025, 344 lançamentos; Digita08.txt da 1170,
-// 01-08/2026, 1.338 lançamentos e 19 de múltiplas partidas). Impressão com
+// 01-08/2026, 1.338 lançamentos e 19 de múltiplas partidas; DIGITACAO da 1374,
+// 01-03/2026, "Pagina ..:" no cabeçalho e contas pelo reduzido). Impressão com
 // cabeçalho por folha, complemento quebrado em linhas de continuação e contas
-// pela classificação completa. Leiaute posicional: número e data até a col. 18,
-// débito nas cols. 19-35, crédito nas 36-52, valor terminando na 67, histórico na 72.
+// pela classificação completa ou pelo reduzido. Leiaute posicional: número e data até
+// a col. 18, débito nas cols. 19-35, crédito nas 36-52, valor terminando na 67, histórico na 72.
 // Lançamento de múltiplas partidas: a linha do número traz um lado só e as
 // linhas seguintes (sem número) trazem as contrapartidas do outro lado.
 const INICIO = /^ (\d{10}) (\d{2})\/(\d{2}) $/;
 const CONTA = /^(\d[\d.]*)?$/;
-const RESTO = /^ *(\d{1,3}(?:\.\d{3})*,\d{2}) +(\d{4}) ?(.*)$/;
+// Valor alinhado até a col. 67; histórico nas cols. 72-75, em branco quando o lançamento não tem histórico padrão.
+const VALOR = /^ *(\d{1,3}(?:\.\d{3})*,\d{2})$/;
+const HISTORICO = /^(\d{4}| {4})$/;
 const CONTINUACAO = /^ {60,}\S/;
-const IGNORADAS = [/^ ?$/, /^ -+$/, /^ CONFERENCIA DE LANCAMENTOS +Folha/, /^ \d+ - .+Data \.\.\.:/, /^ CNPJ: /, /^ DO LANCAMENTO: /, /^ N\.LANCTO +DATA /];
+const IGNORADAS = [/^ ?$/, /^ -+$/, /^ CONFERENCIA DE LANCAMENTOS +(?:Folha|Pagina) \.\.:/, /^ \d+ - .+Data \.\.\.:/, /^ CNPJ: /, /^ DO LANCAMENTO: /, /^ N\.LANCTO +DATA /];
 
 function ehConferenciaSAGE(buffer) {
   return Buffer.isBuffer(buffer) && buffer.subarray(0, 4096).toString('latin1').includes(MARCA);
@@ -54,11 +57,12 @@ function lerConferenciaSAGE(buffer) {
   const numeros = new Set();
   // Partes posicionais de uma linha de partida; null quando a linha não é partida.
   const partes = linha => {
-    const debito = linha.slice(18, 35).trim(), credito = linha.slice(35, 52).trim(), resto = linha.slice(52).match(RESTO);
-    if (linha.length < 72 || !CONTA.test(debito) || !CONTA.test(credito) || !resto) return null;
-    const [, valorTexto, codigoHistorico, complemento] = resto;
-    return { debito, credito, valorCentavos: Number(valorTexto.replace(/\./g, '').replace(',', '')),
-      codigoHistorico: codigoHistorico === '0000' ? '' : codigoHistorico, descricao: complemento.trim() };
+    const debito = linha.slice(18, 35).trim(), credito = linha.slice(35, 52).trim(), valor = linha.slice(52, 67).match(VALOR);
+    const historico = linha.slice(71, 75).padEnd(4);
+    if (!CONTA.test(debito) || !CONTA.test(credito) || !valor || linha.slice(67, 71).trim() || !HISTORICO.test(historico)) return null;
+    const codigoHistorico = historico.trim();
+    return { debito, credito, valorCentavos: Number(valor[1].replace(/\./g, '').replace(',', '')),
+      codigoHistorico: codigoHistorico === '0000' ? '' : codigoHistorico, descricao: linha.slice(75).trim() };
   };
   // Fecha o lançamento de múltiplas partidas: as contrapartidas somam o valor da linha do número.
   const fecharComposto = () => {
@@ -126,7 +130,12 @@ function lerConferenciaSAGE(buffer) {
   if (quantidadeImpressa !== totalLancamentos) falha(`O relatório informa ${quantidadeImpressa} lançamentos, mas foram lidos ${totalLancamentos}. ${ORIENTACAO}`);
   if (!semDiferenca) falha('O relatório não traz "NAO HA DIFERENCA": corrija a diferença entre débitos e créditos na SAGE antes de importar.');
   const fingerprint = hash('sage-conferencia|' + [...cnpjs][0] + '|' + registros.join('\r\n'));
-  return { formato: 'conferencia-sage', referenciaConta: 'codigo', cnpj: [...cnpjs][0], empresa: [...empresas][0] || '',
+  // A SAGE imprime as contas pela classificação (1.1.1.02.0002) ou pelo reduzido (0000000062, 1374 Cadeiras Gennaro).
+  // Um relatório com os dois formatos não tem como ser casado com o plano sem presumir.
+  const contasUsadas = lancamentos.flatMap(l => [l.contaDebito, l.contaCredito]);
+  const porReduzido = contasUsadas.every(c => /^\d+$/.test(c)), porCodigo = contasUsadas.every(c => c.includes('.'));
+  if (!porReduzido && !porCodigo) falha('O relatório mistura contas pela classificação e pelo código reduzido. ' + ORIENTACAO);
+  return { formato: 'conferencia-sage', referenciaConta: porReduzido ? 'reduzido' : 'codigo', cnpj: [...cnpjs][0], empresa: [...empresas][0] || '',
     periodoInicio: inicio, periodoFim: fim, quantidadeImpressa, compostos: lancamentos.filter(l => l.partidaSage === 1).length, lancamentos, fingerprint, repetidos: 0 };
 }
 

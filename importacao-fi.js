@@ -54,8 +54,9 @@ function prepararFI({ arquivo, contas, state, cnpj }) {
   // Relatório da SAGE traz o CNPJ no cabeçalho; o FI não traz e depende da confirmação do usuário.
   if (arquivo.cnpj && arquivo.cnpj !== cnpj) falha(`O relatório é do CNPJ ${arquivo.cnpj} e a empresa ativa é ${cnpj}. Ative a empresa do relatório.`);
   const porCodigo = arquivo.referenciaConta === 'codigo';
+  const relatorio = arquivo.formato === 'conferencia-sage';
   const rotulo = porCodigo ? 'Conta' : 'Conta reduzida';
-  if (state.entries.some(e => e._fingerprint_imp === arquivo.fingerprint)) erros.push(`Este arquivo ${porCodigo ? 'da SAGE' : 'FI'} já foi importado nesta empresa. Confira os lançamentos existentes.`);
+  if (state.entries.some(e => e._fingerprint_imp === arquivo.fingerprint)) erros.push(`Este arquivo ${relatorio ? 'da SAGE' : 'FI'} já foi importado nesta empresa. Confira os lançamentos existentes.`);
   for (const l of arquivo.lancamentos) for (const ref of [l.contaDebito, l.contaCredito]) {
     if (usados.has(ref)) continue;
     // Classificação completa casa por igualdade exata do código; nunca por dígitos, para 1.1 não virar 11.
@@ -79,7 +80,7 @@ function prepararFI({ arquivo, contas, state, cnpj }) {
   // O relatório da SAGE traz todas as origens do mês (banco, folha, notas): avisar o que o CCI já tem nas mesmas competências.
   const meses = new Set(lancamentos.map(l => l.data.slice(0, 7)));
   const movimentoExistente = {};
-  if (porCodigo) for (const e of state.entries) if (meses.has(String(e.data || '').slice(0, 7))) {
+  if (relatorio) for (const e of state.entries) if (meses.has(String(e.data || '').slice(0, 7))) {
     const origem = e.layoutNome || e.bancoNome || e.origem || 'Sem origem';
     movimentoExistente[origem] = (movimentoExistente[origem] || 0) + 1;
   }
