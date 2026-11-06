@@ -57,3 +57,7 @@ Espelho: Digita12.txt da 0813 FR Climatização, 12/2025 (344 lançamentos, R$ 1
 ### Múltiplas partidas (3.4.467)
 
 Espelho: Digita08.txt da 1170, 01-08/2026 (1.338 lançamentos, 19 de múltiplas partidas, 1.360 partidas no CCI), não incorporado ao repositório. A linha com número traz só um lado (débito na col. 19 ou crédito na col. 36 em branco); as linhas seguintes sem número trazem as contrapartidas do outro lado, cada uma com valor, histórico e complemento. Cada contrapartida vira uma partida contra a conta única, com `numeroLancamentoSage`, `partidaSage` e `partidasSage`. Bloqueiam: soma das contrapartidas diferente do lançamento, contrapartida do mesmo lado ou com as duas contas (N contra N não é dividido por aproximação), contrapartida sem lançamento antes e lançamento de um lado sem contrapartidas. A quantidade do rodapé conta lançamentos, não partidas, e aceita milhar (`1.338`).
+
+### Contas pelo reduzido e cabeçalho "Pagina" (3.4.499)
+
+Espelho: DIGITACAO da 1374 Cadeiras Gennaro, 01-03/2026 (5.770 lançamentos, 44 de múltiplas partidas, 5.831 partidas, R$ 30.465.274,74), não incorporado ao repositório. A SAGE pode imprimir "Pagina ..:" em vez de "Folha ..:" e as contas pelo reduzido (10 dígitos) em vez da classificação; o leitor devolve `referenciaConta: 'reduzido'` e a prévia casa pelo reduzido do plano (zeros à esquerda ignorados). Relatório com os dois formatos de conta é recusado. Histórico padrão em branco (cols. 72-75) é aceito; o histórico passa a ser lido por posição.

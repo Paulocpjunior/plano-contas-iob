@@ -80,6 +80,31 @@ assert.throws(compostoRuim([sub('1.1.1.02.0002', '', '100,00', '0900', 'A')]), /
 assert.throws(() => lerConferenciaSAGE(buf(relatorio({ linhas: [lanc(1, '01/12', '1.1.1.02.0002', '1.1.2.03.0010', '1,00', '1299', 'X'), sub('5.1.1.03.0004', '', '1,00', '0900', 'Y')] }))), /contrapartida sem um lançamento de múltiplas partidas/);
 // Quantidade com milhar ("1.338" no Digita08).
 assert.throws(() => lerConferenciaSAGE(buf(relatorio({ quantidade: '1.000' }))), /informa 1000 lançamentos, mas foram lidos 3/);
+
+// Variante da 1374: cabeçalho "Pagina ..:", contas pelo reduzido (10 dígitos) e lançamento sem histórico padrão.
+const variante = relatorio({ linhas: [
+  lanc(1, '01/12', '0000000014', '0000000062', '7.600,00', '1399', 'RECEBIMENTO ANTECIPADO'),
+  lanc(2, '01/12', '0000000020', '0000000012', '1.895,85', '    ', 'BB RENDE FACIL'),
+  lanc(3, '02/12', '', '0000000014', '100,00', '1303', 'PAGTO'),
+  sub('0000000820', '', '100,00', '0039', 'NFS 913451'),
+] }).replace(/Folha \.\.:     /g, 'Pagina ..:    ');
+const porReduzido = lerConferenciaSAGE(buf(variante));
+assert.equal(porReduzido.referenciaConta, 'reduzido');
+assert.deepEqual(porReduzido.lancamentos.map(l => [l.contaDebito, l.contaCredito, l.valorCentavos, l.codigoHistorico, l.descricao]), [
+  ['0000000014', '0000000062', 760000, '1399', 'RECEBIMENTO ANTECIPADO'],
+  ['0000000020', '0000000012', 189585, '', 'BB RENDE FACIL'],
+  ['0000000820', '0000000014', 10000, '0039', 'NFS 913451'],
+]);
+const planoReduzido = [['1.1.1.01', '14'], ['2.1.1.01', '62'], ['1.1.1.03', '20'], ['1.1.1.02', '12'], ['5.1.1.01', '820']]
+  .map(([codigo, reduzido]) => ({ codigo, reduzido, descricao: 'Conta ' + reduzido, analitica: true }));
+const previaReduzido = prepararFI({ arquivo: porReduzido, contas: planoReduzido, state: { info: { cnpj, periodoInicio: '2025-12-01', periodoFim: '2025-12-31' }, entries: [{ data: '2025-12-02', bancoNome: 'Itaú' }] }, cnpj });
+assert(previaReduzido.ok, previaReduzido.erros.join(' '));
+assert.deepEqual(previaReduzido.lancamentos.map(l => [l.contaDebito, l.contaCredito]), [['14', '62'], ['20', '12'], ['820', '14']]);
+assert.deepEqual(previaReduzido.movimentoExistente, { 'Itaú': 1 }, 'relatório pelo reduzido também avisa movimento existente');
+const semReduzidoNoPlano = prepararFI({ arquivo: porReduzido, contas: planoReduzido.slice(1), state: { info: { cnpj, periodoInicio: '2025-12-01', periodoFim: '2025-12-31' }, entries: [] }, cnpj });
+assert(!semReduzidoNoPlano.ok && /Conta reduzida 0000000014: ausente/.test(semReduzidoNoPlano.erros.join(' ')));
+assert.throws(() => lerConferenciaSAGE(buf(relatorio({ linhas: [lanc(1, '01/12', '0000000014', '1.1.2.03.0010', '1,00', '1299', 'X')] }))), /mistura contas pela classificação e pelo código reduzido/);
+assert.throws(() => lerConferenciaSAGE(buf(relatorio({ linhas: [lanc(1, '01/12', '1.1.1.02.0002', '1.1.2.03.0010', '1,00', '12A9', 'X')] }))), /fora do leiaute/);
 assert.throws(() => lerConferenciaSAGE(buf(relatorio({ linhas: [lanc(1, '01/11', '1.1.1.02.0002', '1.1.2.03.0010', '530,00', '1299', 'X')] }))), /fora do período/);
 assert.throws(() => lerConferenciaSAGE(buf(relatorio({ linhas: [lanc(1, '01/12', '1.1.1.02.0002', '1.1.2.03.0010', '0,00', '1299', 'X')] }))), /zerado/);
 assert.throws(() => lerConferenciaSAGE(buf(relatorio().replace(' NAO HA DIFERENCA', ' NAO HA DIFERENCA\r\n TOTAL GERAL 999'))), /fora do leiaute conhecido/);
