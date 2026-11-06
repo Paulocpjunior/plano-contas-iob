@@ -4,6 +4,25 @@ let active=false,busy=false,data;
 const el=id=>document.getElementById(id),date=v=>v?new Date(v).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'Não informado';
 function node(tag,value,parent){const n=document.createElement(tag);n.textContent=value;parent.append(n);return n;}
 function button(label,parent,action){const b=node('button',label,parent);b.type='button';b.className='btn';b.addEventListener('click',action);return b;}
+const replicaLabels={pending:'Pendente',transferring:'Transferindo',failed:'Falhou',verified:'Verificado'};
+function replicaCell(parent,b,app){
+ const u=b.unas||{state:'pending'},cell=node('td','',parent);
+ node('strong',replicaLabels[u.state]||'Pendente',cell);
+ if(u.progress?.totalBytes)node('p',`${u.progress.files}/${u.progress.fileCount} arquivos verificados · ${(u.progress.bytes/1e9).toFixed(2)}/${(u.progress.totalBytes/1e9).toFixed(2)} GB`,cell);
+ if(u.state==='transferring'&&u.progress?.currentFileBytes)node('p','Arquivo atual: '+(u.progress.currentFileBytes/1e6).toFixed(1)+' MB processados',cell);
+ if(u.lastAttemptAt)node('p','Última tentativa: '+date(u.lastAttemptAt),cell);
+ if(u.verifiedAt)node('p','Verificado em: '+date(u.verifiedAt),cell);
+ if(u.error)node('p',u.error,cell);
+ if(u.state==='verified')button('Ver comprovante',cell,()=>replicaDetail(app,b.run));
+}
+async function replicaDetail(app,run){
+ const content=open('Comprovante UNAS — '+app);node('p','Conferindo assinatura e vínculo com a exportação…',content);
+ try{const u=await api('/api/admin/backups/'+app+'/'+run+'/unas');content.replaceChildren();
+  if(u.state!=='verified'||!u.receipt){node('p',u.error||'Comprovante não confirmado.',content);return;}
+  node('p','Gravação e releitura verificadas em '+date(u.verifiedAt)+'. Restauração é uma validação separada.',content);
+  button('Baixar UNAS_VERIFIED.json',content,()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(u.receipt,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=app+'-'+run+'-UNAS_VERIFIED.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+ }catch(e){content.textContent=e.message;}
+}
 async function api(url,options){const r=await window.API.apiFetch(url,options);const d=await r.json();if(!r.ok)throw Error(d.erro||'Consulta indisponível.');return d;}
 function table(parent,headers){const wrap=node('div','',parent);wrap.style.overflowX='auto';wrap.style.maxHeight='360px';wrap.style.overflowY='auto';const t=node('table','',wrap);t.style.width='100%';const head=node('tr','',node('thead','',t));headers.forEach(h=>node('th',h,head));return node('tbody','',t);}
 function render(d){data=d;const root=el('backup-results');root.replaceChildren();
@@ -14,14 +33,14 @@ s.errors.forEach(e=>node('p',e.message+' ('+e.source+')',card));
 button('Executar backup agora',card,()=>actionDialog(s.app,'backup'));
 node('h3','Exportações com inventário · últimas 30',card);
 const body=table(card,['Data da cópia (Brasília)','Conclusão','Conteúdo / tamanho','OneDrive','UNAS','Validação','Detalhes']);
-for(const b of s.exports){const tr=node('tr','',body);[date(b.date),b.status==='completed'?'Exportação concluída':'Incompleta ou em andamento',b.bytes!=null?b.objectCount+' arquivos · '+(b.bytes/1e9).toFixed(2)+' GB':'Não conferido',b.oneDriveConfirmed?'Confirmado':'Não confirmado',b.nasConfirmed?'Confirmado':'Não confirmado',b.restoreTested?'Registrada':'Pendente'].forEach(v=>node('td',v,tr));if(b.status==='completed')button('Ver cópia',node('td','',tr),()=>detail(s.app,b.run));}
+for(const b of s.exports){const tr=node('tr','',body);[date(b.date),b.status==='completed'?'Exportação concluída':'Incompleta ou em andamento',b.bytes!=null?b.objectCount+' arquivos · '+(b.bytes/1e9).toFixed(2)+' GB':'Não conferido',b.oneDriveConfirmed?'Confirmado':'Não confirmado'].forEach(v=>node('td',v,tr));replicaCell(tr,b,s.app);node('td',b.restoreTested?'Registrada':'Pendente',tr);if(b.status==='completed')button('Ver cópia',node('td','',tr),()=>detail(s.app,b.run));}
 if(!s.exports.length)node('p',s.errors.some(e=>e.source==='exports')?'Não foi possível consultar exportações.':'Nenhuma exportação encontrada.',card);
 node('h3','Backups nativos · banco e índices',card);const native=table(card,['Data','Validade','Estado','Restauração']);
 for(const b of s.native){const tr=node('tr','',native);[date(b.snapshotTime),date(b.expireTime),b.state].forEach(v=>node('td',v,tr));if(b.state==='READY'&&Date.parse(b.expireTime)>Date.now())button('Restaurar em teste',node('td','',tr),()=>actionDialog(s.app,'restore-test',b));}
 }
 const h=node('section','',root);h.className='card';node('h2','Histórico das ações administrativas',h);const body=table(h,['Data','Sistema','Ação','Estado','Destino de teste']);
 for(const e of d.history){const tr=node('tr','',body);[date(e.createdAt),e.app,e.action==='backup'?'Backup manual':'Restauração isolada',({running:'Em andamento',completed:e.action==='restore-test'?'Restauração concluída; validação pendente':'Execução concluída',failed:'Falhou',unknown:'Não conferido',requested:'Solicitada'})[e.status]||e.status,e.databaseId||'—'].forEach(v=>node('td',v,tr));}
-const emails=node('section','',root);emails.className='card';node('h2','Notificações por e-mail',emails);node('p','Resultado enviado ao administrador. Aceito pelo Microsoft 365 não equivale à confirmação de entrega na caixa de entrada.',emails);const mailBody=table(emails,['Data','Sistema','Resultado da cópia','Envio','Destinatário']);for(const event of d.notifications||[]){const row=node('tr','',mailBody);[date(event.createdAt),event.app,event.backupStatus==='completed'?'Exportação concluída':'Rotina com falha',({sending:'Em envio',accepted:'Aceito pelo Microsoft 365',failed:'Falha no envio',unknown:'Não confirmado'})[event.emailStatus]||'Não confirmado',event.recipient].forEach(v=>node('td',v,row));}
+const emails=node('section','',root);emails.className='card';node('h2','Notificações por e-mail',emails);node('p','Resultado enviado ao administrador. Aceito pelo Microsoft 365 não equivale à confirmação de entrega na caixa de entrada.',emails);const mailBody=table(emails,['Data','Sistema','Resultado da cópia','Envio','Destinatário']);for(const event of d.notifications||[]){const row=node('tr','',mailBody);[date(event.createdAt),event.app,({completed:'Exportação concluída',failed:'Exportação falhou',replica_verified:'Cópia UNAS verificada',replica_failed:'Réplica UNAS falhou'})[event.backupStatus]||'Não conferido',({sending:'Em envio',accepted:'Aceito pelo Microsoft 365',failed:'Falha no envio',unknown:'Não confirmado'})[event.emailStatus]||'Não confirmado',event.recipient].forEach(v=>node('td',v,row));}
 el('backup-status').textContent='Consultado em '+date(d.generatedAt)+'. Atualize para acompanhar novas execuções.';
 }
 async function refresh(){if(!active||busy)return;busy=true;el('backup-refresh').disabled=true;el('backup-status').textContent='Consultando backups na nuvem…';try{render(await api('/api/admin/backups'));}catch(e){el('backup-status').textContent=e.message+' Os dados anteriores não foram atualizados.';}finally{busy=false;el('backup-refresh').disabled=false;}}
