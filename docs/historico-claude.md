@@ -2499,3 +2499,6 @@ Ferrante (3 CNPJs): no Relatório Executivo de Consolidação a conta `2.1.1.01.
 
 ### 06/11/2026 · v3.4.505 · SharePoint só sinaliza; painel abre no mês de fechamento
 Paulo (06/11 18:23): arquivo no SharePoint não prova que chegou tudo ("quem garante que o cliente não complementa depois? não tem como cravar"). Leitura do SharePoint deixa de gravar `recebida_*`: acumula `arquivos_recebidos` (10 mais recentes, `arquivos_total`, dedup por url), `arquivos_sharepoint_em`; situação `arquivos` ("📂 Arquivos no SharePoint · conferir", filtro na carteira); movimento `solicitacao_arquivos`; etapa Documentos do painel = atencao. Baixa só manual. Caso GMX (0124): solicitação 10/2026 enviada em 03/11 aparecia vermelha porque o painel abria em 11/2026; padrão agora é o mês anterior (UI e rota).
+
+### 06/11/2026 · v3.4.506 · Correção única da carteira (solicitações antes da 3.4.484)
+Parnassah (e-mail 03/11 14:47) seguia "Sem solicitação" na carteira: a autocorreção da 3.4.503 só age ao abrir a empresa e o botão do painel não foi clicado. `criarCorrecaoCarteira` roda no agendador interno até concluir uma vez (marca `crm_solicitacao_config/correcao_carteira`), gravando `crm_solicitacao_status` do envio mais recente para toda empresa sem resumo.

@@ -146,6 +146,12 @@ const { ambiente } = require('./test-crm-contabil-routes');
   assert.equal(indiv.statusCode, 200, JSON.stringify(indiv.body));
   assert.equal(indiv.body.situacao.situacao, 'aguardando', 'tela da empresa mostra a solicitação enviada');
   assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj).solicitacao_id, 'antiga', 'e grava o resumo para a carteira');
+  // v3.4.506: correção única no agendador, sem botão nem abrir empresa por empresa (caso Parnassah).
+  n.dados.delete('crm_solicitacao_status/' + cnpj);
+  const corr = require('../crm-solicitacao-routes').criarCorrecaoCarteira({ db: n.db, agora: () => '2026-11-06T19:00:00Z' });
+  assert.deepEqual(await corr.rodar(), { estado: 'ok', empresas: 1 });
+  assert.equal(n.dados.get('crm_solicitacao_status/' + cnpj).solicitacao_id, 'antiga', 'carteira corrigida pelo agendador');
+  assert.deepEqual(await corr.rodar(), { estado: 'concluida' }, 'roda uma vez só');
   n.dados.delete('empresas/' + cnpj + '/crm_solicitacoes/antiga');
   n.dados.delete('crm_solicitacao_status/' + cnpj);
 
