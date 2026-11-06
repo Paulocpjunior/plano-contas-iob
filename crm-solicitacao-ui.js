@@ -98,6 +98,32 @@
     });
   }
 
+  // ── Baixa automática pelo SharePoint (v3.4.500) ──────────────────────────
+  async function montarSharepoint(alvo, { executar, status }) {
+    if (!alvo) return;
+    const c = await api('/api/crm/solicitacoes/sharepoint').catch(() => null);
+    if (!c) { alvo.innerHTML = '<p class="cci-sol-falta">Não foi possível carregar a baixa automática pelo SharePoint. Atualize a tela.</p>'; return; }
+    const cfg = c.config, ult = cfg.ultimo_resultado;
+    const situacao = !cfg.web_url ? 'Ainda não configurada: as baixas são feitas à mão, em "✅ Cliente enviou os documentos".'
+      : !cfg.habilitado ? '⏸️ Desligada.' : '✅ Ligada na pasta <b>' + esc(cfg.nome || cfg.web_url) + '</b>.'
+        + (cfg.ultima_execucao ? ' Última leitura: ' + esc(new Date(cfg.ultima_execucao).toLocaleString('pt-BR')) + (ult ? ' · ' + esc(ult.detalhe || ult.estado) : '') : ' Primeira leitura na próxima rodada do agendador.');
+    alvo.innerHTML = '<article class="crm-card cci-not-card" data-sharepoint><div class="cci-not-topo"><span class="cci-not-icone" aria-hidden="true">📂</span><div class="cci-not-titulo"><h4>Baixa automática pelo SharePoint</h4>'
+      + '<small>Quando o cliente salva um arquivo na pasta da empresa (uma pasta por empresa, com o CNPJ no nome) depois do envio, a solicitação em aberto recebe baixa sozinha, com o nome dos arquivos. Quem acompanha pode desfazer se chegou incompleto.</small></div></div>'
+      + '<p>' + situacao + '</p>'
+      + (c.admin
+        ? '<label>Endereço da pasta Clientes (site Contábil), copiado da barra do navegador<input name="sp_url" value="' + esc(cfg.web_url) + '" placeholder="https://…sharepoint.com/sites/Contabil/Clientes"></label>'
+          + '<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="sp_ligado" style="width:18px;height:18px"' + (cfg.habilitado || !cfg.web_url ? ' checked' : '') + '> Dar baixa automática</label>'
+          + '<div class="cci-not-acoes"><button type="button" class="cci-not-primario" data-salvar-sp>💾 Salvar</button></div>'
+        : '<p class="cci-not-dica">Só o administrador altera esta configuração.</p>')
+      + '</article>';
+    const btn = alvo.querySelector('[data-salvar-sp]');
+    if (btn) btn.onclick = () => executar(async () => {
+      const r = await api('/api/crm/solicitacoes/sharepoint', { url: alvo.querySelector('[name=sp_url]').value.trim(), habilitado: alvo.querySelector('[name=sp_ligado]').checked }, 'PUT');
+      await montarSharepoint(alvo, { executar, status });
+      status(r.config.habilitado ? '📂 Baixa automática ligada em ' + (r.config.nome || 'Clientes') + '. Vale para arquivos salvos a partir de agora.' : '⏸️ Baixa automática desligada.');
+    });
+  }
+
   // ── Painel do gestor (v3.4.497) ───────────────────────────────────────────
   // Mesmo modelo do Painel do gestor do CFI: placar por colaborador + matriz
   // empresa × etapas do mês. As etapas são parametrizadas pelo admin.
@@ -209,30 +235,6 @@
     await carregar();
   };
 
-  // ── Cópias automáticas (v3.4.495/496) ────────────────────────────────────
-  // Um único cartão, mostrado no próprio Solicitar documentos, no editor de
-  // modelo e na lista de modelos: o admin acha o campo onde estiver.
-  async function montarCopias(alvo, { executar, status }) {
-    if (!alvo) return;
-    const c = await api('/api/crm/solicitacoes/copias').catch(() => null);
-    if (!c) { alvo.innerHTML = '<p class="cci-sol-falta">Não foi possível carregar as cópias automáticas. Atualize a tela.</p>'; return; }
-    const lista = c.copias.emails;
-    alvo.innerHTML = '<article class="crm-card cci-not-card" data-copias><div class="cci-not-topo"><span class="cci-not-icone" aria-hidden="true">📬</span><div class="cci-not-titulo"><h4>Cópias automáticas (líderes, gestores e admins)</h4>'
-      + '<small>Todo e-mail de solicitação ao cliente, manual ou mensal, vai com estas pessoas em <b>cópia oculta</b>. O colaborador não precisa incluir ninguém. WhatsApp não tem cópia.</small></div></div>'
-      + (c.admin
-        ? '<label>E-mails que recebem cópia (separe com ;)<textarea name="copias_emails" rows="2" placeholder="gestor@spassessoriacontabil.com.br; lider@spassessoriacontabil.com.br">' + esc(lista.join('; ')) + '</textarea></label>'
-          + '<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="copias_lider" style="width:18px;height:18px"' + (c.copias.lider_da_equipe ? ' checked' : '') + '> Incluir também o líder da equipe de quem envia (Topologia do CRM)</label>'
-          + '<div class="cci-not-acoes"><button type="button" class="cci-not-primario" data-salvar-copias>💾 Salvar cópias</button></div>'
-        : '<p>' + (lista.length ? 'Recebem cópia: <b>' + esc(lista.join(', ')) + '</b>' : 'Nenhum e-mail definido ainda.') + (c.copias.lider_da_equipe ? ' + líder da equipe de quem envia.' : '') + '</p><p class="cci-not-dica">Só o administrador altera esta lista.</p>')
-      + '</article>';
-    const btn = alvo.querySelector('[data-salvar-copias]');
-    if (btn) btn.onclick = () => executar(async () => {
-      const r = await api('/api/crm/solicitacoes/copias', { emails: alvo.querySelector('[name=copias_emails]').value, lider_da_equipe: alvo.querySelector('[name=copias_lider]').checked }, 'PUT');
-      await montarCopias(alvo, { executar, status });
-      status('📬 Cópias salvas: ' + (r.copias.emails.length ? r.copias.emails.join(', ') : 'nenhum e-mail') + (r.copias.lider_da_equipe ? ' + líder da equipe.' : '.') + ' Os próximos e-mails já saem com elas.');
-    });
-  }
-
   // ── Colaborador: solicitar documentos da empresa ──────────────────────────
   window.abrirSolicitacaoDocumentos = async function ({ cnpj, razao } = {}) {
     const id = String(cnpj || '').replace(/\D/g, '');
@@ -311,7 +313,9 @@
         + (d.historico.length
         ? '<ul class="cci-sol-hist">' + d.historico.map(h => '<li><b>' + esc(NOMES[h.estado] || h.estado) + '</b> · ' + esc(h.modelo_nome) + (h.competencia ? ' · ' + esc(h.competencia.slice(5) + '/' + h.competencia.slice(0, 4)) : '')
           + ' · para ' + esc(h.destino_exibicao) + ' · ' + esc(new Date(h.quando).toLocaleString('pt-BR')) + ' · ' + esc(h.autor_email || '') + ((h.copias || []).length ? ' · 📬 cópia para ' + esc(h.copias.join(', ')) : '') + (h.detalhe && h.estado === 'falhou' ? '<br><small>' + esc(h.detalhe) + '</small>' : '')
-          + (h.recebida_em ? '<br><small>✅ Documentos recebidos em ' + esc(new Date(h.recebida_em).toLocaleString('pt-BR')) + (h.recebida_por_email ? ' · ' + esc(h.recebida_por_email) : '') + '</small>'
+          + (h.recebida_em ? '<br><small>' + (h.recebida_via === 'sharepoint' ? '📂 Cliente salvou no SharePoint · baixa automática em ' : '✅ Documentos recebidos em ') + esc(new Date(h.recebida_em).toLocaleString('pt-BR')) + (h.recebida_por_email ? ' · ' + esc(h.recebida_por_email) : '')
+              + ((h.arquivos_recebidos || []).length ? '<br>' + h.arquivos_recebidos.map(a => /^https:\/\//.test(a.url || '') ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.nome) + '</a>' : esc(a.nome)).join(' · ') + (h.arquivos_total > h.arquivos_recebidos.length ? ' (mostrando ' + h.arquivos_recebidos.length + ' de ' + h.arquivos_total + ')' : '') : '') + '</small>'
+              + (info.pode_enviar ? ' <button type="button" data-desfazer="' + esc(h.id) + '">↩️ Desfazer baixa</button>' : '')
             : (info.pode_enviar && h.estado !== 'falhou' && h.estado !== 'processando' ? ' <button type="button" data-recebida="' + esc(h.id) + '">✅ Cliente enviou os documentos</button>' : ''))
           + '</li>').join('') + '</ul>'
         : '<p class="cci-not-vazio">Nenhuma solicitação registrada para esta empresa.</p>');
@@ -328,6 +332,14 @@
           await api(base + '/recorrencias/' + encodeURIComponent(b.dataset.recId) + '/estado', { acao: b.dataset.recAcao });
           await historico();
           status({ pausar: '⏸️ Envio automático pausado.', retomar: '▶️ Envio automático retomado.', excluir: '🗑️ Envio automático excluído.' }[b.dataset.recAcao]);
+        });
+      });
+      q('[data-hist]').querySelectorAll('[data-desfazer]').forEach(b => {
+        b.onclick = () => executar(async () => {
+          if (!window.confirm('Desfazer a baixa? A solicitação volta a aguardar o cliente.')) return;
+          await api(base + '/' + encodeURIComponent(b.dataset.desfazer) + '/recebida/desfazer', {});
+          await historico();
+          status('↩️ Baixa desfeita. A solicitação voltou a aguardar o cliente.');
         });
       });
       q('[data-hist]').querySelectorAll('[data-recebida]').forEach(b => {
@@ -407,7 +419,7 @@
         + '<h3><span class="cci-sol-num">3</span>Canal</h3>'
         + '<fieldset class="cci-sol-canal"><legend>Enviar por</legend><label><input type="radio" name="canal" value="email" checked><span>✉️ E-mail</span></label><label><input type="radio" name="canal" value="whatsapp"><span>💬 WhatsApp</span></label><div data-destino></div></fieldset>'
         + '<div class="cci-not-acoes"><button class="cci-not-primario">👁️ Ver prévia</button></div></form>'
-        + '<div data-copias-sol></div>'
+        + '<div data-copias-sol></div><div data-sharepoint-sol></div>'
         + '<section data-previa></section><h3>Solicitações desta empresa</h3><div data-hist></div>';
       preencherModelos();
       q('[name=modelo]').onchange = renderDocs;
@@ -423,6 +435,7 @@
       renderDocs();
       renderDestino();
       await montarCopias(q('[data-copias-sol]'), { executar, status });
+      await montarSharepoint(q('[data-sharepoint-sol]'), { executar, status });
       await historico();
     });
   };
@@ -468,12 +481,13 @@
     async function listar() {
       dados = await api('/api/crm/solicitacoes/modelos');
       q('[data-corpo]').innerHTML = '<div class="cci-not-guia"><strong>Onde o colaborador usa</strong><ol><li>CRM → Carteira → abra a empresa.</li><li>Botão <b>📨 Solicitar documentos</b>.</li><li>Escolhe o modelo, marca os documentos e envia por <b>e-mail</b> ou <b>WhatsApp</b>.</li></ol></div>'
-        + '<div data-copias-lista></div>'
+        + '<div data-copias-lista></div><div data-sharepoint-lista></div>'
         + '<div class="cci-not-secao"><h3>Modelos</h3>' + (dados.pode_editar && dados.proximo_id ? '<button type="button" class="cci-not-primario" data-novo>＋ Novo modelo</button>' : '') + '</div>'
         + dados.modelos.map(cartao).join('');
       q('[data-novo]')?.addEventListener('click', () => editar({ id: dados.proximo_id, nome: '', assunto: '{{empresa}} — documentos de {{competencia}}', texto: 'Olá! Tudo bem?\n\nPrecisamos dos documentos abaixo de {{empresa}}, referentes a {{competencia}}:\n\n{{documentos}}\n\nPedimos o envio até {{prazo}}.\n{{observacao}}\n\n{{responsavel}}\nSP Assessoria Contábil', documentos: [], ativo: true, revisao: 0 }, true));
       q('[data-corpo]').querySelectorAll('[data-editar]').forEach(b => { b.onclick = () => editar(dados.modelos.find(m => m.id === b.dataset.editar), false); });
       await montarCopias(q('[data-copias-lista]'), { executar, status });
+      await montarSharepoint(q('[data-sharepoint-lista]'), { executar, status });
     }
     await executar(async () => {
       await listar();

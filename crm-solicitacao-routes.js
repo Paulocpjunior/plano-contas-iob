@@ -86,7 +86,7 @@ async function lerColaborador(db, uid) {
   return { existe: d.exists, dados: u, nome: String(u.last_name || u.name || u.nome || '').trim(), email: String(u.last_email || u.email || '').trim().toLowerCase() };
 }
 
-function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = process.env, email = {} }) {
+function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = process.env, email = {}, sharepoint = null }) {
   const GraphEmail = email.GraphEmail || require('./graph-email-provider');
   const despacho = criarDespacho({ env, email, agora });
   const base = '/api/crm/empresas/:cnpj/solicitacoes';
@@ -156,7 +156,7 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
       hoje: hoje(),
       historico: snap.docs.map(d => {
         const r = d.data();
-        return { id: d.id, quando: r.quando, canal: r.canal, estado: r.estado, destino_exibicao: r.destino_exibicao, modelo_nome: r.modelo_nome, competencia: r.competencia, prazo: r.prazo, autor_email: r.autor_email, detalhe: r.detalhe || '', recebida_em: r.recebida_em || null, recebida_por_email: r.recebida_por_email || null, copias: Array.isArray(r.copias) ? r.copias : [] };
+        return { id: d.id, quando: r.quando, canal: r.canal, estado: r.estado, destino_exibicao: r.destino_exibicao, modelo_nome: r.modelo_nome, competencia: r.competencia, prazo: r.prazo, autor_email: r.autor_email, detalhe: r.detalhe || '', recebida_em: r.recebida_em || null, recebida_por_email: r.recebida_por_email || null, recebida_via: r.recebida_via || null, arquivos_recebidos: Array.isArray(r.arquivos_recebidos) ? r.arquivos_recebidos : [], arquivos_total: r.arquivos_total || 0, copias: Array.isArray(r.copias) ? r.copias : [] };
       })
     });
   }));
@@ -276,6 +276,58 @@ function registrar(app, { db, wrap, usuario, contexto, erro, agora, env = proces
   }));
 
   // Quem acompanha a empresa marca que o cliente mandou os documentos.
+  // Baixa automática pelo SharePoint (v3.4.500): o admin cola o endereço da
+  // pasta Clientes do site Contábil; o agendador lê as novidades da biblioteca.
+  const SP = require('./crm-solicitacao-sharepoint');
+  const spRef = db.collection(SP.CONFIG_DOC[0]).doc(SP.CONFIG_DOC[1]);
+  const spPublico = c => ({ habilitado: c.habilitado === true, web_url: c.web_url || '', nome: c.nome || '', raiz_caminho: c.raiz_caminho || '', iniciado: !!c.delta_link, ultima_execucao: c.ultima_execucao || null, ultimo_resultado: c.ultimo_resultado || null, atualizado_em: c.atualizado_em || null });
+  app.get('/api/crm/solicitacoes/sharepoint', wrap(async (req, res) => {
+    const user = await usuario(req);
+    const d = await spRef.get();
+    res.json({ ok: true, admin: user.is_admin === true, config: spPublico(d.exists ? d.data() : {}) });
+  }));
+  app.put('/api/crm/solicitacoes/sharepoint', wrap(async (req, res) => {
+    const user = await usuario(req);
+    if (!user.is_admin) throw erro('Só o administrador configura a baixa automática pelo SharePoint.', 403);
+    const b = req.body || {};
+    const antes = await spRef.get(), atual = antes.exists ? antes.data() : {};
+    let dados;
+    if (b.url && String(b.url).trim() !== (atual.web_url || '')) {
+      const sp = sharepoint || { pasta: require('./ficha-aplicacoes-sharepoint').criar(), graph: SP.criarGraph() };
+      const pasta = await sp.pasta.resolverPasta(b.url);
+      const it = await sp.graph.get(SP.GRAPH + '/drives/' + encodeURIComponent(pasta.drive_id) + '/items/' + encodeURIComponent(pasta.item_id) + '?$select=name,parentReference');
+      const raiz = it.parentReference && it.parentReference.path ? it.parentReference.path + '/' + it.name : '/drive/root:';
+      dados = { drive_id: pasta.drive_id, item_id: pasta.item_id, web_url: pasta.web_url, nome: pasta.nome, raiz_caminho: raiz, delta_link: '' };
+    } else if (!atual.drive_id) throw erro('Cole o endereço da pasta Clientes do site Contábil no SharePoint.', 400);
+    const quando = agora();
+    const novo = { ...atual, ...(dados || {}), habilitado: b.habilitado !== false, atualizado_em: quando, atualizado_por: user.uid };
+    await spRef.set(novo);
+    await spRef.collection('historico').doc().set({ antes: spPublico(atual), depois: spPublico(novo), quando, por_uid: user.uid });
+    res.json({ ok: true, config: spPublico(novo) });
+  }));
+
+  // Desfaz a baixa (manual ou do SharePoint) quando o que chegou está incompleto.
+  app.post(base + '/:id/recebida/desfazer', wrap(async (req, res) => {
+    if (!/^[a-zA-Z0-9_-]{16,80}$/.test(String(req.params.id || ''))) throw erro('Solicitação inválida. Atualize o histórico.', 404);
+    const quem = await colaborador((await usuario(req)).uid);
+    const resultado = await db.runTransaction(async tx => {
+      const c = await contexto(req, tx);
+      if (!podeEnviar(c.user)) throw erro('Seu nível no CCI não permite atualizar solicitações (ação Emitir). Peça ao administrador para liberar em Admin → Usuários.', 403);
+      const ref = c.controlesRef.collection(REGISTROS).doc(req.params.id);
+      const statusRef = db.collection(STATUS).doc(req.params.cnpj);
+      const [d, st] = await Promise.all([tx.get(ref), tx.get(statusRef)]);
+      if (!d.exists) throw erro('Solicitação não encontrada nesta empresa. Atualize o histórico.', 404);
+      const r = d.data();
+      if (!r.recebida_em) return { ...r, id: ref.id };
+      const marca = { recebida_em: null, recebida_por: null, recebida_por_email: null, recebida_via: null, recebida_desfeita_em: agora(), recebida_desfeita_por: c.user.uid };
+      tx.set(ref, marca, { merge: true });
+      Mov.gravar(db, tx, req.params.cnpj, Mov.movimento({ tipo: 'solicitacao_reaberta', titulo: r.modelo_nome || 'Solicitação de documentos', detalhe: 'Volta a aguardar o cliente' + (r.recebida_via === 'sharepoint' ? ' (baixa do SharePoint desfeita)' : ''), user: { uid: c.user.uid, nome: quem.nome, email: quem.email }, quando: marca.recebida_desfeita_em }));
+      if (st.exists && st.data().solicitacao_id === ref.id) tx.set(statusRef, S.resumoSolicitacao(ref.id, { ...r, ...marca }));
+      return { ...r, ...marca, id: ref.id };
+    });
+    res.json({ ok: true, solicitacao: resultado });
+  }));
+
   app.post(base + '/:id/recebida', wrap(async (req, res) => {
     if (!/^[a-zA-Z0-9_-]{16,80}$/.test(String(req.params.id || ''))) throw erro('Solicitação inválida. Atualize o histórico.', 404);
     const quem = await colaborador((await usuario(req)).uid);
