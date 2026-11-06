@@ -113,6 +113,7 @@
       + (c.admin
         ? '<label>Endereço da pasta Clientes (site Contábil), copiado da barra do navegador<input name="sp_url" value="' + esc(cfg.web_url) + '" placeholder="https://…sharepoint.com/sites/Contabil/Clientes"></label>'
           + '<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="sp_ligado" style="width:18px;height:18px"' + (cfg.habilitado || !cfg.web_url ? ' checked' : '') + '> Dar baixa automática</label>'
+          + '<p class="cci-not-dica">Vale o endereço da pasta aberta pelo site ou pelo OneDrive (Compartilhado). O app do CCI precisa de permissão de leitura (Sites.Selected) no site onde a pasta Clientes está; sem ela, o CCI diz qual site liberar.</p>'
           + '<div class="cci-not-acoes"><button type="button" class="cci-not-primario" data-salvar-sp>💾 Salvar</button></div>'
         : '<p class="cci-not-dica">Só o administrador altera esta configuração.</p>')
       + '</article>';
